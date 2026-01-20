@@ -16,8 +16,10 @@
 #include "openvino/op/abs.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -479,26 +481,26 @@ TEST(AbsSinkingSymbolicOptimizations, BroadcastPatternWithSkipInvalidation) {
     // Create model: Broadcast(const, Abs(Concat(gather(ShapeOf(param), 0), -1, -1)))
     PartialShape shape = PartialShape::dynamic(4);
 
-    auto data = std::make_shared<opset7::Parameter>(element::f32, shape);
-    auto shape_op = std::make_shared<opset7::ShapeOf>(data);
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
+    auto shape_op = std::make_shared<ov::op::v3::ShapeOf>(data);
 
     // Gather first dimension
-    auto indices = opset7::Constant::create(element::i64, {1}, {0});
-    auto axis = opset7::Constant::create(element::i64, {}, {0});
-    auto gather = std::make_shared<opset8::Gather>(shape_op, indices, axis);
+    auto indices = ov::op::v0::Constant::create(element::i64, {1}, {0});
+    auto axis = ov::op::v0::Constant::create(element::i64, {}, {0});
+    auto gather = std::make_shared<ov::op::v8::Gather>(shape_op, indices, axis);
 
     // Create Concat with negative constants (simulating dynamic dimensions)
-    auto minus_one_1 = opset7::Constant::create(element::i64, {1}, {-1});
-    auto minus_one_2 = opset7::Constant::create(element::i64, {1}, {-1});
-    auto concat = std::make_shared<opset7::Concat>(OutputVector{gather, minus_one_1, minus_one_2}, 0);
+    auto minus_one_1 = ov::op::v0::Constant::create(element::i64, {1}, {-1});
+    auto minus_one_2 = ov::op::v0::Constant::create(element::i64, {1}, {-1});
+    auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{gather, minus_one_1, minus_one_2}, 0);
 
     // Abs wrapping the concat
-    auto abs = std::make_shared<opset7::Abs>(concat);
+    auto abs = std::make_shared<ov::op::v0::Abs>(concat);
 
     // Broadcast uses abs output as target shape
     // This is the pattern that triggers bounds evaluation and fails with stale -1 values
-    auto broadcast_input = opset7::Constant::create(element::f32, {1}, {1.0f});
-    auto broadcast = std::make_shared<op::v3::Broadcast>(broadcast_input, abs);
+    auto broadcast_input = ov::op::v0::Constant::create(element::f32, {1}, {1.0f});
+    auto broadcast = std::make_shared<ov::op::v3::Broadcast>(broadcast_input, abs);
 
     auto model = std::make_shared<Model>(OutputVector{broadcast}, ParameterVector{data});
 
