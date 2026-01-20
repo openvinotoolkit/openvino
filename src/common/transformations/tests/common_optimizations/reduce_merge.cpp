@@ -604,6 +604,7 @@ INSTANTIATE_TEST_SUITE_P(
         ReduceMergeKeepDimsFalseDifferentAxesParams{Shape{2, 3, 4, 5}, {1}, {1, 2}, {1, 2, 3}, "4D_middle_then_tail"},
         // Non-sorted reduce1 axes (tests normalization/ordering)
         ReduceMergeKeepDimsFalseDifferentAxesParams{Shape{2, 3, 4, 5}, {2, 0}, {1}, {0, 2, 3}, "unsorted_reduce1_axes"},
+        ReduceMergeKeepDimsFalseDifferentAxesParams{Shape{2, 3, 4, 5}, {1}, {1, 0}, {0, 1, 2}, "unsorted_reduce2_axes"},
         // Reduce many axes first, then reduce the last remaining axis
         ReduceMergeKeepDimsFalseDifferentAxesParams{Shape{1, 2, 3, 4}, {0, 1, 2}, {0}, {0, 1, 2, 3}, "reduce_all"}),
     [](const ::testing::TestParamInfo<ReduceMergeKeepDimsFalseDifferentAxesParams>& info) {

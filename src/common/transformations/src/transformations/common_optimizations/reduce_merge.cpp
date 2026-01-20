@@ -11,6 +11,7 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/shape_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
@@ -54,24 +55,20 @@ namespace {
  * @note The result is returned as a sorted unique set.
  */
 std::set<size_t> remap_axes(const ov::AxisSet& axes_bottom, const ov::AxisSet& axes_top) {
-    std::set<size_t> remapped_axes{};
-    for (size_t bottom_axis : axes_bottom) {
-        size_t remaining_dim = bottom_axis;
-        size_t original_axis = 0;
+    // Compute the highest index that needs to be mapped to set the required rank
+    // Create a vector of original axis indices: [0, 1, ..., required_rank-1]
+    const size_t max_bottom_axis = *axes_bottom.rbegin();
+    const size_t required_rank = max_bottom_axis + axes_top.size() + 1;
+    std::vector<size_t> original_axes(required_rank);
+    std::iota(original_axes.begin(), original_axes.end(), 0);
 
-        auto top_axes_iter = axes_top.begin();
-        while (original_axis <= bottom_axis + axes_top.size()) {
-            if (top_axes_iter != axes_top.end() && *top_axes_iter == original_axis) {
-                ++top_axes_iter;
-            } else {
-                if (remaining_dim == 0) {
-                    remapped_axes.insert(original_axis);
-                    break;
-                }
-                --remaining_dim;
-            }
-            ++original_axis;
-        }
+    // Remove axes_top from original_axes
+    auto reduced_axes = ov::util::reduce(original_axes, axes_top);
+
+    // Map each axes_bottom index in the reduced axes back to the original indices
+    std::set<size_t> remapped_axes;
+    for (const size_t bottom_axis : axes_bottom) {
+        remapped_axes.insert(reduced_axes[bottom_axis]);
     }
     return remapped_axes;
 }
