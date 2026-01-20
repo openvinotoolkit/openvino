@@ -211,9 +211,6 @@ protected:
 
     ConfigOptionBase* get_option_ptr(const std::string& name) const {
         auto it = m_options_map.find(name);
-        if (name == "CACHE_MODEL_PATH" && it == m_options_map.end()) {
-            std::cout << "debug" << std::endl;
-        }
         OPENVINO_ASSERT(it != m_options_map.end(), "Option not found: ", name);
         OPENVINO_ASSERT(it->second != nullptr, "Option is invalid: ", name);
 

@@ -63,8 +63,8 @@ void compile_graph::run(program& p) {
             });
         }
     }
-    for (auto& iter : tasks)
-        task_executor->run_and_wait({iter});
+
+    task_executor->run_and_wait(tasks);
     tasks.clear();
 
     if (exception) {

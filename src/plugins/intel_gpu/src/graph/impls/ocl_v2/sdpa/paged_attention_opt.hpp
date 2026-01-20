@@ -8,17 +8,17 @@
 #include <memory>
 #include <utility>
 
-#include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "../utils/kernel_generator.hpp"
 #include "paged_attention_inst.h"
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
-#include "../utils/kernel_generator.hpp"
 
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 namespace ov::intel_gpu::ocl {
+
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
+
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     PagedAttentionStage stage;
     size_t num_of_partitions;
