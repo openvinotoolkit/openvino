@@ -198,7 +198,6 @@ _levelZeroOutputTensors(output_tensors)*/
                                                      tensor->get_shape(),
                                                      get_strides(tensor->get_strides(), elementSize));
             } else {
-                std::cout << __LINE__ << std::endl;
                 irGraph->set_argument_value_with_strides(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
@@ -304,45 +303,42 @@ void DynamicPipeline::push() {
         graphArguments._inputMemRefs.clear();
         graphArguments._outputMemRefs.clear();
 
-        // Need change to use arguments in pipeline
-        std::vector<IRGraph::MemRefType> inputPros = graphArguments._inputs;
-        std::vector<IRGraph::MemRefType> outputPros = graphArguments._outputs;
+        //     // Need change to use arguments in pipeline
+        //     std::vector<IRGraph::MemRefType> inputPros = graphArguments._inputs;
+        //     std::vector<IRGraph::MemRefType> outputPros = graphArguments._outputs;
 
-        // TENTATIVE CODE TO ALLOCATE a memref handle
-        for (size_t i = 0; i < inputPros.size(); ++i) {
-            inputPros[i].UpdateMemRefHandleStatus();
-        }
+        //     // TENTATIVE CODE TO ALLOCATE a memref handle
+        //     for (size_t i = 0; i < inputPros.size(); ++i) {
+        //         inputPros[i].UpdateMemRefHandleStatus();
+        //     }
 
-        for (size_t i = 0; i < outputPros.size(); ++i) {
-            outputPros[i].UpdateMemRefHandleStatus();
-        }
+        //     for (size_t i = 0; i < outputPros.size(); ++i) {
+        //         outputPros[i].UpdateMemRefHandleStatus();
+        //     }
 
-        // TODO: Skip predict output shape to avoid segment fault
-        dynamic_cast<IRGraph*>(_graph.get())->predict_output_shape(inputPros, outputPros);
+        //     // TODO: Skip predict output shape to avoid segment fault
+        //     dynamic_cast<IRGraph*>(_graph.get())->predict_output_shape(inputPros, outputPros);
 
-        bool shapeChanged = false;
-        for (size_t i = 0; i < outputPros.size(); i++) {
-            for (int64_t j = 0; j < outputPros[i].dimsCount; j++) {
-                if (graphArguments._outputs[i].sizes[j] != outputPros[i].sizes[j]) {
-                    _logger.info(
-                        "Output tensor %d shape and predicted shape mimsmatch at dim %zu, changed from %zu to %zu",
-                        i,
-                        j,
-                        graphArguments._outputs[i].sizes[j],
-                        outputPros[i].sizes[j]);
-                    shapeChanged = true;
-                    graphArguments._outputs[i].sizes[j] = outputPros[i].sizes[j];
-                }
-            }
-            if (shapeChanged) {
-                graphArguments._outputs[i].updateStride();
-            }
-        }
-        if (!shapeChanged) {
-            _logger.debug("No output shape changed detected");
-        } else {
-            _logger.warning("Use predicted shape to replace the real tensor shape and update its strides");
-	}
+        //     bool shapeChanged = false;
+        //     for (size_t i = 0; i < outputPros.size(); i++) {
+        //         for (int64_t j = 0; j < outputPros[i].dimsCount; j++) {
+        //             if (graphArguments._outputs[i].sizes[j] != outputPros[i].sizes[j]) {
+        //                 _logger.info(
+        //                     "Output tensor %d shape and predicted shape mimsmatch at dim %zu, changed from %zu to
+        //                     %zu", i, j, graphArguments._outputs[i].sizes[j], outputPros[i].sizes[j]);
+        //                 shapeChanged = true;
+        //                 graphArguments._outputs[i].sizes[j] = outputPros[i].sizes[j];
+        //             }
+        //         }
+        //         if (shapeChanged) {
+        //             graphArguments._outputs[i].updateStride();
+        //         }
+        //     }
+        //     if (!shapeChanged) {
+        //         _logger.debug("No output shape changed detected");
+        //     } else {
+        //         _logger.warning("Use predicted shape to replace the real tensor shape and update its strides");
+        // }
 
         dynamic_cast<IRGraph*>(_graph.get())
             ->execute(_init_structs,
