@@ -113,7 +113,7 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& 
     return holder;
 }
 
-std::shared_ptr<ov::MappedMemory> load_mmap_object(FileHandle handle) {
+std::shared_ptr<ov::MappedMemory> load_mmap_object_from_handle(FileHandle handle) {
     // On Linux, FileHandle is int (file descriptor)
     auto holder = std::make_shared<MapHolder>();
     holder->set_from_fd(static_cast<int>(handle));

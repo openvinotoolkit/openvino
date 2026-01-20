@@ -17,7 +17,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "openvino/runtime/common.hpp"
+#include "openvino/runtime/file_handle.hpp"
 
 namespace ov {
 namespace npuw {
