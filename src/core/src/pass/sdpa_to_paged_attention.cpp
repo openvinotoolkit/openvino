@@ -12,6 +12,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/sdpa_to_paged_attention/position_ids_replacer.hpp"
@@ -136,8 +137,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     }
 
     ParameterVector kv_parameters;
-    ParameterVector parameters_to_remove;
-    ResultVector results_to_remove;  // # used, but cannot really track all Results in stateless model
     ParameterVector block_indices_inputs_for_each_layer;
     ParameterVector rotated_block_indices_inputs_for_each_layer;
     ParameterVector rotation_deltas_inputs_for_each_layer;
@@ -170,7 +169,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.set_per_pass_validation(false);
     manager.register_pass<StateManagementPattern>(kv_parameters,
                                                   model_wide_params,
-                                                  parameters_to_remove,
                                                   layer_index,
                                                   max_context_len->output(0),
                                                   block_indices_inputs_for_each_layer,
@@ -208,12 +206,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         }
     }
 
-    {
-        for (auto& result : results_to_remove) {
-            model->remove_result(result);
-        }
-    }
-
     for (auto& param_name : {"beam_idx", "attention_mask"}) {
         if (auto param = get_parameter(model, param_name)) {
             model->remove_parameter(param);
@@ -233,10 +225,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                 consumers.str());
             }
         }
-    }
-
-    for (auto& parameter : parameters_to_remove) {
-        model->remove_parameter(parameter);
     }
 
     if (m_use_per_layer_block_indices_inputs) {
