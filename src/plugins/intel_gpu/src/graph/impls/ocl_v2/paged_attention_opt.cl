@@ -322,15 +322,17 @@ KERNEL(pa_sdpa_opt)(
                 qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;
             }
 #endif
+
 #if HAS_QQ_BIAS && MULTI_TOKENS_PROCESSING
             // token_idx < seq_len, speculative tree mask
-            if (token_idx >= past_len && token_idx < seq_len) {
-                uint spec_offset = token_idx - past_len;
-                uint qq_bias_offset = subsequence_idx * spec_num * spec_num + seq_idx * spec_num + spec_offset;
-                if (seq_idx == 5 && head_num_idx == 0)
-                    printf("sub group id %d, simd id %d, I'm handling kv relation with token %d, relation is %d, past_len is %d, seq_len is %d\n", sgid, sglid, token_idx, qq_bias[qq_bias_offset], past_len, seq_len);
-                if (qq_bias[qq_bias_offset] == 0) {
-                    qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;
+            if (spec_num > 0 && token_idx >= past_len && token_idx < seq_len) {
+                const uint spec_offset = token_idx - past_len;
+                if (spec_offset < spec_num) {
+                    const uint qq_bias_base = subsequence_idx * spec_num * spec_num + seq_idx * spec_num;
+                    const uint qq_bias_offset = qq_bias_base + spec_offset;
+                    if (qq_bias[qq_bias_offset] == 0) {
+                        qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;
+                    }
                 }
             }
 #endif

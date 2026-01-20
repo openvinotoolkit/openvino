@@ -744,7 +744,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             pa_arguments.insert(pa_arguments.begin() + 27,
                                 v0::Constant::create(element::i32, Shape{0}, {}));
         }
-        OPENVINO_ASSERT(pa_arguments.size() == 27);
+        OPENVINO_ASSERT(pa_arguments.size() == 28);
 
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
         paged_attention->get_rt_info()[NUM_K_HEADS] = num_k_heads;

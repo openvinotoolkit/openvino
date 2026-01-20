@@ -25,8 +25,8 @@
 //   { 0, seq0_ops, seq0_ops + seq1_ops, ... }
 //
 // NOTE: This is a simple reference implementation for uncompressed KV cache layout:
-// - key_cache:   [num_blocks, KV_HEADS_NUM, K_HEAD_SIZE, PAGED_ATTENTION_BLOCK_SIZE]
-// - value_cache: [num_blocks, KV_HEADS_NUM, PAGED_ATTENTION_BLOCK_SIZE, V_HEAD_SIZE]
+// - key_cache:   [num_blocks, KV_HEADS_NUM, ADJUSTED_K_HEAD_SIZE, ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE]
+// - value_cache: [num_blocks, KV_HEADS_NUM, ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE, ADJUSTED_V_HEAD_SIZE]
 //
 // The dispatch is expected to be:
 //   gws = { sequences_num, KV_HEADS_NUM, SUBGROUP_SIZE }
@@ -44,10 +44,6 @@ KERNEL(pa_kv_cache_reorder)(
     __global OUTPUT_TYPE* key_cache,
     __global OUTPUT1_TYPE* value_cache
 ) {
-#if IS_KV_COMPRESSED
-    // TBD
-    return;
-#else
     const uint seq_idx = (uint)get_global_id(0);
     const uint head_idx = (uint)get_global_id(1);
     const uint sglid = (uint)get_local_id(2);
@@ -85,8 +81,6 @@ KERNEL(pa_kv_cache_reorder)(
             continue;
         src_slot = local_src - src_block_in_seq * PAGED_ATTENTION_BLOCK_SIZE;
         src_block = (uint)block_indices[block_indices_base + src_block_in_seq];
-        //FUNC_CALL(calc_block_and_slot)(src_id, subseq_begin, block_indices, block_indices_base, &src_block, &src_slot);
-        //FUNC_CALL(calc_block_and_slot)(dst_id, subseq_begin, block_indices, block_indices_base, &dst_block, &dst_slot);
 
         const uint local_dst = dst_id - subseq_begin;
         const uint dst_block_in_seq = local_dst / PAGED_ATTENTION_BLOCK_SIZE;
@@ -95,30 +89,70 @@ KERNEL(pa_kv_cache_reorder)(
         dst_slot = local_dst - dst_block_in_seq * PAGED_ATTENTION_BLOCK_SIZE;
         dst_block = (uint)block_indices[block_indices_base + dst_block_in_seq];
         // KEY_CACHE: [block, head, k_hidden, token]
-        const uint key_src_base = src_block * KV_HEADS_NUM * K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE +
-                                  head_idx * K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
-        const uint key_dst_base = dst_block * KV_HEADS_NUM * K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE +
-                                  head_idx * K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
-
-        for (uint k = sglid; k < (uint)K_HEAD_SIZE; k += (uint)SUBGROUP_SIZE) {
-            const uint src_off = key_src_base + k * PAGED_ATTENTION_BLOCK_SIZE + src_slot;
-            const uint dst_off = key_dst_base + k * PAGED_ATTENTION_BLOCK_SIZE + dst_slot;
-            key_cache[dst_off] = key_cache[src_off];
-            //if (head_idx == 0)
-                //printf("sglid is %d, in offset %d, out offset %d\n", sglid, src_off, dst_off);
-        }
-
+        #ifdef IS_KEY_BY_CHANNEL
+        const uint key_src_base = OUTPUT_OFFSET + src_block * KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE +
+                                  head_idx * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+        const uint key_dst_base = OUTPUT_OFFSET + dst_block * KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE +
+                                  head_idx * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+        #else
+        const uint key_src_base = OUTPUT_OFFSET + src_block * KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE +
+                                  head_idx * ADJUSTED_K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+        const uint key_dst_base = OUTPUT_OFFSET + dst_block * KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE +
+                                  head_idx * ADJUSTED_K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+        #endif
         // VALUE_CACHE: [block, head, token, v_hidden]
-        const uint val_src_base = src_block * KV_HEADS_NUM * PAGED_ATTENTION_BLOCK_SIZE * V_HEAD_SIZE +
-                                  head_idx * PAGED_ATTENTION_BLOCK_SIZE * V_HEAD_SIZE;
-        const uint val_dst_base = dst_block * KV_HEADS_NUM * PAGED_ATTENTION_BLOCK_SIZE * V_HEAD_SIZE +
-                                  head_idx * PAGED_ATTENTION_BLOCK_SIZE * V_HEAD_SIZE;
+        const uint val_src_base = OUTPUT1_OFFSET + src_block * KV_HEADS_NUM * PAGED_ATTENTION_BLOCK_SIZE * ADJUSTED_V_HEAD_SIZE +
+                                  head_idx * PAGED_ATTENTION_BLOCK_SIZE * ADJUSTED_V_HEAD_SIZE;
+        const uint val_dst_base = OUTPUT1_OFFSET + dst_block * KV_HEADS_NUM * PAGED_ATTENTION_BLOCK_SIZE * ADJUSTED_V_HEAD_SIZE +
+                                  head_idx * PAGED_ATTENTION_BLOCK_SIZE * ADJUSTED_V_HEAD_SIZE;
+        #if !IS_KV_COMPRESSED
+            for (uint k = sglid; k < (uint)K_HEAD_SIZE; k += (uint)SUBGROUP_SIZE) {
+                const uint src_off = key_src_base + k * PAGED_ATTENTION_BLOCK_SIZE + src_slot;
+                const uint dst_off = key_dst_base + k * PAGED_ATTENTION_BLOCK_SIZE + dst_slot;
+                key_cache[dst_off] = key_cache[src_off];
+            }
 
-        for (uint v = sglid; v < (uint)V_HEAD_SIZE; v += (uint)SUBGROUP_SIZE) {
-            const uint src_off = val_src_base + src_slot * V_HEAD_SIZE + v;
-            const uint dst_off = val_dst_base + dst_slot * V_HEAD_SIZE + v;
-            value_cache[dst_off] = value_cache[src_off];
-        }
+            for (uint v = sglid; v < (uint)V_HEAD_SIZE; v += (uint)SUBGROUP_SIZE) {
+                const uint src_off = val_src_base + src_slot * V_HEAD_SIZE + v;
+                const uint dst_off = val_dst_base + dst_slot * V_HEAD_SIZE + v;
+                value_cache[dst_off] = value_cache[src_off];
+            }
+        #else // IS_KV_COMPRESSED
+            #ifdef IS_KEY_BY_CHANNEL
+                // to be implemented, key by channel: need re-quantize using dst block scale/zp?
+            #else
+                // per-token quantization: copy quantized values and comp data for token
+                for (uint k = sglid; k < (uint)K_HEAD_SIZE; k += (uint)SUBGROUP_SIZE) { // only copy to K_HEAD_SIZE
+                    const uint src_off = key_src_base + k * PAGED_ATTENTION_BLOCK_SIZE + src_slot;
+                    const uint dst_off = key_dst_base + k * PAGED_ATTENTION_BLOCK_SIZE + dst_slot;
+                    key_cache[dst_off] = key_cache[src_off];
+                }
+
+                if (sglid == 0) {
+                    const uint comp_src_base = key_src_base + K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+                    const uint comp_dst_base = key_dst_base + K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+                    UNCOMPRESSED_TYPE* src_comp_ptr = key_cache + comp_src_base;
+                    UNCOMPRESSED_TYPE* dst_comp_ptr = key_cache + comp_dst_base;
+                    dst_comp_ptr[dst_slot] = src_comp_ptr[src_slot];
+                    dst_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + dst_slot] = src_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + src_slot];
+                }
+            #endif
+
+            // value cache: per-token quantization
+            for (uint v = sglid; v < (uint)V_HEAD_SIZE; v += (uint)SUBGROUP_SIZE) {
+                const uint src_off = val_src_base + src_slot * V_HEAD_SIZE + v;
+                const uint dst_off = val_dst_base + dst_slot * V_HEAD_SIZE + v;
+                value_cache[dst_off] = value_cache[src_off];
+            }
+
+            if (sglid == 0) {
+                const uint comp_src_base = val_src_base + V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+                const uint comp_dst_base = val_dst_base + V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+                UNCOMPRESSED_TYPE* src_comp_ptr = value_cache + comp_src_base;
+                UNCOMPRESSED_TYPE* dst_comp_ptr = value_cache + comp_dst_base;
+                dst_comp_ptr[dst_slot] = src_comp_ptr[src_slot];
+                dst_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + dst_slot] = src_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + src_slot];
+            }
+        #endif
     }
-#endif
 }

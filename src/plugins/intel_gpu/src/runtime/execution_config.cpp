@@ -237,7 +237,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
             // Enable KV-cache compression by default for:
             // 1) Non-systolic platforms in case of SDPA-based models
             // 2) For any platforms in case of PagedAttention-based model
-            m_kv_cache_precision = ov::element::f16;
+            m_kv_cache_precision = ov::element::i8;
         } else {
             m_kv_cache_precision = get_inference_precision();
         }

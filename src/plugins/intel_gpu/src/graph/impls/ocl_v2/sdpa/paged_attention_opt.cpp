@@ -788,7 +788,27 @@ protected:
 
         const bool is_kv_compressed = get_kv_compressed(params);
         jit.make("IS_KV_COMPRESSED", is_kv_compressed ? 1 : 0);
-
+        const bool is_key_by_channel = desc->is_key_by_channel;
+        if (is_kv_compressed) {
+            auto data_type = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;  // key tensor data size
+            auto scales_zp_size = get_element_size(data_type) * 2;                         // scale + zp
+            // jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
+            if (is_key_by_channel) {
+                jit.make("IS_KEY_BY_CHANNEL", 1);
+                jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
+                jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size + scales_zp_size);
+            } else {
+                jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + scales_zp_size);
+                jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
+            }
+            jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + scales_zp_size);
+        } else {
+            jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
+            jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
+            jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size);
+        }
+        const auto& key_layout = params.input_layouts[PagedAttentionInputIdx::KEY];
+        jit.make("UNCOMPRESSED_TYPE", to_ocl_type(key_layout.data_type));
         return jit;
     }
 
