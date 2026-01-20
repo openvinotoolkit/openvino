@@ -67,6 +67,8 @@ protected:
             case dnnl::memory::format_tag::ab: return dnnl::memory::format_tag::ba;
             case dnnl::memory::format_tag::abc: return dnnl::memory::format_tag::acb;
             case dnnl::memory::format_tag::abcd: return dnnl::memory::format_tag::abdc;
+            case dnnl::memory::format_tag::abcde: return dnnl::memory::format_tag::abced;
+            case dnnl::memory::format_tag::abcdef: return dnnl::memory::format_tag::abcdfe;
             // Whitelist format from transpose-gemm optimizing out
             case dnnl::memory::format_tag::acbd: return dnnl::memory::format_tag::acdb;
             case dnnl::memory::format_tag::adbc: return dnnl::memory::format_tag::adcb;
@@ -100,23 +102,8 @@ protected:
         in_layouts = gemm_inst::transform_input_layouts(prim, in_layouts, impl_params.get_program().is_new_shape_infer());
         out_l = gemm_inst::transform_output_layout(prim, in_layouts, out_l);
 
-        int64_t in0_batch = in_layouts[0].batch();
-        int64_t in1_batch = in_layouts[1].batch();
-
-        // Broadcast batches to avoid onednn checks failure
-        if (in0_batch != in1_batch && one_of(1, {in0_batch, in1_batch})) {
-            auto& modified_layout = in0_batch == 1 ? in_layouts[0] : in_layouts[1];
-            int64_t target_batch = std::max(in0_batch, in1_batch);
-
-            auto new_pshape = modified_layout.get_partial_shape();
-            new_pshape[0] = ov::Dimension(target_batch);
-            modified_layout.set_partial_shape(new_pshape);
-        }
-
         const auto& in0_l = in_layouts[0];
         const auto& in1_l = in_layouts[1];
-
-        bool batched_dims_can_be_removed = false;
 
         size_t rank = cldnn::format::dimension(out_l.format);
 
@@ -124,25 +111,23 @@ protected:
         in1_dt = onednn::convert_data_type(in1_l.data_type);
         out_dt = onednn::convert_data_type(out_l.data_type);
 
-        in0_dims = onednn::convert_gemm_tensor(in0_l.get_tensor(), rank, batched_dims_can_be_removed);
-        in1_dims = onednn::convert_gemm_tensor(in1_l.get_tensor(), rank, batched_dims_can_be_removed);
-        out_dims = onednn::convert_gemm_tensor(out_l.get_tensor(), rank, batched_dims_can_be_removed);
+        in0_dims = onednn::convert_tensor(in0_l.get_tensor(), rank);
+        in1_dims = onednn::convert_tensor(in1_l.get_tensor(), rank);
+        out_dims = onednn::convert_tensor(out_l.get_tensor(), rank);
 
         in0_fmt = onednn::convert_gemm_data_format(in0_dims, in0_l.format);
         in1_fmt = onednn::convert_gemm_data_format(in1_dims, in1_l.format);
         out_fmt = onednn::convert_gemm_data_format(out_dims, out_l.format);
 
         if (in0_l.data_padding) {
-            dnnl::memory::dims in0_padded_dims = onednn::convert_gemm_dims(in0_l.get_padded_dims(), rank, batched_dims_can_be_removed);
-            in0_strides = onednn::get_strides(in0_padded_dims);
+            in0_strides = onednn::get_strides(in0_l.get_padded_dims());
             if (prim->transpose_input0) {
                 std::swap(in0_strides[in0_strides.size() - 1], in0_strides[in0_strides.size() - 2]);
             }
         }
 
         if (in1_l.data_padding) {
-            dnnl::memory::dims in1_padded_dims = onednn::convert_gemm_dims(in1_l.get_padded_dims(), rank, batched_dims_can_be_removed);
-            in1_strides = onednn::get_strides(in1_padded_dims);
+            in1_strides = onednn::get_strides(in1_l.get_padded_dims());
             if (prim->transpose_input1)
                 std::swap(in1_strides[in1_strides.size() - 1], in1_strides[in1_strides.size() - 2]);
         }
@@ -244,7 +229,7 @@ protected:
             auto bias_l = impl_params.get_input_layout(2);
             auto bias_rank = cldnn::format::dimension(bias_l.format);
             bias_dt = onednn::convert_data_type(bias_l.data_type);
-            bias_dims = onednn::convert_gemm_tensor(bias_l.get_tensor(), bias_rank, batched_dims_can_be_removed);
+            bias_dims = onednn::convert_tensor(bias_l.get_tensor(), bias_rank);
             bias_fmt = onednn::convert_gemm_data_format(bias_dims, bias_l.format);
         }
     }
