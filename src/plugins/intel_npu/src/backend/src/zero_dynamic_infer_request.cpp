@@ -768,6 +768,9 @@ void ZeroDynamicInferRequest::infer_async() {
     {
         std::lock_guard<std::mutex> lock(_graph->get_mutex());
 
+        // If current output tensor is not large enough to be compatible with input tensor, need recreate pipeline
+        bool reCreatePipeline = false;
+        // Predict output shapes based on current inputs
         intel_npu::IRGraph* irGraph = dynamic_cast<intel_npu::IRGraph*>(_graph.get());
         if (irGraph) {
             IRGraph::GraphArguments graphArgs;
@@ -916,7 +919,40 @@ void ZeroDynamicInferRequest::infer_async() {
             }
         }
 
-        if (!_pipelineIsCreated || _dynamicBatchValueChanged) {
+        // check_tensor in set_tensor already checked the input tensor and output tensor with metadata
+        // Check again here to see if the shape is right compared with predicted shape
+        // If user set output tensor, need check if the tensor is large enough
+        for (size_t i = 0; i < _userOutputTensors.size(); i++) {
+            auto& userTensor = _userOutputTensors.at(i);
+            ov::Shape predictedShape;
+            for (size_t j = 0; j < outputPros[i].dimsCount; j++) {
+                predictedShape.push_back(outputPros[i].sizes[j]);
+            }
+            if (userTensor != nullptr) {
+                if (shape_size(userTensor->get_shape()) < shape_size(predictedShape)) {
+                    _logger.error(
+                        "User output tensor %zu shape %s is different from predicted shape %s, can not run inference",
+                        i,
+                        userTensor->get_shape().to_string().c_str(),
+                        predictedShape.to_string().c_str());
+                    OPENVINO_THROW("User output tensor shape is smaller than predicted shape.");
+                }
+            }
+            auto& levelZeroTensor = _levelZeroOutputTensors.at(i);
+            if (levelZeroTensor != nullptr) {
+                if (shape_size(levelZeroTensor->get_shape()) < shape_size(predictedShape)) {
+                    _logger.debug("LevelZero output tensor %zu shape %s is smaller than predicted shape %s, need "
+                                  "recreate pipeline",
+                                  i,
+                                  levelZeroTensor->get_shape().to_string().c_str(),
+                                  predictedShape.to_string().c_str());
+                    reCreatePipeline = true;
+                    break;
+                }
+            }
+        }
+
+        if (!_pipelineIsCreated || _dynamicBatchValueChanged || reCreatePipeline) {
             OV_ITT_TASK_NEXT(ZERO_INFER, "create_pipeline");
             _logger.debug("create pipeline : pipelineCreated - %s , recreate - %s",
                           _pipelineIsCreated ? "true" : "false",
