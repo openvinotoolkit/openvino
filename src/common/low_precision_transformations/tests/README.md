@@ -37,7 +37,7 @@ The `TestTransformationParams` structure is the core configuration class that co
 
 ### Key Members
 
-**Definition**: `src/common/low_precision_transformations/tests/layer_transformation.hpp`
+**Definition**: [layer_transformation.hpp](./layer_transformation.hpp)
 
 ```cpp
 struct TestTransformationParams {
@@ -55,7 +55,7 @@ struct TestTransformationParams {
 
 The framework provides several predefined parameter configurations:
 
-**Implementation**: `src/common/low_precision_transformations/tests/layer_transformation.cpp`
+**Implementation**: [layer_transformation.cpp](./layer_transformation.cpp)
 
 - **`LayerTransformation::createParamsU8I8()`** - U8 precision on activations, I8 precision on weights, requested by the plugin
 - **`LayerTransformation::createParamsI8I8()`** - I8 precision on activations, I8 precision on weights, requested by the plugin
@@ -143,14 +143,14 @@ The following sections provide detailed information on how these test structures
 
 The main class for describing dequantization operations.
 
-**Definition**: `src/tests/ov_helpers/ov_lpt_models/include/ov_lpt_models/common/dequantization_operations.hpp`
+**Definition**: [dequantization_operations.hpp](../../../tests/ov_helpers/ov_lpt_models/include/ov_lpt_models/common/dequantization_operations.hpp)
 
 ```cpp
 class DequantizationOperations {
 public:
     class Convert {
         ov::element::Type outPrecision;     // Output precision (e.g., f32)
-        bool addDequantizationAttribute;    // Add DEQUANTIZATION attribute
+        bool addDequantizationAttribute;    // Add Dequantization attribute
     };
     
     class Subtract {
@@ -252,7 +252,7 @@ DequantizationOperations advancedDequant(
 
 The main class for describing FakeQuantize operation parameters and configuration.
 
-**Definition**: `src/tests/ov_helpers/ov_lpt_models/include/ov_lpt_models/common/fake_quantize_on_data.hpp`
+**Definition**: [fake_quantize_on_data.hpp](../../../tests/ov_helpers/ov_lpt_models/include/ov_lpt_models/common/fake_quantize_on_data.hpp)
 
 ```cpp
 class FakeQuantizeOnData {
@@ -300,14 +300,14 @@ This section explains where to find the code that constructs model parts based o
 
 The `makeDequantization()` function demonstrates how test structures are converted into model nodes. It takes a `DequantizationOperations` structure and builds the corresponding Convert→Subtract→Multiply operation chain in the model.
 
-**Implementation Location**: `src/tests/ov_helpers/ov_lpt_models/src/common/builders.cpp`
+**Implementation Location**: [builders.cpp](../../../tests/ov_helpers/ov_lpt_models/src/common/builders.cpp)
 
 ### General Pattern
 
 Following the same pattern as `makeDequantization()`, other model construction functions are organized in these directories:
 
-- **Headers**: `src/tests/ov_helpers/ov_lpt_models/include/ov_lpt_models/`
-- **Implementation**: `src/tests/ov_helpers/ov_lpt_models/src/`
+- **Headers**: [ov_lpt_models/include/](../../../tests/ov_helpers/ov_lpt_models/include/ov_lpt_models/)
+- **Implementation**: [ov_lpt_models/src/](../../../tests/ov_helpers/ov_lpt_models/src/)
 
 These functions convert LPT test structures (like `DequantizationOperations`, `FakeQuantizeOnData`, etc.) into actual model nodes. Each operation-specific builder (Convolution, Add, Concat, etc.) uses these core construction functions to build complete test models from the test value structures.
 
