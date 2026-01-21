@@ -38,6 +38,10 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/hsigmoid.hpp"
+#include "openvino/op/is_finite.hpp"
+#include "openvino/op/is_inf.hpp"
+#include "openvino/op/is_nan.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/paged_attention.hpp"
@@ -45,6 +49,7 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/softsign.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "ov_ops/gather_compressed.hpp"
@@ -1441,8 +1446,51 @@ void Transformations::MainSnippets() {
         };
         return is_supported(n) || is_supported_with_scalar_inputs(n);
 #elif defined(OPENVINO_ARCH_RISCV64)
-        // Snippets on RISC-V arch are enabled only in tests for now
-        return false;
+        auto is_supported = [](const std::shared_ptr<const ov::Node>& n) {
+            return (ov::is_type_any_of<ov::op::v0::Abs,
+                                       ov::op::v1::Add,
+                                       ov::op::v0::Clamp,
+                                       ov::op::v1::Divide,
+                                       ov::op::v0::Elu,
+                                       ov::op::v1::Equal,
+                                       ov::op::v0::Erf,
+                                       ov::op::v0::Exp,
+                                       ov::op::v0::Floor,
+                                       ov::op::v1::FloorMod,
+                                       ov::op::v0::Gelu,
+                                       ov::op::v7::Gelu,
+                                       ov::op::v1::Greater,
+                                       ov::op::v1::GreaterEqual,
+                                       ov::op::v5::HSigmoid,
+                                       ov::op::v4::HSwish,
+                                       ov::op::v10::IsFinite,
+                                       ov::op::v10::IsInf,
+                                       ov::op::v10::IsNaN,
+                                       ov::op::v1::Less,
+                                       ov::op::v1::LessEqual,
+                                       ov::op::v1::Maximum,
+                                       ov::op::v1::Minimum,
+                                       ov::op::v4::Mish,
+                                       ov::op::v1::Mod,
+                                       ov::op::v1::Multiply,
+                                       ov::op::v0::Negative,
+                                       ov::op::v1::NotEqual,
+                                       ov::op::v0::PRelu,
+                                       ov::op::v0::Relu,
+                                       ov::op::v5::Round,
+                                       ov::op::v0::Sigmoid,
+                                       ov::op::v9::SoftSign,
+                                       ov::op::v0::Sqrt,
+                                       ov::op::v0::SquaredDifference,
+                                       ov::op::v1::Subtract,
+                                       ov::op::v0::Tanh,
+                                       ov::op::v1::LogicalAnd,
+                                       ov::op::v1::LogicalOr,
+                                       ov::op::v1::LogicalXor,
+                                       ov::op::v1::LogicalNot,
+                                       ov::op::v0::Xor>(n));
+        };
+        return is_supported(n);
 #else
         // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
         // and CPU Plugin does not support Mish for x64
