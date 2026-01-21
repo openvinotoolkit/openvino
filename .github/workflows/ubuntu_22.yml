@@ -445,7 +445,6 @@ jobs:
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
       runner: 'aks-linux-16-cores-64gb'
-      timeout-minutes: 400
       model_scope: 'nightly_scope1'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
 
