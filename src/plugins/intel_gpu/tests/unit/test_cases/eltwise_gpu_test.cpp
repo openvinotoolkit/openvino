@@ -2551,7 +2551,7 @@ TEST(eltwise_gpu_f32, sub_basic_in4x4x4x4) {
 TEST(eltwise_gpu_int, basic_in4x4x4x4) {
     //  Same params as in eltwise_gpu_f32, sub_basic_in4x4x4x4 but using int types instead
 
-    std::vector<data_types> data_types_to_test = { data_types::i8, data_types::i32, data_types::i64 };
+    std::vector<data_types> data_types_to_test = { data_types::i8, data_types::i16, data_types::i32, data_types::i64, data_types::u8, data_types::u16, data_types::u32 };
     std::vector<eltwise_mode> eltwise_ops_to_test = {
         eltwise_mode::sum,
         eltwise_mode::sub,
@@ -2709,7 +2709,7 @@ TEST(eltwise_gpu_f32_int, basic_in4x4x4x4) {
     //
     // Eltwise supports mixed inputs, but only first input can be set as intX.
 
-    std::vector<data_types> data_types_to_test = { data_types::i8, data_types::i32, data_types::i64 };
+    std::vector<data_types> data_types_to_test = { data_types::i8, data_types::i16, data_types::i32, data_types::i64, data_types::u8, data_types::u16, data_types::u32 };
     std::vector<eltwise_mode> eltwise_ops_to_test = { eltwise_mode::sum, eltwise_mode::sub, eltwise_mode::div, eltwise_mode::prod, eltwise_mode::min, eltwise_mode::max, eltwise_mode::mod };
 
     for (auto& data_type : data_types_to_test)
