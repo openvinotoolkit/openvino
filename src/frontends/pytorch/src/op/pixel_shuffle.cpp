@@ -28,6 +28,7 @@ using namespace ov::op;
 
 namespace {
 
+// Holds the split shape information; dims_before captures all pre-spatial dims
 struct PixelSpatialInfo {
     Output<Node> dims_before;
     Output<Node> channels;
