@@ -1228,16 +1228,15 @@ bool is_moe_model(const std::shared_ptr<ov::Model>& model) {
 void apply_moe_config(ov::AnyMap& stage_config,
                       ::intel_npu::npuw::llm::MoEHint moe_hint,
                       const std::string& stage_name) {
-    // MoE expert and router pattern isolation options
-    const ov::AnyMap expert_opts = {
-        {"NPUW_ONLINE_PIPELINE", "REP"},
-        {"NPUW_ONLINE_ISOLATE", "MOE"},
-        {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
-        {"NPUW_UNFOLD_IREQS", "NO"},
-    };
-
     if (moe_hint == ::intel_npu::npuw::llm::MoEHint::HOST_ROUTED) {
         LOG_INFO("MoE config for " << stage_name << " stage: HOST_ROUTED (host-side expert routing)");
+        // MoE expert and router pattern isolation options
+        const ov::AnyMap expert_opts = {
+            {"NPUW_ONLINE_PIPELINE", "REP"},
+            {"NPUW_ONLINE_ISOLATE", "MOE"},
+            {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
+            {"NPUW_UNFOLD_IREQS", "NO"},
+        };
         merge_config_with(stage_config, expert_opts);
     } else if (moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
         if (stage_name == "PREFILL") {
@@ -1245,6 +1244,7 @@ void apply_moe_config(ov::AnyMap& stage_config,
                                  "DEVICE_ROUTED mode uses in-graph gather-based expert selection which is only "
                                  "optimized for GENERATE stage. Please use HOST_ROUTED or DENSE for PREFILL.");
         }
+        stage_config["NPUW_UNFOLD_IREQS"] = "NO";
     } else if (moe_hint == ::intel_npu::npuw::llm::MoEHint::DENSE) {
         LOG_INFO("MoE config for " << stage_name << " stage: DENSE (all experts active)");
         // DENSE mode requires CPU-only device due to extremely long NPU compilation time and high resource consumption
