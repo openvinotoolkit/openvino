@@ -20,6 +20,9 @@ static void reorder_unreduced_axis_no_fusion(const cldnn::layout& input_layout, 
     auto num_spatial = format::spatial_num(input_layout.format);
     size_t num_others = num_dims - num_spatial;
 
+    if (output_layout.get_rank() < input_layout.get_rank())
+        output_layout.format = input_layout.format;
+
     for (size_t idx = 0; idx < axes.size(); idx++) {
         if (axes[idx] < static_cast<int64_t>(num_others))
             in_dims[axes[idx]] = 1;
