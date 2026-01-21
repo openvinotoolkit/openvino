@@ -32,6 +32,7 @@
 #include "nodes/executors/dnnl/dnnl_post_op_data.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
 #include "utils/cpp/to_underlying.hpp"
@@ -83,6 +84,11 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const PostOps& postOps,
     } else if (!DQScales.empty()) {
         // DQ scale is fused but swiching back to non-INT8 for execution in some cases.
         DEBUG_LOG("Set DQ scales for None-INT8, scale size ", DQScales.size());
+        // on ARM platforms binary post-op precision is forced to f16
+        // to align with ACL requirements
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+        useF16Binary = true;
+#endif
         appendScale(DQScales, false, true);
     }
 
@@ -491,11 +497,27 @@ void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vec
 
     DEBUG_LOG("Append binary post op with algorithm: ", convert_to_c(alg), " Shape: ", Shape(*pdims));
 
-    DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape(*pdims));
+    ov::element::Type binaryType = ov::element::f32;
+    const void* binaryData = data.data();
+    size_t binaryBytes = data.size() * sizeof(float);
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+    std::vector<ov::float16> dataF16;
+    if (useF16Binary) {
+        dataF16.reserve(data.size());
+        for (float value : data) {
+            dataF16.emplace_back(value);
+        }
+        binaryType = ov::element::f16;
+        binaryData = dataF16.data();
+        binaryBytes = dataF16.size() * sizeof(ov::float16);
+    }
+#endif
+
+    DnnlBlockedMemoryDesc memoryDesc(binaryType, Shape(*pdims));
     ops.append_binary(alg, memoryDesc.getDnnlDesc());
     // copy the data as args
     auto mem = std::make_shared<Memory>(engine, memoryDesc);
-    memcpy(mem->getData(), data.data(), data.size() * sizeof(float));
+    memcpy(mem->getData(), binaryData, binaryBytes);
 
     cpuArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = mem;
     dnnlArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = mem->getPrimitive();
