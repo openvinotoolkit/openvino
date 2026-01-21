@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/w_dirent.h"
 #include "gtest/gtest.h"
 #include "openvino/util/file_util.hpp"
@@ -96,7 +97,7 @@ inline int removeFilesWithExt(std::wstring path, std::wstring ext) {
     _WDIR* dir = _wopendir(path.c_str());
     if (dir != nullptr) {
         while ((ent = _wreaddir(dir)) != NULL) {
-            auto file = ov::util::make_path(path, std::wstring(ent->wd_name));
+            auto file = makePath(path, std::wstring(ent->wd_name));
             struct _stat64i32 stat_path;
             _wstat(file.c_str(), &stat_path);
             if (!S_ISDIR(stat_path.st_mode) && endsWith(file, L"." + ext)) {
@@ -122,7 +123,7 @@ inline int removeFilesWithExt(std::wstring path, std::wstring ext) {
     DIR* dir = opendir(path_mb.c_str());
     if (dir != nullptr) {
         while ((ent = readdir(dir)) != NULL) {
-            std::string file = ov::util::make_path(path_mb, std::string(ent->d_name));
+            std::string file = makePath(path_mb, std::string(ent->d_name));
             struct stat stat_path;
             stat(file.c_str(), &stat_path);
             if (!S_ISDIR(stat_path.st_mode) && endsWith(file, "." + ext_mb)) {

@@ -109,19 +109,19 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
                          const std::string& kernel_entry_point,
                          const std::vector<arg_desc>& kernel_arguments,
                          const std::string& build_options,
-                         const layout& output_layout,
+                         const std::vector<layout>& output_layouts,
                          const std::vector<size_t>& gws = {},
                          const std::vector<size_t>& lws = {},
                          const std::shared_ptr<ov::Node>& op = nullptr,
                          const int calcWgDimInputIdx = -1,
                          const std::vector<std::string> globalSizeRules = {},
                          const std::vector<std::string> localSizeRules = {})
-        : primitive_base(id, inputs, 1, {optional_data_type()}, {output_layout.data_padding}),
+        : primitive_base(id, inputs, output_layouts.size(), {optional_data_type()}, {output_layouts[0].data_padding}),
           kernel_entry_point(kernel_entry_point),
           kernel_arguments(kernel_arguments),
           build_options(build_options),
-          output_layout(output_layout),
-          gws(gws.size() ? gws : std::vector<size_t>{output_layout.count()}),
+          output_layouts(output_layouts),
+          gws(gws.size() ? gws : std::vector<size_t>{output_layouts[0].count()}),
           lws(lws),
           kernels_code(kernels_code),
           op(op),
@@ -136,7 +136,7 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     /// @brief The kernel's build options
     const std::string build_options;
     /// @brief The output layout declared by the primitive
-    const layout output_layout;
+    const std::vector<layout> output_layouts;
     /// @brief The global working sizes
     const std::vector<size_t> gws;
     /// @brief The local working sizes
@@ -197,7 +197,7 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
         ob << kernel_entry_point;
         ob << kernel_arguments;
         ob << build_options;
-        ob << output_layout;
+        ob << output_layouts;
         ob << gws;
         ob << lws;
         ob << kernels_code;
@@ -208,7 +208,7 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
         ib >> *const_cast<std::string*>(&kernel_entry_point);
         ib >> *const_cast<std::vector<arg_desc>*>(&kernel_arguments);
         ib >> *const_cast<std::string*>(&build_options);
-        ib >> *const_cast<layout*>(&output_layout);
+        ib >> *const_cast<std::vector<layout>*>(&output_layouts);
         ib >> *const_cast<std::vector<size_t>*>(&gws);
         ib >> *const_cast<std::vector<size_t>*>(&lws);
         ib >> *const_cast<primitive_id_arr*>(&kernels_code);
