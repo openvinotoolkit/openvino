@@ -190,7 +190,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     q *= KV_GROUP_SIZE;
 #endif
 #endif
-    const int d_full = d;
     uint sg_ij = sub_group_broadcast(get_local_id(1), 0);
     uint b0 = get_group_id(1);
     uint b1 = get_group_id(2);
@@ -237,12 +236,12 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if KEY_SCALES || KEY_ZERO_POINTS
-    uint ldkq = DIV_UP(d_full, KEY_GROUP_SIZE);
-    uint num_key_groups = d_full / KEY_GROUP_SIZE;
+    uint ldkq = DIV_UP(d, KEY_GROUP_SIZE);
+    uint num_key_groups = d / KEY_GROUP_SIZE;
 #endif
 #if VAL_SCALES || VAL_ZERO_POINTS
-    uint ldvq = DIV_UP(d_full, VAL_GROUP_SIZE);
-    uint num_val_groups = d_full / VAL_GROUP_SIZE;
+    uint ldvq = DIV_UP(d, VAL_GROUP_SIZE);
+    uint num_val_groups = d / VAL_GROUP_SIZE;
 #endif
 
     /* Subgroup IDs for each GEMM */
@@ -380,7 +379,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #endif
 #endif
 
-#if !ENABLE_D_TILING
     /* Load Q tile, destined for SLM */
     q_tile_type Q_tile;
 #ifdef BLOCK_Q
@@ -398,7 +396,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             Q_tile, (local uint *)&Q_slm[0], D_MAX / 2, q0_copy, 0);
     /* Wait for Q data to reach SLM */
     barrier(CLK_LOCAL_MEM_FENCE);
-#endif
 
 #if PREFETCH_K0
     /* Prefetch first K tile. */
@@ -454,17 +451,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                 as_uint(neg_inf));
 
     /* Clear accumulator */
-#if ENABLE_D_TILING
-    a_tile_type A_tile0;
-    tile_fill(A_tile0, 0.0f);
-#if D_CHUNKS > 1
-    a_tile_type A_tile1;
-    tile_fill(A_tile1, 0.0f);
-#endif
-#else
     a_tile_type A_tile;
     tile_fill(A_tile, 0.0f);
-#endif
 
     /* Clear S column sums/maxes */
     s_sum_tile_type S_sum_tile;
@@ -528,55 +516,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         #if IS_KV_COMPRESSED_PA
                         , (global half *)K0_scales, (global half *)K0_zp, ldkq
         #endif
-#else
-    s_tile_type S_tile;
-#if ENABLE_D_TILING
-    bool first_d = true;
-    for (int d0 = 0; d0 < d_full; d0 += D_CHUNK) {
-        int d_chunk = min(D_CHUNK, d_full - d0);
-        const global QRY_DATA_T *Q_d = Q + d0;
-        q_tile_type Q_tile;
-#ifdef BLOCK_Q
-        tile_load_block_rem_q(
-            &Q_tile, (global uint *)Q_d, q, ldq >> 1, 0, wg_j0 + q0_copy);
-#elif Q_ALIGN >= 4
-        tile_load(&Q_tile, (global uint *)Q_d, (d_chunk + 1) >> 1, q, ldq >> 1, 0,
-            wg_j0 + q0_copy);
-#else
-        tile_load_packed_half(&Q_tile, Q_d, d_chunk, q, ldq, 0, wg_j0 + q0_copy);
-#endif
-
-        /* Store Q tile to SLM */
-        tile_store_t_sys_src1(
-            Q_tile, (local uint *)&Q_slm[0], D_MAX / 2, q0_copy, 0);
-        /* Wait for Q data to reach SLM */
-        barrier(CLK_LOCAL_MEM_FENCE);
-
-        const global KEY_DATA_T *K_d = K + d0 / KEY_ELEMENTS_PER_BYTE;
-        s_tile_type S_tile_part
-            = ugemm_kq(K_d, ldk, Q_slm, D_MAX, k, ugemm_kq_wg_tile_n, d_chunk, k0,
-                0, 0, sg_i_kq, sg_j_kq, (local char *)ugemm_slm
-        #if KEY_SCALES == QUANTIZE_2D
-                ,
-                K_scales
-        #endif
-        #if KEY_ZERO_POINTS
-                ,
-                K_zp
-        #endif
-        #if (KEY_SCALES == QUANTIZE_2D) || KEY_ZERO_POINTS
-                ,
-                ldkq
-        #endif
             );
-
-        if (first_d) {
-        tile_copy(S_tile_part, S_tile);
-        first_d = false;
-        } else {
-        tile_binary(S_tile, S_tile_part, binary_add);
-        }
-    }
 #else
     s_tile_type S_tile
         = ugemm_kq(K, ldk, Q_slm, D_MAX, k, ugemm_kq_wg_tile_n, d, k0,
@@ -593,7 +533,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             ,
             ldkq
     #endif
-#endif
+        );
 #endif
 
 #if KEY_SCALES == QUANTIZE_COMMON
@@ -792,14 +732,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #else
 #error unimplemented
 #endif
-        #if ENABLE_D_TILING
-                tile_hbroadcast_mul(&A_tile0, A_scale_tile);
-            #if D_CHUNKS > 1
-                tile_hbroadcast_mul(&A_tile1, A_scale_tile);
-            #endif
-        #else
                 tile_hbroadcast_mul(&A_tile, A_scale_tile);
-        #endif
         }
 
         /* Accumulate sums */
@@ -912,37 +845,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             tile_binary(A_tile, A_tile1, binary_add);
         }
 #else
-    #if ENABLE_D_TILING
-    for (int d0 = 0; d0 < d_full; d0 += D_CHUNK) {
-        int d_chunk = min(D_CHUNK, d_full - d0);
-        const global VAL_DATA_T *V_d = V + d0 / VAL_ELEMENTS_PER_BYTE;
-        a_tile_type A_tile_part = ugemm_vs(
-            V_d, ldv, S_slm, ugemm_kq_wg_tile_m, d_chunk, ugemm_kq_wg_tile_n,
-            k_chunk, 0, 0, 0, sg_i_vs, sg_j_vs, (local char *)ugemm_slm
-    #if VAL_SCALES == QUANTIZE_2D
-            ,
-            V_scales
-    #endif
-    #if VAL_ZERO_POINTS
-            ,
-            V_zp
-    #endif
-    #if (VAL_SCALES == QUANTIZE_2D) || VAL_ZERO_POINTS
-            ,
-            ldvq
-    #endif
-        );
-
-        if (d0 == 0) {
-        tile_binary(A_tile0, A_tile_part, binary_add);
-        }
-    #if D_CHUNKS > 1
-        else {
-        tile_binary(A_tile1, A_tile_part, binary_add);
-        }
-    #endif
-    }
-    #else
     a_tile_type A_tile1 = ugemm_vs(
         V, ldv, S_slm, ugemm_kq_wg_tile_m, d, ugemm_kq_wg_tile_n,
         k_chunk, 0, 0, 0, sg_i_vs, sg_j_vs, (local char *)ugemm_slm
@@ -961,7 +863,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     );
 
     V += ldv * ugemm_kq_wg_tile_m / VAL_ELEMENTS_PER_BYTE;
-    #endif
 #endif
 
 #if VAL_SCALES == QUANTIZE_2D
@@ -973,12 +874,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #if IS_PAGED_ATTENTION && IS_PREFILL == 0
     // already done
 #else
-    #if ENABLE_D_TILING
-    // A accumulation already done per chunk
-    V += ldv * ugemm_kq_wg_tile_m / VAL_ELEMENTS_PER_BYTE;
-    #else
     tile_binary(A_tile, A_tile1, binary_add);
-    #endif
 #endif
     }
 
@@ -998,14 +894,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
 #if VAL_SCALES == QUANTIZE_COMMON
 #define v_scale_op(x) ((x)*v_scale)
-#if ENABLE_D_TILING
-    tile_elementwise(A_tile0, v_scale_op);
-#if D_CHUNKS > 1
-    tile_elementwise(A_tile1, v_scale_op);
-#endif
-#else
     tile_elementwise(A_tile, v_scale_op);
-#endif
 #endif
 
     /* Rescale by 1 / (column sums) */
@@ -1014,36 +903,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     uint sg_i0_vs = sg_i_vs * ugemm_vs_sg_tile_m;
     uint sg_j0_vs = sg_j_vs * ugemm_vs_sg_tile_n + wg_j0;
 
-#if ENABLE_D_TILING
-    tile_hbroadcast_mul(&A_tile0, A_scale_tile);
-#if D_CHUNKS > 1
-    tile_hbroadcast_mul(&A_tile1, A_scale_tile);
-#endif
-
-    /* Convert to half precision and store per D chunk */
-    a_tile_type_half A_tile_half;
-    tile_copy_reblock(A_tile0, &A_tile_half);
-#ifdef BLOCK_2D_A
-    tile_store_block2d(A_tile_half, A, D_CHUNK, q, lda, sg_i0_vs, sg_j0_vs);
-#elif defined(BLOCK_A)
-    tile_store_block_rem_q(A_tile_half, A, q, lda, sg_i0_vs, sg_j0_vs);
-#else
-    tile_store(A_tile_half, A, D_CHUNK, q, lda, sg_i0_vs, sg_j0_vs);
-#endif
-
-#if D_CHUNKS > 1
-    a_tile_type_half A_tile_half1;
-    tile_copy_reblock(A_tile1, &A_tile_half1);
-    global half *A1 = A + D_CHUNK;
-#ifdef BLOCK_2D_A
-    tile_store_block2d(A_tile_half1, A1, D_LAST, q, lda, sg_i0_vs, sg_j0_vs);
-#elif defined(BLOCK_A)
-    tile_store_block_rem_q(A_tile_half1, A1, q, lda, sg_i0_vs, sg_j0_vs);
-#else
-    tile_store(A_tile_half1, A1, D_LAST, q, lda, sg_i0_vs, sg_j0_vs);
-#endif
-#endif
-#else
     tile_hbroadcast_mul(&A_tile, A_scale_tile);
 
     /* Convert to half precision and store */
@@ -1056,6 +915,5 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     tile_store_block_rem_q(A_tile_half, A, q, lda, sg_i0_vs, sg_j0_vs);
 #else
     tile_store(A_tile_half, A, d, q, lda, sg_i0_vs, sg_j0_vs);
-#endif
 #endif
 }
