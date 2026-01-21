@@ -212,8 +212,6 @@ bool Graph::use_external_queue() const {
 }
 
 std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive_info>& primitives_info, bool filter_const_primitives) {
-    // [Warning] The strings in ITT_SCOPED_TASK_BASE should NOT be deleted or edited!
-    OV_ITT_SCOPED_TASK_BASE(itt::domains::intel_gpu_inference, "Graph::get_runtime_model");
     if (m_config.get_enable_profiling()) {
         try {
             // Update may throw an exception for step-by-step runtime graph dump,
