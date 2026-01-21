@@ -1,0 +1,83 @@
+ir_version: 11
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "X"
+    input: "W"
+    output: "Y"
+    op_type: "LayerNormalization"
+    attribute {
+      name: "axis"
+      i: -1
+      type: INT
+    }
+    attribute {
+      name: "epsilon"
+      f: 1e-05
+      type: FLOAT
+    }
+  }
+  name: "LayerNormGraph"
+  initializer {
+    dims: 2
+    dims: 3
+    dims: 4
+    data_type: 1
+    float_data: 0.53504205
+    float_data: -0.6579421
+    float_data: 0.1480005
+    float_data: 0.42952985
+    float_data: 0.31627032
+    float_data: 1.4311663
+    float_data: 0.65452963
+    float_data: -0.6257825
+    float_data: 1.8785123
+    float_data: 0.4214666
+    float_data: -1.348425
+    float_data: 0.08931359
+    float_data: -1.8236972
+    float_data: 0.21477291
+    float_data: 0.984076
+    float_data: 0.8657342
+    float_data: -1.3023894
+    float_data: 1.0772399
+    float_data: 1.4087443
+    float_data: -2.6755168
+    float_data: 0.7152346
+    float_data: -1.2481225
+    float_data: -0.18336162
+    float_data: -2.5086575
+    name: "X"
+  }
+  initializer {
+    dims: 4
+    data_type: 1
+    float_data: -0.4161109
+    float_data: -2.1537201
+    float_data: -0.36760366
+    float_data: -0.21302891
+    name: "W"
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 18
+}
