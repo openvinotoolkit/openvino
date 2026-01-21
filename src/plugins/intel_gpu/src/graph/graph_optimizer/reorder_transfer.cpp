@@ -41,7 +41,7 @@ void reorder_transfer::run(program& p) {
             layout new_layout = node->get_output_layout();
             new_layout.data_type = dtype;
             node->set_output_layout(new_layout, false);
-            node->set_output_data_type(dtype, 0);
+            node->set_primitive_output_data_type(dtype, 0);
         };
 
         auto* supposed_new_prev = reorder_node.get_users().front();

@@ -240,8 +240,7 @@ public:
     std::shared_ptr<const primitive> get_primitive() const { return desc; }
 
     // Safely update the requested primitive output data type for a given output index
-    // to keep it consistent with node layout without breaking const-correctness of get_primitive().
-    void set_output_data_type(data_types dtype, size_t idx = 0) {
+    void set_primitive_output_data_type(data_types dtype, size_t idx = 0) {
         if (!desc)
             return;
         if (desc->output_data_types.size() <= idx)
