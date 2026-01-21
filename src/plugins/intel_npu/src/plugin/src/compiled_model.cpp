@@ -35,13 +35,13 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
       _graph(graph),
       _batchSize(batchSize) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
-
+    std::cout << __LINE__ << std::endl;
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
     _properties = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL, _config);
     _properties->registerProperties();
 
     configure_stream_executors();
-
+    std::cout << __LINE__ << std::endl;
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
 

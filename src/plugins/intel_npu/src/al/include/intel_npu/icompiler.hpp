@@ -29,8 +29,9 @@ struct NetworkDescription final {
           metadata(std::move(metadata)) {}
 
     NetworkDescription(ov::Tensor&& compiledNetWorkTensor, NetworkMetadata&& metadata)
-        : compiledNetworkTensor(std::move(compiledNetWorkTensor)),
-          metadata(std::move(metadata)) {}
+        : compiledNetwork(),
+          metadata(std::move(metadata)),
+          compiledNetworkTensor(std::move(compiledNetWorkTensor)) {}
     // Force move semantics to prevent blob copies
     NetworkDescription(const NetworkDescription&) = delete;
     NetworkDescription(NetworkDescription&&) = default;
@@ -39,9 +40,8 @@ struct NetworkDescription final {
     ~NetworkDescription() = default;
 
     std::vector<uint8_t> compiledNetwork;
-    ov::Tensor compiledNetworkTensor;
-
     NetworkMetadata metadata;
+    ov::Tensor compiledNetworkTensor;
 };
 
 /**

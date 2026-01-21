@@ -309,7 +309,27 @@ private:
     intel_npu::utils::AlignedAllocator allocator_;
 
 public:
-    explicit ByteAlignedAllocator() : allocator_(intel_npu::utils::STANDARD_PAGE_SIZE) {}
+    using value_type = uint8_t;
+    using size_type = std::size_t;
+    using difference_type = std::ptrdiff_t;
+    using pointer = uint8_t*;
+    using const_pointer = const uint8_t*;
+
+    template <typename U>
+    struct rebind {
+        using other = ByteAlignedAllocator;
+    };
+
+    ByteAlignedAllocator() : allocator_(intel_npu::utils::STANDARD_PAGE_SIZE) {}
+
+    ByteAlignedAllocator(const ByteAlignedAllocator& other) : allocator_(intel_npu::utils::STANDARD_PAGE_SIZE) {}
+
+    template <typename U>
+    ByteAlignedAllocator(const ByteAlignedAllocator& other) : allocator_(intel_npu::utils::STANDARD_PAGE_SIZE) {}
+
+    ByteAlignedAllocator& operator=(const ByteAlignedAllocator& other) {
+        return *this;
+    }
 
     uint8_t* allocate(size_t n) {
         size_t aligned_size = intel_npu::utils::align_size_to_standard_page_size(n);
@@ -328,6 +348,10 @@ public:
     bool operator!=(const ByteAlignedAllocator& other) const {
         return !(*this == other);
     }
+
+    size_type max_size() const noexcept {
+        return std::numeric_limits<size_type>::max() / sizeof(value_type);
+    }
 };
 
 using AlignedVector = std::vector<uint8_t, ByteAlignedAllocator>;
@@ -337,9 +361,11 @@ struct vcl_allocator_vector : vcl_allocator2_t {
 
     static uint8_t* vector_allocate(vcl_allocator2_t* allocator, size_t size) {
         vcl_allocator_vector* vecAllocator = static_cast<vcl_allocator_vector*>(allocator);
+        size_t aligned_size = intel_npu::utils::align_size_to_standard_page_size(size);
+        std::cout << "Need size:" << size << " Aligned size:" << aligned_size << std::endl;
         auto newVec = std::make_shared<AlignedVector>();
         vecAllocator->m_vec = newVec;
-        vecAllocator->m_vec->resize(size);
+        vecAllocator->m_vec->resize(aligned_size);
         if (intel_npu::utils::memory_and_size_aligned_to_standard_page_size(vecAllocator->m_vec->data(),
                                                                             vecAllocator->m_vec->size()) == false) {
             OPENVINO_THROW("vcl_allocator_vector: allocated memory is not aligned to standard page size");
@@ -361,8 +387,9 @@ struct vcl_allocator_vector_2 : vcl_allocator2_t {
 
     static uint8_t* vector_allocate(vcl_allocator2_t* allocator, size_t size) {
         vcl_allocator_vector_2* vecAllocator = static_cast<vcl_allocator_vector_2*>(allocator);
+        size_t aligned_size = intel_npu::utils::align_size_to_standard_page_size(size);
         auto newVec = std::make_shared<AlignedVector>();
-        newVec->resize(size);
+        newVec->resize(aligned_size);
         uint8_t* ptr = newVec->data();
         if (intel_npu::utils::memory_and_size_aligned_to_standard_page_size(newVec->data(), newVec->size()) == false) {
             OPENVINO_THROW("vcl_allocator_vector: allocated memory is not aligned to standard page size");
@@ -392,7 +419,7 @@ struct vcl_allocator_vector_2 : vcl_allocator2_t {
 ov::Tensor make_tensor_from_aligned_vector(std::shared_ptr<AlignedVector> vector) {
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{vector->size()}, vector->data());
     auto impl = ov::get_tensor_impl(std::move(tensor));
-    impl._so = std::move(vector);
+    impl._so = vector;
     return ov::make_tensor(impl);
 }
 
@@ -449,6 +476,9 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
         if (size == 0 || blob == nullptr) {
             OPENVINO_THROW("Failed to create VCL executable, size is zero or blob is null");
         }
+        std::cout << "Blob size from VCL: " << size << " ptr " << static_cast<void*>(blob) << std::endl;
+        std::cout << "Allocated blob size: " << allocator.m_vec->size()
+                  << " ptr: " << static_cast<void*>(allocator.m_vec->data()) << std::endl;
 
         // Use empty metadata as VCL does not support metadata extraction
         NetworkMetadata metadata;
