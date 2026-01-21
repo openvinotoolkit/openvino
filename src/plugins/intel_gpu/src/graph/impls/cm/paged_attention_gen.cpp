@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -304,7 +304,7 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
     if (desc->has_xattention) {
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // q_block_pad
         args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // k_block_pad
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // validate
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // SPARSE_BLOCK_SIZE
     }
     return args;
 }
@@ -315,8 +315,6 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
     const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
     auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
 
-    const size_t xattn_block_size = get_xattn_block_size(params);
-
     jit.make("CMFLA_NUM_HEADS", desc->heads_num);
     jit.make("CMFLA_NUM_KV_HEADS", desc->kv_heads_num);
     jit.make("CMFLA_HEAD_SIZE", desc->k_head_size);
@@ -324,10 +322,10 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
     jit.make("CMFLA_IS_CAUSAL", 1);
     if (desc->has_xattention) {
         jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE_XATTN);
-        jit.make("SPARSE_BLOCK_SIZE", xattn_block_size);
+        jit.make("IS_BLOCK_SPARSE", 1);
     } else {
         jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE);
-        jit.make("SPARSE_BLOCK_SIZE", 1);
+        jit.make("IS_BLOCK_SPARSE", 0);
     }
     jit.make("Q_STEP", get_q_step(xe_arch, true));
 
@@ -378,9 +376,9 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
             scalars[2].t = ScalarDescriptor::Types::INT32;
             scalars[2].v.s32 = static_cast<int32_t>(rtp->k_block_pad);
 
-            scalars[3].t = ScalarDescriptor::Types::UINT8;
+            scalars[3].t = ScalarDescriptor::Types::INT32;
             const bool validate = !bypass_xattn(params);
-            scalars[3].v.u8 = static_cast<uint8_t>(validate);  // validate depending on xattn_threshold
+            scalars[3].v.s32 = static_cast<int32_t>(validate ? rtp->xattn_block_size : 1);
         }
     }};
 }
@@ -408,13 +406,16 @@ JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_
     jit.make("KV_HEADS_NUM", desc->kv_heads_num);
     jit.make("Q_STEP", get_q_step(xe_arch, true));
 
+    constexpr int32_t MaxRepeatCount = 8;
+    int32_t q_heads_per_kv_head = static_cast<int32_t>(desc->heads_num / desc->kv_heads_num);
+    int32_t q_head_chunks_per_kv_head = ceil_div(q_heads_per_kv_head, MaxRepeatCount);
+    int32_t q_head_chunk_size = static_cast<int32_t>(desc->heads_num / (desc->kv_heads_num * q_head_chunks_per_kv_head));
+    jit.make("Q_head_chunks_per_kv_head", q_head_chunks_per_kv_head);
+    jit.make("Q_head_chunk_size", q_head_chunk_size);
+
     if (get_kv_compressed(params)) {
         jit.make("KV_CACHE_COMPRESSION", 1);
-        if (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_TOKEN) {
-            jit.make("KV_CACHE_COMPRESSION_BY_TOKEN", 1);
-        } else {
-            jit.make("KV_CACHE_COMPRESSION_BY_TOKEN", 0);
-        }
+        jit.make("KV_CACHE_COMPRESSION_BY_TOKEN", 1);
     } else {
         jit.make("KV_CACHE_COMPRESSION", 0);
         jit.make("KV_CACHE_COMPRESSION_BY_TOKEN", 0);
@@ -461,7 +462,10 @@ DispatchDataFunc PagedAttentionGeneratorSingleToken::get_dispatch_data_func() co
         const size_t kv_heads_num = desc->kv_heads_num;
         const size_t partition_num = rtp->num_of_partitions;
 
-        wgs.global = {batch, kv_heads_num, partition_num};
+        constexpr int32_t MaxRepeatCount = 8;
+        int32_t q_heads_per_kv_head = static_cast<int32_t>(heads_num / kv_heads_num);
+        int32_t q_head_chunks_per_kv_head = ceil_div(q_heads_per_kv_head, MaxRepeatCount);
+        wgs.global = {batch, kv_heads_num * q_head_chunks_per_kv_head, partition_num};
         wgs.local = {1, 1, 1};
 
         // generate stage: q_len=1
@@ -569,8 +573,8 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     const uint32_t wg_k = get_block_wg_m(params);
     const uint32_t wg_q = get_block_wg_n(params);
     const size_t block_size = get_xattn_block_size(params);
-    OPENVINO_ASSERT(wg_k % block_size == 0, "wg_k should be multiple of block_size then there is no tails from block_size");
-    OPENVINO_ASSERT(wg_q % block_size == 0, "wg_q should be multiple of block_size then there is no tails from block_size");
+    OPENVINO_ASSERT(wg_k % _xattn_block_size == 0, "wg_k should be multiple of block_size then there is no tails from block_size");
+    OPENVINO_ASSERT(wg_q % _xattn_block_size == 0, "wg_q should be multiple of block_size then there is no tails from block_size");
 
     jit.make("STRIDE", STRIDE);
     jit.make("HQ", desc->heads_num);
@@ -580,7 +584,8 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     jit.make("SG_N", SG_N);
     jit.make("BLOCK_SG_M", block_sg_m);
     jit.make("BLOCK_SG_N", block_sg_n);
-    jit.make("BLOCK_SIZE", block_size);
+    jit.make("BLOCK_WG_K", desc->k_head_size % 64 == 0 ? 64 : 32);  // GEMM QK kernel unrolls HEAD_SIZE with a step of BLOCK_WG_K
+    jit.make("BLOCK_SIZE", _xattn_block_size);
     jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
     jit.add(make_jit_constant("INV_S", scale_factor_i));
     jit.make("BLOCK_SHARE_MAX", wg_q);
@@ -681,6 +686,15 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
 //-----------------------------------------------------------------------------------------------------------------
 // XAttention Estimate find_block generator
 //-----------------------------------------------------------------------------------------------------------------
+JitConstants XAttentionEstimateFindBlock::get_jit_constants(const kernel_impl_params& params) const {
+    auto jit = XAttentionEstimateGeneratorBase::get_jit_constants(params);
+
+    const uint32_t NUM_THREADS = _xattn_block_size == 128 ? 32 : 16;  // for xattn sort kernel
+    jit.make("NUM_THREADS", NUM_THREADS);
+
+    return jit;
+}
+
 Arguments XAttentionEstimateFindBlock::get_arguments_desc(const kernel_impl_params& params) const {
     Arguments args;
 
@@ -717,8 +731,7 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
         auto out_shape = params.output_layouts[0].get_shape();
         const size_t q_len = out_shape[0];
 
-        const size_t block_size = get_xattn_block_size(params);
-        const size_t sum_per_n_token_in_block = static_cast<size_t>(block_size / STRIDE);
+        const size_t sum_per_n_token_in_block = static_cast<size_t>(rtp->xattn_block_size / STRIDE);
         const uint32_t q_block = ceil_div(rtp->M, sum_per_n_token_in_block);
         const uint32_t k_block = ceil_div(rtp->N, sum_per_n_token_in_block);
 
@@ -745,7 +758,6 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
 //-----------------------------------------------------------------------------------------------------------------
 JitConstants XAttentionEstimatePostProc::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = XAttentionEstimateGeneratorBase::get_jit_constants(params);
-
     jit.make("MERGED_Q_NUM", get_merged_q_num(params));
 
     return jit;

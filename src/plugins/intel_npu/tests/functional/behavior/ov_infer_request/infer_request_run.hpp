@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1318,7 +1318,7 @@ TEST_P(ROITensorInference, InferenceROITensor) {
 
     OV_EXPECT_THROW_HAS_SUBSTRING(req.set_tensor(tensor_name, m_param.m_input_tensor),
                                   ov::Exception,
-                                  "The tensor is not continuous");
+                                  "tensor has a non-contiguous memory");
 }
 
 using SetShapeInferRunTests = InferRequestRunTests;

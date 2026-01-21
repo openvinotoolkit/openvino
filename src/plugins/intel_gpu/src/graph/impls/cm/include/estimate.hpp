@@ -23,12 +23,6 @@
 #include <cm/cm.h>
 #include <cm/cmtl.h>
 
-#ifdef CM_HAS_LSC_UNTYPED_2D
-#define USE_LSC_BLOCK_2D_DESC 1
-#else
-#define USE_LSC_BLOCK_2D_DESC 0
-#endif
-
 #if defined(SHIM) || defined(CMRT_EMU)
 #define ATTR
 #define ATTR_BUF
@@ -83,148 +77,6 @@ void show(const matrix_ref<T, M, N> mat) {
         printf("],\n");
     }
     printf("]\n");
-}
-
-template <typename T1, typename T2>
-CM_INLINE void Transpose_8x8(matrix_ref<T1, 8, 8> in, matrix_ref<T2, 8, 8> out) {
-    matrix<T2, 8, 8> temp;
-    temp.row(0) = in.template select<2, 1, 4, 2>(0, 0);
-    temp.row(1) = in.template select<2, 1, 4, 2>(2, 0);
-    temp.row(2) = in.template select<2, 1, 4, 2>(4, 0);
-    temp.row(3) = in.template select<2, 1, 4, 2>(6, 0);
-    temp.row(4) = in.template select<2, 1, 4, 2>(0, 1);
-    temp.row(5) = in.template select<2, 1, 4, 2>(2, 1);
-    temp.row(6) = in.template select<2, 1, 4, 2>(4, 1);
-    temp.row(7) = in.template select<2, 1, 4, 2>(6, 1);
-
-    out.row(0) = temp.template select<4, 1, 2, 4>(0, 0);
-    out.row(2) = temp.template select<4, 1, 2, 4>(0, 1);
-    out.row(4) = temp.template select<4, 1, 2, 4>(0, 2);
-    out.row(6) = temp.template select<4, 1, 2, 4>(0, 3);
-    out.row(1) = temp.template select<4, 1, 2, 4>(4, 0);
-    out.row(3) = temp.template select<4, 1, 2, 4>(4, 1);
-    out.row(5) = temp.template select<4, 1, 2, 4>(4, 2);
-    out.row(7) = temp.template select<4, 1, 2, 4>(4, 3);
-}
-
-template <typename T1, typename T2>
-CM_INLINE void Transpose_8x32(matrix_ref<T1, 8, 32> in, matrix_ref<T2, 32, 8> out) {
-    Transpose_8x8(in.template select<8, 1, 8, 1>(0,  0), out.template select<8, 1, 8, 1>( 0, 0));
-    Transpose_8x8(in.template select<8, 1, 8, 1>(0,  8), out.template select<8, 1, 8, 1>( 8, 0));
-    Transpose_8x8(in.template select<8, 1, 8, 1>(0, 16), out.template select<8, 1, 8, 1>(16, 0));
-    Transpose_8x8(in.template select<8, 1, 8, 1>(0, 24), out.template select<8, 1, 8, 1>(24, 0));
-}
-
-template <typename T1, typename T2>
-CM_INLINE void Transpose_4x32(matrix_ref<T1, 4, 32> in, matrix_ref<T2, 32, 4> out) {
-    matrix<T2, 4, 32> temp;
-    temp.row(0) = in.template select<4, 1, 8, 4>(0, 0);
-    temp.row(1) = in.template select<4, 1, 8, 4>(0, 1);
-    temp.row(2) = in.template select<4, 1, 8, 4>(0, 2);
-    temp.row(3) = in.template select<4, 1, 8, 4>(0, 3);
-
-    out.row( 0) = temp.template select<1, 1, 4, 8>(0, 0);
-    out.row( 1) = temp.template select<1, 1, 4, 8>(1, 0);
-    out.row( 2) = temp.template select<1, 1, 4, 8>(2, 0);
-    out.row( 3) = temp.template select<1, 1, 4, 8>(3, 0);
-    out.row( 4) = temp.template select<1, 1, 4, 8>(0, 1);
-    out.row( 5) = temp.template select<1, 1, 4, 8>(1, 1);
-    out.row( 6) = temp.template select<1, 1, 4, 8>(2, 1);
-    out.row( 7) = temp.template select<1, 1, 4, 8>(3, 1);
-    out.row( 8) = temp.template select<1, 1, 4, 8>(0, 2);
-    out.row( 9) = temp.template select<1, 1, 4, 8>(1, 2);
-    out.row(10) = temp.template select<1, 1, 4, 8>(2, 2);
-    out.row(11) = temp.template select<1, 1, 4, 8>(3, 2);
-    out.row(12) = temp.template select<1, 1, 4, 8>(0, 3);
-    out.row(13) = temp.template select<1, 1, 4, 8>(1, 3);
-    out.row(14) = temp.template select<1, 1, 4, 8>(2, 3);
-    out.row(15) = temp.template select<1, 1, 4, 8>(3, 3);
-    out.row(16) = temp.template select<1, 1, 4, 8>(0, 4);
-    out.row(17) = temp.template select<1, 1, 4, 8>(1, 4);
-    out.row(18) = temp.template select<1, 1, 4, 8>(2, 4);
-    out.row(19) = temp.template select<1, 1, 4, 8>(3, 4);
-    out.row(20) = temp.template select<1, 1, 4, 8>(0, 5);
-    out.row(21) = temp.template select<1, 1, 4, 8>(1, 5);
-    out.row(22) = temp.template select<1, 1, 4, 8>(2, 5);
-    out.row(23) = temp.template select<1, 1, 4, 8>(3, 5);
-    out.row(24) = temp.template select<1, 1, 4, 8>(0, 6);
-    out.row(25) = temp.template select<1, 1, 4, 8>(1, 6);
-    out.row(26) = temp.template select<1, 1, 4, 8>(2, 6);
-    out.row(27) = temp.template select<1, 1, 4, 8>(3, 6);
-    out.row(28) = temp.template select<1, 1, 4, 8>(0, 7);
-    out.row(29) = temp.template select<1, 1, 4, 8>(1, 7);
-    out.row(30) = temp.template select<1, 1, 4, 8>(2, 7);
-    out.row(31) = temp.template select<1, 1, 4, 8>(3, 7);
-}
-
-template <typename T1, typename T2>
-CM_INLINE void Transpose_32x32(matrix_ref<T1, 32, 32> in, matrix_ref<T2, 32, 32> out) {
-    matrix<T2, 32, 32> temp;
-    temp.row( 0) = in.template select<8, 1, 4, 8>( 0, 0);
-    temp.row( 1) = in.template select<8, 1, 4, 8>( 8, 0);
-    temp.row( 2) = in.template select<8, 1, 4, 8>(16, 0);
-    temp.row( 3) = in.template select<8, 1, 4, 8>(24, 0);
-    temp.row( 4) = in.template select<8, 1, 4, 8>( 0, 1);
-    temp.row( 5) = in.template select<8, 1, 4, 8>( 8, 1);
-    temp.row( 6) = in.template select<8, 1, 4, 8>(16, 1);
-    temp.row( 7) = in.template select<8, 1, 4, 8>(24, 1);
-    temp.row( 8) = in.template select<8, 1, 4, 8>( 0, 2);
-    temp.row( 9) = in.template select<8, 1, 4, 8>( 8, 2);
-    temp.row(10) = in.template select<8, 1, 4, 8>(16, 2);
-    temp.row(11) = in.template select<8, 1, 4, 8>(24, 2);
-    temp.row(12) = in.template select<8, 1, 4, 8>( 0, 3);
-    temp.row(13) = in.template select<8, 1, 4, 8>( 8, 3);
-    temp.row(14) = in.template select<8, 1, 4, 8>(16, 3);
-    temp.row(15) = in.template select<8, 1, 4, 8>(24, 3);
-    temp.row(16) = in.template select<8, 1, 4, 8>( 0, 4);
-    temp.row(17) = in.template select<8, 1, 4, 8>( 8, 4);
-    temp.row(18) = in.template select<8, 1, 4, 8>(16, 4);
-    temp.row(19) = in.template select<8, 1, 4, 8>(24, 4);
-    temp.row(20) = in.template select<8, 1, 4, 8>( 0, 5);
-    temp.row(21) = in.template select<8, 1, 4, 8>( 8, 5);
-    temp.row(22) = in.template select<8, 1, 4, 8>(16, 5);
-    temp.row(23) = in.template select<8, 1, 4, 8>(24, 5);
-    temp.row(24) = in.template select<8, 1, 4, 8>( 0, 6);
-    temp.row(25) = in.template select<8, 1, 4, 8>( 8, 6);
-    temp.row(26) = in.template select<8, 1, 4, 8>(16, 6);
-    temp.row(27) = in.template select<8, 1, 4, 8>(24, 6);
-    temp.row(28) = in.template select<8, 1, 4, 8>( 0, 7);
-    temp.row(29) = in.template select<8, 1, 4, 8>( 8, 7);
-    temp.row(30) = in.template select<8, 1, 4, 8>(16, 7);
-    temp.row(31) = in.template select<8, 1, 4, 8>(24, 7);
-
-    out.row( 0) = temp.template select<4, 1, 8, 4>( 0, 0);
-    out.row( 1) = temp.template select<4, 1, 8, 4>( 4, 0);
-    out.row( 2) = temp.template select<4, 1, 8, 4>( 8, 0);
-    out.row( 3) = temp.template select<4, 1, 8, 4>(12, 0);
-    out.row( 4) = temp.template select<4, 1, 8, 4>(16, 0);
-    out.row( 5) = temp.template select<4, 1, 8, 4>(20, 0);
-    out.row( 6) = temp.template select<4, 1, 8, 4>(24, 0);
-    out.row( 7) = temp.template select<4, 1, 8, 4>(28, 0);
-    out.row( 8) = temp.template select<4, 1, 8, 4>( 0, 1);
-    out.row( 9) = temp.template select<4, 1, 8, 4>( 4, 1);
-    out.row(10) = temp.template select<4, 1, 8, 4>( 8, 1);
-    out.row(11) = temp.template select<4, 1, 8, 4>(12, 1);
-    out.row(12) = temp.template select<4, 1, 8, 4>(16, 1);
-    out.row(13) = temp.template select<4, 1, 8, 4>(20, 1);
-    out.row(14) = temp.template select<4, 1, 8, 4>(24, 1);
-    out.row(15) = temp.template select<4, 1, 8, 4>(28, 1);
-    out.row(16) = temp.template select<4, 1, 8, 4>( 0, 2);
-    out.row(17) = temp.template select<4, 1, 8, 4>( 4, 2);
-    out.row(18) = temp.template select<4, 1, 8, 4>( 8, 2);
-    out.row(19) = temp.template select<4, 1, 8, 4>(12, 2);
-    out.row(20) = temp.template select<4, 1, 8, 4>(16, 2);
-    out.row(21) = temp.template select<4, 1, 8, 4>(20, 2);
-    out.row(22) = temp.template select<4, 1, 8, 4>(24, 2);
-    out.row(23) = temp.template select<4, 1, 8, 4>(28, 2);
-    out.row(24) = temp.template select<4, 1, 8, 4>( 0, 3);
-    out.row(25) = temp.template select<4, 1, 8, 4>( 4, 3);
-    out.row(26) = temp.template select<4, 1, 8, 4>( 8, 3);
-    out.row(27) = temp.template select<4, 1, 8, 4>(12, 3);
-    out.row(28) = temp.template select<4, 1, 8, 4>(16, 3);
-    out.row(29) = temp.template select<4, 1, 8, 4>(20, 3);
-    out.row(30) = temp.template select<4, 1, 8, 4>(24, 3);
-    out.row(31) = temp.template select<4, 1, 8, 4>(28, 3);
 }
 
 // group_count: M = group_count * group_size, group_size is the element count of current reduction
@@ -380,18 +232,18 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
         const uint M, const uint N, const uint K, const uint query_stride, const uint q_start_strided, const uint offset_partial_sum) {
 
     constexpr int SG_SIZE = details::get_dpas_execution_size((CmPrecisionType)9);    
-    constexpr int BLOCK_WG_K = 64;	// same in sg  // because unroll 4 times along K ??
+    // constexpr int BLOCK_WG_K = 64;	// same in sg  // because unroll 4 times along K ??
     constexpr int SUM_N = BLOCK_SG_N / (BLOCK_SIZE/STRIDE);
 
-#ifndef BLOCK_SG_M
-    #define BLOCK_SG_M  64
-    #define BLOCK_SG_N  32
-    #define SG_M  4
-    #define SG_N  8
-    #define HEAD_SIZE  128
-    #define KV_BLOCK_SIZE  256
-    #define STRIDE  16
-#endif
+// // #ifndef BLOCK_SG_M
+//     #define BLOCK_SG_M  32
+//     #define BLOCK_SG_N  16
+//     #define SG_M  4
+//     #define SG_N  8
+//     #define HEAD_SIZE  128
+//     #define KV_BLOCK_SIZE  256
+//     #define STRIDE  16
+// // #endif
     // xehpg DPAS spec: dst: [8, 8], repeat: 1~8, depth: 8
     static constexpr int REPEAT = 8;
     static constexpr int DEPTH = 8;
@@ -424,15 +276,21 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
     uint id_sg_m = cm_local_id(1);
     uint id_sg_mn = id_sg_m * SG_N + id_sg_n;
 
-    static_assert(REG_N == 2, "block_2d_desc for b is manually unrolled by 2");         // Xe1? // each b buffer process two adjacent key_cache blocks
+    static_assert(BLOCK_WG_K == 32 || BLOCK_WG_K == 64, "Supported BLOCK_WG_K are 32 or 64");
+    constexpr bool IS64 = (BLOCK_WG_K == 64);
+    constexpr bool IS32 = (BLOCK_WG_K == 32);
+    constexpr int PHASE_SIZE = IS64 ? 32 : 16;
+
+    static_assert(REG_N == 2, "block_2d_desc for b is manually unrolled by 2");
     static_assert(HEAD_SIZE % BLOCK_WG_K == 0, "K dimension must be multiple of BLOCK_WG_K");
     static_assert(KV_BLOCK_SIZE == 256, "block size of key(key_cache) should be 256");
     uint N_block = (N + BLOCK_WG_N - 1) / BLOCK_WG_N;
     uint M_aligned = (M + BLOCK_WG_M - 1) / BLOCK_WG_M * BLOCK_WG_M;
     uint K_block_pad = N_block * (BLOCK_WG_N / (BLOCK_SIZE / STRIDE));
-    const uint block_size_div_stride = BLOCK_SIZE / STRIDE;
+    const uint block_size_div_stride = BLOCK_SIZE / STRIDE;  // 8
     constexpr SOFTMAX_TYPE log2e = 1.4426950408889634f;
-    //static_assert(BLOCK_SG_M / block_size_div_stride == 8, "BLOCK_SG_M / block_size_div_stride should be 8");
+    constexpr uint k_block_in_group = BLOCK_WG_N / block_size_div_stride;  // 32
+    constexpr uint k_block_in_sg = k_block_in_group / SG_N;   // 4
 
     static constexpr int SG_MN = SG_M * SG_N;
 
@@ -487,8 +345,8 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
     lsc::block_2d_desc<half, 1, 32, BLOCK_REG_K> desc_a{ query, M - 1, (uint)((query_stride - hq * HEAD_SIZE) * sizeof(half) - 1), (uint)(query_stride * sizeof(half) - 1),
         (STRIDE - 1) * b_adjacent_between_head, (int)(id_wg_m * BLOCK_WG_M + id_sg_m * BLOCK_SG_M) };   // 32 = BLOCK_SG_M/2 ?
     // prefetch A
-    lsc::block_2d_desc<half, 1, BLOCK_WG_M / SG_MN, 32> desc_prefetch_a{query, M - 1, (uint)((query_stride - hq * HEAD_SIZE) * sizeof(half) - 1), (uint)(query_stride * sizeof(half) - 1),
-        (STRIDE - 1) * b_adjacent_between_head, (int)(id_wg_m * BLOCK_WG_M + id_sg_mn * (BLOCK_WG_M / SG_MN)) };  // 32 = BLOCK_REG_K * 2 (prefetch every 2 iters) ?
+    lsc::block_2d_desc<half, 1, BLOCK_WG_M / SG_MN, PHASE_SIZE> desc_prefetch_a{query, M - 1, (uint)((query_stride - hq * HEAD_SIZE) * sizeof(half) - 1), (uint)(query_stride * sizeof(half) - 1),
+        (STRIDE - 1) * b_adjacent_between_head, (int)(id_wg_m * BLOCK_WG_M + id_sg_mn * (BLOCK_WG_M / SG_MN)) };
     #else
     const uint pitch_a = query_stride * sizeof(half);
     uint base_off_a = hq * HEAD_SIZE * (uint)sizeof(half);  /*q header base*/
@@ -539,7 +397,7 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
     offset = block_indices_p[block_idx] * (HK * KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(char));
     static_assert(BLOCK_WG_N / SG_MN <= KEY_LINES_PER_LOAD, "prefetch lines should be inside one block");
     #ifdef CM_HAS_LSC_UNTYPED_2D
-    lsc::block_2d_desc<uchar, 1, BLOCK_WG_N / SG_MN, 32> desc_prefetch_b{ key_cache + offset, BLOCK_WG_N / SG_MN - 1, (uint)(K * sizeof(char) - 1), (uint)(K * sizeof(char) - 1),
+    lsc::block_2d_desc<uchar, 1, BLOCK_WG_N / SG_MN, PHASE_SIZE> desc_prefetch_b{ key_cache + offset, BLOCK_WG_N / SG_MN - 1, (uint)(K * sizeof(char) - 1), (uint)(K * sizeof(char) - 1),
         0, 0 };
     #else
     uint off_prefetch_b = hk * (KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(char));
@@ -580,7 +438,7 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
     offset = block_indices_p[block_idx] * (HK * KV_BLOCK_SIZE * HEAD_SIZE * (uint)sizeof(half));  //paged offset
     static_assert(BLOCK_WG_N / SG_MN <= KEY_LINES_PER_LOAD, "prefetch lines should be inside one block");
     #ifdef CM_HAS_LSC_UNTYPED_2D
-    lsc::block_2d_desc<half, 1, BLOCK_WG_N / SG_MN, 32> desc_prefetch_b{ key_cache + offset, BLOCK_WG_N / SG_MN - 1, (uint)(K * sizeof(half) - 1), (uint)(K * sizeof(half) - 1),
+    lsc::block_2d_desc<half, 1, BLOCK_WG_N / SG_MN, PHASE_SIZE> desc_prefetch_b{ key_cache + offset, BLOCK_WG_N / SG_MN - 1, (uint)(K * sizeof(half) - 1), (uint)(K * sizeof(half) - 1),
         0, 0 };
     #else
     uint off_prefetch_b = hk * (KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(half));
@@ -591,20 +449,21 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
     matrix<half, REG_N, BLOCK_REG_B> b0, b1;      // ping-pong B
 #endif
 
-    // warmup
-    // prefetch
-    #ifdef CM_HAS_LSC_UNTYPED_2D
-    cm_prefetch<CacheHint::Cached, CacheHint::Cached>(desc_prefetch_b);
-    desc_prefetch_b.set_block_x(desc_prefetch_b.get_block_x() + 32);
-    cm_prefetch<CacheHint::Cached, CacheHint::Cached>(desc_prefetch_a);
-    desc_prefetch_a.set_block_x(desc_prefetch_a.get_block_x() + 32);
-    #else
-
-    cm_prefetch_2d<BLOCK_WG_N / SG_MN, 32>(key_cache,off_prefetch_b,pitch_b);
-    off_prefetch_b += 32 * sizeof(half);  
-    cm_prefetch_2d<BLOCK_WG_M / SG_MN, 32>(query,off_prefetch_a,pitch_a);
-    off_prefetch_a += 32 * sizeof(half);
-    #endif
+    if constexpr (IS64) {
+        // warmup
+        // prefetch
+        #ifdef CM_HAS_LSC_UNTYPED_2D
+        cm_prefetch<CacheHint::Cached, CacheHint::Cached>(desc_prefetch_b);
+        desc_prefetch_b.set_block_x(desc_prefetch_b.get_block_x() + 32);
+        cm_prefetch<CacheHint::Cached, CacheHint::Cached>(desc_prefetch_a);
+        desc_prefetch_a.set_block_x(desc_prefetch_a.get_block_x() + 32);
+        #else
+        cm_prefetch_2d<BLOCK_WG_N / SG_MN, 32>(key_cache,off_prefetch_b,pitch_b);
+        off_prefetch_b += 32 * sizeof(half);  
+        cm_prefetch_2d<BLOCK_WG_M / SG_MN, 32>(query,off_prefetch_a,pitch_a);
+        off_prefetch_a += 32 * sizeof(half);
+        #endif
+    }
 
     // load b: N[0:16]xK[0:16]
 #if USE_INT8
@@ -621,7 +480,7 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
         scales_block[0].format<half, 16, 16>().select<8, 2, 16, 1>(1) = tmp_scale.format<half, 8, 32>().select<8, 1, 16, 2>(0, 1);
         zps_block[0].format<half, 16, 16>().select<8, 2, 16, 1>(0) = tmp_zp.format<half, 8, 32>().select<8, 1, 16, 2>(0, 0);
         zps_block[0].format<half, 16, 16>().select<8, 2, 16, 1>(1) = tmp_zp.format<half, 8, 32>().select<8, 1, 16, 2>(0, 1);
-        
+
         desc_scale.set_base(key_cache + scale_offset1);
         cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_scale.format<int>(), desc_scale);
         cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 16>(tmp_zp.format<int>(), desc_scale);
@@ -650,38 +509,57 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
 
         #endif
     }
-
-    #ifdef CM_HAS_LSC_UNTYPED_2D
-    cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0_up_s8.format<int>(), desc_b0);
-    cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0_down_s8.format<int>(), desc_b1);
-    #else
-    vector<uint, KEY_LINES_PER_LOAD> offsets_0 = (gather_offsets_b) * pitch_b + off_b0;
-    vector<uint, KEY_LINES_PER_LOAD> offsets_1 = (gather_offsets_b) * pitch_b + off_b1;
-    b0_up_s8.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
-    b0_down_s8.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
-
+    #ifndef CM_HAS_LSC_UNTYPED_2D
+    vector<uint, KEY_LINES_PER_LOAD> offsets_0;
+    vector<uint, KEY_LINES_PER_LOAD> offsets_1;
     #endif
+    if constexpr (IS64) {
+        #ifdef CM_HAS_LSC_UNTYPED_2D
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0_up_s8.format<int>(), desc_b0);
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0_down_s8.format<int>(), desc_b1);
+        #else
+        offsets_0 = (gather_offsets_b) * pitch_b + off_b0;
+        offsets_1 = (gather_offsets_b) * pitch_b + off_b1;
+        b0_up_s8.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
+        b0_down_s8.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
+        #endif
+    } else {
+        #ifndef CM_HAS_LSC_UNTYPED_2D
+        offsets_0 = (gather_offsets_b) * pitch_b + off_b0;
+        offsets_1 = (gather_offsets_b) * pitch_b + off_b1;
+        #endif
+    }
 #else
-    #ifdef CM_HAS_LSC_UNTYPED_2D
-    cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[0].format<int>(), desc_b0);
-    cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[1].format<int>(), desc_b1);
-    #else
-
-    vector<uint, KEY_LINES_PER_LOAD> offsets_0 = (gather_offsets_b) * pitch_b + off_b0;
-    vector<uint, KEY_LINES_PER_LOAD> offsets_1 = (gather_offsets_b) * pitch_b + off_b1;
-    b0[0].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0); 
-    b0[1].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
+    #ifndef CM_HAS_LSC_UNTYPED_2D
+    vector<uint, KEY_LINES_PER_LOAD> offsets_0;
+    vector<uint, KEY_LINES_PER_LOAD> offsets_1;
     #endif
+    if constexpr (IS64) {
+        #ifdef CM_HAS_LSC_UNTYPED_2D
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[0].format<int>(), desc_b0);
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[1].format<int>(), desc_b1);
+        #else
+        offsets_0 = (gather_offsets_b) * pitch_b + off_b0;
+        offsets_1 = (gather_offsets_b) * pitch_b + off_b1;
+        b0[0].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0); 
+        b0[1].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
+        #endif
+    } else {
+        #ifndef CM_HAS_LSC_UNTYPED_2D
+        offsets_0 = (gather_offsets_b) * pitch_b + off_b0;
+        offsets_1 = (gather_offsets_b) * pitch_b + off_b1;
+        #endif
+    }
 #endif
-    #ifdef CM_HAS_LSC_UNTYPED_2D
-    desc_b0.set_block_x(desc_b0.get_block_x() + 8);
-    desc_b1.set_block_x(desc_b1.get_block_x() + 8);
-    #else
-    offsets_0 += 8 * sizeof(uint); 
-    offsets_1 += 8 * sizeof(uint);
-    #endif
-
-    cm_sbarrier(1);
+    if constexpr (IS64) {
+        #ifdef CM_HAS_LSC_UNTYPED_2D
+        desc_b0.set_block_x(desc_b0.get_block_x() + 8);
+        desc_b1.set_block_x(desc_b1.get_block_x() + 8);
+        #else
+        offsets_0 += 8 * sizeof(uint); 
+        offsets_1 += 8 * sizeof(uint);
+        #endif
+    }
 
 #if USE_INT8
     auto dec = [&](vector<int, KEY_LINES_PER_LOAD*4> B0_i8, vector<int, KEY_LINES_PER_LOAD*4> B1_i8, matrix_ref<half, REG_N, BLOCK_REG_B> B0) {
@@ -733,205 +611,320 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
 #endif
         #pragma unroll
         for (uint hs = 0; hs < HEAD_SIZE / BLOCK_WG_K; hs++) {
-            // --------------------------------------------- unroll 0 ?      -----------------------------
-            // prefetch
-            #ifdef CM_HAS_LSC_UNTYPED_2D
-            cm_prefetch<CacheHint::Cached, CacheHint::Cached>(desc_prefetch_b);
-            desc_prefetch_b.set_block_x(desc_prefetch_b.get_block_x() + 32);
-            cm_prefetch<CacheHint::Cached, CacheHint::Cached>(desc_prefetch_a);
-            if (hs == HEAD_SIZE / BLOCK_WG_K - 1)
-                desc_prefetch_a.set_block_x((STRIDE - 1 - s - 1) * b_adjacent_between_head);
-            else
-                desc_prefetch_a.set_block_x(desc_prefetch_a.get_block_x() + 32);
-            #else
-            //cm_prefetch<16, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(key_cache, off_prefetch_b);
-            cm_prefetch_2d<BLOCK_WG_N / SG_MN, 32>(key_cache,off_prefetch_b,pitch_b);
-            cm_prefetch_2d<BLOCK_WG_M / SG_MN, 32>(query,off_prefetch_a,pitch_a);
-            off_prefetch_b += 32 * sizeof(half);
-            if (hs == HEAD_SIZE / BLOCK_WG_K - 1)
-                off_prefetch_a = base_off_prefetch_a + ((STRIDE - 1 - s - 1) * b_adjacent_between_head) * sizeof(half);
-            else
-                off_prefetch_a += 32 * sizeof(half);
-            #endif
+            if constexpr (IS64) {
+                // --------------------------------------------- unroll 0 ?      -----------------------------
+                // prefetch
+                #ifdef CM_HAS_LSC_UNTYPED_2D
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(desc_prefetch_b);
+                desc_prefetch_b.set_block_x(desc_prefetch_b.get_block_x() + 32);
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(desc_prefetch_a);
+                if (hs == HEAD_SIZE / BLOCK_WG_K - 1)
+                    desc_prefetch_a.set_block_x((STRIDE - 1 - s - 1) * b_adjacent_between_head);
+                else
+                    desc_prefetch_a.set_block_x(desc_prefetch_a.get_block_x() + 32);
+                #else
+                //cm_prefetch<16, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(key_cache, off_prefetch_b);
+                cm_prefetch_2d<BLOCK_WG_N / SG_MN, 32>(key_cache,off_prefetch_b,pitch_b);
+                cm_prefetch_2d<BLOCK_WG_M / SG_MN, 32>(query,off_prefetch_a,pitch_a);
+                off_prefetch_b += 32 * sizeof(half);
+                if (hs == HEAD_SIZE / BLOCK_WG_K - 1)
+                    off_prefetch_a = base_off_prefetch_a + ((STRIDE - 1 - s - 1) * b_adjacent_between_head) * sizeof(half);
+                else
+                    off_prefetch_a += 32 * sizeof(half);
+                #endif
 
-            // load a: M[0:16*4]xK[0:16]
-            #ifdef CM_HAS_LSC_UNTYPED_2D
-            cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0,  0>(a0.select<4, 1, BLOCK_REG_A, 1>(0).format<half>(), desc_a);
-            cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0, 32>(a0.select<4, 1, BLOCK_REG_A, 1>(4).format<half>(), desc_a);
-            #else
-            cm_load_2d(a0.format<half, BLOCK_SG_M, BLOCK_REG_K>(), query, off_a, pitch_a, (id_sg_mn==0 && s==0));
+                // load a: M[0:16*4]xK[0:16]
+                #ifdef CM_HAS_LSC_UNTYPED_2D
+                cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0,  0>(a0.select<4, 1, BLOCK_REG_A, 1>(0).format<half>(), desc_a);
+                cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0, 32>(a0.select<4, 1, BLOCK_REG_A, 1>(4).format<half>(), desc_a);
+                #else
+                cm_load_2d(a0.format<half, BLOCK_SG_M, BLOCK_REG_K>(), query, off_a, pitch_a, (id_sg_mn==0 && s==0));
 
-            uint query_header_xbase = hq * HEAD_SIZE;
-            uint offset_a_x = ((STRIDE - 1) * b_adjacent_between_head  + query_header_xbase) * sizeof(half);
+                uint query_header_xbase = hq * HEAD_SIZE;
+                uint offset_a_x = ((STRIDE - 1) * b_adjacent_between_head  + query_header_xbase) * sizeof(half);
 
-            matrix_ref<half, BLOCK_SG_M, BLOCK_REG_K> aa = a0.format<half, BLOCK_SG_M, BLOCK_REG_K>();
+                matrix_ref<half, BLOCK_SG_M, BLOCK_REG_K> aa = a0.format<half, BLOCK_SG_M, BLOCK_REG_K>();
 
-            #endif
+                #endif
 
-            // load b: N[0:16*2]xK[16:32]
+                // load b: N[0:16*2]xK[16:32]
 #if USE_INT8
-            #ifdef CM_HAS_LSC_UNTYPED_2D
-            cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b1_up_s8.format<int>(), desc_b0);
-            cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b1_down_s8.format<int>(), desc_b1);
-            #else
-            b1_up_s8.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
-            b1_down_s8.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
-            #endif
-            dec(b0_up_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(), b0_down_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(), b0);
-            dot(a0, b0);
+                #ifdef CM_HAS_LSC_UNTYPED_2D
+                cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b1_up_s8.format<int>(), desc_b0);
+                cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b1_down_s8.format<int>(), desc_b1);
+                #else
+                b1_up_s8.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
+                b1_down_s8.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
+                #endif
+                dec(b0_up_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(), b0_down_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(), b0);
+                dot(a0, b0);
 #else
-            #ifdef CM_HAS_LSC_UNTYPED_2D
-            cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b1[0].format<int>(), desc_b0);
-            cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b1[1].format<int>(), desc_b1);
-            #else
+                #ifdef CM_HAS_LSC_UNTYPED_2D
+                cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b1[0].format<int>(), desc_b0);
+                cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b1[1].format<int>(), desc_b1);
+                #else
 
-            b1[0].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
-            b1[1].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
-            #endif
-            // if(id_sg_mn==0 && s==0) show(b0.format<half, 2, 16*16>());
-            dot(a0, b0);
+                b1[0].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
+                b1[1].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
+                #endif
+                // if(id_sg_mn==0 && s==0) show(b0.format<half, 2, 16*16>());
+                dot(a0, b0);
 #endif
-            #ifdef CM_HAS_LSC_UNTYPED_2D
-            desc_a.set_block_x(desc_a.get_block_x() + BLOCK_REG_K);
-            desc_b0.set_block_x(desc_b0.get_block_x() + 8);
-            desc_b1.set_block_x(desc_b1.get_block_x() + 8);
-            #else
-            off_a += BLOCK_REG_K * sizeof(half);
-            offsets_0 += 8 * sizeof(uint);   //16 fp16, 32 int8
-            offsets_1 += 8 * sizeof(uint);
-            #endif
-
-            // --------------------------------------------- unroll 1 ?      -----------------------------
-
-            // load a: M[0:16*4]xK[16:32]
-            #ifdef CM_HAS_LSC_UNTYPED_2D
-            cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0,  0>(a0.select<4, 1, BLOCK_REG_A, 1>(0).format<half>(), desc_a);
-            cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0, 32>(a0.select<4, 1, BLOCK_REG_A, 1>(4).format<half>(), desc_a);
-            #else
-            cm_load_2d(a0.format<half, BLOCK_SG_M, BLOCK_REG_K>(), query, off_a, pitch_a);
-            #endif
-
-#if USE_INT8
-            dec(b0_up_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(KEY_LINES_PER_LOAD*4), b0_down_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(KEY_LINES_PER_LOAD*4), b0);
-            dot(a0, b0);
-#else
-            #ifdef CM_HAS_LSC_UNTYPED_2D
-            cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[0].format<int>(), desc_b0);
-            cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[1].format<int>(), desc_b1);
-            desc_b0.set_block_x(desc_b0.get_block_x() + 8);
-            desc_b1.set_block_x(desc_b1.get_block_x() + 8);
-            #else
-            b0[0].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
-            b0[1].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
-            offsets_0 += 8 * sizeof(uint);   //16 fp16, 32 int8
-            offsets_1 += 8 * sizeof(uint);
-            #endif
-            // if(id_sg_mn==0 && s==0) show(b1.format<half, 2, 16*16>());
-            dot(a0, b1);
-#endif
-            #ifdef CM_HAS_LSC_UNTYPED_2D
-            desc_a.set_block_x(desc_a.get_block_x() + BLOCK_REG_K);
-            #else
-            off_a += BLOCK_REG_K * sizeof(half);
-            #endif
-
-            // --------------------------------------------- unroll 2 ?      -----------------------------
-
-            // prefetch
-            #ifdef CM_HAS_LSC_UNTYPED_2D
-            cm_prefetch<CacheHint::Cached, CacheHint::Cached>(desc_prefetch_b);
-            desc_prefetch_b.set_block_x(desc_prefetch_b.get_block_x() + 32);
-            cm_prefetch<CacheHint::Cached, CacheHint::Cached>(desc_prefetch_a);
-            desc_prefetch_a.set_block_x(desc_prefetch_a.get_block_x() + 32);
-
-            // load a: M[0:16*4]xK[32:48]
-            cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0,  0>(a0.select<4, 1, BLOCK_REG_A, 1>(0).format<half>(), desc_a);
-            cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0, 32>(a0.select<4, 1, BLOCK_REG_A, 1>(4).format<half>(), desc_a);
-            #else
-            cm_prefetch_2d<BLOCK_WG_N / SG_MN, 32>(key_cache,off_prefetch_b,pitch_b);
-            cm_prefetch_2d<BLOCK_WG_M / SG_MN, 32>(query,off_prefetch_a,pitch_a);
-            off_prefetch_b += 32 * sizeof(half);
-            off_prefetch_a += 32 * sizeof(half);
-
-            // load a: M[0:16*4]xK[32:48]
-            cm_load_2d(a0.format<half, BLOCK_SG_M, BLOCK_REG_K>(), query, off_a, pitch_a);
-            #endif
-
-            // load b: N[0:16*2]xK[32:64]
-#if USE_INT8
-            #ifdef CM_HAS_LSC_UNTYPED_2D
-            cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0_up_s8.format<int>(), desc_b0);
-            cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0_down_s8.format<int>(), desc_b1);
-            #else
-            b0_up_s8.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
-            b0_down_s8.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
-            #endif
-            dec(b1_up_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(), b1_down_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(), b0);
-            dot(a0, b0);
-#else
-            #ifdef CM_HAS_LSC_UNTYPED_2D
-            cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b1[0].format<int>(), desc_b0);
-            cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b1[1].format<int>(), desc_b1);
-            #else
-            b1[0].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
-            b1[1].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
-            #endif
-            dot(a0, b0);
-#endif
-            #ifdef CM_HAS_LSC_UNTYPED_2D
-            desc_a.set_block_x(desc_a.get_block_x() + BLOCK_REG_K);
-            desc_b0.set_block_x(desc_b0.get_block_x() + 8);
-            desc_b1.set_block_x(desc_b1.get_block_x() + 8);
-            #else
-            off_a += BLOCK_REG_K * sizeof(half);
-            offsets_0 += 8 * sizeof(uint);   //16 fp16, 32 int8
-            offsets_1 += 8 * sizeof(uint);
-            #endif
-
-            // --------------------------------------------- unroll 3 ?      -----------------------------
-
-            // load a: M[0:16*4]xK[48:64]
-            #ifdef CM_HAS_LSC_UNTYPED_2D
-            cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0,  0>(a0.select<4, 1, BLOCK_REG_A, 1>(0).format<half>(), desc_a);
-            cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0, 32>(a0.select<4, 1, BLOCK_REG_A, 1>(4).format<half>(), desc_a);
-            if (hs == HEAD_SIZE / BLOCK_WG_K - 1) {
-                desc_a.set_block_x((STRIDE - 1 - s - 1) * b_adjacent_between_head);
-            } else {
+                #ifdef CM_HAS_LSC_UNTYPED_2D
                 desc_a.set_block_x(desc_a.get_block_x() + BLOCK_REG_K);
-            }
-            #else
-            cm_load_2d(a0.format<half, BLOCK_SG_M, BLOCK_REG_K>(), query, off_a, pitch_a);
-            if (hs == HEAD_SIZE / BLOCK_WG_K - 1) {
-                off_a = base_off_a + ((STRIDE - 1 - s - 1) * b_adjacent_between_head) * sizeof(half);
-            } else {
+                desc_b0.set_block_x(desc_b0.get_block_x() + 8);
+                desc_b1.set_block_x(desc_b1.get_block_x() + 8);
+                #else
                 off_a += BLOCK_REG_K * sizeof(half);
-            }
-            #endif
+                offsets_0 += 8 * sizeof(uint);   //16 fp16, 32 int8
+                offsets_1 += 8 * sizeof(uint);
+                #endif
+
+                // --------------------------------------------- unroll 1 ?      -----------------------------
+
+                // load a: M[0:16*4]xK[16:32]
+                #ifdef CM_HAS_LSC_UNTYPED_2D
+                cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0,  0>(a0.select<4, 1, BLOCK_REG_A, 1>(0).format<half>(), desc_a);
+                cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0, 32>(a0.select<4, 1, BLOCK_REG_A, 1>(4).format<half>(), desc_a);
+                #else
+                cm_load_2d(a0.format<half, BLOCK_SG_M, BLOCK_REG_K>(), query, off_a, pitch_a);
+                #endif
 
 #if USE_INT8
-            dec(b1_up_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(KEY_LINES_PER_LOAD*4), b1_down_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(KEY_LINES_PER_LOAD*4), b0);
-            dot(a0, b0);
+                dec(b0_up_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(KEY_LINES_PER_LOAD*4), b0_down_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(KEY_LINES_PER_LOAD*4), b0);
+                dot(a0, b0);
 #else
-            #ifdef CM_HAS_LSC_UNTYPED_2D
-            cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[0].format<int>(), desc_b0);
-            cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[1].format<int>(), desc_b1);
-            desc_b0.set_block_x(desc_b0.get_block_x() + 8);
-            desc_b1.set_block_x(desc_b1.get_block_x() + 8);
-            #else
-            b0[0].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
-            b0[1].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
-            offsets_0 += 8 * sizeof(uint); 
-            offsets_1 += 8 * sizeof(uint);
-            #endif
-            dot(a0, b1);
+                #ifdef CM_HAS_LSC_UNTYPED_2D
+                cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[0].format<int>(), desc_b0);
+                cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[1].format<int>(), desc_b1);
+                desc_b0.set_block_x(desc_b0.get_block_x() + 8);
+                desc_b1.set_block_x(desc_b1.get_block_x() + 8);
+                #else
+                b0[0].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
+                b0[1].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
+                offsets_0 += 8 * sizeof(uint);   //16 fp16, 32 int8
+                offsets_1 += 8 * sizeof(uint);
+                #endif
+                // if(id_sg_mn==0 && s==0) show(b1.format<half, 2, 16*16>());
+                dot(a0, b1);
+#endif
+                #ifdef CM_HAS_LSC_UNTYPED_2D
+                desc_a.set_block_x(desc_a.get_block_x() + BLOCK_REG_K);
+                #else
+                off_a += BLOCK_REG_K * sizeof(half);
+                #endif
+
+                // --------------------------------------------- unroll 2 ?      -----------------------------
+
+                // prefetch
+                #ifdef CM_HAS_LSC_UNTYPED_2D
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(desc_prefetch_b);
+                desc_prefetch_b.set_block_x(desc_prefetch_b.get_block_x() + 32);
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(desc_prefetch_a);
+                desc_prefetch_a.set_block_x(desc_prefetch_a.get_block_x() + 32);
+
+                // load a: M[0:16*4]xK[32:48]
+                cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0,  0>(a0.select<4, 1, BLOCK_REG_A, 1>(0).format<half>(), desc_a);
+                cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0, 32>(a0.select<4, 1, BLOCK_REG_A, 1>(4).format<half>(), desc_a);
+                #else
+                cm_prefetch_2d<BLOCK_WG_N / SG_MN, 32>(key_cache,off_prefetch_b,pitch_b);
+                cm_prefetch_2d<BLOCK_WG_M / SG_MN, 32>(query,off_prefetch_a,pitch_a);
+                off_prefetch_b += 32 * sizeof(half);
+                off_prefetch_a += 32 * sizeof(half);
+
+                // load a: M[0:16*4]xK[32:48]
+                cm_load_2d(a0.format<half, BLOCK_SG_M, BLOCK_REG_K>(), query, off_a, pitch_a);
+                #endif
+
+                // load b: N[0:16*2]xK[32:64]
+#if USE_INT8
+                #ifdef CM_HAS_LSC_UNTYPED_2D
+                cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0_up_s8.format<int>(), desc_b0);
+                cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0_down_s8.format<int>(), desc_b1);
+                #else
+                b0_up_s8.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
+                b0_down_s8.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
+                #endif
+                dec(b1_up_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(), b1_down_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(), b0);
+                dot(a0, b0);
+#else
+                #ifdef CM_HAS_LSC_UNTYPED_2D
+                cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b1[0].format<int>(), desc_b0);
+                cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b1[1].format<int>(), desc_b1);
+                #else
+                b1[0].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
+                b1[1].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
+                #endif
+                dot(a0, b0);
+#endif
+                #ifdef CM_HAS_LSC_UNTYPED_2D
+                desc_a.set_block_x(desc_a.get_block_x() + BLOCK_REG_K);
+                desc_b0.set_block_x(desc_b0.get_block_x() + 8);
+                desc_b1.set_block_x(desc_b1.get_block_x() + 8);
+                #else
+                off_a += BLOCK_REG_K * sizeof(half);
+                offsets_0 += 8 * sizeof(uint);   //16 fp16, 32 int8
+                offsets_1 += 8 * sizeof(uint);
+                #endif
+
+                // --------------------------------------------- unroll 3 ?      -----------------------------
+
+                // load a: M[0:16*4]xK[48:64]
+                #ifdef CM_HAS_LSC_UNTYPED_2D
+                cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0,  0>(a0.select<4, 1, BLOCK_REG_A, 1>(0).format<half>(), desc_a);
+                cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0, 32>(a0.select<4, 1, BLOCK_REG_A, 1>(4).format<half>(), desc_a);
+                if (hs == HEAD_SIZE / BLOCK_WG_K - 1) {
+                    desc_a.set_block_x((STRIDE - 1 - s - 1) * b_adjacent_between_head);
+                } else {
+                    desc_a.set_block_x(desc_a.get_block_x() + BLOCK_REG_K);
+                }
+                #else
+                cm_load_2d(a0.format<half, BLOCK_SG_M, BLOCK_REG_K>(), query, off_a, pitch_a);
+                if (hs == HEAD_SIZE / BLOCK_WG_K - 1) {
+                    off_a = base_off_a + ((STRIDE - 1 - s - 1) * b_adjacent_between_head) * sizeof(half);
+                } else {
+                    off_a += BLOCK_REG_K * sizeof(half);
+                }
+                #endif
+#if USE_INT8
+                dec(b1_up_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(KEY_LINES_PER_LOAD*4), b1_down_s8.format<int>().select<KEY_LINES_PER_LOAD*4, 1>(KEY_LINES_PER_LOAD*4), b0);
+                dot(a0, b0);
+#else
+                #ifdef CM_HAS_LSC_UNTYPED_2D
+                // load b: N[0:16*2]xK[16:32]
+                cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[0].format<int>(), desc_b0);
+                cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[1].format<int>(), desc_b1);
+                dot(a0, b0);
+                desc_b0.set_block_x(desc_b0.get_block_x() + 8);
+                desc_b1.set_block_x(desc_b1.get_block_x() + 8);
+                #else
+                b0[0].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
+                b0[1].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
+                offsets_0 += 8 * sizeof(uint); 
+                offsets_1 += 8 * sizeof(uint);
+                #endif
+                dot(a0, b1);
+#endif
+            } else {
+                #ifdef CM_HAS_LSC_UNTYPED_2D
+                // 2 phases with single buffer b0
+                // prefetch
+                desc_prefetch_b.set_block_x(desc_prefetch_b.get_block_x() + 16);
+                desc_prefetch_a.set_block_x(desc_prefetch_a.get_block_x() + 16);
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(desc_prefetch_b);
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(desc_prefetch_a);
+
+                // load a: M[0:16*4]xK[0:16]
+                cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0,  0>(a0.select<4, 1, BLOCK_REG_A, 1>(0).format<half>(), desc_a);
+                cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0, 32>(a0.select<4, 1, BLOCK_REG_A, 1>(4).format<half>(), desc_a);
+#if USE_INT8
+                // load b: N[0:16*2]xK[0:32]
+                cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0_up_s8.format<int>(), desc_b0);
+                cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0_down_s8.format<int>(), desc_b1);
+                dec(b0_up_s8.format<int>().select<64, 1>(), b0_down_s8.format<int>().select<64, 1>(), b0);
+                dot(a0, b0);
+#else
+                // load b: N[0:16*2]xK[0:16]
+                cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[0].format<int>(), desc_b0);
+                cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[1].format<int>(), desc_b1);
+                dot(a0, b0);
 #endif
 
-            cm_sbarrier(0);
-            cm_sbarrier(1);
+                desc_a.set_block_x(desc_a.get_block_x() + 16);
+                desc_b0.set_block_x(desc_b0.get_block_x() + 8);
+                desc_b1.set_block_x(desc_b1.get_block_x() + 8);
+
+                // prefetch
+                desc_prefetch_b.set_block_x(desc_prefetch_b.get_block_x() + 16);
+                if (hs == HEAD_SIZE / BLOCK_WG_K - 1)
+                    desc_prefetch_a.set_block_x((STRIDE - 1 - s - 1) * b_adjacent_between_head);
+                else
+                    desc_prefetch_a.set_block_x(desc_prefetch_a.get_block_x() + 16);
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(desc_prefetch_b);
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(desc_prefetch_a);
+
+                // load a: M[0:16*4]xK[16:32]
+                cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0,  0>(a0.select<4, 1, BLOCK_REG_A, 1>(0).format<half>(), desc_a);
+                cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 0, 32>(a0.select<4, 1, BLOCK_REG_A, 1>(4).format<half>(), desc_a);
+                if (hs == HEAD_SIZE / BLOCK_WG_K - 1) {
+                    desc_a.set_block_x((STRIDE - 1 - s - 1) * b_adjacent_between_head);
+                } else {
+                    desc_a.set_block_x(desc_a.get_block_x() + 16);
+                }
+#if USE_INT8
+                dec(b0_up_s8.format<int>().select<64, 1>(64), b0_down_s8.format<int>().select<64, 1>(64), b0);
+                dot(a0, b0);
+#else
+                // load b: N[0:16*2]xK[16:32]
+                cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[0].format<int>(), desc_b0);
+                cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0[1].format<int>(), desc_b1);
+                dot(a0, b0);
+                desc_b0.set_block_x(desc_b0.get_block_x() + 8);
+                desc_b1.set_block_x(desc_b1.get_block_x() + 8);
+#endif
+                #else
+                // 2 phases with single buffer b0 (non-lsc)
+
+                // prefetch
+                cm_prefetch_2d<BLOCK_WG_N / SG_MN, PHASE_SIZE>(key_cache, off_prefetch_b, pitch_b);
+                cm_prefetch_2d<BLOCK_WG_M / SG_MN, PHASE_SIZE>(query, off_prefetch_a, pitch_a);
+                off_prefetch_b += PHASE_SIZE * sizeof(half);
+                off_prefetch_a += PHASE_SIZE * sizeof(half);
+
+                // load a: M[0:16*4]xK[0:16]
+                cm_load_2d(a0.format<half, BLOCK_SG_M, BLOCK_REG_K>(), query, off_a, pitch_a);
+
+#if USE_INT8
+                // load b once: N[0:16*2]xK[0:32], then split into 2 phases
+                b0_up_s8.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
+                b0_down_s8.format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
+                dec(b0_up_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(), b0_down_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(), b0);
+                dot(a0, b0);
+#else
+                // load b: N[0:16*2]xK[0:16]
+                b0[0].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
+                b0[1].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
+                dot(a0, b0);
+#endif
+
+                off_a += PHASE_SIZE * sizeof(half);
+                offsets_0 += 8 * sizeof(uint);
+                offsets_1 += 8 * sizeof(uint);
+
+                // prefetch
+                cm_prefetch_2d<BLOCK_WG_N / SG_MN, PHASE_SIZE>(key_cache, off_prefetch_b, pitch_b);
+                cm_prefetch_2d<BLOCK_WG_M / SG_MN, PHASE_SIZE>(query, off_prefetch_a, pitch_a);
+                off_prefetch_b += PHASE_SIZE * sizeof(half);
+                if (hs == HEAD_SIZE / BLOCK_WG_K - 1)
+                    off_prefetch_a = base_off_prefetch_a + ((STRIDE - 1 - s - 1) * b_adjacent_between_head) * sizeof(half);
+                else
+                    off_prefetch_a += PHASE_SIZE * sizeof(half);
+
+                // load a: M[0:16*4]xK[16:32]
+                cm_load_2d(a0.format<half, BLOCK_SG_M, BLOCK_REG_K>(), query, off_a, pitch_a);
+                if (hs == HEAD_SIZE / BLOCK_WG_K - 1) {
+                    off_a = base_off_a + ((STRIDE - 1 - s - 1) * b_adjacent_between_head) * sizeof(half);
+                } else {
+                    off_a += PHASE_SIZE * sizeof(half);
+                }
+
+#if USE_INT8
+                dec(b0_up_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(KEY_LINES_PER_LOAD * 4), b0_down_s8.format<int>().select<KEY_LINES_PER_LOAD * 4, 1>(KEY_LINES_PER_LOAD * 4), b0);
+                dot(a0, b0);
+#else
+                // load b: N[0:16*2]xK[16:32]
+                b0[0].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_0);
+                b0[1].format<uint>() = cm_load<uint, VectorSize::N8>(key_cache, offsets_1);
+                dot(a0, b0);
+#endif
+                offsets_0 += 8 * sizeof(uint);
+                offsets_1 += 8 * sizeof(uint);
+                #endif
+            }
         }
     }
 
-    cm_sbarrier(0);
+    cm_barrier();
 
     matrix<SOFTMAX_TYPE, REG_M * BLOCK_REG_M, REG_N * BLOCK_REG_N> acc_half;
     union {
@@ -1051,22 +1044,25 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
                 } SIMD_IF_END;
             }
         }
-
-        sum_t.select<BLOCK_SG_M, 1, SUM_N, 1>( 0).format<SOFTMAX_TYPE>() = reduce2d<SUM_N, 1, SUM_N>(acc_half.select<BLOCK_SG_M, 1, BLOCK_SG_N, 1>(0)).format<SOFTMAX_TYPE>();
-
+        #ifdef CM_HAS_LSC_UNTYPED_2D
+        sum_t.select<32, 1, SUM_N, 1>(0).format<SOFTMAX_TYPE>() = reduce2d<SUM_N, 1, SUM_N>(acc_half.select<32, 1, BLOCK_SG_N, 1>(0)).format<SOFTMAX_TYPE>();
+        sum_t.select<32, 1, SUM_N, 1>(32).format<SOFTMAX_TYPE>() = reduce2d<SUM_N, 1, SUM_N>(acc_half.select<32, 1, BLOCK_SG_N, 1>(32)).format<SOFTMAX_TYPE>();
+        #else
+        sum_t.select<BLOCK_SG_M, 1, SUM_N, 1>(0).format<SOFTMAX_TYPE>() = reduce2d<SUM_N, 1, SUM_N>(acc_half.select<BLOCK_SG_M, 1, BLOCK_SG_N, 1>(0)).format<SOFTMAX_TYPE>();
+        #endif
     }
     // store
     #ifdef CM_HAS_LSC_UNTYPED_2D
-    lsc::block_2d_desc<SOFTMAX_TYPE, 1, 8, 4> desc_c{ kq_exp_partial_sum, M - 1, (uint)(K_block_pad * sizeof(SOFTMAX_TYPE) - 1), (uint)(K_block_pad * sizeof(SOFTMAX_TYPE) - 1),
-        (int)((id_wg_n * BLOCK_WG_N + id_sg_n * BLOCK_SG_N) / block_size_div_stride), (int)(id_wg_m * BLOCK_WG_M + id_sg_m * BLOCK_SG_M) };
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 0>(desc_c, sum_t.select<8, 1, 4, 1>( 0).format<SOFTMAX_TYPE>());
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 1>(desc_c, sum_t.select<8, 1, 4, 1>( 8).format<SOFTMAX_TYPE>());
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 2>(desc_c, sum_t.select<8, 1, 4, 1>(16).format<SOFTMAX_TYPE>());
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 3>(desc_c, sum_t.select<8, 1, 4, 1>(24).format<SOFTMAX_TYPE>());
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 4>(desc_c, sum_t.select<8, 1, 4, 1>(32).format<SOFTMAX_TYPE>());
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 5>(desc_c, sum_t.select<8, 1, 4, 1>(40).format<SOFTMAX_TYPE>());
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 6>(desc_c, sum_t.select<8, 1, 4, 1>(48).format<SOFTMAX_TYPE>());
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 7>(desc_c, sum_t.select<8, 1, 4, 1>(56).format<SOFTMAX_TYPE>());
+    lsc::block_2d_desc<SOFTMAX_TYPE, 1, 8, k_block_in_sg> desc_c{ kq_exp_partial_sum, M - 1 /*height*/, (uint)(K_block_pad * sizeof(SOFTMAX_TYPE) - 1) /*width*/, (uint)(K_block_pad * sizeof(SOFTMAX_TYPE) - 1),
+        (int)((id_wg_n * BLOCK_WG_N + id_sg_n * BLOCK_SG_N) / block_size_div_stride) /*x*/, (int)(id_wg_m * BLOCK_WG_M + id_sg_m * BLOCK_SG_M) /*y*/ };
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 0>(desc_c, sum_t.select<8, 1, k_block_in_sg, 1>( 0).format<SOFTMAX_TYPE>());
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 1>(desc_c, sum_t.select<8, 1, k_block_in_sg, 1>( 8).format<SOFTMAX_TYPE>());
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 2>(desc_c, sum_t.select<8, 1, k_block_in_sg, 1>(16).format<SOFTMAX_TYPE>());
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 3>(desc_c, sum_t.select<8, 1, k_block_in_sg, 1>(24).format<SOFTMAX_TYPE>());
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 4>(desc_c, sum_t.select<8, 1, k_block_in_sg, 1>(32).format<SOFTMAX_TYPE>());
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 5>(desc_c, sum_t.select<8, 1, k_block_in_sg, 1>(40).format<SOFTMAX_TYPE>());
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 6>(desc_c, sum_t.select<8, 1, k_block_in_sg, 1>(48).format<SOFTMAX_TYPE>());
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 7>(desc_c, sum_t.select<8, 1, k_block_in_sg, 1>(56).format<SOFTMAX_TYPE>());
     #else
     const uint pitch_c = K_block_pad * sizeof(SOFTMAX_TYPE);
     uint off_c = offset_partial_sum;

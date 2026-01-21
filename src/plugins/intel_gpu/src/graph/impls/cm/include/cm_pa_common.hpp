@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2022-2025 Intel Corporation
+ * Copyright (c) 2018-2026 Intel Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,10 +40,10 @@ void pa_lsc_u8(
 #endif
     svmptr_t k_cache_base [[type("svmptr_t")]],
     svmptr_t v_cache_base [[type("svmptr_t")]],
-#if SPARSE_BLOCK_SIZE > 1
+#if IS_BLOCK_SPARSE
     svmptr_t sparse_mask_base [[type("svmptr_t")]],
     svmptr_t wg_sparse_mask_base [[type("svmptr_t")]],
-    bool validate,
+    int SPARSE_BLOCK_SIZE,
 #endif
     svmptr_t o_base [[type("svmptr_t")]],
     int32_t past_lens,
@@ -123,7 +123,8 @@ void pa_lsc_u8(
     int slm_buff_id_write = 0;
     int slm_buff_id_read = 0;
 
-#if SPARSE_BLOCK_SIZE > 1
+#if IS_BLOCK_SPARSE
+#if USE_LSC
     auto skip_compute = [&](int kv_pos) {
         auto kv_start_block = kv_pos / SPARSE_BLOCK_SIZE;
         bool sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);
@@ -135,16 +136,50 @@ void pa_lsc_u8(
         bool sparse_mask = *(reinterpret_cast<bool*>(wg_sparse_mask_base) + kv_start_block);
         return !sparse_mask;
     };
+#else
+    auto skip_compute = [&](int kv_pos) {
+        uint kv_start_block = 0;
+        bool sparse_mask = true;
+        if (SPARSE_BLOCK_SIZE == 64) {
+            kv_start_block = (uint)kv_pos >> 6;
+            sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);
+        } else if (SPARSE_BLOCK_SIZE == 128) {
+            kv_start_block = (uint)kv_pos >> 7;
+            sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);
+        } else if (SPARSE_BLOCK_SIZE == 256) {
+            kv_start_block = (uint)kv_pos >> 8;
+            sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);
+        } else {
+            sparse_mask = true;
+        }
+        return !sparse_mask;
+    };
+    auto skip_load = [&](int kv_pos) {
+        uint kv_start_block = 0;
+        bool sparse_mask = true;
+        if (SPARSE_BLOCK_SIZE == 64) {
+            kv_start_block = (uint)kv_pos >> 6;
+            sparse_mask = *(reinterpret_cast<bool*>(wg_sparse_mask_base) + kv_start_block);
+        } else if (SPARSE_BLOCK_SIZE == 128) {
+            kv_start_block = (uint)kv_pos >> 7;
+            sparse_mask = *(reinterpret_cast<bool*>(wg_sparse_mask_base) + kv_start_block);
+        } else if (SPARSE_BLOCK_SIZE == 256) {
+            kv_start_block = (uint)kv_pos >> 8;
+            sparse_mask = *(reinterpret_cast<bool*>(wg_sparse_mask_base) + kv_start_block);
+        } else {
+            sparse_mask = true;
+        }
+        return !sparse_mask;
+    };
+#endif
 #endif
 
     auto load_slm_KV = [&](int kv_pos) {
         if (kv_pos < kv_stop) {
-#if SPARSE_BLOCK_SIZE > 1
-            if (validate) {
-                if (skip_load(kv_pos)) {
-                    slm_buff_id_write++;
-                    return;
-                }
+#if IS_BLOCK_SPARSE
+            if (SPARSE_BLOCK_SIZE > 1 && skip_load(kv_pos)) {
+                slm_buff_id_write++;
+                return;
             }
 #endif
             auto cur_block_id = block_indices[kv_pos / CMPA_BLOCK_SZ];
@@ -269,13 +304,11 @@ void pa_lsc_u8(
         load_slm_KV(kv_pos + kv_step*2);
 
 
-#if SPARSE_BLOCK_SIZE > 1
-        if (validate) {
-            if (skip_compute(kv_pos)) {
-                if constexpr (use_causal_mask)
-                    causal_left -= kv_step;
-                continue;
-            }
+#if IS_BLOCK_SPARSE
+        if (SPARSE_BLOCK_SIZE > 1 && skip_compute(kv_pos)) {
+            if constexpr (use_causal_mask)
+                causal_left -= kv_step;
+            continue;
         }
 #endif
         {
@@ -384,10 +417,10 @@ void pa_kernel_lsc_prefetch_f16(
     SurfaceIndex v_cache_stateful,
     uint32_t v_cache_stateful_offset_bytes,
 #endif
-#if SPARSE_BLOCK_SIZE > 1
+#if IS_BLOCK_SPARSE
     svmptr_t sparse_mask_base [[type("svmptr_t")]],
     svmptr_t wg_sparse_mask_base [[type("svmptr_t")]],
-    bool validate,
+    int SPARSE_BLOCK_SIZE,
 #endif
     svmptr_t o_base [[type("svmptr_t")]],
     int32_t past_lens,
@@ -495,11 +528,28 @@ void pa_kernel_lsc_prefetch_f16(
             cm_ptr_prefetch<REG_K/2, DataSize::U32, CacheHint::Cached, CacheHint::Cached>((const unsigned int *const)prefetch_k_pos, 0);
             #endif
 
-#if SPARSE_BLOCK_SIZE > 1
-            if (validate)
+#if IS_BLOCK_SPARSE
+            if (SPARSE_BLOCK_SIZE > 1)
             {
+            #if USE_LSC
                 auto kv_start_block = kv_pos / SPARSE_BLOCK_SIZE;
                 bool sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);
+            #else
+                uint kv_start_block = 0;
+                bool sparse_mask = true;
+                if (SPARSE_BLOCK_SIZE == 64) {
+                    kv_start_block = (uint)kv_pos >> 6;
+                    sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);
+                } else if (SPARSE_BLOCK_SIZE == 128) {
+                    kv_start_block = (uint)kv_pos >> 7;
+                    sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);
+                } else if (SPARSE_BLOCK_SIZE == 256) {
+                    kv_start_block = (uint)kv_pos >> 8;
+                    sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);
+                } else {
+                    sparse_mask = true;
+                }
+            #endif
                 if (!sparse_mask) {
                     if constexpr (use_causal_mask) {
                         causal_left -= kv_step;

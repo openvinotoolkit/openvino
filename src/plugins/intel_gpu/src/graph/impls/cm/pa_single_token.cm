@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2022-2025 Intel Corporation
+ * Copyright (c) 2018-2026 Intel Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,14 +29,6 @@
 #define REG_K (SystolicDepth * VNNI_WIDTH)
 #define REG_M RepeatCount
 #define KV_PARTITION_STEP_NUM  (KV_PARTITION_SIZE / KV_STEP)
-
-
-#define Q_SLICE_NUM (HEADS_NUM / KV_HEADS_NUM)
-#if Q_SLICE_NUM > 8 || Q_SLICE_NUM == 1
-#define Q_RepeatCount 1
-#else
-#define Q_RepeatCount Q_SLICE_NUM
-#endif
 
 #if KV_CACHE_COMPRESSION
     // scale/zp is half-precision, so size = 2 * 2 = 4 bytes
@@ -104,34 +96,29 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     //# KV_PARTITION_SIZE should be multiple of kv_block_size(KV_BLOCK_SIZE)
     //# kv_len dimision will be split into multiple partitions, each WG process a partition
     //# total_partitions_num = kv_len // KV_PARTITION_SIZE
-    //# GWS=[seq_num, num_kv_heads, total_partitions_num]
+    //
+    //# MaxRepeatCount=8
+    //# q_heads_per_kv_head = num_heads // num_kv_heads
+    //# q_head_chunks_per_kv_head = (q_heads_per_kv_head + (MaxRepeatCount - 1)) // MaxRepeatCount
+    //# q_head_chunk_size = num_heads // (num_kv_heads * q_head_chunks_per_kv_head)
+    //# GWS=[seq_num, num_kv_heads * q_head_chunks_per_kv_head, total_partitions_num]
     //# LWS=[1, 1, 1]
 
     //# Each WG processes a partition, which is KV_PARTITION_SIZE long and multiple of KV_BLOCK_SIZE.
     //# KV_BLOCK_SIZE can be 32/64/128/256, etc.
-    const auto seq_idx = get_cm_global_id_2nd(0);
-    const auto kv_head_num_idx = get_cm_global_id_2nd(1);
-    const auto head_num_idx = kv_head_num_idx * (HEADS_NUM/KV_HEADS_NUM);
+    const uint seq_idx = get_cm_global_id_2nd(0);
+    const uint kv_head_num_idx = get_cm_global_id_2nd(1) / Q_head_chunks_per_kv_head;
+    const uint head_num_idx = get_cm_global_id_2nd(1) * Q_head_chunk_size;
     //# KV_PARTITION_SIZE --> EU thread
-    const auto wg_thread_id = get_cm_global_id_2nd(2);
+    const uint wg_thread_id = get_cm_global_id_2nd(2);
     const uint kv_partition_num = cm_group_count(2);
     const uint kv_partition_idx = cm_group_id(2);
 
-    //# const uint subsequence_idx = gws_subseq_mapping[seq_idx];
-    //# const uint subsequence_idx = seq_idx;
-    //# const uint subsequence_begin = subsequence_begins[subsequence_idx];
-    //# const uint subsequence_end = subsequence_begins[subsequence_idx + 1];
     const uint kv_len = past_lens[seq_idx] + 1;
     // The code here requires KV_PARTITION_SIZE to be an integer multiple of KV_BLOCK_SIZE.
     const uint start_block_idx = block_indices_begins[seq_idx] + kv_partition_idx * (KV_PARTITION_SIZE / KV_BLOCK_SIZE);
 
-    //if(get_cm_global_id_2nd(0)==0 && get_cm_global_id_2nd(1)==0 && get_cm_global_id_2nd(2)==0)
-    //{
-    //    printf("cm_sdpa_2nd: kv_len = %d\n", kv_len);
-    //}
-
     if(kv_partition_idx * KV_PARTITION_SIZE > kv_len) {
-        // printf("WG exit: kv_partition_idx=%d, KV_PARTITION_SIZE=%d, kv_len=%d\n", kv_partition_idx, KV_PARTITION_SIZE, kv_len);
         return;
     }
     const uint total_blocks_num = (kv_len + KV_BLOCK_SIZE - 1) / KV_BLOCK_SIZE;
@@ -140,18 +127,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     //# Load Q into register(as dpas-A tile)
     const uint qo_offset = (seq_idx * HEADS_NUM * q_len + head_num_idx) * HEAD_SIZE;
 
-    #if Q_RepeatCount != 1
-        matrix <half, Q_RepeatCount, HEAD_SIZE> Qmat = 0;
-        cm_svm_block_read<half, Q_RepeatCount * HEAD_SIZE>((svmptr_t)(query + qo_offset), Qmat.format<half>());
-    #else
-        matrix <half, Q_SLICE_NUM, HEAD_SIZE> Qmat = 0;
-        cm_svm_block_read<half, Q_SLICE_NUM * HEAD_SIZE>((svmptr_t)(query + qo_offset), Qmat.format<half>());
-    #endif
-
-    //if(kv_head_num_idx==0 && kv_partition_idx == 0) {
-    //    printf("Qmat loaded, kv_head_num_idx=%d\n", kv_head_num_idx);
-    //    show(Qmat);
-    //}
+    matrix <half, Q_head_chunk_size, HEAD_SIZE> Qmat = 0;
+    cm_svm_block_read<half, Q_head_chunk_size * HEAD_SIZE>((svmptr_t)(query + qo_offset), Qmat.format<half>());
 
     constexpr uint per_v_block_element_num = KV_BLOCK_SIZE * KV_HEADS_NUM * (HEAD_SIZE + KV_SCALE_ZP_SIZE); // 4 bytes: scale/zp
     #if KV_CACHE_COMPRESSION_BY_TOKEN
@@ -171,12 +148,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     }
 
     //# rS = Q @ Kt
-    //#  KV_PARTITION_STEP_NUM * [REG_M, REG_K] * [REG_K, REG_N] = KV_PARTITION_STEP_NUM * [REG_M, REG_N]
-    #if Q_RepeatCount != 1
-        matrix<float, Q_RepeatCount, REG_M * KV_PARTITION_STEP_NUM * REG_N> rS = 0;
-    #else
-        matrix<float, Q_SLICE_NUM, REG_M * KV_PARTITION_STEP_NUM * REG_N> rS = 0;
-    #endif
+	matrix<float, Q_head_chunk_size, REG_M * KV_PARTITION_STEP_NUM * REG_N> rS = 0;
+
     // # Each SG can process multiple blocks
     #pragma unroll
     for(uint block_idx = 0, ki = 0; block_idx < block_num; block_idx++) {
@@ -184,9 +157,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         uint blk_indices = block_indices[start_block_idx + block_idx];
         uint k_base_offset = blk_indices * per_k_block_element_num + kv_head_num_idx * (per_k_block_element_num / KV_HEADS_NUM);
         uint k_scale_zp_offset = k_base_offset + KV_BLOCK_SIZE * HEAD_SIZE; // scale/zp offset
-
-        // printf("seq_idx = %d, head_num_idx = %d, kv_partition_idx = %d,  start_block_idx = %d, block_idx = %d, blk_indices = %d, KV_PARTITION_SIZE = %d, KV_BLOCK_SIZE = %d, total_blocks_num = %d, kv_pitch = %d, k_base_offset = %d\n",
-        //        seq_idx, head_num_idx, kv_partition_idx, start_block_idx, block_idx, blk_indices, KV_PARTITION_SIZE, KV_BLOCK_SIZE, total_blocks_num, kv_pitch, k_base_offset);
 
     #if USE_LSC_BLOCK_2D_DESC
         #if KV_CACHE_COMPRESSION
@@ -336,44 +306,28 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                 Transpose_8x8(KtNormal.format<uint, REG_N, REG_K/2>().select<8,1,8,1>(8,0), Kt.format<uint, REG_K/2, REG_N>().select<8,1,8,1>(0,8));
                 #endif
             #endif
-
-            #if Q_RepeatCount != 1
-                matrix<half, Q_RepeatCount, REG_K> Qmat_data = Qmat.select<Q_RepeatCount,1,REG_K,1>(0, ri*REG_K);
-                auto rS_data = rS.select<Q_RepeatCount, 1, REG_N, 1>(0, ki*REG_N);
-                rS_data = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, Q_RepeatCount>(
+            {
+                matrix<half, Q_head_chunk_size, REG_K> Qmat_data = Qmat.select<Q_head_chunk_size,1,REG_K,1>(0, ri*REG_K);
+                matrix<float, Q_head_chunk_size, REG_N> rS_data = 0;
+                rS_data = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, Q_head_chunk_size>(
                             rS_data.format<float>(),
                             Kt.format<int32_t>(),
                             Qmat_data.format<int32_t>());
-            #else
-                #pragma unroll
-                for(int qi = 0; qi < Q_SLICE_NUM; qi ++) {
-                    auto Qmat_slice = Qmat[qi].format<half, HEAD_SIZE / REG_K, REG_K>();
-                    auto rSvec = rS[qi].format<float, REG_M * KV_PARTITION_STEP_NUM, REG_N>()[ki].format<float>();
-                    rSvec = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount>(
-                            rSvec,
-                            Kt.format<int32_t>(),
-                            Qmat_slice[ri].format<int32_t>());
-                }
-            #endif
+                rS.select<Q_head_chunk_size, 1, REG_N, 1>(0, ki*REG_N) += rS_data;
+            }
             }
         }
     }
 
     // online softmax
-    vector<float, Q_SLICE_NUM> cur_sum = 0.0f;
-    vector<float, Q_SLICE_NUM> cur_lse = 0.0f;
-
-    #if Q_RepeatCount != 1
-        matrix<half, Q_RepeatCount, KV_PARTITION_STEP_NUM * REG_M * REG_N> Pmat;
-    #else
-        matrix<half, Q_SLICE_NUM, KV_PARTITION_STEP_NUM * REG_M * REG_N> Pmat;
-    #endif
+    vector<float, Q_head_chunk_size> cur_sum = 0.0f;
+    vector<float, Q_head_chunk_size> cur_lse = 0.0f;
+    matrix<half, Q_head_chunk_size, KV_PARTITION_STEP_NUM * REG_M * REG_N> Pmat = 0;
     #pragma unroll
-    for(int qi = 0; qi < Q_SLICE_NUM; qi++) {
+    for(int qi = 0; qi < Q_head_chunk_size; qi++) {
         auto rS_slice = rS[qi].format<float, KV_PARTITION_STEP_NUM, REG_N>();
         rS_slice = cm_mul<float>(rS_slice, (float)SCALE_FACTOR);  // convert scale_factor into (float), or it will be promoted to double
 
-        // printf("leftover_size = %d, leftover_aligned_size = %d, XE_ARCH = %d, KV_PARTITION_STEP_NUM * REG_N = %d\n", leftover_size, leftover_aligned_size, XE_ARCH, KV_PARTITION_STEP_NUM * REG_N);
         if(leftover_size > 0) {
             auto Svec = rS_slice.format<float>();
             for(int i = leftover_size; i < KV_PARTITION_STEP_NUM * REG_N; i++){
@@ -415,13 +369,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     #else
     constexpr uint VALUE_TILE_NUM=1;
     #endif
-
     //# rO = P * V
-    #if Q_RepeatCount != 1
-    matrix <float, Q_RepeatCount, HEAD_SIZE/REG_N * REG_M*REG_N> Omat = 0;
-    #else
-    matrix <float, Q_SLICE_NUM, HEAD_SIZE/REG_N * REG_M*REG_N> Omat = 0;
-    #endif
+    matrix <float, Q_head_chunk_size, HEAD_SIZE/REG_N * REG_M*REG_N> Omat = 0;
     #pragma unroll
     for(uint block_idx = 0, ki = 0; block_idx < block_num; block_idx++) {
         uint blk_indices = block_indices[start_block_idx + block_idx];
@@ -443,7 +392,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         uint kv_x1 = HEAD_SIZE*sizeof(half);
         uint kv_y1 = KV_BLOCK_SIZE;
     #endif
-
         uint kv_pos_end = KV_BLOCK_SIZE;
         if(block_idx == block_num - 1 && leftover_size > 0) {
             kv_pos_end = leftover_size % KV_BLOCK_SIZE;
@@ -467,7 +415,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         #endif
         #pragma unroll
         for(int kv_pos = 0; kv_pos < kv_pos_end; kv_pos += REG_K, ki++) {
-
             #if KV_CACHE_COMPRESSION
             vector<half, REG_K> temp_scale = scale_vec.select<REG_K, 1>(kv_pos);
             vector<half, REG_K> temp_zp = zp_vec.select<REG_K, 1>(kv_pos);
@@ -538,36 +485,22 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                     }
                 }
             #endif
-            #if Q_RepeatCount != 1
-            matrix<half, Q_RepeatCount, REG_K> Pmat_data = Pmat.select<Q_RepeatCount,1,REG_K,1>(0, ki*REG_K);
+            matrix<half, Q_head_chunk_size, REG_K> Pmat_data = Pmat.select<Q_head_chunk_size,1,REG_K,1>(0, ki*REG_K);
             #pragma unroll
             for (int tile=0; tile < VALUE_TILE_NUM; tile ++) {
-                auto Omat_data = Omat.select<Q_RepeatCount,1,REG_N,1>(0, (ri + tile)*REG_N);
-                Omat_data = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, Q_RepeatCount>(
+                auto Omat_data = Omat.select<Q_head_chunk_size,1,REG_N,1>(0, (ri + tile)*REG_N);
+                Omat_data = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, Q_head_chunk_size>(
                             Omat_data.format<float>(),
                             Vmat.format<half, REG_K/2, REG_N*2*VALUE_TILE_NUM>().select<REG_K/2, 1, REG_N*2, 1>(0, REG_N*2*tile).format<int32_t>(),
                             Pmat_data.format<int32_t>());
             }
-            #else
-            #pragma unroll
-            for (int tile=0; tile < VALUE_TILE_NUM; tile ++) {
-                for(int qi = 0; qi < Q_SLICE_NUM; qi ++) {
-                    auto Pmat_slice = Pmat[qi].format<half, KV_PARTITION_STEP_NUM * REG_M, REG_K>();
-                    auto Omat_slice = Omat[qi].format<float, HEAD_SIZE/REG_N * REG_M, REG_N>();
-                    Omat_slice[ri + tile] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount>(
-                            Omat_slice[ri + tile],
-                            Vmat.format<half, REG_K/2, REG_N*2*VALUE_TILE_NUM>().select<REG_K/2, 1, REG_N*2, 1>(0, REG_N*2*tile).format<int32_t>(),
-                            Pmat_slice[ki].format<int32_t>());
-                }
-            }
-            #endif
             }
         }
     }
 
     // save Output
     #pragma unroll
-    for (int qi = 0; qi < Q_SLICE_NUM; qi++) {
+    for (int qi = 0; qi < Q_head_chunk_size; qi++) {
         matrix<float, REG_M, REG_N> cur_O_f32;
         uint o_offset = seq_idx * kv_partition_num * HEADS_NUM * HEAD_SIZE + kv_partition_num * (head_num_idx + qi) * HEAD_SIZE + wg_thread_id * HEAD_SIZE;
         float div_cur_sum = 1.0/cur_sum[qi];
@@ -586,3 +519,4 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         lse[lse_offset] = cur_lse[qi];
     }
 }
+
