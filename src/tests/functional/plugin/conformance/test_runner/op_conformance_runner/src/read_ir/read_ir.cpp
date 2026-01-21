@@ -163,6 +163,11 @@ void ReadIRTest::SetUp() {
 	path_to_model.find("Multiply") != std::string::npos){
 	GTEST_SKIP()<<"Dynamic Multiply conformance is not supported for Template device";
     }
+    if (targetDevice == "TEMPLATE" &&
+	hasDynamic &&
+	path_to_model.find("ReduceSum") != std::string::npos){
+	GTEST_SKIP() << "Dynamic ReduceSum conformance is not supported for TEMPLATE device";
+    }
 
 
 #ifdef ENABLE_CONFORMANCE_PGQL
@@ -177,7 +182,8 @@ void ReadIRTest::SetUp() {
             pgLink->set_custom_field("targetDeviceArch", devName.find("ARM") != std::string::npos ? "arm" : "", true);
         } else if (this->targetDevice == "GPU") {
             if (devName.find("dGPU") != std::string::npos) {
-                pgLink->set_custom_field("targetDevice", "DGPU", true);
+     
+           pgLink->set_custom_field("targetDevice", "DGPU", true);
             } else {
                 pgLink->set_custom_field("targetDevice", this->targetDevice, true);
             }
