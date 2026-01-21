@@ -35,17 +35,20 @@ std::shared_ptr<ISection> BlobReader::retrieve_section(const SectionID section_i
 }
 
 void BlobReader::copy_data_from_source(char* destination, const size_t size) {
-    std::memcpy(destination, m_source.get().data<const char>() + m_cursor, size);
     m_cursor += size;
+    OPENVINO_ASSERT(m_cursor < m_npu_region_size);
+    std::memcpy(destination, m_source.get().data<const char>() + m_cursor - size, size);
 }
 
 const void* BlobReader::interpret_data_from_source(const size_t size) {
     m_cursor += size;
+    OPENVINO_ASSERT(m_cursor < m_npu_region_size);
     return reinterpret_cast<const void*>(m_source.get().data<char>() + m_cursor - size);
 }
 
 ov::Tensor BlobReader::get_roi_tensor(const size_t size) {
     m_cursor += size;
+    OPENVINO_ASSERT(m_cursor < m_npu_region_size);
     return ov::Tensor(m_source, ov::Coordinate{m_cursor - size}, ov::Coordinate{m_cursor});
 }
 
@@ -54,6 +57,7 @@ size_t BlobReader::get_cursor_relative_position() {
 }
 
 void BlobReader::move_cursor_to_relative_position(const size_t offset) {
+    OPENVINO_ASSERT(offset < m_npu_region_size);
     m_cursor = offset;
 }
 
@@ -67,8 +71,7 @@ void BlobReader::read(const std::unordered_set<CRE::Token>& plugin_capabilities_
     OPENVINO_ASSERT(format_version == FORMAT_VERSION);
 
     // Read the size of the NPU region
-    uint64_t npu_region_size;
-    copy_data_from_source(reinterpret_cast<char*>(&npu_region_size), sizeof(npu_region_size));
+    copy_data_from_source(reinterpret_cast<char*>(&m_npu_region_size), sizeof(m_npu_region_size));
 
     // Step 1: Read the table of offsets
     SectionID section_id;
@@ -114,7 +117,7 @@ void BlobReader::read(const std::unordered_set<CRE::Token>& plugin_capabilities_
     // Step 3: Parse all known sections
     move_cursor_to_relative_position(where_the_region_of_persistent_format_starts);
 
-    while (get_cursor_relative_position() < npu_region_size) {
+    while (get_cursor_relative_position() < m_npu_region_size) {
         copy_data_from_source(reinterpret_cast<char*>(&section_id), sizeof(section_id));
         copy_data_from_source(reinterpret_cast<char*>(&section_length), sizeof(section_length));
 

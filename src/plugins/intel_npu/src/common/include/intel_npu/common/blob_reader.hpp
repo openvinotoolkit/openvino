@@ -45,6 +45,7 @@ private:
     friend class BlobWriter;
 
     std::reference_wrapper<const ov::Tensor> m_source;
+    size_t m_npu_region_size;
     std::unordered_map<SectionID, uint64_t> m_offsets_table;
     std::unordered_map<SectionID, std::shared_ptr<ISection>> m_parsed_sections;
     std::unordered_map<SectionID, std::function<std::shared_ptr<ISection>(BlobReader*, const size_t)>> m_readers;
