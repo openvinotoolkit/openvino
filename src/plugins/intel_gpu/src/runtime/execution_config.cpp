@@ -363,5 +363,10 @@ void ExecutionConfig::apply_priority_hints(const cldnn::device_info& info) {
         }
     }
 }
-
+ov::Any ExecutionConfig::get_property(const std::string& name, const OptionVisibility visibility) const {
+    if (name == ov::log::level) {
+        return m_log_level;
+    }
+    return PluginConfig::get_property(name, visibility);
+}
 }  // namespace ov::intel_gpu
