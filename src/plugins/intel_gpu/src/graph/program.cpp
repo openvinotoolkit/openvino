@@ -1904,7 +1904,7 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 
     processing_order.save(ob);
 
-    {
+    if (_engine.backend_type() == backend_types::ocl) {
         auto& kernels_cache = get_kernels_cache();
         std::vector<primitive_id> impl_ids;
         for (auto& node : processing_order) {
@@ -2051,7 +2051,7 @@ void program::load(cldnn::BinaryInputBuffer& ib,
 
     processing_order.load(ib, *this);
 
-    {
+    if (_engine.backend_type() == backend_types::ocl) {
         auto& kernels_cache = get_kernels_cache();
         ib >> kernels_cache;
 
