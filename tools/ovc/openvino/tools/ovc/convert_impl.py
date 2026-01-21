@@ -361,6 +361,12 @@ def normalize_inputs(argv: argparse.Namespace):
                 data_type_dict[inp.name] = to_ov_type(inp.type)
         argv.placeholder_shapes = shape_dict if shape_dict else None
         argv.placeholder_data_types = data_type_dict if data_type_dict else {}
+        # Extract freeze_placeholder values from input
+        freeze_placeholder_dict = {}
+        for inp in inputs:
+            if inp.value is not None:
+                freeze_placeholder_dict[inp.name] = inp.value
+        argv.freeze_placeholder_with_value = freeze_placeholder_dict
     else:
         # Unnamed inputs case
         shape_list = []
@@ -374,6 +380,11 @@ def normalize_inputs(argv: argparse.Namespace):
                 data_type_list.append(to_ov_type(inp.type))
         argv.placeholder_shapes = shape_list if shape_list else None
         argv.placeholder_data_types = data_type_list if data_type_list else {}
+        # For unnamed inputs, freeze_placeholder is empty (values require names)
+        argv.freeze_placeholder_with_value = {}
+    # Fallback: ensure freeze_placeholder_with_value always exists
+    if not hasattr(argv, 'freeze_placeholder_with_value'):
+        argv.freeze_placeholder_with_value = {}
     if hasattr(argv, "framework") and argv.framework == "pytorch" and getattr(argv, "example_input", None) is not None:
         extract_input_info_from_example(argv, inputs)
 
