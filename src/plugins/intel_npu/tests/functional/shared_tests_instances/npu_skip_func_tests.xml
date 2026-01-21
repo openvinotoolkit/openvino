@@ -851,4 +851,15 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- E#190990-->
+    <skip_config>
+        <message>Skip test-cases failing with Win Drv UD48 RC5</message>
+        <enable_rules>
+            <operating_system>windows</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*NpuDeviceAllocMemSizeSameAfterDestroyInferRequestGetTensor.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
