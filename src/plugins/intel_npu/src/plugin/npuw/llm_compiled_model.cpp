@@ -399,12 +399,12 @@ public:
     }
 };
 
-class Phi3SlidingMask : public ov::pass::MatcherPass {
+class OldPhi3SlidingMaskMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::Phi3SlidingMask");
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::OldPhi3SlidingMaskMatcher");
 
-    Phi3SlidingMask() {
-        // Search for the Phi3 sliding mask pattern to extend it to work with right-padded
+    OldPhi3SlidingMaskMatcher() {
+        // Search for the Phi3 old sliding mask pattern to extend it to work with right-padded
         // past tokens and left-padded present tokens.
         //
         // Mask creation is simply done via "less_equal" and "greater" operations between
@@ -588,17 +588,17 @@ public:
 
             return true;
         };
-        register_matcher(std::make_shared<opp::Matcher>(inv_sliding_attention_mask, "Phi3SlidingMask"),
+        register_matcher(std::make_shared<opp::Matcher>(inv_sliding_attention_mask, "OldPhi3SlidingMaskMatcher"),
                          std::move(callback));
     }
 };
 
-class Phi3SlidingMask2Matcher : public ov::pass::MatcherPass {
+class Phi3SlidingMaskMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::Phi3SlidingMask2Matcher");
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::Phi3SlidingMaskMatcher");
 
-    Phi3SlidingMask2Matcher(const std::shared_ptr<ov::Node>& attention_mask_node_ptr,
-                            const std::shared_ptr<ov::Node>& position_ids_node_ptr) {
+    Phi3SlidingMaskMatcher(const std::shared_ptr<ov::Node>& attention_mask_node_ptr,
+                           const std::shared_ptr<ov::Node>& position_ids_node_ptr) {
         // Search for the Phi3 sliding mask pattern to extend it to work with right-padded
         // past tokens and left-padded present tokens. Logic to replace pattern is the same
         // as in Phi3SlidingMask rewriter, but adjusted to another set of operations for
@@ -742,15 +742,15 @@ public:
 
             return true;
         };
-        register_matcher(std::make_shared<opp::Matcher>(sliding_and_causal_mask, "Phi3SlidingMask2Matcher"),
+        register_matcher(std::make_shared<opp::Matcher>(sliding_and_causal_mask, "Phi3SlidingMaskMatcher"),
                          std::move(callback));
     }
 };
 
-class Phi3SlidingMask2 : public ov::pass::ModelPass {
+class Phi3SlidingMask : public ov::pass::ModelPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("ov::npuw::LLMCompiledModel::Phi3SlidingMask2");
-    Phi3SlidingMask2() = default;
+    OPENVINO_MODEL_PASS_RTTI("ov::npuw::LLMCompiledModel::Phi3SlidingMask");
+    Phi3SlidingMask() = default;
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
         std::shared_ptr<ov::Node> attention_mask_node_ptr = nullptr;
         std::shared_ptr<ov::Node> position_ids_node_ptr = nullptr;
@@ -766,8 +766,10 @@ public:
         OPENVINO_ASSERT(position_ids_node_ptr, "position_ids input is not found!");
 
         ov::pass::Manager manager;
-        manager.set_per_pass_validation(false);
-        manager.register_pass<Phi3SlidingMask2Matcher>(attention_mask_node_ptr, position_ids_node_ptr);
+        manager.set_per_pass_validation(true);
+        const auto rewriter = manager.register_pass<ov::pass::GraphRewrite>();
+        rewriter->add_matcher<Phi3SlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
+        rewriter->add_matcher<OldPhi3SlidingMaskMatcher>();
         return manager.run_passes(model);
     }
 };
@@ -850,13 +852,8 @@ void patch_phi3_sliding_mask(const std::shared_ptr<ov::Model>& model) {
     //        in creation of sliding window mask.
     if (!ov::npuw::util::has_input(model, "token_type_ids") && !ov::npuw::util::has_input(model, "inputs_embeds")) {
         ov::pass::Manager manager;
-        manager.register_pass<Phi3SlidingMask2>();
-        if (!manager.run_passes(model)) {
-            ov::pass::GraphRewrite rewr;
-            rewr.add_matcher<Phi3SlidingMask>();
-            rewr.run_on_model(model);
-        }
-        model->validate_nodes_and_infer_types();
+        manager.register_pass<Phi3SlidingMask>();
+        manager.run_passes(model);
     }
 }
 
