@@ -30,7 +30,7 @@ facexlib==0.3.0; python_version < "3.12"
 librosa==0.10.2; python_version < "3.12"
 packaging==24.1
 pandas==2.2.3
-protobuf==5.28.2
+protobuf==5.28.3
 pyctcdecode==0.5.0; python_version < "3.12"
 sacremoses==0.1.1
 sentencepiece==0.2.1
