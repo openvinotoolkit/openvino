@@ -51,8 +51,6 @@ public:
 
     std::vector<Token> get_expression() const;
 
-    void write(std::ostream& stream);
-
     bool check_compatibility(const std::unordered_set<CRE::Token>& plugin_capabilities);
 
 private:
@@ -69,21 +67,13 @@ private:
 
 class CRESection final : public ISection {
 public:
-    CRESection();
-
-    CRESection(const std::vector<CRE::Token>& expression);
-
-    std::shared_ptr<CRESection> clone();
+    CRESection(const CRE& cre);
 
     void write(std::ostream& stream, BlobWriter* writer) override;
 
     std::optional<uint64_t> get_length() const override;
 
-    void append_to_expression(const CRE::Token requirement_token);
-
-    void append_to_expression(const std::vector<CRE::Token>& requirement_tokens);
-
-    bool check_compatibility(const std::unordered_set<CRE::Token>& plugin_capabilities);
+    CRE get_cre() const;
 
     static std::shared_ptr<ISection> read(BlobReader* blob_reader, const size_t section_length);
 

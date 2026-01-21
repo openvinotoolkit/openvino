@@ -94,9 +94,9 @@ void BlobReader::read(const std::unordered_set<CRE::Token>& plugin_capabilities_
             ->get_table();
 
     // Step 2: Look for the CRE and evaluate it
-    OPENVINO_ASSERT(m_offsets_table->count(PredefinedSectionID::CRE),
+    OPENVINO_ASSERT(m_offsets_table.count(PredefinedSectionID::CRE),
                     "The CRE was not found within the table of offsets");
-    move_cursor_to_relative_position(m_offsets_table->at(PredefinedSectionID::CRE));
+    move_cursor_to_relative_position(m_offsets_table.at(PredefinedSectionID::CRE));
 
     copy_data_from_source(reinterpret_cast<char*>(&section_id), sizeof(section_id));
     OPENVINO_ASSERT(section_id == PredefinedSectionID::CRE,
@@ -108,7 +108,8 @@ void BlobReader::read(const std::unordered_set<CRE::Token>& plugin_capabilities_
     copy_data_from_source(reinterpret_cast<char*>(&section_length), sizeof(section_length));
     m_parsed_sections[PredefinedSectionID::CRE] = CRESection::read(this, section_length);
     std::dynamic_pointer_cast<CRESection>(m_parsed_sections.at(PredefinedSectionID::CRE))
-        ->check_compatibility(plugin_capabilities_ids);
+        ->get_cre()
+        .check_compatibility(plugin_capabilities_ids);
 
     // Step 3: Parse all known sections
     move_cursor_to_relative_position(where_the_region_of_persistent_format_starts);
@@ -130,8 +131,8 @@ void BlobReader::read(const std::unordered_set<CRE::Token>& plugin_capabilities_
 }
 
 std::optional<uint64_t> BlobReader::get_section_offset(const SectionID section_id) const {
-    auto search_iterator = m_offsets_table->find(section_id);
-    if (search_iterator == m_offsets_table->end()) {
+    auto search_iterator = m_offsets_table.find(section_id);
+    if (search_iterator == m_offsets_table.end()) {
         return std::nullopt;
     }
 

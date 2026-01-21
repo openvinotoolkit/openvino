@@ -29,10 +29,6 @@ CRE::CRE() : m_expression({CRE::AND}) {}  // TODO can lead to expression with 0 
 
 CRE::CRE(const std::vector<Token>& expression) : m_expression(expression) {}
 
-void CRE::write(std::ostream& stream) {
-    stream.write(reinterpret_cast<const char*>(m_expression.data()), m_expression.size() * sizeof(Token));
-}
-
 void CRE::append_to_expression(const CRE::Token requirement_token) {
     OPENVINO_ASSERT(!RESERVED_TOKENS.count(requirement_token),
                     "Appending subexpressions should be done through the \"vector\" API");
@@ -126,40 +122,25 @@ bool CRE::check_compatibility(const std::unordered_set<CRE::Token>& plugin_capab
     return evaluate(expression_iterator, plugin_capabilities, Delimiter::SIZE);
 }
 
-CRESection::CRESection() : ISection(PredefinedSectionID::CRE) {}
-
-CRESection::CRESection(const std::vector<CRE::Token>& expression)
-    : ISection(PredefinedSectionID::CRE),
-      m_cre(expression) {}
-
-std::shared_ptr<CRESection> CRESection::clone() {
-    return std::make_shared<CRESection>(m_cre.get_expression());
-}
-
-void CRESection::append_to_expression(const CRE::Token requirement_token) {
-    m_cre.append_to_expression(requirement_token);
-}
-
-void CRESection::append_to_expression(const std::vector<CRE::Token>& requirement_tokens) {
-    m_cre.append_to_expression(requirement_tokens);
-}
+CRESection::CRESection(const CRE& cre) : ISection(PredefinedSectionID::CRE), m_cre(cre) {}
 
 void CRESection::write(std::ostream& stream, BlobWriter* writer) {
-    m_cre.write(stream);
+    stream.write(reinterpret_cast<const char*>(m_cre.get_expression().data()),
+                 m_cre.get_expression_length() * sizeof(CRE::Token));
 }
 
 std::optional<uint64_t> CRESection::get_length() const {
     return m_cre.get_expression_length() * sizeof(CRE::Token);
 }
 
-bool CRESection::check_compatibility(const std::unordered_set<CRE::Token>& plugin_capabilities) {
-    return m_cre.check_compatibility(plugin_capabilities);
+CRE CRESection::get_cre() const {
+    return m_cre;
 }
 
 std::shared_ptr<ISection> CRESection::read(BlobReader* blob_reader, const size_t section_length) {
     size_t number_of_tokens = section_length / sizeof(CRE::Token);
     OPENVINO_ASSERT(number_of_tokens > 0);
-    auto cre_section = std::make_shared<CRESection>();
+    CRE cre;
 
     // We expect the expression to start with "AND". The ctor also places this token at the beginning.
     CRE::Token token;
@@ -168,10 +149,10 @@ std::shared_ptr<ISection> CRESection::read(BlobReader* blob_reader, const size_t
 
     while (--number_of_tokens) {
         blob_reader->copy_data_from_source(reinterpret_cast<char*>(&token), sizeof(token));
-        cre_section->append_to_expression(token);
+        cre.append_to_expression(token);
     }
 
-    return cre_section;
+    return std::make_shared<CRESection>(cre);
 }
 
 }  // namespace intel_npu

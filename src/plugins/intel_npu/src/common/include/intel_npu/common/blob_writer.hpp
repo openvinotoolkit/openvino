@@ -29,6 +29,8 @@ public:
 
     void append_compatibility_requirement(const CRE::Token requirement_token);
 
+    void append_compatibility_requirement(const std::vector<CRE::Token>& requirement_tokens);
+
     std::streamoff get_stream_relative_position(std::ostream& stream) const;
 
 private:
@@ -36,8 +38,8 @@ private:
 
     std::unordered_set<SectionID> m_registered_sections_ids;
     std::queue<std::shared_ptr<ISection>> m_registered_sections;
-    std::shared_ptr<CRESection> m_cre;
-    std::shared_ptr<std::unordered_map<SectionID, uint64_t>> m_offsets_table;
+    CRE m_cre;
+    std::unordered_map<SectionID, uint64_t> m_offsets_table;
 
     /**
      * @brief TODO
