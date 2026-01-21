@@ -28,7 +28,6 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/variadic_split.hpp"
-#include "openvino/op/interpolate.hpp"
 #include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
