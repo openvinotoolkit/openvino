@@ -495,7 +495,9 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                     cmask_stride = causal_mask.stride(2);
                 }
             }
-            auto row_ptr = [](auto* base, size_t stride, size_t m) { return base ? base + m * stride : nullptr; };
+            auto row_ptr = [](auto* base, size_t stride, size_t m) {
+                return base ? base + m * stride : nullptr;
+            };
             auto sink_ptr = [&](size_t m) {
                 return sink_input ? &sink_input.at<float>({b, h, m, 0}, true) : nullptr;
             };
@@ -802,7 +804,9 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                 } else if (alibi_needs_convert) {
                     alibi_row.resize(kv_len);
                 }
-                auto row_ptr = [](auto* base, size_t stride, size_t m) { return base ? base + m * stride : nullptr; };
+                auto row_ptr = [](auto* base, size_t stride, size_t m) {
+                    return base ? base + m * stride : nullptr;
+                };
                 auto sink_ptr = [&](size_t m) {
                     return sink_input ? &sink_input.at<float>({b, h, m, 0}, true) : nullptr;
                 };
@@ -948,7 +952,9 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                 qk_row_f32.resize(kv_len);
             }
 #    endif
-            auto row_ptr = [](auto* base, size_t stride, size_t m) { return base ? base + m * stride : nullptr; };
+            auto row_ptr = [](auto* base, size_t stride, size_t m) {
+                return base ? base + m * stride : nullptr;
+            };
             auto sink_ptr = [&](size_t m) {
                 return sink_input ? &sink_input.at<float>({b, h, m, 0}, true) : nullptr;
             };
@@ -1220,7 +1226,9 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
                            1);
             }
 
-            auto row_ptr = [](auto* base, size_t stride, size_t m) { return base ? base + m * stride : nullptr; };
+            auto row_ptr = [](auto* base, size_t stride, size_t m) {
+                return base ? base + m * stride : nullptr;
+            };
             auto sink_ptr = [&](size_t m) {
                 return sink_input ? &sink_input.at<float>({b, h, m, 0}, true) : nullptr;
             };
