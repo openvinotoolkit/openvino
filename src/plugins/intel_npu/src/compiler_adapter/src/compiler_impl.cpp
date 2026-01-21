@@ -81,6 +81,9 @@ public:
     template <typename U>
     ByteAlignedAllocator(const ByteAlignedAllocator& other) : allocator_(intel_npu::utils::STANDARD_PAGE_SIZE) {}
 
+    template <typename U>
+    ByteAlignedAllocator(const typename rebind<U>::other& other) : allocator_(intel_npu::utils::STANDARD_PAGE_SIZE) {}
+
     ByteAlignedAllocator& operator=(const ByteAlignedAllocator& other) {
         return *this;
     }
