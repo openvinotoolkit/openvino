@@ -252,10 +252,12 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             "convolution_acl_lowp", ExecutorType::Acl, OperationType::Convolution,
             // supports
             [](const ConvConfig& config, [[maybe_unused]] const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::nspc, LayoutType::nspc, LayoutType::nspc},
+                                                 memoryFormatFilter, dnnlConvolutionMappingNotation), MEMORY_FORMAT_MISMATCH);
                 VERIFY(ACLConvolutionExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
                 return true;
             },
-            CreateOptimalConfigAclLowp{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp}},
+            CreateOptimalConfigAclLowp{{LayoutType::nspc, LayoutType::nspc, LayoutType::nspc, LayoutType::nspc}},
             AcceptsAnyShape<ConvAttrs>,
             CreateDefault<ACLConvolutionExecutor, ConvAttrs>{}
             )
