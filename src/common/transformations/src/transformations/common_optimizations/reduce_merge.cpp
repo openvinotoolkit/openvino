@@ -129,8 +129,8 @@ bool fuse_reduce_operations(const std::shared_ptr<Node>& node) {
         if (top_reduce->get_keep_dims()) {
             fused_axes.insert(axes_bottom.begin(), axes_bottom.end());
         } else {
-            std::set<size_t> axes_remaped = remap_axes(axes_bottom, axes_top);
-            fused_axes.insert(axes_remaped.begin(), axes_remaped.end());
+            std::set<size_t> axes_remapped = remap_axes(axes_bottom, axes_top);
+            fused_axes.insert(axes_remapped.begin(), axes_remapped.end());
         }
 
         axes = op::v0::Constant::create(element::i64,
