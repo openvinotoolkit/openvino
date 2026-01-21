@@ -487,6 +487,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto_s_context->m_device_priorities = support_devices;
     auto_s_context->m_device_priorities_initial = std::move(support_devices);
     auto_s_context->m_str_devices = std::move(str_devices);
+    auto_s_context->m_str_devices_initial = m_plugin_config.parse_priorities_devices(priorities);
     auto_s_context->m_plugin = shared_from_this();
     auto_s_context->m_ov_core = get_core();
     OPENVINO_ASSERT(auto_s_context->m_ov_core);
