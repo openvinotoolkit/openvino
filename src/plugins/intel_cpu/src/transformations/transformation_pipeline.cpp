@@ -1029,7 +1029,16 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
                 const bool withConvBias =
                     ov::is_type<ov::op::v1::Add>(eltwiseInput) &&
                     ov::is_type<ov::op::v1::Convolution>(eltwiseInput->get_input_node_shared_ptr(0));
-                return noConvBias || withConvBias;
+                // int8 ACL Convolution executor supports only same activation and output types
+                // if types are different, keep dequantization operations separate to avoid reference FQ
+                if (noConvBias && eltwiseInput->get_input_element_type(0) == node->get_output_element_type(0)) {
+                    return true;
+                }
+                if (withConvBias &&
+                    eltwiseInput->get_input_node_shared_ptr(0)->get_input_element_type(0) ==
+                        node->get_output_element_type(0)) {
+                    return true;
+                }
             }
             return false;
         },
@@ -1676,9 +1685,15 @@ void Transformations::PostSnippets() {
                 auto parent = node->get_input_node_shared_ptr(0);
                 if (ov::is_type<const ov::op::v1::Multiply>(parent) && !parent->inputs().empty()) {
                     auto multiply_input = parent->get_input_node_shared_ptr(0);
-                    if (ov::is_type<const ov::op::v1::Convolution>(multiply_input) ||
-                        (ov::is_type<const ov::op::v1::Add>(multiply_input) &&
-                         ov::is_type<const ov::op::v1::Convolution>(multiply_input->get_input_node_shared_ptr(0)))) {
+                    const bool noConvBias = ov::is_type<const ov::op::v1::Convolution>(multiply_input);
+                    const bool withConvBias = ov::is_type<const ov::op::v1::Add>(multiply_input) &&
+                        ov::is_type<const ov::op::v1::Convolution>(multiply_input->get_input_node_shared_ptr(0));
+                    // int8 ACL Convolution executor supports only same activation and output types
+                    // if types are different, decompose FQ to avoid reference FQ
+                    if (noConvBias && multiply_input->get_input_element_type(0) == node->get_output_element_type(0)) {
+                        return true;
+                    }
+                    if (withConvBias && multiply_input->get_input_node_shared_ptr(0)->get_input_element_type(0) == node->get_output_element_type(0)) {
                         return true;
                     }
                 }
