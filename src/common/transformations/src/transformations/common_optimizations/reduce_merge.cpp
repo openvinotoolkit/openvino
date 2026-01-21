@@ -84,7 +84,7 @@ ov::Output<ov::Node> cast(const ov::Output<ov::Node>& in, const element::Type& t
 
 ov::Output<ov::Node> make_1d(const ov::Output<ov::Node>& in) {
     const auto& ps = in.get_partial_shape();
-    if (ps.rank().is_static() && ps.rank().get_length() == 0) {
+    if (ps.rank() == ov::Dimension(0)) {
         const auto unsq_axis = ov::op::v0::Constant::create(in.get_element_type(), {}, {0});
         const auto unsq = std::make_shared<ov::op::v0::Unsqueeze>(in, unsq_axis);
         copy_runtime_info(in.get_node_shared_ptr(), {unsq_axis, unsq});
