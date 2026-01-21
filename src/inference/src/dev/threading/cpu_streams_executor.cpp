@@ -289,15 +289,19 @@ struct CPUStreamsExecutor::Impl {
 
             // ensure ThreadCleaner is created only once per thread exit
             thread_local ThreadCleaner t_cleaner(id);
-
-            std::lock_guard<std::mutex> guard(_stream_map_mutex);
-            auto search = _stream_map.find(id);
-            if (search != _stream_map.end()) {
-                return search->second;
+            {
+                std::lock_guard<std::mutex> guard(_stream_map_mutex);
+                auto search = _stream_map.find(id);
+                if (search != _stream_map.end()) {
+                    return search->second;
+                }
             }
             std::shared_ptr<Impl::Stream> stream = std::make_shared<Impl::Stream>(_impl);
             t_cleaner.add(this->shared_from_this());
-            _stream_map[id] = stream;
+            {
+                std::lock_guard<std::mutex> guard(_stream_map_mutex);
+                _stream_map[id] = stream;
+            }
             return stream;
         }
 
