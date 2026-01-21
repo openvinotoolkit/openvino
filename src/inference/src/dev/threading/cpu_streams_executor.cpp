@@ -265,17 +265,11 @@ struct CPUStreamsExecutor::Impl {
                 std::vector<std::shared_ptr<CustomThreadLocal>> parent_ptr;
                 {
                     std::lock_guard<std::mutex> lock(g_resource_mutex);
-
-                    auto item = g_resource_map.find(_thread_id);
-                    if (item == g_resource_map.end()) {
-                        return;
-                    }
-
                     auto range = g_resource_map.equal_range(_thread_id);
                     for (auto it = range.first; it != range.second; ++it) {
                         parent_ptr.push_back(it->second.lock());
                     }
-                    g_resource_map.erase(item);
+                    g_resource_map.erase(_thread_id);
                 }
                 for (auto& parent : parent_ptr) {
                     if (parent) {
