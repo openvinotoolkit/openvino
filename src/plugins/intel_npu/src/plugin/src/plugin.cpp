@@ -147,7 +147,7 @@ static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig& bas
         return COMPILER_TYPE::parse(it->second.as<std::string>());
     }
     // if there is no compiler_type provided = use base_config value
-    return base_conf.has<COMPILER_TYPE>(), base_conf.get<COMPILER_TYPE>();
+    return base_conf.get<COMPILER_TYPE>();
 }
 
 /**
