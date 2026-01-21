@@ -136,7 +136,7 @@ struct MHAKernel {
             max = max > (*sink) ? max : (*sink);
         }
 #if defined(OPENVINO_ARCH_ARM64)
-        if (!std::isfinite(max)) {
+        if (std::isinf(max) && max > 0.0F) {
             size_t inf_count = 0;
             if (sink != nullptr && std::isinf(*sink) && *sink > 0.0F) {
                 inf_count++;
