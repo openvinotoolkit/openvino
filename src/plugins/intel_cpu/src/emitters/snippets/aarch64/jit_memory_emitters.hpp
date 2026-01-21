@@ -19,7 +19,7 @@ namespace ov::intel_cpu::aarch64 {
 
 class jit_memory_emitter : public jit_emitter {
 public:
-    jit_memory_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_memory_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                        dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                        const ov::snippets::lowered::ExpressionPtr& expr,
                        emitter_in_out_map in_out_type);
@@ -49,7 +49,7 @@ protected:
 
 class jit_load_memory_emitter : public jit_memory_emitter {
 public:
-    jit_load_memory_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_load_memory_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                             dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                             const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -66,7 +66,7 @@ private:
 
 class jit_load_broadcast_emitter : public jit_memory_emitter {
 public:
-    jit_load_broadcast_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_load_broadcast_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                                dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                                const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -85,7 +85,7 @@ private:
 
 class jit_store_memory_emitter : public jit_memory_emitter {
 public:
-    jit_store_memory_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_store_memory_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                              dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                              const ov::snippets::lowered::ExpressionPtr& expr);
 
