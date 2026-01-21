@@ -1573,10 +1573,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_is_embedding = use_text_embed_key.value_or(false).as<bool>() == true;
 
     if (m_is_embedding) {
-        if (m_use_chunk_prefill) {
-            LOG_DEBUG("Text-embedding chunk rebuild");
-            ov::npuw::util::prepare_text_embedding_model(kvcache_model, seq_len_dim);
-        }
+        LOG_DEBUG("Text-embedding model rebuild");
+        ov::npuw::util::prepare_text_embedding_model(kvcache_model, seq_len_dim);
     } else {
         LOG_DEBUG("Transform kvcache model from stateful to stateless.");
         ov::pass::StatefulToStateless().run_on_model(kvcache_model);
@@ -1626,14 +1624,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                                       m_kvcache_desc.max_prompt_size,
                                                       whisper_lhs_seq_size);  // Whisper decoder model
         ov::npuw::util::prepare_whisper_kvcache_model(kvcache_model);         // Whisper decoder_with_past model
-    }
-
-    if (m_is_embedding && !m_use_chunk_prefill) {
-        m_kvcache_desc = KVCacheDesc{max_prompt_len,
-                                     max_prompt_len + min_response_len,
-                                     0u,
-                                     seq_len_dim,
-                                     max_prompt_len + min_response_len};
     }
 
     LOG_DEBUG("Make prefill model with static shapes");
