@@ -122,7 +122,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     auto networkDesc = _compiler->compile(model, config);
     _logger.debug("compile end");
 
-    ov::Tensor tensor = make_tensor_from_vector(networkDesc.compiledNetwork);
+    ov::Tensor tensor;
+    if (networkDesc.compiledNetworkTensor.data()) {
+        tensor = std::move(networkDesc.compiledNetworkTensor);
+    } else {
+        tensor = make_tensor_from_vector(networkDesc.compiledNetwork);
+    }
     GraphDescriptor graphDesc;
     NetworkMetadata networkMeta;
 
@@ -190,7 +195,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         std::vector<std::shared_ptr<NetworkDescription>> initNetworkDescriptions =
             std::move(initMainNetworkDescriptions);
 
-        tensorMain = make_tensor_from_vector(mainNetworkDescription->compiledNetwork);
+        if (mainNetworkDescription->compiledNetworkTensor.data()) {
+            tensorMain = std::move(mainNetworkDescription->compiledNetworkTensor);
+        } else {
+            tensorMain = make_tensor_from_vector(mainNetworkDescription->compiledNetwork);
+        }
+
         if (_zeGraphExt) {
             // Depending on the config, we may get an error when trying to
             // get the graph handle from the compiled network
@@ -211,7 +221,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         tensorsInits.reserve(initNetworkDescriptions.size());
         initNetworkMetadata.reserve(initNetworkDescriptions.size());
         for (auto& networkDesc : initNetworkDescriptions) {
-            ov::Tensor tensor = make_tensor_from_vector(networkDesc->compiledNetwork);
+            ov::Tensor tensor;
+            if (networkDesc->compiledNetworkTensor.data()) {
+                tensor = std::move(networkDesc->compiledNetworkTensor);
+            } else {
+                tensor = make_tensor_from_vector(networkDesc->compiledNetwork);
+            }
             GraphDescriptor initGraphDesc;
             NetworkMetadata initNetworkMeta;
             if (_zeGraphExt) {
@@ -246,7 +261,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
 
         while (auto networkDescription =
                    std::make_shared<NetworkDescription>(_compiler->compileWsIterative(targetModel, localConfig, i++))) {
-            ov::Tensor tensor = make_tensor_from_vector(networkDescription->compiledNetwork);
+            ov::Tensor tensor;
+            if (networkDescription->compiledNetworkTensor.data()) {
+                tensor = std::move(networkDescription->compiledNetworkTensor);
+            } else {
+                tensor = make_tensor_from_vector(networkDescription->compiledNetwork);
+            }
             GraphDescriptor graphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
             NetworkMetadata networkMetadata = _zeGraphExt->getNetworkMeta(graphDesc);
 
