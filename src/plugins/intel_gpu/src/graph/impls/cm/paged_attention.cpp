@@ -230,16 +230,7 @@ public:
     }
 
 private:
-    size_t get_xattn_block_size(const kernel_impl_params& params, const size_t seq_idx = 0) {
-        const auto& input_mem = params.memory_deps;
-        const auto blocksize_mem = input_mem.at(PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE);
-        mem_lock<int32_t, mem_lock_type::read> lock(blocksize_mem, *params.strm);  // converted
-        auto xattn_block_size = static_cast<int32_t>(lock[seq_idx]);
-        if (xattn_block_size != 128 && xattn_block_size != 256) {
-            xattn_block_size = 128;  // default
-        }
-        return xattn_block_size;
-    }
+    // Intentionally empty: XAttention helpers are shared free functions (see paged_attention_gen.hpp/.cpp)
 };
 
 std::unique_ptr<primitive_impl> PagedAttentionImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {

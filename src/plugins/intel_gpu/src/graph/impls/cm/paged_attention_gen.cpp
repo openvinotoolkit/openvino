@@ -104,6 +104,24 @@ float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_idx) {
     return thresh;
 }
 
+size_t get_xattn_block_size(const kernel_impl_params& params, const size_t seq_idx) {
+    const auto& input_mem = params.memory_deps;
+    const auto blocksize_mem = input_mem.at(PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE);
+    mem_lock<int32_t, mem_lock_type::read> lock(blocksize_mem, *params.strm);
+    auto xattn_block_size = static_cast<int32_t>(lock[seq_idx]);
+    if (xattn_block_size != 128 && xattn_block_size != 256) {
+        xattn_block_size = 128;  // default
+    }
+    return static_cast<size_t>(xattn_block_size);
+}
+
+size_t get_merged_q_num(const kernel_impl_params& params) {
+    const auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1u : 2u;
+    const size_t q_step = get_q_step(xe_arch, false);
+    const size_t wg_seq_len = WG_SIZE * q_step;
+    return wg_seq_len / get_xattn_block_size(params);
+}
+
 // Bypass xattn stages in the following conditions -
 // either threshold is larger than 1.0, or, q_len is too small
 // to compute xattn block_mask.

@@ -68,14 +68,6 @@ inline size_t get_q_step(size_t arch, bool is_single_token = false) {
     return 0;  // Fallback case, should not be reached
 }
 
-inline uint32_t get_merged_q_num(const kernel_impl_params& params) {
-    auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
-    const size_t q_step = get_q_step(xe_arch, false);
-    const size_t wg_seq_len = WG_SIZE * q_step;
-
-    return  wg_seq_len / XATTN_BLOCK_SIZE;
-}
-
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     PagedAttentionStage stage;
@@ -113,6 +105,9 @@ PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_par
 size_t get_max_context_len(const kernel_impl_params& params);
 size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx);
 size_t get_partition_size(const bool has_xattention);
+
+size_t get_xattn_block_size(const kernel_impl_params& params, const size_t seq_idx = 0);
+size_t get_merged_q_num(const kernel_impl_params& params);
 
 float get_xattn_thresh(const kernel_impl_params& impl_param, const size_t seq_idx = 0);
 bool bypass_xattn(const kernel_impl_params& impl_param);
