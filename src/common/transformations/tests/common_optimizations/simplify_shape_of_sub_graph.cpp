@@ -11,21 +11,27 @@
 #include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/abs.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/opsets/opset7_decl.hpp"
 #include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 using namespace testing;
-using namespace ov;
+namespace ov::test {
 
 auto gatherv7 =
     [](const std::shared_ptr<Node> input, std::vector<int64_t> indices, bool scalar = false) -> Output<Node> {
@@ -470,3 +476,40 @@ INSTANTIATE_TEST_SUITE_P(AbsSinkingConstantTests,
                          [](const ::testing::TestParamInfo<AbsSinkingConstantTestParams>& info) {
                              return info.param.test_name;
                          });
+
+TEST(AbsSinkingSymbolicOptimizations, BroadcastPatternWithSkipInvalidation) {
+    // Create model: Broadcast(const, Abs(Concat(gather(ShapeOf(param), 0), -1, -1)))
+    PartialShape shape = PartialShape::dynamic(4);
+
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
+    auto shape_op = std::make_shared<ov::op::v3::ShapeOf>(data);
+
+    // Gather first dimension
+    auto indices = ov::op::v0::Constant::create(element::i64, {1}, {0});
+    auto axis = ov::op::v0::Constant::create(element::i64, {}, {0});
+    auto gather = std::make_shared<ov::op::v8::Gather>(shape_op, indices, axis);
+
+    // Create Concat with negative constants (simulating dynamic dimensions)
+    auto minus_one_1 = ov::op::v0::Constant::create(element::i64, {1}, {-1});
+    auto minus_one_2 = ov::op::v0::Constant::create(element::i64, {1}, {-1});
+    auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{gather, minus_one_1, minus_one_2}, 0);
+
+    // Abs wrapping the concat
+    auto abs = std::make_shared<ov::op::v0::Abs>(concat);
+
+    // Broadcast uses abs output as target shape
+    // This is the pattern that triggers bounds evaluation and fails with stale -1 values
+    auto broadcast_input = ov::op::v0::Constant::create(element::f32, {1}, {1.0f});
+    auto broadcast = std::make_shared<ov::op::v3::Broadcast>(broadcast_input, abs);
+
+    auto model = std::make_shared<Model>(OutputVector{broadcast}, ParameterVector{data});
+
+    // Run SymbolicOptimizations with full_run=true (which enables AbsSinking)
+    // This should NOT throw an assertion error about negative bounds
+    pass::Manager manager;
+    manager.register_pass<pass::SymbolicOptimizations>();
+
+    // The test passes if no exception is thrown
+    EXPECT_NO_THROW(manager.run_passes(model));
+}
+}  // namespace ov::test
