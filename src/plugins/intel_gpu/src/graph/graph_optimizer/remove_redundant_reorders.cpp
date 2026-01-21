@@ -684,56 +684,61 @@ void remove_redundant_reorders::run(program& p) {
     }
 
     // Optimize permute -> reorder (change dt)
-    // This optimization handles cases where a permute is followed by a reorder that only changes data type
-    // If the permute can support the output data type directly, we can fuse the reorder into the permute
-    // This optimization should be run after remove_redundant_reorders because some reorders might be removed there
-    // and permute might become directly connected to another node
-    itr = p.get_processing_order().begin();
-    while (itr != p.get_processing_order().end()) {
-        auto node = *itr++;
-        if (!node->is_type<reorder>())
-            continue;
+    auto try_fuse_reorder_to_permute = [&](reorder_node* node) -> bool {
+        if (node->is_output() && !remove_output_reorders)
+            return false;
 
-        auto& r_node = node->as<reorder>();
+        if (!node->is_simple_reorder() || node->get_dependencies().size() != 1 || node->has_fused_primitives() || node->get_primitive()->has_surface_input())
+            return false;
 
-        if (r_node.is_output() && !remove_output_reorders)
-            continue;
-
-        if (!r_node.is_simple_reorder() || r_node.get_dependencies().size() != 1 || r_node.has_fused_primitives() || r_node.get_primitive()->has_surface_input())
-            continue;
-
-        auto& dep_node = r_node.get_dependency(0);
+        auto& dep_node = node->get_dependency(0);
 
         if (!dep_node.is_type<permute>() || dep_node.can_be_optimized() || dep_node.get_users().size() != 1 || dep_node.is_output())
-            continue;
+            return false;
 
-        if (r_node.get_output_layout().format != dep_node.get_output_layout().format)
-            continue;
+        if (node->get_output_layout().format != dep_node.get_output_layout().format)
+            return false;
 
-        if (r_node.get_output_layout().data_type == dep_node.get_output_layout().data_type)
-            continue;
+        if (node->get_output_layout().data_type == dep_node.get_output_layout().data_type)
+            return false;
 
-        if (!update_implementations)
-            continue;
-
-        auto output_layout = r_node.get_output_layout();
+        auto output_layout = node->get_output_layout();
         auto old_layout = dep_node.get_output_layout();
 
         dep_node.set_output_layout(output_layout, false);
         if (dep_node.type()->has_impl_for(dep_node)) {
-            if (r_node.is_output()) {
-                p.add_optimized_primitive_info(dep_node.id(), { r_node.id() });
+            if (node->is_output()) {
+                p.add_optimized_primitive_info(dep_node.id(), { node->id() });
             } else {
-                p.add_optimized_primitive_info(r_node.id());
+                p.add_optimized_primitive_info(node->id());
             }
 
-            LOG_NODE_REMOVAL(r_node.id());
-            r_node.can_be_optimized(true);
-            p.extract_and_remove(r_node);
+            LOG_NODE_REMOVAL(node->id());
+            node->can_be_optimized(true);
+            p.extract_and_remove(*node);
 
             update_implementation(dep_node);
+            return true;
         } else {
             dep_node.set_output_layout(old_layout, false);
+        }
+
+        return false;
+    };
+
+    if (update_implementations) {
+        // This optimization handles cases where a permute is followed by a reorder that only changes data type
+        // If the permute can support the output data type directly, we can fuse the reorder into the permute
+        // This optimization should be run after remove_redundant_reorders because some reorders might be removed there
+        // and permute might become directly connected to another node
+        itr = p.get_processing_order().begin();
+        while (itr != p.get_processing_order().end()) {
+            auto node = *itr++;
+            if (!node->is_type<reorder>())
+                continue;
+
+            if (try_fuse_reorder_to_permute(&node->as<reorder>()))
+                continue;
         }
     }
 
