@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Common postprocessors."""
@@ -193,7 +193,7 @@ class RemoveLayersFromData(ClassProvider, RemoveLayersFromInputData):
 
 class RenameOutputs(ClassProvider, RenameInputs):
     __action_name__ = "rename_outputs"
-    pass 
+    pass
 
 
 class ConvertNamesToIndices(ClassProvider):
