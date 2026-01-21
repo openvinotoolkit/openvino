@@ -58,20 +58,21 @@ bool isUseBaseModelSerializer(UsedVersion useVersion, const intel_npu::FilteredC
     return false;
 }
 
+template <typename T>
 class ByteAlignedAllocator {
 private:
     intel_npu::utils::AlignedAllocator allocator_;
 
 public:
-    using value_type = uint8_t;
+    using value_type = T;
     using size_type = std::size_t;
     using difference_type = std::ptrdiff_t;
-    using pointer = uint8_t*;
-    using const_pointer = const uint8_t*;
+    using pointer = T*;
+    using const_pointer = const T*;
 
     template <typename U>
     struct rebind {
-        using other = ByteAlignedAllocator;
+        using other = ByteAlignedAllocator<U>;
     };
 
     ByteAlignedAllocator() : allocator_(intel_npu::utils::STANDARD_PAGE_SIZE) {}
@@ -79,40 +80,38 @@ public:
     ByteAlignedAllocator(const ByteAlignedAllocator& other) : allocator_(intel_npu::utils::STANDARD_PAGE_SIZE) {}
 
     template <typename U>
-    ByteAlignedAllocator(const ByteAlignedAllocator& other) : allocator_(intel_npu::utils::STANDARD_PAGE_SIZE) {}
-
-    template <typename U>
-    ByteAlignedAllocator(const typename rebind<U>::other& other) : allocator_(intel_npu::utils::STANDARD_PAGE_SIZE) {}
+    ByteAlignedAllocator(const ByteAlignedAllocator<U>& other) : allocator_(intel_npu::utils::STANDARD_PAGE_SIZE) {}
 
     ByteAlignedAllocator& operator=(const ByteAlignedAllocator& other) {
         return *this;
     }
 
-    uint8_t* allocate(size_t n) {
+    T* allocate(size_t n) {
         size_t aligned_size = intel_npu::utils::align_size_to_standard_page_size(n);
-        return static_cast<uint8_t*>(allocator_.allocate(aligned_size, 1));
+        return static_cast<T*>(allocator_.allocate(aligned_size, 1));
     }
 
-    void deallocate(uint8_t* ptr, size_t n) {
+    void deallocate(T* ptr, size_t n) {
         size_t aligned_size = intel_npu::utils::align_size_to_standard_page_size(n);
         allocator_.deallocate(ptr, aligned_size, 1);
     }
 
-    bool operator==(const ByteAlignedAllocator& other) const {
+    template <typename U>
+    bool operator==(const ByteAlignedAllocator<U>& other) const {
         return allocator_.is_equal(other.allocator_);
     }
 
-    bool operator!=(const ByteAlignedAllocator& other) const {
+    template <typename U>
+    bool operator!=(const ByteAlignedAllocator<U>& other) const {
         return !(*this == other);
     }
 
     size_type max_size() const noexcept {
-        return std::numeric_limits<size_type>::max() / sizeof(value_type);
+        return std::numeric_limits<size_type>::max() / sizeof(T);
     }
 };
 
-using AlignedVector = std::vector<uint8_t, ByteAlignedAllocator>;
-
+using AlignedVector = std::vector<uint8_t, ByteAlignedAllocator<uint8_t>>;
 struct vcl_allocator_vector : vcl_allocator2_t {
     vcl_allocator_vector() : vcl_allocator2_t{vector_allocate, vector_deallocate} {}
 
