@@ -31,16 +31,18 @@ public:
 
     ov::Tensor get_roi_tensor(const size_t size);
 
+    std::optional<uint64_t> get_section_offset(const SectionID section_id) const;
+
+    size_t get_cursor_relative_position();
+
+    void move_cursor_to_relative_position(const size_t offset);
+
     static size_t get_npu_region_size(std::istream& stream);
 
     static size_t get_npu_region_size(const ov::Tensor& tensor);
 
 private:
     friend class BlobWriter;
-
-    size_t get_cursor_position();
-
-    void move_cursor(const size_t offset);
 
     std::reference_wrapper<const ov::Tensor> m_source;
     std::shared_ptr<std::unordered_map<SectionID, uint64_t>> m_offsets_table;

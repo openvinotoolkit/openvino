@@ -49,11 +49,11 @@ ov::Tensor BlobReader::get_roi_tensor(const size_t size) {
     return ov::Tensor(m_source, ov::Coordinate{m_cursor - size}, ov::Coordinate{m_cursor});
 }
 
-size_t BlobReader::get_cursor_position() {
+size_t BlobReader::get_cursor_relative_position() {
     return m_cursor;
 }
 
-void BlobReader::move_cursor(const size_t offset) {
+void BlobReader::move_cursor_to_relative_position(const size_t offset) {
     m_cursor = offset;
 }
 
@@ -76,10 +76,10 @@ void BlobReader::read(const std::unordered_set<CRE::Token>& plugin_capabilities_
 
     uint64_t offsets_table_location;
     copy_data_from_source(reinterpret_cast<char*>(&offsets_table_location), sizeof(offsets_table_location));
-    const size_t where_the_region_of_persistent_format_starts = get_cursor_position();
+    const size_t where_the_region_of_persistent_format_starts = get_cursor_relative_position();
 
     // TODO bound checking
-    move_cursor(offsets_table_location);
+    move_cursor_to_relative_position(offsets_table_location);
     copy_data_from_source(reinterpret_cast<char*>(&section_id), sizeof(section_id));
     OPENVINO_ASSERT(section_id == PredefinedSectionID::OFFSETS_TABLE,
                     "Unexpected section ID. Expected: ",
@@ -96,7 +96,7 @@ void BlobReader::read(const std::unordered_set<CRE::Token>& plugin_capabilities_
     // Step 2: Look for the CRE and evaluate it
     OPENVINO_ASSERT(m_offsets_table->count(PredefinedSectionID::CRE),
                     "The CRE was not found within the table of offsets");
-    move_cursor(m_offsets_table->at(PredefinedSectionID::CRE));
+    move_cursor_to_relative_position(m_offsets_table->at(PredefinedSectionID::CRE));
 
     copy_data_from_source(reinterpret_cast<char*>(&section_id), sizeof(section_id));
     OPENVINO_ASSERT(section_id == PredefinedSectionID::CRE,
@@ -111,20 +111,31 @@ void BlobReader::read(const std::unordered_set<CRE::Token>& plugin_capabilities_
         ->check_compatibility(plugin_capabilities_ids);
 
     // Step 3: Parse all known sections
-    move_cursor(where_the_region_of_persistent_format_starts);
+    move_cursor_to_relative_position(where_the_region_of_persistent_format_starts);
 
-    while (get_cursor_position() < npu_region_size) {
+    while (get_cursor_relative_position() < npu_region_size) {
         copy_data_from_source(reinterpret_cast<char*>(&section_id), sizeof(section_id));
         copy_data_from_source(reinterpret_cast<char*>(&section_length), sizeof(section_length));
 
+        const size_t next_section_location = get_cursor_relative_position() + section_length;
         if (!m_readers.count(section_id)) {
             // Unknown region, skip
-            move_cursor(get_cursor_position() + section_length);
+            move_cursor_to_relative_position(next_section_location);
             continue;
         }
 
         m_parsed_sections[section_id] = m_readers.at(section_id)(this, section_length);
+        move_cursor_to_relative_position(next_section_location);  // jic the reader moved the cursor somewhere else
     }
+}
+
+std::optional<uint64_t> BlobReader::get_section_offset(const SectionID section_id) const {
+    auto search_iterator = m_offsets_table->find(section_id);
+    if (search_iterator == m_offsets_table->end()) {
+        return std::nullopt;
+    }
+
+    return search_iterator->second;
 }
 
 size_t BlobReader::get_npu_region_size(std::istream& stream) {
