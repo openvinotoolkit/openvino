@@ -218,7 +218,7 @@ void ModelDeserializer::process_model(std::shared_ptr<ov::Model>& model,
     bool is_valid_model = (hdr.custom_data_offset == sizeof(hdr)) &&
                           (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
                           (hdr.consts_size == hdr.model_offset - hdr.consts_offset) &&
-                          ((hdr.model_size = file_size - hdr.model_offset) != 0U);
+                          ((hdr.model_size == file_size - hdr.model_offset));
     OPENVINO_ASSERT(is_valid_model, "[CPU] Could not deserialize by device xml header.");
 
     // read model input/output precisions
