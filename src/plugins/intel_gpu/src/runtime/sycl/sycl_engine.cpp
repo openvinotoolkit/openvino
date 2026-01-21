@@ -67,6 +67,7 @@ backend_types sycl_engine::backend_type() const {
         case ::sycl::backend::opencl: return backend_types::ocl;
         case ::sycl::backend::ext_oneapi_hip: return backend_types::hip;
         case ::sycl::backend::ext_oneapi_cuda: return backend_types::cuda;
+        case ::sycl::backend::ext_oneapi_level_zero: return backend_types::l0;
         default:
             OPENVINO_THROW("[GPU] Unsupported SYCL backend type: ", backend);
     }

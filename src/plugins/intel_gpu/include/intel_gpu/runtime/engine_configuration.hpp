@@ -45,6 +45,7 @@ enum class backend_types : int32_t {
     cuda,
     hip,
     ocl,
+    l0,
 };
 
 inline std::ostream& operator<<(std::ostream& os, const backend_types& type) {
@@ -52,6 +53,7 @@ inline std::ostream& operator<<(std::ostream& os, const backend_types& type) {
     case backend_types::cuda: os << "cuda"; break;
     case backend_types::hip: os << "hip"; break;
     case backend_types::ocl: os << "ocl"; break;
+    case backend_types::l0: os << "l0"; break;
     default: os << "unknown"; break;
     }
 
