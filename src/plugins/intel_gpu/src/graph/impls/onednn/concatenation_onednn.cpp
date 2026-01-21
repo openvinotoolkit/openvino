@@ -60,18 +60,12 @@ protected:
         std::vector<dnnl::memory::desc> input_mds;
         for (size_t i = 0; i < impl_params.input_layouts.size(); i++) {
             auto input_layout = impl_params.get_input_layout(i);
-            if (input_layout.format.is_blocked())
-                input_mds.push_back(onednn::layout_to_memory_desc_blocked(input_layout, dnnl::memory::format_tag::undef));
-            else
-                input_mds.push_back(onednn::layout_to_memory_desc(input_layout));
+            input_mds.push_back(onednn::layout_to_memory_desc(input_layout, false, input_layout.format.is_blocked()));
         }
 
         dnnl::memory::desc output_md;
         auto output_layout = impl_params.get_output_layout();
-        if (output_layout.format.is_blocked())
-            output_md = onednn::layout_to_memory_desc_blocked(output_layout, dnnl::memory::format_tag::undef);
-        else
-            output_md = onednn::layout_to_memory_desc(output_layout);
+        output_md = onednn::layout_to_memory_desc(output_layout, false, output_layout.format.is_blocked());
 
         return std::make_shared<dnnl::concat::primitive_desc>(
             engine.get_onednn_engine(),
