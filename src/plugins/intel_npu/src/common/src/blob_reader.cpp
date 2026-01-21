@@ -143,24 +143,35 @@ std::optional<uint64_t> BlobReader::get_section_offset(const SectionID section_i
 }
 
 size_t BlobReader::get_npu_region_size(std::istream& stream) {
-    uint64_t npu_region_size;
-    auto position_before = stream.tellg();
+    std::string magic_bytes(MAGIC_BYTES.size(), 0);
+    stream.read(const_cast<char*>(magic_bytes.c_str()), MAGIC_BYTES.size());
+    OPENVINO_ASSERT(magic_bytes == MAGIC_BYTES);
 
-    // Magic bytes -> format version -> NPU region size
-    stream.seekg(MAGIC_BYTES.size() + sizeof(FORMAT_VERSION), std::ios_base::cur);
-    stream.read(reinterpret_cast<char*>(&npu_region_size), sizeof(npu_region_size));
-    stream.seekg(position_before);
+    uint32_t format_version;
+    stream.read(reinterpret_cast<char*>(&format_version), sizeof(format_version));
+    OPENVINO_ASSERT(format_version == FORMAT_VERSION);
+
+    uint64_t npu_region_size;
+    stream.read(reinterpret_cast<char*>(&npu_region_size), sizeof(m_npu_region_size));
 
     return npu_region_size;
 }
 
 size_t BlobReader::get_npu_region_size(const ov::Tensor& tensor) {
-    uint64_t npu_region_size;
+    std::string magic_bytes(MAGIC_BYTES.size(), 0);
+    std::memcpy(const_cast<char*>(magic_bytes.c_str()), tensor.data<const char>(), MAGIC_BYTES.size());
+    OPENVINO_ASSERT(magic_bytes == MAGIC_BYTES);
 
-    // Magic bytes -> format version -> NPU region size
+    uint32_t format_version;
+    std::memcpy(reinterpret_cast<char*>(&format_version),
+                tensor.data<const char>() + MAGIC_BYTES.size(),
+                sizeof(format_version));
+    OPENVINO_ASSERT(format_version == FORMAT_VERSION);
+
+    uint64_t npu_region_size;
     std::memcpy(reinterpret_cast<char*>(&npu_region_size),
                 tensor.data<const char>() + MAGIC_BYTES.size() + sizeof(FORMAT_VERSION),
-                sizeof(npu_region_size));
+                sizeof(m_npu_region_size));
 
     return npu_region_size;
 }
