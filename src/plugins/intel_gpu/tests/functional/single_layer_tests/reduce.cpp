@@ -92,7 +92,7 @@ const std::vector<ov::Shape> input_shapes = {{{1, 2, 3, 2, 4}}};
 const std::vector<ov::element::Type> input_prec = {ov::element::f16};
 
 INSTANTIATE_TEST_SUITE_P(
-    Smoke_ReduceSumSqueezeTest,
+    smoke_ReduceSumSqueezeTest,
     ReduceSumSqueezeTest,
     ::testing::Combine(::testing::ValuesIn(input_shapes),
                        ::testing::ValuesIn(input_prec),
