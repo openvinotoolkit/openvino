@@ -683,6 +683,60 @@ void remove_redundant_reorders::run(program& p) {
         }
     }
 
+    // Optimize permute -> reorder (change dt)
+    // This optimization handles cases where a permute is followed by a reorder that only changes data type
+    // If the permute can support the output data type directly, we can fuse the reorder into the permute
+    // This optimization should be run after remove_redundant_reorders because some reorders might be removed there
+    // and permute might become directly connected to another node
+    itr = p.get_processing_order().begin();
+    while (itr != p.get_processing_order().end()) {
+        auto node = *itr++;
+        if (!node->is_type<reorder>())
+            continue;
+
+        auto& r_node = node->as<reorder>();
+
+        if (r_node.is_output() && !remove_output_reorders)
+            continue;
+
+        if (!r_node.is_simple_reorder() || r_node.get_dependencies().size() != 1 || r_node.has_fused_primitives() || r_node.get_primitive()->has_surface_input())
+            continue;
+
+        auto& dep_node = r_node.get_dependency(0);
+
+        if (!dep_node.is_type<permute>() || dep_node.can_be_optimized() || dep_node.get_users().size() != 1 || dep_node.is_output())
+            continue;
+
+        if (r_node.get_output_layout().format != dep_node.get_output_layout().format)
+            continue;
+
+        if (r_node.get_output_layout().data_type == dep_node.get_output_layout().data_type)
+            continue;
+
+        if (!update_implementations)
+            continue;
+
+        auto output_layout = r_node.get_output_layout();
+        auto old_layout = dep_node.get_output_layout();
+
+        dep_node.set_output_layout(output_layout, false);
+        if (dep_node.type()->has_impl_for(dep_node)) {
+            if (r_node.is_output()) {
+                p.add_optimized_primitive_info(dep_node.id(), { r_node.id() });
+            } else {
+                p.add_optimized_primitive_info(r_node.id());
+            }
+
+            LOG_NODE_REMOVAL(r_node.id());
+            r_node.can_be_optimized(true);
+            p.extract_and_remove(r_node);
+
+            update_implementation(dep_node);
+        } else {
+            dep_node.set_output_layout(old_layout, false);
+        }
+    }
+
     // Additional reshape chains shrink.
     // This step is needed to handle the cases when the plugin creates patterns like reshape -> reorder -> reshape
     // So these reshapes are not optimized in handle_reshape pass due to reorder between them,
