@@ -304,12 +304,6 @@ bool CPUTargetMachine::is_supported() const {
     return ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv);
 }
 
-void CPUTargetMachine::begin_code_section() {
-    auto* snippet = dynamic_cast<jit_snippet*>(h.get());
-    OPENVINO_ASSERT(snippet, "Unexpected jit generator type for RISC-V snippets");
-    snippet->set_code_section_address(h->getCurr());
-}
-
 snippets::CompiledSnippetPtr CPUTargetMachine::get_snippet() {
     OPENVINO_ASSERT(h->create_kernel(), "Failed to create jit_kernel in get_snippet()");
 

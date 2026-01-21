@@ -33,7 +33,6 @@ public:
     [[nodiscard]] std::shared_ptr<snippets::TargetMachine> clone() const override;
     [[nodiscard]] bool is_supported() const override;
     snippets::CompiledSnippetPtr get_snippet() override;
-    void begin_code_section() override;
     [[nodiscard]] size_t get_lanes() const override;
 
     [[nodiscard]] std::vector<snippets::Reg> get_abi_arg_regs() const override;

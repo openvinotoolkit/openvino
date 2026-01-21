@@ -38,10 +38,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/hsigmoid.hpp"
-#include "openvino/op/is_finite.hpp"
-#include "openvino/op/is_inf.hpp"
-#include "openvino/op/is_nan.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/paged_attention.hpp"
@@ -49,7 +45,6 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/softsign.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "ov_ops/gather_compressed.hpp"
@@ -299,6 +294,14 @@
 
 #if defined(OPENVINO_ARCH_ARM)
 #    include "transformations/cpu_opset/arm/pass/mish_decomposition.hpp"
+#endif
+
+#if defined(OPENVINO_ARCH_RISCV64)
+#    include "openvino/op/hsigmoid.hpp"
+#    include "openvino/op/is_finite.hpp"
+#    include "openvino/op/is_inf.hpp"
+#    include "openvino/op/is_nan.hpp"
+#    include "openvino/op/softsign.hpp"
 #endif
 
 #if defined(SNIPPETS_LIBXSMM_TPP)
