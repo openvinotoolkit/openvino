@@ -101,6 +101,7 @@ private:
     std::shared_ptr<Metrics> _metrics;
     std::unique_ptr<Properties> _properties;
 
+    mutable std::atomic<bool> _pluginCompilerIsPresent = true;
     static std::atomic<int> _compiledModelLoadCounter;
     mutable std::mutex _mutex;
 };

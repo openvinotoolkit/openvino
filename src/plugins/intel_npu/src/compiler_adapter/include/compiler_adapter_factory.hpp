@@ -12,50 +12,41 @@
 
 namespace intel_npu {
 
-struct CompilerTypeSettings {
-    CompilerTypeSettings() = default;
-    CompilerTypeSettings(bool isSet, ov::intel_npu::CompilerType type)
-        : compilerConfigIsSet(isSet),
-          compilerType(type) {}
-
-    bool compilerConfigIsSet = false;
-    ov::intel_npu::CompilerType compilerType;
-};
-
 class CompilerAdapterFactory final {
 public:
     std::unique_ptr<ICompilerAdapter> getCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
-                                                  const CompilerTypeSettings& compilerTypeSettings,
-                                                  FilteredConfig& globalConfig) const {
-        auto compilerType = compilerTypeSettings.compilerType;
-
-        if (!compilerTypeSettings.compilerConfigIsSet) {
-            try {
-                if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
-                    auto compiler = std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs());
-                    return compiler;
+                                                  ov::intel_npu::CompilerType compilerType,
+                                                  ov::AnyMap& properties,
+                                                  std::atomic<bool>& compilerPluginIsPresent) const {
+        if (compilerPluginIsPresent) {
+            if (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
+                try {
+                    properties[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::PLUGIN;
+                    return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs());
+                } catch (...) {
+                    compilerPluginIsPresent = false;
+                    properties[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::DRIVER;
+                    compilerType = ov::intel_npu::CompilerType::DRIVER;
                 }
-            } catch (...) {
-                globalConfig.update({{ov::intel_npu::compiler_type.name(), "DRIVER"}});
-                compilerType = ov::intel_npu::CompilerType::DRIVER;
             }
+        } else {
+            properties[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::DRIVER;
+            compilerType = ov::intel_npu::CompilerType::DRIVER;
         }
 
-        switch (compilerType) {
-        case ov::intel_npu::CompilerType::PLUGIN: {
+        if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
             if (engineBackend == nullptr || engineBackend->getName() != "LEVEL0") {
                 return std::make_unique<PluginCompilerAdapter>(nullptr);
             }
+
             return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs());
-        }
-        case ov::intel_npu::CompilerType::DRIVER: {
+        } else if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
             if (engineBackend == nullptr || engineBackend->getName() != "LEVEL0") {
                 OPENVINO_THROW("NPU Compiler Adapter must be used with LEVEL0 backend");
             }
 
             return std::make_unique<DriverCompilerAdapter>(engineBackend->getInitStructs());
-        }
-        default:
+        } else {
             OPENVINO_THROW("Invalid NPU_COMPILER_TYPE");
         }
     }

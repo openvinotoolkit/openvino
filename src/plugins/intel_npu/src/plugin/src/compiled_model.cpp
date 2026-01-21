@@ -37,7 +37,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
-    _properties = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL, _config);
+    std::atomic<bool> dummyPluginCompilerIsPresent = true;
+    _properties = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL, _config, dummyPluginCompilerIsPresent);
     _properties->registerProperties();
 
     configure_stream_executors();

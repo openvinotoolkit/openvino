@@ -140,15 +140,15 @@ void update_log_level(const ov::AnyMap& properties) {
     }
 }
 
-static CompilerTypeSettings resolveCompilerType(const FilteredConfig& base_conf, const ov::AnyMap& local_conf) {
+static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig& base_conf, const ov::AnyMap& local_conf) {
     // first look if provided config changes compiler type
     auto it = local_conf.find(std::string(COMPILER_TYPE::key()));
     if (it != local_conf.end()) {
         // if compiler_type is provided by local config = use that
-        return CompilerTypeSettings(true, COMPILER_TYPE::parse(it->second.as<std::string>()));
+        return COMPILER_TYPE::parse(it->second.as<std::string>());
     }
     // if there is no compiler_type provided = use base_config value
-    return CompilerTypeSettings(base_conf.has<COMPILER_TYPE>(), base_conf.get<COMPILER_TYPE>());
+    return base_conf.has<COMPILER_TYPE>(), base_conf.get<COMPILER_TYPE>();
 }
 
 /**
@@ -258,7 +258,11 @@ Plugin::Plugin()
 
     /// Init and register properties
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
-    _properties = std::make_unique<Properties>(PropertiesType::PLUGIN, _globalConfig, _metrics, _backend);
+    _properties = std::make_unique<Properties>(PropertiesType::PLUGIN,
+                                               _globalConfig,
+                                               _pluginCompilerIsPresent,
+                                               _metrics,
+                                               _backend);
     _properties->registerProperties();
 }
 
@@ -405,7 +409,7 @@ void Plugin::init_options() {
     // Special cases
     _globalConfig.enable(ov::log::level.name(), true);  // needed also by runtime options
 
-    if (!_globalConfig.has(ov::intel_npu::compiler_type.name())) {
+    if (_globalConfig.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
         if (_backend) {
             auto platformName = _backend->getDevice()->getName();
             if (platformName != ov::intel_npu::Platform::NPU4000 && platformName != ov::intel_npu::Platform::NPU5010) {
@@ -424,14 +428,15 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
     std::unique_ptr<ICompilerAdapter> compiler = nullptr;
     std::vector<std::string> compiler_support_list{};
     uint32_t compiler_version = 0;
-    // create a dummy compiler to fetch version and supported options
 
+    // create a dummy compiler to fetch version and supported options
     try {
         CompilerAdapterFactory compilerAdapterFactory;
-        compiler =
-            compilerAdapterFactory.getCompiler(_backend,
-                                               CompilerTypeSettings(cfg.has<COMPILER_TYPE>(), cfg.get<COMPILER_TYPE>()),
-                                               cfg);
+        ov::AnyMap dummyProperties = {};
+        compiler = compilerAdapterFactory.getCompiler(_backend,
+                                                      cfg.get<COMPILER_TYPE>(),
+                                                      dummyProperties,
+                                                      _pluginCompilerIsPresent);
     } catch (...) {
         // assuming getCompiler failed, meaning we are offline
         _logger.warning("No available compiler. Enabling only runtime options ");
@@ -694,8 +699,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     // create compiler
     CompilerAdapterFactory compilerAdapterFactory;
-    auto compiler =
-        compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties), _globalConfig);
+    auto compiler = compilerAdapterFactory.getCompiler(_backend,
+                                                       resolveCompilerType(_globalConfig, localProperties),
+                                                       localProperties,
+                                                       _pluginCompilerIsPresent);
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     auto localConfig = fork_local_config(localProperties, compiler);
@@ -1051,7 +1058,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     update_log_level(npu_plugin_properties);
     auto compiler = compilerAdapterFactory.getCompiler(_backend,
                                                        resolveCompilerType(_globalConfig, npu_plugin_properties),
-                                                       _globalConfig);
+                                                       npu_plugin_properties,
+                                                       _pluginCompilerIsPresent);
     auto localConfig = fork_local_config(npu_plugin_properties, compiler, OptionMode::CompileTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
@@ -1112,7 +1120,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     update_log_level(npu_plugin_properties);
     auto compiler = compilerAdapterFactory.getCompiler(_backend,
                                                        resolveCompilerType(_globalConfig, npu_plugin_properties),
-                                                       _globalConfig);
+                                                       npu_plugin_properties,
+                                                       _pluginCompilerIsPresent);
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
     auto localConfig = fork_local_config(npu_plugin_properties, compiler, OptionMode::RunTime);
