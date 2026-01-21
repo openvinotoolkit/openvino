@@ -715,6 +715,7 @@ def test_op_extension_via_onnx_extension_set_attrs_values():
                 "exclude-pad": True,
                 "auto_pad": "same_upper",
                 "rounding_type": "floor",
+                "dilations": [1, 1],
             },
         )
     )
@@ -754,6 +755,7 @@ def test_op_extension_via_frontend_extension_set_attrs_values():
                 "exclude-pad": True,
                 "auto_pad": "same_upper",
                 "rounding_type": "floor",
+                "dilations": [1, 1],
             },
         )
     )
@@ -788,6 +790,7 @@ def test_op_extension_via_frontend_extension_map_attributes():
                 "pads_end": [1, 1],
                 "exclude-pad": True,
                 "rounding_type": "floor",
+                "dilations": [1, 1],
             },
         )
     )
