@@ -25,7 +25,7 @@ inline bool or_function(bool a, bool b) {
 
 namespace intel_npu {
 
-CRE::CRE() : m_expression({CRE::AND}) {}  // TODO can lead to expression with 0 or 1 operands, fix that
+CRE::CRE() : m_expression({CRE::AND}) {}
 
 CRE::CRE(const std::vector<Token>& expression) : m_expression(expression) {}
 
@@ -47,6 +47,11 @@ std::vector<CRE::Token> CRE::get_expression() const {
     return m_expression;
 }
 
+void CRE::advance_iterator(std::vector<Token>::const_iterator& expression_iterator) {
+    OPENVINO_ASSERT(expression_iterator != m_expression.end());
+    expression_iterator++;
+}
+
 bool CRE::end_condition(const std::vector<Token>::const_iterator& expression_iterator, const Delimiter end_delimiter) {
     switch (end_delimiter) {
     case Delimiter::PARRENTHESIS:
@@ -59,7 +64,7 @@ bool CRE::end_condition(const std::vector<Token>::const_iterator& expression_ite
     }
 }
 
-// TODO: bound checking
+// TODO: if depth = 1, fail asap and print a suggestive message regarding the missing cap
 bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
                    const std::unordered_set<CRE::Token>& plugin_capabilities,
                    const Delimiter end_delimiter) {
@@ -67,7 +72,7 @@ bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
     bool base;
 
     // An operator is always expected first
-    switch (*(expression_iterator++)) {
+    switch (*expression_iterator) {
     case AND:
         logical_function = and_function;
         base = true;
@@ -80,22 +85,25 @@ bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
         OPENVINO_THROW_HELPER(InvalidCRE,
                               ov::Exception::default_msg,
                               "Received: ",
-                              *(--expression_iterator),
+                              *expression_iterator,
                               " instead of an operator");
     }
 
-    // Followed by n operands, n >= 2. One operand can be defined as:
+    advance_iterator(expression_iterator);
+
+    // Followed by n operands, n >= 1. One operand can be defined as:
     //   * The ID of a capability
     //   * Open parrenthesis - subexpression - closed parrenthesis
     //   * Subexpression without parrenthesis (starts with an operator)
-    size_t n_operands = 0;
+    bool no_operands = true;
     while (!end_condition(expression_iterator, end_delimiter)) {
-        ++n_operands;
+        no_operands = false;
 
         if (*expression_iterator == OPEN) {
-            base =
-                logical_function(base, evaluate(++expression_iterator, plugin_capabilities, Delimiter::PARRENTHESIS));
-            OPENVINO_ASSERT(*(expression_iterator++) == CLOSE);
+            advance_iterator(expression_iterator);
+            base = logical_function(base, evaluate(expression_iterator, plugin_capabilities, Delimiter::PARRENTHESIS));
+            OPENVINO_ASSERT(*expression_iterator == CLOSE);
+            advance_iterator(expression_iterator);
         } else if (*expression_iterator == CLOSE) {
             OPENVINO_THROW_HELPER(InvalidCRE,
                                   ov::Exception::default_msg,
@@ -104,20 +112,26 @@ bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
             base = logical_function(base,
                                     evaluate(expression_iterator, plugin_capabilities, Delimiter::NOT_CAPABILITY_ID));
         } else {
-            base = logical_function(base, plugin_capabilities.count(*(expression_iterator++)));
+            base = logical_function(base, plugin_capabilities.count(*expression_iterator));
+            advance_iterator(expression_iterator);
         }
     }
 
-    if (n_operands < 2) {
-        OPENVINO_THROW_HELPER(InvalidCRE,
-                              ov::Exception::default_msg,
-                              "At least one operator has less than two operands");
+    if (no_operands) {
+        OPENVINO_THROW_HELPER(InvalidCRE, ov::Exception::default_msg, "At least one operator doesn't have any operand");
     }
 
     return base;
 }
 
 bool CRE::check_compatibility(const std::unordered_set<CRE::Token>& plugin_capabilities) {
+    if (m_expression.empty()) {
+        return true;
+    }
+    if (m_expression.size() == 1) {
+        return plugin_capabilities.count(m_expression.at(0));
+    }
+
     std::vector<Token>::const_iterator expression_iterator = m_expression.begin();
     return evaluate(expression_iterator, plugin_capabilities, Delimiter::SIZE);
 }

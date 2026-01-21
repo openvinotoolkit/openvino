@@ -15,6 +15,7 @@ class CRE final {
 public:
     using Token = uint16_t;
 
+    // TODO should we also add "NOT"?
     enum ReservedToken : Token { AND = 50000, OR = 50001, OPEN = 50002, CLOSE = 50003 };
 
     static inline const std::unordered_set<Token> RESERVED_TOKENS{ReservedToken::AND,
@@ -55,6 +56,8 @@ public:
 
 private:
     enum class Delimiter { PARRENTHESIS, SIZE, NOT_CAPABILITY_ID };
+
+    void advance_iterator(std::vector<Token>::const_iterator& expression_iterator);
 
     bool end_condition(const std::vector<Token>::const_iterator& expression_iterator, const Delimiter end_delimiter);
 

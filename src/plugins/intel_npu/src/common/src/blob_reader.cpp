@@ -81,7 +81,6 @@ void BlobReader::read(const std::unordered_set<CRE::Token>& plugin_capabilities_
     copy_data_from_source(reinterpret_cast<char*>(&offsets_table_location), sizeof(offsets_table_location));
     const size_t where_the_region_of_persistent_format_starts = get_cursor_relative_position();
 
-    // TODO bound checking
     move_cursor_to_relative_position(offsets_table_location);
     copy_data_from_source(reinterpret_cast<char*>(&section_id), sizeof(section_id));
     OPENVINO_ASSERT(section_id == PredefinedSectionID::OFFSETS_TABLE,

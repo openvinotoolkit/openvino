@@ -57,7 +57,6 @@ std::vector<ov::Layout> IOLayoutsSection::get_output_layouts() const {
 }
 
 std::shared_ptr<ISection> IOLayoutsSection::read(BlobReader* blob_reader, const size_t section_length) {
-    // TODO do not fail if unable to parse
     // TODO generalize "do not fail if unable to parse" depending on whether or not the field is mandatory?
 
     OPENVINO_ASSERT(section_length >= 2 * sizeof(uint64_t),
