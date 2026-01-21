@@ -302,11 +302,8 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     using namespace dnnl::impl::gpu::intel::jit;
-    ngen::HW hw = ngen::HW::Unknown;
-    ngen::Product product = {ngen::ProductFamily::Unknown, 0};
-    generator_t<ngen::HW::Unknown>::detectHWInfo(::sycl::get_native<::sycl::backend::opencl>(context),
-                                                 ::sycl::get_native<::sycl::backend::opencl>(device));
-    info.arch = convert_ngen_arch(hw);
+    ngen::Product product = generator_t<ngen::HW::Unknown>::detectHWInfo(context, device);
+    info.arch = convert_ngen_arch(ngen::getCore(product.family));
     // We change the value of this flag to avoid OneDNN usage for the platforms unknown to OneDNN
     // This is required to guarantee some level of forward compatibility for the new HW generations
     // as OneDNN code generators are not generic and typically requires some updates for the new architectures
