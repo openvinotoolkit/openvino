@@ -27,7 +27,6 @@ struct NetworkDescription final {
     NetworkDescription(std::vector<uint8_t>&& compiledNetwork, NetworkMetadata&& metadata)
         : compiledNetwork(std::move(compiledNetwork)),
           metadata(std::move(metadata)) {}
-
     NetworkDescription(ov::Tensor&& compiledNetWorkTensor, NetworkMetadata&& metadata)
         : compiledNetwork(),
           metadata(std::move(metadata)),
@@ -40,7 +39,9 @@ struct NetworkDescription final {
     ~NetworkDescription() = default;
 
     std::vector<uint8_t> compiledNetwork;
+
     NetworkMetadata metadata;
+
     ov::Tensor compiledNetworkTensor;
 };
 

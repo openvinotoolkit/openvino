@@ -122,19 +122,15 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     auto networkDesc = _compiler->compile(model, config);
     _logger.debug("compile end");
 
-    std::cout << __LINE__ << std::endl;
     ov::Tensor tensor;
     if (networkDesc.compiledNetwork.size() > 0) {
-        std::cout << __LINE__ << std::endl;
         tensor = make_tensor_from_vector(networkDesc.compiledNetwork);
     } else {
-        std::cout << __LINE__ << std::endl;
         tensor = std::move(networkDesc.compiledNetworkTensor);
     }
     GraphDescriptor graphDesc;
     NetworkMetadata networkMeta;
-    std::cout << "data " << static_cast<void*>(tensor.data()) << " size " << tensor.get_byte_size() << std::endl;
-    std::cout << __LINE__ << std::endl;
+
     if (_zeGraphExt) {
         // Depending on the config, we may get an error when trying to get the graph handle from the compiled
         // network
@@ -150,7 +146,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     } else {
         _logger.warning("No driver is found, zeGraphExt is nullptr, so metadata is empty. Only exports are available");
     }
-    std::cout << __LINE__ << std::endl;
+
     return std::make_shared<Graph>(
         _zeGraphExt,
         _zeroInitStruct,

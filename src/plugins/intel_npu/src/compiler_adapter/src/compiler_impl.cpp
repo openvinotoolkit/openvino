@@ -58,6 +58,124 @@ bool isUseBaseModelSerializer(UsedVersion useVersion, const intel_npu::FilteredC
     return false;
 }
 
+class ByteAlignedAllocator {
+private:
+    intel_npu::utils::AlignedAllocator allocator_;
+
+public:
+    using value_type = uint8_t;
+    using size_type = std::size_t;
+    using difference_type = std::ptrdiff_t;
+    using pointer = uint8_t*;
+    using const_pointer = const uint8_t*;
+
+    template <typename U>
+    struct rebind {
+        using other = ByteAlignedAllocator;
+    };
+
+    ByteAlignedAllocator() : allocator_(intel_npu::utils::STANDARD_PAGE_SIZE) {}
+
+    ByteAlignedAllocator(const ByteAlignedAllocator& other) : allocator_(intel_npu::utils::STANDARD_PAGE_SIZE) {}
+
+    template <typename U>
+    ByteAlignedAllocator(const ByteAlignedAllocator& other) : allocator_(intel_npu::utils::STANDARD_PAGE_SIZE) {}
+
+    ByteAlignedAllocator& operator=(const ByteAlignedAllocator& other) {
+        return *this;
+    }
+
+    uint8_t* allocate(size_t n) {
+        size_t aligned_size = intel_npu::utils::align_size_to_standard_page_size(n);
+        return static_cast<uint8_t*>(allocator_.allocate(aligned_size, 1));
+    }
+
+    void deallocate(uint8_t* ptr, size_t n) {
+        size_t aligned_size = intel_npu::utils::align_size_to_standard_page_size(n);
+        allocator_.deallocate(ptr, aligned_size, 1);
+    }
+
+    bool operator==(const ByteAlignedAllocator& other) const {
+        return allocator_.is_equal(other.allocator_);
+    }
+
+    bool operator!=(const ByteAlignedAllocator& other) const {
+        return !(*this == other);
+    }
+
+    size_type max_size() const noexcept {
+        return std::numeric_limits<size_type>::max() / sizeof(value_type);
+    }
+};
+
+using AlignedVector = std::vector<uint8_t, ByteAlignedAllocator>;
+
+struct vcl_allocator_vector : vcl_allocator2_t {
+    vcl_allocator_vector() : vcl_allocator2_t{vector_allocate, vector_deallocate} {}
+
+    static uint8_t* vector_allocate(vcl_allocator2_t* allocator, size_t size) {
+        vcl_allocator_vector* vecAllocator = static_cast<vcl_allocator_vector*>(allocator);
+        size_t aligned_size = intel_npu::utils::align_size_to_standard_page_size(size);
+        auto newVec = std::make_shared<AlignedVector>();
+        vecAllocator->m_vec = newVec;
+        vecAllocator->m_vec->resize(aligned_size);
+        if (intel_npu::utils::memory_and_size_aligned_to_standard_page_size(vecAllocator->m_vec->data(),
+                                                                            vecAllocator->m_vec->size()) == false) {
+            OPENVINO_THROW("vcl_allocator_vector: allocated memory is not aligned to standard page size");
+        }
+        return vecAllocator->m_vec->data();
+    }
+
+    static void vector_deallocate(vcl_allocator2_t* allocator, uint8_t* ptr) {
+        vcl_allocator_vector* vecAllocator = static_cast<vcl_allocator_vector*>(allocator);
+        vecAllocator->m_vec->clear();
+        vecAllocator->m_vec->shrink_to_fit();
+    }
+
+    std::shared_ptr<AlignedVector> m_vec;
+};
+
+struct vcl_allocator_vector_2 : vcl_allocator2_t {
+    vcl_allocator_vector_2() : vcl_allocator2_t{vector_allocate, vector_deallocate} {}
+
+    static uint8_t* vector_allocate(vcl_allocator2_t* allocator, size_t size) {
+        vcl_allocator_vector_2* vecAllocator = static_cast<vcl_allocator_vector_2*>(allocator);
+        size_t aligned_size = intel_npu::utils::align_size_to_standard_page_size(size);
+        auto newVec = std::make_shared<AlignedVector>();
+        newVec->resize(aligned_size);
+        uint8_t* ptr = newVec->data();
+        if (intel_npu::utils::memory_and_size_aligned_to_standard_page_size(newVec->data(), newVec->size()) == false) {
+            OPENVINO_THROW("vcl_allocator_vector: allocated memory is not aligned to standard page size");
+        }
+        vecAllocator->m_vector.emplace_back(newVec);
+
+        return ptr;
+    }
+
+    static void vector_deallocate(vcl_allocator2_t* allocator, uint8_t* ptr) {
+        vcl_allocator_vector_2* vecAllocator = static_cast<vcl_allocator_vector_2*>(allocator);
+        auto it = std::find_if(vecAllocator->m_vector.begin(), vecAllocator->m_vector.end(), [ptr](const auto& vec) {
+            return vec->data() == ptr;
+        });
+
+        if (it != vecAllocator->m_vector.end()) {
+            vecAllocator->m_vector.erase(it);
+            vecAllocator->m_vector.shrink_to_fit();
+        } else {
+            OPENVINO_THROW("vcl_allocator_vector_2: pointer to deallocate not found");
+        }
+    }
+
+    std::vector<std::shared_ptr<AlignedVector>> m_vector;
+};
+
+ov::Tensor make_tensor_from_aligned_vector(std::shared_ptr<AlignedVector> vector) {
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{vector->size()}, vector->data());
+    auto impl = ov::get_tensor_impl(std::move(tensor));
+    impl._so = vector;
+    return ov::make_tensor(impl);
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -304,125 +422,6 @@ std::shared_ptr<void> VCLCompilerImpl::getLinkedLibrary() const {
     return VCLApi::getInstance()->getLibrary();
 }
 
-class ByteAlignedAllocator {
-private:
-    intel_npu::utils::AlignedAllocator allocator_;
-
-public:
-    using value_type = uint8_t;
-    using size_type = std::size_t;
-    using difference_type = std::ptrdiff_t;
-    using pointer = uint8_t*;
-    using const_pointer = const uint8_t*;
-
-    template <typename U>
-    struct rebind {
-        using other = ByteAlignedAllocator;
-    };
-
-    ByteAlignedAllocator() : allocator_(intel_npu::utils::STANDARD_PAGE_SIZE) {}
-
-    ByteAlignedAllocator(const ByteAlignedAllocator& other) : allocator_(intel_npu::utils::STANDARD_PAGE_SIZE) {}
-
-    template <typename U>
-    ByteAlignedAllocator(const ByteAlignedAllocator& other) : allocator_(intel_npu::utils::STANDARD_PAGE_SIZE) {}
-
-    ByteAlignedAllocator& operator=(const ByteAlignedAllocator& other) {
-        return *this;
-    }
-
-    uint8_t* allocate(size_t n) {
-        size_t aligned_size = intel_npu::utils::align_size_to_standard_page_size(n);
-        return static_cast<uint8_t*>(allocator_.allocate(aligned_size, 1));
-    }
-
-    void deallocate(uint8_t* ptr, size_t n) {
-        size_t aligned_size = intel_npu::utils::align_size_to_standard_page_size(n);
-        allocator_.deallocate(ptr, aligned_size, 1);
-    }
-
-    bool operator==(const ByteAlignedAllocator& other) const {
-        return allocator_.is_equal(other.allocator_);
-    }
-
-    bool operator!=(const ByteAlignedAllocator& other) const {
-        return !(*this == other);
-    }
-
-    size_type max_size() const noexcept {
-        return std::numeric_limits<size_type>::max() / sizeof(value_type);
-    }
-};
-
-using AlignedVector = std::vector<uint8_t, ByteAlignedAllocator>;
-
-struct vcl_allocator_vector : vcl_allocator2_t {
-    vcl_allocator_vector() : vcl_allocator2_t{vector_allocate, vector_deallocate} {}
-
-    static uint8_t* vector_allocate(vcl_allocator2_t* allocator, size_t size) {
-        vcl_allocator_vector* vecAllocator = static_cast<vcl_allocator_vector*>(allocator);
-        size_t aligned_size = intel_npu::utils::align_size_to_standard_page_size(size);
-        std::cout << "Need size:" << size << " Aligned size:" << aligned_size << std::endl;
-        auto newVec = std::make_shared<AlignedVector>();
-        vecAllocator->m_vec = newVec;
-        vecAllocator->m_vec->resize(aligned_size);
-        if (intel_npu::utils::memory_and_size_aligned_to_standard_page_size(vecAllocator->m_vec->data(),
-                                                                            vecAllocator->m_vec->size()) == false) {
-            OPENVINO_THROW("vcl_allocator_vector: allocated memory is not aligned to standard page size");
-        }
-        return vecAllocator->m_vec->data();
-    }
-
-    static void vector_deallocate(vcl_allocator2_t* allocator, uint8_t* ptr) {
-        vcl_allocator_vector* vecAllocator = static_cast<vcl_allocator_vector*>(allocator);
-        vecAllocator->m_vec->clear();
-        vecAllocator->m_vec->shrink_to_fit();
-    }
-
-    std::shared_ptr<AlignedVector> m_vec;
-};
-
-struct vcl_allocator_vector_2 : vcl_allocator2_t {
-    vcl_allocator_vector_2() : vcl_allocator2_t{vector_allocate, vector_deallocate} {}
-
-    static uint8_t* vector_allocate(vcl_allocator2_t* allocator, size_t size) {
-        vcl_allocator_vector_2* vecAllocator = static_cast<vcl_allocator_vector_2*>(allocator);
-        size_t aligned_size = intel_npu::utils::align_size_to_standard_page_size(size);
-        auto newVec = std::make_shared<AlignedVector>();
-        newVec->resize(aligned_size);
-        uint8_t* ptr = newVec->data();
-        if (intel_npu::utils::memory_and_size_aligned_to_standard_page_size(newVec->data(), newVec->size()) == false) {
-            OPENVINO_THROW("vcl_allocator_vector: allocated memory is not aligned to standard page size");
-        }
-        vecAllocator->m_vector.emplace_back(newVec);
-
-        return ptr;
-    }
-
-    static void vector_deallocate(vcl_allocator2_t* allocator, uint8_t* ptr) {
-        vcl_allocator_vector_2* vecAllocator = static_cast<vcl_allocator_vector_2*>(allocator);
-        auto it = std::find_if(vecAllocator->m_vector.begin(), vecAllocator->m_vector.end(), [ptr](const auto& vec) {
-            return vec->data() == ptr;
-        });
-
-        if (it != vecAllocator->m_vector.end()) {
-            vecAllocator->m_vector.erase(it);
-            vecAllocator->m_vector.shrink_to_fit();
-        } else {
-            OPENVINO_THROW("vcl_allocator_vector_2: pointer to deallocate not found");
-        }
-    }
-
-    std::vector<std::shared_ptr<AlignedVector>> m_vector;
-};
-
-ov::Tensor make_tensor_from_aligned_vector(std::shared_ptr<AlignedVector> vector) {
-    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{vector->size()}, vector->data());
-    auto impl = ov::get_tensor_impl(std::move(tensor));
-    impl._so = vector;
-    return ov::make_tensor(impl);
-}
-
 NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
     _logger.debug("compile start");
 
@@ -476,9 +475,11 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
         if (size == 0 || blob == nullptr) {
             OPENVINO_THROW("Failed to create VCL executable, size is zero or blob is null");
         }
-        std::cout << "Blob size from VCL: " << size << " ptr " << static_cast<void*>(blob) << std::endl;
-        std::cout << "Allocated blob size: " << allocator.m_vec->size()
-                  << " ptr: " << static_cast<void*>(allocator.m_vec->data()) << std::endl;
+        // The allocated size from VCL will be equal or smaller than the allocated size in allocator
+        _logger.debug("Blob size from VCL: %zu ptr %p", size, static_cast<void*>(blob));
+        _logger.debug("Allocated vector size: %zu ptr: %p",
+                      allocator.m_vec->size(),
+                      static_cast<void*>(allocator.m_vec->data()));
 
         // Use empty metadata as VCL does not support metadata extraction
         NetworkMetadata metadata;
