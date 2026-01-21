@@ -32,6 +32,8 @@ public:
     std::streamoff get_stream_relative_position(std::ostream& stream) const;
 
 private:
+    void write_section(std::ostream& stream, const std::shared_ptr<ISection>& section);
+
     std::unordered_set<SectionID> m_registered_sections_ids;
     std::queue<std::shared_ptr<ISection>> m_registered_sections;
     std::shared_ptr<CRESection> m_cre;
