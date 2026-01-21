@@ -338,18 +338,18 @@ KeepDequantizationPrecision::KeepDequantizationPrecision(const element::TypeVect
     auto output_high_pattern = pattern::any_input();
     auto fq_pattern = pattern::wrap_type<v0::FakeQuantize>(
         {data_pattern, input_low_pattern, input_high_pattern, output_low_pattern, output_high_pattern});
-    auto constant_pattern = pattern::wrap_type<v0::Constant>(pattern::type_matches_any(precisions));
-    auto input_pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fq_pattern, constant_pattern});
+    auto convert1_pattern = pattern::wrap_type<v0::Convert>(fq_pattern);
 
-    auto convert1_pattern = pattern::wrap_type<v0::Convert>({input_pattern}, pattern::consumers_count(1));
-    auto convert2_pattern = pattern::optional<v0::Convert>({convert1_pattern});
-    auto final_convert = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{convert1_pattern, convert2_pattern});
+    auto constant_pattern = pattern::wrap_type<v0::Constant>(pattern::type_matches_any(precisions));
+
+    auto input_pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{convert1_pattern, constant_pattern});
+    auto convert2_pattern = pattern::optional<v0::Convert>({input_pattern}, pattern::consumers_count(1));
 
     // zero points:
     auto zp_pattern = pattern::wrap_type<v0::Constant>();
     auto zp_convert_pattern = pattern::optional<v0::Convert>(zp_pattern);
     auto zp_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({zp_convert_pattern, pattern::any_input()});
-    auto subtract_pattern = pattern::optional<v1::Subtract>({final_convert, zp_reshape_pattern});
+    auto subtract_pattern = pattern::optional<v1::Subtract>({convert2_pattern, zp_reshape_pattern});
 
     // scale:
     auto scale_pattern = pattern::wrap_type<v0::Constant>();
