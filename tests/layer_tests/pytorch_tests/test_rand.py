@@ -7,6 +7,32 @@ import torch
 from pytorch_layer_test_class import PytorchLayerTest
 
 
+class TestInplaceUniform(PytorchLayerTest):
+    def _prepare_input(self):
+        import numpy as np
+        return (np.random.randn(1, 3, 224, 224).astype(np.float32),)
+
+    def create_model(self, from_val, to_val):
+        class aten_uniform(torch.nn.Module):
+            def __init__(self, from_val, to_val):
+                super(aten_uniform, self).__init__()
+                self.from_val = from_val
+                self.to_val = to_val
+
+            def forward(self, x):
+                x = x.to(torch.float32)
+                return x.uniform_(self.from_val, self.to_val), x
+
+        return aten_uniform(from_val, to_val), None, "aten::uniform_"
+
+    @pytest.mark.parametrize("from_val,to_val", [(0., 1.), (-5., 5.), (0., 100.)])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_inplace_uniform(self, from_val, to_val, ie_device, precision, ir_version):
+        self._test(*self.create_model(from_val, to_val),
+                   ie_device, precision, ir_version, custom_eps=1e30)
+
+
 class TestInplaceNormal(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np

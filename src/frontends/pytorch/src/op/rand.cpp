@@ -344,6 +344,45 @@ OutputVector translate_normal(const NodeContext& context) {
     }
 }
 
+OutputVector translate_uniform_(const NodeContext& context) {
+    // aten::uniform_(Tensor(a!) self, float from=0., float to=1., *, Generator? generator=None) -> Tensor(a!)
+    num_inputs_check(context, 1, 4);
+    auto self = context.get_input(0);
+
+    // generator is provided (not supported)
+    if (context.get_input_size() == 4) {
+        PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(3),
+                                    "aten::uniform_ conversion with generator does not supported");
+    }
+
+    // Get from/to values with defaults (0.0 and 1.0)
+    Output<Node> from_val, to_val;
+    if (context.get_input_size() > 1 && !context.input_is_none(1)) {
+        from_val = context.get_input(1);
+    } else {
+        from_val = context.mark_node(v0::Constant::create(element::f64, Shape{}, {0.0}));
+    }
+    if (context.get_input_size() > 2 && !context.input_is_none(2)) {
+        to_val = context.get_input(2);
+    } else {
+        to_val = context.mark_node(v0::Constant::create(element::f64, Shape{}, {1.0}));
+    }
+
+    auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(self, element::i32));
+
+    auto dtype = element::f32;
+    auto low = context.mark_node(std::make_shared<v0::Convert>(from_val, dtype));
+    auto high = context.mark_node(std::make_shared<v0::Convert>(to_val, dtype));
+
+    auto res = context.mark_node(std::make_shared<v8::RandomUniform>(sizes, low, high, dtype));
+
+    res = context.mark_node(std::make_shared<v1::ConvertLike>(res, self));
+
+    context.mutate_input(0, res);
+
+    return {res};
+}
+
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend

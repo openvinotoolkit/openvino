@@ -2,6 +2,10 @@
 _*
 [Bb]uild*/
 cmake-build*
+build.log
+
+# Virtual environments
+openvino_env/
 
 # but ensure we don't skip Python files
 !__init__.py
