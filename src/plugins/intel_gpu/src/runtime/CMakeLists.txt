@@ -58,7 +58,7 @@ target_compile_options(${TARGET_NAME} PRIVATE
   >)
 
 if(OV_GPU_WITH_SYCL)
-    add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES ${SYCL_SOURCES})
+    add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES ${SYCL_SOURCES} ${LIBRARY_SOURCES_OCL})
     target_compile_definitions(${TARGET_NAME} PUBLIC OV_GPU_WITH_SYCL)
 endif()
 
@@ -83,5 +83,9 @@ elseif((NOT ANDROID) AND (UNIX))
 endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)
+
+if(OV_GPU_WITH_SYCL)
+  add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES)
+endif()
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
