@@ -63,11 +63,6 @@ public:
     virtual CompiledSnippetPtr get_snippet() = 0;
 
     /**
-     * @brief notifies the target machine that code emission is about to start
-     */
-    virtual void begin_code_section() {}
-
-    /**
      * @brief gets number of lanes supported by target's vector ISA
      * @return number of lanes
      */
