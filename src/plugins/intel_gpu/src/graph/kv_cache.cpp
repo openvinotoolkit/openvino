@@ -10,6 +10,7 @@
 #include "primitive_type_base.h"
 #include <sstream>
 #include <json_object.h>
+#include "utils.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(kv_cache)
@@ -19,6 +20,38 @@ kv_cache_inst::typed_primitive_inst(network& network, const kv_cache_node& node)
     memory_state::releasable_variable{node.get_primitive()->variable_info.variable_id} {
     thread_local size_t kv_cache_counter = 0;
     kv_cache_id = kv_cache_counter++;
+}
+
+int64_t kv_cache_inst::compute_trim_length(const kernel_impl_params& impl_param, const kv_cache& desc) {
+    if (!desc.trim)
+        return 0;
+
+    const size_t past_seq_len_idx = desc.indirect ? 3 : 2;
+    const auto mem_dep_it = impl_param.memory_deps.find(past_seq_len_idx);
+    if (mem_dep_it == impl_param.memory_deps.end())
+        return 0;
+
+    const auto& past_seq_len_mem = mem_dep_it->second;
+    const auto past_seq_len_layout = past_seq_len_mem->get_layout();
+    if (past_seq_len_layout.count() == 0)
+        return 0;
+
+    OPENVINO_ASSERT(past_seq_len_layout.count() == 1);
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> past_seq_len_mem_lock(past_seq_len_mem, impl_param.get_stream());
+    auto past_seq_len_tensor = make_tensor(past_seq_len_layout, past_seq_len_mem_lock.data());
+    const auto past_dim_updated = ov::get_tensor_data_as<int64_t>(past_seq_len_tensor);
+
+    const auto& past_layout = impl_param.get_input_layout(0);
+    const auto past_shape = past_layout.get_partial_shape();
+    const auto sequence_axis = kv_cache_inst::get_sequence_axis(desc.concat_axis, past_shape.size());
+    OPENVINO_ASSERT(sequence_axis >= 0);
+    const auto sequence_axis_idx = static_cast<size_t>(sequence_axis);
+    OPENVINO_ASSERT(past_shape[sequence_axis_idx].is_static());
+
+    const auto trim_length = past_shape[sequence_axis_idx].get_length() - past_dim_updated[0];
+    OPENVINO_ASSERT(trim_length >= 0, "[GPU] past_seq_len shouldn't exceed stored sequence length");
+
+    return trim_length;
 }
 
 layout kv_cache_inst::calc_output_layout(const kv_cache_node& node, kernel_impl_params const& impl_param) {
@@ -31,8 +64,9 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
 
     std::vector<ShapeType> input_shapes = {impl_param.get_input_layout(0).get<ShapeType>(),
                                            impl_param.get_input_layout(1).get<ShapeType>()};
+    size_t input_idx = 2;
     if (desc->indirect) {
-        input_shapes.push_back(impl_param.get_input_layout(2).get<ShapeType>());
+        input_shapes.push_back(impl_param.get_input_layout(input_idx++).get<ShapeType>());
     }
 
     if (desc->compressed) {
@@ -43,13 +77,17 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
         }
     }
 
+    const auto kv_cache_trim_length = kv_cache_inst::compute_trim_length(impl_param, *desc);
+
     std::vector<ShapeType> output_shapes;
     if (desc->compressed) {
+        OPENVINO_ASSERT(kv_cache_trim_length == 0);  // compressed kv should not do any trim
         ov::intel_gpu::op::KVCacheCompressed op;
         op.set_output_size(desc->num_outputs);
         op.set_concat_axis(desc->concat_axis);
         op.set_gather_axis(desc->gather_axis);
         op.set_quantization_attrs(desc->quantization_attributes);
+        op.set_trim(desc->trim);
 
         output_shapes = shape_infer(&op, input_shapes);
     } else {
@@ -57,6 +95,8 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
         op.set_output_size(desc->num_outputs);
         op.set_concat_axis(desc->concat_axis);
         op.set_gather_axis(desc->gather_axis);
+        op.set_trim(desc->trim);
+        op.set_trim_length(kv_cache_trim_length);
 
         output_shapes = shape_infer(&op, input_shapes);
     }
