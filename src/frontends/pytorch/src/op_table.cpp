@@ -267,7 +267,9 @@ OP_CONVERTER(translate_topk);
 OP_CONVERTER(translate_transpose);
 OP_CONVERTER(translate_tril);
 OP_CONVERTER(translate_triu);
+OP_CONVERTER(translate_type_as);
 OP_CONVERTER(translate_tuple_index);
+OP_CONVERTER(translate_tuple_unpack);
 OP_CONVERTER(translate_unflatten);
 OP_CONVERTER(translate_unfold);
 OP_CONVERTER(translate_unique2);
@@ -755,8 +757,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::transpose", op::quantizable_op<op::translate_transpose>},
         {"aten::tril", op::translate_tril},
         {"aten::triu", op::translate_triu},
-        {"aten::type_as",
-         op::translate_1to1_match_2_inputs<opset10::ConvertLike>},  // TODO: overflow semantics is different
+        {"aten::type_as", op::translate_type_as},
         // aten::unbind - Supported in limited set of patterns
         {"aten::unflatten", op::translate_unflatten},
         {"aten::unfold", op::translate_unfold},
@@ -804,7 +805,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"prim::requires_grad", op::return_false_scalar},
         // prim::TupleConstruct - Supported in limited set of patterns
         {"prim::TupleIndex", op::translate_tuple_index},
-        // prim::TupleUnpack - Supported in limited set of patterns
+        {"prim::TupleUnpack", op::translate_tuple_unpack},
         {"prim::type", op::skip_node},  // Used with prim::device, pass PtFrameworkNode.
         {"prim::data", op::skip_node},
         {"quantized::add", op::translate_quantized_add},
