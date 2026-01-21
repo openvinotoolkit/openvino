@@ -41,7 +41,7 @@ IncreasePrecisionForQwenVLMerger::IncreasePrecisionForQwenVLMerger() {
     using namespace ov::pass::pattern;
     using namespace ov::pass::pattern::op;
 
-    // Pattern: Qwen2.5-VL Vision Encoder last block (blocks.31) + Merger MLP
+    // Pattern: Qwen2.5-VL Vision Embedings Merger last block (blocks.31) + Merger MLP
     // Target: down_proj MatMul -> Add -> aten_add -> RMS -> Reshape -> merger_mlp
     auto attn_proj = wrap_type<v0::MatMul>({any_input(), any_input()}, type_matches(ov::element::f16) && consumers_count(1));
     auto attn_proj_add = wrap_type<ov::op::v1::Add>({attn_proj, any_input()}, type_matches(element::f16));
