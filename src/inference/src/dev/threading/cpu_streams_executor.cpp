@@ -24,16 +24,6 @@
 
 namespace ov {
 namespace threading {
-namespace {
-class ThreadLocalCleaner {
-public:
-    virtual void cleanup() = 0;
-    virtual ~ThreadLocalCleaner() = default;
-};
-std::mutex g_cleaner_mutex;
-std::set<ThreadLocalCleaner*> g_cleaners;
-}  // namespace
-
 struct CPUStreamsExecutor::Impl {
     struct Stream {
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
@@ -248,157 +238,98 @@ struct CPUStreamsExecutor::Impl {
     // it's only a workaround for ticket CVS-111490, please be carefully when need to modify
     // CustomeThreadLocal::local(), especially like operations that will affect the count of
     // CustomThreadLocal::ThreadId
-    class CustomThreadLocal : public ThreadLocal<std::shared_ptr<Stream>> {
-        class ThreadTracker {
-        public:
-            explicit ThreadTracker(const std::thread::id& id)
-                : _id(id),
-                  _count_ptr(std::make_shared<std::atomic_int>(1)) {}
-            ~ThreadTracker() {
-                _count_ptr->fetch_sub(1);
-            }
-            std::shared_ptr<ThreadTracker> fetch() {
-                auto new_ptr = std::shared_ptr<ThreadTracker>(new ThreadTracker(*this));
-                auto pre_valule = new_ptr.get()->_count_ptr->fetch_add(1);
-                OPENVINO_ASSERT(pre_valule == 1, "this value must be 1, please check code CustomThreadLocal::local()");
-                return new_ptr;
-            }
-            const std::thread::id& get_id() const {
-                return _id;
-            }
-            int count() const {
-                return *(_count_ptr.get());
-            }
-
-        private:
-            // disable all copy and move semantics, user only can use fetch()
-            // to create a new instance with a shared count num;
-            ThreadTracker(const ThreadTracker&) = default;
-            ThreadTracker(ThreadTracker&&) = delete;
-            ThreadTracker& operator=(const ThreadTracker&) = delete;
-            ThreadTracker& operator=(ThreadTracker&&) = delete;
-            std::thread::id _id;
-            std::shared_ptr<std::atomic_int> _count_ptr;
-        };
-
+    class CustomThreadLocal : public ThreadLocal<std::shared_ptr<Stream>>,
+                              public std::enable_shared_from_this<CustomThreadLocal> {
     public:
         CustomThreadLocal(std::function<std::shared_ptr<Stream>()> callback_construct, Impl* impl)
             : ThreadLocal<std::shared_ptr<Stream>>(std::move(callback_construct)),
-              _impl(impl) {}
-        std::shared_ptr<Stream> local() {
-            // maybe there are two CPUStreamsExecutors in the same thread.
-            using ThreadTrackerMap = std::map<void*, std::shared_ptr<CustomThreadLocal::ThreadTracker>>;
-            struct ThreadLocalMap : public ThreadLocalCleaner {
-                std::shared_ptr<ThreadTrackerMap> _map;
-                ThreadLocalMap() : _map(std::make_shared<ThreadTrackerMap>()) {
-                    std::lock_guard<std::mutex> lock(g_cleaner_mutex);
-                    g_cleaners.insert(this);
-                }
-                std::shared_ptr<ThreadTrackerMap> get() {
-                    if (!_map) {
-                        _map = std::make_shared<ThreadTrackerMap>();
-                        {
-                            std::lock_guard<std::mutex> lock(g_cleaner_mutex);
-                            g_cleaners.insert(this);
-                        }
+              _impl(impl) {
+            _executor_thread_id = std::this_thread::get_id();
+        }
+        void cleanup(std::thread::id thread_id) {
+            std::lock_guard<std::mutex> guard(_stream_map_mutex);
+            auto item = _stream_map.find(thread_id);
+            if (item != _stream_map.end()) {
+                _stream_map.erase(item);
+            }
+        }
+        struct ThreadCleaner {
+            static std::mutex g_resource_mutex;
+            static std::multimap<std::thread::id, std::weak_ptr<CustomThreadLocal>> g_resource_map;
+            ThreadCleaner(std::thread::id thread_id) : _thread_id(thread_id) {}
+            void add(std::weak_ptr<CustomThreadLocal> parent) {
+                std::lock_guard<std::mutex> lock(g_resource_mutex);
+                g_resource_map.insert({_thread_id, parent});
+            }
+            ~ThreadCleaner() {
+                std::vector<std::shared_ptr<CustomThreadLocal>> parent_ptr;
+                {
+                    std::lock_guard<std::mutex> lock(g_resource_mutex);
+
+                    auto item = g_resource_map.find(_thread_id);
+                    if (item == g_resource_map.end()) {
+                        return;
                     }
-                    return _map;
-                }
-                ~ThreadLocalMap() {
-                    {
-                        std::lock_guard<std::mutex> lock(g_cleaner_mutex);
-                        g_cleaners.erase(this);
+
+                    auto range = g_resource_map.equal_range(_thread_id);
+                    for (auto it = range.first; it != range.second; ++it) {
+                        parent_ptr.push_back(it->second.lock());
                     }
-                    _map.reset();
+                    g_resource_map.erase(item);
                 }
-                void cleanup() override {
-                    _map.reset();
-                }
-            };
-            static thread_local ThreadLocalMap t_stream_count_map_holder;
-            auto t_stream_count_map = t_stream_count_map_holder.get();
-            // fix the memory leak issue that CPUStreamsExecutor is already released,
-            // but still exists CustomThreadLocal::ThreadTracker in t_stream_count_map
-            for (auto it = t_stream_count_map->begin(); it != t_stream_count_map->end();) {
-                if (this != it->first && it->second->count() == 1) {
-                    t_stream_count_map->erase(it++);
-                } else {
-                    it++;
+                for (auto& parent : parent_ptr) {
+                    if (parent) {
+                        parent->cleanup(_thread_id);
+                    }
                 }
             }
+
+        private:
+            std::thread::id _thread_id;
+        };
+        std::shared_ptr<Stream> local() {
             auto id = std::this_thread::get_id();
-            auto search = _thread_ids.find(id);
-            if (search != _thread_ids.end()) {
+            if (id == _executor_thread_id) {
                 return ThreadLocal<std::shared_ptr<Stream>>::local();
             }
-            std::lock_guard<std::mutex> guard(_stream_map_mutex);
-            for (auto& item : _stream_map) {
-                if (item.first->get_id() == id) {
-                    // check if the ThreadTracker of this stream is already in t_stream_count_map
-                    // if not, then create ThreadTracker for it
-                    auto iter = t_stream_count_map->find((void*)this);
-                    if (iter == t_stream_count_map->end()) {
-                        (*t_stream_count_map)[(void*)this] = item.first->fetch();
-                    }
-                    return item.second;
-                }
-            }
-            std::shared_ptr<Impl::Stream> stream = nullptr;
-            for (auto it = _stream_map.begin(); it != _stream_map.end();) {
-                if (it->first->count() == 1) {
-                    if (stream == nullptr) {
-                        stream = it->second;
-                    }
-                    _stream_map.erase(it++);
-                } else {
-                    it++;
-                }
-            }
-            if (stream == nullptr) {
-                stream = std::make_shared<Impl::Stream>(_impl);
-            }
-            auto tracker_ptr = std::make_shared<CustomThreadLocal::ThreadTracker>(id);
-            (*t_stream_count_map)[(void*)this] = tracker_ptr;
-            auto new_tracker_ptr = tracker_ptr->fetch();
-            _stream_map[new_tracker_ptr] = stream;
-            return stream;
-        }
 
-        void set_thread_ids_map(std::vector<std::thread>& threads) {
-            for (auto& thread : threads) {
-                _thread_ids.insert(thread.get_id());
+            // ensure ThreadCleaner is created only once per thread exit
+            thread_local ThreadCleaner t_cleaner(id);
+
+            std::lock_guard<std::mutex> guard(_stream_map_mutex);
+            auto search = _stream_map.find(id);
+            if (search != _stream_map.end()) {
+                return search->second;
             }
+            std::shared_ptr<Impl::Stream> stream = std::make_shared<Impl::Stream>(_impl);
+            t_cleaner.add(this->shared_from_this());
+            _stream_map[id] = stream;
+            return stream;
         }
 
         bool find_thread_id() {
             auto id = std::this_thread::get_id();
-            auto search = _thread_ids.find(id);
-            if (search != _thread_ids.end()) {
+            if (id == _executor_thread_id) {
                 return true;
             }
             std::lock_guard<std::mutex> guard(_stream_map_mutex);
-            for (auto& item : _stream_map) {
-                if (item.first->get_id() == id) {
-                    return true;
-                }
-            }
-            return false;
+            auto item = _stream_map.find(id);
+            return item != _stream_map.end();
         }
 
     private:
-        std::set<std::thread::id> _thread_ids;
         Impl* _impl;
-        std::map<std::shared_ptr<CustomThreadLocal::ThreadTracker>, std::shared_ptr<Impl::Stream>> _stream_map;
+        std::map<std::thread::id, std::shared_ptr<Impl::Stream>> _stream_map;
         std::mutex _stream_map_mutex;
+        std::thread::id _executor_thread_id;
     };
 
-    explicit Impl(const Config& config)
-        : _config{config},
-          _streams(
-              [this] {
-                  return std::make_shared<Impl::Stream>(this);
-              },
-              this) {
+    explicit Impl(const Config& config) : _config{config} {
+        _streams = std::make_shared<CustomThreadLocal>(
+            [this] {
+                return std::make_shared<Impl::Stream>(this);
+            },
+            this);
         auto numaNodes = get_available_numa_nodes();
         int streams_num = _config.get_streams();
         auto processor_ids = _config.get_stream_processor_ids();
@@ -429,12 +360,11 @@ struct CPUStreamsExecutor::Impl {
                         }
                     }
                     if (task) {
-                        Execute(task, *(_streams.local()));
+                        Execute(task, *(_streams->local()));
                     }
                 }
             });
         }
-        _streams.set_thread_ids_map(_threads);
     }
 
     void Enqueue(Task task) {
@@ -463,7 +393,7 @@ struct CPUStreamsExecutor::Impl {
     void pin_stream_to_cpus() {
 #if OV_THREAD == OV_THREAD_SEQ
         if (_config.get_cpu_pinning()) {
-            auto stream = _streams.local();
+            auto stream = _streams->local();
             auto proc_type_table = get_org_proc_type_table();
             std::tie(stream->_mask, stream->_ncpus) = get_process_mask();
             if (get_num_numa_nodes() > 1) {
@@ -482,7 +412,7 @@ struct CPUStreamsExecutor::Impl {
 
     void unpin_stream_to_cpus() {
 #if OV_THREAD == OV_THREAD_SEQ
-        auto stream = _streams.local();
+        auto stream = _streams->local();
         if (stream->_mask) {
             pin_current_thread_by_mask(stream->_ncpus, stream->_mask);
         }
@@ -490,7 +420,7 @@ struct CPUStreamsExecutor::Impl {
     }
 
     void Defer(Task task) {
-        auto& stream = *(_streams.local());
+        auto& stream = *(_streams->local());
         stream._taskQueue.push(std::move(task));
         if (!stream._execute) {
             stream._execute = true;
@@ -515,17 +445,22 @@ struct CPUStreamsExecutor::Impl {
     std::queue<Task> _taskQueue;
     bool _isStopped = false;
     std::vector<int> _usedNumaNodes;
-    CustomThreadLocal _streams;
+    std::shared_ptr<CustomThreadLocal> _streams;
+    std::shared_ptr<ExecutorManager> _exectorMgr;
     bool _isExit = false;
     std::vector<int> _cpu_ids_all;
     std::mutex _cpu_ids_mutex;
 };
 
+std::mutex CPUStreamsExecutor::Impl::CustomThreadLocal::ThreadCleaner::g_resource_mutex;
+std::multimap<std::thread::id, std::weak_ptr<CPUStreamsExecutor::Impl::CustomThreadLocal>>
+    CPUStreamsExecutor::Impl::CustomThreadLocal::ThreadCleaner::g_resource_map;
+
 int CPUStreamsExecutor::get_stream_id() {
-    if (!_impl->_streams.find_thread_id()) {
+    if (!_impl->_streams->find_thread_id()) {
         return 0;
     }
-    auto stream = _impl->_streams.local();
+    auto stream = _impl->_streams->local();
     return stream->_streamId;
 }
 
@@ -534,23 +469,23 @@ int CPUStreamsExecutor::get_streams_num() {
 }
 
 int CPUStreamsExecutor::get_numa_node_id() {
-    if (!_impl->_streams.find_thread_id()) {
+    if (!_impl->_streams->find_thread_id()) {
         return 0;
     }
-    auto stream = _impl->_streams.local();
+    auto stream = _impl->_streams->local();
     return stream->_numaNodeId;
 }
 
 int CPUStreamsExecutor::get_socket_id() {
-    if (!_impl->_streams.find_thread_id()) {
+    if (!_impl->_streams->find_thread_id()) {
         return 0;
     }
-    auto stream = _impl->_streams.local();
+    auto stream = _impl->_streams->local();
     return stream->_socketId;
 }
 
 std::vector<int> CPUStreamsExecutor::get_rank() {
-    auto stream = _impl->_streams.local();
+    auto stream = _impl->_streams->local();
     return stream->_rank;
 }
 
@@ -588,13 +523,6 @@ void CPUStreamsExecutor::run(Task task) {
         _impl->Defer(std::move(task));
     } else {
         _impl->Enqueue(std::move(task));
-    }
-}
-
-void CPUStreamsExecutor::shutdown() {
-    std::lock_guard<std::mutex> lock(g_cleaner_mutex);
-    for (auto* cleaner : g_cleaners) {
-        cleaner->cleanup();
     }
 }
 

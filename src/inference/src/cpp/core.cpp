@@ -306,7 +306,6 @@ RemoteContext Core::get_default_context(const std::string& device_name) {
 
 void shutdown() {
     frontend::FrontEndManager::shutdown();
-    ov::threading::CPUStreamsExecutor::shutdown();
 }
 
 }  // namespace ov

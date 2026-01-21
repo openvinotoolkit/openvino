@@ -58,11 +58,11 @@ public:
     std::vector<int> get_rank() override;
 
     void cpu_reset() override;
-    static void shutdown();
 
 private:
     struct Impl;
     std::unique_ptr<Impl> _impl;
 };
+
 }  // namespace threading
 }  // namespace ov
