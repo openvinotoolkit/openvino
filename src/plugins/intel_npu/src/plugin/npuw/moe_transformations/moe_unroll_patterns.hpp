@@ -26,26 +26,31 @@ namespace npuw {
 namespace pass {
 
 // =============================================================================
-// UnrollBatchedMatMul: Unroll batched MatMul to per-expert branches
+// UnrollMoEMatMul: Unified MoE MatMul unrolling for all input patterns
 // =============================================================================
 /**
- * @brief Unrolls batched MoE expert MatMul operations into separate expert branches
+ * @brief Unrolls MoE expert MatMul operations into separate expert branches
  *
- * Matches pattern: input → convert → tile → reshape ─┐
- *                  scale + weights → multiply ─────┤ MatMul
+ * Automatically detects and handles three input patterns:
+ * Pattern 1 (Batched):  input_param → convert → tile → reshape ─┐
+ *                       scale + weights → multiply ─────────────┤ MatMul
+ * Pattern 2 (Concat):   Concat([a,b,c,d]) ──────────────────────┐
+ *                       scale + weights → multiply ─────────────┤ MatMul
+ * Pattern 3 (Sliceable): AnyInput[N,...] ───────────────────────┐ (auto-sliced)
+ *                       scale + weights → multiply ─────────────┤ MatMul
+ *
+ * Number of experts is automatically detected from scale/weights parameter shapes.
  * Transforms to: N expert branches with individual parameters, concatenated output
  *
- * @param num_experts Number of expert branches to create
  * @param model Model to register new parameters with
  */
 
-class UnrollBatchedMatMul : public ov::pass::MatcherPass {
+class UnrollMoEMatMul : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::pass::UnrollBatchedMatMul");
-    explicit UnrollBatchedMatMul(size_t num_experts, std::shared_ptr<ov::Model> model);
+    OPENVINO_MATCHER_PASS_RTTI("npuw::pass::UnrollMoEMatMul");
+    explicit UnrollMoEMatMul(std::shared_ptr<ov::Model> model);
 
 private:
-    size_t num_experts_;
     std::shared_ptr<ov::Model> model_;
 };
 
@@ -152,28 +157,6 @@ public:
 };
 
 // =============================================================================
-// UnrollConcatMatMul: Unroll MatMul with Concat input and parameter weights
-// =============================================================================
-/**
- * @brief Unrolls MatMul with Concat input into per-expert branches
- *
- * Pattern: Concat([a,b,c,d]) ──────┐
- *          scale[N,A,1] + weights[N,A,B] → multiply ─┤ MatMul
- * Output: N branches with parameters [1,A,1] and [1,A,B]
- *
- * @param model Model to register new split parameters with
- */
-
-class UnrollConcatMatMul : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::pass::UnrollConcatMatMul");
-    explicit UnrollConcatMatMul(std::shared_ptr<ov::Model> model);
-
-private:
-    std::shared_ptr<ov::Model> model_;
-};
-
-// =============================================================================
 // PushReshapeBeforeConcat: Push Reshape before Concat
 // =============================================================================
 /**
@@ -220,8 +203,7 @@ private:
  * weight-related and activation-related transformations:
  *
  * Weight-related patterns:
- * - UnrollBatchedMatMul: Unroll batched expert MatMul operations
- * - UnrollConcatMatMul: Unroll MatMul with Concat inputs
+ * - UnrollMoEMatMul: Unified MatMul unrolling for all input patterns
  * - PushElementwiseBeforeConcat: Distribute Add/Multiply operations
  * - PushMultiplyBeforeConcat: Fuse two Concat with Multiply
  * - PushReshapeBeforeConcat: Distribute Reshape on axis 0
@@ -236,11 +218,10 @@ private:
  * @code
  * auto model = std::make_shared<ov::Model>(...);
  * ov::pass::Manager manager;
- * manager.register_pass<ov::npuw::pass::MoEExpertUnrolling>(num_experts, model);
+ * manager.register_pass<ov::npuw::pass::MoEExpertUnrolling>(model);
  * manager.run_passes(model);
  * @endcode
  *
- * @param num_experts Number of expert branches in the MoE model
  * @param model Model instance for parameter registration
  */
 
@@ -248,10 +229,9 @@ class MoEExpertUnrolling : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("npuw::pass::MoEExpertUnrolling");
 
-    explicit MoEExpertUnrolling(size_t num_experts, std::shared_ptr<ov::Model> model) {
+    explicit MoEExpertUnrolling(std::shared_ptr<ov::Model> model) {
         // Weight-related unrolling patterns
-        add_matcher<UnrollBatchedMatMul>(num_experts, model);
-        add_matcher<UnrollConcatMatMul>(model);
+        add_matcher<UnrollMoEMatMul>(model);
         add_matcher<PushElementwiseBeforeConcat>(model);
         add_matcher<PushMultiplyBeforeConcat>();
         add_matcher<PushReshapeBeforeConcat>();
@@ -276,8 +256,7 @@ public:
  * to minimize graph modifications while still achieving parameter unrolling.
  *
  * Included patterns:
- * - UnrollBatchedMatMul: Unroll batched expert MatMul operations
- * - UnrollConcatMatMul: Unroll MatMul with Concat/sliceable inputs
+ * - UnrollMoEMatMul: Unified MatMul unrolling for all input patterns
  * - PushElementwiseBeforeConcat: Distribute Add/Multiply with parameters
  * - PushMultiplyBeforeConcat: Fuse two Concat with Multiply
  * - PushReshapeBeforeConcat: Distribute Reshape on axis 0
@@ -288,7 +267,6 @@ public:
  * - When activation graph should remain unchanged
  * - For more conservative optimization strategy
  *
- * @param num_experts Number of expert branches in the MoE model
  * @param model Model instance for parameter registration
  */
 
@@ -296,10 +274,9 @@ class MoEExpertUnrollingWeightsOnly : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("npuw::pass::MoEExpertUnrollingWeightsOnly");
 
-    explicit MoEExpertUnrollingWeightsOnly(size_t num_experts, std::shared_ptr<ov::Model> model) {
+    explicit MoEExpertUnrollingWeightsOnly(std::shared_ptr<ov::Model> model) {
         // Only weight-related patterns - no activation optimizations
-        add_matcher<UnrollBatchedMatMul>(num_experts, model);
-        add_matcher<UnrollConcatMatMul>(model);
+        add_matcher<UnrollMoEMatMul>(model);
         add_matcher<PushElementwiseBeforeConcat>(model);
         add_matcher<PushMultiplyBeforeConcat>();
         add_matcher<PushReshapeBeforeConcat>();

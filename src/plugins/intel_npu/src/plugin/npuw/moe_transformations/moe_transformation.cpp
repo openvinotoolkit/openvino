@@ -777,6 +777,11 @@ void MoEModelTransformer::fix_token_count_for_prefill(
 std::shared_ptr<ov::Model> MoEModelTransformer::unroll_expert_dimension(const std::shared_ptr<ov::Model>& model,
                                                                         size_t num_experts,
                                                                         bool full_optimization) const {
+    if (num_experts <= 1) {
+        LOG_DEBUG("No unrolling needed for single expert");
+        return model;
+    }
+
     LOG_INFO("Unrolling expert dimension for " << num_experts << " experts using GraphRewrite");
     LOG_INFO("Optimization mode: " << (full_optimization ? "Full (weights + activations)" : "WeightsOnly"));
     LOG_BLOCK();
@@ -786,9 +791,9 @@ std::shared_ptr<ov::Model> MoEModelTransformer::unroll_expert_dimension(const st
 
         ov::pass::Manager manager;
         if (full_optimization) {
-            manager.register_pass<ov::npuw::pass::MoEExpertUnrolling>(num_experts, unrolled_model);
+            manager.register_pass<ov::npuw::pass::MoEExpertUnrolling>(unrolled_model);
         } else {
-            manager.register_pass<ov::npuw::pass::MoEExpertUnrollingWeightsOnly>(num_experts, unrolled_model);
+            manager.register_pass<ov::npuw::pass::MoEExpertUnrollingWeightsOnly>(unrolled_model);
         }
         manager.run_passes(unrolled_model);
 
