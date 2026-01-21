@@ -94,8 +94,9 @@ jit_aux_gpr_holder::~jit_aux_gpr_holder() noexcept {
         } else {
             m_pool_gpr_idxs.push_back(m_aux_gpr_idx.getIdx());
         }
-    } catch () {
+    } catch (...) {
         OPENVINO_ASSERT(false && "Xbyak error in jit_aux_gpr_holder dtor");
     }
+}
 
 }  // namespace ov::intel_cpu::utils
