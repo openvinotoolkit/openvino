@@ -9,6 +9,7 @@
 #include <string>
 
 #include "backends_registry.hpp"
+#include "compiler_adapter_factory.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
@@ -94,6 +95,7 @@ private:
     //  _backend might not be set by the plugin; certain actions, such as offline compilation, might be supported.
     //  Appropriate checks are needed in plugin/metrics/properties when actions depend on a backend.
     ov::SoPtr<IEngineBackend> _backend;
+    CompilerAdapterFactory _compilerAdapterFactory;
 
     std::shared_ptr<OptionsDesc> _options;
     mutable FilteredConfig _globalConfig;
@@ -101,7 +103,6 @@ private:
     std::shared_ptr<Metrics> _metrics;
     std::unique_ptr<Properties> _properties;
 
-    mutable std::atomic<bool> _pluginCompilerIsPresent = true;
     static std::atomic<int> _compiledModelLoadCounter;
     mutable std::mutex _mutex;
 };

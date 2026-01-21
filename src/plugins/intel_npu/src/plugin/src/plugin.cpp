@@ -7,7 +7,6 @@
 #include <fstream>
 
 #include "compiled_model.hpp"
-#include "compiler_adapter_factory.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
@@ -258,11 +257,7 @@ Plugin::Plugin()
 
     /// Init and register properties
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
-    _properties = std::make_unique<Properties>(PropertiesType::PLUGIN,
-                                               _globalConfig,
-                                               _pluginCompilerIsPresent,
-                                               _metrics,
-                                               _backend);
+    _properties = std::make_unique<Properties>(PropertiesType::PLUGIN, _globalConfig, _metrics, _backend);
     _properties->registerProperties();
 }
 
@@ -431,12 +426,8 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
 
     // create a dummy compiler to fetch version and supported options
     try {
-        CompilerAdapterFactory compilerAdapterFactory;
         ov::AnyMap dummyProperties = {};
-        compiler = compilerAdapterFactory.getCompiler(_backend,
-                                                      cfg.get<COMPILER_TYPE>(),
-                                                      dummyProperties,
-                                                      _pluginCompilerIsPresent);
+        compiler = _compilerAdapterFactory.getCompiler(_backend, cfg.get<COMPILER_TYPE>(), dummyProperties);
     } catch (...) {
         // assuming getCompiler failed, meaning we are offline
         _logger.warning("No available compiler. Enabling only runtime options ");
@@ -698,11 +689,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     update_log_level(localProperties);
 
     // create compiler
-    CompilerAdapterFactory compilerAdapterFactory;
-    auto compiler = compilerAdapterFactory.getCompiler(_backend,
-                                                       resolveCompilerType(_globalConfig, localProperties),
-                                                       localProperties,
-                                                       _pluginCompilerIsPresent);
+    auto compiler = _compilerAdapterFactory.getCompiler(_backend,
+                                                        resolveCompilerType(_globalConfig, localProperties),
+                                                        localProperties);
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     auto localConfig = fork_local_config(localProperties, compiler);
@@ -1034,7 +1023,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                         const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
-    CompilerAdapterFactory compilerAdapterFactory;
     auto npu_plugin_properties = properties;
     // There is an on-going migration from "USE_BASE_MODEL_SERIALIZER" to "MODEL_SERIALIZER_VERSION". Until done, make
     // sure only the option supported by the compiler is registered in the config.
@@ -1056,10 +1044,9 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     }
     exclude_model_ptr_from_map(npu_plugin_properties);
     update_log_level(npu_plugin_properties);
-    auto compiler = compilerAdapterFactory.getCompiler(_backend,
-                                                       resolveCompilerType(_globalConfig, npu_plugin_properties),
-                                                       npu_plugin_properties,
-                                                       _pluginCompilerIsPresent);
+    auto compiler = _compilerAdapterFactory.getCompiler(_backend,
+                                                        resolveCompilerType(_globalConfig, npu_plugin_properties),
+                                                        npu_plugin_properties);
     auto localConfig = fork_local_config(npu_plugin_properties, compiler, OptionMode::CompileTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
@@ -1116,12 +1103,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     // list of properties
     auto originalModel = exclude_model_ptr_from_map(npu_plugin_properties);
 
-    CompilerAdapterFactory compilerAdapterFactory;
     update_log_level(npu_plugin_properties);
-    auto compiler = compilerAdapterFactory.getCompiler(_backend,
-                                                       resolveCompilerType(_globalConfig, npu_plugin_properties),
-                                                       npu_plugin_properties,
-                                                       _pluginCompilerIsPresent);
+    auto compiler = _compilerAdapterFactory.getCompiler(_backend,
+                                                        resolveCompilerType(_globalConfig, npu_plugin_properties),
+                                                        npu_plugin_properties);
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
     auto localConfig = fork_local_config(npu_plugin_properties, compiler, OptionMode::RunTime);

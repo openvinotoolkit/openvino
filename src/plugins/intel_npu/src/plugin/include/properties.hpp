@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "compiler_adapter_factory.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
 #include "metrics.hpp"
@@ -22,7 +23,6 @@ public:
      */
     Properties(const PropertiesType pType,
                FilteredConfig& config,
-               std::atomic<bool>& pluginCompilerIsPresent,
                const std::shared_ptr<Metrics>& metrics = nullptr,
                const ov::SoPtr<IEngineBackend>& backend = {nullptr});
 
@@ -63,7 +63,7 @@ private:
     FilteredConfig& _config;
     std::shared_ptr<Metrics> _metrics;
     ov::SoPtr<IEngineBackend> _backend;
-    std::atomic<bool>& _pluginCompilerIsPresent;
+    CompilerAdapterFactory _compilerAdapterFactory;
 
     // properties map: {name -> [supported, mutable, eval function]}
     std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;

@@ -5,7 +5,6 @@
 // Plugin
 #include "properties.hpp"
 
-#include "compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
@@ -301,14 +300,12 @@ static int64_t getOptimalNumberOfInferRequestsInParallel(const Config& config) {
 
 Properties::Properties(const PropertiesType pType,
                        FilteredConfig& config,
-                       std::atomic<bool>& pluginCompilerIsPresent,
                        const std::shared_ptr<Metrics>& metrics,
                        const ov::SoPtr<IEngineBackend>& backend)
     : _pType(pType),
       _config(config),
       _metrics(metrics),
-      _backend(backend),
-      _pluginCompilerIsPresent(pluginCompilerIsPresent) {}
+      _backend(backend) {}
 
 void Properties::registerProperties() {
     // Reset
@@ -561,12 +558,9 @@ void Properties::registerPluginProperties() {
         });
         REGISTER_CUSTOM_METRIC(ov::intel_npu::compiler_version, true, [&](const Config& config) {
             /// create dummy compiler
-            CompilerAdapterFactory compilerAdapterFactory;
             ov::AnyMap dummyProperties = {};
-            auto dummyCompiler = compilerAdapterFactory.getCompiler(_backend,
-                                                                    config.get<COMPILER_TYPE>(),
-                                                                    dummyProperties,
-                                                                    _pluginCompilerIsPresent);
+            auto dummyCompiler =
+                _compilerAdapterFactory.getCompiler(_backend, config.get<COMPILER_TYPE>(), dummyProperties);
             return dummyCompiler->get_version();
         });
         REGISTER_CUSTOM_METRIC(ov::internal::caching_properties, false, [&](const Config& config) {
@@ -718,12 +712,9 @@ void Properties::set_property(const ov::AnyMap& properties) {
             if (_pType == PropertiesType::PLUGIN) {
                 try {
                     // Only accepting unknown config keys in plugin
-                    CompilerAdapterFactory compilerAdapterFactory;
                     ov::AnyMap dummyProperties = {};
-                    compiler = compilerAdapterFactory.getCompiler(_backend,
-                                                                  _config.get<COMPILER_TYPE>(),
-                                                                  dummyProperties,
-                                                                  _pluginCompilerIsPresent);
+                    compiler =
+                        _compilerAdapterFactory.getCompiler(_backend, _config.get<COMPILER_TYPE>(), dummyProperties);
                 } catch (...) {
                     // just throw the exception below in case unknown property check is called
                 }
