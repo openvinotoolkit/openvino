@@ -16,21 +16,18 @@ namespace intel_npu {
 class CompilerAdapterFactory final {
 public:
     std::unique_ptr<ICompilerAdapter> getCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
-                                                  ov::intel_npu::CompilerType compilerType,
-                                                  ov::AnyMap& properties) const {
+                                                  ov::intel_npu::CompilerType& compilerType) const {
         if (_pluginCompilerIsPresent) {
             if (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
                 try {
-                    properties[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::PLUGIN;
+                    compilerType = ov::intel_npu::CompilerType::PLUGIN;
                     return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs());
                 } catch (...) {
                     _pluginCompilerIsPresent = false;
-                    properties[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::DRIVER;
                     compilerType = ov::intel_npu::CompilerType::DRIVER;
                 }
             }
         } else {
-            properties[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::DRIVER;
             compilerType = ov::intel_npu::CompilerType::DRIVER;
         }
 

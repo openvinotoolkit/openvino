@@ -257,7 +257,12 @@ Plugin::Plugin()
 
     /// Init and register properties
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
-    _properties = std::make_unique<Properties>(PropertiesType::PLUGIN, _globalConfig, _metrics, _backend);
+    _compilerAdapterFactory = std::make_shared<CompilerAdapterFactory>();
+    _properties = std::make_unique<Properties>(PropertiesType::PLUGIN,
+                                               _globalConfig,
+                                               _compilerAdapterFactory,
+                                               _metrics,
+                                               _backend);
     _properties->registerProperties();
 }
 
@@ -426,8 +431,8 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
 
     // create a dummy compiler to fetch version and supported options
     try {
-        ov::AnyMap dummyProperties = {};
-        compiler = _compilerAdapterFactory.getCompiler(_backend, cfg.get<COMPILER_TYPE>(), dummyProperties);
+        auto compiler_type = cfg.get<COMPILER_TYPE>();
+        compiler = _compilerAdapterFactory->getCompiler(_backend, compiler_type);
     } catch (...) {
         // assuming getCompiler failed, meaning we are offline
         _logger.warning("No available compiler. Enabling only runtime options ");
@@ -689,9 +694,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     update_log_level(localProperties);
 
     // create compiler
-    auto compiler = _compilerAdapterFactory.getCompiler(_backend,
-                                                        resolveCompilerType(_globalConfig, localProperties),
-                                                        localProperties);
+    ov::intel_npu::CompilerType compilerType = resolveCompilerType(_globalConfig, localProperties);
+    const bool wasPreferPlugin = (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN);
+    auto compiler = _compilerAdapterFactory->getCompiler(_backend, compilerType);
+    if (wasPreferPlugin) {
+        localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
+    }
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     auto localConfig = fork_local_config(localProperties, compiler);
@@ -1023,31 +1031,36 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                         const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
-    auto npu_plugin_properties = properties;
+    auto localProperties = properties;
     // There is an on-going migration from "USE_BASE_MODEL_SERIALIZER" to "MODEL_SERIALIZER_VERSION". Until done, make
     // sure only the option supported by the compiler is registered in the config.
     bool useBaseModelSerializer = true;
     bool modelSerializerChosenExplicitly = false;
     const std::string useBaseModelSerializerKey = ov::intel_npu::use_base_model_serializer.name();
     const std::string modelSerializerVersionKey = ov::intel_npu::model_serializer_version.name();
-    if (npu_plugin_properties.count(useBaseModelSerializerKey)) {
+    if (localProperties.count(useBaseModelSerializerKey)) {
         modelSerializerChosenExplicitly = true;
-        useBaseModelSerializer = npu_plugin_properties.at(useBaseModelSerializerKey).as<bool>();
-        npu_plugin_properties.erase(useBaseModelSerializerKey);
-        npu_plugin_properties.erase(modelSerializerVersionKey);
-    } else if (npu_plugin_properties.count(modelSerializerVersionKey)) {
+        useBaseModelSerializer = localProperties.at(useBaseModelSerializerKey).as<bool>();
+        localProperties.erase(useBaseModelSerializerKey);
+        localProperties.erase(modelSerializerVersionKey);
+    } else if (localProperties.count(modelSerializerVersionKey)) {
         modelSerializerChosenExplicitly = true;
         const auto modelSerializerVersion =
-            npu_plugin_properties.at(modelSerializerVersionKey).as<ov::intel_npu::ModelSerializerVersion>();
+            localProperties.at(modelSerializerVersionKey).as<ov::intel_npu::ModelSerializerVersion>();
         useBaseModelSerializer = !(modelSerializerVersion == ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
-        npu_plugin_properties.erase(modelSerializerVersionKey);
+        localProperties.erase(modelSerializerVersionKey);
     }
-    exclude_model_ptr_from_map(npu_plugin_properties);
-    update_log_level(npu_plugin_properties);
-    auto compiler = _compilerAdapterFactory.getCompiler(_backend,
-                                                        resolveCompilerType(_globalConfig, npu_plugin_properties),
-                                                        npu_plugin_properties);
-    auto localConfig = fork_local_config(npu_plugin_properties, compiler, OptionMode::CompileTime);
+    exclude_model_ptr_from_map(localProperties);
+    update_log_level(localProperties);
+
+    ov::intel_npu::CompilerType compilerType = resolveCompilerType(_globalConfig, localProperties);
+    const bool wasPreferPlugin = (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN);
+    auto compiler = _compilerAdapterFactory->getCompiler(_backend, compilerType);
+    if (wasPreferPlugin) {
+        localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
+    }
+
+    auto localConfig = fork_local_config(localProperties, compiler, OptionMode::CompileTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
@@ -1097,19 +1110,23 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
                                                   const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::parse");
 
-    auto npu_plugin_properties = properties;
+    auto localProperties = properties;
 
     // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
     // list of properties
-    auto originalModel = exclude_model_ptr_from_map(npu_plugin_properties);
+    auto originalModel = exclude_model_ptr_from_map(localProperties);
 
-    update_log_level(npu_plugin_properties);
-    auto compiler = _compilerAdapterFactory.getCompiler(_backend,
-                                                        resolveCompilerType(_globalConfig, npu_plugin_properties),
-                                                        npu_plugin_properties);
+    update_log_level(localProperties);
+
+    ov::intel_npu::CompilerType compilerType = resolveCompilerType(_globalConfig, localProperties);
+    const bool wasPreferPlugin = (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN);
+    auto compiler = _compilerAdapterFactory->getCompiler(_backend, compilerType);
+    if (wasPreferPlugin) {
+        localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
+    }
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
-    auto localConfig = fork_local_config(npu_plugin_properties, compiler, OptionMode::RunTime);
+    auto localConfig = fork_local_config(localProperties, compiler, OptionMode::RunTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
