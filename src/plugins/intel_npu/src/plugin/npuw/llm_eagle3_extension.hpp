@@ -22,6 +22,7 @@ namespace npuw {
 // Layer names for Eagle3 speculative decoding
 struct Eagle3LayerNames {
     static constexpr const char* hidden_states = "hidden_states";
+    static constexpr const char* last_hidden_state = "last_hidden_state";
 };
 
 // Utility functions for Eagle3 layer name matching
@@ -71,12 +72,25 @@ public:
                                   uint32_t chunk_start_token,
                                   uint32_t chunk_token_count);
 
+    // Retrieve and store last_hidden_state output tensor for draft and target models
+    void update_last_hidden_state(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                                  const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports);
+
+    ov::SoPtr<ov::ITensor> get_hidden_states() const {
+        return m_hidden_states;
+    }
+
+    ov::SoPtr<ov::ITensor> get_last_hidden_state() const {
+        return m_last_hidden_state;
+    }
+
 private:
     void validate_hidden_state_tensor(const ov::SoPtr<ov::ITensor>& tensor, const std::string& name);
 
     Eagle3ModelRole m_role = Eagle3ModelRole::None;
 
-    ov::SoPtr<ov::ITensor> m_hidden_states;  ///< Draft model input: hidden_states
+    ov::SoPtr<ov::ITensor> m_hidden_states;      ///< Draft model input: hidden_states
+    ov::SoPtr<ov::ITensor> m_last_hidden_state;  ///< Draft/Target model output: last_hidden_state
 };
 
 }  // namespace npuw
