@@ -255,7 +255,9 @@ struct CPUStreamsExecutor::Impl {
         }
         struct ThreadCleaner {
             struct ResourceKeeper {
-                // Like atexit function, clear the _mapdata when program exits to avoid double free
+                // The crt call the atexit released the global variable before thread exit
+                // Need to call the map's clear to set the size to 0
+                // Or the thread exit callback will double free the map's content
                 ~ResourceKeeper() {
                     std::lock_guard<std::mutex> lock(_mutex);
                     _mapdata.clear();
@@ -263,23 +265,24 @@ struct CPUStreamsExecutor::Impl {
                 std::mutex _mutex;
                 std::multimap<std::thread::id, std::weak_ptr<CustomThreadLocal>> _mapdata;
             };
-            static ResourceKeeper resource_holder;
+            static ResourceKeeper global_resource_holder;
 
             ThreadCleaner(std::thread::id thread_id) : _thread_id(thread_id) {}
             void add(std::weak_ptr<CustomThreadLocal> parent) {
-                std::lock_guard<std::mutex> lock(resource_holder._mutex);
-                resource_holder._mapdata.insert({_thread_id, parent});
+                std::lock_guard<std::mutex> lock(global_resource_holder._mutex);
+                global_resource_holder._mapdata.insert({_thread_id, parent});
             }
             ~ThreadCleaner() {
                 std::vector<std::shared_ptr<CustomThreadLocal>> parent_ptr;
                 {
-                    std::lock_guard<std::mutex> lock(resource_holder._mutex);
-                    auto range = resource_holder._mapdata.equal_range(_thread_id);
+                    // Releaese the global lock as soon as possible
+                    std::lock_guard<std::mutex> lock(global_resource_holder._mutex);
+                    auto range = global_resource_holder._mapdata.equal_range(_thread_id);
                     for (auto it = range.first; it != range.second; ++it) {
                         parent_ptr.push_back(it->second.lock());
                     }
                     if (!parent_ptr.empty()) {
-                        resource_holder._mapdata.erase(range.first, range.second);
+                        global_resource_holder._mapdata.erase(range.first, range.second);
                     }
                 }
                 for (auto& parent : parent_ptr) {
@@ -461,7 +464,7 @@ struct CPUStreamsExecutor::Impl {
 };
 
 CPUStreamsExecutor::Impl::CustomThreadLocal::ThreadCleaner::ResourceKeeper
-    CPUStreamsExecutor::Impl::CustomThreadLocal::ThreadCleaner::resource_holder;
+    CPUStreamsExecutor::Impl::CustomThreadLocal::ThreadCleaner::global_resource_holder;
 
 int CPUStreamsExecutor::get_stream_id() {
     if (!_impl->_streams->find_thread_id()) {
