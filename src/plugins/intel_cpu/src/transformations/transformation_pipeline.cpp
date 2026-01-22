@@ -312,12 +312,26 @@ using const_node_ptr = const std::shared_ptr<const ov::Node>;
 bool Transformations::is_decompression_multiply(const_node_ptr& node) {
     auto all_has_type = [](const std::set<ov::Input<ov::Node>>& consumers, const ov::DiscreteTypeInfo& type) {
         return std::all_of(consumers.begin(), consumers.end(), [&type](const ov::Input<ov::Node>& input) {
-            return input.get_node()->get_type_info() == type;
+            auto consumer_node = input.get_node();
+            if (consumer_node->get_type_info() != type) {
+                return false;
+            }
+            if (type == ov::op::v1::Convolution::get_type_info_static()) {
+                auto conv = ov::as_type<ov::op::v1::Convolution>(consumer_node);
+                if (!conv) {
+                    return false;
+                }
+                const auto& weights_pshape = conv->get_input_partial_shape(1);
+                return weights_pshape.is_static() && weights_pshape.rank().get_length() == 4 &&
+                       weights_pshape[2].get_length() == 1 && weights_pshape[3].get_length() == 1;
+            }
+            return true;
         });
     };
 
     const auto consumers = node->get_output_target_inputs(0);
-    if (all_has_type(consumers, ov::op::v0::MatMul::get_type_info_static())) {
+    if (all_has_type(consumers, ov::op::v0::MatMul::get_type_info_static()) ||
+        all_has_type(consumers, ov::op::v1::Convolution::get_type_info_static())) {
         return true;
     }
 
@@ -327,7 +341,8 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) {
         }
         return std::all_of(consumers.begin(), consumers.end(), [&all_has_type](const ov::Input<ov::Node>& consumer) {
             const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
-            return all_has_type(child_consumers, ov::op::v0::MatMul::get_type_info_static());
+            return all_has_type(child_consumers, ov::op::v0::MatMul::get_type_info_static()) ||
+                   all_has_type(child_consumers, ov::op::v1::Convolution::get_type_info_static());
         });
     };
 
@@ -335,6 +350,7 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) {
         for (const auto& consumer : consumers) {
             const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
             if (all_has_type(child_consumers, ov::op::v0::MatMul::get_type_info_static()) ||
+                all_has_type(child_consumers, ov::op::v1::Convolution::get_type_info_static()) ||
                 are_converts_from_decompression(child_consumers)) {
                 return true;
             }
@@ -474,10 +490,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_ARM(decompression_handling_manager, ov::pass::TransposeMatMul);
     const auto& decompression_precisions =
         ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes(true);
-    CPU_REGISTER_PASS_COMMON(decompression_handling_manager,
-                             ov::pass::ConvertWeightCompressedConv1x1ToMatmul_ActNotTran,
-                             decompression_precisions,
-                             defaultPrecisions);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager,
                              ov::pass::MarkDequantization,
                              decompression_precisions,
@@ -1054,6 +1066,7 @@ void Transformations::PostLpt() {
 
     ov::pass::Manager postLPTPassManager("CPU:PostLPT");
     postLPTPassManager.set_per_pass_validation(false);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ConvertWeightCompressedConv1x1ToMatmul);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ConvertBroadcast3);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ReshapePRelu);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MoveEltwiseUpThroughDataMov);
