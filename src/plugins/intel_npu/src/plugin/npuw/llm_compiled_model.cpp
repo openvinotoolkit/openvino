@@ -338,8 +338,10 @@ public:
         // example of fp8 inputs to concat
         // input0 : float8e4m3[1,32,1151,96]
         // input1 : float8e4m3[1,32,1,96]
+
         // parameter, or down_up subgraph case not always meet especially on non fp8 activations cb4 models
         // leaving this more generic for a while
+        // TODO: this matcher logic better to cover with unit-tests
         auto input0 = opp::any_input();
         // auto input0 = opp::wrap_type<ov::op::v0::Parameter>();
         // auto input0_or = std::make_shared<opp::op::Or>(ov::OutputVector{input0, match_down_up_convert_subgraph(input0)});
@@ -1619,17 +1621,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     auto kv_kache_storage_type = ov::element::f16;
 
-    // kv-cache-precision changes does make sense if LPT passes sucesfully applied only
+    // kv-cache-precision changes to fp8 does make sense unconditionally only if LPT passes succesfully applied
     if (m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_FP8>()) {
         kv_kache_storage_type = optimize_kv_cache_storage(model);
     }
 
-    // however we can still force KV-cache precision with help of converts
+    // ov::kv_cache_precision hint can additionally change kv-cache precision, but it might lead to less accurate results
     if (kv_cache_precision_hint.has_value()) {
-        auto forced_kv_cache_precision = kv_cache_precision_hint.value().as<ov::element::Type>();
-        kv_kache_storage_type = forced_kv_cache_precision;
-        LOG_ERROR("KV-cache storage precision forced by :" << ov::hint::kv_cache_precision.name()
-            << " to: " << kv_kache_storage_type);
+        auto suggested_kv_cache_precision = kv_cache_precision_hint.value().as<ov::element::Type>();
+        if (kv_kache_storage_type != suggested_kv_cache_precision) {
+            LOG_WARN("KV-cache precision HINT: " << suggested_kv_cache_precision << " applied");
+            kv_kache_storage_type = suggested_kv_cache_precision;
+        }
     }
 
     m_is_whisper = use_whisper_key.value_or(false).as<bool>() == true;

@@ -150,7 +150,7 @@ DEFINE_OPT(NPUW_LLM_GENERATE_PYRAMID, bool, false, npuw::llm::generate_pyramid, 
 DEFINE_OPT(NPUW_LLM_PREFILL_CHUNK_SIZE, uint64_t, 1024, npuw::llm::prefill_chunk_size, RunTime);
 DEFINE_OPT(NPUW_LLM_SHARED_HEAD, bool, true, npuw::llm::shared_lm_head, RunTime);
 DEFINE_OPT(NPUW_LLM_MAX_LORA_RANK, uint32_t, 32, npuw::llm::max_lora_rank, RunTime);
-DEFINE_OPT(NPUW_LLM_OPTIMIZE_FP8, bool, true, npuw::llm::optimize_fp8, RunTime);
+DEFINE_OPT(NPUW_LLM_OPTIMIZE_FP8, bool, false, npuw::llm::optimize_fp8, RunTime);
 DEFINE_OPT(NPUW_LLM_ENABLE_PREFIX_CACHING, bool, false, npuw::llm::enable_prefix_caching, RunTime);
 DEFINE_OPT(NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE, uint64_t, 256, npuw::llm::prefix_caching_block_size, RunTime);
 DEFINE_OPT(NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS, uint64_t, 128, npuw::llm::prefix_caching_max_num_blocks, RunTime);
