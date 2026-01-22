@@ -106,9 +106,6 @@ size_t get_max_context_len(const kernel_impl_params& params);
 size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx);
 size_t get_partition_size(const bool has_xattention);
 
-size_t get_xattn_block_size(const kernel_impl_params& params, const size_t seq_idx = 0);
-size_t get_merged_q_num(const kernel_impl_params& params);
-
 float get_xattn_thresh(const kernel_impl_params& impl_param, const size_t seq_idx = 0);
 bool bypass_xattn(const kernel_impl_params& impl_param);
 

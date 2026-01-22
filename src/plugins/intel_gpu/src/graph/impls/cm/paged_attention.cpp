@@ -80,7 +80,15 @@ public:
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         rt_params->q_block_pad = q_block_pad;
         rt_params->k_block_pad = k_block_pad;
-        rt_params->q_block_pad_merged = ceil_div(q_block_pad, get_merged_q_num(params));
+
+        auto get_merged_q_num = [&]() {
+            const auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1u : 2u;
+            const size_t q_step = get_q_step(xe_arch, false);
+            const size_t wg_seq_len = WG_SIZE * q_step;
+            return wg_seq_len / get_xattn_block_size(params);
+        };
+
+        rt_params->q_block_pad_merged = ceil_div(q_block_pad, get_merged_q_num());
 
         const size_t head_size = desc->k_head_size;
 
@@ -230,7 +238,19 @@ public:
     }
 
 private:
-    // Intentionally empty: XAttention helpers are shared free functions (see paged_attention_gen.hpp/.cpp)
+    size_t get_xattn_block_size(const kernel_impl_params& params, const size_t seq_idx = 0) {
+        const auto& input_mem = params.memory_deps;
+        const auto blocksize_mem = input_mem.at(PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE);
+        mem_lock<int32_t, mem_lock_type::read> lock(blocksize_mem, *params.strm);  // converted
+        auto xattn_block_size = static_cast<int32_t>(lock[seq_idx]);
+        if (xattn_block_size != 128 && xattn_block_size != 256) {
+            xattn_block_size = 128;  // default
+        }
+        if (xattn_block_size == 256 && params.get_device_info().arch < gpu_arch::xe2) {
+            xattn_block_size = 128;  // on pre-XE2, only support 128
+        }
+        return xattn_block_size;
+    }
 };
 
 std::unique_ptr<primitive_impl> PagedAttentionImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
