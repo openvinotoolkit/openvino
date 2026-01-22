@@ -918,9 +918,9 @@ public:
             //          - Most of optimum-intel OpenVINO Exporter configs are derived
             //            from the configs above.
             //          - optimum-intel `export()` function set names for output tensors
-            //            from Exporter config: https://github.com/huggingface/optimum-intel/blob/main/optimum/exporters/openvino/convert.py#L442-L445
-            if (matched_result->output(0).get_names().count(
-                    ov::npuw::LLMCompiledModel::layer_names::logits) == 0) {
+            //            from Exporter config:
+            //            https://github.com/huggingface/optimum-intel/blob/main/optimum/exporters/openvino/convert.py#L442-L445
+            if (matched_result->output(0).get_names().count(ov::npuw::LLMCompiledModel::layer_names::logits) == 0) {
                 return false;
             }
 

@@ -749,8 +749,8 @@ void Partitioner::identifySubgraphs() {
                         for (std::size_t i = 1; i < maybe_results.size(); ++i) {
                             OPENVINO_ASSERT(shape == maybe_results[i]->get_shape(),
                                             "Multiple results from one output layer should be similar!");
-                        } 
-                    } 
+                        }
+                    }
                     for (auto&& mr : maybe_results) {
                         group.sg._results.push_back(ov::as_type_ptr<ov::op::v0::Result>(mr));
                         result_cache[output_desc].push_back(
