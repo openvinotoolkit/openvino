@@ -53,10 +53,14 @@ bool fuse_reduce_operations(const std::shared_ptr<Node>& node) {
         return false;
     }
 
-    if (!top_reduce->get_keep_dims()) {
-        const auto first_axes = top_reduce->get_reduction_axes();
-        const auto second_axes = bottom_reduce->get_reduction_axes();
+    const auto first_axes = top_reduce->get_reduction_axes();
+    const auto second_axes = bottom_reduce->get_reduction_axes();
 
+    if (first_axes.empty() || second_axes.empty()) {
+        return false;
+    }
+
+    if (!top_reduce->get_keep_dims()) {
         // check if each axis in the second set is smaller than every axis in the first set
         if (!std::all_of(first_axes.begin(), first_axes.end(), [&second_axes](const size_t first_axis) {
                 return std::all_of(second_axes.begin(), second_axes.end(), [first_axis](const size_t second_axis) {
@@ -67,37 +71,20 @@ bool fuse_reduce_operations(const std::shared_ptr<Node>& node) {
         }
     }
 
-    // Align reduce axes constants by shape and type
-    const bool dtype_match =
-        top_reduce->input_value(1).get_element_type() == bottom_reduce->input_value(1).get_element_type();
-    for (auto& reduce : {top_reduce, bottom_reduce}) {
-        const auto reduce_axes_output = reduce->input_value(1);
-        const auto reduce_axes_node = reduce_axes_output.get_node_shared_ptr();
-        const auto reduce_axes_rank = reduce_axes_output.get_partial_shape().rank();
-        if (reduce_axes_rank == Dimension(0)) {
-            const auto unsqueeze_const = ov::op::v0::Constant::create(reduce_axes_node->get_element_type(), {}, {0});
-            const auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(reduce_axes_output, unsqueeze_const);
-            reduce->inputs()[1].replace_source_output(unsqueeze);
-            copy_runtime_info(reduce_axes_node, {unsqueeze_const, unsqueeze});
-        }
-        if (!dtype_match) {
-            const auto cast = std::make_shared<ov::op::v0::Convert>(reduce->input_value(1), ov::element::i64);
-            reduce->inputs()[1].replace_source_output(cast);
-            copy_runtime_info(reduce_axes_node, cast);
-        }
-    }
+    std::vector<size_t> merged_axes;
+    merged_axes.reserve(first_axes.size() + second_axes.size());
 
-    std::shared_ptr<Node> axes =
-        std::make_shared<ov::op::v0::Concat>(OutputVector{top_reduce->input_value(1), bottom_reduce->input_value(1)},
-                                             int64_t(0));
-    if (auto constant = ov::util::get_constant_from_source(axes)) {
-        axes = constant;
-    }
-    axes->set_friendly_name(bottom_reduce->get_friendly_name() + "/Axes");
-    auto new_reduce = bottom_reduce->copy_with_new_inputs({top_reduce->input_value(0), axes->get_default_output()});
+    std::merge(first_axes.begin(), first_axes.end(),
+               second_axes.begin(), second_axes.end(),
+               std::back_inserter(merged_axes));
+
+    auto merged_axes_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{merged_axes.size()}, merged_axes);
+
+    merged_axes_const->set_friendly_name(bottom_reduce->get_friendly_name() + "/Axes");
+    auto new_reduce = bottom_reduce->copy_with_new_inputs({top_reduce->input_value(0), merged_axes_const->get_default_output()});
     new_reduce->set_friendly_name(bottom_reduce->get_friendly_name());
 
-    copy_runtime_info({top_reduce, bottom_reduce}, {axes, new_reduce});
+    copy_runtime_info({top_reduce, bottom_reduce}, {merged_axes_const, new_reduce});
     ov::replace_node(bottom_reduce, new_reduce);
     return true;
 }
