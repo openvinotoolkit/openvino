@@ -81,6 +81,8 @@ elseif(ENABLE_ARM_COMPUTE_CMAKE)
         set(ARM_COMPUTE_GRAPH_ENABLED OFF CACHE BOOL "" FORCE)
         set(ARM_COMPUTE_ENABLE_OPENMP OFF CACHE BOOL "" FORCE)
         set(ARM_COMPUTE_ENABLE_CPPTHREADS OFF CACHE BOOL "" FORCE)
+        # Disable clang-tidy for ACL to avoid incompatible .clang-tidy settings.
+        set(ARM_COMPUTE_CLANG_TIDY "" CACHE STRING "" FORCE)
 
         # SVE is not supported on Darwin
         if(APPLE)
@@ -499,4 +501,3 @@ elseif(NOT TARGET arm_compute::arm_compute)
     set(ACL_INCLUDE_DIR "${ARM_COMPUTE_SOURCE_DIR}")
     set(ENV{ACL_ROOT_DIR} "${ARM_COMPUTE_SOURCE_DIR}")
 endif()
-

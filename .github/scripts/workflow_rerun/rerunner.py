@@ -77,39 +77,39 @@ if __name__ == '__main__':
         LOGGER.info(f'THERE ARE {run.run_attempt} ATTEMPTS ALREADY. NOT CHECKING LOGS AND NOT RETRIGGERING. EXITING')
         sys.exit(0)
 
-    log_archive_path = Path(tempfile.NamedTemporaryFile(suffix='.zip').name)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        logs_dir = Path(temp_dir)
+        collect_logs_for_run(
+            run=run,
+            logs_dir=logs_dir,
+        )
 
-    collect_logs_for_run(
-        run=run,
-        log_archive_path=log_archive_path,
-    )
+        log_analyzer = LogAnalyzer(
+            path_to_logs=logs_dir,
+            path_to_errors_file=errors_file
+        )
+        log_analyzer.analyze()
 
-    log_analyzer = LogAnalyzer(
-        path_to_log_archive=log_archive_path,
-        path_to_errors_file=errors_file
-    )
-    log_analyzer.analyze()
+        if log_analyzer.found_matching_error:
+            LOGGER.info(f'FOUND MATCHING ERROR, RETRIGGERING {run.html_url}')
+            if is_dry_run:
+                LOGGER.info(f'RUNNING IN DRY RUN MODE, NOT RETRIGGERING, EXITING')
+                sys.exit(0)
 
-    if log_analyzer.found_matching_error:
-        LOGGER.info(f'FOUND MATCHING ERROR, RETRIGGERING {run.html_url}')
-        if is_dry_run:
-            LOGGER.info(f'RUNNING IN DRY RUN MODE, NOT RETRIGGERING, EXITING')
-            sys.exit(0)
+            # PyGitHub does not expose the "/repos/{owner}/{repo}/actions/runs/RUN_ID/rerun-failed-jobs" endpoint
+            # so we have to use requests
+            response = requests.post(url=f'https://api.github.com/repos/{repository_name}/actions/runs/{run_id}/rerun-failed-jobs',
+                                    headers={'Authorization': f'Bearer {GITHUB_TOKEN}'})
+            status = response.status_code == 201
 
-        # PyGitHub does not expose the "/repos/{owner}/{repo}/actions/runs/RUN_ID/rerun-failed-jobs" endpoint
-        # so we have to use requests
-        response = requests.post(url=f'https://api.github.com/repos/{repository_name}/actions/runs/{run_id}/rerun-failed-jobs',
-                                 headers={'Authorization': f'Bearer {GITHUB_TOKEN}'})
-        status = response.status_code == 201
+            if status:
+                LOGGER.info(f'RUN RETRIGGERED SUCCESSFULLY: {run.html_url}')
+                record_rerun_to_db(repository_name, run_id,
+                                   log_analyzer.found_error_ticket)
+            else:
+                LOGGER.info(f'RUN WAS NOT RETRIGGERED, SEE ABOVE')
 
-        if status:
-            LOGGER.info(f'RUN RETRIGGERED SUCCESSFULLY: {run.html_url}')
-            record_rerun_to_db(repository_name, run_id,
-                               log_analyzer.found_error_ticket)
+            # "status" is True (which is 1) if everything is ok, False (which is 0) otherwise
+            sys.exit(not status)
         else:
-            LOGGER.info(f'RUN WAS NOT RETRIGGERED, SEE ABOVE')
-
-        # "status" is True (which is 1) if everything is ok, False (which is 0) otherwise
-        sys.exit(not status)
-    else:
-        LOGGER.info(f'NO ERROR WAS FOUND, NOT RETRIGGERING')
+            LOGGER.info(f'NO ERROR WAS FOUND, NOT RETRIGGERING')
