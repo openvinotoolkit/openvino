@@ -370,6 +370,7 @@ KERNEL(mvn_mean_var_bsv32)(
 #if NORMALIZE_VARIANCE
     MEAN_PACKED_TYPE partial_dev = FUNC_CALL(accumulate_sum_sq_dev)(input, data_sets_offset, get_local_id(0), mean);
     #if SG_NUM != 1
+        barrier(CLK_LOCAL_MEM_FENCE);
         MEAN_TYPE inv_variance = FUNC_CALL(reduce_inverse_variance)(partial_dev, slm_acc);
     #else
         MEAN_TYPE inv_variance = FUNC_CALL(reduce_inverse_variance)(partial_dev);
@@ -474,6 +475,7 @@ KERNEL(mvn_final)(
 #   else
     MEAN_PACKED_TYPE partial_dev = FUNC_CALL(accumulate_sum_sq_dev)(input, data_sets_offset, get_local_id(0), mean);
 #       if SG_NUM != 1
+    barrier(CLK_LOCAL_MEM_FENCE);
     MEAN_TYPE inv_variance = FUNC_CALL(reduce_inverse_variance)(partial_dev, slm_acc);
 #       else
     MEAN_TYPE inv_variance = FUNC_CALL(reduce_inverse_variance)(partial_dev);
