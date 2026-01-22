@@ -105,7 +105,7 @@ TEST(ReduceLogSumExpNumericalStabilityTest, MathematicalProperties) {
         int n = 5;
         std::vector<float> values(n, x);
 
-        float k = x;  // max is x
+        float k = x;                         // max is x
         float sum_exp = n * std::exp(0.0f);  // all exp(x - x) = exp(0) = 1
         float result = k + std::log(sum_exp);
 
