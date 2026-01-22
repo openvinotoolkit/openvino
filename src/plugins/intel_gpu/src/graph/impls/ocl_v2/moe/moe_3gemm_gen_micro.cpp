@@ -330,13 +330,10 @@ DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
         GPU_DEBUG_TRACE_DETAIL << "\t n = " << n << std::endl;
 
         const auto& experts_weight_shape = experts_weight_layout.get_shape();
-        const size_t subgroup_size = get_subgroup_size(device_info.arch);
         size_t m = experts_weight_shape[1];
         size_t k = experts_weight_shape.size() == 4 ? experts_weight_shape[2] * experts_weight_shape[3] : experts_weight_shape[2];
         wgs.local = {sg_per_wg_m * get_subgroup_size(device_info.arch), sg_per_wg_n, sg_per_wg_k};
-        wgs.global = {ceil_div(m, wg_tile_m),
-                      ceil_div(n, wg_tile_n),
-                      static_cast<size_t>(rtp->num_actually_used_experts)};
+        wgs.global = {ceil_div(m, wg_tile_m), ceil_div(n, wg_tile_n), static_cast<size_t>(rtp->num_actually_used_experts)};
         wgs.global[0] *= wgs.local[0];
         wgs.global[1] *= wgs.local[1];
         wgs.global[2] *= wgs.local[2];
