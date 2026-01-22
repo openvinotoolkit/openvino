@@ -43,11 +43,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(svmptr_t block_mask ATTR, svmptr_t merge
             for (int i = 1; i < MERGED_Q_NUM; i++) {
                 if (m_mereged * MERGED_Q_NUM + i < q_stride_pad / TOKEN_IN_BLOCK) {
                     vector<uchar, STEP> cur_mask = cm_ptr_load<int, STEP / 4>((int*)block_mask, j + i * k_block_pad).format<uchar>();
-                    // if (m_mereged == 1) {
-                    //     printf("block_mask = 0x%x, j = %d, next_j = %d\n", block_mask, j, j + i * k_block_pad);
-                    //     show_i(new_mask);
-                    //     show_i(cur_mask);
-                    // }
                     new_mask |= cur_mask;
                 }
             }
@@ -62,11 +57,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(svmptr_t block_mask ATTR, svmptr_t merge
             for (int i = 1; i < MERGED_Q_NUM; i++) {
                 if (m_mereged * MERGED_Q_NUM + i < q_stride_pad / TOKEN_IN_BLOCK) {
                     vector<uchar, STEP> cur_mask = cm_ptr_load<int, STEP / 4>((int*)block_mask, j + i * k_block_pad).format<uchar>();
-                    // if (m_mereged == 1) {
-                    //     printf("block_mask = 0x%x, j = %d, next_j = %d\n", block_mask, j, j + i * k_block_pad);
-                    //     show_i(new_mask);
-                    //     show_i(cur_mask);
-                    // }
                     new_mask |= cur_mask;
                 }
             }
