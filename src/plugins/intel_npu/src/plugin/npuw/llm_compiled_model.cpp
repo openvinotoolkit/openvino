@@ -338,11 +338,15 @@ public:
         // example of fp8 inputs to concat
         // input0 : float8e4m3[1,32,1151,96]
         // input1 : float8e4m3[1,32,1,96]
-        auto input0 = opp::wrap_type<ov::op::v0::Parameter>();
-        auto input0_or = std::make_shared<opp::op::Or>(ov::OutputVector{input0, match_down_up_convert_subgraph(input0)});
+        // parameter, or down_up subgraph case not always meet especially on non fp8 activations cb4 models
+        // leaving this more generic for a while
+        auto input0 = opp::any_input();
+        // auto input0 = opp::wrap_type<ov::op::v0::Parameter>();
+        // auto input0_or = std::make_shared<opp::op::Or>(ov::OutputVector{input0, match_down_up_convert_subgraph(input0)});
+
         auto input1 = opp::any_input();
 
-        auto kv_concat = opp::wrap_type<ov::op::v0::Concat>({input0_or, input1});
+        auto kv_concat = opp::wrap_type<ov::op::v0::Concat>({input0, input1});
         auto result1 = opp::wrap_type<ov::op::v0::Result>(kv_concat);
         auto result2 = opp::wrap_type<ov::op::v0::Result>(match_down_up_convert_subgraph(kv_concat));
 
@@ -369,9 +373,6 @@ public:
                 // TODO: need to check input type is f8e5m2 or f8e4m3 if we use this version of concat
             }
             LOG_DEBUG(m.get_name() << ": matched_result=" << matched_result->get_friendly_name());
-
-            // TODO: do we need that names
-            // c1.set_names({kvout.get_any_name()});
 
             matched_result->inputs()[0].replace_source_output(c1);
 
@@ -942,27 +943,6 @@ std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::M
     ov::pass::Manager manager("redirect_new_kv_to_output");
     manager.register_pass<RedirectNewKvToOutput>();
     manager.run_passes(model);
-// TODO: please review eagle specific topology: wether incorrect outputs will be triggered in redirection
-//     for (std::size_t i = ov::npuw::LLMInferRequest::layer_ids::kStartOutputKVCacheLayers; i < model->outputs().size();
-//          ++i) {
-//         auto kvout = model->output(i);
-
-//         // Skip outputs that are not KV cache (e.g., last_hidden_state)
-//         // KV cache outputs follow the pattern: present.{layer}.key or present.{layer}.value
-//         const auto& output_name = kvout.get_any_name();
-//         bool is_kv_cache =
-//             (output_name.find("present") != std::string::npos) &&
-//             (output_name.find("key") != std::string::npos || output_name.find("value") != std::string::npos);
-//         if (!is_kv_cache) {
-//             continue;
-//         }
-
-//         auto kvrslt = kvout.get_node();
-//         auto kvcat = kvrslt->inputs()[0].get_source_output().get_node();
-//         auto kvval = kvcat->inputs()[1].get_source_output();
-//         kvval.set_names({kvout.get_any_name()});
-//         kvrslt->inputs()[0].replace_source_output(kvval);
-//     }
     model->validate_nodes_and_infer_types();
 
     return model;
@@ -1620,6 +1600,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     split_llm_properties(properties, npuw_llm_props, other_props);
     auto use_whisper_key = pop_option(other_props, std::string("NPUW_WHISPER"));
     auto use_eagle_key = pop_option(other_props, std::string("NPUW_EAGLE"));
+    auto kv_cache_precision_hint = pop_option(other_props, ov::hint::kv_cache_precision.name());
+
     // Solely used for serialization at the moment
     m_non_llm_props = other_props;
 
@@ -1637,9 +1619,20 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_cfg.update(any_copy(npuw_llm_props));
 
     auto kv_kache_storage_type = ov::element::f16;
+
+    // kv-cache-precision changes does make sense if LPT passes sucesfully applied only
     if (m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_FP8>()) {
         kv_kache_storage_type = optimize_kv_cache_storage(model);
     }
+
+    // however we can still force KV-cache precision with help of converts
+    if (kv_cache_precision_hint.has_value()) {
+        auto forced_kv_cache_precision = kv_cache_precision_hint.value().as<ov::element::Type>();
+        kv_kache_storage_type = forced_kv_cache_precision;
+        LOG_ERROR("KV-cache storage precision forced by :" << ov::hint::kv_cache_precision.name()
+            << " to: " << kv_kache_storage_type);
+    }
+
     m_is_whisper = use_whisper_key.value_or(false).as<bool>() == true;
     if (m_is_whisper) {
         m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
