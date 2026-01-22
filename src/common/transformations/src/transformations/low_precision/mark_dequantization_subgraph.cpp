@@ -339,7 +339,7 @@ KeepDequantizationPrecision::KeepDequantizationPrecision(const element::TypeVect
 
     auto fq_pattern = pattern::wrap_type<v0::FakeQuantize>(
         {data_pattern, input_low_pattern, input_high_pattern, output_low_pattern, output_high_pattern});
-    auto convert1_pattern = pattern::wrap_type<v0::Convert>(fq_pattern);
+    auto convert1_pattern = pattern::wrap_type<v0::Convert>(fq_pattern, pattern::type_matches_any({ov::element::u16, ov::element::i16}));
 
     auto constant_pattern = pattern::wrap_type<v0::Constant>(pattern::type_matches_any(precisions));
 
