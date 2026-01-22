@@ -714,7 +714,7 @@ Arguments XAttentionEstimateFindBlock::get_arguments_desc(const kernel_impl_para
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_GEMMQK_EXPSUMS});  // kq_exp_partial_sum
 
     // outputs
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK});       // sparse_block_mask
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK});  // sparse_block_mask
 
     // scalar
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len

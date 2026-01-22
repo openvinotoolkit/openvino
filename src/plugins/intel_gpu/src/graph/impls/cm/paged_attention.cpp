@@ -22,12 +22,11 @@
 
 #define DUMP_XATTN_INTERNALS 0
 #if DUMP_XATTN_INTERNALS
-    #include "openvino/util/file_util.hpp"
-    #define XATTN_DUMP(instance, stage) dum_xattn_internals((instance), (stage))
+#include "openvino/util/file_util.hpp"
+#define XATTN_DUMP(instance, stage) dum_xattn_internals((instance), (stage))
 #else
-    #define XATTN_DUMP(instance, stage) ((void)0)
+#define XATTN_DUMP(instance, stage) ((void)0)
 #endif
-
 
 namespace ov::intel_gpu::cm {
 
@@ -158,8 +157,9 @@ public:
             if (!bypass_xattn(params)) {
                 if (rt_params->xattn_block_size == 128) {
                     res_event = {execute_stage(res_event, instance, xattn_estimate_gemmqk)};
-                    XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_GEMMQK_MAX); // 2: kq_max_wg
-                    XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_GEMMQK_EXPSUMS); // idx 3: kq_exp_partial_sum is subject to change in find_block kernel.
+                    XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_GEMMQK_MAX);  // 2: kq_max_wg
+                    XATTN_DUMP(instance,
+                               PagedAttentionInternBuffIdx::XATTN_GEMMQK_EXPSUMS);  // idx 3: kq_exp_partial_sum is subject to change in find_block kernel.
                     res_event = {execute_stage(res_event, instance, xattn_estimate_find_block)};
                     res_event = {execute_stage(res_event, instance, xattn_estimate_post_proc)};
                 } else {
@@ -167,11 +167,11 @@ public:
                     XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_GEMMQK_MAX);
                     XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_GEMMQK_EXPSUMS);
                     res_event = {execute_stage(res_event, instance, xattn_estimate_find_block_256)};
-                    XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK); // 4: sparse_block_mask
+                    XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_BLOCKMASK);  // 4: sparse_block_mask
                     res_event = {execute_stage(res_event, instance, xattn_estimate_post_proc_256)};
                 }
 #if FIND_DEBUG_ACC
-                XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_FIND_DEBUG_ACC); // 6: kq_sum for debug purpose only
+                XATTN_DUMP(instance, PagedAttentionInternBuffIdx::XATTN_FIND_DEBUG_ACC);  // 6: kq_sum for debug purpose only
 #endif
             }
             res_event = {execute_stage(res_event, instance, pa_multi_token)};
@@ -268,7 +268,7 @@ private:
     void dum_xattn_internals(primitive_inst& instance, PagedAttentionInternBuffIdx idx) {
         const char* dump_root_env = std::getenv("DUMP_XATTN_INTERNALS");
         if (dump_root_env == nullptr || dump_root_env[0] == '\0') {
-            return; // skip dumping
+            return;  // skip dumping
         }
 
         cldnn::stream& stream = instance.get_network().get_stream();
@@ -286,14 +286,13 @@ private:
             tensor += ("_" + to_string(dims[r]));
         }
 
-        std::string out_path =  std::string(dump_root_env) + "xattn_internals_" +
-                std::to_string(idx) + "__" + node_name + "__" + data_type + "_" + tensor + "__" + format + ".bin";
+        std::string out_path =
+            std::string(dump_root_env) + "xattn_internals_" + std::to_string(idx) + "__" + node_name + "__" + data_type + "_" + tensor + "__" + format + ".bin";
         try {
             ov::util::save_binary(out_path, lock.data(), output_mem->size());
             std::cout << "[dum_xattn_internals] dump to " << out_path << std::endl;
         } catch (const std::exception& e) {
-            std::cerr << "[dum_xattn_internals] Failed to save dump to '"
-                      << out_path << "': " << e.what() << "\n";
+            std::cerr << "[dum_xattn_internals] Failed to save dump to '" << out_path << "': " << e.what() << "\n";
         }
     }
 #endif

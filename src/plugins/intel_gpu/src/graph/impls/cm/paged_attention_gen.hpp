@@ -68,7 +68,7 @@ enum PagedAttentionInternBuffIdx {
     XATTN_BLOCKMASK = 4,         // 4: sparse_block_mask
     XATTN_BLOCKMASK_MERGED = 5,  // 5: sparse_block_mask_wg
 #if FIND_DEBUG_ACC
-    XATTN_FIND_DEBUG_ACC = 6,    // 6: kq_sum for debug purpose only
+    XATTN_FIND_DEBUG_ACC = 6,  // 6: kq_sum for debug purpose only
 #endif
 };
 
