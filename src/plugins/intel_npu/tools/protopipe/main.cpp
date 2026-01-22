@@ -22,9 +22,6 @@
 #include "utils/logger.hpp"
 #include "version.hpp"
 
-#include <opencv2/gapi/infer/ov.hpp>  // WorkloadTypeOVPtr{}
-#include <opencv2/gapi/infer/onnx.hpp>  // WorkloadTypeONNXPtr{}
-
 static constexpr char help_message[] = "Optional. Print the usage message.";
 static constexpr char cfg_message[] = "Path to the configuration file.";
 static constexpr char device_message[] =
@@ -282,8 +279,8 @@ int main(int argc, char* argv[]) {
 
                 auto compiled = compileSimulation(simulation, FLAGS_pipeline, FLAGS_drop_frames);
 
-                simulation->workload->wl_onnx->notify(simulation->workload->workload_config.initial_value);
-                simulation->workload->wl_ov->notify(simulation->workload->workload_config.initial_value);
+                simulation->workload->wl_onnx->set(simulation->workload->workload_config.initial_value);
+                simulation->workload->wl_ov->set(simulation->workload->workload_config.initial_value);
                 LOG_INFO() << "Setting initial value of workload type to " << simulation->workload->workload_config.initial_value << std::endl;
 
                 tasks.emplace_back(std::move(compiled), std::move(stream_name), std::move(criterion));

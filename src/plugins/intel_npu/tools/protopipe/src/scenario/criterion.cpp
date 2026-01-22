@@ -24,8 +24,8 @@ void ITermCriterion::checkWorkloadTrigger() {
             workload_index++;
             LOG_INFO() << "Update workload type to " << next_value << " after " << workload_index * workload_type->workload_config.change_interval << " seconds/iterations" << std::endl;
 
-            workload_type->wl_onnx->notify(next_value);
-            workload_type->wl_ov->notify(next_value);
+            workload_type->wl_onnx->set(next_value);
+            workload_type->wl_ov->set(next_value);
         }
     }
 }
