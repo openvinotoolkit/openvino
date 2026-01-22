@@ -1448,7 +1448,6 @@ void ov::npuw::LLMCompiledModel::convert_stateful_lora_to_stateless(std::shared_
 
     model->add_parameters(new_parameters);
 }
-// extract destination types that will be found using fakeconvert-decomposition
 void ov::npuw::LLMCompiledModel::gemma_transformations(const std::shared_ptr<ov::Model>& model) {
     // For now only do transformations for gemma3 which has token_type_ids input.
     bool token_type_ids_found = false;
