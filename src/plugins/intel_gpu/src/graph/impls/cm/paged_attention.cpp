@@ -22,10 +22,10 @@
 
 #define DUMP_XATTN_INTERNALS 0
 #if DUMP_XATTN_INTERNALS
-#include "openvino/util/file_util.hpp"
-#define XATTN_DUMP(instance, stage) dum_xattn_internals((instance), (stage))
+#    include "openvino/util/file_util.hpp"
+#    define XATTN_DUMP(instance, stage) dum_xattn_internals((instance), (stage))
 #else
-#define XATTN_DUMP(instance, stage) ((void)0)
+#    define XATTN_DUMP(instance, stage) ((void)0)
 #endif
 
 namespace ov::intel_gpu::cm {
