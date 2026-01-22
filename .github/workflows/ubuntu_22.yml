@@ -440,7 +440,7 @@ jobs:
 
   PyTorch_Models_Tests_Nightly_Scope1:
     name: PyTorch Models Nightly Scope1 tests
-    if: ${{ always() }}
+    if: ${{ github.event_name == 'schedule' }}
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
