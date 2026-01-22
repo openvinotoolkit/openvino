@@ -63,7 +63,7 @@ public:
     }
 
     // Helper function to return the model name for ITT tracing
-    std::string get_model_name() const {
+    std::string_view get_model_name() const {
         return m_model_name;
     }
 

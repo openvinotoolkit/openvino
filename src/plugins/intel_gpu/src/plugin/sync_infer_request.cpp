@@ -95,7 +95,7 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
       m_shape_predictor(new cldnn::ShapePredictor(&m_graph->get_engine(), m_graph->get_config().get_shape_predictor_settings())),
       m_enable_profiling(m_graph->get_config().get_enable_profiling()),
       m_use_external_queue(m_graph->use_external_queue()),
-      m_itt_infer_request_str("SyncInferenceGPU:" + compiled_model->get_model_name()) {
+      m_itt_infer_request_str("SyncInferenceGPU:" + std::string(compiled_model->get_model_name())) {
     init_mappings();
     allocate_inputs();
     allocate_outputs();
