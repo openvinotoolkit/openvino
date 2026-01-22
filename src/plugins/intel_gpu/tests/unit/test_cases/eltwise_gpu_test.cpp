@@ -2634,6 +2634,50 @@ TEST(eltwise_gpu_int, basic_in4x4x4x4) {
     }
 }
 
+TEST(eltwise_gpu_int, i8_overflow_wraparound) {
+    // Test that int8 eltwise operations correctly wrap around on overflow
+    // instead of saturating. This tests values that overflow the [-128, 127] range.
+    // Subtraction examples: -100 - 100 = -200 -> wraps to 56
+    // Addition examples: 100 + 100 = 200 -> wraps to -56
+
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({ data_types::i8, format::bfyx, { 1, 1, 4, 1 } });
+    auto input2 = engine.allocate_memory({ data_types::i8, format::bfyx, { 1, 1, 4, 1 } });
+
+    std::vector<int8_t> input1_data = { -100, 100, 127, -128 };
+    std::vector<int8_t> input2_data = {  100, -100, -1,   1 };
+
+    set_values(input1, input1_data);
+    set_values(input2, input2_data);
+
+    for (auto mode : { eltwise_mode::sub, eltwise_mode::sum }) {
+        topology topology;
+        topology.add(input_layout("input1", input1->get_layout()));
+        topology.add(input_layout("input2", input2->get_layout()));
+        topology.add(eltwise("eltwise", { input_info("input1"), input_info("input2") }, mode));
+
+        network network(engine, topology, get_test_default_config(engine));
+        network.set_input_data("input1", input1);
+        network.set_input_data("input2", input2);
+        auto outputs = network.execute();
+
+        auto output = outputs.at("eltwise").get_memory();
+        cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+
+        for (size_t i = 0; i < input1_data.size(); ++i) {
+            int16_t wide_result = (mode == eltwise_mode::sub)
+                ? static_cast<int16_t>(input1_data[i]) - static_cast<int16_t>(input2_data[i])
+                : static_cast<int16_t>(input1_data[i]) + static_cast<int16_t>(input2_data[i]);
+            int8_t expected = static_cast<int8_t>(wide_result);
+            ASSERT_EQ(expected, output_ptr[i])
+                << "Mode: " << (mode == eltwise_mode::sub ? "sub" : "sum")
+                << ", index " << i << ": " << static_cast<int>(input1_data[i])
+                << (mode == eltwise_mode::sub ? " - " : " + ") << static_cast<int>(input2_data[i]);
+        }
+    }
+}
+
 TEST(eltwise_gpu_int, div_gather_fusing) {
     auto& engine = get_test_engine();
 
