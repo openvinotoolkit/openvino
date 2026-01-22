@@ -22,6 +22,7 @@ namespace npuw {
 // Layer names for Eagle3 speculative decoding
 struct Eagle3LayerNames {
     static constexpr const char* hidden_states = "hidden_states";
+    static constexpr const char* last_hidden_state = "last_hidden_state";
 };
 
 // Utility functions for Eagle3 layer name matching
@@ -99,15 +100,11 @@ private:
 
     Eagle3ModelRole m_role = Eagle3ModelRole::None;
 
-<<<<<<< HEAD
     ov::SoPtr<ov::ITensor> m_hidden_states;      ///< Draft model input: hidden_states
     ov::SoPtr<ov::ITensor> m_last_hidden_state;  ///< Draft/Target model output: last_hidden_state
 
     // For chunked prefill: track the write offset in the pre-allocated tensor
     uint32_t m_chunked_seq_offset = 0;
-=======
-    ov::SoPtr<ov::ITensor> m_hidden_states;  ///< Draft model input: hidden_states
->>>>>>> b3ed717e4d (Fixed review comments)
 };
 
 }  // namespace npuw
