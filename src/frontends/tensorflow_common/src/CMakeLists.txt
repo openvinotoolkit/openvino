@@ -8,7 +8,8 @@ get_filename_component(root_dir "${CMAKE_CURRENT_SOURCE_DIR}" DIRECTORY)
 file(GLOB_RECURSE LIBRARY_SRC ${root_dir}/src/*.cpp)
 file(GLOB_RECURSE LIBRARY_HEADERS ${root_dir}/include/*.hpp)
 
-add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${LIBRARY_HEADERS})
+add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${LIBRARY_HEADERS}
+        op/matrix_diag_v3.cpp)
 add_library(openvino::frontend::tensorflow_common ALIAS ${TARGET_NAME})
 
 if(NOT BUILD_SHARED_LIBS)
