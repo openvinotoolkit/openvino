@@ -254,23 +254,32 @@ struct CPUStreamsExecutor::Impl {
             }
         }
         struct ThreadCleaner {
-            static std::mutex g_resource_mutex;
-            static std::multimap<std::thread::id, std::weak_ptr<CustomThreadLocal>> g_resource_map;
+            struct ResourceKeeper {
+                // Like atexit function, clear the _mapdata when program exits to avoid double free
+                ~ResourceKeeper() {
+                    std::lock_guard<std::mutex> lock(_mutex);
+                    _mapdata.clear();
+                }
+                std::mutex _mutex;
+                std::multimap<std::thread::id, std::weak_ptr<CustomThreadLocal>> _mapdata;
+            };
+            static ResourceKeeper resource_holder;
+
             ThreadCleaner(std::thread::id thread_id) : _thread_id(thread_id) {}
             void add(std::weak_ptr<CustomThreadLocal> parent) {
-                std::lock_guard<std::mutex> lock(g_resource_mutex);
-                g_resource_map.insert({_thread_id, parent});
+                std::lock_guard<std::mutex> lock(resource_holder._mutex);
+                resource_holder._mapdata.insert({_thread_id, parent});
             }
             ~ThreadCleaner() {
                 std::vector<std::shared_ptr<CustomThreadLocal>> parent_ptr;
                 {
-                    std::lock_guard<std::mutex> lock(g_resource_mutex);
-                    auto range = g_resource_map.equal_range(_thread_id);
+                    std::lock_guard<std::mutex> lock(resource_holder._mutex);
+                    auto range = resource_holder._mapdata.equal_range(_thread_id);
                     for (auto it = range.first; it != range.second; ++it) {
                         parent_ptr.push_back(it->second.lock());
                     }
                     if (!parent_ptr.empty()) {
-                        g_resource_map.erase(range.first, range.second);
+                        resource_holder._mapdata.erase(range.first, range.second);
                     }
                 }
                 for (auto& parent : parent_ptr) {
@@ -451,9 +460,8 @@ struct CPUStreamsExecutor::Impl {
     std::mutex _cpu_ids_mutex;
 };
 
-std::mutex CPUStreamsExecutor::Impl::CustomThreadLocal::ThreadCleaner::g_resource_mutex;
-std::multimap<std::thread::id, std::weak_ptr<CPUStreamsExecutor::Impl::CustomThreadLocal>>
-    CPUStreamsExecutor::Impl::CustomThreadLocal::ThreadCleaner::g_resource_map;
+CPUStreamsExecutor::Impl::CustomThreadLocal::ThreadCleaner::ResourceKeeper
+    CPUStreamsExecutor::Impl::CustomThreadLocal::ThreadCleaner::resource_holder;
 
 int CPUStreamsExecutor::get_stream_id() {
     if (!_impl->_streams->find_thread_id()) {
