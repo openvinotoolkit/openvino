@@ -9,6 +9,7 @@
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
 #include "utils/general_utils.h"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/op/topk.hpp"
 
 using namespace CPUTestUtils;
@@ -166,7 +167,8 @@ protected:
                     rawBlobDataPtr[i] = static_cast<int32_t>(data[i]);
                 }
             }
-        } else if (netPrecision == ElementType::bf16) {
+        } else if (netPrecision == ElementType::bf16 || netPrecision == ElementType::f16 || netPrecision == ElementType::i8 ||
+                   netPrecision == ElementType::u8) {
             size_t O = 1, A = 1, I = 1;
             A = shape[axis];
             for (int64_t i = 0; i < axis; i++)
@@ -176,17 +178,79 @@ protected:
             if (O * A * I != size)
                 FAIL() << "Incorrect blob shape " << shape;
 
-            auto* rawBlobDataPtr = static_cast<ov::bfloat16*>(tensor.data());
-            for (size_t o = 0; o < O; o++) {
-                for (size_t i = 0; i < I; i++) {
-                    std::vector<int> data(A);
-                    int start = -static_cast<int>(A / 2);
-                    std::iota(data.begin(), data.end(), start);
-                    const size_t seed = (o + 1) * (i + 1);
-                    std::mt19937 gen(seed);
-                    std::shuffle(data.begin(), data.end(), gen);
-                    for (size_t a = 0; a < A; a++) {
-                        rawBlobDataPtr[o * A * I + a * I + i] = static_cast<ov::bfloat16>(data[a]);
+            const bool stable_values = sort == SortType::SORT_VALUES && stable;
+            const size_t set_size = stable_values ? A / 2 : A;
+
+            if (netPrecision == ElementType::bf16) {
+                auto* rawBlobDataPtr = static_cast<ov::bfloat16*>(tensor.data());
+                for (size_t o = 0; o < O; o++) {
+                    for (size_t i = 0; i < I; i++) {
+                        std::vector<int> data(A);
+                        int start = -static_cast<int>(A / 2);
+                        std::iota(data.begin(), data.begin() + set_size, start);
+                        if (stable_values) {
+                            std::copy(data.begin(), data.begin() + set_size, data.begin() + set_size);
+                        }
+                        const size_t seed = (o + 1) * (i + 1);
+                        std::mt19937 gen(seed);
+                        std::shuffle(data.begin(), data.end(), gen);
+                        for (size_t a = 0; a < A; a++) {
+                            rawBlobDataPtr[o * A * I + a * I + i] = static_cast<ov::bfloat16>(data[a]);
+                        }
+                    }
+                }
+            } else if (netPrecision == ElementType::f16) {
+                auto* rawBlobDataPtr = static_cast<ov::float16*>(tensor.data());
+                for (size_t o = 0; o < O; o++) {
+                    for (size_t i = 0; i < I; i++) {
+                        std::vector<int> data(A);
+                        int start = -static_cast<int>(A / 2);
+                        std::iota(data.begin(), data.begin() + set_size, start);
+                        if (stable_values) {
+                            std::copy(data.begin(), data.begin() + set_size, data.begin() + set_size);
+                        }
+                        const size_t seed = (o + 1) * (i + 1);
+                        std::mt19937 gen(seed);
+                        std::shuffle(data.begin(), data.end(), gen);
+                        for (size_t a = 0; a < A; a++) {
+                            rawBlobDataPtr[o * A * I + a * I + i] = static_cast<ov::float16>(data[a]);
+                        }
+                    }
+                }
+            } else if (netPrecision == ElementType::i8) {
+                auto* rawBlobDataPtr = static_cast<int8_t*>(tensor.data());
+                for (size_t o = 0; o < O; o++) {
+                    for (size_t i = 0; i < I; i++) {
+                        std::vector<int> data(A);
+                        int start = -static_cast<int>(A / 2);
+                        std::iota(data.begin(), data.begin() + set_size, start);
+                        if (stable_values) {
+                            std::copy(data.begin(), data.begin() + set_size, data.begin() + set_size);
+                        }
+                        const size_t seed = (o + 1) * (i + 1);
+                        std::mt19937 gen(seed);
+                        std::shuffle(data.begin(), data.end(), gen);
+                        for (size_t a = 0; a < A; a++) {
+                            rawBlobDataPtr[o * A * I + a * I + i] = static_cast<int8_t>(data[a]);
+                        }
+                    }
+                }
+            } else {  // u8
+                auto* rawBlobDataPtr = static_cast<uint8_t*>(tensor.data());
+                for (size_t o = 0; o < O; o++) {
+                    for (size_t i = 0; i < I; i++) {
+                        std::vector<int> data(A);
+                        int start = 0;
+                        std::iota(data.begin(), data.begin() + set_size, start);
+                        if (stable_values) {
+                            std::copy(data.begin(), data.begin() + set_size, data.begin() + set_size);
+                        }
+                        const size_t seed = (o + 1) * (i + 1);
+                        std::mt19937 gen(seed);
+                        std::shuffle(data.begin(), data.end(), gen);
+                        for (size_t a = 0; a < A; a++) {
+                            rawBlobDataPtr[o * A * I + a * I + i] = static_cast<uint8_t>(data[a]);
+                        }
                     }
                 }
             }
@@ -234,8 +298,23 @@ const std::vector<ElementType> netPrecisions = {
     ElementType::f32,
 };
 
-std::vector<ov::AnyMap> additionalConfig = {{{ov::hint::inference_precision(ov::element::f32)}},
-                                            {{ov::hint::inference_precision(ov::element::bf16)}}};
+const std::vector<ElementType> netPrecisions_f16 = {
+    ElementType::f16,
+};
+
+const std::vector<ElementType> netPrecisions_int8 = {
+    ElementType::i8,
+    ElementType::u8,
+};
+
+std::vector<ov::AnyMap> additionalConfig = {
+    {{ov::hint::inference_precision(ov::element::f32)}},
+#if defined(OPENVINO_ARCH_X86_64)
+    {{ov::hint::inference_precision(ov::element::bf16)}}
+#endif
+};
+
+std::vector<ov::AnyMap> additionalConfigEmpty = {{}};
 
 const std::vector<int64_t> axes = {0, 1, 2, 3};
 const std::vector<int64_t> k = {1, 5, 7, 18, 21};
@@ -255,6 +334,7 @@ std::vector<ov::test::InputShape> inputShapesDynamic = {
     {{21, {20, 25}, 21, {20, 25}}, {{21, 21, 21, 21}, {21, 22, 21, 23}}}};
 
 std::vector<CPUSpecificParams> cpuParams = {CPUSpecificParams({nChw16c, x}, {nChw16c, nChw16c}, {}, {}),
+                                            CPUSpecificParams({nChw8c, x}, {nChw8c, nChw8c}, {}, {}),
                                             CPUSpecificParams({nchw, x}, {nchw, nchw}, {}, {}),
                                             CPUSpecificParams({nhwc, x}, {nhwc, nhwc}, {}, {})};
 
@@ -284,6 +364,62 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_dynamic,
                                                                ::testing::ValuesIn(inputShapesDynamic)),
                                             ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
                                             ::testing::ValuesIn(additionalConfig)),
+                         TopKLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_f16,
+                         TopKLayerCPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(k),
+                                                               ::testing::ValuesIn(axes),
+                                                               ::testing::ValuesIn(modes),
+                                                               ::testing::ValuesIn(sortTypeStable),
+                                                               ::testing::ValuesIn(netPrecisions_f16),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::ValuesIn(inputShapes)),
+                                            ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
+                                            ::testing::ValuesIn(additionalConfigEmpty)),
+                         TopKLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_f16_dynamic,
+                         TopKLayerCPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::Values(1),
+                                                               ::testing::ValuesIn(axes),
+                                                               ::testing::ValuesIn(modes),
+                                                               ::testing::ValuesIn(sortTypeStable),
+                                                               ::testing::ValuesIn(netPrecisions_f16),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::ValuesIn(inputShapesDynamic)),
+                                            ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
+                                            ::testing::ValuesIn(additionalConfigEmpty)),
+                         TopKLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_int8,
+                         TopKLayerCPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(k),
+                                                               ::testing::ValuesIn(axes),
+                                                               ::testing::ValuesIn(modes),
+                                                               ::testing::ValuesIn(sortTypeStable),
+                                                               ::testing::ValuesIn(netPrecisions_int8),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::ValuesIn(inputShapes)),
+                                            ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
+                                            ::testing::ValuesIn(additionalConfigEmpty)),
+                         TopKLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_int8_dynamic,
+                         TopKLayerCPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::Values(1),
+                                                               ::testing::ValuesIn(axes),
+                                                               ::testing::ValuesIn(modes),
+                                                               ::testing::ValuesIn(sortTypeStable),
+                                                               ::testing::ValuesIn(netPrecisions_int8),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::ValuesIn(inputShapesDynamic)),
+                                            ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
+                                            ::testing::ValuesIn(additionalConfigEmpty)),
                          TopKLayerCPUTest::getTestCaseName);
 
 const std::vector<int64_t> k_int32 = {1, 5, 7, 9};

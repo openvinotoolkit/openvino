@@ -51,6 +51,11 @@
 #    include "utils/cpu_utils.hpp"
 #endif
 
+#if defined(OPENVINO_ARCH_ARM64)
+#    include <cpu/aarch64/cpu_isa_traits.hpp>
+#    include "nodes/kernels/aarch64/jit_uni_topk_kernel.hpp"
+#endif
+
 using namespace dnnl;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -1976,6 +1981,24 @@ void TopK::initSupportedPrimitiveDescriptors() {
     }
 
     impl_desc_type impl_type = [&]() {
+#if defined(OPENVINO_ARCH_ARM64)
+        if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::sve_512)) {
+            return impl_desc_type::jit_sve512;
+        }
+        if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::sve_384)) {
+            return impl_desc_type::jit_sve384;
+        }
+        if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::sve_256)) {
+            return impl_desc_type::jit_sve256;
+        }
+        if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::sve_128)) {
+            return impl_desc_type::jit_sve128;
+        }
+        if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd)) {
+            return impl_desc_type::jit_asimd;
+        }
+        return impl_desc_type::ref;
+#else
         if (mayiuse(cpu::x64::avx512_core)) {
             return impl_desc_type::jit_avx512;
         }
@@ -1986,10 +2009,13 @@ void TopK::initSupportedPrimitiveDescriptors() {
             return impl_desc_type::jit_sse42;
         }
         return impl_desc_type::ref;
+#endif
     }();
 
 #if defined(OPENVINO_ARCH_X86_64)
     jit_mode = mayiuse(cpu::x64::sse41);
+#elif defined(OPENVINO_ARCH_ARM64)
+    jit_mode = dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd);
 #else
     jit_mode = false;
 #endif
@@ -2013,7 +2039,7 @@ void TopK::initSupportedPrimitiveDescriptors() {
     }
 
     std::vector<std::pair<LayoutType, LayoutType>> dataFomats{{LayoutType::ncsp, LayoutType::ncsp},
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
                                                               {LayoutType::nspc, LayoutType::nspc},
                                                               {LayoutType::nCsp16c, LayoutType::nCsp16c},
                                                               {LayoutType::nCsp8c, LayoutType::nCsp8c}
@@ -2047,10 +2073,26 @@ void TopK::preset_params() {
                       axis == static_cast<int>(getOutputShapeAtPort(TOPK_DATA).getRank() - 1)) ||
                      ((layout == TopKLayoutType::topk_nspc || layout == TopKLayoutType::topk_blocked) && axis == 1);
 
-    if (mayiuse(cpu::x64::avx512_core)) {
-        blk_size = 16;
-    } else if (mayiuse(cpu::x64::sse41)) {
-        blk_size = 8;
+    if (layout == TopKLayoutType::topk_blocked) {
+        auto srcMemPtr = getSrcMemoryAtPort(TOPK_DATA);
+        if (srcMemPtr && srcMemPtr->isDefined()) {
+            if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp16c)) {
+                blk_size = 16;
+            } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp8c)) {
+                blk_size = 8;
+            }
+        }
+    }
+    if (blk_size == 0) {
+#if defined(OPENVINO_ARCH_ARM64)
+        blk_size = dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::sve_512) ? 16 : 8;
+#else
+        if (mayiuse(cpu::x64::avx512_core)) {
+            blk_size = 16;
+        } else if (mayiuse(cpu::x64::sse41)) {
+            blk_size = 8;
+        }
+#endif
     }
 
     bool can_use_heap_sort =
@@ -2211,11 +2253,13 @@ void TopK::createPrimitive() {
         } else if (mayiuse(cpu::x64::sse41)) {
             topk_kernel = std::make_shared<jit_uni_topk_kernel_f32<cpu::x64::sse41>>(jcp);
         }
+#elif defined(OPENVINO_ARCH_ARM64)
+        topk_kernel = create_topk_kernel_aarch64(jcp);
+#endif
 
         if (topk_kernel) {
             topk_kernel->create_ker();
         }
-#endif
     }
 }
 
@@ -2320,6 +2364,7 @@ inline void TopK::topk_kernel_process(const uint8_t* in_p,
     arg.sort_stride = I;
     arg.idx_block_buf = vec_idx_block.data();
     arg.idx_seq_buf = vec_idx_seq.data();
+    arg.config = topk_kernel ? &topk_kernel->jcp_ : nullptr;
     (*topk_kernel)(&arg);
 }
 

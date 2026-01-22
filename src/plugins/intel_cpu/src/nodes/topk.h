@@ -61,6 +61,7 @@ struct jit_topk_call_args {
     size_t top_k;
     size_t work_amount;
     size_t sort_stride;
+    const jit_topk_config_params* config = nullptr;
 };
 
 struct jit_uni_topk_kernel {
