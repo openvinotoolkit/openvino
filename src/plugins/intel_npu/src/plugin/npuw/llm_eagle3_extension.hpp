@@ -23,11 +23,8 @@ namespace npuw {
 // Layer names for Eagle3 speculative decoding
 struct Eagle3LayerNames {
     static constexpr const char* hidden_states = "hidden_states";
-<<<<<<< HEAD
     static constexpr const char* last_hidden_state = "last_hidden_state";
     static constexpr const char* eagle_tree_mask = "eagle_tree_mask";
-=======
->>>>>>> c38bab4474 (Fixed review comments)
 };
 
 // Utility functions for Eagle3 layer name matching
@@ -254,22 +251,15 @@ private:
 
     Eagle3ModelRole m_role = Eagle3ModelRole::None;
 
-<<<<<<< HEAD
     ov::SoPtr<ov::ITensor> m_hidden_states;      ///< Draft model input: hidden_states
     ov::SoPtr<ov::ITensor> m_eagle_tree_mask;    ///< Draft/Target model input: eagle_tree_mask
     ov::SoPtr<ov::ITensor> m_last_hidden_state;  ///< Draft/Target model output: last_hidden_state
 
     // For chunked prefill: track the write offset in the pre-allocated tensor
     uint32_t m_chunked_seq_offset = 0;
-<<<<<<< HEAD
-
     SamplingResult m_pending_sampling_result;               ///< Pending sampling result from previous inference
     std::shared_ptr<Eagle3SamplingState> m_sampling_state;  ///< VariableState for external pipeline communication
-=======
-=======
     ov::SoPtr<ov::ITensor> m_hidden_states;  ///< Draft model input: hidden_states
->>>>>>> b3ed717e4d (Fixed review comments)
->>>>>>> c38bab4474 (Fixed review comments)
 };
 
 }  // namespace npuw
