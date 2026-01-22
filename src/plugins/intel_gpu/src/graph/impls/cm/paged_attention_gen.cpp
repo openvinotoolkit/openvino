@@ -393,7 +393,6 @@ JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_
     const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
     const size_t kv_partition_size = get_partition_size(desc->has_xattention);
     auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
-    const auto& key_cache_quant_mode = params.get_program().get_config().get_key_cache_quant_mode();
     jit.make("KV_PARTITION_SIZE", kv_partition_size);
     if (desc->has_xattention) {
         jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
