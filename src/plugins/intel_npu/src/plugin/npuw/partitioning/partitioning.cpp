@@ -746,7 +746,7 @@ void Partitioner::identifySubgraphs() {
                     // then all Result nodes share the same shape.
                     if (maybe_results.size() > 1) {
                         const auto shape = (*maybe_results.begin())->get_shape();
-                        for (auto i = 1; i < maybe_results.size(); ++i) {
+                        for (std::size_t i = 1; i < maybe_results.size(); ++i) {
                             OPENVINO_ASSERT(shape == maybe_results[i]->get_shape(),
                                             "Multiple results from one output layer should be similar!");
                         } 
