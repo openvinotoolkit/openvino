@@ -258,6 +258,8 @@ OP_CONVERTER(translate_std_mean);
 OP_CONVERTER(translate_stft);
 OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sub_);
+OP_CONVERTER(translate_sparse_mm);
+OP_CONVERTER(translate_sparse_coo_tensor);
 OP_CONVERTER(translate_sum);
 OP_CONVERTER(translate_t);
 OP_CONVERTER(translate_take_along_dim);
@@ -389,6 +391,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::_pad_packed_sequence", op::translate_pad_packed_sequence},
         {"aten::_set_item", op::translate_set_item},
         {"aten::_shape_as_tensor", op::translate_shape_as_tensor},
+        {"aten::sparse_coo_tensor", op::translate_sparse_coo_tensor},
+        {"aten::_sparse_mm", op::translate_sparse_mm},
         {"aten::_unique2", op::translate_unique2},
         {"aten::_upsample_bicubic2d_aa", op::translate_upsample_bicubic2d_aa},
         {"aten::_upsample_bilinear2d_aa", op::translate_upsample_bilinear2d_aa},
