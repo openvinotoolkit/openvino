@@ -1067,6 +1067,7 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
                 }
                 return tensor;
             }
+            return tensor;
         }
     }
 
