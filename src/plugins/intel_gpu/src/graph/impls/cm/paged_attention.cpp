@@ -23,7 +23,7 @@
 #define DUMP_XATTN_INTERNALS 0
 #if DUMP_XATTN_INTERNALS
 #    include "openvino/util/file_util.hpp"
-#    define XATTN_DUMP(instance, stage) dum_xattn_internals((instance), (stage))
+#    define XATTN_DUMP(instance, stage) dump_xattn_internals((instance), (stage))
 #else
 #    define XATTN_DUMP(instance, stage) ((void)0)
 #endif
@@ -265,7 +265,7 @@ private:
     }
 
 #if DUMP_XATTN_INTERNALS
-    void dum_xattn_internals(primitive_inst& instance, PagedAttentionInternBuffIdx idx) {
+    void dump_xattn_internals(primitive_inst& instance, PagedAttentionInternBuffIdx idx) {
         const char* dump_root_env = std::getenv("DUMP_XATTN_INTERNALS");
         if (dump_root_env == nullptr || dump_root_env[0] == '\0') {
             return;  // skip dumping
@@ -290,9 +290,9 @@ private:
             std::string(dump_root_env) + "xattn_internals_" + std::to_string(idx) + "__" + node_name + "__" + data_type + "_" + tensor + "__" + format + ".bin";
         try {
             ov::util::save_binary(out_path, lock.data(), output_mem->size());
-            std::cout << "[dum_xattn_internals] dump to " << out_path << std::endl;
+            std::cout << "[dump_xattn_internals] dump to " << out_path << std::endl;
         } catch (const std::exception& e) {
-            std::cerr << "[dum_xattn_internals] Failed to save dump to '" << out_path << "': " << e.what() << "\n";
+            std::cerr << "[dump_xattn_internals] Failed to save dump to '" << out_path << "': " << e.what() << "\n";
         }
     }
 #endif
