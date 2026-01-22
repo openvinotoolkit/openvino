@@ -1210,6 +1210,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                                                                 static_cast<uint32_t>(current_prompts_len),
                                                                 static_cast<uint32_t>(input_prompt_len));
             }
+            // FIXME: If model has multiple outputs, should we accumulate them from chunks as done
+            //        for Eagle3 additional output? They escape slicing for now.
 
             if (enable_prefix_caching) {
                 prefix_caching_helper->store_computed_blocks(current_prompts_len,
@@ -1398,7 +1400,8 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
         // For chunked prefill, accumulate_chunk_last_hidden_state() already set the tensor
         if (m_eagle3_ext.is_eagle3_model() && !use_chunk_prefill) {
             m_eagle3_ext.update_last_hidden_state(m_prefill_request, m_prefill_out_ports);
-        } else {
+        }
+        if (!m_eagle3_ext.is_eagle3_model()) {
             for (auto&& [name, port]: m_prefill_out_ports) {
                 if (name == layer_names::logits) {
                     continue;
@@ -1660,7 +1663,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     if (m_eagle3_ext.is_eagle3_model()) {
         m_eagle3_ext.update_last_hidden_state(m_kvcache_request, m_kvcache_out_ports);
     } else {
-        for (auto&& [name, port]: m_kvcache_out_ports) {
+        for (auto&& [name, port] : m_kvcache_out_ports) {
             if (name == layer_names::logits) {
                 continue;
             }
@@ -1851,9 +1854,7 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
             OPENVINO_THROW("Logits tensor is not available. Please run inference first.");
         }
         return m_logits;
-    }
-
-    if (m_eagle3_ext.is_eagle3_model()) {
+    } else if (m_eagle3_ext.is_eagle3_model()) {
         if (port_names.count(Eagle3LayerNames::last_hidden_state) > 0) {
             auto last_hidden_state = m_eagle3_ext.get_last_hidden_state();
             if (!last_hidden_state) {
@@ -1862,8 +1863,11 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
             return last_hidden_state;
         }
     } else {
-        for (auto&& [name, tensor]: m_other_outputs) {
+        for (auto&& [name, tensor] : m_other_outputs) {
             if (port_names.count(name) > 0) {
+                if (!tensor) {
+                    OPENVINO_THROW("Output tensor \"", name, "\" is not available. Please run inference first.");
+                }
                 return tensor;
             }
         }
