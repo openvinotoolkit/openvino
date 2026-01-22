@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,6 +40,8 @@
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/gather.hpp"
@@ -78,7 +80,6 @@
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/convert_moe_to_compressed.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
-#include "plugin/transformations/convert_weight_compressed_conv1x1_to_matmul.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
@@ -168,6 +169,7 @@
 #include "transformations/op_conversions/convert_subtract.hpp"
 #include "transformations/op_conversions/convert_ti_to_sequences.hpp"
 #include "transformations/op_conversions/convert_topk11_downgrade.hpp"
+#include "transformations/op_conversions/convert_weight_compressed_conv1x1_to_matmul.hpp"
 #include "transformations/op_conversions/eye_decomposition.hpp"
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
 #include "transformations/op_conversions/group_normalization_decomposition.hpp"
@@ -298,6 +300,31 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
 }
 }  // namespace
 
+static bool should_decompose_sdpa_for_memory_size(size_t max_size,
+                                                    std::shared_ptr<const ov::op::v13::ScaledDotProductAttention> sdpa) {
+    const auto& q = sdpa->get_input_partial_shape(0);
+    const auto& k = sdpa->get_input_partial_shape(1);
+    const auto& v = sdpa->get_input_partial_shape(2);
+    const auto& sdpa_out = sdpa->get_output_partial_shape(0);
+    const auto dt_size = sdpa->get_element_type().size();
+
+    // Expected sdpa_opt usage : 3D SDPA
+    if (q.size() == 3 && k.size() == 3 && v.size() == 3 && sdpa_out.size() == 3) {
+        if (q.is_dynamic() || k.is_dynamic() || sdpa_out.is_dynamic())
+            return false;
+
+        // Calculate mem size of gemm for Q*K
+        // Gemm layer decomposed from sdpa could exceed max size of memory allocation.
+        size_t sdpa_intermediate_buffer_size = q.get_shape().at(0) * q.get_shape().at(1) * k.get_shape().at(1) * dt_size;
+        if (sdpa_intermediate_buffer_size > max_size * 0.5)
+            return false;
+
+        return true;
+    }
+
+    return false;
+}
+
 namespace cldnn {
 extern bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 extern bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config);
@@ -415,6 +442,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             ov::disable_keep_const_precision(node);
         }
 
+        manager.register_pass<ov::pass::TransposeMatMul>();
         manager.register_pass<ov::pass::MarkDequantization>(
             std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 },
             !device_info.supports_immad);
@@ -702,6 +730,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             }
 
+            // sdpa_opt will be selected for 3d-tensor sdpa.
+            // sdpa_opt has performance issue on GPUs with XMX. If memory size allows, it is preferrable to decompose sdpa.
+            // If intermediate buffer is expected to be very large, we need to use sdpa_opt to be functional.
+            const auto max_size = m_context->get_engine().get_max_memory_size();
+            if (device_info.supports_immad && should_decompose_sdpa_for_memory_size(max_size, sdpa)) {
+                GPU_DEBUG_TRACE << " Expect sdpa_usage with systolic-arry architectures. mem size is decomposable. Q*K size : query " << query_ps
+                                << " key " << key_ps << " dt " << sdpa->get_element_type().size() << std::endl;
+                 return false;
+             }
+
             const auto head_size = query_ps[query_ps.size() - 1].get_length();
             if (device_info.supports_immad && cldnn::query_microkernels_supported(m_context->get_engine(), config) && head_size <= 256)
                 return true;
@@ -804,7 +842,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConvertGather0D>();
         manager.register_pass<ov::pass::ConvertPriorBox8To0, false>();
         manager.register_pass<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
-        manager.register_pass<ov::pass::TransposeMatMul>();
         manager.register_pass<ov::pass::ConvertPad12ToPad1, false>();
         manager.register_pass<DecomposeReduceForScalarOutput>();
 
@@ -1335,7 +1372,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ov::pass::Manager manager("GPU:PostLPT");
         manager.set_per_pass_validation(false);
 
-        manager.register_pass<ov::intel_gpu::ConvertWeightCompressedConv1x1ToMatmul>();
+        manager.register_pass<ov::pass::ConvertWeightCompressedConv1x1ToMatmul>();
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>(device_info.supports_immad);
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -360,7 +360,6 @@ struct CPUStreamsExecutor::Impl {
                   return std::make_shared<Impl::Stream>(this);
               },
               this) {
-        _exectorMgr = executor_manager();
         auto numaNodes = get_available_numa_nodes();
         int streams_num = _config.get_streams();
         auto processor_ids = _config.get_stream_processor_ids();
@@ -478,7 +477,6 @@ struct CPUStreamsExecutor::Impl {
     bool _isStopped = false;
     std::vector<int> _usedNumaNodes;
     CustomThreadLocal _streams;
-    std::shared_ptr<ExecutorManager> _exectorMgr;
     bool _isExit = false;
     std::vector<int> _cpu_ids_all;
     std::mutex _cpu_ids_mutex;

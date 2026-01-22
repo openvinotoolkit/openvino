@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -500,6 +500,68 @@ TEST_P(UnpackWithScaleTestsI4F16, i4f16_scale) {
                       ov::npuw::util::unpack(from, scale, to, ov::npuw::util::UnpackOptions{useParallelFor, nPartitions, strictPartitions}));
     if (!isNegative()) {
         ASSERT_TRUE(details::fp16ArraysMatch(output, ref_output, input));
+    }
+}
+
+class UnpackF8WithScaleTestsBase : public UnpackTestsBase {
+protected:
+    bool isNegative() const override {
+        if (scale_shape.size() != 3 && scale_shape.size() != 2) return true;
+        if (input_shape.back() % 64) return true;
+        if ((from->get_size() / scale->get_size()) % 64) return true;
+        if (toType != ov::element::f16) return true;
+
+        return false;
+    }
+
+    void make_ref_output() override {
+        if (isNegative()) return;
+
+        const size_t nElements = from->get_size();
+
+        const auto& from_shape_local = from->get_shape();
+        ASSERT_GE(from_shape_local.size(), 2u);
+
+        const auto* scale_f32 = reinterpret_cast<const float*>(scale->data());
+        auto* ref_f16_bits = reinterpret_cast<uint16_t*>(ref_output.data());
+
+        const size_t row_stride = from_shape_local[1];
+
+        if (from->get_element_type() == ov::element::f8e4m3) {
+            const auto* src = reinterpret_cast<const ov::float8_e4m3*>(input.data());
+            for (size_t idx = 0; idx < nElements; ++idx) {
+                const float v = static_cast<float>(src[idx]);
+                const float s = scale_f32[idx / row_stride];
+                ref_f16_bits[idx] = details::float_to_half(v * s);
+            }
+        } else if (from->get_element_type() == ov::element::f8e5m2) {
+            const auto* src = reinterpret_cast<const ov::float8_e5m2*>(input.data());
+            for (size_t idx = 0; idx < nElements; ++idx) {
+                const float v = static_cast<float>(src[idx]);
+                const float s = scale_f32[idx / row_stride];
+                ref_f16_bits[idx] = details::float_to_half(v * s);
+            }
+        } else if (from->get_element_type() == ov::element::f8e8m0) {
+            const auto* src = reinterpret_cast<const ov::float8_e8m0*>(input.data());
+            for (size_t idx = 0; idx < nElements; ++idx) {
+                const float v = static_cast<float>(src[idx]);
+                const float s = scale_f32[idx / row_stride];
+                ref_f16_bits[idx] = details::float_to_half(v * s);
+            }
+        } else {
+            FAIL() << "Unexpected from element type in UnpackF8WithScaleTestsBase";
+        }
+    }
+
+};
+
+using UnpackF8WithScaleTests = UnpackTestsTmpl<UnpackF8WithScaleTestsBase>;
+
+TEST_P(UnpackF8WithScaleTests, f8_scale) {
+    ASSERT_NO_THROW_IF(!isNegative(),
+                       ov::npuw::util::unpack(from, scale, to, ov::npuw::util::UnpackOptions{useParallelFor, nPartitions, strictPartitions}));
+    if (!isNegative()) {
+        ASSERT_TRUE(details::fp16ArraysMatch(output, ref_output, input, false));
     }
 }
 

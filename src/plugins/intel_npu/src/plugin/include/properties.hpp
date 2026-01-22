@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,17 +72,18 @@ private:
     void registerCompiledModelProperties();
 
     const std::vector<ov::PropertyName> _cachingProperties = {
+        ov::cache_mode.name(),
         ov::device::architecture.name(),
+        ov::hint::execution_mode.name(),
+        ov::intel_npu::batch_mode.name(),
+        ov::intel_npu::compilation_mode.name(),
         ov::intel_npu::compilation_mode_params.name(),
         ov::intel_npu::compiler_dynamic_quantization.name(),
-        ov::intel_npu::tiles.name(),
-        ov::intel_npu::dma_engines.name(),
-        ov::intel_npu::compilation_mode.name(),
-        ov::intel_npu::driver_version.name(),
         ov::intel_npu::compiler_type.name(),
-        ov::intel_npu::batch_mode.name(),
-        ov::hint::execution_mode.name(),
-        ov::cache_mode.name(),
+        ov::intel_npu::dma_engines.name(),
+        ov::intel_npu::driver_version.name(),
+        ov::intel_npu::enable_strides_for.name(),
+        ov::intel_npu::tiles.name(),
         // NPUW caching properties
         ov::intel_npu::use_npuw.name(),
         ov::intel_npu::npuw::devices.name(),
@@ -138,7 +139,8 @@ private:
         ov::intel_npu::npuw::llm::additional_generate_config.name(),
         ov::intel_npu::npuw::llm::generate_attn_hint.name(),
         ov::intel_npu::npuw::llm::shared_lm_head_config.name(),
-        ov::intel_npu::npuw::llm::additional_shared_lm_head_config.name()};
+        ov::intel_npu::npuw::llm::additional_shared_lm_head_config.name(),
+        ov::intel_npu::npuw::eagle::enabled.name()};
 
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
                                                                         ov::internal::caching_with_mmap.name(),

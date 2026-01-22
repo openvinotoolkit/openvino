@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -302,7 +302,6 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Decomposition_4D/Mvn6LayerTest.Inference/.*TS=\{\(2.19.5.10\)\}_ModelType=f32_.*_Ax=\(1\).*)");
         retVector.emplace_back(R"(.*smoke_LogSoftmax4D/LogSoftmaxLayerTest.Inference/.*TS=\{\(2.3.4.5\)\}_modelType=f32_axis=(-4|-3|-2|0|1|2).*)");
         retVector.emplace_back(R"(.*smoke_Interpolate_Basic/InterpolateLayerTest.Inference/.*InterpolateMode=cubic_ShapeCalcMode=sizes_CoordinateTransformMode=tf_half_pixel.*PB=\(0.0.0.0\)_PE=\(0.0.1.1\)_.*netType=f32.*)");
-        retVector.emplace_back(R"(.*smoke_CompareWithRefs_4D_Bitwise.*/EltwiseLayerCPUTest.*_eltwise_op_type=Bitwise.*_model_type=i32_.*)");
         // Ticket: 144845
         retVector.emplace_back(R"(.*LSTMCellFusion/LSTMCellFusionWithSplitWeights.SubgraphFusedToLSTMCell/(1|8|15))");
         // Ticket: 131541
@@ -317,8 +316,6 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_AvgPoolV14_CPU_4D/AvgPoolingV14LayerCPUTest.CompareWithRefs.*)");
         // Ticket: 168931
         retVector.emplace_back(R"(.*smoke_Reduce_OneAxis_dynamic_CPU/ReduceCPULayerTest.CompareWithRefs.*)");
-        // Ticket: 178089
-        retVector.emplace_back(R"(.*smoke_ARM_StatefulSdpaBoolMask/StatefulSdpaBoolMaskTest.*)");
     }
     // invalid test: checks u8 precision for runtime graph, while it should be f32
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
@@ -599,6 +596,9 @@ std::vector<std::string> disabledTestPatterns() {
     }
     if (!ov::test::snippets::is_fp16_supported_by_brgemm()) {
         retVector.emplace_back(R"(.*smoke_Snippets_MHA.*FP16.*)");
+    } else {
+        // Skip failing FP16 MHA tests on ARM64 due to low accuracy (FP16 accumulator is used in Gemm)
+        retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceFP16/MHAWOTranspose\.CompareWithRefImpl.*IS\[0\]=\[\?\.\?\.\?\.\?\].*IS\[1\]=\[\?\.\?\.\?\.\?\].*IS\[2\]=\[\?\.\?\.\?\.\?\].*)");
     }
     if (!ov::with_cpu_x86_avx512_core_amx_int8())
         // TODO: Issue 92895
@@ -657,6 +657,11 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 141705
         retVector.emplace_back(R"(.*smoke_Deconv_(2|3)D_NSPC_INT8_AMX/DeconvolutionLayerCPUTest.*)");
         retVector.emplace_back(R"(.*smoke_Deconv_(2|3)D_NSPC_INT8_AMX/DeconvolutionLayerCPUTest.*)");
+    }
+
+    // Xattention only verified on AMX platform
+    if (!ov::with_cpu_x86_avx512_core_amx()) {
+        retVector.emplace_back(R"(.*EnableXattn=1.*)");
     }
 
     if (ov::with_cpu_x86_avx512_core_fp16() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()) {
