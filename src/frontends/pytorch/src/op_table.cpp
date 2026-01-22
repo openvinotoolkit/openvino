@@ -355,6 +355,14 @@ OP_CONVERTER(translate_vstack);
 OP_CONVERTER(translate_unbind_int_fx);
 OP_CONVERTER(translate_zeros_fx);
 OP_CONVERTER(translate_zeros_like_fx);
+// RoPE operations for rotary position embeddings
+OP_CONVERTER(translate_rotate_half);
+OP_CONVERTER(translate_rotate_half_fx);
+OP_CONVERTER(translate_apply_rotary_pos_emb);
+OP_CONVERTER(translate_apply_rotary_pos_emb_fx);
+// Grouped Query Attention operations
+OP_CONVERTER(translate_repeat_kv);
+OP_CONVERTER(translate_repeat_kv_fx);
 // Extensions
 OP_CONVERTER(translate_conv1d_ext);
 OP_CONVERTER(translate_embedding_ext);
@@ -682,6 +690,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::remainder", op::translate_remainder},
         {"aten::repeat", op::translate_1to1_match_2_inputs<opset10::Tile>},
         {"aten::repeat_interleave", op::translate_repeat_interleave},
+        // Grouped Query Attention operations
+        {"aten::repeat_kv", op::translate_repeat_kv},
         {"aten::replication_pad1d", op::translate_replication_pad_nd},
         {"aten::replication_pad2d", op::translate_replication_pad_nd},
         {"aten::replication_pad3d", op::translate_replication_pad_nd},
@@ -696,6 +706,9 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::rnn_relu", op::translate_rnn},
         {"aten::rnn_tanh", op::translate_rnn},
         {"aten::roll", op::translate_roll},
+        // RoPE operations for rotary position embeddings
+        {"aten::rotate_half", op::translate_rotate_half},
+        {"aten::apply_rotary_pos_emb", op::translate_apply_rotary_pos_emb},
         {"aten::round", op::translate_round},
         {"aten::rsqrt", op::optional_out<op::translate_rsqrt, 1>},
         {"aten::rsqrt_", op::inplace_op<op::translate_rsqrt>},
@@ -1036,8 +1049,13 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.relu.default", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten.relu_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten.repeat.default", op::translate_repeat_fx},
+        // Grouped Query Attention operations
+        {"aten.repeat_kv.default", op::translate_repeat_kv_fx},
         {"aten.rms_norm.default", op::translate_rms_norm},
         {"aten.roll.default", op::translate_roll},
+        // RoPE operations for rotary position embeddings
+        {"aten.rotate_half.default", op::translate_rotate_half_fx},
+        {"aten.apply_rotary_pos_emb.default", op::translate_apply_rotary_pos_emb_fx},
         {"aten.rsqrt.default", op::translate_rsqrt},
         {"aten.rsub.Scalar", op::translate_rsub_fx},
         {"aten.rsub.Tensor", op::translate_rsub_fx},
