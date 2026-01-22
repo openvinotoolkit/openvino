@@ -7,6 +7,7 @@
 #include <fstream>
 
 #include "compiled_model.hpp"
+#include "compiler_adapter_factory.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
@@ -257,12 +258,7 @@ Plugin::Plugin()
 
     /// Init and register properties
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
-    _compilerAdapterFactory = std::make_shared<CompilerAdapterFactory>();
-    _properties = std::make_unique<Properties>(PropertiesType::PLUGIN,
-                                               _globalConfig,
-                                               _compilerAdapterFactory,
-                                               _metrics,
-                                               _backend);
+    _properties = std::make_unique<Properties>(PropertiesType::PLUGIN, _globalConfig, _metrics, _backend);
     _properties->registerProperties();
 }
 
@@ -432,7 +428,7 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
     // create a dummy compiler to fetch version and supported options
     try {
         auto compiler_type = cfg.get<COMPILER_TYPE>();
-        compiler = _compilerAdapterFactory->getCompiler(_backend, compiler_type);
+        compiler = CompilerAdapterFactory::getInstance().getCompiler(_backend, compiler_type);
     } catch (...) {
         // assuming getCompiler failed, meaning we are offline
         _logger.warning("No available compiler. Enabling only runtime options ");
@@ -696,7 +692,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // create compiler
     ov::intel_npu::CompilerType compilerType = resolveCompilerType(_globalConfig, localProperties);
     const bool wasPreferPlugin = (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN);
-    auto compiler = _compilerAdapterFactory->getCompiler(_backend, compilerType);
+    auto compiler = CompilerAdapterFactory::getInstance().getCompiler(_backend, compilerType);
     if (wasPreferPlugin) {
         localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
     }
@@ -1055,7 +1051,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     ov::intel_npu::CompilerType compilerType = resolveCompilerType(_globalConfig, localProperties);
     const bool wasPreferPlugin = (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN);
-    auto compiler = _compilerAdapterFactory->getCompiler(_backend, compilerType);
+    auto compiler = CompilerAdapterFactory::getInstance().getCompiler(_backend, compilerType);
     if (wasPreferPlugin) {
         localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
     }
@@ -1120,7 +1116,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     ov::intel_npu::CompilerType compilerType = resolveCompilerType(_globalConfig, localProperties);
     const bool wasPreferPlugin = (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN);
-    auto compiler = _compilerAdapterFactory->getCompiler(_backend, compilerType);
+    auto compiler = CompilerAdapterFactory::getInstance().getCompiler(_backend, compilerType);
     if (wasPreferPlugin) {
         localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
     }

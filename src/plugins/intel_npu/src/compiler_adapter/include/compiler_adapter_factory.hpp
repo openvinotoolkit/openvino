@@ -15,6 +15,16 @@ namespace intel_npu {
 
 class CompilerAdapterFactory final {
 public:
+    static CompilerAdapterFactory& getInstance() {
+        static CompilerAdapterFactory instance;
+        return instance;
+    }
+
+    CompilerAdapterFactory(const CompilerAdapterFactory&) = delete;
+    CompilerAdapterFactory(CompilerAdapterFactory&&) = delete;
+    CompilerAdapterFactory& operator=(const CompilerAdapterFactory&) = delete;
+    CompilerAdapterFactory& operator=(CompilerAdapterFactory&&) = delete;
+
     std::unique_ptr<ICompilerAdapter> getCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
                                                   ov::intel_npu::CompilerType& compilerType) const {
         if (_pluginCompilerIsPresent) {
@@ -49,6 +59,9 @@ public:
     }
 
 private:
+    CompilerAdapterFactory() = default;
+    ~CompilerAdapterFactory() = default;
+
     mutable std::atomic<bool> _pluginCompilerIsPresent = true;
 };
 

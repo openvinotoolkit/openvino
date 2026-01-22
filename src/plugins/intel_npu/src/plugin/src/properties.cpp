@@ -5,6 +5,7 @@
 // Plugin
 #include "properties.hpp"
 
+#include "compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
@@ -300,12 +301,10 @@ static int64_t getOptimalNumberOfInferRequestsInParallel(const Config& config) {
 
 Properties::Properties(const PropertiesType pType,
                        FilteredConfig& config,
-                       const std::shared_ptr<CompilerAdapterFactory>& compilerAdapterFactory,
                        const std::shared_ptr<Metrics>& metrics,
                        const ov::SoPtr<IEngineBackend>& backend)
     : _pType(pType),
       _config(config),
-      _compilerAdapterFactory(compilerAdapterFactory),
       _metrics(metrics),
       _backend(backend) {}
 
@@ -561,7 +560,7 @@ void Properties::registerPluginProperties() {
         REGISTER_CUSTOM_METRIC(ov::intel_npu::compiler_version, true, [&](const Config& config) {
             /// create dummy compiler
             auto compilerType = config.get<COMPILER_TYPE>();
-            auto dummyCompiler = _compilerAdapterFactory->getCompiler(_backend, compilerType);
+            auto dummyCompiler = CompilerAdapterFactory::getInstance().getCompiler(_backend, compilerType);
             return dummyCompiler->get_version();
         });
         REGISTER_CUSTOM_METRIC(ov::internal::caching_properties, false, [&](const Config& config) {
@@ -714,7 +713,7 @@ void Properties::set_property(const ov::AnyMap& properties) {
                 try {
                     // Only accepting unknown config keys in plugin
                     auto compilerType = _config.get<COMPILER_TYPE>();
-                    compiler = _compilerAdapterFactory->getCompiler(_backend, compilerType);
+                    compiler = CompilerAdapterFactory::getInstance().getCompiler(_backend, compilerType);
                 } catch (...) {
                     // just throw the exception below in case unknown property check is called
                 }

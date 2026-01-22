@@ -9,7 +9,6 @@
 #include <string>
 
 #include "backends_registry.hpp"
-#include "compiler_adapter_factory.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
@@ -65,10 +64,6 @@ public:
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;
 
-    inline std::shared_ptr<CompilerAdapterFactory> get_compiler_adapter_factory() const {
-        return _compilerAdapterFactory;
-    }
-
 private:
     void init_options();
     void filter_global_config_safe(
@@ -99,7 +94,6 @@ private:
     //  _backend might not be set by the plugin; certain actions, such as offline compilation, might be supported.
     //  Appropriate checks are needed in plugin/metrics/properties when actions depend on a backend.
     ov::SoPtr<IEngineBackend> _backend;
-    std::shared_ptr<CompilerAdapterFactory> _compilerAdapterFactory;
 
     std::shared_ptr<OptionsDesc> _options;
     mutable FilteredConfig _globalConfig;

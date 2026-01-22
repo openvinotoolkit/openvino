@@ -16,7 +16,6 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
-#include "plugin.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace intel_npu {
@@ -37,11 +36,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
       _batchSize(batchSize) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
 
-    auto npuPlugin = std::dynamic_pointer_cast<const intel_npu::Plugin>(plugin);
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
-    _properties = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL,
-                                               _config,
-                                               npuPlugin->get_compiler_adapter_factory());
+    _properties = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL, _config);
     _properties->registerProperties();
 
     configure_stream_executors();

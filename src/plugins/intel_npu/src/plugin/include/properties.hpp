@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "compiler_adapter_factory.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
 #include "metrics.hpp"
@@ -23,7 +22,6 @@ public:
      */
     Properties(const PropertiesType pType,
                FilteredConfig& config,
-               const std::shared_ptr<CompilerAdapterFactory>& compilerAdapterFactory,
                const std::shared_ptr<Metrics>& metrics = nullptr,
                const ov::SoPtr<IEngineBackend>& backend = {nullptr});
 
@@ -62,7 +60,6 @@ public:
 private:
     PropertiesType _pType;
     FilteredConfig& _config;
-    std::shared_ptr<CompilerAdapterFactory> _compilerAdapterFactory;
     std::shared_ptr<Metrics> _metrics;
     ov::SoPtr<IEngineBackend> _backend;
 
