@@ -1888,6 +1888,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(prefill_config, other_props);
     merge_config_with(generate_config, other_props);
     merge_config_with(prefill_config, prefill_config_addition_value);
+    // If model has multiple outputs, only logits will be extracted to a separate model.
+    // Prefill will have all other outputs. It might be a wrong assumption that all of
+    // them need to be sliced for, for instance, 1 token.
     if (lm_head_model) {
         prefill_config.erase("NPUW_SLICE_OUT");
     }
