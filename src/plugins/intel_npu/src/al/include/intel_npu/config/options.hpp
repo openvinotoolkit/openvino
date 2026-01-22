@@ -1493,6 +1493,10 @@ struct ENABLE_STRIDES_FOR final : OptionBase<ENABLE_STRIDES_FOR, std::string> {
     static OptionMode mode() {
         return OptionMode::CompileTime;
     }
+
+    static bool isPublic() {
+        return true;
+    }
 };
 
 struct DISABLE_IDLE_MEMORY_PRUNING final : OptionBase<DISABLE_IDLE_MEMORY_PRUNING, bool> {

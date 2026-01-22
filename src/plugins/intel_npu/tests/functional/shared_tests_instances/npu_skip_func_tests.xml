@@ -835,13 +835,6 @@ Example:
     </skip_config>
 
     <skip_config>
-        <message>Strides are not supported with the current driver</message>
-        <filters>
-            <filter>.*RoiTensorsTestsRun.*</filter>
-        </filters>
-    </skip_config>
-
-    <skip_config>
         <message>Blobs for OVBlobCompatibilityNPU need to be updated for NPU5010</message>
         <enable_rules>
             <device>5010</device>

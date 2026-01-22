@@ -509,6 +509,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((True, True),),
         ),
         (
+            intel_npu.enable_strides_for,
+            "NPU_ENABLE_STRIDES_FOR",
+            (("inputs,outputs", "inputs,outputs"),),
+        ),
+        (
             intel_npu.compiler_type,
             "NPU_COMPILER_TYPE",
             ((intel_npu.CompilerType.DRIVER, intel_npu.CompilerType.DRIVER),

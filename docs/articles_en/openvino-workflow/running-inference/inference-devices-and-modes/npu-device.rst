@@ -155,6 +155,7 @@ offer a limited set of supported OpenVINO features.
          ov::intel_npu::run_inferences_sequentially
          ov::intel_npu::disable_idle_memory_prunning
          ov::intel_npu::compiler_type
+         ov::intel_npu::enable_strides_for
 
    .. tab-item:: Read-only properties
 

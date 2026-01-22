@@ -205,5 +205,15 @@ static constexpr ov::Property<bool> run_inferences_sequentially{"NPU_RUN_INFEREN
  */
 static constexpr ov::Property<bool> disable_idle_memory_prunning{"NPU_DISABLE_IDLE_MEMORY_PRUNING"};
 
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: std::string, default is empty
+ * Enables custom stride support for specified input/output tensors by name. This allows working with non-contiguous
+ * memory layouts without copying data. The plugin automatically maps these names to the appropriate input/output
+ * indices for the compiler.
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<std::string> enable_strides_for("NPU_ENABLE_STRIDES_FOR");
+
 }  // namespace intel_npu
 }  // namespace ov
