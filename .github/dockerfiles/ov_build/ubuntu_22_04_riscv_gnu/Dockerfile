@@ -20,7 +20,7 @@ RUN apt-get update && \
     wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/llvm.asc && \
     apt-get update && \
     # install compilers to build OpenVINO for RISC-V 64
-    apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu && \
+    apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu && \
     apt-get install \
         curl \
         git \
@@ -42,24 +42,6 @@ RUN apt-get update && \
         # Compilers
         gcc \
         g++ \
-        # xuantie-gnu-toolchain build dependencies
-        autoconf \
-        automake \
-        autotools-dev \
-        libmpc-dev \
-        libmpfr-dev\ 
-        libgmp-dev \
-        gawk \
-        build-essential \
-        bison \
-        flex \
-        texinfo \
-        gperf \
-        libtool \
-        patchutils \
-        bc \
-        zlib1g-dev \
-        libexpat-dev \
         # For clang-tidy validation
         clang-format-18 \
         clang-tidy-18 \
@@ -99,19 +81,6 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
 
 ENV PATH="$SCCACHE_HOME:$PATH"
-
-# build xuintie toolchain
-ARG XUANTIE_VERSION="V2.8.1"
-ARG XUANTIE_REPO="https://github.com/XUANTIE-RV/xuantie-gnu-toolchain"
-ARG XUINTIE_PATH="/opt/riscv"
-ARG XUINTIE_TMP_PATH="/tmp/xuantie"
-ARG XUINTIE_SRC="/tmp/xuantie/src"
-    
-RUN mkdir -p ${XUINTIE_TMP_PATH} && cd ${XUINTIE_TMP_PATH} && \
-    git clone --branch ${XUANTIE_VERSION} --depth 1 ${XUANTIE_REPO} ${XUINTIE_SRC} && cd ${XUINTIE_SRC} && \
-    ./configure --prefix=${XUINTIE_PATH} --disable-gdb && \
-    make linux -j$(nproc) && make install && \
-    rm -rf ${XUINTIE_TMP_PATH}
 
 # Setup pip
 ENV PIP_VERSION="24.0"

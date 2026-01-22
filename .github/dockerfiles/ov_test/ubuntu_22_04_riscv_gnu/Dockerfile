@@ -29,28 +29,9 @@ RUN apt-get update && \
         # Compilers
         gcc \
         g++ \
-        # qemu build dependencies
         gcc-riscv64-linux-gnu \
         g++-riscv64-linux-gnu \
-        libc6-riscv64-cross \
-        build-essential \
-        pkg-config \
-        libglib2.0-dev \
-        libpixman-1-dev \
-        zlib1g-dev \
+        binutils-riscv64-linux-gnu \
+        qemu-user \
         && \
     rm -rf /var/lib/apt/lists/*
-
-# build xuintie qemu emulator only
-ARG XUANTIE_VERSION="V2.8.1"
-ARG XUANTIE_REPO="https://github.com/XUANTIE-RV/xuantie-gnu-toolchain"
-ARG XUINTIE_PATH="/opt/riscv"
-ARG XUINTIE_TMP_PATH="/tmp/xuantie"
-ARG XUINTIE_SRC="/tmp/xuantie/src"
-    
-RUN mkdir -p ${XUINTIE_TMP_PATH} && cd ${XUINTIE_TMP_PATH} && \
-    git clone --branch ${XUANTIE_VERSION} --depth 1 ${XUANTIE_REPO} ${XUINTIE_SRC} && \
-    cd ${XUINTIE_SRC} && git submodule update --init -- qemu && \
-    cd ${XUINTIE_SRC}/qemu && ./configure --prefix=${XUINTIE_PATH} --interp-prefix=/usr/riscv64-linux-gnu --target-list=riscv64-linux-user && \
-    make -j$(nproc) && make install && \
-    rm -rf ${XUINTIE_TMP_PATH}
