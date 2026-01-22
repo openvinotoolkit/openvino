@@ -34,7 +34,6 @@ namespace opp = ov::pass::pattern;
 
 bool DeviceRoutedMoETransform::run_on_model(const std::shared_ptr<ov::Model>& model) {
     LOG_DEBUG("DeviceRoutedMoETransform: Starting transformation");
-    std::cout << "DeviceRoutedMoETransform: Starting transformation" << std::endl;
 
     bool model_changed = false;
 
@@ -109,7 +108,6 @@ bool DeviceRoutedMoETransform::run_on_model(const std::shared_ptr<ov::Model>& mo
             auto consumer = target.get_node()->shared_from_this();
             if (auto softmax = std::dynamic_pointer_cast<ov::op::v8::Softmax>(consumer)) {
                 topk_softmax = softmax;
-                std::cout << "  Found TopK Softmax: " << softmax->get_friendly_name() << std::endl;
                 break;
             }
         }
@@ -118,8 +116,6 @@ bool DeviceRoutedMoETransform::run_on_model(const std::shared_ptr<ov::Model>& mo
         // =====================================================================
         // PHASE 1: COLLECT all nodes for this layer
         // =====================================================================
-        std::cout << "  Phase 1: Collecting nodes for layer " << layer_id << std::endl;
-
         std::vector<std::shared_ptr<ov::op::v0::Tile>> tiles_to_transform;
         std::vector<std::shared_ptr<ov::op::v1::Reshape>> reshapes_to_transform;
         std::vector<std::shared_ptr<ov::op::v1::Reshape>> concat_reshapes_to_transform;
@@ -151,11 +147,9 @@ bool DeviceRoutedMoETransform::run_on_model(const std::shared_ptr<ov::Model>& mo
 
             if (num_experts == 0) {
                 num_experts = static_cast<size_t>(repeats_data[0]);
-                std::cout << "    Detected num_experts: " << num_experts << std::endl;
             }
 
             tiles_to_transform.push_back(tile);
-            std::cout << "    Collected Tile: " << node_name << std::endl;
         }
 
         // Collect Reshapes (only Constant shapes)
@@ -183,7 +177,6 @@ bool DeviceRoutedMoETransform::run_on_model(const std::shared_ptr<ov::Model>& mo
                 //   - Ensure first dimension is num_experts
                 //   - Validate which dimension is being inserted (should be dim 1)
                 concat_reshapes_to_transform.push_back(reshape);
-                std::cout << "    Collected Reshape (Concat-based): " << node_name << std::endl;
                 continue;
             }
 
@@ -199,7 +192,6 @@ bool DeviceRoutedMoETransform::run_on_model(const std::shared_ptr<ov::Model>& mo
 
             if (has_expert_dim) {
                 reshapes_to_transform.push_back(reshape);
-                std::cout << "    Collected Reshape: " << node_name << std::endl;
             }
         }
 
@@ -226,7 +218,6 @@ bool DeviceRoutedMoETransform::run_on_model(const std::shared_ptr<ov::Model>& mo
                         auto shape = const_node->get_shape();
                         if (num_experts > 0 && shape.size() >= 2 && shape[0] == num_experts) {
                             matmuls_to_transform.push_back(matmul);
-                            std::cout << "    Collected MatMul: " << node_name << std::endl;
                             break;
                         }
                     }
@@ -263,7 +254,6 @@ bool DeviceRoutedMoETransform::run_on_model(const std::shared_ptr<ov::Model>& mo
 
             if (has_expert_bias) {
                 adds_to_transform.push_back(add);
-                std::cout << "    Collected Add: " << node_name << std::endl;
             }
         }
 
@@ -285,40 +275,28 @@ bool DeviceRoutedMoETransform::run_on_model(const std::shared_ptr<ov::Model>& mo
             if (std::dynamic_pointer_cast<ov::op::v3::ScatterElementsUpdate>(input_node) ||
                 std::dynamic_pointer_cast<ov::op::v12::ScatterElementsUpdate>(input_node)) {
                 transpose_to_transform = transpose;
-                std::cout << "    Collected Transpose: " << node_name << std::endl;
                 break;
             }
         }
 
         // Check collection results
-        std::cout << "  Collection summary: Tiles=" << tiles_to_transform.size()
-                  << " Reshapes=" << reshapes_to_transform.size()
-                  << " ConcatReshapes=" << concat_reshapes_to_transform.size()
-                  << " MatMuls=" << matmuls_to_transform.size() << " Adds=" << adds_to_transform.size()
-                  << " Transpose=" << (transpose_to_transform ? 1 : 0) << std::endl;
-
         if (reshapes_to_transform.empty() && concat_reshapes_to_transform.empty()) {
             LOG_WARN("  Skipping layer " << layer_id << ": No Reshape nodes");
-            std::cout << "  [SKIP] No valid Reshape nodes for " << layer_id << std::endl;
             continue;
         }
 
         if (matmuls_to_transform.empty() && adds_to_transform.empty()) {
             LOG_WARN("  Skipping layer " << layer_id << ": No MatMul/Add nodes");
-            std::cout << "  [SKIP] No MatMul/Add nodes for " << layer_id << std::endl;
             continue;
         }
 
         // =====================================================================
         // PHASE 2: TRANSFORM all collected nodes
         // =====================================================================
-        std::cout << "  Phase 2: Transforming nodes for " << layer_id << std::endl;
-
         // Create reshaped TopK indices [1, K] -> [K] (only now after validation passed)
         auto new_shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {k_value});
         auto topk_indices = std::make_shared<ov::op::v1::Reshape>(topk_indices_raw, new_shape, false);
         topk_indices->set_friendly_name(topk_name + "/indices_reshaped");
-        std::cout << "    Created TopK indices reshape: " << topk_indices->get_friendly_name() << std::endl;
 
         // Transform Tiles
         for (auto& tile : tiles_to_transform) {
@@ -333,7 +311,6 @@ bool DeviceRoutedMoETransform::run_on_model(const std::shared_ptr<ov::Model>& mo
 
             tile->input(1).replace_source_output(new_repeats);
             ov::copy_runtime_info(repeats_const, new_repeats);
-            std::cout << "    Transformed Tile: " << tile->get_friendly_name() << std::endl;
         }
 
         // Transform Reshapes (Constant-based)
@@ -354,7 +331,6 @@ bool DeviceRoutedMoETransform::run_on_model(const std::shared_ptr<ov::Model>& mo
 
             reshape->input(1).replace_source_output(new_shape);
             ov::copy_runtime_info(shape_const, new_shape);
-            std::cout << "    Transformed Reshape (Constant): " << reshape->get_friendly_name() << std::endl;
         }
 
         // Transform Reshapes (Concat-based) - replace with Unsqueeze on dim 1
@@ -374,8 +350,6 @@ bool DeviceRoutedMoETransform::run_on_model(const std::shared_ptr<ov::Model>& mo
 
             ov::replace_node(reshape, unsqueeze);
             ov::copy_runtime_info(reshape, unsqueeze);
-            std::cout << "    Transformed Reshape (Concat->Unsqueeze@dim1): " << reshape->get_friendly_name()
-                      << std::endl;
         }
 
         // Transform MatMuls
@@ -411,21 +385,14 @@ bool DeviceRoutedMoETransform::run_on_model(const std::shared_ptr<ov::Model>& mo
                                 new_convert->set_friendly_name(convert->get_friendly_name() + "/regathered");
                                 multiply->input(i).replace_source_output(new_convert);
                                 ov::copy_runtime_info({mul_source_node, convert}, {gathered, new_convert});
-                                std::cout << "      Gathered Multiply input[" << i
-                                          << "]: " << mul_source_node->get_friendly_name() << " -> Convert"
-                                          << std::endl;
                             } else {
                                 // No Convert, directly connect Gather to Multiply
                                 multiply->input(i).replace_source_output(gathered);
                                 ov::copy_runtime_info(mul_source_node, gathered);
-                                std::cout << "      Gathered Multiply input[" << i
-                                          << "]: " << mul_source_node->get_friendly_name() << std::endl;
                             }
                         }
                     }
                 }
-                std::cout << "    Transformed MatMul (Gather on Multiply inputs): " << matmul->get_friendly_name()
-                          << std::endl;
             } else {
                 // Direct weight without Multiply - insert Gather as before
                 auto gather_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
@@ -434,7 +401,6 @@ bool DeviceRoutedMoETransform::run_on_model(const std::shared_ptr<ov::Model>& mo
 
                 matmul->input(1).replace_source_output(gathered);
                 ov::copy_runtime_info(weight_input.get_node_shared_ptr(), gathered);
-                std::cout << "    Transformed MatMul (direct Gather): " << matmul->get_friendly_name() << std::endl;
             }
         }
 
@@ -454,7 +420,6 @@ bool DeviceRoutedMoETransform::run_on_model(const std::shared_ptr<ov::Model>& mo
 
                         add->input(input_idx).replace_source_output(gathered);
                         ov::copy_runtime_info(bias_input.get_node_shared_ptr(), gathered);
-                        std::cout << "    Transformed Add: " << add->get_friendly_name() << std::endl;
                         break;
                     }
                 }
@@ -468,7 +433,6 @@ bool DeviceRoutedMoETransform::run_on_model(const std::shared_ptr<ov::Model>& mo
 
             transpose_to_transform->input(0).replace_source_output(topk_softmax_scores);
             ov::copy_runtime_info(input_node, topk_softmax_scores.get_node_shared_ptr());
-            std::cout << "    Transformed Transpose: " << transpose_to_transform->get_friendly_name() << std::endl;
         }
 
         LOG_INFO("DeviceRoutedMoE transformation successful for " << layer_id);

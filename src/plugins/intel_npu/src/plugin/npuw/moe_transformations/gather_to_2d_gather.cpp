@@ -29,7 +29,6 @@ namespace pass {
  */
 bool GatherTo2DGather::run_on_model(const std::shared_ptr<ov::Model>& model) {
     LOG_DEBUG("GatherTo2DGather: Starting transformation");
-    std::cout << "GatherTo2DGather: Starting transformation" << std::endl;
 
     bool model_changed = false;
     std::vector<std::shared_ptr<ov::op::v8::Gather>> gathers_to_transform;
@@ -69,8 +68,6 @@ bool GatherTo2DGather::run_on_model(const std::shared_ptr<ov::Model>& model) {
         int64_t M = data_shape[1].get_length();
         int64_t K = data_shape[2].get_length();
         if (M == 1 || K == 1) {
-            std::cout << "  Skipping Gather with shape [_, " << M << ", " << K
-                      << "]: transformation not needed for trivial dimensions" << std::endl;
             continue;
         }
 
@@ -83,8 +80,6 @@ bool GatherTo2DGather::run_on_model(const std::shared_ptr<ov::Model>& model) {
             continue;
         }
 
-        std::cout << "  Found Gather to transform: " << gather->get_friendly_name() << " data=" << data_shape
-                  << " indices=" << indices_shape << std::endl;
         gathers_to_transform.push_back(gather);
     }
 
@@ -170,9 +165,6 @@ bool GatherTo2DGather::run_on_model(const std::shared_ptr<ov::Model>& model) {
                                flat_weights,
                                gathered_flat,
                                final_output});
-
-        std::cout << "  Transformed Gather: " << gather_name << " [" << N << "," << M << "," << K << "] with indices["
-                  << I << "]" << std::endl;
         model_changed = true;
     }
 
