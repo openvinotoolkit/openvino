@@ -65,6 +65,7 @@ OP_CONVERTER(translate_cdist);
 OP_CONVERTER(translate_celu);
 OP_CONVERTER(translate_channel_shuffle);
 OP_CONVERTER(translate_clamp);
+OP_CONVERTER(translate_ravel);
 OP_CONVERTER(translate_col2im);
 OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_conv_transposend);
@@ -674,6 +675,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::randint", op::translate_randint},
         {"aten::randn", op::translate_randn},
         {"aten::randn_like", op::translate_randn_like},
+        {"aten::ravel", op::translate_ravel},
         {"aten::real", common_translators::translate_real},
         {"aten::reciprocal", op::optional_out<op::translate_reciprocal, 1>},
         {"aten::reciprocal_", op::inplace_op<op::translate_reciprocal>},
