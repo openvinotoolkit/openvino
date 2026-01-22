@@ -1167,10 +1167,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
     if (device_info.arch >= gpu_arch::xe_hpc) {
         jit.make("PREFETCH_MASK", 1);
-        const int prefetch_enable = (config.is_paged_attention && !m_is_prefill) ? 0 : 1;
-        jit.make("PREFETCH_K0", prefetch_enable);
-        jit.make("PREFETCH_K", prefetch_enable);
-        jit.make("PREFETCH_V", prefetch_enable);
+        jit.make("PREFETCH_K0", (config.is_paged_attention && !m_is_prefill) ? 0 : 1);
+        jit.make("PREFETCH_K", (config.is_paged_attention && !m_is_prefill) ? 0 : 1);
+        jit.make("PREFETCH_V", (config.is_paged_attention && !m_is_prefill) ? 0 : 1);
         bool no_rem = d_full && v_full && k_full;
         jit.make("PREFETCH_REMAINDER", !no_rem);
         jit.make("PREFETCH_D_MAX", std::min<int64_t>(d_max, 64));
@@ -1475,62 +1474,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         break;
     }
 
-    auto estimate_slm_bytes = [&](const sdpa_config_t* cfg) -> size_t {
-        if (cfg == nullptr)
-            return std::numeric_limits<size_t>::max();
-
-        constexpr size_t kHalfBytes = 2;
-        const size_t wg_tile_n = static_cast<size_t>(cfg->unroll_n_kq) * static_cast<size_t>(cfg->wg_n_kq);
-        const size_t wg_tile_m = static_cast<size_t>(cfg->unroll_m_kq) * static_cast<size_t>(cfg->wg_m_kq);
-        const size_t sg_per_wg_m = static_cast<size_t>(cfg->wg_m_kq);
-
-        const size_t q_slm = d_max * wg_tile_n * kHalfBytes;
-        const size_t s_slm = wg_tile_m * wg_tile_n * kHalfBytes;
-        const size_t s_sum_slm = wg_tile_n * sg_per_wg_m * sizeof(float);
-        const size_t s_max_slm = wg_tile_n * sizeof(float);
-
-        return q_slm + s_slm + s_sum_slm + s_max_slm;
-    };
-
-    auto slm_fits = [&](const sdpa_config_t* cfg) -> bool {
-        const auto slm_bytes = estimate_slm_bytes(cfg);
-        return slm_bytes <= static_cast<size_t>(device_info.max_local_mem_size);
-    };
-
-    std::vector<sdpa_config_t*> candidates;
-    if (config)
-        candidates.push_back(config);
-
-    if (k_head_size > 256) {
-        if ((device_info.arch == gpu_arch::xe_hpc || device_info.arch == gpu_arch::xe2 || device_info.arch == gpu_arch::xe3) &&
-            !is_paged_attention && !thin_q) {
-            if (is_quantized) {
-                if (is_integrated) {
-                    candidates.push_back(&xehpc_q_h512_integrated);
-                } else {
-                    candidates.push_back(&xehpc_q_h512_s128);
-                }
-            } else {
-                if (is_integrated) {
-                    candidates.push_back(&xehpc_h512_integrated);
-                } else {
-                    candidates.push_back(&xehpc_h512_s64);
-                }
-            }
-        }
-    }
-
-    config = nullptr;
-    for (auto* candidate : candidates) {
-        if (slm_fits(candidate)) {
-            config = candidate;
-            break;
-        }
-    }
-
     OPENVINO_ASSERT(config != nullptr);
-
-    // D-tiling disabled: keep original microkernel path
 
     /* Get device information */
     micro::HWInformation hw_info;
