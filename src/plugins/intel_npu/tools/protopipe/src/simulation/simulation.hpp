@@ -42,8 +42,6 @@ public:
     virtual std::shared_ptr<PipelinedCompiled> compilePipelined(const bool drop_frames);
     virtual std::shared_ptr<SyncCompiled> compileSync(const bool drop_frames);
 
-
-
     virtual ~Simulation() = default;
 
 protected:

@@ -7,7 +7,7 @@
 
 #include <cstdint>
 #include <memory>
-#include "parser/parser.hpp"
+
 #include "simulation/workload_type.hpp"
 struct ITermCriterion {
     using Ptr = std::shared_ptr<ITermCriterion>;

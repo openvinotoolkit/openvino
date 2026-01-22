@@ -13,7 +13,6 @@
 #include "parser/parser.hpp"
 #include "simulation/performance_mode.hpp"
 #include "simulation/reference_mode.hpp"
-#include "simulation/simulation.hpp"
 #include "simulation/validation_mode.hpp"
 #include "simulation/accuracy_mode.hpp"
 #include "simulation/workload_type.hpp"
