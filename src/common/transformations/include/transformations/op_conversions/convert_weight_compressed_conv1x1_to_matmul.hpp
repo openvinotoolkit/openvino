@@ -11,7 +11,6 @@ namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertWeightCompressedConv1x1ToMatmul;
-class TRANSFORMATIONS_API ConvertWeightCompressedConv1x1ToMatmul_ActNotTran;
 
 }  // namespace pass
 }  // namespace ov
@@ -44,11 +43,11 @@ class TRANSFORMATIONS_API ConvertWeightCompressedConv1x1ToMatmul_ActNotTran;
  *     | Reshape     |           | Multiply |<--------------+
  *     +-------------+           +----------+
  *           |                        |
- *           |                  *-----------+
- *           |                  | Reshape   | (optional)
- *           |                  +-----------+
- *           |                        |
- *           |                        v
+ *           v                  *-----------+
+ *     +-------------+          | Reshape   | (optional)
+ *     | FakeQuantize|          +-----------+
+ *     +-------------+                |
+ *           | (optional)             v
  *           |                  +-----------+
  *           +----------------->|Convolution|
  *                              |  (1x1)    |
@@ -58,6 +57,11 @@ class TRANSFORMATIONS_API ConvertWeightCompressedConv1x1ToMatmul_ActNotTran;
  *                               +----------+
  *                               |Add (Bias)| (optional)
  *                               +----------+
+ *                                    |
+ *                                    v
+ *                             +-------------+
+ *                             | FakeQuantize| (optional)
+ *                             +-------------+
  *                                    |
  *                                    v
  *                              +-----------+
@@ -97,11 +101,11 @@ class TRANSFORMATIONS_API ConvertWeightCompressedConv1x1ToMatmul_ActNotTran;
  *           |              | Multiply |<--------------+
  *           |              +----------+
  *           |                   |
- *           |                   v
- *           |              *----------+
- *           |              | Reshape  | (optional)
- *           |              +----------+
- *           |                   |
+ *           v                   v
+ *     +-------------+      *----------+
+ *     | FakeQuantize|      | Reshape  | (optional)
+ *     +-------------+      +----------+
+ *           | (optional)        |
  *           |                   v
  *           |               +--------+
  *           +-------------> | MatMul |
@@ -111,6 +115,11 @@ class TRANSFORMATIONS_API ConvertWeightCompressedConv1x1ToMatmul_ActNotTran;
  *                          +----------+
  *                          |Add (Bias)| (optional)
  *                          +----------+
+ *                               |
+ *                               v
+ *                        +-------------+
+ *                        | FakeQuantize| (optional)
+ *                        +-------------+
  *                                |
  *                                v
  *                          +-----------+
@@ -127,112 +136,4 @@ class ov::pass::ConvertWeightCompressedConv1x1ToMatmul : public ov::pass::Matche
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertWeightCompressedConv1x1ToMatmul");
     ConvertWeightCompressedConv1x1ToMatmul();
-};
-
-/**
- * @ingroup ov_transformation_common_api
- * @brief ConvertWeightCompressedConv1x1ToMatmul_ActNotTran transformation matches a weight-compressed
- *        Convolution with a 1x1 kernel and replaces it with a MatMul operation. The activation input of convolution is
- *        not transposed.
- *
- * The transformation identifies the following pattern:
- *
- *                       +---------+    +-----------+    +------+  last two dims are 1
- *                       | Weights |    | ZeroPoint |    |Scale |
- *                       | (5D)    |    | (5D)      |    | (5D) |  5D or 4D with below ops
- *                       +---------+    +-----------+    +------+        reshape(W), unsqueeze(ZP), unsqueeze(Scale)
- *                             |              |             |            to 5D
- *                             v              v             v
- *                        +-------+      +---------+      +---------+
- *                        |reshape|(opt) |unsqueeze|(opt) |unsqueeze|(opt)
- *                        | 4->5D |      | 4->5D   |      | 4->5D   |
- *                        +-------+      +---------+      +---------+
- *                             |             |              |
- *                             v             v              |
- *                         +-------+      +-------+         |
- *                         |Convert|      |Convert|         |
- *                         +-------+      +-------+         |
- *                              |             |             |
- *                              +-----+  +----+             |
- *                                    |  |                  |
- *     +------------+                 v  v                  |
- *     | Activation |             +--------+                |
- *     +------------+             |Subtract| (optional)     |
- *           |                    +--------+                |
- *           |                        |                     |
- *           |                        v                     |
- *           |                   +----------+               |
- *           |                   | Multiply |<--------------+
- *           |                   +----------+
- *           |                        |
- *           |                        v
- *           |                  +-----------+
- *           |                  |  Reshape  | To shape contains 4 dims, last two are 1
- *           |                  +-----------+
- *           |                        |
- *           |                        v
- *           +----------------->|Convolution|
- *                              |  (1x1)    |
- *                              +-----------+
- *                                    |
- *                                    v
- *                               +----------+
- *                               |Add (Bias)|
- *                               +----------+
- *
- * and replaces it with:
- *
- *                       +---------+    +-----------+    +------+  Removed last two dims of 1
- *                       | Weights |    | ZeroPoint |    |Scale |
- *                       | (3D)    |    | (3D)      |    | (3D) |  3D or 2D with below ops
- *                       +---------+    +-----------+    +------+        reshape(W), unsqueeze(ZP), unsqueeze(Scale)
- *                            |              |              |            to 3D
- *                            v              v              v
- *                        +-------+      +---------+      +---------+
- *                        |reshape|(opt) |unsqueeze|(opt) |unsqueeze|(opt)
- *                        | 2->3D |      | 2->3D   |      | 2->3D   |
- *                        +-------+      +---------+      +---------+
- *                             |              |             |
- *                             v              v             |
- *                         +-------+      +-------+         |
- *                         |Convert|      |Convert|         |
- *                         +-------+      +-------+         |
- *                              |             |             |
- *                              +-----+  +----+             |
- *                                    |  |                  |
- *     +------------+                 v  v                  |
- *     | Activation |             +--------+                |
- *     +------------+             |Subtract| (optional)     |
- *           |                    +--------+                |
- *           v                        |                     |
- *     +-----------+                  v                     |
- *     | Transpose |             +----------+               |
- *     +-----------+             | Multiply |<--------------+
- *           |                   +----------+
- *           |                        |
- *           |                        v
- *           |                  +-----------+
- *           |                  |  Reshape  | To shape contains 2 dims, removed last two dims of 1
- *           |                  +-----------+
- *           |                        |
- *           |                        v
- *           |                  +-----------+
- *           +----------------->|  MatMul   |
- *                              +-----------+
- *                                    |
- *                                    v
- *                               +----------+
- *                               |Add (Bias)|
- *                               +----------+
- *                                    |
- *                                    v
- *                              +-----------+
- *                              | Transpose |
- *                              +-----------+
- */
-class ov::pass::ConvertWeightCompressedConv1x1ToMatmul_ActNotTran : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("ConvertWeightCompressedConv1x1ToMatmul_ActNotTran");
-    explicit ConvertWeightCompressedConv1x1ToMatmul_ActNotTran(const element::TypeVector& supported_precisions,
-                                                               const element::TypeVector& unsupported_precisions);
 };
