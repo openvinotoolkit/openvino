@@ -499,6 +499,11 @@ TEST(PropertiesValidation, HintNumRequestsRejectsNegativeSigned) {
     EXPECT_THROW((void)ov::hint::num_requests(-1), ov::Exception);
 }
 
+TEST(PropertiesValidation, HintNumRequestsRejectsNegativeString) {
+    EXPECT_THROW((void)ov::hint::num_requests("-1"), ov::Exception);
+    EXPECT_THROW((void)ov::hint::num_requests(std::string{"-1"}), ov::Exception);
+}
+
 TEST(PropertiesValidation, HintNumRequestsAcceptsUnsigned) {
     auto kv = ov::hint::num_requests(uint32_t{4});
     EXPECT_EQ(kv.first, ov::hint::num_requests.name());
@@ -521,6 +526,25 @@ TEST(PropertiesValidation, CoreSetPropertyRejectsNegativeNumRequests) {
     }
 
     EXPECT_THROW(core.set_property(device, ov::hint::num_requests(-1)), ov::Exception);
+}
+
+TEST(PropertiesValidation, CoreSetPropertyRejectsNegativeNumRequestsString) {
+    ov::Core core;
+    std::string device = "CPU";
+
+    try {
+        (void)core.get_property(device, ov::available_devices);
+    } catch (...) {
+        device = "GPU";
+        try {
+            (void)core.get_property(device, ov::available_devices);
+        } catch (...) {
+            GTEST_SKIP() << "No suitable device (CPU/GPU) available in this test environment";
+        }
+    }
+
+    EXPECT_THROW(core.set_property(device, ov::hint::num_requests("-1")), ov::Exception);
+    EXPECT_THROW(core.set_property(device, ov::hint::num_requests(std::string{"-1"})), ov::Exception);
 }
 
 }  // namespace ov::test
