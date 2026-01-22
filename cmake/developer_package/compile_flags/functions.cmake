@@ -138,6 +138,51 @@ macro(ov_check_compiler_supports_sve flags)
 endmacro()
 
 #
+# ov_check_compiler_supports_sve2(flags)
+#
+# Checks whether CXX compiler for passed language supports SVE2 code compilation
+#
+macro(ov_check_compiler_supports_sve2 flags)
+    # Code to compile
+    set(SVE2_CODE "
+    #include <arm_sve.h>
+    int main() {
+        svint32_t a = svdup_s32(0);
+        svint16_t b = svqxtnt_s32(svqxtnb_s32(a), a);
+        (void)b;
+        return 0;
+    }")
+
+    # Save the current state of required flags
+    set(CMAKE_REQUIRED_FLAGS_SAVE ${CMAKE_REQUIRED_FLAGS})
+
+    # Set the flags necessary for compiling the test code with SVE2 support
+    set(CMAKE_REQUIRED_FLAGS "${CMAKE_CXX_FLAGS_INIT} ${flags}")
+
+    # Check if the source code compiles with the given flags for C++
+    CHECK_CXX_SOURCE_COMPILES("${SVE2_CODE}" CXX_HAS_SVE2)
+
+    # If the compilation test is successful, set appropriate variables indicating support
+    if(CXX_HAS_SVE2)
+        set(CXX_SVE2_FOUND ON CACHE BOOL "SVE2 available on host")
+        set(CXX_SVE2_FOUND ON CACHE BOOL "CXX SVE2 support")
+        set(CXX_SVE2_FLAGS "${flags}" CACHE STRING "CXX SVE2 flags")
+    endif()
+
+    # Restore the original state of required flags
+    set(CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS_SAVE})
+
+    # If the compilation test fails, indicate that the support is not found
+    if(NOT CXX_SVE2_FOUND)
+        set(CXX_SVE2_FOUND OFF CACHE BOOL "CXX SVE2 support")
+        set(CXX_SVE2_FLAGS "" CACHE STRING "CXX SVE2 flags")
+    endif()
+
+    # Mark the variables as advanced to hide them in the default CMake GUI
+    mark_as_advanced(CXX_SVE2_FOUND CXX_SVE2_FLAGS)
+endmacro()
+
+#
 # ov_sse42_optimization_flags(<output flags>)
 #
 # Provides SSE4.2 compilation flags depending on an OS and a compiler
@@ -313,6 +358,50 @@ macro(ov_arm_sve_optimization_flags flags)
             message(WARNING "SVE is not supported on 32-bit ARM architectures.")
         else()
             message(WARNING "SVE is not supported by architecture ${CMAKE_SYSTEM_PROCESSOR}")
+        endif()
+    endif()
+endmacro()
+
+#
+# ov_arm_sve2_optimization_flags(<output flags>)
+#
+macro(ov_arm_sve2_optimization_flags flags)
+    if(NOT ENABLE_SVE2)
+        message(FATAL_ERROR "Internal error: ENABLE_SVE2 if OFF and 'ov_arm_sve2_optimization_flags' must not be called")
+    endif()
+
+    # Check for compiler SVE2 support
+    ov_check_compiler_supports_sve2("-march=armv8.2-a+sve2+fp16")
+    if(OV_COMPILER_IS_INTEL_LLVM)
+        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        # nothing should be required here
+    elseif(ANDROID)
+        if(ANDROID_ABI STREQUAL "arm64-v8a")
+            set(${flags} -Wno-unused-command-line-argument)
+            if(CXX_SVE2_FOUND)
+                list(APPEND ${flags} -march=armv8.2-a+sve2+fp16)
+            else()
+                message(WARNING "SVE2 is not supported on this Android ABI: ${ANDROID_ABI}")
+            endif()
+        else()
+            message(WARNING "SVE2 is not supported on this Android ABI: ${ANDROID_ABI}")
+        endif()
+    else()
+        if(AARCH64)
+            # Add flag for SVE2 if supported
+            if(CXX_SVE2_FOUND)
+                list(APPEND ${flags} -march=armv8.2-a+sve2+fp16)
+            endif()
+            if(NOT CMAKE_CL_64)
+                list(APPEND ${flags} -ftree-vectorize)
+            endif()
+
+            set(${flags} ${${flags}})
+        elseif(ARM)
+            message(WARNING "SVE2 is not supported on 32-bit ARM architectures.")
+        else()
+            message(WARNING "SVE2 is not supported by architecture ${CMAKE_SYSTEM_PROCESSOR}")
         endif()
     endif()
 endmacro()
