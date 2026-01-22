@@ -6,7 +6,7 @@ numpy==1.26.4; python_version < "3.12" or platform_system == "Darwin" and platfo
 numpy==2.2.6; python_version >= "3.12" and (platform_system != "Darwin" or platform_machine != "x86_64")
 pytest==7.2.0
 pytest-xdist[psutil]==3.6.1
-pytest-html==4.1.1
+pytest-html==4.2.0
 transformers==4.45.1
 # install exact keras version since tensorflow depends and has no upper bound for it
 keras==3.13.0; python_version >= "3.13"
