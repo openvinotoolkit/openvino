@@ -29,6 +29,12 @@ struct SoPtr {
      */
     SoPtr() = default;
 
+    SoPtr(const SoPtr&) = default;
+    SoPtr(SoPtr&&) noexcept = default;
+
+    SoPtr& operator=(const SoPtr&) = default;
+    SoPtr& operator=(SoPtr&&) noexcept = default;
+
     /**
      * @brief Destructor preserves unloading order of implementation object and reference to library
      */
