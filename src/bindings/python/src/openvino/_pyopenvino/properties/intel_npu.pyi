@@ -5,7 +5,7 @@ import typing
 """
 openvino.properties.intel_npu submodule that simulates ov::intel_npu
 """
-__all__: list[str] = ['bypass_umd_caching', 'compilation_mode_params', 'compiler_dynamic_quantization', 'compiler_version', 'defer_weights_load', 'device_alloc_mem_size', 'device_total_mem_size', 'driver_version', 'max_tiles', 'qdq_optimization', 'qdq_optimization_aggressive', 'run_inferences_sequentially', 'tiles', 'turbo']
+__all__: list[str] = ['bypass_umd_caching', 'compilation_mode_params', 'compiler_dynamic_quantization', 'compiler_version', 'defer_weights_load', 'device_alloc_mem_size', 'device_total_mem_size', 'disable_idle_memory_prunning', 'driver_version', 'max_tiles', 'qdq_optimization', 'qdq_optimization_aggressive', 'run_inferences_sequentially', 'tiles', 'turbo']
 @typing.overload
 def bypass_umd_caching() -> str:
     ...
@@ -35,6 +35,12 @@ def defer_weights_load(arg0: bool) -> tuple[str, openvino._pyopenvino.OVAny]:
 def device_alloc_mem_size() -> str:
     ...
 def device_total_mem_size() -> str:
+    ...
+@typing.overload
+def disable_idle_memory_prunning() -> str:
+    ...
+@typing.overload
+def disable_idle_memory_prunning(arg0: bool) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
 def driver_version() -> str:
     ...

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
@@ -75,6 +75,7 @@ public:
      * @return JavaScript undefined on success, or throws a JS exception on error.
      */
     Napi::Value set_shape(const Napi::CallbackInfo& info);
+    void copy_to(const Napi::CallbackInfo& info);
 
     /**
      * @brief Returns a pointer to the underlying ov::Tensor object for cross-addon interoperability.

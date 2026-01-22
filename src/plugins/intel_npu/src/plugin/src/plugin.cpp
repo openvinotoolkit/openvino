@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -134,13 +134,9 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     return result;
 }
 
-void update_log_level(const std::map<std::string, std::string>& propertiesMap) {
-    auto it = propertiesMap.find(std::string(LOG_LEVEL::key()));
-    if (it != propertiesMap.end()) {
-        std::istringstream is(it->second);
-        ov::log::Level level;
-        is >> level;
-        Logger::global().setLevel(level);
+void update_log_level(const ov::AnyMap& properties) {
+    if (properties.count(ov::log::level.name()) != 0) {
+        Logger::global().setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());
     }
 }
 
@@ -324,13 +320,45 @@ void Plugin::init_options() {
     REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
     REGISTER_OPTION(USE_BASE_MODEL_SERIALIZER);
     REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
+    REGISTER_OPTION(ENABLE_STRIDES_FOR);
 
     if (_backend) {
         if (_backend->isCommandQueueExtSupported()) {
             REGISTER_OPTION(WORKLOAD_TYPE);
         }
+        if (_backend->isContextExtSupported()) {
+            REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
+        }
         // register backend options
         _backend->registerOptions(*_options);
+    }
+
+    // Compiler library is present, need to check if the current platform is supported
+    if (_backend) {
+        // Try to set PLUGIN as default compiler type if:
+        // 1. Compiler library is present
+        // 2. The current platform is supported by the compiler (plugin)
+        auto platformName = _backend->getDevice()->getName();
+        if (platformName == ov::intel_npu::Platform::NPU4000 || platformName == ov::intel_npu::Platform::NPU5010) {
+            try {
+                CompilerAdapterFactory compilerAdapterFactory;
+                // This is expected to throw in case the compiler library is not available
+                (void)compilerAdapterFactory.getCompiler(_backend, ov::intel_npu::CompilerType::PLUGIN);
+
+                _globalConfig.enable("NPU_COMPILER_TYPE", true);
+                _globalConfig.update({{ov::intel_npu::compiler_type.name(), "PLUGIN"}});
+                _logger.info("Use PLUGIN as default compiler");
+            } catch (...) {
+                _logger.warning("Failed to set PLUGIN as default compiler type. Compiler library is not available");
+            }
+        } else {
+            _logger.info("Use DRIVER as default compiler type for the %s platform", platformName.c_str());
+        }
+    } else {
+        // No device is available, only PLUGIN compiler type can be used for offline compilation
+        _globalConfig.enable("NPU_COMPILER_TYPE", true);
+        _globalConfig.update({{ov::intel_npu::compiler_type.name(), "PLUGIN"}});
+        _logger.info("Use PLUGIN as default compiler. Offline compilation");
     }
 
     // parse again env_variables to update registered configs which have env vars set
@@ -385,6 +413,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS);
     REGISTER_OPTION(NPUW_WHISPER);
     REGISTER_OPTION(NPUW_EAGLE);
+    REGISTER_OPTION(NPUW_TEXT_EMBED);
     REGISTER_OPTION(NPUW_LLM_PREFILL_HINT);
     REGISTER_OPTION(NPUW_LLM_PREFILL_CONFIG);
     REGISTER_OPTION(NPUW_LLM_ADDITIONAL_PREFILL_CONFIG);
@@ -395,6 +424,9 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_LLM_GENERATE_ATTENTION_HINT);
     REGISTER_OPTION(NPUW_LLM_SHARED_LM_HEAD_CONFIG);
     REGISTER_OPTION(NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG);
+    REGISTER_OPTION(NPUW_KOKORO);
+    REGISTER_OPTION(NPUW_KOKORO_BLOCK_SIZE);
+    REGISTER_OPTION(NPUW_KOKORO_OVERLAP_SIZE);
 
     _globalConfig.enableRuntimeOptions();
 
@@ -503,10 +535,15 @@ void Plugin::filter_global_config_safe(const std::optional<ov::intel_npu::Compil
     }
 }
 
-FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string>& rawConfig,
+FilteredConfig Plugin::fork_local_config(const ov::AnyMap& properties,
                                          const std::unique_ptr<ICompilerAdapter>& compiler,
                                          OptionMode mode) const {
-    update_log_level(rawConfig);
+    update_log_level(properties);
+
+    if (_backend != nullptr) {
+        _backend->updateInfo(properties);
+    }
+
     // create a copy of the global config
     std::unique_ptr<FilteredConfig>
         localConfigPtr;  // no default constructor from FilteredConfig, needed to switch to ptr
@@ -515,6 +552,8 @@ FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string
         localConfigPtr = std::make_unique<FilteredConfig>(_globalConfig);
     }
     bool compiler_changed = false;
+
+    const std::map<std::string, std::string> rawConfig = any_copy(properties);
 
     // Check if compiler was changed
     // 1. Check for compiler change
@@ -601,12 +640,12 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 
     // 4. Extra hooks
     // Update log level if it was provided
-    if (properties.count(std::string(LOG_LEVEL::key())) != 0) {
+    if (properties.count(ov::log::level.name()) != 0) {
         Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
     }
     // Init backends if needed
     if (_backend != nullptr) {
-        _backend->updateInfo(_globalConfig);
+        _backend->updateInfo(properties);
     }
 }
 
@@ -664,23 +703,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         localProperties.erase(modelSerializerVersionKey);
     }
 
-    const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
-    update_log_level(localPropertiesMap);
+    update_log_level(localProperties);
 
     // create compiler
     CompilerAdapterFactory compilerAdapterFactory;
     auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
-    auto localConfig = fork_local_config(localPropertiesMap, compiler);
-
-    const auto set_cache_dir = localConfig.get<CACHE_DIR>();
-    if (!set_cache_dir.empty()) {
-        const auto compilerType = localConfig.get<COMPILER_TYPE>();
-        if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
-            OPENVINO_THROW("Option 'CACHE_DIR' is not supported with PLUGIN compiler type");
-        }
-    }
+    auto localConfig = fork_local_config(localProperties, compiler);
 
     const auto platform =
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
@@ -727,6 +757,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         // Process batching
         std::tie(batchedModel, successfullyDebatched) =
             intel_npu::batch_helpers::handlePluginBatching(model, localConfig, updateBatchMode, originalBatch, _logger);
+    }
+
+    if (localConfig.has(ov::intel_npu::enable_strides_for.name())) {
+        if (model->is_dynamic()) {
+            OPENVINO_ASSERT(
+                !intel_npu::batch_helpers::checkModelDynamicDims(model),
+                "Dynamic shape tensors are not supported with the dynamic strides feature (ENABLE_STRIDES_FOR).");
+
+            OPENVINO_ASSERT(successfullyDebatched || !localConfig.isAvailable(ov::intel_npu::batch_mode.name()) ||
+                                localConfig.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER,
+                            "Dynamic batching is not supported with the dynamic strides feature (ENABLE_STRIDES_FOR).");
+        }
     }
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
@@ -905,15 +947,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
                 : _globalConfig.get<IMPORT_RAW_BLOB>();
         std::unique_ptr<MetadataBase> metadata = nullptr;
         size_t blobSize = MetadataBase::getFileSize(stream);
+
         if (!importRawBlob && !skipCompatibility) {
             // Read only metadata from the stream and check if blob is compatible. Load blob into memory only in case it
             // passes compatibility checks.
             metadata = read_metadata_from(stream);
-            if (!metadata->is_compatible()) {
-                OPENVINO_THROW("Incompatible blob version!");
-            }
             blobSize = metadata->get_blob_size();
+        } else {
+            _logger.info("Blob compatibility check skipped.");
         }
+
         ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
         ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
         if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
@@ -965,12 +1008,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
                 : _globalConfig.get<IMPORT_RAW_BLOB>();
         std::unique_ptr<MetadataBase> metadata = nullptr;
         size_t blobSize = compiled_blob.get_byte_size();
+
         if (!importRawBlob && !skipCompatibility) {
             metadata = read_metadata_from(compiled_blob);
-            if (!metadata->is_compatible()) {
-                OPENVINO_THROW("Incompatible blob version!");
-            }
             blobSize = metadata->get_blob_size();
+        } else {
+            _logger.info("Blob compatibility check skipped.");
         }
         const ov::Tensor roiTensor(compiled_blob,
                                    ov::Coordinate{0},
@@ -1017,11 +1060,10 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
         npu_plugin_properties.erase(modelSerializerVersionKey);
     }
     exclude_model_ptr_from_map(npu_plugin_properties);
-    const std::map<std::string, std::string> propertiesMap = any_copy(npu_plugin_properties);
-    update_log_level(propertiesMap);
+    update_log_level(npu_plugin_properties);
     auto compiler =
         compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
-    auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::CompileTime);
+    auto localConfig = fork_local_config(npu_plugin_properties, compiler, OptionMode::CompileTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
@@ -1056,7 +1098,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     ov::SupportedOpsMap supportedOpsMap;
     try {
-        supportedOpsMap = compiler->query(model, localConfig);
+        supportedOpsMap = compiler->query(model->clone(), localConfig);
     } catch (const std::runtime_error& e) {
         OPENVINO_THROW(e.what());
     } catch (...) {
@@ -1078,13 +1120,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     auto originalModel = exclude_model_ptr_from_map(npu_plugin_properties);
 
     CompilerAdapterFactory compilerAdapterFactory;
-    const auto propertiesMap = any_copy(npu_plugin_properties);
-    update_log_level(propertiesMap);
+    update_log_level(npu_plugin_properties);
     auto compiler =
         compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
-    auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::RunTime);
+    auto localConfig = fork_local_config(npu_plugin_properties, compiler, OptionMode::RunTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
