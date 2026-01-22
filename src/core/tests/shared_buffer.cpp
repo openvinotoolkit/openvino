@@ -7,6 +7,8 @@
 #include <sstream>
 
 #include "gtest/gtest.h"
+#include "common_test_utils/common_utils.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 using ov::SharedStreamBuffer;
 
@@ -251,4 +253,180 @@ TEST(shared_stream_buffer, negative_offset_from_current) {
     stream.clear();
     stream.seekg(-10, std::ios_base::cur);
     EXPECT_TRUE(stream.fail());
+}
+
+// ==================== SharedBuffer Tests ====================
+
+class SharedBufferTest : public ::testing::Test {
+protected:
+    static constexpr size_t test_data_size = 100;
+    char test_data[test_data_size] = "Test data for SharedBuffer tests";
+
+    std::string m_file_path;
+
+    void SetUp() override {
+        m_file_path = ov::test::utils::generateTestFilePrefix();
+    }
+
+    void TearDown() override {
+        std::remove(m_file_path.c_str());
+    }
+
+    void create_file() {
+        std::ofstream os(m_file_path, std::ios::binary);
+        os.write(test_data, test_data_size);
+        os.close();
+    }
+};
+
+// Test basic SharedBuffer with shared_ptr<void> - no descriptor
+TEST_F(SharedBufferTest, basic_shared_ptr_void_no_descriptor) {
+    auto shared_obj = std::make_shared<int>(42);
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(
+        test_data, test_data_size, shared_obj);
+
+    EXPECT_EQ(buffer->size(), test_data_size);
+    EXPECT_EQ(buffer->get_ptr(), test_data);
+
+    // No descriptor provided, so get_descriptor() should return nullptr
+    EXPECT_EQ(buffer->get_descriptor(), nullptr);
+}
+
+// Test SharedBuffer<MappedMemory> auto-creates descriptor via MMapDescriptor
+TEST_F(SharedBufferTest, mapped_memory_creates_descriptor) {
+    create_file();
+    auto mapped_memory = ov::load_mmap_object(m_file_path);
+
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
+        mapped_memory->data(), mapped_memory->size(), mapped_memory);
+
+    auto desc = buffer->get_descriptor();
+    ASSERT_NE(desc, nullptr);
+    EXPECT_EQ(desc->get_id(), mapped_memory->get_id());
+    EXPECT_NE(desc->get_id(), 0u);
+    EXPECT_EQ(desc->get_offset(), 0u);
+
+    // get_source_buffer should return a buffer backed by the MappedMemory
+    auto source = desc->get_source_buffer();
+    ASSERT_NE(source, nullptr);
+    EXPECT_EQ(source->get_ptr(), mapped_memory->data());
+    EXPECT_EQ(source->size(), mapped_memory->size());
+}
+
+// Test get_descriptor returns nullptr for regular AlignedBuffer
+TEST_F(SharedBufferTest, regular_aligned_buffer_no_descriptor) {
+    ov::AlignedBuffer buffer(100);
+    EXPECT_EQ(buffer.get_descriptor(), nullptr);
+}
+
+// Test SharedBuffer lifetime - shared object should be kept alive
+TEST_F(SharedBufferTest, shared_object_lifetime) {
+    std::weak_ptr<int> weak_obj;
+    {
+        auto shared_obj = std::make_shared<int>(42);
+        weak_obj = shared_obj;
+
+        auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(
+            test_data, test_data_size, shared_obj);
+
+        // shared_obj goes out of scope, but buffer should keep it alive
+        shared_obj.reset();
+        EXPECT_FALSE(weak_obj.expired());
+    }
+    // buffer goes out of scope, now the object should be destroyed
+    EXPECT_TRUE(weak_obj.expired());
+}
+
+// Test AlignedBuffer interface
+TEST_F(SharedBufferTest, aligned_buffer_interface) {
+    auto shared_obj = std::make_shared<int>(42);
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(
+        test_data, test_data_size, shared_obj);
+
+    // Access through AlignedBuffer interface
+    ov::AlignedBuffer* aligned = buffer.get();
+    EXPECT_EQ(aligned->size(), test_data_size);
+    EXPECT_EQ(aligned->get_ptr(), test_data);
+}
+
+// ==================== MappedMemory get_id Tests ====================
+
+TEST(MappedMemory, get_id_unique_per_file) {
+    // Create two temporary files
+    std::string file1 = ov::test::utils::generateTestFilePrefix() + "_file1";
+    std::string file2 = ov::test::utils::generateTestFilePrefix() + "_file2";
+
+    const char test_data[] = "Test data for MappedMemory";
+
+    // Write same data to both files
+    {
+        std::ofstream os1(file1, std::ios::binary);
+        os1.write(test_data, sizeof(test_data));
+        os1.close();
+
+        std::ofstream os2(file2, std::ios::binary);
+        os2.write(test_data, sizeof(test_data));
+        os2.close();
+    }
+
+    // Load both files
+    auto mapped1 = ov::load_mmap_object(file1);
+    auto mapped2 = ov::load_mmap_object(file2);
+
+    ASSERT_NE(mapped1, nullptr);
+    ASSERT_NE(mapped2, nullptr);
+
+    // IDs should be different even though content is the same (ID is hash of file path)
+    EXPECT_NE(mapped1->get_id(), mapped2->get_id());
+
+    // Clean up
+    std::remove(file1.c_str());
+    std::remove(file2.c_str());
+}
+
+TEST(MappedMemory, get_id_same_for_same_file) {
+    std::string file_path = ov::test::utils::generateTestFilePrefix() + "_same_file";
+    const char test_data[] = "Test data for same file";
+
+    // Create file
+    {
+        std::ofstream os(file_path, std::ios::binary);
+        os.write(test_data, sizeof(test_data));
+        os.close();
+    }
+
+    // Load the same file twice
+    auto mapped1 = ov::load_mmap_object(file_path);
+    auto mapped2 = ov::load_mmap_object(file_path);
+
+    ASSERT_NE(mapped1, nullptr);
+    ASSERT_NE(mapped2, nullptr);
+
+    // IDs should be the same for the same file path
+    EXPECT_EQ(mapped1->get_id(), mapped2->get_id());
+
+    // Clean up
+    std::remove(file_path.c_str());
+}
+
+TEST(MappedMemory, get_id_non_zero) {
+    std::string file_path = ov::test::utils::generateTestFilePrefix() + "_non_zero";
+    const char test_data[] = "Test data";
+
+    // Create file
+    {
+        std::ofstream os(file_path, std::ios::binary);
+        os.write(test_data, sizeof(test_data));
+        os.close();
+    }
+
+    auto mapped = ov::load_mmap_object(file_path);
+    ASSERT_NE(mapped, nullptr);
+
+    // ID should be non-zero since it's computed as hash of file path
+    EXPECT_NE(mapped->get_id(), 0u);
+    EXPECT_NE(mapped->get_id(), std::numeric_limits<uint64_t>::max());
+
+    // Clean up
+    std::remove(file_path.c_str());
 }
