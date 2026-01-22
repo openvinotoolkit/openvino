@@ -15,6 +15,8 @@
 #include "snippets/emitter.hpp"
 #include "snippets/lowered/expression_port.hpp"
 
+#include <openvino/core/except.hpp> 
+
 namespace ov::intel_cpu::utils {
 
 inline static std::vector<Xbyak::Reg64> transform_idxs_to_regs(const std::vector<size_t>& idxs) {
