@@ -16,8 +16,6 @@
 #include "emitters/utils.hpp"
 #include "snippets/emitter.hpp"
 
-#include <openvino/core/except.hpp>
-
 using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu::utils {
