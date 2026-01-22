@@ -18,7 +18,7 @@ if(NOT ABI_TAG)
     message(FATAL_ERROR "Failed to detect ABI Tag via setuptools.command.bdist_wheel. Please, check 'setuptools' dependency version update")
 endif()
 
-execute_process(COMMAND ${Python3_EXECUTABLE} -c "import from packaging import tags; print(f'{next(tags.platform_tags())}')"
+execute_process(COMMAND ${Python3_EXECUTABLE} -c "from packaging import tags; print(f'{next(tags.platform_tags())}')"
                 OUTPUT_VARIABLE PLATFORM_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
 if(NOT PLATFORM_TAG)
     message(FATAL_ERROR "Failed to detect Platform Tag via packing.tags. Please, check 'packaging' dependency version update")
