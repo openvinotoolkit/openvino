@@ -277,6 +277,7 @@ void AutoSchedule::init() {
     } else {
         // Only one device, or multiple devices of the same type (e.g., all GPU devices, including iGPU and dGPU), can
         // use passthrough model; no need to compile asynchronously
+        LOG_INFO_TAG("Only one device or multiple devices of the same type will use passthrough compiled model");
         m_compile_context[ACTUALDEVICE].m_task();
         m_passthrough_compiled_model = m_compile_context[ACTUALDEVICE].m_compiled_model;
         if (!m_context->m_bind_buffer) {
