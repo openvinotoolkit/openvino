@@ -20,14 +20,14 @@ on:
    branches:
      - 'master'
      - 'releases/**'
-  pull_request:
-   paths-ignore:
-     - '**/docs/**'
-     - 'docs/**'
-     - '**/**.md'
-     - '**.md'
-     - '**/layer_tests_summary/**'
-     - '**/conformance/**'
+  # pull_request:
+  #  paths-ignore:
+  #    - '**/docs/**'
+  #    - 'docs/**'
+  #    - '**/**.md'
+  #    - '**.md'
+  #    - '**/layer_tests_summary/**'
+  #    - '**/conformance/**'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -255,7 +255,7 @@ jobs:
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
 
-      - name: Build additional Python wheels (3.10-3.14)
+      - name: Build additional Python wheels (3.10-3.14t)
         run: |
           for py_version in "3.10" "3.11" "3.12" "3.13" "3.14" "3.14t"
           do
