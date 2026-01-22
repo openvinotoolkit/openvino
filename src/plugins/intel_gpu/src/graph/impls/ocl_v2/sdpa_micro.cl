@@ -331,7 +331,18 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     __builtin_assume_aligned(V, V_ALIGN);
     __builtin_assume_aligned(A, A_ALIGN);
 
+    /* Load Q tile, destined for SLM */
+    q_tile_type Q_tile;
     uint q0_copy = q_tile_sg_n * sg_ij;
+#ifdef BLOCK_Q
+    tile_load_block_rem_q(
+            &Q_tile, (global uint *)Q, q, ldq >> 1, 0, wg_j0 + q0_copy);
+#elif Q_ALIGN >= 4
+    tile_load(&Q_tile, (global uint *)Q, (d + 1) >> 1, q, ldq >> 1, 0,
+            wg_j0 + q0_copy);
+#else
+    tile_load_packed_half(&Q_tile, Q, d, q, ldq, 0, wg_j0 + q0_copy);
+#endif
 
 #if WITH_SCALE
         /* Load scale */
@@ -379,25 +390,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #endif
 #endif
 
-    /* Load Q tile, destined for SLM */
-    q_tile_type Q_tile;
-#ifdef BLOCK_Q
-    tile_load_block_rem_q(
-            &Q_tile, (global uint *)Q, q, ldq >> 1, 0, wg_j0 + q0_copy);
-#elif Q_ALIGN >= 4
-    tile_load(&Q_tile, (global uint *)Q, (d + 1) >> 1, q, ldq >> 1, 0,
-            wg_j0 + q0_copy);
-#else
-    tile_load_packed_half(&Q_tile, Q, d, q, ldq, 0, wg_j0 + q0_copy);
-#endif
-
-    /* Store Q tile to SLM */
-    tile_store_t_sys_src1(
-            Q_tile, (local uint *)&Q_slm[0], D_MAX / 2, q0_copy, 0);
-    /* Wait for Q data to reach SLM */
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-#if PREFETCH_K0
+#ifdef PREFETCH_K0
     /* Prefetch first K tile. */
     cooperative_prefetch_2d_k(
             /* ptr */ K,
@@ -454,11 +447,17 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     a_tile_type A_tile;
     tile_fill(A_tile, 0.0f);
 
+    /* Store Q tile to SLM */
+    tile_store_t_sys_src1(
+            Q_tile, (local uint *)&Q_slm[0], D_MAX / 2, q0_copy, 0);
+
     /* Clear S column sums/maxes */
     s_sum_tile_type S_sum_tile;
     s_sum_tile_type S_max_tile, S_max_tile_old;
     tile_fill(S_sum_tile, 0.0f);
     tile_fill(S_max_tile, -INFINITY);
+    /* Wait for Q data to reach SLM */
+    barrier(CLK_LOCAL_MEM_FENCE);
 
     /* Main loop over k blocks */
     for (int k0 = 0; k0 < k; k0 += ugemm_kq_wg_tile_m) {
@@ -516,25 +515,24 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         #if IS_KV_COMPRESSED_PA
                         , (global half *)K0_scales, (global half *)K0_zp, ldkq
         #endif
-            );
 #else
-    s_tile_type S_tile
-        = ugemm_kq(K, ldk, Q_slm, D_MAX, k, ugemm_kq_wg_tile_n, d, k0,
-            0, 0, sg_i_kq, sg_j_kq, (local char *)ugemm_slm
-    #if KEY_SCALES == QUANTIZE_2D
-            ,
-            K_scales
-    #endif
-    #if KEY_ZERO_POINTS
-            ,
-            K_zp
-    #endif
-    #if (KEY_SCALES == QUANTIZE_2D) || KEY_ZERO_POINTS
-            ,
-            ldkq
-    #endif
-        );
+        s_tile_type S_tile
+                = ugemm_kq(K, ldk, Q_slm, D_MAX, k, ugemm_kq_wg_tile_n, d, k0,
+                        0, 0, sg_i_kq, sg_j_kq, (local char *)ugemm_slm
+        #if KEY_SCALES == QUANTIZE_2D
+                        ,
+                        K_scales
+        #endif
+        #if KEY_ZERO_POINTS
+                        ,
+                        K_zp
+        #endif
+        #if (KEY_SCALES == QUANTIZE_2D) || KEY_ZERO_POINTS
+                        ,
+                        ldkq
+        #endif
 #endif
+                );
 
 #if KEY_SCALES == QUANTIZE_COMMON
 #define k_scale_op(x) ((x)*k_scale)
@@ -613,7 +611,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         }
         #endif
 
-#if PREFETCH_V
+#ifdef PREFETCH_V
         /* Prefetch V tile. */
         cooperative_prefetch_2d_maybe_rem(
                 /* ptr */ V,
@@ -732,7 +730,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #else
 #error unimplemented
 #endif
-                tile_hbroadcast_mul(&A_tile, A_scale_tile);
+            tile_hbroadcast_mul(&A_tile, A_scale_tile);
         }
 
         /* Accumulate sums */
@@ -747,7 +745,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                     sg_i_kq);
         }
 
-#if PREFETCH_K
+#ifdef PREFETCH_K
         /* Prefetch next K tile. */
         if (!last) {
 #if TRANSPOSE_K
@@ -795,7 +793,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
         }
 #endif
-#if WITH_ATTN_MASK && PREFETCH_MASK
+#if WITH_ATTN_MASK && defined(PREFETCH_MASK)
         /* Prefetch next mask tile. */
         if (!last) {
             cooperative_prefetch_2d_maybe_rem(
@@ -845,36 +843,36 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             tile_binary(A_tile, A_tile1, binary_add);
         }
 #else
-    a_tile_type A_tile1 = ugemm_vs(
-        V, ldv, S_slm, ugemm_kq_wg_tile_m, d, ugemm_kq_wg_tile_n,
-        k_chunk, 0, 0, 0, sg_i_vs, sg_j_vs, (local char *)ugemm_slm
-    #if VAL_SCALES == QUANTIZE_2D
-        ,
-        V_scales
-    #endif
-    #if VAL_ZERO_POINTS
-        ,
-        V_zp
-    #endif
-    #if (VAL_SCALES == QUANTIZE_2D) || VAL_ZERO_POINTS
-        ,
-        ldvq
-    #endif
-    );
+        a_tile_type A_tile1 = ugemm_vs(
+                V, ldv, S_slm, ugemm_kq_wg_tile_m, d, ugemm_kq_wg_tile_n,
+                k_chunk, 0, 0, 0, sg_i_vs, sg_j_vs, (local char *)ugemm_slm
+#if VAL_SCALES == QUANTIZE_2D
+                ,
+                V_scales
+#endif
+#if VAL_ZERO_POINTS
+                ,
+                V_zp
+#endif
+#if (VAL_SCALES == QUANTIZE_2D) || VAL_ZERO_POINTS
+                ,
+                ldvq
+#endif
+        );
 
-    V += ldv * ugemm_kq_wg_tile_m / VAL_ELEMENTS_PER_BYTE;
+        V += ldv * ugemm_kq_wg_tile_m / VAL_ELEMENTS_PER_BYTE;
 #endif
 
 #if VAL_SCALES == QUANTIZE_2D
-    V_scales += ldvq * ugemm_kq_wg_tile_m;
+        V_scales += ldvq * ugemm_kq_wg_tile_m;
 #endif
 #if VAL_ZERO_POINTS == QUANTIZE_2D
-    V_zp += ldvq * ugemm_kq_wg_tile_m / VAL_ZP_ELEMENTS_PER_BYTE;
+        V_zp += ldvq * ugemm_kq_wg_tile_m / VAL_ZP_ELEMENTS_PER_BYTE;
 #endif
 #if IS_PAGED_ATTENTION && IS_PREFILL == 0
-    // already done
+        // already done
 #else
-    tile_binary(A_tile, A_tile1, binary_add);
+        tile_binary(A_tile, A_tile1, binary_add);
 #endif
     }
 
@@ -899,15 +897,14 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
     /* Rescale by 1 / (column sums) */
     tile_elementwise(A_scale_tile, native_vrecip);
-
-    uint sg_i0_vs = sg_i_vs * ugemm_vs_sg_tile_m;
-    uint sg_j0_vs = sg_j_vs * ugemm_vs_sg_tile_n + wg_j0;
-
     tile_hbroadcast_mul(&A_tile, A_scale_tile);
 
     /* Convert to half precision and store */
     a_tile_type_half A_tile_half;
     tile_copy_reblock(A_tile, &A_tile_half);
+
+    uint sg_i0_vs = sg_i_vs * ugemm_vs_sg_tile_m;
+    uint sg_j0_vs = sg_j_vs * ugemm_vs_sg_tile_n + wg_j0;
 
 #ifdef BLOCK_2D_A
     tile_store_block2d(A_tile_half, A, d, q, lda, sg_i0_vs, sg_j0_vs);
