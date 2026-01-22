@@ -4375,16 +4375,17 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
             disable_rt_info_check();
         }
     }
+}
 
-    /*
-    As there's often a need to cover specific model's architecutres in these
-    tests, please, make sure you name the tests in the following manner:
-    SDPAToPA_MODELNAME_PATTERNYOUCOVER:
-    i.e. SDPAToPA_Qwen7bChat_TotalSequenceLengthPattern or
-    SDPAToPA_Baichuan2_13b_General if this is a test for the
-    entire SDPAToPA transformation
-    */
+/*
+As there's often a need to cover specific model's architecutres in these
+tests, please, make sure you name the tests in the following manner:
+SDPAToPA_MODELNAME_PATTERNYOUCOVER:
+i.e. SDPAToPA_Qwen7bChat_TotalSequenceLengthPattern or
+SDPAToPA_Baichuan2_13b_General if this is a test for the
+entire SDPAToPA transformation
+*/
 
-    const std::vector<ov::element::Type> element_types = {element::f16, element::f32};
+const std::vector<ov::element::Type> element_types = {element::f16, element::f32};
 
-    INSTANTIATE_TEST_SUITE_P(SDPAToPATest_Conversion, SDPAToPATest, testing::ValuesIn(element_types));
+INSTANTIATE_TEST_SUITE_P(SDPAToPATest_Conversion, SDPAToPATest, testing::ValuesIn(element_types));
