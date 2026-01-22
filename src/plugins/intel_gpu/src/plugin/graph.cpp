@@ -212,6 +212,7 @@ bool Graph::use_external_queue() const {
 }
 
 std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive_info>& primitives_info, bool filter_const_primitives) {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::get_runtime_model");
     if (m_config.get_enable_profiling()) {
         try {
             // Update may throw an exception for step-by-step runtime graph dump,

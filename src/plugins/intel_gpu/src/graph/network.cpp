@@ -761,7 +761,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
     for (auto& inst : _exec_order) {
         NODE_DEBUG(*inst);
-        // [Warning] The strings in ITT_SCOPED_TASK_BASE should NOT be deleted or edited!
         OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::intel_gpu_op, openvino::itt::handle(inst->id()));
 
         inst->reset_events();
