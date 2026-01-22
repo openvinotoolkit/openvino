@@ -42,7 +42,6 @@ public:
 
     ~jit_aux_gpr_holder();
 
-    
     jit_aux_gpr_holder(const jit_aux_gpr_holder&) = delete;
     jit_aux_gpr_holder& operator=(const jit_aux_gpr_holder&) = delete;
 

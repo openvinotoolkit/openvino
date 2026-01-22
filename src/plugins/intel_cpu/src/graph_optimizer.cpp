@@ -867,8 +867,7 @@ void GraphOptimizer::FuseConvDeconvFCAndConvertOnWeights(Graph& graph) {
             parent = transpose->getParentEdgeAt(0)->getParent();
         }
 
-        const auto convert = std::move(parent);
-        if (!isSuitableConvert(convert)) {
+        if (!isSuitableConvert(parent)) {
             continue;
         }
 
