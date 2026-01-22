@@ -4,28 +4,150 @@
 
 #pragma once
 
+#include <type_traits>
+
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 namespace ov {
 
-/// \brief SharedBuffer class to store pointer to pre-allocated buffer. Own the shared object.
-template <typename T>
-class SharedBuffer : public ov::AlignedBuffer {
+class ITagBuffer {
 public:
-    SharedBuffer(char* data, size_t size, const T& shared_object) : _shared_object(shared_object) {
+    virtual std::string_view get_tag() const = 0;
+    virtual size_t get_id() const = 0;
+    virtual size_t get_offset() const = 0;
+    virtual bool is_mapped() const = 0;
+    virtual ~ITagBuffer() = default;
+};
+
+template <typename T>
+class SharedBufferBase : public ov::AlignedBuffer, public ITagBuffer {
+    private:
+    template <typename U, typename = void>
+    struct has_get_ptr : std::false_type {};
+
+    template <typename U>
+    struct has_get_ptr<U, std::void_t<decltype(std::declval<U>()->template get_ptr<char>())>> : std::true_type {};
+
+    template<class U >
+    static constexpr bool has_get_ptr_v = has_get_ptr<U>::value;
+
+    using mmaped_memory_ptr = std::shared_ptr<ov::MappedMemory>;
+
+    virtual const ITagBuffer* as_itag_buffer() const = 0;
+public:
+    SharedBufferBase(char* data, size_t size, const T& shared_object, const std::string& tag)
+        : _shared_object(shared_object),
+          m_tag(tag.empty() ? nullptr : std::make_shared<std::string>(tag)) {
         m_allocated_buffer = nullptr;
         m_aligned_buffer = data;
         m_byte_size = size;
     }
 
-    virtual ~SharedBuffer() {
+    SharedBufferBase(char* data, size_t size, const T& shared_object) : _shared_object(shared_object), m_tag(nullptr) {
+        m_allocated_buffer = nullptr;
+        m_aligned_buffer = data;
+        m_byte_size = size;
+    }
+
+    virtual ~SharedBufferBase() {
         m_aligned_buffer = nullptr;
         m_allocated_buffer = nullptr;
         m_byte_size = 0;
     }
 
-private:
+    std::string_view get_tag() const override {
+        return m_tag ? std::string_view(*m_tag) : std::string_view{};
+    }
+
+    std::size_t get_id() const override {
+        return m_tag ? std::hash<std::string>{}(*m_tag) : 0;
+    }
+
+    bool is_mapped() const override {
+        if constexpr (std::is_same<T, mmaped_memory_ptr>::value) {
+            return true;
+        } else if (auto itabuf = as_itag_buffer(); itabuf) {
+            return itabuf->is_mapped();
+        }
+        return false;
+    }
+
+    size_t get_offset() const override {
+        if constexpr (has_get_ptr_v<T>) {
+            return m_aligned_buffer && _shared_object && _shared_object->template get_ptr<char>()
+                       ? std::distance(_shared_object->template get_ptr<char>(), m_aligned_buffer)
+                       : 0;
+        } else {
+            return 0;
+        }
+    }
+
+protected:
     T _shared_object;
+    std::shared_ptr<std::string> m_tag;
+};
+
+
+/// \brief SharedBuffer class to store pointer to pre-allocated buffer. Own the shared object.
+template <typename T>
+class SharedBuffer : public SharedBufferBase<T> {
+protected:
+    template <typename U>
+    const ITagBuffer* as_itag_buffer_impl(const U& obj) const {
+        using BareT = std::remove_cv_t<std::remove_reference_t<U>>;
+
+        if constexpr (std::is_base_of_v<ITagBuffer, BareT>) {
+            return &obj;
+        }
+        else if constexpr (std::is_pointer_v<BareT> && std::is_polymorphic_v<std::remove_pointer_t<BareT>>) {
+            return dynamic_cast<ITagBuffer*>(obj);
+        }
+        else {
+            return nullptr;
+        }
+    }
+
+    const ITagBuffer* as_itag_buffer() const override {
+        return as_itag_buffer_impl<T>(this->_shared_object);
+    }
+
+public:
+    SharedBuffer(char* data, size_t size, const T& shared_object, const std::string& tag)
+        : SharedBufferBase<T>(data, size, shared_object, tag) {}
+    SharedBuffer(char* data, size_t size, const T& shared_object)
+        : SharedBufferBase<T>(data, size, shared_object) {}
+};
+
+
+template <typename T>
+class SharedBuffer<std::shared_ptr<T>> : public SharedBufferBase<std::shared_ptr<T>> {
+protected:
+    template <typename U>
+    const ITagBuffer* as_itag_buffer_impl(const U& obj) const {
+        if (!obj) {
+            return nullptr;
+        }
+        if constexpr (std::is_polymorphic_v<typename U::element_type>) {
+            return dynamic_cast<ITagBuffer*>(obj.get());
+        } else {
+            return nullptr;
+        }
+    }
+
+    const ITagBuffer* as_itag_buffer() const override {
+        if constexpr (std::is_same_v<T, void>) {
+            return nullptr;
+        } else {
+            return as_itag_buffer_impl<std::shared_ptr<T>>(this->_shared_object);
+        }
+    }
+
+public:
+    SharedBuffer(char* data, size_t size, const std::shared_ptr<T>& shared_object, const std::string& tag)
+        : SharedBufferBase<std::shared_ptr<T>>(data, size, shared_object, tag) {}
+    SharedBuffer(char* data, size_t size, const std::shared_ptr<T>& shared_object)
+        : SharedBufferBase<std::shared_ptr<T>>(data, size, shared_object) {}
 };
 
 /// \brief SharedStreamBuffer class to store pointer to pre-allocated buffer and provide streambuf interface.
