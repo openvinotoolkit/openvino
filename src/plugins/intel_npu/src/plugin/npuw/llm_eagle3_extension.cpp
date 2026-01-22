@@ -147,18 +147,6 @@ void Eagle3Extension::prepare_inputs(const std::shared_ptr<ov::IAsyncInferReques
     pad_hidden_state_input(m_hidden_states, padded_hidden_states);
 }
 
-void Eagle3Extension::update_last_hidden_state(
-    const std::shared_ptr<ov::IAsyncInferRequest>& request,
-    const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports) {
-    auto last_hidden_state_it = out_ports.find(Eagle3LayerNames::last_hidden_state);
-    OPENVINO_ASSERT(last_hidden_state_it != out_ports.end(), "Eagle3 model must have last_hidden_state output port");
-
-    m_last_hidden_state = request->get_tensor(last_hidden_state_it->second);
-
-    LOG_VERB("Eagle3 " << (m_role == Eagle3ModelRole::Draft ? "Draft" : "Target")
-                       << ": Retrieved last_hidden_state output tensor");
-}
-
 void Eagle3Extension::prepare_inputs_for_chunk(
     const std::shared_ptr<ov::IAsyncInferRequest>& request,
     const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
