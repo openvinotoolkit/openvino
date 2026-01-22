@@ -420,19 +420,25 @@ void Plugin::init_options() {
 
 void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
     bool legacy = false;
-    bool nocompiler = false;
+    bool nocompiler = true;
     std::unique_ptr<ICompilerAdapter> compiler = nullptr;
     std::vector<std::string> compiler_support_list{};
     uint32_t compiler_version = 0;
 
     // create a dummy compiler to fetch version and supported options
-    try {
-        auto compiler_type = cfg.get<COMPILER_TYPE>();
-        compiler = CompilerAdapterFactory::getInstance().getCompiler(_backend, compiler_type);
-    } catch (...) {
-        // assuming getCompiler failed, meaning we are offline
+    if (_backend) {
+        try {
+            auto compiler_type = cfg.get<COMPILER_TYPE>();
+            compiler = CompilerAdapterFactory::getInstance().getCompiler(_backend, compiler_type);
+            nocompiler = false;
+        } catch (...) {
+            // assuming getCompiler failed, meaning we are offline
+            // nothing to do here, will process below
+        }
+    }
+
+    if (nocompiler) {
         _logger.warning("No available compiler. Enabling only runtime options ");
-        nocompiler = true;
     }
 
     if (!nocompiler || (compiler != nullptr)) {
