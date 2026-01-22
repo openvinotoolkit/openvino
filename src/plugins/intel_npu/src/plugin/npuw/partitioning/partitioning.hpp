@@ -158,7 +158,7 @@ struct RepeatedBlock {
 
 struct Ensemble {
     float gflops;
-    bool irregular_results;
+    bool irregular_io;
     std::vector<Group> groups;
 
     // Just a map as I don't expect 100s of _different_

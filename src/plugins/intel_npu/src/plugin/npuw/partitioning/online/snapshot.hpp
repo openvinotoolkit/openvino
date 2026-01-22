@@ -57,7 +57,7 @@ public:
     void stripTag(const std::string& tag);
 
     // Passes to detect corner cases
-    bool isRegularResultCase() const;
+    bool isRegularIOCase() const;
 
     // Utility
     std::shared_ptr<own::ade::Graph> getGraph() const;

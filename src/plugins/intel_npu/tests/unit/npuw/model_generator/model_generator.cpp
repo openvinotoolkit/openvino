@@ -4,6 +4,9 @@
 
 #include "model_generator.hpp"
 
+#include <algorithm>
+#include <unordered_map>
+
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset11.hpp"
@@ -118,6 +121,82 @@ std::shared_ptr<ov::Model> ModelGenerator::get_model_with_repeated_blocks_and_re
     ov::ParameterVector params = {input};
 
     return std::make_shared<ov::Model>(results, params);
+}
+
+std::shared_ptr<ov::Model> ModelGenerator::get_model_with_repeated_blocks_and_parameters(
+    std::size_t repetitions,
+    const std::vector<std::size_t>& block_indices) {
+    if (repetitions == 0) {
+        repetitions = 1;  // keep the model non-empty
+    }
+
+    auto input = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{1, 1, 8});
+    m_nodes.push_back(input);
+
+    ov::ParameterVector params = {input};
+
+    // Pre-create Parameters that will feed selected blocks (indexed by block_indices)
+    std::vector<std::size_t> sorted_indices = block_indices;
+    std::sort(sorted_indices.begin(), sorted_indices.end());
+    sorted_indices.erase(std::unique(sorted_indices.begin(), sorted_indices.end()), sorted_indices.end());
+
+    std::unordered_map<std::size_t, std::shared_ptr<ov::opset11::Parameter>> block_params;
+    for (std::size_t idx : sorted_indices) {
+        if (idx >= repetitions) {
+            continue;  // ignore out-of-range indices
+        }
+
+        auto param = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{1, 1, 8});
+        m_nodes.push_back(param);
+        block_params.emplace(idx, param);
+        params.push_back(param);
+    }
+
+    auto scale_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1}, {1.f});
+    auto bias_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, 1, 8}, std::vector<float>(8, 0.5f));
+    auto head_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, 1, 8}, std::vector<float>(8, 1.f));
+    m_nodes.push_back(scale_const);
+    m_nodes.push_back(bias_const);
+    m_nodes.push_back(head_const);
+
+    auto head_add = std::make_shared<ov::opset11::Add>(input, head_const);
+    auto head_relu = std::make_shared<ov::opset11::Relu>(head_add);
+    m_nodes.push_back(head_add);
+    m_nodes.push_back(head_relu);
+
+    ov::Output<ov::Node> current = head_relu;
+
+    for (std::size_t i = 0; i < repetitions; ++i) {
+        auto it = block_params.find(i);
+        ov::Output<ov::Node> rhs = (it != block_params.end()) ? it->second : current;
+
+        auto add = std::make_shared<ov::opset11::Add>(current, rhs);
+        m_nodes.push_back(add);
+
+        auto mul = std::make_shared<ov::opset11::Multiply>(add, scale_const);
+        m_nodes.push_back(mul);
+
+        auto relu = std::make_shared<ov::opset11::Relu>(mul);
+        m_nodes.push_back(relu);
+
+        auto add_bias = std::make_shared<ov::opset11::Add>(relu, bias_const);
+        m_nodes.push_back(add_bias);
+
+        current = add_bias;
+    }
+
+    auto tail_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, 1, 8}, std::vector<float>(8, 2.f));
+    m_nodes.push_back(tail_const);
+
+    auto tail_mul = std::make_shared<ov::opset11::Multiply>(current, tail_const);
+    auto tail_add = std::make_shared<ov::opset11::Add>(tail_mul, tail_const);
+    m_nodes.push_back(tail_mul);
+    m_nodes.push_back(tail_add);
+
+    auto result = std::make_shared<ov::opset11::Result>(tail_add);
+    m_nodes.push_back(result);
+
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, params);
 }
 
 std::shared_ptr<ov::Model> ModelGenerator::get_model_with_multi_output_repeating_blocks(
