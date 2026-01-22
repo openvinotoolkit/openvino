@@ -269,7 +269,9 @@ struct CPUStreamsExecutor::Impl {
                     for (auto it = range.first; it != range.second; ++it) {
                         parent_ptr.push_back(it->second.lock());
                     }
-                    g_resource_map.erase(_thread_id);
+                    if (!parent_ptr.empty()) {
+                        g_resource_map.erase(range.first, range.second);
+                    }
                 }
                 for (auto& parent : parent_ptr) {
                     if (parent) {
@@ -444,7 +446,6 @@ struct CPUStreamsExecutor::Impl {
     bool _isStopped = false;
     std::vector<int> _usedNumaNodes;
     std::shared_ptr<CustomThreadLocal> _streams;
-    std::shared_ptr<ExecutorManager> _exectorMgr;
     bool _isExit = false;
     std::vector<int> _cpu_ids_all;
     std::mutex _cpu_ids_mutex;
