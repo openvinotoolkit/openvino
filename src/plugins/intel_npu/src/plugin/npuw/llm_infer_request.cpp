@@ -1049,14 +1049,14 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
             OPENVINO_THROW("Logits tensor is not available. Please run inference first.");
         }
         return m_logits;
-    } else {
-        for (auto&& [name, tensor] : m_other_outputs) {
-            if (port_names.count(name) > 0) {
-                if (!tensor) {
-                    OPENVINO_THROW("Output tensor \"", name, "\" is not available. Please run inference first.");
-                }
-                return tensor;
+    }
+
+    for (auto&& [name, tensor] : m_other_outputs) {
+        if (port_names.count(name) > 0) {
+            if (!tensor) {
+                OPENVINO_THROW("Output tensor \"", name, "\" is not available. Please run inference first.");
             }
+            return tensor;
         }
     }
 
