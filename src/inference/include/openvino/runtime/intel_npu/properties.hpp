@@ -31,7 +31,7 @@ namespace intel_npu {
  * Type of NPU compiler to be used for compilation of a network
  * @note Configuration API v 2.0
  */
-enum class CompilerType { PLUGIN, DRIVER };
+enum class CompilerType { PLUGIN, DRIVER, PREFER_PLUGIN };
 
 /**
  * @brief Prints a string representation of ov::intel_npu::CompilerType to a stream
@@ -47,6 +47,9 @@ inline std::ostream& operator<<(std::ostream& out, const CompilerType& fmt) {
     } break;
     case CompilerType::DRIVER: {
         out << "DRIVER";
+    } break;
+    case CompilerType::PREFER_PLUGIN: {
+        out << "PREFER_PLUGIN";
     } break;
     default:
         out << static_cast<uint32_t>(fmt);
