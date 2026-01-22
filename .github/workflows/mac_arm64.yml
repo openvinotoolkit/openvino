@@ -20,14 +20,14 @@ on:
    branches:
      - 'master'
      - 'releases/**'
-  # pull_request:
-  #  paths-ignore:
-  #    - '**/docs/**'
-  #    - 'docs/**'
-  #    - '**/**.md'
-  #    - '**.md'
-  #    - '**/layer_tests_summary/**'
-  #    - '**/conformance/**'
+  pull_request:
+   paths-ignore:
+     - '**/docs/**'
+     - 'docs/**'
+     - '**/**.md'
+     - '**.md'
+     - '**/layer_tests_summary/**'
+     - '**/conformance/**'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -240,6 +240,14 @@ jobs:
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
       
+      - name: Setup Python 3.14t
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: "3.14t"
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
+          allow-prereleases: 'true'
+
       - name: Setup Python 3.14
         uses: ./openvino/.github/actions/setup_python
         with:
@@ -249,7 +257,7 @@ jobs:
 
       - name: Build additional Python wheels (3.10-3.14)
         run: |
-          for py_version in "3.10" "3.11" "3.12" "3.13" "3.14"
+          for py_version in "3.10" "3.11" "3.12" "3.13" "3.14" "3.14t"
           do
             echo "Building Python API and wheels for Python ${py_version}"
             python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
@@ -257,33 +265,16 @@ jobs:
             
             echo "Using Python executable at: ${python_exec_path}"
 
-            cmake -DPython3_EXECUTABLE=$python_exec_path -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${{ github.workspace }}/py$py_version
+            if [[ $py_version == "3.14t" ]]; then
+              gil_option="-DENABLE_GIL_PYTHON_API=OFF"
+            else
+              gil_option=""
+            fi
+            cmake -DPython3_EXECUTABLE=$python_exec_path -DENABLE_WHEEL=ON $gil_option -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${{ github.workspace }}/py$py_version
 
             cmake --build ${{ github.workspace }}/py$py_version --parallel
             cmake --install ${{ github.workspace }}/py$py_version --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
           done
-
-      - name: Setup Python 3.14t
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: "3.14t"
-          should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
-          allow-prereleases: 'true'
-
-      - name: Build additional Python wheels (3.14t)
-        run: |
-          py_version="3.14t"
-          echo "Building Python API and wheels for Python ${py_version}"
-          python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
-          $python_exec_path -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
-          
-          echo "Using Python executable at: ${python_exec_path}"
-
-          cmake -DPython3_EXECUTABLE=$python_exec_path -DENABLE_WHEEL=ON -DENABLE_GIL_PYTHON_API=OFF -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${{ github.workspace }}/py$py_version
-
-          cmake --build ${{ github.workspace }}/py$py_version --parallel
-          cmake --install ${{ github.workspace }}/py$py_version --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
 
       # Setup Python 3.11 as the default one
       - name: Setup Python ${{ env.PYTHON_VERSION }}
