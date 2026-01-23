@@ -1464,6 +1464,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_INFO("Eagle3 speculative decoding mode enabled");
     }
 
+    // Auto-detect MoE model by scanning for router/expert nodes
+    const bool is_moe = is_moe_model(model);
+    if (is_moe) {
+        m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
+        m_cfg.update({{"NPUW_LLM_GENERATE_HINT", "BEST_PERF"}});
+    }
+
     // NB: PREFILL_HINT is now compatible with the PREFILL_CONFIG section, unlike for
     // the generate model they're not mutually exclusive
     const ::intel_npu::npuw::llm::PrefillHint prefill_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
@@ -1741,8 +1748,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         merge_config_with(generate_config, dyn_attn_opts);
     }
 
-    // Auto-detect MoE model by scanning for router/expert nodes
-    const bool is_moe = is_moe_model(kvcache_model);
     if (is_moe) {
         // Apply MoE configuration for prefill stage
         const auto prefill_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>();
