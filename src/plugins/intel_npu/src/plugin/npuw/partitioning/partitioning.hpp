@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -158,6 +158,7 @@ struct RepeatedBlock {
 
 struct Ensemble {
     float gflops;
+    bool irregular_io;
     std::vector<Group> groups;
 
     // Just a map as I don't expect 100s of _different_

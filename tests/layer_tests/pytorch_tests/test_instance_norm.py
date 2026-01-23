@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -66,5 +66,5 @@ class TestInstanceNorm(PytorchLayerTest):
                        reason='Ticket - 122715')
     def test_group_norm(self, params, ie_device, precision, ir_version, kwargs_to_prepare_input):
         self._test(*self.create_model(**params),
-                   ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input, 
+                   ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input,
                    dynamic_shapes=not params.get("mean_var", False), use_mo_convert=False)

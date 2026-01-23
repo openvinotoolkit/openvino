@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -12,6 +12,7 @@ from openvino.helpers import pack_data, unpack_data
 
 import pytest
 from enum import Enum
+import platform
 
 
 class DataGetter(Enum):
@@ -228,6 +229,7 @@ def test_cant_change_data_in_const():
         (False),
     ],
 )
+@pytest.mark.skipif(platform.machine() in ["aarch64"], reason="CVS-177547")
 def test_init_bf16_direct(ov_type, numpy_dtype, shared_flag):
     data = np.random.rand(4) + 1.5
     data = data.astype(numpy_dtype)
@@ -250,7 +252,9 @@ def test_init_bf16_direct(ov_type, numpy_dtype, shared_flag):
     [
         (Type.u1, np.uint8),
         (Type.u2, np.uint8),
+        (Type.u3, np.uint8),
         (Type.u4, np.uint8),
+        (Type.u6, np.uint8),
         (Type.i4, np.int8),
         (Type.nf4, np.uint8),
     ],
