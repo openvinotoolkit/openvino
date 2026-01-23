@@ -820,7 +820,7 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
     }
 
     static ov::intel_npu::CompilerType defaultValue() {
-        return ov::intel_npu::CompilerType::DRIVER;
+        return ov::intel_npu::CompilerType::PREFER_PLUGIN;
     }
 
     static ov::intel_npu::CompilerType parse(std::string_view val) {
@@ -828,6 +828,8 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
             return ov::intel_npu::CompilerType::PLUGIN;
         } else if (val == "DRIVER") {
             return ov::intel_npu::CompilerType::DRIVER;
+        } else if (val == "PREFER_PLUGIN") {
+            return ov::intel_npu::CompilerType::PREFER_PLUGIN;
         }
 
         OPENVINO_THROW("Value '", val, "' is not a valid COMPILER_TYPE option");
@@ -839,6 +841,8 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
             strStream << "PLUGIN";
         } else if (val == ov::intel_npu::CompilerType::DRIVER) {
             strStream << "DRIVER";
+        } else if (val == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
+            strStream << "PREFER_PLUGIN";
         } else {
             OPENVINO_THROW("No valid string for current COMPILER_TYPE option");
         }
@@ -1488,6 +1492,10 @@ struct ENABLE_STRIDES_FOR final : OptionBase<ENABLE_STRIDES_FOR, std::string> {
 
     static OptionMode mode() {
         return OptionMode::CompileTime;
+    }
+
+    static bool isPublic() {
+        return true;
     }
 };
 
