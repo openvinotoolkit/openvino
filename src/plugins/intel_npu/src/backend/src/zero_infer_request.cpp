@@ -68,8 +68,6 @@ void* get_tensor_data_ptr(const std::shared_ptr<ov::ITensor>& tensor) {
     } else {
         return tensor->data();
     }
-
-    return nullptr;
 }
 
 }  // namespace
