@@ -110,4 +110,4 @@ jobs:
           # cannot lock a run id as logs get deleted after some time
           run_id=$(python3 -c "from github import Github, Auth; import os; github=Github(auth=Auth.Token(token=os.environ.get('GITHUB_TOKEN'))); repo = github.get_repo('${GITHUB_REPOSITORY}'); run_id = repo.get_workflow_runs(status='success')[0].id; print(run_id)")
 
-          python3 rerunner.py --repository-name ${GITHUB_REPOSITORY} --run-id $run_id --dry-run
+          python3 rerunner.py --repository-name ${GITHUB_REPOSITORY} --run-id $run_id --rerunner-run-id ${{ github.run_id }} --dry-run
