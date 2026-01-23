@@ -259,14 +259,10 @@ int FakeQuantizeDequantization::fillDequantizationParams(
         }
     };
 
-    fill(elementwise, 1ul, convert, constant);
+    const size_t constantBranchIndex = NetworkHelper::getDQConstBranchIndex(elementwise);
+    fill(elementwise, constantBranchIndex, convert, constant);
     if (constant != nullptr) {
-        return 1;
-    }
-
-    fill(elementwise, 0ul, convert, constant);
-    if (constant != nullptr) {
-        return 0;
+        return static_cast<int>(constantBranchIndex);
     }
 
     return -1;
@@ -275,20 +271,25 @@ int FakeQuantizeDequantization::fillDequantizationParams(
 int FakeQuantizeDequantization::fillDequantizationParams(
     const std::shared_ptr<ov::Node>& elementwise,
     std::shared_ptr<ov::opset1::Constant>& constant) {
-    constant = elementwise->get_input_element_type(1ul).is_real() ?
-        ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(1ul)) :
+    // Use NetworkHelper to determine which branch is the DQ constant branch
+    const size_t constantBranchIndex = NetworkHelper::getDQConstBranchIndex(elementwise);
+    const size_t mainBranchIndex = 1 - constantBranchIndex; // opposite of constant branch
+    
+    constant = elementwise->get_input_element_type(constantBranchIndex).is_real() ?
+        ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(constantBranchIndex)) :
         nullptr;
 
     if (constant != nullptr) {
-        return 1;
+        return static_cast<int>(constantBranchIndex);
     }
 
-    constant = elementwise->get_input_element_type(0ul).is_real() ?
-        ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(0ul)) :
+    // Fallback: try the other branch
+    constant = elementwise->get_input_element_type(mainBranchIndex).is_real() ?
+        ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(mainBranchIndex)) :
         nullptr;
 
     if (constant != nullptr) {
-        return 0;
+        return static_cast<int>(mainBranchIndex);
     }
 
     return -1;

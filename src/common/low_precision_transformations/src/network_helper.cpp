@@ -560,40 +560,54 @@ std::shared_ptr<ov::Node> NetworkHelper::separateInStandaloneBranch(std::shared_
     const std::vector<ov::element::Type>& defaultPrecisions) {
     auto inputs = node->input_values();
     auto separate_branch = [&](size_t input_idx) {
-        const auto dequantization = NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(node, defaultPrecisions, input_idx));
+        const auto dequantization = normalizeDequantization(getDequantization(node, defaultPrecisions, input_idx));
         if (dequantization.empty() || !dequantization.isShared())
             return false;
 
+        const std::string name_postfix = "_" + std::to_string(input_idx);
         Output<Node> parent = dequantization.data;
         if (dequantization.convert != nullptr) {
-            auto convert = dequantization.convert->clone_with_new_inputs({ parent });
-            convert->set_friendly_name("");
-            copy_runtime_info(parent.get_node_shared_ptr(), convert);
-            parent = convert->output(0);
+            parent = dequantization.convert->clone_with_new_inputs({parent});
+            parent.get_node_shared_ptr()->set_friendly_name(dequantization.convert->get_friendly_name() + name_postfix);
+            copy_runtime_info(dequantization.convert, parent.get_node_shared_ptr());
         }
 
-        if (dequantization.subtract != nullptr) {
-            const auto parentOnWeights = dequantization.subtract->get_input_node_shared_ptr(1);
-            const std::vector<Input<Node>> inputs = parentOnWeights->inputs();
-            OutputVector outputs;
-            outputs.reserve(inputs.size());
-            for (const auto& input : inputs) {
-                outputs.push_back(input.get_source_output());
+        auto cloneEltwiseBranch = [&](const std::shared_ptr<ov::Node>& eltwise,
+                                      const std::shared_ptr<ov::opset1::Constant>& eltwiseConstant,
+                                      const std::shared_ptr<ov::opset1::Convert>& eltwiseConvert) {
+            Output<Node> constantPath;
+            if (eltwiseConvert != nullptr) {
+                constantPath = eltwiseConvert->clone_with_new_inputs({eltwiseConstant->clone_with_new_inputs({})});
+                constantPath.get_node_shared_ptr()->set_friendly_name(eltwiseConvert->get_friendly_name() +
+                                                                      name_postfix);
+                copy_runtime_info(eltwiseConvert, constantPath.get_node_shared_ptr());
+            } else {
+                const auto parentOnWeights = eltwise->get_input_node_shared_ptr(1);
+                constantPath = parentOnWeights->clone_with_new_inputs(parentOnWeights->input_values());
+                constantPath.get_node_shared_ptr()->set_friendly_name(parentOnWeights->get_friendly_name() +
+                                                                      name_postfix);
+                copy_runtime_info(parentOnWeights, constantPath.get_node_shared_ptr());
             }
+            auto clonedEltwise = eltwise->clone_with_new_inputs({parent, constantPath});
+            clonedEltwise->set_friendly_name(eltwise->get_friendly_name() + name_postfix);
+            copy_runtime_info(eltwise, clonedEltwise);
+            return clonedEltwise;
+        };
 
-            auto subtract = dequantization.subtract->clone_with_new_inputs({parent, parentOnWeights->clone_with_new_inputs(outputs)->output(0) });
-            subtract->set_friendly_name("");
-            copy_runtime_info(parent.get_node_shared_ptr(), subtract);
-            parent = subtract->output(0);
+        if (dequantization.subtract != nullptr) {            
+            parent = cloneEltwiseBranch(dequantization.subtract, dequantization.subtractConstant, dequantization.subtractConvert);
         }
 
         if (dequantization.multiply != nullptr) {
-            auto multiply = dequantization.multiply->clone_with_new_inputs({
-                parent,
-                dequantization.multiply->get_input_node_shared_ptr(1)->clone_with_new_inputs({})->output(0) });
-            multiply->set_friendly_name("");
-            copy_runtime_info(parent.get_node_shared_ptr(), multiply);
-            parent = multiply->output(0);
+            std::shared_ptr<ov::opset1::Convert> mulConstConvert;
+            std::shared_ptr<ov::opset1::Constant> mulConst;
+            FakeQuantizeDequantization::fillDequantizationParams(dequantization.multiply, mulConstConvert, mulConst);
+            parent = cloneEltwiseBranch(dequantization.multiply, mulConst, mulConstConvert);
+            // const auto dqMulParent = dequantization.multiply->get_input_node_shared_ptr(1);
+            // const auto dqMulParentCloned = dqMulParent->clone_with_new_inputs(dqMulParent->input_values());
+            // parent = dequantization.multiply->clone_with_new_inputs({parent, dqMulParentCloned});
+            // parent.get_node_shared_ptr()->set_friendly_name(dequantization.multiply->get_friendly_name() + name_postfix);
+            // copy_runtime_info(dequantization.multiply, parent.get_node_shared_ptr());
         }
 
         OPENVINO_ASSERT(dequantization.multiply != nullptr || dequantization.subtract != nullptr, "incorrect dequantization ops configuration");
@@ -1262,36 +1276,71 @@ FakeQuantizeDequantization NetworkHelper::getDequantizationBelow(const std::shar
     return FakeQuantizeDequantization(dataNode, convert, subtract, subtractConvert, subtractConstant, multiply, multiplyConstant);
 }
 
-FakeQuantizeDequantization NetworkHelper::normalizeDequantization(FakeQuantizeDequantization dequantization) {
-    if (dequantization.empty()) {
-        return dequantization;
-    }
+size_t NetworkHelper::getDQConstBranchIndex(const std::shared_ptr<ov::Node>& eltwise) {
+    OPENVINO_ASSERT(eltwise != nullptr && eltwise->get_input_size() == 2,
+                    "Expected binary eltwise operation, but got: ",
+                    eltwise == nullptr ? "null" : std::to_string(eltwise->get_input_size()) + " inputs");
 
-    // Note: Dequantization operations might have converts between DQ constant and eltwise
     auto is_branch_const = [](const ov::Output<ov::Node>& in) {
         auto node = in.get_node_shared_ptr();
         return (ov::is_type<ov::opset1::Constant>(node)) ||
                (ov::is_type<ov::opset1::Convert>(node) && ov::is_type<ov::opset1::Constant>(node->get_input_node_shared_ptr(0)));
     };
 
-    // Eltwise is unnormalized if it has constant 0th input and non-constant 1st input
-    auto unnormalized_eltwise = [&is_branch_const](const std::shared_ptr<ov::Node>& eltwise) {
-        return eltwise != nullptr && is_branch_const(eltwise->input_value(0)) && !is_branch_const(eltwise->input_value(1));
+    const auto& left_input = eltwise->input_value(0);
+    const auto& right_input = eltwise->input_value(1);
+    const bool left_is_const = is_branch_const(left_input);
+    const bool right_is_const = is_branch_const(right_input);
+
+    // Primary criteria: constant branch is non-main (DQ constant)
+    if (!left_is_const && right_is_const) {
+        return 1; // right is DQ constant branch
+    }
+    if (left_is_const && !right_is_const) {
+        return 0; // left is DQ constant branch
+    }
+
+    // When both branches are constant, use shape-based criteria to determine main branch.
+    // Since the primary criteria (constant vs non-constant) cannot distinguish between branches,
+    // we apply secondary logic: the branch with larger volume is considered the main branch
+    // and should be placed on the left (0th input), while the smaller branch (typically 
+    // a scalar or broadcast constant for dequantization) goes on the right (1st input).
+    if (left_is_const && right_is_const) {
+        const auto left_volume = ov::shape_size(left_input.get_shape());
+        const auto right_volume = ov::shape_size(right_input.get_shape());
+        return (left_volume >= right_volume) ? 1 : 0; // return smaller volume branch
+    }
+
+    // Both branches are non-constant - return right as default DQ constant branch
+    return 1;
+}
+
+FakeQuantizeDequantization NetworkHelper::normalizeDequantization(FakeQuantizeDequantization dequantization) {
+    if (dequantization.empty()) {
+        return dequantization;
+    }
+
+    // Determine if eltwise operation needs normalization (main branch should be on left)
+    auto should_normalize_eltwise = [](const std::shared_ptr<ov::Node>& eltwise) {
+        if (eltwise == nullptr) {
+            return false;
+        }
+        return NetworkHelper::getDQConstBranchIndex(eltwise) == 0; // if DQ constant is on left, need to swap
     };
 
-    if (unnormalized_eltwise(dequantization.multiply)) {
+    if (should_normalize_eltwise(dequantization.multiply)) {
         const auto leftParent = dequantization.multiply->input_value(0);
         const auto rightParent = dequantization.multiply->input_value(1);
-        std::shared_ptr<ov::opset1::Multiply> normalized_multiply = ov::as_type_ptr<ov::opset1::Multiply>(
-                dequantization.multiply->clone_with_new_inputs({rightParent, leftParent}));
+        const auto normalized_multiply = ov::as_type_ptr<ov::opset1::Multiply>(
+            dequantization.multiply->clone_with_new_inputs({rightParent, leftParent}));
         replace_node(dequantization.multiply, normalized_multiply);
         dequantization.multiply = normalized_multiply;
     }
-    if (unnormalized_eltwise(dequantization.subtract)) {
+    if (should_normalize_eltwise(dequantization.subtract)) {
         const auto leftParent = dequantization.subtract->input_value(0);
         const auto rightParent = dequantization.subtract->input_value(1);
-        std::shared_ptr<ov::opset1::Subtract> normalized_subtract = ov::as_type_ptr<ov::opset1::Subtract>(
-                dequantization.subtract->clone_with_new_inputs({rightParent, leftParent}));
+        const auto normalized_subtract = ov::as_type_ptr<ov::opset1::Subtract>(
+            dequantization.subtract->clone_with_new_inputs({rightParent, leftParent}));
         replace_node(dequantization.subtract, normalized_subtract);
         dequantization.subtract = normalized_subtract;
     }

@@ -139,6 +139,8 @@ public:
 
     static FakeQuantizeDequantization getDequantizationBelow(const std::shared_ptr<Node>& node, const bool convertIsMandatory = false);
 
+    static size_t getDQConstBranchIndex(const std::shared_ptr<ov::Node>& eltwise);
+
     static FakeQuantizeDequantization normalizeDequantization(FakeQuantizeDequantization dequantization);
 
     static std::shared_ptr<ov::opset1::Constant> normalizeDequantizationShape(
