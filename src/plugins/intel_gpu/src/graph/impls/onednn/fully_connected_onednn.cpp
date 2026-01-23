@@ -397,9 +397,12 @@ public:
                 if (dzp_layout.count() == 1) {
                     attr->set_zero_points(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, dzp_data_type);
                 } else {
-                    size_t rank = dzp_layout.get_partial_shape().size();
-                    auto ngroups = dzp_layout.get_dim(rank - 1);
-                    if (ngroups == 1 && rank <= 2) {
+                    auto dzp_shape = dzp_layout.get_partial_shape();
+                    auto dzp_rank = std::count_if(dzp_shape.begin(), dzp_shape.end(), [](ov::Dimension d) { return d.get_length() > 1; });
+                    dzp_rank = std::max(static_cast<int64_t>(2), dzp_rank);
+
+                    auto ngroups = dzp_layout.get_dim(dzp_rank - 1);
+                    if (ngroups == 1 && dzp_rank <= 2) {
                         attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
                     } else {
                         // should use {K, 1} for the group size + per tensor mask for 3d
