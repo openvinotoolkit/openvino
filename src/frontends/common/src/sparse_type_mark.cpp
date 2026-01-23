@@ -53,25 +53,15 @@ ov::Output<ov::Node> SparseTypeMark::to_dense(const NodeContext& context) {
     }
 
     // Create dense tensor
-    auto zero_const = context.mark_node(
-        v0::Constant::create(m_value_type, Shape{}, {0})
-    );
-    auto dense_zero = context.mark_node(
-        make_shared<v3::Broadcast>(zero_const, m_shape)
-    );
+    auto zero_const = context.mark_node(v0::Constant::create(m_value_type, Shape{}, {0}));
+    auto dense_zero = context.mark_node(make_shared<v3::Broadcast>(zero_const, m_shape));
 
     // Indices are [ndim, nnz], transpose to [nnz, ndim] for ScatterNDUpdate
-    auto perm_order = context.mark_node(
-        v0::Constant::create(element::i32, Shape{2}, {1, 0})
-    );
-    auto permuted_indices = context.mark_node(
-        make_shared<v1::Transpose>(m_indices, perm_order)
-    );
+    auto perm_order = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {1, 0}));
+    auto permuted_indices = context.mark_node(make_shared<v1::Transpose>(m_indices, perm_order));
 
     // Convert to dense
-    m_dense = context.mark_node(
-        make_shared<v3::ScatterNDUpdate>(dense_zero, permuted_indices, m_values)
-    );
+    m_dense = context.mark_node(make_shared<v3::ScatterNDUpdate>(dense_zero, permuted_indices, m_values));
 
     return m_dense;
 }
@@ -86,23 +76,17 @@ ov::Output<ov::Node> SparseTypeMark::sparse_mm(const NodeContext& context,
     if (sparse_mark && matrix_mark) {
         auto lhs_dense = sparse_mark->to_dense(context);
         auto rhs_dense = matrix_mark->to_dense(context);
-        return context.mark_node(
-            make_shared<v0::MatMul>(lhs_dense, rhs_dense, false, false)
-        );
+        return context.mark_node(make_shared<v0::MatMul>(lhs_dense, rhs_dense, false, false));
     }
     
     // Only first input is sparse (S x D -> D)
     if (sparse_mark) {
         auto dense_sparse = sparse_mark->to_dense(context);
-        return context.mark_node(
-            make_shared<v0::MatMul>(dense_sparse, matrix, false, false)
-        );
+        return context.mark_node(make_shared<v0::MatMul>(dense_sparse, matrix, false, false));
     }
     
-    // Neither is sparse-marked (shouldn't happen in this flow usually)
-    return context.mark_node(
-        make_shared<v0::MatMul>(sparse, matrix, false, false)
-    );
+    // Neither is sparse-marked
+    return context.mark_node(make_shared<v0::MatMul>(sparse, matrix, false, false));
 }
 
 ov::Output<ov::Node> SparseTypeMark::sparse_add(const NodeContext& context,
