@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/matmul.hpp"
+#include "openvino/frontend/sparse_type_mark.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -16,11 +16,8 @@ OutputVector translate_sparse_mm(const NodeContext& context) {
     auto sparse_mat = context.get_input(0);
     auto dense_mat = context.get_input(1);
 
-    // We map _sparse_mm to a standard MatMul.
-    // OpenVINO core/plugins will handle the execution. 
-    // If the input is sparse-encoded, specific transformations might be needed, 
-    // but at the frontend level, we represent it as a MatMul operation.
-    return {context.mark_node(std::make_shared<ov::op::v0::MatMul>(sparse_mat, dense_mat, false, false))};
+    // Delegate to SparseTypeMark aware implementation
+    return {ov::frontend::SparseTypeMark::sparse_mm(context, sparse_mat, dense_mat)};
 };
 
 }  // namespace op
