@@ -21,8 +21,7 @@ OutputVector translate_sparse_coo_tensor(const NodeContext& context) {
 
     // Defer dense conversion via SparseTypeMark
     auto sparse_mark = context.mark_node(
-        std::make_shared<ov::frontend::SparseTypeMark>(indices, values, size, values.get_element_type())
-    );
+        std::make_shared<ov::frontend::SparseTypeMark>(indices, values, size, values.get_element_type()));
 
     return {sparse_mark};
 };
