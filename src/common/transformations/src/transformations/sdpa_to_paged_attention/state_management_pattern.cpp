@@ -435,7 +435,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                           &adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
                                           &adaptive_rkv_diversity_results,
                                           &var_ids_to_remove](Matcher& m) {
-        std::cout << "MATCHER " << matcher_name << " START" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& real_q = pattern_map.at(q);
 
@@ -581,19 +580,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});
         }
 
-        if (pattern_map.count(k_past_var)) {
-            if (auto k_rv = ov::as_type_ptr<v6::ReadValue>(pattern_map.at(k_past_var).get_node_shared_ptr())) {
-                var_ids_to_remove.insert(k_rv->get_variable_id());
-            }
-        }
-        if (pattern_map.count(v_past_var)) {
-            if (auto v_rv = ov::as_type_ptr<v6::ReadValue>(pattern_map.at(v_past_var).get_node_shared_ptr())) {
-                var_ids_to_remove.insert(v_rv->get_variable_id());
-            }
-        }
-        if (pattern_map.count(kv_past_var)) {
-            if (auto kv_rv = ov::as_type_ptr<v6::ReadValue>(pattern_map.at(kv_past_var).get_node_shared_ptr())) {
-                var_ids_to_remove.insert(kv_rv->get_variable_id());
+        for (const auto& read_value : {k_past_var, v_past_var, kv_past_var}) {
+            if (pattern_map.count(read_value)) {
+                if (auto rv = ov::as_type_ptr<v6::ReadValue>(pattern_map.at(read_value).get_node_shared_ptr())) {
+                    var_ids_to_remove.insert(rv->get_variable_id());
+                }
             }
         }
 
@@ -779,7 +770,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
         pa_transpose->set_friendly_name(sdpa_node->get_friendly_name());
         replace_node(m.get_match_root(), pa_transpose);
-        std::cout << "MATCHER " << matcher_name << " END" << std::endl;
         return true;
     };
 
