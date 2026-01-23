@@ -3552,8 +3552,8 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
         model = std::make_shared<ov::Model>(OutputVector{res},
                                             SinkVector{Assign0, Assign1, Assign2, Assign3, Assign4},
                                             params);
+        manager.register_pass<ov::pass::SDPAToPagedAttention>();
     }
-
     {
         auto max_context_len = make_param(PartialShape{}, element::i32, "max_context_len");
         auto block_indices_begins = make_param(PartialShape{DYN}, element::i32, "block_indices_begins");
