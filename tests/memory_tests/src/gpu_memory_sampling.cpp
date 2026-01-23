@@ -16,7 +16,7 @@ static IDXGIAdapter3 *selected_adapter = nullptr;
 
 
 int initGpuSampling() {
-    if (FAILED(CreateDXGIFactory2(0, __uuidof(IDXGIFactory4), &(void *)dxgi_factory))) {
+    if (S_OK != CreateDXGIFactory2(0, __uuidof(IDXGIFactory4), (void **)&dxgi_factory)) {
         fprintf(stderr, "CreateDXGIFactory2 failed\r\n");
         return -1;
     }
@@ -38,7 +38,7 @@ int initGpuSampling() {
             fprintf(stderr, "  system mem: %.2f MiB\r\n", desc.DedicatedSystemMemory / MiB);
             fprintf(stderr, "  shared mem: %.2f MiB\r\n", desc.SharedSystemMemory / MiB);
             fprintf(stderr, "\r\n");
-            if (FAILED(adapter->QueryInterface(__uuidof(IDXGIAdapter3), &(void*)selected_adapter))) {
+            if (S_OK != adapter->QueryInterface(__uuidof(IDXGIAdapter3), (void**)&selected_adapter)) {
                 fprintf(stderr, "Failed to query IDXGIAdapter3 interface for selected adapter\r\n");
                 return -2;
             }

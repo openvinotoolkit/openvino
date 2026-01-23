@@ -4,6 +4,7 @@
 
 #ifdef _WIN32
 
+#include <stdexcept>
 #include <windows.h>
 #include <tlhelp32.h>
 #include <psapi.h>
