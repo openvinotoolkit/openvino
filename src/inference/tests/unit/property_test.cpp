@@ -11,12 +11,6 @@
 
 namespace ov::test {
 
-// ============================================================================
-// Property Validation Tests
-// Comprehensive tests for signed-to-unsigned property value conversion
-// covering different property types, input value types, and corner cases.
-// ============================================================================
-
 // --- ov::hint::num_requests (uint32_t property) ---
 
 // Negative values from different signed types should be rejected
@@ -213,7 +207,7 @@ TEST(PropertyValidation, ValueCacheGroupSizeAcceptsZeroAndPositive) {
 // --- Signed properties: verify they still accept negative values ---
 
 TEST(PropertyValidation, InferenceNumThreadsAcceptsNegative) {
-    // int32_t property - negative values are valid (means auto-detect)
+    // int32_t property - negative values are valid
     OV_ASSERT_NO_THROW({
         auto kv = ov::inference_num_threads(-1);
         EXPECT_EQ(kv.second.as<int32_t>(), -1);
@@ -225,7 +219,7 @@ TEST(PropertyValidation, InferenceNumThreadsAcceptsNegative) {
 }
 
 TEST(PropertyValidation, CompilationNumThreadsAcceptsNegative) {
-    // int32_t property - negative values are valid (means auto-detect)
+    // int32_t property - negative values are valid
     OV_ASSERT_NO_THROW({
         auto kv = ov::compilation_num_threads(-1);
         EXPECT_EQ(kv.second.as<int32_t>(), -1);
@@ -256,6 +250,56 @@ TEST(PropertyValidation, AutoBatchTimeoutRejectsOverflowFromInt64) {
     OV_EXPECT_THROW(std::ignore = ov::auto_batch_timeout(overflow_value),
                     ov::Exception,
                     testing::HasSubstr("exceeds"));
+}
+
+// uint32_t properties: string "-1" should be rejected
+TEST(PropertyValidation, NumRequestsRejectsNegativeString) {
+    // String "-1" should behave the same as int -1
+    OV_EXPECT_THROW(std::ignore = ov::hint::num_requests("-1"),
+                    ov::Exception,
+                    testing::HasSubstr(""));
+    OV_EXPECT_THROW(std::ignore = ov::hint::num_requests(std::string{"-1"}),
+                    ov::Exception,
+                    testing::HasSubstr(""));
+    OV_EXPECT_THROW(std::ignore = ov::hint::num_requests("-100"),
+                    ov::Exception,
+                    testing::HasSubstr(""));
+}
+
+TEST(PropertyValidation, AutoBatchTimeoutRejectsNegativeString) {
+    OV_EXPECT_THROW(std::ignore = ov::auto_batch_timeout("-1"),
+                    ov::Exception,
+                    testing::HasSubstr(""));
+    OV_EXPECT_THROW(std::ignore = ov::auto_batch_timeout(std::string{"-500"}),
+                    ov::Exception,
+                    testing::HasSubstr(""));
+}
+
+// Positive string values should be accepted
+TEST(PropertyValidation, NumRequestsAcceptsPositiveString) {
+    OV_ASSERT_NO_THROW({
+        auto kv = ov::hint::num_requests("0");
+        EXPECT_EQ(kv.second.as<uint32_t>(), 0u);
+    });
+    OV_ASSERT_NO_THROW({
+        auto kv = ov::hint::num_requests("42");
+        EXPECT_EQ(kv.second.as<uint32_t>(), 42u);
+    });
+    OV_ASSERT_NO_THROW({
+        auto kv = ov::hint::num_requests(std::string{"100"});
+        EXPECT_EQ(kv.second.as<uint32_t>(), 100u);
+    });
+}
+
+TEST(PropertyValidation, AutoBatchTimeoutAcceptsPositiveString) {
+    OV_ASSERT_NO_THROW({
+        auto kv = ov::auto_batch_timeout("0");
+        EXPECT_EQ(kv.second.as<uint32_t>(), 0u);
+    });
+    OV_ASSERT_NO_THROW({
+        auto kv = ov::auto_batch_timeout("1000");
+        EXPECT_EQ(kv.second.as<uint32_t>(), 1000u);
+    });
 }
 
 }  // namespace ov::test
