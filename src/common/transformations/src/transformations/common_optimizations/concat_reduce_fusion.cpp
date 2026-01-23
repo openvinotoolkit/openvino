@@ -112,6 +112,24 @@ ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
             return false;
         }
 
+        // The transformation replaces Concat+Reduce with elementwise Min/Max + Squeeze.
+        // This is only valid when all Concat inputs have identical shapes,
+        // so that the elementwise operation produces the same result as the Concat+Reduce.
+        // If inputs have different shapes, the elementwise op would broadcast them, producing
+        // a different result. See CVS-179011.
+        //
+        // Example of the bug: Concat([2], [1]) -> ReduceMin(axis=0, keepdims=false) should produce scalar []
+        // But the incorrect transformation produces: Minimum([2], [1]) -> [2] (broadcast) -> Squeeze -> [2]
+        const auto& input0_shape = concat->get_input_partial_shape(0);
+        const auto& input1_shape = concat->get_input_partial_shape(1);
+
+        // Check that shapes are identical. PartialShape::operator== returns true only if both shapes
+        // are exactly the same (including dynamic dimensions). This ensures the elementwise op
+        // won't broadcast and will produce the expected output shape.
+        if (input0_shape != input1_shape) {
+            return false;
+        }
+
         ReduceType reduce_type = get_reduce_type(reduce);
         std::shared_ptr<ov::Node> result_node;
         switch (reduce_type) {
