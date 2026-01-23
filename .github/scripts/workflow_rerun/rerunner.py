@@ -96,6 +96,7 @@ if __name__ == '__main__':
         collect_logs_for_run(
             run=run,
             logs_dir=logs_dir,
+            session=session
         )
 
         log_analyzer = LogAnalyzer(
