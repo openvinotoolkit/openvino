@@ -717,11 +717,6 @@ void sdpa_kernel(
         uint slm_offset = (slm_buff_id_write & 3) * slm_buff_size;
         slm_buff_id_write ++;
 
-        // Check if this is the last block with potential OOB reads
-        // On some architectures (e.g., Xe-LPG+), cm_load_2d may return garbage/NaN
-        // for out-of-bounds reads, so we need to mask out invalid rows
-        bool need_oob_masking = (kv_tokens < kv_step);
-
         // non-tail branch is faster
         if (wg_local_id < local_size/2) {
             //if (kv_pos > 1024000) {
@@ -732,10 +727,6 @@ void sdpa_kernel(
             for (; i < num_full_blocks; i += local_size / 2) {
                 int k = i * REG_K;
                 cm_load_2d(temp, key, k_off + k * sizeof(half), kv_pitch);
-                // Mask out OOB rows in K to prevent garbage/NaN propagation
-                if (need_oob_masking) {
-                    for (int r = kv_tokens; r < 2*REG_M; r++) temp.row(r) = 0;
-                }
                 cm_slm_block_write(slm_K,
                     slm_offset + k * 2 * REG_M * sizeof(half),
                     temp.format<half>());
@@ -745,10 +736,6 @@ void sdpa_kernel(
             if constexpr (head_size % REG_K > 0) {
                 int k = num_full_blocks * REG_K;
                 cm_load_2d_with_tail<2*REG_M, REG_K, head_size % REG_K>(temp, key, k_off + k * sizeof(half), kv_pitch);
-                // Mask out OOB rows in K to prevent garbage/NaN propagation
-                if (need_oob_masking) {
-                    for (int r = kv_tokens; r < 2*REG_M; r++) temp.row(r) = 0;
-                }
                 cm_slm_block_write(slm_K,
                     slm_offset + k * 2 * REG_M * sizeof(half),
                     temp.format<half>());
@@ -768,10 +755,6 @@ void sdpa_kernel(
             for (; i < num_full_blocks; i += local_size / 2) {
                 int k = i * VK_STEP;
                 cm_load_2d(temp2, value, v_off + k * sizeof(half), kv_pitch);
-                // Mask out OOB rows in V to prevent garbage/NaN propagation
-                if (need_oob_masking) {
-                    for (int r = kv_tokens; r < REG_K; r++) temp2.row(r) = 0;
-                }
                 #pragma unroll
                 for (int p = 0; p < VK_STEP / REG_N; p++) {
                     temp_vnni.select<REG_K / 2, 1, REG_N, 2>(0, 0) = temp2.select<REG_K / 2, 2, REG_N, 1>(0, p * REG_N);
@@ -785,10 +768,6 @@ void sdpa_kernel(
             if constexpr (head_size % VK_STEP > 0) {
                 int k = num_full_blocks * VK_STEP;
                 cm_load_2d_with_tail<REG_K, VK_STEP, head_size % VK_STEP>(temp2, value, v_off + k * sizeof(half), kv_pitch);
-                // Mask out OOB rows in V to prevent garbage/NaN propagation
-                if (need_oob_masking) {
-                    for (int r = kv_tokens; r < REG_K; r++) temp2.row(r) = 0;
-                }
                 #pragma unroll
                 for (int p = 0; p < VK_STEP / REG_N; p++) {
                     temp_vnni.select<REG_K / 2, 1, REG_N, 2>(0, 0) = temp2.select<REG_K / 2, 2, REG_N, 1>(0, p * REG_N);
