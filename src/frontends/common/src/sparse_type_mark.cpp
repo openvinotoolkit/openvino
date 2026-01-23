@@ -78,20 +78,30 @@ ov::Output<ov::Node> SparseTypeMark::to_dense(const NodeContext& context) {
 
 ov::Output<ov::Node> SparseTypeMark::sparse_mm(const NodeContext& context,
                                                const ov::Output<ov::Node>& sparse,
-                                               const ov::Output<ov::Node>& dense) {
+                                               const ov::Output<ov::Node>& matrix) {
     auto sparse_mark = as_type_ptr<SparseTypeMark>(sparse.get_node_shared_ptr());
-    
-    if (sparse_mark) {
-        // Fallback to dense MatMul
-        auto dense_sparse = sparse_mark->to_dense(context);
+    auto matrix_mark = as_type_ptr<SparseTypeMark>(matrix.get_node_shared_ptr());
+
+    // Both inputs are sparse (S x S -> S in PyTorch, but we emulate with dense for now)
+    if (sparse_mark && matrix_mark) {
+        auto lhs_dense = sparse_mark->to_dense(context);
+        auto rhs_dense = matrix_mark->to_dense(context);
         return context.mark_node(
-            make_shared<v0::MatMul>(dense_sparse, dense, false, false)
+            make_shared<v0::MatMul>(lhs_dense, rhs_dense, false, false)
         );
     }
     
-    // If not sparse-marked, use standard MatMul
+    // Only first input is sparse (S x D -> D)
+    if (sparse_mark) {
+        auto dense_sparse = sparse_mark->to_dense(context);
+        return context.mark_node(
+            make_shared<v0::MatMul>(dense_sparse, matrix, false, false)
+        );
+    }
+    
+    // Neither is sparse-marked (shouldn't happen in this flow usually)
     return context.mark_node(
-        make_shared<v0::MatMul>(sparse, dense, false, false)
+        make_shared<v0::MatMul>(sparse, matrix, false, false)
     );
 }
 
