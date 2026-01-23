@@ -72,6 +72,7 @@ jobs:
           export PYTHONPATH=${{ github.workspace }}/.github/scripts/workflow_rerun:${{ github.workspace }}/.github/scripts:$PYTHONPATH
           python3 ${{ github.workspace }}/.github/scripts/workflow_rerun/rerunner.py \
           --run-id ${{ github.event.workflow_run.id }} \
+          --rerunner-run-id ${{ github.run_id }} \
           --repository-name ${GITHUB_REPOSITORY}
 
   rerunner_tests:
