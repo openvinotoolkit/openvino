@@ -292,15 +292,6 @@ target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,
 # is not (yet) needed.
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:openvino::reference,INTERFACE_INCLUDE_DIRECTORIES>)
 
-# SVE2 is opt-in; enable compile flags only for the TopK JIT kernel.
-if(ENABLE_SVE2)
-    ov_arm_sve2_optimization_flags(_FLAGS_SVE2)
-    set_source_files_properties(
-        src/nodes/kernels/aarch64/jit_uni_topk_kernel.cpp
-        PROPERTIES
-            COMPILE_OPTIONS "${_FLAGS_SVE2}"
-            COMPILE_DEFINITIONS "HAVE_SVE2")
-endif()
 
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
