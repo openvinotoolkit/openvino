@@ -147,21 +147,25 @@ class Property : public util::BaseProperty<T, mutability_> {
         }
 
         template <typename U,
-                  typename std::enable_if<!std::is_same<typename std::decay<U>::type, std::string>::value &&
+                  typename std::enable_if<!std::is_same<std::decay_t<U>, std::string>::value &&
                                               !std::is_convertible<V, std::string>::value,
                                           bool>::type = true>
         explicit operator U() {
-            using UType = typename std::decay<U>::type;
-            using VType = typename std::decay<V>::type;
+            using UType = std::decay_t<U>;
+            using VType = std::decay_t<V>;
 
-            if constexpr (std::is_integral<UType>::value && std::is_unsigned<UType>::value &&
-                          std::is_integral<VType>::value && std::is_signed<VType>::value) {
+            if constexpr (std::is_integral_v<UType> && std::is_unsigned_v<UType> &&
+                          std::is_integral_v<VType> && std::is_signed_v<VType>) {
                 if (value < 0) {
-                    OPENVINO_THROW("Bad cast from signed negative value to unsigned property value: ", value);
+                    OPENVINO_THROW("Cannot assign negative value ", value, " to unsigned property");
                 }
-                if (static_cast<unsigned long long>(value) >
-                    static_cast<unsigned long long>(std::numeric_limits<UType>::max())) {
-                    OPENVINO_THROW("Bad cast (out of range) from ", value, " to: ", typeid(UType).name());
+                // Only check overflow if source type can represent values larger than target type max
+                if constexpr (sizeof(VType) > sizeof(UType) ||
+                              (sizeof(VType) == sizeof(UType) && std::is_signed_v<VType>)) {
+                    if (static_cast<unsigned long long>(value) >
+                        static_cast<unsigned long long>(std::numeric_limits<UType>::max())) {
+                        OPENVINO_THROW("Value ", value, " exceeds maximum for target unsigned type");
+                    }
                 }
             }
 
