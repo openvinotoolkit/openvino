@@ -116,7 +116,7 @@ ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
         // This is only valid when all Concat inputs have identical shapes,
         // so that the elementwise operation produces the same result as the Concat+Reduce.
         // If inputs have different shapes, the elementwise op would broadcast them, producing
-        // a different result. See CVS-179011.
+        // a different result.
         //
         // Example of the bug: Concat([2], [1]) -> ReduceMin(axis=0, keepdims=false) should produce scalar []
         // But the incorrect transformation produces: Minimum([2], [1]) -> [2] (broadcast) -> Squeeze -> [2]

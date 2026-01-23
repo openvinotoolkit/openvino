@@ -292,3 +292,31 @@ TEST_F(TransformationTestsF, PullSqueezeThroughEltwiseSqueezeEliminationDynamicR
         model_ref = std::make_shared<Model>(OutputVector{add}, ParameterVector{left_input, right_input});
     }
 }
+
+// ConcatReduceFusion should NOT apply when Concat inputs have different shapes.
+// When inputs have shapes [2] and [1], reducing along concat axis should produce scalar [],
+// but the incorrect transformation would produce Minimum([2], [1]) -> [2] (broadcast) -> Squeeze -> [2],
+// which breaks downstream operations expecting scalar output.
+TEST_F(TransformationTestsF, ConcatReduceMinFusionDifferentInputShapes_NotApplied) {
+    // This test verifies that the transformation is NOT applied when Concat inputs have different shapes.
+    // The bug was that the transformation would incorrectly replace:
+    //   Concat([2], [1]) -> ReduceMin(axis=0, keepdims=false) -> scalar []
+    // With:
+    //   Minimum([2], [1]) -> Squeeze(axis=0) -> [2]  (WRONG! should be scalar)
+    PartialShape left_shape{2};
+    PartialShape right_shape{1};
+    std::int64_t reduce_axis = 0;
+    {
+        auto left_input = std::make_shared<v0::Parameter>(element::f32, left_shape);
+        auto right_input = std::make_shared<v0::Parameter>(element::f32, right_shape);
+
+        auto concat = std::make_shared<v0::Concat>(NodeVector{left_input, right_input}, reduce_axis);
+
+        auto reduce_min =
+            std::make_shared<v1::ReduceMin>(concat, v0::Constant::create(element::i64, Shape{}, {reduce_axis}), false);
+
+        model = std::make_shared<Model>(OutputVector{reduce_min}, ParameterVector{left_input, right_input});
+        manager.register_pass<ov::pass::ConcatReduceFusion>();
+    }
+    // model_ref is not set - transformation should NOT be applied, so model should remain unchanged
+}
