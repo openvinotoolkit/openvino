@@ -52,7 +52,8 @@ jobs:
           sparse-checkout: '.github/scripts/workflow_rerun'
 
       - name: Install deps
-        run: pip3 install PyGithub==2.2.0 requests==2.31.0 psycopg2-binary==2.9.9
+        working-directory: ${{ github.workspace }}/.github/scripts/workflow_rerun
+        run: pip3 install -r requirements.txt
 
       - name: Dump GitHub context
         env:
@@ -83,10 +84,11 @@ jobs:
         timeout-minutes: 15
         with:
           sparse-checkout: '.github/scripts/workflow_rerun'
-          lfs: true
+          lfs: false
 
       - name: Install deps
-        run: pip3 install PyGithub==2.2.0 requests==2.31.0 psycopg2-binary==2.9.9
+        working-directory: ${{ github.workspace }}/.github/scripts/workflow_rerun
+        run: pip3 install -r requirements.txt
 
       - name: Test Rerunner (Tests)
         env:

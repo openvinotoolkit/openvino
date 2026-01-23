@@ -81,7 +81,8 @@ ConstantWriter::FilePosition ConstantWriter::write(const char* ptr,
             m_hash_to_file_positions.insert({hash, {offset, static_cast<const void*>(ptr)}});
         }
         if (m_write_hash_value) {
-            m_binary_output.get().write(reinterpret_cast<const char*>(&hash), sizeof(uint64_t));
+            // hash stored with special ostream only
+            m_binary_output.get().write(reinterpret_cast<const char*>(&hash), hash);
         } else {
             m_binary_output.get().write(ptr_to_write, new_size);
         }

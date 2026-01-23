@@ -301,6 +301,9 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::frontend::pytorch::pass::ReversepropResolver>();
         manager.register_pass<ov::frontend::pytorch::pass::MovePackThroughLstm>();
         manager.register_pass<ov::frontend::pytorch::pass::RemovePackingOps>();
+        // PrimListUnpackReplacer must run before validation to handle chunk+ListUnpack patterns
+        // that may exist alongside operations with shape inference issues
+        manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
         bool is_changed = manager.run_passes(model);
 
         // make validation after previously non-validated passes
@@ -310,7 +313,6 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 
     ov::pass::Manager manager("Frontend:Pytorch:normalize");
     manager.register_pass<ov::pass::UnrollIf>();
-    manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenGetItemReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::ListConstructReplacer>();
     // TODO: remove AtenIndexToSelect when problem with  dynamic input rank is gone.
