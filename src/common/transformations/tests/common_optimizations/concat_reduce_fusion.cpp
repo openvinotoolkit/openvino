@@ -167,7 +167,7 @@ TEST_F(TransformationTestsF, ConcatReduceMinFusionDynamicRank) {
     // model_ref is not set, so the test expects the model to remain unchanged
 }
 
-// CVS-179013: Test that transformation is NOT applied when concat inputs have different sizes
+// Test that transformation is NOT applied when concat inputs have different sizes
 // along the concat axis, which would produce incorrect broadcast results.
 TEST_F(TransformationTestsF, ConcatReduceMaxFusionDifferentSizesShouldNotApply) {
     // Concat([1], [53], axis=0) -> ReduceMax(axis=0) should produce scalar []
