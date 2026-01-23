@@ -18,6 +18,14 @@ namespace pass {
  * @brief Manager class allows to manage transformation passes
  * @ingroup ov_pass_cpp_api
  */
+
+struct MemoryInfo {
+    size_t vm_rss_bytes = 0;  // Resident set size (RAM in use)
+    size_t vm_size_bytes = 0; // Virtual memory size (address space)
+};
+
+MemoryInfo getProcessMemoryInfo();
+ 
 class OPENVINO_API Manager {
 public:
     Manager();
