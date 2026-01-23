@@ -265,7 +265,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
 
     const size_t ndims = outputShapes[0].getRank();
     // Domain sensitive operations and dynamic Subgraphs support only Planar layout
-    const bool isOnlyPlanarApplicable = has_domain_sensitive_ops();
+    const bool isOnlyPlanarApplicable = subgraph_attrs->snippet->has_domain_sensitive_ops();
     const bool isChannelsFirstApplicable =
         any_of(ndims, 1U, 2U, 3U, 4U, 5U) && dimRanksAreEqual && !isOnlyPlanarApplicable && !isDynamic;
     // Todo: Subgraphs currently don't support per-channel broadcasting of Blocked descriptors because
@@ -553,7 +553,7 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                            broadcastable_inputs);
 
     if (any_of(context->getConfig().inferencePrecision, ov::element::bf16, ov::element::f16) &&
-        has_domain_sensitive_ops()) {
+        subgraph_attrs->snippet->has_domain_sensitive_ops()) {
         SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(
             Place::After,
             ov::snippets::pass::FuseTransposeBrgemm,
@@ -592,7 +592,7 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                            ov::snippets::pass::PropagatePrecision,
                                            ov::intel_cpu::pass::BrgemmToBrgemmCPU,
                                            getConstantInputIndexes());
-    if (has_domain_sensitive_ops()) {
+    if (subgraph_attrs->snippet->has_domain_sensitive_ops()) {
 #if defined(OPENVINO_ARCH_X86_64)
         const auto cpu_config =
             ov::as_type_ptr<CPURuntimeConfig>(subgraph_attrs->snippet->get_runtime_configurator()->get_config());
@@ -922,10 +922,6 @@ void Subgraph::execute(const dnnl::stream& strm) {
 
 void Subgraph::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
-}
-
-bool Subgraph::has_domain_sensitive_ops() const {
-    return subgraph_attrs->snippet->has_domain_sensitive_ops();
 }
 
 }  // namespace ov::intel_cpu::node
