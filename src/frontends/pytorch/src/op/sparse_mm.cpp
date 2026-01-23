@@ -14,10 +14,10 @@ OutputVector translate_sparse_mm(const NodeContext& context) {
     // aten::_sparse_mm(Tensor sparse, Tensor dense) -> Tensor
     num_inputs_check(context, 2, 2);
     auto sparse_mat = context.get_input(0);
-    auto dense_mat = context.get_input(1);
+    auto mat2 = context.get_input(1);
 
     // Delegate to SparseTypeMark aware implementation
-    return {ov::frontend::SparseTypeMark::sparse_mm(context, sparse_mat, dense_mat)};
+    return {ov::frontend::SparseTypeMark::sparse_mm(context, sparse_mat, mat2)};
 };
 
 }  // namespace op
