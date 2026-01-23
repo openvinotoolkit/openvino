@@ -3552,828 +3552,828 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
         model = std::make_shared<ov::Model>(OutputVector{res},
                                             SinkVector{Assign0, Assign1, Assign2, Assign3, Assign4},
                                             params);
+    }
 
-        {
-            auto max_context_len = make_param(PartialShape{}, element::i32, "max_context_len");
-            auto block_indices_begins = make_param(PartialShape{DYN}, element::i32, "block_indices_begins");
-            auto block_indices = make_param(PartialShape{DYN}, element::i32, "block_indices");
-            auto subsequence_begins = make_param(PartialShape{DYN}, element::i32, "subsequence_begins");
-            auto past_lens = make_param(PartialShape{DYN}, element::i32, "past_lens");
-            auto value_cache_0 = make_param(PartialShape{DYN, DYN, DYN, DYN}, element::dynamic, "value_cache.0");
-            auto key_cache_0 = make_param(PartialShape{DYN, DYN, DYN, DYN}, element::dynamic, "key_cache.0");
-            auto input_ids = make_param(PartialShape{DYN}, element::i64, "inputs_ids");
-            auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+    {
+        auto max_context_len = make_param(PartialShape{}, element::i32, "max_context_len");
+        auto block_indices_begins = make_param(PartialShape{DYN}, element::i32, "block_indices_begins");
+        auto block_indices = make_param(PartialShape{DYN}, element::i32, "block_indices");
+        auto subsequence_begins = make_param(PartialShape{DYN}, element::i32, "subsequence_begins");
+        auto past_lens = make_param(PartialShape{DYN}, element::i32, "past_lens");
+        auto value_cache_0 = make_param(PartialShape{DYN, DYN, DYN, DYN}, element::dynamic, "value_cache.0");
+        auto key_cache_0 = make_param(PartialShape{DYN, DYN, DYN, DYN}, element::dynamic, "key_cache.0");
+        auto input_ids = make_param(PartialShape{DYN}, element::i64, "inputs_ids");
+        auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
 
-            auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
-            auto rotated_block_indices = makeConst(element::i32, ov::Shape({0}), {0});
-            auto rotation_deltas = makeConst(element::i32, ov::Shape{0}, {0});
-            auto rotation_trig_lut = makeConst(element::f32, ov::Shape({0}), {0});
-            auto xattention_threshold = makeConst(element::f32, ov::Shape({0}), {0});
-            auto xattention_block_size = makeConst(element::i32, ov::Shape({}), {0});
-            auto xattention_stride = makeConst(element::i32, ov::Shape({}), {0});
-            auto adaptive_rkv_start_size = makeConst(element::i32, ov::Shape({}), {0});
-            auto adaptive_rkv_evictable_sizes = makeConst(element::i32, ov::Shape({0}), {0});
-            auto adaptive_rkv_diversity_block_set_indices = makeConst(element::i32, ov::Shape({0}), {0});
-            auto adaptive_rkv_diversity_block_set_indices_begins = makeConst(element::i32, ov::Shape({0}), {0});
+        auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
+        auto rotated_block_indices = makeConst(element::i32, ov::Shape({0}), {0});
+        auto rotation_deltas = makeConst(element::i32, ov::Shape{0}, {0});
+        auto rotation_trig_lut = makeConst(element::f32, ov::Shape({0}), {0});
+        auto xattention_threshold = makeConst(element::f32, ov::Shape({0}), {0});
+        auto xattention_block_size = makeConst(element::i32, ov::Shape({}), {0});
+        auto xattention_stride = makeConst(element::i32, ov::Shape({}), {0});
+        auto adaptive_rkv_start_size = makeConst(element::i32, ov::Shape({}), {0});
+        auto adaptive_rkv_evictable_sizes = makeConst(element::i32, ov::Shape({0}), {0});
+        auto adaptive_rkv_diversity_block_set_indices = makeConst(element::i32, ov::Shape({0}), {0});
+        auto adaptive_rkv_diversity_block_set_indices_begins = makeConst(element::i32, ov::Shape({0}), {0});
 
-            auto Unsqueeze0 = makeOP<v0::Unsqueeze>({input_ids, 1});
-            auto ShapeOf0 = makeOP<v3::ShapeOf>({Unsqueeze0}, {{"output_type", "i64"}});
-            auto Gather0 = makeOP<v8::Gather>({ShapeOf0, {0}, 0}, {{"batch_dims", 0}});
-            auto Concat0 = makeOP<v0::Concat>({Gather0, {16l}, {3l}}, {{"axis", 0}});
-            auto Broadcast0 = makeOP<v3::Broadcast>({0.000000f, Concat0}, {{"mode", "numpy"}});
-            auto conv_var_2 = std::make_shared<ov::op::util::Variable>(
-                ov::op::util::VariableInfo{ov::PartialShape{DYN, 16, 3},
-                                           ov::element::f32,
-                                           "cache_params.past.conv.2cache_params.present.conv.2"});
-            std::shared_ptr<ov::Node> ReadValue0 = std::make_shared<v6::ReadValue>(Broadcast0, conv_var_2);
-            auto Roll0 = makeOP<ov::op::v7::Roll>({ReadValue0, {-1}, {-1}});
-            auto Reshape0 = makeOP<v1::Reshape>({Roll0, {-1}}, {{"special_zero", false}});
-            auto ShapeOf1 = makeOP<v3::ShapeOf>({Roll0}, {{"output_type", "i64"}});
-            auto ReduceProd0 = makeOP<v1::ReduceProd>({ShapeOf1, 0}, {{"keep_dims", false}});
-            auto Range0 = makeOP<v4::Range>({0, ReduceProd0, 1}, {{"output_type", "i64"}});
-            auto Reshape1 = makeOP<v1::Reshape>({Range0, ShapeOf1}, {{"special_zero", false}});
-            auto Reshape2 = makeOP<v1::Reshape>({Reshape1, {-1, 1}}, {{"special_zero", false}});
-            auto Transpose0 = makeOP<v1::Transpose>({Roll0, {2, 0, 1}});
-            auto ShapeOf2 = makeOP<v3::ShapeOf>({Unsqueeze0}, {{"output_type", "i64"}});
-            auto Gather1 = makeOP<v8::Gather>({ShapeOf2, 1, 0}, {{"batch_dims", 0}});
-            auto Convert0 = makeOP<v0::Convert>({Gather1}, {{"destination_type", "i32"}});
-            auto Subtract0 = makeOP<v1::Subtract>({max_context_len, Convert0}, {{"auto_broadcast", "numpy"}});
-            auto Convert1 = makeOP<v0::Convert>({Subtract0}, {{"destination_type", "i64"}});
-            auto Constant0 = makeConst(element::bf16,
-                                       ov::Shape({
-                                           65536,
-                                           16,
-                                       }),
-                                       MOCK_VALUE);
-            auto Convert2 = makeOP<v0::Convert>({Constant0}, {{"destination_type", "f32"}});
-            auto Convert3 = makeOP<v0::Convert>({Unsqueeze0}, {{"destination_type", "i32"}});
-            auto Gather2 = makeOP<v8::Gather>({Convert2, Convert3, 0}, {{"batch_dims", 0}});
-            auto Constant1 = makeConst(element::f32,
-                                       ov::Shape({
-                                           1,
-                                           1,
-                                           1,
-                                       }),
-                                       {1.000000f});
-            auto Constant2 = makeConst(element::f32,
-                                       ov::Shape({
-                                           1,
-                                           1,
-                                           1,
-                                       }),
-                                       {2.000000f});
-            auto Power0 = makeOP<v1::Power>({Gather2, Constant2}, {{"auto_broadcast", "numpy"}});
-            auto ReduceMean0 = makeOP<v1::ReduceMean>({Power0, {-1}}, {{"keep_dims", true}});
-            auto Constant3 = makeConst(element::f32,
-                                       ov::Shape({
-                                           1,
-                                           1,
-                                           1,
-                                       }),
-                                       {0.000010f});
-            auto Add0 = makeOP<v1::Add>({ReduceMean0, Constant3}, {{"auto_broadcast", "numpy"}});
-            auto Sqrt0 = makeOP<v0::Sqrt>({Add0});
-            auto Divide0 = makeOP<v1::Divide>({Constant1, Sqrt0}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-            auto Multiply0 = makeOP<v1::Multiply>({Gather2, Divide0}, {{"auto_broadcast", "numpy"}});
-            auto Constant4 = makeConst(element::bf16,
-                                       ov::Shape({
-                                           48,
-                                           16,
-                                       }),
-                                       MOCK_VALUE);
-            auto Convert4 = makeOP<v0::Convert>({Constant4}, {{"destination_type", "f32"}});
-            auto MatMul0 = makeOP<v0::MatMul>({Multiply0, Convert4}, {{"transpose_a", false}, {"transpose_b", true}});
-            auto Transpose1 = makeOP<v1::Transpose>({MatMul0, {0, 2, 1}});
-            auto ShapeOf3 = makeOP<v3::ShapeOf>({Transpose1}, {{"output_type", "i64"}});
-            auto Gather3 = makeOP<v8::Gather>({ShapeOf3, 2, 0}, {{"batch_dims", 0}});
-            auto Add1 = makeOP<v1::Add>({Convert1, Gather3}, {{"auto_broadcast", "numpy"}});
-            auto Range1 = makeOP<v4::Range>({Convert1, Add1, 1}, {{"output_type", "i64"}});
-            auto Clamp0 = makeOP<v0::Clamp>({Range1}, {{"min", 0.000000}, {"max", 2.000000}});
-            auto ShapeOf4 = makeOP<v3::ShapeOf>({Transpose0}, {{"output_type", "i32"}});
-            auto Gather4 = makeOP<v8::Gather>({ShapeOf4, 0, 0}, {{"batch_dims", 0}});
-            auto Convert5 = makeOP<v0::Convert>({Gather4}, {{"destination_type", "i64"}});
-            auto Add2 = makeOP<v1::Add>({Clamp0, Convert5}, {{"auto_broadcast", "numpy"}});
-            auto Mod0 = makeOP<v1::Mod>({Add2, Convert5}, {{"auto_broadcast", "numpy"}});
-            auto Unsqueeze1 = makeOP<v0::Unsqueeze>({Mod0, -1});
-            auto ShapeOf5 = makeOP<v3::ShapeOf>({Transpose1}, {{"output_type", "i32"}});
-            auto Gather5 = makeOP<v8::Gather>({ShapeOf5, -2, {0}}, {{"batch_dims", 0}});
-            auto Divide1 = makeOP<v1::Divide>({Gather5, 3}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-            auto Mod1 = makeOP<v1::Mod>({Gather5, 3}, {{"auto_broadcast", "numpy"}});
-            auto Greater0 = makeOP<v1::Greater>({Mod1, {0}}, {{"auto_broadcast", "numpy"}});
-            auto Convert6 = makeOP<v0::Convert>({Greater0}, {{"destination_type", "i32"}});
-            auto Add3 = makeOP<v1::Add>({Divide1, Convert6}, {{"auto_broadcast", "numpy"}});
-            auto Broadcast1 = makeOP<v3::Broadcast>({Add3, {2}}, {{"mode", "numpy"}});
-            auto Concat1 = makeOP<v0::Concat>({Broadcast1, {-1}}, {{"axis", 0}});
-            auto VariadicSplit0 = makeOP<v1::VariadicSplit>({Transpose1, -2, Concat1});
-            auto Concat2 = makeOP<v0::Concat>({Gather0, {16l}, {3l}}, {{"axis", 0}});
-            auto Broadcast2 = makeOP<v3::Broadcast>({0.000000f, Concat2}, {{"mode", "numpy"}});
-            auto conv_var_0 = std::make_shared<ov::op::util::Variable>(
-                ov::op::util::VariableInfo{ov::PartialShape{DYN, 16, 3},
-                                           ov::element::f32,
-                                           "cache_params.past.conv.0cache_params.present.conv.0"});
-            std::shared_ptr<ov::Node> ReadValue1 = std::make_shared<v6::ReadValue>(Broadcast2, conv_var_0);
-            auto Roll1 = makeOP<ov::op::v7::Roll>({ReadValue1, {-1}, {-1}});
-            auto Reshape3 = makeOP<v1::Reshape>({Roll1, {-1}}, {{"special_zero", false}});
-            auto ShapeOf6 = makeOP<v3::ShapeOf>({Roll1}, {{"output_type", "i64"}});
-            auto ReduceProd1 = makeOP<v1::ReduceProd>({ShapeOf6, 0}, {{"keep_dims", false}});
-            auto Range2 = makeOP<v4::Range>({0, ReduceProd1, 1}, {{"output_type", "i64"}});
-            auto Reshape4 = makeOP<v1::Reshape>({Range2, ShapeOf6}, {{"special_zero", false}});
-            auto Reshape5 = makeOP<v1::Reshape>({Reshape4, {-1, 1}}, {{"special_zero", false}});
-            auto Transpose2 = makeOP<v1::Transpose>({Roll1, {2, 0, 1}});
-            auto ShapeOf7 = makeOP<v3::ShapeOf>({Transpose2}, {{"output_type", "i32"}});
-            auto Gather6 = makeOP<v8::Gather>({ShapeOf7, 0, 0}, {{"batch_dims", 0}});
-            auto Convert7 = makeOP<v0::Convert>({Gather6}, {{"destination_type", "i64"}});
-            auto Add4 = makeOP<v1::Add>({Clamp0, Convert7}, {{"auto_broadcast", "numpy"}});
-            auto Mod2 = makeOP<v1::Mod>({Add4, Convert7}, {{"auto_broadcast", "numpy"}});
-            auto Unsqueeze2 = makeOP<v0::Unsqueeze>({Mod2, -1});
-            auto Multiply1 = makeOP<v1::Multiply>({VariadicSplit0->output(0), VariadicSplit0->output(2)},
-                                                  {{"auto_broadcast", "numpy"}});
-            auto Transpose3 = makeOP<v1::Transpose>({Multiply1, {2, 0, 1}});
-            auto Reshape6 = makeOP<v1::Reshape>({Gather3, {1}}, {{"special_zero", false}});
-            auto Convert8 = makeOP<v0::Convert>({Reshape6}, {{"destination_type", "i32"}});
-            auto Slice0 = makeOP<v8::Slice>({ShapeOf7, {1}, {INT_MAX}, {1}, {0}});
-            auto Concat3 = makeOP<v0::Concat>({Convert8, Slice0}, {{"axis", 0}});
-            auto Broadcast3 = makeOP<v3::Broadcast>({Transpose3, Concat3}, {{"mode", "numpy"}});
-            auto ScatterNDUpdate0 = makeOP<ov::op::v3::ScatterNDUpdate>({Transpose2, Unsqueeze2, Broadcast3});
-            auto Transpose4 = makeOP<v1::Transpose>({ScatterNDUpdate0, {1, 2, 0}});
-            auto Reshape7 = makeOP<v1::Reshape>({Transpose4, {-1}}, {{"special_zero", false}});
-            auto ScatterNDUpdate1 = makeOP<ov::op::v3::ScatterNDUpdate>({Reshape3, Reshape5, Reshape7});
-            auto Reshape8 = makeOP<v1::Reshape>({ScatterNDUpdate1, ShapeOf6}, {{"special_zero", false}});
-            auto Constant5 = makeConst(element::f32,
-                                       ov::Shape({
-                                           1,
-                                           16,
-                                           3,
-                                       }),
-                                       MOCK_VALUE);
-            auto Multiply2 = makeOP<v1::Multiply>({Reshape8, Constant5}, {{"auto_broadcast", "numpy"}});
-            auto ReduceSum0 = makeOP<v1::ReduceSum>({Multiply2, {-1}}, {{"keep_dims", false}});
-            auto Unsqueeze3 = makeOP<v0::Unsqueeze>({ReduceSum0, -1});
-            auto Equal0 = makeOP<v1::Equal>({Gather3, 1ll}, {{"auto_broadcast", "numpy"}});
-            auto Convert9 = makeOP<v0::Convert>({Equal0}, {{"destination_type", "f32"}});
-            auto Multiply3 = makeOP<v1::Multiply>({Unsqueeze3, Convert9}, {{"auto_broadcast", "numpy"}});
-            auto Reshape9 = makeConst(element::f32,
-                                      ov::Shape({
-                                          16,
-                                          1,
-                                          1,
-                                          3,
-                                      }),
-                                      MOCK_VALUE);
-            auto GroupConvolution0 = makeOP<v1::GroupConvolution>({Multiply1, Reshape9},
-                                                                  {{"strides", {1}},
-                                                                   {"pads_begin", {2}},
-                                                                   {"pads_end", {2}},
-                                                                   {"dilations", {1}},
-                                                                   {"auto_pad", "explicit"}});
-            auto Slice1 = makeOP<v8::Slice>({GroupConvolution0, {0}, Reshape6, {1}, {2}});
-            auto Multiply4 = makeOP<v1::Multiply>({Convert9, 1.000000f}, {{"auto_broadcast", "numpy"}});
-            auto Subtract1 = makeOP<v1::Subtract>({1.000000f, Multiply4}, {{"auto_broadcast", "numpy"}});
-            auto Multiply5 = makeOP<v1::Multiply>({Slice1, Subtract1}, {{"auto_broadcast", "numpy"}});
-            auto Add5 = makeOP<v1::Add>({Multiply3, Multiply5}, {{"auto_broadcast", "numpy"}});
-            auto Multiply6 = makeOP<v1::Multiply>({VariadicSplit0->output(1), Add5}, {{"auto_broadcast", "numpy"}});
-            auto Constant6 = makeConst(element::bf16,
-                                       ov::Shape({
-                                           16,
-                                           16,
-                                       }),
-                                       MOCK_VALUE);
-            auto Convert10 = makeOP<v0::Convert>({Constant6}, {{"destination_type", "f32"}});
-            auto MatMul1 = makeOP<v0::MatMul>({Multiply6, Convert10}, {{"transpose_a", true}, {"transpose_b", true}});
-            auto Add6 = makeOP<v1::Add>({MatMul1, Gather2}, {{"auto_broadcast", "numpy"}});
-            auto Constant7 = makeConst(element::f32,
-                                       ov::Shape({
-                                           1,
-                                           1,
-                                           1,
-                                       }),
-                                       {1.000000f});
-            auto Constant8 = makeConst(element::f32,
-                                       ov::Shape({
-                                           1,
-                                           1,
-                                           1,
-                                       }),
-                                       {2.000000f});
-            auto Power1 = makeOP<v1::Power>({Add6, Constant8}, {{"auto_broadcast", "numpy"}});
-            auto ReduceMean1 = makeOP<v1::ReduceMean>({Power1, {-1}}, {{"keep_dims", true}});
-            auto Constant9 = makeConst(element::f32,
-                                       ov::Shape({
-                                           1,
-                                           1,
-                                           1,
-                                       }),
-                                       {0.000010f});
-            auto Add7 = makeOP<v1::Add>({ReduceMean1, Constant9}, {{"auto_broadcast", "numpy"}});
-            auto Sqrt1 = makeOP<v0::Sqrt>({Add7});
-            auto Divide2 = makeOP<v1::Divide>({Constant7, Sqrt1}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-            auto Multiply7 = makeOP<v1::Multiply>({Add6, Divide2}, {{"auto_broadcast", "numpy"}});
-            auto Constant10 = makeConst(element::bf16,
-                                        ov::Shape({
-                                            4440,
-                                            16,
-                                        }),
-                                        MOCK_VALUE);
-            auto Convert11 = makeOP<v0::Convert>({Constant10}, {{"destination_type", "f32"}});
-            auto MatMul2 = makeOP<v0::MatMul>({Multiply7, Convert11}, {{"transpose_a", false}, {"transpose_b", true}});
-            auto Swish0 = makeOP<v4::Swish>({MatMul2});
-            auto Constant11 = makeConst(element::bf16,
-                                        ov::Shape({
-                                            4440,
-                                            16,
-                                        }),
-                                        MOCK_VALUE);
-            auto Convert12 = makeOP<v0::Convert>({Constant11}, {{"destination_type", "f32"}});
-            auto MatMul3 = makeOP<v0::MatMul>({Multiply7, Convert12}, {{"transpose_a", false}, {"transpose_b", true}});
-            auto Multiply8 = makeOP<v1::Multiply>({Swish0, MatMul3}, {{"auto_broadcast", "numpy"}});
-            auto Constant12 = makeConst(element::bf16,
-                                        ov::Shape({
-                                            16,
-                                            4440,
-                                        }),
-                                        MOCK_VALUE);
-            auto Convert13 = makeOP<v0::Convert>({Constant12}, {{"destination_type", "f32"}});
-            auto MatMul4 = makeOP<v0::MatMul>({Multiply8, Convert13}, {{"transpose_a", false}, {"transpose_b", true}});
-            auto Add8 = makeOP<v1::Add>({Add6, MatMul4}, {{"auto_broadcast", "numpy"}});
-            auto Constant13 = makeConst(element::f32,
-                                        ov::Shape({
-                                            1,
-                                            1,
-                                            1,
-                                        }),
-                                        {1.000000f});
-            auto Constant14 = makeConst(element::f32,
-                                        ov::Shape({
-                                            1,
-                                            1,
-                                            1,
-                                        }),
-                                        {2.000000f});
-            auto Power2 = makeOP<v1::Power>({Add8, Constant14}, {{"auto_broadcast", "numpy"}});
-            auto ReduceMean2 = makeOP<v1::ReduceMean>({Power2, {-1}}, {{"keep_dims", true}});
-            auto Constant15 = makeConst(element::f32,
-                                        ov::Shape({
-                                            1,
-                                            1,
-                                            1,
-                                        }),
-                                        {0.000010f});
-            auto Add9 = makeOP<v1::Add>({ReduceMean2, Constant15}, {{"auto_broadcast", "numpy"}});
-            auto Sqrt2 = makeOP<v0::Sqrt>({Add9});
-            auto Divide3 =
-                makeOP<v1::Divide>({Constant13, Sqrt2}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-            auto Multiply9 = makeOP<v1::Multiply>({Add8, Divide3}, {{"auto_broadcast", "numpy"}});
-            auto Constant16 = makeConst(element::bf16,
-                                        ov::Shape({
-                                            48,
-                                            16,
-                                        }),
-                                        MOCK_VALUE);
-            auto Convert14 = makeOP<v0::Convert>({Constant16}, {{"destination_type", "f32"}});
-            auto MatMul5 = makeOP<v0::MatMul>({Multiply9, Convert14}, {{"transpose_a", false}, {"transpose_b", true}});
-            auto Transpose5 = makeOP<v1::Transpose>({MatMul5, {0, 2, 1}});
-            auto ShapeOf8 = makeOP<v3::ShapeOf>({Transpose5}, {{"output_type", "i32"}});
-            auto Gather7 = makeOP<v8::Gather>({ShapeOf8, -2, {0}}, {{"batch_dims", 0}});
-            auto Divide4 = makeOP<v1::Divide>({Gather7, 3}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-            auto Mod3 = makeOP<v1::Mod>({Gather7, 3}, {{"auto_broadcast", "numpy"}});
-            auto Greater1 = makeOP<v1::Greater>({Mod3, {0}}, {{"auto_broadcast", "numpy"}});
-            auto Convert15 = makeOP<v0::Convert>({Greater1}, {{"destination_type", "i32"}});
-            auto Add10 = makeOP<v1::Add>({Divide4, Convert15}, {{"auto_broadcast", "numpy"}});
-            auto Broadcast4 = makeOP<v3::Broadcast>({Add10, {2}}, {{"mode", "numpy"}});
-            auto Concat4 = makeOP<v0::Concat>({Broadcast4, {-1}}, {{"axis", 0}});
-            auto VariadicSplit1 = makeOP<v1::VariadicSplit>({Transpose5, -2, Concat4});
-            auto Concat5 = makeOP<v0::Concat>({Gather0, {16l}, {3l}}, {{"axis", 0}});
-            auto Broadcast5 = makeOP<v3::Broadcast>({0.000000f, Concat5}, {{"mode", "numpy"}});
-            auto conv_var_1 = std::make_shared<ov::op::util::Variable>(
-                ov::op::util::VariableInfo{ov::PartialShape{DYN, 16, 3},
-                                           ov::element::f32,
-                                           "cache_params.past.conv.1cache_params.present.conv.1"});
-            std::shared_ptr<ov::Node> ReadValue2 = std::make_shared<v6::ReadValue>(Broadcast5, conv_var_1);
-            auto Roll2 = makeOP<ov::op::v7::Roll>({ReadValue2, {-1}, {-1}});
-            auto Reshape10 = makeOP<v1::Reshape>({Roll2, {-1}}, {{"special_zero", false}});
-            auto ShapeOf9 = makeOP<v3::ShapeOf>({Roll2}, {{"output_type", "i64"}});
-            auto ReduceProd2 = makeOP<v1::ReduceProd>({ShapeOf9, 0}, {{"keep_dims", false}});
-            auto Range3 = makeOP<v4::Range>({0, ReduceProd2, 1}, {{"output_type", "i64"}});
-            auto Reshape11 = makeOP<v1::Reshape>({Range3, ShapeOf9}, {{"special_zero", false}});
-            auto Reshape12 = makeOP<v1::Reshape>({Reshape11, {-1, 1}}, {{"special_zero", false}});
-            auto Transpose6 = makeOP<v1::Transpose>({Roll2, {2, 0, 1}});
-            auto ShapeOf10 = makeOP<v3::ShapeOf>({Transpose6}, {{"output_type", "i32"}});
-            auto Gather8 = makeOP<v8::Gather>({ShapeOf10, 0, 0}, {{"batch_dims", 0}});
-            auto Convert16 = makeOP<v0::Convert>({Gather8}, {{"destination_type", "i64"}});
-            auto Add11 = makeOP<v1::Add>({Clamp0, Convert16}, {{"auto_broadcast", "numpy"}});
-            auto Mod4 = makeOP<v1::Mod>({Add11, Convert16}, {{"auto_broadcast", "numpy"}});
-            auto Unsqueeze4 = makeOP<v0::Unsqueeze>({Mod4, -1});
-            auto Multiply10 = makeOP<v1::Multiply>({VariadicSplit1->output(0), VariadicSplit1->output(2)},
-                                                   {{"auto_broadcast", "numpy"}});
-            auto Transpose7 = makeOP<v1::Transpose>({Multiply10, {2, 0, 1}});
-            auto Slice2 = makeOP<v8::Slice>({ShapeOf10, {1}, {INT_MAX}, {1}, {0}});
-            auto Concat6 = makeOP<v0::Concat>({Convert8, Slice2}, {{"axis", 0}});
-            auto Broadcast6 = makeOP<v3::Broadcast>({Transpose7, Concat6}, {{"mode", "numpy"}});
-            auto ScatterNDUpdate2 = makeOP<ov::op::v3::ScatterNDUpdate>({Transpose6, Unsqueeze4, Broadcast6});
-            auto Transpose8 = makeOP<v1::Transpose>({ScatterNDUpdate2, {1, 2, 0}});
-            auto Reshape13 = makeOP<v1::Reshape>({Transpose8, {-1}}, {{"special_zero", false}});
-            auto ScatterNDUpdate3 = makeOP<ov::op::v3::ScatterNDUpdate>({Reshape10, Reshape12, Reshape13});
-            auto Reshape14 = makeOP<v1::Reshape>({ScatterNDUpdate3, ShapeOf9}, {{"special_zero", false}});
-            auto Constant17 = makeConst(element::f32,
-                                        ov::Shape({
-                                            1,
-                                            16,
-                                            3,
-                                        }),
-                                        MOCK_VALUE);
-            auto Multiply11 = makeOP<v1::Multiply>({Reshape14, Constant17}, {{"auto_broadcast", "numpy"}});
-            auto ReduceSum1 = makeOP<v1::ReduceSum>({Multiply11, {-1}}, {{"keep_dims", false}});
-            auto Unsqueeze5 = makeOP<v0::Unsqueeze>({ReduceSum1, -1});
-            auto ShapeOf11 = makeOP<v3::ShapeOf>({Transpose5}, {{"output_type", "i64"}});
-            auto Gather9 = makeOP<v8::Gather>({ShapeOf11, 2, 0}, {{"batch_dims", 0}});
-            auto Equal1 = makeOP<v1::Equal>({Gather9, 1ll}, {{"auto_broadcast", "numpy"}});
-            auto Convert17 = makeOP<v0::Convert>({Equal1}, {{"destination_type", "f32"}});
-            auto Multiply12 = makeOP<v1::Multiply>({Unsqueeze5, Convert17}, {{"auto_broadcast", "numpy"}});
-            auto Reshape15 = makeConst(element::f32,
-                                       ov::Shape({
-                                           16,
-                                           1,
-                                           1,
-                                           3,
-                                       }),
-                                       MOCK_VALUE);
-            auto GroupConvolution1 = makeOP<v1::GroupConvolution>({Multiply10, Reshape15},
-                                                                  {{"strides", {1}},
-                                                                   {"pads_begin", {2}},
-                                                                   {"pads_end", {2}},
-                                                                   {"dilations", {1}},
-                                                                   {"auto_pad", "explicit"}});
-            auto Reshape16 = makeOP<v1::Reshape>({Gather9, {1}}, {{"special_zero", false}});
-            auto Slice3 = makeOP<v8::Slice>({GroupConvolution1, {0}, Reshape16, {1}, {2}});
-            auto Multiply13 = makeOP<v1::Multiply>({Convert17, 1.000000f}, {{"auto_broadcast", "numpy"}});
-            auto Subtract2 = makeOP<v1::Subtract>({1.000000f, Multiply13}, {{"auto_broadcast", "numpy"}});
-            auto Multiply14 = makeOP<v1::Multiply>({Slice3, Subtract2}, {{"auto_broadcast", "numpy"}});
-            auto Add12 = makeOP<v1::Add>({Multiply12, Multiply14}, {{"auto_broadcast", "numpy"}});
-            auto Multiply15 = makeOP<v1::Multiply>({VariadicSplit1->output(1), Add12}, {{"auto_broadcast", "numpy"}});
-            auto Constant18 = makeConst(element::bf16,
-                                        ov::Shape({
-                                            16,
-                                            16,
-                                        }),
-                                        MOCK_VALUE);
-            auto Convert18 = makeOP<v0::Convert>({Constant18}, {{"destination_type", "f32"}});
-            auto MatMul6 = makeOP<v0::MatMul>({Multiply15, Convert18}, {{"transpose_a", true}, {"transpose_b", true}});
-            auto Add13 = makeOP<v1::Add>({MatMul6, Add8}, {{"auto_broadcast", "numpy"}});
-            auto Constant19 = makeConst(element::f32,
-                                        ov::Shape({
-                                            1,
-                                            1,
-                                            1,
-                                        }),
-                                        {1.000000f});
-            auto Constant20 = makeConst(element::f32,
-                                        ov::Shape({
-                                            1,
-                                            1,
-                                            1,
-                                        }),
-                                        {2.000000f});
-            auto Power3 = makeOP<v1::Power>({Add13, Constant20}, {{"auto_broadcast", "numpy"}});
-            auto ReduceMean3 = makeOP<v1::ReduceMean>({Power3, {-1}}, {{"keep_dims", true}});
-            auto Constant21 = makeConst(element::f32,
-                                        ov::Shape({
-                                            1,
-                                            1,
-                                            1,
-                                        }),
-                                        {0.000010f});
-            auto Add14 = makeOP<v1::Add>({ReduceMean3, Constant21}, {{"auto_broadcast", "numpy"}});
-            auto Sqrt3 = makeOP<v0::Sqrt>({Add14});
-            auto Divide5 =
-                makeOP<v1::Divide>({Constant19, Sqrt3}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-            auto Multiply16 = makeOP<v1::Multiply>({Add13, Divide5}, {{"auto_broadcast", "numpy"}});
-            auto Constant22 = makeConst(element::bf16,
-                                        ov::Shape({
-                                            4440,
-                                            16,
-                                        }),
-                                        MOCK_VALUE);
-            auto Convert19 = makeOP<v0::Convert>({Constant22}, {{"destination_type", "f32"}});
-            auto MatMul7 = makeOP<v0::MatMul>({Multiply16, Convert19}, {{"transpose_a", false}, {"transpose_b", true}});
-            auto Swish1 = makeOP<v4::Swish>({MatMul7});
-            auto Constant23 = makeConst(element::bf16,
-                                        ov::Shape({
-                                            4440,
-                                            16,
-                                        }),
-                                        MOCK_VALUE);
-            auto Convert20 = makeOP<v0::Convert>({Constant23}, {{"destination_type", "f32"}});
-            auto MatMul8 = makeOP<v0::MatMul>({Multiply16, Convert20}, {{"transpose_a", false}, {"transpose_b", true}});
-            auto Multiply17 = makeOP<v1::Multiply>({Swish1, MatMul8}, {{"auto_broadcast", "numpy"}});
-            auto Constant24 = makeConst(element::bf16,
-                                        ov::Shape({
-                                            16,
-                                            4440,
-                                        }),
-                                        MOCK_VALUE);
-            auto Convert21 = makeOP<v0::Convert>({Constant24}, {{"destination_type", "f32"}});
-            auto MatMul9 = makeOP<v0::MatMul>({Multiply17, Convert21}, {{"transpose_a", false}, {"transpose_b", true}});
-            auto Add15 = makeOP<v1::Add>({Add13, MatMul9}, {{"auto_broadcast", "numpy"}});
-            auto Constant25 = makeConst(element::f32,
-                                        ov::Shape({
-                                            1,
-                                            1,
-                                            1,
-                                        }),
-                                        {1.000000f});
-            auto Constant26 = makeConst(element::f32,
-                                        ov::Shape({
-                                            1,
-                                            1,
-                                            1,
-                                        }),
-                                        {2.000000f});
-            auto Power4 = makeOP<v1::Power>({Add15, Constant26}, {{"auto_broadcast", "numpy"}});
-            auto ReduceMean4 = makeOP<v1::ReduceMean>({Power4, {-1}}, {{"keep_dims", true}});
-            auto Constant27 = makeConst(element::f32,
-                                        ov::Shape({
-                                            1,
-                                            1,
-                                            1,
-                                        }),
-                                        {0.000010f});
-            auto Add16 = makeOP<v1::Add>({ReduceMean4, Constant27}, {{"auto_broadcast", "numpy"}});
-            auto Sqrt4 = makeOP<v0::Sqrt>({Add16});
-            auto Divide6 =
-                makeOP<v1::Divide>({Constant25, Sqrt4}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-            auto Multiply18 = makeOP<v1::Multiply>({Add15, Divide6}, {{"auto_broadcast", "numpy"}});
-            auto Constant28 = makeConst(element::bf16,
-                                        ov::Shape({
-                                            16,
-                                            16,
-                                        }),
-                                        MOCK_VALUE);
-            auto Convert22 = makeOP<v0::Convert>({Constant28}, {{"destination_type", "f32"}});
-            auto MatMul10 =
-                makeOP<v0::MatMul>({Multiply18, Convert22}, {{"transpose_a", false}, {"transpose_b", true}});
-            auto Reshape17 = makeOP<v1::Reshape>({MatMul10, {0, 0, 4, 4}}, {{"special_zero", true}});
-            auto Constant29 = makeConst(element::f32,
-                                        ov::Shape({
-                                            1,
-                                            1,
-                                            1,
-                                            1,
-                                        }),
-                                        {1.000000f});
-            auto Constant30 = makeConst(element::f32,
-                                        ov::Shape({
-                                            1,
-                                            1,
-                                            1,
-                                            1,
-                                        }),
-                                        {2.000000f});
-            auto Power5 = makeOP<v1::Power>({Reshape17, Constant30}, {{"auto_broadcast", "numpy"}});
-            auto ReduceMean5 = makeOP<v1::ReduceMean>({Power5, {-1}}, {{"keep_dims", true}});
-            auto Constant31 = makeConst(element::f32,
-                                        ov::Shape({
-                                            1,
-                                            1,
-                                            1,
-                                            1,
-                                        }),
-                                        {0.000010f});
-            auto Add17 = makeOP<v1::Add>({ReduceMean5, Constant31}, {{"auto_broadcast", "numpy"}});
-            auto Sqrt5 = makeOP<v0::Sqrt>({Add17});
-            auto Divide7 =
-                makeOP<v1::Divide>({Constant29, Sqrt5}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-            auto Multiply19 = makeOP<v1::Multiply>({Reshape17, Divide7}, {{"auto_broadcast", "numpy"}});
-            auto Transpose9 = makeOP<v1::Transpose>({Multiply19, {0, 2, 1, 3}});
-            auto Convert23 = makeConst(element::f32,
-                                       ov::Shape({
-                                           1,
-                                           2,
-                                           1,
-                                       }),
-                                       {1.000000f, 0.001000f});
-            auto Unsqueeze6 = makeOP<v0::Unsqueeze>({Range1, 0});
-            auto Unsqueeze7 = makeOP<v0::Unsqueeze>({Unsqueeze6, 1});
-            auto Convert24 = makeOP<v0::Convert>({Unsqueeze7}, {{"destination_type", "f32"}});
-            auto MatMul11 =
-                makeOP<v0::MatMul>({Convert23, Convert24}, {{"transpose_a", false}, {"transpose_b", false}});
-            auto Transpose10 = makeOP<v1::Transpose>({MatMul11, {0, 2, 1}});
-            auto Concat7 = makeOP<v0::Concat>({Transpose10, Transpose10}, {{"axis", -1}});
-            auto Cos0 = makeOP<v0::Cos>({Concat7});
-            auto Unsqueeze8 = makeOP<v0::Unsqueeze>({Cos0, 1});
-            auto Multiply20 = makeOP<v1::Multiply>({Transpose9, Unsqueeze8}, {{"auto_broadcast", "numpy"}});
-            auto Slice4 = makeOP<v8::Slice>({Transpose9, {2}, {LLONG_MAX}, {1}, {3}});
-            auto Convert25 = makeOP<v0::Convert>({-1}, {{"destination_type", "f32"}});
-            auto Multiply21 = makeOP<v1::Multiply>({Slice4, Convert25}, {{"auto_broadcast", "numpy"}});
-            auto Slice5 = makeOP<v8::Slice>({Transpose9, {0}, {2}, {1}, {3}});
-            auto Concat8 = makeOP<v0::Concat>({Multiply21, Slice5}, {{"axis", -1}});
-            auto Sin0 = makeOP<v0::Sin>({Concat7});
-            auto Unsqueeze9 = makeOP<v0::Unsqueeze>({Sin0, 1});
-            auto Multiply22 = makeOP<v1::Multiply>({Concat8, Unsqueeze9}, {{"auto_broadcast", "numpy"}});
-            auto Add18 = makeOP<v1::Add>({Multiply20, Multiply22}, {{"auto_broadcast", "numpy"}});
-            auto Transpose11 = makeOP<v1::Transpose>({Add18, {0, 2, 1, 3}});
-            auto Reshape18 = makeOP<v1::Reshape>({Transpose11, {0, -1}}, {{"special_zero", true}});
-            auto Constant32 = makeConst(element::bf16,
-                                        ov::Shape({
-                                            16,
-                                            16,
-                                        }),
-                                        MOCK_VALUE);
-            auto Convert26 = makeOP<v0::Convert>({Constant32}, {{"destination_type", "f32"}});
-            auto MatMul12 =
-                makeOP<v0::MatMul>({Multiply18, Convert26}, {{"transpose_a", false}, {"transpose_b", true}});
-            auto Reshape19 = makeOP<v1::Reshape>({MatMul12, {0, 0, 4, 4}}, {{"special_zero", true}});
-            auto Constant33 = makeConst(element::f32,
-                                        ov::Shape({
-                                            1,
-                                            1,
-                                            1,
-                                            1,
-                                        }),
-                                        {1.000000f});
-            auto Constant34 = makeConst(element::f32,
-                                        ov::Shape({
-                                            1,
-                                            1,
-                                            1,
-                                            1,
-                                        }),
-                                        {2.000000f});
-            auto Power6 = makeOP<v1::Power>({Reshape19, Constant34}, {{"auto_broadcast", "numpy"}});
-            auto ReduceMean6 = makeOP<v1::ReduceMean>({Power6, {-1}}, {{"keep_dims", true}});
-            auto Constant35 = makeConst(element::f32,
-                                        ov::Shape({
-                                            1,
-                                            1,
-                                            1,
-                                            1,
-                                        }),
-                                        {0.000010f});
-            auto Add19 = makeOP<v1::Add>({ReduceMean6, Constant35}, {{"auto_broadcast", "numpy"}});
-            auto Sqrt6 = makeOP<v0::Sqrt>({Add19});
-            auto Divide8 =
-                makeOP<v1::Divide>({Constant33, Sqrt6}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-            auto Multiply23 = makeOP<v1::Multiply>({Reshape19, Divide8}, {{"auto_broadcast", "numpy"}});
-            auto Transpose12 = makeOP<v1::Transpose>({Multiply23, {0, 2, 1, 3}});
-            auto Multiply24 = makeOP<v1::Multiply>({Transpose12, Unsqueeze8}, {{"auto_broadcast", "numpy"}});
-            auto Slice6 = makeOP<v8::Slice>({Transpose12, {2}, {LLONG_MAX}, {1}, {3}});
-            auto Convert27 = makeOP<v0::Convert>({-1}, {{"destination_type", "f32"}});
-            auto Multiply25 = makeOP<v1::Multiply>({Slice6, Convert27}, {{"auto_broadcast", "numpy"}});
-            auto Slice7 = makeOP<v8::Slice>({Transpose12, {0}, {2}, {1}, {3}});
-            auto Concat9 = makeOP<v0::Concat>({Multiply25, Slice7}, {{"axis", -1}});
-            auto Multiply26 = makeOP<v1::Multiply>({Concat9, Unsqueeze9}, {{"auto_broadcast", "numpy"}});
-            auto Add20 = makeOP<v1::Add>({Multiply24, Multiply26}, {{"auto_broadcast", "numpy"}});
-            auto Transpose13 = makeOP<v1::Transpose>({Add20, {0, 2, 1, 3}});
-            auto Reshape20 = makeOP<v1::Reshape>({Transpose13, {0, -1}}, {{"special_zero", true}});
-            auto Constant36 = makeConst(element::bf16,
-                                        ov::Shape({
-                                            16,
-                                            16,
-                                        }),
-                                        MOCK_VALUE);
-            auto Convert28 = makeOP<v0::Convert>({Constant36}, {{"destination_type", "f32"}});
-            auto MatMul13 =
-                makeOP<v0::MatMul>({Multiply18, Convert28}, {{"transpose_a", false}, {"transpose_b", true}});
-            auto Reshape21 = makeOP<v1::Reshape>({MatMul13, {0, 0, 4, 4}}, {{"special_zero", true}});
-            auto Transpose14 = makeOP<v1::Transpose>({Reshape21, {0, 2, 1, 3}});
-            auto Transpose15 = makeOP<v1::Transpose>({Transpose14, {0, 2, 1, 3}});
-            auto Reshape22 = makeOP<v1::Reshape>({Transpose15, {0, -1}}, {{"special_zero", true}});
-            auto Constant37 = v0::Constant::create(element::f32, Shape{0, 0, 0, 0}, {});
-            auto scale = v0::Constant::create(element::f32, {}, {0.500000f});
-            auto sliding_window = v0::Constant::create(element::i32, {}, {0});
-            auto alibi_slopes_stub = v0::Constant::create(element::f32, Shape{0}, {});
-            auto PagedAttentionExtension0 = std::make_shared<ov::op::PagedAttentionExtension>(
-                OutputVector{Reshape18,
-                             Reshape20,
-                             Reshape22,
-                             key_cache_0,
-                             value_cache_0,
-                             past_lens,
-                             subsequence_begins,
-                             block_indices,
-                             block_indices_begins,
-                             scale,
-                             sliding_window,
-                             alibi_slopes_stub,
-                             max_context_len,
-                             score_aggregation_window,
-                             rotated_block_indices,
-                             rotation_deltas,
-                             rotation_trig_lut,
-                             xattention_threshold,
-                             xattention_block_size,
-                             xattention_stride,
-                             Constant37,
-                             adaptive_rkv_start_size,
-                             adaptive_rkv_evictable_sizes,
-                             adaptive_rkv_diversity_block_set_indices,
-                             adaptive_rkv_diversity_block_set_indices_begins});
-            auto ShapeOf12 = makeOP<v3::ShapeOf>({Transpose15}, {{"output_type", "i64"}});
-            auto Gather10 = makeOP<v8::Gather>({ShapeOf12, -1, 0}, {{"batch_dims", 0}});
-            auto Unsqueeze10 = makeOP<v0::Unsqueeze>({Gather10, 0});
-            auto Concat10 = makeOP<v0::Concat>({{0l}, {1l}, {-1l}, Unsqueeze10}, {{"axis", 0}});
-            auto Reshape23 =
-                makeOP<v1::Reshape>({PagedAttentionExtension0->output(0), Concat10}, {{"special_zero", true}});
-            auto Transpose20 = makeOP<v1::Transpose>({Reshape23, {0, 2, 1, 3}});
-            auto Transpose16 = makeOP<v1::Transpose>({Transpose20, {0, 2, 1, 3}});
-            auto ShapeOf13 = makeOP<v3::ShapeOf>({Multiply18}, {{"output_type", "i64"}});
-            auto Gather11 = makeOP<v8::Gather>({ShapeOf13, {0, 1}, 0}, {{"batch_dims", 0}});
-            auto Concat19 = makeOP<v0::Concat>({Gather11, {-1l}}, {{"axis", 0}});
-            auto Reshape24 = makeOP<v1::Reshape>({Transpose16, Concat19}, {{"special_zero", false}});
-            auto Constant38 = makeConst(element::bf16,
-                                        ov::Shape({
-                                            16,
-                                            16,
-                                        }),
-                                        MOCK_VALUE);
-            auto Convert29 = makeOP<v0::Convert>({Constant38}, {{"destination_type", "f32"}});
-            auto MatMul14 = makeOP<v0::MatMul>({Reshape24, Convert29}, {{"transpose_a", false}, {"transpose_b", true}});
-            auto Add21 = makeOP<v1::Add>({MatMul14, Add15}, {{"auto_broadcast", "numpy"}});
-            auto Constant39 = makeConst(element::f32,
-                                        ov::Shape({
-                                            1,
-                                            1,
-                                            1,
-                                        }),
-                                        {1.000000f});
-            auto Constant40 = makeConst(element::f32,
-                                        ov::Shape({
-                                            1,
-                                            1,
-                                            1,
-                                        }),
-                                        {2.000000f});
-            auto Power7 = makeOP<v1::Power>({Add21, Constant40}, {{"auto_broadcast", "numpy"}});
-            auto ReduceMean7 = makeOP<v1::ReduceMean>({Power7, {-1}}, {{"keep_dims", true}});
-            auto Constant41 = makeConst(element::f32,
-                                        ov::Shape({
-                                            1,
-                                            1,
-                                            1,
-                                        }),
-                                        {0.000010f});
-            auto Add22 = makeOP<v1::Add>({ReduceMean7, Constant41}, {{"auto_broadcast", "numpy"}});
-            auto Sqrt7 = makeOP<v0::Sqrt>({Add22});
-            auto Divide9 =
-                makeOP<v1::Divide>({Constant39, Sqrt7}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-            auto Multiply27 = makeOP<v1::Multiply>({Add21, Divide9}, {{"auto_broadcast", "numpy"}});
-            auto Constant42 = makeConst(element::bf16,
-                                        ov::Shape({
-                                            4440,
-                                            16,
-                                        }),
-                                        MOCK_VALUE);
-            auto Convert30 = makeOP<v0::Convert>({Constant42}, {{"destination_type", "f32"}});
-            auto MatMul15 =
-                makeOP<v0::MatMul>({Multiply27, Convert30}, {{"transpose_a", false}, {"transpose_b", true}});
-            auto Swish2 = makeOP<v4::Swish>({MatMul15});
-            auto Constant43 = makeConst(element::bf16,
-                                        ov::Shape({
-                                            4440,
-                                            16,
-                                        }),
-                                        MOCK_VALUE);
-            auto Convert31 = makeOP<v0::Convert>({Constant43}, {{"destination_type", "f32"}});
-            auto MatMul16 =
-                makeOP<v0::MatMul>({Multiply27, Convert31}, {{"transpose_a", false}, {"transpose_b", true}});
-            auto Multiply28 = makeOP<v1::Multiply>({Swish2, MatMul16}, {{"auto_broadcast", "numpy"}});
-            auto Constant44 = makeConst(element::bf16,
-                                        ov::Shape({
-                                            16,
-                                            4440,
-                                        }),
-                                        MOCK_VALUE);
-            auto Convert32 = makeOP<v0::Convert>({Constant44}, {{"destination_type", "f32"}});
-            auto MatMul17 =
-                makeOP<v0::MatMul>({Multiply28, Convert32}, {{"transpose_a", false}, {"transpose_b", true}});
-            auto Add23 = makeOP<v1::Add>({Add21, MatMul17}, {{"auto_broadcast", "numpy"}});
-            auto Constant45 = makeConst(element::f32,
-                                        ov::Shape({
-                                            1,
-                                            1,
-                                            1,
-                                        }),
-                                        {1.000000f});
-            auto Constant46 = makeConst(element::f32,
-                                        ov::Shape({
-                                            1,
-                                            1,
-                                            1,
-                                        }),
-                                        {2.000000f});
-            auto Power8 = makeOP<v1::Power>({Add23, Constant46}, {{"auto_broadcast", "numpy"}});
-            auto ReduceMean8 = makeOP<v1::ReduceMean>({Power8, {-1}}, {{"keep_dims", true}});
-            auto Constant47 = makeConst(element::f32,
-                                        ov::Shape({
-                                            1,
-                                            1,
-                                            1,
-                                        }),
-                                        {0.000010f});
-            auto Add24 = makeOP<v1::Add>({ReduceMean8, Constant47}, {{"auto_broadcast", "numpy"}});
-            auto Sqrt8 = makeOP<v0::Sqrt>({Add24});
-            auto Divide10 =
-                makeOP<v1::Divide>({Constant45, Sqrt8}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-            auto Multiply29 = makeOP<v1::Multiply>({Add23, Divide10}, {{"auto_broadcast", "numpy"}});
-            auto Constant48 = makeConst(element::bf16,
-                                        ov::Shape({
-                                            48,
-                                            16,
-                                        }),
-                                        MOCK_VALUE);
-            auto Convert33 = makeOP<v0::Convert>({Constant48}, {{"destination_type", "f32"}});
-            auto MatMul18 =
-                makeOP<v0::MatMul>({Multiply29, Convert33}, {{"transpose_a", false}, {"transpose_b", true}});
-            auto Transpose17 = makeOP<v1::Transpose>({MatMul18, {0, 2, 1}});
-            auto ShapeOf14 = makeOP<v3::ShapeOf>({Transpose17}, {{"output_type", "i32"}});
-            auto Gather12 = makeOP<v8::Gather>({ShapeOf14, -2, {0}}, {{"batch_dims", 0}});
-            auto Divide11 = makeOP<v1::Divide>({Gather12, 3}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
-            auto Mod5 = makeOP<v1::Mod>({Gather12, 3}, {{"auto_broadcast", "numpy"}});
-            auto Greater2 = makeOP<v1::Greater>({Mod5, {0}}, {{"auto_broadcast", "numpy"}});
-            auto Convert34 = makeOP<v0::Convert>({Greater2}, {{"destination_type", "i32"}});
-            auto Add25 = makeOP<v1::Add>({Divide11, Convert34}, {{"auto_broadcast", "numpy"}});
-            auto Broadcast7 = makeOP<v3::Broadcast>({Add25, {2}}, {{"mode", "numpy"}});
-            auto Concat11 = makeOP<v0::Concat>({Broadcast7, {-1}}, {{"axis", 0}});
-            auto VariadicSplit2 = makeOP<v1::VariadicSplit>({Transpose17, -2, Concat11});
-            auto Multiply30 = makeOP<v1::Multiply>({VariadicSplit2->output(0), VariadicSplit2->output(2)},
-                                                   {{"auto_broadcast", "numpy"}});
-            auto Transpose18 = makeOP<v1::Transpose>({Multiply30, {2, 0, 1}});
-            auto Slice8 = makeOP<v8::Slice>({ShapeOf4, {1}, {INT_MAX}, {1}, {0}});
-            auto Concat12 = makeOP<v0::Concat>({Convert8, Slice8}, {{"axis", 0}});
-            auto Broadcast8 = makeOP<v3::Broadcast>({Transpose18, Concat12}, {{"mode", "numpy"}});
-            auto ScatterNDUpdate4 = makeOP<ov::op::v3::ScatterNDUpdate>({Transpose0, Unsqueeze1, Broadcast8});
-            auto Transpose19 = makeOP<v1::Transpose>({ScatterNDUpdate4, {1, 2, 0}});
-            auto Reshape25 = makeOP<v1::Reshape>({Transpose19, {-1}}, {{"special_zero", false}});
-            auto ScatterNDUpdate5 = makeOP<ov::op::v3::ScatterNDUpdate>({Reshape0, Reshape2, Reshape25});
-            auto Reshape26 = makeOP<v1::Reshape>({ScatterNDUpdate5, ShapeOf1}, {{"special_zero", false}});
-            auto Gather13 = makeOP<v8::Gather>({ShapeOf13, 1, 0}, {{"batch_dims", 0}});
-            auto Equal2 = makeOP<v1::Equal>({Gather13, 1ll}, {{"auto_broadcast", "numpy"}});
-            auto Convert35 = makeOP<v0::Convert>({Equal2}, {{"destination_type", "f32"}});
-            auto Multiply31 = makeOP<v1::Multiply>({Reshape26, Convert35}, {{"auto_broadcast", "numpy"}});
-            auto Subtract3 = makeOP<v1::Subtract>({3ll, Gather13}, {{"auto_broadcast", "numpy"}});
-            auto Unsqueeze11 = makeOP<v0::Unsqueeze>({Subtract3, 0});
-            auto Concat20 = makeOP<v0::Concat>({Unsqueeze11, {0l}}, {{"axis", 0}});
-            auto Reshape27 = makeOP<v1::Reshape>({Concat20, {-1, 2}}, {{"special_zero", false}});
-            auto Split0 = makeOP<v1::Split>({Reshape27, 1}, {{"num_splits", 2}});
-            auto Squeeze0 = makeOP<v0::Squeeze>({Split0->output(0), 1});
-            auto Concat13 = makeOP<v0::Concat>({{0l, 0l}, Squeeze0}, {{"axis", 0}});
-            auto Squeeze1 = makeOP<v0::Squeeze>({Split0->output(1), 1});
-            auto Concat14 = makeOP<v0::Concat>({{0l, 0l}, Squeeze1}, {{"axis", 0}});
-            auto Pad0 = makeOP<v12::Pad>({Multiply30, Concat13, Concat14, 0.000000f}, {{"pad_mode", "constant"}});
-            auto Multiply32 = makeOP<v1::Multiply>({Convert35, 1.000000f}, {{"auto_broadcast", "numpy"}});
-            auto Subtract4 = makeOP<v1::Subtract>({1.000000f, Multiply32}, {{"auto_broadcast", "numpy"}});
-            auto Multiply33 = makeOP<v1::Multiply>({Pad0, Subtract4}, {{"auto_broadcast", "numpy"}});
-            auto Add26 = makeOP<v1::Add>({Multiply31, Multiply33}, {{"auto_broadcast", "numpy"}});
-            auto Broadcast9 = makeOP<v3::Broadcast>({Add26, ShapeOf1}, {{"mode", "numpy"}});
-            auto Multiply34 = makeOP<v1::Multiply>({Reshape14, Convert17}, {{"auto_broadcast", "numpy"}});
-            auto Subtract5 = makeOP<v1::Subtract>({3ll, Gather9}, {{"auto_broadcast", "numpy"}});
-            auto Unsqueeze12 = makeOP<v0::Unsqueeze>({Subtract5, 0});
-            auto Concat21 = makeOP<v0::Concat>({Unsqueeze12, {0l}}, {{"axis", 0}});
-            auto Reshape28 = makeOP<v1::Reshape>({Concat21, {-1, 2}}, {{"special_zero", false}});
-            auto Split1 = makeOP<v1::Split>({Reshape28, 1}, {{"num_splits", 2}});
-            auto Squeeze2 = makeOP<v0::Squeeze>({Split1->output(0), 1});
-            auto Concat15 = makeOP<v0::Concat>({{0l, 0l}, Squeeze2}, {{"axis", 0}});
-            auto Squeeze3 = makeOP<v0::Squeeze>({Split1->output(1), 1});
-            auto Concat16 = makeOP<v0::Concat>({{0l, 0l}, Squeeze3}, {{"axis", 0}});
-            auto Pad1 = makeOP<v12::Pad>({Multiply10, Concat15, Concat16, 0.000000f}, {{"pad_mode", "constant"}});
-            auto Multiply35 = makeOP<v1::Multiply>({Pad1, Subtract2}, {{"auto_broadcast", "numpy"}});
-            auto Add27 = makeOP<v1::Add>({Multiply34, Multiply35}, {{"auto_broadcast", "numpy"}});
-            auto Broadcast10 = makeOP<v3::Broadcast>({Add27, ShapeOf9}, {{"mode", "numpy"}});
-            auto Multiply36 = makeOP<v1::Multiply>({Reshape8, Convert9}, {{"auto_broadcast", "numpy"}});
-            auto Subtract6 = makeOP<v1::Subtract>({3ll, Gather3}, {{"auto_broadcast", "numpy"}});
-            auto Unsqueeze13 = makeOP<v0::Unsqueeze>({Subtract6, 0});
-            auto Concat22 = makeOP<v0::Concat>({Unsqueeze13, {0l}}, {{"axis", 0}});
-            auto Reshape29 = makeOP<v1::Reshape>({Concat22, {-1, 2}}, {{"special_zero", false}});
-            auto Split2 = makeOP<v1::Split>({Reshape29, 1}, {{"num_splits", 2}});
-            auto Squeeze4 = makeOP<v0::Squeeze>({Split2->output(0), 1});
-            auto Concat17 = makeOP<v0::Concat>({{0l, 0l}, Squeeze4}, {{"axis", 0}});
-            auto Squeeze5 = makeOP<v0::Squeeze>({Split2->output(1), 1});
-            auto Concat18 = makeOP<v0::Concat>({{0l, 0l}, Squeeze5}, {{"axis", 0}});
-            auto Pad2 = makeOP<v12::Pad>({Multiply1, Concat17, Concat18, 0.000000f}, {{"pad_mode", "constant"}});
-            auto Multiply37 = makeOP<v1::Multiply>({Pad2, Subtract1}, {{"auto_broadcast", "numpy"}});
-            auto Add28 = makeOP<v1::Add>({Multiply36, Multiply37}, {{"auto_broadcast", "numpy"}});
-            auto Broadcast11 = makeOP<v3::Broadcast>({Add28, ShapeOf6}, {{"mode", "numpy"}});
+        auto Unsqueeze0 = makeOP<v0::Unsqueeze>({input_ids, 1});
+        auto ShapeOf0 = makeOP<v3::ShapeOf>({Unsqueeze0}, {{"output_type", "i64"}});
+        auto Gather0 = makeOP<v8::Gather>({ShapeOf0, {0}, 0}, {{"batch_dims", 0}});
+        auto Concat0 = makeOP<v0::Concat>({Gather0, {16l}, {3l}}, {{"axis", 0}});
+        auto Broadcast0 = makeOP<v3::Broadcast>({0.000000f, Concat0}, {{"mode", "numpy"}});
+        auto conv_var_2 = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape{DYN, 16, 3},
+                                        ov::element::f32,
+                                        "cache_params.past.conv.2cache_params.present.conv.2"});
+        std::shared_ptr<ov::Node> ReadValue0 = std::make_shared<v6::ReadValue>(Broadcast0, conv_var_2);
+        auto Roll0 = makeOP<ov::op::v7::Roll>({ReadValue0, {-1}, {-1}});
+        auto Reshape0 = makeOP<v1::Reshape>({Roll0, {-1}}, {{"special_zero", false}});
+        auto ShapeOf1 = makeOP<v3::ShapeOf>({Roll0}, {{"output_type", "i64"}});
+        auto ReduceProd0 = makeOP<v1::ReduceProd>({ShapeOf1, 0}, {{"keep_dims", false}});
+        auto Range0 = makeOP<v4::Range>({0, ReduceProd0, 1}, {{"output_type", "i64"}});
+        auto Reshape1 = makeOP<v1::Reshape>({Range0, ShapeOf1}, {{"special_zero", false}});
+        auto Reshape2 = makeOP<v1::Reshape>({Reshape1, {-1, 1}}, {{"special_zero", false}});
+        auto Transpose0 = makeOP<v1::Transpose>({Roll0, {2, 0, 1}});
+        auto ShapeOf2 = makeOP<v3::ShapeOf>({Unsqueeze0}, {{"output_type", "i64"}});
+        auto Gather1 = makeOP<v8::Gather>({ShapeOf2, 1, 0}, {{"batch_dims", 0}});
+        auto Convert0 = makeOP<v0::Convert>({Gather1}, {{"destination_type", "i32"}});
+        auto Subtract0 = makeOP<v1::Subtract>({max_context_len, Convert0}, {{"auto_broadcast", "numpy"}});
+        auto Convert1 = makeOP<v0::Convert>({Subtract0}, {{"destination_type", "i64"}});
+        auto Constant0 = makeConst(element::bf16,
+                                    ov::Shape({
+                                        65536,
+                                        16,
+                                    }),
+                                    MOCK_VALUE);
+        auto Convert2 = makeOP<v0::Convert>({Constant0}, {{"destination_type", "f32"}});
+        auto Convert3 = makeOP<v0::Convert>({Unsqueeze0}, {{"destination_type", "i32"}});
+        auto Gather2 = makeOP<v8::Gather>({Convert2, Convert3, 0}, {{"batch_dims", 0}});
+        auto Constant1 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {1.000000f});
+        auto Constant2 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {2.000000f});
+        auto Power0 = makeOP<v1::Power>({Gather2, Constant2}, {{"auto_broadcast", "numpy"}});
+        auto ReduceMean0 = makeOP<v1::ReduceMean>({Power0, {-1}}, {{"keep_dims", true}});
+        auto Constant3 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {0.000010f});
+        auto Add0 = makeOP<v1::Add>({ReduceMean0, Constant3}, {{"auto_broadcast", "numpy"}});
+        auto Sqrt0 = makeOP<v0::Sqrt>({Add0});
+        auto Divide0 = makeOP<v1::Divide>({Constant1, Sqrt0}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+        auto Multiply0 = makeOP<v1::Multiply>({Gather2, Divide0}, {{"auto_broadcast", "numpy"}});
+        auto Constant4 = makeConst(element::bf16,
+                                    ov::Shape({
+                                        48,
+                                        16,
+                                    }),
+                                    MOCK_VALUE);
+        auto Convert4 = makeOP<v0::Convert>({Constant4}, {{"destination_type", "f32"}});
+        auto MatMul0 = makeOP<v0::MatMul>({Multiply0, Convert4}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Transpose1 = makeOP<v1::Transpose>({MatMul0, {0, 2, 1}});
+        auto ShapeOf3 = makeOP<v3::ShapeOf>({Transpose1}, {{"output_type", "i64"}});
+        auto Gather3 = makeOP<v8::Gather>({ShapeOf3, 2, 0}, {{"batch_dims", 0}});
+        auto Add1 = makeOP<v1::Add>({Convert1, Gather3}, {{"auto_broadcast", "numpy"}});
+        auto Range1 = makeOP<v4::Range>({Convert1, Add1, 1}, {{"output_type", "i64"}});
+        auto Clamp0 = makeOP<v0::Clamp>({Range1}, {{"min", 0.000000}, {"max", 2.000000}});
+        auto ShapeOf4 = makeOP<v3::ShapeOf>({Transpose0}, {{"output_type", "i32"}});
+        auto Gather4 = makeOP<v8::Gather>({ShapeOf4, 0, 0}, {{"batch_dims", 0}});
+        auto Convert5 = makeOP<v0::Convert>({Gather4}, {{"destination_type", "i64"}});
+        auto Add2 = makeOP<v1::Add>({Clamp0, Convert5}, {{"auto_broadcast", "numpy"}});
+        auto Mod0 = makeOP<v1::Mod>({Add2, Convert5}, {{"auto_broadcast", "numpy"}});
+        auto Unsqueeze1 = makeOP<v0::Unsqueeze>({Mod0, -1});
+        auto ShapeOf5 = makeOP<v3::ShapeOf>({Transpose1}, {{"output_type", "i32"}});
+        auto Gather5 = makeOP<v8::Gather>({ShapeOf5, -2, {0}}, {{"batch_dims", 0}});
+        auto Divide1 = makeOP<v1::Divide>({Gather5, 3}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+        auto Mod1 = makeOP<v1::Mod>({Gather5, 3}, {{"auto_broadcast", "numpy"}});
+        auto Greater0 = makeOP<v1::Greater>({Mod1, {0}}, {{"auto_broadcast", "numpy"}});
+        auto Convert6 = makeOP<v0::Convert>({Greater0}, {{"destination_type", "i32"}});
+        auto Add3 = makeOP<v1::Add>({Divide1, Convert6}, {{"auto_broadcast", "numpy"}});
+        auto Broadcast1 = makeOP<v3::Broadcast>({Add3, {2}}, {{"mode", "numpy"}});
+        auto Concat1 = makeOP<v0::Concat>({Broadcast1, {-1}}, {{"axis", 0}});
+        auto VariadicSplit0 = makeOP<v1::VariadicSplit>({Transpose1, -2, Concat1});
+        auto Concat2 = makeOP<v0::Concat>({Gather0, {16l}, {3l}}, {{"axis", 0}});
+        auto Broadcast2 = makeOP<v3::Broadcast>({0.000000f, Concat2}, {{"mode", "numpy"}});
+        auto conv_var_0 = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape{DYN, 16, 3},
+                                        ov::element::f32,
+                                        "cache_params.past.conv.0cache_params.present.conv.0"});
+        std::shared_ptr<ov::Node> ReadValue1 = std::make_shared<v6::ReadValue>(Broadcast2, conv_var_0);
+        auto Roll1 = makeOP<ov::op::v7::Roll>({ReadValue1, {-1}, {-1}});
+        auto Reshape3 = makeOP<v1::Reshape>({Roll1, {-1}}, {{"special_zero", false}});
+        auto ShapeOf6 = makeOP<v3::ShapeOf>({Roll1}, {{"output_type", "i64"}});
+        auto ReduceProd1 = makeOP<v1::ReduceProd>({ShapeOf6, 0}, {{"keep_dims", false}});
+        auto Range2 = makeOP<v4::Range>({0, ReduceProd1, 1}, {{"output_type", "i64"}});
+        auto Reshape4 = makeOP<v1::Reshape>({Range2, ShapeOf6}, {{"special_zero", false}});
+        auto Reshape5 = makeOP<v1::Reshape>({Reshape4, {-1, 1}}, {{"special_zero", false}});
+        auto Transpose2 = makeOP<v1::Transpose>({Roll1, {2, 0, 1}});
+        auto ShapeOf7 = makeOP<v3::ShapeOf>({Transpose2}, {{"output_type", "i32"}});
+        auto Gather6 = makeOP<v8::Gather>({ShapeOf7, 0, 0}, {{"batch_dims", 0}});
+        auto Convert7 = makeOP<v0::Convert>({Gather6}, {{"destination_type", "i64"}});
+        auto Add4 = makeOP<v1::Add>({Clamp0, Convert7}, {{"auto_broadcast", "numpy"}});
+        auto Mod2 = makeOP<v1::Mod>({Add4, Convert7}, {{"auto_broadcast", "numpy"}});
+        auto Unsqueeze2 = makeOP<v0::Unsqueeze>({Mod2, -1});
+        auto Multiply1 = makeOP<v1::Multiply>({VariadicSplit0->output(0), VariadicSplit0->output(2)},
+                                                {{"auto_broadcast", "numpy"}});
+        auto Transpose3 = makeOP<v1::Transpose>({Multiply1, {2, 0, 1}});
+        auto Reshape6 = makeOP<v1::Reshape>({Gather3, {1}}, {{"special_zero", false}});
+        auto Convert8 = makeOP<v0::Convert>({Reshape6}, {{"destination_type", "i32"}});
+        auto Slice0 = makeOP<v8::Slice>({ShapeOf7, {1}, {INT_MAX}, {1}, {0}});
+        auto Concat3 = makeOP<v0::Concat>({Convert8, Slice0}, {{"axis", 0}});
+        auto Broadcast3 = makeOP<v3::Broadcast>({Transpose3, Concat3}, {{"mode", "numpy"}});
+        auto ScatterNDUpdate0 = makeOP<ov::op::v3::ScatterNDUpdate>({Transpose2, Unsqueeze2, Broadcast3});
+        auto Transpose4 = makeOP<v1::Transpose>({ScatterNDUpdate0, {1, 2, 0}});
+        auto Reshape7 = makeOP<v1::Reshape>({Transpose4, {-1}}, {{"special_zero", false}});
+        auto ScatterNDUpdate1 = makeOP<ov::op::v3::ScatterNDUpdate>({Reshape3, Reshape5, Reshape7});
+        auto Reshape8 = makeOP<v1::Reshape>({ScatterNDUpdate1, ShapeOf6}, {{"special_zero", false}});
+        auto Constant5 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        16,
+                                        3,
+                                    }),
+                                    MOCK_VALUE);
+        auto Multiply2 = makeOP<v1::Multiply>({Reshape8, Constant5}, {{"auto_broadcast", "numpy"}});
+        auto ReduceSum0 = makeOP<v1::ReduceSum>({Multiply2, {-1}}, {{"keep_dims", false}});
+        auto Unsqueeze3 = makeOP<v0::Unsqueeze>({ReduceSum0, -1});
+        auto Equal0 = makeOP<v1::Equal>({Gather3, 1ll}, {{"auto_broadcast", "numpy"}});
+        auto Convert9 = makeOP<v0::Convert>({Equal0}, {{"destination_type", "f32"}});
+        auto Multiply3 = makeOP<v1::Multiply>({Unsqueeze3, Convert9}, {{"auto_broadcast", "numpy"}});
+        auto Reshape9 = makeConst(element::f32,
+                                    ov::Shape({
+                                        16,
+                                        1,
+                                        1,
+                                        3,
+                                    }),
+                                    MOCK_VALUE);
+        auto GroupConvolution0 = makeOP<v1::GroupConvolution>({Multiply1, Reshape9},
+                                                                {{"strides", {1}},
+                                                                {"pads_begin", {2}},
+                                                                {"pads_end", {2}},
+                                                                {"dilations", {1}},
+                                                                {"auto_pad", "explicit"}});
+        auto Slice1 = makeOP<v8::Slice>({GroupConvolution0, {0}, Reshape6, {1}, {2}});
+        auto Multiply4 = makeOP<v1::Multiply>({Convert9, 1.000000f}, {{"auto_broadcast", "numpy"}});
+        auto Subtract1 = makeOP<v1::Subtract>({1.000000f, Multiply4}, {{"auto_broadcast", "numpy"}});
+        auto Multiply5 = makeOP<v1::Multiply>({Slice1, Subtract1}, {{"auto_broadcast", "numpy"}});
+        auto Add5 = makeOP<v1::Add>({Multiply3, Multiply5}, {{"auto_broadcast", "numpy"}});
+        auto Multiply6 = makeOP<v1::Multiply>({VariadicSplit0->output(1), Add5}, {{"auto_broadcast", "numpy"}});
+        auto Constant6 = makeConst(element::bf16,
+                                    ov::Shape({
+                                        16,
+                                        16,
+                                    }),
+                                    MOCK_VALUE);
+        auto Convert10 = makeOP<v0::Convert>({Constant6}, {{"destination_type", "f32"}});
+        auto MatMul1 = makeOP<v0::MatMul>({Multiply6, Convert10}, {{"transpose_a", true}, {"transpose_b", true}});
+        auto Add6 = makeOP<v1::Add>({MatMul1, Gather2}, {{"auto_broadcast", "numpy"}});
+        auto Constant7 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {1.000000f});
+        auto Constant8 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {2.000000f});
+        auto Power1 = makeOP<v1::Power>({Add6, Constant8}, {{"auto_broadcast", "numpy"}});
+        auto ReduceMean1 = makeOP<v1::ReduceMean>({Power1, {-1}}, {{"keep_dims", true}});
+        auto Constant9 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {0.000010f});
+        auto Add7 = makeOP<v1::Add>({ReduceMean1, Constant9}, {{"auto_broadcast", "numpy"}});
+        auto Sqrt1 = makeOP<v0::Sqrt>({Add7});
+        auto Divide2 = makeOP<v1::Divide>({Constant7, Sqrt1}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+        auto Multiply7 = makeOP<v1::Multiply>({Add6, Divide2}, {{"auto_broadcast", "numpy"}});
+        auto Constant10 = makeConst(element::bf16,
+                                    ov::Shape({
+                                        4440,
+                                        16,
+                                    }),
+                                    MOCK_VALUE);
+        auto Convert11 = makeOP<v0::Convert>({Constant10}, {{"destination_type", "f32"}});
+        auto MatMul2 = makeOP<v0::MatMul>({Multiply7, Convert11}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Swish0 = makeOP<v4::Swish>({MatMul2});
+        auto Constant11 = makeConst(element::bf16,
+                                    ov::Shape({
+                                        4440,
+                                        16,
+                                    }),
+                                    MOCK_VALUE);
+        auto Convert12 = makeOP<v0::Convert>({Constant11}, {{"destination_type", "f32"}});
+        auto MatMul3 = makeOP<v0::MatMul>({Multiply7, Convert12}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Multiply8 = makeOP<v1::Multiply>({Swish0, MatMul3}, {{"auto_broadcast", "numpy"}});
+        auto Constant12 = makeConst(element::bf16,
+                                    ov::Shape({
+                                        16,
+                                        4440,
+                                    }),
+                                    MOCK_VALUE);
+        auto Convert13 = makeOP<v0::Convert>({Constant12}, {{"destination_type", "f32"}});
+        auto MatMul4 = makeOP<v0::MatMul>({Multiply8, Convert13}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Add8 = makeOP<v1::Add>({Add6, MatMul4}, {{"auto_broadcast", "numpy"}});
+        auto Constant13 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {1.000000f});
+        auto Constant14 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {2.000000f});
+        auto Power2 = makeOP<v1::Power>({Add8, Constant14}, {{"auto_broadcast", "numpy"}});
+        auto ReduceMean2 = makeOP<v1::ReduceMean>({Power2, {-1}}, {{"keep_dims", true}});
+        auto Constant15 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {0.000010f});
+        auto Add9 = makeOP<v1::Add>({ReduceMean2, Constant15}, {{"auto_broadcast", "numpy"}});
+        auto Sqrt2 = makeOP<v0::Sqrt>({Add9});
+        auto Divide3 =
+            makeOP<v1::Divide>({Constant13, Sqrt2}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+        auto Multiply9 = makeOP<v1::Multiply>({Add8, Divide3}, {{"auto_broadcast", "numpy"}});
+        auto Constant16 = makeConst(element::bf16,
+                                    ov::Shape({
+                                        48,
+                                        16,
+                                    }),
+                                    MOCK_VALUE);
+        auto Convert14 = makeOP<v0::Convert>({Constant16}, {{"destination_type", "f32"}});
+        auto MatMul5 = makeOP<v0::MatMul>({Multiply9, Convert14}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Transpose5 = makeOP<v1::Transpose>({MatMul5, {0, 2, 1}});
+        auto ShapeOf8 = makeOP<v3::ShapeOf>({Transpose5}, {{"output_type", "i32"}});
+        auto Gather7 = makeOP<v8::Gather>({ShapeOf8, -2, {0}}, {{"batch_dims", 0}});
+        auto Divide4 = makeOP<v1::Divide>({Gather7, 3}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+        auto Mod3 = makeOP<v1::Mod>({Gather7, 3}, {{"auto_broadcast", "numpy"}});
+        auto Greater1 = makeOP<v1::Greater>({Mod3, {0}}, {{"auto_broadcast", "numpy"}});
+        auto Convert15 = makeOP<v0::Convert>({Greater1}, {{"destination_type", "i32"}});
+        auto Add10 = makeOP<v1::Add>({Divide4, Convert15}, {{"auto_broadcast", "numpy"}});
+        auto Broadcast4 = makeOP<v3::Broadcast>({Add10, {2}}, {{"mode", "numpy"}});
+        auto Concat4 = makeOP<v0::Concat>({Broadcast4, {-1}}, {{"axis", 0}});
+        auto VariadicSplit1 = makeOP<v1::VariadicSplit>({Transpose5, -2, Concat4});
+        auto Concat5 = makeOP<v0::Concat>({Gather0, {16l}, {3l}}, {{"axis", 0}});
+        auto Broadcast5 = makeOP<v3::Broadcast>({0.000000f, Concat5}, {{"mode", "numpy"}});
+        auto conv_var_1 = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape{DYN, 16, 3},
+                                        ov::element::f32,
+                                        "cache_params.past.conv.1cache_params.present.conv.1"});
+        std::shared_ptr<ov::Node> ReadValue2 = std::make_shared<v6::ReadValue>(Broadcast5, conv_var_1);
+        auto Roll2 = makeOP<ov::op::v7::Roll>({ReadValue2, {-1}, {-1}});
+        auto Reshape10 = makeOP<v1::Reshape>({Roll2, {-1}}, {{"special_zero", false}});
+        auto ShapeOf9 = makeOP<v3::ShapeOf>({Roll2}, {{"output_type", "i64"}});
+        auto ReduceProd2 = makeOP<v1::ReduceProd>({ShapeOf9, 0}, {{"keep_dims", false}});
+        auto Range3 = makeOP<v4::Range>({0, ReduceProd2, 1}, {{"output_type", "i64"}});
+        auto Reshape11 = makeOP<v1::Reshape>({Range3, ShapeOf9}, {{"special_zero", false}});
+        auto Reshape12 = makeOP<v1::Reshape>({Reshape11, {-1, 1}}, {{"special_zero", false}});
+        auto Transpose6 = makeOP<v1::Transpose>({Roll2, {2, 0, 1}});
+        auto ShapeOf10 = makeOP<v3::ShapeOf>({Transpose6}, {{"output_type", "i32"}});
+        auto Gather8 = makeOP<v8::Gather>({ShapeOf10, 0, 0}, {{"batch_dims", 0}});
+        auto Convert16 = makeOP<v0::Convert>({Gather8}, {{"destination_type", "i64"}});
+        auto Add11 = makeOP<v1::Add>({Clamp0, Convert16}, {{"auto_broadcast", "numpy"}});
+        auto Mod4 = makeOP<v1::Mod>({Add11, Convert16}, {{"auto_broadcast", "numpy"}});
+        auto Unsqueeze4 = makeOP<v0::Unsqueeze>({Mod4, -1});
+        auto Multiply10 = makeOP<v1::Multiply>({VariadicSplit1->output(0), VariadicSplit1->output(2)},
+                                                {{"auto_broadcast", "numpy"}});
+        auto Transpose7 = makeOP<v1::Transpose>({Multiply10, {2, 0, 1}});
+        auto Slice2 = makeOP<v8::Slice>({ShapeOf10, {1}, {INT_MAX}, {1}, {0}});
+        auto Concat6 = makeOP<v0::Concat>({Convert8, Slice2}, {{"axis", 0}});
+        auto Broadcast6 = makeOP<v3::Broadcast>({Transpose7, Concat6}, {{"mode", "numpy"}});
+        auto ScatterNDUpdate2 = makeOP<ov::op::v3::ScatterNDUpdate>({Transpose6, Unsqueeze4, Broadcast6});
+        auto Transpose8 = makeOP<v1::Transpose>({ScatterNDUpdate2, {1, 2, 0}});
+        auto Reshape13 = makeOP<v1::Reshape>({Transpose8, {-1}}, {{"special_zero", false}});
+        auto ScatterNDUpdate3 = makeOP<ov::op::v3::ScatterNDUpdate>({Reshape10, Reshape12, Reshape13});
+        auto Reshape14 = makeOP<v1::Reshape>({ScatterNDUpdate3, ShapeOf9}, {{"special_zero", false}});
+        auto Constant17 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        16,
+                                        3,
+                                    }),
+                                    MOCK_VALUE);
+        auto Multiply11 = makeOP<v1::Multiply>({Reshape14, Constant17}, {{"auto_broadcast", "numpy"}});
+        auto ReduceSum1 = makeOP<v1::ReduceSum>({Multiply11, {-1}}, {{"keep_dims", false}});
+        auto Unsqueeze5 = makeOP<v0::Unsqueeze>({ReduceSum1, -1});
+        auto ShapeOf11 = makeOP<v3::ShapeOf>({Transpose5}, {{"output_type", "i64"}});
+        auto Gather9 = makeOP<v8::Gather>({ShapeOf11, 2, 0}, {{"batch_dims", 0}});
+        auto Equal1 = makeOP<v1::Equal>({Gather9, 1ll}, {{"auto_broadcast", "numpy"}});
+        auto Convert17 = makeOP<v0::Convert>({Equal1}, {{"destination_type", "f32"}});
+        auto Multiply12 = makeOP<v1::Multiply>({Unsqueeze5, Convert17}, {{"auto_broadcast", "numpy"}});
+        auto Reshape15 = makeConst(element::f32,
+                                    ov::Shape({
+                                        16,
+                                        1,
+                                        1,
+                                        3,
+                                    }),
+                                    MOCK_VALUE);
+        auto GroupConvolution1 = makeOP<v1::GroupConvolution>({Multiply10, Reshape15},
+                                                                {{"strides", {1}},
+                                                                {"pads_begin", {2}},
+                                                                {"pads_end", {2}},
+                                                                {"dilations", {1}},
+                                                                {"auto_pad", "explicit"}});
+        auto Reshape16 = makeOP<v1::Reshape>({Gather9, {1}}, {{"special_zero", false}});
+        auto Slice3 = makeOP<v8::Slice>({GroupConvolution1, {0}, Reshape16, {1}, {2}});
+        auto Multiply13 = makeOP<v1::Multiply>({Convert17, 1.000000f}, {{"auto_broadcast", "numpy"}});
+        auto Subtract2 = makeOP<v1::Subtract>({1.000000f, Multiply13}, {{"auto_broadcast", "numpy"}});
+        auto Multiply14 = makeOP<v1::Multiply>({Slice3, Subtract2}, {{"auto_broadcast", "numpy"}});
+        auto Add12 = makeOP<v1::Add>({Multiply12, Multiply14}, {{"auto_broadcast", "numpy"}});
+        auto Multiply15 = makeOP<v1::Multiply>({VariadicSplit1->output(1), Add12}, {{"auto_broadcast", "numpy"}});
+        auto Constant18 = makeConst(element::bf16,
+                                    ov::Shape({
+                                        16,
+                                        16,
+                                    }),
+                                    MOCK_VALUE);
+        auto Convert18 = makeOP<v0::Convert>({Constant18}, {{"destination_type", "f32"}});
+        auto MatMul6 = makeOP<v0::MatMul>({Multiply15, Convert18}, {{"transpose_a", true}, {"transpose_b", true}});
+        auto Add13 = makeOP<v1::Add>({MatMul6, Add8}, {{"auto_broadcast", "numpy"}});
+        auto Constant19 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {1.000000f});
+        auto Constant20 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {2.000000f});
+        auto Power3 = makeOP<v1::Power>({Add13, Constant20}, {{"auto_broadcast", "numpy"}});
+        auto ReduceMean3 = makeOP<v1::ReduceMean>({Power3, {-1}}, {{"keep_dims", true}});
+        auto Constant21 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {0.000010f});
+        auto Add14 = makeOP<v1::Add>({ReduceMean3, Constant21}, {{"auto_broadcast", "numpy"}});
+        auto Sqrt3 = makeOP<v0::Sqrt>({Add14});
+        auto Divide5 =
+            makeOP<v1::Divide>({Constant19, Sqrt3}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+        auto Multiply16 = makeOP<v1::Multiply>({Add13, Divide5}, {{"auto_broadcast", "numpy"}});
+        auto Constant22 = makeConst(element::bf16,
+                                    ov::Shape({
+                                        4440,
+                                        16,
+                                    }),
+                                    MOCK_VALUE);
+        auto Convert19 = makeOP<v0::Convert>({Constant22}, {{"destination_type", "f32"}});
+        auto MatMul7 = makeOP<v0::MatMul>({Multiply16, Convert19}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Swish1 = makeOP<v4::Swish>({MatMul7});
+        auto Constant23 = makeConst(element::bf16,
+                                    ov::Shape({
+                                        4440,
+                                        16,
+                                    }),
+                                    MOCK_VALUE);
+        auto Convert20 = makeOP<v0::Convert>({Constant23}, {{"destination_type", "f32"}});
+        auto MatMul8 = makeOP<v0::MatMul>({Multiply16, Convert20}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Multiply17 = makeOP<v1::Multiply>({Swish1, MatMul8}, {{"auto_broadcast", "numpy"}});
+        auto Constant24 = makeConst(element::bf16,
+                                    ov::Shape({
+                                        16,
+                                        4440,
+                                    }),
+                                    MOCK_VALUE);
+        auto Convert21 = makeOP<v0::Convert>({Constant24}, {{"destination_type", "f32"}});
+        auto MatMul9 = makeOP<v0::MatMul>({Multiply17, Convert21}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Add15 = makeOP<v1::Add>({Add13, MatMul9}, {{"auto_broadcast", "numpy"}});
+        auto Constant25 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {1.000000f});
+        auto Constant26 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {2.000000f});
+        auto Power4 = makeOP<v1::Power>({Add15, Constant26}, {{"auto_broadcast", "numpy"}});
+        auto ReduceMean4 = makeOP<v1::ReduceMean>({Power4, {-1}}, {{"keep_dims", true}});
+        auto Constant27 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {0.000010f});
+        auto Add16 = makeOP<v1::Add>({ReduceMean4, Constant27}, {{"auto_broadcast", "numpy"}});
+        auto Sqrt4 = makeOP<v0::Sqrt>({Add16});
+        auto Divide6 =
+            makeOP<v1::Divide>({Constant25, Sqrt4}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+        auto Multiply18 = makeOP<v1::Multiply>({Add15, Divide6}, {{"auto_broadcast", "numpy"}});
+        auto Constant28 = makeConst(element::bf16,
+                                    ov::Shape({
+                                        16,
+                                        16,
+                                    }),
+                                    MOCK_VALUE);
+        auto Convert22 = makeOP<v0::Convert>({Constant28}, {{"destination_type", "f32"}});
+        auto MatMul10 =
+            makeOP<v0::MatMul>({Multiply18, Convert22}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Reshape17 = makeOP<v1::Reshape>({MatMul10, {0, 0, 4, 4}}, {{"special_zero", true}});
+        auto Constant29 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {1.000000f});
+        auto Constant30 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {2.000000f});
+        auto Power5 = makeOP<v1::Power>({Reshape17, Constant30}, {{"auto_broadcast", "numpy"}});
+        auto ReduceMean5 = makeOP<v1::ReduceMean>({Power5, {-1}}, {{"keep_dims", true}});
+        auto Constant31 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {0.000010f});
+        auto Add17 = makeOP<v1::Add>({ReduceMean5, Constant31}, {{"auto_broadcast", "numpy"}});
+        auto Sqrt5 = makeOP<v0::Sqrt>({Add17});
+        auto Divide7 =
+            makeOP<v1::Divide>({Constant29, Sqrt5}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+        auto Multiply19 = makeOP<v1::Multiply>({Reshape17, Divide7}, {{"auto_broadcast", "numpy"}});
+        auto Transpose9 = makeOP<v1::Transpose>({Multiply19, {0, 2, 1, 3}});
+        auto Convert23 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        2,
+                                        1,
+                                    }),
+                                    {1.000000f, 0.001000f});
+        auto Unsqueeze6 = makeOP<v0::Unsqueeze>({Range1, 0});
+        auto Unsqueeze7 = makeOP<v0::Unsqueeze>({Unsqueeze6, 1});
+        auto Convert24 = makeOP<v0::Convert>({Unsqueeze7}, {{"destination_type", "f32"}});
+        auto MatMul11 =
+            makeOP<v0::MatMul>({Convert23, Convert24}, {{"transpose_a", false}, {"transpose_b", false}});
+        auto Transpose10 = makeOP<v1::Transpose>({MatMul11, {0, 2, 1}});
+        auto Concat7 = makeOP<v0::Concat>({Transpose10, Transpose10}, {{"axis", -1}});
+        auto Cos0 = makeOP<v0::Cos>({Concat7});
+        auto Unsqueeze8 = makeOP<v0::Unsqueeze>({Cos0, 1});
+        auto Multiply20 = makeOP<v1::Multiply>({Transpose9, Unsqueeze8}, {{"auto_broadcast", "numpy"}});
+        auto Slice4 = makeOP<v8::Slice>({Transpose9, {2}, {LLONG_MAX}, {1}, {3}});
+        auto Convert25 = makeOP<v0::Convert>({-1}, {{"destination_type", "f32"}});
+        auto Multiply21 = makeOP<v1::Multiply>({Slice4, Convert25}, {{"auto_broadcast", "numpy"}});
+        auto Slice5 = makeOP<v8::Slice>({Transpose9, {0}, {2}, {1}, {3}});
+        auto Concat8 = makeOP<v0::Concat>({Multiply21, Slice5}, {{"axis", -1}});
+        auto Sin0 = makeOP<v0::Sin>({Concat7});
+        auto Unsqueeze9 = makeOP<v0::Unsqueeze>({Sin0, 1});
+        auto Multiply22 = makeOP<v1::Multiply>({Concat8, Unsqueeze9}, {{"auto_broadcast", "numpy"}});
+        auto Add18 = makeOP<v1::Add>({Multiply20, Multiply22}, {{"auto_broadcast", "numpy"}});
+        auto Transpose11 = makeOP<v1::Transpose>({Add18, {0, 2, 1, 3}});
+        auto Reshape18 = makeOP<v1::Reshape>({Transpose11, {0, -1}}, {{"special_zero", true}});
+        auto Constant32 = makeConst(element::bf16,
+                                    ov::Shape({
+                                        16,
+                                        16,
+                                    }),
+                                    MOCK_VALUE);
+        auto Convert26 = makeOP<v0::Convert>({Constant32}, {{"destination_type", "f32"}});
+        auto MatMul12 =
+            makeOP<v0::MatMul>({Multiply18, Convert26}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Reshape19 = makeOP<v1::Reshape>({MatMul12, {0, 0, 4, 4}}, {{"special_zero", true}});
+        auto Constant33 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {1.000000f});
+        auto Constant34 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {2.000000f});
+        auto Power6 = makeOP<v1::Power>({Reshape19, Constant34}, {{"auto_broadcast", "numpy"}});
+        auto ReduceMean6 = makeOP<v1::ReduceMean>({Power6, {-1}}, {{"keep_dims", true}});
+        auto Constant35 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {0.000010f});
+        auto Add19 = makeOP<v1::Add>({ReduceMean6, Constant35}, {{"auto_broadcast", "numpy"}});
+        auto Sqrt6 = makeOP<v0::Sqrt>({Add19});
+        auto Divide8 =
+            makeOP<v1::Divide>({Constant33, Sqrt6}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+        auto Multiply23 = makeOP<v1::Multiply>({Reshape19, Divide8}, {{"auto_broadcast", "numpy"}});
+        auto Transpose12 = makeOP<v1::Transpose>({Multiply23, {0, 2, 1, 3}});
+        auto Multiply24 = makeOP<v1::Multiply>({Transpose12, Unsqueeze8}, {{"auto_broadcast", "numpy"}});
+        auto Slice6 = makeOP<v8::Slice>({Transpose12, {2}, {LLONG_MAX}, {1}, {3}});
+        auto Convert27 = makeOP<v0::Convert>({-1}, {{"destination_type", "f32"}});
+        auto Multiply25 = makeOP<v1::Multiply>({Slice6, Convert27}, {{"auto_broadcast", "numpy"}});
+        auto Slice7 = makeOP<v8::Slice>({Transpose12, {0}, {2}, {1}, {3}});
+        auto Concat9 = makeOP<v0::Concat>({Multiply25, Slice7}, {{"axis", -1}});
+        auto Multiply26 = makeOP<v1::Multiply>({Concat9, Unsqueeze9}, {{"auto_broadcast", "numpy"}});
+        auto Add20 = makeOP<v1::Add>({Multiply24, Multiply26}, {{"auto_broadcast", "numpy"}});
+        auto Transpose13 = makeOP<v1::Transpose>({Add20, {0, 2, 1, 3}});
+        auto Reshape20 = makeOP<v1::Reshape>({Transpose13, {0, -1}}, {{"special_zero", true}});
+        auto Constant36 = makeConst(element::bf16,
+                                    ov::Shape({
+                                        16,
+                                        16,
+                                    }),
+                                    MOCK_VALUE);
+        auto Convert28 = makeOP<v0::Convert>({Constant36}, {{"destination_type", "f32"}});
+        auto MatMul13 =
+            makeOP<v0::MatMul>({Multiply18, Convert28}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Reshape21 = makeOP<v1::Reshape>({MatMul13, {0, 0, 4, 4}}, {{"special_zero", true}});
+        auto Transpose14 = makeOP<v1::Transpose>({Reshape21, {0, 2, 1, 3}});
+        auto Transpose15 = makeOP<v1::Transpose>({Transpose14, {0, 2, 1, 3}});
+        auto Reshape22 = makeOP<v1::Reshape>({Transpose15, {0, -1}}, {{"special_zero", true}});
+        auto Constant37 = v0::Constant::create(element::f32, Shape{0, 0, 0, 0}, {});
+        auto scale = v0::Constant::create(element::f32, {}, {0.500000f});
+        auto sliding_window = v0::Constant::create(element::i32, {}, {0});
+        auto alibi_slopes_stub = v0::Constant::create(element::f32, Shape{0}, {});
+        auto PagedAttentionExtension0 = std::make_shared<ov::op::PagedAttentionExtension>(
+            OutputVector{Reshape18,
+                            Reshape20,
+                            Reshape22,
+                            key_cache_0,
+                            value_cache_0,
+                            past_lens,
+                            subsequence_begins,
+                            block_indices,
+                            block_indices_begins,
+                            scale,
+                            sliding_window,
+                            alibi_slopes_stub,
+                            max_context_len,
+                            score_aggregation_window,
+                            rotated_block_indices,
+                            rotation_deltas,
+                            rotation_trig_lut,
+                            xattention_threshold,
+                            xattention_block_size,
+                            xattention_stride,
+                            Constant37,
+                            adaptive_rkv_start_size,
+                            adaptive_rkv_evictable_sizes,
+                            adaptive_rkv_diversity_block_set_indices,
+                            adaptive_rkv_diversity_block_set_indices_begins});
+        auto ShapeOf12 = makeOP<v3::ShapeOf>({Transpose15}, {{"output_type", "i64"}});
+        auto Gather10 = makeOP<v8::Gather>({ShapeOf12, -1, 0}, {{"batch_dims", 0}});
+        auto Unsqueeze10 = makeOP<v0::Unsqueeze>({Gather10, 0});
+        auto Concat10 = makeOP<v0::Concat>({{0l}, {1l}, {-1l}, Unsqueeze10}, {{"axis", 0}});
+        auto Reshape23 =
+            makeOP<v1::Reshape>({PagedAttentionExtension0->output(0), Concat10}, {{"special_zero", true}});
+        auto Transpose20 = makeOP<v1::Transpose>({Reshape23, {0, 2, 1, 3}});
+        auto Transpose16 = makeOP<v1::Transpose>({Transpose20, {0, 2, 1, 3}});
+        auto ShapeOf13 = makeOP<v3::ShapeOf>({Multiply18}, {{"output_type", "i64"}});
+        auto Gather11 = makeOP<v8::Gather>({ShapeOf13, {0, 1}, 0}, {{"batch_dims", 0}});
+        auto Concat19 = makeOP<v0::Concat>({Gather11, {-1l}}, {{"axis", 0}});
+        auto Reshape24 = makeOP<v1::Reshape>({Transpose16, Concat19}, {{"special_zero", false}});
+        auto Constant38 = makeConst(element::bf16,
+                                    ov::Shape({
+                                        16,
+                                        16,
+                                    }),
+                                    MOCK_VALUE);
+        auto Convert29 = makeOP<v0::Convert>({Constant38}, {{"destination_type", "f32"}});
+        auto MatMul14 = makeOP<v0::MatMul>({Reshape24, Convert29}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Add21 = makeOP<v1::Add>({MatMul14, Add15}, {{"auto_broadcast", "numpy"}});
+        auto Constant39 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {1.000000f});
+        auto Constant40 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {2.000000f});
+        auto Power7 = makeOP<v1::Power>({Add21, Constant40}, {{"auto_broadcast", "numpy"}});
+        auto ReduceMean7 = makeOP<v1::ReduceMean>({Power7, {-1}}, {{"keep_dims", true}});
+        auto Constant41 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {0.000010f});
+        auto Add22 = makeOP<v1::Add>({ReduceMean7, Constant41}, {{"auto_broadcast", "numpy"}});
+        auto Sqrt7 = makeOP<v0::Sqrt>({Add22});
+        auto Divide9 =
+            makeOP<v1::Divide>({Constant39, Sqrt7}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+        auto Multiply27 = makeOP<v1::Multiply>({Add21, Divide9}, {{"auto_broadcast", "numpy"}});
+        auto Constant42 = makeConst(element::bf16,
+                                    ov::Shape({
+                                        4440,
+                                        16,
+                                    }),
+                                    MOCK_VALUE);
+        auto Convert30 = makeOP<v0::Convert>({Constant42}, {{"destination_type", "f32"}});
+        auto MatMul15 =
+            makeOP<v0::MatMul>({Multiply27, Convert30}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Swish2 = makeOP<v4::Swish>({MatMul15});
+        auto Constant43 = makeConst(element::bf16,
+                                    ov::Shape({
+                                        4440,
+                                        16,
+                                    }),
+                                    MOCK_VALUE);
+        auto Convert31 = makeOP<v0::Convert>({Constant43}, {{"destination_type", "f32"}});
+        auto MatMul16 =
+            makeOP<v0::MatMul>({Multiply27, Convert31}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Multiply28 = makeOP<v1::Multiply>({Swish2, MatMul16}, {{"auto_broadcast", "numpy"}});
+        auto Constant44 = makeConst(element::bf16,
+                                    ov::Shape({
+                                        16,
+                                        4440,
+                                    }),
+                                    MOCK_VALUE);
+        auto Convert32 = makeOP<v0::Convert>({Constant44}, {{"destination_type", "f32"}});
+        auto MatMul17 =
+            makeOP<v0::MatMul>({Multiply28, Convert32}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Add23 = makeOP<v1::Add>({Add21, MatMul17}, {{"auto_broadcast", "numpy"}});
+        auto Constant45 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {1.000000f});
+        auto Constant46 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {2.000000f});
+        auto Power8 = makeOP<v1::Power>({Add23, Constant46}, {{"auto_broadcast", "numpy"}});
+        auto ReduceMean8 = makeOP<v1::ReduceMean>({Power8, {-1}}, {{"keep_dims", true}});
+        auto Constant47 = makeConst(element::f32,
+                                    ov::Shape({
+                                        1,
+                                        1,
+                                        1,
+                                    }),
+                                    {0.000010f});
+        auto Add24 = makeOP<v1::Add>({ReduceMean8, Constant47}, {{"auto_broadcast", "numpy"}});
+        auto Sqrt8 = makeOP<v0::Sqrt>({Add24});
+        auto Divide10 =
+            makeOP<v1::Divide>({Constant45, Sqrt8}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+        auto Multiply29 = makeOP<v1::Multiply>({Add23, Divide10}, {{"auto_broadcast", "numpy"}});
+        auto Constant48 = makeConst(element::bf16,
+                                    ov::Shape({
+                                        48,
+                                        16,
+                                    }),
+                                    MOCK_VALUE);
+        auto Convert33 = makeOP<v0::Convert>({Constant48}, {{"destination_type", "f32"}});
+        auto MatMul18 =
+            makeOP<v0::MatMul>({Multiply29, Convert33}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Transpose17 = makeOP<v1::Transpose>({MatMul18, {0, 2, 1}});
+        auto ShapeOf14 = makeOP<v3::ShapeOf>({Transpose17}, {{"output_type", "i32"}});
+        auto Gather12 = makeOP<v8::Gather>({ShapeOf14, -2, {0}}, {{"batch_dims", 0}});
+        auto Divide11 = makeOP<v1::Divide>({Gather12, 3}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+        auto Mod5 = makeOP<v1::Mod>({Gather12, 3}, {{"auto_broadcast", "numpy"}});
+        auto Greater2 = makeOP<v1::Greater>({Mod5, {0}}, {{"auto_broadcast", "numpy"}});
+        auto Convert34 = makeOP<v0::Convert>({Greater2}, {{"destination_type", "i32"}});
+        auto Add25 = makeOP<v1::Add>({Divide11, Convert34}, {{"auto_broadcast", "numpy"}});
+        auto Broadcast7 = makeOP<v3::Broadcast>({Add25, {2}}, {{"mode", "numpy"}});
+        auto Concat11 = makeOP<v0::Concat>({Broadcast7, {-1}}, {{"axis", 0}});
+        auto VariadicSplit2 = makeOP<v1::VariadicSplit>({Transpose17, -2, Concat11});
+        auto Multiply30 = makeOP<v1::Multiply>({VariadicSplit2->output(0), VariadicSplit2->output(2)},
+                                                {{"auto_broadcast", "numpy"}});
+        auto Transpose18 = makeOP<v1::Transpose>({Multiply30, {2, 0, 1}});
+        auto Slice8 = makeOP<v8::Slice>({ShapeOf4, {1}, {INT_MAX}, {1}, {0}});
+        auto Concat12 = makeOP<v0::Concat>({Convert8, Slice8}, {{"axis", 0}});
+        auto Broadcast8 = makeOP<v3::Broadcast>({Transpose18, Concat12}, {{"mode", "numpy"}});
+        auto ScatterNDUpdate4 = makeOP<ov::op::v3::ScatterNDUpdate>({Transpose0, Unsqueeze1, Broadcast8});
+        auto Transpose19 = makeOP<v1::Transpose>({ScatterNDUpdate4, {1, 2, 0}});
+        auto Reshape25 = makeOP<v1::Reshape>({Transpose19, {-1}}, {{"special_zero", false}});
+        auto ScatterNDUpdate5 = makeOP<ov::op::v3::ScatterNDUpdate>({Reshape0, Reshape2, Reshape25});
+        auto Reshape26 = makeOP<v1::Reshape>({ScatterNDUpdate5, ShapeOf1}, {{"special_zero", false}});
+        auto Gather13 = makeOP<v8::Gather>({ShapeOf13, 1, 0}, {{"batch_dims", 0}});
+        auto Equal2 = makeOP<v1::Equal>({Gather13, 1ll}, {{"auto_broadcast", "numpy"}});
+        auto Convert35 = makeOP<v0::Convert>({Equal2}, {{"destination_type", "f32"}});
+        auto Multiply31 = makeOP<v1::Multiply>({Reshape26, Convert35}, {{"auto_broadcast", "numpy"}});
+        auto Subtract3 = makeOP<v1::Subtract>({3ll, Gather13}, {{"auto_broadcast", "numpy"}});
+        auto Unsqueeze11 = makeOP<v0::Unsqueeze>({Subtract3, 0});
+        auto Concat20 = makeOP<v0::Concat>({Unsqueeze11, {0l}}, {{"axis", 0}});
+        auto Reshape27 = makeOP<v1::Reshape>({Concat20, {-1, 2}}, {{"special_zero", false}});
+        auto Split0 = makeOP<v1::Split>({Reshape27, 1}, {{"num_splits", 2}});
+        auto Squeeze0 = makeOP<v0::Squeeze>({Split0->output(0), 1});
+        auto Concat13 = makeOP<v0::Concat>({{0l, 0l}, Squeeze0}, {{"axis", 0}});
+        auto Squeeze1 = makeOP<v0::Squeeze>({Split0->output(1), 1});
+        auto Concat14 = makeOP<v0::Concat>({{0l, 0l}, Squeeze1}, {{"axis", 0}});
+        auto Pad0 = makeOP<v12::Pad>({Multiply30, Concat13, Concat14, 0.000000f}, {{"pad_mode", "constant"}});
+        auto Multiply32 = makeOP<v1::Multiply>({Convert35, 1.000000f}, {{"auto_broadcast", "numpy"}});
+        auto Subtract4 = makeOP<v1::Subtract>({1.000000f, Multiply32}, {{"auto_broadcast", "numpy"}});
+        auto Multiply33 = makeOP<v1::Multiply>({Pad0, Subtract4}, {{"auto_broadcast", "numpy"}});
+        auto Add26 = makeOP<v1::Add>({Multiply31, Multiply33}, {{"auto_broadcast", "numpy"}});
+        auto Broadcast9 = makeOP<v3::Broadcast>({Add26, ShapeOf1}, {{"mode", "numpy"}});
+        auto Multiply34 = makeOP<v1::Multiply>({Reshape14, Convert17}, {{"auto_broadcast", "numpy"}});
+        auto Subtract5 = makeOP<v1::Subtract>({3ll, Gather9}, {{"auto_broadcast", "numpy"}});
+        auto Unsqueeze12 = makeOP<v0::Unsqueeze>({Subtract5, 0});
+        auto Concat21 = makeOP<v0::Concat>({Unsqueeze12, {0l}}, {{"axis", 0}});
+        auto Reshape28 = makeOP<v1::Reshape>({Concat21, {-1, 2}}, {{"special_zero", false}});
+        auto Split1 = makeOP<v1::Split>({Reshape28, 1}, {{"num_splits", 2}});
+        auto Squeeze2 = makeOP<v0::Squeeze>({Split1->output(0), 1});
+        auto Concat15 = makeOP<v0::Concat>({{0l, 0l}, Squeeze2}, {{"axis", 0}});
+        auto Squeeze3 = makeOP<v0::Squeeze>({Split1->output(1), 1});
+        auto Concat16 = makeOP<v0::Concat>({{0l, 0l}, Squeeze3}, {{"axis", 0}});
+        auto Pad1 = makeOP<v12::Pad>({Multiply10, Concat15, Concat16, 0.000000f}, {{"pad_mode", "constant"}});
+        auto Multiply35 = makeOP<v1::Multiply>({Pad1, Subtract2}, {{"auto_broadcast", "numpy"}});
+        auto Add27 = makeOP<v1::Add>({Multiply34, Multiply35}, {{"auto_broadcast", "numpy"}});
+        auto Broadcast10 = makeOP<v3::Broadcast>({Add27, ShapeOf9}, {{"mode", "numpy"}});
+        auto Multiply36 = makeOP<v1::Multiply>({Reshape8, Convert9}, {{"auto_broadcast", "numpy"}});
+        auto Subtract6 = makeOP<v1::Subtract>({3ll, Gather3}, {{"auto_broadcast", "numpy"}});
+        auto Unsqueeze13 = makeOP<v0::Unsqueeze>({Subtract6, 0});
+        auto Concat22 = makeOP<v0::Concat>({Unsqueeze13, {0l}}, {{"axis", 0}});
+        auto Reshape29 = makeOP<v1::Reshape>({Concat22, {-1, 2}}, {{"special_zero", false}});
+        auto Split2 = makeOP<v1::Split>({Reshape29, 1}, {{"num_splits", 2}});
+        auto Squeeze4 = makeOP<v0::Squeeze>({Split2->output(0), 1});
+        auto Concat17 = makeOP<v0::Concat>({{0l, 0l}, Squeeze4}, {{"axis", 0}});
+        auto Squeeze5 = makeOP<v0::Squeeze>({Split2->output(1), 1});
+        auto Concat18 = makeOP<v0::Concat>({{0l, 0l}, Squeeze5}, {{"axis", 0}});
+        auto Pad2 = makeOP<v12::Pad>({Multiply1, Concat17, Concat18, 0.000000f}, {{"pad_mode", "constant"}});
+        auto Multiply37 = makeOP<v1::Multiply>({Pad2, Subtract1}, {{"auto_broadcast", "numpy"}});
+        auto Add28 = makeOP<v1::Add>({Multiply36, Multiply37}, {{"auto_broadcast", "numpy"}});
+        auto Broadcast11 = makeOP<v3::Broadcast>({Add28, ShapeOf6}, {{"mode", "numpy"}});
 
-            auto Assign0 = std::make_shared<v6::Assign>(Broadcast11, conv_var_0);
-            auto Assign1 = std::make_shared<v6::Assign>(Broadcast9, conv_var_2);
-            auto Assign2 = std::make_shared<v6::Assign>(Broadcast10, conv_var_1);
+        auto Assign0 = std::make_shared<v6::Assign>(Broadcast11, conv_var_0);
+        auto Assign1 = std::make_shared<v6::Assign>(Broadcast9, conv_var_2);
+        auto Assign2 = std::make_shared<v6::Assign>(Broadcast10, conv_var_1);
 
-            auto res = make_shared<v0::Result>(Transpose20);
-            auto params = nodes_to_params({max_context_len,
-                                           block_indices_begins,
-                                           block_indices,
-                                           subsequence_begins,
-                                           past_lens,
-                                           value_cache_0,
-                                           key_cache_0,
-                                           input_ids,
-                                           position_ids});
+        auto res = make_shared<v0::Result>(Transpose20);
+        auto params = nodes_to_params({max_context_len,
+                                        block_indices_begins,
+                                        block_indices,
+                                        subsequence_begins,
+                                        past_lens,
+                                        value_cache_0,
+                                        key_cache_0,
+                                        input_ids,
+                                        position_ids});
 
-            model_ref = std::make_shared<ov::Model>(OutputVector{res}, SinkVector{Assign0, Assign1, Assign2}, params);
+        model_ref = std::make_shared<ov::Model>(OutputVector{res}, SinkVector{Assign0, Assign1, Assign2}, params);
 
-            comparator.disable(FunctionsComparator::PRECISIONS);
-            disable_result_friendly_names_check();
-            disable_rt_info_check();
-        }
+        comparator.disable(FunctionsComparator::PRECISIONS);
+        disable_result_friendly_names_check();
+        disable_rt_info_check();
     }
 }
 
