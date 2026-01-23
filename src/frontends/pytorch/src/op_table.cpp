@@ -352,6 +352,7 @@ OP_CONVERTER(translate_sub_fx);
 OP_CONVERTER(translate_sum_fx);
 OP_CONVERTER(translate_std_fx);
 OP_CONVERTER(translate_topk_fx);
+OP_CONVERTER(translate_to_dense);
 OP_CONVERTER(translate_to_fx);
 OP_CONVERTER(translate_quantize_per_channel_fx);
 OP_CONVERTER(translate_quantize_per_tensor_fx);
@@ -756,6 +757,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         // aten::tensor_split - Supported in limited set of patterns
         {"aten::tile", op::translate_1to1_match_2_inputs<opset10::Tile>},
         {"aten::to", op::translate_to},
+        {"aten::to_dense", op::translate_to_dense},
         {"aten::topk", op::translate_topk},
         {"aten::transpose", op::quantizable_op<op::translate_transpose>},
         {"aten::tril", op::translate_tril},
