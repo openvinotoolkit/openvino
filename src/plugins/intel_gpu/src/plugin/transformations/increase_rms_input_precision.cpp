@@ -22,6 +22,7 @@
 #include "ov_ops/rms.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/utils/utils.hpp"
+#include "utils.hpp"
 
 namespace ov::intel_gpu {
 

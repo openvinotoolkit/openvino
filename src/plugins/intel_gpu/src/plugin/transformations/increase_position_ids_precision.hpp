@@ -5,29 +5,28 @@
 #pragma once
 
 #include "openvino/pass/graph_rewrite.hpp"
-#include "increase_position.hpp"
 
 namespace ov::intel_gpu {
 
-class IncreasePositionIdsPrecisionForRoPE : public IncreasePrecision {
+class IncreasePositionIdsPrecisionForRoPE : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionBase");
     IncreasePositionIdsPrecisionForRoPE();
 };
 
-class IncreasePositionIdsPrecisionForQwen25VL : public IncreasePrecision {
+class IncreasePositionIdsPrecisionForQwen25VL : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionForQwen25VL");
     IncreasePositionIdsPrecisionForQwen25VL();
 };
 
-class IncreasePositionIdsPrecisionForLtxVideo : public IncreasePrecision {
+class IncreasePositionIdsPrecisionForLtxVideo : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionForLtxVideo");
     IncreasePositionIdsPrecisionForLtxVideo();
 };
 
-class IncreasePositionIdsPrecisionForGPTOSS : public IncreasePrecision {
+class IncreasePositionIdsPrecisionForGPTOSS : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionForGPTOSS");
     IncreasePositionIdsPrecisionForGPTOSS();
