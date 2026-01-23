@@ -18,7 +18,7 @@ from workflow_rerun.constants import GITHUB_TOKEN, LOGGER
 from workflow_rerun.log_analyzer import LogAnalyzer
 from workflow_rerun.log_collector import collect_logs_for_run
 
-def record_rerun_to_db(repository_full_name: str, run_id: int, ticket_number: int | None, rerunner_run_id: int, error_text: str):
+def record_rerun_to_db(repository_full_name: str, run_id: int, ticket_number: int, rerunner_run_id: int, error_text: str):
     """Record the rerun event to the PostgreSQL database."""
 
     if ticket_number is None:
