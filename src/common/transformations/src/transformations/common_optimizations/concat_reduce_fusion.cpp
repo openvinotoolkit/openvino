@@ -112,6 +112,33 @@ ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
             return false;
         }
 
+        // The transformation replaces Concat+ReduceMax/Min with element-wise Maximum/Minimum.
+        // This is only valid when both concat inputs have size 1 along the concat/reduce axis.
+        // For example: Unsqueeze(a, axis=N) and Unsqueeze(b, axis=N) -> Concat(axis=N) -> ReduceMax(axis=N)
+        // can become Maximum(a, b) because each input contributes exactly one element per position.
+        //
+        // If inputs have different sizes along the concat axis, the transformation is invalid.
+        // For example: Concat([1], [53], axis=0) -> ReduceMax should produce scalar [],
+        // but Maximum([1], [53]) broadcasts to [53], which is wrong.
+        const auto concat_axis = concat->get_axis();
+        const auto& input0_shape = concat->input_value(0).get_partial_shape();
+        const auto& input1_shape = concat->input_value(1).get_partial_shape();
+
+        // Check that both inputs have size 1 along the concat axis
+        if (input0_shape.rank().is_dynamic() || input1_shape.rank().is_dynamic()) {
+            return false;
+        }
+        const auto input0_rank = input0_shape.rank().get_length();
+        const auto input1_rank = input1_shape.rank().get_length();
+        if (concat_axis >= input0_rank || concat_axis >= input1_rank) {
+            return false;
+        }
+        const auto& dim0 = input0_shape[concat_axis];
+        const auto& dim1 = input1_shape[concat_axis];
+        if (dim0.is_dynamic() || dim1.is_dynamic() || dim0.get_length() != 1 || dim1.get_length() != 1) {
+            return false;
+        }
+
         ReduceType reduce_type = get_reduce_type(reduce);
         std::shared_ptr<ov::Node> result_node;
         switch (reduce_type) {
