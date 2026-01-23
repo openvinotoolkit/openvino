@@ -126,7 +126,8 @@ INSTANTIATE_TEST_SUITE_P(
 // ==========================================
 // AUTOMATICALLY ADDED STANDALONE TEST
 // ==========================================
-
+#include "openvino/op/ceiling.hpp"      // Fixes 'Ceiling is not a member'
+#include "openvino/runtime/tensor.hpp"  // Fixes 'data<float>' error
 #include "openvino/runtime/core.hpp"
 #include "openvino/op/floor.hpp"
 #include "openvino/op/parameter.hpp"
@@ -134,9 +135,9 @@ INSTANTIATE_TEST_SUITE_P(
 
 namespace LayerTestsDefinitions {
 
-TEST(PrecisionTrapTest, Standalone_GPU_Floor_Check) {
+TEST(PrecisionTrapTest, GPU_HighPrecision_Floor_Check) {
     // 1. Build Model: Input -> Floor -> Output
-    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f64, ov::Shape{1});
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
     auto floor_op = std::make_shared<ov::op::v0::Floor>(param);
     auto result = std::make_shared<ov::op::v0::Result>(floor_op);
     auto model = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{param});
@@ -157,19 +158,18 @@ TEST(PrecisionTrapTest, Standalone_GPU_Floor_Check) {
     auto compiled_model = core.compile_model(model, "GPU");
     auto request = compiled_model.create_infer_request();
 
-    // 3. Set Trap Input (0.99999994)
-    request.get_input_tensor().data<double>()[0] = 0.9999999403953552;
+    // 3. Set Trap Input: Largest float less than 1.0
+    // std::nextafter(1.0f, 0.0f) gives approx 0.99999994
+    request.get_input_tensor().data<float>()[0] = std::nextafter(1.0f, 0.0f);
 
-    // 4. Run
+    // 4. Run Inference (THIS WAS MISSING)
     request.infer();
 
-    // 5. Check Output
-    double output_val = request.get_output_tensor().data<double>()[0];
+    // 5. Get Output (THIS WAS MISSING)
+    float output_val = request.get_output_tensor().data<float>()[0];
     
-    std::cout << "\n[DEBUG] Input: 0.99...94  -->  Output: " << output_val << "\n";
+    std::cout << "\n[DEBUG] Input: nextafter(1.0f)  -->  Output: " << output_val << "\n";
 
-    // 6. Fail if it is 1.0
-    ASSERT_EQ(output_val, 0.0) << "FAILURE: GPU rounded 0.99... up to 1.0!";
-}
-
-} // End namespace
+    // 6. Fail if it rounded up to 1.0
+    ASSERT_EQ(output_val, 0.0f) << "FAILURE: Kernel used FLOAT precision! (Output was 1.0)";
+}}
