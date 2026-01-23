@@ -49,3 +49,59 @@ class TestSparseMM(PytorchLayerTest):
                    ie_device, precision, ir_version, 
                    kwargs_to_prepare_input={"dense_shape": dense_shape},
                    trace_model=True) # sparse_mm requires tracing usually as scripting often fails with sparse construction inside
+
+class aten_sparse_mm_sxs(torch.nn.Module):
+    def __init__(self, sparse_shape1, indices1, values1, sparse_shape2, indices2, values2):
+        super().__init__()
+        self.sparse_shape1 = sparse_shape1
+        self.indices1 = indices1
+        self.values1 = values1
+        self.sparse_shape2 = sparse_shape2
+        self.indices2 = indices2
+        self.values2 = values2
+
+    def forward(self):
+        sparse_mat1 = torch.sparse_coo_tensor(self.indices1, self.values1, self.sparse_shape1)
+        sparse_mat2 = torch.sparse_coo_tensor(self.indices2, self.values2, self.sparse_shape2)
+        result = torch.sparse.mm(sparse_mat1, sparse_mat2)
+        return result.to_dense()  # Convert to dense for comparison
+
+class TestSparseMMSxS(PytorchLayerTest):
+    def _prepare_input(self):
+        return ()  # No runtime inputs needed
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("shape1, shape2", [
+        ((3, 4), (4, 2)),
+        ((5, 5), (5, 3)),
+        ((10, 8), (8, 10)),
+    ])
+    def test_sparse_mm_sxs(self, shape1, shape2, ie_device, precision, ir_version):
+        # Create first sparse matrix
+        num_elements1 = shape1[0]
+        total_elements1 = shape1[0] * shape1[1]
+        flat_indices1 = np.random.choice(total_elements1, num_elements1, replace=False)
+        row_indices1 = flat_indices1 // shape1[1]
+        col_indices1 = flat_indices1 % shape1[1]
+        indices1 = torch.tensor([row_indices1, col_indices1], dtype=torch.int64)
+        values1 = torch.randn(num_elements1, dtype=torch.float32)
+        
+        # Create second sparse matrix
+        num_elements2 = shape2[0]
+        total_elements2 = shape2[0] * shape2[1]
+        flat_indices2 = np.random.choice(total_elements2, num_elements2, replace=False)
+        row_indices2 = flat_indices2 // shape2[1]
+        col_indices2 = flat_indices2 % shape2[1]
+        indices2 = torch.tensor([row_indices2, col_indices2], dtype=torch.int64)
+        values2 = torch.randn(num_elements2, dtype=torch.float32)
+        
+        self._test(
+            aten_sparse_mm_sxs(shape1, indices1, values1, shape2, indices2, values2),
+            None,
+            "aten::_sparse_mm",
+            ie_device,
+            precision,
+            ir_version,
+            trace_model=True
+        )

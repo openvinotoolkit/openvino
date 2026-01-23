@@ -26,6 +26,18 @@ OutputVector translate_sparse_coo_tensor(const NodeContext& context) {
     return {sparse_mark};
 };
 
+OutputVector translate_to_dense(const NodeContext& context) {
+    // aten::to_dense(Tensor self, ScalarType? dtype=None, bool? masked_grad=None) -> Tensor
+    num_inputs_check(context, 1, 3);
+    auto input = context.get_input(0);
+    auto sparse_mark = std::dynamic_pointer_cast<ov::frontend::SparseTypeMark>(input.get_node_shared_ptr());
+    if (sparse_mark) {
+        return {sparse_mark->to_dense(context)};
+    }
+    // Already dense, return as-is
+    return {input};
+};
+
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend
