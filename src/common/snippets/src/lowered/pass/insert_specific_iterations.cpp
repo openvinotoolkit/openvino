@@ -46,9 +46,9 @@ std::vector<LoopPort> clone_ports(const ExpressionMap& expression_map, const std
     return new_ports;
 }
 
-void connect_cloned_body_with_buffers_outside(const LoopManager::LoopBounds& cur_bounds,
-                                              const LoopManager::LoopBounds& res_bounds,
-                                              LinearIR& linear_ir) {
+void connect_cloned_body_with_expr_outside_loop(const LoopManager::LoopBounds& cur_bounds,
+                                                const LoopManager::LoopBounds& res_bounds,
+                                                LinearIR& linear_ir) {
     const auto& [cur_begin, cur_end] = cur_bounds;
     const auto& [res_begin, res_end] = res_bounds;
     for (auto result_it = res_begin, original_it = cur_begin; result_it != res_end; ++result_it, ++original_it) {
@@ -58,10 +58,11 @@ void connect_cloned_body_with_buffers_outside(const LoopManager::LoopBounds& cur
             const auto& consumers = original_expr->get_output_port_connector(i)->get_consumers();
             for (const auto& consumer : consumers) {
                 const auto consumer_expr = consumer.get_expr();
-                bool add_connect = ov::as_type_ptr<BufferExpression>(consumer_expr) ||
-                                   ov::is_type_any_of<op::Result, op::HorizonSum, op::HorizonMax, op::Reshape>(
-                                       consumer_expr->get_node());
-                if (add_connect && std::find(cur_begin, cur_end, consumer_expr) == cur_end) {
+                // these expressions should be connected from all expanded loop for correct register assignment.
+                bool need_full_connection = ov::as_type_ptr<BufferExpression>(consumer_expr) ||
+                                            ov::is_type_any_of<op::Result, op::HorizonSum, op::HorizonMax, op::Reshape>(
+                                                consumer_expr->get_node());
+                if (need_full_connection && std::find(cur_begin, cur_end, consumer_expr) == cur_end) {
                     std::vector<PortDescriptorPtr> new_descs = {
                         consumer_expr->get_input_port_descriptor(consumer.get_index())->clone()};
                     std::vector<PortConnectorPtr> new_inputs = {result_expr->get_output_port_connector(i)};
@@ -227,7 +228,7 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir,
 
                 // Add connections between output of cloned bodies and Buffers from the current LinearIR
                 // (Buffers are connections between Loops)
-                connect_cloned_body_with_buffers_outside(cur_bounds, decomposed_loop_bounds, linear_ir);
+                connect_cloned_body_with_expr_outside_loop(cur_bounds, decomposed_loop_bounds, linear_ir);
 
                 const auto original_loop_info = loop_manager->get_loop_info(unified_loop_id);
                 decomposed_loop_entry_ports = clone_ports(expression_map, original_loop_info->get_input_ports());

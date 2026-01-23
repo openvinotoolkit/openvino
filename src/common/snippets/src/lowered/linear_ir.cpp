@@ -37,6 +37,7 @@
 #include "snippets/lowered/port_connector.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/brgemm.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/shape_inference/shape_infer_instances.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
@@ -228,8 +229,10 @@ const ExpressionPtr& LinearIR::get_expr_by_node(const std::shared_ptr<Node>& n) 
 
 void LinearIR::register_expression(const ExpressionPtr& expr, bool io_allowed, double exec_num) {
     const auto& node = expr->get_node();
-    OPENVINO_ASSERT(io_allowed || !is_type<ov::op::v0::Parameter>(node),
-                    "LinearIR::insert can't be used to add Parameters to IR");
+    // snippets result could be replaced inside LIR, so we should allow them to be registered.
+    bool io_result = is_type<ov::op::v0::Result>(node) && !is_type<ov::snippets::op::Result>(node);
+    OPENVINO_ASSERT(io_allowed || (!is_type<ov::op::v0::Parameter>(node) && !io_result),
+                    "LinearIR::insert can't be used to add Parameters or Results to IR");
     const auto& res = m_node2expression_map.insert({node, expr});
     OPENVINO_ASSERT(res.second, "Duplicate node is detected in linear IR: ", node);
 
