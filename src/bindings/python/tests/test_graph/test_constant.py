@@ -219,7 +219,8 @@ def test_cant_change_data_in_const():
     [
         (Type.f32, np.float32),
         (Type.i32, np.int32),
-        pytest.param(Type.i16, np.int16, marks=pytest.mark.skipif(platform.machine() == "aarch64", reason="CVS-177547")),
+        pytest.param(Type.i16, np.int16, marks=pytest.mark.skipif(platform.machine() == "aarch64", 
+                                                                  reason="CVS-177547")),
     ],
 )
 @pytest.mark.parametrize(
