@@ -49,11 +49,26 @@ protected:
         return args;
     }
 
+    void set_arguments_impl(gemm_inst& instance) override {
+        if (instance.can_be_optimized())
+            return;
+
+        if (instance.get_input_layout(0).count() == 0 ||
+            instance.get_input_layout(1).count() == 0) {
+            return;
+        }
+
+        uint32_t net_id = instance.get_network().get_id();
+        _args[net_id] = get_arguments(instance);
+    }
+
     static dnnl::memory::format_tag transpose_format(dnnl::memory::format_tag fmt) {
         switch (fmt) {
             case dnnl::memory::format_tag::ab: return dnnl::memory::format_tag::ba;
             case dnnl::memory::format_tag::abc: return dnnl::memory::format_tag::acb;
             case dnnl::memory::format_tag::abcd: return dnnl::memory::format_tag::abdc;
+            case dnnl::memory::format_tag::abcde: return dnnl::memory::format_tag::abced;
+            case dnnl::memory::format_tag::abcdef: return dnnl::memory::format_tag::abcdfe;
             // Whitelist format from transpose-gemm optimizing out
             case dnnl::memory::format_tag::acbd: return dnnl::memory::format_tag::acdb;
             case dnnl::memory::format_tag::adbc: return dnnl::memory::format_tag::adcb;
@@ -90,33 +105,29 @@ protected:
         const auto& in0_l = in_layouts[0];
         const auto& in1_l = in_layouts[1];
 
-        bool batched_dims_can_be_removed = false;
-
         size_t rank = cldnn::format::dimension(out_l.format);
 
         in0_dt = onednn::convert_data_type(in0_l.data_type);
         in1_dt = onednn::convert_data_type(in1_l.data_type);
         out_dt = onednn::convert_data_type(out_l.data_type);
 
-        in0_dims = onednn::convert_gemm_tensor(in0_l.get_tensor(), rank, batched_dims_can_be_removed);
-        in1_dims = onednn::convert_gemm_tensor(in1_l.get_tensor(), rank, batched_dims_can_be_removed);
-        out_dims = onednn::convert_gemm_tensor(out_l.get_tensor(), rank, batched_dims_can_be_removed);
+        in0_dims = onednn::convert_tensor(in0_l.get_tensor(), rank);
+        in1_dims = onednn::convert_tensor(in1_l.get_tensor(), rank);
+        out_dims = onednn::convert_tensor(out_l.get_tensor(), rank);
 
         in0_fmt = onednn::convert_gemm_data_format(in0_dims, in0_l.format);
         in1_fmt = onednn::convert_gemm_data_format(in1_dims, in1_l.format);
         out_fmt = onednn::convert_gemm_data_format(out_dims, out_l.format);
 
         if (in0_l.data_padding) {
-            dnnl::memory::dims in0_padded_dims = onednn::convert_gemm_dims(in0_l.get_padded_dims(), rank, batched_dims_can_be_removed);
-            in0_strides = onednn::get_strides(in0_padded_dims);
+            in0_strides = onednn::get_strides(in0_l.get_padded_dims());
             if (prim->transpose_input0) {
                 std::swap(in0_strides[in0_strides.size() - 1], in0_strides[in0_strides.size() - 2]);
             }
         }
 
         if (in1_l.data_padding) {
-            dnnl::memory::dims in1_padded_dims = onednn::convert_gemm_dims(in1_l.get_padded_dims(), rank, batched_dims_can_be_removed);
-            in1_strides = onednn::get_strides(in1_padded_dims);
+            in1_strides = onednn::get_strides(in1_l.get_padded_dims());
             if (prim->transpose_input1)
                 std::swap(in1_strides[in1_strides.size() - 1], in1_strides[in1_strides.size() - 2]);
         }
@@ -218,7 +229,7 @@ protected:
             auto bias_l = impl_params.get_input_layout(2);
             auto bias_rank = cldnn::format::dimension(bias_l.format);
             bias_dt = onednn::convert_data_type(bias_l.data_type);
-            bias_dims = onednn::convert_gemm_tensor(bias_l.get_tensor(), bias_rank, batched_dims_can_be_removed);
+            bias_dims = onednn::convert_tensor(bias_l.get_tensor(), bias_rank);
             bias_fmt = onednn::convert_gemm_data_format(bias_dims, bias_l.format);
         }
     }
@@ -432,6 +443,12 @@ public:
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
         auto attr = impl_params.attrs_onednn;
+
+        if (impl_params.get_input_layout(0).count() == 0 ||
+            impl_params.get_input_layout(1).count() == 0) {
+            return std::make_unique<gemm_onednn>(engine);
+        }
+
         auto prim_desc = get_gemm_primitive_descriptor(impl_params, *attr);
 
         return std::make_unique<gemm_onednn>(engine, config, attr, *prim_desc);
