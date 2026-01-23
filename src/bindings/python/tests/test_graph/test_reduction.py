@@ -173,17 +173,6 @@ def test_reduce_with_keywork():
     ],
 )
 def test_reduce_invalid_axis_raises_immediately(graph_api_helper):
-    """Test that reduction operations with out-of-range axes raise RuntimeError at node creation.
-
-    This test documents the expected 'fail-fast' behavior: when reduction_axes contain
-    constant values that are out of the valid range [-rank, rank-1], a RuntimeError
-    is raised immediately during node creation, not deferred to model compilation.
-
-    This behavior is by design in OpenVINO - shape inference requires strict validation
-    when inputs are known.
-
-    See: https://github.com/openvinotoolkit/openvino/issues/33261
-    """
     shape = [2]  # 1D tensor, rank=1
     input_data = np.random.randn(*shape).astype(np.float32)
     invalid_axes = np.array([1])  # axis 1 is out of range for rank 1 (valid: -1, 0)
@@ -202,11 +191,6 @@ def test_reduce_invalid_axis_raises_immediately(graph_api_helper):
     ],
 )
 def test_reduce_logical_invalid_axis_raises_immediately(graph_api_helper):
-    """Test that logical reduction operations with out-of-range axes raise RuntimeError at node creation.
-
-    This test documents the expected 'fail-fast' behavior for logical reductions.
-    See test_reduce_invalid_axis_raises_immediately for more details.
-    """
     shape = [2]  # 1D tensor, rank=1
     input_data = np.random.randn(*shape).astype(bool)
     invalid_axes = np.array([1])  # axis 1 is out of range for rank 1 (valid: -1, 0)
