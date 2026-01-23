@@ -26,9 +26,7 @@ static const char create_device_error_msg[] =
 
 bool does_device_match_config(const ::sycl::device& device) {
     if (!device.is_gpu()) {
-        // TODO: remove this comment out.
-        // Currently we accept CPU devices to use POCL for testing purposes.
-        // return false;
+        return false;
     }
 
     return true;
