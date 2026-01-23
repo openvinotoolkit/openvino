@@ -2021,6 +2021,7 @@ void TopK::initSupportedPrimitiveDescriptors() {
 #endif
 
     static const ov::element::Type supportedPrecision[] = {ov::element::f32,
+                                                           ov::element::f16,
                                                            ov::element::bf16,
                                                            ov::element::i32,
                                                            ov::element::i8,
