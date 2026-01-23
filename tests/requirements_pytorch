@@ -36,7 +36,7 @@ sacremoses==0.1.1
 sentencepiece==0.2.0
 soundfile==0.12.1
 super-image==0.1.7; python_version < "3.12"
-timm==1.0.11
+timm==1.0.24
 wheel==0.44.0
 PyYAML==6.0.2
 kornia==0.7.3
