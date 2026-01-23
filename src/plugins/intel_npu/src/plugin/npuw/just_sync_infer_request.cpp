@@ -1355,10 +1355,14 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
         // execution pipeline: See how it is done in
         // `unsafe_run_this_prep_next()`.  Now we only need to bind
         // the subrequest' outputs to global Results, if relevant.
-        bind_global_results(idx);
+        m_profile["bind_results"].record([&]() {
+            bind_global_results(idx);
+        });
 
         if (comp_model_desc.replaced_by) {
-            function_prologue(idx);
+            m_profile["func_prologue"].record([&]() {
+                function_prologue(idx);
+            });
         }
         if (!dump_in) {
             dump_in = true;
@@ -1369,7 +1373,9 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
         try {
             LOG_DEBUG("Trying to run subrequest[" << idx << "]...");
             LOG_BLOCK();
-            unsafe_run_this_prep_next(idx, next_prepared);
+            m_profile["exec_subreq"].record([&]() {
+                unsafe_run_this_prep_next(idx, next_prepared);
+            });
             job_done = true;
             LOG_DEBUG("Done: " << idx << "(exec subrequest)");
         } catch (const std::exception& ex) {

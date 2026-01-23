@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <memory>
 
 #include "base_sync_infer_request.hpp"
@@ -20,6 +21,7 @@ namespace npuw {
 class LLMInferRequest : public ov::npuw::LLMInferBaseRequest {
 public:
     explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
+    ~LLMInferRequest();
 
     void infer() override;
 
@@ -126,6 +128,18 @@ protected:
 
     // Support prefix caching
     std::unique_ptr<PrefixCachingHelper> m_prefix_caching_helper;
+
+    // Performance statistics for infer_generate
+    struct GenerateStats {
+        uint64_t call_count = 0;
+        double total_time_ms = 0.0;
+        double prepare_tensors_time_ms = 0.0;
+        double kvcache_infer_time_ms = 0.0;
+        double update_kvcache_time_ms = 0.0;
+        double lm_head_infer_time_ms = 0.0;
+    };
+    GenerateStats m_generate_stats;
+    void print_generate_stats() const;
 
     // Friend declarations for PrefixCachingHelper to access protected members
     friend class PrefixCachingHelper;

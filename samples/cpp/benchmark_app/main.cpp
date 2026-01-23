@@ -14,6 +14,7 @@
 // clang-format off
 #include "openvino/openvino.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
 
 #ifndef IN_OV_COMPONENT
 #    define IN_OV_COMPONENT
@@ -635,6 +636,10 @@ int main(int argc, char* argv[]) {
                 return info.second.partialShape.is_dynamic();
             });
         };
+
+        device_config.insert(ov::intel_npu::compiler_dynamic_quantization(true));
+        device_config.emplace("NPU_COMPILER_TYPE", "DRIVER");
+        device_config.emplace("NPU_TILES", 3);
 
         if (FLAGS_load_from_file && !isNetworkCompiled) {
             if (!FLAGS_mean_values.empty() || !FLAGS_scale_values.empty()) {

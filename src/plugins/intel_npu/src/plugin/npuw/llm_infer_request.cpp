@@ -4,6 +4,7 @@
 
 #include "llm_infer_request.hpp"
 
+#include <iostream>
 #include <regex>
 
 #include "infer_request_utils.hpp"
@@ -103,6 +104,9 @@ void ov::npuw::LLMInferRequest::init_lora_states() {
 
 ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
     : ov::npuw::LLMInferBaseRequest(compiled_model) {
+    // Initialize performance stats
+    m_generate_stats = GenerateStats();
+
     init_ports();
 
     auto input_ids_port =
@@ -204,6 +208,10 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     }
 
     m_generate_initialized = false;
+}
+
+ov::npuw::LLMInferRequest::~LLMInferRequest() {
+    print_generate_stats();
 }
 
 std::string ov::npuw::LLMInferRequest::init_pre_alloc_device() {
@@ -832,6 +840,10 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                                ov::SoPtr<ov::ITensor> token_type_ids) {
     LOG_DEBUG("Calling inference for generate model...");
     LOG_BLOCK();
+
+    auto total_start = std::chrono::high_resolution_clock::now();
+    m_generate_stats.call_count++;
+
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     uint32_t input_tokens_len = static_cast<uint32_t>(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]);
     if (input_tokens_len > kvcache_desc.max_generation_token_len) {
@@ -842,6 +854,8 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
     // Note: m_kvcache_request, m_kvcache_in_ports, and m_kvcache_out_ports are selected in
     // prepare_for_new_conversation()
+
+    auto prepare_start = std::chrono::high_resolution_clock::now();
 
     if (!m_generate_initialized) {
         LOG_DEBUG("Copy kv-cache from prefill to generate model.");
@@ -905,11 +919,25 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         m_eagle3_ext.prepare_inputs(m_kvcache_request, m_kvcache_in_ports);
     }
 
+    auto prepare_end = std::chrono::high_resolution_clock::now();
+    m_generate_stats.prepare_tensors_time_ms +=
+        std::chrono::duration<double, std::milli>(prepare_end - prepare_start).count();
+
+    // Step 2: KV-Cache model inference
+    auto kvcache_infer_start = std::chrono::high_resolution_clock::now();
     m_kvcache_request->infer();
+    auto kvcache_infer_end = std::chrono::high_resolution_clock::now();
+    m_generate_stats.kvcache_infer_time_ms +=
+        std::chrono::duration<double, std::milli>(kvcache_infer_end - kvcache_infer_start).count();
+
     kvcache_desc.num_stored_tokens += input_tokens_len;
+
+    // Step 3: Update KV-Cache and LM head inference
+    auto update_start = std::chrono::high_resolution_clock::now();
 
     if (m_lm_head_request) {
         LOG_DEBUG("Calling inference for LM head model asynchronously");
+        auto lm_head_start = std::chrono::high_resolution_clock::now();
         m_lm_head_request->start_async();
         if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
             update_kvcache_for(m_kvcache_request,
@@ -918,7 +946,15 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                input_tokens_len,
                                kvcache_desc.v_tensors_transposed_gen);
         }
+
+        auto update_end = std::chrono::high_resolution_clock::now();
+        m_generate_stats.update_kvcache_time_ms +=
+            std::chrono::duration<double, std::milli>(update_end - update_start).count();
+
         m_lm_head_request->wait();
+        auto lm_head_end = std::chrono::high_resolution_clock::now();
+        m_generate_stats.lm_head_infer_time_ms +=
+            std::chrono::duration<double, std::milli>(lm_head_end - lm_head_start).count();
         LOG_DEBUG("Calling inference for LM head model -- done.");
 
         m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
@@ -930,6 +966,9 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                input_tokens_len,
                                kvcache_desc.v_tensors_transposed_gen);
         }
+        auto update_end = std::chrono::high_resolution_clock::now();
+        m_generate_stats.update_kvcache_time_ms +=
+            std::chrono::duration<double, std::milli>(update_end - update_start).count();
 
         m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(layer_names::logits));
     }
@@ -937,6 +976,9 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     if (m_eagle3_ext.is_eagle3_model()) {
         m_eagle3_ext.update_last_hidden_state(m_kvcache_request, m_kvcache_out_ports);
     }
+
+    auto total_end = std::chrono::high_resolution_clock::now();
+    m_generate_stats.total_time_ms += std::chrono::duration<double, std::milli>(total_end - total_start).count();
 
     LOG_DEBUG("Done");
 }
@@ -1037,4 +1079,47 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
 
 std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::LLMInferRequest::query_state() const {
     return m_variableStates;
+}
+
+void ov::npuw::LLMInferRequest::print_generate_stats() const {
+    if (m_generate_stats.call_count == 0) {
+        return;
+    }
+
+    std::cout << "\n======================================" << std::endl;
+    std::cout << "LLMInferRequest Generate Performance Stats" << std::endl;
+    std::cout << "======================================" << std::endl;
+    std::cout << "Total generate calls: " << m_generate_stats.call_count << std::endl;
+    std::cout << "Total time: " << m_generate_stats.total_time_ms << " ms" << std::endl;
+    std::cout << "  Avg per call: " << (m_generate_stats.total_time_ms / m_generate_stats.call_count) << " ms"
+              << std::endl;
+    std::cout << "--------------------------------------" << std::endl;
+    std::cout << "Prepare tensors: " << m_generate_stats.prepare_tensors_time_ms << " ms" << std::endl;
+    std::cout << "  Avg per call: " << (m_generate_stats.prepare_tensors_time_ms / m_generate_stats.call_count) << " ms"
+              << std::endl;
+    std::cout << "  Percentage: " << (m_generate_stats.prepare_tensors_time_ms / m_generate_stats.total_time_ms * 100.0)
+              << "%" << std::endl;
+    std::cout << "--------------------------------------" << std::endl;
+    std::cout << "KVCache inference: " << m_generate_stats.kvcache_infer_time_ms << " ms" << std::endl;
+    std::cout << "  Avg per call: " << (m_generate_stats.kvcache_infer_time_ms / m_generate_stats.call_count) << " ms"
+              << std::endl;
+    std::cout << "  Percentage: " << (m_generate_stats.kvcache_infer_time_ms / m_generate_stats.total_time_ms * 100.0)
+              << "%" << std::endl;
+    std::cout << "--------------------------------------" << std::endl;
+    std::cout << "Update KVCache: " << m_generate_stats.update_kvcache_time_ms << " ms" << std::endl;
+    std::cout << "  Avg per call: " << (m_generate_stats.update_kvcache_time_ms / m_generate_stats.call_count) << " ms"
+              << std::endl;
+    std::cout << "  Percentage: " << (m_generate_stats.update_kvcache_time_ms / m_generate_stats.total_time_ms * 100.0)
+              << "%" << std::endl;
+
+    if (m_generate_stats.lm_head_infer_time_ms > 0.0) {
+        std::cout << "--------------------------------------" << std::endl;
+        std::cout << "LM head inference: " << m_generate_stats.lm_head_infer_time_ms << " ms" << std::endl;
+        std::cout << "  Avg per call: " << (m_generate_stats.lm_head_infer_time_ms / m_generate_stats.call_count)
+                  << " ms" << std::endl;
+        std::cout << "  Percentage: "
+                  << (m_generate_stats.lm_head_infer_time_ms / m_generate_stats.total_time_ms * 100.0) << "%"
+                  << std::endl;
+    }
+    std::cout << "======================================\n" << std::endl;
 }
