@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -38,8 +38,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 if (ENABLE_TEMPLATE_REGISTRATION)
     # Update the plugins.xml file
     ov_register_plugins(MAIN_TARGET ${TARGET_NAME})
-endif()
-# [cmake:plugin]
+endif()# [cmake:plugin]
 
 install(TARGETS ${TARGET_NAME}
         LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)

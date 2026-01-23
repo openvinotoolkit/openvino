@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,14 +28,17 @@ public:
 protected:
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
+    template <typename ExecutorT>
     void emit_call(const std::vector<size_t>& mem_ptrs_idxs) const;
 
-    static uintptr_t get_execute_function_ptr();
-    uintptr_t get_compiled_kernel_ptr() const;
-
-    std::shared_ptr<GemmKaiKernelExecutor> m_kernel_executor_kai = nullptr;
+    std::shared_ptr<GemmKaiKernelExecutorBase> m_kernel_executor_kai = nullptr;
     std::vector<size_t> m_memory_offsets;
     std::vector<size_t> m_buffer_ids;
+    bool m_is_f16 = false;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    friend std::string init_info_jit_gemm_emitter(const jit_gemm_emitter* emitter);
+#endif
 };
 
 }  // namespace ov::intel_cpu::aarch64
