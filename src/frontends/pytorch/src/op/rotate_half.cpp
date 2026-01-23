@@ -55,7 +55,6 @@ OutputVector translate_rotate_half(const NodeContext& context) {
     auto x2 = context.mark_node(std::make_shared<v8::Slice>(x, split_point, int_max, const_1, const_neg_1));
 
     // Negate x2: -x2
-    auto const_neg_1_scalar = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}));
     auto neg_1_converted = context.mark_node(std::make_shared<v1::ConvertLike>(const_neg_1_scalar, x2));
     auto neg_x2 = context.mark_node(std::make_shared<v1::Multiply>(x2, neg_1_converted));
 
