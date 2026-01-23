@@ -2946,12 +2946,8 @@ bool primitive_inst::is_valid_fusion() const {
         if (get_node().is_type<gemm>() && get_node().get_preferred_impl_type() == impl_types::onednn) {
             const auto& gemm_layout = _impl_params->get_output_layout();
             const auto& data_layout = outer_dep.first->_impl_params->get_output_layout();
-            auto gemm_dims = onednn::convert_gemm_tensor(gemm_layout.get_tensor(),
-                                                         cldnn::format::dimension(gemm_layout.format),
-                                                         false);
-            auto data_dims = onednn::convert_gemm_tensor(data_layout.get_tensor(),
-                                                         cldnn::format::dimension(data_layout.format),
-                                                         false);
+            auto gemm_dims = onednn::convert_tensor(gemm_layout.get_tensor(), cldnn::format::dimension(gemm_layout.format));
+            auto data_dims = onednn::convert_tensor(data_layout.get_tensor(), cldnn::format::dimension(data_layout.format));
 
             if (gemm_dims[0] != data_dims[0] && gemm_dims[1] != 1)
                 LOG_AND_RETURN_FALSE(_node);

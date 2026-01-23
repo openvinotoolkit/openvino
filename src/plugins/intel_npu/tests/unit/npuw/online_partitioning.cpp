@@ -101,6 +101,8 @@ bool isEqualEns(ov::npuw::Ensemble& ens1, ov::npuw::Ensemble& ens2) {
 }
 
 class IsRegularResultCaseParametrized : public ::testing::TestWithParam<std::tuple<std::vector<std::size_t>, bool>> {};
+class IsRegularParameterCaseParametrized : public ::testing::TestWithParam<std::tuple<std::vector<std::size_t>, bool>> {
+};
 
 };  // namespace
 
@@ -570,22 +572,7 @@ TEST(OnlinePartitioningTest, Partitioning_Avoids_Pipeline_None) {
     EXPECT_EQ(ens.groups.size(), 3);
 }
 
-TEST(OnlinePartitioningTest, IsRegularResultCaseMultipleOutputs) {
-    ModelGenerator mg;
-    std::vector<std::pair<std::shared_ptr<ov::Model>, bool>> model_expected = {
-        {mg.get_model_with_multi_output_repeating_blocks(10, /*irregular_results=*/true), /*irregular_results=*/true},
-        {mg.get_model_with_multi_output_repeating_blocks(10, /*irregular_results=*/false),
-         /*irregular_results=*/false}};
-
-    for (auto [model, expected_result] : model_expected) {
-        auto cfg = createConfigWithKeepBlockSize(3);
-        auto ens = ov::npuw::online::buildPartitioning(model, cfg);
-
-        EXPECT_EQ(ens.irregular_results, expected_result);
-    }
-}
-
-TEST(OnlinePartitioningTest, IsRegularResultCaseWhenNoRB) {
+TEST(OnlinePartitioningTest, IsRegularIOCaseWhenNoRB) {
     bool expected_result = false;
 
     ModelGenerator mg;
@@ -596,7 +583,24 @@ TEST(OnlinePartitioningTest, IsRegularResultCaseWhenNoRB) {
         auto cfg = createConfigWithKeepBlockSize(9);
         auto ens = ov::npuw::online::buildPartitioning(model, cfg);
 
-        EXPECT_EQ(ens.irregular_results, expected_result);
+        EXPECT_EQ(ens.repeated.size(), 0);  // sanity check that we don't have repeated blocks
+        EXPECT_EQ(ens.irregular_io, expected_result);
+    }
+}
+
+TEST(OnlinePartitioningTest, IsRegularResultCaseMultipleOutputs) {
+    ModelGenerator mg;
+    std::vector<std::pair<std::shared_ptr<ov::Model>, bool>> model_expected = {
+        {mg.get_model_with_multi_output_repeating_blocks(10, /*irregular_io=*/true), /*irregular_io=*/true},
+        {mg.get_model_with_multi_output_repeating_blocks(10, /*irregular_io=*/false),
+         /*irregular_io=*/false}};
+
+    for (auto [model, expected_result] : model_expected) {
+        auto cfg = createConfigWithKeepBlockSize(3);
+        auto ens = ov::npuw::online::buildPartitioning(model, cfg);
+
+        EXPECT_EQ(ens.repeated.size(), 1);  // sanity check that we have repeated blocks
+        EXPECT_EQ(ens.irregular_io, expected_result);
     }
 }
 
@@ -609,7 +613,8 @@ TEST_P(IsRegularResultCaseParametrized, CheckForDifferentResultConfigs) {
     auto cfg = createConfigWithKeepBlockSize(9);
     auto ens = ov::npuw::online::buildPartitioning(model, cfg);
 
-    EXPECT_EQ(ens.irregular_results, expected_result);
+    EXPECT_EQ(ens.repeated.size(), 1);  // sanity check that we have repeated blocks
+    EXPECT_EQ(ens.irregular_io, expected_result);
 }
 
 INSTANTIATE_TEST_SUITE_P(OnlinePartitioningTest,
@@ -617,10 +622,35 @@ INSTANTIATE_TEST_SUITE_P(OnlinePartitioningTest,
                          ::testing::Values(
                              // All blocks have an ov::Result consumer
                              std::make_tuple(std::vector<std::size_t>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
-                                             /*irregular_results=*/false),
+                                             /*irregular_io=*/false),
                              // Some blocks have an ov::Result consumer
-                             std::make_tuple(std::vector<std::size_t>{2, 5, 8}, /*irregular_results=*/true),
+                             std::make_tuple(std::vector<std::size_t>{2, 5, 8}, /*irregular_io=*/true),
                              // Only last block has an additional ov::Result consumer
-                             std::make_tuple(std::vector<std::size_t>{9}, /*irregular_results=*/true),
-                             // No blocks have additional ov::Result consumers
-                             std::make_tuple(std::vector<std::size_t>{}, /*irregular_results=*/false)));
+                             std::make_tuple(std::vector<std::size_t>{9}, /*irregular_io=*/true),
+                             // No blocks have an additional ov::Result consumers
+                             std::make_tuple(std::vector<std::size_t>{}, /*irregular_io=*/false)));
+
+TEST_P(IsRegularParameterCaseParametrized, CheckForDifferentParameterConfigs) {
+    auto [block_indices, expected_result] = GetParam();
+
+    ModelGenerator mg;
+    auto model = mg.get_model_with_repeated_blocks_and_parameters(10, block_indices);
+    auto cfg = createConfigWithKeepBlockSize(4);
+    auto ens = ov::npuw::online::buildPartitioning(model, cfg);
+
+    EXPECT_EQ(ens.repeated.size(), 1);  // sanity check that we have repeated blocks
+    EXPECT_EQ(ens.irregular_io, expected_result);
+}
+
+INSTANTIATE_TEST_SUITE_P(OnlinePartitioningTest,
+                         IsRegularParameterCaseParametrized,
+                         ::testing::Values(
+                             // All blocks have an ov::Parameter producer
+                             std::make_tuple(std::vector<std::size_t>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+                                             /*irregular_io=*/false),
+                             // Some blocks have an ov::Parameter producer
+                             std::make_tuple(std::vector<std::size_t>{1, 2, 3}, /*irregular_io=*/true),
+                             // Only one block has an additional ov::Parameter producer
+                             std::make_tuple(std::vector<std::size_t>{5}, /*irregular_io=*/true),
+                             // No blocks have an additional ov::Parameter producers
+                             std::make_tuple(std::vector<std::size_t>{}, /*irregular_io=*/false)));
