@@ -16,13 +16,13 @@ accuracy and higher performance, and better results than post-training quantizat
 enables you to set the minimum acceptable accuracy value for your optimized model, determining
 the optimization efficiency.
 
-With a few lines of code, you can apply NNCF compression to a PyTorch or TensorFlow training
+With a few lines of code, you can apply NNCF compression to a PyTorch training
 script. Once the model is optimized, you may convert it to the
 :doc:`OpenVINO IR format <../../documentation/openvino-ir-format>`, getting even better
 inference results with OpenVINO Runtime. To optimize your model, you will need:
 
-* A PyTorch or TensorFlow floating-point model.
-* A training pipeline set up in the original framework (PyTorch or TensorFlow).
+* A PyTorch floating-point model.
+* A training pipeline set up in the PyTorch framework.
 * Training and validation datasets.
 * A `JSON configuration file <https://github.com/openvinotoolkit/nncf/blob/develop/docs/ConfigFile.md>`__
   specifying which compression methods to use.
@@ -45,9 +45,8 @@ quantization errors part of the overall training loss and tries to minimize thei
 
 To learn more, see:
 
-* guide on quantization for :doc:`PyTorch and TensorFlow <./compressing-models-during-training/quantization-aware-training>`.
+* guide on quantization for :doc:`PyTorch <./compressing-models-during-training/quantization-aware-training>`.
 * Jupyter notebook on `Quantization Aware Training with NNCF and PyTorch <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/pytorch-quantization-aware-training>`__.
-* Jupyter notebook on `Quantization Aware Training with NNCF and TensorFlow <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/tensorflow-quantization-aware-training>`__.
 
 
 Filter pruning
