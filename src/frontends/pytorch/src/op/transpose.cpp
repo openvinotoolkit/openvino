@@ -134,6 +134,64 @@ OutputVector translate_movedim(const NodeContext& context) {
     return {context.mark_node(std::make_shared<v1::Transpose>(x, scatter))};
 };
 
+// aten::mT(Tensor self) -> Tensor
+// mT swaps the last two dimensions of a tensor, unlike t which only works on 2D
+OutputVector translate_mT(const NodeContext& context) {
+    num_inputs_check(context, 1, 1);
+    auto input = context.get_input(0);
+    
+    auto partial_shape = input.get_partial_shape();
+    
+    // If rank is known statically
+    if (partial_shape.rank().is_static()) {
+        auto rank = partial_shape.rank().get_length();
+        
+        // For 0D or 1D tensors, mT returns the tensor unchanged
+        if (rank < 2) {
+            return {input};
+        }
+        
+        // Create permutation: [0, 1, ..., rank-1] with last 2 swapped
+        std::vector<int32_t> perm(rank);
+        for (int32_t i = 0; i < rank; ++i) {
+            perm[i] = i;
+        }
+        // Swap last two dimensions
+        std::swap(perm[rank - 2], perm[rank - 1]);
+        
+        auto perm_node = context.mark_node(v0::Constant::create(element::i32, Shape{static_cast<size_t>(rank)}, perm));
+        return {context.mark_node(std::make_shared<v1::Transpose>(input, perm_node))};
+    } else {
+        // Dynamic rank: need to build permutation at runtime
+        Output<Node> rank;
+        std::tie(std::ignore, rank) = get_shape_rank(context, input, true);
+        
+        auto const_0 = context.mark_node(v0::Constant::create(element::i32, {}, {0}));
+        auto const_1 = context.mark_node(v0::Constant::create(element::i32, {}, {1}));
+        auto const_2 = context.mark_node(v0::Constant::create(element::i32, {}, {2}));
+        
+        // Create range [0, 1, ..., rank-1]
+        auto range = context.mark_node(std::make_shared<v4::Range>(const_0, rank, const_1, element::i32));
+        
+        // Get indices of last two dims: rank-2, rank-1
+        auto last_idx = context.mark_node(std::make_shared<v1::Subtract>(rank, const_1));
+        auto second_last_idx = context.mark_node(std::make_shared<v1::Subtract>(rank, const_2));
+        
+        // Create update indices and values for ScatterElementsUpdate
+        auto axis_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+        auto last_idx_1d = context.mark_node(std::make_shared<v0::Unsqueeze>(last_idx, axis_0));
+        auto second_last_idx_1d = context.mark_node(std::make_shared<v0::Unsqueeze>(second_last_idx, axis_0));
+        
+        auto indices = context.mark_node(std::make_shared<v0::Concat>(OutputVector{second_last_idx_1d, last_idx_1d}, 0));
+        auto updates = context.mark_node(std::make_shared<v0::Concat>(OutputVector{last_idx_1d, second_last_idx_1d}, 0));
+        
+        // Scatter to swap last two elements
+        auto perm = context.mark_node(std::make_shared<v3::ScatterElementsUpdate>(range, indices, updates, axis_0));
+        
+        return {context.mark_node(std::make_shared<v1::Transpose>(input, perm))};
+    }
+};
+
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend
