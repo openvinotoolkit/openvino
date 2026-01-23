@@ -582,10 +582,11 @@ jobs:
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_gpu_tests.yml
     strategy:
-      max-parallel: 2
+      max-parallel: 12 # to be changed to 2
       fail-fast: false
       matrix:
         TEST_TYPE: ['unit', 'func']
+        REPEAT: [1, 2, 3, 4, 5, 6] # to be removed
     with:
       device: 'igpu'
       test_type: ${{ matrix.TEST_TYPE }}
