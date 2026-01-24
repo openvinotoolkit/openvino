@@ -13,17 +13,20 @@
 
 using namespace std;
 using namespace ov;
-using namespace ov::op;
 using namespace ov::symbol::util;
 
-ov::pass::ReshapeOptimizations::ReshapeOptimizations() {
+namespace v0 = ov::op::v0;
+
+namespace ov::pass {
+
+ReshapeOptimizations::ReshapeOptimizations() {
     MATCHER_SCOPE(ReshapeOptimizations);
     auto data_label = pattern::any_input(pattern::has_static_rank());
     auto pattern_label = pattern::any_input(pattern::has_static_shape() && pattern::class_other_than<v0::Constant>());
     auto reshape_label = pattern::wrap_type<op::v1::Reshape>({data_label, pattern_label}, pattern::has_static_rank());
 
     ov::matcher_pass_callback matcher_pass_callback = [](pattern::Matcher& m) {
-        const auto& reshape = ov::as_type_ptr<v1::Reshape>(m.get_match_root());
+        const auto& reshape = ov::as_type_ptr<ov::op::v1::Reshape>(m.get_match_root());
         if (!reshape)
             return false;
         const auto& in_shape = reshape->get_input_partial_shape(0);
@@ -48,7 +51,7 @@ ov::pass::ReshapeOptimizations::ReshapeOptimizations() {
 
         int64_t cnt_neg_ones = std::count(output_pattern.begin(), output_pattern.end(), -1);
         if (cnt_neg_ones == 0 || (cnt_neg_ones == 1 && cnt_static_zeros == 0)) {
-            auto new_pattern = ov::op::v0::Constant::create(element::i64, Shape{output_pattern.size()}, output_pattern);
+            auto new_pattern = v0::Constant::create(element::i64, Shape{output_pattern.size()}, output_pattern);
             ov::copy_runtime_info(reshape->get_input_node_shared_ptr(1), new_pattern);
             reshape->set_special_zero(true);
             reshape->input(1).replace_source_output(new_pattern->output(0));
@@ -60,3 +63,5 @@ ov::pass::ReshapeOptimizations::ReshapeOptimizations() {
     auto m = std::make_shared<pattern::Matcher>(reshape_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
+
+}  // namespace ov::pass

@@ -29,10 +29,10 @@ void pa_lsc_u8(
     svmptr_t q_base [[type("svmptr_t")]],
     svmptr_t k_cache_base [[type("svmptr_t")]],
     svmptr_t v_cache_base [[type("svmptr_t")]],
-#if SPARSE_BLOCK_SIZE > 1
+#if IS_BLOCK_SPARSE
     svmptr_t sparse_mask_base [[type("svmptr_t")]],
     svmptr_t wg_sparse_mask_base [[type("svmptr_t")]],
-    bool validate,
+    int SPARSE_BLOCK_SIZE,
 #endif
     svmptr_t o_base [[type("svmptr_t")]],
     int32_t past_lens,
@@ -77,7 +77,7 @@ void pa_lsc_u8(
     int slm_buff_id_write = 0;
     int slm_buff_id_read = 0;
 
-#if SPARSE_BLOCK_SIZE > 1
+#if IS_BLOCK_SPARSE
     auto skip_compute = [&](int kv_pos) {
         auto kv_start_block = kv_pos / SPARSE_BLOCK_SIZE;
         bool sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);
@@ -93,12 +93,10 @@ void pa_lsc_u8(
 
     auto load_slm_KV = [&](int kv_pos) {
         if (kv_pos < kv_stop) {
-#if SPARSE_BLOCK_SIZE > 1
-            if (validate) {
-                if (skip_load(kv_pos)) {
-                    slm_buff_id_write++;
-                    return;
-                }
+#if IS_BLOCK_SPARSE
+            if (SPARSE_BLOCK_SIZE > 1 && skip_load(kv_pos)) {
+                slm_buff_id_write++;
+                return;
             }
 #endif
             auto cur_block_id = block_indices[kv_pos / CMPA_BLOCK_SZ];
@@ -203,13 +201,11 @@ void pa_lsc_u8(
         load_slm_KV(kv_pos + kv_step*2);
 
 
-#if SPARSE_BLOCK_SIZE > 1
-        if (validate) {
-            if (skip_compute(kv_pos)) {
-                if constexpr (use_causal_mask)
-                    causal_left -= kv_step;
-                continue;
-            }
+#if IS_BLOCK_SPARSE
+        if (SPARSE_BLOCK_SIZE > 1 && skip_compute(kv_pos)) {
+            if constexpr (use_causal_mask)
+                causal_left -= kv_step;
+            continue;
         }
 #endif
         {
@@ -279,10 +275,10 @@ void pa_kernel_lsc_prefetch_f16(
     svmptr_t q_base [[type("svmptr_t")]],
     svmptr_t k_cache_base [[type("svmptr_t")]],
     svmptr_t v_cache_base [[type("svmptr_t")]],
-#if SPARSE_BLOCK_SIZE > 1
+#if IS_BLOCK_SPARSE
     svmptr_t sparse_mask_base [[type("svmptr_t")]],
     svmptr_t wg_sparse_mask_base [[type("svmptr_t")]],
-    bool validate,
+    int SPARSE_BLOCK_SIZE,
 #endif
     svmptr_t o_base [[type("svmptr_t")]],
     int32_t past_lens,
@@ -346,8 +342,8 @@ void pa_kernel_lsc_prefetch_f16(
             prefetch_K.set_block_y((prefetch_kv_pos + wg_local_id) % CMPA_BLOCK_SZ);
             cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(0));
 
-#if SPARSE_BLOCK_SIZE > 1
-            if (validate)
+#if IS_BLOCK_SPARSE
+            if (SPARSE_BLOCK_SIZE > 1)
             {
                 auto kv_start_block = kv_pos/ SPARSE_BLOCK_SIZE;
                 bool sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);

@@ -462,6 +462,13 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((True, True),),
         ),
         (
+            intel_npu.platform,
+            "NPU_PLATFORM",
+            (("3720", "3720"),
+             ("4000", "4000"),
+             ("5010", "5010"),),
+        ),
+        (
             intel_npu.tiles,
             "NPU_TILES",
             ((128, 128),),
@@ -495,6 +502,23 @@ def test_properties_ro(ov_property_ro, expected_value):
             intel_npu.qdq_optimization_aggressive,
             "NPU_QDQ_OPTIMIZATION_AGGRESSIVE",
             ((True, True),),
+        ),
+        (
+            intel_npu.disable_idle_memory_prunning,
+            "NPU_DISABLE_IDLE_MEMORY_PRUNING",
+            ((True, True),),
+        ),
+        (
+            intel_npu.enable_strides_for,
+            "NPU_ENABLE_STRIDES_FOR",
+            (("inputs,outputs", "inputs,outputs"),),
+        ),
+        (
+            intel_npu.compiler_type,
+            "NPU_COMPILER_TYPE",
+            ((intel_npu.CompilerType.DRIVER, intel_npu.CompilerType.DRIVER),
+             (intel_npu.CompilerType.PLUGIN, intel_npu.CompilerType.PLUGIN),
+             (intel_npu.CompilerType.PREFER_PLUGIN, intel_npu.CompilerType.PREFER_PLUGIN),),
         ),
         (props.enable_weightless, "ENABLE_WEIGHTLESS", ((True, True), (False, False))),
     ],

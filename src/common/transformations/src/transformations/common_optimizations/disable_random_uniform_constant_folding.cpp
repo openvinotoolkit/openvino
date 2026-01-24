@@ -10,7 +10,9 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 
-ov::pass::DisableRandomUniformConstantFolding::DisableRandomUniformConstantFolding() {
+namespace ov::pass {
+
+DisableRandomUniformConstantFolding::DisableRandomUniformConstantFolding() {
     auto random_uniform = pattern::wrap_type<ov::op::v8::RandomUniform>();
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -18,6 +20,8 @@ ov::pass::DisableRandomUniformConstantFolding::DisableRandomUniformConstantFoldi
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(random_uniform, "DisableRandomUniformConstantFolding");
+    auto m = std::make_shared<pattern::Matcher>(random_uniform, "DisableRandomUniformConstantFolding");
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass
