@@ -14,7 +14,7 @@ namespace pytorch {
 namespace op {
 
 using namespace ov::op;
-//helper function to parse dims input
+/// Helper function to parse dims input.
 void parse_tensordot_dims(
     const NodeContext& ctx,
     Output<Node> dims,
