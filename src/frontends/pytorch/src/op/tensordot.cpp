@@ -85,7 +85,7 @@ void parse_tensordot_dims(
 }
 
 
-//helper function to reshape to 2D
+///helper function to reshape to 2D
 Output<Node> reshape_to_2d(
     const NodeContext& ctx,
     Output<Node> input,
@@ -117,7 +117,7 @@ Output<Node> reshape_to_2d(
     return ctx.mark_node(
         std::make_shared<v1::Reshape>(input, new_shape, false));
 }
-//helper function to get complement axes
+///helper function to get complement axes
 std::vector<int64_t> complement_axes(
     const Output<Node>& tensor,
     const std::vector<int64_t>& axes) {
@@ -140,7 +140,7 @@ std::vector<int64_t> complement_axes(
     return result;
 }
 
-//helper function to concatenate shapes
+///helper function to concatenate shapes
 Output<Node> concat_shapes(
     const NodeContext& ctx,
     Output<Node> a,
