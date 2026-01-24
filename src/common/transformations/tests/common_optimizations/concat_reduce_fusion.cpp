@@ -110,8 +110,19 @@ TEST_F(TransformationTestsF, ConcatReduceMaxFusionDynamicRank) {
     {
         auto left_input = std::make_shared<v0::Parameter>(element::f32, shape);
         auto right_input = std::make_shared<v0::Parameter>(element::f32, shape);
-        auto maximum = std::make_shared<v1::Maximum>(left_input, right_input);
-        model_ref = std::make_shared<Model>(OutputVector{maximum}, ParameterVector{left_input, right_input});
+
+        auto left_unsqueeze =
+            std::make_shared<v0::Unsqueeze>(left_input, v0::Constant::create(element::i64, Shape{}, {reduce_axis}));
+        auto right_unsqueeze =
+            std::make_shared<v0::Unsqueeze>(right_input, v0::Constant::create(element::i64, Shape{}, {reduce_axis}));
+
+        auto concat = std::make_shared<v0::Concat>(NodeVector{left_unsqueeze, right_unsqueeze}, reduce_axis);
+
+        auto reduce_max =
+            std::make_shared<v1::ReduceMax>(concat, v0::Constant::create(element::i64, Shape{}, {reduce_axis}));
+
+        // With dynamic rank, transformation should NOT apply
+        model_ref = std::make_shared<Model>(OutputVector{reduce_max}, ParameterVector{left_input, right_input});
     }
 }
 
@@ -166,8 +177,19 @@ TEST_F(TransformationTestsF, ConcatReduceMinFusionDynamicRank) {
     {
         auto left_input = std::make_shared<v0::Parameter>(element::f32, shape);
         auto right_input = std::make_shared<v0::Parameter>(element::f32, shape);
-        auto maximum = std::make_shared<v1::Minimum>(left_input, right_input);
-        model_ref = std::make_shared<Model>(OutputVector{maximum}, ParameterVector{left_input, right_input});
+
+        auto left_unsqueeze =
+            std::make_shared<v0::Unsqueeze>(left_input, v0::Constant::create(element::i64, Shape{}, {reduce_axis}));
+        auto right_unsqueeze =
+            std::make_shared<v0::Unsqueeze>(right_input, v0::Constant::create(element::i64, Shape{}, {reduce_axis}));
+
+        auto concat = std::make_shared<v0::Concat>(NodeVector{left_unsqueeze, right_unsqueeze}, reduce_axis);
+
+        auto reduce_min =
+            std::make_shared<v1::ReduceMin>(concat, v0::Constant::create(element::i64, Shape{}, {reduce_axis}));
+
+        // With dynamic rank, transformation should NOT apply
+        model_ref = std::make_shared<Model>(OutputVector{reduce_min}, ParameterVector{left_input, right_input});
     }
 }
 
