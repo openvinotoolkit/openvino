@@ -8,7 +8,6 @@ import torch.nn.functional as F
 
 from pytorch_layer_test_class import PytorchLayerTest
 
-
 class TestCrossEntropyLoss(PytorchLayerTest):
     def _prepare_input(self):
         logits = np.random.randn(4, 10).astype(np.float32)
@@ -21,11 +20,10 @@ class TestCrossEntropyLoss(PytorchLayerTest):
                 super().__init__()
 
             def forward(self, x, target):
-                # Default ATen behavior:
-                # weight=None, reduction='mean', ignore_index=-100, label_smoothing=0.0
                 return F.cross_entropy(x, target)
 
         return AtenCrossEntropyLoss(), None, "aten::cross_entropy_loss"
+
 
     @pytest.mark.nightly
     @pytest.mark.precommit
