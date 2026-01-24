@@ -65,6 +65,22 @@ RUN cd /usr/src/Python-3.13.2 && \
     ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
     make altinstall
 
+# Python 3.14
+RUN cd /usr/src && \
+    wget https://www.python.org/ftp/python/3.14.0/Python-3.14.0.tgz && \
+    tar xzf Python-3.14.0.tgz
+RUN cd /usr/src/Python-3.14.0 && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
+    make altinstall
+
+# Python 3.14 free-threading
+RUN cp -r /usr/src/Python-3.14.0 /usr/src/Python-3.14t
+RUN cd /usr/src/Python-3.14t && \
+    ./configure --disable-gil --enable-loadable-sqlite-extensions --prefix=/usr/python3.14t && \
+    make altinstall
+
+RUN ln -s /usr/python3.14t/bin/python3.14t /usr/bin/python3.14t
+
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
 ENV SCCACHE_HOME="/opt/sccache" \
@@ -89,6 +105,8 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.12 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.14 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.14t get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -21,7 +21,7 @@ class TestISTFT(PytorchLayerTest):
             signal[half_idx:] += np.sin(2 * np.pi * 10 * t[half_idx:])
             signal = np.broadcast_to(signal, signal_shape).astype(out_dtype)
         signal = torch.from_numpy(signal)
-        
+
         if win_length is None:
             window_size = n_fft
         else:
@@ -47,7 +47,7 @@ class TestISTFT(PytorchLayerTest):
                     onesided=True,
                     return_complex=True,
                 )
-        
+
         if (signal_length is not None):
             signal_length_input = np.array(signal_length)
             return (torch.view_as_real(stft_out).numpy().astype(out_dtype), window, signal_length_input)
@@ -197,7 +197,7 @@ class TestISTFTDefaultParams(PytorchLayerTest):
                     signal,
                     **stft_kwargs
                 )
-        
+
         return (torch.view_as_real(stft_out).numpy().astype(out_dtype))
 
     def create_model(self, n_fft, hop_length, win_length, normalized, center):
@@ -234,7 +234,7 @@ class TestISTFTDefaultParams(PytorchLayerTest):
 
         return aten_istft(n_fft, hop_length, win_length, normalized, center), ref_net, "aten::istft"
 
-   
+
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize(("trace_model"), [True])
