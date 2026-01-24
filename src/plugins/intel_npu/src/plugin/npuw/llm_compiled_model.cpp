@@ -676,6 +676,13 @@ public:
         OPENVINO_ASSERT(attention_mask_node_ptr, "attention_mask input is not found!");
         OPENVINO_ASSERT(position_ids_node_ptr, "position_ids input is not found!");
 
+        auto pos_id_shape = position_ids_node_ptr->get_output_tensor(0).get_partial_shape();
+        if (pos_id_shape.size() != 2) {
+            // FIXME: Qwen2.5 VL/Omni uses 3D position_ids, which can't be directly used
+            //        in creation of sliding window mask.
+            return false;
+        }
+
         ov::pass::Manager manager;
         manager.set_per_pass_validation(true);
         const auto rewriter = manager.register_pass<ov::pass::GraphRewrite>();
@@ -757,16 +764,9 @@ void decompose_GQA(std::shared_ptr<ov::Model> model, bool is_prefill_model) {
 }
 
 void patch_phi3_sliding_mask(const std::shared_ptr<ov::Model>& model) {
-    // FIXME: Don't do these transformations for gemma3 which has token_type_ids input.
-    // FIXME: Don't do these transformations for VLMs identified by inputs_embeds input.
-    //        Qwen2.5 VL/Omni uses 3D position_ids, which can't be directly used
-    //        in creation of sliding window mask.
-    // if (!ov::npuw::util::has_input(model, "token_type_ids") && !ov::npuw::util::has_input(model, "inputs_embeds")) {
-    {
-        ov::pass::Manager manager;
-        manager.register_pass<Phi3SlidingMask>();
-        manager.run_passes(model);
-    }
+    ov::pass::Manager manager;
+    manager.register_pass<Phi3SlidingMask>();
+    manager.run_passes(model);
 }
 
 }  // namespace
