@@ -8,13 +8,15 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/gather_elements.hpp"
 #include "openvino/op/log_softmax.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/negative.hpp"
 #include "openvino/op/not_equal.hpp"
-#include "openvino/op/one_hot.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -36,21 +38,21 @@ OutputVector translate_cross_entropy_loss(const NodeContext& context) {
         target = context.mark_node(std::make_shared<v0::Convert>(target, element::i64));
     }
 
-    const auto rank = logits.get_partial_shape().rank();
+    const auto logits_shape = logits.get_partial_shape();
+    const auto rank = logits_shape.rank();
     PYTORCH_OP_CONVERSION_CHECK(rank.is_dynamic() || rank.get_length() >= 1,
                                 "aten::cross_entropy_loss expects input rank >= 1");
 
     int64_t class_axis = 1;
-    if (rank.is_static()) {
-        class_axis = (rank.get_length() == 1) ? 0 : 1;
+    bool rank_is_static = rank.is_static();
+    if (rank_is_static && rank.get_length() == 1) {
+        class_axis = 0;
     }
 
-    //log_softmax
+    // log_softmax along class axis
     auto log_probs = context.mark_node(std::make_shared<v5::LogSoftmax>(logits, class_axis));
 
     // ---------- weight ----------
-    //  = context.get_input_size() > 2 && !context.input_is_none(2);
-
     bool has_weight = context.get_input_size() > 2 && !context.input_is_none(2);
     Output<Node> sample_weight;
 
@@ -86,48 +88,46 @@ OutputVector translate_cross_entropy_loss(const NodeContext& context) {
                                     "aten::cross_entropy_loss: label_smoothing is not yet supported");
     }
 
-    // ---------- one-hot ----------
-    auto shape = context.mark_node(
-        std::make_shared<v3::ShapeOf>(log_probs, element::i32));
-    auto class_axis_const = context.mark_node(
-        v0::Constant::create(element::i32, Shape{1}, {class_axis}));
-    auto axis0 = context.mark_node(
-        v0::Constant::create(element::i32, Shape{}, {0}));
-    auto num_classes = context.mark_node(
-        std::make_shared<v8::Gather>(shape, class_axis_const, axis0));
+    // ---------- Gather log probabilities using GatherElements ----------
+    // 2D: log_probs is (N, C), target is (N,)
+    // 1D: log_probs is (C,), target is scalar
 
-    const auto loss_type = logits.get_element_type();
-    auto on_value = context.mark_node(
-        v0::Constant::create(loss_type, Shape{}, {1.0f}));
-    auto off_value = context.mark_node(
-        v0::Constant::create(loss_type, Shape{}, {0.0f}));
-    auto one_hot = context.mark_node(
-        std::make_shared<v1::OneHot>(
-            target, num_classes, on_value, off_value, class_axis));
+    Output<Node> target_expanded;
+    if (rank_is_static && rank.get_length() == 1) {
+        target_expanded = target;
+    } else {
+        // 2D+: add a dimension at class_axis
+        // target shape: (N,) or (N, d1, d2, ...) -> (N, 1) or (N, 1, d1, d2, ...)
+        auto axis_const = context.mark_node(
+            v0::Constant::create(element::i64, Shape{1}, {class_axis}));
+        target_expanded = context.mark_node(
+            std::make_shared<v0::Unsqueeze>(target, axis_const));
+    }
 
-    //Handle ignore_index by creating a mask
+    auto gathered_log_probs = context.mark_node(
+        std::make_shared<v6::GatherElements>(log_probs, target_expanded, class_axis));
+
+    if (!rank_is_static || rank.get_length() > 1) {
+        auto axis_const = context.mark_node(
+            v0::Constant::create(element::i64, Shape{1}, {class_axis}));
+        gathered_log_probs = context.mark_node(
+            std::make_shared<v0::Squeeze>(gathered_log_probs, axis_const));
+    }
+
+    auto loss = context.mark_node(std::make_shared<v0::Negative>(gathered_log_probs));
+
     Output<Node> valid_mask_float;
     if (use_ignore) {
         auto ignore_const = context.mark_node(v0::Constant::create(element::i64, Shape{}, {ignore_index}));
         auto valid_mask = context.mark_node(std::make_shared<v1::NotEqual>(target, ignore_const));
-        valid_mask_float = context.mark_node(std::make_shared<v0::Convert>(valid_mask, loss_type));
+        valid_mask_float = context.mark_node(std::make_shared<v1::ConvertLike>(valid_mask, loss));
 
-        // Apply mask to one_hot
-        one_hot = context.mark_node(std::make_shared<v1::Multiply>(one_hot, valid_mask_float));
+        loss = context.mark_node(std::make_shared<v1::Multiply>(loss, valid_mask_float));
     }
 
-    // ---------- loss ----------
-    auto loss = context.mark_node(
-        std::make_shared<v1::Multiply>(log_probs, one_hot));
-    auto reduce_axis = context.mark_node(
-        v0::Constant::create(element::i32, Shape{1}, {class_axis}));
-    loss = context.mark_node(std::make_shared<v1::ReduceSum>(loss, reduce_axis, false));
-    loss = context.mark_node(std::make_shared<v0::Negative>(loss));
-
-    // Apply sample weights if provided
+    // sample weights
     if (has_weight) {
         if (use_ignore) {
-            // Also mask the weights
             sample_weight = context.mark_node(
                 std::make_shared<v1::Multiply>(sample_weight, valid_mask_float));
         }
@@ -153,7 +153,6 @@ OutputVector translate_cross_entropy_loss(const NodeContext& context) {
     auto loss_sum = context.mark_node(std::make_shared<v1::ReduceSum>(loss, all_axes, false));
 
     if (has_weight) {
-
         auto weight_sum = context.mark_node(
             std::make_shared<v1::ReduceSum>(sample_weight, all_axes, false));
         weight_sum = context.mark_node(
@@ -161,7 +160,6 @@ OutputVector translate_cross_entropy_loss(const NodeContext& context) {
         return {context.mark_node(
             std::make_shared<v1::Divide>(loss_sum, weight_sum))};
     }
-
 
     Output<Node> count;
     if (use_ignore) {
