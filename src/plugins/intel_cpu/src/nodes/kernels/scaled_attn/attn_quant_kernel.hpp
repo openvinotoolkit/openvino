@@ -119,6 +119,7 @@ void find_minmax(const T* src, size_t n, float& min, float& max) {
     max = _mm256_cvtss_f32(v0_max);
     min = _mm256_cvtss_f32(v0_min);
 #elif defined(OPENVINO_ARCH_ARM64)
+// ARM uses FP16 accumulator for FP16 Inference
 #    if defined(HAVE_SVE)
     if constexpr (std::is_same_v<T, float>) {
         auto v_max = svdup_f32(max);
