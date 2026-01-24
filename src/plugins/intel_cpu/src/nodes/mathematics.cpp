@@ -22,7 +22,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -110,211 +109,134 @@ void Math::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 template <typename T>
-void executeImpl(const T* src_data, T* dst_data, size_t dataSize, Algorithm algorithm, float alpha, float beta, float gamma) {
-    switch (algorithm) {
+void Math::executeImpl() {
+    size_t dataSize = getChildEdgeAt(0)->getMemory().getShape().getElementsCount();
+    const auto* src_data = getSrcDataAtPortAs<const T>(0);
+    auto* dst_data = getDstDataAtPortAs<T>(0);
+    const auto& cpu_parallel = context->getCpuParallel();
+
+    switch (getAlgorithm()) {
     case Algorithm::MathAbs:
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(dataSize, nthr, ithr, start, end);
-            for (size_t i = start; i < end; i++) {
-                dst_data[i] = static_cast<T>((std::abs)(static_cast<float>(src_data[i])));
-            }
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
+            dst_data[i] = static_cast<T>((std::abs)(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathAcos:
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(dataSize, nthr, ithr, start, end);
-            for (size_t i = start; i < end; i++) {
-                dst_data[i] = static_cast<T>(acosf(static_cast<float>(src_data[i])));
-            }
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
+            dst_data[i] = static_cast<T>(acosf(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathAcosh:
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(dataSize, nthr, ithr, start, end);
-            for (size_t i = start; i < end; i++) {
-                dst_data[i] = static_cast<T>(acoshf(static_cast<float>(src_data[i])));
-            }
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
+            dst_data[i] = static_cast<T>(acoshf(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathAsin:
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(dataSize, nthr, ithr, start, end);
-            for (size_t i = start; i < end; i++) {
-                dst_data[i] = static_cast<T>(asinf(static_cast<float>(src_data[i])));
-            }
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
+            dst_data[i] = static_cast<T>(asinf(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathAsinh:
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(dataSize, nthr, ithr, start, end);
-            for (size_t i = start; i < end; i++) {
-                dst_data[i] = static_cast<T>(asinhf(static_cast<float>(src_data[i])));
-            }
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
+            dst_data[i] = static_cast<T>(asinhf(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathAtan:
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(dataSize, nthr, ithr, start, end);
-            for (size_t i = start; i < end; i++) {
-                dst_data[i] = static_cast<T>(atanf(static_cast<float>(src_data[i])));
-            }
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
+            dst_data[i] = static_cast<T>(atanf(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathAtanh:
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(dataSize, nthr, ithr, start, end);
-            for (size_t i = start; i < end; i++) {
-                dst_data[i] = static_cast<T>(atanhf(static_cast<float>(src_data[i])));
-            }
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
+            dst_data[i] = static_cast<T>(atanhf(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathCeiling:
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(dataSize, nthr, ithr, start, end);
-            for (size_t i = start; i < end; i++) {
-                dst_data[i] = static_cast<T>(ceilf(static_cast<float>(src_data[i])));
-            }
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
+            dst_data[i] = static_cast<T>(ceilf(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathCos:
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(dataSize, nthr, ithr, start, end);
-            for (size_t i = start; i < end; i++) {
-                dst_data[i] = static_cast<T>(cosf(static_cast<float>(src_data[i])));
-            }
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
+            dst_data[i] = static_cast<T>(cosf(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathCosh:
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(dataSize, nthr, ithr, start, end);
-            for (size_t i = start; i < end; i++) {
-                dst_data[i] = static_cast<T>(coshf(static_cast<float>(src_data[i])));
-            }
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
+            dst_data[i] = static_cast<T>(coshf(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathFloor:
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(dataSize, nthr, ithr, start, end);
-            for (size_t i = start; i < end; i++) {
-                dst_data[i] = static_cast<T>(floorf(static_cast<float>(src_data[i])));
-            }
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
+            dst_data[i] = static_cast<T>(floorf(static_cast<float>(src_data[i])));
         });
         break;
-    case Algorithm::MathHardSigmoid:
-        alpha = (alpha == 0.0F) ? 0.2F : alpha;
-        beta = (beta == 0.0F) ? 0.5F : beta;
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(dataSize, nthr, ithr, start, end);
-            for (size_t i = start; i < end; i++) {
-                float val = alpha * static_cast<float>(src_data[i]) + beta;
-                dst_data[i] = static_cast<T>((std::max)(0.F, (std::min)(1.F, val)));
-            }
+    case Algorithm::MathHardSigmoid: {
+        float a = (alpha == 0.0F) ? 0.2F : alpha;
+        float b = (beta == 0.0F) ? 0.5F : beta;
+        cpu_parallel->parallel_for(dataSize, [&, a, b](size_t i) {
+            float val = a * static_cast<float>(src_data[i]) + b;
+            dst_data[i] = static_cast<T>((std::max)(0.F, (std::min)(1.F, val)));
         });
         break;
+    }
     case Algorithm::MathNegative:
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(dataSize, nthr, ithr, start, end);
-            for (size_t i = start; i < end; i++) {
-                dst_data[i] = -src_data[i];
-            }
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
+            dst_data[i] = static_cast<T>(-static_cast<float>(src_data[i]));
         });
         break;
     case Algorithm::MathReciprocal:
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(dataSize, nthr, ithr, start, end);
-            for (size_t i = start; i < end; i++) {
-                dst_data[i] = static_cast<T>(1.0F / static_cast<float>(src_data[i]));
-            }
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
+            dst_data[i] = static_cast<T>(1.0F / static_cast<float>(src_data[i]));
         });
         break;
-    case Algorithm::MathSelu:
-        alpha = (alpha == 0.0F) ? 1.67326F : alpha;
-        gamma = (gamma == 0.0F) ? 1.0507F : gamma;
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(dataSize, nthr, ithr, start, end);
-            for (size_t i = start; i < end; i++) {
-                float x = static_cast<float>(src_data[i]);
-                dst_data[i] = static_cast<T>((x > 0.0F) ? (gamma * x) : (gamma * alpha * (std::exp(x) - 1.0F)));
-            }
+    case Algorithm::MathSelu: {
+        float a = (alpha == 0.0F) ? 1.67326F : alpha;
+        float g = (gamma == 0.0F) ? 1.0507F : gamma;
+        cpu_parallel->parallel_for(dataSize, [&, a, g](size_t i) {
+            float x = static_cast<float>(src_data[i]);
+            dst_data[i] = static_cast<T>((x > 0.0F) ? (g * x) : (g * a * (std::exp(x) - 1.0F)));
         });
         break;
+    }
     case Algorithm::MathSign:
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(dataSize, nthr, ithr, start, end);
-            for (size_t i = start; i < end; i++) {
-                float val = static_cast<float>(src_data[i]);
-                if (val > 0.0F) {
-                    dst_data[i] = static_cast<T>(1.0F);
-                } else if (val < 0.0F) {
-                    dst_data[i] = static_cast<T>(-1.0F);
-                } else if (std::isnan(val)) {
-                    dst_data[i] = src_data[i];
-                } else {
-                    dst_data[i] = static_cast<T>(0.0F);
-                }
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
+            float val = static_cast<float>(src_data[i]);
+            if (val > 0.0F) {
+                dst_data[i] = static_cast<T>(1.0F);
+            } else if (val < 0.0F) {
+                dst_data[i] = static_cast<T>(-1.0F);
+            } else if (std::isnan(val)) {
+                dst_data[i] = src_data[i];
+            } else {
+                dst_data[i] = static_cast<T>(0.0F);
             }
         });
         break;
     case Algorithm::MathSin:
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(dataSize, nthr, ithr, start, end);
-            for (size_t i = start; i < end; i++) {
-                dst_data[i] = static_cast<T>(sinf(static_cast<float>(src_data[i])));
-            }
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
+            dst_data[i] = static_cast<T>(sinf(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathSinh:
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(dataSize, nthr, ithr, start, end);
-            for (size_t i = start; i < end; i++) {
-                dst_data[i] = static_cast<T>(sinhf(static_cast<float>(src_data[i])));
-            }
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
+            dst_data[i] = static_cast<T>(sinhf(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathSoftPlus:
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(dataSize, nthr, ithr, start, end);
-            for (size_t i = start; i < end; i++) {
-                dst_data[i] = static_cast<T>(logf(expf(static_cast<float>(src_data[i])) + 1));
-            }
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
+            dst_data[i] = static_cast<T>(logf(expf(static_cast<float>(src_data[i])) + 1));
         });
         break;
     case Algorithm::MathSoftsign:
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(dataSize, nthr, ithr, start, end);
-            for (size_t i = start; i < end; i++) {
-                float x = static_cast<float>(src_data[i]);
-                dst_data[i] = static_cast<T>(x / (1.F + (std::abs)(x)));
-            }
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
+            float x = static_cast<float>(src_data[i]);
+            dst_data[i] = static_cast<T>(x / (1.F + (std::abs)(x)));
         });
         break;
     case Algorithm::MathTan:
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(dataSize, nthr, ithr, start, end);
-            for (size_t i = start; i < end; i++) {
-                dst_data[i] = static_cast<T>(tanf(static_cast<float>(src_data[i])));
-            }
+        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
+            dst_data[i] = static_cast<T>(tanf(static_cast<float>(src_data[i])));
         });
         break;
     default:
@@ -323,21 +245,14 @@ void executeImpl(const T* src_data, T* dst_data, size_t dataSize, Algorithm algo
 }
 
 void Math::execute([[maybe_unused]] const dnnl::stream& strm) {
-    size_t dataSize = getChildEdgeAt(0)->getMemory().getShape().getElementsCount();
     auto precision = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
 
     if (precision == ov::element::f32) {
-        const auto* src_data = getSrcDataAtPortAs<const float>(0);
-        auto* dst_data = getDstDataAtPortAs<float>(0);
-        executeImpl<float>(src_data, dst_data, dataSize, getAlgorithm(), alpha, beta, gamma);
+        executeImpl<float>();
     } else if (precision == ov::element::bf16) {
-        const auto* src_data = getSrcDataAtPortAs<const ov::bfloat16>(0);
-        auto* dst_data = getDstDataAtPortAs<ov::bfloat16>(0);
-        executeImpl<ov::bfloat16>(src_data, dst_data, dataSize, getAlgorithm(), alpha, beta, gamma);
+        executeImpl<ov::bfloat16>();
     } else if (precision == ov::element::f16) {
-        const auto* src_data = getSrcDataAtPortAs<const ov::float16>(0);
-        auto* dst_data = getDstDataAtPortAs<ov::float16>(0);
-        executeImpl<ov::float16>(src_data, dst_data, dataSize, getAlgorithm(), alpha, beta, gamma);
+        executeImpl<ov::float16>();
     } else {
         OPENVINO_THROW("Unsupported precision: ", precision);
     }

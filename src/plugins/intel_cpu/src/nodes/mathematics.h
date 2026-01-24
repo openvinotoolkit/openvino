@@ -34,8 +34,11 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
+    template <typename T>
+    void executeImpl();
+
     static std::map<const ov::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ov::Node>&, Math& node)>>&
-    getInitializers();
+        getInitializers();
 
     float alpha = 0.0F;
     float beta = 0.0F;
