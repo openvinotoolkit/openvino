@@ -94,7 +94,9 @@ PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
 ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
     MATCHER_SCOPE(ReplaceConcatReduceByMinOrMax);
 
-    auto concat_pattern = pattern::wrap_type<v0::Concat>({pattern::any_input(), pattern::any_input()});
+    auto concat_input1 = pattern::any_input(pattern::has_static_rank());
+    auto concat_input2 = pattern::any_input(pattern::has_static_rank());
+    auto concat_pattern = pattern::wrap_type<v0::Concat>({concat_input1, concat_input2});
     auto reduce_axes_pattern = pattern::wrap_type<v0::Constant>();
     auto reduce_pattern = pattern::wrap_type<v1::ReduceMin, v1::ReduceMax>({concat_pattern, reduce_axes_pattern});
 
@@ -107,11 +109,6 @@ ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
         if (!reduce || !concat)
             return false;
 
-        const auto& reduction_axes = reduce->get_reduction_axes();
-        if (reduction_axes.size() != 1 || concat->get_axis() != static_cast<int64_t>(*reduction_axes.begin())) {
-            return false;
-        }
-
         // Fusing Concat+Reduce into Max/Min is only valid if the operation matches element-wise Max/Min.
         // This requires that the concatenation only merged "single" elements along that axis,
         // so that Max(A, B) is equivalent to ReduceMax(Concat(A, B)).
@@ -120,11 +117,9 @@ ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
         int64_t concat_axis = concat->get_axis();
         for (const auto& input : concat->inputs()) {
             const auto& p_shape = input.get_partial_shape();
-            if (p_shape.rank().is_dynamic()) {
-                return false;
-            }
-            int64_t rank = p_shape.rank().get_length();
-            int64_t norm_axis = concat_axis < 0 ? concat_axis + rank : concat_axis;
+            // Rank is guaranteed static by pattern predicates
+            const int64_t rank = p_shape.rank().get_length();
+            const int64_t norm_axis = concat_axis < 0 ? concat_axis + rank : concat_axis;
             
             if (norm_axis < 0 || norm_axis >= rank) {
                  return false; 
@@ -132,6 +127,11 @@ ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
             if (p_shape[norm_axis].is_dynamic() || p_shape[norm_axis].get_length() != 1) {
                 return false;
             }
+        }
+        
+        const auto& reduction_axes = reduce->get_reduction_axes();
+        if (reduction_axes.size() != 1 || concat->get_axis() != static_cast<int64_t>(*reduction_axes.begin())) {
+            return false;
         }
 
         ReduceType reduce_type = get_reduce_type(reduce);
