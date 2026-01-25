@@ -295,16 +295,16 @@ KERNEL(pa_sdpa_opt)(
                     char temp = BLOCK_READN(INPUT1_TYPE, 1, key_cache, index);
                     MAKE_VECTOR_TYPE(char, PACK_SIZE) buff = unpack_to_char(*(int4x2_t *)&temp);
 
-                    half key_orig = buff.s0;
+                    char key_orig = buff.s0;
                     #ifdef IS_KEY_BY_CHANNEL
-                        float prev_scale = sub_group_shuffle(comp_scale[0], i);
-                        float temp_scale = sub_group_shuffle(comp_scale[1], i);
-                        char prev_zp = sub_group_shuffle(comp_zp[0], i);
-                        char temp_zp = sub_group_shuffle(comp_zp[1], i);
-                        k_vals[qk_idx][i] = (key_orig - prev_zp) * prev_scale;
+                        INPUT0_TYPE prev_scale = sub_group_shuffle(comp_scale[0], i);
+                        INPUT0_TYPE temp_scale = sub_group_shuffle(comp_scale[1], i);
+                        INPUT0_TYPE prev_zp = sub_group_shuffle(comp_zp[0], i);
+                        INPUT0_TYPE temp_zp = sub_group_shuffle(comp_zp[1], i);
+                        k_vals[qk_idx][i] = ((INPUT0_TYPE)key_orig - prev_zp) * prev_scale;
                         if (qk_idx + 1 < (K_HEAD_SIZE / KEY_VEC_SIZE)) {
                             key_orig = buff.s1;
-                            k_vals[qk_idx+1][i] = (key_orig - temp_zp) * temp_scale;
+                            k_vals[qk_idx+1][i] = ((INPUT0_TYPE)key_orig - temp_zp) * temp_scale;
                         }
                     #else
                         k_vals[qk_idx][i] = (key_orig - comp_zp) * comp_scale;
