@@ -243,24 +243,29 @@ class Mode(ABC):
         pass
 
     def printResult(self):
-        if not self.commitPath.metaInfo["preValidationPassed"]:
-            msg = "Preliminary check failed, reason: {}".format(
-                self.commitPath.metaInfo["reason"]
-            )
-            print(msg)
-            self.outLogger.info(msg)
-        elif not self.commitPath.metaInfo["postValidationPassed"]:
-            msg = "Output results invalid, reason: {}".format(
-                self.commitPath.metaInfo["reason"]
-            )
-            print(msg)
-            self.outLogger.info(msg)
+        if self.cfg['template'] == 'common_template':
+            if not self.commitPath.metaInfo["preValidationPassed"]:
+                msg = "Preliminary check failed, reason: {}".format(
+                    self.commitPath.metaInfo["reason"]
+                )
+                print(msg)
+                self.outLogger.info(msg)
+            elif not self.commitPath.metaInfo["postValidationPassed"]:
+                msg = "Output results invalid, reason: {}".format(
+                    self.commitPath.metaInfo["reason"]
+                )
+                print(msg)
+                self.outLogger.info(msg)
+            else:
+                for pathcommit in self.commitPath.getList():
+                    if pathcommit.state is not Mode.CommitPath.CommitState.DEFAULT:
+                        commitInfo = self.getCommitInfo(pathcommit)
+                        print(commitInfo)
+                        self.outLogger.info(commitInfo)
         else:
-            for pathcommit in self.commitPath.getList():
-                if pathcommit.state is not Mode.CommitPath.CommitState.DEFAULT:
-                    commitInfo = self.getCommitInfo(pathcommit)
-                    print(commitInfo)
-                    self.outLogger.info(commitInfo)
+            from utils.templates.common import CommonTemplate
+            tmpl = CommonTemplate.getTemplate(self.cfg['template'])
+            tmpl.printResult(self.commitPath, self.outLogger, self.getCommitInfo)
 
     def getCommitInfo(self, commit):
         # override if you need more details in output representation
