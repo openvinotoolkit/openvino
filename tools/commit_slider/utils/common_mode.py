@@ -243,6 +243,7 @@ class Mode(ABC):
         pass
 
     def printResult(self):
+        # todo: move checks to utils
         if self.cfg['template'] == 'common_template':
             if not self.commitPath.metaInfo["preValidationPassed"]:
                 msg = "Preliminary check failed, reason: {}".format(
