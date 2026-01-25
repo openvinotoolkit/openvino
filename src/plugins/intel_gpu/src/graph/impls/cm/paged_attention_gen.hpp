@@ -27,6 +27,7 @@ constexpr auto get_pa_build_options() {
     return " -cmc -Qxcm_register_file_size=256";
 }
 
+#define FIND_DEBUG_ACC 0
 // BLOCK_SIZE can be 16/256 for legacy and xattn cases respectively
 #define PA_KV_CACHE_BLOCK_SIZE       16
 #define PA_KV_CACHE_BLOCK_SIZE_XATTN 256
@@ -66,6 +67,9 @@ enum PagedAttentionInternBuffIdx {
     XATTN_GEMMQK_EXPSUMS = 3,    // 3: kq_exp_partial_sum
     XATTN_BLOCKMASK = 4,         // 4: sparse_block_mask
     XATTN_BLOCKMASK_MERGED = 5,  // 5: sparse_block_mask_wg
+#if FIND_DEBUG_ACC
+    XATTN_FIND_DEBUG_ACC = 6,  // 6: kq_sum for debug purpose only
+#endif
 };
 
 //-----------------------------------------------------------------------------------------------------------------
