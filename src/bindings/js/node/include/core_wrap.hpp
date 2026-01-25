@@ -142,8 +142,6 @@ struct ImportModelContext {
     // Buffer source: pins JS Buffer, wraps with SharedStreamBuffer (zero-copy)
     struct BufferSource {
         Napi::ObjectReference buffer_ref;  // pins JS Buffer
-        const char* data = nullptr;
-        size_t size = 0;
         std::unique_ptr<ov::SharedStreamBuffer> shared_buf;
     };
 
