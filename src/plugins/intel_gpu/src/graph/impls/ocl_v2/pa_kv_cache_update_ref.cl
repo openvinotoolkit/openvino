@@ -219,8 +219,8 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
         uint index_comp_int8[NUM_HEAD_SIZE_GROUPS] = {0, };
     #endif
 
-    INPUT0_TYPE orig_scale[PACK_SIZE];
-    INPUT0_TYPE orig_zp[PACK_SIZE];
+    INPUT0_TYPE orig_scale[PACK_SIZE] = {0, };
+    INPUT0_TYPE orig_zp[PACK_SIZE] = {0, };
     OUTPUT_TYPE orig_cache[ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE] = {0, };
 
     INPUT0_TYPE max_value[PACK_SIZE];
@@ -244,14 +244,12 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
         const uint packed_out_offset_per_wi = out_data_offset + packed_hidden_idx * out_data_pitch;
 
         // Read original scale and zp
-        // INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*) (&out_data[out_offset_per_wi + COMP_K_OFFSET]);
-        // INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*) (&out_data[packed_out_offset_per_wi + COMP_K_OFFSET + order_in_packed * SCALE_ZP_SIZE_PER_TOKEN]);
-        INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*) (&out_data[packed_out_offset_per_wi + COMP_K_OFFSET + order_in_packed * 4]);
-        orig_scale[order_in_packed] = comp_ptr[0];
-        orig_zp[order_in_packed] = comp_ptr[1];
         if (order_in_packed == 0) {
-                orig_scale[order_in_packed + 1] = comp_ptr[2];
-                orig_zp[order_in_packed + 1] = comp_ptr[3];
+            INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*) (&out_data[packed_out_offset_per_wi + COMP_K_OFFSET]);
+            orig_scale[order_in_packed] = comp_ptr[0];
+            orig_zp[order_in_packed] = comp_ptr[1];
+            orig_scale[1] = comp_ptr[2];
+            orig_zp[1] = comp_ptr[3];
         }
         max_value[order_in_packed] = INPUT0_VAL_MIN;
         min_value[order_in_packed] = INPUT0_VAL_MAX;
@@ -331,7 +329,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
 
         #if ENABLE_DEBUG
             // index_comp_int4[h_sub] = packed_out_offset_per_wi + COMP_K_OFFSET + order_in_packed * SCALE_ZP_SIZE_PER_TOKEN;
-            index_comp_int4[h_sub] = packed_out_offset_per_wi + COMP_K_OFFSET + order_in_packed * 4;
+            index_comp_int4[h_sub] = packed_out_offset_per_wi + COMP_K_OFFSET;
             result_comp_int4[h_sub] = zp[order_in_packed];
         #endif
 
