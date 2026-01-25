@@ -258,7 +258,9 @@
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    include "low_precision/avg_pool.hpp"
+#    include "low_precision/convolution.hpp"
 #    include "low_precision/fake_quantize.hpp"
+#    include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #    include "low_precision/group_convolution.hpp"
 #    include "low_precision/interpolate.hpp"
 #    include "low_precision/mat_mul.hpp"
@@ -973,6 +975,32 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     CPU_SET_CALLBACK_ARM(
         lptManager,
         [](const_node_ptr& node) -> bool {
+            const auto conv = ov::as_type_ptr<const ov::op::v1::Convolution>(node);
+            if (!conv) {
+                return false;
+            }
+
+            const auto& weights_shape = conv->get_input_partial_shape(1);
+            if (weights_shape.rank().is_static() && weights_shape.rank().get_length() == 4) {
+                const auto k_h = weights_shape[2];
+                const auto k_w = weights_shape[3];
+                if (k_h.is_static() && k_w.is_static() && k_h.get_length() == 3 && k_w.get_length() == 3) {
+                    const auto& strides = conv->get_strides();
+                    if (strides.size() >= 2 && strides[0] == 1 && strides[1] == 1) {
+                        const auto w_oc = weights_shape[0];
+                        const auto w_ic = weights_shape[1];
+                        if (w_oc.is_static() && w_ic.is_static()) {
+                            return w_oc.get_length() < 512 || w_ic.get_length() < 512;
+                        }
+                    }
+                }
+            }
+            return false;
+        },
+        ConvolutionTransformation);
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [](const_node_ptr& node) -> bool {
             // Run the transformation for convolution bias only on ARM
             // Convolution bias is handled in ConvertConvolutionBias transformation
             auto node_input = (node->get_input_size() > 0) ? node->get_input_node_shared_ptr(0) : nullptr;
@@ -992,6 +1020,50 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
             return ov::marked_as_bias(node);
         },
         AddTransformation);
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [](const_node_ptr& node) -> bool {
+            const auto multiply = ov::as_type_ptr<const ov::op::v1::Multiply>(node);
+            if (!multiply) {
+                //std::cout << "FuseMultiplyToFakeQuantizeTransformation: " << node->get_friendly_name() << " no Multiply\n";
+                return false;
+            }
+
+            auto fq = ov::as_type_ptr<const ov::opset1::FakeQuantize>(multiply->get_input_node_shared_ptr(0));
+            if (!fq) {
+                //std::cout << "FuseMultiplyToFakeQuantizeTransformation: " << node->get_friendly_name() << " no FQ\n";
+                return false;
+            }
+
+            const auto fq_out_precision = fq->get_output_element_type(0);
+            if (fq_out_precision != ov::element::i8 && fq_out_precision != ov::element::u8) {
+                //std::cout << "FuseMultiplyToFakeQuantizeTransformation: " << node->get_friendly_name() << " out FQ precision: " << fq_out_precision << "\n";
+                return false;
+            }
+
+            const auto mul = ov::as_type_ptr<const ov::op::v1::Multiply>(fq->get_input_node_shared_ptr(0));
+            if (!mul) {
+                return false;
+            }
+            //std::cout << "FuseMultiplyToFakeQuantizeTransformation: " << node->get_friendly_name() << " pass Mul\n";
+
+            const auto add = ov::as_type_ptr<const ov::op::v1::Add>(mul->get_input_node_shared_ptr(0));
+            if (!add) {
+                return false;
+            }
+            //std::cout << "FuseMultiplyToFakeQuantizeTransformation: " << node->get_friendly_name() << " pass Add\n";
+
+            const auto conv = ov::as_type_ptr<const ov::op::v1::Convolution>(add->get_input_node_shared_ptr(0));
+            if (conv) {
+                bool ret = conv->get_input_element_type(0) == fq_out_precision;
+                //std::cout << "FuseMultiplyToFakeQuantizeTransformation: " << node->get_friendly_name() << " " << conv->get_input_element_type(0) << " " << fq_out_precision << " " << ret << "\n";
+                return ret;
+            }
+
+            //std::cout << "FuseMultiplyToFakeQuantizeTransformation: " << node->get_friendly_name() << " Conv node not found\n";
+            return false;
+        },
+        FuseMultiplyToFakeQuantizeTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
     CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
@@ -1682,9 +1754,9 @@ void Transformations::PostSnippets() {
         [](const_node_ptr& node) -> bool {
             if (ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
                 ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
-                auto parent = node->get_input_node_shared_ptr(0);
-                if (ov::is_type<const ov::op::v1::Multiply>(parent) && !parent->inputs().empty()) {
-                    auto multiply_input = parent->get_input_node_shared_ptr(0);
+            auto parent = node->get_input_node_shared_ptr(0);
+            if (ov::is_type<const ov::op::v1::Multiply>(parent) && !parent->inputs().empty()) {
+                auto multiply_input = parent->get_input_node_shared_ptr(0);
                     const bool noConvBias = ov::is_type<const ov::op::v1::Convolution>(multiply_input);
                     const bool withConvBias = ov::is_type<const ov::op::v1::Add>(multiply_input) &&
                         ov::is_type<const ov::op::v1::Convolution>(multiply_input->get_input_node_shared_ptr(0));
