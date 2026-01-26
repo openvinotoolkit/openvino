@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,7 +49,7 @@ bool FilteredConfig::isAvailable(std::string key) const {
     if (it != _enabled.end() && hasOpt(key)) {
         return it->second;
     }
-    // if doesnt exist = not available
+    // if doesn't exist = not available
     return false;
 }
 

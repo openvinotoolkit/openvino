@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10966,6 +10966,105 @@ TEST(convolution_gpu_onednn, support_activation_zero_points_for_i32) {
         }
 }
 
+TEST(convolution_gpu_onednn, eltw_and_bin_double_shift_in_blob_cache) {
+    auto& engine = get_test_engine();
+    auto stream_ptr = get_test_stream_ptr();
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    const float shift_init = 128.0f;
+    const float in_lo_v  = 0.0f;
+    const float in_hi_v  = 255.0f;
+    const float out_lo_v = -128.0f;
+    const float out_hi_v = 127.0f;
+    const int   levels   = 256;
+
+    auto run = [&](bool is_caching_test) -> float {
+        layout in_layout  { {1, 64, 56, 56}, data_types::u8,  format::bfyx };
+        layout w_layout   { {256, 64, 1, 1},  data_types::i8,  format::bfyx };
+        layout ch_layout  { {1, 256, 1, 1}, data_types::f32, format::bfyx };
+        layout sc_layout  { {1, 1, 1, 1}, data_types::f32, format::bfyx };
+
+        auto input_mem   = engine.allocate_memory(in_layout);
+        auto weights_mem = engine.allocate_memory(w_layout);
+        auto shift_mem   = engine.allocate_memory(ch_layout);
+        auto bin_in_mem  = engine.allocate_memory(ch_layout);
+
+        tests::random_generator rg(GET_SUITE_NAME);
+
+        auto input_value = rg.generate_random_4d<uint8_t>(1, 64, 56, 56, 0, 0);
+        auto weights_value = rg.generate_random_4d<int8_t>(256, 64, 1, 1, 1, 1);
+        auto shift_value = rg.generate_random_4d<float>(1, 256, 1, 1, shift_init, shift_init);
+        auto bin_in_value = rg.generate_random_4d<float>(1, 256, 1, 1, 0, 0);
+
+        set_values(input_mem, flatten_4d(format::bfyx, input_value));
+        set_values(weights_mem, flatten_4d(format::bfyx, weights_value));
+        set_values(shift_mem, flatten_4d(format::bfyx, shift_value));
+        set_values(bin_in_mem, flatten_4d(format::bfyx, bin_in_value));
+
+        auto in_lo_mem  = engine.allocate_memory(sc_layout);
+        auto in_hi_mem  = engine.allocate_memory(sc_layout);
+        auto out_lo_mem = engine.allocate_memory(ch_layout);
+        auto out_hi_mem = engine.allocate_memory(ch_layout);
+
+        set_values(in_lo_mem,  std::vector<float>{in_lo_v});
+        set_values(in_hi_mem,  std::vector<float>{in_hi_v});
+        set_values(out_lo_mem, std::vector<float>(256, out_lo_v));
+        set_values(out_hi_mem, std::vector<float>(256, out_hi_v));
+
+        topology topo;
+        topo.add(input_layout("input", in_layout));
+        topo.add(input_layout("binary_add_input", ch_layout));
+        topo.add(reorder("reorder_in", input_info("input"), format::b_fs_yx_fsv32, data_types::u8));
+        topo.add(data("weights", weights_mem));
+        topo.add(convolution("conv",
+                             input_info("reorder_in"),
+                             "weights",
+                             "" /*bias*/,
+                             1 /*groups*/,
+                             ov::Strides{1, 1},
+                             ov::Strides{1, 1},
+                             ov::CoordinateDiff{0, 0},
+                             ov::CoordinateDiff{0, 0},
+                             false /*transposed*/));
+        topo.add(eltwise("add_bin",
+                         { input_info("conv"), input_info("binary_add_input") },
+                         eltwise_mode::sum));
+        topo.add(data("fq_in_shift", shift_mem));
+        topo.add(eltwise("add_shift",
+                         { input_info("add_bin"), input_info("fq_in_shift") },
+                         eltwise_mode::sum));
+        topo.add(data("in_lo",  in_lo_mem));
+        topo.add(data("in_hi",  in_hi_mem));
+        topo.add(data("out_lo", out_lo_mem));
+        topo.add(data("out_hi", out_hi_mem));
+        topo.add(quantize("q",
+                          input_info("add_shift"),
+                          input_info("in_lo"),
+                          input_info("in_hi"),
+                          input_info("out_lo"),
+                          input_info("out_hi"),
+                          levels,
+                          data_types::i8));
+        topo.add(reorder("output", input_info("q"), format::bfyx, data_types::f32));
+
+        auto net = get_network(engine, topo, config, stream_ptr, is_caching_test);
+        net->set_input_data("input", input_mem);
+        net->set_input_data("binary_add_input", bin_in_mem);
+
+        auto outputs = net->execute();
+        auto out_vals = get_output_values_to_float(*net, outputs.at("output"), 1);
+
+        return out_vals[0];
+    };
+
+    auto result_no_cache = run(false);
+    auto result_cache = run(true);
+
+    EXPECT_NEAR(result_no_cache, result_cache, 1e-3f);
+}
+
 TEST(convolution_gpu_onednn, has_proper_synchronization) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
@@ -11182,7 +11281,7 @@ TEST(convolution_gpu_onednn, dyn_conv4d_reshape6d_pattern) {
     conv_fsv.output_paddings = {padding({ 0, 0, 0, 0 }, 0.f)};
     topology.add(conv_fsv);
 
-    
+
     auto const_shape = engine.allocate_memory({ov::PartialShape{6}, data_types::i32, format::bfwzyx});
     set_values<int32_t>(const_shape, {1, 32, 1, 1, 6, 6});
     topology.add(data("const", const_shape));
@@ -12204,7 +12303,7 @@ TEST(group_convolution_f16_fw_gpu, with_weights_as_input) {
 
     // Input: 1x64x31x31 to get 23x23 output with 9x9 kernel and no padding
     auto input = engine.allocate_memory({{ 1, 64, 31, 31 }, data_types::f16, format::bfyx });
-    
+
     // Weights input: [64, 1, 9, 9] - 64 groups, 1 output per group, 1 input per group, 9x9 kernel
     auto input_weights = engine.allocate_memory({ {64, 1, 9, 9}, data_types::f32, format::bfyx });
 

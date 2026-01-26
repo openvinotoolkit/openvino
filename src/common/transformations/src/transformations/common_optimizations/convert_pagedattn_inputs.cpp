@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,9 +17,12 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::pass;
-using namespace ov::op;
 
-ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, UpdateShapeFunc func)
+namespace v0 = ov::op::v0;
+
+namespace ov::pass {
+
+ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, UpdateShapeFunc func)
     : m_config(config),
       m_update_shape_func(std::move(func)) {
     MATCHER_SCOPE(ConvertPagedAttnInputs);
@@ -153,10 +156,12 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
     this->register_matcher(m, callback);
 }
 
-void ov::pass::ConvertPagedAttnInputs::setKVCacheConfig(const KVCacheConfig& config) {
+void ConvertPagedAttnInputs::setKVCacheConfig(const KVCacheConfig& config) {
     m_config = config;
 }
 
-const ov::pass::ConvertPagedAttnInputs::KVCacheConfig& ov::pass::ConvertPagedAttnInputs::getKVCacheConfig() const {
+const ConvertPagedAttnInputs::KVCacheConfig& ConvertPagedAttnInputs::getKVCacheConfig() const {
     return m_config;
 }
+
+}  // namespace ov::pass
