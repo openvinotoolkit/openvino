@@ -207,7 +207,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         auto sinks = model->get_sinks();
 
         for (auto& sink : sinks) {
-            if (auto assign = ov::as_type_ptr<v6::Assign>(sink)) {
+            if (auto assign = ov::as_type_ptr<ov::op::util::Assign>(sink)) {
                 if (var_ids_to_remove.count(assign->get_variable_id())) {
                     model->remove_sink(sink);
                 }

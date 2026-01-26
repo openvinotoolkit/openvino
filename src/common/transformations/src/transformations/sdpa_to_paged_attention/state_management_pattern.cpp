@@ -248,7 +248,7 @@ typedef std::
         node_tuple;
 
 static node_tuple kv_read_and_concat(ov::Output<ov::Node> kv_current) {
-    auto kv_past_var = wrap_type<ov::op::v6::ReadValue>({any_input()});
+    auto kv_past_var = wrap_type<ov::op::util::ReadValueBase>({any_input()});
     auto kv_past = wrap_type<v8::Gather>({kv_past_var, any_input(), any_input()});
     kv_past = optional<v1::Transpose>({kv_past, any_input()});  // Transpose is used when kv-cache is stored
                                                                 // in a not usual layout, example: bloom
@@ -582,7 +582,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
         for (const auto& read_value : {k_past_var, v_past_var, kv_past_var}) {
             if (pattern_map.count(read_value)) {
-                if (auto rv = ov::as_type_ptr<v6::ReadValue>(pattern_map.at(read_value).get_node_shared_ptr())) {
+                if (auto rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(pattern_map.at(read_value).get_node_shared_ptr())) {
                     var_ids_to_remove.insert(rv->get_variable_id());
                 }
             }
