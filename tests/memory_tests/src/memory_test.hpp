@@ -99,7 +99,7 @@ struct TestContext {
         bool gpu_ready = false;
         if (device.find("GPU") != std::string::npos) {
             // GPU is used -> initialize GPU sampling
-            gpu_ready = !initGpuSampling();
+            gpu_ready = initGpuSampling() == INIT_GPU_STATUS_SUCCESS;
             if (!gpu_ready) {
                 std::cerr << "GPU memory sampling will not be available" << std::endl;
             }

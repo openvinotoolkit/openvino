@@ -70,7 +70,7 @@ class MemSample:
 
 
 def run_test_executable_extract_result(command):
-    proc = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.run(command, stdout=subprocess.PIPE)
     run_out = proc.stdout.decode()
     if run_out.startswith("TEST_RESULTS: "):
         results_json = run_out.splitlines()[0].removeprefix("TEST_RESULTS: ")

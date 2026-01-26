@@ -1,5 +1,5 @@
 
-#include <cstdio>
+#include <iostream>
 
 #include "gpu_memory_sampling.hpp"
 
@@ -10,15 +10,38 @@
 #include <dxgi1_4.h>
 #pragma comment(lib, "dxgi.lib")
 
+#define INTEL_VENDOR_ID 0x8086
+
 
 static IDXGIFactory4 *dxgi_factory = nullptr;
 static IDXGIAdapter3 *selected_adapter = nullptr;
 
 
-int initGpuSampling() {
+std::ostream & operator<<(std::ostream &ostream, const DXGI_QUERY_VIDEO_MEMORY_INFO &info) {
+    ostream << "{"
+        << "\"Budget\": " << info.Budget
+        << ", \"CurrentUsage\": " << info.CurrentUsage
+        << ", \"AvailableForReservation\": " << info.AvailableForReservation
+        << ", \"CurrentReservation\": " << info.CurrentReservation
+    << "}";
+}
+
+std::ostream &operator<<(std::ostream &ostream, const DXGI_ADAPTER_DESC &desc) {
+    ostream << "{"
+        << "\"description\": \"" << desc.Description << "\""
+        << ", \"vendor\": \"" << std::hex << desc.VendorId << "\""
+        << ", \"device\": \"" << desc.DeviceId << std::dec << "\""
+        << ", \"mem_video\": " << desc.DedicatedVideoMemory / MiB
+        << ", \"mem_system\": " << desc.DedicatedSystemMemory / MiB
+        << ", \"mem_shared\": " << desc.SharedSystemMemory / MiB
+    << "}";
+}
+
+
+INIT_GPU_STATUS initGpuSampling() {
     if (S_OK != CreateDXGIFactory2(0, __uuidof(IDXGIFactory4), (void **)&dxgi_factory)) {
-        fprintf(stderr, "CreateDXGIFactory2 failed\r\n");
-        return -1;
+        std::cerr << "CreateDXGIFactory2 failed" << std::endl;
+        return INIT_GPU_STATUS_SUBSYSTEM_UNAVAILABLE;
     }
 
     float MiB = 1024 * 1024;
@@ -30,28 +53,23 @@ int initGpuSampling() {
     ) {
         DXGI_ADAPTER_DESC desc;
         adapter->GetDesc(&desc);
-        if (desc.VendorId == 0x8086) {
-            fprintf(stderr, "Selecting GPU adapter #%d for sampling\r\n", adapterIndex);
-            fprintf(stderr, "  description %ls\r\n", desc.Description);
-            fprintf(stderr, "  vendor/device %x/%x\r\n", desc.VendorId, desc.DeviceId);
-            fprintf(stderr, "  video mem:  %.2f MiB\r\n", desc.DedicatedVideoMemory / MiB);
-            fprintf(stderr, "  system mem: %.2f MiB\r\n", desc.DedicatedSystemMemory / MiB);
-            fprintf(stderr, "  shared mem: %.2f MiB\r\n", desc.SharedSystemMemory / MiB);
-            fprintf(stderr, "\r\n");
+        if (desc.VendorId == INTEL_VENDOR_ID) {
+            std::cerr << "Selecting adapter #" << adapterIndex << std::endl;
+            std::cerr << desc << std::endl;
             if (S_OK != adapter->QueryInterface(__uuidof(IDXGIAdapter3), (void**)&selected_adapter)) {
-                fprintf(stderr, "Failed to query IDXGIAdapter3 interface for selected adapter\r\n");
-                return -2;
+                std::cerr << "Failed to query IDXGIAdapter3 interface for selected adapter" << std::endl;
+                return INIT_GPU_STATUS_SUBSYSTEM_UNSUPPORTED;
             }
             adapter->Release();
 
             // try to take a sample?
-            return 0;
+            return INIT_GPU_STATUS_SUCCESS;
         }
         adapter->Release();
     }
 
-    fprintf(stderr, "No proper adapter was found for sampling\r\n");
-    return -3;
+    std::cerr << "No proper adapter was found for sampling" << std::endl;
+    return INIT_GPU_STATUS_GPU_NOT_FOUND;
 }
 
 GpuMemorySample sampleGpuMemory() {
@@ -61,6 +79,7 @@ GpuMemorySample sampleGpuMemory() {
         + desc.DedicatedSystemMemory
         + desc.SharedSystemMemory) / 1024;
     int64_t budget = 0;
+    int64_t available = 0;
     int64_t used = 0;
 
     int nodeId = 0;
@@ -71,24 +90,33 @@ GpuMemorySample sampleGpuMemory() {
         if (result != S_OK) {
             break;
         }
+        std::cerr << "Sample of local memory: " << info << std::endl;
         budget += info.Budget / 1024;
+        available += info.AvailableForReservation / 1024;
         used += info.CurrentUsage / 1024;
+
         result = selected_adapter->QueryVideoMemoryInfo(
             nodeId, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &info);
         if (result != S_OK) {
             break;
         }
+        std::cerr << "Sample of non-local memory: " << info << std::endl;
         budget += info.Budget / 1024;
+        available += info.AvailableForReservation / 1024;
         used += info.CurrentUsage / 1024;
         nodeId += 1;
     }
-    return {total_mem, budget, used};
+    return {
+        .total=total_mem,
+        .free=available,
+        .used=used
+    };
 }
 
 #else
 
-int initGpuSampling() {
-    return -1;
+INIT_GPU_STATUS initGpuSampling() {
+    return INIT_GPU_STATUS_SUBSYSTEM_UNAVAILABLE;
 }
 
 GpuMemorySample sampleGpuMemory() {
