@@ -1151,21 +1151,7 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
     const size_t parentIndex,
     const bool inPlace) {
     auto getDataIndex = [](const std::shared_ptr<ov::Node>& node) {
-        if (ov::is_type<ov::opset1::Constant>(node->get_input_node_ptr(1))) {
-            return 0ul;
-        }
-
-        if (ov::is_type<ov::opset1::Convert>(node->get_input_node_ptr(1)) &&
-            ov::is_type<ov::opset1::Constant>(node->get_input_node_ptr(1)->get_input_node_ptr(0))) {
-            return 0ul;
-        }
-
-        if (ov::is_type<ov::opset1::Convert>(node->get_input_node_ptr(0)) &&
-            ov::is_type<ov::opset1::Constant>(node->get_input_node_ptr(0)->get_input_node_ptr(0))) {
-            return 1ul;
-        }
-
-        return 1ul;
+        return getDQConstBranchIndex(node) == 0ul ? 1ul : 0ul;
     };
 
     Output<Node> dataNode;
