@@ -41,20 +41,28 @@ inline std::ostream& operator << (std::ostream& out, const SeparateInStandaloneB
     return out << "_" << testValues.dequantization;
 }
 
-typedef std::tuple<
-    ov::Shape,
-    SeparateInStandaloneBranchTransformationTestValues> SeparateInStandaloneBranchTransformationParams;
+typedef std::tuple<ov::Shape,  // input shape
+                   SeparateInStandaloneBranchTransformationTestValues,
+                   bool>  // is constant path
+    SeparateInStandaloneBranchTransformationParams;
 
 class SeparateInStandaloneBranchTransformation :
     public LayerTransformation,
     public testing::WithParamInterface<SeparateInStandaloneBranchTransformationParams> {
 public:
     void SetUp() override {
-        const auto& [inputShape, testValues] = GetParam();
+        const auto& [inputShape, testValues, isConstantPath] = GetParam();
         const auto& precision = testValues.precisionBefore;
 
         const auto createActualFunction = [&](const DequantizationOperations& dequantizations) {
-            const auto input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
+            ov::ParameterVector params;
+            std::shared_ptr<ov::Node> input;
+            if (isConstantPath) {
+                input = ov::op::v0::Constant::create(precision, inputShape, std::vector<float>{137.f});
+            } else {
+                params.push_back(std::make_shared<ov::op::v0::Parameter>(precision, inputShape));
+                input = params.back();
+            }
             const auto dequantizationsNode = makeDequantization(input, dequantizations);
 
             const auto reshape1 = std::make_shared<ov::op::v1::Reshape>(
@@ -70,7 +78,7 @@ public:
             reshape2->set_friendly_name("reshape2");
 
             return std::make_shared<ov::Model>(ov::OutputVector{reshape1, reshape2},
-                                               ov::ParameterVector{input},
+                                               params,
                                                "SeparateInStandaloneBranchTransformation");
         };
         actualFunction = createActualFunction(testValues.dequantization);
@@ -84,7 +92,14 @@ public:
             if (!dequantization.multiply.empty())
                 dequantization.multiply.constantIndex = 1;
 
-            const auto input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
+            ov::ParameterVector params;
+            std::shared_ptr<ov::Node> input;
+            if (isConstantPath) {
+                input = ov::op::v0::Constant::create(precision, inputShape, std::vector<float>{137.f});
+            } else {
+                params.push_back(std::make_shared<ov::op::v0::Parameter>(precision, inputShape));
+                input = params.back();
+            }
 
             const auto reshape1 = std::make_shared<ov::op::v1::Reshape>(
                 makeDequantization(input, dequantization),
@@ -99,17 +114,16 @@ public:
             reshape2->set_friendly_name("reshape2");
 
             return std::make_shared<ov::Model>(ov::OutputVector{reshape1, reshape2},
-                                               ov::ParameterVector{input},
+                                               params,
                                                "SeparateInStandaloneBranchTransformation");
         };
         referenceFunction = createReferenceFunction(testValues.dequantization);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<SeparateInStandaloneBranchTransformationParams> obj) {
-        const auto& [shapes, testValues] = obj.param;
-
+        const auto& [shapes, testValues, isConstantPath] = obj.param;
         std::stringstream ss;
-        ss << shapes << "_" << testValues;
+        ss << shapes << "_" << testValues << "_is_constant_path_" << isConstantPath;
         return ss.str();
     }
 };
@@ -157,6 +171,15 @@ std::vector<SeparateInStandaloneBranchTransformationTestValues> testValues = {
             { {0.02f}, ov::element::f32, {}, false, 0ul }
         }
     },
+    {
+        LayerTransformation::createParamsU8U8(),
+        ov::element::u8,
+        {
+            ov::element::f32,
+            {},
+            {{0.02f}, ov::element::f32, {1, 3, 1, 1}, false, 0ul}
+        }
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -164,65 +187,7 @@ INSTANTIATE_TEST_SUITE_P(
     SeparateInStandaloneBranchTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(testValues)),
+        ::testing::ValuesIn(testValues),
+        ::testing::Values(false, true)),
     SeparateInStandaloneBranchTransformation::getTestCaseName);
-
-TEST_F(TransformationTests, SeparateInStandaloneBranch_CornerCase_ZeroConstIdxOnConstantPath) {
-    const ov::Shape shape{1, 3, 16, 16};
-    std::shared_ptr<ov::Model> model, model_ref;
-    {
-        const DequantizationOperations dqOps{
-            ov::element::f32,
-            {},
-            DequantizationOperations::Multiply({0.02f}, ov::element::f32, {1, 3, 1, 1}, false, 0ul)};
-        const auto weights = std::make_shared<ov::op::v0::Constant>(ov::element::u8, shape, std::vector<uint8_t>{15});
-        const auto dequantization = makeDequantization(weights, dqOps);
-        const auto reshape1 = std::make_shared<ov::op::v1::Reshape>(
-            dequantization,
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int>({0, -1})),
-            true);
-        reshape1->set_friendly_name("reshape1");
-
-        const auto reshape2 = std::make_shared<ov::op::v1::Reshape>(
-            dequantization,
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int>({0, -1})),
-            true);
-        reshape2->set_friendly_name("reshape2");
-
-        model = std::make_shared<ov::Model>(ov::OutputVector{reshape1, reshape2},
-                                            ov::ParameterVector{},
-                                            "SeparateInStandaloneBranchTransformation");
-    }
-    ov::pass::low_precision::NetworkHelper::separateInStandaloneBranch(model->get_results()[0]->get_input_node_shared_ptr(0));
-
-    {
-        const DequantizationOperations dqOps{
-            ov::element::f32,
-            {},
-            DequantizationOperations::Multiply({0.02f}, ov::element::f32, {1, 3, 1, 1}, false, 1ul)};
-        const auto weights = std::make_shared<ov::op::v0::Constant>(ov::element::u8, shape, std::vector<uint8_t>{15});
-        const auto reshape1 = std::make_shared<ov::op::v1::Reshape>(
-            makeDequantization(weights, dqOps),
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int>({0, -1})),
-            true);
-        reshape1->set_friendly_name("reshape1");
-
-        const auto reshape2 = std::make_shared<ov::op::v1::Reshape>(
-            makeDequantization(weights, dqOps),
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, std::vector<int>({0, -1})),
-            true);
-        reshape2->set_friendly_name("reshape2");
-
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{reshape1, reshape2},
-                                                ov::ParameterVector{},
-                                                "SeparateInStandaloneBranchTransformation");
-    }
-
-    auto comparator = FunctionsComparator::with_default()
-                          .enable(FunctionsComparator::CmpValues::CONSUMERS_COUNT)
-                          .enable(FunctionsComparator::CmpValues::CONST_VALUES)
-                          .enable(FunctionsComparator::CmpValues::NAMES);
-    auto res = comparator.compare(model, model_ref);
-    ASSERT_TRUE(res.valid) << res.message;
-}
 } // namespace
