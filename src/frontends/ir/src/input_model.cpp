@@ -100,6 +100,12 @@ void parse_pre_process(pugi::xml_node& root,
     } else if (inputDims.size() == 5) {  // NCDHW
         mean_scalar_shape = {inputDims[1], 1, 1, 1};
         mean_shape = {1, inputDims[2], inputDims[3], inputDims[4]};
+    } else {
+        OPENVINO_THROW("Unsupported input dimensions rank ",
+                       inputDims.size(),
+                       " for pre-process input '",
+                       inputName,
+                       "'");
     }
     const size_t channels = mean_scalar_shape[0];
 
