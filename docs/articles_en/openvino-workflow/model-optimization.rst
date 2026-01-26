@@ -49,8 +49,7 @@ Recommended workflows
 * A common approach for most cases is to:
 
   1. Perform post-training quantization first, as it is the easiest option.
-  2. For even better results, combine post-training quantization with filter pruning.
-  3. If the accuracy drop is unacceptable, use quantization-aware training instead. It will give
+  2. If the accuracy drop is unacceptable, use quantization-aware training instead. It will give
      you the same level of performance boost, with a smaller impact on accuracy.
 
 * **Weight compression** works with **LLMs**, **VLMs** and other Transformer-based models.

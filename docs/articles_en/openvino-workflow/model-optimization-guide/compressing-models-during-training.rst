@@ -7,7 +7,6 @@ Training-time Optimization
    :hidden:
 
    compressing-models-during-training/quantization-aware-training
-   compressing-models-during-training/filter-pruning
 
 
 Training-time optimization offered by NNCF is based on model compression algorithms executed
@@ -47,19 +46,6 @@ To learn more, see:
 
 * guide on quantization for :doc:`PyTorch <./compressing-models-during-training/quantization-aware-training>`.
 * Jupyter notebook on `Quantization Aware Training with NNCF and PyTorch <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/pytorch-quantization-aware-training>`__.
-
-
-Filter pruning
-+++++++++++++++++++++++++
-
-During fine-tuning, the importance criterion is used to search for redundant convolutional layer
-filters that don't significantly contribute to the model's output. After fine-tuning, these
-filters are removed from the model.
-
-For more information, see:
-
-* How to use :doc:`Filter Pruning <../model-optimization-guide/compressing-models-during-training/filter-pruning>`.
-* Technical details of `Filter Pruning <https://github.com/openvinotoolkit/nncf/blob/develop/docs/usage/training_time_compression/other_algorithms/Pruning.md>`__.
 
 
 Experimental methods
