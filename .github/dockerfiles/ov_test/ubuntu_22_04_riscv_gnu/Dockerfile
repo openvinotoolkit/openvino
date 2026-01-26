@@ -42,6 +42,8 @@ RUN apt-get update && \
         pkg-config \
         python3 \
         python3-pip \
+        python3-venv \
+        python3-tomli \
         libglib2.0-dev \
         libpixman-1-dev \
         zlib1g-dev \
@@ -51,7 +53,7 @@ RUN apt-get update && \
 ARG QEMU_VERSION="10.2.0"
 
 RUN mkdir -p /tmp/qemu-src && cd /tmp/qemu-src && \
-    curl -SLO https://github.com/qemu/qemu/archive/refs/tags/v${QEMU_VERSION}.tar.gz && \
+    curl -fL --retry 8 --retry-all-errors --retry-delay 2 -SLO https://github.com/qemu/qemu/archive/refs/tags/v${QEMU_VERSION}.tar.gz && \
     tar -xzf v${QEMU_VERSION}.tar.gz --strip-components=1 && \
     ./configure --target-list=riscv64-linux-user --prefix=/usr/local && \
     make -j"$(nproc)" && \
