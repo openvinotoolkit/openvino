@@ -1604,8 +1604,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_INFO("Two-model pipeline will be created.");
     }
 
-    LOG_DEBUG("Try patch Phi-3 sliding window mask, if it exists.");
-    patch_phi3_sliding_mask(kvcache_model);
+    if (!m_is_whisper) {
+        LOG_DEBUG("Try patch Phi-3 sliding window mask, if it exists.");
+        patch_phi3_sliding_mask(kvcache_model);
+    }
 
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
