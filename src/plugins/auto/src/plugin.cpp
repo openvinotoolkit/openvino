@@ -186,7 +186,7 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
         }
     };
     auto check_priority_config = [&] (const std::string& pri_string) {
-        if (pri_string.empty())
+        if (pri_string.empty() || pri_string.find(",") == std::string::npos)
             return false;
         std::string::size_type pos = 0;
         std::string::size_type endpos = 0;
