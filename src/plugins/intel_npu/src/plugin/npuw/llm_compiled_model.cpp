@@ -762,8 +762,9 @@ public:
                 position_ids_node_ptr = i.get_node_shared_ptr();
             }
         }
-        OPENVINO_ASSERT(attention_mask_node_ptr, "attention_mask input is not found!");
-        OPENVINO_ASSERT(position_ids_node_ptr, "position_ids input is not found!");
+        if (attention_mask_node_ptr == nullptr || position_ids_node_ptr == nullptr) {
+            return false;
+        }
 
         ov::pass::Manager manager;
         manager.set_per_pass_validation(true);
