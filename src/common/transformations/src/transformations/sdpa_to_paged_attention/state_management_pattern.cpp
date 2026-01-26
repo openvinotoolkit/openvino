@@ -42,6 +42,7 @@
 using ov::pass::pattern::any_input;
 using ov::pass::pattern::Matcher;
 using ov::pass::pattern::wrap_type;
+using ov::pass::pattern::optional;
 using ov::pass::pattern::op::Or;
 
 namespace v0 = ov::op::v0;
@@ -69,10 +70,13 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> general_
 
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> jais_13b_alibi_pattern() {
     auto jais_13b_alibi = any_input();
+    auto alibi_opt_conv = optional<v0::Convert>(jais_13b_alibi);
     auto mirroring_abs = wrap_type<v0::Abs>({any_input()});
     auto unsqueeze = wrap_type<v0::Unsqueeze>({mirroring_abs, any_input()});
-    auto jais_alibi_mask = wrap_type<v1::Multiply>({jais_13b_alibi, unsqueeze});
-    jais_alibi_mask = wrap_type<v3::Broadcast>({jais_alibi_mask, any_input()});
+    auto broadcast = optional<v3::Broadcast>({unsqueeze, any_input()});
+    broadcast = optional<v0::Convert>(broadcast);
+    auto jais_alibi_mask = wrap_type<v1::Multiply>({alibi_opt_conv, broadcast});
+    jais_alibi_mask = optional<v3::Broadcast>({jais_alibi_mask, any_input()});
     jais_alibi_mask = wrap_type<v0::Unsqueeze>({jais_alibi_mask, any_input()});
     jais_alibi_mask = wrap_type<v1::Add>({any_input(), jais_alibi_mask});
     return {jais_13b_alibi, jais_alibi_mask};
@@ -111,6 +115,15 @@ static std::shared_ptr<ov::Node> handle_general_alibi(const std::shared_ptr<ov::
 }
 
 static std::shared_ptr<ov::Node> handle_jais_13b_alibi(const std::shared_ptr<ov::Node>& matched_jais_13b_alibi_slopes) {
+    std::cout << "handle_jais_13b_alibi(): " << matched_jais_13b_alibi_slopes << std::endl;
+    auto alibi_constant = ov::as_type_ptr<v0::Constant>(matched_jais_13b_alibi_slopes);
+    const auto data = alibi_constant->cast_vector<float>();
+    std::cout << "data size: " << data.size() << std::endl;
+    for (size_t i = 0; i < data.size(); ++i) {
+        std::cout << " " << data[i];
+    }
+    std::cout << std::endl;
+
     // At the beginning, handling of jais13's alibi is the same as the general case
     std::shared_ptr<ov::Node> res_alibi_slopes = handle_general_alibi(matched_jais_13b_alibi_slopes);
 
@@ -574,12 +587,15 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
         std::shared_ptr<Node> alibi_slopes;
         if (pattern_map.find(general_alibi) != pattern_map.end()) {
+            std::cout << "MATCHED FOR general" << std::endl;
             alibi_slopes = handle_general_alibi(pattern_map.at(general_alibi).get_node_shared_ptr());
         } else if (pattern_map.find(jais_13b_alibi) != pattern_map.end()) {
+            std::cout << "MATCHED FOR JAIS" << std::endl;
             alibi_slopes = handle_jais_13b_alibi(pattern_map.at(jais_13b_alibi).get_node_shared_ptr());
         } else if (pattern_map.find(baichuan2_13b_alibi) != pattern_map.end()) {
             alibi_slopes = handle_baichuan2_13b_alibi(pattern_map.at(baichuan2_13b_alibi).get_node_shared_ptr());
         } else {
+            std::cout << "MATCHED FOR nothing" << std::endl;
             alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});
         }
 
