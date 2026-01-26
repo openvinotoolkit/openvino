@@ -582,7 +582,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
         for (const auto& read_value : {k_past_var, v_past_var, kv_past_var}) {
             if (pattern_map.count(read_value)) {
-                if (auto rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(pattern_map.at(read_value).get_node_shared_ptr())) {
+                if (auto rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(
+                        pattern_map.at(read_value).get_node_shared_ptr())) {
                     var_ids_to_remove.insert(rv->get_variable_id());
                 }
             }
