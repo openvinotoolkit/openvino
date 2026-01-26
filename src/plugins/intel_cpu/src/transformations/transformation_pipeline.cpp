@@ -312,12 +312,12 @@ using const_node_ptr = const std::shared_ptr<const ov::Node>;
 bool Transformations::is_decompression_multiply(const_node_ptr& node) {
     auto all_has_type = [](const std::set<ov::Input<ov::Node>>& consumers, const ov::DiscreteTypeInfo& type) {
         return std::all_of(consumers.begin(), consumers.end(), [&type](const ov::Input<ov::Node>& input) {
-            auto consumer_node = input.get_node();
+            auto* consumer_node = input.get_node();
             if (consumer_node->get_type_info() != type) {
                 return false;
             }
             if (type == ov::op::v1::Convolution::get_type_info_static()) {
-                auto conv = ov::as_type<ov::op::v1::Convolution>(consumer_node);
+                auto* conv = ov::as_type<ov::op::v1::Convolution>(consumer_node);
                 if (!conv) {
                     return false;
                 }
