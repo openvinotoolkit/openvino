@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -316,8 +316,6 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_AvgPoolV14_CPU_4D/AvgPoolingV14LayerCPUTest.CompareWithRefs.*)");
         // Ticket: 168931
         retVector.emplace_back(R"(.*smoke_Reduce_OneAxis_dynamic_CPU/ReduceCPULayerTest.CompareWithRefs.*)");
-        // Ticket: 178089
-        retVector.emplace_back(R"(.*smoke_ARM_StatefulSdpaBoolMask/StatefulSdpaBoolMaskTest.*)");
     }
     // invalid test: checks u8 precision for runtime graph, while it should be f32
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
@@ -659,6 +657,11 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 141705
         retVector.emplace_back(R"(.*smoke_Deconv_(2|3)D_NSPC_INT8_AMX/DeconvolutionLayerCPUTest.*)");
         retVector.emplace_back(R"(.*smoke_Deconv_(2|3)D_NSPC_INT8_AMX/DeconvolutionLayerCPUTest.*)");
+    }
+
+    // Xattention only verified on AMX platform
+    if (!ov::with_cpu_x86_avx512_core_amx()) {
+        retVector.emplace_back(R"(.*EnableXattn=1.*)");
     }
 
     if (ov::with_cpu_x86_avx512_core_fp16() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()) {
