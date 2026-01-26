@@ -8,7 +8,7 @@ Please contact a member of [openvino-ie-maintainers](https://github.com/orgs/ope
 
 Proxy Plugin contains the following components:
 
-* [include](./include/) - folder contains public plugin API.
+* [dev_api](./dev_api) - folder contains public plugin API.
 * [src](./src/) - folder contains sources of the plugin.
 * [tests](./tests/) - contains tests for the plugin.
 
@@ -48,4 +48,3 @@ After the creation the proxy plugin has next properties:
  * [OpenVINO Plugins](../README.md)
  * [Developer documentation](../../../docs/dev/index.md)
  * [OpenVINO Plugin Developer Guide](https://docs.openvino.ai/2025/documentation/openvino-extensibility/openvino-plugin-library.html)
-

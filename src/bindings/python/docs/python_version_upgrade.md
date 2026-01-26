@@ -8,7 +8,7 @@ Upgrade described in this documentation file can be useful when using a system s
 ## Building and installing Python for Linux
 
 Download Python from Python releases page and extract it:
-https://www.python.org/downloads/release 
+https://www.python.org/downloads/
 ```bash
 curl -O https://www.python.org/ftp/python/3.8.13/Python-3.8.13.tgz
 tar -xf Python-3.8.13.tgz

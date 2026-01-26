@@ -4,7 +4,7 @@
 
 - [Introduction](#introduction)
 - [System requirements](#system-requirements)
-- [Configure OpenVINO runtime in CMake stage](#configure-openvino-runtime-in-cmake-stage)
+- [Configure OpenVINO runtime in CMake stage](#configure-openvino-runtime-in-the-cmake-stage)
 - [Build static OpenVINO libraries](#build-static-openvino-libraries)
 - [Link static OpenVINO runtime](#link-static-openvino-runtime)
 - [Static OpenVINO libraries + Conditional compilation for particular models](#static-openvino-libraries--conditional-compilation-for-particular-models)
@@ -138,7 +138,7 @@ cmake -DCMAKE_TOOLCHAIN_FILE=<openvino source dir>/cmake/toolchains/mt.runtime.w
 * Static build support for building static libraries only for OpenVINO Runtime libraries. All other third-party prebuilt dependencies remain in the same format:
     * `TBB` is a shared library; to provide your own TBB build from [[oneTBB source code|https://github.com/oneapi-src/oneTBB]] use `export TBBROOT=<tbb_root>` before OpenVINO CMake scripts are run.
 
-    > **NOTE**: The TBB team does not recommend using oneTBB as a static library, see [[Why onetbb does not like a static library?|https://github.com/oneapi-src/oneTBB/issues/646]]
+    > **NOTE**: The TBB team does not recommend using oneTBB as a static library, see [[Why onetbb does not like a static library?|https://github.com/uxlfoundation/oneTBB/issues/646]]
 
 * `TBBBind_2_5` is not available on Windows x64 during a static OpenVINO build (see description for `ENABLE_TBBBIND_2_5` CMake option [[here|CMakeOptionsForCustomCompilation]] to understand what this library is responsible for). So, capabilities enabled by `TBBBind_2_5` are not available. To enable them, build [[oneTBB from source code|https://github.com/oneapi-src/oneTBB]] and provide the path to built oneTBB artifacts via `TBBROOT` environment variable before OpenVINO CMake scripts are run.
 
