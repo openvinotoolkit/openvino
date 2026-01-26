@@ -19,10 +19,14 @@ void reorder_transfer::run(program& p) {
 
         auto& reorder_node = node->as<reorder>();
 
+        // is_type_conversion_only() throws an exception for some nodes
+        bool is_type_conv = false;
+        try { is_type_conv = reorder_node.is_type_conversion_only(); } catch (...) { continue; }
+
         bool is_simple_type_conversion_reorder = !reorder_node.is_output() &&
                                                  reorder_node.get_users().size() == 1 &&
                                                  reorder_node.get_dependencies().size() == 1 &&
-                                                 reorder_node.is_type_conversion_only();
+                                                 is_type_conv;
         if (!is_simple_type_conversion_reorder)
             continue;
 
