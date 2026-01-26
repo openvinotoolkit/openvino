@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@ ParamsKey FullyConnected_GEMV::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::F32);
     k.EnableInputWeightsType(WeightsType::INT4);
     k.EnableInputWeightsType(WeightsType::UINT4);
     k.EnableInputLayout(DataLayout::bf);
@@ -64,7 +65,7 @@ bool FullyConnected_GEMV::Validate(const Params& params) const {
     }
 
     // Data type re-check: only support f16:int4:f16
-    if (input.GetDType() != Datatype::F16 || output.GetDType() != Datatype::F16 ||
+    if (input.GetDType() != Datatype::F16 || (output.GetDType() != Datatype::F16 && output.GetDType() != Datatype::F32) ||
         (weights.GetDType() != WeightsType::INT4 && weights.GetDType() != WeightsType::UINT4)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
@@ -149,9 +150,9 @@ JitConstants FullyConnected_GEMV::GetJitConstants(const fully_connected_params& 
     // TODO: SWIGLU support
     // if (is_swiglu_fused(params)) {
     //     auto split_length = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->split_length;
-    //     auto split_to_glu_idx = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->split_to_glu_idx;
+    //     auto gate_idx = params.fused_ops[0].GetOpParams<swiglu_fuse_params>()->gate_idx;
     //     jit.AddConstant(MakeJitConstant("SWIGLU_LENGTH", split_length));
-    //     jit.AddConstant(MakeJitConstant("SWIGLU_SPLIT_TO_GLU_IDX", split_to_glu_idx));
+    //     jit.AddConstant(MakeJitConstant("SWIGLU_SPLIT_TO_GLU_IDX", gate_idx));
     // }
 
     if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {

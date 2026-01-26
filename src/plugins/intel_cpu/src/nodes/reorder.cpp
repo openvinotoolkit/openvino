@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <shape_inference/shape_inference_pass_through.hpp>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "cache/multi_cache.h"
@@ -24,22 +23,37 @@
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "graph_context.h"
-#include "memory_desc/cpu_blocked_memory_desc.h"
+#if defined(OPENVINO_ARCH_ARM)
+#    include "memory_desc/cpu_blocked_memory_desc.h"
+#endif
+#if defined(OV_CPU_WITH_ACL)
+#    include "memory_desc/blocked_memory_desc.h"
+#endif
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "node.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/reorder_prim.h"
-#include "nodes/executors/executor.hpp"
-#include "nodes/executors/transpose.hpp"
-#include "nodes/executors/transpose_list.hpp"
+#if defined(OPENVINO_ARCH_ARM)
+#    include "nodes/executors/transpose.hpp"
+#    include "nodes/executors/transpose_list.hpp"
+#endif
+#if defined(OV_CPU_WITH_ACL)
+#    include <arm_compute/core/CoreTypes.h>
+#    include <arm_compute/core/TensorInfo.h>
+#    include <arm_compute/core/TensorShape.h>
+#    include <arm_compute/runtime/NEON/functions/NECopy.h>
+#    include <arm_compute/runtime/Tensor.h>
+
+#    include "nodes/executors/acl/acl_utils.hpp"
+#endif
 #include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "thread_pool_imp.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
@@ -156,6 +170,7 @@ void Reorder::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
+#if defined(OPENVINO_ARCH_ARM)
 void Reorder::prepareReorderAsTranspose(const MemoryDescPtr& parentDesc, const MemoryDescPtr& childDesc) {
     auto getOrderAndBlockedDims = [](const MemoryDesc& lhs,
                                      const MemoryDesc& rhs) -> std::pair<std::vector<size_t>, std::vector<size_t>> {
@@ -204,6 +219,47 @@ void Reorder::prepareReorderAsTranspose(const MemoryDescPtr& parentDesc, const M
     transposeExecutor = factory->makeExecutor(transposeParams, {parentDesc}, {transposedDesc}, attr);
     getSelectedPrimitiveDescriptor()->setImplementationType(transposeExecutor->implType());
 }
+#endif
+
+#if defined(OV_CPU_WITH_ACL)
+bool Reorder::prepareAclCopy(const MemoryDescPtr& parentDesc, const MemoryDescPtr& childDesc) {
+    if (!parentDesc->isCompatible(*childDesc)) {
+        return false;
+    }
+
+    const auto aclPrecision = precisionToAclDataType(parentDesc->getPrecision());
+    if (aclPrecision == arm_compute::DataType::UNKNOWN) {
+        return false;
+    }
+
+    const auto* parentBlocked = parentDesc->as<BlockedMemoryDesc>();
+    if (parentBlocked == nullptr) {
+        return false;
+    }
+
+    const auto elemCount = parentBlocked->getPaddedElementsCount();
+    if (elemCount == 0) {
+        return false;
+    }
+
+    const arm_compute::TensorInfo tensorInfo(arm_compute::TensorShape(elemCount), 1, aclPrecision);
+    const auto status = arm_compute::NECopy::validate(&tensorInfo, &tensorInfo);
+    if (!status) {
+        DEBUG_LOG("NECopy validation failed: ", status.error_description());
+        return false;
+    }
+
+    aclSrcTensor.allocator()->init(tensorInfo);
+    aclDstTensor.allocator()->init(tensorInfo);
+    aclCopy = std::make_unique<arm_compute::NECopy>();
+    configureThreadSafe([&] {
+        aclCopy->configure(&aclSrcTensor, &aclDstTensor);
+    });
+    useAclCopy = true;
+    getSelectedPrimitiveDescriptor()->setImplementationType(impl_desc_type::acl);
+    return true;
+}
+#endif
 
 void Reorder::prepareParams() {
     if (isOptimized) {
@@ -229,14 +285,18 @@ void Reorder::prepareParams() {
     const auto& parentDesc = srcMemPtr->getDescPtr();
     const auto& childDesc = dstMemPtr->getDescPtr();
 
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    // @todo current oneDNN v3.2 lacks optimized jit implementation for fp16 reorders.
-    // Use transpose executor as a temporary WA.
+#if defined(OPENVINO_ARCH_ARM)
     if (all_of(ov::element::f16, parentDesc->getPrecision(), childDesc->getPrecision()) &&
         ((parentDesc->hasLayoutType(LayoutType::ncsp) && childDesc->hasLayoutType(LayoutType::nspc)) ||
          (parentDesc->hasLayoutType(LayoutType::nspc) && childDesc->hasLayoutType(LayoutType::ncsp))) &&
         any_of(parentDesc->getShape().getRank(), 3U, 4U)) {
         prepareReorderAsTranspose(parentDesc, childDesc);
+        return;
+    }
+#endif
+
+#if defined(OV_CPU_WITH_ACL)
+    if (prepareAclCopy(parentDesc, childDesc)) {
         return;
     }
 #endif
@@ -353,6 +413,7 @@ bool Reorder::created() const {
 }
 
 void Reorder::optimizedNcsp2Nspc() {
+    const auto& cpu_parallel = context->getCpuParallel();
     auto parentEdge = getParentEdgeAt(0);
     auto childEdge = getChildEdgeAt(0);
 
@@ -374,7 +435,7 @@ void Reorder::optimizedNcsp2Nspc() {
     const size_t stride1 = DIM2 * DIM3 * DIM4;
     const size_t stride2 = DIM2 * DIM3;
 
-    parallel_for3d(DIM0, DIM1, stride2, [&](size_t dim0, size_t dim1, size_t j) {
+    cpu_parallel->parallel_for3d(DIM0, DIM1, stride2, [&](size_t dim0, size_t dim1, size_t j) {
         size_t src_off = dim0 * src_batch_stride + j * DIM4 + dim1 * stride1;
         size_t dst_off = dim0 * dst_batch_stride + j * DIM4 * dst_channel_stride + dim1;
 
@@ -387,6 +448,7 @@ void Reorder::optimizedNcsp2Nspc() {
 }
 
 void Reorder::optimizedNspc2Ncsp() {
+    const auto& cpu_parallel = context->getCpuParallel();
     auto parentEdge = getParentEdgeAt(0);
     auto childEdge = getChildEdgeAt(0);
 
@@ -405,7 +467,7 @@ void Reorder::optimizedNspc2Ncsp() {
     const size_t block_size = DIM2 * DIM3 * DIM4;
     const size_t src_batch_stride = block_size * DIM1;
     const size_t dst_batch_stride = dstStrides[0];
-    parallel_for2d(DIM0, block_size, [&](size_t b, size_t j) {
+    cpu_parallel->parallel_for2d(DIM0, block_size, [&](size_t b, size_t j) {
         auto src_off = b * src_batch_stride + j * DIM1;
         auto dst_off = b * dst_batch_stride + j;
         for (size_t dim1 = 0; dim1 < DIM1; ++dim1) {
@@ -417,11 +479,24 @@ void Reorder::optimizedNspc2Ncsp() {
 }
 
 void Reorder::execute(const dnnl::stream& strm) {
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM)
     if (transposeExecutor) {
         auto dstMemPtr = getDstMemoryAtPort(0);
         auto srcMemPtr = getSrcMemoryAtPort(0);
         transposeExecutor->exec({srcMemPtr}, {dstMemPtr});
+        return;
+    }
+#endif
+
+#if defined(OV_CPU_WITH_ACL)
+    if (useAclCopy) {
+        auto dstMemPtr = getDstMemoryAtPort(0);
+        auto srcMemPtr = getSrcMemoryAtPort(0);
+        aclSrcTensor.allocator()->import_memory(srcMemPtr->getData());
+        aclDstTensor.allocator()->import_memory(dstMemPtr->getData());
+        aclCopy->run();
+        aclSrcTensor.allocator()->free();
+        aclDstTensor.allocator()->free();
         return;
     }
 #endif
@@ -468,7 +543,10 @@ std::string Reorder::getReorderArgs(const MemoryDesc& parentDesc, const MemoryDe
     return inArgs + "_" + outArgs;
 }
 
-void Reorder::reorderData(const IMemory& input, const IMemory& output, const MultiCachePtr& cache) {
+void Reorder::reorderData(const IMemory& input,
+                          const IMemory& output,
+                          const MultiCachePtr& cache,
+                          const std::shared_ptr<ThreadPool>& threadPool) {
     OPENVINO_ASSERT(input.getDesc().isDefined() && output.getDesc().isDefined(),
                     "Can't reorder data with dynamic shapes");
 
@@ -541,7 +619,7 @@ void Reorder::reorderData(const IMemory& input, const IMemory& output, const Mul
                             output.getDesc().serializeFormat());
         }
         if (reorder) {
-            dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
+            dnnl::stream loc_stream = make_stream(engine, threadPool);
             reorder.execute(loc_stream, {{DNNL_ARG_FROM, srcMemory}, {DNNL_ARG_TO, dstMemory}});
         } else {
             OPENVINO_THROW("Could not make onednn reorder.");

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -600,7 +600,10 @@ def test_roi_pooling_deprecation():
 
 
 @pytest.mark.parametrize(
-    ("data_shape", "rois", "batch_indices", "pooled_h", "pooled_w", "sampling_ratio", "spatial_scale", "mode", "aligned_mode", "expected_shape"),
+    (
+        "data_shape", "rois", "batch_indices", "pooled_h", "pooled_w", "sampling_ratio",
+        "spatial_scale", "mode", "aligned_mode", "expected_shape"
+    ),
     [
         ([2, 3, 5, 6], [7, 4], [7], 2, 2, 1, 1.0, "avg", "asymmetric", [7, 3, 2, 2]),
         ([10, 3, 5, 5], [7, 4], [7], 3, 4, 1, 1.0, "avg", "half_pixel_for_nn", [7, 3, 3, 4]),
@@ -608,7 +611,10 @@ def test_roi_pooling_deprecation():
         ([10, 3, 5, 5], [3, 4], [3], 3, 4, 1, float(1), "avg", "half_pixel", [3, 3, 3, 4]),
     ],
 )
-def test_roi_align(data_shape, rois, batch_indices, pooled_h, pooled_w, sampling_ratio, spatial_scale, mode, aligned_mode, expected_shape):
+def test_roi_align(
+    data_shape, rois, batch_indices, pooled_h, pooled_w, sampling_ratio,
+    spatial_scale, mode, aligned_mode, expected_shape
+):
     data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
     rois_parameter = ov.parameter(rois, name="Rois", dtype=np.float32)
     batch_indices_parameter = ov.parameter(batch_indices, name="Batch_indices", dtype=np.int32)
@@ -632,7 +638,10 @@ def test_roi_align(data_shape, rois, batch_indices, pooled_h, pooled_w, sampling
 
 
 @pytest.mark.parametrize(
-    ("data_shape", "rois", "batch_indices", "pooled_h", "pooled_w", "sampling_ratio", "spatial_scale", "clockwise_mode", "expected_shape"),
+    (
+        "data_shape", "rois", "batch_indices", "pooled_h", "pooled_w", "sampling_ratio",
+        "spatial_scale", "clockwise_mode", "expected_shape"
+    ),
     [
         ([2, 3, 5, 6], [7, 5], [7], 2, 2, 1, 1.0, True, [7, 3, 2, 2]),
         ([10, 3, 5, 5], [7, 5], [7], 3, 4, 1, 1.0, True, [7, 3, 3, 4]),
@@ -640,7 +649,9 @@ def test_roi_align(data_shape, rois, batch_indices, pooled_h, pooled_w, sampling
         ([10, 3, 5, 5], [3, 5], [3], 3, 4, 1, float(1), False, [3, 3, 3, 4]),
     ],
 )
-def test_roi_align_rotated(data_shape, rois, batch_indices, pooled_h, pooled_w, sampling_ratio, spatial_scale, clockwise_mode, expected_shape):
+def test_roi_align_rotated(
+    data_shape, rois, batch_indices, pooled_h, pooled_w, sampling_ratio, spatial_scale, clockwise_mode, expected_shape
+):
     data_parameter = ov.parameter(data_shape, name="Data", dtype=np.float32)
     rois_parameter = ov.parameter(rois, name="Rois", dtype=np.float32)
     batch_indices_parameter = ov.parameter(batch_indices, name="Batch_indices", dtype=np.int32)
@@ -1720,9 +1731,18 @@ def test_matrix_nms():
 @pytest.mark.parametrize(
     ("boxes_shape", "scores_shape", "max_output_boxes", "expected_shape"),
     [
-        ([1, 1000, 4], [1, 1, 1000], [1000], [PartialShape([Dimension(0, 1000), Dimension(3)]), PartialShape([Dimension(0, 1000), Dimension(3)])]),
-        ([1, 700, 4], [1, 1, 700], [600], [PartialShape([Dimension(0, 600), Dimension(3)]), PartialShape([Dimension(0, 600), Dimension(3)])]),
-        ([1, 300, 4], [1, 1, 300], [300], [PartialShape([Dimension(0, 300), Dimension(3)]), PartialShape([Dimension(0, 300), Dimension(3)])]),
+        (
+            [1, 1000, 4], [1, 1, 1000], [1000],
+            [PartialShape([Dimension(0, 1000), Dimension(3)]), PartialShape([Dimension(0, 1000), Dimension(3)])]
+        ),
+        (
+            [1, 700, 4], [1, 1, 700], [600],
+            [PartialShape([Dimension(0, 600), Dimension(3)]), PartialShape([Dimension(0, 600), Dimension(3)])]
+        ),
+        (
+            [1, 300, 4], [1, 1, 300], [300],
+            [PartialShape([Dimension(0, 300), Dimension(3)]), PartialShape([Dimension(0, 300), Dimension(3)])]
+        ),
     ],
 )
 @pytest.mark.parametrize("op_name", ["NonMaxSuppression", "NonMaxSuppressionV3"])
@@ -1730,7 +1750,9 @@ def test_non_max_suppression(boxes_shape, scores_shape, max_output_boxes, expect
     boxes_parameter = ov.parameter(boxes_shape, name="Boxes", dtype=np.float32)
     scores_parameter = ov.parameter(scores_shape, name="Scores", dtype=np.float32)
 
-    node = ov.non_max_suppression(boxes_parameter, scores_parameter, make_constant_node(max_output_boxes, np.int64), name=op_name)
+    node = ov.non_max_suppression(
+        boxes_parameter, scores_parameter, make_constant_node(max_output_boxes, np.int64), name=op_name
+    )
     assert node.get_type_name() == "NonMaxSuppression"
     assert node.get_friendly_name() == op_name
     assert node.get_output_size() == 3
@@ -1740,16 +1762,29 @@ def test_non_max_suppression(boxes_shape, scores_shape, max_output_boxes, expect
 
 
 @pytest.mark.parametrize(
-    ("boxes_shape", "scores_shape", "max_output_boxes", "iou_threshold", "score_threshold", "soft_nms_sigma", "expected_shape"),
+    (
+        "boxes_shape", "scores_shape", "max_output_boxes", "iou_threshold",
+        "score_threshold", "soft_nms_sigma", "expected_shape"
+    ),
     [
-        ([1, 100, 4], [1, 1, 100], [100], 0.1, 0.4, 0.5, [PartialShape([Dimension(0, 100), Dimension(3)]), PartialShape([Dimension(0, 100), Dimension(3)])]),
-        ([1, 700, 4], [1, 1, 700], [600], 0.1, 0.4, 0.5, [PartialShape([Dimension(0, 600), Dimension(3)]), PartialShape([Dimension(0, 600), Dimension(3)])]),
-        ([1, 300, 4], [1, 1, 300], [300], 0.1, 0.4, 0.5, [PartialShape([Dimension(0, 300), Dimension(3)]), PartialShape([Dimension(0, 300), Dimension(3)])]),
+        (
+            [1, 100, 4], [1, 1, 100], [100], 0.1, 0.4, 0.5,
+            [PartialShape([Dimension(0, 100), Dimension(3)]), PartialShape([Dimension(0, 100), Dimension(3)])]
+        ),
+        (
+            [1, 700, 4], [1, 1, 700], [600], 0.1, 0.4, 0.5,
+            [PartialShape([Dimension(0, 600), Dimension(3)]), PartialShape([Dimension(0, 600), Dimension(3)])]
+        ),
+        (
+            [1, 300, 4], [1, 1, 300], [300], 0.1, 0.4, 0.5,
+            [PartialShape([Dimension(0, 300), Dimension(3)]), PartialShape([Dimension(0, 300), Dimension(3)])]
+        ),
     ],
 )
 @pytest.mark.parametrize("op_name", ["NonMaxSuppression", "NonMaxSuppressionV3"])
-def test_non_max_suppression_non_default_args(boxes_shape, scores_shape, max_output_boxes, iou_threshold,
-                                              score_threshold, soft_nms_sigma, expected_shape, op_name):
+def test_non_max_suppression_non_default_args(
+    boxes_shape, scores_shape, max_output_boxes, iou_threshold, score_threshold, soft_nms_sigma, expected_shape, op_name
+):
     boxes_parameter = ov.parameter(boxes_shape, name="Boxes", dtype=np.float32)
     scores_parameter = ov.parameter(scores_shape, name="Scores", dtype=np.float32)
 
@@ -1758,7 +1793,10 @@ def test_non_max_suppression_non_default_args(boxes_shape, scores_shape, max_out
     score_threshold = make_constant_node(score_threshold, np.float32)
     soft_nms_sigma = make_constant_node(soft_nms_sigma, np.float32)
 
-    node = ov.non_max_suppression(boxes_parameter, scores_parameter, max_output_boxes, iou_threshold, score_threshold, soft_nms_sigma, name=op_name)
+    node = ov.non_max_suppression(
+        boxes_parameter, scores_parameter, max_output_boxes, iou_threshold,
+        score_threshold, soft_nms_sigma, name=op_name
+    )
     assert node.get_type_name() == "NonMaxSuppression"
     assert node.get_friendly_name() == op_name
     assert node.get_output_size() == 3

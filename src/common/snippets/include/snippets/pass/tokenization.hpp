@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,7 +79,7 @@ public:
                                   TokenizeMHASnippets::Config mha_config,
                                   TokenizeMLPSeqSnippets::Config mlp_seq_config)
         : m_tokenization_config(config),
-          m_common_optimizations_config(common_config),
+          m_common_optimizations_config(std::move(common_config)),
           m_mha_config(std::move(mha_config)),
           m_mlp_seq_config(std::move(mlp_seq_config)) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;

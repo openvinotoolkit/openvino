@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,6 +65,17 @@ struct format_traits {
 
     /// @brief Checks if order has @p c dimension.
     bool has_dimension(char c) const { return order.find_first_of(c) != std::string::npos; }
+
+    friend bool operator==(const format_traits& lft, const format_traits& rft) {
+        return lft._order == rft._order &&
+            lft.block_sizes == rft.block_sizes &&
+            lft.logic_block_sizes == rft.logic_block_sizes &&
+            lft.desc_size == rft.desc_size &&
+            lft.batch_num == rft.batch_num &&
+            lft.feature_num == rft.feature_num &&
+            lft.spatial_num == rft.spatial_num &&
+            lft.group_num == rft.group_num;
+    }
 };
 
 /// @brief Represents memory formats (orders).
@@ -189,6 +200,8 @@ struct format {
         os_is_zyx_isa8_osv16_isv4,                    ///< format for weights for fully connected MMAD
         os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,   ///< format for weights for MMAD fsv32 convolution
         os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4,  ///< format for weights for MMAD fsv32 convolution
+        os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2,   ///< format for weights for MMAD fsv32 convolution
+        os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2,   ///< format for weights for MMAD fsv32 convolution
         os_is_zyx_osa4_isa8_osv8_isv4,                ///< format for weights for MMAD fsv32 convolution
         os_is_yx_osa4_isa8_osv8_isv4,                 ///< format for weights for MMAD fsv32 convolution
         os_is_yx_osv16_isv4,                          ///< format for weights for IMAD convolutions

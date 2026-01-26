@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -125,6 +125,9 @@ std::unordered_set<std::string> deserialize_tensor_names(const std::string_view&
                 *name_inserter = std::regex_replace(std::string(name_view), escaped_delim, delim);
             }
             start = pos;
+            // There's no real case when `pos' equals zero and following test `delim_pos != std::string::npos' protects
+            // against it.
+            // coverity[ overflow_const:SUPPRESS]
         } else if (auto delim_pos = pos - 1; delim_pos != std::string::npos && tensor_names[delim_pos] == esc_char) {
             ++pos;
         } else {
@@ -979,7 +982,7 @@ std::shared_ptr<ov::Model> XmlDeserializer::parse_function(const pugi::xml_node&
     }
 
     // Run DFS starting from outputs to get nodes topological order
-    std::function<void(size_t)> dfs = [&edges, &order, &dfs_used_nodes](const size_t start_id) {
+    const std::function<void(size_t)> dfs = [&edges, &order, &dfs_used_nodes](const size_t start_id) {
         std::stack<size_t> stack;
         std::unordered_set<size_t> visited;
         stack.push(start_id);

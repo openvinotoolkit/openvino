@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,14 +45,6 @@ std::vector<bfloat16> bfloat16::from_float_vector(const std::vector<float>& v_f3
         v_bf16.push_back(static_cast<bfloat16>(a));
     }
     return v_bf16;
-}
-
-std::string bfloat16::to_string() const {
-    return std::to_string(static_cast<float>(*this));
-}
-
-size_t bfloat16::size() const {
-    return sizeof(m_value);
 }
 
 #if defined __GNUC__ && __GNUC__ == 11

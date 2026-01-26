@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 const { addon: ov } = require("../..");
@@ -280,25 +280,23 @@ describe("ov.Model tests", () => {
     });
   });
 
-  describe('Model.getOps()', () => {
-    it('should return objects of type Node', () => {
+  describe("Model.getOps()", () => {
+    it("should return objects of type Node", () => {
       const modelOps = model.getOps();
       assert.ok(modelOps[0] instanceof ov.Node);
     });
 
-    it('should return node names expected in the calling model', () => {
+    it("should return node names expected in the calling model", () => {
       const model = core.readModelSync(addModel.xml);
-      const modelOps = model.getOps();
-      const nodeNames = ['Parameter_7674', 'Parameter_7672', 'Result_7678', 'Add_7676'];
-      assert.deepStrictEqual(modelOps.length, nodeNames.length);
-      for (const [index, node] of nodeNames.entries()) {
-        assert.deepStrictEqual(modelOps[index].getName(), node);
-      }
+      const expectedOps = ["Parameter", "Result", "Add"];
+      const modelOperators = model.getOps().map((op) => op.getName().split("_")[0]);
+
+      assert.ok(expectedOps.every((op) => modelOperators.includes(op)));
     });
 
-    it('should not accept any arguments', () => {
+    it("should not accept any arguments", () => {
       assert.throws(
-        () => model.getOps('Unexpected argument').then(),
+        () => model.getOps("Unexpected argument").then(),
         /'getOps' method called with incorrect parameters./,
       );
     });

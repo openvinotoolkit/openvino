@@ -46,6 +46,8 @@ jobs:
       ONNX_MODEL_ZOO_SHA: "5faef4c33eba0395177850e1e31c4a6a9e634c82"
       USE_SYSTEM_CACHE: False # Using remote HuggingFace cache
       LOGS_FOLDER: ${{ github.workspace }}/onnx_models_tests_logs"
+      HF_HUB_VERBOSITY: debug
+      TRANSFORMERS_VERBOSITY: debug
     if: ${{ github.event_name != 'merge_group' }}
     steps:
       # checkout action cleans up the workspace and have to be the first step
@@ -78,7 +80,6 @@ jobs:
         run: |
           echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
           echo "HUGGINGFACE_HUB_CACHE=$HF_HUB_CACHE" >> "$GITHUB_ENV"
-          echo "HF_HUB_OFFLINE=1" >> "$GITHUB_ENV"
           echo "MODELS_SHARE_PATH=/mount/testdata$((GITHUB_RUN_NUMBER % NUMBER_OF_REPLICAS))" >> "$GITHUB_ENV"
 
       # Issue 148922
@@ -123,7 +124,7 @@ jobs:
           python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n auto --forked -k 'not _cuda' --model_zoo_xfail
 
       - name: Upload logs from pytest
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()
         with:
           name: onnx_models_tests_logs

@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -472,7 +472,7 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
                     auto filename = get_file_path_for_binary_dump(input_layout, name, config.get_dump_tensors_path());
 
                     mem_lock<char, mem_lock_type::read> lock(input_mem, m_stream);
-                    ov::util::save_binary(filename, lock.data(), input_mem->size());
+                    ov::util::save_binary(ov::util::make_path(filename), lock.data(), input_mem->size());
                     GPU_DEBUG_COUT << " Dump layer src : " << layer_name << " to " << filename << std::endl;
                     debug_str_for_bin_load += (filename + ",");
                 } else {
@@ -532,7 +532,7 @@ NodeDebugHelper::~NodeDebugHelper() {
                     auto filename = get_file_path_for_binary_dump(output_layout, name, config.get_dump_tensors_path());
 
                     mem_lock<char, mem_lock_type::read> lock(output_mem, m_stream);
-                    ov::util::save_binary(filename, lock.data(), output_mem->size());
+                    ov::util::save_binary(ov::util::make_path(filename), lock.data(), output_mem->size());
                     GPU_DEBUG_COUT  << " Dump layer dst : " << layer_name << " to " << filename << std::endl;
                     debug_str_for_bin_load += (filename + ",");
                 } else {
@@ -561,7 +561,7 @@ NodeDebugHelper::~NodeDebugHelper() {
                     auto filename = get_file_path_for_binary_dump(output_layout, name, config.get_dump_tensors_path());
 
                     mem_lock<char, mem_lock_type::read> lock(output_mem, m_stream);
-                    ov::util::save_binary(filename, lock.data(), output_mem->size());
+                    ov::util::save_binary(ov::util::make_path(filename), lock.data(), output_mem->size());
                     GPU_DEBUG_COUT << " Dump layer dst : " << layer_name << " to " << filename << std::endl;
                     debug_str_for_bin_load += (filename + ",");
                 } else {
@@ -588,7 +588,7 @@ NodeDebugHelper::~NodeDebugHelper() {
                         auto filename = get_file_path_for_binary_dump(output_layout, name, config.get_dump_tensors_path());
 
                         mem_lock<char, mem_lock_type::read> lock(output_mem, m_stream);
-                        ov::util::save_binary(filename, lock.data(), output_mem->size());
+                        ov::util::save_binary(ov::util::make_path(filename), lock.data(), output_mem->size());
                         GPU_DEBUG_COUT << " Dump layer dst : " << layer_name << " to " << filename << std::endl;
                         debug_str_for_bin_load += (filename + ",");
                     } else {
@@ -628,6 +628,30 @@ NetworkDebugHelper::NetworkDebugHelper(const network& net)
         GPU_DEBUG_TRACE << "============================================================================" << std::endl;
         GPU_DEBUG_TRACE << "Start network execution (net_id : " << net_id << ", iter :" << m_iter << ")" << std::endl;
     }
+
+    if (config.get_list_layers()) {
+        for (auto& inst : m_network._exec_order) {
+            GPU_DEBUG_COUT << inst->id() << std::endl;
+            if (inst->get_node().is_type<loop>()) {
+                auto& loop_node = inst->get_node().as<loop>();
+                for (auto& prim : loop_node.get_body_program()->get_processing_order()) {
+                    GPU_DEBUG_COUT << "\t" << prim->id() << std::endl;
+                }
+            } else if (inst->get_node().is_type<condition>()) {
+                auto& cond_node = inst->get_node().as<condition>();
+                GPU_DEBUG_COUT << "* Branch_True" << std::endl;
+                for (auto& prim : cond_node.get_branch_true().inner_program->get_processing_order()) {
+                    GPU_DEBUG_COUT << "\t" << prim->id() << std::endl;
+                }
+                GPU_DEBUG_COUT << "* Branch_False" << std::endl;
+                for (auto& prim : cond_node.get_branch_false().inner_program->get_processing_order()) {
+                    GPU_DEBUG_COUT << "\t" << prim->id() << std::endl;
+                }
+            }
+        }
+        if (!m_network.is_internal())
+            exit(0);
+    }
 }
 
 NetworkDebugHelper::~NetworkDebugHelper() {
@@ -635,7 +659,7 @@ NetworkDebugHelper::~NetworkDebugHelper() {
     auto net_id = m_network.get_id();
     const auto& config = prog->get_config();
     // print '-data_shape' option for benchmark_app
-    if (config.get_verbose() >= 4) {
+    if (config.get_print_input_data_shapes() || config.get_verbose() >= 4) {
         std::stringstream data_shape_str;
         auto add_string = [&data_shape_str](std::string str) {
             data_shape_str << ((data_shape_str.rdbuf()->in_avail() == 0) ? " -data_shape " : ",") << str;

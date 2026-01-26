@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -170,9 +170,87 @@ ov::OutputVector conv_transpose(const ov::frontend::onnx::Node& node) {
 
     std::vector<std::int64_t> output_shape{node.get_attribute_value<std::vector<std::int64_t>>("output_shape", {})};
 
+    // ONNX spec states that output_shape should contain only spatial dimensions.
+    // However, some models incorrectly include batch and channel dimensions.
+    // To maintain compatibility with other runtimes (e.g., ONNXRuntime),
+    // extract only the spatial dimensions if the shape includes batch and channels.
+    if (!output_shape.empty() && output_shape.size() > num_spatial_dims) {
+        CHECK_VALID_NODE(node,
+                         output_shape.size() == num_spatial_dims + 2,
+                         "ConvTranspose output_shape attribute has unexpected number of dimensions. "
+                         "Expected ",
+                         num_spatial_dims,
+                         " spatial dimensions or ",
+                         num_spatial_dims + 2,
+                         " dimensions (with batch and channels), but got ",
+                         output_shape.size());
+
+        // Extract last num_spatial_dims elements (the spatial dimensions)
+        // For example: [1, 16, 32, 32] -> [32, 32] for 2D convolution
+        output_shape = std::vector<std::int64_t>(output_shape.end() - num_spatial_dims, output_shape.end());
+    }
+
     std::vector<std::int64_t> output_padding{
         node.get_attribute_value<std::vector<std::int64_t>>("output_padding",
                                                             std::vector<std::int64_t>(num_spatial_dims, 0))};
+
+    // ONNX Runtime behavior: When output_shape is explicitly provided, recalculate padding
+    // to achieve the desired output shape. This is necessary because ONNX models may specify
+    // output_shape without corresponding padding values.
+    // Note: When both output_shape and auto_pad are specified, output_shape takes precedence
+    // and auto_pad is effectively ignored (padding is computed to match output_shape).
+    // This matches ONNX Runtime behavior.
+    if (!output_shape.empty() && data_pshape.is_static() && filters_pshape.is_static()) {
+        const ov::Shape data_static_shape = data_pshape.to_shape();
+        const ov::Shape filters_static_shape = filters_pshape.to_shape();
+
+        // Recalculate padding for each spatial dimension to achieve output_shape
+        for (size_t i = 0; i < num_spatial_dims; ++i) {
+            const int64_t in_size = data_static_shape[2 + i];
+            const int64_t kernel_size = filters_static_shape[2 + i];
+            const int64_t stride = strides[i];
+            const int64_t dilation = dilations[i];
+            const int64_t adj = output_padding[i];
+            const int64_t out_size = output_shape[i];
+
+            // Formula from ONNX Runtime: ComputeTotalPad
+            // total_pad = max(0, (in_size - 1) * stride + adj + (kernel - 1) * dilation + 1 - out_size)
+            const int64_t total_pad =
+                std::max<int64_t>(0, (in_size - 1) * stride + adj + (kernel_size - 1) * dilation + 1 - out_size);
+
+            // Distribute padding: for NOTSET/EXPLICIT, put more on head when odd
+            // (ONNX Runtime default for non-SAME modes)
+            pads_begin[i] = total_pad - total_pad / 2;
+            pads_end[i] = total_pad / 2;
+        }
+
+        // Override auto_pad_type to EXPLICIT since we've calculated explicit pads
+        auto_pad_type = ov::op::PadType::EXPLICIT;
+    }
+    // Calculate padding for auto_pad modes when output_shape is not provided
+    // Per ONNX spec, for ConvTranspose with SAME_UPPER/SAME_LOWER: output = input * stride
+    else if (output_shape.empty() &&
+             (auto_pad_type == ov::op::PadType::SAME_UPPER || auto_pad_type == ov::op::PadType::SAME_LOWER)) {
+        // Only calculate if shapes are static (required for padding calculation)
+        if (data_pshape.is_static() && filters_pshape.is_static()) {
+            const ov::Shape data_static_shape = data_pshape.to_shape();
+            const ov::Shape filters_static_shape = filters_pshape.to_shape();
+
+            // Calculate padding to satisfy ONNX spec: output = input * stride
+            convpool::calculate_transpose_auto_pads(
+                data_static_shape,
+                filters_static_shape,
+                strides,
+                dilations,
+                auto_pad_type,
+                ov::CoordinateDiff(std::begin(output_padding), std::end(output_padding)),
+                pads_begin,
+                pads_end);
+
+            // Override auto_pad_type to EXPLICIT since we've calculated explicit pads
+            auto_pad_type = ov::op::PadType::EXPLICIT;
+        }
+    }
 
     int64_t groups{node.get_attribute_value<int64_t>("group", 1)};
 

@@ -7,6 +7,11 @@ on:
         type: string
         required: false
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
   merge_group:
   push:
     branches:
@@ -23,6 +28,7 @@ permissions: read-all
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
@@ -98,20 +104,20 @@ jobs:
       build-debian-packages: false
       build-contrib: false
       build-rpm-packages: false
-      build-additional-python-packages: true
+      build-additional-python-packages: false
       target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
         -DTHREADS_PTHREAD_ARG=-pthread
         -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
         -DCMAKE_BUILD_TYPE=Release
         -DENABLE_STRICT_DEPENDENCIES=OFF
-        -DENABLE_CPPLINT=OFF
         -DENABLE_NCC_STYLE=OFF
         -DCMAKE_VERBOSE_MAKEFILE=ON
         -DENABLE_CONFORMANCE_PGQL=ON
         -DENABLE_LTO=ON
         -DENABLE_TESTS=ON
         -DENABLE_PYTHON=OFF
+        -DTHREADING=SEQ
         -DCMAKE_TOOLCHAIN_FILE=cmake/arm.toolchain.cmake
 
   CXX_Unit_Tests:

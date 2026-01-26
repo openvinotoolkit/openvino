@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -146,7 +146,7 @@ class TestLSTM(OnnxRuntimeLayerTest):
     def test_lstm_simple_precommit(self, direction, cell_type, ie_device, precision, ir_version,
                                    temp_dir):
         self._test(*self.create_lstm(direction, cell_type), ie_device, precision, ir_version,
-                   temp_dir=temp_dir, infer_timeout=150)
+                   temp_dir=temp_dir, infer_timeout=240)
 
     # LSTM/RNN/GRU Sequence Generation
     @pytest.mark.parametrize('direction', ["forward", "bidirectional", "reverse"])

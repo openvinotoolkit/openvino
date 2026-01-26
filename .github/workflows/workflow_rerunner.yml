@@ -14,8 +14,8 @@ on:
       - "Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)"
       - "Linux RISC-V with Xuantie (Ubuntu 22.04, Python 3.10)"
       - "Linux (Ubuntu 22.04, Python 3.11, Intel DPC\\+\\+ Compiler)"
-      - "Linux Sanitizers (Ubuntu 20.04, Python 3.9)"
-      - "Fedora 29 (RHEL 8.4), Python 3.9"
+      - "Linux Sanitizers (Ubuntu 22.04, Python 3.11)"
+      - "Fedora 29 (RHEL 8.4), Python 3.10"
       - "Windows (VS 2022, Python 3.11, Release)"
       - "Windows (VS 2022, Python 3.11, Debug)"
       - "Windows Conditional Compilation (VS 2022, Python 3.11)"
@@ -52,7 +52,8 @@ jobs:
           sparse-checkout: '.github/scripts/workflow_rerun'
 
       - name: Install deps
-        run: pip3 install PyGithub==2.2.0 requests==2.31.0 psycopg2-binary==2.9.9
+        working-directory: ${{ github.workspace }}/.github/scripts/workflow_rerun
+        run: pip3 install -r requirements.txt
 
       - name: Dump GitHub context
         env:
@@ -71,6 +72,7 @@ jobs:
           export PYTHONPATH=${{ github.workspace }}/.github/scripts/workflow_rerun:${{ github.workspace }}/.github/scripts:$PYTHONPATH
           python3 ${{ github.workspace }}/.github/scripts/workflow_rerun/rerunner.py \
           --run-id ${{ github.event.workflow_run.id }} \
+          --rerunner-run-id ${{ github.run_id }} \
           --repository-name ${GITHUB_REPOSITORY}
 
   rerunner_tests:
@@ -83,10 +85,11 @@ jobs:
         timeout-minutes: 15
         with:
           sparse-checkout: '.github/scripts/workflow_rerun'
-          lfs: true
+          lfs: false
 
       - name: Install deps
-        run: pip3 install PyGithub==2.2.0 requests==2.31.0 psycopg2-binary==2.9.9
+        working-directory: ${{ github.workspace }}/.github/scripts/workflow_rerun
+        run: pip3 install -r requirements.txt
 
       - name: Test Rerunner (Tests)
         env:
@@ -107,4 +110,4 @@ jobs:
           # cannot lock a run id as logs get deleted after some time
           run_id=$(python3 -c "from github import Github, Auth; import os; github=Github(auth=Auth.Token(token=os.environ.get('GITHUB_TOKEN'))); repo = github.get_repo('${GITHUB_REPOSITORY}'); run_id = repo.get_workflow_runs(status='success')[0].id; print(run_id)")
 
-          python3 rerunner.py --repository-name ${GITHUB_REPOSITORY} --run-id $run_id --dry-run
+          python3 rerunner.py --repository-name ${GITHUB_REPOSITORY} --run-id $run_id --rerunner-run-id ${{ github.run_id }} --dry-run

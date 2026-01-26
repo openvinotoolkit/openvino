@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,17 +107,16 @@ void MetadataBase::read(const ov::Tensor& tensor) {
 }
 
 void MetadataBase::read_data_from_source(char* destination, const size_t size) {
-    ov::util::VariantVisitor reader{[&](std::reference_wrapper<std::istream> stream) {
-                                        stream.get().read(destination, size);
-                                    },
-                                    [&](std::reference_wrapper<const ov::Tensor> tensor) {
-                                        std::memcpy(destination, tensor.get().data<const char>() + _cursorOffset, size);
-                                        _cursorOffset += size;
-                                    },
-                                    [&](uninitialized_source) {
-                                        OPENVINO_THROW("No blob has been provided to NPU plugin's metadata reader.");
-                                    }};
-    std::visit(reader, _source);
+    if (const std::reference_wrapper<std::istream>* stream =
+            std::get_if<std::reference_wrapper<std::istream>>(&_source)) {
+        stream->get().read(destination, size);
+    } else if (const std::reference_wrapper<const ov::Tensor>* tensor =
+                   std::get_if<std::reference_wrapper<const ov::Tensor>>(&_source)) {
+        std::memcpy(destination, tensor->get().data<const char>() + _cursorOffset, size);
+        _cursorOffset += size;
+    } else {
+        OPENVINO_THROW("No blob has been provided to NPU plugin's metadata reader.");
+    }
 }
 
 void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
@@ -260,9 +259,16 @@ void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
 }
 
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
-    if (MetadataBase::get_major(version) == CURRENT_METADATA_MAJOR_VERSION &&
-        MetadataBase::get_minor(version) >= CURRENT_METADATA_MINOR_VERSION) {
-        return std::make_unique<Metadata<CURRENT_METADATA_VERSION>>(blobSize);
+    uint16_t major = MetadataBase::get_major(version), minor = MetadataBase::get_minor(version);
+    if (major != CURRENT_METADATA_MAJOR_VERSION || minor > CURRENT_METADATA_MINOR_VERSION) {
+        OPENVINO_THROW("Metadata version is not supported! Imported blob metadata version: ",
+                       major,
+                       ".",
+                       minor,
+                       " but the current version is: ",
+                       CURRENT_METADATA_MAJOR_VERSION,
+                       ".",
+                       CURRENT_METADATA_MINOR_VERSION);
     }
 
     switch (version) {
@@ -272,31 +278,11 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
         return std::make_unique<Metadata<METADATA_VERSION_2_1>>(blobSize);
     case METADATA_VERSION_2_2:
         return std::make_unique<Metadata<METADATA_VERSION_2_2>>(blobSize);
+    case METADATA_VERSION_2_3:
+        return std::make_unique<Metadata<METADATA_VERSION_2_3>>(blobSize);
     default:
-        OPENVINO_THROW("Metadata version is not supported! Imported blob metadata version: ",
-                       MetadataBase::get_major(version),
-                       ".",
-                       MetadataBase::get_minor(version),
-                       " but the current version is: ",
-                       CURRENT_METADATA_MAJOR_VERSION,
-                       ".",
-                       CURRENT_METADATA_MINOR_VERSION);
+        return nullptr;
     }
-}
-
-bool Metadata<METADATA_VERSION_2_0>::is_compatible() {
-    // checking if we can import the blob
-    if (_ovVersion != CURRENT_OPENVINO_VERSION) {
-        _logger.error("Imported blob OpenVINO version: %d.%d.%d, but the current OpenVINO version is: %d.%d.%d",
-                      _ovVersion.get_major(),
-                      _ovVersion.get_minor(),
-                      _ovVersion.get_patch(),
-                      OPENVINO_VERSION_MAJOR,
-                      OPENVINO_VERSION_MINOR,
-                      OPENVINO_VERSION_PATCH);
-        return false;
-    }
-    return true;
 }
 
 std::streampos MetadataBase::getFileSize(std::istream& stream) {
@@ -347,8 +333,14 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
     stream.read(reinterpret_cast<char*>(&metaVersion), sizeof(metaVersion));
 
     std::unique_ptr<MetadataBase> storedMeta;
-    storedMeta = create_metadata(metaVersion, blobDataSize);
-    storedMeta->read(stream);
+    try {
+        storedMeta = create_metadata(metaVersion, blobDataSize);
+        storedMeta->read(stream);
+    } catch (const std::exception& ex) {
+        OPENVINO_THROW("Can't read NPU metadata: ", ex.what());
+    } catch (...) {
+        OPENVINO_THROW("Unexpected exception while reading blob NPU metadata");
+    }
 
     stream.seekg(-stream.tellg() + currentStreamPos, std::ios::cur);
 
@@ -373,21 +365,13 @@ std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
 
     std::unique_ptr<MetadataBase> storedMeta;
     try {
-        auto roiTensor = ov::Tensor(tensor,
-                                    ov::Coordinate{blobDataSize + sizeof(metaVersion)},
-                                    ov::Coordinate{tensor.get_byte_size()});
+        const ov::Tensor roiTensor(tensor,
+                                   ov::Coordinate{blobDataSize + sizeof(metaVersion)},
+                                   ov::Coordinate{tensor.get_byte_size()});
         storedMeta = create_metadata(metaVersion, blobDataSize);
         storedMeta->read(roiTensor);
     } catch (const std::exception& ex) {
-        OPENVINO_THROW(ex.what(),
-                       "Imported blob metadata version: ",
-                       MetadataBase::get_major(metaVersion),
-                       ".",
-                       MetadataBase::get_minor(metaVersion),
-                       " but the current version is: ",
-                       CURRENT_METADATA_MAJOR_VERSION,
-                       ".",
-                       CURRENT_METADATA_MINOR_VERSION);
+        OPENVINO_THROW("Can't read NPU metadata: ", ex.what());
     } catch (...) {
         OPENVINO_THROW("Unexpected exception while reading blob NPU metadata");
     }

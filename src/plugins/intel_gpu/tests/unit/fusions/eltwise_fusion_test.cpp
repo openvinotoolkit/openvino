@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -725,3 +725,30 @@ TEST_P(eltwise_with_constant_input, basic) {
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, eltwise_with_constant_input, ::testing::ValuesIn(std::vector<eltwise_test_params>{
     eltwise_test_params{ CASE_ELTWISE_FP16_1, 0, 0},
 }));
+
+class eltwise_i8_quantize_abs : public EltwiseFusingTest {};
+TEST_P(eltwise_i8_quantize_abs, basic) {
+    GTEST_SKIP();
+
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        input_layout("input2", get_input_layout2(p)),
+        eltwise("eltwise", {input_info("input"), input_info("input2")}, p.mode, p.default_type),
+        data("in_lo", get_mem(get_single_element_layout(p), -1.9)),
+        data("in_hi", get_mem(get_single_element_layout(p), 1.8)),
+        data("out_lo", get_mem(get_single_element_layout(p), -128)),
+        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        quantize("quantize", input_info("eltwise"), input_info("in_lo"), input_info("in_hi"), input_info("out_lo"), input_info("out_hi"), 256, data_types::i8),
+        activation("activation", input_info("quantize"), activation_func::abs),
+        reorder("out", input_info("activation"), p.default_format, data_types::f32));
+
+    tolerance = default_tolerance(data_types::i8);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu,
+                         eltwise_i8_quantize_abs,
+                         ::testing::ValuesIn(std::vector<eltwise_test_params>{
+                             eltwise_test_params{CASE_ELTWISE_FP16_3, 3, 5},
+                         }));

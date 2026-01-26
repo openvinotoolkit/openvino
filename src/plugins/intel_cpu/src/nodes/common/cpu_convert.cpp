@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -550,8 +550,9 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
         // Align with the behavior of ngraph ref and jit implementation. Conversion from f8e4m3-inf
         // to float should output float-inf instead of f8e4m3-max. Proper handling of special values
         // (nan, inf, overflow) has already been assured by the conversion process.
-        if (std::is_same_v<src_t, ov::float8_e4m3> || std::is_same_v<src_t, ov::float8_e5m2> ||
-            std::is_same_v<dst_t, ov::float8_e4m3> || std::is_same_v<dst_t, ov::float8_e5m2>) {
+        if (ov::intel_cpu::any_of_v<src_t, ov::float8_e4m3, ov::float8_e5m2> ||
+            ov::intel_cpu::any_of_v<dst_t, ov::float8_e4m3, ov::float8_e5m2> ||
+            (std::is_integral_v<src_t> && std::is_integral_v<dst_t> && ctx.dstPrc != ov::element::boolean)) {
             parallel_for(ctx.size, [&](size_t i) {
                 dst[i] = static_cast<dst_t>(src[i]);
             });

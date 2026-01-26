@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -157,6 +157,8 @@ void Any::impl_check() const {
 
 const std::type_info& Any::type_info() const {
     impl_check();
+    // `impl_check' asserts valid deference
+    // coverity[dereference:FALSE]
     return _impl->type_info();
 }
 

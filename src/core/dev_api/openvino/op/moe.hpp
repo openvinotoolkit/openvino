@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,8 @@ public:
     OPENVINO_OP("MOE");
 
     MOE() = default;
+
+    MOE(const OutputVector& args) : Op(args) {}
 
     enum class Expert_type { GEMM2_BIAS_SWIGLU_CLAMP, GEMM3_SWIGLU };
 

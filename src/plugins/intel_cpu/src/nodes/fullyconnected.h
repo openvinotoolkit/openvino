@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,9 +90,6 @@ public:
     void keepWeightsNonTransposed(bool weightsNonTransposed) {
         this->attrs.weightsNonTransposed = weightsNonTransposed;
     }
-
-    void fuseDecompressionMultiply(const MemoryCPtr& memory);
-    void fuseDecompressionSubtract(const MemoryCPtr& memory);
 
 protected:
     void toNumaNodeImpl(int numaID) override;

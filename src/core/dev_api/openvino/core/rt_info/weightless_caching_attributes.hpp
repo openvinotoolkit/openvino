@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,8 +34,6 @@ public:
           original_dtype(original_dtype) {}
 
     bool is_copyable() const override;
-
-    bool visit_attributes(AttributeVisitor& visitor) override;
 
     size_t original_size;
     size_t bin_offset;

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -37,7 +37,7 @@ if(ENABLE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
 
-if(ENABLE_PROFILING_ITT)
+if(NOT ENABLE_PROFILING_ITT STREQUAL "OFF")
     find_package(ittapi QUIET)
     if(ittapi_FOUND)
         if(TARGET ittapi::ittapi)

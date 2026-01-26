@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -87,6 +87,8 @@ public:
     virtual bool has_attribute(const std::string& name) const = 0;
 
     virtual void experimental_get_internal_structures(const void** node_def) const = 0;
+
+    virtual const std::string& get_name() const = 0;
 
     ~DecoderBaseOperation() override;
 };

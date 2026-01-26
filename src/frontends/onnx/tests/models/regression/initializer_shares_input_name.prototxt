@@ -1,0 +1,65 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+doc_string: "Model where initializer shares name with a declared input"
+graph {
+  name: "Initializer matches input"
+  node {
+    input: "data"
+    input: "weight"
+    output: "sum"
+    op_type: "Add"
+  }
+
+  input {
+    name: "data"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "weight"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+
+  initializer {
+    dims: 1
+    data_type: 1
+    name: "weight"
+    float_data: 0.5
+  }
+
+  output {
+    name: "sum"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+}
+
+opset_import {
+  version: 8
+}

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,9 +15,9 @@
 namespace ov {
 namespace itt {
 namespace domains {
-OV_ITT_DOMAIN(OV);
-OV_ITT_DOMAIN(ReadTime);
-OV_ITT_DOMAIN(LoadTime);
+OV_ITT_DOMAIN(OV, "ov");
+OV_ITT_DOMAIN(ReadTime, "ov::ReadTime");
+OV_ITT_DOMAIN(LoadTime, "ov::LoadTime");
 }  // namespace domains
 }  // namespace itt
 }  // namespace ov

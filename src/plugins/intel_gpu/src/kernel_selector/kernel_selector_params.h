@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -390,6 +390,7 @@ struct EngineInfo {
     bool bOptHintsSupport = false;
     bool supports_microkernels = false;
     bool supports_work_group_collective_functions = false;
+    bool supports_non_uniform_work_group = false;
     uint32_t vendor_id = 0x0;
     dev_type deviceType = dev_type::integrated_gpu;
     uint32_t computeUnitsCount = 0;

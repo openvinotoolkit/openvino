@@ -1,11 +1,12 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
+#include "shared_test_classes/subgraph/weights_decompression_params.hpp"
+#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 
 namespace ov {
 namespace test {

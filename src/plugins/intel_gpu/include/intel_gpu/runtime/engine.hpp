@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -177,7 +177,7 @@ protected:
     /// Create engine for given @p device
     engine(const device::ptr device);
     const device::ptr _device;
-    bool enable_large_allocations;
+    bool enable_large_allocations = false;
 
     std::array<std::atomic<uint64_t>, static_cast<size_t>(allocation_type::max_value)> _memory_usage_data{};
     std::array<std::atomic<uint64_t>, static_cast<size_t>(allocation_type::max_value)> _peak_memory_usage_data{};

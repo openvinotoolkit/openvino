@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include <common_test_utils/test_assertions.hpp>
 #include <sstream>
 
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -32,6 +33,41 @@ inline std::shared_ptr<ov::Model> getConstantGraph(element::Type type) {
     res->get_output_tensor(0).set_names({"tensor_output"});
     results.push_back(res);
     return std::make_shared<Model>(results, params);
+}
+
+inline std::shared_ptr<ov::Model> createSimpleModel() {
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+    auto add_constant = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1});
+    auto add = std::make_shared<ov::op::v1::Add>(data, add_constant);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{data});
+}
+
+inline std::shared_ptr<ov::Model> createModelContainingSubgraph() {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+    input->get_output_tensor(0).set_names({"tensor_input"});
+
+    // Simple subgraph that adds 1 to the input
+    std::shared_ptr<ov::Model> body = createSimpleModel();
+    auto tensor_iterator = std::make_shared<ov::op::v0::TensorIterator>();
+    tensor_iterator->set_body(body);
+    tensor_iterator->set_sliced_input(
+        std::dynamic_pointer_cast<ov::op::v0::Parameter>(body->input().get_node_shared_ptr()),
+        input,
+        0,
+        1,
+        1,
+        -1,
+        0);
+
+    // Outside the subgraph, add 1 to the output
+    auto add_constant = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1});
+    auto add = std::make_shared<ov::op::v1::Add>(tensor_iterator->get_iter_value(body->output(), -1), add_constant);
+
+    auto result = std::make_shared<ov::op::v0::Result>(add);
+    result->get_output_tensor(0).set_names({"tensor_output"});
+
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
 }
 
 inline bool isCommandQueueExtSupported() {
@@ -238,6 +274,28 @@ TEST_P(OVCompileAndInferRequestTurbo, CompiledModelTurbo) {
         OV_EXPECT_THROW_HAS_SUBSTRING(core->compile_model(function, target_device, configuration),
                                       ov::Exception,
                                       "[ NOT_FOUND ] Option 'NPU_TURBO' is not supported for current configuration");
+    }
+}
+
+using OVCompileAndInferRequestSerializers = OVCompileAndInferRequest;
+
+TEST_P(OVCompileAndInferRequestSerializers, AccurateResults) {
+    try {
+        execNet = core->compile_model(function, target_device, configuration);
+        ov::InferRequest inference_request;
+        OV_ASSERT_NO_THROW(inference_request = execNet.create_infer_request());
+
+        const ov::Tensor input = utils::create_tensor(ov::element::f32, ov::Shape{1}, std::vector<float>{1.0f});
+        inference_request.set_input_tensor(input);
+        OV_ASSERT_NO_THROW(inference_request.infer());
+
+        const ov::Tensor output = inference_request.get_tensor("tensor_output");
+        const ov::Tensor expected = utils::create_tensor(ov::element::f32, ov::Shape{1}, std::vector<float>{3.0f});
+        OV_ASSERT_NO_THROW(utils::compare(expected, output));
+    } catch (const ov::Exception& exception) {
+        ASSERT_STR_CONTAINS(
+            exception.what(),
+            "[ NOT_FOUND ] Option 'NPU_USE_BASE_MODEL_SERIALIZER' is not supported for current configuration");
     }
 }
 

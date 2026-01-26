@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <istream>
 #include <memory>
@@ -49,6 +50,7 @@
 #include "openvino/runtime/threading/cpu_message.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
+#include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "sigstack_manager.h"
 #include "transformations/transformation_pipeline.h"
@@ -106,7 +108,7 @@ static std::string getDeviceFullName() {
             }
             return s.substr(start, end - start + 1);
         };
-        auto read_first_line = [&](const char* path) -> std::string {
+        auto read_first_line = [&](const std::filesystem::path& path) -> std::string {
             std::ifstream f(path);
             if (!f.is_open()) {
                 return {};
@@ -272,40 +274,56 @@ void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::M
 }
 
 void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) {
-    const auto model_prefer_name = std::string("MODEL_PREFER_THREADS");
+    std::vector<std::string> model_prefer_name = {std::string("MODEL_PREFER_THREADS_LATENCY"),
+                                                  std::string("MODEL_PREFER_THREADS_THROUGHPUT"),
+                                                  std::string("TBB_PARTITIONER")};
     if (imported && model->has_rt_info("intel_cpu_hints_config")) {
-        // load model_prefer_threads from cache
-        int cache_model_prefer = 0;
+        // load model_prefer_threads and tbbPartitioner from cache
         const auto& hints_config = model->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
-        const auto it_model_prefer = hints_config.find(model_prefer_name);
-        if (it_model_prefer != hints_config.end()) {
-            try {
-                cache_model_prefer = it_model_prefer->second.as<int>();
-            } catch (const ov::Exception&) {
-                OPENVINO_THROW("Cache file doesn't have valid value for " + model_prefer_name);
+        for (auto& one_name : model_prefer_name) {
+            auto it_model_prefer = hints_config.find(one_name);
+            if (it_model_prefer != hints_config.end()) {
+                try {
+                    if (one_name == std::string("TBB_PARTITIONER")) {
+                        conf.tbbPartitioner = it_model_prefer->second.as<ov::intel_cpu::TbbPartitioner>();
+                    } else if (one_name == std::string("MODEL_PREFER_THREADS_LATENCY")) {
+                        conf.modelPreferThreadsLatency = it_model_prefer->second.as<int>();
+                    } else {
+                        conf.modelPreferThreadsThroughput = it_model_prefer->second.as<int>();
+                    }
+                } catch (const ov::Exception&) {
+                    OPENVINO_THROW("Cache file doesn't have valid value for " + one_name);
+                }
             }
-
-            conf.modelPreferThreads = cache_model_prefer;
         }
+        conf.modelPreferThreads = 0;
     }
     get_performance_streams(conf, model);
     // save model_prefer_threads to model rt_info when loading network
     if (!imported) {
         ov::AnyMap hints_props;
-        hints_props.insert({model_prefer_name, std::to_string(conf.modelPreferThreads)});
+        hints_props.insert({model_prefer_name[0], std::to_string(conf.modelPreferThreadsLatency)});
+        hints_props.insert({model_prefer_name[1], std::to_string(conf.modelPreferThreadsThroughput)});
+        std::stringstream tbb_partitioner;
+        tbb_partitioner << conf.tbbPartitioner;
+        hints_props.insert({model_prefer_name[2], tbb_partitioner.str()});
         model->set_rt_info(hints_props, "intel_cpu_hints_config");
     }
 }
 
 static Config::ModelType getModelType(const std::shared_ptr<const Model>& model) {
+    if (op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model)) {
+        if (!model->get_variables().empty()) {
+            return Config::ModelType::LLM;
+        }
+        return Config::ModelType::Unknown;
+    }
+    if (op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model)) {
+        return Config::ModelType::LLM;
+    }
     if (op::util::has_op_with_type<op::v1::Convolution>(model) ||
         op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model)) {
         return Config::ModelType::CNN;
-    }
-
-    if ((op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) && !model->get_variables().empty()) ||
-        op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model)) {
-        return Config::ModelType::LLM;
     }
 
     return Config::ModelType::Unknown;
@@ -313,7 +331,7 @@ static Config::ModelType getModelType(const std::shared_ptr<const Model>& model)
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& orig_config) const {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Plugin::compile_model");
+    OV_ITT_SCOPED_TASK(itt::domains::ov_intel_cpu, "Plugin::compile_model");
     CREATE_DEBUG_TIMER(debugLoadTimer);
 
     // verification of supported input
@@ -517,6 +535,10 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return decltype(ov::weights_path)::value_type(std::string(""));
     }
 
+    if (name == ov::enable_weightless) {
+        return decltype(ov::enable_weightless)::value_type{engConfig.enableWeightless};
+    }
+
     return get_ro_property(name, options);
 }
 
@@ -544,6 +566,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
             RO_property(ov::device::architecture.name()),
         };
         // the whole config is RW before model is loaded.
+
         std::vector<ov::PropertyName> rwProperties{RW_property(ov::num_streams.name()),
                                                    RW_property(ov::inference_num_threads.name()),
                                                    RW_property(ov::enable_profiling.name()),
@@ -561,12 +584,14 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
                                                    RW_property(ov::log::level.name()),
                                                    RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
                                                    RW_property(ov::intel_cpu::enable_tensor_parallel.name()),
+                                                   RW_property(ov::intel_cpu::tbb_partitioner.name()),
                                                    RW_property(ov::hint::dynamic_quantization_group_size.name()),
                                                    RW_property(ov::hint::kv_cache_precision.name()),
                                                    RW_property(ov::key_cache_precision.name()),
                                                    RW_property(ov::value_cache_precision.name()),
                                                    RW_property(ov::key_cache_group_size.name()),
-                                                   RW_property(ov::value_cache_group_size.name())};
+                                                   RW_property(ov::value_cache_group_size.name()),
+                                                   RW_property(ov::enable_weightless.name())};
 
         std::vector<ov::PropertyName> wo_properties{WO_property(ov::weights_path.name())};
 
@@ -638,6 +663,9 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
     if (name == ov::intel_cpu::enable_tensor_parallel) {
         return static_cast<decltype(ov::intel_cpu::enable_tensor_parallel)::value_type>(engConfig.enableTensorParallel);
     }
+    if (name == ov::intel_cpu::tbb_partitioner) {
+        return static_cast<decltype(ov::intel_cpu::tbb_partitioner)::value_type>(engConfig.tbbPartitioner);
+    }
     if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{get_device_name()};
     }
@@ -702,17 +730,12 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 }
 
 static std::string get_origin_weights_path(const ov::AnyMap& config) {
-    ov::CacheMode cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
     std::string origin_weights_path;
 
-    auto cm_it = config.find(ov::cache_mode.name());
-    if (cm_it != config.end()) {
-        cache_mode = cm_it->second.as<ov::CacheMode>();
-        if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE) {
-            auto wp_it = config.find(ov::weights_path.name());
-            if (wp_it != config.end()) {
-                origin_weights_path = wp_it->second.as<std::string>();
-            }
+    if (ov::util::is_weightless_enabled(config).value_or(false)) {
+        auto wp_it = config.find(ov::weights_path.name());
+        if (wp_it != config.end()) {
+            origin_weights_path = wp_it->second.as<std::string>();
         }
     }
 
@@ -730,7 +753,7 @@ static bool get_cache_decrypt_fn(const ov::AnyMap& config, CacheDecrypt& decrypt
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream, const ov::AnyMap& config) const {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "import_model");
 
     CacheDecrypt decrypt{codec_xor};
     auto decrypt_from_string = get_cache_decrypt_fn(config, decrypt);
@@ -743,16 +766,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model_tensor,
                                                          const ov::AnyMap& config) const {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "import_model");
 
     CacheDecrypt decrypt{codec_xor};
     auto decrypt_from_string = get_cache_decrypt_fn(config, decrypt);
     const auto origin_weights_path = get_origin_weights_path(config);
 
+    // `const_cast` intentionally used as AlignedBuffer requires non-const pointer
+    // but is used as read-only in deserializer
+    auto* model_data_ptr = reinterpret_cast<char*>(const_cast<void*>(model_tensor.data()));
     std::shared_ptr<ov::AlignedBuffer> model_buffer =
-        std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(model_tensor.data()),
-                                                       model_tensor.get_byte_size(),
-                                                       model_tensor);
+        std::make_shared<ov::SharedBuffer<ov::Tensor>>(model_data_ptr, model_tensor.get_byte_size(), model_tensor);
 
     ModelDeserializer deserializer(model_buffer, get_core(), decrypt, decrypt_from_string, origin_weights_path);
 

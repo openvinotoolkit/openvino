@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,9 +21,14 @@ namespace ov::snippets::pass {
 class ExtractUnsupportedTransposes : public CommonOptimizations::SubgraphPass {
 public:
     OPENVINO_RTTI("ExtractUnsupportedTransposes", "0");
-    ExtractUnsupportedTransposes() : SubgraphPass("ExtractUnsupportedTransposes") {}
+    explicit ExtractUnsupportedTransposes(CommonOptimizations::Config::TransposeSupportCallback transpose_support_cb)
+        : SubgraphPass("ExtractUnsupportedTransposes"),
+          m_transpose_support_cb(std::move(transpose_support_cb)) {}
 
     bool run_on_subgraph(const std::shared_ptr<op::Subgraph>& subgraph) override;
+
+private:
+    CommonOptimizations::Config::TransposeSupportCallback m_transpose_support_cb;
 };
 
 }  // namespace ov::snippets::pass

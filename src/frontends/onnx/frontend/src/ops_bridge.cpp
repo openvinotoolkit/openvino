@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -226,6 +226,24 @@ void OperatorsBridge::overwrite_operator(const std::string& name, const std::str
         domain_opset[name].clear();
     }
     register_operator(name, 1, domain, std::move(fn));
+}
+
+void OperatorsBridge::register_extensions(const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
+    for (const auto& extension : conversions) {
+        if (const auto common_conv_ext = ov::as_type_ptr<ov::frontend::ConversionExtension>(extension)) {
+            overwrite_operator(common_conv_ext->get_op_type(),
+                               "",
+                               [common_conv_ext](const ov::frontend::onnx::Node& node) -> ov::OutputVector {
+                                   return common_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(node));
+                               });
+        } else if (const auto onnx_conv_ext = ov::as_type_ptr<ov::frontend::onnx::ConversionExtension>(extension)) {
+            overwrite_operator(onnx_conv_ext->get_op_type(),
+                               onnx_conv_ext->get_domain(),
+                               [onnx_conv_ext](const ov::frontend::onnx::Node& node) -> ov::OutputVector {
+                                   return onnx_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(node));
+                               });
+        }
+    }
 }
 
 #define REGISTER_OPERATOR(name_, ver_, fn_) \

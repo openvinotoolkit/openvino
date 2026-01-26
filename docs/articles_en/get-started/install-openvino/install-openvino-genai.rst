@@ -13,7 +13,7 @@ To see OpenVINO GenAI in action, check these Jupyter notebooks:
 and
 `LLM Instruction-following pipeline <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/llm-question-answering>`__.
 
-OpenVINO GenAI is available for installation via PyPI and Archive distributions.
+OpenVINO GenAI is available for installation via PyPI, NPM and Archive distributions.
 A `detailed guide <https://github.com/openvinotoolkit/openvino.genai/blob/releases/2025/0/src/docs/BUILD.md>`__
 on how to build OpenVINO GenAI is available in the OpenVINO GenAI repository.
 
@@ -26,6 +26,21 @@ but use the *openvino-genai* package instead of *openvino*:
 .. code-block:: python
 
    python -m pip install openvino-genai
+
+NPM Installation
+###############################
+
+Install the `openvino-genai-node` package from [NPM](https://www.npmjs.com/package/openvino-genai-node).
+The package will automatically install the required `openvino-node` dependency with the matching version.
+
+.. code-block:: sh
+
+   npm install openvino-genai-node
+
+.. note::
+   The OpenVINO GenAI Node.js package depends on the OpenVINO Node.js package.
+   These packages must be of the same version to ensure compatibility.
+   The npm installation automatically handles this requirement.
 
 Archive Installation
 ###############################

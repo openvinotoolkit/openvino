@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,11 +28,13 @@ private:
     T _shared_object;
 };
 
-/// \brief SharedStreamBuffer class to store pointer to pre-acclocated buffer and provide streambuf interface.
+/// \brief SharedStreamBuffer class to store pointer to pre-allocated buffer and provide streambuf interface.
 ///  Can return ptr to shared memory and its size
 class SharedStreamBuffer : public std::streambuf {
 public:
-    SharedStreamBuffer(char* data, size_t size) : m_data(data), m_size(size), m_offset(0) {}
+    SharedStreamBuffer(const char* data, size_t size) : m_data(data), m_size(size), m_offset(0) {}
+    explicit SharedStreamBuffer(const void* data, size_t size)
+        : SharedStreamBuffer(reinterpret_cast<const char*>(data), size) {}
 
 protected:
     // override std::streambuf methods
@@ -55,18 +57,43 @@ protected:
         return m_size - m_offset;
     }
 
+    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
+        return seekoff(pos, std::ios_base::beg, which);
+    }
+
     pos_type seekoff(off_type off,
                      std::ios_base::seekdir dir,
                      std::ios_base::openmode which = std::ios_base::in) override {
-        if (dir != std::ios_base::cur || which != std::ios_base::in) {
+        if (which != std::ios_base::in) {
             return pos_type(off_type(-1));
         }
-        m_offset += off;
+
+        size_t new_offset;
+        switch (dir) {
+        case std::ios_base::beg:
+            new_offset = off;
+            break;
+        case std::ios_base::cur:
+            new_offset = m_offset + off;
+            break;
+        case std::ios_base::end:
+            new_offset = m_size + off;
+            break;
+        default:
+            return pos_type(off_type(-1));
+        }
+
+        // Check bounds
+        if (new_offset > m_size) {
+            return pos_type(off_type(-1));
+        }
+
+        m_offset = new_offset;
         return pos_type(m_offset);
     }
 
-    char* m_data;
-    size_t m_size;
+    const char* m_data;
+    const size_t m_size;
     size_t m_offset;
 };
 

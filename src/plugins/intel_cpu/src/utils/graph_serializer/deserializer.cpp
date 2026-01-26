@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,6 +35,7 @@
 #include "openvino/runtime/icore.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "openvino/xml_util/xml_deserialize_util.hpp"
@@ -51,7 +52,7 @@ ModelDeserializer::ModelDeserializer(std::shared_ptr<ov::AlignedBuffer>& model_b
       m_core(core),
       m_decript_from_string(decript_from_string) {
     if (!origin_weights_path.empty() && std::filesystem::exists(origin_weights_path)) {
-        auto mmap = ov::load_mmap_object(origin_weights_path);
+        auto mmap = ov::load_mmap_object(ov::util::make_path(origin_weights_path));
         m_origin_weights_buf =
             std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mmap->data(), mmap->size(), mmap);
     }
@@ -72,7 +73,7 @@ ModelDeserializer::ModelDeserializer(std::istream& model_stream,
       m_core(core),
       m_decript_from_string(decript_from_string) {
     if (!origin_weights_path.empty() && std::filesystem::exists(origin_weights_path)) {
-        auto mmap = ov::load_mmap_object(origin_weights_path);
+        auto mmap = ov::load_mmap_object(ov::util::make_path(origin_weights_path));
         m_origin_weights_buf =
             std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mmap->data(), mmap->size(), mmap);
     }
@@ -277,9 +278,10 @@ ov::Any XmlDeserializer::parse_weightless_cache_attribute(const pugi::xml_node& 
             for (const auto& attr : child.attributes()) {
                 if (strcmp(attr.name(), "name") == 0 &&
                     strcmp(attr.value(), ov::WeightlessCacheAttribute::get_type_info_static().name) == 0) {
-                    const auto origin_size = static_cast<size_t>(ov::util::pugixml::get_uint64_attr(child, "size"));
-                    const auto offset = static_cast<size_t>(ov::util::pugixml::get_uint64_attr(child, "offset"));
-                    const ov::element::Type original_dt(child.attribute("type").value());  // "element_type"?
+                    const auto origin_size =
+                        static_cast<size_t>(ov::util::pugixml::get_uint64_attr(child, "original_size"));
+                    const auto offset = static_cast<size_t>(ov::util::pugixml::get_uint64_attr(child, "bin_offset"));
+                    const ov::element::Type original_dt(child.attribute("original_dtype").value());
                     return {ov::WeightlessCacheAttribute{origin_size, offset, original_dt}};
                 }
             }

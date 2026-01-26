@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -244,6 +244,7 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         if (kd.need_args_update) {
             auto args = get_arguments(instance);
             args.scalars = &params.scalars;
+            args.local_memory_args = &params.local_memory_args;
 
             GPU_DEBUG_TRACE_DETAIL << "\nExecute stage = " << stage.kernel->get_id() << '\n';
             GPU_DEBUG_TRACE_DETAIL << "Configured kernel arguments:" << params.arguments.size() << '\n';
@@ -274,7 +275,7 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance) override {
         cldnn::stream& stream = instance.get_network().get_stream();
         if (instance.can_be_optimized()) {
-            return stream.aggregate_events(events, false, instance.is_output());
+            return stream.aggregate_events(events, events.size() > 1, instance.is_output());
         }
 
         update_rt_params(instance);

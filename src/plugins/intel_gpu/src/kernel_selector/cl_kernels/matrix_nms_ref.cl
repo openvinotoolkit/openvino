@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -166,45 +166,66 @@ KERNEL(matrix_nms_ref_stage_0)
 (const __global INPUT0_TYPE* input_boxes,
  const __global INPUT1_TYPE* input_scores,
  __global uchar* buffer0,
- __global int* selected_boxes_num) {
+ __global int* selected_boxes_num,
+ __global INPUT1_TYPE* input_iou_matrix,
+ __global INPUT1_TYPE* input_iou_max,
+ __global INPUT1_TYPE* input_min_decays) {
     const int batchId = get_global_id(0);
     const int classId = get_global_id(1);
 
     if (classId == BACKGROUND_CLASS)
         return;
 
+    const int offset = batchId * NUM_CLASSES + classId;
     int sorted_score_indices[NUM_BOXES];
-
-    for (int i = 0; i < NUM_BOXES; ++i)
-        sorted_score_indices[i] = i;
-
     int valid_boxes_num = 0;
-    for (int i = 0; i < NUM_BOXES; i++) {
-        if (input_scores[INPUT1_GET_INDEX(batchId, classId, 0, i)] > SCORE_THRESHOLD)
-            ++valid_boxes_num;
+
+    const int BLOCK_SIZE = 256;
+    const int num_blocks = (NUM_BOXES + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    for (int i = 0; i < num_blocks; i++) {
+        for (int j = 0; j < BLOCK_SIZE; j++) {
+            const int idx = i * BLOCK_SIZE + j;
+            if (idx >= NUM_BOXES)
+                break;
+            if (input_scores[INPUT1_GET_INDEX(batchId, classId, 0, idx)] > SCORE_THRESHOLD) {
+                sorted_score_indices[valid_boxes_num] = idx;
+                ++valid_boxes_num;
+            }
+        }
     }
 
+    for (int i = valid_boxes_num; i < NUM_BOXES; ++i)
+        sorted_score_indices[i] = 0;
+
     // TODO: consider faster sorting algorithm
-    FUNC_CALL(sortIterative)(input_scores, batchId, classId, sorted_score_indices, NUM_BOXES);
+    FUNC_CALL(sortIterative)(input_scores, batchId, classId, sorted_score_indices, valid_boxes_num);
 
     valid_boxes_num = min(valid_boxes_num, MAX_BOXES_PER_CLASS);
 
-    const int matrix_size = MAX_BOXES_PER_CLASS < 3 ? 1 : (MAX_BOXES_PER_CLASS * (MAX_BOXES_PER_CLASS - 1)) >> 1;
-    INPUT1_TYPE iou_matrix[matrix_size];
-    INPUT1_TYPE iou_max[MAX_BOXES_PER_CLASS];
+    __global INPUT1_TYPE* iou_matrix = input_iou_matrix + offset * MAX_BOXES_PER_CLASS * sizeof(INPUT1_TYPE);
+    __global INPUT1_TYPE* iou_max = input_iou_max + offset * MAX_BOXES_PER_CLASS * sizeof(INPUT1_TYPE);
+    __global INPUT1_TYPE* min_decays = input_min_decays + offset * MAX_BOXES_PER_CLASS * sizeof(INPUT1_TYPE);
 
     iou_max[0] = INPUT1_VAL_ZERO;
     for (int i = 1; i < valid_boxes_num; ++i) {
         INPUT1_TYPE max_iou = INPUT1_VAL_ZERO;
+        INPUT1_TYPE min_decay = INPUT1_VAL_ONE;
         const COORD_TYPE_4 box_i = FUNC_CALL(getBoxCoords)(input_boxes, batchId, sorted_score_indices[i]);
         for (int j = 0; j < i; ++j) {
             const COORD_TYPE_4 box_j = FUNC_CALL(getBoxCoords)(input_boxes, batchId, sorted_score_indices[j]);
             const INPUT1_TYPE iou = FUNC_CALL(intersectionOverUnion)(box_i, box_j);
 
             max_iou = max(iou, max_iou);
-            iou_matrix[i * (i - 1) / 2 + j] = iou;
+            iou_matrix[j] = iou;
         }
         iou_max[i] = max_iou;
+
+        for (int j = 0; j < i; ++j) {
+            INPUT1_TYPE decay =
+                DECAY_FUNC == 0 ? FUNC_CALL(decay_gaussian)(iou_matrix[j], iou_max[j]) : FUNC_CALL(decay_linear)(iou_matrix[j], iou_max[j]);
+            min_decay = min(min_decay, decay);
+        }
+        min_decays[i] = min_decay;
     }
 
     const INPUT1_TYPE first_score = input_scores[INPUT1_GET_INDEX(batchId, classId, 0, sorted_score_indices[0])];
@@ -222,15 +243,7 @@ KERNEL(matrix_nms_ref_stage_0)
     }
 
     for (int i = 1; i < valid_boxes_num; ++i) {
-        INPUT1_TYPE min_decay = INPUT1_VAL_ONE;
-        for (int j = 0; j < i; ++j) {
-            INPUT1_TYPE iou = iou_matrix[i * (i - 1) / 2 + j];
-            INPUT1_TYPE decay =
-                DECAY_FUNC == 0 ? FUNC_CALL(decay_gaussian)(iou, iou_max[j]) : FUNC_CALL(decay_linear)(iou, iou_max[j]);
-            min_decay = min(min_decay, decay);
-        }
-
-        INPUT1_TYPE ds = min_decay * input_scores[INPUT1_GET_INDEX(batchId, classId, 0, sorted_score_indices[i])];
+        INPUT1_TYPE ds = min_decays[i] * input_scores[INPUT1_GET_INDEX(batchId, classId, 0, sorted_score_indices[i])];
 
         if (ds <= POST_THRESHOLD)
             continue;

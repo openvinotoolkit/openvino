@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
  */
 #pragma once
 
+#include <functional>
 #include <memory>
 
 #include "openvino/core/node.hpp"
@@ -50,4 +51,16 @@ std::shared_ptr<ov::snippets::op::Subgraph> tokenize_ordered_nodes(const ov::Nod
  * @return The estimated number of body parameters needed for this operation
  */
 size_t get_potential_body_params(const std::shared_ptr<ov::Node>& op);
+
+/**
+ * @brief Builds a transpose support callback suitable for CommonOptimizations configuration.
+ * The callback returns true for Transpose nodes that are considered supported by Snippets.
+ * If `include_brgemm_case` is true, the callback additionally allows the specific
+ * MHA fusion-related transpose order when the Transpose feeds MatMul (Brgemm case).
+ * Independently of the flag, the decomposed transpose order accepted by MHA tokenization is allowed.
+ *
+ * @param include_brgemm_case if true, apply extra MatMul(Brgemm)-related order check
+ * @return std::function predicate that can be passed to set_transpose_support_callback
+ */
+std::function<bool(const std::shared_ptr<const ov::Node>&)> make_transpose_support_callback(bool include_brgemm_case);
 }  // namespace ov::snippets::utils

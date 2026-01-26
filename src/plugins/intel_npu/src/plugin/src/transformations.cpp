@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -244,6 +244,7 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
         logger.info("Couldn't validate and reshape the model. Batching will be handled by compiler. Error: %s",
                     ex.what());
     }
+
     return {reshapedModel, successfullyDebatched};
 }
 

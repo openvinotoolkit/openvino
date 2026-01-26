@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,8 @@ namespace snippets {
 
 namespace {
 
+static constexpr size_t expected_nodes_mha_mul_add = 2;
+
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHAMulAdd,
     MHAMulAdd,
@@ -21,7 +23,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(ov::element::f32),
         ::testing::ValuesIn({false}),  // Need to support True for graph builder in tests
         ::testing::Values(MHA::default_thread_count),
-        ::testing::Values(2), // Subgraph with MHA + Subgraph with Transpose1
+        ::testing::Values(expected_nodes_mha_mul_add),
         ::testing::Values(2), // Subgraph with MHA + Subgraph with Transpose1
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(CPUTestUtils::empty_plugin_config)),

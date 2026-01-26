@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -54,7 +54,17 @@ ov_dependent_option (ENABLE_SNIPPETS_DEBUG_CAPS "enable Snippets debug capabilit
 
 ov_dependent_option (ENABLE_SNIPPETS_LIBXSMM_TPP "allow Snippets to use LIBXSMM Tensor Processing Primitives" OFF "ENABLE_INTEL_CPU AND (X86_64 OR AARCH64)" OFF)
 
-ov_option (ENABLE_PROFILING_ITT "Build with ITT tracing. Optionally configure pre-built ittnotify library though INTEL_VTUNE_DIR variable." OFF)
+## ITT tracing level: OFF | BASE | FULL
+# OFF  - no ITT backend linked; macros are no-ops
+# BASE - link ITT backend; only top-level API scopes are active (default)
+# FULL - link ITT backend; preserve full instrumentation (default prior behavior)
+if(X86_64)
+    set(ENABLE_PROFILING_ITT_DEFAULT BASE)
+else()
+    set(ENABLE_PROFILING_ITT_DEFAULT OFF)
+endif()
+ov_option_enum(ENABLE_PROFILING_ITT "ITT tracing mode: OFF | BASE | FULL" ${ENABLE_PROFILING_ITT_DEFAULT}
+               ALLOWED_VALUES OFF BASE FULL)
 
 ov_option_enum(ENABLE_PROFILING_FILTER "Enable or disable ITT counter groups.\
 Supported values:\
@@ -78,10 +88,15 @@ ov_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file ge
 # OpenVINO Runtime specific options
 #
 
-# "OneDNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
-set(THREADING_DEFAULT "TBB")
+# "OneDNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ|TBB_ADAPTIVE"
+if(AARCH64)
+    set(THREADING_DEFAULT "TBB")
+else()
+    set(THREADING_DEFAULT "TBB_ADAPTIVE")
+endif()
 
-set(THREADING_OPTIONS "TBB" "TBB_AUTO" "SEQ" "OMP")
+
+set(THREADING_OPTIONS "TBB" "TBB_AUTO" "SEQ" "OMP" "TBB_ADAPTIVE")
 
 set(THREADING "${THREADING_DEFAULT}" CACHE STRING "Threading")
 set_property(CACHE THREADING PROPERTY STRINGS ${THREADING_OPTIONS})
@@ -99,7 +114,7 @@ endif()
 
 ov_dependent_option (ENABLE_INTEL_OPENMP "Enables usage of Intel OpenMP instead of default compiler one" ${ENABLE_INTEL_OPENMP_DEFAULT} "THREADING STREQUAL OMP" OFF)
 
-if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND
+if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" OR THREADING STREQUAL "TBB_ADAPTIVE") AND
     (BUILD_SHARED_LIBS OR (LINUX AND X86_64)))
     set(ENABLE_TBBBIND_2_5_DEFAULT ON)
 else()

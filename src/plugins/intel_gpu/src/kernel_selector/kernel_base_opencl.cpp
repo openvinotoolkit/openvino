@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -215,7 +215,7 @@ void KernelBaseOpenCL::FillCLKernelData(clKernelData& kernel,
                                         int number_of_outputs,
                                         bool is_dynamic) const {
     if (!is_dynamic && !kernel.skip_execution)
-        KernelBase::CheckDispatchData(kernelMapName, dispatchData, engine_info.maxWorkGroupSize);
+        KernelBase::CheckDispatchData(kernelMapName, dispatchData, engine_info);
     kernel.code.kernelString = GetKernelString(kernelMapName, jit, entryPoint, engine_info, exeMode);
     kernel.params.workGroups.global = dispatchData.gws;
     kernel.params.workGroups.local = dispatchData.lws;

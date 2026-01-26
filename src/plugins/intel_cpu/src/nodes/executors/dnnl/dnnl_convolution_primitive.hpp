@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
+#include "thread_pool_imp.hpp"
 
 namespace ov::intel_cpu {
 
@@ -65,6 +66,7 @@ class DnnlConvolutionPrimitive {
 public:
     DnnlConvolutionPrimitive(const Key& key,
                              const dnnl::engine& engine,
+                             const std::shared_ptr<ThreadPool>& threadPool,
                              const std::vector<impl_desc_type>& implPriorities,
                              impl_desc_type defaultImplType);
 

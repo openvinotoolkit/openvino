@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -684,26 +684,20 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
     reset_execution(false);
 
     std::vector<memory::ptr> in_out_mem;
-    auto is_surface_lock_check_needed = [&](const shared_mem_type& shared_mem_type) {
-        return shared_mem_type == shared_mem_type::shared_mem_vasurface ||
-               shared_mem_type == shared_mem_type::shared_mem_dxbuffer ||
-               shared_mem_type == shared_mem_type::shared_mem_image;
-    };
-
     bool shared_mem_found = std::any_of(_in_out_shared_mem_types.begin(),
                                         _in_out_shared_mem_types.end(),
-                                        is_surface_lock_check_needed);
+                                        surfaces_lock::is_lock_needed);
 
     if (shared_mem_found) {
         for (auto& inst : _inputs) {
             if (inst->output_memory_ptr() &&
-                is_surface_lock_check_needed(inst->output_memory_ptr()->get_internal_params().mem_type))
+                surfaces_lock::is_lock_needed(inst->output_memory_ptr()->get_internal_params().mem_type))
                 in_out_mem.push_back(inst->output_memory_ptr());
         }
 
         for (auto& inst : _outputs) {
             if (inst->output_memory_ptr() &&
-                is_surface_lock_check_needed(inst->output_memory_ptr()->get_internal_params().mem_type))
+                surfaces_lock::is_lock_needed(inst->output_memory_ptr()->get_internal_params().mem_type))
                 in_out_mem.push_back(inst->output_memory_ptr());
         }
     }
@@ -973,7 +967,12 @@ void network::allocate_primitive_instance(program_node const& node) {
                 }
             }
         }
-        set_variables_state_info(state_prim->variable_id(), node.get_output_layout(0), state_prim->get_user_specified_type(), prim.get(), transpose_required);
+        set_variables_state_info(state_prim->variable_id(),
+                                 node.get_output_layout(0),
+                                 state_prim->get_user_specified_type(),
+                                 prim.get(),
+                                 std::dynamic_pointer_cast<memory_state::releasable_variable>(inst),
+                                 transpose_required);
     }
 
     if (node.is_constant()) {
@@ -1010,8 +1009,8 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         return;
 
     if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
-        // usm_device memory does not provide performance benefits on the LNL platform
-        if (get_engine().get_device_info().arch == gpu_arch::xe2 &&
+        // usm_device memory does not provide performance benefits on the integrated Xe2+ platforms
+        if (get_engine().get_device_info().arch >= gpu_arch::xe2 &&
             get_engine().get_device_info().dev_type == device_type::integrated_gpu) {
             return;
         }
@@ -1058,11 +1057,15 @@ void network::set_variables_state_info(const std::string& variable_id,
                                        const layout& variable_layout,
                                        ov::element::Type user_specified_type,
                                        const primitive* p,
+                                       const std::shared_ptr<memory_state::releasable_variable>& releasable_var,
                                        bool transpose_required) {
-    _variables_state_info.emplace(variable_id, ov::intel_gpu::VariableStateInfo{variable_id, variable_layout, user_specified_type});
+    auto& info = _variables_state_info.emplace(variable_id, ov::intel_gpu::VariableStateInfo{variable_id, variable_layout, user_specified_type}).first->second;
 
-    _variables_state_info.at(variable_id).m_primitives.insert(p);
-    _variables_state_info.at(variable_id).transpose_required = transpose_required;
+    [[maybe_unused]] const auto [_, inserted] = info.m_primitives.insert(p);
+    if (inserted && releasable_var) {
+        info.m_release_variable_inst.emplace_back(releasable_var);
+    }
+    info.transpose_required = transpose_required;
 }
 
 void network::set_reuse_variable_mem(bool reuse) {

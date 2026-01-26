@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <string>
@@ -126,8 +126,15 @@ std::vector<layout> calc_output_layout_impl(convolution_node const& node, kernel
         auto& weights_shape = input_shapes[1];
         // WA for legacy flow, mostly for unit tests as sometimes grouped conv has non-grouped weights
         if (legacy_flow && input_shapes[1].size() == 4 && input_shapes[0].size() == 4) {
-            weights_shape.insert(weights_shape.begin(), desc->groups);
-            weights_shape[1] /= desc->groups;
+            // Extend grouped 1d conv weights shape from 4d to 5d when conv input shape is canonicalized to 4d by allow_new_shape_infer=false
+            const bool is_1d_group_conv = (desc->filter_rank == 4) && desc->grouped_weights_shape && desc->groups > 1;
+            if (is_1d_group_conv && (static_cast<int64_t>(desc->groups) == input_shapes[1][0].get_length())) {
+                // 1d convolution with groups, e.g. shape [g,oc,ic,x] -> [g,oc,ic,x,1]
+                weights_shape.insert(weights_shape.end(), 1);
+            } else {
+                weights_shape.insert(weights_shape.begin(), desc->groups);
+                weights_shape[1] /= desc->groups;
+            }
         }
         output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
     } else {
@@ -206,6 +213,17 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
                           "Input/output rank mismatch");
 
     auto filter_inst = node.weights().get_output_layout().convert_to_weights_layout(argument->grouped_weights_shape);
+
+    // Extend grouped 1d conv weights shape from 4d to 5d when conv input shape is canonicalized to 4d by allow_new_shape_infer=false
+    const bool is_1d_group_conv = (argument->filter_rank == 4) && argument->grouped_weights_shape && argument->groups > 1;
+    const bool needs_filter_extension = !network.get_program()->is_new_shape_infer() &&
+                                        is_1d_group_conv &&
+                                        filter_inst.get_rank() == 4 &&
+                                        !format::is_grouped(filter_inst.format);
+
+    if (needs_filter_extension) {
+        filter_inst = extend_weights_layout_to_5d(filter_inst);
+    }
 
     if (bias_term()) {
         auto bias_inst = node.bias().get_output_layout();

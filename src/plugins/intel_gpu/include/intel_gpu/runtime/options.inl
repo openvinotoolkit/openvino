@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,6 +39,7 @@ OV_CONFIG_RELEASE_OPTION(ov::hint, model, nullptr, "Shared pointer to the ov::Mo
 OV_CONFIG_RELEASE_OPTION(ov::internal, key_cache_quant_mode, ov::internal::CacheQuantMode::BY_CHANNEL, "AUTO or BY_CHANNEL or BY_TOKEN")
 OV_CONFIG_RELEASE_OPTION(ov::internal, value_cache_quant_mode, ov::internal::CacheQuantMode::BY_TOKEN, "AUTO or BY_CHANNEL or BY_TOKEN")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, mem_pool_util_threshold, 0.5, "Minimum utilization threshold (0.0~1.0) for reusable memory in the pool")
+OV_CONFIG_RELEASE_OPTION(ov, enable_weightless, false, "Enable/Disable weightless blob")
 
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, shape_predictor_settings, {10, 16 * 1024, 2, 1.1f}, "Preallocation settings")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, queue_type, QueueTypes::out_of_order, "Type of the queue that must be used for model execution. May be in-order or out-of-order")
@@ -90,6 +91,7 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_post_ops_fusions, 0, "Disable fusi
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_horizontal_fc_fusion, false, "Disable pass which merges QKV projections into single MatMul")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_fc_swiglu_fusion, false, "Disable pass which merges FC and SwiGLU ops")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_fake_alignment, false, "Disable fake alignment feature which tries to keep gpu friendly memory alignment for arbitrary tensor shapes")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_moe_opt, false, "Disable mixture of expert optimization")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_memory_reuse, false, "Disable memory reuse for activation tensors")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_runtime_skip_reorder, false, "Disable skip reorder optimization applied in runtime")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, load_dump_raw_binary, std::vector<std::string>{}, "List of layers to load raw binary")
@@ -97,3 +99,5 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dry_run_path, "", "Enables mode which part
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, validate_output_buffer, false, "Validate output buffers of all layers which have fp16 data-type to find 'inf' and 'nan' value.")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dynamic_quantization_bisect, std::numeric_limits<int64_t>::max(), "Apply dynamic quantization only up to this count")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dynamic_quantization_single, -1, "Apply dynamic quantization only to this index")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, list_layers, false, "Print layers list")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, print_input_data_shapes, false, "print input data shapes")

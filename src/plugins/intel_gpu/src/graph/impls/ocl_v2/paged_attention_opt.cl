@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -399,7 +399,7 @@ KERNEL(pa_sdpa_opt)(
             GET_VECTOR_ELEMENT(exp_sum, q_idx) = sub_group_reduce_add(GET_VECTOR_ELEMENT(exp_sum, q_idx));
             #ifdef HAS_SINK_INPUT
             const uint head_idx = get_global_id(1);
-            GET_VECTOR_ELEMENT(exp_sum, head_idx) += (native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[head_idx] - GET_VECTOR_ELEMENT(qk_max, q_idx))));
+            GET_VECTOR_ELEMENT(exp_sum, q_idx) += (native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[head_idx] - GET_VECTOR_ELEMENT(qk_max, q_idx))));
             #endif
         }
 

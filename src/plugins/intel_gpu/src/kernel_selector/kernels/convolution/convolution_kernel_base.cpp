@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -410,8 +410,8 @@ Datatype ConvolutionKernelBase::GetPackedInputType(const convolution_params& par
     return GetPackedType(params.inputs[0].GetDType());
 }
 
-Datatype ConvolutionKernelBase::GetPackedOutputType(const convolution_params& params) const {
-    return GetPackedType(params.outputs[0].GetDType());
+Datatype ConvolutionKernelBase::GetPackedOutputType(const convolution_params& params, size_t pack_size) const {
+    return GetPackedType(params.outputs[0].GetDType(), pack_size);
 }
 
 Datatype ConvolutionKernelBase::GetActivationType(const convolution_params& params) const {

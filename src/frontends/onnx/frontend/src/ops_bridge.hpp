@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include <unordered_map>
 
 #include "core/operator_set.hpp"
+#include "openvino/frontend/onnx/extension/conversion.hpp"
 #include "version_range.hpp"
 
 namespace ov {
@@ -59,6 +60,7 @@ public:
     bool is_operator_registered(const std::string& name, std::int64_t version, const std::string& domain) const;
 
     void overwrite_operator(const std::string& name, const std::string& domain, Operator fn);
+    void register_extensions(const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions);
 
 private:
     void register_operator_in_custom_domain(std::string name,
