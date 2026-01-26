@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -20,11 +20,11 @@ class LogAnalyzerTest(unittest.TestCase):
     def setUp(self) -> None:
         print(f'\nIn test: "{self._testMethodName}"', flush=True)
         self._cwd = Path(__file__).parent
-        self.log_archive_with_error = self._cwd.joinpath("data").joinpath(
-            'log_archive_with_error.zip'
+        self.logs_dir_with_error = self._cwd.joinpath("data").joinpath(
+            'logs_with_error'
         )
-        self.log_archive_wo_error = self._cwd.joinpath("data").joinpath(
-            'log_archive_wo_error.zip'
+        self.logs_dir_wo_error = self._cwd.joinpath("data").joinpath(
+            'logs_wo_error'
         )
         self.errors_to_look_for_file = self._cwd.parent.joinpath(
             'errors_to_look_for.json'
@@ -35,7 +35,7 @@ class LogAnalyzerTest(unittest.TestCase):
         Ensure LogAnalyzer is instantiated correctly.
         """
         analyzer = LogAnalyzer(
-            path_to_log_archive=self.log_archive_wo_error,
+            path_to_logs=self.logs_dir_wo_error,
             path_to_errors_file=self.errors_to_look_for_file,
         )
         self.assertTrue(
@@ -63,7 +63,7 @@ class LogAnalyzerTest(unittest.TestCase):
         Ensure log cleanup function returns correct results
         """
         analyzer = LogAnalyzer(
-            path_to_log_archive=self.log_archive_wo_error,
+            path_to_logs=self.logs_dir_wo_error,
             path_to_errors_file=self.errors_to_look_for_file,
         )
 
@@ -86,7 +86,7 @@ class LogAnalyzerTest(unittest.TestCase):
         Ensure LogAnalyzer can find an error
         """
         analyzer = LogAnalyzer(
-            path_to_log_archive=self.log_archive_with_error,
+            path_to_logs=self.logs_dir_with_error,
             path_to_errors_file=self.errors_to_look_for_file,
         )
         analyzer.analyze()
@@ -97,7 +97,7 @@ class LogAnalyzerTest(unittest.TestCase):
         Ensure LogAnalyzer does not find an error in the log files w/o errors
         """
         analyzer = LogAnalyzer(
-            path_to_log_archive=self.log_archive_wo_error,
+            path_to_logs=self.logs_dir_wo_error,
             path_to_errors_file=self.errors_to_look_for_file,
         )
         analyzer.analyze()

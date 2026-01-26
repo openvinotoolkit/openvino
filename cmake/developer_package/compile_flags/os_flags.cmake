@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -29,6 +29,7 @@ if(ENABLE_COVERAGE)
     ov_add_compiler_flags(--coverage)
     ov_add_compiler_flags(-fprofile-update=atomic)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} --coverage")
 endif()
 
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)

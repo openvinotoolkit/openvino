@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1481,17 +1481,17 @@ std::shared_ptr<ov::Model> RoPETestGPTOSS::buildROPE_GPTOSS(int num_head,
     sin->set_friendly_name("sin");
     auto variadicSplit = makeOP<opset1::VariadicSplit>({permute_Transpose, -1, {rotary_dims/2, -1}});
     auto first_half_mul_cos = makeOP<opset1::Multiply>({variadicSplit->output(0), cos}, {{"auto_broadcast", "numpy"}});
-    
+
     auto second_half_mul_sin = makeOP<opset1::Multiply>({variadicSplit->output(1), sin}, {{"auto_broadcast", "numpy"}});
     auto neg_one = makeConst(element_type, {}, std::vector<float>{-1.0f});
     auto neg = makeOP<opset1::Multiply>({second_half_mul_sin, neg_one}, {{"auto_broadcast", "numpy"}});
     auto sub_Subtract = makeOP<opset1::Add>({first_half_mul_cos, neg}, {{"auto_broadcast", "numpy"}});
-    
-    
+
+
     auto second_half_mul_cos = makeOP<opset1::Multiply>({variadicSplit->output(1), cos}, {{"auto_broadcast", "numpy"}});
-    auto first_half_mul_sin = makeOP<opset1::Multiply>({variadicSplit->output(0), sin}, {{"auto_broadcast", "numpy"}});   
-    auto add_Add = makeOP<opset1::Add>({second_half_mul_cos, first_half_mul_sin}, {{"auto_broadcast", "numpy"}});   
-    auto cat_Concat = makeOP<opset1::Concat>({sub_Subtract, add_Add}, {{"axis", -1}});   
+    auto first_half_mul_sin = makeOP<opset1::Multiply>({variadicSplit->output(0), sin}, {{"auto_broadcast", "numpy"}});
+    auto add_Add = makeOP<opset1::Add>({second_half_mul_cos, first_half_mul_sin}, {{"auto_broadcast", "numpy"}});
+    auto cat_Concat = makeOP<opset1::Concat>({sub_Subtract, add_Add}, {{"axis", -1}});
     return std::make_shared<ov::Model>(cat_Concat, ov::ParameterVector{input, cos, sin});
 }
 

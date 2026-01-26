@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,7 +96,7 @@ int main() {
     VASurfaceID va_surface = decode_va_surface();
     //     ...
     //wrap decoder output into RemoteBlobs and set it as inference input
-    
+
     ov_tensor_t* remote_tensor_y = NULL;
     ov_tensor_t* remote_tensor_uv = NULL;
     ov_remote_context_create_tensor(shared_va_context,

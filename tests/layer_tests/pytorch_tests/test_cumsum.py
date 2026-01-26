@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -44,15 +44,15 @@ class TestCumSum(PytorchLayerTest):
                 if out:
                     self.forward =  self.forward_out
                 if self.dtype is not None:
-                    if not dtype_from_input: 
+                    if not dtype_from_input:
                         self.forward = self.forward_dtype if not out else self.forward_out_dtype
 
             def forward(self, x):
                 return torch.cumsum(x, self.axis)
-            
+
             def forward_dtype(self, x):
                 return torch.cumsum(x, self.axis, dtype=self.dtype)
-            
+
             def forward_out(self, x, y):
                 return y, torch.cumsum(x, self.axis, out=y)
 

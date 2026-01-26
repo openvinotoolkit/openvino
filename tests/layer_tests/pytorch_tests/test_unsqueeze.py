@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -71,12 +71,12 @@ class TestUnsqueezeCopy(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     def test_unsqueeze_copy(self, dim, ie_device, precision, ir_version):
         self._test(*self.create_model(dim), ie_device, precision, ir_version)
-        
+
 class TestUnsqueezeWithComplex(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
         return (np.random.randn(2, 3, 2).astype(np.float32),)
-    
+
     def create_model(self, inplace=False, dim=0):
         import torch
 
@@ -107,7 +107,7 @@ class TestUnsqueezeWithComplex(PytorchLayerTest):
     @pytest.mark.parametrize("inplace", [False, skip_if_export(True)])
     @pytest.mark.parametrize("dim", [0, 1, -1, -2])
     @pytest.mark.nightly
-    @pytest.mark.precommit 
+    @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_unsqueeze(self, inplace, dim, ie_device, precision, ir_version):

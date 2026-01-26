@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -374,7 +374,7 @@ def test_register_plugin():
     core.register_plugin(lib_name, device)
     with pytest.raises(RuntimeError) as e:
         core.get_versions(device)
-    assert f"Cannot load library '{full_lib_name}'" in str(e.value)
+    assert f'Cannot load library "{full_lib_name}"' in str(e.value)
 
 
 @pytest.mark.dynamic_library
@@ -390,7 +390,7 @@ def test_register_plugins():
 
     with pytest.raises(RuntimeError) as e:
         core.get_versions(device)
-    assert f"Cannot load library '{full_lib_name}'" in str(e.value)
+    assert f'Cannot load library "{full_lib_name}"' in str(e.value)
 
 
 @pytest.mark.dynamic_library
@@ -405,7 +405,7 @@ def test_core_register_plugins():
 
     with pytest.raises(RuntimeError) as e:
         core.get_versions(device)
-    assert f"Cannot load library '{full_lib_name}'" in str(e.value)
+    assert f'Cannot load library "{full_lib_name}"' in str(e.value)
 
 
 def test_unload_plugin(device):

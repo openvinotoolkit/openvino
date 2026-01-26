@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,21 +82,9 @@ std::vector<std::vector<InputShape>> transposedShape_2D(bool with_dynamic = true
     return shapes;
 }
 
-// Transpose is moved outside of Subgraph on ARM64
-#if defined(OPENVINO_ARCH_ARM64)
-static constexpr size_t expected_nodes_mha_4d_f32 = 4;
-#else
 static constexpr size_t expected_nodes_mha_4d_f32 = 2;
-#endif
-
-// FP16 MHA has different node counts on ARM64 due to additional Transpose operations
-#if defined(OPENVINO_ARCH_ARM64)
-static constexpr size_t expected_nodes_mha_fp16_static = 5;
-static constexpr size_t expected_nodes_mha_fp16_dynamic = 6;
-#else
 static constexpr size_t expected_nodes_mha_fp16_static = 3;
 static constexpr size_t expected_nodes_mha_fp16_dynamic = 4;
-#endif
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D,
                          MHA,

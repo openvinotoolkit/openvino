@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,6 +31,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
+#include "openvino/util/ov_version.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "openvino/util/variant_visitor.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
@@ -275,9 +276,9 @@ std::filesystem::path get_cache_model_path(const ov::AnyMap& config) {
     return it == config.end() ? std::filesystem::path{} : it->second.as<std::filesystem::path>();
 }
 
-std::vector<ov::Extension::Ptr> try_get_extensions(const std::filesystem::path& path) {
+std::vector<ov::Extension::Ptr> try_get_extensions(std::shared_ptr<void>& so) {
     try {
-        return ov::detail::load_extensions(path);
+        return ov::detail::load_extensions(so);
     } catch (const std::runtime_error&) {
         return {};
     }
@@ -589,7 +590,7 @@ void ov::CoreImpl::register_compile_time_plugins() {
             register_plugin_in_registry_unsafe(device_name, desc);
         }
 #else
-        const auto& plugin_path = ov::util::get_compiled_plugin_path(ov::util::make_path(plugin.second.m_plugin_path));
+        const auto& plugin_path = ov::util::get_compiled_plugin_path(plugin.second.m_plugin_path);
         if (m_plugin_registry.find(device_name) == m_plugin_registry.end() && ov::util::file_exists(plugin_path)) {
             ov::AnyMap config = any_copy(plugin.second.m_default_config);
             PluginDescriptor desc{plugin_path, config};
@@ -599,22 +600,19 @@ void ov::CoreImpl::register_compile_time_plugins() {
     }
 }
 
-void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path) {
+void ov::CoreImpl::register_plugins_in_registry(const std::filesystem::path& xml_config_file, const bool by_abs_path) {
     using namespace ov::util;
-    auto parse_result = pugixml::parse_xml(xml_config_file.c_str());
-    if (!parse_result.error_msg.empty()) {
-        OPENVINO_THROW(parse_result.error_msg);
-    }
+    const auto parse_result = pugixml::parse_xml(xml_config_file);
+    OPENVINO_ASSERT(parse_result.error_msg.empty(), parse_result.error_msg);
 
-    pugi::xml_document& xml_doc = *parse_result.xml;
-
-    pugi::xml_node ie_node = xml_doc.document_element();
-    pugi::xml_node devices_node = ie_node.child("plugins");
+    const auto& xml_doc = *parse_result.xml;
+    const auto ie_node = xml_doc.document_element();
+    const auto devices_node = ie_node.child("plugins");
 
     std::lock_guard<std::mutex> lock(get_mutex());
 
-    FOREACH_CHILD (pluginNode, devices_node, "plugin") {
-        std::string device_name = pugixml::get_str_attr(pluginNode, "name");
+    FOREACH_CHILD (plugin_node, devices_node, "plugin") {
+        const auto device_name = pugixml::get_str_attr(plugin_node, "name");
         if (m_plugin_registry.find(device_name) != m_plugin_registry.end()) {
             OPENVINO_THROW("Device with \"", device_name, "\"  is already registered in the OpenVINO Runtime");
         }
@@ -622,39 +620,29 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
             OPENVINO_THROW("Device name must not contain dot '.' symbol");
         }
 
-        const auto& plugin_path =
-            ov::util::get_plugin_path(ov::util::make_path(pugixml::get_str_attr(pluginNode, "location")),
-                                      ov::util::make_path(xml_config_file),
-                                      by_abs_path);
+        PluginDescriptor plugin_desc{
+            get_plugin_path(make_path(pugixml::get_str_attr(plugin_node, "location")), xml_config_file, by_abs_path)};
 
         // check properties
-        auto propertiesNode = pluginNode.child("properties");
-        ov::AnyMap config;
-
-        if (propertiesNode) {
-            FOREACH_CHILD (propertyNode, propertiesNode, "property") {
-                std::string key = pugixml::get_str_attr(propertyNode, "key");
-                std::string value = pugixml::get_str_attr(propertyNode, "value");
-                config[key] = value;
+        const auto properties_node = plugin_node.child("properties");
+        if (properties_node) {
+            FOREACH_CHILD (property_node, properties_node, "property") {
+                const auto key = pugixml::get_str_attr(property_node, "key");
+                plugin_desc.m_default_config[key] = pugixml::get_str_attr(property_node, "value");
             }
         }
 
         // check extensions
-        auto extensionsNode = pluginNode.child("extensions");
-        std::vector<ov::util::FilePath> listOfExtentions;
-
-        if (extensionsNode) {
-            FOREACH_CHILD (extensionNode, extensionsNode, "extension") {
-                const auto extension_location = pugixml::get_str_attr(extensionNode, "location");
-                listOfExtentions.push_back(ov::util::make_path(extension_location));
+        const auto extensions_node = plugin_node.child("extensions");
+        if (extensions_node) {
+            FOREACH_CHILD (extension_node, extensions_node, "extension") {
+                const auto extension_location = pugixml::get_str_attr(extension_node, "location");
+                plugin_desc.m_list_of_extensions.push_back(make_path(extension_location));
             }
         }
 
         // fill value in plugin registry for later lazy initialization
-        {
-            PluginDescriptor desc{plugin_path, config, listOfExtentions};
-            register_plugin_in_registry_unsafe(device_name, desc);
-        }
+        register_plugin_in_registry_unsafe(device_name, plugin_desc);
     }
 }
 
@@ -706,7 +694,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& plugin_name) const {
             desc.m_plugin_create_func(plugin_impl);
             plugin = Plugin{plugin_impl, {}};
         } else {
-            so = ov::util::load_shared_object(desc.m_lib_location.c_str());
+            so = ov::util::load_shared_object(desc.m_lib_location);
             std::shared_ptr<ov::IPlugin> plugin_impl;
             reinterpret_cast<ov::CreatePluginFunc*>(ov::util::get_symbol(so, ov::create_plugin_function))(plugin_impl);
             const auto& plugin_name = plugin_impl->get_device_name();
@@ -815,7 +803,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& plugin_name) const {
                 // the same extension can be registered multiple times - ignore it!
             }
         } else {
-            ext = try_get_extensions(desc.m_lib_location);
+            ext = try_get_extensions(so);
         }
         std::move(ext.begin(), ext.end(), std::back_inserter(m_plugin_registry.at(device_name).m_extensions));
 
@@ -1554,7 +1542,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                                 "Original model runtime properties have been changed, not supported anymore!");
                         }
                     } else {
-                        if (header.get_openvino_version() != ov::get_openvino_version().buildNumber) {
+                        // Check whether the runtime version is not older than blob version
+                        if (!ov::util::is_version_compatible(
+                                ov::util::Version(header.get_openvino_version()),
+                                ov::util::Version(ov::get_openvino_version().buildNumber))) {
                             // Build number mismatch, don't use this cache
                             OPENVINO_THROW("Version does not match");
                         }

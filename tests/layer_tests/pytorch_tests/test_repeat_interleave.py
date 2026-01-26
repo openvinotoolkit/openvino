@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -116,12 +116,12 @@ class TestRepeatInterleaveWithOutputSize(PytorchLayerTest):
                 self.dim = dim
                 self.repeats = torch.tensor(repeats, dtype=torch.int)
                 self.output_size = output_size
-            
+
             def forward(self, input_tensor):
                 return input_tensor.repeat_interleave(self.repeats, self.dim, output_size=self.output_size)
-        
+
         return aten_repeat_interleave_output_size(dim, repeats, output_size), None, "aten::repeat_interleave"
-    
+
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize('input_data', ({'repeats': 2, 'dim': None, "output_size": 8},

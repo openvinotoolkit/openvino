@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
@@ -84,7 +84,7 @@ def main():
         if paddle.__version__ < "2.6.0":
             x[2:5] = value
         else:
-            x = paddle.static.setitem(x, (slice(2, 5),), value)    
+            x = paddle.static.setitem(x, (slice(2, 5),), value)
         return x
 
     paddle_set_value("set_value2", data, value, set_value2, dtype)

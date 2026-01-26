@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,6 +41,10 @@ protected:
     size_t compiled_byte_offset = 0;
     size_t buffer_cluster_id = 0;
     bool is_offset_runtime = false;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    friend std::string init_info_jit_memory_emitter(const jit_memory_emitter* emitter);
+#endif
 };
 
 class jit_load_memory_emitter : public jit_memory_emitter {

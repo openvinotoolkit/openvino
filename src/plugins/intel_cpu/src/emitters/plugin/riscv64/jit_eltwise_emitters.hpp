@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -461,6 +461,7 @@ public:
     size_t get_inputs_num() const override;
     size_t aux_vecs_count() const override;
     size_t aux_gprs_count() const override;
+    size_t aux_fp_gprs_count() const override;
 
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);

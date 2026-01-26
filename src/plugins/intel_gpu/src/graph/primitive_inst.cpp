@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,12 +54,14 @@
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
+#include "intel_gpu/runtime/tensor_accessor.hpp"
 
 #include "json_object.h"
 #include <string>
 #include <vector>
 #include <memory>
 #include <algorithm>
+#include "utils.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <impls/onednn/utils.hpp>
@@ -514,7 +516,20 @@ void primitive_inst::update_shape() {
     }
 
     if (get_node().is_type<kv_cache>()) {
+        auto& kv_inst = downcast<kv_cache_inst>(*this);
         auto desc = get_node().as<kv_cache>().get_primitive();
+        const auto trim_length = kv_cache_inst::compute_trim_length(*_impl_params, *desc);
+        if (trim_length > 0) {
+            OPENVINO_ASSERT(!(desc->indirect || desc->compressed),
+                            "[GPU] Unsupported trim for indirect or compressed kvcache:  indirect:",
+                            desc->indirect,
+                            "  compressed:",
+                            desc->compressed,
+                            "  trim:",
+                            trim_length);
+        }
+        kv_inst.set_trim_length(trim_length);
+
         auto var_mem_size = get_network().get_variable(desc->variable_info.variable_id).get_actual_mem_size();
         // Need to trigger realloc_if_needed
         if (var_mem_size < _impl_params->get_output_layout(0).get_linear_size())
@@ -1450,6 +1465,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
     if (!get_node().is_type<kv_cache>())
         return;
 
+    auto& kv_inst = downcast<kv_cache_inst>(*this);
     _impl_params->_can_be_optimized = false;
 
     if (_impl_params->get_input_layout(0).count() == 0) {
@@ -1474,6 +1490,14 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
 
     GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " initial present_layout : " << present_layout.to_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " initial past_layout : " << past_layout.to_string() << std::endl;
+    if (desc->trim && kv_inst.get_trim_length() > 0) {
+        GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " kv cache trim_length : " << kv_inst.get_trim_length() << std::endl;
+        auto trimmed_past_shape = past_layout.get_shape();
+        trimmed_past_shape[sequence_axis] -= kv_inst.get_trim_length();
+        past_layout.set_partial_shape(trimmed_past_shape);
+        auto past_layout_pad = past_layout.data_padding._upper_size[sequence_axis] + kv_inst.get_trim_length();
+        kv_cache_inst::update_pad(past_layout, past_layout_pad, sequence_axis);
+    }
     auto max_pad = kv_cache_inst::get_max_pad(past_layout, _deps[0].first->_max_output_layout_count[0], sequence_axis, "past_layout");
     const auto new_seq_len = static_cast<int64_t>(new_layout.get_shape()[sequence_axis]);
     // In chatbot scenario, when chat history must be stored in kvcache, new_seq_len may not be 1 even if max_pad is greater than 0
@@ -2922,12 +2946,8 @@ bool primitive_inst::is_valid_fusion() const {
         if (get_node().is_type<gemm>() && get_node().get_preferred_impl_type() == impl_types::onednn) {
             const auto& gemm_layout = _impl_params->get_output_layout();
             const auto& data_layout = outer_dep.first->_impl_params->get_output_layout();
-            auto gemm_dims = onednn::convert_gemm_tensor(gemm_layout.get_tensor(),
-                                                         cldnn::format::dimension(gemm_layout.format),
-                                                         false);
-            auto data_dims = onednn::convert_gemm_tensor(data_layout.get_tensor(),
-                                                         cldnn::format::dimension(data_layout.format),
-                                                         false);
+            auto gemm_dims = onednn::convert_tensor(gemm_layout.get_tensor(), cldnn::format::dimension(gemm_layout.format));
+            auto data_dims = onednn::convert_tensor(data_layout.get_tensor(), cldnn::format::dimension(data_layout.format));
 
             if (gemm_dims[0] != data_dims[0] && gemm_dims[1] != 1)
                 LOG_AND_RETURN_FALSE(_node);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,10 @@ void regclass_graph_Type(py::module m) {
     type.attr("i32") = ov::element::i32;
     type.attr("i64") = ov::element::i64;
     type.attr("u1") = ov::element::u1;
+    type.attr("u2") = ov::element::u2;
+    type.attr("u3") = ov::element::u3;
     type.attr("u4") = ov::element::u4;
+    type.attr("u6") = ov::element::u6;
     type.attr("u8") = ov::element::u8;
     type.attr("u16") = ov::element::u16;
     type.attr("u32") = ov::element::u32;
