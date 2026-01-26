@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -262,6 +262,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::hint::model_priority.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::hint::host_task_priority.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::intel_gpu::hint::enable_large_allocations.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RO},
             ov::PropertyName{ov::intel_gpu::disable_winograd_convolution.name(), PropertyMutability::RO},

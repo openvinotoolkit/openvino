@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,6 +49,8 @@ public:
     own::ade::NodeHandle getHandle() const;
     // Note: can only be used during initial group initialization
     std::shared_ptr<ov::Node> getInitialNode() const;
+    const std::unordered_set<std::shared_ptr<ov::Node>>& getInputs() const;
+    const std::unordered_set<std::shared_ptr<ov::Node>>& getOutputs() const;
     void addInput(const std::shared_ptr<ov::Node>& node);
     void addOutput(const std::shared_ptr<ov::Node>& node);
     void addContent(const std::shared_ptr<ov::Node>& node);
