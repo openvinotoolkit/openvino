@@ -452,6 +452,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((False, False),),
         ),
         (
+            intel_gpu_hint.enable_large_allocations,
+            "GPU_ENABLE_LARGE_ALLOCATIONS",
+            ((True, True),),
+        ),
+        (
             intel_npu.compilation_mode_params,
             "NPU_COMPILATION_MODE_PARAMS",
             (("dummy-op-replacement=true", "dummy-op-replacement=true"),),
