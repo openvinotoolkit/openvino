@@ -33,10 +33,11 @@ using namespace std;
 using namespace testing;
 
 using namespace ov;
-using namespace ov::op;
 using namespace ov::pass;
 using namespace ov::element;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 enum class InputType : int { Q, K, V, SDPA };
 enum class SinksSliceType : int { None, Slice, StridedSlice };
 
@@ -75,7 +76,8 @@ public:
         auto broadcast_to_shape =
             v0::Constant::create(element::i32, Shape{sinks_broadcast_shape.size()}, broadcast_shape_value);
         auto sinks_param = make_shared<v0::Parameter>(element::f16, sinks_shape);
-        m_sinks = make_shared<v3::Broadcast>(sinks_param, broadcast_to_shape, BroadcastType::BIDIRECTIONAL);
+        m_sinks =
+            make_shared<ov::op::v3::Broadcast>(sinks_param, broadcast_to_shape, ov::op::BroadcastType::BIDIRECTIONAL);
         m_sinks_rank = sinks_broadcast_shape.size();
         params.push_back(sinks_param);
     }

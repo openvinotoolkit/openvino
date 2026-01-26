@@ -14,6 +14,7 @@
 #include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
 #include "translate_session.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -45,7 +46,7 @@ OutputVector NodeContext::as_constant() const {
     } else {
         auto c_outs = m_decoder->as_constant();
         FRONT_END_OP_CONVERSION_CHECK(c_outs.size() == 1, "Constant must have exactly one output.");
-        if (dtype.is<type::Tensor>() && dtype.as<type::Tensor>().element_type.is<type::Complex>()) {
+        if (simplified_type_interpret(dtype).is<type::Complex>()) {
             // Add complex mark to complex constant
             c_outs = {mark_node(std::make_shared<ComplexTypeMark>(c_outs[0], c_outs[0].get_element_type()))};
         }
