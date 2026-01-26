@@ -1219,6 +1219,12 @@ public:
         if (desc->has_alibi) {
             return false;
         }
+
+        if (data_type_traits::is_i4_u4(params.get_program().get_config().get_kv_cache_precision()) &&
+            get_paged_attention_stage(params) == PagedAttentionStage::MIXED) {
+            return false;
+        }
+
         return true;
     }
 
@@ -1264,6 +1270,7 @@ public:
 
         if ((rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) && !params.is_dynamic())
             rt_params->paged_attention_aligned_seq_len = static_cast<size_t>(get_aligned_seq_len(params, rt_params->stage));
+
         rt_params->sdpa_opt_seq_len_partition_size = get_seq_len_partition_size(params.get_device_info(), desc->v_head_size, SDPAStage::MULTI_TOKENS);
 
         if (desc->has_score_aggregation) {
@@ -1285,6 +1292,7 @@ public:
 #else
         rt_params->use_micro_sdpa = false;
 #endif
+
         rt_params->query_block_size = get_query_block_size(rt_params->stage, rt_params->use_micro_sdpa);
 
         if (rt_params->stage == PagedAttentionStage::GENERATE) {
@@ -1441,6 +1449,11 @@ public:
         can_use_micro_sdpa = has_stage(pa_sdpa_micro);
         if (stage == PagedAttentionStage::GENERATE && rt_params->use_gqa_kernel == false)
             can_use_micro_sdpa = false;
+
+        if (data_type_traits::is_i4_u4(params.get_program().get_config().get_kv_cache_precision()) &&
+            get_paged_attention_stage(params) == PagedAttentionStage::MIXED) {
+            can_use_micro_sdpa = false;
+        }
 #endif
         GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: stage = " << static_cast<size_t>(stage) << std::endl;
         int64_t paged_attention_aligned_seq_len = -1;
@@ -1625,15 +1638,22 @@ public:
         std::unique_ptr<mem_lock<int32_t, mem_lock_type::write>> micro_sdpa_block_starts_and_gws_mapping_lock = nullptr;
 
         if (stage == PagedAttentionStage::MIXED && !use_micro_sdpa) {
-            size_t sequential_gws_subseq_mapping_idx = 6;
-            if (has_score_aggregation) {
-                sequential_gws_subseq_mapping_idx = 9;
-            } else if (has_scores_output) {
-                sequential_gws_subseq_mapping_idx = 8;
+            // Calculate the index dynamically based on what buffers were actually allocated
+            // Base: 0, 1, 2 (3 buffers)
+            size_t sequential_gws_subseq_mapping_idx = 3;
+
+            // exp_sums, max_logits, tmp_out (3 buffers)
+            sequential_gws_subseq_mapping_idx += 3;
+            if (has_scores_output) {
+                sequential_gws_subseq_mapping_idx += 2;  // buffers 3, 4
+                if (has_score_aggregation) {
+                    sequential_gws_subseq_mapping_idx += 1;  // buffer 5
+                }
             }
 
             OPENVINO_ASSERT(intermediates_memories.size() > sequential_gws_subseq_mapping_idx,
-                            "[GPU] Unexpected number of intermediates buffers for Paged Attention for mixed stage");
+                            "[GPU] Unexpected number of intermediates buffers for Paged Attention for mixed stage. ",
+                            intermediates_memories.size(), " > ", sequential_gws_subseq_mapping_idx);
 
             auto& sequential_gws_subseq_mapping_mem = intermediates_memories[sequential_gws_subseq_mapping_idx];
             sequential_gws_subseq_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(sequential_gws_subseq_mapping_mem, stream));
