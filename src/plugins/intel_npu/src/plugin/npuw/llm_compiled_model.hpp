@@ -112,9 +112,6 @@ private:
     // Friend declarations for PrefixCachingHelper to access protected members
     friend class PrefixCachingHelper;
 
-    void gemma_transformations(const std::shared_ptr<ov::Model>& model);
-    int32_t m_gemma_sliding_window_size = 0;
-
     bool m_is_whisper = false;
     bool m_is_embedding = false;
 
