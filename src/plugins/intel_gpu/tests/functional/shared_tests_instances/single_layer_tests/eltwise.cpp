@@ -3,9 +3,17 @@
 //
 
 #include <vector>
+#include <cmath>        
+#include <iostream>     
+
 #include "single_op_tests/eltwise.hpp"
 #include "common_test_utils/test_constants.hpp"
-
+#include "openvino/op/ceiling.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "openvino/runtime/core.hpp"
+#include "openvino/op/floor.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace {
 using ov::test::EltwiseLayerTest;
@@ -13,7 +21,7 @@ using ov::test::utils::InputLayerType;
 using ov::test::utils::OpType;
 using ov::test::utils::EltwiseTypes;
 
-std::vector<std::vector<ov::Shape>>  inShapes = {
+std::vector<std::vector<ov::Shape>> inShapes = {
         {{2}},
         {{}, {34100}},
         {{2, 200}},
@@ -123,16 +131,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 }  // namespace
 
-// ==========================================
-// AUTOMATICALLY ADDED STANDALONE TEST
-// ==========================================
-#include "openvino/op/ceiling.hpp"      // Fixes 'Ceiling is not a member'
-#include "openvino/runtime/tensor.hpp"  // Fixes 'data<float>' error
-#include "openvino/runtime/core.hpp"
-#include "openvino/op/floor.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
-
 namespace LayerTestsDefinitions {
 
 TEST(PrecisionTrapTest, GPU_HighPrecision_Floor_Check) {
@@ -162,14 +160,15 @@ TEST(PrecisionTrapTest, GPU_HighPrecision_Floor_Check) {
     // std::nextafter(1.0f, 0.0f) gives approx 0.99999994
     request.get_input_tensor().data<float>()[0] = std::nextafter(1.0f, 0.0f);
 
-    // 4. Run Inference (THIS WAS MISSING)
+    // 4. Run Inference
     request.infer();
 
-    // 5. Get Output (THIS WAS MISSING)
+    // 5. Get Output
     float output_val = request.get_output_tensor().data<float>()[0];
     
     std::cout << "\n[DEBUG] Input: nextafter(1.0f)  -->  Output: " << output_val << "\n";
 
     // 6. Fail if it rounded up to 1.0
     ASSERT_EQ(output_val, 0.0f) << "FAILURE: Kernel used FLOAT precision! (Output was 1.0)";
-}}
+}
+} // namespace LayerTestsDefinitions
