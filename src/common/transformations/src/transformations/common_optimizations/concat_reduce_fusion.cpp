@@ -123,11 +123,9 @@ ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
         if (input0_shape.rank().is_dynamic() || input1_shape.rank().is_dynamic()) {
             return false;
         }
-        const auto concat_axis_normalized = concat_axis >= 0
-            ? concat_axis
-            : concat_axis + static_cast<int64_t>(input0_shape.rank().get_length());
-        if (concat_axis_normalized < 0 ||
-            static_cast<size_t>(concat_axis_normalized) >= input0_shape.size() ||
+        const auto concat_axis_normalized =
+            concat_axis >= 0 ? concat_axis : concat_axis + static_cast<int64_t>(input0_shape.rank().get_length());
+        if (concat_axis_normalized < 0 || static_cast<size_t>(concat_axis_normalized) >= input0_shape.size() ||
             static_cast<size_t>(concat_axis_normalized) >= input1_shape.size()) {
             return false;
         }
