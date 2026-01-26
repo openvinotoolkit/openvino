@@ -128,6 +128,7 @@ enum class Datatype {
     INT64,
     F16,
     F32,
+    F64,
     BF16,
 };
 
