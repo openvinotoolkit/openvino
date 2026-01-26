@@ -90,7 +90,7 @@ std::vector<std::string> getNoFolds(const std::string& nofolds_unparsed);
 static const std::map<std::string, std::string> ISOL_PRESETS = {{"COMPUTE",
                                                                  "P:DQMatMulGQu4/compute,P:DQMatMulCWu4/compute,"
                                                                  "P:DQMatMulGQi4/compute,P:DQMatMulCWi4/compute,"
-                                                                 "P:DQMatMulConv/compute,"
+                                                                 "P:DQMatMulConv/compute,P:DQGroupConv/compute,"
                                                                  "P:VocabMatMul/compute,"
                                                                  "P:RMSNorm/compute,P:RMSNorm2/compute,"
                                                                  "P:RMSNorm3/compute,P:RMSNorm4/compute,"

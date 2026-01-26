@@ -1005,6 +1005,12 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
         } else if (ov::npuw::util::matchLoRAMatMulBString(input_name)) {
             new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
+        } else if (input_name.find("cache_params.past.conv") != std::string::npos ||
+                   input_name.find("cache_params.present.conv") != std::string::npos) {
+            // LFM2 Conv cache: shape is [batch, channels, kernel_size]
+            const auto& partial_shape = input.get_partial_shape();
+            new_shape = partial_shape;
+            new_shape[0] = 1;
         } else {
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
