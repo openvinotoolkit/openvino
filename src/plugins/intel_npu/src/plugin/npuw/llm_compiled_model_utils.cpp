@@ -86,7 +86,10 @@ private:
         auto convert = opp::optional<ov::op::v0::Convert>({param->output(0)});
         auto concat = opp::wrap_type<ov::op::v0::Concat>({convert, transpose});
         auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
-        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, concat});
+        // Softmax output maybe sliced when SDPA with sink input is decomposed
+        auto maybe_slice = opp::optional<ov::op::v8::Slice>(
+            {softmax, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
+        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({maybe_slice, concat});
 
         auto callback = [=](ov::pass::pattern::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
