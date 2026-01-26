@@ -357,7 +357,8 @@ protected:
 private:
     using event_t = void (Graph::*)();
 
-    void EnforceInferencePrecision() const;
+    void EnforceInferencePrecision();
+    void EnforceBF16();
     void insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<std::string>& uniqueLayerNames);
     void insertConvert(EdgePtr& edge);
 

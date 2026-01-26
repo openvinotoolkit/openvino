@@ -54,8 +54,6 @@ public:
     void execute(const dnnl::stream& strm) override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
-    bool has_domain_sensitive_ops() const;
-
 protected:
     IShapeInfer::Result shapeInfer() const override;
 

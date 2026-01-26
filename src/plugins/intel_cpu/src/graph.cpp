@@ -51,7 +51,6 @@
 #include "nodes/input.h"
 #include "nodes/memory.hpp"
 #include "nodes/reorder.h"
-#include "nodes/subgraph.h"
 #include "nodes/tensoriterator.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
@@ -392,7 +391,7 @@ void Graph::Init(const std::shared_ptr<const ov::Model>& model,
 void Graph::Activate() {
     // @todo It is possible that execution graph is already created in scope of
     // the allocation context collection from the outer graph so the state for inner graph is "Ready"
-    // We probably want to avoid such uncertainty
+    // We probably want to avoid such uncertancy
     // OPENVINO_ASSERT(status == Status::Initialized, "Invalid graph status: ", static_cast<int>(status));
     Allocate();
 
@@ -1990,7 +1989,7 @@ bool Graph::InsertNode(const NodePtr& parent,
 }
 
 // Apply inference precision configuration
-void Graph::EnforceInferencePrecision() const {
+void Graph::EnforceInferencePrecision() {
     CPU_DEBUG_CAP_ENABLE(EnforceInferPrcDebug inferPrecDebug);
 
     const auto inferPrec = getConfig().inferencePrecision;
@@ -1998,72 +1997,33 @@ void Graph::EnforceInferencePrecision() const {
         return;  // nothing to do, only precision reduction is currently allowed
     }
 
-    // These node types must be forced to be executed in BF16 precision for performance gains
-    auto isMandatoryBF16Node = [](const NodePtr& node) -> bool {
-        const auto type = node->getType();
-        // Subgraph may contain mandatory BF16 nodes inside (e.g. MatMuls),
-        if (type == Type::Subgraph) {
-            const auto subgraph = std::dynamic_pointer_cast<node::Subgraph>(node);
-            OPENVINO_ASSERT(subgraph, "Node with Subgraph type can't be casted to Subgraph node");
-            return subgraph->has_domain_sensitive_ops();
-        }
-        return any_of(type,
-                      Type::Convolution,     // conv nets
-                      Type::FullyConnected,  // conv / bert nets
-                      Type::RNNCell,         // recurrent nets
-                      Type::RNNSeq,          // recurrent nets
-                      Type::MatMul,          // bert nets
-                      Type::ROIPooling,      // object detection nets
-                      Type::Interpolate,     // super resolution nets
-                      Type::PagedAttention,  // page attention
-                      Type::ScaledDotProductAttention,
-                      Type::QKVProjection,
-                      Type::GatherMatmul,
-                      Type::LLMMLP);
-    };
-
-    // Backward DFS: traverse from node to its parents, stopping at mandatory BF16 nodes
-    std::function<void(const NodePtr&, std::unordered_set<NodePtr>&)> backwardSkipSearch;
-    backwardSkipSearch = [&](const NodePtr& node, std::unordered_set<NodePtr>& skipNodes) -> void {
+    std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;
+    searchForNodesToSkip = [&](const NodePtr& node, std::unordered_set<NodePtr>& skipNodes) -> void {
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {
             const auto& parent = node->getParentEdgeAt(i)->getParent();
-
-            // Stop at mandatory BF16 nodes
-            if (inferPrec == ov::element::bf16 && isMandatoryBF16Node(parent)) {
-                continue;
+            if (inferPrec == ov::element::bf16) {
+                /* list of node types that must be forced to be executed in BF16 precision
+                 * because of performance gains */
+                if (any_of(parent->getType(),
+                           Type::Convolution,     // conv nets
+                           Type::FullyConnected,  // conv / bert nets
+                           Type::RNNCell,         // recurrent nets
+                           Type::RNNSeq,          // recurrent nets
+                           Type::MatMul,          // bert nets
+                           Type::ROIPooling,      // object detection nets
+                           Type::Interpolate,     // super resolution nets
+                           Type::PagedAttention,  // page attention
+                           Type::QKVProjection,
+                           Type::GatherMatmul,
+                           Type::LLMMLP)) {
+                    continue;  // stop at significant nodes
+                }
             }
 
             const auto res = skipNodes.insert(parent);
 
             if (res.second) {  // node not visited yet
-                backwardSkipSearch(parent, skipNodes);
-            }
-        }
-    };
-
-    // Forward DFS: traverse from node to its children, stopping at mandatory BF16 nodes
-    std::function<void(const NodePtr&, std::unordered_set<NodePtr>&)> forwardSkipSearch;
-    forwardSkipSearch = [&](const NodePtr& node, std::unordered_set<NodePtr>& skipNodes) -> void {
-        const size_t numberOfChildPorts = node->outputShapes.size();
-        for (size_t port = 0; port < numberOfChildPorts; port++) {
-            const auto& childEdgesAtPort = node->getChildEdgesAtPort(port);
-            for (const auto& childEdge : childEdgesAtPort) {
-                const auto& child = childEdge->getChild();
-                // ShapeOf subgraphs are kept in integer precision
-                if (child->getType() == Type::ShapeOf) {
-                    continue;
-                }
-
-                // Stop at mandatory BF16 nodes (don't add them to nodesToSkip)
-                if (isMandatoryBF16Node(child)) {
-                    continue;
-                }
-
-                // Add current node to skipNodes
-                const auto res = skipNodes.insert(child);
-                if (res.second) {  // node not visited yet
-                    forwardSkipSearch(child, skipNodes);
-                }
+                searchForNodesToSkip(parent, skipNodes);
             }
         }
     };
@@ -2079,51 +2039,7 @@ void Graph::EnforceInferencePrecision() const {
             continue;
         }
 
-        backwardSkipSearch(output, nodesToSkip);
-    }
-
-    // Pattern-based node skipping for BF16 precision enforcement
-    if (inferPrec == ov::element::bf16) {
-        for (const auto& node : graphNodes) {
-            // Pattern 1: MatMul with Convert from integer to floating point on any input. This basically means that
-            // converting such an integer input to bf16 leads to loosing accuracy, as bf16 can only exactly represent
-            // numbers in range [-128, 127]. Therefore we have to skip this Matmul and keep the result in floating point
-            // precision as deep as possible given the performance implications
-            if (node->getType() == Type::MatMul) {
-                for (size_t i = 0; i < node->getParentEdges().size(); i++) {
-                    const auto& parent = node->getParentEdgeAt(i)->getParent();
-                    if (parent->getType() == Type::Convert) {
-                        // Check if Convert is from integer to floating point
-                        const auto inputPrec = parent->getOriginalInputPrecisionAtPort(0);
-                        const auto outputPrec = parent->getOriginalOutputPrecisionAtPort(0);
-
-                        if (inputPrec.is_integral_number() && outputPrec.is_real()) {
-                            nodesToSkip.insert(node);
-
-                            // keep the parent subtree and the child subtree in the original precision
-                            backwardSkipSearch(node, nodesToSkip);
-                            forwardSkipSearch(node, nodesToSkip);
-                        }
-                    }
-                }
-            }
-
-            // Pattern 2: Gather with an integer type on data input is usually encountered in token embeddings (when
-            // compressed). It's better to preserve token embeddings preprocessing (e.g., normalization) in fp32
-            if (node->getType() == Type::Gather) {
-                // Note: ShapeOf subgraphs are excluded from skipping markup
-                // since they are always kept in integer precision
-                const bool shapeOfSubgraph = node->getParentEdgeAt(0)->getParent()->getType() == Type::ShapeOf;
-                const auto inputPrec = node->getOriginalInputPrecisionAtPort(0);
-                if (!shapeOfSubgraph && inputPrec.is_integral_number()) {
-                    // Add Gather node to nodesToSkip
-                    nodesToSkip.insert(node);
-
-                    // keep the child subtree in the original precision
-                    forwardSkipSearch(node, nodesToSkip);
-                }
-            }
-        }
+        searchForNodesToSkip(output, nodesToSkip);
     }
 
     for (const auto& node : graphNodes) {
