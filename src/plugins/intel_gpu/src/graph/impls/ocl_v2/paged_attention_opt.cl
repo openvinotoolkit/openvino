@@ -9,9 +9,6 @@
 #include "include/batch_headers/sub_group_shuffle.cl"
 
 // [TEMP]
-#define INT4_RANGE 15
-#define INT4_MAX 7
-#define INT4_MIN (-8)
 #define PACK_SIZE 2
 #define ENABLE_DEBUG 0
 
