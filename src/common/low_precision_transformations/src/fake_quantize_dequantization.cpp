@@ -250,57 +250,28 @@ int FakeQuantizeDequantization::fillDequantizationParams(
     const std::shared_ptr<ov::Node>& elementwise,
     std::shared_ptr<ov::opset1::Convert>& convert,
     std::shared_ptr<ov::opset1::Constant>& constant) {
-    auto fill = [](
-        const std::shared_ptr<ov::Node>& elementwise,
-        const size_t branchIndex,
-        std::shared_ptr<ov::opset1::Convert>& convert,
-        std::shared_ptr<ov::opset1::Constant>& constant) {
-        convert = ov::as_type_ptr<opset1::Convert>(elementwise->get_input_node_shared_ptr(branchIndex));
-        if (convert != nullptr) {
-            constant = convert->get_destination_type().is_real() ?
-                ov::as_type_ptr<opset1::Constant>(convert->get_input_node_shared_ptr(0)) :
-                nullptr;
-        } else {
-            constant = elementwise->get_input_element_type(branchIndex).is_real() ?
-                ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(branchIndex)) :
-                nullptr;
-        }
-    };
-
     const size_t constantBranchIndex = NetworkHelper::getDQConstBranchIndex(elementwise);
-    fill(elementwise, constantBranchIndex, convert, constant);
-    if (constant != nullptr) {
-        return static_cast<int>(constantBranchIndex);
+    convert = ov::as_type_ptr<opset1::Convert>(elementwise->get_input_node_shared_ptr(constantBranchIndex));
+    if (convert != nullptr) {
+        constant = convert->get_destination_type().is_real() ?
+            ov::as_type_ptr<opset1::Constant>(convert->get_input_node_shared_ptr(0)) :
+            nullptr;
+    } else {
+        constant = elementwise->get_input_element_type(constantBranchIndex).is_real() ?
+            ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(constantBranchIndex)) :
+            nullptr;
     }
-
-    return -1;
+    return constant != nullptr ? static_cast<int>(constantBranchIndex) : -1;
 }
 
 int FakeQuantizeDequantization::fillDequantizationParams(
     const std::shared_ptr<ov::Node>& elementwise,
     std::shared_ptr<ov::opset1::Constant>& constant) {
-    // Use NetworkHelper to determine which branch is the DQ constant branch
     const size_t constantBranchIndex = NetworkHelper::getDQConstBranchIndex(elementwise);
-    const size_t mainBranchIndex = 1 - constantBranchIndex; // opposite of constant branch
-    
     constant = elementwise->get_input_element_type(constantBranchIndex).is_real() ?
         ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(constantBranchIndex)) :
         nullptr;
-
-    if (constant != nullptr) {
-        return static_cast<int>(constantBranchIndex);
-    }
-
-    // Fallback: try the other branch
-    constant = elementwise->get_input_element_type(mainBranchIndex).is_real() ?
-        ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(mainBranchIndex)) :
-        nullptr;
-
-    if (constant != nullptr) {
-        return static_cast<int>(mainBranchIndex);
-    }
-
-    return -1;
+    return constant != nullptr ? static_cast<int>(constantBranchIndex) : -1;
 }
 
 }  // namespace low_precision
