@@ -83,7 +83,7 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
         jit.make("WEIGHT_COMPRESSED_ZP_INT4", 0);
     }
 
-    jit.make("IS_GENERATE", 0);    // only for prefill
+    // "IS_GENERATE" is for generate stage, and prefill stage doesn't need set it.
     jit.make("INPUT_SEQ_LEN", 4);  // prefill not use it
     jit.make("SCALE_ZP_NO_TRANSPOSE", 1);
 
