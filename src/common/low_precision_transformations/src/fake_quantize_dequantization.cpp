@@ -31,6 +31,14 @@ FakeQuantizeDequantization::FakeQuantizeDequantization(
     subtractConstant(subtractConstant),
     multiply(multiply),
     multiplyConstant(multiplyConstant) {
+    OPENVINO_ASSERT(data.get_node() != nullptr, "Incorrect dequantization operations: data node is null");
+    const auto dataNode = data.get_node_shared_ptr();
+    OPENVINO_ASSERT(convert == nullptr || subtractConvert == nullptr || convert != subtractConvert,
+                    "Incorrect dequantization operations: convert and subtractConvert are the same");
+    OPENVINO_ASSERT(subtractConstant == nullptr || dataNode != subtractConstant,
+                    "Incorrect dequantization operations: dataNode and subtractConstant are the same");
+    OPENVINO_ASSERT(multiplyConstant == nullptr || dataNode != multiplyConstant,
+                    "Incorrect dequantization operations: dataNode and multiplyConstant are the same");
     const auto rank = data.get_partial_shape().rank();
     if (rank.is_static()) {
         std::string data_src_type = data.get_node()->get_type_name();
