@@ -112,6 +112,32 @@ ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
             return false;
         }
 
+        // Verify that concat inputs have the same shape along the concat axis.
+        // Maximum/Minimum operations use numpy broadcasting which can change the output shape
+        // if inputs have different sizes along the concat dimension.
+        // This transformation is only valid when each concat input has size 1 along the concat axis,
+        // ensuring that Maximum/Minimum will produce the same shape as the original Reduce.
+        const auto concat_axis = concat->get_axis();
+        const auto& input0_shape = concat->input_value(0).get_partial_shape();
+        const auto& input1_shape = concat->input_value(1).get_partial_shape();
+        if (input0_shape.rank().is_dynamic() || input1_shape.rank().is_dynamic()) {
+            return false;
+        }
+        const auto concat_axis_normalized = concat_axis >= 0
+            ? concat_axis
+            : concat_axis + static_cast<int64_t>(input0_shape.rank().get_length());
+        if (concat_axis_normalized < 0 ||
+            static_cast<size_t>(concat_axis_normalized) >= input0_shape.size() ||
+            static_cast<size_t>(concat_axis_normalized) >= input1_shape.size()) {
+            return false;
+        }
+        const auto& dim0 = input0_shape[concat_axis_normalized];
+        const auto& dim1 = input1_shape[concat_axis_normalized];
+        // Only proceed if both inputs have size 1 along the concat axis
+        if (!dim0.is_static() || !dim1.is_static() || dim0.get_length() != 1 || dim1.get_length() != 1) {
+            return false;
+        }
+
         ReduceType reduce_type = get_reduce_type(reduce);
         std::shared_ptr<ov::Node> result_node;
         switch (reduce_type) {

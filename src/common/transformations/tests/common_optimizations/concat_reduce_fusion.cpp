@@ -107,12 +107,9 @@ TEST_F(TransformationTestsF, ConcatReduceMaxFusionDynamicRank) {
         model = std::make_shared<Model>(OutputVector{reduce_max}, ParameterVector{left_input, right_input});
         manager.register_pass<ov::pass::ConcatReduceFusion>();
     }
-    {
-        auto left_input = std::make_shared<v0::Parameter>(element::f32, shape);
-        auto right_input = std::make_shared<v0::Parameter>(element::f32, shape);
-        auto maximum = std::make_shared<v1::Maximum>(left_input, right_input);
-        model_ref = std::make_shared<Model>(OutputVector{maximum}, ParameterVector{left_input, right_input});
-    }
+    // With dynamic rank inputs, Unsqueeze output is also dynamic rank,
+    // so the transformation cannot verify concat dim sizes and is correctly skipped.
+    // model_ref not set -> framework expects model to remain unchanged.
 }
 
 TEST_F(TransformationTestsF, ConcatReduceMinFusionDynamicShape) {
@@ -163,12 +160,9 @@ TEST_F(TransformationTestsF, ConcatReduceMinFusionDynamicRank) {
         model = std::make_shared<Model>(OutputVector{reduce_max}, ParameterVector{left_input, right_input});
         manager.register_pass<ov::pass::ConcatReduceFusion>();
     }
-    {
-        auto left_input = std::make_shared<v0::Parameter>(element::f32, shape);
-        auto right_input = std::make_shared<v0::Parameter>(element::f32, shape);
-        auto maximum = std::make_shared<v1::Minimum>(left_input, right_input);
-        model_ref = std::make_shared<Model>(OutputVector{maximum}, ParameterVector{left_input, right_input});
-    }
+    // With dynamic rank inputs, Unsqueeze output is also dynamic rank,
+    // so the transformation cannot verify concat dim sizes and is correctly skipped.
+    // model_ref not set -> framework expects model to remain unchanged.
 }
 
 TEST_F(TransformationTestsF, PullSqueezeThroughEltwiseStaticShape) {
@@ -291,4 +285,87 @@ TEST_F(TransformationTestsF, PullSqueezeThroughEltwiseSqueezeEliminationDynamicR
 
         model_ref = std::make_shared<Model>(OutputVector{add}, ParameterVector{left_input, right_input});
     }
+}
+
+// Test that transformation is NOT applied when concat inputs have different sizes
+// along the concat axis (would cause shape mismatch due to Maximum/Minimum broadcasting)
+TEST_F(TransformationTestsF, ConcatReduceMaxFusionSkippedForDifferentConcatDimSizes) {
+    // This test verifies that ReplaceConcatReduceByMinOrMax is NOT applied when
+    // concat inputs have different sizes along the concat axis.
+    // In this case, replacing Concat+ReduceMax with Maximum would change the output shape
+    // due to numpy broadcasting semantics.
+    {
+        // Create concat with inputs [7] and [1] along axis 0 -> output [8]
+        // ReduceMax along axis 0 -> output [] (scalar)
+        // If transformed to Maximum([7], [1]), would broadcast to [7] - wrong shape!
+        auto left_input = v0::Constant::create(element::f32, Shape{7}, std::vector<float>(7, 1.0f));
+        auto right_input = v0::Constant::create(element::f32, Shape{1}, {2.0f});
+
+        auto concat = std::make_shared<v0::Concat>(NodeVector{left_input, right_input}, 0);
+
+        auto reduce_max =
+            std::make_shared<v1::ReduceMax>(concat, v0::Constant::create(element::i64, Shape{}, {0}), false);
+
+        model = std::make_shared<Model>(OutputVector{reduce_max}, ParameterVector{});
+        manager.register_pass<ov::pass::ReplaceConcatReduceByMinOrMax>();
+    }
+    {
+        // Model should remain unchanged - no transformation applied
+        auto left_input = v0::Constant::create(element::f32, Shape{7}, std::vector<float>(7, 1.0f));
+        auto right_input = v0::Constant::create(element::f32, Shape{1}, {2.0f});
+
+        auto concat = std::make_shared<v0::Concat>(NodeVector{left_input, right_input}, 0);
+
+        auto reduce_max =
+            std::make_shared<v1::ReduceMax>(concat, v0::Constant::create(element::i64, Shape{}, {0}), false);
+
+        model_ref = std::make_shared<Model>(OutputVector{reduce_max}, ParameterVector{});
+    }
+}
+
+TEST_F(TransformationTestsF, ConcatReduceMinFusionSkippedForDifferentConcatDimSizes) {
+    // Same test but for ReduceMin
+    {
+        auto left_input = v0::Constant::create(element::f32, Shape{5}, std::vector<float>(5, 3.0f));
+        auto right_input = v0::Constant::create(element::f32, Shape{3}, std::vector<float>(3, 1.0f));
+
+        auto concat = std::make_shared<v0::Concat>(NodeVector{left_input, right_input}, 0);
+
+        auto reduce_min =
+            std::make_shared<v1::ReduceMin>(concat, v0::Constant::create(element::i64, Shape{}, {0}), false);
+
+        model = std::make_shared<Model>(OutputVector{reduce_min}, ParameterVector{});
+        manager.register_pass<ov::pass::ReplaceConcatReduceByMinOrMax>();
+    }
+    {
+        // Model should remain unchanged
+        auto left_input = v0::Constant::create(element::f32, Shape{5}, std::vector<float>(5, 3.0f));
+        auto right_input = v0::Constant::create(element::f32, Shape{3}, std::vector<float>(3, 1.0f));
+
+        auto concat = std::make_shared<v0::Concat>(NodeVector{left_input, right_input}, 0);
+
+        auto reduce_min =
+            std::make_shared<v1::ReduceMin>(concat, v0::Constant::create(element::i64, Shape{}, {0}), false);
+
+        model_ref = std::make_shared<Model>(OutputVector{reduce_min}, ParameterVector{});
+    }
+}
+
+// Test that transformation is NOT applied when concat dimension is dynamic
+// (static rank but unknown size along the concat axis)
+TEST_F(TransformationTestsF, ConcatReduceMaxFusionSkippedForDynamicConcatDim) {
+    std::int64_t reduce_axis = 0;
+    {
+        auto left_input = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1});
+        auto right_input = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1});
+
+        auto concat = std::make_shared<v0::Concat>(NodeVector{left_input, right_input}, reduce_axis);
+
+        auto reduce_max =
+            std::make_shared<v1::ReduceMax>(concat, v0::Constant::create(element::i64, Shape{}, {reduce_axis}), false);
+
+        model = std::make_shared<Model>(OutputVector{reduce_max}, ParameterVector{left_input, right_input});
+        manager.register_pass<ov::pass::ReplaceConcatReduceByMinOrMax>();
+    }
+    // model_ref not set -> framework expects model to remain unchanged.
 }
