@@ -32,6 +32,9 @@ RUN apt-get update && \
         gcc-riscv64-linux-gnu \
         g++-riscv64-linux-gnu \
         binutils-riscv64-linux-gnu \
+        libc6-riscv64-cross \
+        libstdc++6-riscv64-cross \
+        libgcc-s1-riscv64-cross \
         qemu-user \
         && \
     rm -rf /var/lib/apt/lists/*
