@@ -262,8 +262,10 @@ jobs:
       - name: Intel CPU plugin func tests (parallel)
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
+          /usr/local/bin/qemu-riscv64 -cpu help || true
+          /usr/local/bin/qemu-riscv64 -cpu rv64,help || true
           QEMU_LD_PREFIX=/usr/riscv64-linux-gnu \
-            /usr/local/bin/qemu-riscv64 -cpu max,vlen=256,elen=64 ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=${{ env.GTEST_FILTER }}
+            /usr/local/bin/qemu-riscv64 -cpu rva23u64,vext_spec=v1.0 ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests --gtest_print_time=1 --gtest_filter=${{ env.GTEST_FILTER }}
         timeout-minutes: ${{ inputs.testFilterType == 'SMOKE' && 125 || 25}}
 
   Overall_Status:
