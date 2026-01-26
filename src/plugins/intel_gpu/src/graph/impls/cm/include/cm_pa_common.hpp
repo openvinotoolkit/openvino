@@ -124,54 +124,15 @@ void pa_lsc_u8(
     int slm_buff_id_read = 0;
 
 #if IS_BLOCK_SPARSE
-#if USE_LSC
-    auto skip_compute = [&](int kv_pos) {
-        auto kv_start_block = kv_pos / SPARSE_BLOCK_SIZE;
-        bool sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);
+    const int sb_shift = (SPARSE_BLOCK_SIZE == 128) ? 7 : (SPARSE_BLOCK_SIZE == 256) ? 8 : -1;
 
-        return !sparse_mask;
+    auto skip_by = [&](const bool* base, int kv_pos) -> bool {
+        if (sb_shift < 0) return false;
+        return !base[(uint)kv_pos >> sb_shift];
     };
-    auto skip_load = [&](int kv_pos) {
-        auto kv_start_block = kv_pos / SPARSE_BLOCK_SIZE;
-        bool sparse_mask = *(reinterpret_cast<bool*>(wg_sparse_mask_base) + kv_start_block);
-        return !sparse_mask;
-    };
-#else
-    auto skip_compute = [&](int kv_pos) {
-        uint kv_start_block = 0;
-        bool sparse_mask = true;
-        if (SPARSE_BLOCK_SIZE == 64) {
-            kv_start_block = (uint)kv_pos >> 6;
-            sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);
-        } else if (SPARSE_BLOCK_SIZE == 128) {
-            kv_start_block = (uint)kv_pos >> 7;
-            sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);
-        } else if (SPARSE_BLOCK_SIZE == 256) {
-            kv_start_block = (uint)kv_pos >> 8;
-            sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);
-        } else {
-            sparse_mask = true;
-        }
-        return !sparse_mask;
-    };
-    auto skip_load = [&](int kv_pos) {
-        uint kv_start_block = 0;
-        bool sparse_mask = true;
-        if (SPARSE_BLOCK_SIZE == 64) {
-            kv_start_block = (uint)kv_pos >> 6;
-            sparse_mask = *(reinterpret_cast<bool*>(wg_sparse_mask_base) + kv_start_block);
-        } else if (SPARSE_BLOCK_SIZE == 128) {
-            kv_start_block = (uint)kv_pos >> 7;
-            sparse_mask = *(reinterpret_cast<bool*>(wg_sparse_mask_base) + kv_start_block);
-        } else if (SPARSE_BLOCK_SIZE == 256) {
-            kv_start_block = (uint)kv_pos >> 8;
-            sparse_mask = *(reinterpret_cast<bool*>(wg_sparse_mask_base) + kv_start_block);
-        } else {
-            sparse_mask = true;
-        }
-        return !sparse_mask;
-    };
-#endif
+
+    auto skip_compute = [&](int kv_pos) { return skip_by((const bool*)sparse_mask_base, kv_pos); };
+    auto skip_load    = [&](int kv_pos) { return skip_by((const bool*)wg_sparse_mask_base, kv_pos); };
 #endif
 
     auto load_slm_KV = [&](int kv_pos) {
