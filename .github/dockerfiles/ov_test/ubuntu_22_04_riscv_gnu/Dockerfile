@@ -18,11 +18,11 @@ RUN apt-get update && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install \
+        ca-certificates \
         curl \
         git \
-        ninja-build \
-        ca-certificates \
         gpg-agent \
+        ninja-build \
         tzdata \
         # parallel gzip
         pigz \
@@ -36,5 +36,24 @@ RUN apt-get update && \
         libstdc++6-riscv64-cross \
         libgcc-s1-riscv64-cross \
         qemu-user \
+        # QEMU build deps
+        build-essential \
+        meson \
+        pkg-config \
+        python3 \
+        python3-pip \
+        libglib2.0-dev \
+        libpixman-1-dev \
+        zlib1g-dev \
         && \
     rm -rf /var/lib/apt/lists/*
+
+ARG QEMU_VERSION="10.2.0"
+
+RUN mkdir -p /tmp/qemu-src && cd /tmp/qemu-src && \
+    curl -SLO https://github.com/qemu/qemu/archive/refs/tags/v${QEMU_VERSION}.tar.gz && \
+    tar -xzf v${QEMU_VERSION}.tar.gz --strip-components=1 && \
+    ./configure --target-list=riscv64-linux-user --prefix=/usr/local && \
+    make -j"$(nproc)" && \
+    make install && \
+    rm -rf /tmp/qemu-src
