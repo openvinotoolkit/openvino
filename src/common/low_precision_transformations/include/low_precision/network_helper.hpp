@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 #include <unordered_set>

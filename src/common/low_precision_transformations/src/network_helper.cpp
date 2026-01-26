@@ -1305,7 +1305,7 @@ FakeQuantizeDequantization NetworkHelper::normalizeDequantization(FakeQuantizeDe
         if (eltwise == nullptr) {
             return false;
         }
-        const auto dqConstBranchIndex = NetworkHelper::getDQConstBranchIndex(eltwise);
+        const auto dqConstBranchIndex = getDQConstBranchIndex(eltwise);
         return dqConstBranchIndex.has_value() ? dqConstBranchIndex.value() == 0 : false;
     };
 

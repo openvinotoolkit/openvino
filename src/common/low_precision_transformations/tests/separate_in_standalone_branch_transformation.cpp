@@ -51,7 +51,10 @@ class SeparateInStandaloneBranchTransformation :
     public testing::WithParamInterface<SeparateInStandaloneBranchTransformationParams> {
 public:
     void SetUp() override {
-        const auto& [inputShape, testValues, isConstantPath] = GetParam();
+        ov::Shape inputShape;
+        SeparateInStandaloneBranchTransformationTestValues testValues;
+        bool isConstantPath;
+        std::tie(inputShape, testValues, isConstantPath) = GetParam();
         const auto& precision = testValues.precisionBefore;
 
         const auto createActualFunction = [&](const DequantizationOperations& dequantizations) {
