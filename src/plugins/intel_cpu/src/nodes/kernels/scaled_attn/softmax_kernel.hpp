@@ -318,8 +318,9 @@ inline void scale_add2_reduce_max(float* a,
         if (has_sparse_mask) {                                                                               \
             size_t mask_idx = (i + n * vec_len_f32_avx512) / sparse_block_size;                              \
             uint8_t mask_val = sparse_mask[mask_idx];                                                        \
-            __m512 v_mask_block = _mm512_set1_ps(mask_val ? 0.f : -FLT_MAX);                                 \
-            v_a = _mm512_add_ps(v_a, v_mask_block);                                                          \
+            if (!mask_val) {                                                                                 \
+                v_a = v_nfltmax;                                                                             \
+            }                                                                                                \
         }                                                                                                    \
         if (has_causal_mask) {                                                                               \
             auto v_maski8 =                                                                                  \
@@ -355,8 +356,9 @@ inline void scale_add2_reduce_max(float* a,
         if (has_sparse_mask) {
             size_t mask_idx = i / sparse_block_size;
             uint8_t mask_val = sparse_mask[mask_idx];
-            __m512 v_mask_block = _mm512_set1_ps(mask_val ? 0.f : -FLT_MAX);
-            v_a = _mm512_add_ps(v_a, v_mask_block);
+            if (!mask_val) {
+                v_a = v_nfltmax;
+            }
         }
 
         if (has_causal_mask) {
@@ -390,8 +392,9 @@ inline void scale_add2_reduce_max(float* a,
         if (has_sparse_mask) {
             size_t mask_idx = i / sparse_block_size;
             uint8_t mask_val = sparse_mask[mask_idx];
-            __m512 v_mask_block = _mm512_set1_ps(mask_val ? 0.f : -FLT_MAX);
-            v_a = _mm512_add_ps(v_a, v_mask_block);
+            if (!mask_val) {
+                v_a = v_nfltmax;
+            }
         }
 
         if (has_causal_mask) {
@@ -439,8 +442,9 @@ inline void scale_add2_reduce_max(float* a,
         if (has_sparse_mask) {                                                                                         \
             size_t mask_idx = (i + n * vec_len_f32_avx2) / sparse_block_size;                                          \
             uint8_t mask_val = sparse_mask[mask_idx];                                                                  \
-            __m256 v_mask_block = _mm256_set1_ps(mask_val ? 0.f : -FLT_MAX);                                           \
-            v_a = _mm256_add_ps(v_a, v_mask_block);                                                                    \
+            if (!mask_val) {                                                                                           \
+                v_a = v_nfltmax;                                                                                       \
+            }                                                                                                          \
         }                                                                                                              \
         if (has_causal_mask) {                                                                                         \
             auto v_maski8 = _mm_loadu_si128(reinterpret_cast<__m128i const*>(causal_mask + i + n * vec_len_f32_avx2)); \
@@ -476,8 +480,9 @@ inline void scale_add2_reduce_max(float* a,
         if (has_sparse_mask) {
             size_t mask_idx = i / sparse_block_size;
             uint8_t mask_val = sparse_mask[mask_idx];
-            __m256 v_mask_block = _mm256_set1_ps(mask_val ? 0.f : -FLT_MAX);
-            v_a = _mm256_add_ps(v_a, v_mask_block);
+            if (!mask_val) {
+                v_a = v_nfltmax;
+            }
         }
 
         if (has_causal_mask) {
@@ -512,8 +517,9 @@ inline void scale_add2_reduce_max(float* a,
         if (has_sparse_mask) {
             size_t mask_idx = i / sparse_block_size;
             uint8_t mask_val = sparse_mask[mask_idx];
-            __m256 v_mask_block = _mm256_set1_ps(mask_val ? 0.f : -FLT_MAX);
-            v_a = _mm256_add_ps(v_a, v_mask_block);
+            if (!mask_val) {
+                v_a = v_nfltmax;
+            }
         }
 
         if (has_causal_mask) {
@@ -560,8 +566,9 @@ inline void scale_add2_reduce_max(float* a,
         if (has_sparse_mask) {
             size_t mask_idx = i / sparse_block_size;
             uint8_t mask_val = sparse_mask[mask_idx];
-            float32x4_t v_mask_block = vdupq_n_f32(mask_val ? 0.0F : -FLT_MAX);
-            v_a = vaddq_f32(v_a, v_mask_block);
+            if (!mask_val) {
+                v_a = v_nfltmax;
+            }
         }
 
         if (has_causal_mask) {
@@ -596,7 +603,9 @@ inline void scale_add2_reduce_max(float* a,
         if (has_sparse_mask) {
             size_t mask_idx = i / sparse_block_size;
             uint8_t mask_val = sparse_mask[mask_idx];
-            a[i] += (mask_val ? 0.0F : -FLT_MAX);
+            if (!mask_val) {
+                a[i] = -FLT_MAX;
+            }
         }
 
         if (has_causal_mask) {
