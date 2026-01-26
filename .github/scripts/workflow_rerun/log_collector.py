@@ -11,7 +11,8 @@ from workflow_rerun.constants import GITHUB_TOKEN, LOGGER
 
 
 def collect_logs_for_run(run: WorkflowRun,
-                         logs_dir: Path) -> Path:
+                         logs_dir: Path,
+                         session: requests.Session) -> Path:
     """
     Downloads logs of a given Workflow Run,
     saves them to a specified path, and returns that path.
@@ -73,8 +74,8 @@ def collect_logs_for_run(run: WorkflowRun,
             LOGGER.info(f'DOWNLOADING LOGS FOR RUN ID {run.id}')
             # PyGitHub does not expose the "/repos/{owner}/{repo}/actions/runs/{run_id}/logs" endpoint so we have to use requests
             LOGGER.debug(f'Downloading logs from {run.logs_url}')
-            response = requests.get(url=run.logs_url,
-                                        headers={'Authorization': f'Bearer {GITHUB_TOKEN}'})
+            response = session.get(url=run.logs_url,
+                                   headers={'Authorization': f'Bearer {GITHUB_TOKEN}'})
             response.raise_for_status()
             log_archive.write(response.content)
 

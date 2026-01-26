@@ -8,10 +8,13 @@ Integration tests
 import unittest
 from pathlib import Path
 from datetime import datetime, timedelta
-from github import Github, Auth
 import os
 import tempfile
 
+import requests
+from github import Github, Auth
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 from workflow_rerun.log_analyzer import LogAnalyzer
 from workflow_rerun.log_collector import collect_logs_for_run
@@ -28,6 +31,16 @@ class IntegrationTest(unittest.TestCase):
         cls.errors_to_look_for_file = cls._cwd.parent.joinpath(
             'errors_to_look_for.json'
         )
+
+        cls.session = requests.Session()
+        retry_strategy = Retry(
+            total=5,
+            backoff_factor=3,
+            backoff_jitter=1,
+            status_forcelist=[429, 500, 502, 503, 504]
+        )
+        cls.session.mount("https://github.com", HTTPAdapter(max_retries=retry_strategy))
+
         cls.github = Github(auth=Auth.Token(token=os.environ.get('GITHUB_TOKEN')))
         gh_repo = cls.github.get_repo(full_name_or_id='openvinotoolkit/openvino')
 
@@ -50,7 +63,8 @@ class IntegrationTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             logs_dir = Path(temp_dir)
             collect_logs_for_run(run=self.wf_run,
-                                 logs_dir=logs_dir)
+                                 logs_dir=logs_dir,
+                                 session=self.session)
 
             analyzer = LogAnalyzer(
                 path_to_logs=logs_dir,

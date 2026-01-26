@@ -128,7 +128,7 @@ class LogAnalyzer:
 
 if __name__ == '__main__':
     # Usage example
-    log_analyzer = LogAnalyzer(path_to_log_archive=Path('/tmp/logs/log.zip'),
+    log_analyzer = LogAnalyzer(path_to_logs=Path('/tmp/logs_dir'),
                                path_to_errors_file=Path('/tmp/errors_to_look_for.json'))
     log_analyzer.analyze()
     if log_analyzer.found_matching_error:
