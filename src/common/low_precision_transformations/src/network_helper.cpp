@@ -601,13 +601,9 @@ std::shared_ptr<ov::Node> NetworkHelper::separateInStandaloneBranch(std::shared_
         if (dequantization.multiply != nullptr) {
             std::shared_ptr<ov::opset1::Convert> mulConstConvert;
             std::shared_ptr<ov::opset1::Constant> mulConst;
+            // WA: FakeQuantizeDequantization doesn't have multiplyConvert member, so we have to extract it manually
             FakeQuantizeDequantization::fillDequantizationParams(dequantization.multiply, mulConstConvert, mulConst);
             parent = cloneEltwiseBranch(dequantization.multiply, mulConst, mulConstConvert);
-            // const auto dqMulParent = dequantization.multiply->get_input_node_shared_ptr(1);
-            // const auto dqMulParentCloned = dqMulParent->clone_with_new_inputs(dqMulParent->input_values());
-            // parent = dequantization.multiply->clone_with_new_inputs({parent, dqMulParentCloned});
-            // parent.get_node_shared_ptr()->set_friendly_name(dequantization.multiply->get_friendly_name() + name_postfix);
-            // copy_runtime_info(dequantization.multiply, parent.get_node_shared_ptr());
         }
 
         OPENVINO_ASSERT(dequantization.multiply != nullptr || dequantization.subtract != nullptr, "incorrect dequantization ops configuration");
@@ -1151,7 +1147,9 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
     const size_t parentIndex,
     const bool inPlace) {
     auto getDataIndex = [](const std::shared_ptr<ov::Node>& node) {
-        return getDQConstBranchIndex(node) == 0ul ? 1ul : 0ul;
+        const auto dqConstBranchIndex = getDQConstBranchIndex(node);
+        OPENVINO_ASSERT(dqConstBranchIndex.has_value(), "getDataIndex cannot be determined for node: ", node);
+        return dqConstBranchIndex.value() == 0ul ? 1ul : 0ul;
     };
 
     Output<Node> dataNode;
@@ -1262,7 +1260,7 @@ FakeQuantizeDequantization NetworkHelper::getDequantizationBelow(const std::shar
     return FakeQuantizeDequantization(dataNode, convert, subtract, subtractConvert, subtractConstant, multiply, multiplyConstant);
 }
 
-size_t NetworkHelper::getDQConstBranchIndex(const std::shared_ptr<ov::Node>& eltwise) {
+std::optional<size_t> NetworkHelper::getDQConstBranchIndex(const std::shared_ptr<ov::Node>& eltwise) {
     OPENVINO_ASSERT(eltwise != nullptr && eltwise->get_input_size() == 2,
                     "Expected binary eltwise operation, but got: ",
                     eltwise == nullptr ? "null" : std::to_string(eltwise->get_input_size()) + " inputs");
@@ -1278,27 +1276,23 @@ size_t NetworkHelper::getDQConstBranchIndex(const std::shared_ptr<ov::Node>& elt
     const bool left_is_const = is_branch_const(left_input);
     const bool right_is_const = is_branch_const(right_input);
 
-    // Primary criteria: constant branch is non-main (DQ constant)
     if (!left_is_const && right_is_const) {
-        return 1; // right is DQ constant branch
+        return 1;
     }
     if (left_is_const && !right_is_const) {
-        return 0; // left is DQ constant branch
+        return 0;
     }
 
-    // When both branches are constant, use shape-based criteria to determine main branch.
+    // When both branches are constant, we use shape-based criteria to determine dequantization const branch.
     // Since the primary criteria (constant vs non-constant) cannot distinguish between branches,
     // we apply secondary logic: the branch with larger volume is considered the main branch
-    // and should be placed on the left (0th input), while the smaller branch (typically 
-    // a scalar or broadcast constant for dequantization) goes on the right (1st input).
+    // and should be placed on the left (0th input), while the smaller branch goes on the right (1st input).
     if (left_is_const && right_is_const) {
         const auto left_volume = ov::shape_size(left_input.get_shape());
         const auto right_volume = ov::shape_size(right_input.get_shape());
-        return (left_volume >= right_volume) ? 1 : 0; // return smaller volume branch
+        return left_volume >= right_volume ? 1 : 0;
     }
-
-    // Both branches are non-constant - return right as default DQ constant branch
-    return 1;
+    return std::nullopt;
 }
 
 FakeQuantizeDequantization NetworkHelper::normalizeDequantization(FakeQuantizeDequantization dequantization) {
@@ -1306,12 +1300,13 @@ FakeQuantizeDequantization NetworkHelper::normalizeDequantization(FakeQuantizeDe
         return dequantization;
     }
 
-    // Determine if eltwise operation needs normalization (main branch should be on left)
+    // Determine if eltwise operation needs normalization (DQ constant branch should be on right)
     auto should_normalize_eltwise = [](const std::shared_ptr<ov::Node>& eltwise) {
         if (eltwise == nullptr) {
             return false;
         }
-        return NetworkHelper::getDQConstBranchIndex(eltwise) == 0; // if DQ constant is on left, need to swap
+        const auto dqConstBranchIndex = NetworkHelper::getDQConstBranchIndex(eltwise);
+        return dqConstBranchIndex.has_value() ? dqConstBranchIndex.value() == 0 : false;
     };
 
     if (should_normalize_eltwise(dequantization.multiply)) {

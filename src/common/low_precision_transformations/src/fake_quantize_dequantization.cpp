@@ -250,28 +250,36 @@ int FakeQuantizeDequantization::fillDequantizationParams(
     const std::shared_ptr<ov::Node>& elementwise,
     std::shared_ptr<ov::opset1::Convert>& convert,
     std::shared_ptr<ov::opset1::Constant>& constant) {
-    const size_t constantBranchIndex = NetworkHelper::getDQConstBranchIndex(elementwise);
-    convert = ov::as_type_ptr<opset1::Convert>(elementwise->get_input_node_shared_ptr(constantBranchIndex));
+    const auto constantBranchIndex = NetworkHelper::getDQConstBranchIndex(elementwise);
+    if (!constantBranchIndex.has_value()) {
+        return -1;
+    }
+
+    convert = ov::as_type_ptr<opset1::Convert>(elementwise->get_input_node_shared_ptr(*constantBranchIndex));
     if (convert != nullptr) {
         constant = convert->get_destination_type().is_real() ?
             ov::as_type_ptr<opset1::Constant>(convert->get_input_node_shared_ptr(0)) :
             nullptr;
     } else {
-        constant = elementwise->get_input_element_type(constantBranchIndex).is_real() ?
-            ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(constantBranchIndex)) :
+        constant = elementwise->get_input_element_type(*constantBranchIndex).is_real() ?
+            ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(*constantBranchIndex)) :
             nullptr;
     }
-    return constant != nullptr ? static_cast<int>(constantBranchIndex) : -1;
+    return constant != nullptr ? static_cast<int>(*constantBranchIndex) : -1;
 }
 
 int FakeQuantizeDequantization::fillDequantizationParams(
     const std::shared_ptr<ov::Node>& elementwise,
     std::shared_ptr<ov::opset1::Constant>& constant) {
-    const size_t constantBranchIndex = NetworkHelper::getDQConstBranchIndex(elementwise);
-    constant = elementwise->get_input_element_type(constantBranchIndex).is_real() ?
-        ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(constantBranchIndex)) :
+    const auto constantBranchIndex = NetworkHelper::getDQConstBranchIndex(elementwise);
+    if (!constantBranchIndex.has_value()) {
+        return -1;
+    }
+
+    constant = elementwise->get_input_element_type(*constantBranchIndex).is_real() ?
+        ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(*constantBranchIndex)) :
         nullptr;
-    return constant != nullptr ? static_cast<int>(constantBranchIndex) : -1;
+    return constant != nullptr ? static_cast<int>(*constantBranchIndex) : -1;
 }
 
 }  // namespace low_precision
