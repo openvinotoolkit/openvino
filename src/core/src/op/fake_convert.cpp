@@ -140,17 +140,15 @@ bool FakeConvert::evaluate(ov::TensorVector& outputs, const ov::TensorVector& in
     OPENVINO_ASSERT(outputs.size() == 1);
     OPENVINO_ASSERT(inputs.size() == 2 || inputs.size() == 3);
 
+    const auto make_zero_shift_tensor = [](auto&& scale_tensor) {
+        auto shift_tensor = Tensor(scale_tensor.get_element_type(), scale_tensor.get_shape());
+        std::memset(shift_tensor.data(), 0, shift_tensor.get_byte_size());
+        return shift_tensor;
+    };
+
     const auto& data = inputs[0];
     const auto& scale = inputs[1];
-    const auto& shift = [&] {
-        if (inputs.size() == 3) {
-            return inputs[2];
-        } else {
-            auto shift_tensor = Tensor(scale.get_element_type(), scale.get_shape());
-            std::memset(shift_tensor.data(), 0, shift_tensor.get_byte_size());
-            return shift_tensor;
-        }
-    }();
+    const auto& shift = inputs.size() == 3 ? inputs[2] : make_zero_shift_tensor(scale);
     outputs[0].set_shape(data.get_shape());
 
     using namespace ov::element;

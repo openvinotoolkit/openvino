@@ -149,25 +149,19 @@ bool ReadValue::evaluate(TensorVector& outputs,
     const auto& var_value = variable_values.find(m_variable);
 
     const auto use_context = var_value != variable_values.end() && !var_value->second->get_reset();
-    auto& output = outputs[0];
-    const auto& input = [&] {
-        if (use_context) {
-            return var_value->second->get_state();
-        } else if (!inputs.empty()) {
-            return inputs[0];
-        } else {
-            const auto var_info = m_variable->get_info();
-            OPENVINO_ASSERT(var_info.data_shape.is_static() && var_info.data_type.is_static());
-            const auto& shape = var_info.data_shape.get_shape();
-            const auto& type = var_info.data_type;
-            auto input = ov::Tensor(type, shape);
-            memset(input.data(), 0, input.get_byte_size());
-            return input;
-        }
-    }();
 
-    output.set_shape(input.get_shape());
-    std::memcpy(output.data(), input.data(), output.get_byte_size());
+    if (auto& output = outputs[0]; use_context) {
+        output.set_shape(var_value->second->get_state().get_shape());
+        memcpy(output.data(), var_value->second->get_state().data(), output.get_byte_size());
+    } else if (!inputs.empty()) {
+        output.set_shape(inputs[0].get_shape());
+        memcpy(output.data(), inputs[0].data(), output.get_byte_size());
+    } else {
+        const auto var_info = m_variable->get_info();
+        OPENVINO_ASSERT(var_info.data_shape.is_static() && var_info.data_type.is_static());
+        output.set_shape(var_info.data_shape.get_shape());
+        memset(output.data(), 0, output.get_byte_size());
+    }
     return true;
 }
 
