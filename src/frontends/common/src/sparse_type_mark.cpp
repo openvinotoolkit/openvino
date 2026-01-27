@@ -85,6 +85,10 @@ ov::Output<ov::Node> SparseTypeMark::sparse_mm(const NodeContext& context,
         return context.mark_node(make_shared<v0::MatMul>(dense_sparse, matrix, false, false));
     }
 
+    // Note: D x S case is not explicitly handled because PyTorch's torch.sparse.mm
+    // strictly supports (Sparse x Sparse -> Sparse) and (Sparse x Dense -> Dense).
+    // Dense x Sparse is not part of the standard sparse contract for this operator.
+
     // Neither is sparse-marked
     return context.mark_node(make_shared<v0::MatMul>(sparse, matrix, false, false));
 }
