@@ -8,6 +8,7 @@
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "utils.hpp"
 #include "utils_quantize.hpp"
 
@@ -43,6 +44,31 @@ Output<ov::Node> translate_quantized_convnd_base(const NodeContext& context) {
                          ->cast_vector<Strides::value_type>();
     int64_t groups = ov::as_type_ptr<v0::Constant>(packed_params[5].get_source_output().get_node_shared_ptr())
                          ->cast_vector<int64_t>()[0];
+
+    // Check if this is conv1d by examining input rank
+    // Conv1d input: [batch, channels, length] - rank 3
+    // Conv2d input: [batch, channels, height, width] - rank 4
+    auto input_rank = input.get_partial_shape().rank();
+    bool is_conv1d = input_rank.is_static() && input_rank.get_length() == 3;
+
+    // For conv1d, PyTorch stores weights as 4D [out_ch, in_ch/groups, 1, kernel_size]
+    // but OpenVINO expects 3D weights [out_ch, in_ch/groups, kernel_size]
+    if (is_conv1d) {
+        // Squeeze the weight tensor at dimension 2 (the "1" dimension)
+        auto squeeze_axis = v0::Constant::create(element::i64, Shape{1}, {2});
+        weight = context.mark_node(std::make_shared<v0::Squeeze>(weight, squeeze_axis));
+
+        // Strides, pads, and dilations may be stored as 2D, take only the last element for 1D
+        if (strides.size() == 2) {
+            strides = Strides{strides[1]};
+        }
+        if (pads.size() == 2) {
+            pads = CoordinateDiff{pads[1]};
+        }
+        if (dilations.size() == 2) {
+            dilations = Strides{dilations[1]};
+        }
+    }
 
     auto pad_type = ov::op::PadType::EXPLICIT;
 
