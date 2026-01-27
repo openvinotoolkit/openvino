@@ -368,20 +368,20 @@ void importModelThread(ImportModelContext* context, std::mutex& mutex) {
     try {
         const std::lock_guard<std::mutex> lock(mutex);
 
-        context->_compiled_model = std::visit(
-            overloaded{
-                [](std::monostate&) -> ov::CompiledModel {
-                    throw std::runtime_error("ImportModelContext source not initialized");
-                },
-                [&](ImportModelContext::BufferSource& src) -> ov::CompiledModel {
-                    std::istream stream(src.shared_buf.get());
-                    return context->_core.import_model(stream, context->_device, context->_config);
-                },
-                [&](ImportModelContext::TensorSource& src) -> ov::CompiledModel {
-                    return context->_core.import_model(src.tensor, context->_device, context->_config);
-                },
-            },
-            context->source);
+        context->_compiled_model =
+            std::visit(overloaded{
+                           [](std::monostate&) -> ov::CompiledModel {
+                               throw std::runtime_error("ImportModelContext source not initialized");
+                           },
+                           [&](ImportModelContext::BufferSource& src) -> ov::CompiledModel {
+                               std::istream stream(src.shared_buf.get());
+                               return context->_core.import_model(stream, context->_device, context->_config);
+                           },
+                           [&](ImportModelContext::TensorSource& src) -> ov::CompiledModel {
+                               return context->_core.import_model(src.tensor, context->_device, context->_config);
+                           },
+                       },
+                       context->source);
 
     } catch (const std::exception& e) {
         context->_error_msg = e.what();
