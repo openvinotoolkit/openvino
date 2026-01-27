@@ -4,6 +4,7 @@
 
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/int4_utils.cl"
 
 #define INT4_RANGE 15
 #define INT4_MAX 7
