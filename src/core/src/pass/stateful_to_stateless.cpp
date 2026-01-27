@@ -137,11 +137,13 @@ bool ov::pass::StatefulToStateless::run_on_model(const std::shared_ptr<ov::Model
             "Stateful models without `beam_idx` input are not supported in StatefulToStateless transformation");
     }
 
-    // Process ReadValues that are NOT connected via beam_idx (e.g., Conv caches in LFM2)
+    // Process ReadValues that are NOT connected via beam_idx: Conv caches in LFM2
     for (const auto& op : model->get_ops()) {
         if (auto read_value = ov::as_type_ptr<op::util::ReadValueBase>(op)) {
             auto variable_name = read_value->get_variable_id();
-            if (processed_variable_ids.find(variable_name) == processed_variable_ids.end()) {
+            std::smatch match;
+            if (std::regex_match(variable_name, match, context.lfm2_naming_convention) &&
+                (processed_variable_ids.find(variable_name) == processed_variable_ids.end())) {
                 variables.push_back(Variable(context, variable_name));
                 future_params[variable_name] = read_value;
                 processed_variable_ids.insert(variable_name);
