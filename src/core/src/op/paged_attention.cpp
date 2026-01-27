@@ -110,7 +110,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 22, "adaptive_rkv_evictable_sizes", {1}, {element::i32});
     input_check(this, 23, "adaptive_rkv_diversity_block_set_indices", {1}, {element::i32});
     input_check(this, 24, "adaptive_rkv_diversity_block_set_indices_begins", {1}, {element::i32});
-    
+
     // input to support query-query bias attention
     input_check(this, 25, "qq_bias", {3}, {});
     input_check(this, 26, "block_update_indices", {1}, {element::i32});

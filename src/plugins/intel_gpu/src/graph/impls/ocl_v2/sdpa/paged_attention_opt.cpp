@@ -1473,8 +1473,7 @@ public:
 
         if (rt_params->stage == PagedAttentionStage::MIXED && desc->has_qq_bias) {
             const auto& qq_bias_ps = params.get_input_layout(PagedAttentionInputIdx::QQ_BIAS).get_partial_shape();
-            OPENVINO_ASSERT(qq_bias_ps.is_static(),
-                                "[GPU] Unexpected shape of qq_bias memory for Paged Attention for mixed stage with qq bias");
+            OPENVINO_ASSERT(qq_bias_ps.is_static(), "[GPU] Unexpected shape of qq_bias memory for Paged Attention for mixed stage with qq bias");
             rt_params->paged_attention_speculative_validation_len = static_cast<size_t>(qq_bias_ps[-1].get_length());
         }
         return;

@@ -1300,8 +1300,7 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
         if (desc->has_sink_input)
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});  // sink
 
-        if (has_qq_bias && !m_is_prefill)
-        {
+        if (has_qq_bias && !m_is_prefill) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});  // qq_bias
             args.push_back({ArgumentDescriptor::Types::SCALAR, 3});                               // qq_bias_num
         }
