@@ -261,6 +261,7 @@
 #    include "low_precision/convolution.hpp"
 #    include "low_precision/fake_quantize.hpp"
 #    include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+#    include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #    include "low_precision/group_convolution.hpp"
 #    include "low_precision/interpolate.hpp"
 #    include "low_precision/mat_mul.hpp"
@@ -273,6 +274,8 @@
 #    include "low_precision/reduce_min.hpp"
 #    include "low_precision/reduce_sum.hpp"
 #    include "openvino/opsets/opset1_decl.hpp"
+#    include "openvino/pass/pattern/matcher.hpp"
+#    include "openvino/pass/pattern/op/wrap_type.hpp"
 #    include "snippets/utils/tokenization_utils.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_conv_bias.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
@@ -1023,38 +1026,65 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     CPU_SET_CALLBACK_ARM(
         lptManager,
         [](const_node_ptr& node) -> bool {
-            const auto multiply = ov::as_type_ptr<const ov::op::v1::Multiply>(node);
-            if (!multiply) {
+            auto conv_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>(
+                {ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+            auto add_m = ov::pass::pattern::wrap_type<ov::op::v1::Add>({conv_m, ov::pass::pattern::any_input()});
+            auto mul0_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_m, ov::pass::pattern::any_input()});
+            auto fq_m =
+                ov::pass::pattern::wrap_type<ov::opset1::FakeQuantize>({mul0_m,
+                                                                        ov::pass::pattern::any_input(),
+                                                                        ov::pass::pattern::any_input(),
+                                                                        ov::pass::pattern::any_input(),
+                                                                        ov::pass::pattern::any_input()},
+                                                                       ov::pass::pattern::type_matches_any(
+                                                                           {ov::element::i8, ov::element::u8}));
+            auto sub_m = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({fq_m, ov::pass::pattern::any_input()});
+
+            auto matcher = std::make_shared<ov::pass::pattern::Matcher>(sub_m);
+            if (!matcher->match(std::const_pointer_cast<ov::Node>(node))) {
                 return false;
             }
 
-            auto fq = ov::as_type_ptr<const ov::opset1::FakeQuantize>(multiply->get_input_node_shared_ptr(0));
-            if (!fq) {
+            const auto& pattern_map = matcher->get_pattern_value_map();
+            const auto fq = ov::as_type_ptr<const ov::opset1::FakeQuantize>(pattern_map.at(fq_m).get_node_shared_ptr());
+            const auto conv = ov::as_type_ptr<const ov::op::v1::Convolution>(pattern_map.at(conv_m).get_node_shared_ptr());
+            if (!fq || !conv) {
                 return false;
             }
 
-            const auto fq_out_precision = fq->get_output_element_type(0);
-            if (fq_out_precision != ov::element::i8 && fq_out_precision != ov::element::u8) {
+            return conv->get_input_element_type(0) == fq->get_output_element_type(0);
+        },
+        FuseSubtractToFakeQuantizeTransformation);
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [](const_node_ptr& node) -> bool {
+            auto conv_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>(
+                {ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+            auto add_m = ov::pass::pattern::wrap_type<ov::op::v1::Add>({conv_m, ov::pass::pattern::any_input()});
+            auto mul0_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_m, ov::pass::pattern::any_input()});
+            auto fq_m =
+                ov::pass::pattern::wrap_type<ov::opset1::FakeQuantize>({mul0_m,
+                                                                        ov::pass::pattern::any_input(),
+                                                                        ov::pass::pattern::any_input(),
+                                                                        ov::pass::pattern::any_input(),
+                                                                        ov::pass::pattern::any_input()},
+                                                                       ov::pass::pattern::type_matches_any(
+                                                                           {ov::element::i8, ov::element::u8}));
+            auto mul1_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({fq_m, ov::pass::pattern::any_input()});
+
+            auto matcher = std::make_shared<ov::pass::pattern::Matcher>(mul1_m);
+            if (!matcher->match(std::const_pointer_cast<ov::Node>(node))) {
                 return false;
             }
 
-            const auto mul = ov::as_type_ptr<const ov::op::v1::Multiply>(fq->get_input_node_shared_ptr(0));
-            if (!mul) {
+            const auto& pattern_map = matcher->get_pattern_value_map();
+            const auto fq = ov::as_type_ptr<const ov::opset1::FakeQuantize>(pattern_map.at(fq_m).get_node_shared_ptr());
+            const auto conv = ov::as_type_ptr<const ov::op::v1::Convolution>(pattern_map.at(conv_m).get_node_shared_ptr());
+            if (!fq || !conv) {
                 return false;
             }
 
-            const auto add = ov::as_type_ptr<const ov::op::v1::Add>(mul->get_input_node_shared_ptr(0));
-            if (!add) {
-                return false;
-            }
-
-            const auto conv = ov::as_type_ptr<const ov::op::v1::Convolution>(add->get_input_node_shared_ptr(0));
-            if (conv) {
-                bool ret = conv->get_input_element_type(0) == fq_out_precision;
-                return ret;
-            }
-
-            return false;
+            return conv->get_input_element_type(0) == fq->get_output_element_type(0);
         },
         FuseMultiplyToFakeQuantizeTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
