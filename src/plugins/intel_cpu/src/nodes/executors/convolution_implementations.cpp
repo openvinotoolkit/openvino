@@ -268,11 +268,11 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             "convolution_dnnl_nspc_nspc_unconditional_acl", ExecutorType::Dnnl, OperationType::Convolution,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
-                VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::nspc, LayoutType::nspc, LayoutType::nspc},
+                VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc},
                                                  memoryFormatFilter, dnnlConvolutionMappingNotation), MEMORY_FORMAT_MISMATCH);
                 return true;
             },
-            CreateOptimalConfigDefault{{LayoutType::nspc, LayoutType::nspc, LayoutType::nspc, LayoutType::nspc}},
+            CreateOptimalConfigDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
             AcceptsAnyShape<ConvAttrs>,
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
