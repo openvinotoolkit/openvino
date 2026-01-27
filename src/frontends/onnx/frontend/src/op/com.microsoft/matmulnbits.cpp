@@ -225,12 +225,12 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
             }
         }
 
-        // Possible issue with slice implementation, had to move convertion before slice, instead of slicing uint4
+        // Possible issue with slice implementation, had to move conversion before slice, instead of slicing uint4
         // TODO: Ticket
         // Comments: it is still there, so need to convert b to fp16 first.
 
         // TODO: Need to collect performance data in case constant folding is applied. Possible some perf/mem-gap
-        // Comments: in this latest code, the const folding is gone, it trigle the oneDNN kernel
+        // Comments: in this latest code, the const folding is gone; it triggers the oneDNN kernel
         //           and use u2/u4/u8 weights as the kernel's input, won't do const folding anymore.
 
         // use fp16 for compute

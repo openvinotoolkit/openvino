@@ -309,7 +309,7 @@ void InputModel::InputModelTFImpl::load_places() {
                                                               ov::PartialShape({}),
                                                               ov::element::dynamic,
                                                               std::vector<std::string>{output_name + ":0"});
-            // TODO: Create tensor places for each ouput port, ticket-129464
+            // TODO: Create tensor places for each output port, ticket-129464
             m_default_places[output_name + ":0"] = output_place;
             m_outputs.push_back(output_place);
         }

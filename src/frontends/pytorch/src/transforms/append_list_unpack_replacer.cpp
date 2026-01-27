@@ -90,7 +90,7 @@ AppendListUnpackReplacer::AppendListUnpackReplacer() {
             replace_node(list_unpack, res);
             return true;
         } else {
-            // Without aten::__getitem__, expect inputs to be equivalent od pytorch Tensor[].
+            // Without aten::__getitem__, expect inputs to be equivalent of pytorch Tensor[].
             // Return all inputs.
             replace_node(list_unpack, inputs);
             return true;

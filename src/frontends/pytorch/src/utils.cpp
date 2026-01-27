@@ -358,11 +358,11 @@ OutputVector make_framework_node(const NodeContext& context, const std::string& 
         for (size_t i = num_body_outs; i < body_results.size(); i++) {
             auto out_idx = session->decode_tensor_name(body_results[i]->input(0).get_source_output());
             FRONT_END_OP_CONVERSION_CHECK(extra_outputs_map.count(out_idx) == 0,
-                                          "More then one body output with same tensor name.");
+                                          "More than one body output with same tensor name.");
             extra_outputs_map[out_idx].push_back(body_results[i]);
         }
     }
-    // Number of body outputs can be higher then number of pt node outputs, e.g. in case of loop first body output is
+    // Number of body outputs can be higher than number of pt node outputs, e.g. in case of loop first body output is
     // condition, we have to skip such outputs.
     auto num_skip_body_outputs =
         num_body_outs > context.get_output_size() ? num_body_outs - context.get_output_size() : 0;

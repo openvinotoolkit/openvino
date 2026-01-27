@@ -25,7 +25,7 @@ struct VariableInfo {
     ::tensorflow::DataType variable_type;
     int32_t shard_id;
     std::vector<int64_t> starts;
-    std::vector<int64_t> lenghts;
+    std::vector<int64_t> lengths;
 };
 
 // reads checkpoints of v1 version
