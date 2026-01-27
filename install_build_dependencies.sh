@@ -281,7 +281,7 @@ elif [ -f /etc/os-release ] && grep -q '^ID=arch' /etc/os-release; then
         python \
         python-pip \
         python-setuptools \
-        python-pybind11 \
+       pybind11 \
         libffi \
         enchant \
         wget \
