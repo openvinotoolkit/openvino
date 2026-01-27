@@ -1836,10 +1836,10 @@ void ov::npuw::CompiledModel::compile_moe_models(std::size_t id, const std::stri
         LOG_INFO("Compiling MoE downstream model for Subgraph[" << id << "]...");
 
         m_profile["compile/" + device].record([&]() {
-            m_compiled_submodels[id].compiled_model = compile_submodel(m_compiled_submodels[id].model, device);
+            auto compiled = compile_submodel(m_compiled_submodels[id].model, device);
+            m_compiled_submodels[id].compiled_model = compiled;
+            moe_downstream_opt->set_compiled_model(std::move(compiled));
         });
-
-        moe_downstream_opt->set_compiled_model(std::move(m_compiled_submodels[id].compiled_model));
 
         LOG_INFO("MoE downstream compilation complete for Subgraph[" << id << "]");
     }
