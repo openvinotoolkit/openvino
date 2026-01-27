@@ -20,6 +20,7 @@ struct WorkloadTypeDesc {
     std::string initial_value;
     std::vector<std::string> changes;
     uint64_t change_interval;
+    bool repeat;
 };
 struct StreamDesc {
     // NB: Commons parameters for all modes

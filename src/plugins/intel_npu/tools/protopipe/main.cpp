@@ -280,8 +280,8 @@ int main(int argc, char* argv[]) {
                 if (simulation->workload) {
                     simulation->workload->wl_onnx->set(simulation->workload->workload_config.initial_value);
                     simulation->workload->wl_ov->set(simulation->workload->workload_config.initial_value);
+                    LOG_INFO() << "Setting initial value of workload type to " << simulation->workload->workload_config.initial_value << std::endl;
                 }
-                LOG_INFO() << "Setting initial value of workload type to " << simulation->workload->workload_config.initial_value << std::endl;
 
                 tasks.emplace_back(std::move(compiled), std::move(stream_name), std::move(criterion));
                 runner.add(std::ref(tasks.back()));
