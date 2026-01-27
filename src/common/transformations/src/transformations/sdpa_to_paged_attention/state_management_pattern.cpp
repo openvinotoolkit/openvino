@@ -340,7 +340,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     qkv_current_split_node->set_output_size(2);
     auto kv_current = qkv_current_split_node->output(1);
     std::shared_ptr<ov::Node> kv_past_par, kv_current2, kv_concat, kv_current_reshaped;
-    std::tie(kv_past_par, kv_current2, kv_current_reshaped, kv_concat) = kv_read_and_concat(kv_current);
+    std::tie(kv_past_par, kv_current2, kv_current_reshaped, kv_concat) = kv_read_and_concat(std::move(kv_current));
     auto kv_concat_split = wrap_type<v1::VariadicSplit>({kv_concat, any_input(), any_input()});
     kv_concat_split->set_output_size(2);
 
@@ -443,9 +443,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         const auto& real_q = pattern_map.at(q);
 
         auto sdpa_node = pattern_map
-                             .at(pattern_map.count(sdpa_with_4_inputs)   ? sdpa_with_4_inputs
-                                 : pattern_map.count(sdpa_with_5_inputs) ? sdpa_with_5_inputs
-                                                                         : sdpa_with_6_inputs)
+                             .at(pattern_map.count(sdpa_with_4_inputs)   ? std::move(sdpa_with_4_inputs)
+                                 : pattern_map.count(sdpa_with_5_inputs) ? std::move(sdpa_with_5_inputs)
+                                                                         : std::move(sdpa_with_6_inputs))
                              .get_node();
 
         auto k_head_size_dim = sdpa_node->get_input_tensor(1).get_partial_shape()[-1];  // E from SDPA spec.
@@ -456,10 +456,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         auto k_head_size = k_head_size_dim.get_length();
         auto v_head_size = v_head_size_dim.get_length();
 
-        auto num_k_heads_dim = extract_num_kv_heads(k_heads_unsqueeze,
+        auto num_k_heads_dim = extract_num_kv_heads(std::move(k_heads_unsqueeze),
                                                     sdpa_node->get_input_tensor(1).get_partial_shape()[-3],
                                                     pattern_map);
-        auto num_v_heads_dim = extract_num_kv_heads(v_heads_unsqueeze,
+        auto num_v_heads_dim = extract_num_kv_heads(std::move(v_heads_unsqueeze),
                                                     sdpa_node->get_input_tensor(2).get_partial_shape()[-3],
                                                     pattern_map);
         OPENVINO_ASSERT((num_k_heads_dim.is_static() && num_v_heads_dim.is_static()),
@@ -495,7 +495,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             // Reaply VariadicSplit from the model after the Concat with KV merged tensor to current KV merged tensor
             // before the Concat
             auto kv_current_split = real_kv_concat_split->clone_with_new_inputs(
-                {kv_split_part, real_kv_concat_split->input_value(1), real_kv_concat_split->input_value(2)});
+                {std::move(kv_split_part), real_kv_concat_split->input_value(1), real_kv_concat_split->input_value(2)});
             // Under assumption that K and V parts go in order: K part first, and then V part. Theoretically they can be
             // swapped.
             // TODO: Need more code to track the swapped variant.
@@ -517,8 +517,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                 }
             };
 
-            auto real_k = take_4d(k_current, k_current_reshaped, k_current2);
-            auto real_v = take_4d(v_current, v_current_reshaped, v_current2);
+            auto real_k = take_4d(std::move(k_current), std::move(k_current_reshaped), std::move(k_current2));
+            auto real_v = take_4d(std::move(v_current), std::move(v_current_reshaped), std::move(v_current2));
 
             std::shared_ptr<Node> k_transpose_order = kv_transpose_order;
             if (pattern_map.find(k_order) !=
@@ -606,9 +606,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
         }
 
-        std::initializer_list<std::shared_ptr<Node>> additional_params = {scale,
-                                                                          sliding_window,
-                                                                          alibi_slopes,
+        std::initializer_list<std::shared_ptr<Node>> additional_params = {std::move(scale),
+                                                                          std::move(sliding_window),
+                                                                          std::move(alibi_slopes),
                                                                           max_context_len.get_node_shared_ptr()};
         pa_arguments.insert(pa_arguments.end(), additional_params.begin(), additional_params.end());
 
