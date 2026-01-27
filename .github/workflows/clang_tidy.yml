@@ -82,7 +82,7 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_24_04_x64
-            ov_build/ubuntu_22_04_riscv_gnu
+            ov_build/ubuntu_22_04_riscv
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -276,7 +276,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
     container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv_gnu }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv }}
       volumes:
         - /mount:/mount
         - /home/runner/secrets/:/secrets:ro

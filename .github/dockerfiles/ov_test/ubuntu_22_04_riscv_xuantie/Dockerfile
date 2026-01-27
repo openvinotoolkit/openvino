@@ -18,58 +18,39 @@ RUN apt-get update && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install \
-        ca-certificates \
         curl \
         git \
-        gpg-agent \
         ninja-build \
+        ca-certificates \
+        gpg-agent \
         tzdata \
         # parallel gzip
         pigz \
         # Compilers
         gcc \
         g++ \
+        # qemu build dependencies
         gcc-riscv64-linux-gnu \
         g++-riscv64-linux-gnu \
-        binutils-riscv64-linux-gnu \
         libc6-riscv64-cross \
-        libstdc++6-riscv64-cross \
-        libgcc-s1-riscv64-cross \
-        qemu-user \
-        # QEMU build deps
         build-essential \
-        meson \
         pkg-config \
-        python3 \
-        python3-pip \
-        python3-venv \
-        python3-tomli \
-        autoconf \
-        automake \
-        bison \
-        flex \
-        gawk \
-        gperf \
-        libexpat-dev \
-        libgmp-dev \
-        libmpc-dev \
-        libmpfr-dev \
-        libtool \
-        texinfo \
         libglib2.0-dev \
         libpixman-1-dev \
         zlib1g-dev \
         && \
     rm -rf /var/lib/apt/lists/*
 
-ARG QEMU_VERSION="10.2.0"
-
-# Build QEMU from riscv-gnu-toolchain to get recent RVV support
-RUN mkdir -p /tmp/riscv-gnu-toolchain && cd /tmp/riscv-gnu-toolchain && \
-    git clone https://github.com/riscv-collab/riscv-gnu-toolchain.git && \
-    cd riscv-gnu-toolchain && \
-    git checkout 2026.01.23 && \
-    ./configure --prefix=/opt/riscv && \
-    make -j"$(nproc)" && \
-    make -j"$(nproc)" build-qemu && \
-    rm -rf /tmp/riscv-gnu-toolchain
+# build xuintie qemu emulator only
+ARG XUANTIE_VERSION="V2.8.1"
+ARG XUANTIE_REPO="https://github.com/XUANTIE-RV/xuantie-gnu-toolchain"
+ARG XUINTIE_PATH="/opt/riscv"
+ARG XUINTIE_TMP_PATH="/tmp/xuantie"
+ARG XUINTIE_SRC="/tmp/xuantie/src"
+    
+RUN mkdir -p ${XUINTIE_TMP_PATH} && cd ${XUINTIE_TMP_PATH} && \
+    git clone --branch ${XUANTIE_VERSION} --depth 1 ${XUANTIE_REPO} ${XUINTIE_SRC} && \
+    cd ${XUINTIE_SRC} && git submodule update --init -- qemu && \
+    cd ${XUINTIE_SRC}/qemu && ./configure --prefix=${XUINTIE_PATH} --interp-prefix=/usr/riscv64-linux-gnu --target-list=riscv64-linux-user && \
+    make -j$(nproc) && make install && \
+    rm -rf ${XUINTIE_TMP_PATH}
