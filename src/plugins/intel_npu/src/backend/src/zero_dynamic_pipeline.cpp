@@ -56,18 +56,15 @@ DynamicPipeline::DynamicPipeline(const Config& config,
       _config(config),
       _id(_graph->get_unique_id()),
       _number_of_command_lists(batch_size),
-      _logger("DynamicPipeline", _config.get<LOG_LEVEL>())
-/*_levelZeroInputTensors(input_tensors),
-_levelZeroOutputTensors(output_tensors)*/
-{
+      _logger("DynamicPipeline", _config.get<LOG_LEVEL>()) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::DynamicPipeline::DynamicPipeline");
 
     _logger.debug("DynamicPipeline - initialize started, number_of_command_lists %i", _number_of_command_lists);
-    // TODO: not support now
-    // if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-    //     _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-    //     _graph->resize_last_submitted_event(_number_of_command_lists);
-    // }
+
+    if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
+        _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        _graph->resize_last_submitted_event(_number_of_command_lists);
+    }
 
     OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>() ||
                         _init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
@@ -130,11 +127,10 @@ _levelZeroOutputTensors(output_tensors)*/
 
         size_t io_index = 0;
         for (const auto& desc : _graph->get_metadata().inputs) {
-            // TODO: Not support now
-            // if (desc.isMainInputWeights) {
-            //     // These values were set while running the "WeightlessGraph::init" method
-            //     continue;
-            // }
+            if (desc.isMainInputWeights) {
+                // These values were set while running the "WeightlessGraph::init" method
+                continue;
+            }
 
             if (input_tensors.at(io_index).size() > 1) {
                 _logger.debug("DynamicPipeline - set args for input index: %zu", io_index);
@@ -218,40 +214,6 @@ _levelZeroOutputTensors(output_tensors)*/
                 _command_lists.at(i)->appendWaitOnEvent(_graph->get_last_submitted_event(i));
             }
         }
-
-        /// TODO, profiling needs to add timestamp before and after graph execute, but the execute is added inside blob
-        /// now
-        // /// append timestamp command if feature was activated
-        // if (_npu_profiling != nullptr) {
-        //     _command_lists.at(i)->appendBarrier();
-        //     _command_lists.at(i)->appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_start));
-        // }
-
-        //_command_lists.at(i)->bind(dynamic_cast<intel_npu::IRGraph*>(graph.get()));
-
-        // /// Old graph execute called here
-
-        // /// append timestamp command if feature was activated
-        // if (_npu_profiling != nullptr) {
-        //     _command_lists.at(i)->appendBarrier();
-        //     _command_lists.at(i)->appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_end));
-        // }
-
-        // if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-        //     _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        //     if (_graph->get_last_submitted_event(i)) {
-        //         _command_lists.at(i)->appendReset(_graph->get_last_submitted_event(i));
-        //     }
-
-        //     _command_lists.at(i)->appendSignalEvent(_events.at(i));
-        //     _graph->set_last_submitted_event(_events.at(i), i);
-        // }
-
-        // // appendBarrier used in L0 as well
-        // if (!_sync_output_with_fences) {
-        //     _command_lists.at(i)->appendBarrier();
-        //     _command_lists.at(i)->appendSignalEvent(_events.at(i));
-        // }
     }
     _logger.debug("DynamicPipeline - initialize completed");
 }
@@ -262,7 +224,6 @@ void DynamicPipeline::PipelinedCommandLists::bind(IRGraph* graph) {
 
 void DynamicPipeline::push() {
     _logger.debug("DynamicPipeline - push() started");
-    //_logger.debug("inputs.size = %d, outputs.size=%d", _levelZeroInputTensors.size(), _levelZeroOutputTensors.size());
 
     if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
         _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
@@ -302,43 +263,6 @@ void DynamicPipeline::push() {
         // Before call execute, shall clear memref containers in graphArguments to avoid dangling ptrs
         graphArguments._inputMemRefs.clear();
         graphArguments._outputMemRefs.clear();
-
-        //     // Need change to use arguments in pipeline
-        //     std::vector<IRGraph::MemRefType> inputPros = graphArguments._inputs;
-        //     std::vector<IRGraph::MemRefType> outputPros = graphArguments._outputs;
-
-        //     // TENTATIVE CODE TO ALLOCATE a memref handle
-        //     for (size_t i = 0; i < inputPros.size(); ++i) {
-        //         inputPros[i].UpdateMemRefHandleStatus();
-        //     }
-
-        //     for (size_t i = 0; i < outputPros.size(); ++i) {
-        //         outputPros[i].UpdateMemRefHandleStatus();
-        //     }
-
-        //     // TODO: Skip predict output shape to avoid segment fault
-        //     dynamic_cast<IRGraph*>(_graph.get())->predict_output_shape(inputPros, outputPros);
-
-        //     bool shapeChanged = false;
-        //     for (size_t i = 0; i < outputPros.size(); i++) {
-        //         for (int64_t j = 0; j < outputPros[i].dimsCount; j++) {
-        //             if (graphArguments._outputs[i].sizes[j] != outputPros[i].sizes[j]) {
-        //                 _logger.info(
-        //                     "Output tensor %d shape and predicted shape mimsmatch at dim %zu, changed from %zu to
-        //                     %zu", i, j, graphArguments._outputs[i].sizes[j], outputPros[i].sizes[j]);
-        //                 shapeChanged = true;
-        //                 graphArguments._outputs[i].sizes[j] = outputPros[i].sizes[j];
-        //             }
-        //         }
-        //         if (shapeChanged) {
-        //             graphArguments._outputs[i].updateStride();
-        //         }
-        //     }
-        //     if (!shapeChanged) {
-        //         _logger.debug("No output shape changed detected");
-        //     } else {
-        //         _logger.warning("Use predicted shape to replace the real tensor shape and update its strides");
-        // }
 
         dynamic_cast<IRGraph*>(_graph.get())
             ->execute(_init_structs,
@@ -448,7 +372,6 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
 }
 
 std::vector<ov::ProfilingInfo> DynamicPipeline::get_profiling_info() const {
-    // TODO: Need a way to get profiling info
     _logger.debug("InferRequest::get_profiling_info started");
     if (!_config.has<PERF_COUNT>() || !_config.get<PERF_COUNT>()) {
         _logger.warning("InferRequest::get_profiling_info complete with empty {}.");
@@ -459,16 +382,9 @@ std::vector<ov::ProfilingInfo> DynamicPipeline::get_profiling_info() const {
         _logger.debug("InferRequest::get_profiling_info complete with _npu_profiling->getNpuInferStatistics().");
         return _npu_profiling->getNpuInferStatistics();
     }
-    /// PROFILING_TYPE = MODEL or undefined = fallback to model profiling
-    // if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PLUGIN) {
-    // For plugin compiler retreive raw profiling data from backend and delegate
-    // processing to the compiler
+
     _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
     return _graph->process_profiling_output(_profiling_query->getData<uint8_t>(), _config);
-    // } else {
-    //     _logger.debug("InferRequest::get_profiling_info complete with _profiling_query.getLayerStatistics().");
-    //     return _profiling_query->getLayerStatistics();
-    // }
 }
 
 }  // namespace intel_npu

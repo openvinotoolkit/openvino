@@ -1,19 +1,19 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#    pragma once
+#pragma once
 
-#    include <ze_api.h>
-#    include <ze_graph_ext.h>
+#include <ze_api.h>
+#include <ze_graph_ext.h>
 
-#    include "intel_npu/common/npu.hpp"
-#    include "intel_npu/common/sync_infer_request.hpp"
-#    include "intel_npu/utils/logger/logger.hpp"
-#    include "intel_npu/utils/zero/zero_remote_tensor.hpp"
-#    include "intel_npu/utils/zero/zero_utils.hpp"
-#    include "intel_npu/utils/zero/zero_wrappers.hpp"
-#    include "zero_dynamic_pipeline.hpp"
-#    include "zero_tensor.hpp"
+#include "intel_npu/common/npu.hpp"
+#include "intel_npu/common/sync_infer_request.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
+#include "intel_npu/utils/zero/zero_wrappers.hpp"
+#include "zero_dynamic_pipeline.hpp"
+#include "zero_tensor.hpp"
 
 namespace intel_npu {
 
@@ -70,9 +70,6 @@ private:
     // memory area for the tensor.
     mutable std::vector<std::vector<std::shared_ptr<ZeroTensor>>> _levelZeroInputTensors;
     mutable std::vector<std::shared_ptr<ZeroTensor>> _levelZeroOutputTensors;
-
-    // std::shared_ptr<const zeroMemory::HostMemAllocator> _inputAllocator;
-    // std::shared_ptr<const zeroMemory::HostMemAllocator> _outputAllocator;
 
     std::unique_ptr<DynamicPipeline> _pipeline;
 

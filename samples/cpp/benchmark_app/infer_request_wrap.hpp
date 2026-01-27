@@ -70,14 +70,6 @@ public:
         _request.get_tensor(name).set_shape(dims);
     }
 
-    ov::Tensor get_input_tensor(size_t index) {
-        return _request.get_input_tensor(index);
-    }
-
-    ov::Tensor get_output_tensor(size_t index) {
-        return _request.get_output_tensor(index);
-    }
-
     ov::Tensor get_tensor(const std::string& name) {
         return _request.get_tensor(name);
     }
@@ -100,10 +92,6 @@ public:
     // we will control the number of output buffers and access to it.
     std::map<std::string, ::gpu::BufferType>& get_output_cl_buffer() {
         return outputClBuffer;
-    }
-
-    size_t get_id() {
-        return _id;
     }
 
 private:

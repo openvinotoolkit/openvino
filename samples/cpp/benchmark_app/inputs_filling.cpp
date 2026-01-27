@@ -5,7 +5,6 @@
 #include "inputs_filling.hpp"
 
 #include <algorithm>
-#include <chrono>
 #include <fstream>
 #include <iomanip>
 #include <memory>
@@ -254,7 +253,7 @@ ov::Tensor create_tensor_random(const benchmark_app::InputInfo& inputInfo,
     auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape);
     auto data = tensor.data<T>();
 
-    std::mt19937 gen(static_cast<unsigned int>(std::chrono::system_clock::now().time_since_epoch().count()));
+    std::mt19937 gen(0);
     uniformDistribution<T2> distribution(rand_min, rand_max);
     for (size_t i = 0; i < tensor_size; i++) {
         data[i] = static_cast<T>(distribution(gen));
@@ -1013,13 +1012,8 @@ std::map<std::string, ov::TensorVector> get_tensors_static_case(const std::vecto
 
 void copy_tensor_data(ov::Tensor& dst, const ov::Tensor& src) {
     if (src.get_shape() != dst.get_shape() || src.get_byte_size() != dst.get_byte_size()) {
-        // std::cout << "source tensor shape: " << src.get_shape().to_string() << ", size: " << src.get_byte_size()
-        //           << std::endl;
-        // std::cout << "dst tensor shape: " << dst.get_shape().to_string() << ", size: " << dst.get_byte_size()
-        //           << std::endl;
         throw std::runtime_error(
             "Source and destination tensors shapes and byte sizes are expected to be equal for data copying.");
-        // std::cout << "Dynamic pipeline support mismatch tensor shape" << std::endl;
     }
     memcpy(dst.data(), src.data(), src.get_byte_size());
 }

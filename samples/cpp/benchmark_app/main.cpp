@@ -1044,6 +1044,7 @@ int main(int argc, char* argv[]) {
         // ----------------- 9. Creating infer requests and filling input blobs
         // ----------------------------------------
         next_step();
+
         InferRequestsQueue inferRequestsQueue(compiledModel, nireq, app_inputs_info.size(), FLAGS_pcseq);
 
         bool inputHasName = false;
@@ -1056,37 +1057,16 @@ int main(int argc, char* argv[]) {
         bool useGpuMem = false;
         bool useNpuMem = false;
 
-        std::vector<std::map<std::string, ov::TensorVector>> inputsDatas;
-        for (uint64_t i = nireq; i > 0; i--) {
-            std::map<std::string, ov::TensorVector> inputsData;
-            if (isFlagSetInCommandLine("use_device_mem")) {
-                if (device_name.find("GPU") == 0) {
-                    inputsData = ::gpu::get_remote_input_tensors(inputFiles,
-                                                                 app_inputs_info,
-                                                                 compiledModel,
-                                                                 clInputsBuffer,
-                                                                 inferRequestsQueue.requests.size());
-                    useGpuMem = true;
-                } else if (device_name.find("CPU") == 0) {
-                    if (newInputType) {
-                        inputsData = get_tensors(inputFiles, app_inputs_info);
-                    } else {
-                        inputsData = get_tensors_static_case(
-                            inputFiles.empty() ? std::vector<std::string>{} : inputFiles.begin()->second,
-                            batchSize,
-                            app_inputs_info[0],
-                            nireq);
-                    }
-                } else if (device_name.find("NPU") == 0) {
-                    inputsData = ::npu::get_remote_input_tensors(inputFiles,
-                                                                 app_inputs_info,
-                                                                 compiledModel,
-                                                                 inferRequestsQueue.requests.size());
-                    useNpuMem = true;
-                } else {
-                    OPENVINO_THROW("Requested device doesn't support `use_device_mem` option.");
-                }
-            } else {
+        std::map<std::string, ov::TensorVector> inputsData;
+        if (isFlagSetInCommandLine("use_device_mem")) {
+            if (device_name.find("GPU") == 0) {
+                inputsData = ::gpu::get_remote_input_tensors(inputFiles,
+                                                             app_inputs_info,
+                                                             compiledModel,
+                                                             clInputsBuffer,
+                                                             inferRequestsQueue.requests.size());
+                useGpuMem = true;
+            } else if (device_name.find("CPU") == 0) {
                 if (newInputType) {
                     inputsData = get_tensors(inputFiles, app_inputs_info);
                 } else {
@@ -1096,8 +1076,25 @@ int main(int argc, char* argv[]) {
                         app_inputs_info[0],
                         nireq);
                 }
+            } else if (device_name.find("NPU") == 0) {
+                inputsData = ::npu::get_remote_input_tensors(inputFiles,
+                                                             app_inputs_info,
+                                                             compiledModel,
+                                                             inferRequestsQueue.requests.size());
+                useNpuMem = true;
+            } else {
+                OPENVINO_THROW("Requested device doesn't support `use_device_mem` option.");
             }
-            inputsDatas.push_back(inputsData);
+        } else {
+            if (newInputType) {
+                inputsData = get_tensors(inputFiles, app_inputs_info);
+            } else {
+                inputsData = get_tensors_static_case(
+                    inputFiles.empty() ? std::vector<std::string>{} : inputFiles.begin()->second,
+                    batchSize,
+                    app_inputs_info[0],
+                    nireq);
+            }
         }
         // ----------------- 10. Measuring performance
         // ------------------------------------------------------------------
@@ -1144,14 +1141,14 @@ int main(int argc, char* argv[]) {
         // copy prepared data straight into inferRequest->getTensor()
         // for inference only mode
         if (inferenceOnly) {
-            if (nireq < inputsDatas[0].begin()->second.size())
+            if (nireq < inputsData.begin()->second.size())
                 slog::warn << "Only " << nireq << " test configs will be used." << slog::endl;
             size_t i = 0;
             for (auto& inferRequest : inferRequestsQueue.requests) {
                 auto inputs = app_inputs_info[i % app_inputs_info.size()];
                 for (auto& item : inputs) {
                     auto inputName = item.first;
-                    const auto& inputTensor = inputsDatas[i].at(inputName)[i % inputsDatas[i].at(inputName).size()];
+                    const auto& inputTensor = inputsData.at(inputName)[i % inputsData.at(inputName).size()];
                     // for remote blobs setTensor is used, they are already allocated on the device
                     if (useGpuMem) {
                         inferRequest->set_tensor(inputName, inputTensor);
@@ -1191,7 +1188,7 @@ int main(int argc, char* argv[]) {
 
                 for (auto& item : inputs) {
                     auto inputName = item.first;
-                    const auto& data = inputsDatas[inferRequest->get_id()].at(inputName)[0];
+                    const auto& data = inputsData.at(inputName)[0];
                     inferRequest->set_tensor(inputName, data);
                 }
 
@@ -1253,8 +1250,7 @@ int main(int argc, char* argv[]) {
 
                 for (auto& item : inputs) {
                     auto inputName = item.first;
-                    const auto& data = inputsDatas[inferRequest->get_id()].at(
-                        inputName)[iteration % inputsDatas[inferRequest->get_id()].at(inputName).size()];
+                    const auto& data = inputsData.at(inputName)[iteration % inputsData.at(inputName).size()];
                     inferRequest->set_tensor(inputName, data);
                 }
 
@@ -1287,85 +1283,6 @@ int main(int argc, char* argv[]) {
         // wait the latest inference executions
         inferRequestsQueue.wait_all();
 
-        // std::cout << "Try dump info" << std::endl;
-#ifdef NPU_LLVM_BACKEND
-        if (getenv("DUMP_TENSOR_INFO")) {
-            bool skipDump = false;
-            for (size_t i = 0; i < inferRequestsQueue.requests.size() && !skipDump; i++) {
-                size_t count = compiledModel.outputs().size();
-                for (size_t j = 0; j < count && !skipDump; j++) {
-                    auto outputTensor = inferRequestsQueue.requests[i]->get_output_tensor(j);
-                    // print 10 numbers from the output
-                    std::cout << "First 10 numbers of the output: ";
-#    ifdef _WIN32
-                    for (size_t x = 0; x < min(outputTensor.get_size(), static_cast<size_t>(10)) && !skipDump; x++) {
-#    else
-                    for (size_t x = 0; x < std::min(outputTensor.get_size(), static_cast<size_t>(10)) && !skipDump;
-                         x++) {
-#    endif
-                        switch (outputTensor.get_element_type()) {
-                        case ov::element::f16:
-                            std::cout << outputTensor.data<ov::float16>()[x] << " ";
-                            break;
-                        case ov::element::f32:
-                            std::cout << outputTensor.data<float>()[x] << " ";
-                            break;
-                        case ov::element::i8:
-                            std::cout << outputTensor.data<uint8_t>()[x] << " ";
-                            break;
-                        case ov::element::i32:
-                            std::cout << outputTensor.data<uint32_t>()[x] << " ";
-                            break;
-                        case ov::element::i64:
-                            std::cout << outputTensor.data<uint64_t>()[x] << " ";
-                            break;
-                        default:
-                            std::cout << "Tensor element type " << outputTensor.get_element_type().to_string()
-                                      << " not support dump" << std::endl;
-                            skipDump = true;
-                        }
-                    }
-                    std::cout << std::endl;
-                }
-
-                size_t inputCount = compiledModel.inputs().size();
-                for (size_t k = 0; k < inputCount && !skipDump; k++) {
-                    auto inputTensor = inferRequestsQueue.requests[i]->get_input_tensor(k);
-                    // print 10 numbers from the output
-                    std::cout << "First 10 numbers of the input: ";
-#    ifdef _WIN32
-                    for (size_t y = 0; y < min(inputTensor.get_size(), static_cast<size_t>(10)) && !skipDump; y++) {
-#    else
-                    for (size_t y = 0; y < std::min(inputTensor.get_size(), static_cast<size_t>(10)) && !skipDump;
-                         y++) {
-#    endif
-                        switch (inputTensor.get_element_type()) {
-                        case ov::element::f16:
-                            std::cout << inputTensor.data<ov::float16>()[y] << " ";
-                            break;
-                        case ov::element::f32:
-                            std::cout << inputTensor.data<float>()[y] << " ";
-                            break;
-                        case ov::element::i8:
-                            std::cout << inputTensor.data<uint8_t>()[y] << " ";
-                            break;
-                        case ov::element::i32:
-                            std::cout << inputTensor.data<uint32_t>()[y] << " ";
-                            break;
-                        case ov::element::i64:
-                            std::cout << inputTensor.data<uint64_t>()[y] << " ";
-                            break;
-                        default:
-                            std::cout << "Tensor element type " << inputTensor.get_element_type().to_string()
-                                      << " not support dump" << std::endl;
-                            skipDump = true;
-                        }
-                    }
-                    std::cout << std::endl;
-                }
-            }
-        }
-#endif
         LatencyMetrics generalLatency(inferRequestsQueue.get_latencies(), "", FLAGS_latency_percentile);
         std::vector<LatencyMetrics> groupLatencies = {};
         if (FLAGS_pcseq && app_inputs_info.size() > 1) {

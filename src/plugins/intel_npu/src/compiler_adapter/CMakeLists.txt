@@ -6,7 +6,7 @@ set(TARGET_NAME "openvino_npu_driver_compiler_adapter")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
-if(NOT ENABLE_LLVM_BACKEND)
+if(NOT ENABLE_NPU_DEBUG_CAPS)
     list(REMOVE_ITEM SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/include/irgraph.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/include/npu_mlir_runtime_api.hpp

@@ -337,11 +337,6 @@ std::streampos MetadataBase::getFileSize(std::istream& stream) {
 }
 
 std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
-    // // TODO: Need to define the format of IR to get metadata from stream, then can check version
-    // if (!isELFBlob(stream)) {
-    //     return std::make_unique<Metadata<METADATA_VERSION_2_0>>(MetadataBase::getFileSize(stream), std::nullopt);
-    // }
-
     size_t magicBytesSize = MAGIC_BYTES.size();
     std::string blobMagicBytes;
     blobMagicBytes.resize(magicBytesSize);

@@ -8,7 +8,7 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "zero_infer_request.hpp"
-#ifdef NPU_LLVM_BACKEND
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
 #    include "zero_dynamic_infer_request.hpp"
 #endif
 
@@ -179,7 +179,7 @@ ov::device::Type ZeroDevice::getDeviceType() const {
 std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
     const std::shared_ptr<const ICompiledModel>& compiledModel,
     const Config& config) {
-#ifdef NPU_LLVM_BACKEND
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
     if (compiledModel->get_graph()->get_blob_type() == BlobType::LLVM) {
         return std::make_shared<ZeroDynamicInferRequest>(_initStructs, compiledModel, config);
     }

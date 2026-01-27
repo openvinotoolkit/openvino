@@ -17,7 +17,7 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 
-#ifdef NPU_LLVM_BACKEND
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
 #    include "irgraph.hpp"
 #endif
 
@@ -74,7 +74,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     ov::Tensor tensor;
     tensor = std::move(networkDesc.compiledNetworkTensor);
 
-#ifdef NPU_LLVM_BACKEND
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
     if (config.get<COMPILATION_MODE>() == "HostCompile") {
         // no _compiler::parse call is required. networkmetadata will be obtained in IRGraph constructor
         _logger.debug("blob is not ELF format, create graph for LLVM IR!");
@@ -267,7 +267,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
-#ifdef NPU_LLVM_BACKEND
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
     if (config.get<COMPILATION_MODE>() == "HostCompile") {
         // no _compiler::parse call is required. networkmetadata will be obtained in IRGraph constructor
         _logger.debug("blob is not ELF format, create graph for LLVM IR!");
