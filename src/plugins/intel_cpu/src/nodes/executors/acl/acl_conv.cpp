@@ -105,8 +105,8 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
     const bool quantizedSrc = any_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8);
     const bool quantizedDst = any_of(dstDesc->getPrecision(), ov::element::u8, ov::element::i8);
     const bool hasQuantizationPostOp = std::any_cast<FakeQuantizePostOp>(config.attrs.postOps.data()) != nullptr;
-    bool isQuantized = quantizedSrc && weiDesc->getPrecision() == ov::element::i8 &&
-                       (!quantizedDst || hasQuantizationPostOp);
+    bool isQuantized =
+        quantizedSrc && weiDesc->getPrecision() == ov::element::i8 && (!quantizedDst || hasQuantizationPostOp);
 
     VERIFY(isQuantized, UNSUPPORTED_SRC_PRECISIONS);
     if (config.attrs.withBias) {

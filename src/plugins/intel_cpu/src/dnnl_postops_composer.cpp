@@ -32,8 +32,8 @@
 #include "nodes/executors/dnnl/dnnl_post_op_data.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/type/float16.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "post_ops.hpp"
 #include "utils/cpp/to_underlying.hpp"
 #include "utils/debug_capabilities.h"
@@ -503,13 +503,13 @@ void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vec
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     std::vector<ov::float16> dataF16;
     if (useF16Binary) {
-            dataF16.reserve(data.size());
-            for (float value : data) {
-                dataF16.emplace_back(value);
-            }
-            binaryType = ov::element::f16;
-            binaryData = dataF16.data();
-            binaryBytes = dataF16.size() * sizeof(ov::float16);
+        dataF16.reserve(data.size());
+        for (float value : data) {
+            dataF16.emplace_back(value);
+        }
+        binaryType = ov::element::f16;
+        binaryData = dataF16.data();
+        binaryBytes = dataF16.size() * sizeof(ov::float16);
     }
 #endif
 

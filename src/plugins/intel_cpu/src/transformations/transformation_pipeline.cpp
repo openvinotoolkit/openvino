@@ -1025,19 +1025,16 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         [](const_node_ptr& node) -> bool {
             const auto multiply = ov::as_type_ptr<const ov::op::v1::Multiply>(node);
             if (!multiply) {
-                //std::cout << "FuseMultiplyToFakeQuantizeTransformation: " << node->get_friendly_name() << " no Multiply\n";
                 return false;
             }
 
             auto fq = ov::as_type_ptr<const ov::opset1::FakeQuantize>(multiply->get_input_node_shared_ptr(0));
             if (!fq) {
-                //std::cout << "FuseMultiplyToFakeQuantizeTransformation: " << node->get_friendly_name() << " no FQ\n";
                 return false;
             }
 
             const auto fq_out_precision = fq->get_output_element_type(0);
             if (fq_out_precision != ov::element::i8 && fq_out_precision != ov::element::u8) {
-                //std::cout << "FuseMultiplyToFakeQuantizeTransformation: " << node->get_friendly_name() << " out FQ precision: " << fq_out_precision << "\n";
                 return false;
             }
 
@@ -1045,22 +1042,18 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
             if (!mul) {
                 return false;
             }
-            //std::cout << "FuseMultiplyToFakeQuantizeTransformation: " << node->get_friendly_name() << " pass Mul\n";
 
             const auto add = ov::as_type_ptr<const ov::op::v1::Add>(mul->get_input_node_shared_ptr(0));
             if (!add) {
                 return false;
             }
-            //std::cout << "FuseMultiplyToFakeQuantizeTransformation: " << node->get_friendly_name() << " pass Add\n";
 
             const auto conv = ov::as_type_ptr<const ov::op::v1::Convolution>(add->get_input_node_shared_ptr(0));
             if (conv) {
                 bool ret = conv->get_input_element_type(0) == fq_out_precision;
-                //std::cout << "FuseMultiplyToFakeQuantizeTransformation: " << node->get_friendly_name() << " " << conv->get_input_element_type(0) << " " << fq_out_precision << " " << ret << "\n";
                 return ret;
             }
 
-            //std::cout << "FuseMultiplyToFakeQuantizeTransformation: " << node->get_friendly_name() << " Conv node not found\n";
             return false;
         },
         FuseMultiplyToFakeQuantizeTransformation);
@@ -1106,9 +1099,8 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
                 if (noConvBias && eltwiseInput->get_input_element_type(0) == node->get_output_element_type(0)) {
                     return true;
                 }
-                if (withConvBias &&
-                    eltwiseInput->get_input_node_shared_ptr(0)->get_input_element_type(0) ==
-                        node->get_output_element_type(0)) {
+                if (withConvBias && eltwiseInput->get_input_node_shared_ptr(0)->get_input_element_type(0) ==
+                                        node->get_output_element_type(0)) {
                     return true;
                 }
             }
@@ -1754,18 +1746,21 @@ void Transformations::PostSnippets() {
         [](const_node_ptr& node) -> bool {
             if (ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
                 ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
-            auto parent = node->get_input_node_shared_ptr(0);
-            if (ov::is_type<const ov::op::v1::Multiply>(parent) && !parent->inputs().empty()) {
-                auto multiply_input = parent->get_input_node_shared_ptr(0);
+                auto parent = node->get_input_node_shared_ptr(0);
+                if (ov::is_type<const ov::op::v1::Multiply>(parent) && !parent->inputs().empty()) {
+                    auto multiply_input = parent->get_input_node_shared_ptr(0);
                     const bool noConvBias = ov::is_type<const ov::op::v1::Convolution>(multiply_input);
-                    const bool withConvBias = ov::is_type<const ov::op::v1::Add>(multiply_input) &&
+                    const bool withConvBias =
+                        ov::is_type<const ov::op::v1::Add>(multiply_input) &&
                         ov::is_type<const ov::op::v1::Convolution>(multiply_input->get_input_node_shared_ptr(0));
                     // int8 ACL Convolution executor supports only same activation and output types
                     // if types are different, decompose FQ to avoid reference FQ
                     if (noConvBias && multiply_input->get_input_element_type(0) == node->get_output_element_type(0)) {
                         return true;
                     }
-                    if (withConvBias && multiply_input->get_input_node_shared_ptr(0)->get_input_element_type(0) == node->get_output_element_type(0)) {
+                    if (withConvBias &&
+                        multiply_input->get_input_node_shared_ptr(0)->get_input_element_type(0) ==
+                            node->get_output_element_type(0)) {
                         return true;
                     }
                 }
