@@ -3107,7 +3107,14 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
         return dynamic_impl;
     }
 
-    // 5. Finally, if no impl found so far, we just enforce static impl compilation
+    // 5. Check static impl cache before compiling new one
+    {
+        auto cached_impl = m_static_impls_cache.get(updated_params);
+        if (cached_impl)
+            return cached_impl->clone();
+    }
+
+    // 6. Finally, if no impl found so far, we just enforce static impl compilation
     auto static_impl = find_impl(node, updated_params, shape_types::static_shape);
     OPENVINO_ASSERT(static_impl != nullptr, "No static impl " + node->id());
     static_impl->set_node_params(*node);
