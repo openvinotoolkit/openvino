@@ -136,10 +136,6 @@ size_t jit_ceil_emitter::get_inputs_num() const {
     return 1;
 }
 
-size_t jit_ceil_emitter::aux_vecs_count() const {
-    return 1;
-}
-
 size_t jit_ceil_emitter::aux_fp_gprs_count() const {
     return 1;
 }
@@ -163,9 +159,7 @@ void jit_ceil_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
 
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
-    auto aux1 = VReg(aux_vec_idxs[0]);
     auto fp1 = FReg(aux_fp_gpr_idxs[0]);
-    h->vmv_v_v(aux1, src);
 
     h->vfcvt_x_f_v(dst, src);
     h->vfcvt_f_x_v(dst, dst);
