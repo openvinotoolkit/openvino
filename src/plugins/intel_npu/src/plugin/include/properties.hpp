@@ -93,7 +93,6 @@ private:
         ov::intel_npu::turbo.name(),
         ov::intel_npu::qdq_optimization.name(),
         ov::intel_npu::qdq_optimization_aggressive.name(),
-        ov::intel_npu::weightless_blob.name(),
         // NPUW caching properties
         ov::intel_npu::use_npuw.name(),
         ov::intel_npu::npuw::devices.name(),

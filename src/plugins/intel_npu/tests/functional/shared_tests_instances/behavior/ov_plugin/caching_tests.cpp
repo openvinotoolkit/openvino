@@ -121,7 +121,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CachingSupportCase_NPU,
                          ov::test::utils::appendPlatformTypeTestName<CompiledKernelsCacheTest>);
 
 const std::vector<ov::AnyMap> cachingProperties = {
-    {ov::cache_mode(ov::CacheMode::OPTIMIZE_SPEED)},
     {ov::enable_profiling(true)},
     {ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE)},
     {ov::hint::inference_precision(ov::element::i8)},
@@ -133,12 +132,12 @@ const std::vector<ov::AnyMap> cachingProperties = {
     {ov::intel_npu::compiler_dynamic_quantization()},
     {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)},
     {ov::intel_npu::dma_engines(1)},
+    {ov::intel_npu::dynamic_shape_to_static("true")},
     {ov::intel_npu::max_tiles(64)},
     {ov::intel_npu::tiles(2)},
     {ov::intel_npu::turbo(true)},
     {ov::intel_npu::qdq_optimization(true)},
-    {ov::intel_npu::qdq_optimization_aggressive(true)},
-    {ov::intel_npu::weightless_blob(true)},
+    {ov::intel_npu::qdq_optimization_aggressive(true)}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CachingSupportCase_NPU_Check_Config,
