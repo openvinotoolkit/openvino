@@ -193,7 +193,17 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
                 OPENVINO_THROW("Moe weight shape must be 3D or 4D.");
             }
             OutputVector args(12);
-            args[0] = pattern_map.at(hidden_states_m);
+            bool convert_f16 = false;
+            auto hidden_states = pattern_map.at(hidden_states_m);
+            if (hidden_states.get_element_type() == ov::element::f32) {
+                std::cout << "f32 moe hidden state" << std::endl;
+                auto convert = std::make_shared<ov::op::v0::Convert>(hidden_states, ov::element::f16);
+                ov::copy_runtime_info(moe, convert);
+                args[0] = convert;
+                convert_f16 = true;
+            } else {
+                args[0] = hidden_states;
+            }
             args[1] = pattern_map.at(routing_weights_m);
             args[2] = pattern_map.at(topk_m);
             args[3] = pattern_map.at(gemm3_compressed_weights_m_gate);
@@ -235,6 +245,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             config.top_k = topk_shape[1].get_length();
             config.out_type = ov::element::f16;
             config.has_batch_dim = is_pa ? 0 : 1;
+
             std::shared_ptr<ov::Node> moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(args, config);
             moe_compressed->set_friendly_name(moe->get_friendly_name());
             ov::copy_runtime_info(moe, moe_compressed);
