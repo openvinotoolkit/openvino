@@ -49,11 +49,11 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         }
         bool has_transpose = pattern_map.count(transpose_m);
         auto scale_shape = pattern_map.at(mul_const_m).get_shape();
-        bool grouped = std::count_if(scale_shape.begin(), scale_shape.end(), [](size_t d) { return d > 1; }) > 1;
         bool sub_with_convert = (pattern_map.count(sub_with_convert_m) > 0) ? true : false;
 
         auto weight_shape = fc->get_input_shape(1);
         bool is_weight_3d = (std::count_if(weight_shape.begin(), weight_shape.end(), [](size_t d) { return d > 1; }) == 3);
+        bool grouped = scale_shape.size() == weight_shape.size() + 1;
 
         auto weight_ptr = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(compressed_weights_m).get_node_shared_ptr());
         bool weight_u8 = false;

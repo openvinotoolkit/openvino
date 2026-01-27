@@ -29,91 +29,125 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/slice.hpp"
 
 namespace ov::intel_gpu {
 using namespace ov::pass::pattern;
 
 FuseMOE3GemmCompressed::FuseMOE3GemmCompressed() {
-    auto hidden_state_m = any_input();
-    auto routers_m = any_input();
-    auto router_matmul_m = wrap_type<ov::op::v0::MatMul>({hidden_state_m, routers_m}, consumers_count(1));
-    auto softmax_m = wrap_type<ov::op::v8::Softmax>({router_matmul_m}, consumers_count(1));
-    auto topk_m = wrap_type<ov::op::v11::TopK>({softmax_m, any_input()});
-    topk_m->set_output_size(2);
+    using namespace ov::pass::pattern;
 
-    // weight output
-    auto reduce_sum_m = wrap_type<ov::op::v1::ReduceSum>({topk_m->output(0), any_input()}, consumers_count(1));
-    auto norm_m = wrap_type<ov::op::v1::Divide>({topk_m->output(0), reduce_sum_m->output(0)}, consumers_count(1));
+    // Inputs
+    auto hidden_state = any_input();
+    auto hidden_state_reshape = wrap_type<ov::op::v1::Reshape>({hidden_state, any_input()});
+    auto routers = any_input();
 
-    // idx output
-    auto shape_of_m = wrap_type<ov::op::v3::ShapeOf>({topk_m->output(1)}, consumers_count(1));
-    auto gather_m = wrap_type<ov::op::v8::Gather>({shape_of_m, any_input(), any_input()}, consumers_count(1));
-    auto unsqueeze_m = wrap_type<ov::op::v0::Unsqueeze>({gather_m, any_input()});
+    // Router subgraph
+    auto router_mm = wrap_type<ov::op::v0::MatMul>({hidden_state_reshape, routers}, consumers_count(1));
+    auto router_sm = wrap_type<ov::op::v8::Softmax>({router_mm}, consumers_count(1));
+    auto topk = wrap_type<ov::op::v11::TopK>({router_sm, any_input()});
+    topk->set_output_size(2);
 
-    auto unsqueeze_const_m = wrap_type<ov::op::v0::Unsqueeze>({any_input(), any_input()});
-    auto concat_m = wrap_type<ov::op::v0::Concat>({unsqueeze_m, unsqueeze_const_m}, consumers_count(1));
-    auto concat1_m = wrap_type<ov::op::v0::Concat>({unsqueeze_const_m, unsqueeze_m, any_input()}, consumers_count(1));
-    auto bc_m = wrap_type<ov::op::v3::Broadcast>({any_input(), concat_m}, consumers_count(1));
-    auto scatter_m = wrap_type<ov::op::v12::ScatterElementsUpdate>({bc_m->output(0), topk_m->output(1), norm_m->output(0), any_input()}, consumers_count(1));
-    auto transpose_m = wrap_type<ov::op::v1::Transpose>({scatter_m, any_input()}, consumers_count(1));
-    auto reshape_m = wrap_type<ov::op::v1::Reshape>({transpose_m, concat1_m}, consumers_count(1));
-    auto unsqueeze_moe_m = wrap_type<ov::op::v0::Unsqueeze>({reshape_m, any_input()}, consumers_count(1));
+    // Weights path: norm = topk_val / reduce_sum(topk_val)
+    auto reduce_sum = wrap_type<ov::op::v1::ReduceSum>({topk->output(0), any_input()}, consumers_count(1));
+    auto norm = wrap_type<ov::op::v1::Divide>({topk->output(0), reduce_sum->output(0)}, consumers_count(1));
 
-    auto gate_wei_m = wrap_type<ov::op::v0::Constant>();
-    auto gate_scale_m = any_input();
-    auto gate_zp_m = any_input();
-    auto up_wei_m = wrap_type<ov::op::v0::Constant>();
-    auto up_scale_m = any_input();
-    auto up_zp_m = any_input();
-    auto down_wei_m = wrap_type<ov::op::v0::Constant>();
-    auto down_scale_m = any_input();
-    auto down_zp_m = any_input();
+    auto topk_idx_convert_m = wrap_type<ov::op::v0::Convert>({topk->output(1)});
 
-    // moe compressed
-    auto moe_compressed_m = wrap_type<ov::intel_gpu::op::MOECompressed>({hidden_state_m->output(0),
-                                                                         unsqueeze_moe_m->output(0),
-                                                                         topk_m->output(1),
-                                                                         gate_wei_m->output(0),
-                                                                         gate_scale_m->output(0),
-                                                                         gate_zp_m->output(0),
-                                                                         up_wei_m->output(0),
-                                                                         up_scale_m->output(0),
-                                                                         up_zp_m->output(0),
-                                                                         down_wei_m->output(0),
-                                                                         down_scale_m->output(0),
-                                                                         down_zp_m->output(0)});
+    // Indices path: shape_of -> gather -> unsqueezes
+    auto shape_of = wrap_type<ov::op::v3::ShapeOf>({topk_idx_convert_m}, consumers_count(1));
+    auto norm_slice = wrap_type<ov::op::v8::Slice>({norm->output(0), any_input(), shape_of, any_input(), any_input()});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
+    // auto gather = wrap_type<ov::op::v8::Gather>({shape_of, any_input(), any_input()}, consumers_count(1));
+    // auto unsq_idx = wrap_type<ov::op::v0::Unsqueeze>({gather, any_input()});
 
-        auto moe_compressed = ov::as_type_ptr<ov::intel_gpu::op::MOECompressed>(pattern_map.at(moe_compressed_m).get_node_shared_ptr());
-        if (!moe_compressed || transformation_callback(moe_compressed)) {
+    // // Concat/broadcast path with independent const unsqueeze nodes
+    // auto unsq_c0 = wrap_type<ov::op::v0::Unsqueeze>({any_input(), any_input()});
+    // auto unsq_c1 = wrap_type<ov::op::v0::Unsqueeze>({any_input(), any_input()});
+
+    // auto concat0 = wrap_type<ov::op::v0::Concat>({unsq_idx, unsq_c0}, consumers_count(1));
+    // auto concat1 = wrap_type<ov::op::v0::Concat>({unsq_c1, unsq_idx, any_input()}, consumers_count(1));
+
+    // auto bc = wrap_type<ov::op::v3::Broadcast>({any_input(), concat0}, consumers_count(1));
+    auto scatter = wrap_type<ov::op::v12::ScatterElementsUpdate>(
+        {any_input(), topk_idx_convert_m, norm_slice, any_input()},
+        consumers_count(1));
+
+    auto trans = wrap_type<ov::op::v1::Transpose>({scatter, any_input()}, consumers_count(1));
+    auto reshape = wrap_type<ov::op::v1::Reshape>({trans, any_input()}, consumers_count(1));
+    auto unsq_moe = wrap_type<ov::op::v0::Unsqueeze>({reshape, any_input()}, consumers_count(1));
+
+    auto hidden_state_convert = optional<ov::op::v0::Convert>({hidden_state});
+
+    // MOECompressed inputs
+    auto gate_w  = wrap_type<ov::op::v0::Constant>();
+    auto gate_sc = any_input();
+    auto gate_zp = any_input();
+    auto up_w    = wrap_type<ov::op::v0::Constant>();
+    auto up_sc   = any_input();
+    auto up_zp   = any_input();
+    auto down_w  = wrap_type<ov::op::v0::Constant>();
+    auto down_sc = any_input();
+    auto down_zp = any_input();
+
+    auto moe = wrap_type<ov::intel_gpu::op::MOECompressed>({
+        hidden_state_convert->output(0),
+        unsq_moe->output(0),
+        topk_idx_convert_m,
+        gate_w->output(0), gate_sc->output(0), gate_zp->output(0),
+        up_w->output(0),   up_sc->output(0),   up_zp->output(0),
+        down_w->output(0), down_sc->output(0), down_zp->output(0)
+    });
+
+    ov::matcher_pass_callback cb = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        const auto& pm = m.get_pattern_value_map();
+        std::cout << "moe_3gemm_fused_compressed matched" << std::endl;
+        auto moe_node = ov::as_type_ptr<ov::intel_gpu::op::MOECompressed>(pm.at(moe).get_node_shared_ptr());
+        if (!moe_node || transformation_callback(moe_node))
             return false;
-        }
+
         OutputVector args(11);
-        args[0] = pattern_map.at(hidden_state_m);
-        args[1] = pattern_map.at(router_matmul_m);
-        args[2] = pattern_map.at(gate_wei_m);
-        args[3] = pattern_map.at(gate_scale_m);
-        args[4] = pattern_map.at(gate_zp_m);
-        args[5] = pattern_map.at(up_wei_m);
-        args[6] = pattern_map.at(up_scale_m);
-        args[7] = pattern_map.at(up_zp_m);
-        args[8] = pattern_map.at(down_wei_m);
-        args[9] = pattern_map.at(down_scale_m);
-        args[10] = pattern_map.at(down_zp_m);
+        auto hidden_state_reshape_node = pm.at(hidden_state_reshape).get_node_shared_ptr();
+        if (hidden_state_reshape_node->get_element_type() == ov::element::f32) {
+            auto hidden_state_convert = std::make_shared<ov::op::v0::Convert>(hidden_state_reshape_node, ov::element::f16);
+            args[0] = hidden_state_convert;
+        } else {
+            args[0] = hidden_state_reshape_node;
+        }
 
-        auto moe_3gemm_fused_compressed = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(args, moe_compressed->get_config());
-        moe_3gemm_fused_compressed->set_friendly_name(moe_compressed->get_friendly_name());
-        ov::copy_runtime_info(moe_compressed, moe_3gemm_fused_compressed);
-        ov::replace_node(moe_compressed, moe_3gemm_fused_compressed);
+        auto routers_node = pm.at(router_mm).get_node_shared_ptr();
+        if (routers_node->get_element_type() == ov::element::f32) {
+            auto routers_convert = std::make_shared<ov::op::v0::Convert>(routers_node, ov::element::f16);
+            args[1]  = routers_convert;
+        } else {
+            args[1]  = routers_node;
+        }
+        args[2]  = pm.at(gate_w);
+        args[3]  = pm.at(gate_sc);
+        args[4]  = pm.at(gate_zp);
+        args[5]  = pm.at(up_w);
+        args[6]  = pm.at(up_sc);
+        args[7]  = pm.at(up_zp);
+        args[8]  = pm.at(down_w);
+        args[9]  = pm.at(down_sc);
+        args[10] = pm.at(down_zp);
 
+        auto fused = std::make_shared<ov::intel_gpu::op::MOE3GemmFusedCompressed>(args, moe_node->get_config());
+        // auto hs_node = pm.at(hidden_state).get_node_shared_ptr();
+        // auto hs_shape = hs_node->get_output_partial_shape(0);
+
+        // auto reshape_back = std::make_shared<ov::op::v1::Reshape>(fused, hs_shape);
+
+        fused->set_friendly_name(moe_node->get_friendly_name());
+        ov::copy_runtime_info(moe_node, fused);
+        ov::replace_node(moe_node, fused);
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(moe_compressed_m, "FuseMOE3GemmCompressed");
-    this->register_matcher(m, callback);
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(moe, "FuseMOE3GemmCompressed");
+    register_matcher(matcher, cb);
 }
 
 }  // namespace ov::intel_gpu
