@@ -460,7 +460,7 @@ void OptionsDesc::add(std::optional<std::function<bool(std::string_view)>> custo
 class Config {
 public:
     using ConfigMap = std::map<std::string, std::string>;
-    using ImplMap = std::unordered_map<std::string, std::shared_ptr<details::OptionValue>>;
+    using ImplMap = std::unordered_map<std::string_view, std::shared_ptr<details::OptionValue>>;
 
     explicit Config(const std::shared_ptr<const OptionsDesc>& desc);
 
@@ -504,7 +504,7 @@ typename Opt::ValueType Config::get() const {
 
     _log.trace("Get value for the option '%s'", Opt::key().data());
 
-    const auto it = _impl.find(Opt::key().data());
+    const auto it = _impl.find(Opt::key());
 
     if (it == _impl.end()) {
         const std::optional<ValueType> optional = Opt::defaultValue();

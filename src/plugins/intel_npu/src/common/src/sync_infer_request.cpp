@@ -174,7 +174,7 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
         OPENVINO_THROW("The tensor is not initialized!");
 
     bool is_input = ov::op::util::is_parameter(port.get_node());
-    std::string tensor_type = is_input ? "input" : "output";
+    const std::string_view tensor_type = is_input ? "input" : "output";
 
     if (!support_strides) {
         OPENVINO_ASSERT(

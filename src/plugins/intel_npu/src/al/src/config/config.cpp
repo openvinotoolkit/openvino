@@ -200,7 +200,7 @@ std::vector<std::string> OptionsDesc::getSupported(bool includePrivate) const {
 
     for (const auto& p : _impl) {
         if (p.second.isPublic() || includePrivate) {
-            res.push_back(p.first);
+            res.push_back(p.first.data());
         }
     }
 
@@ -213,7 +213,7 @@ std::vector<ov::PropertyName> OptionsDesc::getSupportedOptions(bool includePriva
 
     for (const auto& p : _impl) {
         if (p.second.isPublic() || includePrivate) {
-            res.push_back({p.first, p.second.mutability()});
+            res.push_back({p.first.data(), p.second.mutability()});
         }
     }
 
