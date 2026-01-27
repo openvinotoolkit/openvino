@@ -219,6 +219,11 @@ static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> n
     return false;
 }
 
+template <typename T>
+static typename std::enable_if<std::is_integral<T>::value, T>::type align_to(T size, size_t align) {
+    return static_cast<T>((size % align == 0) ? size : size - size % align + align);
+}
+
 static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node, bool supports_immad) {
     std::vector<ov::DiscreteTypeInfo> target_consumers = {ov::opset1::MatMul::get_type_info_static(),
                                                           ov::op::internal::MOE::get_type_info_static(),
@@ -671,14 +676,15 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         if (precision == ov::element::i8 || precision == ov::element::u8) {
                             block_size += infer_precision.size() * 2;
                         } else if (precision == ov::element::i4 || precision == ov::element::u4) {
-                            head_size /= 2;
+                            head_size = align_to(head_size / 2, 16);
+                            // std::cout << ">>>>>>>>>>>>>>>>>>>>> head_size : " << head_size << std::endl;
                             block_size += infer_precision.size() * 4;
                         }
                     } else {
                         if (precision == ov::element::i8 || precision == ov::element::u8) {
                             head_size += infer_precision.size() * 2 * group_num;
                         } else if (precision == ov::element::i4 || precision == ov::element::u4) {
-                            head_size /= 2;
+                            head_size = align_to(head_size / 2, 16);
                             head_size += infer_precision.size() * 4 * group_num;
                         }
                     }

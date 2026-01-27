@@ -205,7 +205,17 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
                                     const uint sglid,
                                     const uint is_prefill_stage) {
     int head_size_offset = SUBGROUP_SIZE * get_group_id(2) * PACK_SIZE;
-    int num_head_size_groups = is_prefill_stage ? NUM_HEAD_SIZE_GROUPS : NUM_HEAD_SIZE_GROUPS / (NUM_K_HEAD_SIZE_PARTITIONS / PACK_SIZE);
+    int num_head_size_groups;
+    if (is_prefill_stage) {
+        num_head_size_groups = NUM_HEAD_SIZE_GROUPS;
+    } else {
+        // But INT4 work groups process PACK_SIZE partitions at a time, so multiply by PACK_SIZE
+        num_head_size_groups = (NUM_HEAD_SIZE_GROUPS / NUM_K_HEAD_SIZE_PARTITIONS) * PACK_SIZE;
+        if ((NUM_K_HEAD_SIZE_PARTITIONS % 2) != 0 && NUM_K_HEAD_SIZE_PARTITIONS > 1 &&
+            get_group_id(2) == get_num_groups(2) - 1) {
+            num_head_size_groups -= 1;
+        }
+    }
 
     int packed_head_size_offset = SUBGROUP_SIZE * (get_group_id(2));
 

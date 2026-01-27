@@ -912,7 +912,7 @@ protected:
                 // error if head_size_partition is not even
                 const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
                 if (data_type_traits::is_i4_u4(kv_cache_dt) && head_size_partition != 1)
-                    wgs.global = {static_cast<size_t>(sequences_number), heads_number, subgroup_size * head_size_partition / 2};
+                    wgs.global = {static_cast<size_t>(sequences_number), heads_number, kernel_selector::Align(subgroup_size * head_size_partition / 2, subgroup_size)};
                 else
                     wgs.global = {static_cast<size_t>(sequences_number), heads_number, subgroup_size * head_size_partition};
                 wgs.local = {1, 1, subgroup_size};
