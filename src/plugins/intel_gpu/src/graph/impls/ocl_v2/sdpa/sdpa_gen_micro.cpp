@@ -1303,7 +1303,7 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
         if (has_qq_bias && !m_is_prefill)
         {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});  // qq_bias
-            args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                               // qq_bias_num
+            args.push_back({ArgumentDescriptor::Types::SCALAR, 3});                               // qq_bias_num
         }
 
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // blocked_indexes_start_and_gws_mapping
@@ -1348,7 +1348,7 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         scalars.clear();
-
+        scalars.reserve(4);
         auto params = impl_param;
         if (!params.is_dynamic()) {
             const auto& device_info = params.get_device_info();
@@ -1385,18 +1385,6 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
                 wgs.global[2] *= out_ps[0].get_length();
             }
 
-            // Scalars are only used by the non-paged SDPA path (D,K,Q) and by paged-attention QQ_BIAS (qq_bias_num).
-            // Keep scalar counts in sync with get_arguments_desc().
-            if (!m_is_prefill && params.is_type<paged_attention>() && params.typed_desc<paged_attention>()->has_qq_bias) {
-                scalars.reserve(1);
-                auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
-
-                ScalarDescriptor s_qq{ScalarDescriptor::Types::UINT32};
-                s_qq.v.u32 = static_cast<uint32_t>(rtp->paged_attention_speculative_validation_len);
-                scalars.push_back(s_qq);
-                return;
-            }
-            scalars.reserve(3);
             auto to_int32 = [](size_t value) {
                 if (value > static_cast<size_t>(std::numeric_limits<int32_t>::max())) {
                     return static_cast<int32_t>(-1);
@@ -1415,6 +1403,11 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
             ScalarDescriptor s_q{ScalarDescriptor::Types::INT32};
             s_q.v.s32 = to_int32(n_queries.get_length());
             scalars.push_back(s_q);
+
+            auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+            ScalarDescriptor s_qq{ScalarDescriptor::Types::UINT32};
+            s_qq.v.u32 = static_cast<uint32_t>(rtp->paged_attention_speculative_validation_len);
+            scalars.push_back(s_qq);
         }
     }};
 }

@@ -32,6 +32,10 @@
 //   gws = { sequences_num, KV_HEADS_NUM, SUBGROUP_SIZE }
 //   lws = { 1, 1, SUBGROUP_SIZE }
 
+#define VEC_BLK_SIZE 8
+#define VLOAD CAT(vload, VEC_BLK_SIZE)
+#define VSTORE CAT(vstore, VEC_BLK_SIZE)
+
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 __attribute__((reqd_work_group_size(1, 1, SUBGROUP_SIZE)))
 KERNEL(pa_kv_cache_reorder)(
@@ -119,7 +123,9 @@ KERNEL(pa_kv_cache_reorder)(
             }
         #else // IS_KV_COMPRESSED
             #ifdef IS_KEY_BY_CHANNEL
-                // to be implemented, key by channel: need re-quantize using dst block scale/zp?
+                // Key by channel compressed mode
+                // 1. Re-quantize key using dst block scale/zp
+
             #else
                 // per-token quantization: copy quantized values and comp data for token
                 for (uint k = sglid; k < (uint)K_HEAD_SIZE; k += (uint)SUBGROUP_SIZE) { // only copy to K_HEAD_SIZE
@@ -139,9 +145,18 @@ KERNEL(pa_kv_cache_reorder)(
             #endif
 
             // value cache: per-token quantization
-            for (uint v = sglid; v < (uint)V_HEAD_SIZE; v += (uint)SUBGROUP_SIZE) {
+            #define VEC_SIZE 8
+            uint v = sglid * VEC_SIZE;
+            for (; v + VEC_SIZE - 1 < (uint)V_HEAD_SIZE; v += SUBGROUP_SIZE * VEC_SIZE) {
                 const uint src_off = val_src_base + src_slot * V_HEAD_SIZE + v;
                 const uint dst_off = val_dst_base + dst_slot * V_HEAD_SIZE + v;
+                VSTORE(VLOAD(0, value_cache + src_off), 0, value_cache + dst_off);
+            }
+
+            // Handle leftovers
+            for (; v < (uint)V_HEAD_SIZE; v += SUBGROUP_SIZE) {
+                uint src_off = val_src_base + src_slot * V_HEAD_SIZE + v;
+                uint dst_off = val_src_base + dst_slot * V_HEAD_SIZE + v;
                 value_cache[dst_off] = value_cache[src_off];
             }
 

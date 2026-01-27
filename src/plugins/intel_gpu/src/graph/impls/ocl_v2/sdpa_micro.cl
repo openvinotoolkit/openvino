@@ -632,42 +632,24 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         // - query_spec is the query index within the current subsequence (new tokens).
         // - key_spec is the key index within the new tokens region: (key_idx - past_len).
         const int query_base_local = (int)(wg_j0 + sg_j0_kq);
-        if (qq_bias_num > 0) {
-            const int total_j = ugemm_kq_c_type_block1 * ugemm_kq_c_type_nblock1;
-            const int total_i = ugemm_kq_c_type_block0 * ugemm_kq_c_type_nblock0;
-            const int key_base = k0 + sg_i0_kq;
-            const int j_start = past_len - key_base;
-            const int j_end = past_len + qq_bias_num - key_base;
-            const int j0 = max(0, j_start);
-            const int j1 = min(total_j, j_end);
+        for (int j = 0; j < ugemm_kq_c_type_block1 * ugemm_kq_c_type_nblock1; j++) {
+            const int key_idx = k0 + sg_i0_kq + j;
+            if (key_idx < past_len)
+                    continue;
 
-            if (j0 < j1) {
-                const int qq_base = (int)gws_mapping * qq_bias_num * qq_bias_num;
-                const int query_limit = (qq_bias_num < q) ? qq_bias_num : q;
-                const int lid = get_sub_group_local_id();
-                const int i_low = (query_base_local < 0) ? -query_base_local : 0;
-                const int i_high = query_limit - query_base_local;
-                int i0_start = i_low - lid;
-                int i0_end = i_high - lid;
-                i0_start = max(0, i0_start);
-                i0_end = min(total_i, i0_end);
-                i0_start = ((i0_start + SUBGROUP_SIZE - 1) / SUBGROUP_SIZE) * SUBGROUP_SIZE;
+            const int key_spec = key_idx - past_len;
+            if (qq_bias_num <= 0 || key_spec < 0 || key_spec >= qq_bias_num)
+                    continue;
 
-                if (i0_start < i0_end) {
-                    for (int j = j0; j < j1; j++) {
-                        const int key_spec = key_base + j - past_len;
-                        const int qq_key_base = qq_base + key_spec;
-
-                        for (int i0 = i0_start; i0 < i0_end; i0 += SUBGROUP_SIZE) {
-                            const int i = i0 + lid;
-                            const int query_spec = query_base_local + i;
-                            const int qq_off = qq_key_base + query_spec * qq_bias_num;
-                            if (qq_bias[qq_off] == (QQ_BIAS_DATA_T)0) {
-                                tile_access(S_tile, i0, j, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
-                                            ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0) = -FLT_MAX;
-                            }
-                        }
-                    }
+            for (int i0 = 0; i0 < ugemm_kq_c_type_block0 * ugemm_kq_c_type_nblock0; i0 += SUBGROUP_SIZE) {
+                const int i = i0 + get_sub_group_local_id();
+                const int query_spec = query_base_local + i;
+                if (query_spec < 0 || query_spec >= qq_bias_num)
+                    continue;
+                const int qq_off = (int)gws_mapping * qq_bias_num * qq_bias_num + query_spec * qq_bias_num + key_spec;
+                if (qq_bias[qq_off] == (QQ_BIAS_DATA_T)0) {
+                    tile_access(S_tile, i0, j, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
+                                ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0) = -FLT_MAX;
                 }
             }
         }
