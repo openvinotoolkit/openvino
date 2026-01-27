@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <unordered_set>
+
 #include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
@@ -20,7 +22,6 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("StateManagementPattern");
     StateManagementPattern(ParameterVector& kv_parameters,
                            ParameterVector& model_wide_params,
-                           ParameterVector& parameters_to_remove,
                            int& layer_index,
                            ov::Output<Node> max_context_len,
                            ParameterVector& block_indices_inputs_for_each_layer,
@@ -37,5 +38,6 @@ public:
                            ParameterVector& adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
                            ParameterVector& adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
                            ResultVector& adaptive_rkv_diversity_results,
-                           const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params);
+                           const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params,
+                           std::unordered_set<std::string>& var_ids_to_remove);
 };
