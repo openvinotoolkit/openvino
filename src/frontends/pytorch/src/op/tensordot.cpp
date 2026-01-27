@@ -10,6 +10,10 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/not_equal.hpp"
+#include "openvino/op/non_zero.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -19,7 +23,7 @@ namespace op {
 
 using namespace ov::op;
 
-/// Helper structure to hold axes information (can be static or dynamic)
+// Helper structure to hold axes information (can be static or dynamic)
 struct AxesInfo {
     bool is_static;
     std::vector<int64_t> static_axes;
@@ -30,7 +34,7 @@ struct AxesInfo {
     AxesInfo(Output<Node> axes) : is_static(false), dynamic_axes(axes) {}
 };
 
-/// Helper function to create a range [start, start+1, ..., start+count-1]
+// Helper function to create a range [start, start+1, ..., start+count-1]
 Output<Node> create_range(const NodeContext& ctx, Output<Node> start, Output<Node> count) {
     auto const_0 = v0::Constant::create(element::i32, Shape{}, {0});
     auto const_1 = v0::Constant::create(element::i32, Shape{}, {1});
@@ -38,7 +42,7 @@ Output<Node> create_range(const NodeContext& ctx, Output<Node> start, Output<Nod
     return ctx.mark_node(std::make_shared<v4::Range>(start, end, const_1, element::i32));
 }
 
-/// Helper function to parse dims input - now returns AxesInfo for dynamic rank support
+// Helper function to parse dims input - now returns AxesInfo for dynamic rank support
 void parse_tensordot_dims(
     const NodeContext& ctx,
     Output<Node> dims,
@@ -248,7 +252,6 @@ AxesInfo complement_axes(
             
             // Actually, let's use a simpler approach: build the complement vector statically if possible
             // This handles the case where axes are static but rank is dynamic
-            int64_t num_contraction = axes.static_axes.size();
             
             // We need a more sophisticated approach here
             // For now, let's assume if axes are static, rank should also be static
