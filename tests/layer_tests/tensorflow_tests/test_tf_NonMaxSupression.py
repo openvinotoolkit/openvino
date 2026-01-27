@@ -111,6 +111,7 @@ class TestNonMaxSuppressionV2(CommonTFLayerTest):
     """
 
     def _prepare_input(self, inputs_dict):
+        np.random.seed(0)
         input_data = {}
         for input in inputs_dict.keys():
             input_data[input] = np.random.uniform(low=0, high=1,
