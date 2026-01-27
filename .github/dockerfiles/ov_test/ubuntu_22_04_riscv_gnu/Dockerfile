@@ -44,6 +44,18 @@ RUN apt-get update && \
         python3-pip \
         python3-venv \
         python3-tomli \
+        autoconf \
+        automake \
+        bison \
+        flex \
+        gawk \
+        gperf \
+        libexpat-dev \
+        libgmp-dev \
+        libmpc-dev \
+        libmpfr-dev \
+        libtool \
+        texinfo \
         libglib2.0-dev \
         libpixman-1-dev \
         zlib1g-dev \
@@ -52,10 +64,12 @@ RUN apt-get update && \
 
 ARG QEMU_VERSION="10.2.0"
 
-RUN mkdir -p /tmp/qemu-src && cd /tmp/qemu-src && \
-    curl -fL --retry 8 --retry-all-errors --retry-delay 2 -SLO https://github.com/qemu/qemu/archive/refs/tags/v${QEMU_VERSION}.tar.gz && \
-    tar -xzf v${QEMU_VERSION}.tar.gz --strip-components=1 && \
-    ./configure --target-list=riscv64-linux-user --prefix=/usr/local && \
+# Build QEMU from riscv-gnu-toolchain to get recent RVV support
+RUN mkdir -p /tmp/riscv-gnu-toolchain && cd /tmp/riscv-gnu-toolchain && \
+    git clone https://github.com/riscv-collab/riscv-gnu-toolchain.git && \
+    cd riscv-gnu-toolchain && \
+    git checkout 2026.01.23 && \
+    ./configure --prefix=/opt/riscv && \
     make -j"$(nproc)" && \
-    make install && \
-    rm -rf /tmp/qemu-src
+    make -j"$(nproc)" build-qemu && \
+    rm -rf /tmp/riscv-gnu-toolchain
