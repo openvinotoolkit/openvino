@@ -7457,3 +7457,33 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_bitshift_uint32_y) {
 
     test_case.run();
 }
+
+/// @brief Testing ONNX LayerNormalization with 2 inputs (no "bias" input provided)
+/// Verifies a fix for the "bias" input not treated as fully optional.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_layer_normalization_unbiased) {
+    const auto model = convert_model("layer_normalization_unbiased.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_expected_output<float>(
+        Shape{2, 3, 4},
+        {-0.37512878f, 3.5552819f,   -0.02700909f, -0.14396031f, 0.07202742f, -2.8800502f, -0.10481874f, 0.30874035f,
+         -0.58712065f, -0.30279505f, 0.51558423f,  0.03174309f,  0.69592863f, -0.2954988f, -0.30149272f, -0.15233664f,
+         0.22865053f,  -1.8466285f,  -0.38723692f, 0.29000223f,  -0.5259219f, 0.7906064f,  -0.19020638f, 0.30127233f});
+
+    test_case.run_with_tolerance_as_fp(0.0001f);
+}
+
+/// @brief Testing ONNX LayerNormalization with 3 inputs ("bias" input provided)
+/// Verifies a fix for the "bias" input not treated as fully optional.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_layer_normalization_biased) {
+    const auto model = convert_model("layer_normalization_biased.onnx");
+    auto test_case = test::TestCase(model, s_device);
+
+    test_case.add_expected_output<float>(
+        Shape{2, 3, 4},
+        {1.6007273f,  -0.01908237f, -1.7478948f, 1.1288561f,  -0.06955186f, -3.0907028f,  -1.8375915f, -0.6363676f,
+         -1.7711859f, -0.17829096f, -2.3073797f, 0.62375045f, -0.03149799f, 0.7479861f,   -1.9377749f, 2.184815f,
+         1.4707088f,  1.834275f,    -2.0627153f, 0.8972385f,  -0.38503534f, -0.60342413f, -2.3845546f, -1.6216844f});
+
+    test_case.run_with_tolerance_as_fp(0.0001f);
+}
