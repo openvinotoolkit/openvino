@@ -18,7 +18,7 @@ struct DynamicPipeline {
         mutable IRGraph::GraphArguments _binding;
 
         std::vector<std::unique_ptr<CommandList>> _commandLists;
-        // to store command list handles to pass it to ExecutionEngine
+        // Store command list handles to pass it to ExecutionEngine
         std::vector<ze_command_list_handle_t> _commandListHandles;
 
         PipelinedCommandLists(size_t numCommandLists,
@@ -69,18 +69,17 @@ struct DynamicPipeline {
                 oss << _binding._inputs[arg_index];
                 Logger::global().debug("Orig tensor MemType: %s", oss.str().c_str());
                 _binding._inputs[arg_index].setArg(arg_value);
-                // size_t shapesSize = shapes.size();
+                // Only store the valid shape dimensions
                 for (int64_t i = 0; i < _binding._inputs[arg_index].dimsCount; i++) {
                     _binding._inputs[arg_index].sizes[i] = shapes[i];
                 }
 
                 if (!strides.empty()) {
-                    // size_t stridesSize = strides.size();
                     for (int64_t i = 0; i < _binding._inputs[arg_index].dimsCount; i++) {
                         _binding._inputs[arg_index].strides[i] = strides[i];
                     }
                 } else {
-                    // Need stride based on element but not byte
+                    // Need stride based on element but not byte, calc from shape
                     _binding._inputs[arg_index].updateStride();
                 }
 
@@ -97,18 +96,17 @@ struct DynamicPipeline {
                     Logger::global().debug("Orig output tensor MemType: %s", oss.str().c_str());
                     _binding._outputs[output_index].setArg(arg_value);
 
-                    // size_t shapesSize = shapes.size();
+                    // Only store the valid shape dimensions
                     for (int64_t i = 0; i < _binding._outputs[output_index].dimsCount; i++) {
                         _binding._outputs[output_index].sizes[i] = shapes[i];
                     }
 
                     if (!strides.empty()) {
-                        // size_t stridesSize = strides.size();
                         for (int64_t i = 0; i < _binding._outputs[output_index].dimsCount; i++) {
                             _binding._outputs[output_index].strides[i] = strides[i];
                         }
                     } else {
-                        // Need stride based on element but not byte
+                        // Need stride based on element but not byte, calc from shape
                         _binding._outputs[output_index].updateStride();
                     }
                     oss.clear();
@@ -183,9 +181,6 @@ protected:
     std::vector<std::shared_ptr<Event>> _events;
     bool _sync_output_with_fences = true;
     Logger _logger;
-
-    // const std::vector<std::vector<std::shared_ptr<ZeroTensor>>> _levelZeroInputTensors;
-    // const std::vector<std::shared_ptr<ZeroTensor>> _levelZeroOutputTensors;
 };
 
 }  // namespace intel_npu

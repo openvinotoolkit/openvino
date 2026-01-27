@@ -80,12 +80,6 @@ if(CMAKE_COMPILE_WARNING_AS_ERROR)
     endif()
 endif()
 
-# Force to ON to enable test
-set(ENABLE_LLVM_BACKEND ON)
-if(ENABLE_LLVM_BACKEND)
-    add_compile_definitions(NPU_LLVM_BACKEND)
-endif()
-
 add_subdirectory(src)
 
 if(ENABLE_TESTS)

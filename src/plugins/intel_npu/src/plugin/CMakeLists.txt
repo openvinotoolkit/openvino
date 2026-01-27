@@ -57,6 +57,6 @@ cross_compiled_file(${TARGET_NAME}
         NAME        unpack_i4i8 unpack_u4i8 unpack_i4f16 unpack_i4f16_scale unpack_i4f16_z unpack_u4f16 unpack_u4f16_scale_zp unpack_u4f16_asymm_zp unpack_u4f16_z unpack_u4f32 unpack_i8f16 unpack_i8f16_scale unpack_u8f16 to_f16 copy_row_as_column transpose_i4 transpose_f16 transpose_f32 unpack_f8f16_scale
         NAMESPACE   ov::npuw::util::XARCH
 )
-if(NOT ENABLE_LLVM_BACKEND)
+if(NOT ENABLE_NPU_DEBUG_CAPS)
     ov_add_api_validator_post_build_step(TARGET ${NPU_PLUGIN_TARGET})
 endif()
