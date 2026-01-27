@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,12 +27,14 @@ ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_in
                                                      bool use_score_outputs,
                                                      bool allow_score_aggregation,
                                                      bool allow_cache_rotation,
-                                                     bool allow_xattention)
+                                                     bool allow_xattention,
+                                                     bool allow_adaptive_rkv)
     : m_use_per_layer_block_indices_inputs(use_per_layer_block_indices_inputs),
       m_use_score_outputs(use_score_outputs),
       m_allow_score_aggregation(use_score_outputs),
       m_allow_cache_rotation(allow_cache_rotation),
-      m_allow_xattention(allow_xattention) {}
+      m_allow_xattention(allow_xattention),
+      m_allow_adaptive_rkv(allow_adaptive_rkv) {}
 
 static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const char* name) {
     // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
@@ -86,6 +88,13 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
             setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "xattention_stride");
     }
 
+    if (m_allow_adaptive_rkv) {
+        optional_model_wide_params["adaptive_rkv_start_size"] =
+            setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "adaptive_rkv_start_size");
+        optional_model_wide_params["adaptive_rkv_evictable_sizes"] =
+            setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "adaptive_rkv_evictable_sizes");
+    }
+
     auto get_parameter = [=](const std::shared_ptr<ov::Model>& model,
                              const std::string& name) -> std::shared_ptr<v0::Parameter> {
         for (const auto& param : model->inputs()) {
@@ -133,8 +142,11 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     ParameterVector rotated_block_indices_inputs_for_each_layer;
     ParameterVector rotation_deltas_inputs_for_each_layer;
     ParameterVector xattention_threshold_inputs_for_each_layer;
+    ParameterVector adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer;
+    ParameterVector adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer;
 
     ResultVector score_results;
+    ResultVector adaptive_rkv_diversity_results;
 
     std::shared_ptr<v0::Parameter> position_ids;
     if (!get_parameter(model, "position_ids")) {
@@ -168,9 +180,13 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   m_allow_cache_rotation,
                                                   m_allow_score_aggregation,
                                                   m_allow_xattention,
+                                                  m_allow_adaptive_rkv,
                                                   rotated_block_indices_inputs_for_each_layer,
                                                   rotation_deltas_inputs_for_each_layer,
                                                   xattention_threshold_inputs_for_each_layer,
+                                                  adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
+                                                  adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
+                                                  adaptive_rkv_diversity_results,
                                                   optional_model_wide_params);
     manager.register_pass<PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
@@ -245,6 +261,13 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         model->add_parameters(xattention_threshold_inputs_for_each_layer);
         model->add_parameters({optional_model_wide_params["xattention_block_size"]});
         model->add_parameters({optional_model_wide_params["xattention_stride"]});
+    }
+    if (m_allow_adaptive_rkv) {
+        model->add_parameters({optional_model_wide_params["adaptive_rkv_start_size"]});
+        model->add_parameters({optional_model_wide_params["adaptive_rkv_evictable_sizes"]});
+        model->add_parameters(adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer);
+        model->add_parameters(adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer);
+        model->add_results(adaptive_rkv_diversity_results);
     }
 
     model->add_parameters(kv_parameters);

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@ public:
 
     KVCacheCompressed(const OutputVector& inputs,
                       const std::shared_ptr<ov::op::util::Variable>& past_values,
+                      bool trim,
                       int64_t concat_axis,
                       int64_t gather_axis,
                       const QuantizationAttrs& quantization_attrs,
