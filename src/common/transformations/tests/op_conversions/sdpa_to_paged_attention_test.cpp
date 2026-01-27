@@ -607,6 +607,9 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         auto scale = std::make_shared<v0::Constant>(element::f32, Shape{}, MOCK_VALUE);
         auto score_aggregation_window_const = std::make_shared<v0::Constant>(element::i32, Shape{0}, 0);
         auto sinks = v0::Constant::create(element::f32, Shape{0, 0, 0, 0}, {});
+        auto qq_bias = v0::Constant::create(element::u8, Shape{0, 0, 0}, {});
+        auto block_update_indices = v0::Constant::create(element::i32, Shape{0}, {});
+        auto block_update_indices_begins = v0::Constant::create(element::i32, Shape{0}, {});
 
         // PagedAttention:
         auto pa = std::make_shared<op::PagedAttentionExtension>(
@@ -634,7 +637,10 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
                          adaptive_rkv_start_size,
                          adaptive_rkv_evictable_sizes,
                          adaptive_rkv_diversity_block_set_indices,
-                         adaptive_rkv_diversity_block_set_indices_begins});
+                         adaptive_rkv_diversity_block_set_indices_begins,
+                         qq_bias,
+                         block_update_indices,
+                         block_update_indices_begins});
         pa->set_out_type(0, element::i64);
         auto pa_aligned = Qwen7bChatPA::align_pa_layout(pa, head_size_2);
         auto res = makeOP<v0::Result>({pa_aligned});
@@ -999,6 +1005,9 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
         auto c1 = makeConst(element::f32, {}, {0.088388f});
         auto c2 = makeConst(element::i32, {}, {0});
         auto sinks = v0::Constant::create(element::f32, Shape{0, 0, 0, 0}, {});
+        auto qq_bias = v0::Constant::create(element::u8, Shape{0, 0, 0}, {});
+        auto block_update_indices = v0::Constant::create(element::i32, Shape{0}, {});
+        auto block_update_indices_begins = v0::Constant::create(element::i32, Shape{0}, {});
         auto PagedAttentionExtension168 = std::make_shared<ov::op::PagedAttentionExtension>(
             ov::OutputVector{Reshape138,
                              Reshape147,
@@ -1024,7 +1033,10 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
                              adaptive_rkv_start_size,
                              adaptive_rkv_evictable_sizes,
                              adaptive_rkv_diversity_block_set_indices,
-                             adaptive_rkv_diversity_block_set_indices_begins});
+                             adaptive_rkv_diversity_block_set_indices_begins,
+                             qq_bias,
+                             block_update_indices,
+                             block_update_indices_begins});
         auto ShapeOf172 = makeOP<opset3::ShapeOf>({Transpose154}, {{"output_type", "i64"}});
         auto Gather175 = makeOP<opset8::Gather>({ShapeOf172, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze177 = makeOP<opset1::Unsqueeze>({Gather175, 0});
@@ -1370,6 +1382,9 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         // an empty Constant needs to be created in a usual way, not using makeConst()
         auto c3 = v0::Constant::create(element::f32, {0}, {});
         auto sinks = v0::Constant::create(element::f32, Shape{0, 0, 0, 0}, {});
+        auto qq_bias = v0::Constant::create(element::u8, Shape{0, 0, 0}, {});
+        auto block_update_indices = v0::Constant::create(element::i32, Shape{0}, {});
+        auto block_update_indices_begins = v0::Constant::create(element::i32, Shape{0}, {});
         auto PagedAttentionExtension_51962 = std::make_shared<ov::op::PagedAttentionExtension>(
             ov::OutputVector{Reshape_51953,
                              Reshape_51957,
@@ -1395,7 +1410,10 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
                              adaptive_rkv_start_size,
                              adaptive_rkv_evictable_sizes,
                              adaptive_rkv_diversity_block_set_indices,
-                             adaptive_rkv_diversity_block_set_indices_begins});
+                             adaptive_rkv_diversity_block_set_indices_begins,
+                             qq_bias,
+                             block_update_indices,
+                             block_update_indices_begins});
         auto ShapeOf_51965 = makeOP<opset3::ShapeOf>({Transpose_51955}, {{"output_type", "i64"}});
         auto Gather_51966 = makeOP<opset8::Gather>({ShapeOf_51965, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze_51971 = makeOP<opset1::Unsqueeze>({Gather_51966, 0});
@@ -1697,6 +1715,9 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto scale = v0::Constant::create(element::f32, {}, {0.102062f});
         auto alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});
         auto sinks = v0::Constant::create(element::f32, Shape{0, 0, 0, 0}, {});
+        auto qq_bias = v0::Constant::create(element::u8, Shape{0, 0, 0}, {});
+        auto block_update_indices = v0::Constant::create(element::i32, Shape{0}, {});
+        auto block_update_indices_begins = v0::Constant::create(element::i32, Shape{0}, {});
         auto PagedAttentionExtension = std::make_shared<ov::op::PagedAttentionExtension>(
             OutputVector{Q,
                          K,
@@ -1722,7 +1743,10 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
                          adaptive_rkv_start_size,
                          adaptive_rkv_evictable_sizes,
                          adaptive_rkv_diversity_block_set_indices,
-                         adaptive_rkv_diversity_block_set_indices_begins});
+                         adaptive_rkv_diversity_block_set_indices_begins,
+                         qq_bias,
+                         block_update_indices,
+                         block_update_indices_begins});
         auto ShapeOf1 = makeOP<opset3::ShapeOf>({Transpose6}, {{"output_type", "i64"}});
         auto Gather2 = makeOP<opset8::Gather>({ShapeOf1, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze5 = makeOP<opset1::Unsqueeze>({Gather2, 0});
@@ -2043,6 +2067,9 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto scale = v0::Constant::create(element::f32, {}, {0.062500f});
         auto alibi_slopes_stub = v0::Constant::create(element::f32, Shape{0}, {});
         auto sinks = v0::Constant::create(element::f32, Shape{0, 0, 0, 0}, {});
+        auto qq_bias = v0::Constant::create(element::u8, Shape{0, 0, 0}, {});
+        auto block_update_indices = v0::Constant::create(element::i32, Shape{0}, {});
+        auto block_update_indices_begins = v0::Constant::create(element::i32, Shape{0}, {});
         auto PagedAttentionExtension = std::make_shared<ov::op::PagedAttentionExtension>(
             OutputVector{Reshape11,
                          Reshape13,
@@ -2068,7 +2095,10 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
                          adaptive_rkv_start_size,
                          adaptive_rkv_evictable_sizes,
                          adaptive_rkv_diversity_block_set_indices,
-                         adaptive_rkv_diversity_block_set_indices_begins});
+                         adaptive_rkv_diversity_block_set_indices_begins,
+                         qq_bias,
+                         block_update_indices,
+                         block_update_indices_begins});
         auto ShapeOf2 = makeOP<opset3::ShapeOf>({Transpose7}, {{"output_type", "i64"}});
         auto Gather5 = makeOP<opset8::Gather>({ShapeOf2, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze9 = makeOP<opset1::Unsqueeze>({Gather5, 0});
@@ -2703,6 +2733,9 @@ TEST_F(SDPAToPATest, SDPAToPA_gpt_oss_General) {
         auto sliding_window = makeOP<v1::Multiply>({Convert16, -1}, {{"auto_broadcast", "numpy"}});
         auto scale = v0::Constant::create(element::f32, {}, {0.1250f});
         auto alibi_slopes_stub = v0::Constant::create(element::f32, Shape{0}, {});
+        auto qq_bias = v0::Constant::create(element::u8, Shape{0, 0, 0}, {});
+        auto block_update_indices = v0::Constant::create(element::i32, Shape{0}, {});
+        auto block_update_indices_begins = v0::Constant::create(element::i32, Shape{0}, {});
         auto PagedAttentionExtension = std::make_shared<ov::op::PagedAttentionExtension>(
             OutputVector{Reshape1,
                          Reshape3,
@@ -2728,7 +2761,10 @@ TEST_F(SDPAToPATest, SDPAToPA_gpt_oss_General) {
                          adaptive_rkv_start_size,
                          adaptive_rkv_evictable_sizes,
                          adaptive_rkv_diversity_block_set_indices,
-                         adaptive_rkv_diversity_block_set_indices_begins});
+                         adaptive_rkv_diversity_block_set_indices_begins,
+                         qq_bias,
+                         block_update_indices,
+                         block_update_indices_begins});
         auto ShapeOf3 = makeOP<v3::ShapeOf>({Transpose6}, {{"output_type", "i64"}});
         auto Gather4 = makeOP<v8::Gather>({ShapeOf3, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze5 = makeOP<v0::Unsqueeze>({Gather4, 0});

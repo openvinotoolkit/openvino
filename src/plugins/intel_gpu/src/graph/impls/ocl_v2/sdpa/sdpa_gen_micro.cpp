@@ -1344,7 +1344,7 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
 }
 
 DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
-    return DispatchDataFunc{[&](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
+    return DispatchDataFunc{[](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         scalars.clear();

@@ -136,6 +136,7 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
 
     p.add_primitive(*op, prim);
 }
+
 REGISTER_FACTORY_IMPL(internal, PagedAttentionExtension);
 
 }  // namespace ov::intel_gpu
