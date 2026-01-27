@@ -17,7 +17,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "openvino/runtime/common.hpp"
+#include "openvino/runtime/file_handle.hpp"
 
 namespace ov {
 namespace npuw {
@@ -36,7 +36,7 @@ const constexpr ov::npuw::s11n::IndicatorType NPUW_COMPILED_MODEL_INDICATOR =
 const constexpr ov::npuw::s11n::IndicatorType NPUW_LLM_COMPILED_MODEL_INDICATOR =
     {char{0x4c}, char{0x4c}, char{0x4d}, char{0x43}, char{0x4d}, char{0x4f}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.17";
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.18";
 
 // Forward declaration
 namespace intel_npu {

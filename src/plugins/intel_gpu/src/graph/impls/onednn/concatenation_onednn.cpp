@@ -59,9 +59,14 @@ protected:
                                                                                       const int64_t axis) {
         std::vector<dnnl::memory::desc> input_mds;
         for (size_t i = 0; i < impl_params.input_layouts.size(); i++) {
-            input_mds.push_back(onednn::layout_to_memory_desc(impl_params.get_input_layout(i)));
+            auto input_layout = impl_params.get_input_layout(i);
+            input_mds.push_back(onednn::layout_to_memory_desc(input_layout, false, input_layout.format.is_blocked()));
         }
-        auto output_md = onednn::layout_to_memory_desc(impl_params.get_output_layout());
+
+        dnnl::memory::desc output_md;
+        auto output_layout = impl_params.get_output_layout();
+        output_md = onednn::layout_to_memory_desc(output_layout, false, output_layout.format.is_blocked());
+
         return std::make_shared<dnnl::concat::primitive_desc>(
             engine.get_onednn_engine(),
             output_md,
