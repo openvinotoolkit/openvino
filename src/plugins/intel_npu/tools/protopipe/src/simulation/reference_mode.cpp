@@ -345,11 +345,13 @@ CalcRefSimulation::CalcRefSimulation(Simulation::Config&& cfg, CalcRefSimulation
 
 std::shared_ptr<PipelinedCompiled> CalcRefSimulation::compilePipelined(DummySources&& sources,
                                                                        cv::GCompileArgs&& compile_args) {
-    if (workload->wl_onnx) {
-        compile_args += cv::compile_args(workload->wl_onnx);
-    }
-    if (workload->wl_ov) {
-        compile_args += cv::compile_args(workload->wl_ov);
+    if (workload) {
+        if (workload->wl_onnx) {
+            compile_args += cv::compile_args(workload->wl_onnx);
+        }
+        if (workload->wl_ov) {
+            compile_args += cv::compile_args(workload->wl_ov);
+        }
     }
     auto compiled = m_comp.compileStreaming(descr_of(sources), std::move(compile_args));
     auto out_meta = m_comp.getOutMeta();
@@ -358,11 +360,13 @@ std::shared_ptr<PipelinedCompiled> CalcRefSimulation::compilePipelined(DummySour
 }
 
 std::shared_ptr<SyncCompiled> CalcRefSimulation::compileSync(DummySources&& sources, cv::GCompileArgs&& compile_args) {
-    if (workload->wl_onnx) {
-        compile_args += cv::compile_args(workload->wl_onnx);
-    }
-    if (workload->wl_ov) {
-        compile_args += cv::compile_args(workload->wl_ov);
+    if (workload) {
+        if (workload->wl_onnx) {
+            compile_args += cv::compile_args(workload->wl_onnx);
+        }
+        if (workload->wl_ov) {
+            compile_args += cv::compile_args(workload->wl_ov);
+        }
     }
     auto compiled = m_comp.compile(descr_of(sources), std::move(compile_args));
     auto out_meta = m_comp.getOutMeta();

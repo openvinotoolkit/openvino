@@ -312,11 +312,13 @@ ValSimulation::ValSimulation(Simulation::Config&& cfg, ValSimulation::Options&& 
 
 std::shared_ptr<PipelinedCompiled> ValSimulation::compilePipelined(DummySources&& sources,
                                                                    cv::GCompileArgs&& compile_args) {
-    if (workload->wl_onnx) {
-        compile_args += cv::compile_args(workload->wl_onnx);
-    }
-    if (workload->wl_ov) {
-        compile_args += cv::compile_args(workload->wl_ov);
+    if (workload) {
+        if (workload->wl_onnx) {
+            compile_args += cv::compile_args(workload->wl_onnx);
+        }
+        if (workload->wl_ov) {
+            compile_args += cv::compile_args(workload->wl_ov);
+        }
     }
     auto compiled = m_comp.compileStreaming(descr_of(sources), std::move(compile_args));
     auto out_meta = m_comp.getOutMeta();
@@ -333,11 +335,13 @@ std::shared_ptr<SyncCompiled> ValSimulation::compileSync(DummySources&& sources,
         ;
         compile_args += cv::compile_args(cv::use_threaded_executor{max_parallel_branches});
     }
-    if (workload->wl_onnx) {
-        compile_args += cv::compile_args(workload->wl_onnx);
-    }
-    if (workload->wl_ov) {
-        compile_args += cv::compile_args(workload->wl_ov);
+    if (workload) {
+        if (workload->wl_onnx) {
+            compile_args += cv::compile_args(workload->wl_onnx);
+        }
+        if (workload->wl_ov) {
+            compile_args += cv::compile_args(workload->wl_ov);
+        }
     }
     auto compiled = m_comp.compile(descr_of(sources), std::move(compile_args));
     auto out_meta = m_comp.getOutMeta();
