@@ -156,7 +156,6 @@ paged_attention_inst::typed_primitive_inst(network& network, const paged_attenti
     const auto kv_heads_num = desc->kv_heads_num;
     const auto pa_block_size = desc->block_size;
 
-
     if (desc->has_alibi) {
         const auto alibi_input_idx = PagedAttentionInputIdx::ALIBI;
         const auto alibi_layout = node.get_input_layout(alibi_input_idx);

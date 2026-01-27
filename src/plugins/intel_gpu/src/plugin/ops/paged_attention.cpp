@@ -7,6 +7,7 @@
 
 #include "openvino/op/constant.hpp"
 #include "openvino/op/paged_attention.hpp"
+
 #include "intel_gpu/primitives/paged_attention.hpp"
 
 namespace ov {
@@ -135,6 +136,6 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
 
     p.add_primitive(*op, prim);
 }
-
 REGISTER_FACTORY_IMPL(internal, PagedAttentionExtension);
+
 }  // namespace ov::intel_gpu

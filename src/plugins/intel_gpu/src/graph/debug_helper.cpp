@@ -480,10 +480,10 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
                     GPU_DEBUG_COUT << " Dump " << (dump_raw ? "raw " : "") << name << std::endl;
                     auto filename = config.get_dump_tensors_path() + get_name_for_dump(name) + ".txt";
                     log_memory_to_file(input_mem,
-                                    input_layout,
-                                    m_stream,
-                                    filename,
-                                    dump_raw);
+                                       input_layout,
+                                       m_stream,
+                                       filename,
+                                       dump_raw);
                 }
             }
 
@@ -541,10 +541,10 @@ NodeDebugHelper::~NodeDebugHelper() {
                     auto filename = config.get_dump_tensors_path() + get_name_for_dump(name) + ".txt";
                     // Text dump
                     log_memory_to_file(output_mem,
-                                    m_inst.get_output_layout(i),
-                                    m_stream,
-                                    filename,
-                                    dump_raw);
+                                       m_inst.get_output_layout(i),
+                                       m_stream,
+                                       filename,
+                                       dump_raw);
                 }
             }
             for (size_t i = 0; i < m_inst.get_intermediates_memories().size(); i++) {
