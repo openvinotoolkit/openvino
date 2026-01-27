@@ -11,7 +11,7 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_sparse_mm(const NodeContext& context) {
-    // aten::_sparse_mm(Tensor sparse, Tensor dense) -> Tensor
+    // aten::_sparse_mm(Tensor sparse, Tensor matrix) -> Tensor
     num_inputs_check(context, 2, 2);
     auto sparse_mat = context.get_input(0);
     auto mat2 = context.get_input(1);
