@@ -26,7 +26,7 @@ SparseTypeMark::SparseTypeMark(const ov::Output<ov::Node>& indices,
       m_value_type(value_type),
       m_dense{} {
     validate_and_infer_types();
-    
+
     if (m_value_type.is_dynamic()) {
         m_value_type = m_values.get_element_type();
     }
@@ -78,13 +78,13 @@ ov::Output<ov::Node> SparseTypeMark::sparse_mm(const NodeContext& context,
         auto rhs_dense = matrix_mark->to_dense(context);
         return context.mark_node(make_shared<v0::MatMul>(lhs_dense, rhs_dense, false, false));
     }
-    
+
     // Only first input is sparse (S x D -> D)
     if (sparse_mark) {
         auto dense_sparse = sparse_mark->to_dense(context);
         return context.mark_node(make_shared<v0::MatMul>(dense_sparse, matrix, false, false));
     }
-    
+
     // Neither is sparse-marked
     return context.mark_node(make_shared<v0::MatMul>(sparse, matrix, false, false));
 }
@@ -94,7 +94,7 @@ ov::Output<ov::Node> SparseTypeMark::sparse_add(const NodeContext& context,
                                                 const ov::Output<ov::Node>& rhs) {
     auto lhs_sparse = as_type_ptr<SparseTypeMark>(lhs.get_node_shared_ptr());
     auto rhs_sparse = as_type_ptr<SparseTypeMark>(rhs.get_node_shared_ptr());
-    
+
     if (lhs_sparse && rhs_sparse) {
         // Both sparse: merge indices/values (future optimization)
         // For now, convert both to dense
@@ -110,7 +110,7 @@ ov::Output<ov::Node> SparseTypeMark::sparse_add(const NodeContext& context,
         auto rhs_dense = rhs_sparse->to_dense(context);
         return context.mark_node(make_shared<v1::Add>(lhs, rhs_dense));
     }
-    
+
     // Both dense
     return context.mark_node(make_shared<v1::Add>(lhs, rhs));
 }

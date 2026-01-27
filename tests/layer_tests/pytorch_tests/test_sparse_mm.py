@@ -24,6 +24,7 @@ class TestSparseMM(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("sparse_shape, dense_shape", [
         ((3, 3), (3, 2)),
         ((4, 5), (5, 2)),
@@ -72,6 +73,7 @@ class TestSparseMMSxS(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("shape1, shape2", [
         ((3, 4), (4, 2)),
         ((5, 5), (5, 3)),
