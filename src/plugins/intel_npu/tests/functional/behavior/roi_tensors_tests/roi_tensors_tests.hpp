@@ -66,8 +66,7 @@ public:
         std::tie(target_device, configuration) = this->GetParam();
         OVPluginTestBase::SetUp();
 
-        // TODO: Enable property check when enable_strides_for becomes part of public properties
-        // isStridedEnabled();
+        isStridedEnabled();
     }
 
     void TearDown() override {
@@ -969,7 +968,7 @@ TEST_P(RoiTensorsTestsRun, RunStridedTensorWithDynamicBoundedBatching) {
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = "input0 Result0";
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0,Result0";
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
@@ -1020,7 +1019,7 @@ TEST_P(RoiTensorsTestsRun, CreateRoiTensorFromHostTensorUpdateCommandListAndRunI
         output_data[i] = 10.0f;
     }
 
-    configuration[ov::intel_npu::enable_strides_for.name()] = "input0, Result0";
+    configuration[ov::intel_npu::enable_strides_for.name()] = "input0,Result0";
 
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
     ov::InferRequest req;
