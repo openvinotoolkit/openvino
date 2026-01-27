@@ -1252,7 +1252,7 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
                 jitConstants.AddConstant(MakeJitConstant(macro_def, "(input)"));
             break;
         case ActivationFunction::CEIL:
-            if (out_dt == Datatype::F32 || out_dt == Datatype::F16 || out_dt == Datatype::F64)
+            if (out_dt == Datatype::F32 || out_dt == Datatype::F16)
                 jitConstants.AddConstant(MakeJitConstant(macro_def, "(ceil(input))"));
             else
                 jitConstants.AddConstant(MakeJitConstant(macro_def, "(input)"));
