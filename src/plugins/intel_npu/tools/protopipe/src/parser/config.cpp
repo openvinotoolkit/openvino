@@ -654,25 +654,25 @@ static InferenceParams adjustParams(InferenceParams&& params, const GlobalOption
 
 static void parseWorkloadType(const YAML::Node& node, StreamDesc& stream) {
     WorkloadTypeDesc workload_type;
-    if(node["initial_value"]) {
+    if (node["initial_value"]) {
         workload_type.initial_value = node["initial_value"].as<std::string>();
     }
     else {
         THROW_ERROR("Missing workload type initial value");
     }
-    if(node["change_interval"]) {
+    if (node["change_interval"]) {
         workload_type.change_interval = node["change_interval"].as<uint64_t>();
     }
     else {
         THROW_ERROR("Missing workload type change interval");
     }
-    if(node["change_to"]) {
+    if (node["change_to"]) {
         workload_type.changes = node["change_to"].as<std::vector<std::string>>();
     }
     else {
         THROW_ERROR("Missing workload type change values");
     }
-    if(node["repeat"]) {
+    if (node["repeat"]) {
         workload_type.repeat = node["repeat"].as<bool>();
     }
     else {

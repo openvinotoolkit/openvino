@@ -16,11 +16,11 @@ void ITermCriterion::setWorkloadTrigger(std::shared_ptr<WorkloadTypeInfo> worklo
     workload_type = workload_ptr;
 }
 void ITermCriterion::checkWorkloadTrigger() {
-    if(workload_type) {
-        if(customCheck(workload_type->workload_config.change_interval)) {
+    if (workload_type) {
+        if (customCheck(workload_type->workload_config.change_interval)) {
             // update based on changes
             uint64_t next_index = workload_index % workload_type->workload_config.changes.size();
-            if(!workload_type->workload_config.repeat &&
+            if (!workload_type->workload_config.repeat &&
                 workload_index >= workload_type->workload_config.changes.size()) {
                 return;
             }
@@ -67,7 +67,7 @@ bool TimeOut::check() const {
 
 bool TimeOut::customCheck(uint64_t value) {
     auto now = utils::timestamp<std::chrono::microseconds>() - m_start_ts;
-    if(now - last_update >= (value * 1'000'000)) {
+    if (now - last_update >= (value * 1'000'000)) {
         last_update = now;
         return true;
     }
