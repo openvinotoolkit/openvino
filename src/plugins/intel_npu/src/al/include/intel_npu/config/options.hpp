@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -249,7 +249,7 @@ struct PLATFORM final : OptionBase<PLATFORM, std::string> {
 #endif
 
     static bool isPublic() {
-        return false;
+        return true;
     }
 
     static uint32_t compilerSupportVersion() {
@@ -820,7 +820,7 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
     }
 
     static ov::intel_npu::CompilerType defaultValue() {
-        return ov::intel_npu::CompilerType::DRIVER;
+        return ov::intel_npu::CompilerType::PREFER_PLUGIN;
     }
 
     static ov::intel_npu::CompilerType parse(std::string_view val) {
@@ -828,6 +828,8 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
             return ov::intel_npu::CompilerType::PLUGIN;
         } else if (val == "DRIVER") {
             return ov::intel_npu::CompilerType::DRIVER;
+        } else if (val == "PREFER_PLUGIN") {
+            return ov::intel_npu::CompilerType::PREFER_PLUGIN;
         }
 
         OPENVINO_THROW("Value '", val, "' is not a valid COMPILER_TYPE option");
@@ -839,6 +841,8 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
             strStream << "PLUGIN";
         } else if (val == ov::intel_npu::CompilerType::DRIVER) {
             strStream << "DRIVER";
+        } else if (val == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
+            strStream << "PREFER_PLUGIN";
         } else {
             OPENVINO_THROW("No valid string for current COMPILER_TYPE option");
         }
@@ -855,7 +859,7 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
     }
 
     static bool isPublic() {
-        return false;
+        return true;
     }
 };
 
@@ -1488,6 +1492,28 @@ struct ENABLE_STRIDES_FOR final : OptionBase<ENABLE_STRIDES_FOR, std::string> {
 
     static OptionMode mode() {
         return OptionMode::CompileTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+};
+
+struct DISABLE_IDLE_MEMORY_PRUNING final : OptionBase<DISABLE_IDLE_MEMORY_PRUNING, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::disable_idle_memory_prunning.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return true;
     }
 };
 

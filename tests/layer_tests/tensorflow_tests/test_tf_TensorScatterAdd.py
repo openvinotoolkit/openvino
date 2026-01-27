@@ -1,8 +1,8 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-import pytest 
+import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
 

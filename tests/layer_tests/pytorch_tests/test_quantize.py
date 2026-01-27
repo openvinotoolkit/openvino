@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -78,7 +78,7 @@ class TestQuantizePerTensorDequantize(PytorchLayerTest):
     def _prepare_input(self):
         return (5.00 * self.rng.random([100, 100], dtype=np.float32) + 5.00,)
 
-    @pytest.mark.parametrize("scale", [ 
+    @pytest.mark.parametrize("scale", [
         1.0, 0.21, 0.62
     ])
     @pytest.mark.parametrize("zero_point", [
@@ -106,7 +106,7 @@ class TestDecomposedQuantizePerTensorDequantize(PytorchLayerTest):
     def _prepare_input(self):
         return (5.00 * self.rng.random([100, 100], dtype=np.float32) + 5.00,)
 
-    @pytest.mark.parametrize("scale", [ 
+    @pytest.mark.parametrize("scale", [
         1.0, 0.21, 0.62
     ])
     @pytest.mark.parametrize("zero_point", [
@@ -137,7 +137,7 @@ class TestQuantizePerChannelDequantize(PytorchLayerTest):
     def _prepare_input(self):
         return (5.00 * self.rng.random([5, 6, 7, 8], dtype=np.float32) + 5.00,)
 
-    @pytest.mark.parametrize("scale, zero_point, axis", [ 
+    @pytest.mark.parametrize("scale, zero_point, axis", [
         [
             np.array([1.0, 0.21, 0.62, 0.5, 0.74], dtype=np.float32),
             np.array([0, -1, 2, -3, 4], dtype=np.int32),
@@ -151,7 +151,7 @@ class TestQuantizePerChannelDequantize(PytorchLayerTest):
         pytest.param(
             np.array([1.0, 0.21, 0.62, 0.5, 0.11, 0.89, 0.32], dtype=np.float32),
             np.array([0, -1, 2, -3, 4, -5, -7], dtype=np.int32),
-            2, 
+            2,
             marks=pytest.mark.skip(reason="Axis = 2 not supported in FakeQuantize.")),
         [
             np.array([1.0, 0.21, 0.62, 0.5, 0.74, 0.11, 0.89, 0.32], dtype=np.float32),
@@ -183,7 +183,7 @@ class TestDecomposedQuantizePerChannelDequantize(PytorchLayerTest):
     def _prepare_input(self):
         return (5.00 * self.rng.random([5, 6, 7, 8], dtype=np.float32) + 5.00,)
 
-    @pytest.mark.parametrize("scale, zero_point, axis", [ 
+    @pytest.mark.parametrize("scale, zero_point, axis", [
         [
             np.array([1.0, 0.21, 0.62, 0.5, 0.74], dtype=np.float32),
             np.array([0, -1, 2, -3, 4], dtype=np.int32),

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import glob
@@ -1039,7 +1039,7 @@ def test_patched_bitnet_model_converts():
     from openvino import convert_model, compile_model
     from transformers.integrations.bitnet import AutoBitLinear, pack_weights
     from transformers import PretrainedConfig, BitNetQuantConfig
-    
+
     rng = torch.Generator().manual_seed(42)
 
     class TestModel(torch.nn.Module):

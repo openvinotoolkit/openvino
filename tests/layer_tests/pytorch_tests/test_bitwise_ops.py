@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -162,10 +162,10 @@ class TestBitwiseInplaceOp(PytorchLayerTest):
 
             def forward_or(self, lhs, rhs):
                 return lhs.__ior__(rhs)
-    
+
             def forward_and(self, lhs, rhs):
                 return lhs.__iand__(rhs)
-    
+
             def forward_xor(self, lhs, rhs):
                 return lhs.__ixor__(rhs)
 

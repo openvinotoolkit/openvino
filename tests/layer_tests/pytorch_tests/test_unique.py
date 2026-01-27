@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -13,7 +13,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestUnique2(PytorchLayerTest):
     def _prepare_input(self):
         return (self.input_tensor, )
-    
+
     def create_model(self, sorted, return_inverse, return_counts):
         import torch
 
@@ -26,7 +26,7 @@ class TestUnique2(PytorchLayerTest):
             def forward(self, x):
                 result, inverse, _ = self.op(x, self.sorted, True, False)
                 return result, inverse
-            
+
         class aten_unique2_return_second(torch.nn.Module):
             def __init__(self, sorted):
                 super(aten_unique2_return_second, self).__init__()
@@ -36,7 +36,7 @@ class TestUnique2(PytorchLayerTest):
             def forward(self, x):
                 result, _, counts = self.op(x, self.sorted, False, True)
                 return result, counts
-            
+
         class aten_unique2_return_both(torch.nn.Module):
             def __init__(self, sorted):
                 super(aten_unique2_return_both, self).__init__()
@@ -46,7 +46,7 @@ class TestUnique2(PytorchLayerTest):
             def forward(self, x):
                 result, inverse, counts = self.op(x, self.sorted, True, True)
                 return result, inverse, counts
-            
+
         class aten_unique2_return_neither(torch.nn.Module):
             def __init__(self, sorted):
                 super(aten_unique2_return_neither, self).__init__()

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from huggingface_hub import snapshot_download
@@ -52,7 +52,7 @@ def run_gptq_torchfx(tmp_path, model_id, model_link, prompt_result_pair):
         device_map='cpu',
         torch_dtype=torch.float32
     )
-    
+
     pipe = pipeline(
         "text-generation",
         model=model,
@@ -68,12 +68,12 @@ def run_gptq_torchfx(tmp_path, model_id, model_link, prompt_result_pair):
 
     prompt = prompt_result_pair["prompt"]
     expected_md5 = prompt_result_pair["result_md5"]
-    
+
     model.model.forward = torch.compile(model.model.forward, backend="openvino", dynamic=True, fullgraph=True, options={'aot_autograd': True})
-    
+
     result_ov = pipe(prompt)
     md5_ov = hashlib.new("md5", result_ov[0]['generated_text'].encode(), usedforsecurity=False).hexdigest()
-    
+
     u4_ops = ["FullyConnected",]
     num_u4_ops = 0
     num_u4_ops_supported = 0
@@ -84,7 +84,7 @@ def run_gptq_torchfx(tmp_path, model_id, model_link, prompt_result_pair):
                 if u4_exec:
                     num_u4_ops_supported += 1
                 num_u4_ops += 1
-    
+
     assert(expected_md5 == md5_ov), "Output does not match with the expected output"
     assert((num_u4_ops > 0) and (num_u4_ops == num_u4_ops_supported)), "Runtime precision is not u4"
 

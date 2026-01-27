@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -870,10 +870,10 @@ void SDPAMicroGenerator::init_sdpa_configuration(const kernel_impl_params& impl_
 }
 
 KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params) const {
-    std::vector<micro::Package> gemms(2);  // KQ and VS
+    std::vector<micro::Package> gemms(4);  // KQ, VS, KcQ and VcS
     sdpa_configuration sdpa_config;
     init_sdpa_configuration(params, sdpa_config);
-    init_microkernels(params, sdpa_config, gemms[kq_id], gemms[vs_id], m_is_prefill, m_is_gqa_single_token);
+    init_microkernels(params, sdpa_config, gemms[kq_id], gemms[vs_id], gemms[kcq_id], gemms[vcs_id], m_is_prefill, m_is_gqa_single_token);
 
     const auto& device_info = params.get_device_info();
     auto jit = get_jit_constants(params, gemms[kq_id], gemms[vs_id]);
@@ -907,12 +907,30 @@ KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params)
     shim_options.decorator = "vs";
     kd.code->jit += generateShim(gemms[vs_id], micro::HostLanguage::OpenCL_C, shim_options);
 
+    bool need_256_grf = false;
     if (gemms[kq_id].grfMin > 128 || gemms[vs_id].grfMin > 128) {
+        need_256_grf = true;
         kd.code->options += " -cl-intel-256-GRF-per-thread";
     }
 
-    for (auto& p : gemms) {
-        kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(p));
+    kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(gemms[kq_id]));
+    kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(gemms[vs_id]));
+
+    if (!m_is_prefill && !m_is_gqa_single_token) {
+        shim_options.microkernelID++;
+        shim_options.decorator = "kcq";
+        kd.code->jit += generateShim(gemms[kcq_id], micro::HostLanguage::OpenCL_C, shim_options);
+
+        shim_options.microkernelID++;
+        shim_options.decorator = "vcs";
+        kd.code->jit += generateShim(gemms[vcs_id], micro::HostLanguage::OpenCL_C, shim_options);
+
+        if (!need_256_grf && (gemms[kcq_id].grfMin > 128 || gemms[vcs_id].grfMin > 128)) {
+            kd.code->options += " -cl-intel-256-GRF-per-thread";
+        }
+
+        kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(gemms[kcq_id]));
+        kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(gemms[vcs_id]));
     }
 
     return kd;
@@ -1253,6 +1271,8 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
             args.push_back({ArgumentDescriptor::Types::INPUT, 3});  // Key cache
             args.push_back({ArgumentDescriptor::Types::INPUT, 0});  // Q
             args.push_back({ArgumentDescriptor::Types::INPUT, 4});  // Value cache
+            args.push_back({ArgumentDescriptor::Types::INPUT, 1});  // Key
+            args.push_back({ArgumentDescriptor::Types::INPUT, 2});  // Value
         }
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // A
 
@@ -1383,6 +1403,8 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
                                            const sdpa_configuration& configuration,
                                            micro::Package& gemm_kq,
                                            micro::Package& gemm_vs,
+                                           micro::Package& gemm_kcq,
+                                           micro::Package& gemm_vcs,
                                            bool is_prefill,
                                            bool is_gqa_single_token) {
     // TODO: Remove once micro API is thread safe
@@ -1579,6 +1601,33 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         throw;
     }
 
+    if (!is_prefill && !is_gqa_single_token) {
+        /* Update for optional GEMM: Kc*Q */
+        opts_kq.scaleA = false;
+        opts_kq.offsetA = false;
+
+        auto problem_kcq = problem;
+        problem_kcq.Ta_ext = convert_type(Q.data_type);
+        problem_kcq.A.layout = micro::MatrixLayout::T;
+        problem_kcq.B.layout = micro::MatrixLayout::Pr;
+        problem_kcq.C.layout = micro::MatrixLayout::T;
+        problem_kcq.A.setAlignment(micro::alignment_for_ld(k_head_size * problem.Ta));
+        problem_kcq.B.setAlignment(64);  // Q is packed in VNNI format in SLM
+        problem_kcq.B.crosspack = 2;
+        problem_kcq.B.tileR = static_cast<uint16_t>(d_max);
+        problem_kcq.B.tileC = static_cast<uint16_t>(get_subgroup_size(device_info.arch));
+
+        GPU_DEBUG_TRACE_DETAIL << "kcq: sizes = {" << sizes.m << ", " << sizes.n << ", " << sizes.k << ", " << sizes.batch << "}\n";
+
+        /* Ask microkernel provider for microkernel */
+        try {
+            gemm_kcq = micro::select_gemm_microkernel(opts_kq, hw_info, sizes, problem_kcq, reqs_kq);
+        } catch (const std::runtime_error& ex) {
+            GPU_DEBUG_TRACE_DETAIL << "Can't create KcQ sdpa_micro kernel: " << ex.what() << "\n";
+            throw;
+        }
+    }
+
     /* Set up microkernel options */
     micro::GEMMProtocol::Options opts_vs;
     opts_vs.localB = true;
@@ -1667,6 +1716,35 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     } catch (const std::runtime_error& ex) {
         GPU_DEBUG_TRACE_DETAIL << "Can't create VS sdpa_micro kernel: " << ex.what() << "\n";
         throw;
+    }
+
+    if (!is_prefill && !is_gqa_single_token) {
+        /* Update for optional GEMM: Vc*S */
+        opts_vs.scaleA = false;
+        opts_vs.offsetA = false;
+
+        auto problem_vcs = problem;
+        problem_vcs.Ta_ext = convert_type(Q.data_type);
+        problem_vcs.A.layout = micro::MatrixLayout::N;
+
+        problem_vcs.B.layout = micro::MatrixLayout::Pr;
+        problem_vcs.C.layout = micro::MatrixLayout::N;
+        problem_vcs.A.setAlignment(micro::alignment_for_ld(v_head_size * problem.Ta));
+        problem_vcs.B.setAlignment(64);  // S is packed in SLM
+        problem_vcs.B.crosspack = 16;
+        sizes.m = n_values.is_dynamic() ? -1 : n_values.get_length();
+        sizes.n = gemm_kq.getSetting("wg_tile_n");
+        sizes.k = gemm_kq.getSetting("wg_tile_m");
+
+        GPU_DEBUG_TRACE_DETAIL << "vcs: sizes = {" << sizes.m << ", " << sizes.n << ", " << sizes.k << ", " << sizes.batch << "}\n";
+
+        /* Ask microkernel provider for microkernel */
+        try {
+            gemm_vcs = micro::select_gemm_microkernel(opts_vs, hw_info, sizes, problem_vcs, reqs_vs, adjust_vs);
+        } catch (const std::runtime_error& ex) {
+            GPU_DEBUG_TRACE_DETAIL << "Can't create VcS sdpa_micro kernel: " << ex.what() << "\n";
+            throw;
+        }
     }
 }
 }  // namespace ov::intel_gpu::ocl

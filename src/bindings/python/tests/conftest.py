@@ -1,9 +1,25 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import platform
+
 import pytest
+
+# Workaround for NumPy 2.x on RPi ARMv8.0 CPUs, ticket 179098
+# https://numpy.org/devdocs/reference/simd/build-options.html
+_npy_cpu_features_original = os.environ.get("NPY_DISABLE_CPU_FEATURES")
+if platform.machine() == "aarch64" and platform.system() == "Linux":
+    os.environ["NPY_DISABLE_CPU_FEATURES"] = "ASIMDDP,ASIMDFHM"
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Restore NPY_DISABLE_CPU_FEATURES after test session completes."""
+    if _npy_cpu_features_original is None:
+        os.environ.pop("NPY_DISABLE_CPU_FEATURES", None)
+    else:
+        os.environ["NPY_DISABLE_CPU_FEATURES"] = _npy_cpu_features_original
 
 
 def pytest_configure(config):

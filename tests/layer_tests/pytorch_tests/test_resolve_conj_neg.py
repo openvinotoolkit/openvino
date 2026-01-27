@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -18,7 +18,7 @@ class TestResolveConjNeg(PytorchLayerTest):
 
     def create_model(self, op_type):
         import torch
-        
+
         ops = {
             "resolve_conj": torch.resolve_conj,
             "resolve_neg": torch.resolve_neg
