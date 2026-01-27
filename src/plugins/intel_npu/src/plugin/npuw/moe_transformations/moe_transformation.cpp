@@ -309,6 +309,53 @@ MoETransformConfig determine_transformation_params(const MoEStructureInfo& struc
     return config;
 }
 
+// Helper: Update Reshape node's constant input at a specific dimension
+// MoE Reshape patterns: 3D [num_experts, token_num, hidden_dim] or 4D [num_experts, 1, token_num, hidden_dim]
+// - dimension_index can be:
+//   * 0: for num_experts (first dimension)
+//   * -2: for token_num (second-to-last dimension, works for both 3D and 4D)
+static bool update_reshape_constant_dimension(const std::shared_ptr<ov::op::v1::Reshape>& reshape_node,
+                                              int dimension_index,
+                                              size_t old_value,
+                                              size_t new_value) {
+    auto shape_input = reshape_node->input_value(1);
+    auto shape_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(shape_input.get_node_shared_ptr());
+    if (!shape_const) {
+        return false;
+    }
+
+    auto shape_data = shape_const->cast_vector<int64_t>();
+
+    // MoE reshapes are either 3D or 4D
+    if (shape_data.size() < 3 || shape_data.size() > 4) {
+        return false;
+    }
+
+    // Convert negative index to positive (e.g., -2 means second-to-last)
+    size_t actual_index;
+    if (dimension_index < 0) {
+        actual_index = shape_data.size() + dimension_index;
+    } else {
+        actual_index = dimension_index;
+    }
+
+    // Check if the dimension value matches and update it
+    if (actual_index < shape_data.size() && shape_data[actual_index] == static_cast<int64_t>(old_value)) {
+        LOG_DEBUG("  Updating Reshape '" << reshape_node->get_friendly_name() << "' shape[" << actual_index << "] from "
+                                         << old_value << " to " << new_value);
+
+        shape_data[actual_index] = new_value;
+
+        auto new_shape_const =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{shape_data.size()}, shape_data);
+        reshape_node->input(1).replace_source_output(new_shape_const->output(0));
+
+        return true;
+    }
+
+    return false;
+}
+
 // Helper: Check if parameter matches downstream pattern
 // Pattern: Parameter -> [Convert] -> ReduceSum (Convert is optional)
 static bool check_downstream_pattern(const std::shared_ptr<ov::op::v0::Parameter>& param) {
@@ -557,73 +604,6 @@ void MoEModelTransformer::replace_tile_with_new_tile(const ov::Output<ov::Node>&
     node_before_matmul.replace(new_node->output(0));
 }
 
-void MoEModelTransformer::fix_output_reshapes(const std::shared_ptr<ov::Model>& model,
-                                              size_t num_experts,
-                                              size_t num_target_experts) const {
-    LOG_DEBUG("Fixing output Reshape nodes...");
-    for (const auto& result : model->get_results()) {
-        auto result_input = result->input_value(0);
-        auto result_input_node = result_input.get_node_shared_ptr();
-
-        // Skip Convert node if present (Result <- Convert)
-        if (auto convert_node = std::dynamic_pointer_cast<ov::op::v0::Convert>(result_input_node)) {
-            LOG_DEBUG("  Skipping Convert node before Result");
-            result_input = convert_node->input_value(0);
-            result_input_node = result_input.get_node_shared_ptr();
-        }
-
-        // Skip ReduceSum node if present (Result <- [Convert] <- ReduceSum)
-        if (auto reduce_sum_node = std::dynamic_pointer_cast<ov::op::v1::ReduceSum>(result_input_node)) {
-            LOG_DEBUG("  Skipping ReduceSum node before Result");
-            result_input = reduce_sum_node->input_value(0);
-            result_input_node = result_input.get_node_shared_ptr();
-        }
-
-        // Check for Multiply node (Result <- [Convert] <- [ReduceSum] <- Multiply)
-        std::shared_ptr<ov::Node> reshape_node_ptr;
-        if (auto multiply_node = std::dynamic_pointer_cast<ov::op::v1::Multiply>(result_input_node)) {
-            LOG_DEBUG("  Found Multiply node before Result");
-
-            // Multiply has two inputs, one should be from Reshape
-            auto multiply_input0 = multiply_node->input_value(0).get_node_shared_ptr();
-            auto multiply_input1 = multiply_node->input_value(1).get_node_shared_ptr();
-
-            if (auto reshape0 = std::dynamic_pointer_cast<ov::op::v1::Reshape>(multiply_input0)) {
-                reshape_node_ptr = reshape0;
-            } else if (auto reshape1 = std::dynamic_pointer_cast<ov::op::v1::Reshape>(multiply_input1)) {
-                reshape_node_ptr = reshape1;
-            }
-        } else if (auto reshape_direct = std::dynamic_pointer_cast<ov::op::v1::Reshape>(result_input_node)) {
-            // Direct Reshape -> Result (fallback case)
-            reshape_node_ptr = reshape_direct;
-        }
-
-        if (reshape_node_ptr) {
-            auto reshape_node = std::dynamic_pointer_cast<ov::op::v1::Reshape>(reshape_node_ptr);
-            auto shape_input = reshape_node->input_value(1);
-            if (auto shape_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(shape_input.get_node_shared_ptr())) {
-                auto shape_data = shape_const->cast_vector<int64_t>();
-
-                if (!shape_data.empty() && shape_data[0] == static_cast<int64_t>(num_experts)) {
-                    LOG_DEBUG("  Found output Reshape '" << reshape_node->get_friendly_name() << "' with shape[0]="
-                                                         << shape_data[0] << ", changing to " << num_target_experts);
-                    shape_data[0] = num_target_experts;
-
-                    auto new_shape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
-                                                                                  ov::Shape{shape_data.size()},
-                                                                                  shape_data);
-                    auto new_output_reshape =
-                        std::make_shared<ov::op::v1::Reshape>(reshape_node->input_value(0), new_shape_const, false);
-                    new_output_reshape->set_friendly_name(reshape_node->get_friendly_name() + "_" +
-                                                          std::to_string(num_target_experts) + "_experts");
-
-                    reshape_node->output(0).replace(new_output_reshape->output(0));
-                }
-            }
-        }
-    }
-}
-
 void MoEModelTransformer::ensure_tensor_names(const std::shared_ptr<ov::Model>& model) const {
     LOG_DEBUG("Ensuring all tensors have names...");
     size_t in_tensor_idx = 0;
@@ -689,6 +669,20 @@ void MoEModelTransformer::fix_parameters_with_num_experts(const std::shared_ptr<
                 LOG_DEBUG("    Successfully updated parameter shape to " << num_target_experts);
             }
         }
+    }
+
+    // Also fix Reshape nodes that contain num_experts in their shape constants
+    LOG_DEBUG("Fixing Reshape nodes with num_experts in shape...");
+    for (const auto& node : model->get_ordered_ops()) {
+        auto reshape_node = std::dynamic_pointer_cast<ov::op::v1::Reshape>(node);
+        if (!reshape_node) {
+            continue;
+        }
+
+        // For MoE Reshape patterns (3D or 4D), num_experts is always at dimension 0
+        // 3D: [num_experts, token_num, hidden_dim]
+        // 4D: [num_experts, 1, token_num, hidden_dim]
+        update_reshape_constant_dimension(reshape_node, 0, num_experts, num_target_experts);
     }
 }
 
@@ -766,6 +760,21 @@ void MoEModelTransformer::fix_token_count_for_prefill(
             param->set_partial_shape(ov::PartialShape(shape));
             param->validate_and_infer_types();
         }
+    }
+
+    // Also fix Reshape nodes that contain original_token_count in their shape constants
+    LOG_DEBUG("Fixing Reshape nodes with token_count in shape...");
+    for (const auto& node : model->get_ordered_ops()) {
+        auto reshape_node = std::dynamic_pointer_cast<ov::op::v1::Reshape>(node);
+        if (!reshape_node) {
+            continue;
+        }
+
+        // For MoE Reshape patterns (3D or 4D), token_num is always at second-to-last dimension
+        // 3D: [num_experts, token_num, hidden_dim] - token_num at index 1
+        // 4D: [num_experts, 1, token_num, hidden_dim] - token_num at index 2
+        // Use -2 to refer to second-to-last dimension in both cases
+        update_reshape_constant_dimension(reshape_node, -2, original_token_count, prefill_chunk_size);
     }
 
     // Trigger shape inference to propagate changes through the model
@@ -849,7 +858,6 @@ std::shared_ptr<ov::Model> MoEModelTransformer::apply_expert_transformation(
                                node_before_matmul,
                                expert_input_tile_op->get_friendly_name(),
                                num_target_experts);
-    fix_output_reshapes(model, num_experts, num_target_experts);
     fix_parameters_with_num_experts(model, num_experts, num_target_experts);
     ensure_tensor_names(model);
 
