@@ -281,14 +281,14 @@ elif [ -f /etc/os-release ] && grep -q '^ID=arch' /etc/os-release; then
         python \
         python-pip \
         python-setuptools \
-       pybind11 \
+        pybind11 \
         libffi \
         enchant \
         wget \
         git-lfs \
         flatbuffers \
         nlohmann-json
-        
+
 elif [ -f /etc/os-release ] && grep -q "alpine" /etc/os-release; then
     #Alpine Linux
     apk --no-cache add \
