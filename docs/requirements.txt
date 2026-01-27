@@ -19,7 +19,7 @@ lxml>=4.9.2
 MarkupSafe==3.0.3
 mistune==3.2.0
 myst-parser==4.0.1
-packaging==25.0
+packaging==26.0
 pluggy==1.6.0
 pydata-sphinx-theme==0.14.4
 Pygments==2.19.2
