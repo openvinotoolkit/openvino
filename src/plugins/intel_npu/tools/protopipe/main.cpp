@@ -260,7 +260,6 @@ int main(int argc, char* argv[]) {
                     }
                     criterion = global_criterion->clone();
                 }
-
                 std::shared_ptr<WorkloadTypeInfo> workload_type;
                 if (stream.workload_type.has_value())
                 {
@@ -272,14 +271,16 @@ int main(int argc, char* argv[]) {
                 }
 
                 auto simulation = createSimulation(FLAGS_mode, std::move(stream), FLAGS_inference_only, config);
-                if (workload_type) {
+                if (workload_type)
                     simulation->workload = workload_type;
-                }
+
 
                 auto compiled = compileSimulation(simulation, FLAGS_pipeline, FLAGS_drop_frames);
 
-                simulation->workload->wl_onnx->set(simulation->workload->workload_config.initial_value);
-                simulation->workload->wl_ov->set(simulation->workload->workload_config.initial_value);
+                if (simulation->workload) {
+                    simulation->workload->wl_onnx->set(simulation->workload->workload_config.initial_value);
+                    simulation->workload->wl_ov->set(simulation->workload->workload_config.initial_value);
+                }
                 LOG_INFO() << "Setting initial value of workload type to " << simulation->workload->workload_config.initial_value << std::endl;
 
                 tasks.emplace_back(std::move(compiled), std::move(stream_name), std::move(criterion));
