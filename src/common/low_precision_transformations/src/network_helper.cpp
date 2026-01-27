@@ -1265,6 +1265,7 @@ std::optional<size_t> NetworkHelper::getDQConstBranchIndex(const std::shared_ptr
                     "Expected binary eltwise operation, but got: ",
                     eltwise == nullptr ? "null" : std::to_string(eltwise->get_input_size()) + " inputs");
 
+    // Note: Dequantization operations might have converts between DQ constant and eltwise
     auto is_branch_const = [](const ov::Output<ov::Node>& in) {
         auto node = in.get_node_shared_ptr();
         return (ov::is_type<ov::opset1::Constant>(node)) ||
