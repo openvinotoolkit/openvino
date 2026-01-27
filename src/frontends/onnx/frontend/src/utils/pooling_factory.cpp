@@ -14,6 +14,14 @@
 #include "openvino/op/transpose.hpp"
 #include "utils/convpool.hpp"
 
+#include "openvino/op/mod.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/add.hpp"
+
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/gather.hpp"
+
 using namespace ov::op;
 using ov::Shape;
 
@@ -98,11 +106,27 @@ ov::OutputVector PoolingFactory::make_max_pool_with_indices() const {
                                                         m_kernel_shape,
                                                         m_rounding_type,
                                                         m_auto_pad);
-    if (m_storage_order == StorageOrder::COLUMN_MAJOR) {
-        const auto transposition_axes = transposition_axis_order(m_inputs.at(0).get_partial_shape().rank());
-        const auto transposed_indices = std::make_shared<v1::Transpose>(max_pool->output(1), transposition_axes);
 
-        return {max_pool->output(0), transposed_indices};
+    if (m_storage_order == StorageOrder::COLUMN_MAJOR) {
+        auto indices = max_pool->output(1);
+
+        auto shape_of = std::make_shared<v3::ShapeOf>(m_inputs.at(0), element::i64);
+
+        auto axes = v0::Constant::create(element::i64, Shape{}, {0});
+        auto indices_h = v0::Constant::create(element::i64, Shape{1}, {2});
+        auto indices_w = v0::Constant::create(element::i64, Shape{1}, {3});
+
+        auto height_node = std::make_shared<v8::Gather>(shape_of, indices_h, axes);
+        auto width_node  = std::make_shared<v8::Gather>(shape_of, indices_w, axes);
+
+        auto col = std::make_shared<v1::Mod>(indices, width_node);
+
+        auto row = std::make_shared<v1::Divide>(indices, width_node);
+
+        auto col_times_height = std::make_shared<v1::Multiply>(col, height_node);
+        auto new_indices = std::make_shared<v1::Add>(col_times_height, row);
+
+        return {max_pool->output(0), new_indices};
     } else {
         return {max_pool->output(0), max_pool->output(1)};
     }
