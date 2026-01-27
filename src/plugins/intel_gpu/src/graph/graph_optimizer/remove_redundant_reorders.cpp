@@ -696,6 +696,9 @@ void remove_redundant_reorders::run(program& p) {
         if (!dep_node.is_type<permute>() || dep_node.can_be_optimized() || dep_node.get_users().size() != 1 || dep_node.is_output())
             return false;
 
+        if (dep_node.is_constant())
+            return false;
+
         if (node->get_output_layout().format != dep_node.get_output_layout().format)
             return false;
 
