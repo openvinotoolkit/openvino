@@ -85,9 +85,9 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const PostOps& postOps,
         // DQ scale is fused but swiching back to non-INT8 for execution in some cases.
         DEBUG_LOG("Set DQ scales for None-INT8, scale size ", DQScales.size());
         // on ARM platforms binary post-op precision is forced to f16
-        // to align with ACL requirements
+        // when the convolution output is f16 to satisfy ACL requirements
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
-        useF16Binary = true;
+        useF16Binary = (outDataType == dnnl::memory::data_type::f16);
 #endif
         appendScale(DQScales, false, true);
     }
@@ -503,13 +503,13 @@ void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vec
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     std::vector<ov::float16> dataF16;
     if (useF16Binary) {
-        dataF16.reserve(data.size());
-        for (float value : data) {
-            dataF16.emplace_back(value);
-        }
-        binaryType = ov::element::f16;
-        binaryData = dataF16.data();
-        binaryBytes = dataF16.size() * sizeof(ov::float16);
+            dataF16.reserve(data.size());
+            for (float value : data) {
+                dataF16.emplace_back(value);
+            }
+            binaryType = ov::element::f16;
+            binaryData = dataF16.data();
+            binaryBytes = dataF16.size() * sizeof(ov::float16);
     }
 #endif
 
