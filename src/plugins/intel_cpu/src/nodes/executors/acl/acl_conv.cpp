@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,14 +90,19 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
 }
 
 bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
-    bool isQuantized = any_of(config.descs.at(ARG_SRC)->getPrecision(), ov::element::u8, ov::element::i8) &&
-                       config.descs.at(ARG_WEI)->getPrecision() == ov::element::i8;
+    VERIFY(config.attrs.postOps.size() <= 1U, UNSUPPORTED_BY_EXECUTOR);
+    // isQuantized verifies whether src is u8/i8, weights is i8 and FQ is fused if dst is u8/i8
+    // the last requirement is due to ACL int32 accumulation that needs to be requantized by non-trivial scales
+    const bool quantizedSrc = any_of(config.descs.at(ARG_SRC)->getPrecision(), ov::element::u8, ov::element::i8);
+    const bool quantizedDst = any_of(config.descs.at(ARG_DST)->getPrecision(), ov::element::u8, ov::element::i8);
+    const bool hasQuantizationPostOp = std::any_cast<FakeQuantizePostOp>(config.attrs.postOps.data()) != nullptr;
+    bool isQuantized = quantizedSrc && config.descs.at(ARG_WEI)->getPrecision() == ov::element::i8 &&
+                       (!quantizedDst || hasQuantizationPostOp);
 
     VERIFY(isQuantized, UNSUPPORTED_SRC_PRECISIONS);
     if (config.attrs.withBias) {
         VERIFY(config.descs.at(ARG_BIAS)->getPrecision() == ov::element::i32, UNSUPPORTED_BIAS_PRECISIONS);
     }
-    VERIFY(config.attrs.postOps.size() <= 1U, UNSUPPORTED_BY_EXECUTOR);
 
     return true;
 }
@@ -112,7 +117,7 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
     //                shift = input shift
     aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0));
     aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(
-        arm_compute::QuantizationInfo(weightScale.empty() ? 1.0F : weightScale[0]));
+        weightScale.empty() ? arm_compute::QuantizationInfo(1.0F) : arm_compute::QuantizationInfo(weightScale));
     aclMemoryInfos[ACLArgs::ACL_DST]->set_quantization_info(
         arm_compute::QuantizationInfo(fqInputScale.empty() ? 1.0F : 1.0F / fqInputScale[0],
                                       fqInputShift.empty() ? 0 : fqInputShift[0]));

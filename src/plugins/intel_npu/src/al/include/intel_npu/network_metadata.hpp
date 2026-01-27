@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -126,6 +126,14 @@ struct IODescriptor {
      * outputs are assigned in the same vector and could have different indexing.
      */
     uint32_t indexUsedByDriver;
+
+    /**
+     * @brief Indicates whether strided memory layout is supported for this tensor.
+     * @details When set to true, this tensor can use non-contiguous memory layout with custom strides,
+     * allowing for more flexible memory access patterns. Strided tensors enable efficient representation of sliced or
+     * transposed data without copying.
+     */
+    bool supportsStridedLayout = false;
 };
 
 struct NetworkMetadata final {

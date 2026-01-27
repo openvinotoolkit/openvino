@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -334,6 +334,19 @@ TEST_P(InferRequestRunTests, RecreateL0TensorIfNeeded) {
 
         delete[] data;
     }
+}
+
+TEST_P(InferRequestRunTests, RunWithConstData) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    ov::CompiledModel compiled_model;
+    ov::InferRequest inference_request;
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+    const auto tensor = inference_request.get_input_tensor();
+    const std::vector<float> data(tensor.get_byte_size() / sizeof(float));
+    OV_ASSERT_NO_THROW(inference_request.set_input_tensor({ov::element::f32, tensor.get_shape(), data.data()}));
+    OV_ASSERT_NO_THROW(inference_request.infer());
 }
 
 using RandomTensorOverZeroTensorRunTests = InferRequestRunTests;
@@ -1305,7 +1318,7 @@ TEST_P(ROITensorInference, InferenceROITensor) {
 
     OV_EXPECT_THROW_HAS_SUBSTRING(req.set_tensor(tensor_name, m_param.m_input_tensor),
                                   ov::Exception,
-                                  "The tensor is not continuous");
+                                  "tensor has a non-contiguous memory");
 }
 
 using SetShapeInferRunTests = InferRequestRunTests;
