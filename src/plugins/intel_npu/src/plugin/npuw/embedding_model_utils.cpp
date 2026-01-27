@@ -117,8 +117,7 @@ public:
         const auto transpose_order = opp::wrap_type<ov::op::v0::Constant>();
         const std::regex layer_id_convertion = std::regex(R"(layers\.(\d+)\.self_attn)");
 
-        auto shape_concat = opp::wrap_type<ov::op::v0::Concat>(
-            {opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
+        auto shape_concat = opp::wrap_type<ov::op::v0::Concat>();
 
         auto k_add = opp::wrap_type<ov::op::v1::Add>({opp::any_input(), opp::any_input()});
         auto k_unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({k_add, unsqueeze_axes});
@@ -286,6 +285,12 @@ public:
         if (!m_kv_concat.has_value()) {
             return false;
         }
+
+        auto input_size = m_kv_concat.value()->get_input_size();
+        if (input_size < 4) {
+            return false;
+        }
+
         auto minus_one =
             std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
         auto zero_i = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
@@ -294,8 +299,10 @@ public:
         auto mask_shapeof = std::make_shared<ov::op::v3::ShapeOf>(mask_node, ov::element::i64);
         auto s_len = std::make_shared<ov::op::v8::Gather>(mask_shapeof, minus_one, zero_i);
         auto s_len_reshape = std::make_shared<ov::op::v1::Reshape>(s_len, one_i, false);
+
         // Update the concat node shape input with seq_len of mask
-        m_kv_concat.value()->input(2).replace_source_output(s_len_reshape);
+        auto input_number = input_size - 2;
+        m_kv_concat.value()->input(input_number).replace_source_output(s_len_reshape);
 
         return true;
     }

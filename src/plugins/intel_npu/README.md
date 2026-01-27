@@ -196,7 +196,7 @@ The following properties are supported (may differ based on current system confi
 | `ov::intel_npu::device_alloc_mem_size`/</br>`NPU_DEVICE_ALLOC_MEM_SIZE` | RO | Size of already allocated NPU DDR memory | `N/A` | `N/A` |
 | `ov::intel_npu::device_total_mem_size`/</br>`NPU_DEVICE_TOTAL_MEM_SIZE` | RO | Size of available NPU DDR memory | `N/A` | `N/A` |
 | `ov::intel_npu::driver_version`/</br>`NPU_DRIVER_VERSION` | RO | NPU driver version. | `N/A` | `N/A` |
-| `ov::intel_npu::compiler_type`/</br>`NPU_COMPILER_TYPE` | RW | Selects the compiler type to be used | `PLUGIN`</br>`DRIVER` | Depends on the platform. `PLUGIN` for 4000 and 5010, `DRIVER` otherwise |
+| `ov::intel_npu::compiler_type`/</br>`NPU_COMPILER_TYPE` | RW | Selects the compiler type to be used | `PLUGIN`</br>`DRIVER`</br>`PREFER_PLUGIN` | Depends on the platform. `PREFER_PLUGIN` for 4000 and 5010, `DRIVER` otherwise |
 | `ov::intel_npu::compiler_version`/</br>`NPU_COMPILER_VERSION` | RO | NPU compiler version. MSB 16 bits are Major version, LSB 16 bits are Minor version | `N/A` | `N/A` |
 | `ov::intel_npu::compilation_mode_params`/</br>`NPU_COMPILATION_MODE_PARAMS` | RW | Set various parameters supported by the NPU compiler. (See bellow) | `<std::string>`| `N/A` |
 | `ov::intel_npu::compiler_dynamic_quantization`/</br>`NPU_COMPILER_DYNAMIC_QUANTIZATION` | RW | Enable/Disable dynamic quantization by NPU compiler | `YES` / `NO` | `N/A` |
@@ -210,6 +210,7 @@ The following properties are supported (may differ based on current system confi
 | `ov::intel_npu::defer_weights_load`/</br>`NPU_DEFER_WEIGHTS_LOAD` | RW | Delay loading the weights until inference is created. | `YES`/ `NO`| `NO` |
 | `ov::intel_npu::run_inferences_sequentially`/</br>`NPU_RUN_INFERENCES_SEQUENTIALLY` | RW | Run inferences in async mode sequentially in the order in which they are started to optimize host scheduling. | `YES`/ `NO`| `NO` |
 | `ov::intel_npu::disable_idle_memory_prunning`/</br>`NPU_DISABLE_IDLE_MEMORY_PRUNING` | RW | Enable/Disable pruning of memory during idle time. | `YES` / `NO` | `NO` |
+| `ov::intel_npu::enable_strides_for`/</br>`NPU_ENABLE_STRIDES_FOR` | RW | List of input/output tensor names that should support custom strides. | Tensor names, e.g., `"input,output"` | `N/A` |
 <br>
 
 ### Compiled_model properties VS Plugin properties

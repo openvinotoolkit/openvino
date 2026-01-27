@@ -83,7 +83,7 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
         jit.make("WEIGHT_COMPRESSED_ZP_INT4", 0);
     }
 
-    jit.make("IS_GENERATE", 0);    // only for prefill
+    // "IS_GENERATE" is for generate stage, and prefill stage doesn't need set it.
     jit.make("INPUT_SEQ_LEN", 4);  // prefill not use it
     jit.make("SCALE_ZP_NO_TRANSPOSE", 1);
 
@@ -220,6 +220,7 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     micro::GEMMProblem problem_moe;
     micro::GEMMProtocol::Options opts_moe;
     opts_moe.slmPtr = true;
+    opts_moe.kParallelLocal = !is_prefill;
     enum class MICRO_DIMENSIONALITY { NONE = -1, SCALAR = 0, VECTOR = 1, MATRIX = 2 };
 
     const bool is_weight_quantized = true;
@@ -293,8 +294,9 @@ DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
         const auto& gemm_p = kd.micro_kernels[0]->p;
         auto sg_per_wg_n = static_cast<size_t>(gemm_p.getSetting("sg_per_wg_n"));
         auto sg_per_wg_m = static_cast<size_t>(gemm_p.getSetting("sg_per_wg_m"));
-        auto sg_tile_m = gemm_p.getSetting("sg_tile_m");
-        auto sg_tile_n = gemm_p.getSetting("sg_tile_n");
+        auto sg_per_wg_k = static_cast<size_t>(gemm_p.getSetting("sg_per_wg_k"));
+        auto wg_tile_m = gemm_p.getSetting("wg_tile_m");
+        auto wg_tile_n = gemm_p.getSetting("wg_tile_n");
 
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
@@ -328,13 +330,13 @@ DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
         GPU_DEBUG_TRACE_DETAIL << "\t n = " << n << std::endl;
 
         const auto& experts_weight_shape = experts_weight_layout.get_shape();
-        const size_t subgroup_size = get_subgroup_size(device_info.arch);
         size_t m = experts_weight_shape[1];
         size_t k = experts_weight_shape.size() == 4 ? experts_weight_shape[2] * experts_weight_shape[3] : experts_weight_shape[2];
-        wgs.local = {sg_per_wg_m * subgroup_size, sg_per_wg_n, 1};
-        wgs.global = {align_to(ceil_div(m, sg_tile_m), sg_per_wg_m) * subgroup_size,
-                      align_to(ceil_div(n, sg_tile_n), sg_per_wg_n),
-                      static_cast<size_t>(rtp->num_actually_used_experts)};
+        wgs.local = {sg_per_wg_m * get_subgroup_size(device_info.arch), sg_per_wg_n, sg_per_wg_k};
+        wgs.global = {ceil_div(m, wg_tile_m), ceil_div(n, wg_tile_n), static_cast<size_t>(rtp->num_actually_used_experts)};
+        wgs.global[0] *= wgs.local[0];
+        wgs.global[1] *= wgs.local[1];
+        wgs.global[2] *= wgs.local[2];
         ScalarDescriptor s_m{ScalarDescriptor::Types::INT32};
         s_m.v.s32 = static_cast<int32_t>(m);
         scalars.push_back(s_m);

@@ -5,18 +5,18 @@ import typing
 """
 openvino.properties.intel_npu submodule that simulates ov::intel_npu
 """
-__all__: list[str] = ['bypass_umd_caching', 'compilation_mode_params', 'compiler_dynamic_quantization', 'compiler_version', 'defer_weights_load', 'device_alloc_mem_size', 'device_total_mem_size', 'driver_version', 'max_tiles', 'qdq_optimization', 'qdq_optimization_aggressive', 'run_inferences_sequentially', 'tiles', 'turbo', 'platform', 'CompilerType', 'compiler_type']
+__all__: list[str] = ['CompilerType', 'bypass_umd_caching', 'compilation_mode_params', 'compiler_dynamic_quantization', 'compiler_type', 'compiler_version', 'defer_weights_load', 'device_alloc_mem_size', 'device_total_mem_size', 'disable_idle_memory_prunning', 'driver_version', 'max_tiles', 'platform', 'qdq_optimization', 'qdq_optimization_aggressive', 'run_inferences_sequentially', 'tiles', 'turbo']
 class CompilerType:
     """
     Members:
-
-      PLUGIN
-
+    
       DRIVER
+    
+      PLUGIN
     """
-    PLUGIN: typing.ClassVar[CompilerType]  # value = <CompilerType.PLUGIN: 0>
     DRIVER: typing.ClassVar[CompilerType]  # value = <CompilerType.DRIVER: 1>
-    __members__: typing.ClassVar[dict[str, CompilerType]]  # value = {'PLUGIN': <CompilerType.PLUGIN: 0>, 'DRIVER': <CompilerType.DRIVER: 1>}
+    PLUGIN: typing.ClassVar[CompilerType]  # value = <CompilerType.PLUGIN: 0>
+    __members__: typing.ClassVar[dict[str, CompilerType]]  # value = {'DRIVER': <CompilerType.DRIVER: 1>, 'PLUGIN': <CompilerType.PLUGIN: 0>}
     def __eq__(self, other: typing.Any) -> bool:
         ...
     def __ge__(self, other: typing.Any) -> bool:
@@ -69,6 +69,12 @@ def compiler_dynamic_quantization() -> str:
 @typing.overload
 def compiler_dynamic_quantization(arg0: bool) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
+@typing.overload
+def compiler_type() -> str:
+    ...
+@typing.overload
+def compiler_type(arg0: CompilerType) -> tuple[str, openvino._pyopenvino.OVAny]:
+    ...
 def compiler_version() -> str:
     ...
 @typing.overload
@@ -81,6 +87,12 @@ def device_alloc_mem_size() -> str:
     ...
 def device_total_mem_size() -> str:
     ...
+@typing.overload
+def disable_idle_memory_prunning() -> str:
+    ...
+@typing.overload
+def disable_idle_memory_prunning(arg0: bool) -> tuple[str, openvino._pyopenvino.OVAny]:
+    ...
 def driver_version() -> str:
     ...
 @typing.overload
@@ -88,6 +100,12 @@ def max_tiles() -> str:
     ...
 @typing.overload
 def max_tiles(arg0: typing.SupportsInt) -> tuple[str, openvino._pyopenvino.OVAny]:
+    ...
+@typing.overload
+def platform() -> str:
+    ...
+@typing.overload
+def platform(arg0: str) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
 @typing.overload
 def qdq_optimization() -> str:
@@ -118,13 +136,4 @@ def turbo() -> str:
     ...
 @typing.overload
 def turbo(arg0: bool) -> tuple[str, openvino._pyopenvino.OVAny]:
-    ...
-@typing.overload
-def platform() -> str:
-    ...
-@typing.overload
-def platform(arg0: str) -> tuple[str, openvino._pyopenvino.OVAny]:
-    ...
-@typing.overload
-def compiler_type(arg0: CompilerType) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
