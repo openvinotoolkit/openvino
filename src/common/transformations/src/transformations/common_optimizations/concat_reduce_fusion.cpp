@@ -123,7 +123,6 @@ ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
             const auto norm_axis = ov::util::normalize_axis(concat_axis, rank);
             
             if (p_shape[norm_axis].is_dynamic() || p_shape[norm_axis].get_length() != 1) {
-
                 return false;
             }
         }
