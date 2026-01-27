@@ -672,6 +672,12 @@ static void parseWorkloadType(const YAML::Node& node, StreamDesc& stream) {
     else {
         THROW_ERROR("Missing workload type change values");
     }
+    if(node["repeat"]) {
+        workload_type.repeat = node["repeat"].as<bool>();
+    }
+    else {
+        workload_type.repeat = false;
+    }
     stream.workload_type = std::make_optional(workload_type);
 }
 

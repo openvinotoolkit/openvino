@@ -20,6 +20,10 @@ void ITermCriterion::checkWorkloadTrigger() {
         if(customCheck(workload_type->workload_config.change_interval)) {
             // update based on changes
             uint64_t next_index = workload_index % workload_type->workload_config.changes.size();
+            if(!workload_type->workload_config.repeat &&
+                workload_index >= workload_type->workload_config.changes.size()) {
+                return;
+            }
             std::string next_value = workload_type->workload_config.changes[next_index];
             workload_index++;
             LOG_INFO() << "Update workload type to " << next_value << " after " << workload_index * workload_type->workload_config.change_interval << " seconds/iterations" << std::endl;
