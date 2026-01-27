@@ -81,8 +81,6 @@ public:
         return get_property(property.name(), arguments).template as<T>();
     }
     bool supports_model_caching(const AnyMap& arguments = {}) const;
-
-    void cleanup() { m_ptr->cleanup(); }
 };
 
 }  // namespace ov

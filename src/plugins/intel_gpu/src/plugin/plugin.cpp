@@ -986,10 +986,6 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
 
     return batch;
 }
-void Plugin::cleanup() {
-    GPU_DEBUG_INFO << "[GPU] Plugin shutdown" << std::endl;
-    m_default_contexts.clear();
-}
 
 }  // namespace ov::intel_gpu
 

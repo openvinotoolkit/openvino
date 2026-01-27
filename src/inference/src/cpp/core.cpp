@@ -271,7 +271,7 @@ void Core::unload_plugin(const std::string& device_name) {
     OV_CORE_CALL_STATEMENT({
         ov::DeviceIDParser parser(device_name);
         std::string devName = parser.get_device_name();
-        _impl->get_plugin(devName).cleanup();
+
         _impl->unload_plugin(devName);
     });
 }
