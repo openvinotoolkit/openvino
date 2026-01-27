@@ -1567,15 +1567,12 @@ def matmul(
         dim_a = ps_a[idx_a]
         dim_b = ps_b[idx_b]
 
-        if dim_a.is_static and dim_b.is_static:
-            val_a = dim_a.get_length()
-            val_b = dim_b.get_length()
-            if val_a != val_b:
-                raise ValueError(
-                    f"Incompatible MatMul static dimensions: Input A dimension {val_a} "
-                    f"at index {idx_a} does not match Input B dimension {val_b} at index {idx_b}. "
-                    f"Shapes: {ps_a} and {ps_b} (transpose_a={transpose_a}, transpose_b={transpose_b})"
-                )
+        if not dim_a.compatible(dim_b):
+            raise ValueError(
+                f"Incompatible MatMul dimensions: Input A dimension {dim_a} "
+                f"at index {idx_a} does not match Input B dimension {dim_b} at index {idx_b}. "
+                f"Shapes: {ps_a} and {ps_b} (transpose_a={transpose_a}, transpose_b={transpose_b})"
+            )
              
     return _get_node_factory_opset1().create(
         "MatMul",
