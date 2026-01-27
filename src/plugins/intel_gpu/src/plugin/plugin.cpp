@@ -679,18 +679,10 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         }
         OPENVINO_ASSERT(config_it != m_configs_map.end(), "[GPU] get_property: Couldn't find config for GPU with id ", device_id);
         const auto& config = config_it->second;
-        auto num_streams = config.get_num_streams();
-        unsigned int optimal = 1;
-        if (num_streams > 0) {
-            optimal = static_cast<unsigned int>(num_streams);
-        } else {
-            auto estimated_streams = std::max<int32_t>(device_info.num_ccs, 2);
-            optimal = static_cast<unsigned int>(estimated_streams);
-        }
+        unsigned int optimal = config.get_num_streams();
         if (config.get_performance_mode() != ov::hint::PerformanceMode::LATENCY) {
             optimal *= 2;
         }
-        optimal = std::max(1u, optimal);
         return decltype(ov::optimal_number_of_infer_requests)::value_type{optimal};
     } else {
         OPENVINO_THROW("Unsupported metric key ", name);
