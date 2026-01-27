@@ -84,7 +84,7 @@ void pa_lsc_u8(
 
         #pragma unroll
         for (int ri = 0; ri < head_size/REG_K; ri++) {
-            vector<unsigned, q_tile_elems> gather_offsets;
+            vector<uint, q_tile_elems> gather_offsets;
             uint col_uint_base = ri * q_tile_uints;
 
             #pragma unroll
