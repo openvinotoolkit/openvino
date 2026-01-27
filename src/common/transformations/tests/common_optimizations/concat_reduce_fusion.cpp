@@ -14,6 +14,7 @@
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/constant_folding.hpp"
