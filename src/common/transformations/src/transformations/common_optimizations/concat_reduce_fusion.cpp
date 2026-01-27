@@ -119,7 +119,7 @@ ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
             const auto& p_shape = input.get_partial_shape();
             // Rank is guaranteed static by pattern predicates
             const int64_t rank = p_shape.rank().get_length();
-            const int64_t norm_axis = concat_axis < 0 ? concat_axis + rank : concat_axis;
+            const auto norm_axis = ov::util::normalize_axis(concat_axis, rank);
             
             if (norm_axis < 0 || norm_axis >= rank) {
                  return false; 
