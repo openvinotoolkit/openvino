@@ -13,7 +13,6 @@
 
 #include "openvino/core/shape.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "openvino/util/log.hpp"
 #include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;
