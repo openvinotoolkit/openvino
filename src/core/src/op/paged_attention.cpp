@@ -239,7 +239,7 @@ PagedAttentionExtension::PagedCacheManagerHandle make_paged_cache_handle(ov::ele
 
     auto* mgr = new PagedCacheManager(et);
 
-    return PagedAttentionExtension::CacheHandle(static_cast<void*>(mgr), [](void* p) {
+    return PagedAttentionExtension::PagedCacheManagerHandle(static_cast<void*>(mgr), [](void* p) {
         delete static_cast<PagedCacheManager*>(p);
     });
 }
