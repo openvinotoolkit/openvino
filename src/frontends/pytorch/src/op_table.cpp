@@ -33,7 +33,6 @@ OP_CONVERTER(translate_mul);
 OP_CONVERTER(translate_mul_);
 OP_CONVERTER(translate_addcmul);
 OP_CONVERTER(translate_addmm);
-OP_CONVERTER(translate_affine_grid_generator);
 OP_CONVERTER(translate_alias_copy);
 OP_CONVERTER(translate_all);
 OP_CONVERTER(translate_any);
