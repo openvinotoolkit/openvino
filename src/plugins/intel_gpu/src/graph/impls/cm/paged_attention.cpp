@@ -73,28 +73,37 @@ public:
         // XAttention estimate is following afer kvcache_update.
         auto out_shape = params.output_layouts[0].get_shape();
         const size_t block_size = get_xattn_block_size(params);
+        const uint32_t block_wg_n = get_block_wg_n(params);
+        const uint32_t block_wg_m = get_block_wg_m(params);
         const size_t kv_len = get_max_context_len(params);
         const size_t q_len = out_shape[0];
         const size_t N = kv_len / STRIDE;
-        const size_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
+        const size_t N_kq_groups = ceil_div(N, block_wg_n);
 
         const auto q_block_pad = ceil_div(q_len, block_size);
         const auto sum_per_token_in_block = block_size / STRIDE;
-        const auto k_block_in_group = BLOCK_WG_N / sum_per_token_in_block;
+        const auto k_block_in_group = block_wg_n / sum_per_token_in_block;
         const auto k_block_pad = k_block_in_group * N_kq_groups;
 
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         rt_params->q_block_pad = q_block_pad;
         rt_params->k_block_pad = k_block_pad;
-        const size_t MERGED_Q_NUM = PA_KV_CACHE_BLOCK_SIZE_XATTN / block_size;  // for xattn post_proc
-        rt_params->q_block_pad_merged = ceil_div(q_block_pad, MERGED_Q_NUM);
+
+        auto get_merged_q_num = [&]() {
+            const auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1u : 2u;
+            const size_t q_step = get_q_step(xe_arch, false);
+            const size_t wg_seq_len = WG_SIZE * q_step;
+            return wg_seq_len / get_xattn_block_size(params);
+        };
+
+        rt_params->q_block_pad_merged = ceil_div(q_block_pad, get_merged_q_num());
 
         const size_t head_size = desc->k_head_size;
 
         const auto M = q_len / STRIDE;  //# will slient drop the tails which is less than `stride`
         const auto K = STRIDE * head_size;
 
-        const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
+        const size_t q_stride_pad = round_up_to(M, block_wg_m);
 
         rt_params->N_kq_groups = N_kq_groups;
         rt_params->M = M;
@@ -260,6 +269,9 @@ private:
         auto xattn_block_size = static_cast<int32_t>(lock[seq_idx]);
         if (xattn_block_size != 128 && xattn_block_size != 256) {
             xattn_block_size = 128;  // default
+        }
+        if (xattn_block_size == 256 && params.get_device_info().arch < gpu_arch::xe2) {
+            xattn_block_size = 128;  // on pre-XE2, only support 128
         }
         return xattn_block_size;
     }

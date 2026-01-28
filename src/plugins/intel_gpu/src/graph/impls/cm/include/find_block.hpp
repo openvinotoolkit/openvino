@@ -32,20 +32,64 @@
 #define CUR_TYPE_(a) MYCONCAT(IS_, a)
 #define CUR_TYPE CUR_TYPE_(SOFTMAX_TYPE)
 
+template <int M, int N>
+CM_INLINE void cm_load_2d(matrix_ref<SOFTMAX_TYPE, M, N> out,
+                          svmptr_t base, uint offset, uint pitch, uint valid_m) {
+    #pragma unroll
+    for (int i = 0; i < out.n_rows(); i++) {
+        if (i < (int)valid_m) {
+            out.row(i).format<uint>() =
+                cm_ptr_load<uint, N, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+                    (uint*)base, offset + i * pitch);
+        } else {
+            out.row(i) = SOFTMAX_TYPE(0);
+        }
+    }
+}
+
+template <int M, int N>
+CM_INLINE void cm_store_2d(matrix_ref<SOFTMAX_TYPE, M, N> out, svmptr_t base, uint offset, uint pitch,  uint valid_m) {
+    #pragma unroll
+    for(int i = 0; i < out.n_rows(); i++) {
+        if(offset + i * pitch < valid_m*pitch)
+            cm_ptr_store<uint, N>((uint*)base, offset + i * pitch, out.row(i).format<uint>());
+    }
+}
+
 // kq_max_wg:          [b, hq, n_groups, q_stride_pad]
 // kq_exp_partial_sum: [b, hq, q_stride_pad, k_block_pad]
 // kq_sum:             [b, hq, q_stride_pad/TOKEN_IN_BLOCK, k_block_pad]
-CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_partial_sum, svmptr_t block_mask, uint q_len, uint q_stride, uint q_stride_pad, uint k_block_pad, float thresh, uint causal_start_index
+CM_INLINE void find(uint slm, int m_block,
+    svmptr_t kq_max_wg,
+    //#ifdef CM_HAS_LSC_UNTYPED_2D
+    svmptr_t kq_exp_partial_sum,
+    // #else
+    // SurfaceIndex kq_exp_partial_sum [[type("buffer_t")]],
+    // #endif
+    svmptr_t block_mask, uint q_len, uint q_stride, uint q_stride_pad, uint k_block_pad, float thresh, uint causal_start_index
 #if DEBUG_ACC == 1
     , svmptr_t kq_sum
 #endif
 ) {
+#ifndef BLOCK_SHARE_MAX
+    #define BLOCK_SG_M  64
+    #define BLOCK_SG_N  32
+    #define SG_M  2
+    #define SG_N  4
+    #define HEAD_SIZE  128
+    #define KV_BLOCK_SIZE  256
+    #define STRIDE  16
+    #define BLOCK_SIZE 128
+    #define BLOCK_SHARE_MAX 256
+#endif
+
     constexpr int TOKEN_IN_BLOCK = (BLOCK_SIZE / STRIDE);   // 8 -> 16
     int m = m_block * TOKEN_IN_BLOCK;
     vector<SOFTMAX_TYPE, TOKEN_IN_BLOCK> max_m;
 
     constexpr int TOKEN_SHARE_MAX = BLOCK_SHARE_MAX / TOKEN_IN_BLOCK;   // 32 -> 16
     kq_exp_partial_sum += m * k_block_pad * (int)sizeof(SOFTMAX_TYPE);
+
     kq_max_wg += m * (int)sizeof(SOFTMAX_TYPE);
     constexpr SOFTMAX_TYPE log2e = 1.4426950408889634f;
     matrix<float, TOKEN_IN_BLOCK, TOKEN_SHARE_MAX> sum_m = 0;
@@ -64,13 +108,18 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
         }
         return;
     }
-#if BLOCK_SIZE == 128
+    #ifdef CM_HAS_LSC_UNTYPED_2D
+    #if BLOCK_SIZE == 128
     lsc::block_2d_desc<SOFTMAX_TYPE, 1, TOKEN_IN_BLOCK, TOKEN_SHARE_MAX / (sizeof(SOFTMAX_TYPE) / sizeof(half))> desc_sum{ kq_exp_partial_sum, (uint)valid_m - 1, (uint)(k_block_pad * sizeof(SOFTMAX_TYPE) - 1), (uint)(k_block_pad * sizeof(SOFTMAX_TYPE) - 1),
         0, 0 };
-#else
+    #else
     lsc::block_2d_desc<SOFTMAX_TYPE, 1, TOKEN_IN_BLOCK / 2, TOKEN_SHARE_MAX> desc_sum{ kq_exp_partial_sum, (uint)valid_m - 1, (uint)(k_block_pad * sizeof(SOFTMAX_TYPE) - 1), (uint)(k_block_pad * sizeof(SOFTMAX_TYPE) - 1),
         0, 0 };
-#endif
+    #endif
+    #else
+    const uint pitch_sum = k_block_pad * sizeof(SOFTMAX_TYPE);
+    uint off_sum = 0;// m * k_block_pad * (int)sizeof(SOFTMAX_TYPE);
+    #endif
     {
         // find max: (k_block_pad / TOKEN_SHARE_MAX) * q_stride_pad
         max_m = SOFTMAX_TYPE{-60000};
@@ -82,12 +131,16 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
         }
     }
     // compensation: val*exp(local - global)
+    #ifdef CM_HAS_LSC_UNTYPED_2D
     desc_sum.set_block_x(0);
+    #else
+    off_sum = 0;
+    #endif
     for (int j = 0, idx = 0; j < k_block_pad; j += TOKEN_SHARE_MAX, idx++) {
         vector<SOFTMAX_TYPE, TOKEN_IN_BLOCK> max_m_in_group;
         max_m_in_group.format<int>() = cm_ptr_load<int, TOKEN_IN_BLOCK / (sizeof(int) / sizeof(SOFTMAX_TYPE))>((int*)kq_max_wg, q_stride_pad * idx * (int)sizeof(SOFTMAX_TYPE));
+#ifdef CM_HAS_LSC_UNTYPED_2D
 #if CUR_TYPE == IS_float && BLOCK_SIZE == 128
-        // 2x(8, 16) -> (8, 32)
         cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached,  0, 0>(data.select<TOKEN_IN_BLOCK, 1, TOKEN_SHARE_MAX / 2, 1>(0, 0).format<SOFTMAX_TYPE>(), desc_sum);
         cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 16, 0>(data.select<TOKEN_IN_BLOCK, 1, TOKEN_SHARE_MAX / 2, 1>(0, TOKEN_SHARE_MAX / 2).format<SOFTMAX_TYPE>(), desc_sum);
 #elif CUR_TYPE == IS_float && BLOCK_SIZE == 256
@@ -97,12 +150,17 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
 #else
         cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached>(data.format<SOFTMAX_TYPE>(), desc_sum);
 #endif
+#else
+//xe1
+        cm_load_2d(data, kq_exp_partial_sum, off_sum, pitch_sum, valid_m);
+#endif
         for (int i = 0; i < TOKEN_IN_BLOCK; i++) {
             if (i < valid_m) {
                 data.row(i) *= cm_exp((max_m_in_group[i] - max_m[i]) * log2e);
                 sum_m.row(i) += data.row(i);
             }
         }
+#ifdef CM_HAS_LSC_UNTYPED_2D
 #if CUR_TYPE == IS_float && BLOCK_SIZE == 128
         cm_store<CacheHint::Uncached, CacheHint::WriteBack,  0, 0>(desc_sum, data.select<TOKEN_IN_BLOCK, 1, TOKEN_SHARE_MAX / 2, 1>(0, 0).format<SOFTMAX_TYPE>());
         cm_store<CacheHint::Uncached, CacheHint::WriteBack, 16, 0>(desc_sum, data.select<TOKEN_IN_BLOCK, 1, TOKEN_SHARE_MAX / 2, 1>(0, TOKEN_SHARE_MAX / 2).format<SOFTMAX_TYPE>());
@@ -112,7 +170,15 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
 #else
         cm_store(desc_sum, data.format<SOFTMAX_TYPE>());
 #endif
-        desc_sum.set_block_x(desc_sum.get_block_x() + TOKEN_SHARE_MAX);  // k_block_in_group? 32 ->16
+#else
+//xe1
+        cm_store_2d(data, kq_exp_partial_sum, off_sum, pitch_sum, valid_m);
+#endif
+#ifdef CM_HAS_LSC_UNTYPED_2D
+        desc_sum.set_block_x(desc_sum.get_block_x() + TOKEN_SHARE_MAX);
+#else
+        off_sum += TOKEN_SHARE_MAX * sizeof(SOFTMAX_TYPE);
+#endif
     }
 
     // exp/sum
@@ -125,12 +191,18 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
     }
     // compensation: sum(val*inv_sum_v)
     vector<float, TOKEN_SHARE_MAX> sum_m_after_add = 0;
+#ifdef CM_HAS_LSC_UNTYPED_2D
     desc_sum.set_block_x(0);
+#else
+    off_sum = 0;
+#endif
+
 #if DEBUG_ACC == 1
     kq_sum += m_block * k_block_pad * (int)sizeof(half);
 #endif
     vector<uchar, TOKEN_SHARE_MAX> zero = 0;
     for (int j = 0; j < k_block_pad; j += TOKEN_SHARE_MAX) {
+#ifdef CM_HAS_LSC_UNTYPED_2D
 #if CUR_TYPE == IS_float && BLOCK_SIZE == 128
         cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached,  0, 0>(data.select<TOKEN_IN_BLOCK, 1, TOKEN_SHARE_MAX / 2, 1>(0, 0).format<SOFTMAX_TYPE>(), desc_sum);
         cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached, 16, 0>(data.select<TOKEN_IN_BLOCK, 1, TOKEN_SHARE_MAX / 2, 1>(0, TOKEN_SHARE_MAX / 2).format<SOFTMAX_TYPE>(), desc_sum);
@@ -140,11 +212,22 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
 #else
         cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached>(data.format<SOFTMAX_TYPE>(), desc_sum);
 #endif
+#else
+
+//xe1
+        cm_load_2d(data, kq_exp_partial_sum, off_sum, pitch_sum, valid_m);
+
+#endif
         data.row(0) *= inv_sum_v[0];
         for (int i = 1; i < TOKEN_IN_BLOCK; i++) {
             data.row(0) += data.row(i) * inv_sum_v[i];
         }
+
+#ifdef CM_HAS_LSC_UNTYPED_2D
         desc_sum.set_block_x(desc_sum.get_block_x() + TOKEN_SHARE_MAX);
+#else
+        off_sum += TOKEN_SHARE_MAX * sizeof(SOFTMAX_TYPE);
+#endif
         // the sum type is always half in the reference code of the paper: https://github.com/mit-han-lab/x-attention/blob/fb2ac200a23d20568f7d166ddb5ee247926d2b2b/xattn/src/kernels.py#L248
         vector<half, TOKEN_SHARE_MAX> data_half = data.row(0);  // 32 -> 16
         sum_m_after_add += data_half;

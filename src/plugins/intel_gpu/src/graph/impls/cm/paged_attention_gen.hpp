@@ -32,13 +32,42 @@ constexpr auto get_pa_build_options() {
 #define PA_KV_CACHE_BLOCK_SIZE       16
 #define PA_KV_CACHE_BLOCK_SIZE_XATTN 256
 
-constexpr uint32_t BLOCK_SG_M = 64;
-constexpr uint32_t BLOCK_SG_N = 32;
 constexpr uint32_t SG_M = 4;
 constexpr uint32_t SG_N = 8;
-constexpr uint32_t BLOCK_WG_M = BLOCK_SG_M * SG_M;
-constexpr uint32_t BLOCK_WG_N = BLOCK_SG_N * SG_N;
+constexpr size_t WG_SIZE = 16;
 constexpr int STRIDE = 16;
+
+inline bool is_xe2_or_xe3(const kernel_impl_params& params) {
+    const auto arch = params.get_device_info().arch;
+    return arch == gpu_arch::xe2 || arch == gpu_arch::xe3;
+}
+
+inline uint32_t get_block_sg_m(const kernel_impl_params& params) {
+    return is_xe2_or_xe3(params) ? 64u : 32u;
+}
+
+inline uint32_t get_block_sg_n(const kernel_impl_params& params) {
+    return is_xe2_or_xe3(params) ? 32u : 16u;
+}
+
+inline uint32_t get_block_wg_m(const kernel_impl_params& params) {
+    return get_block_sg_m(params) * SG_M;
+}
+
+inline uint32_t get_block_wg_n(const kernel_impl_params& params) {
+    return get_block_sg_n(params) * SG_N;
+}
+
+inline size_t get_q_step(size_t arch, bool is_single_token = false) {
+    if (arch == 1) {
+        return is_single_token ? 1 : 8;  // For Xe1
+    } else if (arch == 2) {
+        // For Xe2, q_step = CM_GRF_WIDTH / 32
+        return is_single_token ? 1 : 16;  // For Xe2
+    }
+    OPENVINO_ASSERT(false, "Unsupported architecture for Q step");
+    return 0;  // Fallback case, should not be reached
+}
 
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
