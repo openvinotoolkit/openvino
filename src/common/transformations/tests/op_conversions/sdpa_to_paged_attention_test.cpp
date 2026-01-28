@@ -9,6 +9,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/bitwise_not.hpp"
 #include "openvino/op/broadcast.hpp"
