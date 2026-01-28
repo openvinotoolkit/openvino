@@ -83,7 +83,7 @@ bool parseCommandLine(int* argc, char*** argv) {
         return false;
     }
     if (FLAGS_v) {
-        std::cout << APP_VERSION << std::endl;
+        // NB: Version is already printed at the start of main()
         return false;
     }
     if (FLAGS_cfg.empty()) {
@@ -205,6 +205,7 @@ static Simulation::Ptr createSimulation(const std::string& mode, StreamDesc&& st
 int main(int argc, char* argv[]) {
     // NB: Intentionally wrapped into try-catch to display exceptions occur on windows.
     try {
+        std::cout << "Protopipe " << APP_VERSION << std::endl;
         if (!parseCommandLine(&argc, &argv)) {
             return 0;
         }
