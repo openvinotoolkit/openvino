@@ -455,8 +455,7 @@ ov::Any py_object_to_any(const py::object& py_obj) {
     py::object float_32_type = py::module_::import("numpy").attr("float32");
     py::object Path = py::module_::import("pathlib").attr("Path");
     if (py::isinstance<py::str>(py_obj) || py::isinstance(py_obj, Path)) {
-        py::bytes utf8_bytes = py::str(py_obj).attr("encode")("utf-8");
-        return std::string(utf8_bytes);
+        return py::str(py_obj).cast<std::string>();
     } else if (py::isinstance<py::bool_>(py_obj)) {
         return py_obj.cast<bool>();
     } else if (py::isinstance<py::bytes>(py_obj)) {
