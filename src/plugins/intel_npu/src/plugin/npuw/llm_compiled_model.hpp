@@ -26,7 +26,10 @@ class LLMCompiledModel : public ov::npuw::ICompiledModel {
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
 
 public:
-    static constexpr const char* output_embeds = "npuw_output_embed";
+    struct layer_names {
+        static constexpr const char* output_embeds = "npuw_output_embed";
+        static constexpr const char* logits = "logits";
+    };
 
     static constexpr uint32_t whisper_batch_dim = 0u;
     static constexpr uint32_t whisper_seq_len_dim = 2u;
