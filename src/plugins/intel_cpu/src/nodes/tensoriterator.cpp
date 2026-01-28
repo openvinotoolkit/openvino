@@ -25,6 +25,7 @@
 #include "common/cpu_memcpy.h"
 #include "common/reorder_prim.h"
 #include "cpu_memory.h"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
@@ -35,7 +36,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/tensor_iterator.hpp"
@@ -245,11 +245,15 @@ private:
     int value;
 };
 
-DynamicBuffer::DynamicBuffer(MemoryPtr from_, std::vector<MemoryPtr> to_, const PortMap& map_rule_)
+DynamicBuffer::DynamicBuffer(MemoryPtr from_,
+                             std::vector<MemoryPtr> to_,
+                             const PortMap& map_rule_,
+                             const std::shared_ptr<CpuParallel>& parallel)
     : from(std::move(from_)),
       to(std::move(to_)),
       map_rule(map_rule_),
-      elem_size(DnnlExtensionUtils::sizeOfDataType(from->getDataType())) {}
+      elem_size(DnnlExtensionUtils::sizeOfDataType(from->getDataType())),
+      cpu_parallel(parallel) {}
 
 void DynamicBuffer::execute(const dnnl::engine& eng, const int iter) {
     OPENVINO_ASSERT(from->getStaticDims()[map_rule.axis] == static_cast<size_t>(std::abs(map_rule.stride)),
@@ -347,7 +351,8 @@ void DynamicBuffer::move_buffer(const MemoryPtr& new_buffer) {
          src_stride,
          dst_stride,
          count,
-         valid_size);
+         valid_size,
+         cpu_parallel);
 
     // assign mem_holder_buffer
     mem_holder_buffer = new_buffer;
@@ -370,7 +375,8 @@ void DynamicBuffer::move_data() {
          src_stride,
          dst_stride,
          count,
-         chunk_unit_in_byte);
+         chunk_unit_in_byte,
+         cpu_parallel);
 
     // adjust for next execution
     num_execs++;
@@ -406,7 +412,8 @@ void DynamicBuffer::transfer(const Node* node) {
              src_stride,
              dst_stride,
              count,
-             dst_stride);
+             dst_stride,
+             cpu_parallel);
     } else {
         VectorDims newDims = to.front()->getShape().getDims();
         nullifyUndefinedDims(newDims);
@@ -421,8 +428,9 @@ void DynamicBuffer::copy(const uint8_t* src,
                          const size_t src_stride,
                          const size_t dst_stride,
                          const size_t count,
-                         const size_t len) {
-    parallel_for(count, [&](const size_t i) {
+                         const size_t len,
+                         const std::shared_ptr<CpuParallel>& cpu_parallel) {
+    cpu_parallel->parallel_for(count, [&](const size_t i) {
         cpu_memcpy(&dst[i * dst_stride], &src[i * src_stride], len);
     });
 }
@@ -796,7 +804,8 @@ void TensorIterator::prepareDynamicBuffers() {
         if (map_rule.axis != -1) {
             auto to_mems = getToMemories(this, map_rule.from);
             auto& from_mem = output_mem[map_rule.to];
-            buffers.emplace_back(std::make_shared<DynamicBuffer>(from_mem, to_mems, map_rule));
+            buffers.emplace_back(
+                std::make_shared<DynamicBuffer>(from_mem, to_mems, map_rule, context->getCpuParallel()));
         }
     }
 }
