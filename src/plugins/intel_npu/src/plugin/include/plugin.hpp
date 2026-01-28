@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,7 +74,7 @@ private:
     void filter_global_config_safe(
         const std::optional<ov::intel_npu::CompilerType>& compilerChange = std::nullopt) const;
     void filter_config_by_compiler_support(FilteredConfig& cfg) const;
-    FilteredConfig fork_local_config(const std::map<std::string, std::string>& rawConfig,
+    FilteredConfig fork_local_config(const ov::AnyMap& properties,
                                      const std::unique_ptr<ICompilerAdapter>& compiler,
                                      OptionMode mode = OptionMode::Both) const;
 

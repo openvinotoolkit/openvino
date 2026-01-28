@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,14 +28,6 @@
 
 namespace {
 
-std::shared_ptr<void> load_library(const std::string& libpath) {
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    return ov::util::load_shared_object(ov::util::string_to_wstring(libpath).c_str());
-#else
-    return ov::util::load_shared_object(libpath.c_str());
-#endif
-}
-
 std::shared_ptr<intel_npu::ICompiler> get_compiler(std::shared_ptr<void> so) {
     static constexpr auto CreateFuncName = "CreateNPUCompiler";
     auto symbol = ov::util::get_symbol(so, CreateFuncName);
@@ -48,8 +40,8 @@ std::shared_ptr<intel_npu::ICompiler> get_compiler(std::shared_ptr<void> so) {
     return compilerPtr;
 }
 
-ov::SoPtr<intel_npu::ICompiler> load_compiler(const std::string& libpath) {
-    auto compilerSO = load_library(libpath);
+ov::SoPtr<intel_npu::ICompiler> load_compiler(const std::filesystem::path& libpath) {
+    auto compilerSO = ov::util::load_shared_object(libpath);
     auto compiler = get_compiler(compilerSO);
 
     return ov::SoPtr<intel_npu::ICompiler>(compiler, compilerSO);
@@ -76,13 +68,11 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
     _logger.info("Loading PLUGIN compiler");
     try {
         auto vclCompilerPtr = VCLCompilerImpl::getInstance();
+        OPENVINO_ASSERT(vclCompilerPtr != nullptr, "VCL compiler is nullptr");
         auto vclLib = vclCompilerPtr->getLinkedLibrary();
         _logger.info("PLUGIN VCL compiler is loading");
-        if (vclCompilerPtr && vclLib) {
-            _compiler = ov::SoPtr<intel_npu::ICompiler>(vclCompilerPtr, vclLib);
-        } else {
-            throw std::runtime_error("VCL compiler or library is nullptr");
-        }
+        OPENVINO_ASSERT(vclLib != nullptr, "VCL library is nullptr");
+        _compiler = ov::SoPtr<intel_npu::ICompiler>(vclCompilerPtr, vclLib);
     } catch (const std::exception& vcl_exception) {
         _logger.info("VCL compiler load failed: %s. Trying to load MLIR compiler...", vcl_exception.what());
         std::string baseName = "npu_mlir_compiler";
@@ -124,7 +114,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     auto networkDesc = _compiler->compile(model, config);
     _logger.debug("compile end");
 
-    ov::Tensor tensor = make_tensor_from_vector(networkDesc.compiledNetwork);
+    ov::Tensor tensor;
+    if (networkDesc.compiledNetwork.size() > 0) {
+        tensor = make_tensor_from_vector(networkDesc.compiledNetwork);
+    } else {
+        tensor = std::move(networkDesc.compiledNetworkTensor);
+    }
     GraphDescriptor graphDesc;
     NetworkMetadata networkMeta;
 
@@ -200,7 +195,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         std::vector<std::shared_ptr<NetworkDescription>> initNetworkDescriptions =
             std::move(initMainNetworkDescriptions);
 
-        tensorMain = make_tensor_from_vector(mainNetworkDescription->compiledNetwork);
+        if (mainNetworkDescription->compiledNetwork.size() > 0) {
+            tensorMain = make_tensor_from_vector(mainNetworkDescription->compiledNetwork);
+        } else {
+            tensorMain = std::move(mainNetworkDescription->compiledNetworkTensor);
+        }
+
         if (_zeGraphExt) {
             // Depending on the config, we may get an error when trying to
             // get the graph handle from the compiled network
@@ -221,7 +221,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         tensorsInits.reserve(initNetworkDescriptions.size());
         initNetworkMetadata.reserve(initNetworkDescriptions.size());
         for (auto& networkDesc : initNetworkDescriptions) {
-            ov::Tensor tensor = make_tensor_from_vector(networkDesc->compiledNetwork);
+            ov::Tensor tensor;
+            if (networkDesc->compiledNetwork.size() > 0) {
+                tensor = make_tensor_from_vector(networkDesc->compiledNetwork);
+            } else {
+                tensor = std::move(networkDesc->compiledNetworkTensor);
+            }
             GraphDescriptor initGraphDesc;
             NetworkMetadata initNetworkMeta;
             if (_zeGraphExt) {
@@ -256,7 +261,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
 
         while (auto networkDescription =
                    std::make_shared<NetworkDescription>(_compiler->compileWsIterative(targetModel, localConfig, i++))) {
-            ov::Tensor tensor = make_tensor_from_vector(networkDescription->compiledNetwork);
+            ov::Tensor tensor;
+            if (networkDescription->compiledNetwork.size() > 0) {
+                tensor = make_tensor_from_vector(networkDescription->compiledNetwork);
+            } else {
+                tensor = std::move(networkDescription->compiledNetworkTensor);
+            }
             GraphDescriptor graphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
             NetworkMetadata networkMetadata = _zeGraphExt->getNetworkMeta(graphDesc);
 

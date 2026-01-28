@@ -15,7 +15,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Poland"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 20
     assignees:
       - "p-wysocki"
       - "akuporos"
@@ -30,7 +30,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Poland"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     assignees:
       - "p-wysocki"
       - "akuporos"
@@ -46,7 +46,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Poland"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     assignees:
       - "p-wysocki"
       - "akuporos"
@@ -60,7 +60,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Asia/Dubai"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     assignees:
       - "rkazants"
       - "andrei-kochin"
@@ -82,7 +82,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Asia/Dubai"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     assignees:
       - "Wovchena"
       - "p-wysocki"
@@ -96,7 +96,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Asia/Dubai"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     assignees:
       - "Wovchena"
       - "p-wysocki"
@@ -110,7 +110,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Asia/Dubai"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     assignees:
       - "Wovchena"
       - "p-wysocki"
@@ -124,7 +124,7 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Asia/Dubai"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     assignees:
       - "Wovchena"
       - "p-wysocki"
@@ -147,7 +147,7 @@ updates:
       - "akashchi"
       - "mryzhov"
       - "akladiev"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
 
   # Docker images
   - package-ecosystem: docker
@@ -163,4 +163,4 @@ updates:
       - "akashchi"
       - "mryzhov"
       - "akladiev"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
