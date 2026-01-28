@@ -7,6 +7,7 @@ OV_CONFIG_RELEASE_OPTION(ov, enable_profiling, false, "Enable profiling for the 
 OV_CONFIG_RELEASE_OPTION(ov::device, id, "0", "ID of the current device")
 OV_CONFIG_RELEASE_OPTION(ov, cache_dir, "", "Directory where model cache can be stored. Caching is disabled if empty")
 OV_CONFIG_RELEASE_OPTION(ov, num_streams, 1, "Number of streams to be used for inference")
+OV_CONFIG_RELEASE_OPTION(ov::log, level, ov::log::Level::NO, "Logging level")
 OV_CONFIG_RELEASE_OPTION(ov, compilation_num_threads, std::max(1, static_cast<int>(std::thread::hardware_concurrency())), "Max number of CPU threads used for model compilation for the stages that supports parallelism")
 OV_CONFIG_RELEASE_OPTION(ov::hint, inference_precision, ov::element::f16, "Model floating-point inference precision. Supported values: { f16, f32, dynamic }", [](ov::element::Type t) { return t == ov::element::f16 || t == ov::element::f32 || t == ov::element::dynamic; })
 OV_CONFIG_RELEASE_OPTION(ov::hint, model_priority, ov::hint::Priority::MEDIUM, "High-level hint that defines the priority of the model. It may impact number of threads used for model compilation and inference as well as device queue settings")
