@@ -52,7 +52,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: ababushk/checkout@cherry_pick_retries
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5
         timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
@@ -94,14 +94,14 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
     steps:
       - name: Clone OpenVINO
-        uses: ababushk/checkout@cherry_pick_retries
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5
         timeout-minutes: 15
         with:
           path: 'openvino'
           submodules: 'true'
 
       - name: Clone OpenVINO Contrib
-        uses: ababushk/checkout@cherry_pick_retries
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5
         timeout-minutes: 15
         with:
           repository: 'openvinotoolkit/openvino_contrib'
@@ -239,7 +239,7 @@ jobs:
           version: "3.13"
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'false'
-      
+
       - name: Setup Python 3.14t
         uses: ./openvino/.github/actions/setup_python
         with:
@@ -262,7 +262,7 @@ jobs:
             echo "Building Python API and wheels for Python ${py_version}"
             python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
             $python_exec_path -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
-            
+
             echo "Using Python executable at: ${python_exec_path}"
 
             if [[ $py_version == "3.14t" ]]; then
@@ -508,7 +508,7 @@ jobs:
 
     steps:
       - name: Checkout OpenVINO actions
-        uses: ababushk/checkout@cherry_pick_retries
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5
         timeout-minutes: 15
         with:
           sparse-checkout: |
