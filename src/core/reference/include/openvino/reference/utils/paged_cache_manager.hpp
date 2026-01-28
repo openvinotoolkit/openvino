@@ -36,16 +36,16 @@ namespace paged_attention_cache {
 
 inline constexpr std::size_t CACHE_SIZE = 1000000;
 
-class OPENVINO_API PagedCacheManager {
+class PagedCacheManager {
 public:
-    struct OPENVINO_API CacheBlocks {
+    struct CacheBlocks {
         void* key_base{nullptr};
         void* value_base{nullptr};
         size_t key_bytes{0};
         size_t value_bytes{0};
     };
 
-    struct OPENVINO_API SubsequenceView {
+    struct SubsequenceView {
         const std::int32_t* data{nullptr};
         size_t count{0};
     };

@@ -8,10 +8,6 @@
 
 namespace ov {
 
-namespace reference::paged_attention_cache {
-class PagedCacheManager;
-}  // namespace reference::paged_attention_cache
-
 namespace op {
 /// \brief PagedAttentionExtension operation implements paged attention for memory-efficient sequence processing.
 ///
@@ -115,6 +111,8 @@ public:
                             const Output<Node>& xattention_block_size,
                             const Output<Node>& xattention_stride);
 
+    using PagedCacheManagerHandle = std::shared_ptr<void>;
+
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
@@ -124,15 +122,15 @@ public:
     /// \brief Sets the output element type at the specified index.
     void set_out_type(int index, const ov::element::Type& output_type);
 
-    const std::shared_ptr<ov::reference::paged_attention_cache::PagedCacheManager> get_cache_manager() const;
-
-    void set_cache_manager(
-        const std::shared_ptr<ov::reference::paged_attention_cache::PagedCacheManager> cache_manager);
+    PagedCacheManagerHandle get_cache_manager() const;
+    void set_cache_manager(PagedCacheManagerHandle cache_manager);
 
 protected:
+    PagedCacheManagerHandle m_cache_manager = nullptr;
     std::vector<ov::element::Type> m_output_type = {ov::element::dynamic, ov::element::dynamic, ov::element::dynamic};
-    std::shared_ptr<ov::reference::paged_attention_cache::PagedCacheManager> m_cache_manager = nullptr;
 };
 
+// Exported function for transformations to construct the manager, solution for C4273
+OPENVINO_API PagedAttentionExtension::PagedCacheManagerHandle make_paged_cache_handle(ov::element::Type et);
 }  // namespace op
 }  // namespace ov

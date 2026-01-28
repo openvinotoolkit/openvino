@@ -324,7 +324,7 @@ inline void accumulate_value_from_new_key(int32_t abs_token_idx,
 
 template <typename T>
 void paged_attention(const size_t node_id,
-                     const std::shared_ptr<ov::reference::paged_attention_cache::PagedCacheManager>& cache_manager,
+                     ov::reference::paged_attention_cache::PagedCacheManager* cache_manager,
                      T* out,
                      T* out_scores,
                      const T* query,

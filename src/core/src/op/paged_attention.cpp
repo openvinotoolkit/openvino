@@ -211,7 +211,9 @@ void PagedAttentionExtension::validate_and_infer_types() {
 std::shared_ptr<ov::Node> PagedAttentionExtension::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     OV_OP_SCOPE(PagedAttentionExtension_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<PagedAttentionExtension>(new_args);
+    auto cloned = std::make_shared<PagedAttentionExtension>(new_args);
+    cloned->set_cache_manager(this->get_cache_manager());
+    return cloned;
 }
 
 const ov::element::Type PagedAttentionExtension::get_out_type(int index) const {
@@ -224,14 +226,24 @@ void PagedAttentionExtension::set_out_type(int index, const ov::element::Type& o
     m_output_type[index] = output_type;
 }
 
-const std::shared_ptr<ov::reference::paged_attention_cache::PagedCacheManager>
-PagedAttentionExtension::get_cache_manager() const {
+PagedCacheManagerHandle PagedAttentionExtension::get_cache_manager() const {
     return m_cache_manager;
 }
 
-void PagedAttentionExtension::set_cache_manager(
-    const std::shared_ptr<ov::reference::paged_attention_cache::PagedCacheManager> cache_manager) {
-    m_cache_manager = cache_manager;
+void PagedAttentionExtension::set_cache_manager(PagedCacheManagerHandle cache_manager) {
+    m_cache_manager = std::move(cache_manager);
+}
+
+PagedAttentionExtension::PagedCacheManagerHandle make_paged_cache_handle(ov::element::Type et) {
+    using ov::reference::paged_attention_cache::PagedCacheManager;
+
+    auto* mgr = new PagedCacheManager(et);
+
+    return PagedAttentionExtension::CacheHandle(
+        static_cast<void*>(mgr),
+        [](void* p) {
+            delete static_cast<PagedCacheManager*>(p);
+        });
 }
 }  // namespace op
 }  // namespace ov

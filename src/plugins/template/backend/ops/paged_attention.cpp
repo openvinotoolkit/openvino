@@ -13,7 +13,7 @@ template <ov::element::Type_t ET>
 bool evaluate(ov::TensorVector& outputs,
               const ov::TensorVector& inputs,
               const size_t node_id,
-              const std::shared_ptr<ov::reference::paged_attention_cache::PagedCacheManager> cache_manager) {
+              ov::reference::paged_attention_cache::PagedCacheManager* cache_manager) {
     using T = typename ov::element_type_traits<ET>::value_type;
 
     const bool has_rotation = inputs.size() == 20;
@@ -58,11 +58,14 @@ bool evaluate_node<ov::op::PagedAttentionExtension>(std::shared_ptr<ov::Node> no
                                                     const ov::TensorVector& inputs) {
     const auto& element_type = node->get_output_element_type(0);
     const auto& pa = std::static_pointer_cast<ov::op::PagedAttentionExtension>(node);
-    const auto& cache_manager = pa->get_cache_manager();
+
+    // get cache manager
+    const auto& h = pa->get_cache_manager();
+    auto* cache_manager = static_cast<ov::reference::paged_attention_cache::PagedCacheManager*>(h.get());
+    OPENVINO_ASSERT(cache_manager != nullptr, "PagedAttention has no cache manager attached");
 
     // query shape (id: 0):
     // [batch_size_in_tokens, num_heads * head_size]
-
     // key_cache shape (id: 3):
     // [num_blocks == 0, num_kv_heads, block_size, head_size]
     OPENVINO_ASSERT(node->get_input_partial_shape(3).rank() == 4,
