@@ -191,9 +191,8 @@ class ConvertWeightCompressedConv1x1ToMatmulTest
 public:
     static std::string get_test_case_name(
         const testing::TestParamInfo<std::tuple<bool, bool, bool, bool, bool, std::string>>& obj) {
-        bool with_group_quant, with_zp, with_bias, with_convert, with_param_weight;
-        std::string activation_op_type;
-        std::tie(with_group_quant, with_zp, with_bias, with_convert, with_param_weight, activation_op_type) = obj.param;
+        const auto& [with_group_quant, with_zp, with_bias, with_convert, with_param_weight, activation_op_type] =
+            obj.param;
 
         std::ostringstream result;
         result << "with_group_quant=" << with_group_quant << "_";
@@ -208,9 +207,7 @@ public:
 protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
-        bool with_group_quant, with_zp, with_bias, with_convert, with_param_weight;
-        std::string activation_op_type;
-        std::tie(with_group_quant, with_zp, with_bias, with_convert, with_param_weight, activation_op_type) =
+        const auto& [with_group_quant, with_zp, with_bias, with_convert, with_param_weight, activation_op_type] =
             GetParam();
         Conv1x1ToMatmulTestParams params{with_group_quant,
                                          with_zp,

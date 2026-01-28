@@ -36,17 +36,6 @@ using ov::pass::pattern::op::Or;
 
 ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1ToMatmul() {
     MATCHER_SCOPE(ConvertWeightCompressedConv1x1ToMatmul);
-    auto filter1x1_path = [](const ov::Output<ov::Node>& output) {
-        const auto& pshape = output.get_partial_shape();
-        return ov::op::util::is_on_path<ov::op::v0::Constant, ov::op::v0::Parameter>(output) && pshape.is_static() &&
-               pshape[-1] == 1 && pshape[-2] == 1;
-    };
-
-    auto bias_path = [](const ov::Output<ov::Node>& output) {
-        const auto& pshape = output.get_partial_shape();
-        return ov::op::util::is_on_path<ov::op::v0::Constant>(output) && pshape.is_static() && pshape[0] == 1 &&
-               pshape[2] == 1 && pshape[3] == 1;
-    };
 
     auto first_input_m = ov::pass::pattern::any_input();
     auto a_order_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
@@ -55,10 +44,10 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
     auto a_m =
         std::make_shared<ov::pass::pattern::op::Or>(OutputVector{transpose_activations_m, reshape_activations_m});
 
-    auto weights_const_m =
-        wrap_type<ov::op::v0::Constant>((rank_equals(4) || rank_equals(5)) && has_static_rank() && filter1x1_path);
-    auto weights_param_m =
-        wrap_type<ov::op::v0::Parameter>((rank_equals(4) || rank_equals(5)) && has_static_rank() && filter1x1_path);
+    auto weights_const_m = wrap_type<ov::op::v0::Constant>(pattern::shape_matches("[?, ?, 1, 1]") ||
+                                                           pattern::shape_matches("[?, ?, ?, 1, 1]"));
+    auto weights_param_m = wrap_type<ov::op::v0::Parameter>(pattern::shape_matches("[?, ?, 1, 1]") ||
+                                                            pattern::shape_matches("[?, ?, ?, 1, 1]"));
     auto weights_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weights_const_m, weights_param_m});
     auto weight_convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights_m});
     auto weights_scales_m = ov::pass::pattern::any_input();
@@ -76,7 +65,7 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
     auto conv1x1_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({a_m, weight_input_m});
 
     // Optional bias
-    auto bias_const_m = wrap_type<ov::op::v0::Constant>(rank_equals(4) && has_static_rank() && bias_path);
+    auto bias_const_m = wrap_type<ov::op::v0::Constant>(pattern::shape_matches("[1, ?, 1, 1]"));
     auto bias_m = ov::pass::pattern::wrap_type<ov::op::v1::Add>({conv1x1_m, bias_const_m});
     auto bias_out_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{conv1x1_m, bias_m});
 
@@ -211,7 +200,7 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
 
         if (weight_reshape) {
             const auto& shape = scaled_weight->get_output_partial_shape(0);
-            OPENVINO_ASSERT(shape.rank().get_length() == 3, "Expected 3 Dim weights for block quantization case");
+            OPENVINO_ASSERT(shape.rank().get_length() == 3, "Expected 3 Dim weights for block decompression case");
             auto shape_const = std::make_shared<ov::op::v0::Constant>(
                 ov::element::i64,
                 ov::Shape{2},
