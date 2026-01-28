@@ -561,6 +561,19 @@ bool Plugin::is_metric(const std::string& name) const {
 
 ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::get_metric");
+    if (name == ov::model_name) {
+        return decltype(ov::model_name)::value_type{};
+    } else if (name == ov::execution_devices) {
+        decltype(ov::execution_devices)::value_type execution_devices;
+        auto execution_device = get_device_name();
+        auto device_id = get_device_id(options);
+        if (!device_id.empty()) {
+            execution_device += "." + device_id;
+        }
+        execution_devices.emplace_back(execution_device);
+        return execution_devices;
+    }
+
     auto device_id = get_property(ov::device::id.name(), options).as<std::string>();
 
     auto iter = m_device_map.find(std::to_string(cldnn::device_query::device_id));
@@ -679,22 +692,6 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         }
         optimal = std::max(1u, optimal);
         return decltype(ov::optimal_number_of_infer_requests)::value_type{optimal};
-    } else if (name == ov::model_name) {
-        return decltype(ov::model_name)::value_type{};
-    } else if (name == ov::execution_devices) {
-        decltype(ov::execution_devices)::value_type execution_devices;
-        auto contexts = get_default_contexts();
-        auto ctx_it = contexts.find(device_id);
-        if (ctx_it != contexts.end()) {
-            execution_devices.emplace_back(ctx_it->second->get_device_name());
-        } else {
-            auto execution_device = get_device_name();
-            if (!device_id.empty()) {
-                execution_device += "." + device_id;
-            }
-            execution_devices.emplace_back(execution_device);
-        }
-        return execution_devices;
     } else {
         OPENVINO_THROW("Unsupported metric key ", name);
     }
