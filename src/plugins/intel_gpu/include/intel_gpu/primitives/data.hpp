@@ -422,49 +422,69 @@ struct data : public primitive_base<data> {
             if (is_alloc_host_accessible(_allocation_type)) {
                 ib >> make_data(mem->buffer_ptr(), data_size);
             } else {
-                const size_t DATA_BLOCK_SIZE = 2 * 1024 * 1024;
+                static constexpr size_t DATA_BLOCK_SIZE = 2 * 1024 * 1024;
                 auto& strm = ib.get_engine().get_service_stream();
-                if (data_size < DATA_BLOCK_SIZE || output_layout.format.is_image_2d()) {
-                    std::vector<uint8_t> _buf(data_size);
-                    ib >> make_data(_buf.data(), data_size);
-                    mem->copy_from(strm, _buf.data());
-                } else {
-                    std::vector<uint8_t> _buf1(DATA_BLOCK_SIZE);
-                    std::vector<uint8_t> _buf2(DATA_BLOCK_SIZE);
-                    bool buf_flag = true;
-                    event::ptr ev1, ev2;
-                    ev1 = ev2 = nullptr;
-                    size_t dst_offset = 0;
-                    while (dst_offset < data_size) {
-                        const bool is_blocking = false;
-                        const size_t src_offset = 0;
-                        size_t copy_size =
-                            (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
-                        if (buf_flag) {
-                            ib >> make_data(_buf1.data(), copy_size);
-                            if (ev2 != nullptr) {
-                                ev2->wait();
-                                ev2 = nullptr;
-                            }
-                            ev1 = mem->copy_from(strm, _buf1.data(), src_offset, dst_offset, copy_size, is_blocking);
-                        } else {
-                            ib >> make_data(_buf2.data(), copy_size);
-                            if (ev1 != nullptr) {
-                                ev1->wait();
-                                ev1 = nullptr;
-                            }
-                            ev2 = mem->copy_from(strm, _buf2.data(), src_offset, dst_offset, copy_size, is_blocking);
+                if (auto dib = dynamic_cast<DirectBinaryInputBuffer*>(&ib); dib) {
+                    struct direct_buffer {
+                        const char*& ptr;
+                        direct_buffer(const char*& data, size_t) : ptr(data) {}
+                        const void* prepare(size_t copy_size) {
+                            const auto ret = ptr;
+                            ptr += copy_size;
+                            return ret;
                         }
-                        dst_offset += DATA_BLOCK_SIZE;
-                        buf_flag = !buf_flag;
-                    }
-                    if (ev2 != nullptr) {
-                        ev2->wait();
-                    }
-                    if (ev1 != nullptr) {
-                        ev1->wait();
-                    }
+                    };
+                    auto data = dib->readView(data_size);
+                    size_based_load_weights<direct_buffer>(data, strm, data_size, DATA_BLOCK_SIZE, output_layout);
+                } else {
+                    struct stream_buffer {
+                        BinaryInputBuffer& ib;
+                        std::vector<uint8_t> buf;
+                        stream_buffer(BinaryInputBuffer& b, size_t size) : ib(b), buf(size) {}
+                        const void* prepare(size_t copy_size) {
+                            ib >> make_data(buf.data(), copy_size);
+                            return buf.data();
+                        }
+                    };
+                    size_based_load_weights<stream_buffer>(ib, strm, data_size, DATA_BLOCK_SIZE, output_layout);
                 }
+            }
+        }
+    }
+
+private:
+    template <typename T, typename U>
+    void size_based_load_weights(U& src, stream& strm, const size_t data_size, const size_t block_size, const layout& output_layout) {
+        if (data_size < block_size || output_layout.format.is_image_2d()) {
+            T buf(src, data_size);
+            const auto ptr = buf.prepare(data_size);
+            mem->copy_from(strm, ptr);
+        } else {
+            T buf1(src, block_size);
+            T buf2(src, block_size);
+            event::ptr ev1 = nullptr;
+            event::ptr ev2 = nullptr;
+            size_t dst_offset = 0;
+            bool buf_flag = true;
+            while (dst_offset < data_size) {
+                constexpr bool is_blocking = false;
+                size_t copy_size = (data_size > (dst_offset + block_size)) ? block_size : (data_size - dst_offset);
+                auto& ev = buf_flag ? ev1 : ev2;
+                auto& buf = buf_flag ? buf1 : buf2;
+                if (ev != nullptr) {
+                    ev->wait();
+                    ev = nullptr;
+                }
+                const auto ptr = buf.prepare(copy_size);
+                ev = mem->copy_from(strm, ptr, 0, dst_offset, copy_size, is_blocking);
+                dst_offset += copy_size;
+                buf_flag = !buf_flag;
+            }
+            if (ev2 != nullptr) {
+                ev2->wait();
+            }
+            if (ev1 != nullptr) {
+                ev1->wait();
             }
         }
     }
