@@ -330,7 +330,12 @@ def generate_concat_compiled_model(device, input_shape: list[int] = None, ov_typ
     return core.compile_model(model, device)
 
 
-def generate_concat_compiled_model_with_data(device, input_shape: list[int] = None, ov_type=Type.f32, numpy_dtype=np.float32):
+def generate_concat_compiled_model_with_data(
+    device,
+    input_shape: list[int] = None,
+    ov_type=Type.f32,
+    numpy_dtype=np.float32,
+):
     if input_shape is None:
         input_shape = [5]
 
