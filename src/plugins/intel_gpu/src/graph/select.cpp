@@ -139,6 +139,21 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
                                         "Invalid input shapes");
                 }
             }
+        } else if (node.get_primitive()->broadcast_spec.m_type == ov::op::AutoBroadcastType::PDPD) {
+            auto output_pshape = deps[1].first->get_output_layout().get_partial_shape();
+            auto broadcast_spec = node.get_primitive()->broadcast_spec;
+
+            auto check_broadcast = [&](const ov::PartialShape& input_pshape, const char* input_name) {
+                auto merged = output_pshape;
+                bool ok = ov::PartialShape::broadcast_merge_into(merged, input_pshape, broadcast_spec);
+                CLDNN_ERROR_BOOL(node.id(),
+                                 std::string(input_name) + " broadcastable to output shape",
+                                 !ok,
+                                 "Invalid input shapes");
+            };
+
+            check_broadcast(deps[2].first->get_output_layout().get_partial_shape(), "Else");
+            check_broadcast(deps[0].first->get_output_layout().get_partial_shape(), "Cond");
         } else {
             CLDNN_ERROR_MESSAGE(node.id(), "Unsupported broadcast_type: " + std::to_string(static_cast<int>(node.get_primitive()->broadcast_spec.m_type)));
         }
