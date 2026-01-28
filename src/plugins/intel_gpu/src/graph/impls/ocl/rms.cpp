@@ -39,6 +39,7 @@ struct rms_impl : typed_primitive_impl_ocl<rms> {
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         params.epsilon = primitive->epsilon;
         params.ov_input_rank = static_cast<int32_t>(impl_param.get_input_layout().get_partial_shape().size());
+        params.elementwise_affine = primitive->elementwise_affine;
         return params;
     }
 
