@@ -339,16 +339,15 @@ public:
         // input0 : float8e4m3[1,32,1151,96]
         // input1 : float8e4m3[1,32,1,96]
 
-        // parameter, or down_up subgraph case not always meet especially on non fp8 activations cb4 models
-        // leaving this more generic for a while
+        // parameter, or down_up subgraph case always works for current models-set
+        // with both with fp8-optimisation flag enabled and without it
         // TODO: this matcher logic better to cover with unit-tests
-        auto input0 = opp::any_input();
-        // auto input0 = opp::wrap_type<ov::op::v0::Parameter>();
-        // auto input0_or = std::make_shared<opp::op::Or>(ov::OutputVector{input0, match_down_up_convert_subgraph(input0)});
+        auto input0 = opp::wrap_type<ov::op::v0::Parameter>();
+        auto input0_or = std::make_shared<opp::op::Or>(ov::OutputVector{input0, match_down_up_convert_subgraph(input0)});
 
         auto input1 = opp::any_input();
 
-        auto kv_concat = opp::wrap_type<ov::op::v0::Concat>({input0, input1});
+        auto kv_concat = opp::wrap_type<ov::op::v0::Concat>({input0_or, input1});
         auto result1 = opp::wrap_type<ov::op::v0::Result>(kv_concat);
         auto result2 = opp::wrap_type<ov::op::v0::Result>(match_down_up_convert_subgraph(kv_concat));
 
