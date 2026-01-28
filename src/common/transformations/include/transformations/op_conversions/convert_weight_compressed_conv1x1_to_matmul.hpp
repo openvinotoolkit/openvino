@@ -43,11 +43,11 @@ class TRANSFORMATIONS_API ConvertWeightCompressedConv1x1ToMatmul;
  *     | Reshape     |           | Multiply |<--------------+
  *     +-------------+           +----------+
  *           |                        |
- *           v                  *-----------+
- *     +-------------+          | Reshape   | (optional)
- *     | FakeQuantize|          +-----------+
- *     +-------------+                |
- *           | (optional)             v
+ *           |                  *-----------+
+ *           |                  | Reshape   | (optional)
+ *           |                  +-----------+
+ *           |                        |
+ *           |                        v
  *           |                  +-----------+
  *           +----------------->|Convolution|
  *                              |  (1x1)    |
@@ -57,11 +57,6 @@ class TRANSFORMATIONS_API ConvertWeightCompressedConv1x1ToMatmul;
  *                               +----------+
  *                               |Add (Bias)| (optional)
  *                               +----------+
- *                                    |
- *                                    v
- *                             +-------------+
- *                             | FakeQuantize| (optional)
- *                             +-------------+
  *                                    |
  *                                    v
  *                              +-----------+
@@ -101,11 +96,11 @@ class TRANSFORMATIONS_API ConvertWeightCompressedConv1x1ToMatmul;
  *           |              | Multiply |<--------------+
  *           |              +----------+
  *           |                   |
- *           v                   v
- *     +-------------+      *----------+
- *     | FakeQuantize|      | Reshape  | (optional)
- *     +-------------+      +----------+
- *           | (optional)        |
+ *           |                   v
+ *           |             *----------+
+ *           |             | Reshape  | (optional)
+ *           |             +----------+
+ *           |                   |
  *           |                   v
  *           |               +--------+
  *           +-------------> | MatMul |
@@ -115,11 +110,6 @@ class TRANSFORMATIONS_API ConvertWeightCompressedConv1x1ToMatmul;
  *                          +----------+
  *                          |Add (Bias)| (optional)
  *                          +----------+
- *                               |
- *                               v
- *                        +-------------+
- *                        | FakeQuantize| (optional)
- *                        +-------------+
  *                                |
  *                                v
  *                          +-----------+
