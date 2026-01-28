@@ -19,7 +19,8 @@ static void CreateRMSOp(ProgramBuilder& p, const std::shared_ptr<RMS>& op) {
     auto rms = cldnn::rms(primitive_name,
                           inputs[0],
                           inputs[1],
-                          op->get_epsilon());
+                          op->get_epsilon(),
+                          op->get_elementwise_affine());
     rms.output_data_types = get_output_data_types(op);
     p.add_primitive(*op, rms);
 }
