@@ -30,7 +30,6 @@ from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, 
 from openvino import Core, Type, PartialShape
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
 
 """
     This is a preview feature in OpenVINO. This feature
@@ -55,6 +54,7 @@ if hasattr(torch._dynamo.config, "inline_inbuilt_nn_modules"):
 
 @fake_tensor_unsupported
 def openvino(subgraph, example_inputs, options=None):
+    logger.info(f"OpenVINO backend is called with subgraph: {subgraph}")
     if _get_aot_autograd(options):
         global openvino_options
         openvino_options = options
@@ -120,6 +120,8 @@ def fx_openvino(subgraph, example_inputs, options=None):
             if fully_supported:
                 executor_parameters["model_hash_str"] += "_fs"
 
+        logger.info("Subgraph successfully compiled with OpenVINO")
+
         def _call(*args):
             if _get_aot_autograd(options):
                 args_list = args[0]
@@ -132,7 +134,7 @@ def fx_openvino(subgraph, example_inputs, options=None):
             _call._boxed_call = True  # type: ignore[attr-defined]
         return _call
     except Exception as e:
-        logger.debug(f"Failed in OpenVINO execution: {e}")
+        logger.warning(f"OpenVINO compilation failed: {e}. Falling back to default backend.")
         return compile_fx(subgraph, example_inputs)
 
 
