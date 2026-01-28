@@ -365,6 +365,7 @@ OP_CONVERTER(translate_embedding_ext);
 OP_CONVERTER(translate_linear_awq);
 OP_CONVERTER(translate_linear_bitnet);
 OP_CONVERTER(translate_linear_ext);
+OP_CONVERTER(translate_prim_CallFunction);
 }  // namespace op
 
 // Supported ops for TorchScript
@@ -806,7 +807,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"prim::TupleIndex", op::translate_tuple_index},
         {"prim::TupleUnpack", op::translate_tuple_unpack},
         {"prim::type", op::skip_node},  // Used with prim::device, pass PtFrameworkNode.
-        {"prim::data", op::skip_node},
+        {"prim::CallFunction", op::translate_prim_CallFunction},
         {"quantized::add", op::translate_quantized_add},
         {"quantized::add_relu", op::translate_quantized_add_relu},
         {"quantized::cat", op::translate_quantized_cat},
