@@ -4874,6 +4874,48 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_slice_const_axes_source) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_slice_2d_reverse_all_axes) {
+    auto model = convert_model("slice_2d_reverse_all_axes.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(std::vector<float>{1.0f, 2.0, 3.0f, 4.0f});
+    test_case.add_input<int64_t>(std::vector<int64_t>{-1, -1});
+    test_case.add_input<int64_t>(
+        std::vector<int64_t>{std::numeric_limits<int64_t>::min(), std::numeric_limits<int64_t>::min()});
+    test_case.add_input<int64_t>(std::vector<int64_t>{0, 1});
+    test_case.add_input<int64_t>(std::vector<int64_t>{-1, -1});
+    test_case.add_expected_output<float>(Shape{2, 2}, {4.0f, 3.0f, 2.0f, 1.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_slice_2d_implicit_copy_dimension_fully) {
+    auto model = convert_model("slice_2d_reverse_all_axes.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(std::vector<float>{1.0f, 2.0, 3.0f, 4.0f});
+    test_case.add_input<int64_t>(std::vector<int64_t>{0, 0});
+    test_case.add_input<int64_t>(
+        std::vector<int64_t>{std::numeric_limits<int64_t>::max(), std::numeric_limits<int64_t>::max()});
+    test_case.add_input<int64_t>(std::vector<int64_t>{0, 1});
+    test_case.add_input<int64_t>(std::vector<int64_t>{1, 1});
+    test_case.add_expected_output<float>(Shape{2, 2}, {1.0f, 2.0, 3.0f, 4.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_slice_5d_large_step) {
+    auto model = convert_model("slice_5d_large_step.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(
+        std::vector<float>{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, -1.f, -2.f, -3.f, -4.f, -5.f, -6.f, -7.f, -8.f});
+    test_case.add_input<int64_t>(std::vector<int64_t>{0});
+    test_case.add_input<int64_t>(std::vector<int64_t>{1});
+    test_case.add_input<int64_t>(std::vector<int64_t>{1});
+    test_case.add_input<int64_t>(std::vector<int64_t>{std::numeric_limits<int64_t>::max()});
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 2, 2}, {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_softmax_crossentropy_loss_mean) {
     auto model = convert_model("softmax_crossentropy_loss_mean.onnx");
 
