@@ -294,25 +294,23 @@ void ov::npuw::IBaseInferRequest::infer() {
     m_now_idx.reset();
     prepare_for_infer();
     bool failover_happened = false;
-    m_profile["IBaseInferRequest::infer"].record([&]() {
-        for (std::size_t idx = 0u; idx < m_num_submodels; idx++) {
-            m_now_idx = idx;
-            if (!valid_subrequest(idx)) {
-                continue;
-            }
-            subscribe_subrequest(idx, [](std::exception_ptr) {});
-            bool failover = false;
-            m_profile[profile_tag(idx)].record([&]() {
-                run_subrequest_for_success(idx, failover);
-            });
-            failover_happened |= failover;
-            complete_subrequest(idx);
-            if (m_npuw_model->m_acc_check) {
-                ensure_subrequest_is_accurate(idx, failover);
-                failover_happened |= failover;
-            }
+    for (std::size_t idx = 0u; idx < m_num_submodels; idx++) {
+        m_now_idx = idx;
+        if (!valid_subrequest(idx)) {
+            continue;
         }
-    });
+        subscribe_subrequest(idx, [](std::exception_ptr) {});
+        bool failover = false;
+        m_profile[profile_tag(idx)].record([&]() {
+            run_subrequest_for_success(idx, failover);
+        });
+        failover_happened |= failover;
+        complete_subrequest(idx);
+        if (m_npuw_model->m_acc_check) {
+            ensure_subrequest_is_accurate(idx, failover);
+            failover_happened |= failover;
+        }
+    }
 
     // Increment counter regardless if dumps etc are enabled or not.
     m_run_iter++;
