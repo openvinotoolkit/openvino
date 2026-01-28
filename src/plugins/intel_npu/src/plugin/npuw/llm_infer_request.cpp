@@ -518,7 +518,11 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
                                                                     0u,
                                                                     static_cast<uint32_t>(tokens_in_past_chunks));
                 ov::SoPtr<ov::ITensor> prefill_past_kv_chunks;
-                // move_tensor_inplace_by_dim currently supports only kv_dim_src == kv_dim_dst.
+                // In-place KV copy is only safe/possible when the source and destination KV layouts match.
+                // When we have mixed v-transpose settings across models (prefill vs generate: v-transpose OFF/ON),
+                // the effective KV "token" dimension differs (pre_kv_dim != gen_kv_dim), so an in-place move/copy
+                // would corrupt data. Therefore, we only use in-place copy when pre_kv_dim == gen_kv_dim;
+                // otherwise we must copy via a temporary tensor.
                 if (m_past_kv_bound) {
                     if (pre_kv_dim == gen_kv_dim) {
                         prefill_past_kv_chunks = uu::make_tensor_slice(prefill_past_kv,
