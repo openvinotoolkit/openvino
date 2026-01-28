@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,6 +83,13 @@ void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {
     desc.add<NPUW_LLM_SHARED_HEAD>();
     desc.add<NPUW_WHISPER>();
     desc.add<NPUW_EAGLE>();
+    desc.add<NPUW_TEXT_EMBED>();
+}
+
+void intel_npu::registerNPUWKokoroOptions(OptionsDesc& desc) {
+    desc.add<NPUW_KOKORO>();
+    desc.add<NPUW_KOKORO_BLOCK_SIZE>();
+    desc.add<NPUW_KOKORO_OVERLAP_SIZE>();
 }
 
 std::string ov::npuw::s11n::anyToString(const ov::Any& var) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporationov::npuw::
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,6 +31,7 @@ namespace ov {
 namespace npuw {
 namespace online {
 namespace detail {
+
 bool isOp(const std::shared_ptr<ov::Node>& node) {
     if (ov::op::util::is_constant(node) || ov::op::util::is_parameter(node) || ov::op::util::is_output(node)) {
         return false;
@@ -72,10 +73,135 @@ std::vector<ov::element::Type> getConstsPrecision(const std::shared_ptr<ov::Node
 
     return precisions;
 }
+
 }  // namespace detail
 }  // namespace online
 }  // namespace npuw
 }  // namespace ov
+
+namespace {
+
+using NodeSPtr = std::shared_ptr<ov::Node>;
+using ov::npuw::online::Repeated;
+using ov::npuw::online::detail::GPtrSet;
+
+bool isRegularResultCase(const std::unordered_map<std::shared_ptr<Repeated>, GPtrSet>& reptag_to_gset,
+                         const std::unordered_map<std::string, NodeSPtr>& node_id_cache,
+                         const std::map<std::string, std::vector<std::set<std::string>>>& m_layer_matches) {
+    auto getReadersMask = [](const NodeSPtr& node_ptr) {
+        // each element of the vector is
+        // the number of ov::Result readers for the corresponding output
+        std::vector<int> mask;
+        for (auto&& output_desc : node_ptr->outputs()) {
+            auto readers = output_desc.get_target_inputs();
+            int result_count = 0;
+            for (auto&& r : readers) {
+                auto reader_node_ptr = r.get_node()->shared_from_this();
+                if (ov::op::util::is_output(reader_node_ptr)) {
+                    result_count++;
+                }
+            }
+            mask.push_back(result_count);
+        }
+        return mask;
+    };
+
+    for (const auto& reptag_and_gset : reptag_to_gset) {
+        auto reptag = reptag_and_gset.first;
+        auto gset = reptag_and_gset.second;
+
+        auto matches = m_layer_matches.at(reptag->id());
+
+        if (gset.size() <= 1) {
+            continue;
+        }
+
+        auto firstGroup = *(gset.begin());
+        for (auto output_layer : firstGroup->getOutputs()) {
+            // this is the reference mask expected from all other matched layers
+            // in the remaining groups of the repeated block
+            auto expected_readers_mask = getReadersMask(output_layer);
+
+            auto this_layer_name = output_layer->get_friendly_name();
+            auto layer_bank_iter = std::find_if(matches.begin(), matches.end(), [&](const std::set<std::string>& lrs) {
+                return lrs.count(this_layer_name) > 0;
+            });
+
+            NPUW_ASSERT(layer_bank_iter != matches.end());
+
+            // match output layers across all groups in the repeated block
+            // and compare their readers mask
+            for (const auto& layer_name : *layer_bank_iter) {
+                auto layer_ptr = node_id_cache.at(layer_name);
+                auto actual_readers_mask = getReadersMask(layer_ptr);
+
+                if (actual_readers_mask != expected_readers_mask) {
+                    LOG_INFO("This is NOT a regular result case. Readers mask mismatch found for "
+                             << layer_name << " and " << this_layer_name << " output layers.");
+                    return false;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+bool isRegularParameterCase(const std::unordered_map<std::shared_ptr<Repeated>, GPtrSet>& reptag_to_gset,
+                            const std::unordered_map<std::string, NodeSPtr>& node_id_cache,
+                            const std::map<std::string, std::vector<std::set<std::string>>>& m_layer_matches) {
+    auto getProducersMask = [](const NodeSPtr& node_ptr) {
+        // each element of the vector is
+        // the flag indicating ov::Parameter producer for the corresponding input
+        std::vector<bool> mask;
+        for (auto&& input_desc : node_ptr->inputs()) {
+            auto producer_ptr = input_desc.get_source_output().get_node()->shared_from_this();
+            mask.push_back(ov::op::util::is_parameter(producer_ptr));
+        }
+        return mask;
+    };
+
+    for (const auto& reptag_and_gset : reptag_to_gset) {
+        auto reptag = reptag_and_gset.first;
+        auto gset = reptag_and_gset.second;
+
+        auto matches = m_layer_matches.at(reptag->id());
+
+        if (gset.size() <= 1) {
+            continue;
+        }
+
+        auto firstGroup = *(gset.begin());
+        for (auto input_layer : firstGroup->getInputs()) {
+            // this is the reference mask expected from all other matched layers
+            // in the remaining groups of the repeated block
+            auto expected_producers_mask = getProducersMask(input_layer);
+
+            auto this_layer_name = input_layer->get_friendly_name();
+            auto layer_bank_iter = std::find_if(matches.begin(), matches.end(), [&](const std::set<std::string>& lrs) {
+                return lrs.count(this_layer_name) > 0;
+            });
+
+            NPUW_ASSERT(layer_bank_iter != matches.end());
+
+            // match input layers across all groups in the repeated block
+            // and compare their producers mask
+            for (const auto& layer_name : *layer_bank_iter) {
+                auto layer_ptr = node_id_cache.at(layer_name);
+                auto actual_producers_mask = getProducersMask(layer_ptr);
+                if (actual_producers_mask != expected_producers_mask) {
+                    LOG_INFO("This is NOT a regular parameter case. Producers mask mismatch found for "
+                             << layer_name << " and " << this_layer_name << " input layers.");
+                    return false;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+}  // namespace
 
 using ov::npuw::online::detail::getConstsPrecision;
 using ov::npuw::online::detail::isOp;
@@ -1268,6 +1394,73 @@ void Snapshot::stripTag(const std::string& tag) {
             gptr->dontIsolate();
         }
     }
+}
+
+bool Snapshot::isRegularIOCase() const {
+    LOG_INFO("Online partitioning: executing isRegularIOCase pass...");
+    LOG_BLOCK();
+
+    std::unordered_map<std::string, NodeSPtr> node_id_cache;
+    for (auto&& node_ptr : m_model->get_ordered_ops()) {
+        node_id_cache[node_ptr->get_friendly_name()] = node_ptr;
+    }
+
+    auto reptag_to_gset = repeating();
+    if (!reptag_to_gset.empty()) {
+        NPUW_ASSERT(!m_layer_matches.empty());
+    }
+
+    // This method works around an issue where the final partitioning fails the sanity check
+    // because of a different number of output Convert across repeated block groups.
+    // The issue was initially observed in a model where only the final block has an additional ov::Result consumer.
+    // For example, Group[0..30] has only external consumers (i.e. consumers that belong to other groups):
+    //   OpA -> OpB(external group)
+    //       -> OpC(external group)
+    // but very last Group[31] has an additional ov::Result consumer:
+    //   OpA -> ov::Result
+    //       -> OpB(external group)
+    //       -> OpC(external group)
+    // Later, if NPUW_F16IC is set, "Partitioner::identifySubgraphs" method adds output Converts to each Group[0..30],
+    // but skips Group[31] due to internal implementation details.
+    // "Partitioner::identifySubgraphs" can't:
+    //   - add Convert to the Group[31] because it would require adding opposite Convert for the ov::Result
+    //   - skip adding Converts to Group[0..30] because it would break symmetry of the repeated blocks, i.e.
+    //        in the given graph `Convert(group0) -> output -> input -> Convert(group1)` input `Convert(group1)` should
+    //        be also eliminated
+    // Therefore, we disable F16IC early in such cases.
+
+    if (!isRegularResultCase(reptag_to_gset, node_id_cache, m_layer_matches)) {
+        LOG_INFO("This is not a regular result case");
+        LOG_INFO("DONE");
+        return false;
+    }
+
+    // This method is similar to isRegularResultCase but checks for irregular input ov::Parameters.
+    // For example, Group[1..31] has only external producers (i.e. producers that belong to other groups):
+    //   OpA(external group)
+    //                       |
+    //                        -> AddOp
+    //                       |
+    //   OpB(external group)
+    // but the first Group[0] has an ov::Parameter producer:
+    //   ov::Parameter
+    //                       |
+    //                        -> AddOp
+    //                       |
+    //   OpB(external group)
+    // Later, if NPUW_F16IC is set, "Partitioner::identifySubgraphs" method adds two input Converts to each Group[1..31]
+    // but only one input Convert to Group[0], since it skips adding Convert for ov::Parameter.
+    // Therefore, sanity check fails due to different number of input Converts across repeated block groups.
+
+    if (!isRegularParameterCase(reptag_to_gset, node_id_cache, m_layer_matches)) {
+        LOG_INFO("This is not a regular parameter case");
+        LOG_INFO("DONE");
+        return false;
+    }
+
+    LOG_INFO("This is a regular IO case");
+    LOG_INFO("DONE");
+    return true;
 }
 
 size_t Snapshot::getNextRepId() {
