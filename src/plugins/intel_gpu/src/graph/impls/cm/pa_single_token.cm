@@ -224,10 +224,51 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
             #pragma unroll
             #if KV_CACHE_COMPRESSION
-            for(int k = 0, ri = 0; k < HEAD_SIZE/4; k += REG_K/4, ri ++ ) {
+                #if !USE_LSC_BLOCK_2D_DESC && KV_CACHE_COMPRESSION_BY_TOKEN && XE_ARCH==1
+                for(int k = 0, ri = 0; k < HEAD_SIZE/4; k += (REG_K/4)*4, ri += 4 ) {
+                #else
+                for(int k = 0, ri = 0; k < HEAD_SIZE/4; k += REG_K/4, ri ++ ) {
+                #endif
             #else
-            for(int k = 0, ri = 0; k < HEAD_SIZE/2; k += REG_K/2, ri ++ ) {
+                for(int k = 0, ri = 0; k < HEAD_SIZE/2; k += REG_K/2, ri ++ ) {
             #endif
+                // matrix<half, REG_K, REG_N> Kt = 0;
+                #if !USE_LSC_BLOCK_2D_DESC && KV_CACHE_COMPRESSION && KV_CACHE_COMPRESSION_BY_TOKEN && XE_ARCH==1
+                matrix<uint8_t, REG_N, REG_K*4> temp4; // 8 x 64
+                uint cur_kv_offset4 = kv_offset + kv_pos * kv_stride + k * 4;
+                #pragma unroll
+                for(int kk = 0; kk < REG_N; kk++) {
+                    vector<uint, (REG_K*4)/4> tmp_dw;
+                    cm_svm_block_read<uint, (REG_K*4)/4>((svmptr_t)(reinterpret_cast<uint*>(key + cur_kv_offset4 + kk * kv_stride)), tmp_dw);
+                    temp4[kk].format<uint>() = tmp_dw;
+                }
+                #pragma unroll
+                for(int ur = 0; ur < 4; ur++) {
+                    if (ri + ur >= HEAD_SIZE / REG_K) break;
+                    matrix<half, REG_K, REG_N> Kt = 0;
+                    matrix<uint8_t, REG_N, REG_K> temp; // 8 x 16
+                    #pragma unroll
+                    for(int kk = 0; kk < REG_N; kk++) {
+                        temp[kk] = temp4[kk].select<REG_K,1>(ur*REG_K);
+                    }
+                    matrix<half, REG_N, REG_K> KtNormal = temp;
+                    KtNormal = KtNormal - temp_zp;
+                    KtNormal = cm_mul<half>(KtNormal, temp_scale);
+                    Transpose_8x8(KtNormal.format<uint, REG_N, REG_K/2>(), Kt.format<uint, REG_K/2, REG_N>());
+                    {
+                        // matrix<half, Q_head_chunk_size, REG_K> Qmat_data = Qmat.select<Q_head_chunk_size,1,REG_K,1>(0, (ri+ur)*REG_K);
+                        matrix<half, Q_head_chunk_size, REG_K> Qmat_data = Qmat.select<Q_head_chunk_size,1,REG_K,1>(0, (ri+ur)*REG_K);
+                        matrix<float, Q_head_chunk_size, REG_N> rS_data = 0;
+                        rS_data = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, Q_head_chunk_size>(
+                                    rS_data.format<float>(),
+                                    Kt.format<int32_t>(),
+                                    Qmat_data.format<int32_t>());
+                        // rS.select<Q_head_chunk_size, 1, REG_N, 1>(0, (ki+ur)*REG_N) += rS_data;
+                        rS.select<Q_head_chunk_size, 1, REG_N, 1>(0, ki*REG_N) += rS_data;
+                    }
+                }
+                continue;
+                #endif
                 matrix<half, REG_K, REG_N> Kt = 0;
             #if USE_LSC_BLOCK_2D_DESC
                 //# Load Kt into register & pack as VNNI(as dpas-B tile)
@@ -421,7 +462,11 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
             matrix<uint8_t, REG_K, REG_N * VALUE_TILE_NUM> Vt_quant;
             #endif
             #pragma unroll
+            #if !USE_LSC_BLOCK_2D_DESC && KV_CACHE_COMPRESSION && XE_ARCH==1
+            for(int k = 0, ri = 0; k < HEAD_SIZE; k += (REG_N * VALUE_TILE_NUM) * 4, ri += VALUE_TILE_NUM * 4 ) {
+            #else
             for(int k = 0, ri = 0; k < HEAD_SIZE; k += REG_N * VALUE_TILE_NUM, ri += VALUE_TILE_NUM ) {
+            #endif
                 // Load V into register & pack as VNNI(as dpas-B tile)
                 matrix<half, REG_K, REG_N * VALUE_TILE_NUM> VmatNormal;
                 matrix<half, REG_K, REG_N * VALUE_TILE_NUM> Vmat;
@@ -434,11 +479,74 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                 #endif
             #else
                 #if KV_CACHE_COMPRESSION
+                    #if XE_ARCH==1
+                    matrix<uint8_t, REG_K, REG_N * VALUE_TILE_NUM * 4> Vt_quant4;
+                    uint cur_kv_offset4 = kv_offset + kv_pos * kv_stride + k;
+                    #pragma unroll
+                    for(int kk = 0; kk < REG_K; kk++) {
+                        vector<uint, (REG_N * VALUE_TILE_NUM * 4)/4> tmp_dw;
+                        cm_svm_block_read<uint, (REG_N * VALUE_TILE_NUM * 4)/4>((svmptr_t)(reinterpret_cast<uint*>(value + cur_kv_offset4 + kk * kv_stride)), tmp_dw);
+                        Vt_quant4[kk].format<uint>() = tmp_dw;
+                    }
+                    #pragma unroll
+                    for(int ur = 0; ur < 4; ur++) {
+                        if (k + ur * (REG_N * VALUE_TILE_NUM) >= HEAD_SIZE) break;
+                        #pragma unroll
+                        for(int kk = 0; kk < REG_K; kk++) {
+                            Vt_quant[kk] = Vt_quant4[kk].select<REG_N * VALUE_TILE_NUM, 1>(ur * (REG_N * VALUE_TILE_NUM));
+                        }
+                        int ri_ur = ri + ur * VALUE_TILE_NUM;
+
+                        VmatNormal = Vt_quant;
+                        #pragma unroll
+                        for(int r = 0; r < REG_K; r++) {
+                            VmatNormal[r] = VmatNormal[r] - temp_zp[r]; // vector - scalar
+                            VmatNormal[r] = cm_mul<half>(VmatNormal[r], temp_scale[r]); // vector * scalar
+                        }
+
+                        if(kv_pos_end - kv_pos < KV_STEP) {
+                            #pragma unroll
+                            for(int r = kv_pos_end; r < KV_STEP; r++)  {
+                                VmatNormal[r] = 0;
+                            }
+                        }
+                        auto Vref = Vmat.format<half, REG_K/2, 2 * REG_N * VALUE_TILE_NUM>();
+                        Vref.select<REG_K/2, 1, REG_N * VALUE_TILE_NUM, 2>(0, 0) = VmatNormal.select<REG_K/2, 2, REG_N * VALUE_TILE_NUM, 1>(0, 0);
+                        Vref.select<REG_K/2, 1, REG_N * VALUE_TILE_NUM, 2>(0, 1) = VmatNormal.select<REG_K/2, 2, REG_N * VALUE_TILE_NUM, 1>(1, 0);
+
+                        // somtimes KV cache would be filled with random Nan, so need to clean up the unused value data.
+                        #if CLEAN_UNUSED_KVCACHE
+                            if(kv_pos_end - kv_pos < KV_STEP) {
+                                auto VmatRef = Vmat.format<half, REG_K/2, REG_N*2*VALUE_TILE_NUM>();
+                                uint valid_rows = kv_pos_end - kv_pos;
+                                uint valid_rows_vnni = (valid_rows+1)/2;
+                                #pragma unroll
+                                for (int r = valid_rows_vnni; r < REG_K/2; r++) {
+                                    VmatRef.row(r) = 0.0f;
+                                }
+                                if (valid_rows % 2 == 1) {
+                                    VmatRef.row(valid_rows_vnni-1).select<REG_N*VALUE_TILE_NUM, 2>(1) = 0.0f;
+                                }
+                            }
+                        #endif
+                        matrix<half, Q_head_chunk_size, REG_K> Pmat_data = Pmat.select<Q_head_chunk_size,1,REG_K,1>(0, ki*REG_K);
+                        #pragma unroll
+                        for (int tile=0; tile < VALUE_TILE_NUM; tile ++) {
+                            auto Omat_data = Omat.select<Q_head_chunk_size,1,REG_N,1>(0, (ri_ur + tile)*REG_N);
+                            Omat_data = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, Q_head_chunk_size>(
+                                        Omat_data.format<float>(),
+                                        Vmat.format<half, REG_K/2, REG_N*2*VALUE_TILE_NUM>().select<REG_K/2, 1, REG_N*2, 1>(0, REG_N*2*tile).format<int32_t>(),
+                                        Pmat_data.format<int32_t>());
+                        }
+                    }
+                    continue;
+                    #else
                     uint cur_kv_offset = kv_offset + kv_pos * kv_stride + k;
                     #pragma unroll
                     for(int kk = 0; kk < REG_K; kk++) {
                         cm_svm_block_read<uint8_t, REG_N * VALUE_TILE_NUM>((svmptr_t)(value + cur_kv_offset + kk * kv_stride), Vt_quant[kk].format<uint8_t>());
                     }
+                    #endif
                 #else
                     uint cur_kv_offset = kv_offset + kv_pos * kv_stride + k;
                     #pragma unroll
