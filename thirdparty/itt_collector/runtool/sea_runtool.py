@@ -16,7 +16,7 @@
 
 from __future__ import print_function
 import os
-import imp
+import importlib
 import sys
 import sea
 import copy
@@ -91,13 +91,17 @@ def get_extensions(name, multiple=False):
     extensions = {}
     root = os.path.join(os.path.dirname(os.path.realpath(__file__)), name + 's')
     for extension in glob(os.path.join(root, '*.py')):
+
         module_name = name + '.' + os.path.splitext(os.path.basename(extension))[0]
-        if name not in sys.modules:
-            sys.modules[name] = imp.new_module(name)
+
         if module_name in sys.modules:
             module = sys.modules[module_name]
         else:
-            module = imp.load_source(module_name, extension)
+            spec = importlib.util.spec_from_file_location(name, extension)
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[module_name] = module
+            spec.loader.exec_module(module)
+
         for desc in getattr(module, name.upper() + '_DESCRIPTORS', []):
             if desc['available']:
                 if multiple:
