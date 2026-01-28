@@ -147,11 +147,15 @@ offer a limited set of supported OpenVINO features.
          ov::intel_npu::qdq_optimization
          ov::intel_npu::qdq_optimization_aggressive
          ov::intel_npu::turbo
+         ov::intel_npu::platform
          ov::intel_npu::tiles
          ov::intel_npu::max_tiles
          ov::intel_npu::bypass_umd_caching
          ov::intel_npu::defer_weights_load
          ov::intel_npu::run_inferences_sequentially
+         ov::intel_npu::disable_idle_memory_prunning
+         ov::intel_npu::compiler_type
+         ov::intel_npu::enable_strides_for
 
    .. tab-item:: Read-only properties
 

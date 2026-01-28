@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -14,7 +14,7 @@ class aten_cat(torch.nn.Module):
 
     def prepare_input(self, x):
         return [x, x]
-    
+
 class aten_single_cat(aten_cat):
     def prepare_input(self, x):
         return [x]
@@ -103,14 +103,14 @@ class TestCat(PytorchLayerTest):
         self._test(model, None, ["aten::cat", "prim::ListConstruct"],
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"out": out, "num_repeats": 2})
-        
+
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_single_cat(self, ie_device, precision, ir_version):
         model = aten_single_cat()
         self._test(model, None, ["aten::cat", "prim::ListConstruct"],
                    ie_device, precision, ir_version)
-        
+
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -145,7 +145,7 @@ class TestCat(PytorchLayerTest):
         model = aten_cat_complex()
         self._test(model, None, ["aten::cat", "prim::ListConstruct"],
                    ie_device, precision, ir_version, freeze_model=False)
-        
+
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_cat_single_complex(self, ie_device, precision, ir_version):
