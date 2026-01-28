@@ -156,7 +156,7 @@ public:
         std::vector<MemRefType> _outputs;
         std::vector<npu_mlir_runtime_mem_ref_handle_t> _inputMemRefs;
         std::vector<npu_mlir_runtime_mem_ref_handle_t> _outputMemRefs;
-        npu_mlir_runtime_execute_params_t _executeParams;
+        npu_mlir_runtime_execute_params_t _executeParams = {};
         Logger _logger = Logger("GraphArguments", Logger::global().level());
 
         void setArgumentValue(uint32_t argi, const void* argv);
