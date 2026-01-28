@@ -87,16 +87,26 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
         mul_or_div = std::make_shared<pattern::op::Or>(OutputVector{mul1});
     }
 
-    // x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
+    // Pattern 1: RMS with gamma (learnable parameter)
+    // x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma (gamma is constant)
     auto gamma = pattern::wrap_type<v0::Constant>();
     auto gamma_convert = pattern::optional<v0::Convert>(gamma);
+    auto mul_with_gamma = pattern::wrap_type<v1::Multiply>({gamma_convert, mul_or_div});
 
-    auto mul2 = pattern::wrap_type<v1::Multiply>({gamma_convert, mul_or_div});
+    // Pattern 2: RMS without gamma, but multiplied with dynamic input
+    // RMS(x) * scale where scale is non-constant (e.g., gate, activation, residual)
+    // This allows partial fusion: only fuse up to mul_or_div
+    auto scale = pattern::any_input([](const Output<Node>& value) -> bool {
+        return !ov::is_type<v0::Constant>(value.get_node_shared_ptr());
+    });
+    auto mul_with_scale = pattern::wrap_type<v1::Multiply>({mul_or_div, scale});
 
-    std::shared_ptr<ov::Node> comp = mul2;
+    auto rms_mul = std::make_shared<pattern::op::Or>(OutputVector{mul_with_gamma, mul_with_scale});
+
+    std::shared_ptr<ov::Node> comp = rms_mul;
     if (force_tail_convert) {
         // compress RMS result
-        comp = pattern::wrap_type<v0::Convert>({mul2});
+        comp = pattern::wrap_type<v0::Convert>({rms_mul});
     }
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
@@ -114,9 +124,24 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
             return false;
         }
 
-        auto gamma_node = pattern_map.at(gamma).get_node_shared_ptr();
-        if (pattern_map.find(gamma_convert) != pattern_map.end()) {
-            gamma_node = pattern_map.at(gamma_convert).get_node_shared_ptr();
+        auto mul_or_div_node = pattern_map.at(mul_or_div).get_node_shared_ptr();
+        bool has_gamma = (pattern_map.find(mul_with_gamma) != pattern_map.end());
+
+        std::shared_ptr<ov::Node> gamma_node;
+        if (has_gamma) {
+            gamma_node = pattern_map.at(gamma).get_node_shared_ptr();
+            if (pattern_map.find(gamma_convert) != pattern_map.end()) {
+                gamma_node = pattern_map.at(gamma_convert).get_node_shared_ptr();
+            }
+        } else {
+            auto input_shape = x_output.get_partial_shape();
+            if (input_shape.rank().is_dynamic() || input_shape[input_shape.size() - 1].is_dynamic()) {
+                return false;
+            }
+            auto last_dim = input_shape[input_shape.size() - 1].get_length();
+            auto gamma_shape = ov::Shape{static_cast<size_t>(last_dim)};
+            auto output_type = mul_or_div_node->get_output_element_type(0);
+            gamma_node = v0::Constant::create(output_type, gamma_shape, {1.0f});
         }
 
         const auto& mean_node = pattern_map.at(mean).get_node_shared_ptr();
@@ -129,11 +154,25 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
             return false;
         }
 
-        auto output_type = m.get_match_root()->get_output_element_type(0);
-        auto rms = std::make_shared<ov::op::internal::RMS>(x_output, gamma_node, eps_value, output_type);
-        rms->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ov::copy_runtime_info(m.get_matched_nodes(), rms);
-        ov::replace_node(m.get_match_root(), rms);
+        auto output_type = has_gamma ? m.get_match_root()->get_output_element_type(0)
+                                     : mul_or_div_node->get_output_element_type(0);
+        auto rms = std::make_shared<ov::op::internal::RMS>(x_output, gamma_node, eps_value, output_type, has_gamma);
+        if (has_gamma) {
+            rms->set_friendly_name(m.get_match_root()->get_friendly_name());
+            ov::copy_runtime_info(m.get_matched_nodes(), rms);
+            ov::replace_node(m.get_match_root(), rms);
+        } else {
+            rms->set_friendly_name(mul_or_div_node->get_friendly_name());
+            NodeVector nodes_to_fuse;
+            auto mul_with_scale_node = m.get_match_root();
+            for (const auto& matched_node : m.get_matched_nodes()) {
+                if (matched_node != mul_with_scale_node) {
+                    nodes_to_fuse.push_back(matched_node);
+                }
+            }
+            ov::copy_runtime_info(nodes_to_fuse, rms);
+            ov::replace_node(mul_or_div_node, rms);
+        }
 
         return true;
     };

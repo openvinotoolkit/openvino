@@ -19,19 +19,25 @@ struct rms : public primitive_base<rms> {
     /// @param input Input primitive id
     /// @param gamma Gamma values for weight
     /// @param epsilon Epsilon for not dividing by zero while normalizing
+    /// @param elementwise_affine A boolean value that when set to True, RMS has learnable affine parameters
     rms(const primitive_id& id,
         const input_info& input,
         const input_info& gamma,
-        const float epsilon)
+        const float epsilon,
+        const bool elementwise_affine = true)
         : primitive_base(id, {input, gamma}),
-          epsilon(epsilon) {}
+          epsilon(epsilon),
+          elementwise_affine(elementwise_affine) {}
 
     /// @brief Epsilon for not dividing by zero while normalizing
     float epsilon;
+    /// @brief A boolean value that when set to True, RMS has learnable affine parameters (gamma)
+    bool elementwise_affine;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, epsilon);
+        seed = hash_combine(seed, elementwise_affine);
         return seed;
     }
 
@@ -41,17 +47,20 @@ struct rms : public primitive_base<rms> {
 
         auto rhs_casted = downcast<const rms>(rhs);
 
-        return epsilon == rhs_casted.epsilon;
+        return epsilon == rhs_casted.epsilon &&
+               elementwise_affine == rhs_casted.elementwise_affine;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<rms>::save(ob);
         ob << epsilon;
+        ob << elementwise_affine;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<rms>::load(ib);
         ib >> epsilon;
+        ib >> elementwise_affine;
     }
 };
 }  // namespace cldnn
