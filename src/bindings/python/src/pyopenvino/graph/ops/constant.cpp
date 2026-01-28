@@ -61,9 +61,42 @@ void regclass_graph_op_Constant(py::module m) {
                                                                                                "Constant",
                                                                                                py::buffer_protocol());
     constant.doc() = "openvino.op.Constant wraps ov::op::v0::Constant";
-    // Numpy-based constructor
+    // Numpy-based constructor (handles string dtype safely)
     constant.def(py::init([](py::array& array, bool shared_memory) {
-                     return Common::object_from_data<ov::op::v0::Constant>(array, shared_memory);
+                     // dtype.kind: 'U' unicode, 'S' bytes, 'O' object
+                     const std::string kind = array.attr("dtype").attr("kind").cast<std::string>();
+                     const bool is_string_like = (kind == "U" || kind == "S" || kind == "O");
+
+                     if (is_string_like) {
+                         if (shared_memory) {
+                             throw std::runtime_error("shared_memory=True is not supported for string constants");
+                         }
+
+                         // Shape
+                         ov::Shape shape;
+                         shape.reserve(static_cast<size_t>(array.ndim()));
+                         for (ssize_t i = 0; i < array.ndim(); ++i) {
+                             shape.push_back(static_cast<size_t>(array.shape(i)));
+                         }
+
+                         // Convert to flat std::vector<std::string>
+                         py::object np = py::module_::import("numpy");
+                         py::object raveled = np.attr("ravel")(array);
+                         py::list list_values = py::cast<py::list>(raveled.attr("tolist")());
+
+                         std::vector<std::string> values;
+                         values.reserve(static_cast<size_t>(py::len(list_values)));
+                         for (py::handle item : list_values) {
+                             // Accept python str/bytes and numpy scalar string types
+                             values.push_back(py::cast<std::string>(item));
+                         }
+
+                         return std::make_shared<ov::op::v0::Constant>(ov::element::string, shape, values);
+                     }
+
+                     // Non-string path: existing behavior
+                     return std::make_shared<ov::op::v0::Constant>(
+                         Common::object_from_data<ov::op::v0::Constant>(array, shared_memory));
                  }),
                  py::arg("array"),
                  py::arg("shared_memory") = false);

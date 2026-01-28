@@ -134,6 +134,28 @@ def test_constant(const, args, expectation):
         assert node.get_byte_size() == 36
 
 
+@pytest.mark.parametrize(
+    "array",
+    [
+        np.array(["a", "b"], dtype=np.str_),
+        np.array([b"a", b"b"], dtype="S1"),
+        np.array(["a", None], dtype=object),
+    ],
+)
+def test_constant_from_numpy_string_like_dtypes(array):
+    node = Constant(array)
+    assert node.get_type_name() == "Constant"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == list(array.shape)
+    assert node.get_output_element_type(0) == Type.string
+
+
+def test_constant_from_numpy_string_like_dtype_shared_memory_rejected():
+    array = np.array(["a", "b"], dtype=np.str_)
+    with pytest.raises(RuntimeError, match=r"shared_memory=True is not supported for string constants"):
+        _ = Constant(array, shared_memory=True)
+
+
 def test_concat():
     element_type = Type.f32
     param1 = Parameter(element_type, Shape([1, 2]))
