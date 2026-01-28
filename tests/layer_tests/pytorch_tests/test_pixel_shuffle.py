@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -64,7 +64,7 @@ class TestPixelUnshuffle(PytorchLayerTest):
         self._test(*self.create_model(upscale_factor),
                    ie_device, precision, ir_version)
 
- 
+
 class TestChannelShuffle(PytorchLayerTest):
     def _prepare_input(self):
         return (np.random.randn(*self.shape).astype(np.float32),)
