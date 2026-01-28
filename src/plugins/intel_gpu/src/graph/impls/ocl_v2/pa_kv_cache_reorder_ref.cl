@@ -36,6 +36,44 @@
 #define VLOAD CAT(vload, VEC_BLK_SIZE)
 #define VSTORE CAT(vstore, VEC_BLK_SIZE)
 
+#if defined(IS_KV_COMPRESSED) && defined(IS_KEY_BY_CHANNEL)
+inline void FUNC(requantize_and_store_by_channel_block)(__global OUTPUT_TYPE* key_cache,
+                                                        const uint dst_base,
+                                                        UNCOMPRESSED_TYPE* dequant_vals) {
+    UNCOMPRESSED_TYPE min_value = UNCOMPRESSED_VAL_MAX;
+    UNCOMPRESSED_TYPE max_value = UNCOMPRESSED_VAL_MIN;
+
+    for (uint token = 0; token < PAGED_ATTENTION_BLOCK_SIZE; ++token) {
+        UNCOMPRESSED_TYPE val = dequant_vals[token];
+        min_value = fmin(min_value, val);
+        max_value = fmax(max_value, val);
+    }
+
+    // Re-quantize and store
+    #define ACCUMULATOR_TYPE float
+    ACCUMULATOR_TYPE range = max_value - min_value;
+    const ACCUMULATOR_TYPE min_range = fabs(max_value * 0.1f);
+    if (range <= min_range) {
+        // When the range is very small, expand the range to avoid zp overflow
+        range += fmax(1.0f, min_range);
+    }
+    ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / range);
+    ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + CHAR_MIN;
+    UNCOMPRESSED_TYPE scale = (UNCOMPRESSED_TYPE)(scale_tmp);
+    UNCOMPRESSED_TYPE zp = (UNCOMPRESSED_TYPE)(zp_tmp);
+    #undef ACCUMULATOR_TYPE
+
+    for (uint token = 0; token < PAGED_ATTENTION_BLOCK_SIZE; ++token) {
+        OUTPUT_TYPE quantized = convert_char_rte(dequant_vals[token] * scale + zp);
+        key_cache[dst_base + token] = quantized;
+    }
+
+    UNCOMPRESSED_TYPE* comp_ptr = key_cache + (dst_base + PAGED_ATTENTION_BLOCK_SIZE);
+    comp_ptr[0] = 1.0f / scale;
+    comp_ptr[1] = zp;
+}
+#endif
+
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 __attribute__((reqd_work_group_size(1, 1, SUBGROUP_SIZE)))
 KERNEL(pa_kv_cache_reorder)(
@@ -124,8 +162,65 @@ KERNEL(pa_kv_cache_reorder)(
         #else // IS_KV_COMPRESSED
             #ifdef IS_KEY_BY_CHANNEL
                 // Key by channel compressed mode
-                // 1. Re-quantize key using dst block scale/zp
+                // 1. load the original key value
+                // 2. copy the src slot to dst slot
+                // 3. if dst is in a different block, re-quantize dst block with updated scale/zp
+                if (src_block == dst_block) {
+                    // src and dst slot are in the same block
+                    for (uint k = sglid; k < (uint)K_HEAD_SIZE; k += (uint)SUBGROUP_SIZE) {
+                        const uint src_off = key_src_base + k * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE + src_slot;
+                        const uint dst_base = key_dst_base + k * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+                        const uint dst_off = dst_base + dst_slot;
 
+                        const uint dst_comp_off = key_dst_base + k * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE + PAGED_ATTENTION_BLOCK_SIZE;
+                        UNCOMPRESSED_TYPE* dst_comp_ptr = key_cache + dst_comp_off;
+
+                        const UNCOMPRESSED_TYPE dst_scale_inv = dst_comp_ptr[0];
+                        const UNCOMPRESSED_TYPE dst_zp = dst_comp_ptr[1];
+
+                        key_cache[dst_off] = key_cache[src_off];
+
+                        UNCOMPRESSED_TYPE dequant_vals[PAGED_ATTENTION_BLOCK_SIZE];
+
+                        for (uint token = 0; token < PAGED_ATTENTION_BLOCK_SIZE; ++token) {
+                            UNCOMPRESSED_TYPE val =
+                                ((UNCOMPRESSED_TYPE)(key_cache[dst_base + token]) - dst_zp) * dst_scale_inv;
+                            dequant_vals[token] = val;
+                        }
+                        FUNC_CALL(requantize_and_store_by_channel_block)(key_cache, dst_base, dequant_vals);
+                    }
+                } else {
+                    // in this case, the dst_block is a full PAGED_ATTENTION_BLOCK_SIZE block
+                    for (uint k = sglid; k < (uint)K_HEAD_SIZE; k += (uint)SUBGROUP_SIZE) {
+                        const uint src_off = key_src_base + k * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE + src_slot;
+                        const uint dst_base = key_dst_base + k * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+
+                        const uint src_comp_off = key_src_base + k * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE + PAGED_ATTENTION_BLOCK_SIZE;
+                        const uint dst_comp_off = key_dst_base + k * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE + PAGED_ATTENTION_BLOCK_SIZE;
+                        UNCOMPRESSED_TYPE* src_comp_ptr = key_cache + src_comp_off;
+                        UNCOMPRESSED_TYPE* dst_comp_ptr = key_cache + dst_comp_off;
+
+                        const UNCOMPRESSED_TYPE src_scale_inv = src_comp_ptr[0];
+                        const UNCOMPRESSED_TYPE src_zp = src_comp_ptr[1];
+                        const UNCOMPRESSED_TYPE dst_scale_inv = dst_comp_ptr[0];
+                        const UNCOMPRESSED_TYPE dst_zp = dst_comp_ptr[1];
+
+                        const UNCOMPRESSED_TYPE src_val =
+                            ((UNCOMPRESSED_TYPE)(key_cache[src_off]) - src_zp) * src_scale_inv;
+
+                        UNCOMPRESSED_TYPE dequant_vals[PAGED_ATTENTION_BLOCK_SIZE];
+
+                        for (uint token = 0; token < PAGED_ATTENTION_BLOCK_SIZE; ++token) {
+                            UNCOMPRESSED_TYPE val =
+                                ((UNCOMPRESSED_TYPE)(key_cache[dst_base + token]) - dst_zp) * dst_scale_inv;
+                            if (token == dst_slot) {
+                                val = src_val;
+                            }
+                            dequant_vals[token] = val;
+                        }
+                        FUNC_CALL(requantize_and_store_by_channel_block)(key_cache, dst_base, dequant_vals);
+                    }
+                }
             #else
                 // per-token quantization: copy quantized values and comp data for token
                 for (uint k = sglid; k < (uint)K_HEAD_SIZE; k += (uint)SUBGROUP_SIZE) { // only copy to K_HEAD_SIZE

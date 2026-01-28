@@ -808,7 +808,7 @@ protected:
             jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size);
         }
         const auto& key_layout = params.input_layouts[PagedAttentionInputIdx::KEY];
-        jit.make("UNCOMPRESSED_TYPE", to_ocl_type(key_layout.data_type));
+        jit.add(make_type_jit_constants("UNCOMPRESSED", key_layout.data_type));
         return jit;
     }
 
