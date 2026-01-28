@@ -78,6 +78,7 @@ namespace v6 = ov::op::v6;
 namespace v8 = ov::op::v8;
 namespace v12 = ov::op::v12;
 namespace v13 = ov::op::v13;
+namespace v15 = ov::op::v15;
 namespace {
 
 // Constants and Parameters attributes:
