@@ -92,7 +92,7 @@ uses: actions/checkout@v4.2.2
 use this:
 
 ```yaml
-uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+uses: ababushk/checkout@cherry_pick_retries
 ```
 
 ## Further reading
