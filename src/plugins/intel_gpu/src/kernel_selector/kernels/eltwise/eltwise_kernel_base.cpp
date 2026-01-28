@@ -256,7 +256,7 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                     // input_0 == int && input_1 == int
                     if (is_integer_type(input_1_type)) {
                         if (ew.mode == EltwiseMode::MODULU)
-                            op += input0_str + " % " + input1_str;
+                            op += "INPUT_" + op_num_str + "_0 % INPUT_" + op_num_str + "_1";
                         else
                             op += cast_type + mode + "(" + input0_str + ", " + input1_str + ")";
                     } else {
