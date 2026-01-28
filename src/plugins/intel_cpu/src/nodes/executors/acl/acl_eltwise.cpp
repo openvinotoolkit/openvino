@@ -36,6 +36,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -297,19 +298,30 @@ bool AclEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
             return acl_op;
         };
         break;
-    case Algorithm::EltwiseSubtract:
+    case Algorithm::EltwiseSubtract: {
+        // For u8, Subtract must wrap (e.g. 3 - 4 = 255), not saturate to 0.
+        // Only use wrap-around for pure u8->u8 subtract.
+        // QDQ patterns with u8 input but f32/i32 output must saturate.
+        const bool is_u8_u8_to_u8 = ov::intel_cpu::all_of(ov::element::u8,
+                                                          srcDescs[0]->getPrecision(),
+                                                          srcDescs[1]->getPrecision(),
+                                                          dstDescs[0]->getPrecision());
+
+        const auto convert_policy = is_u8_u8_to_u8 ? ConvertPolicy::WRAP : ConvertPolicy::SATURATE;
+
         if (!NEArithmeticSubtraction::validate(srcTensorsInfo.data(),
                                                &srcTensorsInfo[1],
                                                dstTensorsInfo.data(),
-                                               ConvertPolicy::SATURATE)) {
+                                               convert_policy)) {
             return false;
         }
-        exec_func = [this]() -> std::unique_ptr<IFunction> {
+        exec_func = [this, convert_policy]() -> std::unique_ptr<IFunction> {
             auto acl_op = std::make_unique<NEArithmeticSubtraction>();
-            acl_op->configure(srcTensors.data(), &srcTensors[1], dstTensors.data(), ConvertPolicy::SATURATE);
+            acl_op->configure(srcTensors.data(), &srcTensors[1], dstTensors.data(), convert_policy);
             return acl_op;
         };
         break;
+    }
     case Algorithm::EltwiseDivide:
         if (!NEElementwiseDivision::validate(srcTensorsInfo.data(), &srcTensorsInfo[1], dstTensorsInfo.data())) {
             return false;
