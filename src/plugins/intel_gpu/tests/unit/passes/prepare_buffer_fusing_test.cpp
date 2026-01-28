@@ -1724,11 +1724,6 @@ TEST(prepare_buffer_fusing, reorder_permute_with_fused_prim) {
     auto prog = program::build_program(engine, topology, config, false, false);
     ASSERT_NE(prog, nullptr);
 
-    // Permute may be optimized out
-    bool permute_present = true;
-    try { (void)prog->get_node("permute"); } catch (const std::exception&) { permute_present = false; }
-    if (!permute_present) { return;}
-
     auto& permute_node = prog->get_node("permute").as<permute>();
     auto& reorder_node = prog->get_node("reorder").as<reorder>();
     ASSERT_FALSE(reorder_node.can_be_optimized());

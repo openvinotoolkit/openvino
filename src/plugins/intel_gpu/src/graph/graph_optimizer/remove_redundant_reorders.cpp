@@ -699,6 +699,11 @@ void remove_redundant_reorders::run(program& p) {
         if (dep_node.is_constant())
             return false;
 
+        // Skip if permute has fused primitives - we cannot change its output data type
+        // as fused operations depend on the original output layout
+        if (dep_node.has_fused_primitives())
+            return false;
+
         if (node->get_output_layout().format != dep_node.get_output_layout().format)
             return false;
 
