@@ -97,7 +97,7 @@ void pa_lsc_u8(
                     int idx      = row * REG_N + col;
                     uint col_byte = (col_uint_base + row) * sizeof(uint);
                     gather_offsets[idx] = token_base + col_byte;
-                    gather_pred[idx]    = active ? 0xFFFF : 0;
+                    gather_pred[idx]    = active * 0xFFFF;
                 }
             }
 
@@ -296,8 +296,8 @@ void pa_lsc_u8(
                     St = -3.4e38f;
                 } else if (causal_left < kv_step) {
                     // q_step is half of kv_step
-                    // calsual mask second half of the kv
-                    // if w/o St += 0.f;, I will meet IGC: Internal Compiler Error: Access violation on ARL-H
+                    // Workaround for an IGC ICE on ARL-H triggered by submatrix in-place masking.
+                    // Materialize St before applying the partial causal mask.
                     St += 0.f;
                     apply_causal_mask<1>(St.select<q_step, 1, q_step, 1>(q_step, 0));
                 }
@@ -442,7 +442,7 @@ void pa_kernel_lsc_prefetch_f16(
                     int idx = row * REG_N + col;
                     uint col_byte = (col_uint_base + row) * sizeof(uint);
                     gather_offsets[idx] = token_base + col_byte;
-                    gather_pred[idx]    = active ? 0xFFFF : 0;
+                    gather_pred[idx]    = active * 0xFFFF;
                 }
             }
             rQ[ri] = 0;
