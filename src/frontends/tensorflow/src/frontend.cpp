@@ -11,6 +11,7 @@
 #include "helper_ops/internal_operation.hpp"
 #include "helper_transforms/const_to_result_remover.hpp"
 #include "helper_transforms/embedding_segments_feature_fusing.hpp"
+#include "helper_transforms/retinanet_nms_replacement.hpp"
 #include "helper_transforms/saved_model_unused_remover.hpp"
 #include "helper_transforms/tensor_array_v3_replacer.hpp"
 #include "helper_transforms/tensor_list_ops_resolver.hpp"
@@ -567,6 +568,10 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<pass::TensorArrayV3Replacer>();
     manager.register_pass<pass::ConstToResultRemover>();
     manager.register_pass<pass::SwitchMergeResolver>();
+
+    // RetinaNet NMS to DetectionOutput replacement
+    // This must run after SwitchMergeResolver to have a clean graph
+    manager.register_pass<pass::RetinaNetNmsToDetectionOutput>();
 
     // apply EliminateLoopInputsOutputs to avoid extra Results
     // that output the same value as receiving on input
