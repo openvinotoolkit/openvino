@@ -7,6 +7,8 @@
 #include <string>
 
 #include "openvino/core/node.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 
 namespace ov {
 namespace util {
@@ -28,5 +30,25 @@ namespace op::util {
  * @param output_port - output port to rename
  */
 void OPENVINO_API set_name(ov::Node& node, const std::string& name, size_t output_port = 0);
+
+
+class ConstantDescriptor {
+public:
+    static ConstantDescriptor get_desc(const std::shared_ptr<ov::op::v0::Constant>& constant) {
+        ConstantDescriptor desc;
+        auto itag_buffer = std::dynamic_pointer_cast<ov::ITagBuffer>(constant->m_data);
+        if (itag_buffer && itag_buffer->is_mapped()) {
+            desc.m_data_mmaped = true;
+        }
+        return desc;
+    }
+
+    bool is_mmaped() const {
+        return m_data_mmaped;
+    }
+private:
+    ConstantDescriptor() = default;
+    bool m_data_mmaped = false;
+};
 }  // namespace op::util
 }  // namespace ov
