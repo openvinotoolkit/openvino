@@ -33,7 +33,8 @@ runs:
                 Write-Host "Looking for free-threaded Python wheel: $wheel-*cp$pyVersion*t*.whl"
                 $wheelPath = Get-ChildItem -Path ${{ inputs.wheels-dir-path }} -Filter "$wheel-*cp$pyVersion*t*.whl" | Select-Object -First 1
             } else {
-                $wheelPath = Get-ChildItem -Path ${{ inputs.wheels-dir-path }} -Filter "$wheel-*cp$pyVersion*.whl" | Where-Object { $_.Name -notlike "*cp$pyVersion*t.whl" } | Select-Object -First 1
+                Write-Host "Looking for non-free-threaded Python wheel: $wheel-*cp$pyVersion*.whl"
+                $wheelPath = Get-ChildItem -Path ${{ inputs.wheels-dir-path }} -Filter "$wheel-*cp$pyVersion*.whl" | Where-Object { $_.Name -notlike "*cp$pyVersion*t*.whl" } | Select-Object -First 1
             }
             
             Write-Host "Wheel path: $($wheelPath)"
@@ -64,8 +65,10 @@ runs:
 
           # free-threading Python wheels have 'cpXYt' in their names
           if [ "${{ inputs.free-threaded-python }}" == "true" ]; then
+            echo "Looking for free-threaded Python wheel: $wheel-*cp$pyVersion*t*.whl"
             wheel_path=$(find ${{ inputs.wheels-dir-path }} -name "$wheel-*cp${py_version}t*.whl")
           else
+            echo "Looking for non-free-threaded Python wheel: $wheel-*cp$pyVersion*.whl"
             wheel_path=$(find ${{ inputs.wheels-dir-path }} -name "$wheel-*cp$py_version*.whl" ! -name "*cp${py_version}t*.whl")
           fi
           

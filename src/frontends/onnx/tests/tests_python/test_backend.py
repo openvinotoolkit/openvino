@@ -41,7 +41,6 @@ from tests import (
     skip_bitwise_ui64,
     xfail_issue_99950,
     xfail_issue_99952,
-    xfail_issue_99954,
     xfail_issue_99961,
     xfail_issue_99968,
     xfail_issue_99969,
@@ -379,8 +378,6 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_99950,
-        "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_chw_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_hwc_expanded_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_negative_axes_hwc_expanded_cpu",
     ),
     (
@@ -390,12 +387,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_col2im_dilations_cpu",
         "OnnxBackendNodeModelTest.test_col2im_pads_cpu",
         "OnnxBackendNodeModelTest.test_col2im_strides_cpu",
-    ),
-    (
-        xfail_issue_99954,
-        "OnnxBackendNodeModelTest.test_constant_pad_axes_cpu",
-        "OnnxBackendNodeModelTest.test_attention_4d_diff_heads_mask4d_padded_kv_cpu",
-        "OnnxBackendNodeModelTest.test_attention_4d_diff_heads_mask4d_padded_kv_expanded_cpu",
     ),
     (
         xfail_issue_99961,

@@ -24,7 +24,7 @@ OutputVector translate_get_attr(const NodeContext& context) {
             res[0].add_names({node->get_friendly_name()});
         }
         auto dtype = decoder->get_output_type(0);
-        if (dtype.is<type::Complex>()) {
+        if (simplified_type_interpret(dtype).is<type::Complex>()) {
             // Add complex mark to complex constant
             res = {context.mark_node(std::make_shared<ComplexTypeMark>(res[0], res[0].get_element_type()))};
         }
