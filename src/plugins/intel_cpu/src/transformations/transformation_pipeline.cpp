@@ -133,12 +133,10 @@
 #include "utils/ngraph_transformation.hpp"
 
 // LPT transformations
-#include "low_precision/add.hpp"
 #include "low_precision/convert_subtract_constant.hpp"
 #include "low_precision/low_precision.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include "low_precision/network_helper.hpp"
-#include "low_precision/rt_info/bias_attribute.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 // CPU specific transformations
@@ -170,6 +168,11 @@
 
 #if defined(OPENVINO_ARCH_X86)
 #    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
+#endif
+
+#if !defined(OPENVINO_ARCH_RISCV64)
+#    include "low_precision/add.hpp"
+#    include "low_precision/rt_info/bias_attribute.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64)
@@ -255,7 +258,10 @@
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    include "low_precision/avg_pool.hpp"
+#    include "low_precision/convolution.hpp"
 #    include "low_precision/fake_quantize.hpp"
+#    include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+#    include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #    include "low_precision/group_convolution.hpp"
 #    include "low_precision/interpolate.hpp"
 #    include "low_precision/mat_mul.hpp"
@@ -268,7 +274,13 @@
 #    include "low_precision/reduce_min.hpp"
 #    include "low_precision/reduce_sum.hpp"
 #    include "openvino/opsets/opset1_decl.hpp"
+#    include "openvino/pass/pattern/matcher.hpp"
+#    include "openvino/pass/pattern/op/label.hpp"
+#    include "openvino/pass/pattern/op/optional.hpp"
+#    include "openvino/pass/pattern/op/pattern.hpp"
+#    include "openvino/pass/pattern/op/wrap_type.hpp"
 #    include "snippets/utils/tokenization_utils.hpp"
+#    include "transformations/cpu_opset/arm/pass/convert_conv_bias.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
@@ -303,6 +315,59 @@
 namespace ov::intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
+
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+template <class T>
+bool Transformations::match_conv_add_mul_fq(const_node_ptr& node) {
+    auto conv_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>(
+        {ov::pass::pattern::any_input(ov::pass::pattern::type_matches_any({ov::element::i8, ov::element::u8})),
+         ov::pass::pattern::any_input()});
+    auto add_m = ov::pass::pattern::wrap_type<ov::op::v1::Add>({conv_m, ov::pass::pattern::any_input()});
+    auto mul0_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_m, ov::pass::pattern::any_input()});
+    auto fq_m = ov::pass::pattern::wrap_type<ov::opset1::FakeQuantize>(
+        {mul0_m,
+         ov::pass::pattern::any_input(),
+         ov::pass::pattern::any_input(),
+         ov::pass::pattern::any_input(),
+         ov::pass::pattern::any_input()},
+        ov::pass::pattern::type_matches_any({ov::element::i8, ov::element::u8}));
+    auto final_m = ov::pass::pattern::wrap_type<T>({fq_m, ov::pass::pattern::any_input()});
+
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(final_m);
+    if (!matcher->match(std::const_pointer_cast<ov::Node>(node))) {
+        return false;
+    }
+
+    const auto& pattern_map = matcher->get_pattern_value_map();
+    const auto fq = ov::as_type_ptr<const ov::opset1::FakeQuantize>(pattern_map.at(fq_m).get_node_shared_ptr());
+    const auto conv = ov::as_type_ptr<const ov::op::v1::Convolution>(pattern_map.at(conv_m).get_node_shared_ptr());
+
+    return conv->get_input_element_type(0) == fq->get_output_element_type(0);
+}
+
+bool Transformations::match_fq_mul_conv_bias_same_types(const_node_ptr& node) {
+    auto conv_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>();
+    auto conv_or_bias_m = ov::pass::pattern::optional<ov::op::v1::Add>({conv_m, ov::pass::pattern::any_input()});
+    auto mul_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({conv_or_bias_m, ov::pass::pattern::any_input()});
+    auto fq_m = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({mul_m,
+                                                                        ov::pass::pattern::any_input(),
+                                                                        ov::pass::pattern::any_input(),
+                                                                        ov::pass::pattern::any_input(),
+                                                                        ov::pass::pattern::any_input()});
+    ov::pass::pattern::Matcher matcher(fq_m);
+    if (!matcher.match(std::const_pointer_cast<ov::Node>(node))) {
+        return false;
+    }
+
+    const auto& pattern_map = matcher.get_pattern_value_map();
+    const auto conv = ov::as_type_ptr<const ov::op::v1::Convolution>(pattern_map.at(conv_m).get_node_shared_ptr());
+    if (!conv) {
+        return false;
+    }
+
+    return conv->get_input_element_type(0) == node->get_output_element_type(0);
+}
+#endif
 
 bool Transformations::is_decompression_multiply(const_node_ptr& node) {
     auto all_has_type = [](const std::set<ov::Input<ov::Node>>& consumers, const ov::DiscreteTypeInfo& type) {
@@ -964,12 +1029,78 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
                              supportedPrecisions,
                              quantizationRestrictions,
                              LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
-    CPU_SET_CALLBACK_COMMON(
+
+    CPU_REGISTER_PASS_ARM(lptManager, ConvertConvolutionBias);
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [](const_node_ptr& node) -> bool {
+            const auto conv = ov::as_type_ptr<const ov::op::v1::Convolution>(node);
+            if (!conv) {
+                return false;
+            }
+
+            const auto& strides = conv->get_strides();
+            if (strides.size() < 2 || strides[0] != 1 || strides[1] != 1) {
+                return false;
+            }
+
+            const auto weights_m = ov::pass::pattern::any_input(ov::pass::pattern::shape_matches("OC, IC, 3, 3"));
+            ov::pass::pattern::Matcher matcher(weights_m);
+            if (!matcher.match(conv->input_value(1))) {
+                return false;
+            }
+
+            const auto& symbols = matcher.get_symbols();
+            const auto oc_it = symbols.find("OC");
+            const auto ic_it = symbols.find("IC");
+            if (oc_it == symbols.end() || ic_it == symbols.end()) {
+                return false;
+            }
+
+            const auto& w_oc = oc_it->second;
+            const auto& w_ic = ic_it->second;
+            if (!w_oc.is_integer() || !w_ic.is_integer()) {
+                return false;
+            }
+
+            return w_oc.i() < 512 || w_ic.i() < 512;
+        },
+        ConvolutionTransformation);
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [](const_node_ptr& node) -> bool {
+            // Run the transformation for convolution bias only on ARM
+            // Convolution bias is handled in ConvertConvolutionBias transformation
+            auto conv_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>();
+            auto mul_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({conv_m, ov::pass::pattern::any_input()});
+            auto add_m = ov::pass::pattern::wrap_type<ov::op::v1::Add>({mul_m, ov::pass::pattern::any_input()});
+
+            auto matcher = std::make_shared<ov::pass::pattern::Matcher>(add_m);
+            if (matcher->match(std::const_pointer_cast<ov::Node>(node))) {
+                return false;
+            }
+
+            return ov::marked_as_bias(node);
+        },
+        AddTransformation);
+    CPU_SET_CALLBACK_X64(
         lptManager,
         [](const_node_ptr& node) -> bool {
             return ov::marked_as_bias(node);
         },
         AddTransformation);
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [](const_node_ptr& node) -> bool {
+            return match_conv_add_mul_fq<ov::op::v1::Subtract>(node);
+        },
+        FuseSubtractToFakeQuantizeTransformation);
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [](const_node_ptr& node) -> bool {
+            return match_conv_add_mul_fq<ov::op::v1::Multiply>(node);
+        },
+        FuseMultiplyToFakeQuantizeTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
     CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
@@ -1002,7 +1133,9 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         [&](const_node_ptr& node) -> bool {
             auto eltwise = node->get_input_node_shared_ptr(0);
             if (ov::is_type<ov::op::v1::Multiply>(eltwise) && FakeQuantizeTransformation::checkElementwise(eltwise)) {
-                return ov::is_type<ov::op::v1::Convolution>(eltwise->get_input_node_shared_ptr(0));
+                // avoid convolution dequantization fusion to FQ node to keep
+                // Conv->Bias->DQ_scale->Requantization pattern which is supported by the ACL
+                return match_fq_mul_conv_bias_same_types(node);
             }
             return false;
         },
@@ -1646,11 +1779,9 @@ void Transformations::PostSnippets() {
         [](const_node_ptr& node) -> bool {
             if (ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
                 ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
-                auto parent = node->get_input_node_shared_ptr(0);
-                if (ov::is_type<const ov::op::v1::Multiply>(parent) && !parent->inputs().empty() &&
-                    ov::is_type<const ov::op::v1::Convolution>(parent->get_input_node_shared_ptr(0))) {
-                    return true;
-                }
+                // int8 ACL Convolution executor supports only same activation and output types
+                // if types are different, decompose FQ to avoid reference FQ
+                return match_fq_mul_conv_bias_same_types(node);
             }
             return false;
         },
