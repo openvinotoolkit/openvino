@@ -35,9 +35,11 @@ public:
                     const ov::SoPtr<ICompiler>& compiler = {nullptr});
 
     /**
-     * @brief The main schedule along with the weights initialization ones are exported.
+     * @brief The weights initialization schedules are exported.
      */
-    std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
+    std::vector<uint64_t> export_init_blobs(std::ostream& stream) const;
+
+    size_t get_number_of_inits() const;
 
     /**
      * @brief The same operations performed within "Graph::initialize", but for all handles. In addition to this, the
