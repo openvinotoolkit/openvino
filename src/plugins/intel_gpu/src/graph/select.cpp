@@ -144,8 +144,16 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
             auto broadcast_spec = node.get_primitive()->broadcast_spec;
 
             auto check_broadcast = [&](const ov::PartialShape& input_pshape, const char* input_name) {
+                auto spec = broadcast_spec;
+                if (spec.m_axis > 0 &&
+                    input_pshape.rank().is_static() &&
+                    output_pshape.rank().is_static() &&
+                    input_pshape.rank().get_length() == output_pshape.rank().get_length()) {
+                    // Inputs may be pre-aligned to output rank for PDPD; ignore explicit axis in the check.
+                    spec.m_axis = 0;
+                }
                 auto merged = output_pshape;
-                bool ok = ov::PartialShape::broadcast_merge_into(merged, input_pshape, broadcast_spec);
+                bool ok = ov::PartialShape::broadcast_merge_into(merged, input_pshape, spec);
                 CLDNN_ERROR_BOOL(node.id(),
                                  std::string(input_name) + " broadcastable to output shape",
                                  !ok,

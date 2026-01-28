@@ -88,16 +88,16 @@ static void CreateSelectOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::
                     // Extend input dimensions to the same size as output dimensions by prepending ones
                     target_shape.insert(target_shape.begin(), output_rank - input_rank, 1ul);
                 } else if (broadcast_type.m_type == ov::op::AutoBroadcastType::PDPD && i != 1) {
-                    if (pdpd_axis < 0 ||
-                        input_rank > output_rank ||
-                        static_cast<size_t>(pdpd_axis) + input_rank > output_rank) {
+                    if (input_rank > output_rank || static_cast<size_t>(pdpd_axis) + input_rank > output_rank) {
                         OPENVINO_THROW("[GPU] Invalid PDPD broadcast axis (", pdpd_axis, ") for input ", i,
                                        " in layer " + op->get_friendly_name());
                     }
                     target_shape = get_pdpd_aligned_shape(input_shape, output_rank, pdpd_axis);
                 }
 
-                const bool need_reshape = (input_rank != output_rank) || (input_rank < 4) || (target_shape != input_shape);
+                const bool pdpd_adjusts_shape =
+                    (broadcast_type.m_type == ov::op::AutoBroadcastType::PDPD) && (target_shape != input_shape);
+                const bool need_reshape = (input_rank != output_rank) || (input_rank < 4) || pdpd_adjusts_shape;
 
                 // Reshape input if they differ or select specific shape matches default one
                 if (need_reshape) {
