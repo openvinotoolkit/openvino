@@ -14,6 +14,7 @@ namespace Platform {
 constexpr std::string_view AUTO_DETECT = "AUTO_DETECT";  // Auto detection
 constexpr std::string_view NPU3720 = "3720";             // NPU3720
 constexpr std::string_view NPU4000 = "4000";             // NPU4000
+constexpr std::string_view NPU5010 = "5010";             // NPU5010
 
 /**
  * @brief Converts the given platform value to the standard one.
@@ -75,36 +76,6 @@ inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
     } break;
     case ColorFormat::BGRX: {
         out << "BGRX";
-    } break;
-    default:
-        out << static_cast<uint32_t>(fmt);
-        break;
-    }
-    return out;
-}
-
-/**
- * @brief [Only for NPU Plugin]
- * Type: string, default is DRIVER.
- * Type of NPU compiler to be used for compilation of a network
- * @note Configuration API v 2.0
- */
-enum class CompilerType { PLUGIN, DRIVER };
-
-/**
- * @brief Prints a string representation of ov::intel_npu::CompilerType to a stream
- * @param out An output stream to send to
- * @param fmt A compiler type value to print to a stream
- * @return A reference to the `out` stream
- * @note Configuration API v 2.0
- */
-inline std::ostream& operator<<(std::ostream& out, const CompilerType& fmt) {
-    switch (fmt) {
-    case CompilerType::PLUGIN: {
-        out << "PLUGIN";
-    } break;
-    case CompilerType::DRIVER: {
-        out << "DRIVER";
     } break;
     default:
         out << static_cast<uint32_t>(fmt);
@@ -309,28 +280,11 @@ inline std::istream& operator>>(std::istream& is, LegacyPriority& priority) {
 static constexpr ov::Property<LegacyPriority, ov::PropertyMutability::RO> legacy_model_priority{"MODEL_PRIORITY"};
 
 /**
- * @brief [Only for NPU Plugin]
- * Type: Arbitrary string.
- * This option allows to specify device.
- * The plugin accepts any value given through this option. If the device is not available, either the driver or the
- * compiler will throw an exception depending on the flow running at the time.
- */
-static constexpr ov::Property<std::string> platform{"NPU_PLATFORM"};
-
-/**
  * @brief
  * Type: integer, default is -1
  * Device stepping ID. If unset, it will be automatically obtained from driver
  */
 static constexpr ov::Property<int64_t> stepping{"NPU_STEPPING"};
-
-/**
- * @brief [Only for NPU Plugin]
- * Type: string, default is DRIVER.
- * Selects the type of NPU compiler to be used for compilation of a network.
- * 'DRIVER' is the default value.
- */
-static constexpr ov::Property<CompilerType> compiler_type{"NPU_COMPILER_TYPE"};
 
 /**
  * @brief
@@ -510,15 +464,6 @@ static constexpr ov::Property<bool> import_raw_blob{"NPU_IMPORT_RAW_BLOB"};
  * This option allows to skip writing plugin metadata to compiled model when exporting it
  */
 static constexpr ov::Property<bool> export_raw_blob{"NPU_EXPORT_RAW_BLOB"};
-
-/**
- * @brief [Only for NPU Plugin]
- * Type: std::string, default is empty
- * Enables custom stride support for specified input/output tensors by name. This allows working with non-contiguous
- * memory layouts without copying data. The plugin automatically maps these names to the appropriate input/output
- * indices for the compiler.
- */
-static constexpr ov::Property<std::string> enable_strides_for("NPU_ENABLE_STRIDES_FOR");
 
 }  // namespace intel_npu
 }  // namespace ov

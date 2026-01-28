@@ -14,12 +14,16 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v3 = ov::op::v3;
 ov::pass::ConvertShapeOf3::ConvertShapeOf3() {
     MATCHER_SCOPE(ConvertShapeOf3);
-    auto shapeof = pattern::wrap_type<ov::op::v3::ShapeOf>();
+    auto shapeof = ov::pass::pattern::wrap_type<v3::ShapeOf>();
 
-    matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto shapeof = ov::as_type_ptr<ov::op::v3::ShapeOf>(m.get_match_root());
+    matcher_pass_callback callback = [](Matcher& m) {
+        auto shapeof = ov::as_type_ptr<v3::ShapeOf>(m.get_match_root());
         if (!shapeof) {
             return false;
         }
@@ -27,13 +31,13 @@ ov::pass::ConvertShapeOf3::ConvertShapeOf3() {
         Output<Node> last;
         ov::NodeVector new_ops;
 
-        auto new_shapeof = std::make_shared<ov::op::v0::ShapeOf>(shapeof->input_value(0));
+        auto new_shapeof = std::make_shared<v0::ShapeOf>(shapeof->input_value(0));
         new_ops.push_back(new_shapeof);
         // if the output is the i64 then it matches behavior of the v1::ShapeOf otherwise need to insert Convert
         if (shapeof->get_output_type() == element::i64) {
             last = new_shapeof;
         } else {
-            last = std::make_shared<ov::op::v0::Convert>(new_shapeof, shapeof->get_output_type());
+            last = std::make_shared<v0::Convert>(new_shapeof, shapeof->get_output_type());
             new_ops.push_back(last.get_node_shared_ptr());
         }
 
@@ -43,6 +47,6 @@ ov::pass::ConvertShapeOf3::ConvertShapeOf3() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(shapeof, matcher_name);
+    auto m = std::make_shared<Matcher>(shapeof, matcher_name);
     register_matcher(m, callback);
 }

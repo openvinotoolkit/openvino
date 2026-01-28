@@ -418,8 +418,16 @@ JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_
     jit.make("KV_HEADS_NUM", desc->kv_heads_num);
     jit.make("Q_STEP", get_q_step(xe_arch, true));
 
+    constexpr int32_t MaxRepeatCount = 8;
+    int32_t q_heads_per_kv_head = static_cast<int32_t>(desc->heads_num / desc->kv_heads_num);
+    int32_t q_head_chunks_per_kv_head = ceil_div(q_heads_per_kv_head, MaxRepeatCount);
+    int32_t q_head_chunk_size = static_cast<int32_t>(desc->heads_num / (desc->kv_heads_num * q_head_chunks_per_kv_head));
+    jit.make("Q_head_chunks_per_kv_head", q_head_chunks_per_kv_head);
+    jit.make("Q_head_chunk_size", q_head_chunk_size);
+
     if (get_kv_compressed(params)) {
         jit.make("KV_CACHE_COMPRESSION", 1);
+        jit.make("KV_CACHE_COMPRESSION_BY_TOKEN", 1);
     } else {
         jit.make("KV_CACHE_COMPRESSION", 0);
     }
@@ -465,7 +473,10 @@ DispatchDataFunc PagedAttentionGeneratorSingleToken::get_dispatch_data_func() co
         const size_t kv_heads_num = desc->kv_heads_num;
         const size_t partition_num = rtp->num_of_partitions;
 
-        wgs.global = {batch, kv_heads_num, partition_num};
+        constexpr int32_t MaxRepeatCount = 8;
+        int32_t q_heads_per_kv_head = static_cast<int32_t>(heads_num / kv_heads_num);
+        int32_t q_head_chunks_per_kv_head = ceil_div(q_heads_per_kv_head, MaxRepeatCount);
+        wgs.global = {batch, kv_heads_num * q_head_chunks_per_kv_head, partition_num};
         wgs.local = {1, 1, 1};
 
         // generate stage: q_len=1
@@ -581,6 +592,7 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     jit.make("SG_N", SG_N);
     jit.make("BLOCK_SG_M", BLOCK_SG_M);
     jit.make("BLOCK_SG_N", BLOCK_SG_N);
+    jit.make("BLOCK_WG_K", desc->k_head_size % 64 == 0 ? 64 : 32);  // GEMM QK kernel unrolls HEAD_SIZE with a step of BLOCK_WG_K
     jit.make("BLOCK_SIZE", _xattn_block_size);
     jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE_XATTN);
     jit.add(make_jit_constant("INV_S", scale_factor_i));
@@ -687,6 +699,9 @@ JitConstants XAttentionEstimateFindBlock::get_jit_constants(const kernel_impl_pa
 
     const uint32_t NUM_THREADS = _xattn_block_size == 128 ? 32 : 16;  // for xattn sort kernel
     jit.make("NUM_THREADS", NUM_THREADS);
+#if FIND_DEBUG_ACC
+    jit.make("DEBUG_ACC", FIND_DEBUG_ACC);
+#endif
 
     return jit;
 }
@@ -709,6 +724,10 @@ Arguments XAttentionEstimateFindBlock::get_arguments_desc(const kernel_impl_para
     args.push_back({ArgumentDescriptor::Types::SCALAR, 4});  // k_block_pad
     args.push_back({ArgumentDescriptor::Types::SCALAR, 5});  // causal_start_index
     args.push_back({ArgumentDescriptor::Types::SCALAR, 6});  // thresh
+
+#if FIND_DEBUG_ACC
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_FIND_DEBUG_ACC});  // kq_sum for debug purpose only
+#endif
 
     return args;
 }

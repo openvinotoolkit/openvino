@@ -17,13 +17,16 @@ using namespace std;
 using namespace ov;
 using namespace pass;
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
 ov::pass::FlushFP32SubnormalsToZero::FlushFP32SubnormalsToZero() {
     MATCHER_SCOPE(FlushFP32SubnormalsToZero);
 
-    auto node_pattern = pattern::wrap_type<ov::op::v0::Constant>();
+    auto node_pattern = ov::pass::pattern::wrap_type<v0::Constant>();
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto node = ov::as_type_ptr<ov::op::v0::Constant>(m.get_match_root());
+    matcher_pass_callback callback = [=](Matcher& m) {
+        auto node = ov::as_type_ptr<v0::Constant>(m.get_match_root());
 
         if (!node)
             return false;
@@ -43,7 +46,7 @@ ov::pass::FlushFP32SubnormalsToZero::FlushFP32SubnormalsToZero() {
         if (!has_subnormals)
             return false;
 
-        auto new_constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, node->get_shape());
+        auto new_constant = std::make_shared<v0::Constant>(ov::element::f32, node->get_shape());
         auto* dst_data = const_cast<float*>(new_constant->get_data_ptr<float>());
 
         for (size_t i = 0; i < size; ++i) {
@@ -60,6 +63,6 @@ ov::pass::FlushFP32SubnormalsToZero::FlushFP32SubnormalsToZero() {
         return true;
     };
 
-    auto m = make_shared<pattern::Matcher>(node_pattern, matcher_name);
+    auto m = make_shared<Matcher>(node_pattern, matcher_name);
     register_matcher(m, callback);
 }
