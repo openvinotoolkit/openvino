@@ -25,7 +25,6 @@ bool DictParameterResolver::run_on_model(const std::shared_ptr<Model>& model) {
     ParameterVector new_params;
 
     for (const auto& p : parameters) {
-        bool param_changed = false;
         bool at_least_one_unused = false;
         if (p->get_output_size() == 1) {
             const auto targets = p->get_output_target_inputs(0);
@@ -51,19 +50,18 @@ bool DictParameterResolver::run_on_model(const std::shared_ptr<Model>& model) {
                     getitem_node->output(0).replace(new_param);
                     new_param->output(0).set_names({name});
                     new_params.push_back(new_param);
-                    param_changed = true;
+                    changed = true;
                 } else {
                     at_least_one_unused = true;
                 }
             }
         }
-        if (param_changed) {
+        if (changed) {
             model->remove_parameter(p);
             if (at_least_one_unused || p->get_output_size() != 1) {
                 new_params.push_back(p);
             }
         }
-        changed = changed || param_changed;
     }
     if (changed) {
         model->add_parameters(new_params);
