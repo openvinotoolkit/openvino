@@ -569,7 +569,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
         manager.register_pass<DisableFP16ComForGPTOSSROPEPattern>();
         const bool keep_precision_sensitive_in_fp32_1 = true;
-        const bool convert_input_output_precision = false;
+        const bool convert_input_output_precision = true; // Changed to true to convert model inputs and outputs to infer precision
         const bool store_original_precision_as_rt_attribute = true;
         const auto add_precision_sensitive_convert = true;
 
