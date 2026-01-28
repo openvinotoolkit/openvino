@@ -241,25 +241,29 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 auto input_0_type = params.inputs[0].GetDType();
                 auto input_1_type = params.inputs[1].GetDType();
 
+                auto is_integer_type = [](kernel_selector::Datatype dt) {
+                    return dt == kernel_selector::Datatype::INT8 ||
+                           dt == kernel_selector::Datatype::UINT8 ||
+                           dt == kernel_selector::Datatype::INT16 ||
+                           dt == kernel_selector::Datatype::UINT16 ||
+                           dt == kernel_selector::Datatype::INT32 ||
+                           dt == kernel_selector::Datatype::UINT32 ||
+                           dt == kernel_selector::Datatype::INT64;
+                };
+
                 // input_0 == int
-                if (input_0_type == kernel_selector::Datatype::INT8 ||
-                    input_0_type == kernel_selector::Datatype::INT32 ||
-                    input_0_type == kernel_selector::Datatype::INT64) {
+                if (is_integer_type(input_0_type)) {
                     // input_0 == int && input_1 == int
-                    if (input_1_type == kernel_selector::Datatype::INT8 ||
-                        input_1_type == kernel_selector::Datatype::INT32 ||
-                        input_1_type == kernel_selector::Datatype::INT64) {
+                    if (is_integer_type(input_1_type)) {
                         if (ew.mode == EltwiseMode::MODULU)
-                            op += input0_str + " % " + input1_str;
+                            op += "INPUT_" + op_num_str + "_0 % INPUT_" + op_num_str + "_1";
                         else
                             op += cast_type + mode + "(" + input0_str + ", " + input1_str + ")";
                     } else {
                         // input_0 == int && input_1 != int
                         op += cast_type + "f" + mode + "(convert_float(" + input0_str + "), " + input1_str + ")";
                     }
-                } else if (input_1_type == kernel_selector::Datatype::INT8 ||
-                           input_1_type == kernel_selector::Datatype::INT32 ||
-                           input_1_type == kernel_selector::Datatype::INT64) {
+                } else if (is_integer_type(input_1_type)) {
                     // input_0 != int && input_1 == int
                     op += cast_type + "f" + mode + "(" + input0_str + ", convert_float(" + input1_str + "))";
                 } else {
