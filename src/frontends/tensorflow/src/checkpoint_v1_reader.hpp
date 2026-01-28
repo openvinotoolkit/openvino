@@ -32,7 +32,7 @@ struct VariableInfo {
 // it parses value, shape and type for Variable nodes
 class CheckpointV1Reader {
     const std::string m_checkpoints;
-    // a map from Variable name to its informations
+    // a map from Variable name to its information
     std::unordered_map<std::string, VariableInfo> m_variables_info_map;
     // a vector of streams for shards, where shard is one checkpoint file
     std::vector<std::shared_ptr<std::ifstream>> m_shards;

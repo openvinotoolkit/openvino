@@ -24,8 +24,8 @@ void extract_operation_name_and_port(const std::string& port_name,
                                      std::string& operation_name,
                                      size_t& port_index,
                                      std::string& port_type) {
-    constexpr char delimeter[] = ":";
-    auto pos = port_name.find(delimeter);
+    constexpr char delimiter[] = ":";
+    auto pos = port_name.find(delimiter);
     if (pos == std::string::npos) {
         operation_name = port_name;
         port_type = "none";
