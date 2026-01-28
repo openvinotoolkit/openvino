@@ -91,27 +91,15 @@ std::tuple<uint64_t, uint64_t, std::optional<uint32_t>> Graph::write_blob_to_str
     const uint8_t* blobRawPtr = nullptr;
     std::vector<uint8_t> blob;
 
-<<<<<<< HEAD
     if (!blobTensor.has_value()) {
+        OPENVINO_ASSERT(_zeGraphExt != nullptr, "Zero compiler adapter wasn't initialized");
+
         // when compiling the model using Compiler in Driver, the blob is handled by the driver
         _zeGraphExt->getGraphBinary(graphDescriptor, blob, blobRawPtr, blobSize);
     } else {
         // in all other cases, the blob is handled by the plugin
         blobRawPtr = static_cast<const uint8_t*>(blobTensor->data());
         blobSize = blobTensor->get_byte_size();
-=======
-    if (_blobIsReleased) {
-        OPENVINO_THROW("Model was imported and released after initialization. Model export is not allowed anymore.");
-    }
-
-    if (_blob == std::nullopt) {
-        OPENVINO_ASSERT(_zeGraphExt != nullptr, "Zero compiler adapter wasn't initialized");
-        // when compiling the model using Compiler in Driver, the blob is handled by the driver
-        _zeGraphExt->getGraphBinary(_graphDesc, blobVec, blobPtr, blobSize);
-    } else {  // in all other cases, the blob is handled by the plugin
-        blobPtr = static_cast<const uint8_t*>(_blob->data());
-        blobSize = _blob->get_byte_size();
->>>>>>> upstream/master
     }
 
     if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {

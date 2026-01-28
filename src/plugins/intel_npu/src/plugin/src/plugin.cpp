@@ -1098,13 +1098,9 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::parse");
 
-<<<<<<< HEAD
     auto blobReader = std::make_shared<BlobReader>(tensorBig);
     register_known_sections(blobReader);
-    auto npu_plugin_properties = properties;
-=======
     auto localProperties = properties;
->>>>>>> upstream/master
 
     // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
     // list of properties
