@@ -14,7 +14,6 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convolution.hpp"
-#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
@@ -40,7 +39,6 @@ struct Conv1x1ToMatmulTestParams {
     bool with_zp;
     bool with_bias;
     bool with_convert;
-    bool with_fq;
     bool with_param_weight;
     std::string activation_op_type;
 };
@@ -54,19 +52,6 @@ std::shared_ptr<ov::Model> gen_model(const Conv1x1ToMatmulTestParams& p) {
     } else {
         auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {1, 10, 1, 2});
         act_node = std::make_shared<ov::opset1::Reshape>(input, reshape_const, false);
-    }
-
-    if (p.with_fq) {
-        auto fq_input_low = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1}, {0});
-        auto fq_input_high = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1}, {255});
-        auto fq_output_low = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1}, {0});
-        auto fq_output_high = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1}, {255});
-        act_node = std::make_shared<ov::opset1::FakeQuantize>(act_node,
-                                                              fq_input_low,
-                                                              fq_input_high,
-                                                              fq_output_low,
-                                                              fq_output_high,
-                                                              256);
     }
 
     std::shared_ptr<ov::Node> weights_node;
@@ -119,18 +104,6 @@ std::shared_ptr<ov::Model> gen_model(const Conv1x1ToMatmulTestParams& p) {
     if (p.with_bias) {
         auto bias_const = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1, 15, 1, 1}, {1});
         current_node = std::make_shared<ov::opset1::Add>(conv, bias_const);
-    }
-    if (p.with_fq) {
-        auto fq_input_low = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1}, {0});
-        auto fq_input_high = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1}, {255});
-        auto fq_output_low = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1}, {0});
-        auto fq_output_high = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1}, {255});
-        current_node = std::make_shared<ov::opset1::FakeQuantize>(current_node,
-                                                                  fq_input_low,
-                                                                  fq_input_high,
-                                                                  fq_output_low,
-                                                                  fq_output_high,
-                                                                  256);
     }
     if (p.with_convert) {
         current_node = std::make_shared<ov::op::v0::Convert>(current_node, ov::element::f32);
@@ -189,37 +162,12 @@ std::shared_ptr<ov::Model> gen_model_ref(const Conv1x1ToMatmulTestParams& p) {
         mul = std::make_shared<ov::opset1::Reshape>(mul, reshape_const, false);
     }
 
-    std::shared_ptr<ov::Node> input_node = input;
-    if (p.with_fq) {
-        auto fq_input_low = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1}, {0});
-        auto fq_input_high = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1}, {255});
-        auto fq_output_low = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1}, {0});
-        auto fq_output_high = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1}, {255});
-        input_node = std::make_shared<ov::opset1::FakeQuantize>(input_node,
-                                                                fq_input_low,
-                                                                fq_input_high,
-                                                                fq_output_low,
-                                                                fq_output_high,
-                                                                256);
-    }
-    auto matmul = std::make_shared<ov::op::v0::MatMul>(input_node, mul, false, true);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(input, mul, false, true);
     current_node = matmul;
 
     if (p.with_bias) {
         auto bias_const = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1, 1, 1, 15}, {1});
-        current_node = std::make_shared<ov::opset1::Add>(current_node, bias_const);
-    }
-    if (p.with_fq) {
-        auto fq_input_low = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1}, {0});
-        auto fq_input_high = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1}, {255});
-        auto fq_output_low = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1}, {0});
-        auto fq_output_high = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1}, {255});
-        current_node = std::make_shared<ov::opset1::FakeQuantize>(current_node,
-                                                                  fq_input_low,
-                                                                  fq_input_high,
-                                                                  fq_output_low,
-                                                                  fq_output_high,
-                                                                  256);
+        current_node = std::make_shared<ov::opset1::Add>(matmul, bias_const);
     }
     if (p.with_convert) {
         current_node = std::make_shared<ov::op::v0::Convert>(current_node, ov::element::f32);
@@ -239,21 +187,19 @@ std::shared_ptr<ov::Model> gen_model_ref(const Conv1x1ToMatmulTestParams& p) {
 
 class ConvertWeightCompressedConv1x1ToMatmulTest
     : public TransformationTestsF,
-      public WithParamInterface<std::tuple<bool, bool, bool, bool, bool, bool, std::string>> {
+      public WithParamInterface<std::tuple<bool, bool, bool, bool, bool, std::string>> {
 public:
     static std::string get_test_case_name(
-        const testing::TestParamInfo<std::tuple<bool, bool, bool, bool, bool, bool, std::string>>& obj) {
-        bool with_group_quant, with_zp, with_bias, with_convert, with_fq, with_param_weight;
+        const testing::TestParamInfo<std::tuple<bool, bool, bool, bool, bool, std::string>>& obj) {
+        bool with_group_quant, with_zp, with_bias, with_convert, with_param_weight;
         std::string activation_op_type;
-        std::tie(with_group_quant, with_zp, with_bias, with_convert, with_fq, with_param_weight, activation_op_type) =
-            obj.param;
+        std::tie(with_group_quant, with_zp, with_bias, with_convert, with_param_weight, activation_op_type) = obj.param;
 
         std::ostringstream result;
         result << "with_group_quant=" << with_group_quant << "_";
         result << "with_zp=" << with_zp << "_";
         result << "with_bias=" << with_bias << "_";
         result << "with_convert=" << with_convert << "_";
-        result << "with_fq=" << with_fq << "_";
         result << "with_param_weight=" << with_param_weight << "_";
         result << "activation_op_type=" << activation_op_type;
         return result.str();
@@ -262,12 +208,16 @@ public:
 protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
-        bool with_group_quant, with_zp, with_bias, with_convert, with_fq, with_param_weight;
+        bool with_group_quant, with_zp, with_bias, with_convert, with_param_weight;
         std::string activation_op_type;
-        std::tie(with_group_quant, with_zp, with_bias, with_convert, with_fq, with_param_weight, activation_op_type) =
+        std::tie(with_group_quant, with_zp, with_bias, with_convert, with_param_weight, activation_op_type) =
             GetParam();
-        Conv1x1ToMatmulTestParams
-            params{with_group_quant, with_zp, with_bias, with_convert, with_fq, with_param_weight, activation_op_type};
+        Conv1x1ToMatmulTestParams params{with_group_quant,
+                                         with_zp,
+                                         with_bias,
+                                         with_convert,
+                                         with_param_weight,
+                                         activation_op_type};
         model = gen_model(params);
         model_ref = gen_model_ref(params);
         manager.register_pass<ov::pass::ConvertWeightCompressedConv1x1ToMatmul>();
@@ -279,7 +229,6 @@ TEST_P(ConvertWeightCompressedConv1x1ToMatmulTest, CompareFunctions) {}
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          ConvertWeightCompressedConv1x1ToMatmulTest,
                          ::testing::Combine(::testing::Bool(),
-                                            ::testing::Bool(),
                                             ::testing::Bool(),
                                             ::testing::Bool(),
                                             ::testing::Bool(),
