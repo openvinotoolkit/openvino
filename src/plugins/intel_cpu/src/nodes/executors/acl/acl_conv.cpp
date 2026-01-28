@@ -96,7 +96,7 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
 
     const auto& srcDesc = config.descs.at(ARG_SRC);
     const auto& weiDesc = config.descs.at(ARG_WEI);
-    const auto& dstDesc = config.descs.at(ARG_WEI);
+    const auto& dstDesc = config.descs.at(ARG_DST);
 
     // ACL GemmConv2d supports 4D activations and 4D weight only
     VERIFY(srcDesc->getShape().getRank() == 4 && weiDesc->getShape().getRank() == 4, UNSUPPORTED_BY_EXECUTOR);
