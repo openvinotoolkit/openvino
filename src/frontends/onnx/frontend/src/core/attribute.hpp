@@ -50,7 +50,7 @@ inline std::vector<float> get_value(const AttributeProto& attribute) {
     case AttributeProto_AttributeType::AttributeProto_AttributeType_INT:
         return {static_cast<float>(attribute.i())};
     case AttributeProto_AttributeType::AttributeProto_AttributeType_INTS:
-        return {std::begin(attribute.floats()), std::end(attribute.floats())};
+        return {std::begin(attribute.ints()), std::end(attribute.ints())};
     case AttributeProto_AttributeType::AttributeProto_AttributeType_FLOAT:
         return {attribute.f()};
     case AttributeProto_AttributeType::AttributeProto_AttributeType_FLOATS:
