@@ -6,7 +6,6 @@
 
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
-#include "exceptions.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -59,7 +58,6 @@ ov::OutputVector fusedgemm(const ov::frontend::onnx::Node& node) {
             v0::Constant::create(input_c.get_element_type(), ov::Shape{1}, {activation_alpha});
         return {std::make_shared<v0::PRelu>(gemm_res, activation_alpha_node)};
     }
-    CHECK_VALID_NODE(node, activation_type == "Relu", "Unsupported activation type for FusedGemm: ", activation_type);
     return {std::make_shared<v0::Relu>(gemm_res)};
 }
 
