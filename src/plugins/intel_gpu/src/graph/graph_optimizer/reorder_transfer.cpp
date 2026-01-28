@@ -19,14 +19,15 @@ void reorder_transfer::run(program& p) {
 
         auto& reorder_node = node->as<reorder>();
 
-        // is_type_conversion_only() throws an exception for some nodes
-        bool is_type_conv = false;
-        try { is_type_conv = reorder_node.is_type_conversion_only(); } catch (...) { continue; }
+        // Skip nodes with invalid output layout because function
+        // is_type_conversion_only() requires valid output layout
+        if (!reorder_node.is_valid_output_layout())
+            continue;
 
         bool is_simple_type_conversion_reorder = !reorder_node.is_output() &&
                                                  reorder_node.get_users().size() == 1 &&
-                                                 reorder_node.get_dependencies().size() == 1 &&
-                                                 is_type_conv;
+                                                 reorder_node.get_dependencies().size() == 1 && 
+                                                 reorder_node.is_type_conversion_only();
         if (!is_simple_type_conversion_reorder)
             continue;
 
