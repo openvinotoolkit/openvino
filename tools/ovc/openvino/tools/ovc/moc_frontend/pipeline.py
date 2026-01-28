@@ -145,9 +145,10 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     argv.placeholder_shapes, argv.placeholder_data_types = convert_params_lists_to_dicts(
         input_model, argv.placeholder_shapes, argv.placeholder_data_types)
 
+    freeze_placeholder_with_value = getattr(argv, 'freeze_placeholder_with_value', {})
     user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
         input_model, argv.placeholder_shapes, argv.placeholder_data_types,
-        argv.output, {}, moc_front_end.get_name())
+        argv.output, freeze_placeholder_with_value, moc_front_end.get_name())
 
     def add_names_to_tensors(model: InputModel, places: list[Place]):
         """
@@ -204,7 +205,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
             user_shapes, outputs, _ = fe_user_data_repack(
                 input_model, placeholder_shapes, argv.placeholder_data_types,
-                new_output_places_name, {}, moc_front_end.get_name())
+                new_output_places_name, freeze_placeholder_with_value, moc_front_end.get_name())
     elif not inputs_equal:
         log.debug('Using override_all_inputs')
         add_names_to_tensors(input_model, user_shapes)
@@ -216,7 +217,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
             user_shapes, outputs, _ = fe_user_data_repack(
                 input_model, placeholder_shapes, argv.placeholder_data_types,
-                argv.output, {}, moc_front_end.get_name())
+                argv.output, freeze_placeholder_with_value, moc_front_end.get_name())
     elif not outputs_equal:
         log.debug('Using override_all_outputs')
         add_names_to_tensors(input_model, user_shapes)

@@ -132,7 +132,11 @@ def input_to_input_cut_info(input: [dict, tuple, list]):
 
         inputs = []
         for inp in input:
-            inputs.append(single_input_to_input_cut_info(inp))
+            # If input is already an InputCutInfo, use it directly
+            if isinstance(inp, _InputCutInfo):
+                inputs.append(inp)
+            else:
+                inputs.append(single_input_to_input_cut_info(inp))
         return inputs
 
     if isinstance(input, dict):
