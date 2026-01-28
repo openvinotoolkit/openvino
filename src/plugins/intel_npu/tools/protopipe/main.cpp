@@ -83,6 +83,7 @@ bool parseCommandLine(int* argc, char*** argv) {
         return false;
     }
     if (FLAGS_v) {
+        // NB: Version is already printed at the start of main()
         return false;
     }
     if (FLAGS_cfg.empty()) {
