@@ -4,12 +4,15 @@
 
 #include "openvino/frontend/tensorflow_lite/frontend.hpp"
 
+#include <optional>
+
 #include "graph_iterator_flatbuffer.hpp"
 #include "input_model.hpp"
 #include "op/op_translation_utils.hpp"
 #include "op_table.hpp"
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/tensorflow_lite/extension/op.hpp"
+#include "openvino/frontend/unconverted_ops_report.hpp"
 #include "openvino/util/common_util.hpp"
 #include "tensor_lite_place.hpp"
 #include "tf_framework_node.hpp"
@@ -24,6 +27,9 @@ using namespace ov;
 using namespace ov::frontend::tensorflow_lite;
 
 namespace {
+using ov::frontend::FrameworkNodeErrorInfo;
+using ov::frontend::UnconvertedOpExtractor;
+
 void translate_framework_node(const std::shared_ptr<ov::frontend::tensorflow::FrameworkNode>& node,
                               const ov::frontend::tensorflow_lite::TranslatorDictionaryType& op_translators) {
     auto type = node->get_op_type();
@@ -42,6 +48,21 @@ void translate_framework_node(const std::shared_ptr<ov::frontend::tensorflow::Fr
         old_outputs[i].replace(new_outputs[i]);
         apply_quantization(new_outputs[i], node->get_output_element_type(i));
     }
+}
+
+const std::vector<UnconvertedOpExtractor>& get_unconverted_extractors() {
+    static const std::vector<UnconvertedOpExtractor> extractors{
+        ov::frontend::make_unconverted_op_extractor<ov::frontend::tensorflow::FrameworkNode>(
+            [](const std::shared_ptr<ov::frontend::tensorflow::FrameworkNode>& node)
+                -> std::optional<FrameworkNodeErrorInfo> {
+                const auto& attrs = node->get_attrs();
+                FrameworkNodeErrorInfo info = ov::frontend::build_framework_node_error_info(attrs);
+                const auto& decoder = node->get_decoder();
+                info.failure_message = "[TensorFlow Lite Frontend] The translation is incomplete due to operation " +
+                                       decoder->get_op_name() + " of type " + decoder->get_op_type();
+                return info;
+            })};
+    return extractors;
 }
 }  // namespace
 
@@ -123,16 +144,18 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
     translate_graph(model, true, false, ov_model);
     normalize(ov_model);
 
-    for (const auto& node : ov_model->get_ordered_ops()) {
-        if (const auto& fw_node = ov::as_type_ptr<ov::frontend::tensorflow::FrameworkNode>(node)) {
-            auto op_type = fw_node->get_decoder()->get_op_type();
-            auto op_name = fw_node->get_decoder()->get_op_name();
-            FRONT_END_OP_CONVERSION_CHECK(false,
-                                          "The translation is incomplete due to operation ",
-                                          op_name,
-                                          " of type ",
-                                          op_type);
+    const auto unconverted_ops = ov::frontend::collect_unconverted_ops(ov_model, get_unconverted_extractors());
+    if (!unconverted_ops.empty()) {
+        if (m_telemetry) {
+            for (const auto& entry : unconverted_ops) {
+                m_telemetry->send_event("error_cause", "tflite_" + entry.first);
+            }
         }
+        FRONT_END_OP_CONVERSION_CHECK(
+            false,
+            ov::frontend::format_unconverted_ops_report(unconverted_ops,
+                                                        std::string{},
+                                                        "[TensorFlow Lite Frontend] Model wasn't fully converted."));
     }
     return ov_model;
 }

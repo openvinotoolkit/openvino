@@ -20,6 +20,7 @@
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
 #include "openvino/frontend/tensorflow/variable.hpp"
+#include "openvino/frontend/unconverted_ops_report.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/manager.hpp"
@@ -436,46 +437,46 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
             m_telemetry->send_event("error_cause", "tf_" + unsupported_operation);
         }
     }
-    if (unsupported_operations.size() > 0) {
-        exception_message << "[TensorFlow Frontend] Internal error, no translator found for operation(s): ";
-        size_t counter = 0;
-        size_t tokenizer_counter = 0;
-        std::string unsupported_ops_from_tokenizers;
-        const auto& all_tokenizer_ops = ov::frontend::tensorflow::op::get_supported_ops_via_tokenizers();
-        for (const auto& unsupported_operation : unsupported_operations) {
-            if (counter > 0) {
-                exception_message << ", ";
-            }
-            exception_message << unsupported_operation;
-            ++counter;
 
-            // collect a list of unconverted operations for which openvino-tokenizers provides conversion extensions
-            if (std::find(all_tokenizer_ops.begin(), all_tokenizer_ops.end(), unsupported_operation) !=
-                all_tokenizer_ops.end()) {
-                if (tokenizer_counter > 0) {
-                    unsupported_ops_from_tokenizers += ", ";
+    ov::frontend::UnconvertedOpMap unconverted_ops;
+    for (const auto& op : unsupported_operations) {
+        unconverted_ops.emplace(op, std::string{});
+    }
+    for (const auto& failure : failures) {
+        unconverted_ops.emplace(failure.first, failure.second);
+    }
+
+    std::string additional_error;
+    if (!unsupported_operations.empty()) {
+        std::string tokenizer_hint;
+        const auto& tokenizer_ops = ov::frontend::tensorflow::op::get_supported_ops_via_tokenizers();
+        for (const auto& op : unsupported_operations) {
+            if (std::find(tokenizer_ops.begin(), tokenizer_ops.end(), op) != tokenizer_ops.end()) {
+                if (!tokenizer_hint.empty()) {
+                    tokenizer_hint += ", ";
                 }
-                unsupported_ops_from_tokenizers += unsupported_operation;
-                ++tokenizer_counter;
+                tokenizer_hint += op;
             }
         }
-        exception_message
-            << "\nTo facilitate the conversion of unsupported operations, refer to Frontend Extension "
-               "documentation: "
-               "https://docs.openvino.ai/latest/openvino_docs_Extensibility_UG_Frontend_Extensions.html \n";
-
-        // recommend to use openvino-tokenizers if some unconverted operations from tokenizers are met
-        if (unsupported_ops_from_tokenizers.size() > 0) {
-            exception_message << "\nEncountered unconverted operation(s) for which openvino-tokenizers package "
-                                 "provides conversion extension(s): "
-                              << unsupported_ops_from_tokenizers
-                              << ". Install OpenVINO Tokenizers, refer to the documentation: "
-                                 "https://docs.openvino.ai/2025/openvino-workflow-generative/ov-tokenizers.html \n";
+        additional_error =
+            "\nTo facilitate the conversion of unsupported operations, refer to Frontend Extension documentation: "
+            "https://docs.openvino.ai/latest/openvino_docs_Extensibility_UG_Frontend_Extensions.html \n";
+        if (!tokenizer_hint.empty()) {
+            additional_error += "\nEncountered unconverted operation(s) for which openvino-tokenizers package provides "
+                                "conversion extension(s): " +
+                                tokenizer_hint +
+                                ". Install OpenVINO Tokenizers, refer to the documentation: "
+                                "https://docs.openvino.ai/2025/openvino-workflow-generative/ov-tokenizers.html \n";
         }
     }
 
-    bool is_conversion_successful = ((unsupported_operations.size() == 0) && (failures.size() == 0));
-    FRONT_END_OP_CONVERSION_CHECK(is_conversion_successful, exception_message.str());
+    const auto error_report =
+        ov::frontend::format_unconverted_ops_report(unconverted_ops,
+                                                    exception_message.str() + additional_error,
+                                                    "[TensorFlow Frontend] Model wasn't fully converted.");
+
+    const bool is_conversion_successful = unconverted_ops.empty();
+    FRONT_END_OP_CONVERSION_CHECK(is_conversion_successful, error_report);
 
     return f;
 }

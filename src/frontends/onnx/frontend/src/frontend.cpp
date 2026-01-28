@@ -22,6 +22,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <sstream>
 #include <string>
 
@@ -37,8 +38,10 @@
 #include "openvino/frontend/onnx/extension/conversion.hpp"
 #include "openvino/frontend/onnx/frontend.hpp"
 #include "openvino/frontend/onnx/visibility.hpp"
+#include "openvino/frontend/unconverted_ops_report.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
 #include "ops_bridge.hpp"
 #include "transformations/resolve_names_collisions.hpp"
@@ -110,6 +113,55 @@ void enumerate_constants(const std::shared_ptr<ov::Model>& model) {
     }
 }
 // !!! End of Experimental feature
+
+const std::vector<ov::frontend::UnconvertedOpExtractor>& get_onnx_extractors() {
+    static const std::vector<ov::frontend::UnconvertedOpExtractor> extractors{
+        ov::frontend::make_unconverted_op_extractor<ov::frontend::onnx::ONNXFrameworkNode>(
+            [](const std::shared_ptr<ov::frontend::onnx::ONNXFrameworkNode>& node)
+                -> std::optional<ov::frontend::FrameworkNodeErrorInfo> {
+                const auto& attrs = node->get_attrs();
+                return ov::frontend::build_framework_node_error_info(attrs,
+                                                                     std::string{},
+                                                                     std::string{},
+                                                                     ONNX_OPSET_VERSION_ATTR);
+            }),
+        ov::frontend::make_unconverted_op_extractor<ov::frontend::onnx::NotSupportedONNXNode>(
+            [](const std::shared_ptr<ov::frontend::onnx::NotSupportedONNXNode>& node)
+                -> std::optional<ov::frontend::FrameworkNodeErrorInfo> {
+                const auto& attrs = node->get_attrs();
+                auto info = ov::frontend::build_framework_node_error_info(attrs,
+                                                                          std::string{},
+                                                                          std::string{},
+                                                                          ONNX_OPSET_VERSION_ATTR);
+                info.failure_message = node->additional_error_message();
+                return info;
+            })};
+    return extractors;
+}
+
+ov::frontend::UnconvertedOpMap collect_onnx_unconverted_ops(const std::shared_ptr<ov::Model>& model) {
+    return ov::frontend::collect_unconverted_ops(model, get_onnx_extractors());
+}
+
+void send_telemetry(const ov::frontend::UnconvertedOpMap& unconverted_ops,
+                    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry) {
+    if (!telemetry) {
+        return;
+    }
+    for (const auto& entry : unconverted_ops) {
+        if (entry.second.empty()) {
+            telemetry->send_event("error_cause", "onnx_" + entry.first);
+        } else {
+            telemetry->send_event("error_info", ov::util::filter_lines_by_prefix(entry.second, "[ONNX Frontend] "));
+        }
+    }
+}
+
+std::string build_failure_message(const ov::frontend::UnconvertedOpMap& unconverted_ops) {
+    return ov::frontend::format_unconverted_ops_report(unconverted_ops,
+                                                       std::string{},
+                                                       "[ONNX Frontend] Model wasn't fully converted.");
+}
 }  // namespace
 
 ONNX_FRONTEND_C_API ov::frontend::FrontEndVersion get_api_version() {
@@ -221,7 +273,8 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::Input
 
     const auto& converted_model = model_onnx->convert();
 
-    ov::frontend::onnx::common::collect_translation_exceptions(converted_model, m_extensions.telemetry);
+    const auto unconverted_ops = collect_onnx_unconverted_ops(converted_model);
+    send_telemetry(unconverted_ops, m_extensions.telemetry);
 
     normalize(converted_model);
     return converted_model;
@@ -262,13 +315,9 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& input_model)
 
     const auto& converted_model = model_onnx->convert();
 
-    std::stringstream error_messages;
-
-    if (ov::frontend::onnx::common::collect_translation_exceptions(converted_model,
-                                                                   m_extensions.telemetry,
-                                                                   &error_messages)) {
-        FRONT_END_THROW(error_messages.str());
-    }
+    const auto unconverted_ops = collect_onnx_unconverted_ops(converted_model);
+    send_telemetry(unconverted_ops, m_extensions.telemetry);
+    FRONT_END_OP_CONVERSION_CHECK(unconverted_ops.empty(), build_failure_message(unconverted_ops));
 
     normalize(converted_model);
     return converted_model;
@@ -382,10 +431,9 @@ std::shared_ptr<ov::Model> FrontEnd::convert_unify(const InputModel::Ptr& input_
 
     translate_graph(input_model, false, false, ov_model);
 
-    std::stringstream error_messages;
-    if (ov::frontend::onnx::common::collect_translation_exceptions(ov_model, m_extensions.telemetry, &error_messages)) {
-        FRONT_END_THROW(error_messages.str());
-    }
+    const auto unconverted_ops = collect_onnx_unconverted_ops(ov_model);
+    send_telemetry(unconverted_ops, m_extensions.telemetry);
+    FRONT_END_OP_CONVERSION_CHECK(unconverted_ops.empty(), build_failure_message(unconverted_ops));
 
     normalize(ov_model);
     return ov_model;
@@ -406,7 +454,8 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially_unify(const InputModel::P
     std::shared_ptr<ov::Model> ov_model;
     translate_graph(input_model, false, false, ov_model);
 
-    ov::frontend::onnx::common::collect_translation_exceptions(ov_model, m_extensions.telemetry);
+    const auto unconverted_ops = collect_onnx_unconverted_ops(ov_model);
+    send_telemetry(unconverted_ops, m_extensions.telemetry);
 
     normalize(ov_model);
     return ov_model;

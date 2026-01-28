@@ -21,6 +21,7 @@
 
 #include <fstream>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -36,6 +37,7 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
+#include "openvino/frontend/unconverted_ops_report.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "paddle_fw_node.hpp"
@@ -51,6 +53,9 @@ namespace ov {
 namespace frontend {
 namespace paddle {
 namespace {
+
+using ov::frontend::FrameworkNodeErrorInfo;
+using ov::frontend::UnconvertedOpExtractor;
 
 NamedOutputs make_ng_node(const std::map<paddle::TensorName, Output<Node>>& nodes,
                           const std::shared_ptr<OpPlace>& op_place,
@@ -139,6 +144,15 @@ bool normalize_framework_node(const std::shared_ptr<FrameworkNode>& node,
         }
     }
     return true;
+}
+
+const std::vector<UnconvertedOpExtractor>& get_unconverted_extractors() {
+    static const std::vector<UnconvertedOpExtractor> extractors{
+        ov::frontend::make_unconverted_op_extractor<FrameworkNode>(
+            [](const std::shared_ptr<FrameworkNode>& node) -> std::optional<FrameworkNodeErrorInfo> {
+                return ov::frontend::build_framework_node_error_info(node->get_attrs());
+            })};
+    return extractors;
 }
 
 std::istream* variant_to_stream_ptr(const ov::Any& variant, std::fstream& fs, std::stringstream& ss) {

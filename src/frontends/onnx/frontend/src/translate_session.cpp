@@ -124,13 +124,15 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
         const auto out_size = decoder->get_output_size();
         ov::OutputVector ov_outputs(out_size);
+        const auto opset_version = decoder->get_op_set();
         const Operator* translator =
-            m_translator_map->get_operator(decoder->get_domain(), decoder->get_op_type(), decoder->get_op_set());
+            m_translator_map->get_operator(decoder->get_domain(), decoder->get_op_type(), opset_version);
         ov::frontend::onnx::Node node_context(*decoder, this);
         std::string error_message{};
         try {
             if (translator == nullptr) {
-                ov_outputs = std::make_shared<ov::frontend::onnx::ONNXFrameworkNode>(node_context)->outputs();
+                ov_outputs =
+                    std::make_shared<ov::frontend::onnx::ONNXFrameworkNode>(node_context, opset_version)->outputs();
             } else {
                 ov_outputs = (*translator)(node_context);
             }
@@ -176,7 +178,8 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                                                                decoder->get_output_size(),
                                                                                decoder->get_domain(),
                                                                                decoder->get_op_type(),
-                                                                               error_message);
+                                                                               error_message,
+                                                                               static_cast<int64_t>(opset_version));
                 operation->set_friendly_name(decoder->get_op_name());
                 ov_outputs = operation->outputs();
             }
