@@ -12,7 +12,8 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestDict(PytorchLayerTest):
 
     def _prepare_input(self):
-        return (np.random.randn(2, 5, 3, 4).astype(np.float32),)
+        rng = np.random.default_rng(0)
+        return (rng.standard_normal((2, 5, 3, 4), dtype=np.float32),)
 
     def create_model(self):
         class aten_dict(torch.nn.Module):
@@ -41,8 +42,9 @@ class aten_dict_no_types(torch.nn.Module):
 class TestDictParam(PytorchLayerTest):
 
     def _prepare_input(self):
-        return ({"x1": np.random.randn(2, 5, 3, 4).astype(np.float32),
-                "x2": np.random.randn(2, 5, 3, 4).astype(np.float32)},)
+        rng = np.random.default_rng(0)
+        return ({"x1": rng.standard_normal((2, 5, 3, 4), dtype=np.float32),
+            "x2": rng.standard_normal((2, 5, 3, 4), dtype=np.float32)},)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -76,9 +78,10 @@ class aten_dict_mixed_inputs(torch.nn.Module):
 class TestDictParamMixed(PytorchLayerTest):
 
     def _prepare_input(self):
-        x1 = np.random.randn(1, 3, 4).astype(np.float32)
-        x2 = np.random.randn(1, 3, 4).astype(np.float32)
-        y = np.random.randn(1, 3, 4).astype(np.float32)
+        rng = np.random.default_rng(0)
+        x1 = rng.standard_normal((1, 3, 4), dtype=np.float32)
+        x2 = rng.standard_normal((1, 3, 4), dtype=np.float32)
+        y = rng.standard_normal((1, 3, 4), dtype=np.float32)
         return ({"x1": x1, "x2": x2}, y)
 
     @pytest.mark.nightly

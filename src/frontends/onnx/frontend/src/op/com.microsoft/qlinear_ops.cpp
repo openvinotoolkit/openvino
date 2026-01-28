@@ -41,9 +41,8 @@ ov::OutputVector qlinear_op(const ov::frontend::onnx::Node& node, BinaryOp binar
 
     auto C_scale = inputs[6];
 
-    auto C_zero_point = (common::is_input_valid(node, 7))
-                            ? inputs[7]
-                            : v0::Constant::create(C_scale.get_element_type(), {}, {0});
+    auto C_zero_point =
+        (common::is_input_valid(node, 7)) ? inputs[7] : v0::Constant::create(C_scale.get_element_type(), {}, {0});
 
     CHECK_VALID_NODE(
         node,
