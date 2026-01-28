@@ -5,6 +5,16 @@
 set(TARGET_NAME "openvino_npu_level_zero_backend")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
+
+if(NOT ENABLE_LLVM_BACKEND)
+    list(REMOVE_ITEM SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_dynamic_infer_request.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_dynamic_pipeline.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_dynamic_infer_request.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_dynamic_pipeline.cpp
+    )
+endif()
+
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
@@ -19,12 +29,14 @@ target_compile_definitions(${TARGET_NAME}
 target_include_directories(${TARGET_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../compiler_adapter/include>
 )
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         openvino_npu_common
         openvino::npu_al
+        openvino_npu_driver_compiler_adapter
 )
 #
 # targets install
