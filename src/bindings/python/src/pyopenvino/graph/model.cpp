@@ -554,7 +554,7 @@ void regclass_graph_Model(py::module m) {
                 }
             }
 
-            if (has_list) {                
+            if (has_list) {
                 is_multi_input_format = true;
             } else {
                 is_multi_input_format = !has_int;
