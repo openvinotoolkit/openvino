@@ -39,6 +39,9 @@ struct paged_attention : public primitive_base<paged_attention> {
         ADAPTIVE_RKV_EVICTABLE_SIZES = 22,
         ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES = 23,
         ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS = 24,
+        QQ_BIAS = 25,
+        BLOCK_UPDATE_INDICES = 26,
+        BLOCK_UPDATE_INDICES_BEGINS = 27
     };
 
     static constexpr size_t block_size = 16;
@@ -49,7 +52,7 @@ struct paged_attention : public primitive_base<paged_attention> {
     paged_attention(const primitive_id& id,
                     const std::vector<input_info>& inputs)
         : primitive_base(id, inputs) {
-        OPENVINO_ASSERT((inputs.size() == 25),
+        OPENVINO_ASSERT((inputs.size() == 28),
                         "[GPU] Unexpected inputs number for PagedAttention primitive: ",
                         inputs.size());
     }
@@ -162,5 +165,6 @@ struct paged_attention : public primitive_base<paged_attention> {
     bool has_sink_input = false;
     bool has_adaptive_rkv = false;
     bool is_key_by_channel = false;
+    bool has_qq_bias = false;
 };
 }  // namespace cldnn

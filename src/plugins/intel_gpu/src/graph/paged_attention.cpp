@@ -162,6 +162,14 @@ paged_attention_inst::typed_primitive_inst(network& network, const paged_attenti
         OPENVINO_ASSERT(heads_num == alibi_layout.count(), "[GPU] ALiBi layout count must match heads_num");
     }
 
+    // Validate qq_bias input (uint8, dynamic shape) if present
+    if (desc->has_qq_bias) {
+        const auto qq_bias_input_idx = cldnn::paged_attention::PagedAttentionInputIdx::QQ_BIAS;
+        const auto& qq_bias_layout = node.get_input_layout(qq_bias_input_idx);
+        OPENVINO_ASSERT(qq_bias_layout.data_type == ov::element::u8,
+            "[GPU] qq_bias input must be uint8");
+    }
+
     OPENVINO_ASSERT(heads_num % kv_heads_num == 0, "[GPU] heads_num must be divisible by kv_heads_num");
     if (!desc->has_xattention) {
         OPENVINO_ASSERT(k_head_size % pa_block_size == 0, "[GPU] k_head_size must be divisible by block_size");
