@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
@@ -66,18 +67,11 @@ static std::shared_ptr<ov::Node> createAdd(const ov::Output<ov::Node>& input1,
 static std::shared_ptr<ov::op::v0::FakeQuantize> createFakeQuantize(const ov::Output<ov::Node>& input,
                                                                     ov::element::Type input_type,
                                                                     size_t levels = 256) {
-    auto ranges = input_type == ov::element::i8 ? std::vector<float>{-128.0f, 127.0f, -128.0f, 127.0f}
-                                        : std::vector<float>{0.0f, 255.0f, 0.0f, 255.0f};
-    auto input_low = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, ranges[0]);
-    auto input_high = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, ranges[1]);
-    auto output_low = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, ranges[2]);
-    auto output_high = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, ranges[3]);
-    return std::make_shared<ov::op::v0::FakeQuantize>(input,
-                                                      input_low,
-                                                      input_high,
-                                                      output_low,
-                                                      output_high,
-                                                      levels);
+    const bool is_signed = input_type == ov::element::i8;
+    const float low = is_signed ? -128.0f : 0.0f;
+    const float high = is_signed ? 127.0f : 255.0f;
+    return ov::as_type_ptr<ov::op::v0::FakeQuantize>(
+        ov::test::utils::make_fake_quantize(input, input_type, levels, {}, {low}, {high}, {low}, {high}));
 }
 
 // Pattern: Input -> Convolution -> Add(bias) -> Multiply -> FQ -> Result

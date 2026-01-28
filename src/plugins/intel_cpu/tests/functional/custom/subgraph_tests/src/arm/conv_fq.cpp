@@ -21,13 +21,13 @@ struct QuantizationParams {
     std::vector<size_t> fqConstShapes;          // fq constant shapes
     element::Type expectedPrecision;            // convolution expected precision
     bool perChannelWeightsScale;                // use per-channel scale on weights
-    bool withBias;                              // bias presence
 };
 
 typedef std::tuple<
         InputShape,                        // input shape
         element::Type,                     // input precision
         QuantizationParams,                // quantization parameters
+        bool,                              // bias presence
         std::string                        // device name
 > ConvAndFQTestParams;
 
@@ -35,7 +35,7 @@ class ConvAndFQ : public testing::WithParamInterface<ConvAndFQTestParams>,
                   virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvAndFQTestParams>& obj) {
-        const auto& [inputShape, inputPrecision, quantizationParams, targetName] = obj.param;
+        const auto& [inputShape, inputPrecision, quantizationParams, withBias, targetName] = obj.param;
         std::ostringstream results;
 
         results << "IS=" << inputShape << "_InPRC=" << inputPrecision
@@ -44,7 +44,7 @@ public:
             results << ov::util::vector_to_string(vecInt) << ",";
         }
         results << "_fqShapes=" << ov::util::vector_to_string(quantizationParams.fqConstShapes)
-                << "_withBias=" << quantizationParams.withBias
+                << "_withBias=" << withBias
                 << "_perChannelWeightsScale=" << quantizationParams.perChannelWeightsScale
                 << "_targetDevice=" << targetName;
 
@@ -53,7 +53,7 @@ public:
 
 protected:
     void SetUp() override {
-        const auto& [inputShape, inputPrecision, quantizationParams, targetName] = this->GetParam();
+        const auto& [inputShape, inputPrecision, quantizationParams, withBias, targetName] = this->GetParam();
         abs_threshold = 4e-3f;
         targetDevice = targetName;
         std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type};
@@ -109,7 +109,7 @@ protected:
         }
 
         auto fqInput = conv;
-        if (quantizationParams.withBias) {
+        if (withBias) {
             auto bias = ov::test::utils::make_constant(ov::element::f16, ov::Shape({1, 4, 1, 1}));
             auto convertBias = std::make_shared<op::v0::Convert>(bias, element::f32);
             auto convBiasAdd = std::make_shared<ov::op::v1::Add>(conv, convertBias);
@@ -157,7 +157,7 @@ protected:
 TEST_P(ConvAndFQ, CompareWithRefs) {
     run();
 
-    const auto& [inputShape, inputPrecision, quantizationParams, targetName] = this->GetParam();
+    const auto& [inputShape, inputPrecision, quantizationParams, withBias, targetName] = this->GetParam();
     checkConvolutionPrecision(quantizationParams.expectedPrecision);
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
@@ -176,12 +176,9 @@ const element::Type expectedConvPrecByUnsignedFQRange = element::f32;
 #endif
 
 std::vector<QuantizationParams> quantizationParams{
-    {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange, false, false}, //i8, per-tensor
-    {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange, false, true},  //i8, per-tensor, with bias
-    {{{0.f}, {2.55f}, {0.f}, {2.55f}}, {}, expectedConvPrecByUnsignedFQRange, false, false},     //u8, per-tensor
-    {{{0.f}, {2.55f}, {0.f}, {2.55f}}, {}, expectedConvPrecByUnsignedFQRange, false, true},      //u8, per-tensor, with bias
-    {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange, true, false},  //i8, per channel
-    {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange, true, true},   //i8, per channel, with bias
+    {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange, false}, //i8, per-tensor
+    {{{0.f}, {2.55f}, {0.f}, {2.55f}}, {}, expectedConvPrecByUnsignedFQRange, false},    //u8, per-tensor
+    {{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}}, {}, expectedConvPrecBySignedFQRange, true}, //i8, per channel
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_CPU,
@@ -189,6 +186,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_CPU,
                          ::testing::Combine(::testing::ValuesIn(inputShapes),
                                             ::testing::Values(element::f32),
                                             ::testing::ValuesIn(quantizationParams),
+                                            ::testing::Values(false, true),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ConvAndFQ::getTestCaseName);
 }  // namespace
