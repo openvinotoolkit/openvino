@@ -32,27 +32,27 @@ public:
         const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType] = convParams;
 
         std::ostringstream result;
-        result << "IS=";
-        result  << ov::test::utils::partialShape2str({inputShape.first}) << "_";
-        result << "TS=(";
+        result << "InputShape=";
+        result  << ov::test::utils::partialShape2str({inputShape.first}) << " ";
+        result << "TransformedInputShape=(";
         for (const auto& shape : inputShape.second) {
-            result << ov::test::utils::vec2str(shape) << "_";
+            result << ov::test::utils::vec2str(shape) << " ";
         }
-        result << ")_";
+        result << ") ";
         if (is_ReduceSum_test)
-            result << "K" << ov::test::utils::vec2str(std::vector<size_t>{inputShape.second[0].at(-2), inputShape.second[0].at(-1)}) << "_";
+            result << "Kernel" << ov::test::utils::vec2str(std::vector<size_t>{inputShape.second[0].at(-2), inputShape.second[0].at(-1)}) << "_";
         else
-            result << "K" << ov::test::utils::vec2str(kernel) << "_";
-        result << "S" << ov::test::utils::vec2str(stride) << "_";
-        result << "PB" << ov::test::utils::vec2str(padBegin) << "_";
-        result << "PE" << ov::test::utils::vec2str(padEnd) << "_";
-        result << "D=" << ov::test::utils::vec2str(dilation) << "_";
-        result << "O=" << convOutChannels << "_";
-        result << "AP=" << padType << "_";
-        result << "netPRC=" << netType << "_";
-        result << "inPRC=" << inType << "_";
-        result << "outPRC=" << outType << "_";
-        result << "is_ReduceSum_test=" << is_ReduceSum_test << "_";
+            result << "Kernel" << ov::test::utils::vec2str(kernel) << " ";
+        result << "Stride" << ov::test::utils::vec2str(stride) << " ";
+        result << "PadBegin" << ov::test::utils::vec2str(padBegin) << " ";
+        result << "PadEnd" << ov::test::utils::vec2str(padEnd) << " ";
+        result << "Dilation" << ov::test::utils::vec2str(dilation) << " ";
+        result << "Out_Shape=" << convOutChannels << " ";
+        result << "AutoPad=" << padType << " ";
+        result << "netPrecision=" << netType << " ";
+        result << "inPrecision=" << inType << " ";
+        result << "outPrecision=" << outType << " ";
+        result << "is_ReduceSum_test=" << is_ReduceSum_test << " ";
         result << "trgDev=" << targetDevice;
 
         return result.str();
@@ -108,6 +108,40 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_3D_tensor_basic,
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(InputShape{{}, {{1, 13, 30}}}),
+                                            ::testing::Values(false),
+                                            ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
+                         ConvolutionLayerGPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_3D_tensor_basic_explicit,
+                         ConvolutionLayerGPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::Values(std::vector<size_t>{128}),
+                                                               ::testing::Values(std::vector<size_t>{1}),
+                                                               ::testing::Values(std::vector<ptrdiff_t>{0}),
+                                                               ::testing::Values(std::vector<ptrdiff_t>{0}),
+                                                               ::testing::Values(std::vector<size_t>{1}),
+                                                               ::testing::Values(2),
+                                                               ::testing::Values(ov::op::PadType::EXPLICIT)),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(InputShape{{}, {{2,128,4096}}}),
+                                            ::testing::Values(false),
+                                            ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
+                         ConvolutionLayerGPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_3D_tensor_basic_explicit_pad2x1,
+                         ConvolutionLayerGPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::Values(std::vector<size_t>{3}),
+                                                               ::testing::Values(std::vector<size_t>{1}),
+                                                               ::testing::Values(std::vector<ptrdiff_t>{2}),
+                                                               ::testing::Values(std::vector<ptrdiff_t>{2}),
+                                                               ::testing::Values(std::vector<size_t>{1}),
+                                                               ::testing::Values(13),
+                                                               ::testing::Values(ov::op::PadType::EXPLICIT)),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::f16),
                                             ::testing::Values(InputShape{{}, {{1, 13, 30}}}),
                                             ::testing::Values(false),
                                             ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
