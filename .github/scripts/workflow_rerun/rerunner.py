@@ -116,5 +116,11 @@ if __name__ == '__main__':
             response = session.post(url=f'https://api.github.com/repos/{repository_name}/actions/runs/{run_id}/rerun-failed-jobs',
                                     headers={'Authorization': f'Bearer {GITHUB_TOKEN}'})
             response.raise_for_status()
+
+            LOGGER.info(f'RUN RETRIGGERED SUCCESSFULLY: {run.html_url}')
+            record_rerun_to_db(repository_name, run_id,
+                               log_analyzer.found_error_ticket,
+                               rerunner_run_id,
+                               log_analyzer.matched_error_text)
         else:
             LOGGER.info(f'NO ERROR WAS FOUND, NOT RETRIGGERING')
