@@ -102,13 +102,15 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
     VERIFY(srcDesc->getShape().getRank() == 4 && weiDesc->getShape().getRank() == 4, UNSUPPORTED_BY_EXECUTOR);
     // isQuantized verifies whether src is u8/i8, weights is i8 and FQ is fused if dst is u8/i8
     // the last requirement is due to ACL int32 accumulation that needs to be requantized by non-trivial scales
-    const bool quantizedSrc = any_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8);
-    const bool quantizedDst = any_of(dstDesc->getPrecision(), ov::element::u8, ov::element::i8);
     const bool hasQuantizationPostOp = std::any_cast<FakeQuantizePostOp>(config.attrs.postOps.data()) != nullptr;
-    bool isQuantized =
-        quantizedSrc && weiDesc->getPrecision() == ov::element::i8 && (!quantizedDst || hasQuantizationPostOp);
-
-    VERIFY(isQuantized, UNSUPPORTED_SRC_PRECISIONS);
+    const bool isQuantizedU8 =
+        srcDesc->getPrecision() == ov::element::u8 &&
+        any_of(weiDesc->getPrecision(), ov::element::u8, ov::element::i8) &&
+        dstDesc->getPrecision() == ov::element::u8 && hasQuantizationPostOp;
+    const bool isQuantizedI8 = srcDesc->getPrecision() == ov::element::i8 &&
+                               weiDesc->getPrecision() == ov::element::i8 &&
+                               dstDesc->getPrecision() == ov::element::i8 && hasQuantizationPostOp;
+    VERIFY(isQuantizedU8 || isQuantizedI8, UNSUPPORTED_BY_EXECUTOR);
     if (config.attrs.withBias) {
         VERIFY(config.descs.at(ARG_BIAS)->getPrecision() == ov::element::i32, UNSUPPORTED_BIAS_PRECISIONS);
     }

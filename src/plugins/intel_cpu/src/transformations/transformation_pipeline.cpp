@@ -348,14 +348,12 @@ bool Transformations::match_conv_add_mul_fq(const_node_ptr& node) {
 bool Transformations::match_fq_mul_conv_bias_same_types(const_node_ptr& node) {
     auto conv_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>();
     auto conv_or_bias_m = ov::pass::pattern::optional<ov::op::v1::Add>({conv_m, ov::pass::pattern::any_input()});
-    auto mul_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>(
-        {conv_or_bias_m, ov::pass::pattern::any_input()});
-    auto fq_m = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>(
-        {mul_m,
-         ov::pass::pattern::any_input(),
-         ov::pass::pattern::any_input(),
-         ov::pass::pattern::any_input(),
-         ov::pass::pattern::any_input()});
+    auto mul_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({conv_or_bias_m, ov::pass::pattern::any_input()});
+    auto fq_m = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({mul_m,
+                                                                        ov::pass::pattern::any_input(),
+                                                                        ov::pass::pattern::any_input(),
+                                                                        ov::pass::pattern::any_input(),
+                                                                        ov::pass::pattern::any_input()});
     ov::pass::pattern::Matcher matcher(fq_m);
     if (!matcher.match(std::const_pointer_cast<ov::Node>(node))) {
         return false;
@@ -1046,8 +1044,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
                 return false;
             }
 
-            const auto weights_m =
-                ov::pass::pattern::any_input(ov::pass::pattern::shape_matches("OC, IC, 3, 3"));
+            const auto weights_m = ov::pass::pattern::any_input(ov::pass::pattern::shape_matches("OC, IC, 3, 3"));
             ov::pass::pattern::Matcher matcher(weights_m);
             if (!matcher.match(conv->input_value(1))) {
                 return false;
