@@ -7,7 +7,6 @@
 #include <memory>
 #include <string>
 
-#include "compiler_impl.hpp"
 #include "graph.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
@@ -26,25 +25,6 @@
 #include "weightless_utils.hpp"
 
 namespace {
-
-std::shared_ptr<intel_npu::ICompiler> get_compiler(std::shared_ptr<void> so) {
-    static constexpr auto CreateFuncName = "CreateNPUCompiler";
-    auto symbol = ov::util::get_symbol(so, CreateFuncName);
-
-    using CreateFuncT = void (*)(std::shared_ptr<intel_npu::ICompiler>&);
-    const auto createFunc = reinterpret_cast<CreateFuncT>(symbol);
-
-    std::shared_ptr<intel_npu::ICompiler> compilerPtr;
-    createFunc(compilerPtr);
-    return compilerPtr;
-}
-
-ov::SoPtr<intel_npu::ICompiler> load_compiler(const std::filesystem::path& libpath) {
-    auto compilerSO = ov::util::load_shared_object(libpath);
-    auto compiler = get_compiler(compilerSO);
-
-    return ov::SoPtr<intel_npu::ICompiler>(compiler, compilerSO);
-}
 
 ov::Tensor make_tensor_from_vector(std::vector<uint8_t>& vector) {
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{vector.size()}, vector.data());
@@ -71,22 +51,9 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
         auto vclLib = vclCompilerPtr->getLinkedLibrary();
         _logger.info("PLUGIN VCL compiler is loading");
         OPENVINO_ASSERT(vclLib != nullptr, "VCL library is nullptr");
-        _compiler = ov::SoPtr<intel_npu::ICompiler>(vclCompilerPtr, vclLib);
+        _compiler = ov::SoPtr<VCLCompilerImpl>(vclCompilerPtr, vclLib);
     } catch (const std::exception& vcl_exception) {
-        _logger.info("VCL compiler load failed: %s. Trying to load MLIR compiler...", vcl_exception.what());
-        std::string baseName = "npu_mlir_compiler";
-        auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
-        try {
-            _compiler = load_compiler(libPath);
-            if (!_compiler) {
-                throw std::runtime_error("MLIR compiler load returned nullptr");
-            } else {
-                _logger.info("MLIR compiler loaded successfully. PLUGIN compiler will be used.");
-            }
-        } catch (const std::exception& mlir_exception) {
-            _logger.info("MLIR compiler load failed: %s", mlir_exception.what());
-            throw std::runtime_error("Both VCL and MLIR compiler load failed, aborting.");
-        }
+        OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vcl_exception.what());
     }
 
     if (_zeroInitStruct == nullptr) {

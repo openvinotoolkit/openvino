@@ -158,7 +158,7 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
                                  const std::shared_ptr<const ov::Model>& model,
                                  const Config& config,
                                  const bool blobIsPersistent,
-                                 const ov::SoPtr<ICompiler>& compiler)
+                                 const ov::SoPtr<VCLCompilerImpl>& compiler)
     : Graph(zeGraphExt,
             zeroInitStruct,
             mainGraphDesc,
