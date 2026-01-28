@@ -57,12 +57,10 @@ ov::OutputVector fusedgemm(const ov::frontend::onnx::Node& node) {
         double activation_alpha = node.get_attribute_value<double>("activation_alpha", 0.01);
         std::shared_ptr<ov::Node> activation_alpha_node =
             v0::Constant::create(input_c.get_element_type(), ov::Shape{1}, {activation_alpha});
-        auto activation = std::make_shared<v0::PRelu>(gemm_res, activation_alpha_node);
-        return {activation->output(0)};
+        return {std::make_shared<v0::PRelu>(gemm_res, activation_alpha_node)};
     }
     CHECK_VALID_NODE(node, activation_type == "Relu", "Unsupported activation type for FusedGemm: ", activation_type);
-    auto activation = std::make_shared<v0::Relu>(gemm_res);
-    return {activation->output(0)};
+    return {std::make_shared<v0::Relu>(gemm_res)};
 }
 
 ONNX_OP("FusedGemm", OPSET_SINCE(1), com_microsoft::opset_1::fusedgemm, MICROSOFT_DOMAIN);

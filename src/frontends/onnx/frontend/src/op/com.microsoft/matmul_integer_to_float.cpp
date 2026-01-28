@@ -63,7 +63,7 @@ ov::OutputVector matmulintegertofloat(const ov::frontend::onnx::Node& node) {
 
     const auto matmul_result = std::make_shared<ov::op::v0::MatMul>(a_scaled, b_scaled);
 
-    if (inputs.size() > 6 && !ov::op::util::is_null(inputs[6])) {
+    if (common::is_input_valid(node, 6)) {
         auto& bias = inputs[6];
         const auto bias_shape = bias.get_partial_shape();
         CHECK_VALID_NODE(node,

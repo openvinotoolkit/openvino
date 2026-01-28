@@ -41,7 +41,7 @@ ov::OutputVector qlinear_activation(const ov::frontend::onnx::Node& node, const 
     auto input_zero_point =
         ov::op::util::is_null(inputs[2]) ? v0::Constant::create(input_tensor.get_element_type(), {}, {0}) : inputs[2];
     auto output_scale = inputs[3];
-    auto output_zero_point = (inputs.size() > 4 && !ov::op::util::is_null(inputs[4]))
+    auto output_zero_point = (common::is_input_valid(node, 4))
                                  ? inputs[4]
                                  : v0::Constant::create(input_tensor.get_element_type(), {}, {0});
 
