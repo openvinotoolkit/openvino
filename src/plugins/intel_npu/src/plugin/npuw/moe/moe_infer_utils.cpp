@@ -268,6 +268,8 @@ RequestCache::RequestCache(size_t num_layers, size_t pool_size_per_layer) : m_po
     m_cache_lookup.resize(num_layers);
     m_free_list.resize(num_layers);
     m_lru_index.resize(num_layers);
+
+    m_report_on_die = ov::npuw::profiling_enabled();
 }
 
 RequestCache::~RequestCache() {
@@ -394,7 +396,7 @@ std::pair<uint64_t, uint64_t> RequestCache::get_statistics() const {
 }
 
 void RequestCache::print_statistics() const {
-    if (m_total_queries > 0) {
+    if (m_total_queries > 0 && m_report_on_die) {
         double hit_rate = static_cast<double>(m_cache_hits) / m_total_queries * 100.0;
         std::cout << "[MoE Cache Statistics]" << std::endl;
         std::cout << "  Total Queries: " << m_total_queries << std::endl;
