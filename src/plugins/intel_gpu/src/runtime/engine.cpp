@@ -10,6 +10,9 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include "ocl/ocl_engine_factory.hpp"
+#ifdef OV_GPU_WITH_SYCL
+#include "sycl/sycl_engine_factory.hpp"
+#endif  // OV_GPU_WITH_SYCL
 
 #include <string>
 #include <vector>
@@ -259,7 +262,7 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_
     switch (engine_type) {
 #ifdef OV_GPU_WITH_SYCL
     case engine_types::sycl:
-        ret = ocl::create_sycl_engine(device, runtime_type);
+        ret = sycl::create_sycl_engine(device, runtime_type);
         break;
 #endif  // OV_GPU_WITH_SYCL
     case engine_types::ocl:

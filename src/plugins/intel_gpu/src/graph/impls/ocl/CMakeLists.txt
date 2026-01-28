@@ -9,3 +9,5 @@ ov_gpu_add_backend_target(
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH)
+
+add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES kernels_cache.cpp)
