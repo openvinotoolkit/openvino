@@ -63,12 +63,12 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
                 auto num_out_m_1 =
                     v0::Constant::create(split_size.get_element_type(), Shape{1}, {list_unpack->get_output_size() - 1});
                 auto const_neg_1 = v0::Constant::create(split_size.get_element_type(), Shape{1}, {-1});
-                auto split_lenghts_m_1 = rg.make<v0::Tile>(split_size, num_out_m_1);
-                NodeVector concat_inputs{split_lenghts_m_1, const_neg_1};
-                auto split_lenghts = rg.make<v0::Concat>(concat_inputs, 0);
+                auto split_lengths_m_1 = rg.make<v0::Tile>(split_size, num_out_m_1);
+                NodeVector concat_inputs{split_lengths_m_1, const_neg_1};
+                auto split_lengths = rg.make<v0::Concat>(concat_inputs, 0);
                 split = rg.make<v1::VariadicSplit>(torch_split->get_input_source_output(0),
                                                    torch_split->get_input_source_output(2),
-                                                   split_lenghts);
+                                                   split_lengths);
             } else {
                 split = rg.make<v1::VariadicSplit>(torch_split->get_input_source_output(0),
                                                    torch_split->get_input_source_output(2),

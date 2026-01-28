@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cmath"
+#include <cmath>
+#include <numeric>
+
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
@@ -50,10 +52,6 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
 
     const uint64_t expected_b_size = N * n_blocks_per_col * blob_size;
     const auto& b_shape = b_quantized.get_partial_shape();
-    uint64_t actual_b_size = 1;
-    for (const auto& d : b_shape) {
-        actual_b_size *= d.get_length();
-    }
 
     CHECK_VALID_NODE(node, n_blocks_per_col > 0, "Wrong blocks count: ", n_blocks_per_col);
     CHECK_VALID_NODE(node, blob_size > 0, "Wrong blob size: ", blob_size);
@@ -63,7 +61,15 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                      "MatMulNBits limitation: accepting only a constant as a B input");
     CHECK_VALID_NODE(
         node,
-        b_shape.is_static() && actual_b_size == expected_b_size,
+        b_shape.is_static(),
+        "Expected input B shape is static and compatible with shape [N][n_blocks_per_col][blob_size], got: ",
+        b_shape);
+    const auto& b_shape_static = b_shape.get_shape();
+    const uint64_t actual_b_size =
+        std::accumulate(b_shape_static.begin(), b_shape_static.end(), uint64_t{1}, std::multiplies<uint64_t>{});
+    CHECK_VALID_NODE(
+        node,
+        actual_b_size == expected_b_size,
         "Expected input B shape is static and compatible with shape [N][n_blocks_per_col][blob_size], got: ",
         b_shape);
     CHECK_VALID_NODE(node,
@@ -74,11 +80,11 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
     CHECK_VALID_NODE(
         node,
         b_quantized.get_element_type() == ov::element::u8 || b_quantized.get_element_type() == ov::element::i32,
-        "Unsupported input B type, accepted FP16, FP32, got: ",
+        "Unsupported input B type, accepted U8 or I32, got: ",
         b_quantized.get_element_type());
 
     CHECK_VALID_NODE(node,
-                     block_size >= 16 && (block_size % 2 == 0),
+                     block_size >= 16 && (block_size & (block_size - 1)) == 0,
                      "Wrong block size, should be >=16 and be a power of 2, got: ",
                      block_size);
     CHECK_VALID_NODE(node, accuracy_level >= 0 && accuracy_level <= 4, "Unsupported accuracy level: ", accuracy_level);
@@ -183,16 +189,23 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
 
             const auto zero_points_const = ov::as_type_ptr<v0::Constant>(zero_points.get_node_shared_ptr());
             if (zero_points.get_element_type() == a.get_element_type()) {
-                const uint64_t expected_zp_size = N * n_blocks_per_col * 1;
+                const uint64_t expected_zp_size = N * n_blocks_per_col;
                 const auto& zp_shape = zero_points.get_partial_shape();
-                uint64_t actual_zp_size = 1;
-                for (const auto& d : zp_shape) {
-                    actual_zp_size *= d.get_length();
-                }
                 CHECK_VALID_NODE(node,
-                                 zp_shape.is_static() && actual_zp_size == expected_zp_size,
+                                 zp_shape.is_static(),
                                  "Expected input Zero Point shape is static and compatible with shape "
                                  "[N][n_blocks_per_col][1], got: ",
+                                 zp_shape);
+
+                const auto zp_shape_static = zp_shape.get_shape();
+                uint64_t actual_zp_size = 1;
+                for (const auto dim : zp_shape_static) {
+                    actual_zp_size *= dim;
+                }
+                CHECK_VALID_NODE(node,
+                                 actual_zp_size == expected_zp_size,
+                                 "Expected input Zero Point shape is compatible with shape [N][n_blocks_per_col][1], "
+                                 "got: ",
                                  zp_shape);
 
                 ov::Shape casted_zp_shape = ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1};
@@ -225,12 +238,12 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
             }
         }
 
-        // Possible issue with slice implementation, had to move convertion before slice, instead of slicing uint4
+        // Possible issue with slice implementation, had to move conversion before slice, instead of slicing uint4
         // TODO: Ticket
         // Comments: it is still there, so need to convert b to fp16 first.
 
         // TODO: Need to collect performance data in case constant folding is applied. Possible some perf/mem-gap
-        // Comments: in this latest code, the const folding is gone, it trigle the oneDNN kernel
+        // Comments: in this latest code, the const folding is gone; it triggers the oneDNN kernel
         //           and use u2/u4/u8 weights as the kernel's input, won't do const folding anymore.
 
         // use fp16 for compute
