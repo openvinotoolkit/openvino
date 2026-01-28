@@ -83,8 +83,8 @@ CM_INLINE void quantize_and_store(vector_ref<half, HEAD_SIZE> data, uchar* out, 
             scale_val = float(0.0);
             zp_val = max_val;
         } else {
-            scale_val = 255.0 / (max_val - min_val);
-            zp_val = (0.0 - min_val) * scale_val;
+            scale_val = half(255.0) / (max_val - min_val);
+            zp_val = (half(0.0) - min_val) * scale_val;
         }
         vector<half, HEAD_SIZE>  dequant_data = cm_mul<half>(data, scale_val) + zp_val;
         vector<uchar, HEAD_SIZE> data_u8 = cm_rnde<uchar, HEAD_SIZE>(dequant_data);
@@ -92,7 +92,7 @@ CM_INLINE void quantize_and_store(vector_ref<half, HEAD_SIZE> data, uchar* out, 
         store_kvcache<uchar, HEAD_SIZE>(reinterpret_cast<svmptr_t>(out + out_offset + token_pos * HEAD_SIZE), 0, data_u8);
 
         half *out_scale_zp = (half*)(out + scale_offset);
-        out_scale_zp[0] = (max_val - min_val) / 255.0;
+        out_scale_zp[0] = (max_val - min_val) / half(255.0);
         out_scale_zp[PAGED_ATTENTION_BLOCK_SIZE] = zp_val;
 }
 #endif
