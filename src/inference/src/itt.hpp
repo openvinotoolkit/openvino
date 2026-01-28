@@ -18,6 +18,9 @@ namespace domains {
 OV_ITT_DOMAIN(OV, "ov");
 OV_ITT_DOMAIN(ReadTime, "ov::ReadTime");
 OV_ITT_DOMAIN(LoadTime, "ov::LoadTime");
+// Domain used for marking phases in the runtime
+// DO NOT MODIFY OR DELETE!
+OV_ITT_DOMAIN(Phases, "ov::phases");
 }  // namespace domains
 }  // namespace itt
 }  // namespace ov
