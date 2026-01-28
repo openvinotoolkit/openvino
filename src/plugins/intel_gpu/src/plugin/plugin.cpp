@@ -561,6 +561,19 @@ bool Plugin::is_metric(const std::string& name) const {
 
 ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::get_metric");
+    if (name == ov::model_name) {
+        return decltype(ov::model_name)::value_type{};
+    } else if (name == ov::execution_devices) {
+        decltype(ov::execution_devices)::value_type execution_devices;
+        auto execution_device = get_device_name();
+        auto device_id = get_device_id(options);
+        if (!device_id.empty()) {
+            execution_device += "." + device_id;
+        }
+        execution_devices.emplace_back(execution_device);
+        return execution_devices;
+    }
+
     auto device_id = get_property(ov::device::id.name(), options).as<std::string>();
 
     auto iter = m_device_map.find(std::to_string(cldnn::device_query::device_id));
@@ -658,7 +671,19 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         info.bus = device_info.pci_info.pci_bus;
         info.device = device_info.pci_info.pci_device;
         info.function = device_info.pci_info.pci_function;
-        return decltype(ov::device::pci_info)::value_type {info};
+        return decltype(ov::device::pci_info)::value_type{info};
+    } else if (name == ov::optimal_number_of_infer_requests) {
+        auto config_it = m_configs_map.find(device_id);
+        if (config_it == m_configs_map.end()) {
+            config_it = m_configs_map.find(m_default_device_id);
+        }
+        OPENVINO_ASSERT(config_it != m_configs_map.end(), "[GPU] get_property: Couldn't find config for GPU with id ", device_id);
+        const auto& config = config_it->second;
+        unsigned int optimal = config.get_num_streams();
+        if (config.get_performance_mode() != ov::hint::PerformanceMode::LATENCY) {
+            optimal *= 2;
+        }
+        return decltype(ov::optimal_number_of_infer_requests)::value_type{optimal};
     } else {
         OPENVINO_THROW("Unsupported metric key ", name);
     }
@@ -683,6 +708,9 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         // Metrics
         ov::PropertyName{ov::supported_properties.name(), PropertyMutability::RO},
         ov::PropertyName{ov::available_devices.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::model_name.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::optimal_number_of_infer_requests.name(), PropertyMutability::RO},
         ov::PropertyName{ov::range_for_async_infer_requests.name(), PropertyMutability::RO},
         ov::PropertyName{ov::range_for_streams.name(), PropertyMutability::RO},
         ov::PropertyName{ov::optimal_batch_size.name(), PropertyMutability::RO},
@@ -717,6 +745,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::cache_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::execution_mode.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::log::level.name(), PropertyMutability::RW},
         ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RW},
         ov::PropertyName{ov::num_streams.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RW},
