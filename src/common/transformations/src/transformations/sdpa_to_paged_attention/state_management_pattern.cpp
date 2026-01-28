@@ -117,9 +117,6 @@ static std::shared_ptr<ov::Node> handle_general_alibi(const std::shared_ptr<ov::
 }
 
 static std::shared_ptr<ov::Node> handle_jais_13b_alibi(const std::shared_ptr<ov::Node>& matched_jais_13b_alibi_slopes) {
-    auto alibi_constant = ov::as_type_ptr<v0::Constant>(matched_jais_13b_alibi_slopes);
-    const auto data = alibi_constant->cast_vector<float>();
-
     // At the beginning, handling of jais13's alibi is the same as the general case
     std::shared_ptr<ov::Node> res_alibi_slopes = handle_general_alibi(matched_jais_13b_alibi_slopes);
 
