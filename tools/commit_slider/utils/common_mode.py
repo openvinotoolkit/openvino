@@ -203,8 +203,11 @@ class Mode(ABC):
             commitList = [{
                 'id': int(list.index(item.cHash)),
                 'hash': item.cHash,
-                'throughput': self.getCommitIfCashed(item.cHash)[1]
-            } for i, item in enumerate(self.commitPath.getList())]
+                'throughput': self.getCommitIfCashed(item.cHash)[1],
+                'status': item.state
+            } for i, item in enumerate(self.commitPath.getList()) if \
+                item.state in [self.CommitPath.CommitState.BREAK, \
+                    self.CommitPath.CommitState.DEFAULT]]
             commitList = sorted(
                 commitList,
                 key=lambda el: el['id']
@@ -298,8 +301,11 @@ class Mode(ABC):
                 self.state = state
 
         def append(self, commit: PathCommit):
-            if commit.cHash not in [x.cHash for x in self.commitList]:
-                self.commitList.append(commit)
+            for x in self.commitList:
+                if x.cHash == commit.cHash:
+                    x.setupState(commit.state)
+                    return
+            self.commitList.append(commit)
 
         def changeState(self, commit: str, state: CommitState):
             if commit in [x.cHash for x in self.commitList]:
