@@ -177,7 +177,6 @@ xfail_issue_139938 = xfail_test(reason = "QLinearMatMul accuracy fails")
 skip_issue_119896 = pytest.mark.skip(reason="Unsupported element type: FLOAT8")
 
 # ONNX 1.18
-xfail_issue_171766 = pytest.mark.skip(reason="Unsupported feature: Attention")
 xfail_issue_171767 = pytest.mark.skip(reason="Unsupported element type: FLOAT4E2M1")
 xfail_issue_171768 = pytest.mark.skip(reason="Unsupported feature: RMSNormalization")
 xfail_issue_171770 = pytest.mark.skip(reason="Unsupported feature: RotaryEmbedding")
