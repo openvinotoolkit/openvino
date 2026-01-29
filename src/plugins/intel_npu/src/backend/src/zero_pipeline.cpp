@@ -92,10 +92,11 @@ Pipeline::Pipeline(const Config& config,
         }
     }
 
+    std::vector<unsigned char*> input_addresses(input_tensors.size());
     _command_lists.reserve(_number_of_command_lists);
     for (size_t i = 0; i < _number_of_command_lists; i++) {
         _command_lists.emplace_back(
-            std::make_unique<CommandList>(_init_structs, _graph->get_command_queue_group_ordinal()));
+            std::make_unique<CommandList>(_init_structs, _graph->get_command_queue_group_ordinal(), input_addresses));
     }
 
     if (_sync_output_with_fences) {
@@ -137,6 +138,8 @@ Pipeline::Pipeline(const Config& config,
                 _graph->set_argument_value(desc.indexUsedByDriver,
                                            static_cast<unsigned char*>(tensor->data()) +
                                                (i * tensor->get_byte_size()) / _number_of_command_lists);
+                input_addresses.at(io_index) = static_cast<unsigned char*>(tensor->data()) +
+                                                        (i * tensor->get_byte_size()) / _number_of_command_lists;
             } else {
                 _graph->set_argument_value_with_strides(
                     desc.indexUsedByDriver,
@@ -221,6 +224,14 @@ void Pipeline::push() {
     }
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
+        if (_command_lists.at(i)->_updated_graph_arguments) {
+            ze_mutable_commands_exp_desc_t mutable_commands_exp_desc_t = {ZE_STRUCTURE_TYPE_MUTABLE_COMMANDS_EXP_DESC,
+                                                                    &_command_lists.at(i)->_graph_args.at(0),
+                                                                    0};
+            THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListUpdateMutableCommandsExp",
+                            zeCommandListUpdateMutableCommandsExp(_command_lists.at(i)->handle(), &mutable_commands_exp_desc_t));
+            _command_lists.at(i)->_updated_graph_arguments = false;
+        }
         _command_lists.at(i)->close();
 
         OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");

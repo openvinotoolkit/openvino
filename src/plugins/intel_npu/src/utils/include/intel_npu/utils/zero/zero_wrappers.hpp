@@ -61,7 +61,7 @@ class CommandList {
 public:
     friend class CommandQueue;
     CommandList() = delete;
-    CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const uint32_t& group_ordinal);
+    CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const uint32_t& group_ordinal, const std::vector<unsigned char*>& input_addresses = {});
     CommandList(const CommandList&) = delete;
     CommandList(CommandList&&) = delete;
     CommandList& operator=(const CommandList&) = delete;
@@ -84,6 +84,9 @@ public:
     inline ze_command_list_handle_t handle() const {
         return _handle;
     }
+    
+    mutable bool _updated_graph_arguments = false;
+    mutable std::vector<ze_mutable_graph_argument_exp_desc_t> _graph_args;
 
 private:
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
