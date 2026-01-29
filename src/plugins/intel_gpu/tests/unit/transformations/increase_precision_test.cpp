@@ -30,11 +30,15 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/op/swish.hpp"
+#include "openvino/op/gelu.hpp"
+#include "openvino/op/matmul.hpp"
 #include "ov_ops/rms.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 
 #include <plugin/transformations/increase_position_ids_precision.hpp>
+#include <plugin/transformations/increase_rms_input_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include "openvino/pass/visualize_tree.hpp"
@@ -813,4 +817,121 @@ TEST_F(TransformationTestsF, IncreasePositionIdsPrecisionForGPTOSS) {
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{position_ids, input_2});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST(IncreasePrecisionTest, IncreaseRMSInputPrecisionForQwenVLMerger) {
+    // Pattern: Qwen2.5-VL Vision Embeddings Merger last block (blocks.31) + Merger MLP
+    // Target: down_proj MatMul -> Add -> aten_add -> RMS -> Reshape -> merger_mlp
+    //
+    // Transformation inserts Convert(f16->f32) before:
+    //   - down_proj MatMul (both inputs: aten_mul and weight)
+    //   - down_proj_add (bias input only, since down_proj output is already f32)
+    //   - aten_add (attn_add input only, skip index 1 which is down_proj_add output)
+    //   - rms_m (weight input only, skip index 0 which is aten_add output)
+    // And inserts Convert(f32->f16) after rms_m output
+
+    // Input for attn block
+    auto input_hidden = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 1536});
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 1536});
+
+    // attn_proj MatMul (simulating attention output projection)
+    auto attn_proj_weight = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1536, 1536});
+    auto attn_proj = std::make_shared<ov::op::v0::MatMul>(input_hidden, attn_proj_weight, false, true);
+
+    // attn_proj_add (bias)
+    auto attn_proj_bias = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1536});
+    auto attn_proj_add = std::make_shared<ov::op::v1::Add>(attn_proj, attn_proj_bias);
+
+    // attn_add (residual connection)
+    auto attn_add = std::make_shared<ov::op::v1::Add>(residual, attn_proj_add);
+
+    // rms_post_m (RMS normalization after attention)
+    auto rms_post_weight = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1536});
+    auto rms_post_m = std::make_shared<ov::op::internal::RMS>(attn_add, rms_post_weight, 1e-6f);
+
+    // MLP: gate_proj
+    auto gate_proj_weight = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{4096, 1536});
+    auto gate_proj = std::make_shared<ov::op::v0::MatMul>(rms_post_m, gate_proj_weight, false, true);
+    auto gate_proj_bias = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{4096});
+    auto gate_proj_add = std::make_shared<ov::op::v1::Add>(gate_proj, gate_proj_bias);
+
+    // MLP: up_proj
+    auto up_proj_weight = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{4096, 1536});
+    auto up_proj = std::make_shared<ov::op::v0::MatMul>(rms_post_m, up_proj_weight, false, true);
+    auto up_proj_bias = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{4096});
+    auto up_proj_add = std::make_shared<ov::op::v1::Add>(up_proj, up_proj_bias);
+
+    // SwiGLU: Swish(gate) * up
+    auto act_silu = std::make_shared<ov::op::v4::Swish>(gate_proj_add);
+    auto aten_mul = std::make_shared<ov::op::v1::Multiply>(act_silu, up_proj_add);
+
+    // down_proj
+    auto down_proj_weight = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1536, 4096});
+    auto down_proj = std::make_shared<ov::op::v0::MatMul>(aten_mul, down_proj_weight, false, true);
+    auto down_proj_bias = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1536});
+    auto down_proj_add = std::make_shared<ov::op::v1::Add>(down_proj, down_proj_bias);
+
+    // aten_add_node (residual connection with attn output)
+    auto aten_add_node = std::make_shared<ov::op::v1::Add>(attn_add, down_proj_add);
+
+    // rms_m (RMS before merger)
+    auto rms_weight = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1536});
+    auto rms_m = std::make_shared<ov::op::internal::RMS>(aten_add_node, rms_weight, 1e-6f);
+
+    // aten_view (Reshape for merger)
+    auto reshape_shape = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{-1, 4, 1536});
+    auto aten_view = std::make_shared<ov::op::v1::Reshape>(rms_m, reshape_shape, true);
+
+    // merger_mlp0
+    auto merger_mlp0_weight = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{3584, 1536});
+    auto merger_mlp0 = std::make_shared<ov::op::v0::MatMul>(aten_view, merger_mlp0_weight, false, true);
+    auto merger_mlp0_bias = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{3584});
+    auto merger_mlp0_add = std::make_shared<ov::op::v1::Add>(merger_mlp0, merger_mlp0_bias);
+
+    // merger_mlp1 (GELU activation)
+    auto merger_mlp1_gelu = std::make_shared<ov::op::v7::Gelu>(merger_mlp0_add);
+
+    // merger_mlp2 - Note: pattern expects consumers_count(1), so add a dummy consumer
+    auto merger_mlp2_weight = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{3584, 3584});
+    auto merger_mlp2 = std::make_shared<ov::op::v0::MatMul>(merger_mlp1_gelu, merger_mlp2_weight, false, true);
+
+    // Add a dummy Add to satisfy consumers_count(1) for merger_mlp2
+    auto dummy_bias = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{3584});
+    auto merger_mlp2_add = std::make_shared<ov::op::v1::Add>(merger_mlp2, dummy_bias);
+
+    auto test_model = std::make_shared<ov::Model>(ov::OutputVector{merger_mlp2_add}, ov::ParameterVector{input_hidden, residual});
+
+    // Verify: before transformation, down_proj inputs should be f16
+    EXPECT_EQ(down_proj->get_input_element_type(0), ov::element::f16);
+    EXPECT_EQ(down_proj->get_input_element_type(1), ov::element::f16);
+    EXPECT_EQ(rms_m->get_output_element_type(0), ov::element::f16);
+
+    // Run transformation
+    ov::pass::Manager manager;
+    manager.register_pass<IncreaseRMSInputPrecision>();
+    manager.run_passes(test_model);
+
+    // Verify: after transformation, down_proj inputs should be f32 (via Convert nodes)
+    EXPECT_EQ(down_proj->get_input_element_type(0), ov::element::f32)
+        << "down_proj input 0 should be f32 after transformation";
+    EXPECT_EQ(down_proj->get_input_element_type(1), ov::element::f32)
+        << "down_proj input 1 should be f32 after transformation";
+
+    // Verify: rms_m output should be f32 (Convert f32->f16 is added after)
+    EXPECT_EQ(rms_m->get_output_element_type(0), ov::element::f32)
+        << "rms_m output should be f32 after transformation";
+
+    // Verify: Convert nodes are inserted before down_proj inputs
+    auto down_proj_input0 = down_proj->get_input_node_shared_ptr(0);
+    auto down_proj_input1 = down_proj->get_input_node_shared_ptr(1);
+    EXPECT_TRUE(ov::as_type_ptr<ov::op::v0::Convert>(down_proj_input0) != nullptr)
+        << "down_proj input 0 should come from Convert node";
+    EXPECT_TRUE(ov::as_type_ptr<ov::op::v0::Convert>(down_proj_input1) != nullptr)
+        << "down_proj input 1 should come from Convert node";
+
+    // Verify: Convert node is inserted after rms_m output
+    EXPECT_EQ(rms_m->get_users().size(), 1u);
+    auto rms_user = rms_m->get_users()[0];
+    EXPECT_TRUE(ov::as_type_ptr<ov::op::v0::Convert>(rms_user) != nullptr)
+        << "rms_m output should feed into Convert node";
 }

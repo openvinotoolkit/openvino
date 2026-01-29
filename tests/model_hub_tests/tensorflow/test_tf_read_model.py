@@ -9,7 +9,7 @@ import pytest
 import tensorflow as tf
 import tensorflow_hub as hub
 # noinspection PyUnresolvedReferences
-import tensorflow_text  # do not delete, needed for text models
+#import tensorflow_text  # do not delete, needed for text models. Commented due to ticket 179327
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list
 from openvino import Core, PartialShape

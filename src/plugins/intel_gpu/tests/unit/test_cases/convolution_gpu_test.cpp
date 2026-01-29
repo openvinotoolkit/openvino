@@ -11332,6 +11332,55 @@ TEST(convolution_gpu_onednn, dyn_conv4d_reshape6d_pattern) {
                     ASSERT_TRUE(equal);
                 }
 }
+
+TEST(convolution_gpu_onednn, alloc_intermediate_when_concat_optimized) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto input_pshape = ov::PartialShape{ov::Dimension::dynamic(), 32,
+                                         ov::Dimension::dynamic(), ov::Dimension::dynamic()};
+    auto in_layout = layout{input_pshape, data_types::f16, format::bfyx};
+    auto weights_layout = layout{{32, 32, 3, 3}, data_types::f16, format::bfyx};
+
+    auto input_mem1 = engine.allocate_memory({ov::PartialShape{1, 32, 320, 320}, data_types::f16, format::bfyx});
+    auto input_mem2 = engine.allocate_memory({ov::PartialShape{1, 32, 320, 320}, data_types::f16, format::bfyx});
+    set_values<ov::float16>(input_mem1, std::vector<ov::float16>(input_mem1->get_layout().count(), ov::float16(0.5f)));
+    set_values<ov::float16>(input_mem2, std::vector<ov::float16>(input_mem2->get_layout().count(), ov::float16(0.25f)));
+
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    set_values<ov::float16>(weights_mem, std::vector<ov::float16>(weights_layout.count(), ov::float16(0.1f)));
+
+    topology topology(
+        input_layout("input1", in_layout),
+        input_layout("input2", in_layout),
+        data("weights1", weights_mem),
+        data("weights2", weights_mem),
+        convolution("conv1", input_info("input1"), "weights1", "", 1,
+                    {1, 1}, {1, 1}, {1, 1}, {1, 1}, false),
+        convolution("conv2", input_info("input2"), "weights2", "", 1,
+                    {1, 1}, {1, 1}, {1, 1}, {1, 1}, false),
+        concatenation("concat", { input_info("conv1"), input_info("conv2") }, 1),
+        reorder("reorder", input_info("concat"), format::bfyx, data_types::f16)
+    );
+
+    ExecutionConfig onednn_config = get_test_default_config(engine);
+    onednn_config.set_property(ov::intel_gpu::optimize_data(true));
+    onednn_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc onednn_impl_desc = {format::bfyx, "", impl_types::onednn};
+    onednn_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"conv1", onednn_impl_desc},
+        {"conv2", onednn_impl_desc},
+        {"concat", onednn_impl_desc},
+    }));
+
+    network network(engine, topology, onednn_config);
+    network.set_input_data("input1", input_mem1);
+    network.set_input_data("input2", input_mem2);
+
+    auto outputs = network.execute();
+}
+
 #endif   // ENABLE_ONEDNN_FOR_GPU
 
 template <typename T>
