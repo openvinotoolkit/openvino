@@ -40,12 +40,6 @@ private:
 
     void PostSnippets();
 
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    template <class T>
-    static bool match_conv_add_mul_fq(const std::shared_ptr<const ov::Node>& node);
-    static bool match_fq_mul_conv_bias_same_types(const std::shared_ptr<const ov::Node>& node);
-#endif
-
     static bool is_decompression_multiply(const std::shared_ptr<const ov::Node>& node);
 
     static bool fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);

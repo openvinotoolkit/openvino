@@ -289,6 +289,7 @@
 #    include "transformations/cpu_opset/arm/pass/grid_sample_decomposition.hpp"
 #    include "transformations/cpu_opset/common/op/sdpa.hpp"
 #    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
+#    include "transformations/utils.hpp"
 #else
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "openvino/op/gru_sequence.hpp"
@@ -315,56 +316,6 @@
 namespace ov::intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
-
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-template <class T>
-bool Transformations::match_conv_add_mul_fq(const_node_ptr& node) {
-    auto conv_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>(
-        {ov::pass::pattern::any_input(ov::pass::pattern::type_matches_any({ov::element::i8, ov::element::u8})),
-         ov::pass::pattern::any_input()});
-    auto add_m = ov::pass::pattern::wrap_type<ov::op::v1::Add>({conv_m, ov::pass::pattern::any_input()});
-    auto mul0_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({add_m, ov::pass::pattern::any_input()});
-    auto fq_m = ov::pass::pattern::wrap_type<ov::opset1::FakeQuantize>(
-        {mul0_m,
-         ov::pass::pattern::any_input(),
-         ov::pass::pattern::any_input(),
-         ov::pass::pattern::any_input(),
-         ov::pass::pattern::any_input()},
-        ov::pass::pattern::type_matches_any({ov::element::i8, ov::element::u8}));
-    auto final_m = ov::pass::pattern::wrap_type<T>({fq_m, ov::pass::pattern::any_input()});
-
-    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(final_m);
-    if (!matcher->match(std::const_pointer_cast<ov::Node>(node))) {
-        return false;
-    }
-
-    const auto& pattern_map = matcher->get_pattern_value_map();
-    const auto fq = pattern_map.at(fq_m).get_node_shared_ptr();
-    const auto conv = (pattern_map.at(conv_m).get_node_shared_ptr();
-
-    return conv->get_input_element_type(0) == fq->get_output_element_type(0);
-}
-
-bool Transformations::match_fq_mul_conv_bias_same_types(const_node_ptr& node) {
-    auto conv_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>();
-    auto conv_or_bias_m = ov::pass::pattern::optional<ov::op::v1::Add>({conv_m, ov::pass::pattern::any_input()});
-    auto mul_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({conv_or_bias_m, ov::pass::pattern::any_input()});
-    auto fq_m = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({mul_m,
-                                                                        ov::pass::pattern::any_input(),
-                                                                        ov::pass::pattern::any_input(),
-                                                                        ov::pass::pattern::any_input(),
-                                                                        ov::pass::pattern::any_input()});
-    ov::pass::pattern::Matcher matcher(fq_m);
-    if (!matcher.match(std::const_pointer_cast<ov::Node>(node))) {
-        return false;
-    }
-
-    const auto& pattern_map = matcher.get_pattern_value_map();
-    const auto conv = pattern_map.at(conv_m).get_node_shared_ptr();
-
-    return conv->get_input_element_type(0) == node->get_output_element_type(0);
-}
-#endif
 
 bool Transformations::is_decompression_multiply(const_node_ptr& node) {
     auto all_has_type = [](const std::set<ov::Input<ov::Node>>& consumers, const ov::DiscreteTypeInfo& type) {
@@ -1031,25 +982,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     CPU_SET_CALLBACK_ARM(
         lptManager,
         [](const_node_ptr& node) -> bool {
-            const auto conv = ov::as_type_ptr<const ov::op::v1::Convolution>(node);
-            if (!conv) {
-                return false;
-            }
-
-            const auto& strides = conv->get_strides();
-            if (strides.size() < 2 || strides[0] != 1 || strides[1] != 1) {
-                return false;
-            }
-
-            const auto weights_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape() && ov::pass::pattern::shape_matches("OC, IC, 3, 3"));
-            const auto conv_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({ov::pass::pattern::any_input(), weights_m}, {{"strides", {1, 1}});
-            ov::pass::pattern::Matcher matcher(conv_m);
-            if (!matcher.match(node)) {
-                return false;
-            }
-
-            const auto& symbols = matcher.get_symbols();
-            return symbols.at("OC").i() < 512 || symbols.at("IC").i() < 512;
+            return match_conv_stride_oc_ic_limit(node, ov::Strides{1, 1}, ov::Shape{3, 3}, 512);
         },
         ConvolutionTransformation);
     CPU_SET_CALLBACK_ARM(
@@ -1057,12 +990,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         [](const_node_ptr& node) -> bool {
             // Run the transformation for convolution bias only on ARM
             // Convolution bias is handled in ConvertConvolutionBias transformation
-            auto conv_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>();
-            auto mul_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({conv_m, ov::pass::pattern::any_input()});
-            auto add_m = ov::pass::pattern::wrap_type<ov::op::v1::Add>({mul_m, ov::pass::pattern::any_input()});
-
-            auto matcher = std::make_shared<ov::pass::pattern::Matcher>(add_m);
-            if (matcher->match(std::const_pointer_cast<ov::Node>(node))) {
+            if (match_conv_mul_add(node)) {
                 return false;
             }
 
