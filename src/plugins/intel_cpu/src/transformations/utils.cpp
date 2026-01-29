@@ -18,6 +18,7 @@
 #    include "openvino/op/convolution.hpp"
 #    include "openvino/op/fake_quantize.hpp"
 #    include "openvino/op/multiply.hpp"
+#    include "openvino/op/subtract.hpp"
 #    include "openvino/pass/pattern/matcher.hpp"
 #    include "openvino/pass/pattern/op/label.hpp"
 #    include "openvino/pass/pattern/op/optional.hpp"
