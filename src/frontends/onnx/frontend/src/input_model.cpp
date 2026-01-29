@@ -683,6 +683,9 @@ std::shared_ptr<ov::frontend::onnx::TensorONNXPlace> decode_tensor_place(
 void InputModel::InputModelONNXImpl::load_model() {
     std::map<std::string, uint64_t> op_statistics;  // for telemetry
 
+    // Track output indices separately from TensorPlace (handles duplicate output names correctly)
+    std::vector<int64_t> output_indices;
+
     m_op_places.reserve(m_graph_iterator->size());
     for (; !m_graph_iterator->is_end(); m_graph_iterator->next()) {
         const auto& decoder = m_graph_iterator->get_decoder();
@@ -702,8 +705,10 @@ void InputModel::InputModelONNXImpl::load_model() {
 
             if (tensor_place_registered->is_input())
                 m_inputs.push_back(tensor_place_registered);
-            if (tensor_place_registered->is_output())
+            if (tensor_decoder->get_output_idx() >= 0) {
                 m_outputs.push_back(tensor_place_registered);
+                output_indices.push_back(tensor_decoder->get_output_idx());
+            }
         } else {
             auto op_place = std::make_shared<OpPlace>(m_input_model, decoder);
             m_op_places.push_back(op_place);
@@ -747,6 +752,20 @@ void InputModel::InputModelONNXImpl::load_model() {
             };
     };
     std::sort(m_inputs.begin(), m_inputs.end(), sorting_places_by_idx(true));
+
+    // Sort outputs using the separately tracked indices (handles duplicate names correctly)
+    if (!m_outputs.empty() && m_outputs.size() == output_indices.size()) {
+        std::vector<size_t> sort_order(m_outputs.size());
+        std::iota(sort_order.begin(), sort_order.end(), 0);
+        std::sort(sort_order.begin(), sort_order.end(), [&output_indices](size_t a, size_t b) {
+            return output_indices[a] < output_indices[b];
+        });
+        std::vector<ov::frontend::Place::Ptr> sorted_outputs(m_outputs.size());
+        for (size_t i = 0; i < sort_order.size(); ++i) {
+            sorted_outputs[i] = m_outputs[sort_order[i]];
+        }
+        m_outputs = std::move(sorted_outputs);
+    }
 
     if (m_telemetry) {
         for (const auto& op : op_statistics) {

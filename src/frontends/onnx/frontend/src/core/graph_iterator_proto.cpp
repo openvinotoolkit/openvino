@@ -102,6 +102,109 @@ void fixup_legacy_nodes(::ONNX_NAMESPACE::ModelProto& model_proto) {
         }
     }
 }
+
+/// \brief Collect all dependencies for a node (direct inputs + subgraph external references).
+void collect_node_dependencies(const NodeProto& node, std::unordered_set<std::string>& deps) {
+    // Direct inputs
+    for (const auto& inp : node.input()) {
+        if (!inp.empty()) {
+            deps.insert(inp);
+        }
+    }
+    // Subgraph external references (for Loop/If/Scan bodies referencing outer tensors)
+    for (const auto& attr : node.attribute()) {
+        if (!attr.has_g()) {
+            continue;
+        }
+        const auto& subgraph = attr.g();
+        // Build set of names defined within the subgraph
+        std::unordered_set<std::string> subgraph_defined;
+        for (const auto& input : subgraph.input()) {
+            subgraph_defined.insert(input.name());
+        }
+        for (const auto& init : subgraph.initializer()) {
+            subgraph_defined.insert(init.name());
+        }
+        for (const auto& sub_node : subgraph.node()) {
+            for (const auto& out : sub_node.output()) {
+                subgraph_defined.insert(out);
+            }
+        }
+        // Find references to outer graph tensors
+        for (const auto& sub_node : subgraph.node()) {
+            for (const auto& inp : sub_node.input()) {
+                if (!inp.empty() && subgraph_defined.count(inp) == 0) {
+                    deps.insert(inp);
+                }
+            }
+        }
+    }
+}
+
+/// \brief Topologically sort graph nodes, considering subgraph dependencies.
+void topological_sort_graph(GraphProto* graph) {
+    const int num_nodes = graph->node_size();
+    if (num_nodes == 0) {
+        return;
+    }
+
+    // Known tensors: graph inputs and initializers
+    std::unordered_set<std::string> known_tensors;
+    for (const auto& input : graph->input()) {
+        known_tensors.insert(input.name());
+    }
+    for (const auto& init : graph->initializer()) {
+        known_tensors.insert(init.name());
+    }
+
+    // Precompute dependencies for each node
+    std::vector<std::unordered_set<std::string>> node_deps(num_nodes);
+    for (int i = 0; i < num_nodes; ++i) {
+        collect_node_dependencies(graph->node(i), node_deps[i]);
+    }
+
+    // Kahn's algorithm: repeatedly add nodes whose dependencies are satisfied
+    std::vector<NodeProto> sorted_nodes;
+    sorted_nodes.reserve(num_nodes);
+    std::vector<bool> processed(num_nodes, false);
+
+    for (int added = 0; added < num_nodes; ++added) {
+        bool found = false;
+        for (int i = 0; i < num_nodes; ++i) {
+            if (processed[i]) {
+                continue;
+            }
+            // Check if all dependencies are satisfied
+            bool ready = true;
+            for (const auto& dep : node_deps[i]) {
+                if (known_tensors.count(dep) == 0) {
+                    ready = false;
+                    break;
+                }
+            }
+            if (ready) {
+                sorted_nodes.push_back(graph->node(i));
+                processed[i] = true;
+                found = true;
+                for (const auto& out : graph->node(i).output()) {
+                    if (!out.empty()) {
+                        known_tensors.insert(out);
+                    }
+                }
+                break;
+            }
+        }
+        if (!found) {
+            return;  // Cycle detected or missing input - keep original order
+        }
+    }
+
+    // Replace graph nodes with sorted order
+    graph->mutable_node()->Clear();
+    for (auto& node : sorted_nodes) {
+        *graph->add_node() = std::move(node);
+    }
+}
 }  // namespace
 
 namespace ov {
@@ -348,6 +451,7 @@ void GraphIteratorProto::initialize(const std::filesystem::path& path) {
         model_file.close();
         if (m_model->has_graph()) {
             fixup_legacy_nodes(*m_model);
+            topological_sort_graph(m_model->mutable_graph());
             m_graph = &m_model->graph();
         } else {
             m_graph = nullptr;

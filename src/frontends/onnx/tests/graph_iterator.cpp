@@ -291,3 +291,37 @@ TEST(FrontEndGraphIteratorTest, handles_sequence_value_info) {
     EXPECT_EQ(output_info.m_element_type, ov::element::i64);
     EXPECT_EQ(output_info.m_partial_shape, ov::PartialShape({4}));
 }
+
+// Test that GraphIteratorProto correctly performs topological sorting when
+// nodes are not in topological order. This tests the case where a Loop node
+// references an outer tensor that is produced by a node defined after the Loop.
+TEST(FrontEndGraphIteratorTest, topological_sort_loop_with_unsorted_graph) {
+    if (!ov::frontend::onnx::tests::is_graph_iterator_enabled()) {
+        GTEST_SKIP() << "This test requires GraphIterator (ONNX_ITERATOR=1)";
+    }
+    const std::string model_name = "controlflow/loop_with_unsorted_graph.onnx";
+    const auto model_path =
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name});
+
+    // Load and convert the model - this should succeed due to topological sorting
+    auto frontend = ov::frontend::FrontEndManager().load_by_framework("onnx");
+    ASSERT_NE(frontend, nullptr);
+
+    auto input_model = frontend->load(model_path);
+    ASSERT_NE(input_model, nullptr);
+
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = frontend->convert(input_model))
+        << "Model conversion failed - topological sort may not be working correctly";
+    ASSERT_NE(model, nullptr);
+
+    // Verify the model produces correct results
+    // The model computes: a_final = a_init + outer_value * 3 iterations
+    // where outer_value = scale * scale = 2 * 2 = 4
+    // So a_final = [0, 0] + [4, 4] + [4, 4] + [4, 4] = [12, 12]
+    ov::test::TestCase test_case(model);
+    test_case.add_input<float>({0.f, 0.f});                                                      // a_init
+    test_case.add_expected_output<float>(ov::Shape{1, 2}, {12.f, 12.f});                         // a_final
+    test_case.add_expected_output<float>(ov::Shape{3, 1, 2}, {4.f, 4.f, 8.f, 8.f, 12.f, 12.f});  // a_values
+    test_case.run();
+}

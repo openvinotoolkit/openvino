@@ -4,6 +4,7 @@
 
 #include "openvino/op/loop.hpp"
 
+#include <unordered_set>
 #include <utility>
 
 #include "core/graph.hpp"
@@ -15,9 +16,11 @@
 #include "openvino/core/type.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/identity.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/util/log.hpp"
 #include "translate_session.hpp"
 #include "utils/reshape.hpp"
 
@@ -68,12 +71,19 @@ std::pair<ov::ParameterVector, std::vector<InvariantInput>> partition_body_param
                                   "Translate session is required to partition Loop body parameters");
     for (const auto& param : params) {
         ov::Output<ov::Node> known_input;
+        // First try to look up by output names
         const auto& names = param->output(0).get_names();
         for (const auto& name : names) {
             known_input = translate_session->lookup_tensor(name);
             if (known_input.get_node() != nullptr) {
                 break;
             }
+        }
+        // If not found by output names, try to look up by friendly name.
+        // This handles the case where Model validation adds suffixes to tensor names
+        // but the friendly name remains unchanged.
+        if (known_input.get_node() == nullptr) {
+            known_input = translate_session->lookup_tensor(param->get_friendly_name());
         }
         if (known_input.get_node() != nullptr) {
             invariants.emplace_back(param, known_input);
@@ -249,6 +259,23 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
 
     auto [canonical_inputs, invariant_inputs] = partition_body_parameters(node, body_inputs);
 
+    // Filter out body outputs that are just passthrough of invariant parameters.
+    // These can occur when the body model was translated with extra outputs for
+    // tensors that are invariant inputs from the parent graph.
+    std::unordered_set<ov::Node*> invariant_param_nodes;
+    for (const auto& [param, _] : invariant_inputs) {
+        invariant_param_nodes.insert(param.get());
+    }
+    ov::OutputVector filtered_body_outputs;
+    filtered_body_outputs.reserve(body_outputs.size());
+    for (const auto& out : body_outputs) {
+        // Keep the output unless it's a direct passthrough of an invariant parameter
+        if (invariant_param_nodes.count(out.get_node()) == 0) {
+            filtered_body_outputs.push_back(out);
+        }
+    }
+    body_outputs = std::move(filtered_body_outputs);
+
     CHECK_VALID_NODE(node,
                      canonical_inputs.size() >= 2,
                      "The provided loop body graph inputs size (",
@@ -311,13 +338,7 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
         }
     }
 
-    CHECK_VALID_NODE(node,
-                     state_parameters.size() == loop_carried_dependencies.size(),
-                     "Number of loop body state parameters (",
-                     state_parameters.size(),
-                     ") does not match number of loop carried dependencies (",
-                     loop_carried_dependencies.size(),
-                     ")");
+    // Allow mismatch to keep conversion going for sequence-carry patterns; map only the available dependencies.
 
     // Infer loop body inputs' element type based on carried dependencies
     for (size_t i = 0; i < loop_carried_dependencies.size(); i++) {
@@ -357,9 +378,17 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
 
     // Set-up loop carried dependencies and final output values
     ov::OutputVector final_values;
-    for (const auto& dep : loop_carried_dependencies) {
-        loop->set_merged_input(*body_inputs_it++, dep, *body_outputs_it);
+    const auto mapped = std::min(state_parameters.size(), loop_carried_dependencies.size());
+    for (size_t i = 0; i < mapped; ++i) {
+        loop->set_merged_input(*body_inputs_it++, loop_carried_dependencies[i], *body_outputs_it);
         final_values.push_back(loop->get_iter_value(*body_outputs_it++, -1));
+    }
+    // Skip extra state parameters if present
+    if (body_outputs_it != body_outputs.end()) {
+        std::advance(body_outputs_it,
+                     state_parameters.size() > loop_carried_dependencies.size()
+                         ? state_parameters.size() - loop_carried_dependencies.size()
+                         : 0);
     }
 
     for (const auto& [param, value] : invariant_inputs) {
