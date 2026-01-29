@@ -44,9 +44,7 @@ bool evaluate(const std::shared_ptr<ov::op::internal::RMS>& node,
                                     temp_output.data(),
                                     inputs[0].get_shape(),
                                     node->get_epsilon());
-            ov::reference::convert(temp_output.data(),
-                                   outputs[0].data<ov::float16>(),
-                                   temp_output.size());
+            ov::reference::convert(temp_output.data(), outputs[0].data<ov::float16>(), temp_output.size());
         }
     } else {
         if (has_gamma) {

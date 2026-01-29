@@ -20,10 +20,7 @@ RMS::RMS(const Output<Node>& data,
     validate_and_infer_types();
 }
 
-RMS::RMS(const Output<Node>& data,
-         double epsilson,
-         const ov::element::Type output_type,
-         bool elementwise_affine)
+RMS::RMS(const Output<Node>& data, double epsilson, const ov::element::Type output_type, bool elementwise_affine)
     : Op({data}),
       m_epsilon(epsilson),
       m_output_type(output_type),
