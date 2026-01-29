@@ -241,11 +241,8 @@ public:
 
     // Update the requested primitive output data type for a given output index
     void set_primitive_output_data_type(data_types dtype, size_t idx = 0) {
-        if (!desc)
-            throw std::runtime_error("program_node: primitive descriptor is null");
-
-        if (desc->output_data_types.size() <= idx)
-            throw std::out_of_range("program_node: output data type index out of range");
+        OPENVINO_ASSERT(desc != nullptr, "program_node: primitive descriptor is null");
+        OPENVINO_ASSERT(desc->output_data_types.size() > idx, "program_node: output data type index out of range");
 
         if (desc->output_data_types[idx] && desc->output_data_types[idx].value() == dtype)
             return;
