@@ -4,31 +4,27 @@
 
 #include "utils.hpp"
 
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-#    include <cstddef>
-#    include <memory>
-#    include <string>
+#include <cstddef>
+#include <memory>
+#include <string>
 
-#    include "openvino/core/node.hpp"
-#    include "openvino/core/shape.hpp"
-#    include "openvino/core/strides.hpp"
-#    include "openvino/core/type.hpp"
-#    include "openvino/core/type/element_type.hpp"
-#    include "openvino/op/add.hpp"
-#    include "openvino/op/convolution.hpp"
-#    include "openvino/op/fake_quantize.hpp"
-#    include "openvino/op/multiply.hpp"
-#    include "openvino/op/subtract.hpp"
-#    include "openvino/pass/pattern/matcher.hpp"
-#    include "openvino/pass/pattern/op/label.hpp"
-#    include "openvino/pass/pattern/op/optional.hpp"
-#    include "openvino/pass/pattern/op/pattern.hpp"
-#    include "openvino/pass/pattern/op/wrap_type.hpp"
-#endif
+#include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov::intel_cpu {
 
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 template <class T>
 bool match_conv_add_mul_fq(const std::shared_ptr<const ov::Node>& node) {
     auto conv_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>(
@@ -123,6 +119,5 @@ bool match_conv_mul_add(const std::shared_ptr<const ov::Node>& node) {
     auto matcher = std::make_shared<ov::pass::pattern::Matcher>(add_m);
     return matcher->match(std::const_pointer_cast<ov::Node>(node));
 }
-#endif
 
 }  // namespace ov::intel_cpu
