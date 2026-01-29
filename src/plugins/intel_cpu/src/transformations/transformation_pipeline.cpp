@@ -339,8 +339,8 @@ bool Transformations::match_conv_add_mul_fq(const_node_ptr& node) {
     }
 
     const auto& pattern_map = matcher->get_pattern_value_map();
-    const auto fq = ov::as_type_ptr<const ov::opset1::FakeQuantize>(pattern_map.at(fq_m).get_node_shared_ptr());
-    const auto conv = ov::as_type_ptr<const ov::op::v1::Convolution>(pattern_map.at(conv_m).get_node_shared_ptr());
+    const auto fq = pattern_map.at(fq_m).get_node_shared_ptr();
+    const auto conv = (pattern_map.at(conv_m).get_node_shared_ptr();
 
     return conv->get_input_element_type(0) == fq->get_output_element_type(0);
 }
@@ -360,10 +360,7 @@ bool Transformations::match_fq_mul_conv_bias_same_types(const_node_ptr& node) {
     }
 
     const auto& pattern_map = matcher.get_pattern_value_map();
-    const auto conv = ov::as_type_ptr<const ov::op::v1::Convolution>(pattern_map.at(conv_m).get_node_shared_ptr());
-    if (!conv) {
-        return false;
-    }
+    const auto conv = pattern_map.at(conv_m).get_node_shared_ptr();
 
     return conv->get_input_element_type(0) == node->get_output_element_type(0);
 }
@@ -1044,26 +1041,15 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
                 return false;
             }
 
-            const auto weights_m = ov::pass::pattern::any_input(ov::pass::pattern::shape_matches("OC, IC, 3, 3"));
-            ov::pass::pattern::Matcher matcher(weights_m);
-            if (!matcher.match(conv->input_value(1))) {
+            const auto weights_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape() && ov::pass::pattern::shape_matches("OC, IC, 3, 3"));
+            const auto conv_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({ov::pass::pattern::any_input(), weights_m}, {{"strides", {1, 1}});
+            ov::pass::pattern::Matcher matcher(conv_m);
+            if (!matcher.match(node)) {
                 return false;
             }
 
             const auto& symbols = matcher.get_symbols();
-            const auto oc_it = symbols.find("OC");
-            const auto ic_it = symbols.find("IC");
-            if (oc_it == symbols.end() || ic_it == symbols.end()) {
-                return false;
-            }
-
-            const auto& w_oc = oc_it->second;
-            const auto& w_ic = ic_it->second;
-            if (!w_oc.is_integer() || !w_ic.is_integer()) {
-                return false;
-            }
-
-            return w_oc.i() < 512 || w_ic.i() < 512;
+            return symbols.at("OC").i() < 512 || symbols.at("IC").i() < 512;
         },
         ConvolutionTransformation);
     CPU_SET_CALLBACK_ARM(
