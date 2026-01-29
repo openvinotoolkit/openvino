@@ -413,3 +413,48 @@ TEST_F(TransformationTestsF, ConcatReduceMaxFusionNoUnsqueezeSingleDimStaticShap
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
+
+// Test: Static rank with dynamic dimension along concat axis - no fusion should occur
+// This verifies that transformation is skipped when we cannot statically confirm dim=1
+TEST_F(TransformationTestsF, ConcatReduceMaxNoFusionDynamicDimAlongConcatAxis) {
+    // Shape has static rank but dynamic dimension at the concat axis
+    PartialShape shape{-1, -1, -1, -1};
+    std::int64_t concat_axis = 2;
+    {
+        auto left_input = std::make_shared<v0::Parameter>(element::f32, shape);
+        auto right_input = std::make_shared<v0::Parameter>(element::f32, shape);
+
+        // Direct concat without Unsqueeze - dimension along axis 2 is unknown
+        auto concat = std::make_shared<v0::Concat>(NodeVector{left_input, right_input}, concat_axis);
+
+        auto reduce_max =
+            std::make_shared<v1::ReduceMax>(concat, v0::Constant::create(element::i64, Shape{}, {concat_axis}));
+
+        model = std::make_shared<Model>(OutputVector{reduce_max}, ParameterVector{left_input, right_input});
+        manager.register_pass<ov::pass::ConcatReduceFusion>();
+    }
+    // No model_ref - transformation should NOT apply because we cannot confirm dim=1
+    // Model should remain unchanged
+}
+
+// Test: Static rank with dynamic dimension along concat axis for ReduceMin - no fusion should occur
+TEST_F(TransformationTestsF, ConcatReduceMinNoFusionDynamicDimAlongConcatAxis) {
+    // Shape has static rank but dynamic dimension at the concat axis
+    PartialShape shape{-1, -1, -1, -1};
+    std::int64_t concat_axis = 2;
+    {
+        auto left_input = std::make_shared<v0::Parameter>(element::f32, shape);
+        auto right_input = std::make_shared<v0::Parameter>(element::f32, shape);
+
+        // Direct concat without Unsqueeze - dimension along axis 2 is unknown
+        auto concat = std::make_shared<v0::Concat>(NodeVector{left_input, right_input}, concat_axis);
+
+        auto reduce_min =
+            std::make_shared<v1::ReduceMin>(concat, v0::Constant::create(element::i64, Shape{}, {concat_axis}));
+
+        model = std::make_shared<Model>(OutputVector{reduce_min}, ParameterVector{left_input, right_input});
+        manager.register_pass<ov::pass::ConcatReduceFusion>();
+    }
+    // No model_ref - transformation should NOT apply because we cannot confirm dim=1
+    // Model should remain unchanged
+}
