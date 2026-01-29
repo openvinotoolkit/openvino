@@ -35,7 +35,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5
         timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
@@ -60,7 +60,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-16gb-docker-build
+    runs-on: aks-linux-4-cores-16gb-docker-build-st
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -75,7 +75,7 @@ jobs:
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
@@ -94,7 +94,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-16-cores-32gb-st
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.webassembly }}
       volumes:
@@ -120,7 +120,7 @@ jobs:
           echo "✓ Connection string loaded and masked"
 
       - name: Clone OpenVINO
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5
         timeout-minutes: 15
         with:
           path: 'openvino'
