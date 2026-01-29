@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "../logging.hpp"
+#include "../moe/moe_types.hpp"  // For MoEProcessingMode
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
@@ -26,8 +27,8 @@ namespace npuw {
 
 namespace function {
 
-// Default chunk size variants for dynamic prefill chunking
-constexpr std::array<size_t, 5> DEFAULT_PREFILL_CHUNKING_VARIANTS = {16, 32, 64, 128, 256};
+// Default chunk size variants for dynamic iterative mode chunking
+constexpr std::array<size_t, 5> DEFAULT_ITERATIVE_CHUNKING_VARIANTS = {16, 32, 64, 128, 256};
 
 // Complete structure analysis result (immutable after analysis)
 struct MoEStructureInfo {
@@ -45,8 +46,18 @@ struct MoEStructureInfo {
     std::optional<size_t> expert_input_param_idx;  // Parameter index for expert's input (token embeddings)
     std::optional<size_t> router_scores_idx;       // Parameter index for router scores (from Multiply in output path)
 
-    // Stage inference
-    bool is_decoding_stage = false;  // True if decoding (token_count == 1), false if prefill (token_count > 1)
+    // Processing mode (inferred from input_token_count)
+    moe::MoEProcessingMode processing_mode = moe::MoEProcessingMode::EXPERT_ITERATIVE;
+
+    // Helper: Check if using expert batch mode
+    bool is_expert_batch_mode() const {
+        return processing_mode == moe::MoEProcessingMode::EXPERT_BATCH;
+    }
+
+    // Helper: Check if using expert iterative mode
+    bool is_expert_iterative_mode() const {
+        return processing_mode == moe::MoEProcessingMode::EXPERT_ITERATIVE;
+    }
 
     bool is_valid() const {
         return num_experts > 0 && expert_hidden_dim > 0 && expert_input_tile_node != nullptr &&
@@ -57,16 +68,16 @@ struct MoEStructureInfo {
 
 // Transformation configuration (clear decision parameters)
 struct MoETransformConfig {
-    size_t num_target_experts;  // Number of experts in transformed model (1 for prefill, K for decoding)
-    size_t chunk_size;          // Token chunk size for prefill (0 for decoding)
+    size_t num_target_experts;  // Number of experts in transformed model (1 for EXPERT_ITERATIVE, K for EXPERT_BATCH)
+    size_t chunk_size;          // Token chunk size for EXPERT_ITERATIVE (0 for EXPERT_BATCH)
 
-    // Helper: Check if this is single expert mode (prefill)
-    bool is_single_expert() const {
+    // Helper: Check if this is expert iterative mode (single expert)
+    bool is_expert_iterative() const {
         return num_target_experts == 1;
     }
 
-    // Helper: Check if this is active experts mode (decoding)
-    bool is_active_experts() const {
+    // Helper: Check if this is expert batch mode (K experts)
+    bool is_expert_batch() const {
         return num_target_experts > 1;
     }
 };
@@ -91,7 +102,7 @@ std::optional<MoEStructureInfo> analyze_moe_structure(const std::shared_ptr<ov::
 // Determine transformation parameters based on structure info and K from router
 MoETransformConfig determine_transformation_params(const MoEStructureInfo& structure_info,
                                                    size_t k_from_router,
-                                                   size_t prefill_chunk_size);
+                                                   size_t iterative_chunk_size);
 
 // MoE Model Transformer - encapsulates all transformation logic for MoE expert models
 // This class provides a clean interface for transforming MoE models with different expert configurations
@@ -133,11 +144,12 @@ private:
                                          size_t num_experts,
                                          size_t num_target_experts) const;
 
-    void fix_token_count_for_prefill(const std::shared_ptr<ov::Model>& model,
-                                     size_t num_target_experts,
-                                     size_t prefill_chunk_size,
-                                     const std::shared_ptr<ov::op::v0::Tile>& expert_input_tile_op,
-                                     const std::shared_ptr<ov::op::v1::Multiply>& router_scores_multiply_op) const;
+    void fix_token_count_for_expert_iterative(
+        const std::shared_ptr<ov::Model>& model,
+        size_t num_target_experts,
+        size_t chunk_size,
+        const std::shared_ptr<ov::op::v0::Tile>& expert_input_tile_op,
+        const std::shared_ptr<ov::op::v1::Multiply>& router_scores_multiply_op) const;
 
     // Unroll the MoE expert model on the expert dimension using GraphRewrite patterns
     // This creates separate computation branches for each expert
@@ -162,14 +174,14 @@ struct MoEExperts {
     size_t _num_experts = 0;        // Total number of experts in the model
     size_t _expert_hidden_dim = 0;  // Hidden dimension for a single expert
     size_t _input_token_count = 0;  // Number of input tokens (original total token count)
-    size_t _chunk_token_count = 0;  // Chunk size for prefill mode (0 for decoding mode)
+    size_t _chunk_token_count = 0;  // Chunk size for iterative mode (0 for batch mode)
 
     // Transformation mode and target expert count
-    size_t _num_active_experts = 1;  // Number of active experts (1 for single-expert/prefill, K for decoding)
+    size_t _num_active_experts = 1;  // Number of active experts (1 for EXPERT_ITERATIVE, K for EXPERT_BATCH)
 
     // Transformed expert models for different chunk sizes (chunk_size -> model)
-    // For prefill: multiple models with different chunk sizes {32, 64, 128, 256, 512}
-    // For decoding: single model with chunk_size = 0 (no chunking, K active experts)
+    // For EXPERT_ITERATIVE: multiple models with different chunk sizes {32, 64, 128, 256, 512}
+    // For EXPERT_BATCH: single model with chunk_size = 0 (no chunking, K active experts)
     std::map<size_t, std::shared_ptr<ov::Model>> _transformed_models;
 
     // Parameter indices
@@ -177,9 +189,9 @@ struct MoEExperts {
     std::optional<size_t> _expert_input_param_idx;  // Parameter index for expert's input (token embeddings)
 
     // Parameter mapping: original_param_idx -> [unrolled_param_indices]
-    // For prefill (SINGLE_EXPERT): no unrolling, so this will be empty or identity mapping
-    // For decoding (ACTIVE_EXPERTS): maps original params to K unrolled params
-    // Same for all chunk sizes since unrolling only happens in decoding mode
+    // For EXPERT_ITERATIVE mode: no unrolling, so this will be empty or identity mapping
+    // For EXPERT_BATCH mode: maps original params to K unrolled params
+    // Same for all chunk sizes since unrolling only happens in batch mode
     std::map<size_t, std::vector<size_t>> _param_mapping;
 
     // Validation helpers
@@ -200,13 +212,13 @@ struct MoEExperts {
         return _num_active_experts;
     }
 
-    // Helper: Check if this is single expert mode (prefill)
-    bool is_single_expert() const {
+    // Helper: Check if this is expert iterative mode
+    bool is_expert_iterative() const {
         return _num_active_experts == 1;
     }
 
-    // Helper: Check if this is active experts mode (decoding)
-    bool is_active_experts() const {
+    // Helper: Check if this is expert batch mode
+    bool is_expert_batch() const {
         return _num_active_experts > 1;
     }
 
@@ -237,10 +249,10 @@ struct MoEExperts {
 
     // Factory method to create MoEExperts from a model (for expert pattern only)
     // router_model: Router model to extract actual K from TopK node (required)
-    // chunk_size: Token chunk size for prefill processing (default: 128)
+    // iterative_chunk_size: Token chunk size for iterative mode processing (default: 128)
     static std::optional<MoEExperts> from(const std::shared_ptr<ov::Model>& model,
                                           const std::shared_ptr<ov::Model>& router_model,
-                                          size_t prefill_chunk_size);
+                                          size_t iterative_chunk_size);
 };
 
 // Factory method to create MoEDownstream from a model (for downstream pattern)
@@ -256,7 +268,7 @@ namespace compiled {
 struct MoEExperts {
     size_t num_experts = 0;
     size_t expert_hidden_dim = 0;
-    size_t num_active_experts = 1;  // Number of active experts (1 for prefill, K for decoding)
+    size_t num_active_experts = 1;  // Number of active experts (1 for EXPERT_ITERATIVE, K for EXPERT_BATCH)
     size_t input_token_count = 0;   // Number of input tokens (original total token count)
 
     // Compiled expert models for different chunk sizes (chunk_size -> compiled_model)
@@ -271,7 +283,7 @@ struct MoEExperts {
     std::optional<size_t> _expert_input_param_idx;
 
     // Parameter mapping: original_param_idx -> [unrolled_param_indices]
-    // Same for all chunk sizes (unrolling only in decoding mode)
+    // Same for all chunk sizes (unrolling only in EXPERT_BATCH mode)
     std::map<size_t, std::vector<size_t>> _param_mapping;
 
     MoEExperts() = default;

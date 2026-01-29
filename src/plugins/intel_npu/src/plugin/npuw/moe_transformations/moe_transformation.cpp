@@ -253,21 +253,22 @@ std::optional<MoEStructureInfo> analyze_moe_structure(const std::shared_ptr<ov::
         return std::nullopt;
     }
 
-    // Step 3: Infer stage based on input_token_count
-    // Decoding: token_count == 1, Prefill: token_count > 1
+    // Step 3: Infer processing mode based on input_token_count
+    // EXPERT_BATCH: token_count == 1 (single token, K experts in parallel)
+    // EXPERT_ITERATIVE: token_count > 1 (multiple tokens, iterate through experts)
     if (info.input_token_count == 1) {
-        info.is_decoding_stage = true;
-        LOG_DEBUG("Inferred DECODING stage (input_token_count=1)");
+        info.processing_mode = moe::MoEProcessingMode::EXPERT_BATCH;
+        LOG_DEBUG("Inferred EXPERT_BATCH mode (input_token_count=1)");
     } else if (info.input_token_count > 1) {
-        info.is_decoding_stage = false;
-        LOG_DEBUG("Inferred PREFILL stage (input_token_count=" << info.input_token_count << ")");
+        info.processing_mode = moe::MoEProcessingMode::EXPERT_ITERATIVE;
+        LOG_DEBUG("Inferred EXPERT_ITERATIVE mode (input_token_count=" << info.input_token_count << ")");
     }
 
     LOG_INFO("MoE structure analysis completed:");
     LOG_INFO("  - Num experts: " << info.num_experts);
     LOG_INFO("  - Expert hidden dim: " << info.expert_hidden_dim);
     LOG_INFO("  - Input token count: " << info.input_token_count);
-    LOG_INFO("  - Stage: " << (info.is_decoding_stage ? "DECODING" : "PREFILL"));
+    LOG_INFO("  - Mode: " << (info.is_expert_batch_mode() ? "EXPERT_BATCH" : "EXPERT_ITERATIVE"));
     if (info.expert_input_param_idx.has_value()) {
         LOG_INFO("  - Expert input param idx: " << info.expert_input_param_idx.value());
     }
@@ -281,27 +282,27 @@ std::optional<MoEStructureInfo> analyze_moe_structure(const std::shared_ptr<ov::
 // Determine transformation parameters based on structure analysis and router K
 MoETransformConfig determine_transformation_params(const MoEStructureInfo& structure_info,
                                                    size_t k_from_router,
-                                                   size_t prefill_chunk_size) {
+                                                   size_t iterative_chunk_size) {
     LOG_DEBUG("Determining transformation parameters...");
     LOG_BLOCK();
 
     MoETransformConfig config;
 
-    if (structure_info.is_decoding_stage) {
-        // Decoding stage: transform to K active experts
+    if (structure_info.is_expert_batch_mode()) {
+        // EXPERT_BATCH mode: transform to K active experts for parallel processing
         config.num_target_experts = k_from_router;
-        config.chunk_size = 0;  // Not used in decoding
+        config.chunk_size = 0;  // Not used in batch mode
 
-        LOG_INFO("Transformation config for DECODING:");
-        LOG_INFO("  - Mode: ACTIVE_EXPERTS");
+        LOG_INFO("Transformation config for EXPERT_BATCH mode:");
+        LOG_INFO("  - Mode: BATCH_K_EXPERTS");
         LOG_INFO("  - Target experts: " << config.num_target_experts);
     } else {
-        // Prefill stage: transform to 1 expert
+        // EXPERT_ITERATIVE mode: transform to 1 expert for iterative processing
         config.num_target_experts = 1;
-        config.chunk_size = prefill_chunk_size;
+        config.chunk_size = iterative_chunk_size;
 
-        LOG_INFO("Transformation config for PREFILL:");
-        LOG_INFO("  - Mode: SINGLE_EXPERT");
+        LOG_INFO("Transformation config for EXPERT_ITERATIVE mode:");
+        LOG_INFO("  - Mode: SINGLE_EXPERT_ITERATIVE");
         LOG_INFO("  - Target experts: 1");
         LOG_INFO("  - Chunk size: " << config.chunk_size);
     }
@@ -572,7 +573,7 @@ void MoEModelTransformer::replace_tile_with_new_tile(const ov::Output<ov::Node>&
     std::shared_ptr<ov::Node> new_node;
 
     if (num_target_experts == 1) {
-        // For single expert (prefill), use Reshape since no repetition needed
+        // For single expert (iterative mode), use Reshape since no repetition needed
         auto target_shape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                                          ov::Shape{target_expert_shape.size()},
                                                                          target_expert_shape);
@@ -580,7 +581,7 @@ void MoEModelTransformer::replace_tile_with_new_tile(const ov::Output<ov::Node>&
         new_node->set_friendly_name(friendly_name + "_transformed_single_expert");
         LOG_DEBUG("Using Reshape for single expert");
     } else {
-        // For multiple active experts (decoding), use Tile to replicate data, then Reshape to expand dims
+        // For multiple active experts (batch mode), use Tile to replicate data, then Reshape to expand dims
         std::vector<int64_t> repeats_data(tile_input.get_shape().size(), 1);
         repeats_data[0] = num_target_experts;  // Repeat along first dimension
 
@@ -686,18 +687,18 @@ void MoEModelTransformer::fix_parameters_with_num_experts(const std::shared_ptr<
     }
 }
 
-void MoEModelTransformer::fix_token_count_for_prefill(
+void MoEModelTransformer::fix_token_count_for_expert_iterative(
     const std::shared_ptr<ov::Model>& model,
     size_t num_target_experts,
-    size_t prefill_chunk_size,
+    size_t chunk_size,
     const std::shared_ptr<ov::op::v0::Tile>& expert_input_tile_op,
     const std::shared_ptr<ov::op::v1::Multiply>& router_scores_multiply_op) const {
     if (num_target_experts != 1) {
-        return;  // Only apply to prefill mode (single expert)
+        return;  // Only apply to EXPERT_ITERATIVE mode (single expert)
     }
 
-    LOG_DEBUG("Fixing token count from " << m_structure_info.input_token_count << " to " << prefill_chunk_size
-                                         << " for prefill mode...");
+    LOG_DEBUG("Fixing token count from " << m_structure_info.input_token_count << " to " << chunk_size
+                                         << " for EXPERT_ITERATIVE mode...");
 
     if (!expert_input_tile_op) {
         LOG_WARN("Tile node not available for token count fixing");
@@ -752,8 +753,8 @@ void MoEModelTransformer::fix_token_count_for_prefill(
             for (size_t i = 0; i < shape.size(); ++i) {
                 if (shape[i] == original_token_count) {
                     LOG_DEBUG("  Updating Parameter '" << param->get_friendly_name() << "' shape[" << i << "] from "
-                                                       << original_token_count << " to " << prefill_chunk_size);
-                    shape[i] = prefill_chunk_size;
+                                                       << original_token_count << " to " << chunk_size);
+                    shape[i] = chunk_size;
                 }
             }
 
@@ -774,7 +775,7 @@ void MoEModelTransformer::fix_token_count_for_prefill(
         // 3D: [num_experts, token_num, hidden_dim] - token_num at index 1
         // 4D: [num_experts, 1, token_num, hidden_dim] - token_num at index 2
         // Use -2 to refer to second-to-last dimension in both cases
-        update_reshape_constant_dimension(reshape_node, -2, original_token_count, prefill_chunk_size);
+        update_reshape_constant_dimension(reshape_node, -2, original_token_count, chunk_size);
     }
 
     // Trigger shape inference to propagate changes through the model
@@ -821,14 +822,14 @@ std::shared_ptr<ov::Model> MoEModelTransformer::apply_expert_transformation(
     const std::shared_ptr<ov::Model>& original_model,
     const MoETransformConfig& config) const {
     LOG_DEBUG("Transforming MoE model to " << config.num_target_experts << " expert(s), mode: "
-                                           << (config.is_single_expert() ? "SINGLE_EXPERT" : "ACTIVE_EXPERTS")
+                                           << (config.is_expert_iterative() ? "EXPERT_ITERATIVE" : "EXPERT_BATCH")
                                            << ", chunk_size: " << config.chunk_size);
     LOG_BLOCK();
 
     auto model = original_model->clone();
     const auto num_experts = m_structure_info.num_experts;
     const auto num_target_experts = config.num_target_experts;
-    const auto prefill_chunk_size = config.chunk_size;
+    const auto chunk_size = config.chunk_size;
 
     // Find key nodes in the cloned model
     auto key_nodes = find_key_nodes_in_cloned_model(model);
@@ -849,11 +850,11 @@ std::shared_ptr<ov::Model> MoEModelTransformer::apply_expert_transformation(
     }
 
     // Apply transformations in sequence
-    fix_token_count_for_prefill(model,
-                                num_target_experts,
-                                prefill_chunk_size,
-                                expert_input_tile_op,
-                                router_scores_multiply_op);
+    fix_token_count_for_expert_iterative(model,
+                                         num_target_experts,
+                                         chunk_size,
+                                         expert_input_tile_op,
+                                         router_scores_multiply_op);
     replace_tile_with_new_tile(tile_input,
                                node_before_matmul,
                                expert_input_tile_op->get_friendly_name(),
@@ -873,7 +874,7 @@ std::shared_ptr<ov::Model> MoEModelTransformer::apply_expert_transformation(
 
 std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& model,
                                            const std::shared_ptr<ov::Model>& router_model,
-                                           size_t prefill_chunk_size) {
+                                           size_t iterative_chunk_size) {
     LOG_DEBUG("Creating MoEExperts from model: " << model->get_friendly_name());
     LOG_BLOCK();
 
@@ -899,19 +900,19 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
         return std::nullopt;
     }
 
-    // Step 3: Determine chunk sizes based on stage and configuration
+    // Step 3: Determine chunk sizes based on processing mode and configuration
     std::vector<size_t> chunk_sizes;
-    if (structure_info->is_decoding_stage) {
-        // Decoding stage: single model with K active experts, no chunking
+    if (structure_info->is_expert_batch_mode()) {
+        // EXPERT_BATCH mode: single model with K active experts, no chunking
         chunk_sizes = {0};
-        LOG_INFO("Decoding mode: Creating single model for K=" << k_value << " active experts");
+        LOG_INFO("EXPERT_BATCH mode: Creating single model for K=" << k_value << " active experts");
     } else {
-        if (prefill_chunk_size == 0) {
-            chunk_sizes.assign(DEFAULT_PREFILL_CHUNKING_VARIANTS.begin(), DEFAULT_PREFILL_CHUNKING_VARIANTS.end());
-            LOG_INFO("Prefill mode: Creating multiple models for dynamic chunking");
+        if (iterative_chunk_size == 0) {
+            chunk_sizes.assign(DEFAULT_ITERATIVE_CHUNKING_VARIANTS.begin(), DEFAULT_ITERATIVE_CHUNKING_VARIANTS.end());
+            LOG_INFO("EXPERT_ITERATIVE mode: Creating multiple models for dynamic chunking");
         } else {
-            chunk_sizes = {prefill_chunk_size};
-            LOG_INFO("Prefill mode: Creating single model with chunk_size=" << prefill_chunk_size);
+            chunk_sizes = {iterative_chunk_size};
+            LOG_INFO("EXPERT_ITERATIVE mode: Creating single model with chunk_size=" << iterative_chunk_size);
         }
     }
 
@@ -939,8 +940,8 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     }
 
     // Step 5: Build parameter mapping from any transformed model (all have same mapping)
-    // Note: For prefill (SINGLE_EXPERT), no unrolling happens, so mapping will be empty
-    //       For decoding (ACTIVE_EXPERTS), unrolling creates the same mapping structure
+    // Note: For EXPERT_ITERATIVE mode (single expert), no unrolling happens, so mapping will be empty
+    //       For EXPERT_BATCH mode (K experts), unrolling creates the same mapping structure
     auto param_mapping = build_parameter_mapping_from_rtinfo(model, transformed_models.begin()->second);
 
     // Step 6: Populate and validate MoEExperts structure
@@ -948,7 +949,7 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     moe_experts._num_experts = structure_info->num_experts;
     moe_experts._expert_hidden_dim = structure_info->expert_hidden_dim;
     moe_experts._input_token_count = structure_info->input_token_count;
-    moe_experts._chunk_token_count = structure_info->is_decoding_stage ? 0 : prefill_chunk_size;
+    moe_experts._chunk_token_count = structure_info->is_expert_batch_mode() ? 0 : iterative_chunk_size;
     moe_experts._num_active_experts = k_value;  // Store actual K from router
     moe_experts._transformed_models = std::move(transformed_models);
     moe_experts._router_scores_idx = structure_info->router_scores_idx;
@@ -965,10 +966,10 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     LOG_INFO("  - Num active experts: " << moe_experts._num_active_experts);
     LOG_INFO("  - Expert hidden dim: " << moe_experts._expert_hidden_dim);
     LOG_INFO("  - Number of transformed models: " << moe_experts._transformed_models.size());
-    if (structure_info->is_decoding_stage) {
-        LOG_INFO("    - Decoding model (no chunking)");
+    if (structure_info->is_expert_batch_mode()) {
+        LOG_INFO("    - EXPERT_BATCH model (no chunking)");
     } else {
-        LOG_INFO("    - Prefill models with chunk sizes:");
+        LOG_INFO("    - EXPERT_ITERATIVE models with chunk sizes:");
         for (const auto& entry : moe_experts._transformed_models) {
             LOG_INFO("      * chunk_size=" << entry.first);
         }
@@ -992,7 +993,7 @@ MoEExperts::MoEExperts(const function::MoEExperts& func_moe) {
     _param_mapping = func_moe._param_mapping;
 
     LOG_DEBUG("Created compiled::MoEExperts:");
-    LOG_DEBUG("  Mode: " << (func_moe.is_single_expert() ? "SINGLE_EXPERT" : "ACTIVE_EXPERTS"));
+    LOG_DEBUG("  Mode: " << (func_moe.is_expert_iterative() ? "EXPERT_ITERATIVE" : "EXPERT_BATCH"));
     LOG_DEBUG("  Total experts: " << num_experts);
     LOG_DEBUG("  Active experts: " << num_active_experts);
     LOG_DEBUG("  Input token count: " << input_token_count);

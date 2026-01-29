@@ -9,6 +9,7 @@
 #include <optional>
 #include <vector>
 
+#include "moe_types.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
@@ -27,7 +28,7 @@ struct MoEConfig {
     // Expert topology configuration
     size_t num_experts = 0;         // Total number of experts (e.g., 32)
     size_t num_active_experts = 0;  // Number of experts activated per token (e.g., 4)
-    size_t input_token_count = 0;   // Number of input tokens (1=decoding, >1=prefill)
+    size_t input_token_count = 0;   // Number of input tokens
     size_t expert_hidden_dim = 0;   // Expert output embedding dimension
 
     // Parameter mapping for unrolled models
@@ -39,16 +40,33 @@ struct MoEConfig {
     std::optional<size_t> router_scores_idx;       // Index of router scores input
     std::optional<size_t> expert_input_param_idx;  // Index of expert input (token embeddings)
 
-    // Compiled models for different chunk sizes (for prefill mode)
+    // Compiled models for different chunk sizes (for EXPERT_ITERATIVE mode)
     // Key: chunk_size (e.g., 256, 128, 64, 32, 16)
     // Value: Compiled model for that chunk size
     std::map<size_t, ov::SoPtr<ov::ICompiledModel>> compiled_models;
 
     /**
-     * @brief Check if this is decoding mode (single token inference)
+     * @brief Get processing mode based on input token count
+     * @return EXPERT_BATCH for single token, EXPERT_ITERATIVE for multiple tokens
      */
-    bool is_decoding() const {
-        return input_token_count == 1;
+    MoEProcessingMode get_processing_mode() const {
+        return determine_processing_mode(input_token_count);
+    }
+
+    /**
+     * @brief Check if using expert batch mode
+     * Single token processed with K experts in parallel
+     */
+    bool is_expert_batch_mode() const {
+        return get_processing_mode() == MoEProcessingMode::EXPERT_BATCH;
+    }
+
+    /**
+     * @brief Check if using expert iterative mode
+     * Multiple tokens processed by iterating through experts
+     */
+    bool is_expert_iterative_mode() const {
+        return get_processing_mode() == MoEProcessingMode::EXPERT_ITERATIVE;
     }
 
     /**

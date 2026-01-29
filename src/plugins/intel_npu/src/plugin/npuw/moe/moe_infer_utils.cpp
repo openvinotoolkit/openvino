@@ -18,10 +18,10 @@ namespace moe {
 
 // MoEProfile constructor - uses existing profiling infrastructure
 MoEProfile::MoEProfile() {
-    prefill.area = "MoE Prefill";
-    decoding.area = "MoE Decoding";
-    prefill.report_on_die = ov::npuw::profiling_enabled();
-    decoding.report_on_die = ov::npuw::profiling_enabled();
+    iterative.area = "MoE Expert Iterative";  // EXPERT_ITERATIVE mode profiling
+    batch.area = "MoE Expert Batch";          // EXPERT_BATCH mode profiling
+    iterative.report_on_die = ov::npuw::profiling_enabled();
+    batch.report_on_die = ov::npuw::profiling_enabled();
 }
 
 ov::Tensor slice_expert_weight(const ov::Tensor& batched_weight, size_t expert_id, size_t num_experts) {

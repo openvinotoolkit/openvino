@@ -239,33 +239,51 @@ private:
     // === Execution modes ===
 
     /**
-     * @brief Execute batch experts inference (decoding mode)
+     * @brief Execute expert batch mode inference
      *
-     * Processes one token with K active experts in parallel.
+     * Processing mode: Single token processed with K experts in parallel
      * Uses cached infer requests for specific expert combinations.
      *
      * @param idx Function call index
      * @param real_idx Submodel index
      * @param selected_experts List of selected expert IDs
      */
-    void run_batch_experts(size_t idx, size_t real_idx, const std::vector<size_t>& selected_experts);
+    void run_expert_batch(size_t idx, size_t real_idx, const std::vector<size_t>& selected_experts);
 
     /**
-     * @brief Execute iterative experts inference (prefill mode)
+     * @brief Execute expert iterative mode inference
      *
-     * Processes multiple tokens by iterating through experts sequentially.
+     * Processing mode: Iterate through experts, each processes multiple tokens
      * Uses dynamic chunk sizing and accumulates outputs.
      *
      * @param idx Function call index
      * @param real_idx Submodel index
      * @param selected_experts List of selected expert IDs
      */
-    void run_iterative_experts(size_t idx, size_t real_idx, const std::vector<size_t>& selected_experts);
+    void run_expert_iterative(size_t idx, size_t real_idx, const std::vector<size_t>& selected_experts);
+
+    /**
+     * @brief Execute batch experts inference (deprecated)
+     * @deprecated Use run_expert_batch() instead
+     */
+    [[deprecated("Use run_expert_batch() instead")]]
+    void run_batch_experts(size_t idx, size_t real_idx, const std::vector<size_t>& selected_experts) {
+        run_expert_batch(idx, real_idx, selected_experts);
+    }
+
+    /**
+     * @brief Execute iterative experts inference (deprecated)
+     * @deprecated Use run_expert_iterative() instead
+     */
+    [[deprecated("Use run_expert_iterative() instead")]]
+    void run_iterative_experts(size_t idx, size_t real_idx, const std::vector<size_t>& selected_experts) {
+        run_expert_iterative(idx, real_idx, selected_experts);
+    }
 
     // === Helper functions ===
 
     /**
-     * @brief Set unrolled router scores for batch expert mode
+     * @brief Set unrolled router scores for expert batch mode
      *
      * Maps router scores from [num_experts] to K unrolled parameters.
      *

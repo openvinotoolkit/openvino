@@ -13,21 +13,21 @@ namespace ov {
 namespace npuw {
 namespace moe {
 
-void MoEResources::initialize_for_prefill(
+void MoEResources::initialize_expert_iterative_mode(
     const MoEConfig& config,
     std::function<TensorPtr(const ov::element::Type&, const ov::Shape&, const std::string&)> allocator,
     const std::string& device) {
-    LOG_DEBUG("Initializing MoE resources for PREFILL mode...");
+    LOG_DEBUG("Initializing MoE resources for EXPERT_ITERATIVE mode...");
     LOG_BLOCK();
 
     if (config.input_token_count <= 1) {
-        OPENVINO_THROW("initialize_for_prefill called with input_token_count=",
+        OPENVINO_THROW("initialize_expert_iterative_mode called with input_token_count=",
                        config.input_token_count,
-                       ", expected > 1. Use initialize_for_decoding instead.");
+                       ", expected > 1. Use initialize_expert_batch_mode instead.");
     }
 
     // Step 1: Create chunk infer requests and collect chunk sizes
-    LOG_DEBUG("Creating chunk infer requests for prefill mode...");
+    LOG_DEBUG("Creating chunk infer requests for expert iterative mode...");
     sorted_chunk_sizes.clear();
     chunk_infer_requests.clear();
     sorted_chunk_sizes.reserve(config.compiled_models.size());
@@ -47,7 +47,6 @@ void MoEResources::initialize_for_prefill(
             sorted_chunk_sizes.push_back(chunk_size);
             LOG_DEBUG("  Created chunk infer request for chunk_size=" << chunk_size);
         } catch (const std::exception& ex) {
-            LOG_ERROR("Failed to create chunk infer request for chunk_size=" << chunk_size << ": " << ex.what());
             OPENVINO_THROW("MoE chunk infer request creation failed for chunk_size=", chunk_size, ": ", ex.what());
         }
     }
@@ -69,28 +68,28 @@ void MoEResources::initialize_for_prefill(
 
     expert_output_accumulator = allocator(output_element_type, buffer_shape, device);
 
-    LOG_DEBUG("Allocated prefill output buffer: shape=" << buffer_shape << ", type=" << output_element_type
-                                                        << ", device=" << device);
+    LOG_DEBUG("Allocated iterative mode output buffer: shape=" << buffer_shape << ", type=" << output_element_type
+                                                               << ", device=" << device);
 
-    LOG_DEBUG("Prefill mode initialization completed");
+    LOG_DEBUG("Expert iterative mode initialization completed");
 }
 
-void MoEResources::initialize_for_decoding(
+void MoEResources::initialize_expert_batch_mode(
     const MoEConfig& config,
     std::function<TensorPtr(const ov::element::Type&, const ov::Shape&, const std::string&)> allocator,
     const std::string& device,
     size_t num_sublayers,
     size_t pool_size) {
-    LOG_DEBUG("Initializing MoE resources for DECODING mode...");
+    LOG_DEBUG("Initializing MoE resources for EXPERT_BATCH mode...");
     LOG_BLOCK();
 
     if (config.input_token_count != 1) {
-        OPENVINO_THROW("initialize_for_decoding called with input_token_count=",
+        OPENVINO_THROW("initialize_expert_batch_mode called with input_token_count=",
                        config.input_token_count,
-                       ", expected = 1. Use initialize_for_prefill instead.");
+                       ", expected = 1. Use initialize_expert_iterative_mode instead.");
     }
 
-    // Decoding mode resources:
+    // Expert batch mode resources:
     // - No chunk_infer_requests (uses batch-unrolled model via cache/subrequest)
     // - No expert_output_accumulator (expert outputs go directly to downstream via normal tensor connections)
     // - Request cache (optional, if pool_size > 0)
@@ -108,7 +107,7 @@ void MoEResources::initialize_for_decoding(
         LOG_DEBUG("Request cache disabled (pool_size=0)");
     }
 
-    LOG_DEBUG("Decoding mode initialization completed");
+    LOG_DEBUG("Expert batch mode initialization completed");
 }
 
 void MoEResources::reset_cache() {

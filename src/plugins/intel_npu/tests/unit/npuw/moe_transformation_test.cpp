@@ -15,8 +15,8 @@
  * Test suite for MoE Expert Transformation
  *
  * Testing Strategy:
- * - DecodingMode: Tests transformation for decoding (N=8 total experts, K=4 active, token=1)
- * - PrefillMode: Tests transformation for prefill (N=8 total experts, K=1 active, token=16, chunk=8)
+ * - ExpertBatchMode: Tests transformation for batch mode (N=8 total experts, K=4 active, token=1)
+ * - ExpertIterativeMode: Tests transformation for iterative mode (N=8 total experts, K=1 active, token=16, chunk=8)
  */
 
 // Uncomment to save debug XML files during test execution
@@ -152,23 +152,23 @@ std::shared_ptr<Model> create_transformable_moe_graph(size_t num_experts,
 // Unit Tests - MoE Expert Transformation
 // ============================================================================
 
-// Test decoding mode: N total experts, K active experts (K < N), token_count = 1
-TEST_F(MoETransformationTest, DecodingMode) {
+// Test expert batch mode: N total experts, K active experts (K < N), token_count = 1
+TEST_F(MoETransformationTest, ExpertBatchMode) {
     constexpr size_t num_total_experts = 8;
     constexpr size_t num_active_experts = 4;
     constexpr size_t hidden_dim = 2880;
-    constexpr size_t token_count = 1;  // Decoding: single token
+    constexpr size_t token_count = 1;  // EXPERT_BATCH: single token
 
     auto model = create_transformable_moe_graph(num_total_experts, hidden_dim, token_count);
-    save_model(model, "moe_decoding_before");
+    save_model(model, "moe_expert_batch_before");
 
     auto structure_info = analyze_moe_structure(model);
     ASSERT_TRUE(structure_info.has_value()) << "Failed to analyze MoE structure";
     EXPECT_EQ(structure_info->num_experts, num_total_experts);
     EXPECT_EQ(structure_info->input_token_count, token_count);
-    EXPECT_TRUE(structure_info->is_decoding_stage);
+    EXPECT_TRUE(structure_info->is_expert_batch_mode());
 
-    // Transform to K active experts for decoding
+    // Transform to K active experts for batch mode
     MoETransformConfig config;
     config.num_target_experts = num_active_experts;
     config.chunk_size = 0;
@@ -176,12 +176,12 @@ TEST_F(MoETransformationTest, DecodingMode) {
     MoEModelTransformer transformer(*structure_info);
     auto transformed = transformer.apply_expert_transformation(model, config);
 
-    ASSERT_NE(transformed, nullptr) << "Decoding transformation failed";
+    ASSERT_NE(transformed, nullptr) << "Expert batch mode transformation failed";
     EXPECT_NO_THROW(transformed->validate_nodes_and_infer_types());
 
-    save_model(transformed, "moe_decoding_after");
+    save_model(transformed, "moe_expert_batch_after");
 
-    // Decoding with K>1: expect unrolling, more nodes created
+    // Expert batch mode with K>1: expect unrolling, more nodes created
     EXPECT_GT(transformed->get_ordered_ops().size(), model->get_ordered_ops().size())
         << "Expected node count increase after unrolling " << num_active_experts << " experts";
 
@@ -193,7 +193,7 @@ TEST_F(MoETransformationTest, DecodingMode) {
     EXPECT_EQ(transformed->get_results().size(), model->get_results().size());
 
     // Verify output shape: [num_active_experts, token_count, hidden_dim*2]
-    // After decoding transformation, expert dimension should be num_active_experts and token dimension should be 1
+    // After batch mode transformation, expert dimension should be num_active_experts and token dimension should be 1
     auto result = transformed->get_results()[0];
     auto output_shape = result->get_input_partial_shape(0);
     ASSERT_TRUE(output_shape.is_static()) << "Output shape should be static";
@@ -201,29 +201,29 @@ TEST_F(MoETransformationTest, DecodingMode) {
     auto shape = output_shape.to_shape();
     EXPECT_EQ(shape.size(), 3) << "Output should be 3D tensor";
     EXPECT_EQ(shape[0], num_active_experts)
-        << "Expert dimension should be " << num_active_experts << " after decoding transformation";
-    EXPECT_EQ(shape[1], token_count) << "Token dimension should be 1 for decoding";
+        << "Expert dimension should be " << num_active_experts << " after batch mode transformation";
+    EXPECT_EQ(shape[1], token_count) << "Token dimension should be 1 for batch mode";
     EXPECT_EQ(shape[2], hidden_dim * 2) << "Hidden dimension should remain unchanged";
 }
 
-// Test prefill mode: N total experts, 1 active expert, token_count > 1
-TEST_F(MoETransformationTest, PrefillMode) {
+// Test expert iterative mode: N total experts, 1 active expert, token_count > 1
+TEST_F(MoETransformationTest, ExpertIterativeMode) {
     constexpr size_t num_total_experts = 8;
     constexpr size_t num_active_experts = 1;
     constexpr size_t hidden_dim = 2880;
-    constexpr size_t token_count = 16;  // Prefill: multiple tokens
+    constexpr size_t token_count = 16;  // EXPERT_ITERATIVE: multiple tokens
     constexpr size_t chunk_size = 8;
 
     auto model = create_transformable_moe_graph(num_total_experts, hidden_dim, token_count);
-    save_model(model, "moe_prefill_before");
+    save_model(model, "moe_expert_iterative_before");
 
     auto structure_info = analyze_moe_structure(model);
     ASSERT_TRUE(structure_info.has_value()) << "Failed to analyze MoE structure";
     EXPECT_EQ(structure_info->num_experts, num_total_experts);
     EXPECT_EQ(structure_info->input_token_count, token_count);
-    EXPECT_FALSE(structure_info->is_decoding_stage);
+    EXPECT_FALSE(structure_info->is_expert_batch_mode());
 
-    // Transform to single expert with chunking for prefill
+    // Transform to single expert with chunking for iterative mode
     MoETransformConfig config;
     config.num_target_experts = num_active_experts;
     config.chunk_size = chunk_size;
@@ -231,13 +231,13 @@ TEST_F(MoETransformationTest, PrefillMode) {
     MoEModelTransformer transformer(*structure_info);
     auto transformed = transformer.apply_expert_transformation(model, config);
 
-    ASSERT_NE(transformed, nullptr) << "Prefill transformation failed";
+    ASSERT_NE(transformed, nullptr) << "Expert iterative mode transformation failed";
     EXPECT_NO_THROW(transformed->validate_nodes_and_infer_types());
 
-    save_model(transformed, "moe_prefill_after");
+    save_model(transformed, "moe_expert_iterative_after");
 
-    // Prefill with single expert: no unrolling happens (num_target_experts=1)
-    // Tile is replaced with Reshape, token count is adjusted via fix_token_count_for_prefill
+    // Iterative mode with single expert: no unrolling happens (num_target_experts=1)
+    // Tile is replaced with Reshape, token count is adjusted to chunk size
     // Parameters count preserved (no unrolling for single expert)
     EXPECT_EQ(transformed->get_parameters().size(), model->get_parameters().size())
         << "Expected parameter count to stay the same (no unrolling for single expert)";
@@ -246,15 +246,15 @@ TEST_F(MoETransformationTest, PrefillMode) {
     EXPECT_EQ(transformed->get_results().size(), model->get_results().size());
 
     // Verify output shape: [num_target_experts, chunk_size, hidden_dim*2]
-    // After prefill transformation, expert dimension should be 1 and token dimension should be chunk_size
+    // After iterative mode transformation, expert dimension should be 1 and token dimension should be chunk_size
     auto result = transformed->get_results()[0];
     auto output_shape = result->get_input_partial_shape(0);
     ASSERT_TRUE(output_shape.is_static()) << "Output shape should be static";
 
     auto shape = output_shape.to_shape();
     EXPECT_EQ(shape.size(), 3) << "Output should be 3D tensor";
-    EXPECT_EQ(shape[0], num_active_experts) << "Expert dimension should be 1 after prefill transformation";
-    EXPECT_EQ(shape[1], chunk_size) << "Token dimension should be chunk_size after prefill transformation";
+    EXPECT_EQ(shape[0], num_active_experts) << "Expert dimension should be 1 after iterative mode transformation";
+    EXPECT_EQ(shape[1], chunk_size) << "Token dimension should be chunk_size after iterative mode transformation";
     EXPECT_EQ(shape[2], hidden_dim * 2) << "Hidden dimension should remain unchanged";
 }
 

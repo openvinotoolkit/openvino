@@ -58,25 +58,25 @@ void MoEExecutor::prepare(size_t idx, size_t real_idx, size_t num_sublayers, siz
         LOG_DEBUG("MoE Config: num_experts=" << m_config.num_experts
                                              << ", num_active_experts=" << m_config.num_active_experts
                                              << ", input_token_count=" << m_config.input_token_count
-                                             << ", mode=" << (m_config.is_decoding() ? "DECODING" : "PREFILL"));
+                                             << ", mode=" << get_mode_name(m_config.get_processing_mode()));
 
-        // Step 2: Initialize resources based on mode
+        // Step 2: Initialize resources based on processing mode
         LOG_DEBUG("Initializing MoE resources...");
-        if (m_config.is_decoding()) {
-            m_resources.initialize_for_decoding(m_config,
-                                                m_allocator,
-                                                get_device_name(idx, &desc),
-                                                num_sublayers,
-                                                pool_size);
+        if (m_config.is_expert_batch_mode()) {
+            m_resources.initialize_expert_batch_mode(m_config,
+                                                     m_allocator,
+                                                     get_device_name(idx, &desc),
+                                                     num_sublayers,
+                                                     pool_size);
         } else {
-            m_resources.initialize_for_prefill(m_config, m_allocator, get_device_name(idx, &desc));
+            m_resources.initialize_expert_iterative_mode(m_config, m_allocator, get_device_name(idx, &desc));
         }
     } else {
         LOG_DEBUG("Reusing existing shared MoE config and resources");
     }
 
-    // Step 3: Initialize request pool for this sublayer (decoding mode only)
-    if (pool_size > 0 && m_config.is_decoding()) {
+    // Step 3: Initialize request pool for this sublayer (expert batch mode only)
+    if (pool_size > 0 && m_config.is_expert_batch_mode()) {
         std::vector<RqPtr> requests;
         requests.resize(pool_size);
 
@@ -119,8 +119,8 @@ void MoEExecutor::prepare(size_t idx, size_t real_idx, size_t num_sublayers, siz
         m_resources.request_cache->initialize_layer(idx, std::move(requests));
         LOG_DEBUG("Request pool created with " << pool_size << " requests");
     } else {
-        LOG_DEBUG("Request cache disabled (pool_size=" << pool_size << ", is_decoding=" << m_config.is_decoding()
-                                                       << ")");
+        LOG_DEBUG("Request cache disabled (pool_size=" << pool_size << ", mode="
+                                                       << get_mode_name(m_config.get_processing_mode()) << ")");
     }
 
     // Step 4: Initialize MoE I/O structure for this sublayer
@@ -156,7 +156,7 @@ bool MoEExecutor::function_prologue_moe_input(size_t idx,
             return true;  // Handled by MoE
         }
 
-        // Expert inputs: store for later use (decoding: cache binding, prefill: chunking)
+        // Expert inputs: store for later use (batch mode: cache binding, iterative mode: chunking)
         if (moe._expert_input_param_idx.has_value() && param_idx == moe._expert_input_param_idx.value()) {
             NPUW_ASSERT(idx < m_moe_io.size() && "MoEExecutor::prepare() must be called first");
             m_moe_io[idx].expert_input = i_tensor;
@@ -195,8 +195,8 @@ bool MoEExecutor::function_prologue_moe_output(size_t idx, size_t output_idx, co
     NPUW_ASSERT(idx < m_moe_io.size() && "MoEExecutor::prepare() must be called first");
 
     // Store output tensor in MoE I/O structure
-    // For decoding: deferred for cache lookup
-    // For prefill: relayouted from expert outputs, expert_output_accumulator will be used eventually
+    // For EXPERT_BATCH mode: deferred for cache lookup
+    // For EXPERT_ITERATIVE mode: relayouted from expert outputs, expert_output_accumulator will be used eventually
     m_moe_io[idx].outputs.at(output_idx) = o_tensor;
     return true;  // Always handled by MoE for expert layers
 }
@@ -212,11 +212,11 @@ void MoEExecutor::run(size_t real_idx, size_t idx) {
     const auto num_experts = m_config.num_experts;
     const auto num_active_experts = m_config.num_active_experts;
     const auto input_token_count = m_config.input_token_count;
-    const bool is_decoding = (input_token_count == 1);
+    const auto processing_mode = m_config.get_processing_mode();
 
     LOG_DEBUG("MoE Config: num_experts=" << num_experts << ", num_active_experts=" << num_active_experts
                                          << ", input_token_count=" << input_token_count
-                                         << ", mode=" << (is_decoding ? "DECODING" : "PREFILL"));
+                                         << ", mode=" << get_mode_name(processing_mode));
 
     // Get I/O for this sublayer
     const auto& io = m_moe_io[idx];
@@ -228,15 +228,15 @@ void MoEExecutor::run(size_t real_idx, size_t idx) {
     // Parse router scores and populate routing maps
     // Note: parse_selected_experts_from_router() clears the maps internally before populating
     std::vector<size_t> selected_experts;
-    if (is_decoding) {
-        m_profile->decoding["Parse Router Output"].record([&]() {
+    if (processing_mode == MoEProcessingMode::EXPERT_BATCH) {
+        m_profile->batch["Parse Router Output"].record([&]() {
             selected_experts = ov::npuw::moe::parse_selected_experts_from_router(io.router_scores,
                                                                                  num_experts,
                                                                                  m_token_to_experts,
                                                                                  m_expert_to_tokens);
         });
     } else {
-        m_profile->prefill["Parse Router Output"].record([&]() {
+        m_profile->iterative["Parse Router Output"].record([&]() {
             selected_experts = ov::npuw::moe::parse_selected_experts_from_router(io.router_scores,
                                                                                  num_experts,
                                                                                  m_token_to_experts,
@@ -249,21 +249,21 @@ void MoEExecutor::run(size_t real_idx, size_t idx) {
     }
 
     // Dispatch to appropriate inference function
-    if (is_decoding) {
-        m_profile->decoding["Total Decoding"].record([&]() {
-            run_batch_experts(idx, real_idx, selected_experts);
+    if (processing_mode == MoEProcessingMode::EXPERT_BATCH) {
+        m_profile->batch["Total Expert Batch"].record([&]() {
+            run_expert_batch(idx, real_idx, selected_experts);
         });
     } else {
-        m_profile->prefill["Total Prefill"].record([&]() {
-            run_iterative_experts(idx, real_idx, selected_experts);
+        m_profile->iterative["Total Expert Iterative"].record([&]() {
+            run_expert_iterative(idx, real_idx, selected_experts);
         });
     }
 
     LOG_DEBUG("========== MoE Expert Inference Completed ==========");
 }
 
-void MoEExecutor::run_batch_experts(size_t idx, size_t real_idx, const std::vector<size_t>& selected_experts) {
-    LOG_DEBUG("\n[BATCH EXPERTS] Processing single token with " << selected_experts.size() << " experts in parallel");
+void MoEExecutor::run_expert_batch(size_t idx, size_t real_idx, const std::vector<size_t>& selected_experts) {
+    LOG_DEBUG("\n[EXPERT_BATCH] Processing single token with " << selected_experts.size() << " experts in parallel");
 
     const auto num_active_experts = m_config.num_active_experts;
     const auto& io = m_moe_io[idx];
@@ -296,7 +296,7 @@ void MoEExecutor::run_batch_experts(size_t idx, size_t real_idx, const std::vect
         }
 
         // Step 2: Configure expert weights
-        m_profile->decoding["Unpack Closure"].record([&]() {
+        m_profile->batch["Unpack Closure"].record([&]() {
             unpack_multiple_experts_closure(idx, request, selected_experts);
         });
 
@@ -331,18 +331,18 @@ void MoEExecutor::run_batch_experts(size_t idx, size_t real_idx, const std::vect
     request->set_tensor(output_port, output_tensor);
 
     // Step 5: Set unrolled router scores (always needed, even on cache hit)
-    m_profile->decoding["Set Router Input"].record([&]() {
+    m_profile->batch["Set Router Input"].record([&]() {
         set_router_scores(idx, real_idx, selected_experts, request);
     });
 
     // Step 6: Execute inference once for all K experts in parallel
-    m_profile->decoding["Expert Inference"].record([&]() {
+    m_profile->batch["Expert Inference"].record([&]() {
         request->infer();
     });
 }
 
-void MoEExecutor::run_iterative_experts(size_t idx, size_t real_idx, const std::vector<size_t>& selected_experts) {
-    LOG_DEBUG("\n[ITERATIVE EXPERTS] Processing multiple tokens by iterating through experts");
+void MoEExecutor::run_expert_iterative(size_t idx, size_t real_idx, const std::vector<size_t>& selected_experts) {
+    LOG_DEBUG("\n[EXPERT_ITERATIVE] Processing multiple tokens by iterating through experts");
 
     const auto input_token_count = m_config.input_token_count;
     const auto& io = m_moe_io[idx];
@@ -464,14 +464,14 @@ void MoEExecutor::run_iterative_experts(size_t idx, size_t real_idx, const std::
             // Important: last_chunk_size is reset to 0 at the start of each expert loop,
             // so the first chunk of a new expert will always trigger unpacking (0 != selected_chunk_size)
             if (selected_chunk_size != last_chunk_size) {
-                m_profile->prefill["Unpack Closure"].record([&]() {
+                m_profile->iterative["Unpack Closure"].record([&]() {
                     unpack_single_expert_closure(idx, selected_infer_request, expert_id);
                 });
                 last_chunk_size = selected_chunk_size;
             }
 
             // Step 2: Gather router scores for this chunk
-            m_profile->prefill["Gather Router Scores"].record([&]() {
+            m_profile->iterative["Gather Router Scores"].record([&]() {
                 ov::npuw::moe::gather_router_scores(router_source,
                                                     selected_router_dest,
                                                     expert_id,
@@ -481,7 +481,7 @@ void MoEExecutor::run_iterative_experts(size_t idx, size_t real_idx, const std::
             });
 
             // Step 3: Gather expert inputs for this chunk
-            m_profile->prefill["Gather Expert Input"].record([&]() {
+            m_profile->iterative["Gather Expert Input"].record([&]() {
                 ov::npuw::moe::gather_expert_inputs(expert_input_source,
                                                     selected_expert_input_dest,
                                                     tokens_for_expert,
@@ -490,12 +490,12 @@ void MoEExecutor::run_iterative_experts(size_t idx, size_t real_idx, const std::
             });
 
             // Step 4: Execute expert inference
-            m_profile->prefill["Expert Inference"].record([&]() {
+            m_profile->iterative["Expert Inference"].record([&]() {
                 selected_infer_request->infer();
             });
 
             // Step 5: Scatter expert outputs back to global buffer
-            m_profile->prefill["Scatter Output"].record([&]() {
+            m_profile->iterative["Scatter Output"].record([&]() {
                 ov::npuw::moe::scatter_expert_outputs(selected_expert_output,
                                                       m_resources.expert_output_accumulator,
                                                       tokens_for_expert,
@@ -532,7 +532,7 @@ void MoEExecutor::set_router_scores(size_t idx,
     auto mapping_it = param_mapping.find(original_router_idx);
     if (mapping_it == param_mapping.end()) {
         LOG_WARN("Router parameter index " << original_router_idx << " not found in param_mapping");
-        OPENVINO_THROW("MoE: Router parameter not in mapping - unexpected for decoding mode");
+        OPENVINO_THROW("MoE: Router parameter not in mapping - unexpected for expert batch mode");
     }
 
     const auto& unrolled_router_indices = mapping_it->second;
@@ -660,9 +660,9 @@ void MoEExecutor::unpack_multiple_experts_closure(std::size_t idx,
                                                   RqPtr request,
                                                   const std::vector<size_t>& expert_ids) {
     /**
-     * MoE Batch Expert Closure Unpacking for Decoding Mode
+     * MoE Batch Expert Closure Unpacking for Expert Batch Mode
      *
-     * Purpose: Process K active experts simultaneously (decoding mode, 1 token)
+     * Purpose: Process K active experts simultaneously (batch mode, 1 token)
      *
      * Input:
      *   - Batched closure parameters: shape [num_experts, ...] (original model)

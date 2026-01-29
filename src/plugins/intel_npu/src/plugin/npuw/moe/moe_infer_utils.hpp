@@ -19,12 +19,12 @@ namespace moe {
 /**
  * @brief MoE performance profiling structure.
  *
- * Tracks performance metrics for MoE operations during prefill and decoding phases.
+ * Tracks performance metrics for MoE operations in different processing modes.
  * Uses ov::npuw::perf::Profile framework for automatic metric collection and reporting.
  */
 struct MoEProfile {
-    ov::npuw::perf::Profile<ov::npuw::perf::metric<ov::npuw::perf::MSec>> prefill;
-    ov::npuw::perf::Profile<ov::npuw::perf::metric<ov::npuw::perf::MSec>> decoding;
+    ov::npuw::perf::Profile<ov::npuw::perf::metric<ov::npuw::perf::MSec>> iterative;  // EXPERT_ITERATIVE mode
+    ov::npuw::perf::Profile<ov::npuw::perf::metric<ov::npuw::perf::MSec>> batch;      // EXPERT_BATCH mode
 
     MoEProfile();
 };
