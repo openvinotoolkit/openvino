@@ -5,28 +5,28 @@
 #include "utils.hpp"
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-#include <memory>
-#include <string>
-#include <unordered_set>
+#    include <memory>
+#    include <string>
+#    include <unordered_set>
 
-#include "openvino/core/model.hpp"
-#include "openvino/core/node.hpp"
-#include "openvino/core/type.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/label.hpp"
-#include "openvino/pass/pattern/op/optional.hpp"
-#include "openvino/pass/pattern/op/pattern.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "ov_ops/fully_connected.hpp"
-#include "transformations/rt_info/dequantization_node.hpp"
-#include "transformations/utils/utils.hpp"
+#    include "openvino/core/model.hpp"
+#    include "openvino/core/node.hpp"
+#    include "openvino/core/type.hpp"
+#    include "openvino/op/add.hpp"
+#    include "openvino/op/convolution.hpp"
+#    include "openvino/op/constant.hpp"
+#    include "openvino/op/fake_quantize.hpp"
+#    include "openvino/op/matmul.hpp"
+#    include "openvino/op/multiply.hpp"
+#    include "openvino/op/subtract.hpp"
+#    include "openvino/pass/pattern/matcher.hpp"
+#    include "openvino/pass/pattern/op/label.hpp"
+#    include "openvino/pass/pattern/op/optional.hpp"
+#    include "openvino/pass/pattern/op/pattern.hpp"
+#    include "openvino/pass/pattern/op/wrap_type.hpp"
+#    include "ov_ops/fully_connected.hpp"
+#    include "transformations/rt_info/dequantization_node.hpp"
+#    include "transformations/utils/utils.hpp"
 #endif
 
 namespace ov::intel_cpu {
@@ -84,9 +84,9 @@ bool match_fq_mul_conv_bias_same_types(const std::shared_ptr<const ov::Node>& no
 }
 
 bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
-                                          const ov::Strides& strides,
-                                          const ov::Shape& kernel_shape,
-                                          size_t oc_ic_limit) {
+                                   const ov::Strides& strides,
+                                   const ov::Shape& kernel_shape,
+                                   size_t oc_ic_limit) {
     const auto conv = ov::as_type_ptr<const ov::op::v1::Convolution>(node);
     if (!conv) {
         return false;
@@ -101,13 +101,12 @@ bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
         return false;
     }
 
-    const auto weights_shape =
-        "OC, IC, " + std::to_string(kernel_shape[0]) + ", " + std::to_string(kernel_shape[1]);
+    const auto weights_shape = "OC, IC, " + std::to_string(kernel_shape[0]) + ", " + std::to_string(kernel_shape[1]);
     const auto weights_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape() &&
                                                        ov::pass::pattern::shape_matches(weights_shape));
-    const auto conv_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>(
-        {ov::pass::pattern::any_input(), weights_m},
-        {{"strides", strides}});
+    const auto conv_m =
+        ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({ov::pass::pattern::any_input(), weights_m},
+                                                              {{"strides", strides}});
     ov::pass::pattern::Matcher matcher(conv_m);
     if (!matcher.match(std::const_pointer_cast<ov::Node>(node))) {
         return false;
