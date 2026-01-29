@@ -432,28 +432,22 @@ TEST(rms_gpu_test, rms_test_without_gamma_bfyx_ref) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ov::PartialShape{1, 2, 6}, data_types::f32, format::bfyx});
-    auto gamma = engine.allocate_memory({ov::PartialShape{1, 6}, data_types::f32, format::bfyx});
     auto output_ref = engine.allocate_memory({ov::PartialShape{1, 2, 6}, data_types::f32, format::bfyx});
 
     set_values(input, {
         0.001839f, -0.003815f, 0.000961f, 0.002930f, -0.003998f, -0.008057f,
         0.006744f, -0.000004f, 0.004303f, -0.002380f, 0.000072f, 0.001404f
     });
-    set_values(gamma, {
-        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f
-    });
 
-    rms_ref<float>(input, gamma, output_ref, 1e-5f, false);
+    rms_ref<float>(input, nullptr, output_ref, 1e-5f, false);
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(input_layout("gamma", gamma->get_layout()));
-    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f, false));
+    topology.add(rms("rms", input_info("input"), 1e-5f));
 
     network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
-    network.set_input_data("gamma", gamma);
 
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -472,7 +466,6 @@ TEST(rms_gpu_test, rms_test_without_gamma_bfyx_opt) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ov::PartialShape{1, 2, 16}, data_types::f32, format::bfyx});
-    auto gamma = engine.allocate_memory({ov::PartialShape{1, 16}, data_types::f32, format::bfyx});
     auto output_ref = engine.allocate_memory({ov::PartialShape{1, 2, 16}, data_types::f32, format::bfyx});
 
     set_values(input, {
@@ -481,22 +474,16 @@ TEST(rms_gpu_test, rms_test_without_gamma_bfyx_opt) {
         0.003098f, -0.006989f, -0.000244f, 0.010193f, 0.002899f, -0.005798f, -0.026978f, 0.008789f,
         0.002258f, 0.006500f, 0.003159f, -0.012329f, 0.026245f, -0.001839f, 0.000259f, 0.002670f
     });
-    set_values(gamma, {
-        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f
-    });
 
-    rms_ref<float>(input, gamma, output_ref, 1e-5f, false);
+    rms_ref<float>(input, nullptr, output_ref, 1e-5f, false);
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(input_layout("gamma", gamma->get_layout()));
-    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f, false));
+    topology.add(rms("rms", input_info("input"), 1e-5f, false));
 
     network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
-    network.set_input_data("gamma", gamma);
 
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -517,20 +504,15 @@ TEST(rms_gpu_test, rms_test_without_gamma_dyn) {
     auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 4096},
                                        data_types::f32, format::bfyx};
     auto input = engine.allocate_memory({ov::PartialShape{2, 1, 4096}, data_types::f32, format::bfyx});
-    auto gamma = engine.allocate_memory({ov::PartialShape{1, 1, 4096}, data_types::f32, format::bfyx});
     auto output_ref = engine.allocate_memory({ov::PartialShape{2, 1, 4096}, data_types::f32, format::bfyx});
 
     tests::set_random_values<float>(input, true, 8, 100);
-    // Set gamma to all 1.0 for has_gamma=false case
-    std::vector<float> gamma_data(4096, 1.0f);
-    set_values(gamma, gamma_data);
 
-    rms_ref<float>(input, gamma, output_ref, 1e-5f, false);
+    rms_ref<float>(input, nullptr, output_ref, 1e-5f, false);
 
     topology topology;
     topology.add(input_layout("input", input_layout_dynamic));
-    topology.add(input_layout("gamma", gamma->get_layout()));
-    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f, false));
+    topology.add(rms("rms", input_info("input"), 1e-5f, false));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -538,7 +520,6 @@ TEST(rms_gpu_test, rms_test_without_gamma_dyn) {
     network network(engine, topology, config);
 
     network.set_input_data("input", input);
-    network.set_input_data("gamma", gamma);
 
     auto inst = network.get_primitive("rms");
     auto impl = inst->get_impl();

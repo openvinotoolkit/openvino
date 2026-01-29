@@ -7,7 +7,9 @@
 KERNEL(rms_gpu_ref)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
+#if ELEMENTWISE_AFFINE
     const __global INPUT1_TYPE* gamma,
+#endif
     __global OUTPUT_TYPE* output
     #if HAS_FUSED_OPS_DECLS
         , FUSED_OPS_DECLS
