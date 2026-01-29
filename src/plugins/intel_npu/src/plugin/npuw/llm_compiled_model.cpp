@@ -391,7 +391,6 @@ class OldPhi3SlidingMaskMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::OldPhi3SlidingMaskMatcher");
 
-    // Search for the Phi3 sliding mask pattern to extend it to work with right-padded
     OldPhi3SlidingMaskMatcher() {
         // Search for the Phi3 old sliding mask pattern to extend it to work with right-padded
         // past tokens and left-padded present tokens.
@@ -870,6 +869,7 @@ ov::element::Type optimize_kv_cache_storage(const std::shared_ptr<ov::Model>& mo
         LOG_WARN("FakeConvert layers had several precisions (" << fcTypesInput.size() << ")-"
                                                                << *fcTypesInput.begin() << ", " << *it2 << ", ... "
                                                                << "supported only single precision");
+        LOG_WARN("Leaving KV-cache in " << kv_kache_storage_type << " precision");
     } else {
         kv_kache_storage_type = *fcTypesInput.begin();
         LOG_DEBUG("KV cache storage precision changed to " << kv_kache_storage_type);
@@ -1767,7 +1767,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
         LOG_DEBUG("Optimize generate model to output key/values for new token.");
         for (size_t i = 0; i < generate_model_variants.size(); ++i) {
-            generate_model_variants[i] = redirect_new_kv_to_output(generate_model_variants[i], kv_kache_storage_type);
+            generate_model_variants[i] = redirect_new_kv_to_output(generate_model_variants[i]);
         }
     }
 
