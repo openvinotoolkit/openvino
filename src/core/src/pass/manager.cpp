@@ -23,8 +23,6 @@
 #include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
 
-#ifdef ENABLE_PROFILING_ITT_FULL
-
 namespace ov {
 namespace pass {
 namespace {
@@ -52,8 +50,6 @@ MemoryInfo getProcessMemoryInfo() {
 
 }  // namespace pass
 }  // namespace ov
-
-#endif  // ENABLE_PROFILING_ITT_FULL
 
 namespace {
 
@@ -365,11 +361,16 @@ void ov::pass::Manager::set_per_pass_validation(bool new_state) {
     m_per_pass_validation = new_state;
 }
 
+void ov::pass::Manager::enable_pass_validation(bool new_state) {
+    m_needs_validation = new_state;
+}
+
 bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, "pass::Manager::run_passes");
     Profiler profiler(m_name);
 
     bool model_changed = false;
+    bool needs_validation = false;
     bool pass_changed_model = false;
 
     struct Summarizer {
@@ -393,7 +394,14 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
         std::cout << "Pass: " << pass_name << std::endl;
         std::cout << "Before: RSS = " << mem_info_before.vm_rss_bytes << ", VM = " << mem_info_before.vm_size_bytes << std::endl;
         
-        pass_changed_model = run_pass(pass, model, pass_changed_model);
+        if (needs_validation) {
+            pass->m_pass_config->enable<ov::pass::Validate>();
+            needs_validation = false;
+        } else {
+            pass->m_pass_config->disable<ov::pass::Validate>();
+        }
+        
+        pass_changed_model = run_pass(pass, model);
         
         MemoryInfo mem_info_after = getProcessMemoryInfo();
         std::cout << "After: RSS = " << mem_info_after.vm_rss_bytes << ", VM = " << mem_info_after.vm_size_bytes << std::endl;
@@ -414,7 +422,8 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
             max_all_consumer.pass_name = pass_name;
         }
         profiler.stop_timer(pass_name, pass_changed_model);
-
+        
+        needs_validation = needs_validation || pass_changed_model;
         model_changed = model_changed || pass_changed_model;
 
         profiler.visualize(model, pass_name);
@@ -431,8 +440,7 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
 }
 
 bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass,
-                                 const std::shared_ptr<Model>& model,
-                                 bool needs_validate) {
+                                 const std::shared_ptr<Model>& model) {
     if (m_pass_config->is_disabled(pass->get_type_info())) {
         OPENVINO_DEBUG("Pass ", pass->get_name(), " is disabled.");
         return false;
@@ -454,9 +462,6 @@ bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass,
         // GraphRewrite is a temporary container for MatcherPass to make execution on entire ov::Model
         return GraphRewrite(matcher_pass).run_on_model(model);
     } else if (auto model_pass = ov::as_type_ptr<ModelPass>(pass)) {
-        if (ov::as_type_ptr<ov::pass::Validate>(model_pass) && !needs_validate) {
-            return false;
-        }
         return model_pass->run_on_model(model);
     }
     return false;

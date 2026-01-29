@@ -87,6 +87,8 @@ public:
     /// each registered pass
     /// \param new_state Value "true" enables Validate pass run; "false", otherwise
     void set_per_pass_validation(bool new_state);
+    
+    void enable_pass_validation(bool new_state);
 
     /// \return PassConfig shared object. This object is used for transformations pipeline
     /// configuration.
@@ -109,10 +111,11 @@ protected:
     std::shared_ptr<PassConfig> m_pass_config;
     std::vector<std::shared_ptr<PassBase>> m_pass_list;
     bool m_per_pass_validation = true;
+    bool m_needs_validation = false;
     std::string m_name = "UnnamedManager";
 
 private:
-    bool run_pass(const std::shared_ptr<PassBase>& pass, const std::shared_ptr<Model>& model, bool needs_validate);
+    bool run_pass(const std::shared_ptr<PassBase>& pass, const std::shared_ptr<Model>& model);
 };
 }  // namespace pass
 }  // namespace ov
