@@ -42,7 +42,7 @@ OutputVector translate_loop(const NodeContext& context) {
         auto result = body_results[i];
         auto out_idx = session->decode_tensor_name(result->input(0).get_source_output());
         PYTORCH_OP_CONVERSION_CHECK(output_idxs.count(out_idx) == 0,
-                                    "More then one body output with same tensor name.");
+                                    "More than one body output with same tensor name.");
         output_idxs[out_idx] = result;
     }
 

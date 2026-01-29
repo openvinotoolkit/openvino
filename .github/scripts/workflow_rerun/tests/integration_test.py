@@ -7,11 +7,14 @@ Integration tests
 
 import unittest
 from pathlib import Path
-from datetime import datetime
-from github import Github, Auth
+from datetime import datetime, timedelta
 import os
 import tempfile
 
+import requests
+from github import Github, Auth
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 from workflow_rerun.log_analyzer import LogAnalyzer
 from workflow_rerun.log_collector import collect_logs_for_run
@@ -22,45 +25,57 @@ class IntegrationTest(unittest.TestCase):
     A class for testing integration between LogAnalyzer and log_collection
     """
 
-    def setUp(self) -> None:
-        print(f'\nIn test: "{self._testMethodName}"', flush=True)
-        self._cwd = Path(__file__).parent
-        self.errors_to_look_for_file = self._cwd.parent.joinpath(
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls._cwd = Path(__file__).parent
+        cls.errors_to_look_for_file = cls._cwd.parent.joinpath(
             'errors_to_look_for.json'
         )
-        self.github = Github(auth=Auth.Token(token=os.environ.get('GITHUB_TOKEN')))
-        self.gh_repo = self.github.get_repo(full_name_or_id='openvinotoolkit/openvino')
+
+        cls.session = requests.Session()
+        retry_strategy = Retry(
+            total=5,
+            backoff_factor=3,
+            backoff_jitter=1,
+            status_forcelist=[429, 500, 502, 503, 504]
+        )
+        cls.session.mount("https://github.com", HTTPAdapter(max_retries=retry_strategy))
+
+        cls.github = Github(auth=Auth.Token(token=os.environ.get('GITHUB_TOKEN')))
+        gh_repo = cls.github.get_repo(full_name_or_id='openvinotoolkit/openvino')
 
         # Even if we use "failure" for status we cannot guarantee logs containing any of the known error
-        # So these tests use the logs of the most recent successfull pipeline
+        # So these tests use the logs of the most recent failed pipeline
         # Its "created_at" time should be within 60 days - the log retention window
-        self.wf_run = None
-        for run in self.gh_repo.get_workflow_runs(status='success'):
-            if (datetime.now(run.created_at.tzinfo) - run.created_at).days < 45:
-                self.wf_run = run
-                break
-        if not self.wf_run:
-            raise RuntimeError('No suitable workflow run found for testing')
-        self.wf_run = self.gh_repo.get_workflow_runs(status='success')[0]
-        print(f'Workflow run for testing: {self.wf_run}', flush=True)
+        oldest_allowed_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+        cls.wf_run = gh_repo.get_workflow_runs(status='failure',
+                                               created=f">={oldest_allowed_date}")[0]
+        print(f'Workflow run for testing: {cls.wf_run}', flush=True)
+
+    def setUp(self):
+        print(f'\nIn test: "{self._testMethodName}"', flush=True)
 
     def test_log_collection_and_analysis(self) -> None:
         """
         Ensure logs collected by collect_logs_for_run are analyzed by LogAnalyzer
         """
 
-        log_archive_path = Path(tempfile.NamedTemporaryFile(suffix='.zip').name)
-        collect_logs_for_run(run=self.wf_run, 
-                             log_archive_path=log_archive_path)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            logs_dir = Path(temp_dir)
+            collect_logs_for_run(run=self.wf_run,
+                                 logs_dir=logs_dir,
+                                 session=self.session)
 
-        analyzer = LogAnalyzer(
-            path_to_log_archive=log_archive_path,
-            path_to_errors_file=self.errors_to_look_for_file,
-        )
-        self.assertTrue(len(analyzer._log_files) > 0)
-        analyzer.analyze()
-        if analyzer.found_matching_error:
-            print(f'Found matching error, ticket: {analyzer.found_error_ticket}')
+            analyzer = LogAnalyzer(
+                path_to_logs=logs_dir,
+                path_to_errors_file=self.errors_to_look_for_file,
+            )
+            self.assertTrue(len(analyzer._log_files) > 0,
+                            'Failed run log files should be collected for failed jobs')
+            analyzer.analyze()
+            if analyzer.found_matching_error:
+                print(f'Found matching error, ticket: {analyzer.found_error_ticket}')
 
-    def tearDown(self) -> None:
-        self.github.close()
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.github.close()
