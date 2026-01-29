@@ -22,6 +22,7 @@ JitConstants RMSKernelBase::GetJitConstants(const rms_params& params, RMSKernelB
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     jit.AddConstant(MakeJitConstant("EPSILON", params.epsilon));
+    jit.AddConstant(MakeJitConstant("ELEMENTWISE_AFFINE", params.elementwise_affine));
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
     return jit;
