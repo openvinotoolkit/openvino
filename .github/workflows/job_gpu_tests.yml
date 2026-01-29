@@ -29,6 +29,11 @@ on:
         type: string
         required: false
         default: ''
+      artifact_name_suffix: # To be removed
+        description: 'Suffix to append to artifact name'
+        type: string
+        required: false
+        default: ''
 
 permissions: read-all
 
@@ -146,6 +151,6 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()
         with:
-          name: test-results-${{ inputs.test_type }}-${{ inputs.device }}
+          name: test-results-${{ inputs.test_type }}-${{ inputs.device }}${{ inputs.artifact_name_suffix }}
           path: ${{ env.INSTALL_TEST_DIR }}/${{ steps.run_tests.outputs.test_results_dir }}
           if-no-files-found: 'error'

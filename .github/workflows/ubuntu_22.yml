@@ -582,13 +582,15 @@ jobs:
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_gpu_tests.yml
     strategy:
-      max-parallel: 2
+      max-parallel: 10
       fail-fast: false
       matrix:
         TEST_TYPE: ['unit', 'func']
+        REPEAT: [1, 2, 3, 4, 5] # to be removed
     with:
       device: 'igpu'
       test_type: ${{ matrix.TEST_TYPE }}
+      artifact_name_suffix: '-${{ matrix.REPEAT }}' # to be removed
       runner: "[ 'self-hosted', 'igpu' ]"
       runner-group: 'Intel-GPU'
       image: ubuntu:22.04
