@@ -438,6 +438,14 @@ static constexpr ov::Property<std::string> subgraphs{"NPUW_DUMP_SUBS"};
 /**
  * @brief
  * Type: std::string.
+ * Directory path for dumping subgraph models (.xml).
+ * Default value: empty (current directory).
+ */
+static constexpr ov::Property<std::string> subgraphs_dir{"NPUW_DUMP_SUBS_DIR"};
+
+/**
+ * @brief
+ * Type: std::string.
  * Dump subgraph on disk if a compilation failure happens.
  * Possible values: Comma-separated list of subgraph indices ("last" can be used
  * for dumping last subgraph) or "YES" for all subgraphs, "MIN" for representative
@@ -467,6 +475,14 @@ static constexpr ov::Property<std::string> inputs_outputs{"NPUW_DUMP_IO"};
  */
 static constexpr ov::Property<std::string> io_iters{"NPUW_DUMP_IO_ITERS"};
 
+/**
+ * @brief
+ * Type: bool.
+ * Dump subgraph composition as a JSON file (.sg) describing the pipeline structure,
+ * including the list of unique subgraphs, their repetition counts, and file paths.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> subgraph_composition{"NPUW_DUMP_SUBS_COMPOSITION"};
 }  // namespace dump
 
 namespace llm {
