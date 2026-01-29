@@ -686,7 +686,7 @@ void Properties::registerCompiledModelProperties() {
         return std::string("NPU");
     });
 }
-
+ 
 ov::Any Properties::get_property(const std::string& name, const ov::AnyMap& arguments) const {
     std::map<std::string, std::string> amends;
     for (auto&& value : arguments) {
@@ -707,6 +707,9 @@ ov::Any Properties::get_property(const std::string& name, const ov::AnyMap& argu
     try {
         return amendedConfig.getInternal(name);
     } catch (...) {
+        if (!_backend) {
+            OPENVINO_THROW("No available backend");
+        }
         OPENVINO_THROW("Unsupported configuration key: ", name);
     }
 }
@@ -737,6 +740,8 @@ void Properties::set_property(const ov::AnyMap& properties) {
                 } else {
                     OPENVINO_THROW("Unsupported configuration key: ", value.first);
                 }
+            } else if (!_backend) {
+                OPENVINO_THROW("No available backend");    
             } else {
                 OPENVINO_THROW("Unsupported configuration key: ", value.first);
             }
