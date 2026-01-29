@@ -24,7 +24,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-#    include "openvino/op/subtract.hpp"
+#    include "openvino/op/subtract.hpp"  // NOLINT(misc-include-cleaner) needed for explicit template instantiation
 #endif
 
 namespace ov::intel_cpu {
