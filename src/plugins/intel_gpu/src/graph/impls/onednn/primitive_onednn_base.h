@@ -471,7 +471,11 @@ protected:
 
         if (_scratchpad_md.get_size() != 0) {
             // onednn primitive can have only 1 scratchpad memory.
-            auto scratchpad = instance.get_intermediates_memories()[0];
+            const auto& intermediates = instance.get_intermediates_memories();
+            OPENVINO_ASSERT(!intermediates.empty(),
+                            "[GPU] oneDNN primitive ", instance.id(), " requires scratchpad of size ",
+                            _scratchpad_md.get_size(), " bytes, but intermediates memory is missing");
+            auto scratchpad = intermediates[0];
             args.insert({DNNL_ARG_SCRATCHPAD, scratchpad->get_onednn_memory(_scratchpad_md, 0)});
         }
 
