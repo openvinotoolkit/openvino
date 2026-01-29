@@ -2,26 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#    ifdef _MSC_VER
-#        pragma warning(push)
-#        pragma warning(disable : 4146 4267 4244 4996)
-#    endif
+#include "zero_dynamic_infer_request.hpp"
 
-#    include "zero_dynamic_infer_request.hpp"
+#include <cstdlib>
+#include <sstream>
 
-#    include <cstdlib>
-#    include <sstream>
-
-#    include "intel_npu/common/itt.hpp"
-#    include "intel_npu/config/options.hpp"
-#    include "intel_npu/prefix.hpp"
-#    include "intel_npu/utils/utils.hpp"
-#    include "intel_npu/utils/zero/zero_api.hpp"
-#    include "intel_npu/utils/zero/zero_utils.hpp"
-#    include "openvino/op/util/op_types.hpp"
-#    include "openvino/runtime/intel_npu/remote_properties.hpp"
-#    include "openvino/runtime/make_tensor.hpp"
-#    include "zero_variable_state.hpp"
+#include "intel_npu/common/itt.hpp"
+#include "intel_npu/config/options.hpp"
+#include "intel_npu/prefix.hpp"
+#include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/runtime/intel_npu/remote_properties.hpp"
+#include "openvino/runtime/make_tensor.hpp"
+#include "zero_variable_state.hpp"
 
 using namespace intel_npu;
 
@@ -1213,7 +1208,3 @@ std::shared_ptr<ZeroTensor>& ZeroDynamicInferRequest::get_level_zero_input(size_
 std::vector<std::shared_ptr<ZeroTensor>>& ZeroDynamicInferRequest::get_level_zero_inputs(size_t index) const {
     return _levelZeroInputTensors.at(index);
 }
-
-#    ifdef _MSC_VER
-#        pragma warning(pop)
-#endif
