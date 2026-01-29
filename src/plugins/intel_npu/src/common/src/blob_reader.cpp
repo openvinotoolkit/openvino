@@ -4,8 +4,6 @@
 
 #include "intel_npu/common/blob_reader.hpp"
 
-#include "intel_npu/common/offsets_table.hpp"
-
 namespace {
 
 constexpr std::string_view MAGIC_BYTES = "OVNPU";
@@ -74,41 +72,35 @@ void BlobReader::read(const std::unordered_map<CRE::Token, std::shared_ptr<ICapa
     copy_data_from_source(reinterpret_cast<char*>(&m_npu_region_size), sizeof(m_npu_region_size));
 
     // Step 1: Read the table of offsets
-    SectionID section_id;
-    uint64_t section_length;
+    std::optional<SectionID> section_id = 0;
+    std::optional<uint64_t> offset = 0;
+    std::optional<uint64_t> section_length = 0;
 
     uint64_t offsets_table_location;
     copy_data_from_source(reinterpret_cast<char*>(&offsets_table_location), sizeof(offsets_table_location));
     const size_t where_the_region_of_persistent_format_starts = get_cursor_relative_position();
 
     move_cursor_to_relative_position(offsets_table_location);
-    copy_data_from_source(reinterpret_cast<char*>(&section_id), sizeof(section_id));
-    OPENVINO_ASSERT(section_id == PredefinedSectionID::OFFSETS_TABLE,
+    copy_data_from_source(reinterpret_cast<char*>(&section_id.value()), sizeof(section_id.value()));
+    OPENVINO_ASSERT(section_id.value() == PredefinedSectionID::OFFSETS_TABLE,
                     "Unexpected section ID. Expected: ",
                     PredefinedSectionID::OFFSETS_TABLE,
                     ". Received: ",
-                    section_id);
+                    section_id.value());
 
-    copy_data_from_source(reinterpret_cast<char*>(&section_length), sizeof(section_length));
-    m_parsed_sections[PredefinedSectionID::OFFSETS_TABLE] = OffsetsTableSection::read(this, section_length);
+    copy_data_from_source(reinterpret_cast<char*>(&section_length.value()), sizeof(section_length.value()));
+    m_parsed_sections[PredefinedSectionID::OFFSETS_TABLE] = OffsetsTableSection::read(this, section_length.value());
     m_offsets_table =
         std::dynamic_pointer_cast<OffsetsTableSection>(m_parsed_sections.at(PredefinedSectionID::OFFSETS_TABLE))
             ->get_table();
 
     // Step 2: Look for the CRE and evaluate it
-    OPENVINO_ASSERT(m_offsets_table.count(PredefinedSectionID::CRE),
-                    "The CRE was not found within the table of offsets");
-    move_cursor_to_relative_position(m_offsets_table.at(PredefinedSectionID::CRE));
+    offset = m_offsets_table.lookup_offset(PredefinedSectionID::CRE);
+    section_length = m_offsets_table.lookup_length(PredefinedSectionID::CRE);
+    OPENVINO_ASSERT(offset.has_value(), "The CRE was not found within the table of offsets");
+    move_cursor_to_relative_position(offset.value());
 
-    copy_data_from_source(reinterpret_cast<char*>(&section_id), sizeof(section_id));
-    OPENVINO_ASSERT(section_id == PredefinedSectionID::CRE,
-                    "Unexpected section ID. Expected: ",
-                    PredefinedSectionID::CRE,
-                    ". Received: ",
-                    section_id);
-
-    copy_data_from_source(reinterpret_cast<char*>(&section_length), sizeof(section_length));
-    m_parsed_sections[PredefinedSectionID::CRE] = CRESection::read(this, section_length);
+    m_parsed_sections[PredefinedSectionID::CRE] = CRESection::read(this, section_length.value());
     std::dynamic_pointer_cast<CRESection>(m_parsed_sections.at(PredefinedSectionID::CRE))
         ->get_cre()
         .check_compatibility(plugin_capabilities);
@@ -116,29 +108,24 @@ void BlobReader::read(const std::unordered_map<CRE::Token, std::shared_ptr<ICapa
     // Step 3: Parse all known sections
     move_cursor_to_relative_position(where_the_region_of_persistent_format_starts);
 
-    while (get_cursor_relative_position() < m_npu_region_size) {
-        copy_data_from_source(reinterpret_cast<char*>(&section_id), sizeof(section_id));
-        copy_data_from_source(reinterpret_cast<char*>(&section_length), sizeof(section_length));
+    size_t relative_offset;
+    while (relative_offset = get_cursor_relative_position(), relative_offset < m_npu_region_size) {
+        section_id = m_offsets_table.lookup_section_id(relative_offset);
+        OPENVINO_ASSERT(section_id.has_value(),
+                        "Did not find any section corresponding to the relative offset ",
+                        relative_offset);
+        section_length = m_offsets_table.lookup_length(section_id.value());
 
-        const size_t next_section_location = get_cursor_relative_position() + section_length;
-        if (!m_readers.count(section_id)) {
+        const size_t next_section_location = relative_offset + section_length.value();
+        if (!m_readers.count(section_id.value())) {
             // Unknown region, skip
             move_cursor_to_relative_position(next_section_location);
             continue;
         }
 
-        m_parsed_sections[section_id] = m_readers.at(section_id)(this, section_length);
+        m_parsed_sections[section_id.value()] = m_readers.at(section_id.value())(this, section_length.value());
         move_cursor_to_relative_position(next_section_location);  // jic the reader moved the cursor somewhere else
     }
-}
-
-std::optional<uint64_t> BlobReader::get_section_offset(const SectionID section_id) const {
-    auto search_iterator = m_offsets_table.find(section_id);
-    if (search_iterator == m_offsets_table.end()) {
-        return std::nullopt;
-    }
-
-    return search_iterator->second;
 }
 
 size_t BlobReader::get_npu_region_size(std::istream& stream) {

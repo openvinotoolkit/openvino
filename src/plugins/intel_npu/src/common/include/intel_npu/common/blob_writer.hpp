@@ -11,6 +11,7 @@
 #include <unordered_set>
 
 #include "cre.hpp"
+#include "intel_npu/common/offsets_table.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 
 namespace intel_npu {
@@ -22,8 +23,6 @@ public:
     BlobWriter(const std::shared_ptr<BlobReader>& blob_reader);
 
     void register_section(const std::shared_ptr<ISection>& section);
-
-    void register_offset_in_table(const SectionID id, const uint64_t offset);
 
     void write(std::ostream& stream);
 
@@ -39,7 +38,7 @@ private:
     std::unordered_set<SectionID> m_registered_sections_ids;
     std::queue<std::shared_ptr<ISection>> m_registered_sections;
     CRE m_cre;
-    std::unordered_map<SectionID, uint64_t> m_offsets_table;
+    OffsetsTable m_offsets_table;
 
     /**
      * @brief TODO

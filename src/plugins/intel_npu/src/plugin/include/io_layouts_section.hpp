@@ -17,8 +17,6 @@ public:
 
     void write(std::ostream& stream, BlobWriter* writer) override;
 
-    std::optional<uint64_t> get_length() const override;
-
     std::vector<ov::Layout> get_input_layouts() const;
 
     std::vector<ov::Layout> get_output_layouts() const;

@@ -17,10 +17,6 @@ void BatchSizeSection::write(std::ostream& stream, BlobWriter* writer) {
     stream.write(reinterpret_cast<const char*>(&m_batch_size), sizeof(m_batch_size));
 }
 
-std::optional<uint64_t> BatchSizeSection::get_length() const {
-    return sizeof(m_batch_size);
-}
-
 int64_t BatchSizeSection::get_batch_size() const {
     return m_batch_size;
 }

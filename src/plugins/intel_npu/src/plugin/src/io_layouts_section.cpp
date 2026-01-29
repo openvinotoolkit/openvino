@@ -34,20 +34,6 @@ void IOLayoutsSection::write(std::ostream& stream, BlobWriter* writer) {
     write_layouts(m_output_layouts);
 }
 
-std::optional<uint64_t> IOLayoutsSection::get_length() const {
-    const auto get_layouts_length = [&](const std::vector<ov::Layout>& layouts) -> uint64_t {
-        uint64_t accumulator = 0;
-        for (const ov::Layout& layout : layouts) {
-            const uint16_t string_length = static_cast<uint16_t>(layout.to_string().size());
-            accumulator += sizeof(string_length) + string_length;
-        }
-        return accumulator;
-    };
-
-    const uint64_t SIZE_OF_COUNTS = 2 * sizeof(uint64_t);  // number of input layouts + number of output layouts
-    return SIZE_OF_COUNTS + get_layouts_length(m_input_layouts) + get_layouts_length(m_output_layouts);
-}
-
 std::vector<ov::Layout> IOLayoutsSection::get_input_layouts() const {
     return m_input_layouts;
 }

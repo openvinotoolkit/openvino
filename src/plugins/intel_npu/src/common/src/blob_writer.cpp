@@ -5,7 +5,6 @@
 #include "intel_npu/common/blob_writer.hpp"
 
 #include "intel_npu/common/blob_reader.hpp"
-#include "intel_npu/common/offsets_table.hpp"
 
 namespace {
 
@@ -49,11 +48,6 @@ void BlobWriter::append_compatibility_requirement(const std::vector<CRE::Token>&
     m_cre.append_to_expression(requirement_tokens);
 }
 
-void BlobWriter::register_offset_in_table(const SectionID id, const uint64_t offset) {
-    OPENVINO_ASSERT(!m_offsets_table.count(id));
-    m_offsets_table[id] = offset;
-}
-
 std::streamoff BlobWriter::get_stream_relative_position(std::ostream& stream) const {
     OPENVINO_ASSERT(m_stream_base.has_value());
     OPENVINO_ASSERT(stream.good());
@@ -63,46 +57,24 @@ std::streamoff BlobWriter::get_stream_relative_position(std::ostream& stream) co
 void BlobWriter::write_section(std::ostream& stream, const std::shared_ptr<ISection>& section) {
     const SectionID section_id = section->get_section_id();
 
-    // All sections registered within the BlobWriter are automatically added to the table of offsets
-    register_offset_in_table(section_id, get_stream_relative_position(stream));
+    stream.seekp(0, std::ios_base::end);
+    const uint64_t offset = get_stream_relative_position(stream);
+    auto position_before_write = stream.tellp();
 
-    stream.write(reinterpret_cast<const char*>(&section_id), sizeof(section_id));
-
-    std::optional<uint64_t> length = section->get_length();
-
-    if (length.has_value()) {
-        stream.write(reinterpret_cast<const char*>(&length.value()), sizeof(length.value()));
-        auto position_before_write = stream.tellp();
-        section->write(stream, this);
-
-        OPENVINO_ASSERT(length.value() == static_cast<uint64_t>(stream.tellp() - position_before_write),
-                        "Mismatch between the length provided by the section class and the size written in the "
-                        "blob. Section ID: ",
-                        section_id);
-    } else {
-        // Use the cursor to deduce the length
-        uint64_t length = 0;  // placeholder
-        auto length_location = stream.tellp();
-        stream.write(reinterpret_cast<const char*>(&length), sizeof(length));
-
-        const auto payload_start = stream.tellp();
-        section->write(stream, this);
-        stream.seekp(0, std::ios_base::end);
-
-        // Compute the size of the payload and then go back and write the true value
-        length = stream.tellp() - payload_start;
-        stream.seekp(length_location);
-        stream.write(reinterpret_cast<const char*>(&length), sizeof(length));
-    }
+    section->write(stream, this);
 
     stream.seekp(0, std::ios_base::end);
+    const uint64_t length = static_cast<uint64_t>(stream.tellp() - position_before_write);
+
+    // All sections registered within the BlobWriter are automatically added to the table of offsets
+    m_offsets_table.add_entry(section_id, offset, length);
 }
 
 void BlobWriter::write(std::ostream& stream) {
     // Backup the attributes of the class. Writing to a stream needs to be idempotent
     std::queue<std::shared_ptr<ISection>> registered_sections_backup(m_registered_sections);
     CRE cre_clone = m_cre;
-    std::unordered_map<SectionID, uint64_t> offsets_table_backup = m_offsets_table;
+    OffsetsTable offsets_table_backup = m_offsets_table;
 
     // The NPU specific region starts from here
     m_stream_base = stream.tellp();

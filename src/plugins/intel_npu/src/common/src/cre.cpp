@@ -148,10 +148,6 @@ void CRESection::write(std::ostream& stream, BlobWriter* writer) {
                  m_cre.get_expression_length() * sizeof(CRE::Token));
 }
 
-std::optional<uint64_t> CRESection::get_length() const {
-    return m_cre.get_expression_length() * sizeof(CRE::Token);
-}
-
 CRE CRESection::get_cre() const {
     return m_cre;
 }

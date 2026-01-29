@@ -17,8 +17,6 @@ public:
 
     void write(std::ostream& stream, BlobWriter* writer) override;
 
-    std::optional<uint64_t> get_length() const override;
-
     int64_t get_batch_size() const;
 
     static std::shared_ptr<ISection> read(BlobReader* blob_reader, const size_t section_length);

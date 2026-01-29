@@ -76,8 +76,6 @@ public:
 
     void write(std::ostream& stream, BlobWriter* writer) override;
 
-    std::optional<uint64_t> get_length() const override;
-
     CRE get_cre() const;
 
     static std::shared_ptr<ISection> read(BlobReader* blob_reader, const size_t section_length);

@@ -12,8 +12,4 @@ SectionID ISection::get_section_id() const {
     return m_section_id;
 }
 
-std::optional<uint64_t> ISection::get_length() const {
-    return std::nullopt;
-}
-
 }  // namespace intel_npu
