@@ -56,22 +56,12 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_StaticShapeLoop_dynamic_exit.*)",
             // TODO Issue 100145
             R"(.*Behavior.*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
-            // Not implemented yet:
-            R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
-            // TODO: Issue 67408
-            R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*Inference.*)",
             // Expected behavior. GPU plugin doesn't support i64 for eltwise power operation.
             R"(.*EltwiseLayerTest.*eltwise_op_type=Pow.*model_type=i64.*)",
-            // TODO: Issue: 68712
-            R"(.*.MatMul.*CompareWithRefs.*IS0=\(1.5\)_IS1=\(1.5\).*transpose_a=0.*transpose_b=1.*CONSTANT.*FP16.*UNSPECIFIED.*UNSPECIFIED.*ANY.*)",
-            // Unsupported
-            R"(smoke_Behavior/InferRequestSetBlobByType.setInputBlobsByType/BlobType=Batched_Device=GPU_Config=().*)",
             // need dynamic rank
             R"(.*smoke.*BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
             R"(.*smoke.*BehaviorTests.*DynamicOutputToDynamicInput.*)",
             R"(.*smoke.*BehaviorTests.*DynamicInputToDynamicOutput.*)",
-            // TODO: Issue: 89555
-            R"(.*CoreThreadingTestsWithIter.*)",
             // TODO: Issue: 145926
             R"(.*CoreThreadingTest.smoke_QueryModel.*)",
             // Assign-3/ReadValue-3 does not have evaluate() methods; ref implementation does not save the value across the inferences.
@@ -184,8 +174,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_RDFT_5d_last_axis/RDFTLayerTest.Inference/IS=\(10.4.8.2.5\)_modelType=f32_Axes=\(0.1.2.3.4\)_SignalSize=\(\).*)",
             // Issue: 136862
             R"(.*smoke_ConditionGPUTest_static/StaticConditionLayerGPUTest.CompareWithRefs/IS=\(3.6\)_netPRC=i8_ifCond=PARAM_targetDevice=GPU_.*)",
-            // Issue: 142900
-            R"(.*smoke_TestsROIAlign_.*ROIAlignV9LayerTest.*)",
             // Use weight from model not from path hint
             R"(.*compile_from_weightless_blob.*)",
 
