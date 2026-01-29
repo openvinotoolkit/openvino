@@ -6,6 +6,9 @@ on:
       - master
       - 'releases/**'
 
+permissions:
+  contents: read
+
 jobs:
   check-copyright:
     runs-on: ubuntu-latest
