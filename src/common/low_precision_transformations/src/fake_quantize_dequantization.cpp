@@ -31,6 +31,14 @@ FakeQuantizeDequantization::FakeQuantizeDequantization(
     subtractConstant(subtractConstant),
     multiply(multiply),
     multiplyConstant(multiplyConstant) {
+    OPENVINO_ASSERT(data.get_node() != nullptr, "Incorrect dequantization operations: data node is null");
+    const auto dataNode = data.get_node_shared_ptr();
+    OPENVINO_ASSERT(convert == nullptr || subtractConvert == nullptr || convert != subtractConvert,
+                    "Incorrect dequantization operations: convert and subtractConvert are the same");
+    OPENVINO_ASSERT(subtractConstant == nullptr || dataNode != subtractConstant,
+                    "Incorrect dequantization operations: dataNode and subtractConstant are the same");
+    OPENVINO_ASSERT(multiplyConstant == nullptr || dataNode != multiplyConstant,
+                    "Incorrect dequantization operations: dataNode and multiplyConstant are the same");
     const auto rank = data.get_partial_shape().rank();
     if (rank.is_static()) {
         std::string data_src_type = data.get_node()->get_type_name();
@@ -242,56 +250,36 @@ int FakeQuantizeDequantization::fillDequantizationParams(
     const std::shared_ptr<ov::Node>& elementwise,
     std::shared_ptr<ov::opset1::Convert>& convert,
     std::shared_ptr<ov::opset1::Constant>& constant) {
-    auto fill = [](
-        const std::shared_ptr<ov::Node>& elementwise,
-        const size_t branchIndex,
-        std::shared_ptr<ov::opset1::Convert>& convert,
-        std::shared_ptr<ov::opset1::Constant>& constant) {
-        convert = ov::as_type_ptr<opset1::Convert>(elementwise->get_input_node_shared_ptr(branchIndex));
-        if (convert != nullptr) {
-            constant = convert->get_destination_type().is_real() ?
-                ov::as_type_ptr<opset1::Constant>(convert->get_input_node_shared_ptr(0)) :
-                nullptr;
-        } else {
-            constant = elementwise->get_input_element_type(branchIndex).is_real() ?
-                ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(branchIndex)) :
-                nullptr;
-        }
-    };
-
-    fill(elementwise, 1ul, convert, constant);
-    if (constant != nullptr) {
-        return 1;
+    const auto constantBranchIndex = NetworkHelper::getDQConstBranchIndex(elementwise);
+    if (!constantBranchIndex.has_value()) {
+        return -1;
     }
 
-    fill(elementwise, 0ul, convert, constant);
-    if (constant != nullptr) {
-        return 0;
+    convert = ov::as_type_ptr<opset1::Convert>(elementwise->get_input_node_shared_ptr(*constantBranchIndex));
+    if (convert != nullptr) {
+        constant = convert->get_destination_type().is_real() ?
+            ov::as_type_ptr<opset1::Constant>(convert->get_input_node_shared_ptr(0)) :
+            nullptr;
+    } else {
+        constant = elementwise->get_input_element_type(*constantBranchIndex).is_real() ?
+            ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(*constantBranchIndex)) :
+            nullptr;
     }
-
-    return -1;
+    return constant != nullptr ? static_cast<int>(*constantBranchIndex) : -1;
 }
 
 int FakeQuantizeDequantization::fillDequantizationParams(
     const std::shared_ptr<ov::Node>& elementwise,
     std::shared_ptr<ov::opset1::Constant>& constant) {
-    constant = elementwise->get_input_element_type(1ul).is_real() ?
-        ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(1ul)) :
-        nullptr;
-
-    if (constant != nullptr) {
-        return 1;
+    const auto constantBranchIndex = NetworkHelper::getDQConstBranchIndex(elementwise);
+    if (!constantBranchIndex.has_value()) {
+        return -1;
     }
 
-    constant = elementwise->get_input_element_type(0ul).is_real() ?
-        ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(0ul)) :
+    constant = elementwise->get_input_element_type(*constantBranchIndex).is_real() ?
+        ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(*constantBranchIndex)) :
         nullptr;
-
-    if (constant != nullptr) {
-        return 0;
-    }
-
-    return -1;
+    return constant != nullptr ? static_cast<int>(*constantBranchIndex) : -1;
 }
 
 }  // namespace low_precision

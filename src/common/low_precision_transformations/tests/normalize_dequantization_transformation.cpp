@@ -233,6 +233,48 @@ const std::vector<NormalizeDequantizationTestValues> testValues = {
             },
         },
     },
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 1, 3, 16, 16 },
+        true,
+        {
+            ov::element::f32,
+            {
+                {ov::element::f16},
+                {},
+                { {10.f}, ov::element::f16, { 1, 3, 1, 1 }, false, 0 }
+            },
+        },
+        {
+            ov::element::f32,
+            {
+                {ov::element::f16},
+                {},
+                { {10.f}, ov::element::f16, { 1, 3, 1, 1 }, false, 1 }
+            }
+        },
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 1, 3, 16, 16 },
+        true,
+        {
+            ov::element::f32,
+            {
+                {ov::element::f16},
+                { {128.f}, ov::element::f16, { 1, 3, 1, 1 }, false, 0 },
+                {}
+            },
+        },
+        {
+            ov::element::f32,
+            {
+                {ov::element::f16},
+                { {128.f}, ov::element::f16, { 1, 3, 1, 1 }, false, 1 },
+                {}
+            }
+        },
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(
