@@ -34,6 +34,7 @@ if(GPU_RT_TYPE STREQUAL "OCL")
 endif()
 
 if(GPU_RT_TYPE STREQUAL "L0")
+    list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_OCL})
     list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_ZE})
 endif()
 
@@ -70,6 +71,7 @@ endif()
 ov_set_threading_interface_for(${TARGET_NAME})
 ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
+# Requires OpenCL even for L0 builds because of kernel builder and OneDNN
 target_link_libraries(${TARGET_NAME} PRIVATE
     OpenCL::OpenCL
     openvino::itt
