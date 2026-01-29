@@ -1,0 +1,100 @@
+name: Copyright Header Check
+
+on:
+  pull_request:
+    branches:
+      - master
+      - 'releases/**'
+
+jobs:
+  check-copyright:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Get changed files
+        id: changed-files
+        run: |
+          # Get the base branch for comparison
+          git fetch origin ${{ github.base_ref }}
+          
+          # Get list of changed files (comparing PR head with base branch)
+          git diff --name-only origin/${{ github.base_ref }}...HEAD > changed_files.txt
+
+      - name: Check copyright headers
+        id: check
+        run: |
+          python .github/scripts/check_copyright.py changed_files.txt
+        continue-on-error: true
+
+      - name: Upload diff artifact
+        if: steps.check.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: copyright-fixes
+          path: copyright_fixes.diff
+          retention-days: 7
+
+      - name: Comment on PR with fix instructions
+        if: steps.check.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Read the list of files with issues
+            let failedFiles = [];
+            try {
+              const output = fs.readFileSync('copyright_issues.txt', 'utf8');
+              failedFiles = output.trim().split('\n').filter(f => f);
+            } catch (e) {
+              failedFiles = [];
+            }
+            
+            const currentYear = new Date().getFullYear();
+            const filesList = failedFiles.length > 0 
+              ? '\n\nAffected files:\n' + failedFiles.slice(0, 20).map(f => `- \`${f}\``).join('\n') + 
+                (failedFiles.length > 20 ? `\n- ... and ${failedFiles.length - 20} more` : '')
+              : '';
+            
+            const message = `## ⚠️ Copyright Header Issues Found
+            
+            Found ${failedFiles.length} file(s) with incorrect or missing copyright headers.${filesList}
+            
+            ### How to fix:
+            
+            **Download and apply the patch:**
+            1. Go to the "Checks" tab of this PR, find the "Copyright Header Check" workflow
+            2. Download the \`copyright-fixes\` artifact
+            3. Extract \`copyright_fixes.diff\`
+            4. Apply it: \`patch -p1 < copyright_fixes.diff\`
+            5. Commit and push the changes
+            
+            **Expected header format:**
+            \`\`\`cpp
+            // Copyright (C) 2018-${currentYear} Intel Corporation
+            // SPDX-License-Identifier: Apache-2.0
+            //
+            
+            \`\`\``;
+            
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: message
+            });
+
+      - name: Fail if copyright issues found
+        if: steps.check.outcome == 'failure'
+        run: |
+          echo "Copyright header issues detected. Please fix them and push again."
+          exit 1
