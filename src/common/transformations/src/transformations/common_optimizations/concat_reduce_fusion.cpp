@@ -114,7 +114,7 @@ ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
         // This requires that the concatenation only merged "single" elements along that axis,
         // so that Max(A, B) is equivalent to ReduceMax(Concat(A, B)).
         // If inputs have dimension > 1 along the concat axis, ReduceMax performs a reduction within A and within B,
-        // which Average/Max/Min(A, B) does not capture (it broadcasts).
+        // which Max/Min(A, B) does not capture (it broadcasts).
         int64_t concat_axis = concat->get_axis();
         for (const auto& input : concat->inputs()) {
             const auto& p_shape = input.get_partial_shape();
