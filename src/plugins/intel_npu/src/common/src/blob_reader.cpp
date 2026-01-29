@@ -61,7 +61,7 @@ void BlobReader::move_cursor_to_relative_position(const size_t offset) {
     m_cursor = offset;
 }
 
-void BlobReader::read(const std::unordered_set<CRE::Token>& plugin_capabilities_ids) {
+void BlobReader::read(const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities) {
     std::string magic_bytes(MAGIC_BYTES.size(), 0);
     copy_data_from_source(const_cast<char*>(magic_bytes.c_str()), MAGIC_BYTES.size());
     OPENVINO_ASSERT(magic_bytes == MAGIC_BYTES);
@@ -111,7 +111,7 @@ void BlobReader::read(const std::unordered_set<CRE::Token>& plugin_capabilities_
     m_parsed_sections[PredefinedSectionID::CRE] = CRESection::read(this, section_length);
     std::dynamic_pointer_cast<CRESection>(m_parsed_sections.at(PredefinedSectionID::CRE))
         ->get_cre()
-        .check_compatibility(plugin_capabilities_ids);
+        .check_compatibility(plugin_capabilities);
 
     // Step 3: Parse all known sections
     move_cursor_to_relative_position(where_the_region_of_persistent_format_starts);

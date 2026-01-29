@@ -9,6 +9,8 @@
 
 namespace intel_npu {
 
+class ICapability;
+
 class InvalidCRE : public ov::Exception {};
 
 class CRE final {
@@ -52,7 +54,7 @@ public:
 
     std::vector<Token> get_expression() const;
 
-    bool check_compatibility(const std::unordered_set<CRE::Token>& plugin_capabilities);
+    bool check_compatibility(const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities);
 
 private:
     enum class Delimiter { PARRENTHESIS, SIZE, NOT_CAPABILITY_ID };
@@ -62,7 +64,7 @@ private:
     bool end_condition(const std::vector<Token>::const_iterator& expression_iterator, const Delimiter end_delimiter);
 
     bool evaluate(std::vector<Token>::const_iterator& expression_iterator,
-                  const std::unordered_set<CRE::Token>& plugin_capabilities,
+                  const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities,
                   const Delimiter end_delimiter);
 
     std::vector<Token> m_expression;

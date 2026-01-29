@@ -17,6 +17,7 @@
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/common/static_capability.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -247,9 +248,13 @@ namespace intel_npu {
 Plugin::Plugin()
     : _options(std::make_shared<OptionsDesc>()),
       _globalConfig(_options),
-      _logger("NPUPlugin", Logger::global().level()),
-      _capabilitiesIDs(CRE::DEFAULT_PLUGIN_CAPABILITIES_TOKENS) {
+      _logger("NPUPlugin", Logger::global().level()) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
+
+    for (const CRE::Token token : CRE::DEFAULT_PLUGIN_CAPABILITIES_TOKENS) {
+        register_capability(std::make_shared<StaticCapability>(token));
+    }
+
     set_device_name("NPU");
 
     // parse env_variables to get LOG_LEVEL if needed
@@ -1131,7 +1136,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, c
             "The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
     }
 
-    blobReader->read(_capabilitiesIDs);
+    blobReader->read(_capabilities);
     auto mainScheduleSection = std::dynamic_pointer_cast<ELFMainScheduleSection>(
         blobReader->retrieve_section(PredefinedSectionID::ELF_MAIN_SCHEDULE));
     auto initSchedulesSection = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
@@ -1212,12 +1217,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, c
     return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig, blobWriter);
 }
 
-void Plugin::register_capability(const CRE::Token capability_id) const {
-    _capabilitiesIDs.insert(capability_id);
+void Plugin::register_capability(const std::shared_ptr<ICapability>& capability) const {
+    _capabilities[capability->get_token()] = capability;
 }
 
-std::unordered_set<CRE::Token> Plugin::get_capabilities_ids() const {
-    return _capabilitiesIDs;
+std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> Plugin::get_capabilities() const {
+    return _capabilities;
 }
 
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};

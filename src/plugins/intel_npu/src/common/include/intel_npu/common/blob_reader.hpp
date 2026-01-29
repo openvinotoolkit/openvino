@@ -10,7 +10,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "intel_npu/common/cre.hpp"
+#include "intel_npu/common/icapability.hpp"
 
 namespace intel_npu {
 
@@ -18,7 +18,7 @@ class BlobReader {
 public:
     BlobReader(const ov::Tensor& source);
 
-    void read(const std::unordered_set<CRE::Token>& plugin_capabilities_ids);
+    void read(const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities);
 
     void register_reader(const SectionID section_id,
                          std::function<std::shared_ptr<ISection>(BlobReader*, const size_t)> reader);

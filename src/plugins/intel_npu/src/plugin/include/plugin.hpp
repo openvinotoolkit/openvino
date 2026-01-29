@@ -11,6 +11,7 @@
 #include "backends_registry.hpp"
 #include "intel_npu/common/cre.hpp"
 #include "intel_npu/common/filtered_config.hpp"
+#include "intel_npu/common/icapability.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
@@ -65,9 +66,9 @@ public:
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;
 
-    void register_capability(const CRE::Token capability_id) const;
+    void register_capability(const std::shared_ptr<ICapability>& capability) const;
 
-    std::unordered_set<CRE::Token> get_capabilities_ids() const;
+    std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> get_capabilities() const;
 
 private:
     void init_options();
@@ -102,7 +103,8 @@ private:
     mutable Logger _logger;
     std::shared_ptr<Metrics> _metrics;
     std::unique_ptr<Properties> _properties;
-    mutable std::unordered_set<CRE::Token> _capabilitiesIDs;
+    // TODO is this the best type of ptr for this usecase?
+    mutable std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> _capabilities;
 
     static std::atomic<int> _compiledModelLoadCounter;
     mutable std::mutex _mutex;

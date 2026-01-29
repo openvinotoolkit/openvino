@@ -8,6 +8,7 @@
 
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
+#include "intel_npu/common/icapability.hpp"
 
 namespace {
 
@@ -66,7 +67,7 @@ bool CRE::end_condition(const std::vector<Token>::const_iterator& expression_ite
 
 // TODO: if depth = 1, fail asap and print a suggestive message regarding the missing cap
 bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
-                   const std::unordered_set<CRE::Token>& plugin_capabilities,
+                   const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities,
                    const Delimiter end_delimiter) {
     std::function<bool(bool, bool)> logical_function;
     bool base;
@@ -112,7 +113,11 @@ bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
             base = logical_function(base,
                                     evaluate(expression_iterator, plugin_capabilities, Delimiter::NOT_CAPABILITY_ID));
         } else {
-            base = logical_function(base, plugin_capabilities.count(*expression_iterator));
+            const bool has_capability = plugin_capabilities.count(*expression_iterator)
+                                            ? plugin_capabilities.at(*expression_iterator)->check_support()
+                                            : false;
+
+            base = logical_function(base, has_capability);
             advance_iterator(expression_iterator);
         }
     }
@@ -124,7 +129,7 @@ bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
     return base;
 }
 
-bool CRE::check_compatibility(const std::unordered_set<CRE::Token>& plugin_capabilities) {
+bool CRE::check_compatibility(const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities) {
     if (m_expression.empty()) {
         return true;
     }
