@@ -632,16 +632,13 @@ KERNEL(pa_sdpa_opt)(
 #if IS_KV_COMPRESSED
             const uint packed_block_offset = block_indices[start_block_idx + block_num] * KV_HEADS_NUM * adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE
                                                 + head_idx * adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
-            const uint head_size_offset = (head_size_idx / (SUBGROUP_SIZE * PACK_SIZE)) * SUBGROUP_SIZE + head_size_idx % SUBGROUP_SIZE;
+            const uint head_size_offset = ((head_size_idx / SUBGROUP_SIZE) / PACK_SIZE) * SUBGROUP_SIZE + (head_size_idx % SUBGROUP_SIZE);
             const uint packed_value_offset = packed_block_offset + head_size_offset;
             const uint value_comp_offset = packed_block_offset + v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
             INPUT0_TYPE* value_comp_ptr = value_cache + value_comp_offset;
             INPUT0_TYPE comp_scale = value_comp_ptr[0 + sglid];
             INPUT0_TYPE comp_zp = value_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + sglid];
 
-            // if ((uint)get_global_id(0) == 0 && (uint)get_global_id(1) == 0 && (uint)get_global_id(2) == 0) {
-            //     printf(" ")
-            // }
 #endif
 
             #define VALUE_VEC_SIZE SUBGROUP_SIZE
@@ -800,7 +797,7 @@ KERNEL(pa_sdpa_opt)(
             #if IS_INT4_COMPRESSED
                 const uint packed_block_offset = block_indices[last_block_idx] * KV_HEADS_NUM * adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE
                                                     + head_idx * adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
-                const uint head_size_offset = (head_size_idx / (SUBGROUP_SIZE * PACK_SIZE)) * SUBGROUP_SIZE + head_size_idx % SUBGROUP_SIZE;
+                const uint head_size_offset = ((head_size_idx / SUBGROUP_SIZE) / PACK_SIZE) * SUBGROUP_SIZE + (head_size_idx % SUBGROUP_SIZE);
                 const uint packed_value_offset = packed_block_offset + head_size_offset;
 
                 const uint value_comp_offset = packed_block_offset + v_head_size * PAGED_ATTENTION_BLOCK_SIZE;

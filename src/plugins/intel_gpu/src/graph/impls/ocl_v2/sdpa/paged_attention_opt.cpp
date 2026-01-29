@@ -265,7 +265,8 @@ public:
 
         const auto is_key_by_channel = desc->is_key_by_channel;
         if (is_kv_compressed) {
-            jit.make("PACKED_K_HEAD_SIZE", kernel_selector::Align(desc->k_head_size, subgroup_size)/2);
+            // jit.make("PACKED_K_HEAD_SIZE", kernel_selector::Align(desc->k_head_size, subgroup_size)/2);
+            jit.make("PACKED_K_HEAD_SIZE", kernel_selector::Align(desc->k_head_size/2, subgroup_size));
             auto& kv_dt = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;
             auto scales_zp_size = get_element_size(kv_dt) * 2;  // scale + zp
             if (data_type_traits::is_i4_u4(kv_cache_dt)) {
@@ -281,16 +282,20 @@ public:
             if (is_key_by_channel) {
                 jit.make("IS_KEY_BY_CHANNEL", 1);
                 jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
-                jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size, subgroup_size)/2));
+                // jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size, subgroup_size)/2));
+                jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size/2, subgroup_size)));
                 jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size + scales_zp_size);
             } else {
                 jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + scales_zp_size);
-                jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size, subgroup_size)/2) + scales_zp_size);
+                // jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size, subgroup_size)/2) + scales_zp_size);
+                jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size/2, subgroup_size)) + scales_zp_size);
                 jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
             }
             jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + scales_zp_size);
-            jit.make("PACKED_ADJUSTED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size, subgroup_size*2)/2) + scales_zp_size);
-            jit.make("PACKED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size, subgroup_size*2)/2));
+            // jit.make("PACKED_ADJUSTED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size, subgroup_size*2)/2) + scales_zp_size);
+            // jit.make("PACKED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size, subgroup_size*2)/2));
+            jit.make("PACKED_ADJUSTED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size/2, subgroup_size)) + scales_zp_size);
+            jit.make("PACKED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size/2, subgroup_size)));
         } else {
             jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
             jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size);
@@ -449,7 +454,7 @@ public:
             wgs.global = {total_tokens, heads_num, head_size * rtp->num_of_partitions * sg_scale};
             wgs.local = {1, 1, head_size * sg_scale};
             // [DEBUG]
-            // printf(">>>> [DEBUG] local(2):(%lu) head_size(%lu), sg_scale(%lu)\n", wgs.local[2], head_size, sg_scale);
+            // printf(">>>> [DEBUG] local(2):(%lu), head_size(%lu), num_of_partitions(%lu), sg_scale(%lu)\n", wgs.local[2], head_size, rtp->num_of_partitions, sg_scale);
         }};
     }
 };
@@ -813,7 +818,8 @@ protected:
         const bool is_kv_compressed = get_kv_compressed(params);
         jit.make("IS_KV_COMPRESSED", is_kv_compressed ? 1 : 0);
         if (is_kv_compressed) {
-            jit.make("PACKED_K_HEAD_SIZE", kernel_selector::Align(desc->k_head_size, subgroup_size)/2);
+            // jit.make("PACKED_K_HEAD_SIZE", kernel_selector::Align(desc->k_head_size, subgroup_size)/2);
+            jit.make("PACKED_K_HEAD_SIZE", kernel_selector::Align(desc->k_head_size/2, subgroup_size));
             auto data_type = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;  // key tensor data size
             auto scales_zp_size = get_element_size(data_type) * 2;                         // scale + zp
             if (data_type_traits::is_i4_u4(kv_cache_dt)) {
@@ -828,17 +834,21 @@ protected:
             if (is_key_by_channel) {
                 jit.make("IS_KEY_BY_CHANNEL", 1);
                 jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
-                jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size, subgroup_size)/2));
+                // jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size, subgroup_size)/2));
+                jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size/2, subgroup_size)));
                 jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size + scales_zp_size);
                 jit.make("NUM_K_HEAD_SIZE_PARTITIONS", get_num_k_head_size_partitions(desc->is_key_by_channel, desc->k_head_size));
             } else {
                 jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + scales_zp_size);
-                jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size, subgroup_size)/2) + scales_zp_size);
+                // jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size, subgroup_size)/2) + scales_zp_size);
+                jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size/2, subgroup_size)) + scales_zp_size);
                 jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
             }
             jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + scales_zp_size);
-            jit.make("PACKED_ADJUSTED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size, subgroup_size*2)/2) + scales_zp_size);
-            jit.make("PACKED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size, subgroup_size*2)/2));
+            // jit.make("PACKED_ADJUSTED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size, subgroup_size)/2) + scales_zp_size);
+            // jit.make("PACKED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size, subgroup_size)/2));
+            jit.make("PACKED_ADJUSTED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size/2, subgroup_size)) + scales_zp_size);
+            jit.make("PACKED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size/2, subgroup_size)));
 
             #if ENABLE_DEBUG
                 const uint packed_adj_k_head_size = (is_key_by_channel) ?
