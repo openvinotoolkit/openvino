@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/runtime/file_handle.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
 namespace ov {

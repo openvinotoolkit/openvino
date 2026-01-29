@@ -103,7 +103,11 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     if (do_rotary) {
         ov::Output<ov::Node> position_ids =
             register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
-        position_ids = register_new_node<v1::Add>(position_ids, past_seqlen);
+        if (node->get_input_size() > 8) {
+            position_ids = node->input_value(8).get_node_shared_ptr();
+        } else {
+            position_ids = register_new_node<v1::Add>(position_ids, past_seqlen);
+        }
 
         const auto cos = register_new_node<v8::Gather>(cos_cache, position_ids, zero);
         const auto sin = register_new_node<v8::Gather>(sin_cache, position_ids, zero);
@@ -127,6 +131,9 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
             v0::Constant::create(ov::element::i64, ov::Shape{1}, {past_key.get_partial_shape()[2].get_length()}));
         past_key = register_new_node<v8::Slice>(past_key, current_kv_len_const, past_kv_len_const, one, two);
         past_value = register_new_node<v8::Slice>(past_value, current_kv_len_const, past_kv_len_const, one, two);
+    } else {
+        past_key = register_new_node<v8::Slice>(past_key, zero, past_seqlen, one, two);
+        past_value = register_new_node<v8::Slice>(past_value, zero, past_seqlen, one, two);
     }
     K = construct_kv_cache(past_key, K);
     V = construct_kv_cache(past_value, V);
@@ -157,34 +164,46 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
 
     // Make attention mask
     std::shared_ptr<ov::Node> mask;
+    if (node->get_input_size() > 9) {
+        auto original_mask = node->input_value(9).get_node_shared_ptr();
+        // Extract mask [num_heads, curr_seqlen, concat_kv_len] from 4D mask [1, num_heads, curr_seqlen, max_kv_len]
+        auto axes_to_squeeze = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+        auto mask_squeezed = register_new_node<v0::Squeeze>(original_mask, axes_to_squeeze);
+        mask = register_new_node<v8::Slice>(mask_squeezed, zero, concat_kv_len, one, two);
+    } else {
+        std::shared_ptr<ov::Node> hori_range =
+            register_new_node<v4::Range>(zero_without_shape, concat_kv_len_scalar, one_without_shape, ov::element::i64);
+        hori_range = register_new_node<v0::Unsqueeze>(hori_range, zero);
 
-    std::shared_ptr<ov::Node> hori_range =
-        register_new_node<v4::Range>(zero_without_shape, concat_kv_len_scalar, one_without_shape, ov::element::i64);
-    hori_range = register_new_node<v0::Unsqueeze>(hori_range, zero);
+        std::shared_ptr<ov::Node> vert_range =
+            register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
+        vert_range = register_new_node<v0::Unsqueeze>(vert_range, one);
+        if (is_static_input) {
+            const auto past_k_node_len = get_dimensions(past_key.get_node_shared_ptr(), {2});
+            vert_range = register_new_node<v1::Add>(vert_range, past_k_node_len);
+        } else {
+            vert_range = register_new_node<v1::Add>(vert_range, past_seqlen);
+        }
 
-    std::shared_ptr<ov::Node> vert_range =
-        register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
-    vert_range = register_new_node<v0::Unsqueeze>(vert_range, one);
-    const auto past_k_node_len = get_dimensions(past_key.get_node_shared_ptr(), {2});
-    vert_range = register_new_node<v1::Add>(vert_range, past_k_node_len);
+        const auto triu = register_new_node<v1::Greater>(hori_range, vert_range);
+        const auto typed_zero = register_new_node(v0::Constant::create(T, ov::Shape{}, {0}));
+        // cf. make_attention_mask@src\plugins\intel_gpu\tests\common\subgraphs_builders.hpp
+        std::shared_ptr<ov::Node> minus_inf = nullptr;
+        if (T == ov::element::f32)
+            minus_inf =
+                register_new_node(v0::Constant::create(T, ov::Shape{}, {-std::numeric_limits<float>::infinity()}));
+        else if (T == ov::element::f16)
+            minus_inf =
+                register_new_node(v0::Constant::create(T, ov::Shape{}, {std::numeric_limits<ov::float16>::lowest()}));
+        mask = register_new_node<v1::Select>(triu, minus_inf, typed_zero);
 
-    const auto triu = register_new_node<v1::Greater>(hori_range, vert_range);
-    const auto typed_zero = register_new_node(v0::Constant::create(T, ov::Shape{}, {0}));
-    // cf. make_attention_mask@src\plugins\intel_gpu\tests\common\subgraphs_builders.hpp
-    std::shared_ptr<ov::Node> minus_inf = nullptr;
-    if (T == ov::element::f32)
-        minus_inf = register_new_node(v0::Constant::create(T, ov::Shape{}, {-std::numeric_limits<float>::infinity()}));
-    else if (T == ov::element::f16)
-        minus_inf =
-            register_new_node(v0::Constant::create(T, ov::Shape{}, {std::numeric_limits<ov::float16>::lowest()}));
-    mask = register_new_node<v1::Select>(triu, minus_inf, typed_zero);
-
-    if (is_static_input) {
-        const auto padding_len = register_new_node<v1::Subtract>(concat_kv_len, seqlens_1d);
-        const auto padding_mask_vert_shape = register_new_node<v0::Concat>(ov::NodeVector{current_seqlen, one}, 0);
-        const auto padding_mask_vert = register_new_node<v3::Broadcast>(padding_len, padding_mask_vert_shape);
-        const auto padding_mask = register_new_node<v1::GreaterEqual>(hori_range, padding_mask_vert);
-        mask = register_new_node<v1::Select>(padding_mask, mask, minus_inf);
+        if (is_static_input) {
+            const auto padding_len = register_new_node<v1::Subtract>(concat_kv_len, seqlens_1d);
+            const auto padding_mask_vert_shape = register_new_node<v0::Concat>(ov::NodeVector{current_seqlen, one}, 0);
+            const auto padding_mask_vert = register_new_node<v3::Broadcast>(padding_len, padding_mask_vert_shape);
+            const auto padding_mask = register_new_node<v1::GreaterEqual>(hori_range, padding_mask_vert);
+            mask = register_new_node<v1::Select>(padding_mask, mask, minus_inf);
+        }
     }
 
     std::shared_ptr<ov::Node> qga_output;
