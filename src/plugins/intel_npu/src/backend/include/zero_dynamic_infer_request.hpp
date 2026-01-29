@@ -75,6 +75,7 @@ private:
 
     bool _pipelineIsCreated = false;
     bool _dynamicBatchValueChanged = false;
+    bool _isTensorChanged = false;
 };
 
 }  //  namespace intel_npu
