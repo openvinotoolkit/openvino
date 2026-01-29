@@ -1897,7 +1897,7 @@ KERNEL(sdpa_opt)(
                     #ifdef V_HEAD_SIZE_LEFTOVER
                         #ifdef BEAM_TABLE_TYPE
                         const uint value_offset_seq = sub_group_broadcast(value_offset, seq_len_idx);
-                        const INPUT2_TYPE value_packed = (head_size_idx <= V_HEAD_SIZE) ? value_input[value_offset_seq] : INPUT2_VAL_ZERO;
+                        const INPUT2_TYPE value_packed = (head_size_idx < V_HEAD_SIZE) ? value_input[value_offset_seq] : INPUT2_VAL_ZERO;
                         #else // !BEAM_TABLE_TYPE
                         INPUT2_TYPE value_packed;
                         if (sgid < SUBGROUPS_PER_WG - 1)
@@ -2012,7 +2012,8 @@ KERNEL(sdpa_opt)(
 #if IS_FLASHATTEN_V2
                     output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
 #endif
-                    OUTPUT_BLOCK_WRITE(output, output_offset, output_acc[seq_idx]);
+                    // Use scalar writes since block writes require alignment, but we process leftovers here
+                    output[output_offset + sglid] = output_acc[seq_idx];
                     output_offset += output_pitch;
                 }
             } else if (sglid < V_HEAD_SIZE_LEFTOVER) {
@@ -2030,7 +2031,8 @@ KERNEL(sdpa_opt)(
 #if IS_FLASHATTEN_V2
                     output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
 #endif
-                    OUTPUT_BLOCK_WRITE(output, output_offset, output_acc[seq_idx]);
+                    // Use scalar writes since block writes require alignment, but we process leftovers here
+                    output[output_offset + sglid] = output_acc[seq_idx];
                     output_offset += output_pitch;
                 }
             } else if (sglid < V_HEAD_SIZE_LEFTOVER) {
