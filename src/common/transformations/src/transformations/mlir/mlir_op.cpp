@@ -25,6 +25,9 @@
 #include "llvm/Target/TargetOptions.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Arith/Transforms/Passes.h"
+#include "mlir/Transforms/Passes.h"
+#include "mlir/Conversion/Passes.h"
+#include "mlir/Dialect/MemRef/Transforms/Passes.h"
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
@@ -108,16 +111,17 @@ void prepareMLIRKernelWithoutWrapper(mlir::OwningOpRef<mlir::ModuleOp>& module, 
             pm.addPass(bufferization::createEmptyTensorEliminationPass());
 
             pm.addPass(bufferization::createOneShotBufferizePass());
-            pm.addNestedPass<func::FuncOp>(bufferization::createFinalizingBufferizePass());
 
             // Cleanup after bufferization - possibly remove redundant copies.
             pm.addNestedPass<func::FuncOp>(createCanonicalizerPass());
             pm.addNestedPass<func::FuncOp>(createCSEPass());
 
             // Deallocation pipeline to avoid memory leaks from created temporary buffers.
-            pm.addPass(memref::createExpandReallocPass(/*emitDeallocs=*/false));
+            memref::ExpandReallocPassOptions expandReallocOpts;
+            expandReallocOpts.emitDeallocs = false;
+            pm.addPass(memref::createExpandReallocPass(expandReallocOpts));
             pm.addPass(createCanonicalizerPass());
-            bufferization::DeallocationOptions deallocOpts;
+            bufferization::OwnershipBasedBufferDeallocationPassOptions deallocOpts;
             deallocOpts.privateFuncDynamicOwnership = false;
             pm.addPass(bufferization::createOwnershipBasedBufferDeallocationPass(deallocOpts));
             pm.addPass(createCanonicalizerPass());
@@ -134,10 +138,11 @@ void prepareMLIRKernelWithoutWrapper(mlir::OwningOpRef<mlir::ModuleOp>& module, 
             // Blanket-convert any remaining affine ops if any remain.
             pm.addPass(createLowerAffinePass());
             // Convert SCF to CF (always needed).
-            pm.addPass(createConvertSCFToCFPass());
+            pm.addPass(createSCFToControlFlowPass());
             // Sprinkle some cleanups.
             pm.addPass(createCanonicalizerPass());
             pm.addPass(createCSEPass());
+            pm.addPass(createArithToLLVMConversionPass());
             // Blanket-convert any remaining linalg ops to LLVM if any remain.
             // pm.addPass(createConvertLinalgToLLVMPass());  // no such pass
             // Convert vector to LLVM (always needed).
@@ -194,9 +199,10 @@ std::unique_ptr<llvm::Module> lowerToLLVMIR(Operation* module, llvm::LLVMContext
         // These options should force fused MLA, but they don't. :/
         // Adding unsafe math attribute to functions below do the trick.
         llvm::TargetOptions targetOptions;
-        targetOptions.UnsafeFPMath = true;
+        // targetOptions.UnsafeFPMath = true;
         targetOptions.AllowFPOpFusion = llvm::FPOpFusion::FPOpFusionMode::Fast;
-        targetMachine.reset(target->createTargetMachine(triple,
+        auto llvmTriple = llvm::Triple(triple);
+        targetMachine.reset(target->createTargetMachine(llvmTriple,
                                                         cpuName,
                                                         "+" + fpuName,
                                                         targetOptions,

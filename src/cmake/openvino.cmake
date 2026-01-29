@@ -59,7 +59,7 @@ target_link_libraries(${TARGET_NAME}
     openvino::pugixml
     ${CMAKE_DL_LIBS}
     ${GRAPH_COMPILER_LIBS}
-    ${MLIR_OPENVINO_LIBS}
+    ${MLIR_ALL_LIBS}
     Threads::Threads
     PUBLIC $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.1>>:stdc++fs>
     $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:c++fs>)

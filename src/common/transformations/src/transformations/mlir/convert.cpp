@@ -38,6 +38,7 @@
 #include "mlir/Dialect/Linalg/TransformOps/DialectExtension.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/Dialect/Shape/IR/Shape.h"
 #include "mlir/Dialect/Tensor/TransformOps/TensorTransformOps.h"
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/ExecutionEngine/ExecutionEngine.h"
@@ -149,7 +150,7 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
     DataLayoutEntryInterface entry = DataLayoutEntryAttr::get(context, key, tileSize);
     TargetDeviceSpecInterface deviceSpec = TargetDeviceSpecAttr::get(context, ArrayRef(entry));
     auto deviceStr = StringAttr::get(context, "CPU");
-    auto sysSpec = TargetSystemSpecAttr::get(context, ArrayRef(std::pair(deviceStr, deviceSpec)));
+    auto sysSpec = TargetSystemSpecAttr::get(context, {DataLayoutEntryAttr::get(deviceStr, deviceSpec)});
     module.getOperation()->setAttr("#dlti.sys_spec", sysSpec);
 
     ConversionContext conversion_context(context, &block_builder);
@@ -158,7 +159,10 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
         auto funcInputVal = func.getArgument(i);
         // transition from memref enclosure to tensor interior
         auto loc = createLocation(context, inputs[i].get_node_shared_ptr());
-        auto tensor = block_builder.create<bufferization::ToTensorOp>(loc, funcInputVal, /*restrict = */ true);
+        auto ranked = mlir::dyn_cast<mlir::MemRefType>(funcInputVal.getType());
+        auto tensorTy = mlir::RankedTensorType::get(ranked.getShape(), ranked.getElementType());
+        auto tensor = block_builder.create<bufferization::ToTensorOp>(
+            loc, tensorTy, funcInputVal, /*restrict = */ true, /*writable=*/ true);
         conversion_context.nodeOutputMap.emplace(inputs[i], tensor);
 
         // FIXME: Avoid pre-population of dimension_map, take dimension values only if needed

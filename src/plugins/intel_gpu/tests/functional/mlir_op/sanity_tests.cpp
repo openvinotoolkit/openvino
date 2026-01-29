@@ -18,8 +18,9 @@
 
 using testing::ElementsAreArray;
 
-static std::string model_full_path(const char* path) {
-    return ov::util::make_path<char>(TEST_MODELS_DIR, path);
+static std::string model_full_path(const std::string& path) {
+    std::string base = TEST_MODELS_DIR;
+    return ov::util::make_path(base + "/" + path);
 }
 
 template<typename T>
@@ -172,8 +173,8 @@ static std::map<size_t, ov::Tensor> allocate_input_tensors(
 }
 
 TEST(MLIRExecution, SimpleMatmulf32) {
-    if (ov::util::getenv_string("OV_MLIR_MODE") != "GC_GPU")
-        GTEST_SKIP() << "This test is only for GC_GPU MLIR mode. Set 'OV_MLIR_MODE' env variable to 'GC_GPU'";
+    // if (ov::util::getenv_string("OV_MLIR_MODE") != "GC_GPU")
+    //     GTEST_SKIP() << "This test is only for GC_GPU MLIR mode. Set 'OV_MLIR_MODE' env variable to 'GC_GPU'";
 
     ov::Core core;
     auto model = core.read_model(
@@ -216,8 +217,8 @@ TEST(MLIRExecution, SimpleMatmulf32) {
 }
 
 TEST(MLIRExecution, SimpleMatmulf32CLBuffer) {
-    if (ov::util::getenv_string("OV_MLIR_MODE") != "GC_GPU")
-        GTEST_SKIP() << "This test is only for GC_GPU MLIR mode. Set 'OV_MLIR_MODE' env variable to 'GC_GPU'";
+    // if (ov::util::getenv_string("OV_MLIR_MODE") != "GC_GPU")
+    //     GTEST_SKIP() << "This test is only for GC_GPU MLIR mode. Set 'OV_MLIR_MODE' env variable to 'GC_GPU'";
 
     ov::Core core;
     auto model = core.read_model(
@@ -260,8 +261,8 @@ TEST(MLIRExecution, SimpleMatmulf32CLBuffer) {
 }
 
 TEST(MLIRExecution, SimpleMatmulf16) {
-    if (ov::util::getenv_string("OV_MLIR_MODE") != "GC_GPU")
-        GTEST_SKIP() << "This test is only for GC_GPU MLIR mode. Set 'OV_MLIR_MODE' env variable to 'GC_GPU'";
+    // if (ov::util::getenv_string("OV_MLIR_MODE") != "GC_GPU")
+    //     GTEST_SKIP() << "This test is only for GC_GPU MLIR mode. Set 'OV_MLIR_MODE' env variable to 'GC_GPU'";
 
     ov::Core core;
     auto model = core.read_model(

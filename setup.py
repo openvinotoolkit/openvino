@@ -129,7 +129,7 @@ LIB_INSTALL_CFG = {
         "prefix": f"{BUILD_BASE}/libs.intel_omp",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "binary_dir": OPENVINO_BINARY_DIR,
-    }
+    },
     "gc_libs": {
         "name": "GcCpuRuntime",
         "prefix": f"{BUILD_BASE}/libs.gc",

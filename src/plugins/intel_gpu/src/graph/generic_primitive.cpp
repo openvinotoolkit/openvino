@@ -52,6 +52,6 @@ std::string generic_primitive_inst::to_string(generic_primitive_node const& node
     return primitive_description.str();
 }
 
-generic_primitive_inst::typed_primitive_inst(network& network, generic_primitive_node const& node) : parent(network, node) {}
+generic_primitive_inst::typed_primitive_inst(network& network, generic_primitive_node const& node) : parent(network, node), node(&node) {}
 
 }  // namespace cldnn

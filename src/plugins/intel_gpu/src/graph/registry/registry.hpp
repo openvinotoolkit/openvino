@@ -141,6 +141,7 @@ REGISTER_IMPLS(fully_connected);
 REGISTER_IMPLS(gather);
 REGISTER_IMPLS(gather_nd);
 REGISTER_IMPLS(gemm);
+REGISTER_IMPLS(generic_primitive);
 REGISTER_IMPLS(group_normalization);
 REGISTER_IMPLS(loop);
 REGISTER_IMPLS(lora);

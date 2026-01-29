@@ -3,7 +3,8 @@
 //
 
 #include "generic_primitive_inst.h"
-#include "implementation_map.hpp"
+#include "generic_primitive.hpp"
+#include "registry/implementation_map.hpp"
 #include "register.hpp"
 
 #include <vector>
@@ -18,7 +19,7 @@ struct generic_primitive_impl : typed_primitive_impl<generic_primitive> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::common::generic_primitive_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<generic_primitive_impl>(*this);
+        return std::make_unique<generic_primitive_impl>(*this);
     }
 
     generic_primitive_impl() : parent() {}
@@ -47,7 +48,7 @@ struct generic_primitive_impl : typed_primitive_impl<generic_primitive> {
     }
 
     static std::unique_ptr<primitive_impl> create(const generic_primitive_node& arg, const kernel_impl_params&) {
-        return make_unique<generic_primitive_impl>(arg);
+        return std::make_unique<generic_primitive_impl>(arg);
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
@@ -60,6 +61,11 @@ struct generic_primitive_impl : typed_primitive_impl<generic_primitive> {
         parent::load(ib);
     }
 };
+
+std::unique_ptr<primitive_impl> GenericPrimitiveImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<generic_primitive>());
+    return generic_primitive_impl::create(static_cast<const generic_primitive_node&>(node), params);
+}
 
 namespace detail {
 

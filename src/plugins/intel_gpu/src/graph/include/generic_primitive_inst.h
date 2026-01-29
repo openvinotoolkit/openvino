@@ -35,6 +35,8 @@ public:
     static std::string to_string(generic_primitive_node const& node);
 
     typed_primitive_inst(network& network, generic_primitive_node const& node);
+
+    const generic_primitive_node* node;
 };
 
 using generic_primitive_inst = typed_primitive_inst<generic_primitive>;
