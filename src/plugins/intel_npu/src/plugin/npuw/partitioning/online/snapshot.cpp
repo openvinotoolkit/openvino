@@ -645,7 +645,7 @@ void Snapshot::earlyRegroup() {
         handle_patterns = true;                                                         \
     }
 #define HNDL_MOE(p)                                                                    \
-    if (isolate.pattern == #p || isolate.pattern == "moe." #p) {                       \
+    if (isolate.pattern == #p) {                                                       \
         rewr.add_matcher<ov::npuw::patterns::moe::p>(shared_from_this(), isolate.tag); \
         handle_patterns = true;                                                        \
     }
