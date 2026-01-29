@@ -474,15 +474,6 @@ static constexpr ov::Property<std::string> inputs_outputs{"NPUW_DUMP_IO"};
  * Default value: false.
  */
 static constexpr ov::Property<std::string> io_iters{"NPUW_DUMP_IO_ITERS"};
-
-/**
- * @brief
- * Type: bool.
- * Dump subgraph composition as a JSON file (.sg) describing the pipeline structure,
- * including the list of unique subgraphs, their repetition counts, and file paths.
- * Default value: false.
- */
-static constexpr ov::Property<bool> subgraph_composition{"NPUW_DUMP_SUBS_COMPOSITION"};
 }  // namespace dump
 
 namespace llm {

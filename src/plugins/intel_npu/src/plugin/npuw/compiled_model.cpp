@@ -479,7 +479,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }  // for(orderedSubGraphs)
 
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
-    if (m_cfg.get<::intel_npu::NPUW_DUMP_SUBS_COMPOSITION>()) {
+    if (!dump_sub_opt.empty()) {
         dump_subgraph_composition(orderedSubgraphs);
     }
 #endif
@@ -2139,7 +2139,7 @@ void ov::npuw::CompiledModel::dump_subgraph_composition(const std::vector<ov::np
     json_file << "\n  },\n";
     json_file << "  \"subgraphs\": [\n";
     for (size_t i = 0; i < subgraph_order.size(); i++) {
-        json_file << "    \"./" << subgraph_order[i] << ".xml\"";
+        json_file << "    \"" << subgraph_order[i] << ".xml\"";
         if (i < subgraph_order.size() - 1) {
             json_file << ",";
         }
