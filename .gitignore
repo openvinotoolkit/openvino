@@ -66,3 +66,7 @@ coverage
 /tools/commit_slider/slider_cache/*
 /src/plugins/intel_cpu/thirdparty/ComputeLibrary/build/arm_compute_version.embed
 .github/GITHUB_OUTPUT
+# Offline python wheels (do not commit)
+offline_packages/
+offline_packages_cp310/
+
