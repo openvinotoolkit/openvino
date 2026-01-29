@@ -101,3 +101,57 @@ class TestNonMaxSuppression(CommonTFLayerTest):
             pytest.skip("Skip TF NonMaxSuppresionWithScores test on GPU")
         self._test(*self.create_nms_net(test_params, with_scores=True), ie_device, precision,
                    ir_version, temp_dir=temp_dir)
+
+
+class TestNonMaxSuppressionV2(CommonTFLayerTest):
+    """Tests for NonMaxSuppressionV2 op which takes iou_threshold as input (not attribute).
+
+    Regression test for CVS-155709: variable shadowing bug caused iou_threshold
+    to be ignored (always 0.0) for NonMaxSuppressionV2.
+    """
+
+    def _prepare_input(self, inputs_dict):
+        np.random.seed(0)
+        input_data = {}
+        for input in inputs_dict.keys():
+            input_data[input] = np.random.uniform(low=0, high=1,
+                                                  size=inputs_dict[input]).astype(np.float32)
+        return input_data
+
+    def create_nms_v2_net(self, test_params: dict):
+        tf.compat.v1.reset_default_graph()
+        with tf.compat.v1.Session() as sess:
+            number_of_boxes = test_params["number_of_boxes"]
+
+            boxes = tf.compat.v1.placeholder(tf.float32, [number_of_boxes, 4], "Input")
+
+            np.random.seed(42)
+            scores = np.random.uniform(low=0.2, high=1.0, size=[number_of_boxes]).astype(np.float32)
+
+            max_output_size = tf.constant(test_params["max_output_size"], dtype=tf.int32)
+            iou_threshold = tf.constant(test_params["iou_threshold"], dtype=tf.float32)
+
+            # tf.raw_ops.NonMaxSuppressionV2 directly creates the V2 op
+            selected_indices = tf.raw_ops.NonMaxSuppressionV2(
+                boxes=boxes, scores=scores,
+                max_output_size=max_output_size,
+                iou_threshold=iou_threshold)
+            tf.identity(selected_indices, name="NMS_V2")
+            tf_net = sess.graph_def
+
+        return tf_net, None
+
+    test_params = [
+        {"number_of_boxes": 50, "max_output_size": 5, "iou_threshold": 0.5},
+        {"number_of_boxes": 50, "max_output_size": 10, "iou_threshold": 0.7},
+        {"number_of_boxes": 50, "max_output_size": 3, "iou_threshold": 0.3},
+    ]
+
+    @pytest.mark.parametrize("test_params", test_params)
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_NonMaxSuppressionV2(self, test_params, ie_device, precision, ir_version, temp_dir):
+        if ie_device == 'GPU':
+            pytest.skip("Skip TF NonMaxSuppressionV2 test on GPU")
+        self._test(*self.create_nms_v2_net(test_params), ie_device, precision,
+                   ir_version, temp_dir=temp_dir)
