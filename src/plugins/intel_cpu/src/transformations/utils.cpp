@@ -5,28 +5,23 @@
 #include "utils.hpp"
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    include <cstddef>
 #    include <memory>
 #    include <string>
-#    include <unordered_set>
 
-#    include "openvino/core/model.hpp"
 #    include "openvino/core/node.hpp"
-#    include "openvino/core/type.hpp"
+#    include "openvino/core/shape.hpp"
+#    include "openvino/core/strides.hpp"
+#    include "openvino/core/type/element_type.hpp"
 #    include "openvino/op/add.hpp"
-#    include "openvino/op/constant.hpp"
 #    include "openvino/op/convolution.hpp"
 #    include "openvino/op/fake_quantize.hpp"
-#    include "openvino/op/matmul.hpp"
 #    include "openvino/op/multiply.hpp"
 #    include "openvino/op/subtract.hpp"
 #    include "openvino/pass/pattern/matcher.hpp"
-#    include "openvino/pass/pattern/op/label.hpp"
 #    include "openvino/pass/pattern/op/optional.hpp"
 #    include "openvino/pass/pattern/op/pattern.hpp"
 #    include "openvino/pass/pattern/op/wrap_type.hpp"
-#    include "ov_ops/fully_connected.hpp"
-#    include "transformations/rt_info/dequantization_node.hpp"
-#    include "transformations/utils/utils.hpp"
 #endif
 
 namespace ov::intel_cpu {
@@ -113,7 +108,10 @@ bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
     }
 
     const auto& symbols = matcher.get_symbols();
-    return symbols.at("OC").i() < oc_ic_limit || symbols.at("IC").i() < oc_ic_limit;
+    const auto oc = symbols.at("OC").i();
+    const auto ic = symbols.at("IC").i();
+    return (oc >= 0 && static_cast<size_t>(oc) < oc_ic_limit) ||
+           (ic >= 0 && static_cast<size_t>(ic) < oc_ic_limit);
 }
 
 bool match_conv_mul_add(const std::shared_ptr<const ov::Node>& node) {
