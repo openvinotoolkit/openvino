@@ -4534,13 +4534,13 @@ TEST_F(SDPAToPATest, SDPAToPA_jais_13b_General) {
                                     {-FLT_MAX});
         auto Multiply5 = makeOP<v1::Multiply>({Subtract3, Constant13}, {{"auto_broadcast", "numpy"}});
         auto Add3 = makeOP<v1::Add>({Select0, Multiply5}, {{"auto_broadcast", "numpy"}});
-        auto Constant14 = makeConst(element::f32,
-                                    ov::Shape({
-                                        40,
-                                        1,
-                                        1,
-                                    }),
-                                    {-1});
+        auto alibi_slopes = makeConst(element::f32,
+                                      ov::Shape({
+                                          40,
+                                          1,
+                                          1,
+                                      }),
+                                      {-1});
         auto Squeeze0 = makeOP<v15::Squeeze>({Gather7}, {{"allow_axis_skip", false}});
         auto Squeeze1 = makeOP<v15::Squeeze>({Gather6}, {{"allow_axis_skip", false}});
         auto Add4 = makeOP<v1::Add>({Squeeze0, Squeeze1}, {{"auto_broadcast", "numpy"}});
@@ -4554,7 +4554,7 @@ TEST_F(SDPAToPATest, SDPAToPA_jais_13b_General) {
         auto Unsqueeze4 = makeOP<v0::Unsqueeze>({Abs0, 0});
         auto Broadcast5 = makeOP<v3::Broadcast>({Unsqueeze4, {40, 1, 1}}, {{"mode", "bidirectional"}});
         auto Convert8 = makeOP<v0::Convert>({Broadcast5}, {{"destination_type", "f32"}});
-        auto Multiply6 = makeOP<v1::Multiply>({Constant14, Convert8}, {{"auto_broadcast", "numpy"}});
+        auto Multiply6 = makeOP<v1::Multiply>({alibi_slopes, Convert8}, {{"auto_broadcast", "numpy"}});
         auto Unsqueeze5 = makeOP<v0::Unsqueeze>({Multiply6, 0});
         auto Add6 = makeOP<v1::Add>({Add3, Unsqueeze5}, {{"auto_broadcast", "numpy"}});
         auto ScaledDotProductAttention =
@@ -4683,14 +4683,14 @@ TEST_F(SDPAToPATest, SDPAToPA_jais_13b_General) {
         auto Transpose4 = makeOP<v1::Transpose>({Reshape7, {0, 2, 1, 3}});
         auto Transpose5 = makeOP<v1::Transpose>({Transpose4, {0, 2, 1, 3}});
         auto Reshape8 = makeOP<v1::Reshape>({Transpose5, {0, -1}}, {{"special_zero", true}});
-        auto Constant10 = makeConst(element::f32,
+        auto alibi_slopes = makeConst(element::f32,
                                     ov::Shape({
                                         40,
                                         1,
                                         1,
                                     }),
                                     MOCK_VALUE);
-        auto Reshape9 = makeOP<v1::Reshape>({Constant10, {-1}}, {{"special_zero", false}});
+        auto Reshape9 = makeOP<v1::Reshape>({alibi_slopes, {-1}}, {{"special_zero", false}});
         auto Multiply4 = makeOP<v1::Multiply>({Reshape9, -1.000000f}, {{"auto_broadcast", "numpy"}});
         auto Constant11 = makeConst(element::f32,
                                     ov::Shape({
