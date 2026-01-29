@@ -325,7 +325,7 @@ TEST_F(TransformationTestsF, RMSNormFusionTest10) {
     {
         auto input = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1, 2, 6});
         auto scale = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1, 2, 6});
-        
+
         auto power_const = ov::opset10::Constant::create(ov::element::f32, {}, {2.f});
         auto power = std::make_shared<ov::opset10::Power>(input, power_const);
         auto mean_axes = ov::opset10::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
@@ -344,8 +344,9 @@ TEST_F(TransformationTestsF, RMSNormFusionTest10) {
     {
         auto input = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1, 2, 6});
         auto scale = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1, 2, 6});
-        
-        auto rms_const = ov::opset10::Constant::create(ov::element::f32, ov::Shape{6}, {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+
+        auto rms_const =
+            ov::opset10::Constant::create(ov::element::f32, ov::Shape{6}, {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
         auto rms = std::make_shared<ov::op::internal::RMS>(input, rms_const, 1e-5f, ov::element::f32, false);
         auto mul = std::make_shared<ov::opset10::Multiply>(rms, scale);
 
@@ -358,7 +359,7 @@ TEST_F(TransformationTestsF, RMSNormFusionTest11) {
     {
         auto input = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, 6});
         auto scale = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, 6});
-        
+
         auto power_const = ov::opset10::Constant::create(ov::element::f32, {}, {2.f});
         auto power = std::make_shared<ov::opset10::Power>(input, power_const);
         auto mean_axes = ov::opset10::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
@@ -377,8 +378,9 @@ TEST_F(TransformationTestsF, RMSNormFusionTest11) {
     {
         auto input = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, 6});
         auto scale = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, 6});
-        
-        auto rms_const = ov::opset10::Constant::create(ov::element::f32, ov::Shape{6}, {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+
+        auto rms_const =
+            ov::opset10::Constant::create(ov::element::f32, ov::Shape{6}, {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
         auto rms = std::make_shared<ov::op::internal::RMS>(input, rms_const, 1e-6f, ov::element::f32, false);
         auto mul = std::make_shared<ov::opset10::Multiply>(rms, scale);
 
