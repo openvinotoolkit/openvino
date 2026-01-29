@@ -11,14 +11,13 @@
 #    include <cstddef>
 #    include <cstdint>
 #    include <cstdlib>
-#    include <memory>
 #    include <sstream>
 #    include <string>
 #    include <unordered_set>
 #    include <utility>
-#    include <vector>
 
 #    include "emitters/plugin/aarch64/jit_emitter.hpp"
+#    include "emitters/snippets/common/jit_segfault_detector_emitter_base.hpp"
 #    include "verbose.hpp"
 #    include "xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h"
 #    include "xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_gen.h"
@@ -30,27 +29,20 @@ using namespace Xbyak_aarch64;
 
 namespace ov::intel_cpu::aarch64 {
 
-const std::shared_ptr<ThreadLocal<jit_uni_segfault_detector_emitter*>> g_custom_segfault_handler =
-    std::make_shared<ThreadLocal<jit_uni_segfault_detector_emitter*>>();
-
 jit_uni_segfault_detector_emitter::jit_uni_segfault_detector_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                                                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                                                      jit_emitter* target_emitter,
                                                                      bool is_load,
                                                                      bool is_store,
                                                                      std::string target_node_name)
-    : jit_emitter(host, host_isa),
-      m_target_emitter(target_emitter),
-      is_target_use_load_emitter(is_load),
-      is_target_use_store_emitter(is_store),
-      m_target_node_name(std::move(target_node_name)) {}
+    : base_t(host, host_isa, target_emitter, is_load, is_store, std::move(target_node_name)) {}
 
 size_t jit_uni_segfault_detector_emitter::get_inputs_count() const {
     return 1;
 }
 
 const jit_emitter* jit_uni_segfault_detector_emitter::get_target_emitter() const {
-    return m_target_emitter;
+    return base_t::get_target_emitter();
 }
 
 std::string jit_uni_segfault_detector_emitter::info() const {
@@ -69,19 +61,13 @@ std::string jit_uni_segfault_detector_emitter::info() const {
     return ss.str();
 }
 
-void jit_uni_segfault_detector_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
-                                                  const std::vector<size_t>& out_vec_idxs) const {
-    if (is_target_use_load_emitter) {
-        memory_track(in_vec_idxs[0]);
-    } else if (is_target_use_store_emitter) {
-        memory_track(out_vec_idxs[0]);
-    } else {
-        save_target_emitter();
-    }
+bool jit_uni_segfault_detector_emitter::save_before_memory_track() const {
+    // aarch64 tracks and saves lazily inside memory_track() on the first iteration
+    return false;
 }
 
 void jit_uni_segfault_detector_emitter::save_target_emitter() const {
-    if (g_custom_segfault_handler->local() == this) {
+    if (ov::intel_cpu::g_custom_segfault_handler<jit_uni_segfault_detector_emitter>->local() == this) {
         return;
     }
     std::unordered_set<size_t> ignore_vec_regs;
@@ -101,7 +87,8 @@ void jit_uni_segfault_detector_emitter::save_target_emitter() const {
 }
 
 void jit_uni_segfault_detector_emitter::set_local_handler(jit_uni_segfault_detector_emitter* emitter_address) {
-    g_custom_segfault_handler->local() = emitter_address;
+    base_t::set_local_handler_impl(ov::intel_cpu::g_custom_segfault_handler<jit_uni_segfault_detector_emitter>,
+                                   emitter_address);
 }
 
 void jit_uni_segfault_detector_emitter::memory_track(size_t gpr_idx_for_mem_address) const {
