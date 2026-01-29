@@ -123,7 +123,7 @@ CompiledModel Core::compile_model(const std::filesystem::path& model_path,
                                   const AnyMap& config) {
     OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->compile_model(ov::util::path_to_string(model_path), device_name, config);
+        auto exec = _impl->compile_model(model_path, device_name, config);
         return {exec._ptr, exec._so};
     });
 }
