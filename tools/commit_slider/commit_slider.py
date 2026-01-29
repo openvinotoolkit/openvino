@@ -81,12 +81,8 @@ else:
         curCfgData['userCachePath'] = permCachePath
 
     # run CS
-    scriptName = os.path.basename(__file__)
-    argString = " ".join(sys.argv)
-    formattedCmd = "{py} {workPath}/{argString} -wd".format(
-        py=sys.executable, workPath=workPath, argString=argString
-    )
-    subprocess.call(formattedCmd.split())
+    scriptPath = os.path.join(workPath, os.path.basename(__file__))
+    subprocess.call([sys.executable, scriptPath, *sys.argv[1:], "-wd"])
 
     # copy logs and cache back to general repo
     tempLogPath = CfgManager.singlestepStrFormat(curCfgData["logPath"], "workPath", workPath)
