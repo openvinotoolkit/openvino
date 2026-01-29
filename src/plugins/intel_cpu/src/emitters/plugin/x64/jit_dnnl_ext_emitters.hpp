@@ -174,5 +174,4 @@ public:
         set_injector();
     }
 };
-
 }  // namespace ov::intel_cpu
