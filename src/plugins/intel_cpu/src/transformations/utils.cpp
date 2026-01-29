@@ -17,12 +17,15 @@
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    include "openvino/op/subtract.hpp"
+#endif
 
 namespace ov::intel_cpu {
 
@@ -54,8 +57,10 @@ bool match_conv_add_mul_fq(const std::shared_ptr<const ov::Node>& node) {
     return conv->get_input_element_type(0) == fq->get_output_element_type(0);
 }
 
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 template bool match_conv_add_mul_fq<ov::op::v1::Subtract>(const std::shared_ptr<const ov::Node>& node);
 template bool match_conv_add_mul_fq<ov::op::v1::Multiply>(const std::shared_ptr<const ov::Node>& node);
+#endif
 
 bool match_fq_mul_conv_bias_same_types(const std::shared_ptr<const ov::Node>& node) {
     auto conv_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>();
