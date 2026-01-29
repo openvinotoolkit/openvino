@@ -13,8 +13,8 @@
 #    include "openvino/core/node.hpp"
 #    include "openvino/core/type.hpp"
 #    include "openvino/op/add.hpp"
-#    include "openvino/op/convolution.hpp"
 #    include "openvino/op/constant.hpp"
+#    include "openvino/op/convolution.hpp"
 #    include "openvino/op/fake_quantize.hpp"
 #    include "openvino/op/matmul.hpp"
 #    include "openvino/op/multiply.hpp"
@@ -102,8 +102,8 @@ bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
     }
 
     const auto weights_shape = "OC, IC, " + std::to_string(kernel_shape[0]) + ", " + std::to_string(kernel_shape[1]);
-    const auto weights_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape() &&
-                                                       ov::pass::pattern::shape_matches(weights_shape));
+    const auto weights_m = ov::pass::pattern::any_input(
+        ov::pass::pattern::has_static_shape() && ov::pass::pattern::shape_matches(weights_shape));
     const auto conv_m =
         ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({ov::pass::pattern::any_input(), weights_m},
                                                               {{"strides", strides}});
