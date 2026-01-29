@@ -26,7 +26,7 @@ void reorder_transfer::run(program& p) {
 
         bool is_simple_type_conversion_reorder = !reorder_node.is_output() &&
                                                  reorder_node.get_users().size() == 1 &&
-                                                 reorder_node.get_dependencies().size() == 1 && 
+                                                 reorder_node.get_dependencies().size() == 1 &&
                                                  reorder_node.is_type_conversion_only();
         if (!is_simple_type_conversion_reorder)
             continue;
