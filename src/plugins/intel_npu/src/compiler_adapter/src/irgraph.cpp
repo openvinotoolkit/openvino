@@ -70,29 +70,17 @@ void IRGraph::GraphArguments::setArgumentProperties(uint32_t argi,
                                                     const std::vector<size_t>& strides) {
     _logger.debug("setArgumentProperties for index %d", argi);
     if (argi < _inputs.size()) {
-        std::ostringstream oss;
-        oss << _inputs[argi];
         _logger.debug("setArgumentProperties for index %d (input %d)", argi, argi);
-        _logger.debug("Before change: %s", oss.str().c_str());
         _inputs[argi].basePtr = _inputs[argi].data = const_cast<void*>(argv);
 
         for (int64_t i = 0; i < _inputs[argi].dimsCount; i++) {
             _inputs[argi].sizes[i] = sizes[i];
             _inputs[argi].strides[i] = strides[i];
         }
-
-        oss.clear();
-        oss.str("");
-        oss << _inputs[argi];
-        _logger.debug("After change: %s", oss.str().c_str());
-
     } else {
         auto idx = argi - _inputs.size();
         _logger.debug("setArgumentValueWithStrides for index %d (output %d)", argi, idx);
         if (idx < _outputs.size()) {
-            std::ostringstream oss;
-            oss << _outputs[idx];
-            _logger.debug("Before change: %s", oss.str().c_str());
             _outputs[idx].basePtr = _outputs[idx].data = const_cast<void*>(argv);
 
             // size_t stridesSize = strides.size();
@@ -100,11 +88,6 @@ void IRGraph::GraphArguments::setArgumentProperties(uint32_t argi,
                 _outputs[idx].sizes[i] = sizes[i];
                 _outputs[idx].strides[i] = strides[i];
             }
-
-            oss.clear();
-            oss.str("");
-            oss << _outputs[idx];
-            _logger.debug("After change: %s", oss.str().c_str());
         }
     }
 }
@@ -195,9 +178,6 @@ void IRGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& m
         inputs[i] = MemRefType(nullptr, nullptr, 0, shapeVec, shapeVec, shapeVec.size());
         // Calc real stride
         inputs[i].updateStride();
-        std::ostringstream oss;
-        oss << inputs[i];
-        _logger.debug("MemRefType for input %d : %s", i, oss.str().c_str());
     }
 
     _logger.debug("Outputs:");
@@ -208,9 +188,6 @@ void IRGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& m
         std::vector<int64_t> shapeVec(shape.begin(), shape.end());
         outputs[i] = MemRefType(nullptr, nullptr, 0, shapeVec, shapeVec, shapeVec.size());
         outputs[i].updateStride();
-        std::ostringstream oss;
-        oss << outputs[i];
-        _logger.debug("MemRefType for output %d : %s", i, oss.str().c_str());
     }
 }
 
@@ -380,41 +357,24 @@ void IRGraphImpl::setArgumentValueWithStrides(uint32_t argi, const void* argv, c
     _logger.debug("setArgumentProperty for index %d", argi);
     auto& inputs = _binding._inputs;
     if (argi < inputs.size()) {
-        std::ostringstream oss;
-        oss << inputs[argi];
         _logger.debug("setArgumentProperty for index %d (input %d)", argi, argi);
-        _logger.debug("Before change: %s", oss.str().c_str());
         inputs[argi].basePtr = inputs[argi].data = const_cast<void*>(argv);
 
         // size_t stridesSize = strides.size();
         for (int64_t i = 0; i < inputs[argi].dimsCount; i++) {
             inputs[argi].strides[i] = strides[i];
         }
-
-        oss.clear();
-        oss.str("");
-        oss << inputs[argi];
-        _logger.debug("After change: %s", oss.str().c_str());
-
     } else {
         auto& outputs = _binding._outputs;
         auto idx = argi - inputs.size();
         _logger.debug("setArgumentValue for index %d (output %d)", argi, idx);
         if (idx < outputs.size()) {
-            std::ostringstream oss;
-            oss << outputs[idx];
-            _logger.debug("Before change: %s", oss.str().c_str());
             outputs[idx].basePtr = outputs[idx].data = const_cast<void*>(argv);
 
             // size_t stridesSize = strides.size();
             for (int64_t i = 0; i < outputs[idx].dimsCount; i++) {
                 outputs[idx].strides[i] = strides[i];
             }
-
-            oss.clear();
-            oss.str("");
-            oss << outputs[idx];
-            _logger.debug("After change: %s", oss.str().c_str());
         }
     }
 }
@@ -481,10 +441,6 @@ void IRGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescriptors,
     if (npuMLIRRuntimePredictOutputShape(_engine, &params) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to execute MLIR runtime engine");
     } else {
-        // Update MemRefType with the info from handle
-        // for (auto& in : inputDescriptors) {
-        //     in.alignWithHandle();
-        // }
         for (auto& out : outputDescriptors) {
             out.alignWithHandle();
         }
@@ -683,11 +639,6 @@ void IRGraph::initialize(const Config& config) {
 
         _logger.debug("Graph initialize finish");
 
-        //  We are allowed to release the original blob because weights were loaded in NPU memory during
-        //  _zeGraphExt->initializeGraph(). The driver will not access the original blob from this moment on, so we are
-        //  releasing it here to avoid unnecessary memory usage.
-        //_blobIsReleased = release_blob(config);
-
         _batchSize = determine_batch_size();
 
         if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
@@ -726,15 +677,8 @@ void IRGraph::initialize(const Config& config) {
         set_workload_type(config.get<WORKLOAD_TYPE>());
     }
 
-    // TODO
-    // invoke for graph intialization
-    // engine->invoke("initialization")
-
     _logger.debug("Graph initialize finish");
 
-    //  We are allowed to release the original blob because weights were loaded in NPU memory during
-    //  _zeGraphExt->initializeGraph(). The driver will not access the original blob from this moment on, so we are
-    //  releasing it here to avoid unnecessary memory usage.
     _blobIsReleased = release_blob(config);
 
     _batchSize = determine_batch_size();
@@ -752,26 +696,6 @@ void IRGraph::initialize(const Config& config) {
 
 bool IRGraph::release_blob(const Config& config) {
     _logger.warning("Release blob is skipped, no handle for IRGraph");
-    // if (!_blobAllocatedByPlugin) {
-    //     return false;
-    // }
-
-    // if (_blob == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
-    //     config.get<PERF_COUNT>()) {
-    //     return false;
-    // }
-
-    // ze_graph_properties_2_t properties = {};
-    // properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
-    // _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(_handle, &properties);
-
-    // if (~properties.initStageRequired & ZE_GRAPH_STAGE_INITIALIZE) {
-    //     return false;
-    // }
-
-    // _blob = std::nullopt;
-    // _logger.debug("Blob is released");
-
     return false;
 };
 
@@ -860,11 +784,6 @@ const std::optional<std::size_t> IRGraph::get_batch_size() const {
 }
 
 IRGraph::~IRGraph() {
-    // make sure all the context-dependent components are destroyed before the zero context is destroyed
-    // if (_handle != nullptr) {
-    //     _handle = nullptr;
-    // }
-
     if (!_lastSubmittedEvent.empty()) {
         _lastSubmittedEvent.clear();
     }
