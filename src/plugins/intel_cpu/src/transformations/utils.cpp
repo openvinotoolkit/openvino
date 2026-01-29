@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "utils.hpp"
-
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    include "utils.hpp"
+
 #    include <cstddef>
 #    include <memory>
 #    include <string>
@@ -12,13 +12,14 @@
 #    include "openvino/core/node.hpp"
 #    include "openvino/core/shape.hpp"
 #    include "openvino/core/strides.hpp"
+#    include "openvino/core/type.hpp"
 #    include "openvino/core/type/element_type.hpp"
 #    include "openvino/op/add.hpp"
 #    include "openvino/op/convolution.hpp"
 #    include "openvino/op/fake_quantize.hpp"
 #    include "openvino/op/multiply.hpp"
-#    include "openvino/op/subtract.hpp"
 #    include "openvino/pass/pattern/matcher.hpp"
+#    include "openvino/pass/pattern/op/label.hpp"
 #    include "openvino/pass/pattern/op/optional.hpp"
 #    include "openvino/pass/pattern/op/pattern.hpp"
 #    include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -110,8 +111,7 @@ bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
     const auto& symbols = matcher.get_symbols();
     const auto oc = symbols.at("OC").i();
     const auto ic = symbols.at("IC").i();
-    return (oc >= 0 && static_cast<size_t>(oc) < oc_ic_limit) ||
-           (ic >= 0 && static_cast<size_t>(ic) < oc_ic_limit);
+    return (oc >= 0 && static_cast<size_t>(oc) < oc_ic_limit) || (ic >= 0 && static_cast<size_t>(ic) < oc_ic_limit);
 }
 
 bool match_conv_mul_add(const std::shared_ptr<const ov::Node>& node) {
