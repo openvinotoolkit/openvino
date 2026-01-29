@@ -33,11 +33,14 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/type/float16.hpp"
 #include "post_ops.hpp"
 #include "utils/cpp/to_underlying.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+#include "openvino/core/type/float16.hpp"
+#endif
 
 namespace ov::intel_cpu {
 

@@ -103,10 +103,9 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
     // isQuantized verifies whether src is u8/i8, weights is i8 and FQ is fused if dst is u8/i8
     // the last requirement is due to ACL int32 accumulation that needs to be requantized by non-trivial scales
     const bool hasQuantizationPostOp = std::any_cast<FakeQuantizePostOp>(config.attrs.postOps.data()) != nullptr;
-    const bool isQuantizedU8 =
-        srcDesc->getPrecision() == ov::element::u8 &&
-        any_of(weiDesc->getPrecision(), ov::element::u8, ov::element::i8) &&
-        dstDesc->getPrecision() == ov::element::u8 && hasQuantizationPostOp;
+    const bool isQuantizedU8 = srcDesc->getPrecision() == ov::element::u8 &&
+                               any_of(weiDesc->getPrecision(), ov::element::u8, ov::element::i8) &&
+                               dstDesc->getPrecision() == ov::element::u8 && hasQuantizationPostOp;
     const bool isQuantizedI8 = srcDesc->getPrecision() == ov::element::i8 &&
                                weiDesc->getPrecision() == ov::element::i8 &&
                                dstDesc->getPrecision() == ov::element::i8 && hasQuantizationPostOp;
