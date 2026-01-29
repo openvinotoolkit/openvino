@@ -742,7 +742,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                  return false;
              }
 
-            const auto head_size = query_ps[query_ps.size() - 1].get_length();
+            const auto head_size = static_cast<uint64_t>(query_ps[query_ps.size() - 1].get_length());
             if (device_info.supports_immad && cldnn::query_microkernels_supported(m_context->get_engine(), config) && head_size <= 256)
                 return true;
 
