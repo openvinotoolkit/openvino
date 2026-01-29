@@ -6,11 +6,6 @@ on:
       - master
       - 'releases/**'
 
-permissions:
-  contents: read
-  pull-requests: write
-  issues: write
-
 jobs:
   check-copyright:
     runs-on: ubuntu-latest
@@ -48,58 +43,26 @@ jobs:
           path: copyright_fixes.diff
           retention-days: 7
 
-      - name: Comment on PR with fix instructions
-        if: steps.check.outcome == 'failure'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            
-            // Read the list of files with issues
-            let failedFiles = [];
-            try {
-              const output = fs.readFileSync('copyright_issues.txt', 'utf8');
-              failedFiles = output.trim().split('\n').filter(f => f);
-            } catch (e) {
-              failedFiles = [];
-            }
-            
-            const currentYear = new Date().getFullYear();
-            const filesList = failedFiles.length > 0 
-              ? '\n\nAffected files:\n' + failedFiles.slice(0, 20).map(f => `- \`${f}\``).join('\n') + 
-                (failedFiles.length > 20 ? `\n- ... and ${failedFiles.length - 20} more` : '')
-              : '';
-            
-            const message = `## ⚠️ Copyright Header Issues Found
-            
-            Found ${failedFiles.length} file(s) with incorrect or missing copyright headers.${filesList}
-            
-            ### How to fix:
-            
-            **Download and apply the patch:**
-            1. Go to the "Checks" tab of this PR, find the "Copyright Check" workflow
-            2. Download the \`copyright-fixes\` artifact
-            3. Extract \`copyright_fixes.diff\`
-            4. Apply it: \`patch -p1 < copyright_fixes.diff\`
-            5. Commit and push the changes
-            
-            **Expected header format:**
-            \`\`\`cpp
-            // Copyright (C) 2018-${currentYear} Intel Corporation
-            // SPDX-License-Identifier: Apache-2.0
-            //
-            
-            \`\`\``;
-            
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: message
-            });
-
       - name: Fail if copyright issues found
         if: steps.check.outcome == 'failure'
         run: |
-          echo "Copyright header issues detected. Please fix them and push again."
+          echo "## ⚠️ Copyright Header Issues Found"
+          echo ""
+          echo "Found issues in the following files:"
+          cat copyright_issues.txt
+          echo ""
+          echo "### How to fix:"
+          echo ""
+          echo "**Option 1: Download and apply the patch**"
+          echo "1. Go to the 'Summary' page of this workflow run"
+          echo "2. Scroll down to the 'Artifacts' section"
+          echo "3. Download the 'copyright-fixes' artifact"
+          echo "4. Extract copyright_fixes.diff from the zip"
+          echo "5. Apply it: patch -p1 < copyright_fixes.diff"
+          echo "6. Commit and push the changes"
+          echo ""
+          echo "**Option 2: Review the diff below and apply manually**"
+          echo ""
+          cat copyright_fixes.diff
+          echo ""
           exit 1
