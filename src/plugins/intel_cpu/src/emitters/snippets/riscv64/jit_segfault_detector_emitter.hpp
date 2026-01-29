@@ -21,12 +21,9 @@ namespace ov::intel_cpu::riscv64 {
 class jit_uni_segfault_detector_emitter;
 
 class jit_uni_segfault_detector_emitter
-    : public ov::intel_cpu::segfault_detector::jit_segfault_detector_emitter_base<jit_uni_segfault_detector_emitter,
-                                                                                  jit_emitter> {
+    : public ov::intel_cpu::jit_segfault_detector_emitter_base<jit_uni_segfault_detector_emitter, jit_emitter> {
 public:
-    using base_t =
-        ov::intel_cpu::segfault_detector::jit_segfault_detector_emitter_base<jit_uni_segfault_detector_emitter,
-                                                                             jit_emitter>;
+    using base_t = ov::intel_cpu::jit_segfault_detector_emitter_base<jit_uni_segfault_detector_emitter, jit_emitter>;
 
     jit_uni_segfault_detector_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                       ov::intel_cpu::riscv64::cpu_isa_t host_isa,

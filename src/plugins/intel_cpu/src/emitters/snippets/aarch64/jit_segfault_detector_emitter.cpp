@@ -67,8 +67,7 @@ bool jit_uni_segfault_detector_emitter::save_before_memory_track() const {
 }
 
 void jit_uni_segfault_detector_emitter::save_target_emitter() const {
-    if (ov::intel_cpu::segfault_detector::g_custom_segfault_handler<jit_uni_segfault_detector_emitter>->local() ==
-        this) {
+    if (ov::intel_cpu::g_custom_segfault_handler<jit_uni_segfault_detector_emitter>->local() == this) {
         return;
     }
     std::unordered_set<size_t> ignore_vec_regs;
@@ -88,9 +87,8 @@ void jit_uni_segfault_detector_emitter::save_target_emitter() const {
 }
 
 void jit_uni_segfault_detector_emitter::set_local_handler(jit_uni_segfault_detector_emitter* emitter_address) {
-    base_t::set_local_handler_impl(
-        ov::intel_cpu::segfault_detector::g_custom_segfault_handler<jit_uni_segfault_detector_emitter>,
-        emitter_address);
+    base_t::set_local_handler_impl(ov::intel_cpu::g_custom_segfault_handler<jit_uni_segfault_detector_emitter>,
+                                   emitter_address);
 }
 
 void jit_uni_segfault_detector_emitter::memory_track(size_t gpr_idx_for_mem_address) const {

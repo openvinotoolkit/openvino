@@ -21,10 +21,9 @@ namespace ov::intel_cpu {
 class jit_uni_segfault_detector_emitter;
 
 class jit_uni_segfault_detector_emitter
-    : public segfault_detector::jit_segfault_detector_emitter_base<jit_uni_segfault_detector_emitter, jit_emitter> {
+    : public jit_segfault_detector_emitter_base<jit_uni_segfault_detector_emitter, jit_emitter> {
 public:
-    using base_t =
-        segfault_detector::jit_segfault_detector_emitter_base<jit_uni_segfault_detector_emitter, jit_emitter>;
+    using base_t = jit_segfault_detector_emitter_base<jit_uni_segfault_detector_emitter, jit_emitter>;
 
     jit_uni_segfault_detector_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,

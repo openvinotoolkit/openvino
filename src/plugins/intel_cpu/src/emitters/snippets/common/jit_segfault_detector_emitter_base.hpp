@@ -14,7 +14,7 @@
 
 #    include "openvino/runtime/threading/thread_local.hpp"
 
-namespace ov::intel_cpu::segfault_detector {
+namespace ov::intel_cpu {
 
 template <class Derived>
 inline const std::shared_ptr<ov::threading::ThreadLocal<Derived*>> g_custom_segfault_handler =
@@ -95,6 +95,6 @@ private:
     virtual void memory_track(size_t gpr_idx_for_mem_address) const = 0;
 };
 
-}  // namespace ov::intel_cpu::segfault_detector
+}  // namespace ov::intel_cpu
 
 #endif  // SNIPPETS_DEBUG_CAPS
