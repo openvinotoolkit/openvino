@@ -277,12 +277,6 @@ void ZeroDynamicInferRequest::create_pipeline() {
 
 void ZeroDynamicInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
     OV_ITT_TASK_CHAIN(ZERO_SET_TENSOR, itt::domains::LevelZeroBackend, "set_tensor", "set_tensor");
-    std::ostringstream oss;
-    oss << tensor->get_strides();
-    _logger.debug("set user tensor: tensor shape: %s, stride: %s, size: %zu",
-                  tensor->get_shape().to_string().c_str(),
-                  oss.str().c_str(),
-                  tensor->get_byte_size());
 
     auto foundPort = find_port(port);
     OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);

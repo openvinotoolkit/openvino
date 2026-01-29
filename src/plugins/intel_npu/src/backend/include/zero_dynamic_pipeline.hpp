@@ -65,9 +65,6 @@ struct DynamicPipeline {
                                       const ov::Strides& strides,
                                       const ov::Shape& shapes) {
             if (arg_index < _binding._inputs.size()) {
-                std::ostringstream oss;
-                oss << _binding._inputs[arg_index];
-                Logger::global().debug("Orig tensor MemType: %s", oss.str().c_str());
                 _binding._inputs[arg_index].setArg(arg_value);
                 // Only store the valid shape dimensions
                 for (int64_t i = 0; i < _binding._inputs[arg_index].dimsCount; i++) {
@@ -82,18 +79,9 @@ struct DynamicPipeline {
                     // Need stride based on element but not byte, calc from shape
                     _binding._inputs[arg_index].updateStride();
                 }
-
-                oss.clear();
-                oss.str("");
-                oss << _binding._inputs[arg_index];
-                Logger::global().debug("Updated to MemRefType: %s", oss.str().c_str());
-
             } else {
                 size_t output_index = static_cast<size_t>(arg_index) - _binding._inputs.size();
                 if (output_index < _binding._outputs.size()) {
-                    std::ostringstream oss;
-                    oss << _binding._outputs[output_index];
-                    Logger::global().debug("Orig output tensor MemType: %s", oss.str().c_str());
                     _binding._outputs[output_index].setArg(arg_value);
 
                     // Only store the valid shape dimensions
@@ -109,10 +97,6 @@ struct DynamicPipeline {
                         // Need stride based on element but not byte, calc from shape
                         _binding._outputs[output_index].updateStride();
                     }
-                    oss.clear();
-                    oss.str("");
-                    oss << _binding._outputs[output_index];
-                    Logger::global().debug("Updated to MemRefType: %s", oss.str().c_str());
                 }
             }
         }
