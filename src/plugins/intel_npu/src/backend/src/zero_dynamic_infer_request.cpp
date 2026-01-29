@@ -420,6 +420,7 @@ void ZeroDynamicInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                                                       : _metadata.outputs.at(foundPort.idx).indexUsedByDriver,
                                                   levelZeroTensor,
                                                   tensor._ptr);
+                _isTensorChanged = true;
             } else {
                 // This L0 tensor shal have same info with user tensor
                 _pipeline->update_graph_arguments(foundPort.is_input()
@@ -506,6 +507,7 @@ void ZeroDynamicInferRequest::set_tensors(const ov::Output<const ov::Node>& port
                                                   get_level_zero_input(foundPort.idx, i),
                                                   tensors.at(i)._ptr,
                                                   i);
+                _isTensorChanged = true;
             }
         }
     }
@@ -767,7 +769,7 @@ void ZeroDynamicInferRequest::infer_async() {
         // bool reCreatePipeline = false;
         // Predict output shapes based on current inputs
         intel_npu::IRGraph* irGraph = dynamic_cast<intel_npu::IRGraph*>(_graph.get());
-        if (irGraph) {
+        if (irGraph && _isTensorChanged) {
             IRGraph::GraphArguments graphArgs;
             // Need change to use arguments in pipeline
             irGraph->getBinding(graphArgs);
@@ -1063,7 +1065,7 @@ void ZeroDynamicInferRequest::infer_async() {
     }
 
     // Update local level zero buffer shape with predicted shape to prepare for comparasion
-    if (outputPros.size() > 0) {
+    if (outputPros.size() > 0 && _isTensorChanged) {
         for (size_t i = 0; i < _levelZeroOutputTensors.size(); i++) {
             auto& levelZeroTensor = _levelZeroOutputTensors.at(i);
             if (levelZeroTensor == nullptr) {
@@ -1084,6 +1086,7 @@ void ZeroDynamicInferRequest::infer_async() {
             }
         }
     }
+    _isTensorChanged = false;
 
     OV_ITT_TASK_NEXT(ZERO_INFER, "push");
     _pipeline->push();
