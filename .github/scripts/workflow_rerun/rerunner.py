@@ -10,13 +10,20 @@ from psycopg2 import sql
 
 import requests
 from github import Github, Auth
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
+
 from workflow_rerun.argument_parser import get_arguments
 from workflow_rerun.constants import GITHUB_TOKEN, LOGGER
 from workflow_rerun.log_analyzer import LogAnalyzer
 from workflow_rerun.log_collector import collect_logs_for_run
 
-def record_rerun_to_db(repository_full_name: str, run_id: int, ticket_number: int):
+def record_rerun_to_db(repository_full_name: str, run_id: int, ticket_number: int, rerunner_run_id: int, error_text: str):
     """Record the rerun event to the PostgreSQL database."""
+
+    if ticket_number is None:
+        LOGGER.error('No ticket number provided, cannot record rerun to database.')
+        raise ValueError('Ticket number is required to record rerun to database.')
 
     db_username = os.environ.get('PGUSER')
     db_password = os.environ.get('PGPASSWORD')
@@ -34,15 +41,15 @@ def record_rerun_to_db(repository_full_name: str, run_id: int, ticket_number: in
         cursor = conn.cursor()
 
         insert_query = sql.SQL("""
-            INSERT INTO rerunner_stats (repository_full_name, run_id, ticket_number, rerun_at)
-            VALUES (%s, %s, %s, NOW() AT TIME ZONE 'UTC')
+            INSERT INTO rerunner_stats (repository_full_name, run_id, ticket_number, rerun_at, rerunner_run_id, error_text)
+            VALUES (%s, %s, %s, NOW() AT TIME ZONE 'UTC', %s, %s)
         """)
 
-        cursor.execute(insert_query, (repository_full_name, run_id, ticket_number))
+        cursor.execute(insert_query, (repository_full_name, run_id, ticket_number, rerunner_run_id, error_text))
         conn.commit()
 
         LOGGER.info(f'Successfully recorded rerun to database: repo={repository_full_name}, '
-                    f'run_id={run_id}, ticket={ticket_number}')
+                    f'run_id={run_id}, ticket={ticket_number}, rerunner_run_id={rerunner_run_id}, error_text={error_text}')
 
     except psycopg2.Error as e:
         LOGGER.error(f'Failed to record rerun to database: {e}')
@@ -53,17 +60,24 @@ def record_rerun_to_db(repository_full_name: str, run_id: int, ticket_number: in
             cursor.close()
         conn.close()
 
-
-
 if __name__ == '__main__':
-
     args = get_arguments()
     run_id = args.run_id
+    rerunner_run_id = args.rerunner_run_id
     repository_name = args.repository_name
     errors_file = args.errors_to_look_for_file
     is_dry_run = args.dry_run
     if is_dry_run:
         LOGGER.info('RUNNING IN DRY RUN MODE. IF ERROR WILL BE FOUND, WILL NOT RETRIGGER')
+
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=5,
+        backoff_factor=3,
+        backoff_jitter=1,
+        status_forcelist=[429, 500, 502, 503, 504]
+    )
+    session.mount("https://github.com", HTTPAdapter(max_retries=retry_strategy))
 
     github = Github(auth=Auth.Token(token=GITHUB_TOKEN))
     gh_repo = github.get_repo(full_name_or_id=repository_name)
@@ -82,6 +96,7 @@ if __name__ == '__main__':
         collect_logs_for_run(
             run=run,
             logs_dir=logs_dir,
+            session=session
         )
 
         log_analyzer = LogAnalyzer(
@@ -98,18 +113,14 @@ if __name__ == '__main__':
 
             # PyGitHub does not expose the "/repos/{owner}/{repo}/actions/runs/RUN_ID/rerun-failed-jobs" endpoint
             # so we have to use requests
-            response = requests.post(url=f'https://api.github.com/repos/{repository_name}/actions/runs/{run_id}/rerun-failed-jobs',
+            response = session.post(url=f'https://api.github.com/repos/{repository_name}/actions/runs/{run_id}/rerun-failed-jobs',
                                     headers={'Authorization': f'Bearer {GITHUB_TOKEN}'})
-            status = response.status_code == 201
+            response.raise_for_status()
 
-            if status:
-                LOGGER.info(f'RUN RETRIGGERED SUCCESSFULLY: {run.html_url}')
-                record_rerun_to_db(repository_name, run_id,
-                                   log_analyzer.found_error_ticket)
-            else:
-                LOGGER.info(f'RUN WAS NOT RETRIGGERED, SEE ABOVE')
-
-            # "status" is True (which is 1) if everything is ok, False (which is 0) otherwise
-            sys.exit(not status)
+            LOGGER.info(f'RUN RETRIGGERED SUCCESSFULLY: {run.html_url}')
+            record_rerun_to_db(repository_name, run_id,
+                               log_analyzer.found_error_ticket,
+                               rerunner_run_id,
+                               log_analyzer.matched_error_text)
         else:
             LOGGER.info(f'NO ERROR WAS FOUND, NOT RETRIGGERING')
