@@ -57,9 +57,10 @@ OutputVector translate_linspace(const NodeContext& context) {
     auto step_range = context.mark_node(std::make_shared<v4::Range>(const_0, steps, const_1, element::f32));
 
     auto sub_end_start = context.mark_node(std::make_shared<v1::Subtract>(end, start));
-    auto sub_steps_1 = context.mark_node(std::make_shared<v1::Subtract>(steps, const_1));
-    auto step_multiplier = context.mark_node(std::make_shared<v1::Divide>(sub_end_start, sub_steps_1));
     auto is_single_step = context.mark_node(std::make_shared<v1::Equal>(steps, const_1));
+    auto sub_steps_1 = context.mark_node(std::make_shared<v1::Subtract>(steps, const_1));
+    auto safe_steps = context.mark_node(std::make_shared<v1::Select>(is_single_step, const_1, sub_steps_1));
+    auto step_multiplier = context.mark_node(std::make_shared<v1::Divide>(sub_end_start, safe_steps));
     auto select_multiplier = context.mark_node(std::make_shared<v1::Select>(is_single_step, const_0, step_multiplier));
     auto step_values = context.mark_node(std::make_shared<v1::Multiply>(step_range, select_multiplier));
 

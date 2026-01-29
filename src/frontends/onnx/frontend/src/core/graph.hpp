@@ -97,13 +97,13 @@ private:
 ///             cache.
 class Subgraph : public Graph {
 public:
-    /// \brief      Subgraph a GraphCache class object.
+    /// \brief      Subgraph holds a GraphCache class object.
     ///
     /// \param[in]  model          The ONNX model object.
     /// \param[in]  parent_graph   The reference to the parent graph.
     Subgraph(const std::shared_ptr<ModelProto>& model, Graph* parent_graph);
 
-    /// \brief      Return nodes which are on the edge the subgraph and the parent graph.
+    /// \brief      Return nodes which are on the edge of the subgraph and the parent graph.
     /// \return     Vector of edge nodes from parent scope.
     const std::vector<ov::Output<ov::Node>> get_inputs_from_parent() const;
 

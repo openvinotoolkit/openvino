@@ -105,7 +105,7 @@ struct EditorOutput {
     const int m_output_index = -1;
 };
 
-/// \brief Specifies a single node by output name which is determinitic
+/// \brief Specifies a single node by output name which is deterministic
 ///        or node name which can be ambiguous.
 ///        For a node test_node, with 2 outputs:
 ///
@@ -115,7 +115,7 @@ struct EditorOutput {
 ///        You can indicate test_node by name as EditorNode("test_node")
 ///        or by assigned output as EditorNode(EditorOutput("out1"))
 ///        or EditorNode(EditorOutput("out2"))
-///        or you can determine the node by postition of a node in an ONNX graph (in topological order).
+///        or you can determine the node by position of a node in an ONNX graph (in topological order).
 struct EditorNode {
     EditorNode(std::string node_name) : m_node_name{std::move(node_name)} {}
     EditorNode(EditorOutput output) : m_output_name{std::move(output.m_output_name)} {}

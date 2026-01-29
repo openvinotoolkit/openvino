@@ -35,7 +35,7 @@ ov::OutputVector scatter_elements(const ov::frontend::onnx::Node& node) {
             CHECK_VALID_NODE(node,
                              false,
                              "Unsupported value of attribute: `reduction`. "
-                             "Supported modes: `none`, `add`, `mul`, `min`, `max`, got:",
+                             "Supported modes: `none`, `add`, `mul`, `min`, `max`, got: ",
                              reduction_onnx);
         }
     } else {

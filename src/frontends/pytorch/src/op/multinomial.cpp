@@ -44,8 +44,8 @@ OutputVector translate_multinomial(const NodeContext& context) {
         std::make_shared<v12::ScatterElementsUpdate>(input_shape, const_neg_1, num_samples, const_neg_1));
     multinomial = context.mark_node(std::make_shared<v1::Reshape>(multinomial, out_shape, false));
 
-    if (!context.input_is_none(5)) {
-        context.mutate_input(5, multinomial);
+    if (!context.input_is_none(4)) {
+        context.mutate_input(4, multinomial);
     }
     return {multinomial};
 };

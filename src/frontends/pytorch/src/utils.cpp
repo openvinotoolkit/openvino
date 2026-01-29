@@ -358,11 +358,11 @@ OutputVector make_framework_node(const NodeContext& context, const std::string& 
         for (size_t i = num_body_outs; i < body_results.size(); i++) {
             auto out_idx = session->decode_tensor_name(body_results[i]->input(0).get_source_output());
             FRONT_END_OP_CONVERSION_CHECK(extra_outputs_map.count(out_idx) == 0,
-                                          "More then one body output with same tensor name.");
+                                          "More than one body output with same tensor name.");
             extra_outputs_map[out_idx].push_back(body_results[i]);
         }
     }
-    // Number of body outputs can be higher then number of pt node outputs, e.g. in case of loop first body output is
+    // Number of body outputs can be higher than number of pt node outputs, e.g. in case of loop first body output is
     // condition, we have to skip such outputs.
     auto num_skip_body_outputs =
         num_body_outs > context.get_output_size() ? num_body_outs - context.get_output_size() : 0;
@@ -778,7 +778,7 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
     // After gather, reshape and transpose back.
     std::vector<size_t> advanced_ids;
     std::vector<bool> is_masked_bool;
-    OutputVector masked_indicies;
+    OutputVector masked_indices;
     // for case when index is bool e.g. x[x>0], replace index with non_zero
     for (size_t i = 0; i < indices.size(); ++i) {
         // skip dimensions where index is None
@@ -793,7 +793,7 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
             }
         }
         if (is_none) {
-            masked_indicies.push_back(indices[i]);
+            masked_indices.push_back(indices[i]);
             is_masked_bool.push_back(false);
             continue;
         }
@@ -809,16 +809,16 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
                 auto zero_const = rg.make<v0::Constant>(element::i32, Shape{1}, 0);
                 masked_id = rg.make<v0::Squeeze>(nonzero, zero_const);
             }
-            masked_indicies.push_back(masked_id);
+            masked_indices.push_back(masked_id);
             is_masked_bool.push_back(true);
         } else {
-            masked_indicies.push_back(indices[i]);
+            masked_indices.push_back(indices[i]);
             is_masked_bool.push_back(false);
         }
         advanced_ids.push_back(i);
     }
 
-    // all indicies prim::Constant(None), return input as is
+    // all indices prim::Constant(None), return input as is
     if (advanced_ids.size() == 0) {
         new_output = data;
         use_input_as_output = true;
@@ -826,7 +826,7 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
     }
     // perform gather for single element case
     if (advanced_ids.size() == 1 && advanced_ids[0] == 0) {
-        auto index = masked_indicies[advanced_ids[0]];
+        auto index = masked_indices[advanced_ids[0]];
         if (is_masked_bool[advanced_ids[0]]) {
             auto gather = rg.make<v8::GatherND>(data, index);
             new_output = gather->output(0);
@@ -860,12 +860,12 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
     auto transpose_dims = rg.make<v0::Constant>(element::i32, Shape{permutation_dims.size()}, permutation_dims);
     auto transposed_input = rg.make<v1::Transpose>(data, transpose_dims);
     auto flatten_input = flatten(rg, transposed_input, adv_idx_count);
-    auto cum_adv_index = masked_indicies[advanced_ids[adv_idx_count - 1]];
+    auto cum_adv_index = masked_indices[advanced_ids[adv_idx_count - 1]];
     cum_adv_index = rg.make<v0::Convert>(cum_adv_index, element::i32);
     auto multiplier = input_dims->output(advanced_ids[adv_idx_count - 1]);
     for (int i = static_cast<int>(adv_idx_count) - 2; i > -1; i--) {
         auto input_id = advanced_ids[i];
-        auto m_idx = rg.make<v0::Convert>(masked_indicies[input_id], element::i32);
+        auto m_idx = rg.make<v0::Convert>(masked_indices[input_id], element::i32);
         auto adv_index = rg.make<v1::Multiply>(m_idx, multiplier);
         cum_adv_index = rg.make<v1::Add>(cum_adv_index, adv_index);
         multiplier = rg.make<v1::Multiply>(multiplier, input_dims->output(input_id));
@@ -897,8 +897,8 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
             adv_idx_permute.push_back(i);
         }
         // Transpose folded advanced indexed axis to its original location.
-        auto permute_indicies = rg.make<v0::Constant>(element::i32, Shape{adv_idx_permute.size()}, adv_idx_permute);
-        gather = rg.make<v1::Transpose>(gather, permute_indicies);
+        auto permute_indices = rg.make<v0::Constant>(element::i32, Shape{adv_idx_permute.size()}, adv_idx_permute);
+        gather = rg.make<v1::Transpose>(gather, permute_indices);
         // unfold advanced index axes
         for (size_t i = 0; i < advanced_ids[0]; i++) {
             concat_dims.push_back(input_dims->output(i));

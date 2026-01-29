@@ -35,7 +35,7 @@ static T smUnpack(char*& ptr, const char* ptr_end) {
     return 0;
 }
 
-/// \brief Structure is for storing information about block in Varaibles Index file.
+/// \brief Structure is for storing information about block in Variables Index file.
 /// It defines only offset and block size, no information about exact content.
 struct VIBlock {
     uint64_t m_size;

@@ -14,7 +14,7 @@ namespace onnx {
 class OperatorsBridge;
 
 /// For one call of convert and decode method of Frontend, it creates one TranslateSession object to save data for the
-/// translation session: telemetry statistics, cache of convrted body graph models, operation translators (including
+/// translation session: telemetry statistics, cache of converted body graph models, operation translators (including
 /// extensions) registered for this translation session.
 class TranslateSession {
 public:

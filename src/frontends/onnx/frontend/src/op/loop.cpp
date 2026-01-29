@@ -93,7 +93,9 @@ ov::OutputVector loop_legacy(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2), ng_inputs.end()};
 
     const auto& subgraphs = node.get_subgraphs();
-    auto body_graph = subgraphs.at("body");
+    auto body_graph_it = subgraphs.find("body");
+    FRONT_END_GENERAL_CHECK(body_graph_it != subgraphs.end(), "Missing 'body' attribute in Loop subgraphs");
+    auto body_graph = body_graph_it->second;
     auto body_outputs = body_graph->get_ov_outputs();
     const auto& body_inputs = body_graph->get_ng_parameters();
 
@@ -116,7 +118,7 @@ ov::OutputVector loop_legacy(const ov::frontend::onnx::Node& node) {
         trip_count = ng_inputs.at(0);
     }
 
-    ov::Output<ov::Node> termination_cond;                             // true means that first interation should be run
+    ov::Output<ov::Node> termination_cond;                             // true means that first iteration should be run
     if (ov::op::util::is_null(ng_inputs.at(1).get_node_shared_ptr()))  // termination condition skipped
     {
         termination_cond = v0::Constant::create(ov::element::boolean, {1}, {true});

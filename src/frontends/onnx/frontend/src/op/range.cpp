@@ -24,16 +24,21 @@ ov::OutputVector range(const ov::frontend::onnx::Node& node) {
 
     auto axes = std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
 
-    // Check if step is a tensor with a single value
-    if (start.get_shape().size() == 1 && start.get_shape()[0] == 1) {
+    const auto is_singleton_vector = [](const ov::PartialShape& pshape) {
+        return pshape.rank().is_static() && pshape.rank().get_length() == 1 && pshape[0].is_static() &&
+               pshape[0].get_length() == 1;
+    };
+
+    // Squeeze 1D-tensors with single element into scalars for Range inputs
+    if (is_singleton_vector(start.get_partial_shape())) {
         start = std::make_shared<v0::Squeeze>(start, axes);
     }
 
-    if (stop.get_shape().size() == 1 && stop.get_shape()[0] == 1) {
+    if (is_singleton_vector(stop.get_partial_shape())) {
         stop = std::make_shared<v0::Squeeze>(stop, axes);
     }
 
-    if (step.get_shape().size() == 1 && step.get_shape()[0] == 1) {
+    if (is_singleton_vector(step.get_partial_shape())) {
         step = std::make_shared<v0::Squeeze>(step, axes);
     }
 

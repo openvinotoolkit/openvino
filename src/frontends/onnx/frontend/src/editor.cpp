@@ -229,11 +229,17 @@ void graph_topological_sort(GraphProto* graph) {
             return nullptr;
         };
         for (const auto& output : graph->output()) {
-            nodes_to_process.push(get_node_by_out_name(output.name()));
+            if (const auto* node = get_node_by_out_name(output.name())) {
+                nodes_to_process.push(node);
+            }
         }
 
         while (nodes_to_process.size() > 0) {
             auto* node = nodes_to_process.top();
+            if (node == nullptr) {
+                nodes_to_process.pop();
+                continue;
+            }
             bool can_add = true;
             for (const auto& in_name : node->input()) {
                 if (in_name.empty()) {

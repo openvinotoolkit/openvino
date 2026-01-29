@@ -29,7 +29,7 @@ const std::string& get_jax_prefix();
 /// \param COND Condition to check
 /// \param ... Additional error message info to be added to the error message via the `<<`
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
-///            i.e., only if the `cond` evalutes to `false`.
+///            i.e., only if the `cond` evaluates to `false`.
 /// \throws ::ov::frontend::OpConversionFailure if `cond` is false.
 #ifndef JAX_OP_CONVERSION_CHECK
 #    define JAX_OP_CONVERSION_CHECK(COND, ...) \

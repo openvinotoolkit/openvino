@@ -24,8 +24,8 @@ void extract_operation_name_and_port(const std::string& port_name,
                                      std::string& operation_name,
                                      size_t& port_index,
                                      std::string& port_type) {
-    constexpr char delimeter[] = ":";
-    auto pos = port_name.find(delimeter);
+    constexpr char delimiter[] = ":";
+    auto pos = port_name.find(delimiter);
     if (pos == std::string::npos) {
         operation_name = port_name;
         port_type = "none";
@@ -309,7 +309,7 @@ void InputModel::InputModelTFImpl::load_places() {
                                                               ov::PartialShape({}),
                                                               ov::element::dynamic,
                                                               std::vector<std::string>{output_name + ":0"});
-            // TODO: Create tensor places for each ouput port, ticket-129464
+            // TODO: Create tensor places for each output port, ticket-129464
             m_default_places[output_name + ":0"] = output_place;
             m_outputs.push_back(output_place);
         }

@@ -198,7 +198,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     for (const auto& output : model_onnx->get_outputs()) {
         const auto tensor = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(output);
         FRONT_END_GENERAL_CHECK(tensor != nullptr,
-                                "Inputs of ov::frontend::onnx::InputModel must be TensorLitePlace instances");
+                                "Inputs of ov::frontend::onnx::InputModel must be TensorONNXPlace instances");
         const auto name = tensor->get_names()[0];
         if (!m_tensor_values.count(name)) {
             continue;

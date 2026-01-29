@@ -1,7 +1,9 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "cmath"
+#include <cmath>
+#include <numeric>
+
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/frontend/exception.hpp"

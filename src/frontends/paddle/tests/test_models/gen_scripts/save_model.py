@@ -7,7 +7,7 @@ import numpy as np
 import paddle
 
 #print numpy array like C structure
-def print_alike(arr, seperator_begin='{', seperator_end='}', verbose=False):
+def print_alike(arr, separator_begin='{', separator_end='}', verbose=False):
     shape = arr.shape
     rank = len(shape)
 
@@ -20,16 +20,16 @@ def print_alike(arr, seperator_begin='{', seperator_end='}', verbose=False):
         shape = arr.shape
         rank = len(arr.shape)
         if rank > 1:
-            line = seperator_begin
+            line = separator_begin
             for i in range(arr.shape[0]):
                 line += print_array(
                     arr[i, :],
-                    end=seperator_end +
-                    ",\n" if i < arr.shape[0] - 1 else seperator_end)
+                    end=separator_end +
+                    ",\n" if i < arr.shape[0] - 1 else separator_end)
             line += end
             return line
         else:
-            line = seperator_begin
+            line = separator_begin
             for i in range(arr.shape[0]):
                 line += "{:.2f}".format(arr[i])  # str(arr[i])
                 line += ", " if i < shape[0] - 1 else ' '
@@ -38,7 +38,7 @@ def print_alike(arr, seperator_begin='{', seperator_end='}', verbose=False):
             return line
 
     if verbose:
-        print(print_array(arr, seperator_end))
+        print(print_array(arr, separator_end))
 
 def saveModel(name, exe, feed_vars:list, fetchlist:list, inputs:list, outputs:list, target_dir:str):
     model_dir = os.path.join(target_dir, name)

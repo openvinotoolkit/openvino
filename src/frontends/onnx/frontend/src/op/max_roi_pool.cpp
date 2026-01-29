@@ -19,7 +19,7 @@ ov::OutputVector max_roi_pool(const ov::frontend::onnx::Node& node) {
 
     OPENVINO_ASSERT(X.get_element_type() == ov::element::f16 || X.get_element_type() == ov::element::f32 ||
                         X.get_element_type() == ov::element::f64,
-                    "MaxRoiPool operator only supports float16, float32 and float64 datatypes.");
+                    "MaxRoiPool operator only supports float16, float32, and float64 datatypes.");
 
     const auto pooled_shape = node.get_attribute_value<std::vector<size_t>>("pooled_shape");
     const auto spatial_scale = node.get_attribute_value<float>("spatial_scale", 1.0);

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/frontend/exception.hpp"
@@ -12,6 +13,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "utils/common.hpp"
 
 using namespace ov::op;
@@ -30,16 +32,17 @@ ov::OutputVector qlinear_op(const ov::frontend::onnx::Node& node, BinaryOp binar
     auto A = inputs[0];
     auto A_scale = inputs[1];
     auto A_zero_point =
-        (inputs[2].get_shape().empty()) ? v0::Constant::create(A.get_element_type(), {}, {0}) : inputs[2];
+        ov::op::util::is_null(inputs[2]) ? v0::Constant::create(A.get_element_type(), {}, {0}) : inputs[2];
 
     auto B = inputs[3];
     auto B_scale = inputs[4];
     auto B_zero_point =
-        (inputs[5].get_shape().empty()) ? v0::Constant::create(A.get_element_type(), {}, {0}) : inputs[5];
+        ov::op::util::is_null(inputs[5]) ? v0::Constant::create(B.get_element_type(), {}, {0}) : inputs[5];
 
     auto C_scale = inputs[6];
 
-    auto C_zero_point = inputs.size() > 7 ? inputs[7] : v0::Constant::create(C_scale.get_element_type(), {}, {0});
+    auto C_zero_point =
+        (common::is_input_valid(node, 7)) ? inputs[7] : v0::Constant::create(C_scale.get_element_type(), {}, {0});
 
     CHECK_VALID_NODE(
         node,
@@ -74,7 +77,7 @@ ov::OutputVector qlinear_op(const ov::frontend::onnx::Node& node, BinaryOp binar
     auto C_float = std::make_shared<v1::Add>(result_divided, C_zero_point_float);
     auto C = std::make_shared<v0::Convert>(C_float, A.get_element_type());
 
-    return ov::OutputVector{C};
+    return ov::OutputVector{C->output(0)};
 }
 
 ov::OutputVector qlinear_add(const ov::frontend::onnx::Node& node) {
