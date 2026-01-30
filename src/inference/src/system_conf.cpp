@@ -286,6 +286,14 @@ CPU& cpu_info() {
     return cpu;
 }
 
+bool is_win() {
+#ifdef _WIN32
+    return true;
+#else
+    return false;
+#endif
+}
+
 #if defined(__EMSCRIPTEN__)
 // for Linux and Windows the getNumberOfCPUCores (that accounts only for physical cores) implementation is OS-specific
 // (see cpp files in corresponding folders), for __APPLE__ it is default :
