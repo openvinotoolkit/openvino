@@ -817,7 +817,7 @@ RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
     auto repeat_interleave_sin = build_ChatGLMHF_interleave_pattern(sin);
 
     auto multiply = pattern::wrap_type<v1::Multiply>({slice_1, repeat_interleave_cos},
-                                                     {{"auto_broadcast", "numpy"}});  // Reshape_35226
+                                                     {{"auto_broadcast", "numpy"}});
     auto slice_2 = op_util::NewGenSlice(slice_1, 1, INT_MAX, 2, 3);
     auto neg = pattern::wrap_type<v1::Multiply>({slice_2, -1}, {{"auto_broadcast", "numpy"}});
     auto unsqueeze_1 = pattern::wrap_type<v1::Reshape>({neg, pattern::any_input()},
