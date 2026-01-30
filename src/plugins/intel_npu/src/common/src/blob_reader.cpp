@@ -1,0 +1,165 @@
+// Copyright (C) 2018-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "intel_npu/common/blob_reader.hpp"
+
+namespace {
+
+constexpr std::string_view MAGIC_BYTES = "OVNPU";
+constexpr uint32_t FORMAT_VERSION = 0x30000;  // 3.0;
+
+}  // namespace
+
+namespace intel_npu {
+
+BlobReader::BlobReader(const ov::Tensor& source) : m_source(source), m_cursor(0) {
+    // Register the core sections
+    register_reader(PredefinedSectionID::CRE, CRESection::read);
+    register_reader(PredefinedSectionID::OFFSETS_TABLE, OffsetsTableSection::read);
+}
+
+void BlobReader::register_reader(const SectionID section_id,
+                                 std::function<std::shared_ptr<ISection>(BlobReader*, const size_t)> reader) {
+    m_readers[section_id] = reader;
+}
+
+std::shared_ptr<ISection> BlobReader::retrieve_section(const SectionID section_id) {
+    auto search_result = m_parsed_sections.find(section_id);
+    if (search_result != m_parsed_sections.end()) {
+        return search_result->second;
+    }
+    return nullptr;
+}
+
+void BlobReader::copy_data_from_source(char* destination, const size_t size) {
+    m_cursor += size;
+    OPENVINO_ASSERT(m_cursor < m_npu_region_size);
+    std::memcpy(destination, m_source.get().data<const char>() + m_cursor - size, size);
+}
+
+const void* BlobReader::interpret_data_from_source(const size_t size) {
+    m_cursor += size;
+    OPENVINO_ASSERT(m_cursor < m_npu_region_size);
+    return reinterpret_cast<const void*>(m_source.get().data<char>() + m_cursor - size);
+}
+
+ov::Tensor BlobReader::get_roi_tensor(const size_t size) {
+    m_cursor += size;
+    OPENVINO_ASSERT(m_cursor < m_npu_region_size);
+    return ov::Tensor(m_source, ov::Coordinate{m_cursor - size}, ov::Coordinate{m_cursor});
+}
+
+size_t BlobReader::get_cursor_relative_position() {
+    return m_cursor;
+}
+
+void BlobReader::move_cursor_to_relative_position(const size_t offset) {
+    OPENVINO_ASSERT(offset < m_npu_region_size);
+    m_cursor = offset;
+}
+
+void BlobReader::read(const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities) {
+    std::string magic_bytes(MAGIC_BYTES.size(), 0);
+    copy_data_from_source(const_cast<char*>(magic_bytes.c_str()), MAGIC_BYTES.size());
+    OPENVINO_ASSERT(magic_bytes == MAGIC_BYTES);
+
+    uint32_t format_version;
+    copy_data_from_source(reinterpret_cast<char*>(&format_version), sizeof(format_version));
+    OPENVINO_ASSERT(format_version == FORMAT_VERSION);
+
+    // Read the size of the NPU region
+    copy_data_from_source(reinterpret_cast<char*>(&m_npu_region_size), sizeof(m_npu_region_size));
+
+    // Step 1: Read the table of offsets
+    std::optional<SectionID> section_id = 0;
+    std::optional<uint64_t> offset = 0;
+    std::optional<uint64_t> section_length = 0;
+
+    uint64_t offsets_table_location;
+    copy_data_from_source(reinterpret_cast<char*>(&offsets_table_location), sizeof(offsets_table_location));
+    const size_t where_the_region_of_persistent_format_starts = get_cursor_relative_position();
+
+    move_cursor_to_relative_position(offsets_table_location);
+    copy_data_from_source(reinterpret_cast<char*>(&section_id.value()), sizeof(section_id.value()));
+    OPENVINO_ASSERT(section_id.value() == PredefinedSectionID::OFFSETS_TABLE,
+                    "Unexpected section ID. Expected: ",
+                    PredefinedSectionID::OFFSETS_TABLE,
+                    ". Received: ",
+                    section_id.value());
+
+    copy_data_from_source(reinterpret_cast<char*>(&section_length.value()), sizeof(section_length.value()));
+    m_parsed_sections[PredefinedSectionID::OFFSETS_TABLE] = OffsetsTableSection::read(this, section_length.value());
+    m_offsets_table =
+        std::dynamic_pointer_cast<OffsetsTableSection>(m_parsed_sections.at(PredefinedSectionID::OFFSETS_TABLE))
+            ->get_table();
+
+    // Step 2: Look for the CRE and evaluate it
+    offset = m_offsets_table.lookup_offset(PredefinedSectionID::CRE);
+    section_length = m_offsets_table.lookup_length(PredefinedSectionID::CRE);
+    OPENVINO_ASSERT(offset.has_value(), "The CRE was not found within the table of offsets");
+    move_cursor_to_relative_position(offset.value());
+
+    m_parsed_sections[PredefinedSectionID::CRE] = CRESection::read(this, section_length.value());
+    std::dynamic_pointer_cast<CRESection>(m_parsed_sections.at(PredefinedSectionID::CRE))
+        ->get_cre()
+        .check_compatibility(plugin_capabilities);
+
+    // Step 3: Parse all known sections
+    move_cursor_to_relative_position(where_the_region_of_persistent_format_starts);
+
+    size_t relative_offset;
+    while (relative_offset = get_cursor_relative_position(), relative_offset < m_npu_region_size) {
+        section_id = m_offsets_table.lookup_section_id(relative_offset);
+        OPENVINO_ASSERT(section_id.has_value(),
+                        "Did not find any section corresponding to the relative offset ",
+                        relative_offset);
+        section_length = m_offsets_table.lookup_length(section_id.value());
+
+        const size_t next_section_location = relative_offset + section_length.value();
+        if (!m_readers.count(section_id.value())) {
+            // Unknown region, skip
+            move_cursor_to_relative_position(next_section_location);
+            continue;
+        }
+
+        m_parsed_sections[section_id.value()] = m_readers.at(section_id.value())(this, section_length.value());
+        move_cursor_to_relative_position(next_section_location);  // jic the reader moved the cursor somewhere else
+    }
+}
+
+size_t BlobReader::get_npu_region_size(std::istream& stream) {
+    std::string magic_bytes(MAGIC_BYTES.size(), 0);
+    stream.read(const_cast<char*>(magic_bytes.c_str()), MAGIC_BYTES.size());
+    OPENVINO_ASSERT(magic_bytes == MAGIC_BYTES);
+
+    uint32_t format_version;
+    stream.read(reinterpret_cast<char*>(&format_version), sizeof(format_version));
+    OPENVINO_ASSERT(format_version == FORMAT_VERSION);
+
+    uint64_t npu_region_size;
+    stream.read(reinterpret_cast<char*>(&npu_region_size), sizeof(m_npu_region_size));
+
+    return npu_region_size;
+}
+
+size_t BlobReader::get_npu_region_size(const ov::Tensor& tensor) {
+    std::string magic_bytes(MAGIC_BYTES.size(), 0);
+    std::memcpy(const_cast<char*>(magic_bytes.c_str()), tensor.data<const char>(), MAGIC_BYTES.size());
+    OPENVINO_ASSERT(magic_bytes == MAGIC_BYTES);
+
+    uint32_t format_version;
+    std::memcpy(reinterpret_cast<char*>(&format_version),
+                tensor.data<const char>() + MAGIC_BYTES.size(),
+                sizeof(format_version));
+    OPENVINO_ASSERT(format_version == FORMAT_VERSION);
+
+    uint64_t npu_region_size;
+    std::memcpy(reinterpret_cast<char*>(&npu_region_size),
+                tensor.data<const char>() + MAGIC_BYTES.size() + sizeof(FORMAT_VERSION),
+                sizeof(m_npu_region_size));
+
+    return npu_region_size;
+}
+
+}  // namespace intel_npu
