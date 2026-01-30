@@ -251,7 +251,7 @@ jobs:
         run: ccache --cleanup
 
   Overall_Status:
-    name: ci/gha_overall_status_linux_riscv
+    name: ci/gha_overall_status_linux_riscv_conan
     needs: [Smart_CI, Build]
     if: ${{ always() }}
     runs-on: ubuntu-latest
