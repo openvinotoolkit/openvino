@@ -338,7 +338,16 @@ DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
         size_t m = experts_weight_shape[1];
         size_t k = experts_weight_shape.size() == 4 ? experts_weight_shape[2] * experts_weight_shape[3] : experts_weight_shape[2];
         wgs.local = {sg_per_wg_m * get_subgroup_size(device_info.arch), sg_per_wg_n, sg_per_wg_k};
-        wgs.global = {ceil_div(m, wg_tile_m), ceil_div(n, wg_tile_n), static_cast<size_t>(rtp->num_actually_used_experts)};
+        // Use persistent threads strategy: Flatten expert and token dimensions
+        // Global size Y serves as a pool of workers.
+        // Size heuristic: We want enough threads to hide latency, but not so many that the "tail" (last wave)
+        // becomes a large portion of execution time with low occupancy.
+        // 4 threads per EU is a balanced choice (vs 8).
+        size_t persistent_groups = device_info.execution_units_count * 4;
+        // Make sure we have at least some parallelism if EU count is weird, and ensure alignment isn't an issue.
+        if (persistent_groups < 128) persistent_groups = 128;
+        
+        wgs.global = {ceil_div(m, wg_tile_m), persistent_groups, 1};
         wgs.global[0] *= wgs.local[0];
         wgs.global[1] *= wgs.local[1];
         wgs.global[2] *= wgs.local[2];
@@ -348,8 +357,11 @@ DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
         ScalarDescriptor s_k{ScalarDescriptor::Types::INT32};
         s_k.v.s32 = static_cast<int32_t>(k);
         scalars.push_back(s_k);
+        ScalarDescriptor s_num_experts{ScalarDescriptor::Types::INT32};
+        s_num_experts.v.s32 = static_cast<int32_t>(rtp->num_actually_used_experts);
+        scalars.push_back(s_num_experts);
 
-        GPU_DEBUG_TRACE_DETAIL << "\t m = " << m << ", k = " << k << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "\t m = " << m << ", k = " << k << ", num_experts = " << rtp->num_actually_used_experts << std::endl;
     }};
 }
 
@@ -383,6 +395,7 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_0)});                 // scale
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_0)});                    // zp
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});                                                            // num_experts
         break;
     case MoE3GemmMicroKernelType::MLP_UP:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_GATE_UP_INPUT});  // gather input tensor
@@ -395,6 +408,7 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_1)});                 // scale
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_1)});                    // zp
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});                                                            // num_experts
         break;
     case MoE3GemmMicroKernelType::MLP_DOWN:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_GATE_OUTPUT});  // intermediate_mem[6]
@@ -407,6 +421,7 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_2)});                 // scale
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_2)});                    // zp
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});                                                            // num_experts
         break;
     default:
         OPENVINO_THROW("Unsupported MoE3GemmMicroKernelType");

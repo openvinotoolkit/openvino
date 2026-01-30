@@ -50,77 +50,209 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
         , const global WEIGHT_ZP_DT *weight_zps
         #endif
 #endif
+        , int num_experts
 #ifdef USE_SLM
         , local int* slm
 #endif
 ) {
-    uint batch = get_group_id(2);
-    int input_offset = sub_group_broadcast(input_offset_per_expert[batch], 0);
-
-    #ifdef IS_GENERATE
-    if (INPUT_SEQ_LEN > 1) {
-    #endif
-    input_ptr += input_offset * INPUT_STRIDE;
-    #ifdef IS_GENERATE
-    }
-    #endif
-    out_ptr += input_offset * OUTPUT_STRIDE;
-#ifdef POST_PROC_SILU_MUL
-    post_op_input += input_offset * OUTPUT_STRIDE;
-#endif
-    INPUT2_TYPE expert_id = sub_group_broadcast(experts_ids[batch], 0);
-    weight_ptr += expert_id * EXPERT_STRIDE;
-
-    int ld_input = k;
+    const global INPUT0_TYPE *base_input_ptr = input_ptr;
 #ifdef WEIGHT_COMPRESSED_INT4
-    weight_scales += expert_id * m * NUM_GROUPS;
+    const global uchar *base_weight_ptr = weight_ptr;
+#else
+    const global INPUT1_TYPE *base_weight_ptr = weight_ptr;
+#endif
+    global OUTPUT_TYPE *base_out_ptr = out_ptr;
+#ifdef POST_PROC_SILU_MUL
+    const global OUTPUT_TYPE *base_post_op_input = post_op_input;
+#endif
+#ifdef BIAS_DT
+    const global BIAS_DT *base_bias_ptr = bias_ptr;
+#endif
+#ifdef WEIGHT_COMPRESSED_INT4
+    const global WEIGHT_SCALE_DT *base_weight_scales = weight_scales;
     #ifdef WEIGHT_ZP_DT
-    #ifdef WEIGHT_COMPRESSED_ZP_INT4
-    weight_zps += expert_id * m * NUM_GROUPS / 2;
-    #else
-    weight_zps += expert_id * m * NUM_GROUPS;
-    #endif
+    const global WEIGHT_ZP_DT *base_weight_zps = weight_zps;
     #endif
 #endif
-    int ld_weight = k;
-    int cur_n_tokens = sub_group_broadcast(n_array[batch], 0);
 
+    // Compute Prefix Scan of Tile Counts
+    local uint expert_tile_offsets[1025]; // Supports up to 1024 experts.
+    uint lid = get_local_id(0) + get_local_id(1) * get_local_size(0);
+    
+    // Check if num_experts exceeds buffer
+    if (num_experts > 1024) num_experts = 1024; // Safety clamp
+
+    if (lid < num_experts) {
+        int n = n_array[lid];
+        // Calculate number of tiles for this expert
+        expert_tile_offsets[lid] = (n + ugemm_moe_wg_tile_n - 1) / ugemm_moe_wg_tile_n; 
+    }
+    
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    // Single-thread Prefix Sum (Efficiency ok for small num_experts)
+    if (lid == 0) {
+        uint acc = 0;
+        for (int i = 0; i < num_experts; ++i) {
+            uint val = expert_tile_offsets[i];
+            expert_tile_offsets[i] = acc;
+            acc += val;
+        }
+        expert_tile_offsets[num_experts] = acc; // Total tiles
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    uint total_tiles = expert_tile_offsets[num_experts];
+     
+    // Flattened Persistent Loop
+    uint global_dim1_idx = get_group_id(1);
+    uint global_dim1_stride = get_num_groups(1);
+    
+    // wg_i0 is uniform for all experts (M dim)
+    uint wg_i0 = get_group_id(0) * ugemm_moe_wg_tile_m;
     uint sg_i = sub_group_broadcast(get_local_id(0)/SUBGROUP_SIZE, 0);
     uint sg_j = sub_group_broadcast(get_local_id(1), 0);
     uint sg_k = sub_group_broadcast(get_local_id(2), 0);
-
-    uint wg_i0 = get_group_id(0) * ugemm_moe_wg_tile_m;
-    uint wg_j0 = get_group_id(1) * ugemm_moe_wg_tile_n;
     uint sg_i0 = wg_i0 + sg_i * ugemm_moe_sg_tile_m;
-    uint sg_j0 = wg_j0 + sg_j * ugemm_moe_sg_tile_n;
+
+    for (uint tile_idx = global_dim1_idx; tile_idx < total_tiles; tile_idx += global_dim1_stride) {
+        // Binary Search to find Expert ID
+        uint l = 0;
+        uint r = num_experts - 1;
+        uint expert_id = 0;
+        // Invariant: expert_tile_offsets[expert_id] <= tile_idx
+        
+        while (l <= r) {
+            uint mid = (l + r) >> 1;
+            if (expert_tile_offsets[mid] <= tile_idx) {
+                expert_id = mid;
+                l = mid + 1;
+            } else {
+                r = mid - 1;
+            }
+        }
+        expert_id -= 1; // Correct for upper bound binary search result to get index.
+        // Wait, loop `l=mid+1` means `l` will end up 1 index PAST the last valid one.
+        // Let's refine logical check:
+        // expert_tile_offsets[i] <= tile_idx < expert_tile_offsets[i+1]
+        // Let's use simpler search logic to be safe.
+        // `std::upper_bound` returns first element > value. Subtract 1.
+        
+        // Re-implement upper_bound
+        l = 0; r = num_experts; // Range [0, num_experts)
+        while (l < r) {
+             uint mid = l + (r - l) / 2;
+             if (tile_idx >= expert_tile_offsets[mid]) {
+                 l = mid + 1;
+             } else {
+                 r = mid;
+             }
+        }
+        // expert_id is l - 1
+        expert_id = l - 1;
+        
+        uint batch = expert_id; // Mapping expert_id to batch index as per original logic
+
+        // Calculate parameters for this expert
+        int cur_n_tokens = n_array[batch];
+        
+        // Calculate offsets
+        int input_offset = sub_group_broadcast(input_offset_per_expert[batch], 0); 
+        
+        // Local tile index
+        uint tile_in_expert = tile_idx - expert_tile_offsets[expert_id];
+        uint wg_j0 = tile_in_expert * ugemm_moe_wg_tile_n;
+        uint sg_j0 = wg_j0 + sg_j * ugemm_moe_sg_tile_n;
+        
+        if (wg_j0 >= cur_n_tokens) continue; // Should not happen due to prefix sum logic, but safety
+
+        // Pointers Setup
+        const global INPUT0_TYPE *curr_input_ptr = base_input_ptr;
+        #ifdef IS_GENERATE
+        if (INPUT_SEQ_LEN > 1) {
+        #endif
+        curr_input_ptr += input_offset * INPUT_STRIDE;
+        #ifdef IS_GENERATE
+        }
+        #endif
+        
+        global OUTPUT_TYPE *curr_out_ptr = base_out_ptr + input_offset * OUTPUT_STRIDE;
+        
+        #ifdef POST_PROC_SILU_MUL
+        const global OUTPUT_TYPE *curr_post_op_input = base_post_op_input + input_offset * OUTPUT_STRIDE;
+        #endif
+
+        INPUT2_TYPE actual_expert_id = experts_ids[batch]; 
+        
+        const global INPUT1_TYPE *curr_weight_ptr = (const global INPUT1_TYPE *)base_weight_ptr; // Cast for generic
+        #ifdef WEIGHT_COMPRESSED_INT4
+             const global uchar *curr_weight_ptr_u8 = base_weight_ptr + actual_expert_id * EXPERT_STRIDE;
+        #else
+             curr_weight_ptr += actual_expert_id * EXPERT_STRIDE;
+        #endif
+
+        int ld_input = k;
+        int ld_weight = k;
+        
 #ifdef WEIGHT_COMPRESSED_INT4
-#ifdef SCALE_ZP_NO_TRANSPOSE
-    /* This parameter is the leading dimension for scales/zp. Since scales/zp are non-transpose,
-       the leading dimension is the stride between successive groups in the k dimension. */
-    uint scale_zp_leading_dim = m;
-#else
-    uint scale_zp_leading_dim = NUM_GROUPS;
+        const global WEIGHT_SCALE_DT *curr_weight_scales = base_weight_scales + actual_expert_id * m * NUM_GROUPS;
+        #ifdef WEIGHT_ZP_DT
+            const global WEIGHT_ZP_DT *curr_weight_zps = base_weight_zps;
+            #ifdef WEIGHT_COMPRESSED_ZP_INT4
+            curr_weight_zps += actual_expert_id * m * NUM_GROUPS / 2;
+            #else
+            curr_weight_zps += actual_expert_id * m * NUM_GROUPS;
+            #endif
+        #endif
+        
+        #ifdef SCALE_ZP_NO_TRANSPOSE
+            uint scale_zp_leading_dim = m;
+        #else
+            uint scale_zp_leading_dim = NUM_GROUPS;
+        #endif
 #endif
-#endif
-    if (wg_j0 >= cur_n_tokens)
-        return;     /* early exit if outside batch */
+    
 #ifdef IS_GENERATE
 #ifdef USE_SLM
-    ugemm_moe_c_type c_tile = ugemm_moe(weight_ptr, ld_weight, input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, sg_k, slm
+    ugemm_moe_c_type c_tile = ugemm_moe(
+        #ifdef WEIGHT_COMPRESSED_INT4
+            curr_weight_ptr_u8,
+        #else
+            curr_weight_ptr,
+        #endif
+        ld_weight, curr_input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, sg_k, slm
 #else
-    ugemm_moe_c_type c_tile = ugemm_moe(weight_ptr, ld_weight, input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, sg_k, 0
+    ugemm_moe_c_type c_tile = ugemm_moe(
+        #ifdef WEIGHT_COMPRESSED_INT4
+            curr_weight_ptr_u8,
+        #else
+            curr_weight_ptr,
+        #endif
+        ld_weight, curr_input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, sg_k, 0
 #endif
 #else
 #ifdef USE_SLM
-    ugemm_moe_c_type c_tile = ugemm_moe(weight_ptr, ld_weight, input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, slm
+    ugemm_moe_c_type c_tile = ugemm_moe(
+        #ifdef WEIGHT_COMPRESSED_INT4
+            curr_weight_ptr_u8,
+        #else
+            curr_weight_ptr,
+        #endif
+        ld_weight, curr_input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, slm
 #else
-    ugemm_moe_c_type c_tile = ugemm_moe(weight_ptr, ld_weight, input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, 0
+    ugemm_moe_c_type c_tile = ugemm_moe(
+        #ifdef WEIGHT_COMPRESSED_INT4
+            curr_weight_ptr_u8,
+        #else
+            curr_weight_ptr,
+        #endif
+        ld_weight, curr_input_ptr, ld_input, m, cur_n_tokens, k, wg_i0, wg_j0, 0, sg_i, sg_j, 0
 #endif
 #endif
 #ifdef WEIGHT_COMPRESSED_INT4
-                                        , weight_scales
+                                        , curr_weight_scales
 #ifdef WEIGHT_ZP_DT
-                                        , weight_zps
+                                        , curr_weight_zps
 #endif
                                         , scale_zp_leading_dim
 #endif
@@ -128,13 +260,13 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 
     // Only the first sg stores data in kparallel microkernels
     if (sg_k > 0)
-        return;
+        continue;
 
     ugemm_moe_c_type_half c_tile_half;
     tile_copy_reblock(c_tile, &c_tile_half);
 
 #ifdef BIAS_DT
-    bias_ptr += (expert_id * BIAS_STRIDE);
+    const global BIAS_DT *curr_bias_ptr = base_bias_ptr + (actual_expert_id * BIAS_STRIDE);
     int sglid = get_sub_group_local_id();
     const int br = ugemm_moe_c_type_block0;
     const int nbr = ugemm_moe_c_type_nblock0;
@@ -146,7 +278,7 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
             for (int i0 = 0; i0 < br * nbr; i0 += sg) {
                 int i = i0 + sglid;
                 if (sg_i0 + i < m) {
-                    c_tile_half.x[i0 / br + nbr * (j / bc)][(i0 % br)/sg + (j % bc) * (br / sg)] += bias_ptr[sg_i0 + i];
+                    c_tile_half.x[i0 / br + nbr * (j / bc)][(i0 % br)/sg + (j % bc) * (br / sg)] += curr_bias_ptr[sg_i0 + i];
                 }
             }
         }
@@ -162,7 +294,7 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
         const int nbc = ugemm_moe_c_type_nblock1;
         int sg = SUBGROUP_SIZE;
 
-        const global OUTPUT_TYPE* post_op_base = post_op_input + sg_j0 * m + sg_i0;
+        const global OUTPUT_TYPE* post_op_base = curr_post_op_input + sg_j0 * m + sg_i0;
         unroll_for (int j = 0; j < bc * nbc; j++) {
             if (sg_j0 + j < cur_n_tokens) {
                 const global OUTPUT_TYPE* post_op_row = post_op_base + j * m;
@@ -182,5 +314,7 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
     }
 #endif
 
-    tile_store(c_tile_half, out_ptr, m, cur_n_tokens, sg_i0, sg_j0);
+    tile_store(c_tile_half, curr_out_ptr, m, cur_n_tokens, sg_i0, sg_j0);
+
+    } // End of For Scan Loop
 }

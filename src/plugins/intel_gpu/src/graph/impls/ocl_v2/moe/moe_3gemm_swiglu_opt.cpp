@@ -1348,9 +1348,20 @@ public:
                 return a.second > b.second;
             });
 
+            std::vector<std::pair<int, int>> reordered_expert_order;
+            reordered_expert_order.reserve(expert_order.size());
+            int left = 0;
+            int right = static_cast<int>(expert_order.size()) - 1;
+            while (left <= right) {
+                reordered_expert_order.push_back(expert_order[left++]);
+                if (left <= right) {
+                    reordered_expert_order.push_back(expert_order[right--]);
+                }
+            }
+
             int tokens_per_expert_iter = 0;
             int experts_id_iter = 0;
-            for (const auto& expert : expert_order) {
+            for (const auto& expert : reordered_expert_order) {
                 int expert_idx = expert.first;
                 experts_info_start_idx_cpu[experts_id_iter] = tokens_per_expert_iter;
                 experts_id_cpu[experts_id_iter] = expert_idx;
