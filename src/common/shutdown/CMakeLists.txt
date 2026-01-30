@@ -8,4 +8,5 @@ set(TARGET_NAME openvino_shutdown)
 add_library(${TARGET_NAME} OBJECT shutdown.cpp)
 
 add_library(openvino::shutdown ALIAS ${TARGET_NAME})
-target_link_libraries(${TARGET_NAME} PUBLIC openvino::itt)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::itt)
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME openvino_shutdown)
