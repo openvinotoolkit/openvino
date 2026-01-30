@@ -30,15 +30,6 @@ namespace {
 size_t calculate_size_with_alignment_padding(size_t size, size_t alignment) {
     return size + alignment - (size % alignment);
 }
-
-size_t get_file_size(std::ifstream& file) {
-    auto size = file.tellg();
-    file.seekg(0, std::ios::end);
-    size = file.tellg() - size;
-    file.seekg(0, std::ios::beg);
-
-    return size;
-}
 }  // namespace
 
 namespace ov::test::behavior {
@@ -255,8 +246,11 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob) {
                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
         OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
 
-    std::unique_ptr<ZeroMem> buffer;
-    OV_ASSERT_NO_THROW(buffer = std::make_unique<ZeroMem>(zeroInitStruct, alignedSize, ::utils::STANDARD_PAGE_SIZE, false));
+    std::shared_ptr<ZeroMem> buffer;
+        OV_ASSERT_NO_THROW(buffer = ZeroMemPool::get_instance().allocate_zero_memory(zeroInitStruct,
+                                                                                     alignedSize,
+                                                                                     ::utils::STANDARD_PAGE_SIZE,
+                                                                                     false));
 
     OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, buffer->data()));
 
@@ -277,8 +271,11 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob) {
                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
         OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
 
-    std::unique_ptr<ZeroMem> buffer;
-    OV_ASSERT_NO_THROW(buffer = std::make_unique<ZeroMem>(zeroInitStruct, alignedSize, ::utils::STANDARD_PAGE_SIZE, false));
+    std::shared_ptr<ZeroMem> buffer;
+        OV_ASSERT_NO_THROW(buffer = ZeroMemPool::get_instance().allocate_zero_memory(zeroInitStruct,
+                                                                                     alignedSize,
+                                                                                     ::utils::STANDARD_PAGE_SIZE,
+                                                                                     false));
 
     OV_ASSERT_NO_THROW(
         zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, static_cast<char*>(buffer->data()) + 1));
