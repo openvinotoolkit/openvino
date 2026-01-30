@@ -76,7 +76,7 @@ protected:
 /// \param cond Condition to check
 /// \param ... Additional error message info to be added to the error message via the `<<`
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
-///            i.e., only if the `cond` evalutes to `false`.
+///            i.e., only if the `cond` evaluates to `false`.
 /// \throws ::ov::frontend::GeneralFailure if `cond` is false.
 #define FRONT_END_GENERAL_CHECK(...) OPENVINO_ASSERT_HELPER(::ov::frontend::GeneralFailure, "", __VA_ARGS__)
 
@@ -84,7 +84,7 @@ protected:
 /// \param cond Condition to check
 /// \param ... Additional error message info to be added to the error message via the `<<`
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
-///            i.e., only if the `cond` evalutes to `false`.
+///            i.e., only if the `cond` evaluates to `false`.
 /// \throws ::ov::frontend::InitializationFailure if `cond` is false.
 #define FRONT_END_INITIALIZATION_CHECK(...) \
     OPENVINO_ASSERT_HELPER(::ov::frontend::InitializationFailure, "", __VA_ARGS__)
@@ -93,7 +93,7 @@ protected:
 /// \param cond Condition to check
 /// \param ... Additional error message info to be added to the error message via the `<<`
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
-///            i.e., only if the `cond` evalutes to `false`.
+///            i.e., only if the `cond` evaluates to `false`.
 /// \throws ::ov::frontend::OpConversionFailure if `cond` is false.
 #define FRONT_END_OP_CONVERSION_CHECK(...) OPENVINO_ASSERT_HELPER(::ov::frontend::OpConversionFailure, "", __VA_ARGS__)
 
