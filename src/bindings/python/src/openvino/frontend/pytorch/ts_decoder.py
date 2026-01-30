@@ -89,7 +89,7 @@ class TorchScriptPythonDecoder(Decoder):
                             "which is incompatible with torch.jit.script().\n\n"
                             "SOLUTION: Provide 'example_input' to enable tracing instead:\n"
                             "  Python API: convert_model(model, example_input=torch.randn(1, 3, 224, 224))\n"
-                            "  CLI: ovc model.pth --example_input=\"torch.randn(1, 3, 224, 224)\"\n\n"
+                            '  CLI: ovc model.pth --example_input="torch.randn(1, 3, 224, 224)"\n\n'
                             "If you provided 'input' shapes with fully dynamic dimensions, "
                             "the auto-generation of example inputs was not possible.\n"
                         )
