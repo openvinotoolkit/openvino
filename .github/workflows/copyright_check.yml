@@ -15,22 +15,16 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
 
       - name: Get changed files
         id: changed-files
         run: |
-          # Get the base branch for comparison
-          git fetch origin ${{ github.base_ref }}
+          # Download the PR diff directly from GitHub
+          curl -L "${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.pull_request.number }}.diff" -o pr.diff
           
-          # Get list of changed files (comparing PR head with base branch)
-          git diff --name-only origin/${{ github.base_ref }}...HEAD > changed_files.txt
+          # Extract changed file names from the diff
+          # Lines starting with +++ indicate new/modified files (skip /dev/null for deleted files)
+          grep '^+++' pr.diff | sed 's|^+++ b/||' | grep -v '/dev/null' > changed_files.txt
 
       - name: Check copyright headers
         id: check
