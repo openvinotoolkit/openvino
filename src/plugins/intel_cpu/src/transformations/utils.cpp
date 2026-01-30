@@ -5,12 +5,13 @@
 #include "utils.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
-#include "openvino/core/strides.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convolution.hpp"
