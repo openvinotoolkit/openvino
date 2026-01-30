@@ -145,8 +145,8 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
             return false;
         }
 
-        auto output_type =
-            elementwise_affine ? m.get_match_root()->get_output_element_type(0) : mul_or_div_node->get_output_element_type(0);
+        auto output_type = elementwise_affine ? m.get_match_root()->get_output_element_type(0)
+                                              : mul_or_div_node->get_output_element_type(0);
         std::shared_ptr<ov::op::internal::RMS> rms;
         if (elementwise_affine) {
             rms = std::make_shared<ov::op::internal::RMS>(x_output, gamma_node, eps_value, output_type);

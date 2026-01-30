@@ -8,10 +8,7 @@ namespace ov {
 namespace op {
 namespace internal {
 
-RMS::RMS(const Output<Node>& data,
-         const Output<Node>& gamma,
-         double epsilon,
-         const ov::element::Type output_type)
+RMS::RMS(const Output<Node>& data, const Output<Node>& gamma, double epsilon, const ov::element::Type output_type)
     : Op({data, gamma}),
       m_epsilon(epsilon),
       m_output_type(output_type),
