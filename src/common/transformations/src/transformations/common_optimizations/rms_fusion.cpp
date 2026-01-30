@@ -96,9 +96,7 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
     // Pattern 2: RMS without gamma, but multiplied with dynamic input
     // RMS(x) * scale where scale is non-constant (e.g., gate, activation, residual)
     // This allows partial fusion: only fuse up to mul_or_div
-    auto scale = pattern::any_input([](const Output<Node>& value) -> bool {
-        return !ov::is_type<v0::Constant>(value.get_node_shared_ptr());
-    });
+    auto scale = pattern::any_input(pattern::class_other_than<v0::Constant>());
     auto mul_with_scale = pattern::wrap_type<v1::Multiply>({mul_or_div, scale});
 
     auto rms_mul = std::make_shared<pattern::op::Or>(OutputVector{mul_with_gamma, mul_with_scale});
@@ -125,12 +123,12 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
         }
 
         auto mul_or_div_node = pattern_map.at(mul_or_div).get_node_shared_ptr();
-        bool elementwise_affine = (pattern_map.find(mul_with_gamma) != pattern_map.end());
+        bool elementwise_affine = pattern_map.count(mul_with_gamma);
 
         std::shared_ptr<ov::Node> gamma_node;
         if (elementwise_affine) {
             gamma_node = pattern_map.at(gamma).get_node_shared_ptr();
-            if (pattern_map.find(gamma_convert) != pattern_map.end()) {
+            if (pattern_map.count(gamma_convert)) {
                 gamma_node = pattern_map.at(gamma_convert).get_node_shared_ptr();
             }
         }
