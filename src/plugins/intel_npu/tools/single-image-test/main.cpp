@@ -1638,15 +1638,7 @@ bool testRRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
         return false;
     }
 
-    std::vector<std::string> skipped_layers;
-    skipped_layers = splitStringList(FLAGS_skip_output_layers, ';');
-
     for (const auto& [tensorName, output] : outputs) {
-        if (std::find(skipped_layers.begin(), skipped_layers.end(), tensorName) != skipped_layers.end()) {
-            std::cout << "Skip RRMSE test for layers: " << tensorName << std::endl;
-            continue;
-        }
-
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
 
@@ -2100,27 +2092,15 @@ bool testMAP(const TensorMap& outputs, const TensorMap& references, const Layout
         return false;
     }
 
-    std::vector<std::string> skipped_layers;
-    skipped_layers = splitStringList(FLAGS_skip_output_layers, ';');
-
-    TensorMap remainingOutput;
-
     // For single-image detection models with pred_boxes and logits outputs,
     // compute mAP directly from all outputs rather than per-layer
     std::cout << "Computing mAP for single-image detection model" << std::endl;
     std::cout << "Output layers:" << std::endl;
     for (const auto& [tensorName, tensor] : outputs) {
-        if (std::find(skipped_layers.begin(), skipped_layers.end(), tensorName) != skipped_layers.end()) {
-            std::cout << "Skip layer: " << tensorName << std::endl;
-            continue;
-        }
-
-        remainingOutput[tensorName] = tensor;
-
         std::cout << " - " << tensorName << " : " << tensor.get_shape() << std::endl;
     }
 
-    return computeMAP(remainingOutput, references);
+    return computeMAP(outputs, references);
 }
 
 std::vector<float> softmax(std::vector<float>& tensor) {
@@ -2159,15 +2139,7 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
         return false;
     }
 
-    std::vector<std::string> skipped_layers;
-    skipped_layers = splitStringList(FLAGS_skip_output_layers, ';');
-
     for (auto& [tensorName, output] : outputs) {
-        if (std::find(skipped_layers.begin(), skipped_layers.end(), tensorName) != skipped_layers.end()) {
-            std::cout << "Skip NRMSE test for layers: " << tensorName << std::endl;
-            continue;
-        }
-
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
         bool applySoftMax = FLAGS_apply_soft_max;
@@ -2380,9 +2352,13 @@ bool testSSDDetection(const TensorMap& outputs, const TensorMap& references,
     BlobTestMethod blobComparator = [imgWidth, imgHeight, confThresh, probTolerance, boxTolerance](
                                         const ov::Tensor& outputTensor,
                                         const ov::Tensor& referenceTensor) {
-        auto parsedOutput = utils::parseSSDOutput(outputTensor, imgWidth, imgHeight, static_cast<float>(confThresh));
-        auto parsedReference =
-            utils::parseSSDOutput(referenceTensor, imgWidth, imgHeight, static_cast<float>(confThresh));
+
+        auto parsedOutput = utils::parseSSDOutput(outputTensor, imgWidth,
+                                            imgHeight, static_cast<float>(confThresh));
+
+        auto parsedReference = utils::parseSSDOutput(referenceTensor, imgWidth,
+                                            imgHeight, static_cast<float>(confThresh));
+
         return checkBBoxOutputs(parsedOutput,
                                 parsedReference,
                                 imgWidth,
@@ -3074,6 +3050,27 @@ static int runSingleImageTest() {
                     ++outputInd;
                 }
 
+                // Filter out skipped layers before passing to test methods
+                TensorMap filteredOutputTensors;
+                TensorMap filteredReferenceTensors;
+                LayoutMap filteredOutputLayouts;
+
+                std::vector<std::string> skipped_layers = splitStringList(FLAGS_skip_output_layers, ';');
+                for (const auto& [tensorName, tensor] : outputTensors) {
+                    if (std::find(skipped_layers.begin(), skipped_layers.end(), tensorName) != skipped_layers.end()) {
+                        std::cout << "Skip test for layer: " << tensorName << std::endl;
+                        continue;
+                    }
+
+                    filteredOutputTensors[tensorName] = tensor;
+                    filteredReferenceTensors[tensorName] = referenceTensors.at(tensorName);
+
+                    auto layoutIt = outputLayouts.find(tensorName);
+                    if (layoutIt != outputLayouts.end()) {
+                        filteredOutputLayouts.emplace(tensorName, layoutIt->second);
+                    }
+                }
+
                 using ResultStatus = std::tuple<std::string, int>;
                 std::array<ResultStatus, 2> resultStatuses{{{"FAILED", EXIT_FAILURE}, {"PASSED", EXIT_SUCCESS}}};
 
@@ -3136,7 +3133,7 @@ static int runSingleImageTest() {
                 }
 
                 auto testFunc = testMethodsIt->second;
-                auto [message, exitCode] = resultStatuses[testFunc(outputTensors, referenceTensors, outputLayouts)];
+                auto [message, exitCode] = resultStatuses[testFunc(filteredOutputTensors, filteredReferenceTensors, filteredOutputLayouts)];
                 std::cout << message << std::endl;
                 return exitCode;
             } else {
