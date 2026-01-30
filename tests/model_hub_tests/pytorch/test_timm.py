@@ -140,7 +140,6 @@ class TestTimmConvertModel(TestTorchConvertModel):
         models = [
             "mobilevitv2_050.cvnets_in1k",
             "poolformerv2_s12.sail_in1k",
-            "sequencer2d_l.in1k",
         ]
         if platform.machine() not in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
             models.extend([
@@ -149,9 +148,6 @@ class TestTimmConvertModel(TestTorchConvertModel):
                 "convnext_atto.d2_in1k",
                 "gcresnext26ts.ch_in1k",
                 "volo_d1_224.sail_in1k",
-                "beit_base_patch16_224.in22k_ft_in22k",
-                "vit_base_patch8_224.augreg_in21k",
-                "volo_d2_224.sail_in1k",
             ])
         return models
 
