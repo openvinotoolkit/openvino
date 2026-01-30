@@ -1599,6 +1599,30 @@ void Transformations::MainSnippets() {
     CPU_SET_CALLBACK_COMMON(
         snippetsManager,
         [&](const std::shared_ptr<const ov::Node>& n) -> bool {
+#if defined(OPENVINO_ARCH_RISCV64)
+            if (ov::is_type_any_of<ov::op::v1::Add,
+                                   ov::op::v1::Multiply,
+                                   ov::op::v1::Subtract,
+                                   ov::op::v1::Divide,
+                                   ov::op::v0::SquaredDifference,
+                                   ov::op::v1::Mod,
+                                   ov::op::v1::FloorMod>(n)) {
+                if (n->inputs().size() > 1) {
+                    const auto& lhs_shape = n->get_input_partial_shape(0);
+                    const auto& rhs_shape = n->get_input_partial_shape(1);
+                    if (lhs_shape.is_dynamic() || rhs_shape.is_dynamic()) {
+                        return true;
+                    }
+                    if (lhs_shape.get_shape() != rhs_shape.get_shape()) {
+                        return true;
+                    }
+                    const auto& rhs = n->get_input_node_shared_ptr(1);
+                    if (!ov::is_type<ov::op::v0::Constant>(rhs)) {
+                        return true;
+                    }
+                }
+            }
+#endif
             if (!ignoreCallback) {
                 if (n->is_dynamic() || !is_supported_op(n))
                     return true;

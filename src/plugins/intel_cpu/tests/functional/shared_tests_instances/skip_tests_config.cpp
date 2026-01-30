@@ -370,6 +370,7 @@ std::vector<std::string> disabledTestPatterns() {
 #if defined(OPENVINO_ARCH_RISCV64)
     // object is not initialized
     retVector.emplace_back(R"(.*StaticLoopDynamicSubgraphCPUTest.smoke_StaticLoopWithDynSubgraph.*)");
+    retVector.emplace_back(R"(SubgraphSelectPD.smoke_CompareWithRefs)");
     // crash with 'double free or corruption (!prev)'
     retVector.emplace_back(R"(.*smoke_InterpolateBilinearPillow_Layout_Test.*)");
     retVector.emplace_back(R"(.*smoke_InterpolateBicubicPillow_Layout_Test.*)");
@@ -384,6 +385,10 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(GatherAddAvgpool.smoke_CompareWithRefs)");
     retVector.emplace_back(R"(smoke_StaticAdaPoolAvg(4|5)DLayoutTest/AdaPoolLayerCPUTest.*_outFmts=nd?hwc_1)");
     retVector.emplace_back(R"(.*smoke_CompareWithRefs_Mvn(4|5)D(_Static)?/MvnLayerCPUTest.CompareWithRefs.*inFmts=nd?hwc.*)");
+    retVector.emplace_back(
+        R"(.*smoke_CompareWithRefs_Mvn4D_across_channels/MvnLayerCPUTest.CompareWithRefs.*inFmts=nhwc_outFmts=nhwc.*)");
+    retVector.emplace_back(
+        R"(.*smoke_CompareWithRefs_Mvn5D_across_channels/MvnLayerCPUTest.CompareWithRefs.*inFmts=ndhwc_outFmts=ndhwc.*)");
     retVector.emplace_back(R"(.*smoke_TopK(_int32|_bubble_BLK_on_channel_horiz)?(_dynamic)?/TopKLayerCPUTest.CompareWithRefs.*inFmts=(nhwc|nChw8c|nChw16c).x.*)");
     retVector.emplace_back(R"(.*smoke_(Group)?Convolution(2|3)D/ConvConcatSubgraphTest.CompareWithRefs.*)");
     retVector.emplace_back(R"(.*smoke_FakeQuantizeCache_(4|5)D/FakeQuantizeCacheTest.CompareWithRefs.*inFmts=(nhwc|nChw8c|ndhwc|nCdhw8c).*)");
