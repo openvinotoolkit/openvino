@@ -452,8 +452,6 @@ public:
             auto sg_scale = get_pa_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::SINGLE_TOKEN, get_kv_compressed(params));
             wgs.global = {total_tokens, heads_num, head_size * rtp->num_of_partitions * sg_scale};
             wgs.local = {1, 1, head_size * sg_scale};
-            // [DEBUG]
-            // printf(">>>> [DEBUG] local(2):(%lu), head_size(%lu), num_of_partitions(%lu), sg_scale(%lu)\n", wgs.local[2], head_size, rtp->num_of_partitions, sg_scale);
         }};
     }
 };
