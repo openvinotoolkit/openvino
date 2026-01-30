@@ -96,7 +96,8 @@ static const std::map<std::string, std::string> ISOL_PRESETS = {{"COMPUTE",
                                                                  "P:RMSNorm3/compute,P:RMSNorm4/compute,"
                                                                  "P:VariadicSplit/compute"},
                                                                 {"FAKE", "P:FakeConvert/fake,P:FakeQuantize/fake"},
-                                                                {"ATTN", "P:SDPA/attn,P:SDPADecomposed/attn"}};
+                                                                {"ATTN", "P:SDPA/attn,P:SDPADecomposed/attn"},
+                                                                {"MOE", "P:GPTOSSExpert/expert,P:GPTOSSRouter/router"}};
 }  // namespace util
 
 }  // namespace online

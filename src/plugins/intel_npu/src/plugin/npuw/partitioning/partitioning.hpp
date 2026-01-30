@@ -12,6 +12,7 @@
 #include "../attention.hpp"
 #include "../host_flash_attention.hpp"
 #include "../lazy_tensor.hpp"
+#include "../moe_transformations/moe_transformation.hpp"
 #include "../pyramid_attention.hpp"
 #include "../spatial.hpp"
 #include "intel_npu/config/config.hpp"
@@ -103,6 +104,9 @@ struct Function {
     std::optional<ov::npuw::function::PyramidAttention> _pyramid_attention;
     // Host Flash Attention
     std::optional<ov::npuw::function::HostFlashAttention> _host_flash_attention;
+    // MoE expert information - single expert model
+    std::optional<ov::npuw::function::MoEExperts> _moe_experts;
+    std::optional<ov::npuw::function::MoEDownstream> _moe_experts_downstream;
     // FIXME: They should exclude each other (introduce a hierarchy, finally?)
     // FIXME: shouldn't be here. Needed to not unpack some lazy closures in DCOFF
     std::set<std::size_t> _idx_lazy_unpack;
@@ -189,6 +193,10 @@ struct Partitioning {
 
 struct PartitioningContext {
     bool use_host_gather_quant = false;
+
+    // Router model for MoE (shared during partitioning process)
+    // Will be populated during first pass and used in second pass
+    mutable std::shared_ptr<ov::Model> router_model;
 };
 
 Partitioning getPartitioning(const std::shared_ptr<ov::Model>& model,

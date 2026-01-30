@@ -12,6 +12,8 @@
 
 #include "base_sync_infer_request.hpp"
 #include "host_flash_attention.hpp"
+#include "moe/moe_executor.hpp"
+#include "moe/moe_infer_utils.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -67,9 +69,18 @@ private:
     AllocFcn m_alloc;
 };
 
-class JustInferRequest final : public IBaseInferRequest {
+class JustInferRequest final : public IBaseInferRequest, public ISubrequestAccessor {
 public:
     explicit JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
+
+    ////////////////////////////////////
+    // Implement ISubrequestAccessor interface
+    ov::SoPtr<ov::IAsyncInferRequest> get_subrequest(size_t idx) override;
+    const void* get_submodel_desc(size_t idx) override;
+    TensorPtr allocate_mem(const ov::element::Type& type, const ov::Shape& shape, const std::string& device) override;
+    bool is_gather_closure(size_t idx, size_t cidx) override;
+    bool unpack_required(size_t idx, size_t cidx) override;
+    bool needs_copy_closure(size_t idx, size_t cidx) override;
 
 protected:
     ////////////////////////////////////
@@ -135,6 +146,12 @@ protected:
                                   bool is_recreate,
                                   bool enable_hfa_optimizations = true);
 
+    // Helper function to initialize/reinitialize MoE executor
+    void initialize_moe_executor();
+
+    // Helper function to recreate MoE resources after subrequest recreation
+    void recreate_moe_resources(std::size_t idx, std::size_t real_idx);
+
     FuncMemMgr m_func_mem_mgr;                       // Owns memory
     std::map<LinkFrom, TensorPtr> m_funcall_result;  // Provides a convenient link
 
@@ -164,6 +181,9 @@ protected:
 
     // HFA runtime context (holds cached masks, pre-allocated buffers, and state buffers)
     std::optional<runtime::host_flash_attention::HFARuntimeContext> m_hfa_runtime_ctx;
+
+    // MoE executor (encapsulates MoE inference logic and profiling)
+    std::unique_ptr<ov::npuw::moe::MoEExecutor> m_moe_executor;
 };
 
 }  // namespace npuw
