@@ -1258,7 +1258,14 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLMHF_2d_rope_GatherND_GPU) {
                                                         {"new_axis_mask", {}},
                                                         {"shrink_axis_mask", {}},
                                                         {"ellipsis_mask", {}}});
-        auto Constant_75741 = makeConst(ov::element::f16, ov::Shape({1,1,1,1,}), {-1});
+        auto Constant_75741 = makeConst(ov::element::f16,
+                                        ov::Shape({
+                                            1,
+                                            1,
+                                            1,
+                                            1,
+                                        }),
+                                        {-1});
         auto Neg_multiply = makeOP<v1::Multiply>({Strided_slice0, Constant_75741}, {{"auto_broadcast", "numpy"}});
         auto Unsqueeze = makeOP<v1::Reshape>({Neg_multiply, {-1, 32, 1, 32, 1}}, {{"special_zero", false}});
         auto Strided_slice1 = makeOP<v1::StridedSlice>({strided_slice, {0, 0, 0, 0}, {0, 0, 0, INT_MAX}, {1, 1, 1, 2}},
