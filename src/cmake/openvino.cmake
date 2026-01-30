@@ -53,6 +53,7 @@ target_link_libraries(${TARGET_NAME}
     PRIVATE openvino::reference
     openvino::shape_inference
     openvino::pugixml
+    openvino::shutdown
     ${CMAKE_DL_LIBS}
     Threads::Threads
     PUBLIC $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.1>>:stdc++fs>
