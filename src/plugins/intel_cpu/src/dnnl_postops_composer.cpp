@@ -39,8 +39,8 @@
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
-#    include "openvino/core/type/float16.hpp"
 #    include "nodes/common/cpu_convert.h"
+#    include "openvino/core/type/float16.hpp"
 #endif
 
 namespace ov::intel_cpu {

@@ -85,7 +85,6 @@ bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
                                    const std::vector<int64_t>& strides,
                                    const ov::Shape& kernel_shape,
                                    size_t oc_ic_limit) {
-
     const auto weights_shape = "OC, IC, " + std::to_string(kernel_shape[0]) + ", " + std::to_string(kernel_shape[1]);
     const auto weights_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape() &&
                                                         ov::pass::pattern::shape_matches(weights_shape));
