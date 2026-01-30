@@ -41,10 +41,12 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 #include "openvino/util/common_util.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
+#include "transformations/utils/print_model.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::pass {
@@ -78,6 +80,9 @@ bool RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(false);
     if (m_support_2d_rope) {
         symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(true);
+        symbolic_ctx_manager->register_pass<ov::pass::VisualizeTree>("before_RoPEFusionChatGLMHF.svg");
+        // symbolic_ctx_manager->register_pass<ov::pass::Serialize>(std::string("before_RoPEFusionChatGLMHF.xml"),
+        // std::string("before_RoPEFusionChatGLMHF.bin"));
         symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLMHF>();
     }
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>();
@@ -779,7 +784,7 @@ RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
 static std::shared_ptr<ov::Node> build_ChatGLMHF_interleave_pattern(std::shared_ptr<ov::Node> cos_or_sin) {
     auto transpose = pattern::wrap_type<v1::Transpose>({cos_or_sin, pattern::any_input()});
     auto reshape = pattern::wrap_type<v1::Reshape>({transpose, pattern::any_input()});
-    auto multiply = pattern::wrap_type<v1::Multiply>({reshape, pattern::any_input()});
+    auto multiply = pattern::wrap_type<v1::Multiply, v3::Broadcast>({reshape, pattern::any_input()});
     auto gather_nd = pattern::wrap_type<v8::GatherND>({multiply, pattern::any_input()});
     auto transpose_1 = pattern::wrap_type<v1::Transpose>({gather_nd, pattern::any_input()});
 
@@ -811,7 +816,8 @@ RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
     auto repeat_interleave_cos = build_ChatGLMHF_interleave_pattern(cos);
     auto repeat_interleave_sin = build_ChatGLMHF_interleave_pattern(sin);
 
-    auto multiply = pattern::wrap_type<v1::Multiply>({slice_1, repeat_interleave_cos}, {{"auto_broadcast", "numpy"}});
+    auto multiply = pattern::wrap_type<v1::Multiply>({slice_1, repeat_interleave_cos},
+                                                     {{"auto_broadcast", "numpy"}});  // Reshape_35226
     auto slice_2 = op_util::NewGenSlice(slice_1, 1, INT_MAX, 2, 3);
     auto neg = pattern::wrap_type<v1::Multiply>({slice_2, -1}, {{"auto_broadcast", "numpy"}});
     auto unsqueeze_1 = pattern::wrap_type<v1::Reshape>({neg, pattern::any_input()},
