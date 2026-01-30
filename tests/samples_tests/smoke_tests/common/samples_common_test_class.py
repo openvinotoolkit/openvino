@@ -22,16 +22,17 @@ import requests
 import time
 import numpy as np
 import zipfile
-from pathlib import Path
 
 import logging as log
 from common.common_utils import shell
 from shutil import which
 import openvino as ov
 
-# Import retry from common test utils
-sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
-from utils.utils import retry
+# add utils folder to imports
+UTILS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), "utils")
+sys.path.insert(0, str(UTILS_DIR))
+
+from utils import retry
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 

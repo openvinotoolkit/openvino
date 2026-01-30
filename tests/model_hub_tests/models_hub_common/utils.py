@@ -7,14 +7,15 @@ import os
 import shutil
 import sys
 import time
-from pathlib import Path
 
 import numpy as np
 from models_hub_common.constants import test_device
 
-# Import retry from common test utils
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from utils.utils import retry
+# add utils folder to imports
+UTILS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "utils")
+sys.path.insert(0, str(UTILS_DIR))
+
+from utils import retry
 
 
 def parse_list_file(file_name: str):
