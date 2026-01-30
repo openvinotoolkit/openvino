@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/file_util.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "to_string_utils.h"
 #include "utils.hpp"
 #include "runtime/ocl/ocl_event.hpp"
@@ -25,8 +26,6 @@
 
 namespace cldnn {
 namespace onednn {
-
-static std::mutex cacheAccessMutex;
 
 template <class PType, class PrimDescType = dnnl::primitive_desc, class PrimType = dnnl::primitive>
 struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
@@ -350,22 +349,40 @@ private:
         } else {
             std::vector<uint8_t> key = _pd.get_cache_blob_id();
             assert(!key.empty());
+            std::string cache_path = generate_cache_path_from_key(config, key);
 
+            // Use file-based lock for cross-process/network synchronization
+            ov::intel_gpu::FileLock file_lock(cache_path);
+            if (!file_lock.is_locked()) {
+                GPU_DEBUG_LOG << "WARNING: Failed to acquire file lock for oneDNN cache: " << cache_path
+                             << ". Proceeding without synchronization." << std::endl;
+            }
             std::vector<uint8_t> cache;
-            {
-                std::lock_guard<std::mutex> lock(cacheAccessMutex);
-                cache = ov::util::load_binary(ov::util::make_path(generate_cache_path_from_key(config, key)));
+
+            // Check file existence AFTER acquiring lock (double-checked locking pattern)
+            // Another thread/process may have created the file while we were waiting for the lock
+            bool file_exists = ov::util::file_exists(cache_path);
+
+            if (file_exists) {
+                // Cache file exists, try to load it
+                cache = ov::intel_gpu::load_binary(cache_path);
+                if (cache.empty()) {
+                    GPU_DEBUG_LOG << "WARNING: Cache file exists but is empty or unreadable: " << cache_path << std::endl;
+                }
             }
 
             if (cache.empty()) {
+                // Cache miss or read failure: create primitive from scratch, get blob, save to file
                 _prim = PrimType(_pd);
                 cache = _prim.get_cache_blob();
-
-                {
-                    std::lock_guard<std::mutex> lock(cacheAccessMutex);
-                    ov::intel_gpu::save_binary(generate_cache_path_from_key(config, key), cache);
+                // Only save if lock was successfully acquired to avoid race conditions
+                if (file_lock.is_locked()) {
+                    ov::intel_gpu::save_binary(cache_path, cache);
+                } else {
+                    GPU_DEBUG_LOG << "WARNING: Skipping cache save due to lock failure: " << cache_path << std::endl;
                 }
             } else {
+                // Cache hit: create primitive from cache blob
                 _prim = PrimType(_pd, cache);
             }
         }
