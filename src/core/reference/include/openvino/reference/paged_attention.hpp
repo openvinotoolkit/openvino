@@ -197,9 +197,10 @@ struct cache_manager_adapter {
         L.key_head_size = kf / best_h;
         L.value_head_size = vf / best_h;
         L.num_blocks = cm.get_num_blocks();
-        const size_t elem_bytes = static_cast<size_t>(cm.get_element_type().size());
-        const size_t denom = L.num_heads * std::max(L.key_head_size, L.value_head_size) * elem_bytes;
-        L.block_size = denom ? (cm.get_block_bytes() / denom) : 0;
+        // Cache block size is an explicit property of the cache manager.
+        // Do not try to infer it from bytes, as that is brittle and can diverge
+        // when key/value head sizes differ.
+        L.block_size = cm.get_block_size();
         return L;
     }
 };
@@ -246,13 +247,23 @@ inline bool try_resolve_cached_block_and_offset(size_t sequence_index,
                                                 int32_t& out_off) {
     const int32_t begin = ctx.block_indices_begins[sequence_index];
     const int32_t end = ctx.block_indices_begins[sequence_index + 1];
-    const int32_t count = end - begin;
-    if (key_pos < count) {
-        out_block = ctx.block_indices[begin + key_pos];
-        out_off = key_pos % (int32_t)ctx.block_size;
-        return true;
-    }
-    return false;
+    const int32_t count = end - begin;  // number of blocks for this sequence
+
+    const int32_t bs = static_cast<int32_t>(ctx.block_size);
+    if (bs <= 0)
+        return false;
+
+    // block_indices is a per-sequence list of *blocks* (not a per-token map):
+    //   block_indices[ begin : end ] are physical block IDs in key/value_cache.
+    const int32_t block_list_idx = key_pos / bs;
+    const int32_t off_in_block = key_pos % bs;
+
+    if (block_list_idx < 0 || block_list_idx >= count)
+        return false;
+
+    out_block = ctx.block_indices[begin + block_list_idx];
+    out_off = off_in_block;
+    return true;
 }
 
 template <typename T>
