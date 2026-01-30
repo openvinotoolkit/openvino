@@ -236,9 +236,11 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
     if not isinstance(input_model, (str, pathlib.Path)):
         return False
 
+    # Prepare inputs once for all loading attempts
+    inputs = prepare_torch_inputs(example_inputs)
+
     # attempt to load scripted model
     try:
-        inputs = prepare_torch_inputs(example_inputs)
         model = torch.jit.load(input_model)
         model.eval()
         decoder = TorchScriptPythonDecoder(
@@ -267,7 +269,6 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
         # Only attempt torch.load if we have example_inputs (for tracing)
         # because scripting would fail for models with *args/**kwargs
         try:
-            inputs = prepare_torch_inputs(example_inputs)
             # Use weights_only=False for models that contain custom classes
             model = torch.load(input_model, map_location='cpu', weights_only=False)
 
