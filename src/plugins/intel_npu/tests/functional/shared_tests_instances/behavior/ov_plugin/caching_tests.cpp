@@ -133,7 +133,6 @@ const std::vector<ov::AnyMap> cachingProperties = {
     {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)},
     {ov::intel_npu::dma_engines(1)},
     {ov::intel_npu::dynamic_shape_to_static("true")},
-    {ov::intel_npu::max_tiles(64)},
     {ov::intel_npu::tiles(2)},
     {ov::intel_npu::turbo(true)},
     {ov::intel_npu::qdq_optimization(true)},
