@@ -977,7 +977,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     CPU_SET_CALLBACK_ARM(
         lptManager,
         [](const_node_ptr& node) -> bool {
-            return match_conv_stride_oc_ic_limit(node, ov::Strides{1, 1}, ov::Shape{3, 3}, 512);
+            return match_conv_stride_oc_ic_limit(node, {1, 1}, ov::Shape{3, 3}, 512);
         },
         ConvolutionTransformation);
     CPU_SET_CALLBACK_ARM(

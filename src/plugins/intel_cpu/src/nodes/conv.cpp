@@ -568,6 +568,12 @@ bool Convolution::canFuse(const NodePtr& node) const {
     if (!fusedWith.empty()) {
         return false;
     }
+
+    // u8 FakeQuantize should not be fused into convolution with i8 input
+    if (node->getType() == Type::FakeQuantize &&
+        node->getOriginalOutputPrecisionAtPort(0) != getOriginalInputPrecisionAtPort(0)) {
+        return false;
+    }
 #endif
     return canFuseSimpleOperation(node);
 }

@@ -1460,15 +1460,6 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperation(Graph& graph) {
             continue;
         }
 
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-        // u8 FakeQuantize should not be fused into convolution with i8 input
-        if (childNode->getType() == Type::FakeQuantize &&
-            childNode->getOriginalOutputPrecisionAtPort(0) != parentNode->getOriginalInputPrecisionAtPort(0)) {
-            parent++;
-            continue;
-        }
-#endif
-
         childNode->fuseInto(parentNode);
 
         if (any_of(childNode->getType(), Type::FakeQuantize, Type::Eltwise)) {
