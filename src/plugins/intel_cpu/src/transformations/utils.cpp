@@ -86,19 +86,6 @@ bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
                                    const ov::Strides& strides,
                                    const ov::Shape& kernel_shape,
                                    size_t oc_ic_limit) {
-    const auto conv = ov::as_type_ptr<const ov::op::v1::Convolution>(node);
-    if (!conv) {
-        return false;
-    }
-
-    if (strides.size() < 2 || kernel_shape.size() < 2) {
-        return false;
-    }
-
-    const auto& conv_strides = conv->get_strides();
-    if (conv_strides.size() < 2 || conv_strides[0] != strides[0] || conv_strides[1] != strides[1]) {
-        return false;
-    }
 
     const auto weights_shape = "OC, IC, " + std::to_string(kernel_shape[0]) + ", " + std::to_string(kernel_shape[1]);
     const auto weights_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape() &&
