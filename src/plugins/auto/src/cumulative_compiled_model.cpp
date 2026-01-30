@@ -11,6 +11,8 @@
 #include "itt.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/util/xml_parse_utils.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "plugin.hpp"
 
 namespace ov {
@@ -137,7 +139,59 @@ ov::Any AutoCumuCompiledModel::get_property(const std::string& name) const {
 }
 
 void AutoCumuCompiledModel::export_model(std::ostream& model_stream) const {
-    OPENVINO_NOT_IMPLEMENTED;
+    OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, "AutoCumuCompiledModel::export_model");
+
+    pugi::xml_document doc;
+    auto multiNode = doc.append_child("multi");
+    std::string model_name = "";
+    if (m_context->m_model) {
+        model_name = m_context->m_model->get_friendly_name();
+    } else {
+        std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
+        for (size_t i = 0; i < m_scheduler->m_n_ctput_devicenums; i++) {
+            if (m_scheduler->m_p_ctput_loadcontext[i].m_is_already) {
+                try {
+                    model_name = m_scheduler->m_p_ctput_loadcontext[i].m_compiled_model->get_property(ov::model_name.name()).as<std::string>();
+                    break;
+                } catch (...) {
+                }
+            }
+        }
+    }
+    multiNode.append_attribute("name").set_value(model_name.c_str());
+
+    auto devicesNode = multiNode.append_child("devices");
+
+    std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
+
+    for (size_t i = 0; i < m_scheduler->m_n_ctput_devicenums; i++) {
+        if (m_scheduler->m_p_ctput_loadcontext[i].m_is_already) {
+            auto deviceNode = devicesNode.append_child("device");
+            deviceNode.append_attribute("name").set_value(m_scheduler->m_p_ctput_loadcontext[i].m_device_info.device_name.c_str());
+
+            auto configNode = deviceNode.append_child("config");
+            for (const auto& cfg : m_scheduler->m_p_ctput_loadcontext[i].m_device_info.config) {
+                auto entry = configNode.append_child("key");
+                entry.append_attribute("name").set_value(cfg.first.c_str());
+                entry.append_attribute("value").set_value(cfg.second.as<std::string>().c_str());
+            }
+        }
+    }
+
+    doc.save(model_stream, nullptr, pugi::format_raw);
+    doc.reset();
+    model_stream << std::endl;
+
+    for (size_t i = 0; i < m_scheduler->m_n_ctput_devicenums; i++) {
+        if (m_scheduler->m_p_ctput_loadcontext[i].m_is_already) {
+            try {
+                m_scheduler->m_p_ctput_loadcontext[i].m_compiled_model->export_model(model_stream);
+            } catch (const ov::NotImplemented&) {
+                 ov::pass::StreamSerialize(model_stream, std::function<void(std::ostream&)>())
+                    .run_on_model(std::const_pointer_cast<ov::Model>(m_context->m_model));
+            }
+        }
+    }
 }
 } // namespace auto_plugin
 } // namespace ov

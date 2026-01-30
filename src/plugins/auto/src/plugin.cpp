@@ -21,6 +21,7 @@
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/compilation_context.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/xml_parse_utils.hpp"
 #include "plugin.hpp"
 #include "auto_schedule.hpp"
 #include "auto_compiled_model.hpp"
@@ -90,7 +91,74 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remo
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
                                                          const ov::AnyMap& properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+    OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, "Plugin::import_model");
+
+    std::string multiXmlStr;
+    std::getline(model, multiXmlStr);
+
+    pugi::xml_document multiXmlDoc;
+    pugi::xml_parse_result res = multiXmlDoc.load_string(multiXmlStr.c_str());
+
+    if (res.status != pugi::status_ok) {
+        OPENVINO_THROW("Failed to read MULTI device xml header");
+    }
+
+    using namespace ov::util::pugixml;
+    pugi::xml_node multiNode = multiXmlDoc.document_element();
+    if (std::string(multiNode.name()) != "multi") {
+        OPENVINO_THROW("Unknown model format: ", multiNode.name());
+    }
+
+    auto auto_s_context = std::make_shared<ScheduleContext>();
+    auto_s_context->m_plugin = shared_from_this();
+    auto_s_context->m_ov_core = get_core();
+    auto_s_context->m_log_tag = "MULTI";
+    auto_s_context->m_mtx = m_mtx;
+    auto_s_context->m_priority_map = m_priority_map;
+    auto_s_context->m_performance_hint = ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
+
+    std::vector<DeviceInformation> devices_info;
+
+    pugi::xml_node devicesNode = multiNode.child("devices");
+    FOREACH_CHILD(deviceNode, devicesNode, "device") {
+        std::string device_name = get_str_attr(deviceNode, "name");
+        ov::AnyMap device_config;
+        auto configNode = deviceNode.child("config");
+        FOREACH_CHILD(keyNode, configNode, "key") {
+            device_config[get_str_attr(keyNode, "name")] = get_str_attr(keyNode, "value");
+        }
+        devices_info.emplace_back(device_name, device_config, -1, "", device_name);
+    }
+
+    auto_s_context->m_device_priorities = devices_info;
+    auto_s_context->m_device_priorities_initial = devices_info;
+
+    auto scheduler = std::make_shared<CumuSchedule>();
+    std::shared_ptr<Schedule> sched_base = scheduler;
+    sched_base->launch(auto_s_context);
+
+    for (size_t i = 0; i < devices_info.size(); i++) {
+        auto& dev_info = devices_info[i];
+        try {
+            auto compiled_model = get_core()->import_model(model, dev_info.device_name, dev_info.config);
+            scheduler->m_p_ctput_loadcontext[i].m_is_already = true;
+            scheduler->m_p_ctput_loadcontext[i].m_compiled_model = compiled_model;
+            scheduler->m_p_ctput_loadcontext[i].m_worker_name = dev_info.device_name;
+            if (!auto_s_context->m_hw_compiled_model)
+                auto_s_context->m_hw_compiled_model = compiled_model;
+            scheduler->generate_workers(dev_info.device_name, compiled_model);
+        } catch (const std::exception& e) {
+            OPENVINO_THROW("Failed to import model for device ", dev_info.device_name, ": ", e.what());
+        }
+    }
+
+    ov::SoPtr<ov::IRemoteContext> device_context;
+    auto impl = std::make_shared<AutoCumuCompiledModel>(nullptr,
+                                                        shared_from_this(),
+                                                        device_context,
+                                                        auto_s_context,
+                                                        sched_base);
+    return impl;
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,

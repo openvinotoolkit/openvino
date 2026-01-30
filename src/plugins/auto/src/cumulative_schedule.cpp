@@ -84,6 +84,16 @@ void CumuSchedule::init() {
         m_context->m_performance_hint = ov::hint::PerformanceMode::THROUGHPUT;
     }
 
+    if (!m_context->m_model && m_context->m_model_path.empty()) {
+        for (auto&& device : m_context->m_device_priorities) {
+            // initialize containers before run async task, if not initialized, it will hang during infer
+            m_idle_worker_requests[device.device_name];
+            m_worker_requests[device.device_name];
+            m_infer_pipeline_tasks_device_specific[device.device_name] = nullptr;
+        }
+        return;
+    }
+
     auto load_device_task = [&](AutoCompileContext* context_ptr,
                                 const std::shared_ptr<ov::Model>& model) {
         try_to_compile_model(*context_ptr, model);
