@@ -75,7 +75,6 @@
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
-#include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
@@ -1063,15 +1062,7 @@ void Transformations::PostLpt() {
     ov::pass::Manager postLPTPassManager("CPU:PostLPT");
     postLPTPassManager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ConvertBroadcast3);
-    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::UnrollTensorIterator);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ReshapePRelu);
-    CPU_SET_CALLBACK_COMMON(
-        postLPTPassManager,
-        [](const_node_ptr& node) -> bool {
-            // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
-            return node->get_rt_info().count("UNROLL_TI") == 0;
-        },
-        ov::pass::UnrollTensorIterator);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MoveEltwiseUpThroughDataMov);
     CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::MoveEltwiseUpThroughDataMovPerChannel);
     CPU_SET_CALLBACK_COMMON(

@@ -5,7 +5,6 @@
 #include "deserializer.hpp"
 
 #include <cstddef>
-#include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <functional>
@@ -138,7 +137,6 @@ std::shared_ptr<ov::Model> ModelDeserializer::create_ov_model(
     XmlDeserializer visitor(root, w, origin_weights, opsets, create_extensions_map, variables, version);
     std::shared_ptr<ov::Model> model;
     visitor.on_attribute("net", model);
-    model->get_rt_info()["version"] = static_cast<int64_t>(version);
     return model;
 }
 
