@@ -8,9 +8,147 @@ import sys
 import numpy as np
 
 # pylint: disable=no-name-in-module,import-error
-from openvino import Tensor, PartialShape
+from openvino import Tensor, PartialShape, Type as OVType
 from openvino.tools.ovc.cli_parser import single_input_to_input_cut_info, _InputCutInfo
 from openvino.tools.ovc.error import Error
+
+
+def ov_type_to_torch_dtype(ov_type):
+    """Convert OpenVINO type to PyTorch dtype."""
+    import torch  # pylint: disable=import-error
+
+    type_map = {
+        OVType.f16: torch.float16,
+        OVType.f32: torch.float32,
+        OVType.f64: torch.float64,
+        OVType.bf16: torch.bfloat16,
+        OVType.i8: torch.int8,
+        OVType.i16: torch.int16,
+        OVType.i32: torch.int32,
+        OVType.i64: torch.int64,
+        OVType.u8: torch.uint8,
+        OVType.boolean: torch.bool,
+    }
+    return type_map.get(ov_type, torch.float32)
+
+
+def create_example_inputs_from_shapes(argv_or_args, default_dtype=None):
+    """
+    Create example input tensors from input shapes for tracing.
+
+    This enables automatic use of torch.jit.trace() when --input/--input_shape is provided
+    but --example_input is not, which is necessary for models with *args/**kwargs.
+
+    Args:
+        argv_or_args: Either a Namespace with placeholder_shapes/placeholder_data_types,
+                      or a dict with 'input' key containing shape specifications
+        default_dtype: Default dtype for tensors (defaults to torch.float32)
+
+    Returns:
+        List of torch.Tensor or None if shapes cannot be converted to static tensors
+    """
+    import torch  # pylint: disable=import-error
+    from openvino.tools.ovc.moc_frontend.shape_utils import get_static_shape
+
+    if default_dtype is None:
+        default_dtype = torch.float32
+
+    # Try to get shapes from argv.placeholder_shapes (after normalize_inputs)
+    shapes = None
+    data_types = {}
+
+    if hasattr(argv_or_args, 'placeholder_shapes'):
+        shapes = getattr(argv_or_args, 'placeholder_shapes', None)
+        data_types = getattr(argv_or_args, 'placeholder_data_types', {}) or {}
+    elif isinstance(argv_or_args, dict):
+        # Try to get shapes from args['input'] (before normalize_inputs)
+        raw_input = argv_or_args.get('input', None)
+        if raw_input is not None:
+            shapes = _parse_raw_input_to_shapes(raw_input)
+
+    if shapes is None:
+        return None
+
+    example_inputs = []
+
+    if isinstance(shapes, dict):
+        # Named inputs case
+        for name, shape in shapes.items():
+            if shape is None:
+                return None
+            try:
+                static_shape = get_static_shape(shape, dynamic_value=1)
+                if None in static_shape:
+                    return None
+            except Exception:
+                return None
+
+            dtype = default_dtype
+            if name in data_types and data_types[name] is not None:
+                dtype = ov_type_to_torch_dtype(data_types[name])
+
+            example_inputs.append(torch.zeros(static_shape, dtype=dtype))
+
+    elif isinstance(shapes, (list, tuple)):
+        # Positional inputs case
+        for idx, shape in enumerate(shapes):
+            if shape is None:
+                return None
+            try:
+                static_shape = get_static_shape(shape, dynamic_value=1)
+                if None in static_shape:
+                    return None
+            except Exception:
+                return None
+
+            dtype = default_dtype
+            if isinstance(data_types, (list, tuple)) and idx < len(data_types):
+                if data_types[idx] is not None:
+                    dtype = ov_type_to_torch_dtype(data_types[idx])
+
+            example_inputs.append(torch.zeros(static_shape, dtype=dtype))
+
+    return example_inputs if example_inputs else None
+
+
+def _parse_raw_input_to_shapes(raw_input):
+    """
+    Parse raw input specification to list of PartialShapes.
+
+    Handles various formats:
+    - [1, 3, 224, 224] - single shape as list
+    - [[1, 3, 224, 224], [1, 3, 224, 224]] - multiple shapes
+    - PartialShape object
+    - List of PartialShape objects
+
+    Returns:
+        List of PartialShape or None if parsing fails
+    """
+    if raw_input is None:
+        return None
+
+    try:
+        # Single shape as list of integers: [1, 3, 224, 224]
+        if isinstance(raw_input, (list, tuple)):
+            if all(isinstance(x, (int, type(None))) for x in raw_input):
+                # This is a single shape
+                return [PartialShape(raw_input)]
+            # Check if it's a list of shapes
+            elif all(isinstance(x, (list, tuple)) and all(isinstance(d, (int, type(None))) for d in x) for x in raw_input):
+                # Multiple shapes: [[1, 3, 224, 224], [1, 3, 224, 224]]
+                return [PartialShape(s) for s in raw_input]
+            # Check if it's PartialShape objects
+            elif all(isinstance(x, PartialShape) for x in raw_input):
+                return list(raw_input)
+
+        # Single PartialShape
+        if isinstance(raw_input, PartialShape):
+            return [raw_input]
+
+    except Exception:
+        pass
+
+    return None
 
 
 def extract_module_extensions(args):
@@ -80,6 +218,16 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
     if 'example_input' in args and args['example_input'] is not None:
         example_inputs = args['example_input']
 
+    # If example_input not provided, try to create from input shapes.
+    # This enables tracing (instead of scripting) for models with *args/**kwargs.
+    if example_inputs is None:
+        # Try from argv first (if normalize_inputs was called), then from args dict
+        example_inputs = create_example_inputs_from_shapes(argv)
+        if example_inputs is None:
+            example_inputs = create_example_inputs_from_shapes(args)
+        if example_inputs is not None:
+            log.debug("Created example inputs from input shapes for tracing")
+
     if isinstance(argv.input_model, (tuple, list)) and len(argv.input_model) == 1:
         input_model = argv.input_model[0]
     else:
@@ -112,6 +260,37 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
             return True
     except:
         pass
+
+    # attempt to load regular PyTorch model saved with torch.save()
+    # This handles models like Ultralytics YOLOv8 that use custom formats
+    if example_inputs is not None:
+        # Only attempt torch.load if we have example_inputs (for tracing)
+        # because scripting would fail for models with *args/**kwargs
+        try:
+            inputs = prepare_torch_inputs(example_inputs)
+            # Use weights_only=False for models that contain custom classes
+            model = torch.load(input_model, map_location='cpu', weights_only=False)
+
+            # Handle checkpoint-style models (dict with 'model' key)
+            if isinstance(model, dict) and 'model' in model:
+                model = model['model']
+            # Handle models wrapped in a module attribute
+            elif hasattr(model, 'model') and isinstance(model.model, torch.nn.Module):
+                model = model.model
+
+            if isinstance(model, torch.nn.Module):
+                model.eval()
+                decoder = TorchScriptPythonDecoder(
+                    model,
+                    example_input=inputs,
+                    shared_memory=args.get("share_weights", True),
+                    module_extensions=extract_module_extensions(args))
+                argv.input_model = decoder
+                argv.framework = 'pytorch'
+                return True
+        except:
+            pass
+
     return False
 
 

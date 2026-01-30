@@ -1512,3 +1512,91 @@ class TestOVCForExportedProgramOnDisk(CommonMOConvertTest):
                                     graph_ref, compare_tensor_names=False,
                                     ovc=True)
         os.remove(ep_file_name)
+
+
+class TestModelWithVarargsOnDisk(unittest.TestCase):
+    """
+    Tests for models with *args/**kwargs loaded from disk with input shapes.
+
+    This test class verifies the fix for CVS-168542: when --input_shape is provided
+    but --example_input is not, the converter should automatically create example
+    inputs from shapes to enable tracing (instead of scripting which fails for
+    models with *args/**kwargs).
+    """
+
+    def test_model_with_kwargs_converts_with_input_shape(self):
+        """Model with **kwargs should convert when input_shape is provided."""
+        class ModelWithKwargs(torch.nn.Module):
+            def forward(self, x, *args, **kwargs):
+                return torch.nn.functional.relu(x)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            model_path = os.path.join(tmp_dir, "model.pth")
+            torch.save(ModelWithKwargs(), model_path)
+
+            ov_model = ov.convert_model(model_path, input=[1, 3, 224, 224])
+
+            assert ov_model is not None
+            assert len(ov_model.inputs) == 1
+
+    def test_model_with_args_converts_with_input_shape(self):
+        """Model with *args should convert when input_shape is provided."""
+        class ModelWithArgs(torch.nn.Module):
+            def forward(self, x, *args):
+                return x.sigmoid()
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            model_path = os.path.join(tmp_dir, "model.pth")
+            torch.save(ModelWithArgs(), model_path)
+
+            ov_model = ov.convert_model(model_path, input=[1, 3, 64, 64])
+
+            assert ov_model is not None
+            assert len(ov_model.inputs) == 1
+
+    def test_model_with_dynamic_batch_converts(self):
+        """Dynamic batch dimension should use 1 as default value for tracing."""
+        class SimpleModel(torch.nn.Module):
+            def forward(self, x):
+                return x.relu()
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            model_path = os.path.join(tmp_dir, "model.pth")
+            torch.save(SimpleModel(), model_path)
+
+            ov_model = ov.convert_model(model_path, input=[-1, 3, 224, 224])
+
+            assert ov_model is not None
+            # Model should have dynamic batch dimension in output
+            assert ov_model.inputs[0].get_partial_shape()[0].is_dynamic
+
+    def test_multi_input_model_converts_with_list_shapes(self):
+        """Multi-input model should convert with list of input shapes."""
+        class TwoInputModel(torch.nn.Module):
+            def forward(self, x, y):
+                return x + y
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            model_path = os.path.join(tmp_dir, "model.pth")
+            torch.save(TwoInputModel(), model_path)
+
+            ov_model = ov.convert_model(model_path, input=[[1, 3, 224, 224], [1, 3, 224, 224]])
+
+            assert ov_model is not None
+            assert len(ov_model.inputs) == 2
+
+    def test_model_with_explicit_example_input_still_works(self):
+        """Explicit example_input should still work (no regression)."""
+        class ModelWithKwargs(torch.nn.Module):
+            def forward(self, x, **kwargs):
+                return x.relu()
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            model_path = os.path.join(tmp_dir, "model.pth")
+            torch.save(ModelWithKwargs(), model_path)
+
+            example = torch.randn(1, 3, 64, 64)
+            ov_model = ov.convert_model(model_path, example_input=example)
+
+            assert ov_model is not None
+            assert len(ov_model.inputs) == 1

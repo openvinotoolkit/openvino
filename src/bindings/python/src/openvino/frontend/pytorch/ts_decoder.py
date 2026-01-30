@@ -72,6 +72,10 @@ class TorchScriptPythonDecoder(Decoder):
                 pt_module = self._get_scripted_model(
                     pt_module, example_input, skip_freeze, trace_kwargs)
             except Exception as e:
+                error_str = str(e)
+                varargs_indicators = ["variable number of arguments", "keyword-only arguments with defaults"]
+                is_varargs_error = any(ind in error_str for ind in varargs_indicators)
+
                 if example_input is not None:
                     msg = "tracing"
                     help_msg = ("Please check correctness of provided 'example_input'. "
@@ -79,8 +83,19 @@ class TorchScriptPythonDecoder(Decoder):
                                 "conversion without 'example_input'.\n")
                 else:
                     msg = "scripting"
-                    help_msg = ("Tracing sometimes provide better results, "
-                                "please provide valid 'example_input' argument.\n")
+                    if is_varargs_error:
+                        help_msg = (
+                            "This model uses *args or **kwargs in its forward() signature, "
+                            "which is incompatible with torch.jit.script().\n\n"
+                            "SOLUTION: Provide 'example_input' to enable tracing instead:\n"
+                            "  Python API: convert_model(model, example_input=torch.randn(1, 3, 224, 224))\n"
+                            "  CLI: ovc model.pth --example_input=\"torch.randn(1, 3, 224, 224)\"\n\n"
+                            "If you provided 'input' shapes with fully dynamic dimensions, "
+                            "the auto-generation of example inputs was not possible.\n"
+                        )
+                    else:
+                        help_msg = ("Tracing sometimes provide better results, "
+                                    "please provide valid 'example_input' argument.\n")
                 raise RuntimeError(
                     f"Couldn't get TorchScript module by {msg}.\nException:\n{e}\n"
                     f"{help_msg} You can also provide TorchScript module that you obtained"
