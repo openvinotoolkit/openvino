@@ -649,7 +649,7 @@ private:
 
     // This is used for keeping MMAP cache handles
     detail::MappedMemoryHandles m_mmap_cache;
-    // This is used for keeping a readed external data without MMAP
+    // This is used for keeping external data read without MMAP
     detail::LocalStreamHandles m_stream_cache;
     std::filesystem::path m_model_dir;
 
