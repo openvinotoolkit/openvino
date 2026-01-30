@@ -124,19 +124,29 @@ uint32_t Metrics::GetGraphExtVersion() const {
 }
 
 uint32_t Metrics::GetSteppingNumber(const std::string& specifiedDeviceName) const {
-    const auto devName = getDeviceName(specifiedDeviceName);
-    auto device = getDevice(devName);
-    if (device) {
-        return device->getSubDevId();
+    try {
+        const auto devName = getDeviceName(specifiedDeviceName);
+        auto device = getDevice(devName);
+        if (device) {
+            return device->getSubDevId();
+        }
+    }
+    catch (...) {
+        return static_cast<uint32_t>(-1);
     }
     OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
 }
 
 uint32_t Metrics::GetMaxTiles(const std::string& specifiedDeviceName) const {
-    const auto devName = getDeviceName(specifiedDeviceName);
-    auto device = getDevice(devName);
-    if (device) {
-        return device->getMaxNumSlices();
+    try {
+        const auto devName = getDeviceName(specifiedDeviceName);
+        auto device = getDevice(devName);
+        if (device) {
+            return device->getMaxNumSlices();
+        }
+    }
+    catch (...) {
+        return static_cast<uint32_t>(-1);
     }
     OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
 }

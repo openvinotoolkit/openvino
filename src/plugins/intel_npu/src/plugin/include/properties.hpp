@@ -88,6 +88,8 @@ private:
         ov::intel_npu::driver_version.name(),
         ov::intel_npu::dynamic_shape_to_static.name(),
         ov::intel_npu::enable_strides_for.name(),
+        ov::intel_npu::max_tiles.name(),
+        ov::intel_npu::stepping.name(),
         ov::intel_npu::tiles.name(),
         ov::intel_npu::turbo.name(),
         ov::intel_npu::qdq_optimization.name(),
