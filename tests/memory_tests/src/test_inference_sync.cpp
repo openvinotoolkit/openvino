@@ -1,10 +1,20 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <openvino/openvino.hpp>
 
 #include "memory_test.hpp"
+
+
+std::vector<std::string> test_samples() {
+    return {
+        "start",
+        "compile_model",
+        "fill_inputs",
+        "inference"
+    };
+}
 
 
 void do_test(TestContext &test) {
@@ -22,5 +32,4 @@ void do_test(TestContext &test) {
 
     ireq.infer();
     test.sample("inference");
-    
 }
