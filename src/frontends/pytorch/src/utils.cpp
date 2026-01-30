@@ -655,9 +655,11 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool uns
         !ov::as_type_ptr<v5::Loop>(current_output.get_node_shared_ptr()),
         "List is concatenated using loop. This case should be handled by a specific transformation.");
 
+    // Helper to prepend SequenceMark inputs - iterate in reverse with push_front to preserve order
     auto prepend_seq_mark_inputs = [&res, &zero, unsqueeze_for_concat](const std::shared_ptr<SequenceMark>& seq_mark) {
-        for (auto& input : seq_mark->inputs()) {
-            auto elem = input.get_source_output();
+        const auto& inputs = seq_mark->inputs();
+        for (auto it = inputs.rbegin(); it != inputs.rend(); ++it) {
+            auto elem = it->get_source_output();
             if (unsqueeze_for_concat) {
                 elem = std::make_shared<v0::Unsqueeze>(elem, zero);
             }
@@ -665,9 +667,17 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool uns
         }
     };
 
-    // First check if it's a SequenceMark
+    // First check if it's a SequenceMark - just return its inputs in order
     if (auto seq_mark = ov::as_type_ptr<SequenceMark>(current_output.get_node_shared_ptr())) {
-        prepend_seq_mark_inputs(seq_mark);
+        // For direct SequenceMark, iterate in reverse with push_front to preserve order
+        const auto& inputs = seq_mark->inputs();
+        for (auto it = inputs.rbegin(); it != inputs.rend(); ++it) {
+            auto elem = it->get_source_output();
+            if (unsqueeze_for_concat) {
+                elem = std::make_shared<v0::Unsqueeze>(elem, zero);
+            }
+            res.push_front(elem);
+        }
         return res;
     }
 
@@ -687,14 +697,14 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool uns
             res.push_front(elem);
         } else if (op_type == "aten::add") {
             auto&& rhs_list = get_list_as_outputs(fw_node->get_input_source_output(1));
-            res.insert(res.end(), rhs_list.begin(), rhs_list.end());
+            res.insert(res.begin(), rhs_list.begin(), rhs_list.end());
         } else {
             break;
         }
         current_output = fw_node->get_input_source_output(0);
     }
 
-    // Check for SequenceMark at the end of chain
+    // Check for SequenceMark at the end of chain - prepend its elements
     if (auto seq_mark = ov::as_type_ptr<SequenceMark>(current_output.get_node_shared_ptr())) {
         prepend_seq_mark_inputs(seq_mark);
     } else {
