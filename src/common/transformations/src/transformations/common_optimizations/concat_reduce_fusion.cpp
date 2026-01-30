@@ -111,6 +111,22 @@ ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
         if (reduction_axes.size() != 1 || concat->get_axis() != static_cast<int64_t>(*reduction_axes.begin())) {
             return false;
         }
+        
+        // Check if input shapes are compatible for element-wise operations
+        const auto& input0_shape = concat->input_value(0).get_partial_shape();
+        const auto& input1_shape = concat->input_value(1).get_partial_shape();
+        
+        // Skip transformation if shapes are incompatible
+        if (input0_shape.is_dynamic() || input1_shape.is_dynamic()) {
+            return false;
+        }
+        
+        // Check if shapes can be broadcasted together
+        auto temp_shape0 = input0_shape;
+        auto temp_shape1 = input1_shape;
+        if (!ov::PartialShape::broadcast_merge_into(temp_shape0, temp_shape1, ov::op::AutoBroadcastType::NUMPY)) {
+            return false;
+        }
 
         ReduceType reduce_type = get_reduce_type(reduce);
         std::shared_ptr<ov::Node> result_node;
