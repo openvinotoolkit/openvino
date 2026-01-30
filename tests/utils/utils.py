@@ -3,6 +3,8 @@
 
 """Utility module."""
 
+import functools
+import time
 from pathlib import Path
 
 import yaml
@@ -16,6 +18,45 @@ import re
 DATABASES = ['timetests', 'memorytests']
 DB_COLLECTIONS = ["commit", "nightly", "weekly"]
 PRODUCT_NAME = 'dldt'   # product name from build manifest
+
+
+def retry(max_retries=3, exceptions=(Exception,), delay=None, exponential_backoff=False, backoff_multiplier=2, max_delay=None):
+    """
+    Retry decorator with optional exponential backoff.
+
+    Args:
+        max_retries: Maximum number of retry attempts
+        exceptions: Tuple of exception types to catch and retry on
+        delay: Base delay in seconds between retries
+        exponential_backoff: If True, use exponential backoff instead of fixed delay
+        backoff_multiplier: Multiplier for exponential backoff (default: 2)
+        max_delay: Maximum delay cap for exponential backoff
+    """
+    def retry_decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    print(f"Attempt {attempt + 1} of {max_retries} failed: {e}")
+                    if attempt < max_retries - 1 and delay is not None:
+                        if exponential_backoff:
+                            # Calculate exponential backoff delay
+                            backoff_delay = delay * (backoff_multiplier ** attempt)
+                            # Apply max_delay cap if specified
+                            if max_delay is not None:
+                                backoff_delay = min(backoff_delay, max_delay)
+                            print(f"Waiting {backoff_delay:.2f} seconds before retry")
+                            time.sleep(backoff_delay)
+                        else:
+                            # Use fixed delay
+                            print(f"Waiting {delay} seconds before retry")
+                            time.sleep(delay)
+                    else:
+                        raise e
+        return wrapper
+    return retry_decorator
 
 
 def upload_data(data, db_url, db_name, db_collection):

@@ -5,10 +5,16 @@ import functools
 import itertools
 import os
 import shutil
+import sys
 import time
+from pathlib import Path
 
 import numpy as np
 from models_hub_common.constants import test_device
+
+# Import retry from common test utils
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from utils.utils import retry
 
 
 def parse_list_file(file_name: str):
@@ -153,42 +159,3 @@ def call_with_timer(timer_label: str, func, args):
 
 def print_stat(s: str, value: float):
     print(s.format(round_num(value)))
-
-
-def retry(max_retries=3, exceptions=(Exception,), delay=None, exponential_backoff=False, backoff_multiplier=2, max_delay=None):
-    """
-    Retry decorator with optional exponential backoff.
-
-    Args:
-        max_retries: Maximum number of retry attempts
-        exceptions: Tuple of exception types to catch and retry on
-        delay: Base delay in seconds between retries
-        exponential_backoff: If True, use exponential backoff instead of fixed delay
-        backoff_multiplier: Multiplier for exponential backoff (default: 2)
-        max_delay: Maximum delay cap for exponential backoff
-    """
-    def retry_decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            for attempt in range(max_retries):
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as e:
-                    print(f"Attempt {attempt + 1} of {max_retries} failed: {e}")
-                    if attempt < max_retries - 1 and delay is not None:
-                        if exponential_backoff:
-                            # Calculate exponential backoff delay
-                            backoff_delay = delay * (backoff_multiplier ** attempt)
-                            # Apply max_delay cap if specified
-                            if max_delay is not None:
-                                backoff_delay = min(backoff_delay, max_delay)
-                            print(f"Waiting {backoff_delay:.2f} seconds before retry")
-                            time.sleep(backoff_delay)
-                        else:
-                            # Use fixed delay
-                            print(f"Waiting {delay} seconds before retry")
-                            time.sleep(delay)
-                    else:
-                        raise e
-        return wrapper
-    return retry_decorator
