@@ -1239,7 +1239,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLMHF_2d_rope_GatherND_GPU) {
         auto Param = std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::PartialShape{5});
         auto Multiply = makeOP<ov::op::v3::Broadcast>({Reshape0, Param}, {{"mode", "bidirectional"}});
         auto Constant = makeConst(ov::element::i32, ov::Shape({64, 2}), MOCK_VALUE);
-        auto GatherND = makeOP<ov::op::v8::GatherND>({Multiply, Constant}, {{"batch_dims", 0}});  //_1
+        auto GatherND = makeOP<ov::op::v8::GatherND>({Multiply, Constant}, {{"batch_dims", 0}});
         auto Transpose0 = makeOP<ov::op::v1::Transpose>({GatherND, {3, 1, 2, 0}});
 
         auto cos = std::make_shared<ov::opset1::Parameter>(ov::element::f16,
