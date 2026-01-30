@@ -1624,6 +1624,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::unique_count::type_id() &&
             prim.type() != cldnn::unique_gather::type_id() &&
             prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id() &&
+            prim.type() != cldnn::rms::type_id() &&
             prim.type() != cldnn::scaled_dot_product_attention::type_id()) {
             can_use_fsv16 = false;
         }
