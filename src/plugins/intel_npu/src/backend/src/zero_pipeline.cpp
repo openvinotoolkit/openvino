@@ -63,24 +63,23 @@ Pipeline::Pipeline(const Config& config,
                         _init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
                     "In-order execution doesn't work in case synchronization of the inferences is done using events");
 
-    bool was_compiled_with_profiling = false;
-    auto graphExtVersion = _init_structs->getGraphDdiTable().version();
-    if (graphExtVersion >= ZE_MAKE_VERSION(1, 16)) {
+    bool compiled_with_profiling = false;
+    if (_init_structs->getGraphDdiTable().version() >= ZE_MAKE_VERSION(1, 16)) {
         ze_graph_properties_3_t graphProperties = {};
         graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_3;
 
         auto result = _init_structs->getGraphDdiTable().pfnGetProperties3(graph->get_handle(), &graphProperties);
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _init_structs->getGraphDdiTable());
 
-        was_compiled_with_profiling = graphProperties.flags & ZE_GRAPH_PROPERTIES_FLAG_PROFILING_ENABLED;
+        compiled_with_profiling = graphProperties.flags & ZE_GRAPH_PROPERTIES_FLAG_PROFILING_ENABLED;
     }
 
-    if ((_config.has<PERF_COUNT>() && _config.get<PERF_COUNT>()) || was_compiled_with_profiling) {
-        if (graphExtVersion >= ZE_MAKE_VERSION(1, 16) && !was_compiled_with_profiling) {
+    if ((_config.has<PERF_COUNT>() && _config.get<PERF_COUNT>()) || compiled_with_profiling) {
+        if (_init_structs->getGraphDdiTable().version() >= ZE_MAKE_VERSION(1, 16) && !compiled_with_profiling) {
             OPENVINO_THROW("Blob was not compiled for profiling");
         }
 
-        if (!_config.get<PERF_COUNT>() && was_compiled_with_profiling) {
+        if (!_config.get<PERF_COUNT>() && compiled_with_profiling) {
             _logger.warning(
                 "ZeroInferRequest::ZeroInferRequest - blob was compiled with profiling but PERF_COUNT is set to 'NO'");
         }

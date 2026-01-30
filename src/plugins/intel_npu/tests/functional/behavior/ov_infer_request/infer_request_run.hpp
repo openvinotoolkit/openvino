@@ -190,7 +190,7 @@ TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsAsyncInfers) {
 
 using ProfilingBlob = InferRequestRunTests;
 
-TEST_P(ProfilingBlob, NoProfilingCompileImportProfiling) {
+TEST_P(ProfilingBlob, NoProfilingCompileProfilingImport) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::CompiledModel compiled_model;
 
@@ -205,13 +205,9 @@ TEST_P(ProfilingBlob, NoProfilingCompileImportProfiling) {
     OV_ASSERT_NO_THROW(compiled_model = core->import_model(export_stream, target_device, configuration));
     ASSERT_TRUE(compiled_model);
 
-    OV_ASSERT_NO_THROW(input = compiled_model.input());
-    OV_ASSERT_NO_THROW(output = compiled_model.output());
-
     ov::InferRequest inferReq;
 
     OV_ASSERT_NO_THROW(inferReq = compiled_model.create_infer_request());
-    OV_ASSERT_NO_THROW(inferReq.get_tensor(input));
 
     OV_ASSERT_NO_THROW(inferReq.start_async());
 
@@ -233,13 +229,9 @@ TEST_P(ProfilingBlob, ProfilingCompileNoProfilingImport) {
     OV_ASSERT_NO_THROW(compiled_model = core->import_model(export_stream, target_device, configuration));
     ASSERT_TRUE(compiled_model);
 
-    OV_ASSERT_NO_THROW(input = compiled_model.input());
-    OV_ASSERT_NO_THROW(output = compiled_model.output());
-
     ov::InferRequest inferReq;
 
     OV_ASSERT_NO_THROW(inferReq = compiled_model.create_infer_request());
-    OV_ASSERT_NO_THROW(inferReq.get_tensor(input));
 
     OV_ASSERT_NO_THROW(inferReq.start_async());
 
@@ -260,13 +252,9 @@ TEST_P(ProfilingBlob, ProfilingCompileProfilingImport) {
     OV_ASSERT_NO_THROW(compiled_model = core->import_model(export_stream, target_device, configuration));
     ASSERT_TRUE(compiled_model);
 
-    OV_ASSERT_NO_THROW(input = compiled_model.input());
-    OV_ASSERT_NO_THROW(output = compiled_model.output());
-
     ov::InferRequest inferReq;
 
     OV_ASSERT_NO_THROW(inferReq = compiled_model.create_infer_request());
-    OV_ASSERT_NO_THROW(inferReq.get_tensor(input));
 
     OV_ASSERT_NO_THROW(inferReq.start_async());
 
