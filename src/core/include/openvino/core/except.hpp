@@ -91,6 +91,36 @@ public:
 protected:
     explicit NotImplemented(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
 };
+
+namespace detail {
+
+template <class T>
+constexpr inline void check_condition(T&& v) noexcept {}
+
+template <std::size_t N>
+constexpr inline void check_condition(const char (&)[N]) noexcept {
+    static_assert(N == 0,
+                  "OPENVINO_ASSERT: string literal used as condition (always true). "
+                  "Did you mean to compare strings or check a pointer?");
+}
+
+template <std::size_t N>
+constexpr inline void check_condition(const wchar_t (&)[N]) noexcept {
+    static_assert(N == 0, "OPENVINO_ASSERT: wide string literal used as condition (always true).");
+}
+
+template <std::size_t N>
+constexpr inline void check_condition(const char16_t (&)[N]) noexcept {
+    static_assert(N == 0, "OPENVINO_ASSERT: UTF-16 string literal used as condition (always true).");
+}
+
+template <std::size_t N>
+constexpr inline void check_condition(const char32_t (&)[N]) noexcept {
+    static_assert(N == 0, "OPENVINO_ASSERT: UTF-32 string literal used as condition (always true).");
+}
+
+}  // namespace detail
+
 }  // namespace ov
 
 //
@@ -157,6 +187,7 @@ protected:
 //
 #define OPENVINO_ASSERT_HELPER2(exc_class, ctx, check, ...)                      \
     do {                                                                         \
+        ::ov::detail::check_condition(check);                                    \
         if (!static_cast<bool>(check)) {                                         \
             ::std::ostringstream ss___;                                          \
             ::ov::write_all_to_stream(ss___, __VA_ARGS__);                       \
@@ -166,6 +197,7 @@ protected:
 
 #define OPENVINO_ASSERT_HELPER1(exc_class, ctx, check)                                      \
     do {                                                                                    \
+        ::ov::detail::check_condition(check);                                               \
         if (!static_cast<bool>(check)) {                                                    \
             exc_class::create(__FILE__, __LINE__, (#check), (ctx), exc_class::default_msg); \
         }                                                                                   \
