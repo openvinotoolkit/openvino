@@ -159,6 +159,20 @@ def extract_module_extensions(args):
     return {extension.module: extension for extension in extensions if isinstance(extension, ModuleExtension)}
 
 
+def _create_ts_decoder(model, inputs, args):
+    """
+    Create TorchScriptPythonDecoder with standard parameters.
+
+    This helper reduces code duplication across multiple loading paths.
+    """
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+    return TorchScriptPythonDecoder(
+        model,
+        example_input=inputs,
+        shared_memory=args.get("share_weights", True),
+        module_extensions=extract_module_extensions(args))
+
+
 def get_pytorch_decoder(model, example_inputs, args):
     try:
         from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
@@ -189,11 +203,7 @@ def get_pytorch_decoder(model, example_inputs, args):
         if hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram)):
             decoder = TorchFXPythonDecoder.from_exported_program(model)
         else:
-            decoder = TorchScriptPythonDecoder(
-                model,
-                example_input=inputs,
-                shared_memory=args.get("share_weights", True),
-                module_extensions=extract_module_extensions(args))
+            decoder = _create_ts_decoder(model, inputs, args)
     else:
         decoder = model
     args['input_model'] = decoder
@@ -208,7 +218,6 @@ def get_pytorch_decoder(model, example_inputs, args):
 
 def get_pytorch_decoder_for_model_on_disk(argv, args):
     try:
-        from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
         from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
         import torch
     except:
@@ -243,11 +252,7 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
     try:
         model = torch.jit.load(input_model)
         model.eval()
-        decoder = TorchScriptPythonDecoder(
-            model,
-            example_input=inputs,
-            shared_memory=args.get("share_weights", True),
-            module_extensions=extract_module_extensions(args))
+        decoder = _create_ts_decoder(model, inputs, args)
         argv.input_model = decoder
         argv.framework = 'pytorch'
         return True
@@ -281,11 +286,7 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
 
             if isinstance(model, torch.nn.Module):
                 model.eval()
-                decoder = TorchScriptPythonDecoder(
-                    model,
-                    example_input=inputs,
-                    shared_memory=args.get("share_weights", True),
-                    module_extensions=extract_module_extensions(args))
+                decoder = _create_ts_decoder(model, inputs, args)
                 argv.input_model = decoder
                 argv.framework = 'pytorch'
                 return True
