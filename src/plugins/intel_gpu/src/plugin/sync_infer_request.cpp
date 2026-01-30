@@ -608,7 +608,7 @@ void SyncInferRequest::allocate_inputs() {
     for (const auto& it : m_input_ports_map) {
         size_t input_idx = it.first;
         const auto& port = it.second;
-        GPU_DEBUG_LOG << "[init input blob with index: " << input_idx << "]" << std::endl;
+        GPU_DEBUG_LOG << "[init input blob with index: " << input_idx << "]" << " shape: " << port.get_partial_shape() << " type: " << port.get_element_type() << std::endl;
 
         bool is_nv12_input = false;
         if (port.get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static())) {
@@ -633,7 +633,7 @@ void SyncInferRequest::allocate_outputs() {
     for (const auto& it : m_output_ports_map) {
         size_t output_idx = it.first;
         const auto& port = it.second;
-        GPU_DEBUG_LOG << "[init output blob with index: " << output_idx << "]" << std::endl;
+        GPU_DEBUG_LOG << "[init output blob with index: " << output_idx << "]" << " shape: " << port.get_partial_shape() << " type: " << port.get_element_type() << std::endl;
 
         allocate_output(port, output_idx);
         total_output_bytes += ov::ISyncInferRequest::get_tensor(port)->get_byte_size();

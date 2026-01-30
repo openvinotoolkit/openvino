@@ -209,7 +209,7 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
 
     auto K_head_size = get_head_size(k_layout, extended_input_k_transpose_order);
     auto V_head_size = get_head_size(v_layout, extended_input_v_transpose_order);
-    if (K_head_size != V_head_size || K_head_size > 256 || V_head_size > 256) {
+    if (K_head_size != V_head_size || K_head_size > 512 || V_head_size > 512) {
         return false;
     }
 
@@ -220,7 +220,7 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
         params.get_input_layout(mask_idx).count() == 1) {
         return false;
     }
-    if (q_layout.get_partial_shape()[mask_idx].get_length() > 256) {
+    if (q_layout.get_partial_shape()[mask_idx].get_length() > 512) {
         return false;
     }
 
