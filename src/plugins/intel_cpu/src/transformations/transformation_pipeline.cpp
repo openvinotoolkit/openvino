@@ -1596,49 +1596,48 @@ void Transformations::MainSnippets() {
             ExtractReshapesFromMHA);
     }
 
-    CPU_SET_CALLBACK_COMMON(
-        snippetsManager,
-        [&](const std::shared_ptr<const ov::Node>& n) -> bool {
+    auto tokenize_snippets_callback = [&](const std::shared_ptr<const ov::Node>& n) -> bool {
 #if defined(OPENVINO_ARCH_RISCV64)
-            if (ov::is_type_any_of<ov::op::v1::Add,
-                                   ov::op::v1::Multiply,
-                                   ov::op::v1::Subtract,
-                                   ov::op::v1::Divide,
-                                   ov::op::v0::SquaredDifference,
-                                   ov::op::v1::Mod,
-                                   ov::op::v1::FloorMod>(n)) {
-                if (n->inputs().size() > 1) {
-                    const auto& lhs_shape = n->get_input_partial_shape(0);
-                    const auto& rhs_shape = n->get_input_partial_shape(1);
-                    if (lhs_shape.is_dynamic() || rhs_shape.is_dynamic()) {
-                        return true;
-                    }
-                    if (lhs_shape.get_shape() != rhs_shape.get_shape()) {
-                        return true;
-                    }
-                    const auto& rhs = n->get_input_node_shared_ptr(1);
-                    if (!ov::is_type<ov::op::v0::Constant>(rhs)) {
-                        return true;
-                    }
+        if (ov::is_type_any_of<ov::op::v1::Add,
+                               ov::op::v1::Multiply,
+                               ov::op::v1::Subtract,
+                               ov::op::v1::Divide,
+                               ov::op::v0::SquaredDifference,
+                               ov::op::v1::Mod,
+                               ov::op::v1::FloorMod>(n)) {
+            if (n->inputs().size() > 1) {
+                const auto& lhs_shape = n->get_input_partial_shape(0);
+                const auto& rhs_shape = n->get_input_partial_shape(1);
+                if (lhs_shape.is_dynamic() || rhs_shape.is_dynamic()) {
+                    return true;
+                }
+                if (lhs_shape.get_shape() != rhs_shape.get_shape()) {
+                    return true;
+                }
+                const auto& rhs = n->get_input_node_shared_ptr(1);
+                if (!ov::is_type<ov::op::v0::Constant>(rhs)) {
+                    return true;
                 }
             }
+        }
 #endif
-            if (!ignoreCallback) {
-                if (n->is_dynamic() || !is_supported_op(n))
-                    return true;
-            }
-
-            const auto& inputs = n->inputs();
-            // todo: clarify whether we can evaluate snippets on const paths
-            const bool has_only_const_inputs =
-                std::all_of(inputs.begin(), inputs.end(), [](const ov::Input<const ov::Node>& in) {
-                    return ov::is_type<ov::op::v0::Constant>(in.get_source_output().get_node_shared_ptr());
-                });
-            if (has_only_const_inputs)
+        if (!ignoreCallback) {
+            if (n->is_dynamic() || !is_supported_op(n))
                 return true;
-            return !has_supported_tensors(n);
-        },
-        TokenizeSnippets);
+        }
+
+        const auto& inputs = n->inputs();
+        // todo: clarify whether we can evaluate snippets on const paths
+        const bool has_only_const_inputs =
+            std::all_of(inputs.begin(), inputs.end(), [](const ov::Input<const ov::Node>& in) {
+                return ov::is_type<ov::op::v0::Constant>(in.get_source_output().get_node_shared_ptr());
+            });
+        if (has_only_const_inputs)
+            return true;
+        return !has_supported_tensors(n);
+    };
+
+    CPU_SET_CALLBACK_COMMON(snippetsManager, tokenize_snippets_callback, TokenizeSnippets);
 
     auto mm_supports_transpose_b = [this]([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
         [[maybe_unused]] const auto& inferencePrecision = config.inferencePrecision;
