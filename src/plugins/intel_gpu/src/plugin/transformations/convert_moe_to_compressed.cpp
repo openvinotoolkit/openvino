@@ -196,7 +196,6 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             bool convert_f16 = false;
             auto hidden_states = pattern_map.at(hidden_states_m);
             if (hidden_states.get_element_type() == ov::element::f32) {
-                std::cout << "f32 moe hidden state" << std::endl;
                 auto convert = std::make_shared<ov::op::v0::Convert>(hidden_states, ov::element::f16);
                 ov::copy_runtime_info(moe, convert);
                 args[0] = convert;
