@@ -232,12 +232,7 @@ KERNEL (reorder_data)(
         FUSED_OPS;
         output[output_idx] = FUSED_OPS_RESULT;
     #elif defined(INT4_OUTPUT) || defined(UINT4_OUTPUT)
-        int val_i;
-        #if INPUT0_IS_FP
-            val_i = convert_int_sat(res);
-        #else
-            val_i = (int)res;
-        #endif
+        OUTPUT_TYPE val_i = __TO_OUTPUT_REORDER_TYPE(res);
 
         #if !CONVERT_TRUNCATE
              #if defined(INT4_OUTPUT)
