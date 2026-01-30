@@ -53,7 +53,7 @@ protected:
         }
         auto extImgPatches =
             std::make_shared<ov::op::v3::ExtractImagePatches>(params[0], kernelSize, strides, rates, padType);
-        function = makeNgraphFunction(inputPrecision, params, extImgPatches, "ExtractImagePatches");
+        function = create_ov_model(inputPrecision, params, extImgPatches, "ExtractImagePatches");
     }
 };
 
