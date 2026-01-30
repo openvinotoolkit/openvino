@@ -19,7 +19,6 @@
 using namespace ov::pass;
 using namespace ov::op;
 
-#define ENABLE_DEBUG 0
 
 ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, UpdateShapeFunc func)
     : m_config(config),
@@ -143,15 +142,6 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
                                                             m_config.valueCacheGroupSize,
                                                             m_config.valueCacheQuantBychannel,
                                                             m_config.valueCacheDimOrder);
-            #if ENABLE_DEBUG
-                std::cout << "    -- key_cache_shape :  " << key_cache_shape.to_string()
-                            << ", selected kv cache dt : " << key_cache_precision
-                            << ", key_cache precision : " << key_cache->get_element_type();
-                std::cout << "    -- value_cache_shape : " << value_cache_shape.to_string()
-                            << ", selected kv cache dt : " << value_cache_precision
-                            << ", value_cache precision : " << value_cache->get_element_type()
-                            << std::endl;
-            #endif
 
             key_cache->set_partial_shape(key_cache_shape);
             value_cache->set_partial_shape(value_cache_shape);

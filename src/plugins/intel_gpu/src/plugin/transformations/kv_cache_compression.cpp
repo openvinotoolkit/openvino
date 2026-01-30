@@ -33,7 +33,6 @@
 #include <memory>
 #include "openvino/core/graph_util.hpp"
 
-#define ENABLE_DEBUG 0
 
 namespace ov::intel_gpu {
 
@@ -141,6 +140,11 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
     const auto quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
     const auto output_storage_type = supports_immad ? ov::op::internal::DynamicQuantize::OutputStorageType::Planar
                                                     : ov::op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP;
+    bool combine_scales_and_zp = output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP;
+    GPU_DEBUG_LOG << "KV-cache compression configuration: "
+                  << "dt=" << compression_dt << ", "
+                  << "asym=" << (quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric) << ", "
+                  << "single_buffer_for_scales_and_zp=" << combine_scales_and_zp << "\n";
 
     auto query = any_input();
 
@@ -164,15 +168,6 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
         wrap_type<ov::intel_gpu::op::IndirectSDPA>({ query, key_cache, value_cache, input_attn_mask, input_scale, input_beam_table });
 
     auto sdpa = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{sdpa_without_attn_mask_m, sdpa_with_attn_mask_m, sdpa_with_attn_mask_and_scale_m});
-    #if ENABLE_DEBUG
-    {
-        bool combine_scales_and_zp = output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP;
-        std::cout << " -- KV-cache compression configuration: " << sdpa->get_friendly_name()
-                    << " dt=" << compression_dt << ", "
-                    << " asym=" << (quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric) << ", "
-                    << " single_buffer_for_scales_and_zp=" << combine_scales_and_zp << "\n";
-    }
-    #endif
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
