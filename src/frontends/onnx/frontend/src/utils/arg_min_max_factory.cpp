@@ -60,7 +60,7 @@ ov::Output<ov::Node> ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode mode) 
         // along axis, in the example this is equal to:
         // dims_on_axis = 6
         //
-        // Now using two Substract ops calculate resulting index:
+        // Now using two Subtract ops calculate resulting index:
         // res_index = dims_on_axis - topk->output(1) = 6 - 3 = 3
         // result = res_index - 1 = 3 - 1 = 2
 
