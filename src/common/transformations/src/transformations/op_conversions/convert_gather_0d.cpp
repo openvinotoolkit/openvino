@@ -16,17 +16,21 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 ov::pass::ConvertGather0D::ConvertGather0D() {
     MATCHER_SCOPE(ConvertGather0D);
-    auto gather = ov::pass::pattern::wrap_type<ov::op::v1::Gather>();
+    auto gather = ov::pass::pattern::wrap_type<v1::Gather>();
 
-    matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto gather = ov::as_type_ptr<ov::op::v1::Gather>(m.get_match_root());
+    matcher_pass_callback callback = [](Matcher& m) {
+        auto gather = ov::as_type_ptr<v1::Gather>(m.get_match_root());
         if (!gather) {
             return false;
         }
 
-        auto axes_constant = ov::as_type_ptr<ov::op::v0::Constant>(gather->input_value(2).get_node_shared_ptr());
+        auto axes_constant = ov::as_type_ptr<v0::Constant>(gather->input_value(2).get_node_shared_ptr());
         if (!axes_constant) {
             return false;
         }
@@ -40,11 +44,9 @@ ov::pass::ConvertGather0D::ConvertGather0D() {
         }
 
         auto axis = axes_constant->cast_vector<int64_t>()[0];
-        indices =
-            std::make_shared<ov::op::v0::Unsqueeze>(indices, ov::op::v0::Constant::create(element::i64, Shape{1}, {0}));
-        auto gather_new = std::make_shared<ov::op::v1::Gather>(gather->input_value(0), indices, axes_constant);
-        auto sq = std::make_shared<ov::op::v0::Squeeze>(gather_new,
-                                                        ov::op::v0::Constant::create(element::i64, Shape{1}, {axis}));
+        indices = std::make_shared<v0::Unsqueeze>(indices, v0::Constant::create(element::i64, Shape{1}, {0}));
+        auto gather_new = std::make_shared<v1::Gather>(gather->input_value(0), indices, axes_constant);
+        auto sq = std::make_shared<v0::Squeeze>(gather_new, v0::Constant::create(element::i64, Shape{1}, {axis}));
         sq->set_friendly_name(gather->get_friendly_name());
 
         ov::copy_runtime_info(gather, {indices.get_node_shared_ptr(), gather_new, sq});
@@ -53,6 +55,6 @@ ov::pass::ConvertGather0D::ConvertGather0D() {
         return true;
     };
 
-    auto m1 = std::make_shared<ov::pass::pattern::Matcher>(gather, matcher_name);
+    auto m1 = std::make_shared<Matcher>(gather, matcher_name);
     this->register_matcher(m1, callback);
 }

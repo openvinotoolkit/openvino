@@ -23,10 +23,16 @@ public:
         std::set<size_t> input_ports = { PagedAttentionInputIdx::PAST_LENS,
                                          PagedAttentionInputIdx::SUBSEQUENCE_BEGINS,
                                          PagedAttentionInputIdx::XATTENTION_THRESHOLD,
+                                         PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE,
                                          PagedAttentionInputIdx::MAX_CONTEXT_LEN };
 
         if (typed_desc()->has_score_aggregation)
             input_ports.insert(PagedAttentionInputIdx::SCORE_AGGREGATION);
+
+        if (typed_desc()->has_adaptive_rkv) {
+            input_ports.insert(PagedAttentionInputIdx::ADAPTIVE_RKV_START_SIZE);
+            input_ports.insert(PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES);
+        }
 
         return input_ports;
     }

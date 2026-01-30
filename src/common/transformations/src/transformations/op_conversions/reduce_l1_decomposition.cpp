@@ -15,15 +15,17 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v4 = ov::op::v4;
 ov::pass::ReduceL1Decomposition::ReduceL1Decomposition() {
     MATCHER_SCOPE(ReduceL1Decomposition);
     // decomposes ReduceL1 operations into ReduceSum(abs(x))
-    auto reduce_l1 = ov::pass::pattern::wrap_type<ov::op::v4::ReduceL1>();
+    auto reduce_l1 = ov::pass::pattern::wrap_type<v4::ReduceL1>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto reduce_l1_node =
-            ov::as_type_ptr<ov::op::v4::ReduceL1>(pattern_to_output.at(reduce_l1).get_node_shared_ptr());
+        auto reduce_l1_node = ov::as_type_ptr<v4::ReduceL1>(pattern_to_output.at(reduce_l1).get_node_shared_ptr());
 
         if (reduce_l1_node == nullptr || transformation_callback(reduce_l1_node)) {
             return false;
@@ -40,6 +42,6 @@ ov::pass::ReduceL1Decomposition::ReduceL1Decomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(reduce_l1, matcher_name);
+    auto m = std::make_shared<Matcher>(reduce_l1, matcher_name);
     register_matcher(m, callback);
 }

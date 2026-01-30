@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/runtime/file_handle.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
 namespace ov {
@@ -689,6 +690,43 @@ namespace eagle {
  */
 static constexpr ov::Property<bool> enabled{"NPUW_EAGLE"};
 }  // namespace eagle
+
+namespace text_embed {
+/**
+ * @brief
+ * Type: bool.
+ * Tell NPUW that you want to pass text-embedding model.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> enabled{"NPUW_TEXT_EMBED"};
+
+}  // namespace text_embed
+
+namespace kokoro {
+/**
+ * @brief
+ * Type: bool
+ * Set this option to true to utilize Kokoro pipeline
+ * Default value: false
+ */
+static constexpr ov::Property<bool> enabled{"NPUW_KOKORO"};
+
+/**
+ * @brief
+ * Type: size_t (uint64_t)
+ * Set the block size for Kokoro pipeline
+ * Default value: 200
+ */
+static constexpr ov::Property<uint64_t> block_size{"NPUW_KOKORO_BLOCK_SIZE"};
+
+/**
+ * @brief
+ * Type: size_t (uint64_t)
+ * Set the overlap size for Kokoro pipeline
+ * Default value: 20
+ */
+static constexpr ov::Property<uint64_t> overlap_size{"NPUW_KOKORO_OVERLAP_SIZE"};
+}  // namespace kokoro
 
 }  // namespace npuw
 }  // namespace intel_npu
