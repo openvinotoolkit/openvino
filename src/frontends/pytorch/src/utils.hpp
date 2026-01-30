@@ -6,6 +6,7 @@
 
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
@@ -86,7 +87,15 @@ std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node
                                                       std::initializer_list<std::string> types);
 std::function<bool(const ov::Output<ov::Node>&)> fw_node_predicate(const std::initializer_list<std::string>& types);
 
-std::shared_ptr<Node> make_list_construct(const ov::OutputVector& inputs);
+/// \brief Creates a SequenceMark representing a list/tuple construct.
+/// \param inputs Collection of inputs for the sequence.
+/// \return SequenceMark node representing the sequence.
+std::shared_ptr<SequenceMark> make_list_construct(const ov::OutputVector& inputs);
+
+/// \brief Casts node to SequenceMark if it represents a sequence (list or tuple).
+/// \param node Node to check.
+/// \return SequenceMark if node is a sequence construct, nullptr otherwise.
+std::shared_ptr<SequenceMark> cast_to_sequence_construct(const std::shared_ptr<Node>& node);
 
 bool is_none_node(const Output<Node>& node);
 

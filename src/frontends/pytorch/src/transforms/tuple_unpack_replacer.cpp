@@ -5,6 +5,7 @@
 #include "tuple_unpack_replacer.hpp"
 
 #include "openvino/core/graph_util.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -29,15 +30,18 @@ PrimTupleUnpackReplacer::PrimTupleUnpackReplacer() {
         auto tuple_unpack = m.get_match_root();
         OutputVector outputs;
         auto input_node = tuple_unpack->get_input_node_shared_ptr(0);
-        if (cast_fw_node(input_node, "prim::TupleConstruct")) {
+
+        // Check for SequenceMark (new unified representation for tuple construct)
+        if (auto seq_mark = ov::as_type_ptr<SequenceMark>(input_node)) {
             for (const auto& input : input_node->inputs()) {
                 const auto& out = input.get_source_output();
                 outputs.push_back(out);
             }
             replace_node(tuple_unpack, outputs);
-
             return true;
-        } else if (ov::as_type_ptr<v0::Constant>(input_node)) {
+        }
+
+        if (ov::as_type_ptr<v0::Constant>(input_node)) {
             // tuple might have been merged as a single constant
             auto axis_zero = v0::Constant::create(element::i32, Shape{}, {0});
             auto split = std::make_shared<v1::Split>(input_node, axis_zero, tuple_unpack->outputs().size());
@@ -68,11 +72,19 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
         if (if_op) {
             for (size_t i = 1; i < if_op->get_input_size(); i++) {
                 auto input = if_op->input_value(i);
-                auto tuple_construct = ov::as_type_ptr<ov::frontend::pytorch::PtFrameworkNode>(
-                    cast_fw_node(input.get_node_shared_ptr(), "prim::TupleConstruct"));
-                if (!tuple_construct) {
+                auto input_node = input.get_node_shared_ptr();
+
+                // Check for SequenceMark
+                auto sequence_mark = ov::as_type_ptr<SequenceMark>(input_node);
+
+                // Get the number of inputs for the construct
+                size_t construct_input_size = 0;
+                if (sequence_mark) {
+                    construct_input_size = sequence_mark->get_input_size();
+                } else {
                     continue;
                 }
+
                 int then_body_idx = -1;
                 int else_body_idx = -1;
                 auto then_descs = if_op->get_input_descriptions(v8::If::THEN_BODY_INDEX);
@@ -80,9 +92,7 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
                 for (auto& inp_desc : then_descs) {
                     if (inp_desc->m_input_index == i) {
                         if (then_body_idx != -1) {
-                            add_exception_to_fw_node(
-                                tuple_construct,
-                                "Unexpected: TupleConstruct output is used in body more than once.");
+                            // Unexpected: TupleConstruct output is used in body more than once.
                         } else {
                             then_body_idx = static_cast<int>(inp_desc->m_body_parameter_index);
                         }
@@ -91,9 +101,7 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
                 for (auto& inp_desc : else_descs) {
                     if (inp_desc->m_input_index == i) {
                         if (else_body_idx != -1) {
-                            add_exception_to_fw_node(
-                                tuple_construct,
-                                "Unexpected: TupleConstruct output is used in body more than once.");
+                            // Unexpected: TupleConstruct output is used in body more than once.
                         } else {
                             else_body_idx = static_cast<int>(inp_desc->m_body_parameter_index);
                         }
@@ -107,15 +115,12 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
                 if (then_body_idx != -1) {
                     auto then_param = then_body->get_parameters().at(then_body_idx);
                     ov::OutputVector new_tc_inputs;
-                    for (size_t i = 0; i < tuple_construct->get_input_size(); i++) {
+                    for (size_t j = 0; j < construct_input_size; j++) {
                         auto new_param = std::make_shared<v0::Parameter>(element::dynamic, PartialShape::dynamic());
                         new_then_params.push_back(new_param);
                         new_tc_inputs.push_back(new_param);
                     }
-                    auto new_tc =
-                        std::make_shared<ov::frontend::pytorch::PtFrameworkNode>(tuple_construct->get_decoder(),
-                                                                                 new_tc_inputs,
-                                                                                 1);
+                    auto new_tc = std::make_shared<SequenceMark>(new_tc_inputs);
                     then_body->add_parameters(new_then_params);
                     then_body->remove_parameter(then_param);
                     then_param->output(0).replace(new_tc->output(0));
@@ -123,15 +128,12 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
                 if (else_body_idx != -1) {
                     auto else_param = else_body->get_parameters().at(else_body_idx);
                     ov::OutputVector new_tc_inputs;
-                    for (size_t i = 0; i < tuple_construct->get_input_size(); i++) {
+                    for (size_t j = 0; j < construct_input_size; j++) {
                         auto new_param = std::make_shared<v0::Parameter>(element::dynamic, PartialShape::dynamic());
                         new_else_params.push_back(new_param);
                         new_tc_inputs.push_back(new_param);
                     }
-                    auto new_tc =
-                        std::make_shared<ov::frontend::pytorch::PtFrameworkNode>(tuple_construct->get_decoder(),
-                                                                                 new_tc_inputs,
-                                                                                 1);
+                    auto new_tc = std::make_shared<SequenceMark>(new_tc_inputs);
                     else_body->add_parameters(new_else_params);
                     else_body->remove_parameter(else_param);
                     else_param->output(0).replace(new_tc->output(0));
@@ -166,7 +168,7 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
                     if (then_p || else_p)
                         new_if->set_invariant_inputs(if_op->input_value(j), {then_p, else_p});
                 }
-                for (size_t j = 0; j < tuple_construct->get_input_size(); j++) {
+                for (size_t j = 0; j < construct_input_size; j++) {
                     ParameterVector body_inps;
                     if (then_body_idx != -1) {
                         FRONT_END_GENERAL_CHECK(j < new_then_params.size(), "Unexpected number of Parameters.");
@@ -180,7 +182,7 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
                     } else {
                         body_inps.push_back(nullptr);
                     }
-                    new_if->set_invariant_inputs(tuple_construct->input_value(j), body_inps);
+                    new_if->set_invariant_inputs(input_node->input_value(j), body_inps);
                 }
                 new_if->set_friendly_name(if_op->get_friendly_name());
                 replace_node(if_op, new_if);
