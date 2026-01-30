@@ -1814,8 +1814,7 @@ public:
             }
 
             OPENVINO_ASSERT(intermediates_memories.size() > sequential_gws_subseq_mapping_idx,
-                            "[GPU] Unexpected number of intermediates buffers for Paged Attention for mixed stage. ",
-                            intermediates_memories.size(), " > ", sequential_gws_subseq_mapping_idx);
+                            "[GPU] Unexpected number of intermediates buffers for Paged Attention for mixed stage. ");
 
             auto& sequential_gws_subseq_mapping_mem = intermediates_memories[sequential_gws_subseq_mapping_idx];
             sequential_gws_subseq_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(sequential_gws_subseq_mapping_mem, stream));

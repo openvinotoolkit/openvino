@@ -152,7 +152,6 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize)(__global co
     }
 }
 
-
 inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__global const INPUT0_TYPE* in_data,
                                     const uint in_data_offset,
                                     const uint in_data_pitch,
@@ -276,26 +275,31 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
             #undef ACCUMULATOR_TYPE
 
             INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*) (&out_data[packed_out_offset_per_wi + COMP_K_OFFSET]);
-            // [TEST]
-            // [0,1] 1st scale and zp, [2,3] 2nd scale and zp
+            // [0,1] 1st scale and zp, [2,3] 2nd scale and zp. It represnets [PACKED_CACHE][Scale][ZP][Scale][ZP]
             comp_ptr[2*order_in_packed] = 1.0/scale[order_in_packed];
             comp_ptr[2*order_in_packed+1] = zp[order_in_packed];
         }
 
-        for (uint token = 0; token < token_pos_in_block + new_tokens_num; ++token) {
-            if (order_in_packed == (PACK_SIZE - 1)) {
-                char2 res_vec;
-                res_vec.s0 = buffer[token];
-                res_vec.s1 = convert_char_rte(cache_data_vec_decompressed[1][token] * scale[1] + zp[1]);
-
+        if (order_in_packed == 0 && h_sub + 1 >= num_head_size_groups) {
+            // NUM_HEAD_SIZE_GROUPS or number of processing groups of this partition is not aligned by PACK_SIZE.
+            // This sub is the last and single size.
+            for (uint token = 0; token < token_pos_in_block + new_tokens_num; ++token) {
+                char2 res_vec = 0;
+                res_vec.s0 = convert_char_rte(cache_data_vec_decompressed[0][token] * scale[0] + zp[0]);
+                res_vec.s1 = orig_cache[token];
                 out_data[packed_out_offset_per_wi + token] = cvt_int8x2_to_uint4x2(res_vec);
-            } else {
-                buffer[token] = convert_char_rte(cache_data_vec_decompressed[0][token] * scale[0] + zp[0]);
-                if (h_sub + 1 >= num_head_size_groups) {
-                    char2 res_vec = 0;
+            }
+        } else {
+            // Process aligned size sub-group from num_head_size_groups
+            for (uint token = 0; token < token_pos_in_block + new_tokens_num; ++token) {
+                if (order_in_packed == (PACK_SIZE - 1)) {
+                    char2 res_vec;
                     res_vec.s0 = buffer[token];
-                    res_vec.s1 = orig_cache[token];
+                    res_vec.s1 = convert_char_rte(cache_data_vec_decompressed[1][token] * scale[1] + zp[1]);
+
                     out_data[packed_out_offset_per_wi + token] = cvt_int8x2_to_uint4x2(res_vec);
+                } else {
+                    buffer[token] = convert_char_rte(cache_data_vec_decompressed[0][token] * scale[0] + zp[0]);
                 }
             }
         }
@@ -350,7 +354,7 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
         uint out_offset_per_wi = out_offset + sglid * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
         // store comp_data
         INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*) (&out_data[out_offset_per_wi + COMP_K_OFFSET]);
-        // [TEST]
+
         #if IS_INT4_COMPRESSED
             const uint order_in_packed = i % PACK_SIZE;
             comp_ptr[2 * order_in_packed] = 1.0 / scale;
@@ -377,7 +381,7 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
                         char2 res_vec = 0;
                         res_vec.s0 = buffer[token_num];
                         res_vec.s1 = 0;
-                        // [TEST]
+
                         out_data[out_offset_per_wi] = cvt_int8x2_to_uint4x2(res_vec);
                         out_offset_per_wi++;
                     }
@@ -500,17 +504,9 @@ KERNEL(pa_kv_cache_update)(
         {
             #if IS_INT4_COMPRESSED
                 FUNC_CALL(quantize_and_save_by_channel_block_with_requantize_int4)(key_data,
-                                                                            key_in_offset,
-                                                                            KEY_IN_STRIDE,
-                                                                            key_cache_data,
-                                                                            block_k_base_offset,
-                                                                            k_hidden_stride,
-                                                                            current_token_pos_in_block,
-                                                                            1,
-                                                                            sglid,
-                                                                            0);
             #else
                 FUNC_CALL(quantize_and_save_by_channel_block_with_requantize)(key_data,
+            #endif
                                                                             key_in_offset,
                                                                             KEY_IN_STRIDE,
                                                                             key_cache_data,
@@ -520,7 +516,6 @@ KERNEL(pa_kv_cache_update)(
                                                                             1,
                                                                             sglid,
                                                                             0);
-            #endif
         }
 
         // value per token
