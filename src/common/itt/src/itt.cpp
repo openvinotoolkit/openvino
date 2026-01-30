@@ -108,6 +108,10 @@ void regionEnd(domain_t d) {
     current_region_handle = nullptr;
 }
 
+void shutdown() {
+    __itt_release_resources();
+}
+
 #else
 
 domain_t domain(const char*) {
@@ -127,6 +131,8 @@ void threadName(const char*) {}
 void regionBegin(domain_t, handle_t) {}
 
 void regionEnd(domain_t) {}
+
+void shutdown() {}
 
 #endif  // ENABLE_PROFILING_ITT
 
