@@ -26,6 +26,8 @@ namespace ov::intel_gpu::ocl {
 #define MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT           12  // token idx per expert
 #define MOE_INTERNAL_BUFFER_ACTUAL_USED_EXPERT_NUM         13  // num_actual_used_experts
 
+#define ENABLE_MOE_MICRO_GEMM_POST_PROC_SILU_MUL 1
+
 enum class MoE3GemmMicroKernelType : uint8_t { MLP_GATE = 0, MLP_UP = 1, MLP_DOWN = 2 };
 
 enum class MOE3GemmInputIndex : uint8_t {
