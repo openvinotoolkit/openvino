@@ -311,6 +311,13 @@ OPENVINO_RUNTIME_API void reserve_available_cpus(const std::vector<std::vector<i
 OPENVINO_RUNTIME_API void set_cpu_used(const std::vector<int>& cpu_ids, const int used);
 
 /**
+ * @brief      Checks if WIN is used
+ * @ingroup    ov_dev_api_system_conf
+ * @return     `True` if WIN is used
+ */
+OPENVINO_RUNTIME_API int is_win();
+
+/**
  * @brief      Get original socket id by current socket id, the input socket id is recalculated after filtering (like
  * numactl), while the original socket id is the original id before filtering
  * @ingroup    ov_dev_api_system_conf
