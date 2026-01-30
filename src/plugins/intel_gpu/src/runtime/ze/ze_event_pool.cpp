@@ -22,7 +22,7 @@ ze_event_pool::ze_event_pool(const ze_engine& engine, uint32_t capacity, ze_even
 }
 
 ze_event_pool::~ze_event_pool() {
-    zeEventPoolDestroy(m_handle);
+    OV_ZE_WARN(zeEventPoolDestroy(m_handle));
 }
 }  // namespace ze
 }  // namespace cldnn

@@ -13,6 +13,8 @@ namespace ze {
 struct ze_device : public device {
 public:
     ze_device(ze_driver_handle_t driver, ze_device_handle_t device, bool initialize = true);
+    ze_device(const ze_device &other) = delete;
+    ze_device& operator=(const ze_device &other) = delete;
 
     const device_info& get_info() const override { return _info; }
     memory_capabilities get_mem_caps() const override { return _mem_caps; }

@@ -322,7 +322,7 @@ void RemoteTensorImpl::allocate() {
             m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::cl_mem, reset);
         } else {
             // Fall back to usm_host and override memory type
-            GPU_DEBUG_COUT << "[Warning] [GPU] Could not allocate cl_mem, using usm_host allocation instead\n";
+            GPU_DEBUG_INFO << "[Warning] [GPU] Could not allocate cl_mem, using usm_host allocation instead\n";
             m_mem_type = TensorType::BT_USM_HOST_INTERNAL;
             m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::usm_host, reset);
         }

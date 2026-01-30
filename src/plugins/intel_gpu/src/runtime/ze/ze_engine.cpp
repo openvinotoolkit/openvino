@@ -111,7 +111,7 @@ memory::ptr ze_engine::reinterpret_handle(const layout& new_layout, shared_mem_p
     if (params.mem_type == shared_mem_type::shared_mem_usm) {
         ze::UsmMemory usm_buffer(get_context(), get_device(), params.mem);
         size_t actual_mem_size = 0;
-        zeMemGetAddressRange(get_context(), params.mem, nullptr, &actual_mem_size);
+        OV_ZE_EXPECT(zeMemGetAddressRange(get_context(), params.mem, nullptr, &actual_mem_size));
         auto requested_mem_size = new_layout.bytes_count();
         OPENVINO_ASSERT(actual_mem_size >= requested_mem_size,
                             "[GPU] shared USM buffer has smaller size (", actual_mem_size,

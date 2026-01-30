@@ -287,7 +287,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     ze_context_handle_t context;
     OV_ZE_EXPECT(zeContextCreate(driver, &context_desc, &context));
     ngen::Product product = ngen::LevelZeroCodeGenerator<ngen::HW::Unknown>::detectHWInfo(context, device);
-    zeContextDestroy(context);
+    OV_ZE_WARN(zeContextDestroy(context));
     info.arch = convert_ngen_arch(ngen::getCore(product.family));
 
     if (product.family == ngen::ProductFamily::Unknown) {
@@ -364,9 +364,8 @@ void ze_device::set_mem_caps(const memory_capabilities& memory_capabilities) {
 }
 
 ze_device::~ze_device() {
-    //FIXME segfault
-    //if (_is_initialized)
-    //    zeContextDestroy(_context);
+    if (_is_initialized)
+        OV_ZE_WARN(zeContextDestroy(_context));
 }
 
 }  // namespace ze

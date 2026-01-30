@@ -9,6 +9,8 @@
 
 #include <limits>
 #include <string>
+#include <sstream>
+#include <iomanip>
 
 
 // Expect success of level zero command, throw runtime error otherwise
@@ -16,7 +18,9 @@
     do { \
         ze_result_t res_ = (f); \
         if (res_ != ZE_RESULT_SUCCESS) { \
-            throw std::runtime_error(#f " command failed with code " + std::to_string(res_)); \
+            std::stringstream s; \
+            s << std::hex << res_; \
+            throw std::runtime_error(#f " command failed with code " + s.str()); \
         } \
     } while (false)
 
@@ -25,7 +29,9 @@
     do { \
         ze_result_t res_ = (f); \
         if (res_ != ZE_RESULT_SUCCESS) { \
-            GPU_DEBUG_COUT << ("[Warning] [GPU] " #f " command failed with code " + std::to_string(res_)); \
+            std::stringstream s; \
+            s << std::hex << res_; \
+            GPU_DEBUG_INFO << ("[Warning] [GPU] " #f " command failed with code " + s.str()); \
         } \
     } while (false)
 

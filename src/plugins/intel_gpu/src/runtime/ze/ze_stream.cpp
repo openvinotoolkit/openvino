@@ -230,7 +230,7 @@ ze_stream::~ze_stream() {
     _onednn_stream.reset();
 #endif
     if (m_command_list != nullptr)
-        zeCommandListDestroy(m_command_list);
+        OV_ZE_WARN(zeCommandListDestroy(m_command_list));
 }
 
 void ze_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) {
