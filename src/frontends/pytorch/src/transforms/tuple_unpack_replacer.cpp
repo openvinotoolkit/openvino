@@ -115,7 +115,7 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
                 if (then_body_idx != -1) {
                     auto then_param = then_body->get_parameters().at(then_body_idx);
                     ov::OutputVector new_tc_inputs;
-                    for (size_t j = 0; j < construct_input_size; j++) {
+                    for (size_t param_idx = 0; param_idx < construct_input_size; param_idx++) {
                         auto new_param = std::make_shared<v0::Parameter>(element::dynamic, PartialShape::dynamic());
                         new_then_params.push_back(new_param);
                         new_tc_inputs.push_back(new_param);
@@ -128,7 +128,7 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
                 if (else_body_idx != -1) {
                     auto else_param = else_body->get_parameters().at(else_body_idx);
                     ov::OutputVector new_tc_inputs;
-                    for (size_t j = 0; j < construct_input_size; j++) {
+                    for (size_t param_idx = 0; param_idx < construct_input_size; param_idx++) {
                         auto new_param = std::make_shared<v0::Parameter>(element::dynamic, PartialShape::dynamic());
                         new_else_params.push_back(new_param);
                         new_tc_inputs.push_back(new_param);
@@ -154,35 +154,35 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
                 for (auto& inp_desc : else_descs) {
                     inputs_mapping[inp_desc->m_input_index].second = static_cast<int>(inp_desc->m_body_parameter_index);
                 }
-                for (size_t j = 0; j < inputs_mapping.size(); j++) {
-                    if (j == i)
+                for (size_t input_idx = 0; input_idx < inputs_mapping.size(); input_idx++) {
+                    if (input_idx == i)
                         continue;
-                    int then_p_idx = inputs_mapping[j].first;
+                    int then_p_idx = inputs_mapping[input_idx].first;
                     if (then_p_idx > then_body_idx && then_body_idx != -1)
                         then_p_idx--;
-                    int else_p_idx = inputs_mapping[j].second;
+                    int else_p_idx = inputs_mapping[input_idx].second;
                     if (else_p_idx > else_body_idx && else_body_idx != -1)
                         else_p_idx--;
                     const auto& then_p = then_p_idx == -1 ? nullptr : then_body->get_parameters()[then_p_idx];
                     const auto& else_p = else_p_idx == -1 ? nullptr : else_body->get_parameters()[else_p_idx];
                     if (then_p || else_p)
-                        new_if->set_invariant_inputs(if_op->input_value(j), {then_p, else_p});
+                        new_if->set_invariant_inputs(if_op->input_value(input_idx), {then_p, else_p});
                 }
-                for (size_t j = 0; j < construct_input_size; j++) {
+                for (size_t param_idx = 0; param_idx < construct_input_size; param_idx++) {
                     ParameterVector body_inps;
                     if (then_body_idx != -1) {
-                        FRONT_END_GENERAL_CHECK(j < new_then_params.size(), "Unexpected number of Parameters.");
-                        body_inps.push_back(new_then_params[j]);
+                        FRONT_END_GENERAL_CHECK(param_idx < new_then_params.size(), "Unexpected number of Parameters.");
+                        body_inps.push_back(new_then_params[param_idx]);
                     } else {
                         body_inps.push_back(nullptr);
                     }
                     if (else_body_idx != -1) {
-                        FRONT_END_GENERAL_CHECK(j < new_else_params.size(), "Unexpected number of Parameters.");
-                        body_inps.push_back(new_else_params[j]);
+                        FRONT_END_GENERAL_CHECK(param_idx < new_else_params.size(), "Unexpected number of Parameters.");
+                        body_inps.push_back(new_else_params[param_idx]);
                     } else {
                         body_inps.push_back(nullptr);
                     }
-                    new_if->set_invariant_inputs(input_node->input_value(j), body_inps);
+                    new_if->set_invariant_inputs(input_node->input_value(param_idx), body_inps);
                 }
                 new_if->set_friendly_name(if_op->get_friendly_name());
                 replace_node(if_op, new_if);
