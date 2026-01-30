@@ -48,9 +48,9 @@ enum impl_desc_type : int64_t {
     sve384 = 1 << 30,
     sve512 = 1 << 31,
 
-    gv = 1LL << 33,
+    gv = 1LL << 32,
 
-    kleidiai = 1LL << 34,
+    kleidiai = 1LL << 33,
 
     // real types
     ref_any = ref | any,
