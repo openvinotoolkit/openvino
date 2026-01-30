@@ -686,7 +686,7 @@ void Properties::registerCompiledModelProperties() {
         return std::string("NPU");
     });
 }
- 
+
 ov::Any Properties::get_property(const std::string& name, const ov::AnyMap& arguments) const {
     std::map<std::string, std::string> amends;
     for (auto&& value : arguments) {
