@@ -11,9 +11,17 @@ namespace {
 /// \return Return the second input to the TopK node reshaped to a scalar.
 ov::Output<ov::Node> get_k(const ov::frontend::onnx::Node& node) {
     auto k_node = node.get_ov_inputs().at(1);
-    FRONT_END_GENERAL_CHECK(shape_size(k_node.get_shape()) == 1,
-                            "ONNX TopK operator: 'K' parameter must contain a single positive value.",
+    const auto& k_pshape = k_node.get_partial_shape();
+
+    FRONT_END_GENERAL_CHECK(k_pshape.rank().is_dynamic() || k_pshape.rank().get_length() <= 1,
+                            "ONNX TopK operator: 'K' input must be a scalar or 1D tensor.",
                             node);
+
+    if (k_pshape.rank().is_static() && k_pshape.rank().get_length() == 1 && k_pshape[0].is_static()) {
+        FRONT_END_GENERAL_CHECK(k_pshape[0].get_length() == 1,
+                                "ONNX TopK operator: 'K' parameter must contain a single value.",
+                                node);
+    }
 
     return ov::frontend::onnx::reshape::interpret_as_scalar(k_node);
 }
@@ -38,8 +46,7 @@ ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
                                                                   axis,
                                                                   v11::TopK::Mode::MAX,
                                                                   v11::TopK::SortType::SORT_VALUES,
-                                                                  ov::element::i64,
-                                                                  true);
+                                                                  ov::element::i64);
 
     return {top_k->output(0), top_k->output(1)};
 }
@@ -57,8 +64,7 @@ ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
                                                                   axis,
                                                                   v11::TopK::Mode::MAX,
                                                                   v11::TopK::SortType::SORT_VALUES,
-                                                                  ov::element::i64,
-                                                                  true);
+                                                                  ov::element::i64);
 
     return {top_k->output(0), top_k->output(1)};
 }
@@ -78,13 +84,11 @@ ov::OutputVector topk(const ov::frontend::onnx::Node& node) {
 
     // Map attribute values to OpenVINO enums
     const auto sort_type = sorted ? v11::TopK::SortType::SORT_VALUES : v11::TopK::SortType::NONE;
-    const auto stable_sort = (sort_type != v11::TopK::SortType::NONE);
 
     const auto compute_max = static_cast<bool>(largest);
     const auto mode = compute_max ? v11::TopK::Mode::MAX : v11::TopK::Mode::MIN;
 
-    std::shared_ptr<ov::Node> top_k =
-        std::make_shared<v11::TopK>(data, k, axis, mode, sort_type, ov::element::i64, stable_sort);
+    std::shared_ptr<ov::Node> top_k = std::make_shared<v11::TopK>(data, k, axis, mode, sort_type, ov::element::i64);
 
     return {top_k->output(0), top_k->output(1)};
 }

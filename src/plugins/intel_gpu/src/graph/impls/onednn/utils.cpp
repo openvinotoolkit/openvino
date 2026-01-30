@@ -36,8 +36,13 @@ std::string memory_desc_to_string(const dnnl::memory::desc& desc) {
         ss << (i ? "x" : "") << desc.get_dims()[i];
     }
     ss << ":strides=";
-    for (int i = 0; i < desc.get_ndims(); i++) {
-        ss << (i ? "x" : "") << desc.get_strides()[i];
+    const auto strides = desc.get_strides();
+    if (strides.empty()) {
+        ss << "empty";
+    } else {
+        for (size_t i = 0; i < strides.size(); i++) {
+            ss << (i ? "x" : "") << strides[i];
+        }
     }
 
     return ss.str();
@@ -79,35 +84,6 @@ dnnl::memory::dims convert_tensor(cldnn::tensor t, size_t dims, bool is_grouped)
     return res;
 }
 
-dnnl::memory::dims convert_gemm_tensor(cldnn::tensor t, size_t dims, bool batched_dims_can_be_removed) {
-    auto sizes = t.sizes(default_fmt_for_dims(dims, false));
-    dnnl::memory::dims res(sizes.begin(), sizes.end());
-    if (dims > 4) {
-        for (size_t i = 0; i < dims - 4; i++) {
-            res[i + 1] *= res[i];
-        }
-        res.erase(res.begin(), res.begin() + dims - 4);
-    }
-    if (res.size() == 4 && batched_dims_can_be_removed) {
-        res.erase(res.begin(), res.begin() + 2);
-    }
-    return res;
-}
-
-dnnl::memory::dims convert_gemm_dims(const std::vector<ov::Dimension::value_type> &sizes, size_t dims, bool batched_dims_can_be_removed) {
-    dnnl::memory::dims res(sizes.begin(), sizes.end());
-    if (dims > 4) {
-        for (size_t i = 0; i < dims - 4; i++) {
-            res[i + 1] *= res[i];
-        }
-        res.erase(res.begin(), res.begin() + dims - 4);
-    }
-    if (res.size() == 4 && batched_dims_can_be_removed) {
-        res.erase(res.begin(), res.begin() + 2);
-    }
-    return res;
-}
-
 dnnl::memory::format_tag get_default_data_format(const cldnn::layout& l) {
     switch (l.get_partial_shape().size()) {
     case 2: return dnnl::memory::format_tag::ab;
@@ -132,6 +108,8 @@ dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, forma
         case 2: return dnnl::memory::format_tag::ab;
         case 3: return dnnl::memory::format_tag::abc;
         case 4: return dnnl::memory::format_tag::abcd;
+        case 5: return dnnl::memory::format_tag::abcde;
+        case 6: return dnnl::memory::format_tag::abcdef;
         default: throw std::invalid_argument("[clDNN] Unsupported conversion from "+ std::to_string(dims.size()) + " to onednn format_tag");
         }
     }

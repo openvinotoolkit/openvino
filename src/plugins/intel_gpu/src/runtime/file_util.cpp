@@ -9,7 +9,7 @@ namespace ov::intel_gpu {
 
 void save_binary(const std::string &path, const std::vector<uint8_t>& binary) {
     try {
-        ov::util::save_binary(path, binary);
+        ov::util::save_binary(ov::util::make_path(path), binary.data(), binary.size());
     } catch (std::runtime_error&) {}
 }
 

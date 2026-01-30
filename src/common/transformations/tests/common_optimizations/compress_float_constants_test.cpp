@@ -28,6 +28,8 @@
 using namespace ov;
 using namespace testing;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 TEST_F(TransformationTestsF, CompressConstants_f32) {
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
@@ -156,25 +158,25 @@ TEST_F(TransformationTestsF, CompressConstants_f32_If) {
                                                                 default_scales_node,
                                                                 axes_node,
                                                                 interpolate4_attr);
-        auto then_op_result = std::make_shared<ov::op::v0::Result>(resize);
+        auto then_op_result = std::make_shared<v0::Result>(resize);
         auto body_then_function =
             std::make_shared<ov::Model>(ov::OutputVector{then_op_result}, ov::ParameterVector{input_then});
 
         // create else body
         auto input_else = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
-        auto else_op_result = std::make_shared<ov::op::v0::Result>(input_else);
+        auto else_op_result = std::make_shared<v0::Result>(input_else);
         auto body_else_function =
             std::make_shared<ov::Model>(ov::OutputVector{else_op_result}, ov::ParameterVector{input_else});
 
         // create main graph
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
-        auto cond = std::make_shared<ov::op::v0::Constant>(element::boolean, Shape{1}, true);
+        auto cond = std::make_shared<v0::Constant>(element::boolean, Shape{1}, true);
         auto if_op = std::make_shared<ov::opset8::If>(cond);
         if_op->set_then_body(body_then_function);
         if_op->set_else_body(body_else_function);
         if_op->set_input(input, input_then, input_else);
         if_op->set_output(then_op_result, else_op_result);
-        auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
+        auto if_result = std::make_shared<v0::Result>(if_op);
 
         model = std::make_shared<ov::Model>(OutputVector{if_result}, ParameterVector{input});
 
@@ -221,25 +223,25 @@ TEST_F(TransformationTestsF, CompressConstants_f32_If) {
                                                                 default_scales_node,
                                                                 axes_node,
                                                                 interpolate4_attr);
-        auto then_op_result = std::make_shared<ov::op::v0::Result>(resize);
+        auto then_op_result = std::make_shared<v0::Result>(resize);
         auto body_then_function =
             std::make_shared<ov::Model>(ov::OutputVector{then_op_result}, ov::ParameterVector{input_then});
 
         // create else body
         auto input_else = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
-        auto else_op_result = std::make_shared<ov::op::v0::Result>(input_else);
+        auto else_op_result = std::make_shared<v0::Result>(input_else);
         auto body_else_function =
             std::make_shared<ov::Model>(ov::OutputVector{else_op_result}, ov::ParameterVector{input_else});
 
         // create main graph
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
-        auto cond = std::make_shared<ov::op::v0::Constant>(element::boolean, Shape{1}, true);
+        auto cond = std::make_shared<v0::Constant>(element::boolean, Shape{1}, true);
         auto if_op = std::make_shared<ov::opset8::If>(cond);
         if_op->set_then_body(body_then_function);
         if_op->set_else_body(body_else_function);
         if_op->set_input(input, input_then, input_else);
         if_op->set_output(then_op_result, else_op_result);
-        auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
+        auto if_result = std::make_shared<v0::Result>(if_op);
 
         model_ref = std::make_shared<ov::Model>(OutputVector{if_result}, ParameterVector{input});
     }
@@ -528,11 +530,10 @@ TEST_F(TransformationTestsF, CompressConstants_compress_to_f16_denormal_vals) {
 TEST_F(TransformationTestsF, KeepFWPrecisionForFP16Constants_test_1) {
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
-        auto const_weights = ov::op::v0::Constant::create(
-            ov::element::f16,
-            ov::Shape{1, 3, 3, 3},
-            {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
-        auto convert_node = std::make_shared<ov::op::v0::Convert>(const_weights, element::f32);
+        auto const_weights =
+            v0::Constant::create(ov::element::f16, ov::Shape{1, 3, 3, 3}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+                                                                           6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+        auto convert_node = std::make_shared<v0::Convert>(const_weights, element::f32);
 
         auto conv = std::make_shared<ov::opset8::Convolution>(input,
                                                               convert_node,
@@ -553,7 +554,7 @@ TEST_F(TransformationTestsF, KeepFWPrecisionForFP16Constants_test_1) {
             ov::Shape{1, 3, 3, 3},
             {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
 
-        auto convert_node = std::make_shared<ov::op::v0::Convert>(const_weights, element::f32);
+        auto convert_node = std::make_shared<v0::Convert>(const_weights, element::f32);
         auto conv = std::make_shared<ov::opset8::Convolution>(input,
                                                               convert_node,
                                                               ov::Strides{1, 1},
@@ -568,11 +569,10 @@ TEST_F(TransformationTestsF, KeepFWPrecisionForFP16Constants_test_1) {
 TEST_F(TransformationTestsF, KeepFWPrecisionForBF16Constants_test_1) {
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 12, 12});
-        auto const_weights = ov::op::v0::Constant::create(
-            ov::element::bf16,
-            ov::Shape{1, 3, 3, 3},
-            {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
-        auto convert_node = std::make_shared<ov::op::v0::Convert>(const_weights, element::f32);
+        auto const_weights =
+            v0::Constant::create(ov::element::bf16, ov::Shape{1, 3, 3, 3}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5,
+                                                                            6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+        auto convert_node = std::make_shared<v0::Convert>(const_weights, element::f32);
 
         auto conv = std::make_shared<ov::opset8::Convolution>(input,
                                                               convert_node,
@@ -593,7 +593,7 @@ TEST_F(TransformationTestsF, KeepFWPrecisionForBF16Constants_test_1) {
             ov::Shape{1, 3, 3, 3},
             {1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9});
 
-        auto convert_node = std::make_shared<ov::op::v0::Convert>(const_weights, element::f32);
+        auto convert_node = std::make_shared<v0::Convert>(const_weights, element::f32);
         auto conv = std::make_shared<ov::opset8::Convolution>(input,
                                                               convert_node,
                                                               ov::Strides{1, 1},
@@ -614,17 +614,17 @@ struct TestParams {
 
 auto build_model_DetectFakeQuantize = [](const TestParams&) -> std::shared_ptr<ov::Model> {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3});
-    auto input_low = ov::op::v0::Constant::create(element::u8, Shape{}, {1});
-    auto input_high = ov::op::v0::Constant::create(element::u8, Shape{}, {2});
-    auto output_low = ov::op::v0::Constant::create(element::u8, Shape{}, {1});
-    auto output_high = ov::op::v0::Constant::create(element::u8, Shape{}, {2});
-    auto fq = std::make_shared<ov::op::v0::FakeQuantize>(input, input_low, input_high, output_low, output_high, 1);
+    auto input_low = v0::Constant::create(element::u8, Shape{}, {1});
+    auto input_high = v0::Constant::create(element::u8, Shape{}, {2});
+    auto output_low = v0::Constant::create(element::u8, Shape{}, {1});
+    auto output_high = v0::Constant::create(element::u8, Shape{}, {2});
+    auto fq = std::make_shared<v0::FakeQuantize>(input, input_low, input_high, output_low, output_high, 1);
     return std::make_shared<ov::Model>(ov::OutputVector{fq}, ov::ParameterVector{input});
 };
 
 auto build_model_DetectFakeConvert = [](const TestParams&) -> std::shared_ptr<ov::Model> {
     auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3});
-    auto scale = ov::op::v0::Constant::create(element::f32, Shape{}, {1});
+    auto scale = v0::Constant::create(element::f32, Shape{}, {1});
     auto convert = std::make_shared<ov::op::v13::FakeConvert>(input, scale);
     return std::make_shared<ov::Model>(ov::OutputVector{convert}, ov::ParameterVector{input});
 };
@@ -632,20 +632,20 @@ auto build_model_DetectFakeConvert = [](const TestParams&) -> std::shared_ptr<ov
 auto build_model_DetectCompressedWeights = [](const TestParams& params) -> std::shared_ptr<ov::Model> {
     auto input = std::make_shared<op::v0::Parameter>(element::u8, Shape{2, 1});
 
-    auto weights = ov::op::v0::Constant::create(params.element_type, ov::Shape{1, 2}, {2});
-    auto convert = std::make_shared<ov::op::v0::Convert>(weights, element::u8);
+    auto weights = v0::Constant::create(params.element_type, ov::Shape{1, 2}, {2});
+    auto convert = std::make_shared<v0::Convert>(weights, element::u8);
 
     std::shared_ptr<Node> tail_node = convert;
     if (params.has_subtract) {
-        auto zero_point_const = ov::op::v0::Constant::create(element::u8, ov::Shape{1, 2}, {2});
-        auto zero_point = std::make_shared<ov::op::v0::Convert>(weights, element::u8);
-        auto subtract = std::make_shared<ov::op::v1::Subtract>(convert, zero_point);
+        auto zero_point_const = v0::Constant::create(element::u8, ov::Shape{1, 2}, {2});
+        auto zero_point = std::make_shared<v0::Convert>(weights, element::u8);
+        auto subtract = std::make_shared<v1::Subtract>(convert, zero_point);
         tail_node = subtract;
     }
-    auto multiply_const = ov::op::v0::Constant::create(element::u8, ov::Shape{1, 2}, {2});
-    auto multiply = std::make_shared<ov::op::v1::Multiply>(tail_node, multiply_const);
+    auto multiply_const = v0::Constant::create(element::u8, ov::Shape{1, 2}, {2});
+    auto multiply = std::make_shared<v1::Multiply>(tail_node, multiply_const);
 
-    auto out_multiply = std::make_shared<ov::op::v1::Multiply>(input, multiply);
+    auto out_multiply = std::make_shared<v1::Multiply>(input, multiply);
     return std::make_shared<ov::Model>(ov::OutputVector{out_multiply}, ov::ParameterVector{input});
 };
 

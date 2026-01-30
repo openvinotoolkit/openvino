@@ -10,21 +10,25 @@
 #include "openvino/op/prior_box.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v8 = ov::op::v8;
 ov::pass::ConvertPriorBox8To0::ConvertPriorBox8To0() {
     MATCHER_SCOPE(ConvertPriorBox8To0);
 
-    auto prior_box_v8 = pattern::wrap_type<ov::op::v8::PriorBox>();
+    auto prior_box_v8 = ov::pass::pattern::wrap_type<v8::PriorBox>();
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto prior_box_v8_node = ov::as_type_ptr<ov::op::v8::PriorBox>(m.get_match_root());
+    matcher_pass_callback callback = [=](Matcher& m) {
+        auto prior_box_v8_node = ov::as_type_ptr<v8::PriorBox>(m.get_match_root());
         if (!prior_box_v8_node)
             return false;
 
-        ov::op::v8::PriorBox::Attributes attrs_v8 = prior_box_v8_node->get_attrs();
+        v8::PriorBox::Attributes attrs_v8 = prior_box_v8_node->get_attrs();
         if (!attrs_v8.min_max_aspect_ratios_order)
             return false;
 
-        ov::op::v0::PriorBox::Attributes attrs_v0;
+        v0::PriorBox::Attributes attrs_v0;
         attrs_v0.min_size = attrs_v8.min_size;
         attrs_v0.max_size = attrs_v8.max_size;
         attrs_v0.aspect_ratio = attrs_v8.aspect_ratio;
@@ -38,9 +42,9 @@ ov::pass::ConvertPriorBox8To0::ConvertPriorBox8To0() {
         attrs_v0.variance = attrs_v8.variance;
         attrs_v0.scale_all_sizes = attrs_v8.scale_all_sizes;
 
-        auto prior_box_v0 = std::make_shared<ov::op::v0::PriorBox>(prior_box_v8_node->input_value(0),
-                                                                   prior_box_v8_node->input_value(1),
-                                                                   attrs_v0);
+        auto prior_box_v0 = std::make_shared<v0::PriorBox>(prior_box_v8_node->input_value(0),
+                                                           prior_box_v8_node->input_value(1),
+                                                           attrs_v0);
         prior_box_v0->set_friendly_name(prior_box_v8_node->get_friendly_name());
         ov::copy_runtime_info(prior_box_v8_node, prior_box_v0);
         ov::replace_node(prior_box_v8_node, prior_box_v0);
@@ -48,6 +52,6 @@ ov::pass::ConvertPriorBox8To0::ConvertPriorBox8To0() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(prior_box_v8, matcher_name);
+    auto m = std::make_shared<Matcher>(prior_box_v8, matcher_name);
     register_matcher(m, callback);
 }
