@@ -133,27 +133,32 @@ KERNEL (index_add_)(const __global MOE_DTYPE* src_tok,
 #elif PREFILL_SWIGLU_ENABLE
 
 #define SWISH_BETA 1.0f
+#define ACC_DTYPE float
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL(swiglu_ref) (
-    const __global MOE_DTYPE* up, // [token_len * expert_topK, hidden_size]
+    const __global MOE_DTYPE* up, // [token_len * expert_topK, inter_size]
     const __global MOE_DTYPE* gate,
-    __global MOE_DTYPE* output    // [token_len * expert_topK, hidden_size]
+    __global MOE_DTYPE* output    // [token_len * expert_topK, inter_size]
 ) {
-    const uint token_idx = get_global_id(0);
-    const uint n_offset = get_global_id(1);
+    const uint token_idx = get_global_id(1);
+    const uint n_offset = get_global_id(0);
+    // gws = {_intermediate_size, token_cnt,  1}
+    // lws = {subgroup_size, 1, 1};
 
-    const uint offset = token_idx * INTERMEDIA_SIZE + n_offset;
 #if MOE_DTYPE_SIZE == 2
-    half up_value = as_half(intel_sub_group_block_read_us((const __global ushort *)(up + offset)));
-    half gate_value = as_half(intel_sub_group_block_read_us((const __global ushort *)(gate + offset)));
-    half value = gate_value / (1.0 + native_exp(-SWISH_BETA * gate_value));
-    MOE_DTYPE result = value * up_value;
+    const uint sg_id = get_sub_group_local_id();
+    const uint offset = token_idx * INTERMEDIA_SIZE + n_offset - sg_id;
+    ACC_DTYPE up_value = as_half(intel_sub_group_block_read_us((const __global ushort *)(up + offset)));
+    ACC_DTYPE gate_value = as_half(intel_sub_group_block_read_us((const __global ushort *)(gate + offset)));
+    ACC_DTYPE value = gate_value / (1.0f + native_exp(-SWISH_BETA * gate_value));
+    half result = value * up_value;
     intel_sub_group_block_write_us((__global ushort *)(output + offset), as_ushort(result));
 #else
-    MOE_DTYPE gate_value = gate[offset];
-    MOE_DTYPE up_value = up[offset];
-    half value = gate_value / (1.0 + native_exp(-SWISH_BETA * gate_value));
-    MOE_DTYPE result = value * up_value;
+    const uint offset = token_idx * INTERMEDIA_SIZE + n_offset;
+    ACC_DTYPE gate_value = gate[offset];
+    ACC_DTYPE up_value = up[offset];
+    ACC_DTYPE value = gate_value / (1.0f + native_exp(-SWISH_BETA * gate_value));
+    ACC_DTYPE result = value * up_value;
     output[offset] = result;
 #endif
 }
