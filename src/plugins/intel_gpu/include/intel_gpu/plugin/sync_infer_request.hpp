@@ -4,25 +4,31 @@
 
 #pragma once
 
-#include <atomic>
-#include <map>
-#include <memory>
-#include <string>
-#include <vector>
-
-#include "intel_gpu/plugin/graph.hpp"
-#include "intel_gpu/plugin/remote_tensor.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "intel_gpu/plugin/graph.hpp"
+#include "intel_gpu/plugin/remote_tensor.hpp"
+
+#include <string>
+#include <map>
+#include <vector>
+#include <memory>
+#include <atomic>
 
 namespace ov::intel_gpu {
 
 class CompiledModel;
 
-enum class TensorOwner : uint8_t { USER = 0, PLUGIN = 1 };
+enum class TensorOwner : uint8_t {
+    USER = 0,
+    PLUGIN = 1
+};
 
 struct TensorWrapper {
-    TensorWrapper(const std::shared_ptr<ov::ITensor>& _ptr, TensorOwner _owner) : ptr(_ptr), owner(_owner), actual_size(_ptr ? _ptr->get_byte_size() : 0) {}
+    TensorWrapper(const std::shared_ptr<ov::ITensor>& _ptr, TensorOwner _owner)
+        : ptr(_ptr)
+        , owner(_owner)
+        , actual_size(_ptr ? _ptr->get_byte_size() : 0) {}
 
     TensorWrapper(const TensorWrapper& other) = default;
     TensorWrapper() = default;
@@ -37,7 +43,7 @@ public:
     using Ptr = std::shared_ptr<SyncInferRequest>;
 
     explicit SyncInferRequest(const std::shared_ptr<const CompiledModel>& compiled_model);
-    SyncInferRequest(const SyncInferRequest&) = delete;
+    SyncInferRequest(const SyncInferRequest &) = delete;
     ~SyncInferRequest() override = default;
 
     void infer() override;
@@ -57,9 +63,7 @@ public:
     void enqueue();
     void wait();
 
-    bool use_external_queue() const {
-        return m_use_external_queue;
-    }
+    bool use_external_queue() const { return m_use_external_queue; }
 
 private:
     void check_tensors() const override;
@@ -114,9 +118,6 @@ private:
     void init_mappings();
     bool is_batched_input(const ov::Output<const ov::Node>& port) const;
     uint64_t total_output_bytes = 0;
-    // Variable to hold the inference request string with compiled model name
-    // to prevent this string being constructed for each inference call
-    std::string m_itt_infer_request_str;
 };
 
 }  // namespace ov::intel_gpu
