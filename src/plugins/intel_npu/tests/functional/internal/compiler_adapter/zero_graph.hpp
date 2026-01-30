@@ -11,7 +11,6 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
-#include "common_test_utils/test_constants.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_mem.hpp"
 #include "intel_npu/utils/zero/zero_mem_pool.hpp"
