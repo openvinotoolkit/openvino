@@ -59,10 +59,9 @@ Event::~Event() {
     _handle = nullptr;
 }
 
-CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const uint32_t& group_ordinal, const std::vector<unsigned char*>& input_addresses)
+CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const uint32_t& group_ordinal)
     : _init_structs(init_structs),
-      _log("CommandList", Logger::global().level()),
-      _graph_args(input_addresses.size(), ze_mutable_graph_argument_exp_desc_t{}) {
+      _log("CommandList", Logger::global().level()) {
     ze_mutable_command_list_exp_desc_t mutable_desc = {ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_LIST_EXP_DESC, nullptr, 0};
     ze_command_list_desc_t desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, &mutable_desc, group_ordinal, 0};
     THROW_ON_FAIL_FOR_LEVELZERO(
@@ -91,21 +90,6 @@ CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_stru
                                         zeCommandListGetNextCommandIdExp(_handle, &mutable_cmd_id_desc, &_command_id))
         } else {
             THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListGetNextCommandIdExp", result)
-        }
-    }
-
-    if (!input_addresses.empty()) {
-        for (uint32_t index = 0; index < _graph_args.size(); ++index) {
-            _graph_args.at(index).stype = (_init_structs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 11))
-                        ? ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC
-                        : static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED);
-            _graph_args.at(index).pNext = nullptr;
-            _graph_args.at(index).commandId = _command_id;
-            _graph_args.at(index).argIndex = index;
-            _graph_args.at(index).pArgValue = input_addresses.at(index);
-            if (index > 0) {
-                _graph_args.at(index - 1).pNext = &_graph_args.at(index);
-            }
         }
     }
 }
@@ -146,8 +130,35 @@ CommandList::~CommandList() {
     _handle = nullptr;
 }
 void CommandList::updateMutableCommandList(uint32_t index, const void* data) const {
-    _graph_args.at(index).pArgValue = data;
-    _updated_graph_arguments = true;
+    static ze_mutable_graph_argument_exp_desc_t last_desc = {(_init_structs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 11))
+                        ? ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC
+                        : static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED), nullptr, 0, 0, nullptr};
+    static size_t counter = 0;
+    if (counter == 1) {
+        ze_mutable_graph_argument_exp_desc_t desc = {};
+
+        desc.stype = (_init_structs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 11))
+                        ? ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC
+                        : static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED);
+        desc.commandId = _command_id;
+        desc.argIndex = index;
+        desc.pArgValue = data;
+
+        last_desc.pNext = &desc;
+
+        ze_mutable_commands_exp_desc_t mutable_commands_exp_desc_t = {ZE_STRUCTURE_TYPE_MUTABLE_COMMANDS_EXP_DESC,
+                                                                    &last_desc,
+                                                                    0};
+
+        THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListUpdateMutableCommandsExp",
+                                    zeCommandListUpdateMutableCommandsExp(_handle, &mutable_commands_exp_desc_t));
+        counter = 0;
+    } else {
+        last_desc.commandId = _command_id;
+        last_desc.argIndex = index;
+        last_desc.pArgValue = data;
+        ++counter;
+    }
 }
 void CommandList::updateMutableCommandListWithStrides(uint32_t index,
                                                       const void* data,
