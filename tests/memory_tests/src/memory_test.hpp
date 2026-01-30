@@ -144,6 +144,19 @@ inline std::string jsonescape(const std::string &str) {
     return newstr;
 }
 
+
+// To be defined in the test
+std::vector<std::string> test_samples();
+
+std::vector<std::string> registered_samples_init() {
+    auto samples = test_samples();
+    samples.emplace_back("unload");
+    return samples;
+}
+
+static std::vector<std::string> registered_samples = registered_samples_init();
+
+
 struct TestContext {
     std::string model_path;
     std::string device;
@@ -159,22 +172,34 @@ struct TestContext {
         }
         if (argc > 1) {
             model_path = argv[1];
-            // assert path exists
         }
         if (argc > 2) {
             device = argv[2];
-            // assert known string
         }
 
         return {model_path, device};
     }
 
+    bool is_sample_registered(std::string &sample_name) {
+        for (auto registered_sample_name: registered_samples) {
+            if (registered_sample_name == sample_name) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     void sample(std::string sample_name) {
+        if (!is_sample_registered(sample_name)) {
+            // registered_samples must contain all possible sample names that this
+            // test can yield. It is required to properly report crashed tests
+            std::string error_msg = "sample \"" + sample_name + "\" is not defined in registered_samples";
+            throw std::runtime_error(error_msg);
+        }
         samples.emplace_back(std::move(sample_name), MemoryCounters::sample());
     }
 
     void report() {
-        // auto model_path = json_escape(model_path);  // required for Windows
         std::cout << "TEST_RESULTS: {"
         << "\"test\": \"" << AS_STR(TEST_NAME) << "\", "
         << "\"model_path\": \"" << jsonescape(model_path) << "\", "
@@ -196,12 +221,27 @@ struct TestContext {
 };
 
 
+// To be defined in the test
 void do_test(TestContext &test);
 
 
 int main(int argc, char **argv) {
+    if (argc == 2 && std::string("--info") == argv[1]) {
+        std::cout << "TEST_INFO: {\"samples\": [";
+        for (auto &sample_name: registered_samples) {
+            std::cout << "\"" << sample_name << "\"";
+            if (&sample_name != &registered_samples.back()) {
+                std::cout << ", ";
+            }
+        }
+        std::cout << "]}" << std::endl;
+        return 0;
+    }
+
     TestContext test = TestContext::from_args(argc, argv);
     do_test(test);
     test.sample("unload");
     test.report();
+
+    return 0;
 }

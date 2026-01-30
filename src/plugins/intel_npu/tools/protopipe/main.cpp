@@ -83,7 +83,7 @@ bool parseCommandLine(int* argc, char*** argv) {
         return false;
     }
     if (FLAGS_v) {
-        std::cout << APP_VERSION << std::endl;
+        // NB: Version is already printed at the start of main()
         return false;
     }
     if (FLAGS_cfg.empty()) {
@@ -191,7 +191,7 @@ static Simulation::Ptr createSimulation(const std::string& mode, StreamDesc&& st
                                     std::move(stream.output_data_map), std::move(stream.per_iter_outputs_path)};
         simulation = std::make_shared<ValSimulation>(std::move(cfg), std::move(opts));
     } else if (mode == "accuracy") {
-        AccuracySimulation::Options opts{FLAGS_reference_device, FLAGS_target_device, config.initializer,
+        AccuracySimulation::Options opts{FLAGS_reference_device, FLAGS_target_device, config.npu_compiler_type, config.initializer,
                                     std::move(stream.initializers_map), std::move(stream.input_data_map),
                                     std::move(stream.output_data_map), config.metric, std::move(stream.metrics_map)};
         simulation = std::make_shared<AccuracySimulation>(std::move(cfg), std::move(opts));
@@ -205,6 +205,7 @@ static Simulation::Ptr createSimulation(const std::string& mode, StreamDesc&& st
 int main(int argc, char* argv[]) {
     // NB: Intentionally wrapped into try-catch to display exceptions occur on windows.
     try {
+        std::cout << "Protopipe " << APP_VERSION << std::endl;
         if (!parseCommandLine(&argc, &argv)) {
             return 0;
         }

@@ -11,13 +11,16 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v11 = ov::op::v11;
 ov::pass::ConvertTopK11ToTopK3::ConvertTopK11ToTopK3() {
     MATCHER_SCOPE(ConvertTopK11ToTopK3);
 
-    const auto topk_v11_pattern = pattern::wrap_type<ov::op::v11::TopK>();
+    const auto topk_v11_pattern = ov::pass::pattern::wrap_type<v11::TopK>();
 
-    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
-        const auto topk_v11 = ov::as_type_ptr<ov::op::v11::TopK>(m.get_match_root());
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+        const auto topk_v11 = ov::as_type_ptr<v11::TopK>(m.get_match_root());
         if (!topk_v11 || transformation_callback(topk_v11)) {
             return false;
         }
@@ -40,6 +43,6 @@ ov::pass::ConvertTopK11ToTopK3::ConvertTopK11ToTopK3() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(topk_v11_pattern, matcher_name);
+    auto m = std::make_shared<Matcher>(topk_v11_pattern, matcher_name);
     register_matcher(m, callback);
 }

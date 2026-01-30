@@ -16,7 +16,7 @@ namespace variadic {
 /// \brief Create an OpenVINO version of an ONNX variadic operation.
 ///        This creates a subgraph with a series of binary operations.
 ///
-/// \param node Incoming ONNX opearation.
+/// \param node Incoming ONNX operation.
 ///
 /// \tparam T   Class of an OpenVINO binary operation (e.g. Add, Minimum, Maximum)
 ///

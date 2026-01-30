@@ -14,6 +14,7 @@
 #include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
 #include "translate_session.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -45,7 +46,7 @@ OutputVector NodeContext::as_constant() const {
     } else {
         auto c_outs = m_decoder->as_constant();
         FRONT_END_OP_CONVERSION_CHECK(c_outs.size() == 1, "Constant must have exactly one output.");
-        if (dtype.is<type::Tensor>() && dtype.as<type::Tensor>().element_type.is<type::Complex>()) {
+        if (simplified_type_interpret(dtype).is<type::Complex>()) {
             // Add complex mark to complex constant
             c_outs = {mark_node(std::make_shared<ComplexTypeMark>(c_outs[0], c_outs[0].get_element_type()))};
         }
@@ -113,11 +114,11 @@ Output<Node> NodeContext::get_tensor_from_model_or_create_input(size_t index) co
 }
 
 Output<Node> NodeContext::get_input_from_visible_context(size_t index) const {
-    FRONT_END_GENERAL_CHECK(index < get_input_size(), "Index ", index, " is lower then number of inputs.");
+    FRONT_END_GENERAL_CHECK(index < get_input_size(), "Index ", index, " is lower than number of inputs.");
     auto input_tensor = get_input(static_cast<int>(index));
     auto input_node = input_tensor.get_node_shared_ptr();
     if (ov::as_type_ptr<v0::Parameter>(input_node)) {
-        // We need to look into external context for inputs that would be feed into this parameter
+        // We need to look into external context for inputs that would be fed into this parameter
         size_t tensor_idx = m_translate_session->decode_tensor_name(input_node->output(0));
         if (m_ext_tensor_map.count(tensor_idx)) {
             input_tensor = m_ext_tensor_map.at(tensor_idx);
@@ -365,6 +366,10 @@ Any NodeContext::get_values_from_const_input(int index) const {
             return get_constant_data<int16_t>(constant);
         case element::u16:
             return get_constant_data<uint16_t>(constant);
+        case element::f16:
+            return get_constant_data<ov::float16>(constant);
+        case element::bf16:
+            return get_constant_data<ov::bfloat16>(constant);
         case element::boolean:
             return get_constant_data<bool>(constant);
         default:

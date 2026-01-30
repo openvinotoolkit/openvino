@@ -10,8 +10,9 @@
 #include "openvino/op/parameter.hpp"
 #include "transformations/hash.hpp"
 
+namespace v0 = ov::op::v0;
 namespace ov::test {
-using ov::op::v0::Parameter, ov::op::v0::Constant, ov::op::v1::Add;
+using v0::Parameter, v0::Constant, ov::op::v1::Add;
 
 TEST(HashTest, same_model_hashed_without_weights) {
     uint64_t hash1 = 0, hash2 = 0;
@@ -42,4 +43,30 @@ TEST(HashTest, same_model_hashed_without_weights) {
 
     EXPECT_EQ(hash1, hash2);
 }
+
+TEST(HashTest, same_model_struct_different_weigth) {
+    uint64_t hash1 = 0, hash2 = 0;
+
+    {
+        int data_value = 121;
+        auto out = std::make_shared<Add>(std::make_shared<Parameter>(element::i32, Shape{1}),
+                                         std::make_shared<Constant>(element::i32, Shape{1}, &data_value));
+        auto model = std::make_shared<Model>(OutputVector{out}, "TestModel");
+
+        ov::pass::Hash hasher(hash1);
+        hasher.run_on_model(model);
+    }
+    {
+        int data_value = 13;
+        auto out = std::make_shared<Add>(std::make_shared<Parameter>(element::i32, Shape{1}),
+                                         std::make_shared<Constant>(element::i32, Shape{1}, &data_value));
+        auto model = std::make_shared<Model>(OutputVector{out}, "TestModel");
+
+        ov::pass::Hash hasher(hash2);
+        hasher.run_on_model(model);
+    }
+
+    EXPECT_NE(hash1, hash2);
+}
+
 }  // namespace ov::test

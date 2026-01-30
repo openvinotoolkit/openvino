@@ -54,7 +54,7 @@ class GraphIteratorProto : public ov::frontend::onnx::GraphIterator {
     GraphIteratorProtoMemoryManagementMode m_mode;
     // This is used for keeping MMAP cache handles
     MappedMemoryHandles m_mmap_cache;
-    // This is used for keeping a readed external data without MMAP
+    // This is used for keeping external data read without MMAP
     LocalStreamHandles m_stream_cache;
     LocalMemoryHandles m_data_holder;
 
@@ -148,6 +148,8 @@ protected:
     /// \param name Name of tensor
     /// \param owner Returns real owner of the tensor
     std::shared_ptr<DecoderProtoTensor> get_tensor(const std::string& name, GraphIteratorProto** owner);
+
+private:
 };
 
 }  // namespace onnx
