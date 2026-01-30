@@ -24,12 +24,11 @@ bool evaluate(const std::shared_ptr<ov::op::internal::RMS>& node,
 
     const auto& in_type = inputs[0].get_element_type();
     const auto& out_type = outputs[0].get_element_type();
-    const bool has_gamma = node->get_elementwise_affine();
 
     // The type compression mechanism is implemented for F16 only
     // The scale is expected to have the same type as the first input
     if (in_type != out_type && out_type == ov::element::f16) {
-        if (has_gamma) {
+        if (node->get_elementwise_affine()) {
             ov::reference::rms_norm_mul_convert_out(inputs[0].data<ET>(),
                                                     normalized_axes,
                                                     outputs[0].data<ov::float16>(),
@@ -47,7 +46,7 @@ bool evaluate(const std::shared_ptr<ov::op::internal::RMS>& node,
             ov::reference::convert(temp_output.data(), outputs[0].data<ov::float16>(), temp_output.size());
         }
     } else {
-        if (has_gamma) {
+        if (node->get_elementwise_affine()) {
             ov::reference::rms_norm(inputs[0].data<ET>(),
                                     normalized_axes,
                                     outputs[0].data<ET>(),

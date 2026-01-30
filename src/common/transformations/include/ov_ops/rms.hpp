@@ -24,23 +24,19 @@ public:
     /// \param gamma Gamma values for weight
     /// \param eps Epsilon for not dividing by zero while normalizing the value
     /// \param output_type Output element type
-    /// \param elementwise_affine A boolean value that when set to True, RMS has learnable affine parameters
     RMS(const Output<Node>& data,
         const Output<Node>& gamma,
-        double epsilson,
-        const ov::element::Type output_type = ov::element::dynamic,
-        bool elementwise_affine = true);
+        double epsilon,
+        const ov::element::Type output_type = ov::element::dynamic);
 
     /// @brief Constructs an RMS operation without gamma.
     ///
     /// @param data Input tensor with data
     /// @param eps Epsilon for not dividing by zero while normalizing the value
     /// @param output_type Output element type
-    /// @param elementwise_affine A boolean value that when set to True, RMS has learnable affine parameters
     RMS(const Output<Node>& data,
-        double epsilson,
-        const ov::element::Type output_type = ov::element::dynamic,
-        bool elementwise_affine = false);
+        double epsilon,
+        const ov::element::Type output_type = ov::element::dynamic);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 

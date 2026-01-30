@@ -10,21 +10,20 @@ namespace internal {
 
 RMS::RMS(const Output<Node>& data,
          const Output<Node>& gamma,
-         double epsilson,
-         const ov::element::Type output_type,
-         bool elementwise_affine)
+         double epsilon,
+         const ov::element::Type output_type)
     : Op({data, gamma}),
-      m_epsilon(epsilson),
+      m_epsilon(epsilon),
       m_output_type(output_type),
-      m_elementwise_affine(elementwise_affine) {
+      m_elementwise_affine(true) {
     validate_and_infer_types();
 }
 
-RMS::RMS(const Output<Node>& data, double epsilson, const ov::element::Type output_type, bool elementwise_affine)
+RMS::RMS(const Output<Node>& data, double epsilon, const ov::element::Type output_type)
     : Op({data}),
-      m_epsilon(epsilson),
+      m_epsilon(epsilon),
       m_output_type(output_type),
-      m_elementwise_affine(elementwise_affine) {
+      m_elementwise_affine(false) {
     validate_and_infer_types();
 }
 
@@ -45,7 +44,7 @@ std::shared_ptr<Node> RMS::clone_with_new_inputs(const ov::OutputVector& new_arg
     if (new_args.size() == 1) {
         return std::make_shared<RMS>(new_args.at(0), m_epsilon, m_output_type);
     }
-    return std::make_shared<RMS>(new_args.at(0), new_args.at(1), m_epsilon, m_output_type, m_elementwise_affine);
+    return std::make_shared<RMS>(new_args.at(0), new_args.at(1), m_epsilon, m_output_type);
 }
 
 }  // namespace internal
