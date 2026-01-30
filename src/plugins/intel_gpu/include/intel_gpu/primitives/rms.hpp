@@ -19,28 +19,24 @@ struct rms : public primitive_base<rms> {
     /// @param input Input primitive id
     /// @param gamma Gamma values for weight
     /// @param epsilon Epsilon for not dividing by zero while normalizing
-    /// @param elementwise_affine A boolean value that when set to True, RMS has learnable affine parameters
     rms(const primitive_id& id,
         const input_info& input,
         const input_info& gamma,
-        const float epsilon,
-        const bool elementwise_affine = true)
+        const float epsilon)
         : primitive_base(id, {input, gamma}),
           epsilon(epsilon),
-          elementwise_affine(elementwise_affine) {}
+          elementwise_affine(true) {}
 
     /// @brief Constructs rms primitive without gamma
     /// @param id This primitive id
     /// @param input Input primitive id
     /// @param epsilon Epsilon for not dividing by zero while normalizing
-    /// @param elementwise_affine A boolean value that when set to True, RMS has learnable affine parameters
     rms(const primitive_id& id,
         const input_info& input,
-        const float epsilon,
-        const bool elementwise_affine = false)
+        const float epsilon)
         : primitive_base(id, {input}),
           epsilon(epsilon),
-          elementwise_affine(elementwise_affine) {}
+          elementwise_affine(false) {}
 
     /// @brief Epsilon for not dividing by zero while normalizing
     float epsilon;

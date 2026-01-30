@@ -345,7 +345,7 @@ TEST_F(TransformationTestsF, RMSNormFusionTest10) {
         auto input = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1, 2, 6});
         auto scale = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1, 2, 6});
 
-        auto rms = std::make_shared<ov::op::internal::RMS>(input, 1e-5f, ov::element::f32, false);
+        auto rms = std::make_shared<ov::op::internal::RMS>(input, 1e-5f, ov::element::f32);
         auto mul = std::make_shared<ov::opset10::Multiply>(rms, scale);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input, scale});
@@ -377,7 +377,7 @@ TEST_F(TransformationTestsF, RMSNormFusionTest11) {
         auto input = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, 6});
         auto scale = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, 6});
 
-        auto rms = std::make_shared<ov::op::internal::RMS>(input, 1e-6f, ov::element::f32, false);
+        auto rms = std::make_shared<ov::op::internal::RMS>(input, 1e-6f, ov::element::f32);
         auto mul = std::make_shared<ov::opset10::Multiply>(rms, scale);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input, scale});

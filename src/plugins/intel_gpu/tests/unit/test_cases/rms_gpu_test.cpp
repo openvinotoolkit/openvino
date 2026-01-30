@@ -14,7 +14,7 @@ using namespace ::tests;
 class rms_gpu_test : public ::testing::TestWithParam<cldnn::format> {};
 
 template <typename T>
-void rms_ref(const memory::ptr input, const memory::ptr gamma, memory::ptr output, float epsilon, bool has_gamma = true) {
+void rms_ref(const memory::ptr input, const memory::ptr gamma, memory::ptr output, float epsilon) {
     auto input_layout = input->get_layout();
 
     uint32_t batch_size = input_layout.batch();
@@ -26,7 +26,7 @@ void rms_ref(const memory::ptr input, const memory::ptr gamma, memory::ptr outpu
     cldnn::mem_lock<T> dst(output, get_test_stream());
     
     std::unique_ptr<cldnn::mem_lock<T>> weight;
-    if (has_gamma && gamma) {
+    if (gamma) {
         weight = std::make_unique<cldnn::mem_lock<T>>(gamma, get_test_stream());
     }
 
@@ -52,7 +52,7 @@ void rms_ref(const memory::ptr input, const memory::ptr gamma, memory::ptr outpu
                     size_t dst_offset = input_layout.get_linear_offset(tensor_dst);
                     
                     float gamma_val = 1.0f;
-                    if (has_gamma && weight) {
+                    if (weight) {
                         auto tensor_weight = tensor(batch(0), feature(0), spatial(x, y, 0, 0));
                         size_t weight_offset = input_layout.get_linear_offset(tensor_weight);
                         gamma_val = static_cast<float>((*weight)[weight_offset]);
@@ -439,7 +439,7 @@ TEST(rms_gpu_test, rms_test_without_gamma_bfyx_ref) {
         0.006744f, -0.000004f, 0.004303f, -0.002380f, 0.000072f, 0.001404f
     });
 
-    rms_ref<float>(input, nullptr, output_ref, 1e-5f, false);
+    rms_ref<float>(input, nullptr, output_ref, 1e-5f);
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -475,11 +475,11 @@ TEST(rms_gpu_test, rms_test_without_gamma_bfyx_opt) {
         0.002258f, 0.006500f, 0.003159f, -0.012329f, 0.026245f, -0.001839f, 0.000259f, 0.002670f
     });
 
-    rms_ref<float>(input, nullptr, output_ref, 1e-5f, false);
+    rms_ref<float>(input, nullptr, output_ref, 1e-5f);
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(rms("rms", input_info("input"), 1e-5f, false));
+    topology.add(rms("rms", input_info("input"), 1e-5f));
 
     network network(engine, topology, get_test_default_config(engine));
 
@@ -508,11 +508,11 @@ TEST(rms_gpu_test, rms_test_without_gamma_dyn) {
 
     tests::set_random_values<float>(input, true, 8, 100);
 
-    rms_ref<float>(input, nullptr, output_ref, 1e-5f, false);
+    rms_ref<float>(input, nullptr, output_ref, 1e-5f);
 
     topology topology;
     topology.add(input_layout("input", input_layout_dynamic));
-    topology.add(rms("rms", input_info("input"), 1e-5f, false));
+    topology.add(rms("rms", input_info("input"), 1e-5f));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));

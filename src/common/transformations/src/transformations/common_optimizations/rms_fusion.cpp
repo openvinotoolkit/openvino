@@ -125,10 +125,10 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
         }
 
         auto mul_or_div_node = pattern_map.at(mul_or_div).get_node_shared_ptr();
-        bool has_gamma = (pattern_map.find(mul_with_gamma) != pattern_map.end());
+        bool elementwise_affine = (pattern_map.find(mul_with_gamma) != pattern_map.end());
 
         std::shared_ptr<ov::Node> gamma_node;
-        if (has_gamma) {
+        if (elementwise_affine) {
             gamma_node = pattern_map.at(gamma).get_node_shared_ptr();
             if (pattern_map.find(gamma_convert) != pattern_map.end()) {
                 gamma_node = pattern_map.at(gamma_convert).get_node_shared_ptr();
@@ -146,14 +146,14 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
         }
 
         auto output_type =
-            has_gamma ? m.get_match_root()->get_output_element_type(0) : mul_or_div_node->get_output_element_type(0);
+            elementwise_affine ? m.get_match_root()->get_output_element_type(0) : mul_or_div_node->get_output_element_type(0);
         std::shared_ptr<ov::op::internal::RMS> rms;
-        if (has_gamma) {
-            rms = std::make_shared<ov::op::internal::RMS>(x_output, gamma_node, eps_value, output_type, true);
+        if (elementwise_affine) {
+            rms = std::make_shared<ov::op::internal::RMS>(x_output, gamma_node, eps_value, output_type);
         } else {
-            rms = std::make_shared<ov::op::internal::RMS>(x_output, eps_value, output_type, false);
+            rms = std::make_shared<ov::op::internal::RMS>(x_output, eps_value, output_type);
         }
-        if (has_gamma) {
+        if (elementwise_affine) {
             rms->set_friendly_name(m.get_match_root()->get_friendly_name());
             ov::copy_runtime_info(m.get_matched_nodes(), rms);
             ov::replace_node(m.get_match_root(), rms);
