@@ -42,6 +42,12 @@ public:
 
     ~jit_aux_gpr_holder();
 
+    jit_aux_gpr_holder(const jit_aux_gpr_holder&) = delete;
+    jit_aux_gpr_holder& operator=(const jit_aux_gpr_holder&) = delete;
+
+    jit_aux_gpr_holder(jit_aux_gpr_holder&&) = delete;
+    jit_aux_gpr_holder& operator=(jit_aux_gpr_holder&&) = delete;
+
     [[nodiscard]] const Xbyak::Reg64& get_reg() const {
         return m_aux_gpr_idx;
     }
