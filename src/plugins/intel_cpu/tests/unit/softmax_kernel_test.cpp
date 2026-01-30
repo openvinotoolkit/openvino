@@ -41,9 +41,9 @@ TEST(SoftmaxKernelTest, AttnSoftmaxKernelWithSparseMask) {
                                                            alibi_slope,
                                                            sparse_mask.data(),
                                                            sparse_block_size);
-    std::vector<float> expect_output = {0.00483724f, 0.013149f, 0.0f, 0.0f, 0.264104, 0.71791f, 0.0f, 0.0f};
+    std::vector<float> expect_output = {0.00483724f, 0.013149f, 0.0f, 0.0f, 0.264104f, 0.71791f, 0.0f, 0.0f};
     for (size_t i = 0; i < output.size(); ++i) {
-        EXPECT_NEAR(output[i], expect_output[i], 1e-4f);
+        EXPECT_NEAR(output[i], expect_output[i], 1e-5f);
     }
 }
 
@@ -78,7 +78,7 @@ TEST(SoftmaxKernelTest, AttnSoftmaxKernelWithNaNInputAndSparseMask) {
                                                            alibi_slope,
                                                            sparse_mask.data(),
                                                            sparse_block_size);
-    std::vector<float> expect_output = {0.00483724f, 0.013149f, 0.0f, 0.0f, 0.264104, 0.71791f, 0.0f, 0.0f};
+    std::vector<float> expect_output = {0.00483724f, 0.013149f, 0.0f, 0.0f, 0.264104f, 0.71791f, 0.0f, 0.0f};
     for (size_t i = 0; i < output.size(); ++i) {
         EXPECT_NEAR(output[i], expect_output[i], 1e-5f);
     }
