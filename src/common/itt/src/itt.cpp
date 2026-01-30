@@ -83,7 +83,7 @@ void taskBegin(domain_t d, handle_t t, const char* key, uint64_t value) {
         // default to the parent task's ID
         __itt_metadata_add(domain,
                            __itt_null,
-                           __itt_string_handle_create(key ? key : "unknown"),
+                           __itt_string_handle_create(key),
                            __itt_metadata_u64,
                            1,
                            static_cast<void*>(const_cast<uint64_t*>(&value)));
@@ -134,7 +134,7 @@ void regionBegin(domain_t d, handle_t t, const char* key, uint64_t value) {
     // Associate the <key-value> pair with the region
     __itt_metadata_add(domain,
                        region_id,
-                       __itt_string_handle_create(key ? key : "unknown"),
+                       __itt_string_handle_create(key),
                        __itt_metadata_u64,
                        1,
                        static_cast<void*>(const_cast<uint64_t*>(&value)));
