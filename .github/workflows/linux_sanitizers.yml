@@ -503,27 +503,25 @@ jobs:
     name: C++ func tests
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     needs: [Docker, Build]
-    timeout-minutes: 180
-    runs-on: aks-linux-8-cores-16gb
+    timeout-minutes: 380
+    runs-on: aks-linux-16-cores-64gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     defaults:
       run:
         shell: bash
     strategy:
-      max-parallel: 3
+      max-parallel: 15
       fail-fast: false
       matrix:
-        include:
-          - SANITIZER: 'AddressAndLeak'
-          - SANITIZER: 'UndefinedBehavior'
-          - SANITIZER: 'Thread'
+        SANITIZER: ['AddressAndLeak', 'UndefinedBehavior', 'Thread']
+        SHARD: [0, 1, 2, 3, 4]
 
     steps:
       - name: Check matrix
         id: check_matrix
-        # by default in scheduled launch we run only AddressAndLeak with *smoke*Conv_* pattern
-        # to prevent false-positive alerts and time exceeded error,
+        # by default in scheduled launch we run only AddressAndLeak with *smoke* pattern
+        # to prevent false-positive alerts,
         # in workflow_dispatch case all smoke tests will be launched with all types of sanitizers
         # if gtestFilter and sanMode inputs are not specified
         if: ${{ (github.event_name == 'workflow_dispatch' && (inputs.sanitizerMode == 'All' || inputs.sanitizerMode == matrix.SANITIZER) || matrix.SANITIZER == 'AddressAndLeak')}}
@@ -575,17 +573,20 @@ jobs:
       - name: CPU plugin func tests
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
         env:
-          GTEST_FILTER: ${{ github.event_name == 'workflow_dispatch' && inputs.gtestFilter || '*smoke*Conv_*' }}
+          GTEST_FILTER: ${{ github.event_name == 'workflow_dispatch' && inputs.gtestFilter || '*smoke*' }}
+          GTEST_TOTAL_SHARDS: 5
+          # 5 shards is a minimum amount to keep job duration < 6 hours
+          GTEST_SHARD_INDEX: ${{ matrix.SHARD }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_print_time=1 \
                 --gtest_filter=${{ env.GTEST_FILTER }} \
-                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUFuncTests.xml
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUFuncTests-${{ matrix.SHARD }}.xml
 
       - name: Upload Test Results
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
         with:
-          name: func-test-results-cpp_${{ matrix.SANITIZER }}
+          name: func-test-results-cpp_${{ matrix.SANITIZER }}_${{ matrix.SHARD }}
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'

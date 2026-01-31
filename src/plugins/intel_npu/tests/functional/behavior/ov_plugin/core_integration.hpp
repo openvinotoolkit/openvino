@@ -474,7 +474,7 @@ TEST_P(OVClassBasicTestPNPU, smoke_registerPluginsLibrariesUnicodePath) {
                     ov::util::make_plugin_library_name(::ov::util::wstring_to_string(unicode_path), lib));
                 bool is_copy_successfully = ov::test::utils::copyFile(libPath, libPathNew);
                 if (!is_copy_successfully) {
-                    FAIL() << "Unable to copy from '" << libPath << "' to '" << libPathNew << "'";
+                    FAIL() << "Unable to copy from '" << libPath.c_str() << "' to '" << libPathNew.c_str() << "'";
                 }
             }
 
