@@ -9,8 +9,12 @@
 
 #define DEBUG_MOE_LOG               0
 #define GPU_MOE_DEBUG_TRACE         std::cout
-#define ENABLE_MOE_BALANCE_WORKLOAD 1
-#define DEBUG_MOE_EXPERTS_INFO     0
+#define DEBUG_MOE_EXPERTS_INFO      0
+
+// 0 - expert order
+// 1 - token_len ordering balancing
+// 2 - token_len zigzag balancing
+#define ENABLE_MOE_BALANCE_WORKLOAD 0
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #    include <algorithm>
@@ -1337,7 +1341,30 @@ public:
             std::vector<int32_t> experts_info_start_idx_cpu(num_total_experts, -1);
             std::vector<int32_t> experts_id_cpu(num_total_experts, -1);
 
-#    if ENABLE_MOE_BALANCE_WORKLOAD
+#    if ENABLE_MOE_BALANCE_WORKLOAD == 1
+            std::vector<std::pair<int, int>> expert_order;
+            for (int expert_idx = 0; expert_idx < num_total_experts; expert_idx++) {
+                if (!expert_mask_cpu.batch[expert_idx].empty()) {
+                    expert_order.push_back({expert_idx, static_cast<int>(expert_mask_cpu.batch[expert_idx].size())});
+                }
+            }
+            std::sort(expert_order.begin(), expert_order.end(), [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+                return a.second > b.second;
+            });
+
+            int tokens_per_expert_iter = 0;
+            int experts_id_iter = 0;
+            for (const auto& expert : expert_order) {
+                int expert_idx = expert.first;
+                experts_info_start_idx_cpu[experts_id_iter] = tokens_per_expert_iter;
+                experts_id_cpu[experts_id_iter] = expert_idx;
+                tokens_lens_per_expert_cpu[experts_id_iter++] = static_cast<int32_t>(expert_mask_cpu.batch[expert_idx].size());
+                num_actually_used_experts++;
+                for (auto t : expert_mask_cpu.batch[expert_idx]) {
+                    tokens_per_expert_cpu[tokens_per_expert_iter++] = t;
+                }
+            }
+#elif ENABLE_MOE_BALANCE_WORKLOAD == 2
             std::vector<std::pair<int, int>> expert_order;
             for (int expert_idx = 0; expert_idx < num_total_experts; expert_idx++) {
                 if (!expert_mask_cpu.batch[expert_idx].empty()) {
@@ -1358,7 +1385,6 @@ public:
                     reordered_expert_order.push_back(expert_order[right--]);
                 }
             }
-
             int tokens_per_expert_iter = 0;
             int experts_id_iter = 0;
             for (const auto& expert : reordered_expert_order) {
