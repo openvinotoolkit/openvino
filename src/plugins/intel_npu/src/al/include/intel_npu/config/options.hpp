@@ -820,7 +820,7 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
     }
 
     static ov::intel_npu::CompilerType defaultValue() {
-        return ov::intel_npu::CompilerType::PREFER_PLUGIN;
+        return ov::intel_npu::CompilerType::DRIVER;
     }
 
     static ov::intel_npu::CompilerType parse(std::string_view val) {
