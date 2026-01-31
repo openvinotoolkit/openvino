@@ -95,27 +95,27 @@ protected:
 namespace detail {
 
 template <class T>
-constexpr inline void check_condition(T&& v) noexcept {}
+inline void check_condition(const T&) noexcept {}
 
 template <std::size_t N>
-constexpr inline void check_condition(const char (&)[N]) noexcept {
+inline void check_condition(const char (&)[N]) noexcept {
     static_assert(N == 0,
                   "OPENVINO_ASSERT: string literal used as condition (always true). "
                   "Did you mean to compare strings or check a pointer?");
 }
 
 template <std::size_t N>
-constexpr inline void check_condition(const wchar_t (&)[N]) noexcept {
+inline void check_condition(const wchar_t (&)[N]) noexcept {
     static_assert(N == 0, "OPENVINO_ASSERT: wide string literal used as condition (always true).");
 }
 
 template <std::size_t N>
-constexpr inline void check_condition(const char16_t (&)[N]) noexcept {
+inline void check_condition(const char16_t (&)[N]) noexcept {
     static_assert(N == 0, "OPENVINO_ASSERT: UTF-16 string literal used as condition (always true).");
 }
 
 template <std::size_t N>
-constexpr inline void check_condition(const char32_t (&)[N]) noexcept {
+inline void check_condition(const char32_t (&)[N]) noexcept {
     static_assert(N == 0, "OPENVINO_ASSERT: UTF-32 string literal used as condition (always true).");
 }
 
