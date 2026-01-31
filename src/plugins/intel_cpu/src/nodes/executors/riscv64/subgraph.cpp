@@ -55,15 +55,17 @@ SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<CPURuntimeConfig>& snip
 void SubgraphExecutor::segfault_detector() const {
     static std::mutex err_print_lock;
     if (enabled_segfault_detector) {
-        __sighandler_t signal_handler = []([[maybe_unused]] int signal) {
-            std::lock_guard<std::mutex> guard(err_print_lock);
-            if (auto* segfault_detector_emitter = ov::intel_cpu::riscv64::g_custom_segfault_handler->local()) {
-                std::cout << segfault_detector_emitter->info() << '\n';
-            }
-            auto tid = parallel_get_thread_num();
-            OPENVINO_THROW("Segfault was caught by the signal handler in subgraph node execution on thread " +
-                           std::to_string(tid));
-        };
+        auto signal_handler =
+            []([[maybe_unused]] int signal) {
+                std::lock_guard<std::mutex> guard(err_print_lock);
+                if (auto* segfault_detector_emitter =
+                    ov::intel_cpu::g_custom_segfault_handler<ov::intel_cpu::riscv64::jit_uni_segfault_detector_emitter>->local()) {
+                    std::cout << segfault_detector_emitter->info() << '\n';
+                }
+                auto tid = parallel_get_thread_num();
+                OPENVINO_THROW("Segfault was caught by the signal handler in subgraph node execution on thread " +
+                               std::to_string(tid));
+            };
         struct sigaction new_handler {};
         new_handler.sa_handler = signal_handler;
         sigaction(SIGSEGV, &new_handler, nullptr);
