@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,11 +9,20 @@
 
 #pragma once
 
+#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <string>
 
 namespace ov {
+
+#ifdef _WIN32
+// Windows uses HANDLE (void*) for file handles
+using FileHandle = void*;
+#else
+// Linux/Unix uses int for file descriptors
+using FileHandle = int;
+#endif
 
 /**
  * @brief This class represents a mapped memory.
@@ -35,19 +44,21 @@ public:
  * @param path Path to a file which memory will be mmaped.
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
-std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path);
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& path);
 
 /**
- * @brief Returns mapped memory for a file from provided path.
- * Instead of reading files, we can map the memory via MapViewOfFile for Windows
- * in order to avoid time-consuming reading and reduce memory consumption.
+ * @brief Returns mapped memory for a file from provided file handle (cross-platform).
+ * Uses mmap on Linux/Unix (with file descriptor) or MapViewOfFile on Windows (with HANDLE).
+ * This allows external control of file access through a callback function.
+ * Do not call load_mmap_object_from_handle directly, use the template wrapper instead.
  *
- * @param path Path to a file which memory will be mmaped.
+ * @param handle Platform-specific file handle (int fd on Linux, HANDLE on Windows).
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
-std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::wstring& path);
+std::shared_ptr<ov::MappedMemory> load_mmap_object_from_handle(FileHandle handle);
 
-#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+template <typename T, std::enable_if_t<std::is_same<T, FileHandle>::value, int> = 0>
+std::shared_ptr<ov::MappedMemory> load_mmap_object(T handle) {
+    return load_mmap_object_from_handle(static_cast<FileHandle>(handle));
+}
 }  // namespace ov

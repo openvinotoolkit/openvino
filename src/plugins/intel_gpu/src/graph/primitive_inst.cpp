@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,12 +54,14 @@
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
+#include "intel_gpu/runtime/tensor_accessor.hpp"
 
 #include "json_object.h"
 #include <string>
 #include <vector>
 #include <memory>
 #include <algorithm>
+#include "utils.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <impls/onednn/utils.hpp>
@@ -514,7 +516,20 @@ void primitive_inst::update_shape() {
     }
 
     if (get_node().is_type<kv_cache>()) {
+        auto& kv_inst = downcast<kv_cache_inst>(*this);
         auto desc = get_node().as<kv_cache>().get_primitive();
+        const auto trim_length = kv_cache_inst::compute_trim_length(*_impl_params, *desc);
+        if (trim_length > 0) {
+            OPENVINO_ASSERT(!(desc->indirect || desc->compressed),
+                            "[GPU] Unsupported trim for indirect or compressed kvcache:  indirect:",
+                            desc->indirect,
+                            "  compressed:",
+                            desc->compressed,
+                            "  trim:",
+                            trim_length);
+        }
+        kv_inst.set_trim_length(trim_length);
+
         auto var_mem_size = get_network().get_variable(desc->variable_info.variable_id).get_actual_mem_size();
         // Need to trigger realloc_if_needed
         if (var_mem_size < _impl_params->get_output_layout(0).get_linear_size())
@@ -642,8 +657,57 @@ void primitive_inst::clear_output_memory() {
     _max_output_layout_count[0] = 0;
 }
 
-void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
-    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("realloc_if_needed: " + id()));
+void primitive_inst::realloc_intermediates() {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("realloc_intermediates: " + id()));
+    GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
+    // intermediate memory allocation is required for primitives consisting of multiple kernels in dynamic case
+
+    if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
+        return;
+
+    if (get_node().is_type<input_layout>())
+        return;
+
+    const auto& buffer_descs = _impl->get_internal_buffer_descs(*_impl_params);
+    if (buffer_descs.empty())
+        return;
+
+    GPU_DEBUG_CODE(std::string memalloc_info = "");
+    for (size_t i = 0; i < buffer_descs.size(); ++i) {
+        auto need_lockable = buffer_descs[i].m_lockable;
+        auto alloc_type = i < _intermediates_memory.size() ? _intermediates_memory[i]->get_allocation_type()
+                                                            : allocation_type::unknown;
+        bool can_reuse = true;
+        can_reuse &= alloc_type != allocation_type::unknown &&
+                        buffer_descs[i].m_layout.bytes_count() <= _max_intermediates_memory_sizes[i];
+        can_reuse &= (need_lockable && alloc_type != cldnn::allocation_type::usm_device) ||
+                        (!need_lockable && alloc_type != cldnn::allocation_type::usm_host);
+
+        if (can_reuse) {
+            _intermediates_memory[i] = get_network().get_engine().reinterpret_buffer(*_intermediates_memory[i], buffer_descs[i].m_layout);
+            GPU_DEBUG_CODE(memalloc_info += ((_intermediates_memory.size() > 1) ? ("i" + to_string(i) + ":") : "") + "reuse_buffer");
+        } else {
+            // TODO: If there is a kernel which requires reset internal buffer in the future,
+            // we'll need additional handle for that purpose like need_reset_output_memory
+            const bool need_reset = false;
+            if (i < _intermediates_memory.size()) {
+                _intermediates_memory[i] = allocate_internal_buffer(buffer_descs[i].m_layout, i, need_reset, need_lockable);
+                _max_intermediates_memory_sizes[i] = _intermediates_memory[i]->size();
+            } else {
+                // i-th layout has not been allocated yet
+                _intermediates_memory.push_back(allocate_internal_buffer(buffer_descs[i].m_layout, i, need_reset, need_lockable));
+                _max_intermediates_memory_sizes.push_back(_intermediates_memory[i]->size());
+            }
+            GPU_DEBUG_CODE(memalloc_info +=
+                            (((_intermediates_memory.size() > 1) ? ("i" + to_string(i) + ":") : "") +
+                            (_intermediates_memory[i]->from_memory_pool ? "from_pool" : "new_alloc")));
+        }
+    }
+    GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
+}
+
+void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("realloc_outputs: " + id()));
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
 
     const auto& users = get_user_insts();
@@ -1140,46 +1204,11 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
     }
 
     _mem_allocated = true;
-    // intermediate memory allocation is required for primitives consisting of multiple kernels in dynamic case
-    {
-        if (_impl == nullptr)
-            return;
-        const auto& buffer_descs = _impl->get_internal_buffer_descs(*_impl_params);
-        if (buffer_descs.empty())
-            return;
-        GPU_DEBUG_CODE(std::string memalloc_info = "");
-        for (size_t i = 0; i < buffer_descs.size(); ++i) {
-            auto need_lockable = buffer_descs[i].m_lockable;
-            auto alloc_type = i < _intermediates_memory.size() ? _intermediates_memory[i]->get_allocation_type()
-                                                               : allocation_type::unknown;
-            bool can_reuse = true;
-            can_reuse &= alloc_type != allocation_type::unknown &&
-                         buffer_descs[i].m_layout.bytes_count() <= _max_intermediates_memory_sizes[i];
-            can_reuse &= (need_lockable && alloc_type != cldnn::allocation_type::usm_device) ||
-                         (!need_lockable && alloc_type != cldnn::allocation_type::usm_host);
+}
 
-            if (can_reuse) {
-                _intermediates_memory[i] = get_network().get_engine().reinterpret_buffer(*_intermediates_memory[i], buffer_descs[i].m_layout);
-               GPU_DEBUG_CODE(memalloc_info += ((_intermediates_memory.size() > 1) ? ("i" + to_string(i) + ":") : "") + "reuse_buffer");
-            } else {
-                // TODO: If there is a kernel which requires reset internal buffer in the future,
-                // we'll need additional handle for that purpose like need_reset_output_memory
-                const bool need_reset = false;
-                if (i < _intermediates_memory.size()) {
-                    _intermediates_memory[i] = allocate_internal_buffer(buffer_descs[i].m_layout, i, need_reset, need_lockable);
-                    _max_intermediates_memory_sizes[i] = _intermediates_memory[i]->size();
-                } else {
-                    // i-th layout has not been allocated yet
-                    _intermediates_memory.push_back(allocate_internal_buffer(buffer_descs[i].m_layout, i, need_reset, need_lockable));
-                    _max_intermediates_memory_sizes.push_back(_intermediates_memory[i]->size());
-                }
-                GPU_DEBUG_CODE(memalloc_info +=
-                               (((_intermediates_memory.size() > 1) ? ("i" + to_string(i) + ":") : "") +
-                                (_intermediates_memory[i]->from_memory_pool ? "from_pool" : "new_alloc")));
-            }
-        }
-        GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
-    }
+void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
+    realloc_outputs(prev_execution_skipped);
+    realloc_intermediates();
 }
 
 bool primitive_inst::use_async_compilation() {
@@ -1450,6 +1479,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
     if (!get_node().is_type<kv_cache>())
         return;
 
+    auto& kv_inst = downcast<kv_cache_inst>(*this);
     _impl_params->_can_be_optimized = false;
 
     if (_impl_params->get_input_layout(0).count() == 0) {
@@ -1474,6 +1504,14 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
 
     GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " initial present_layout : " << present_layout.to_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " initial past_layout : " << past_layout.to_string() << std::endl;
+    if (desc->trim && kv_inst.get_trim_length() > 0) {
+        GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " kv cache trim_length : " << kv_inst.get_trim_length() << std::endl;
+        auto trimmed_past_shape = past_layout.get_shape();
+        trimmed_past_shape[sequence_axis] -= kv_inst.get_trim_length();
+        past_layout.set_partial_shape(trimmed_past_shape);
+        auto past_layout_pad = past_layout.data_padding._upper_size[sequence_axis] + kv_inst.get_trim_length();
+        kv_cache_inst::update_pad(past_layout, past_layout_pad, sequence_axis);
+    }
     auto max_pad = kv_cache_inst::get_max_pad(past_layout, _deps[0].first->_max_output_layout_count[0], sequence_axis, "past_layout");
     const auto new_seq_len = static_cast<int64_t>(new_layout.get_shape()[sequence_axis]);
     // In chatbot scenario, when chat history must be stored in kvcache, new_seq_len may not be 1 even if max_pad is greater than 0
@@ -2259,6 +2297,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     , _fused_mem_offset((_fused_mem_count > 0 && node.get_first_fused_dep_idx() > 0) ? static_cast<uint64_t>(node.get_first_fused_dep_idx()) : 0)
     , _can_be_optimized(node.can_be_optimized())
     , _can_share_buffer(node.can_share_buffer())
+    , _can_share_internal_buffer(node.can_share_internal_buffer())
     , _is_constant(node.is_constant())
     , _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output()) {
     // When dynamic shape node has huge upper boundary which causes bigger mem size than system max allocable mem size, do not allocate in build time.
@@ -2387,8 +2426,6 @@ memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_
     }
     GPU_DEBUG_LOG << "=> allocate to " << alloc_type << std::endl;
 
-    // Reuse intermediate buffer like output buffer.
-    bool reuse_internal_buf = true;
     auto ret_mem =
         get_memory_from_pool(get_network().get_engine(),
                              get_network_id(),
@@ -2396,7 +2433,7 @@ memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_
                              *_node,
                              layout,
                              alloc_type,
-                             reuse_internal_buf,
+                             can_share_internal_buffer(),
                              _runtime_memory_dependencies,
                              reset,
                              _intermediates_memory.size() > idx ? _intermediates_memory[idx].get() : nullptr);
@@ -2923,12 +2960,8 @@ bool primitive_inst::is_valid_fusion() const {
         if (get_node().is_type<gemm>() && get_node().get_preferred_impl_type() == impl_types::onednn) {
             const auto& gemm_layout = _impl_params->get_output_layout();
             const auto& data_layout = outer_dep.first->_impl_params->get_output_layout();
-            auto gemm_dims = onednn::convert_gemm_tensor(gemm_layout.get_tensor(),
-                                                         cldnn::format::dimension(gemm_layout.format),
-                                                         false);
-            auto data_dims = onednn::convert_gemm_tensor(data_layout.get_tensor(),
-                                                         cldnn::format::dimension(data_layout.format),
-                                                         false);
+            auto gemm_dims = onednn::convert_tensor(gemm_layout.get_tensor(), cldnn::format::dimension(gemm_layout.format));
+            auto data_dims = onednn::convert_tensor(data_layout.get_tensor(), cldnn::format::dimension(data_layout.format));
 
             if (gemm_dims[0] != data_dims[0] && gemm_dims[1] != 1)
                 LOG_AND_RETURN_FALSE(_node);
@@ -3032,13 +3065,13 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
     }
 
     // 1. If we have static impl in the cache - use it
-    if (use_async_compilation && ((inst.get_impl() && inst.get_impl()->is_dynamic()) || inst.get_flag(ExecutionFlags::SHAPE_CHANGED))) {
-        auto cached_impl = m_static_impls_cache.get(updated_params);
-        if (cached_impl) {
-            return cached_impl->clone();
-        }
+    auto cached_impl = m_static_impls_cache.get(updated_params);
+    if (cached_impl) {
+        return cached_impl->clone();
+    }
 
-        // 1.1. Static impl not found - run async compilation
+    // 2. If async compilation is enabled and dynamic impl exists or shape changed - try to compile asynchronously
+    if (use_async_compilation && ((inst.get_impl() && inst.get_impl()->is_dynamic()) || inst.get_flag(ExecutionFlags::SHAPE_CHANGED))) {
         auto& compilation_context = prog.get_compilation_context();
         compilation_context.push_task(updated_params, [&inst, &compilation_context, updated_params, find_impl]() {
             if (compilation_context.is_stopped())
@@ -3063,7 +3096,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
     }
 
     std::shared_ptr<primitive_impl> dynamic_impl = nullptr;
-    // 2. Try to find existing dynamic impl which supports given shapes
+    // 3. Try to find existing dynamic impl which supports given shapes
     for (auto& impl : m_dynamic_impls_cache) {
         if (impl->m_manager->support_shapes(params)) {
             dynamic_impl = impl;
@@ -3071,7 +3104,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
         }
     }
 
-    // 3. Try to create new shape agnostic impl & cache it
+    // 4. Try to create new shape agnostic impl & cache it
     if (!dynamic_impl) {
         dynamic_impl = find_impl(node, params, shape_types::dynamic_shape);
         if (dynamic_impl && !inst.can_be_optimized()) {
@@ -3082,13 +3115,13 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
         }
     }
 
-    // 4. If we have any dynamic impl, do adjustment for new shape before returning in back
+    // 5. If we have any dynamic impl, do adjustment for new shape before returning in back
     if (dynamic_impl) {
         dynamic_impl->update(inst, params);
         return dynamic_impl;
     }
 
-    // 5. Finally, if no impl found so far, we just enforce static impl compilation
+    // 6. Finally, if no impl found so far, we just enforce static impl compilation
     auto static_impl = find_impl(node, updated_params, shape_types::static_shape);
     OPENVINO_ASSERT(static_impl != nullptr, "No static impl " + node->id());
     static_impl->set_node_params(*node);

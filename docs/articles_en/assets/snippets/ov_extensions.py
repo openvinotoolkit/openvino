@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,7 +6,7 @@ import openvino as ov
 from ov_custom_op import Identity
 
 #! [py_frontend_extension_ThresholdedReLU_header]
-import openvino.runtime.opset14 as ops
+import openvino.opset14 as ops
 from openvino.frontend import ConversionExtension
 #! [py_frontend_extension_ThresholdedReLU_header]
 

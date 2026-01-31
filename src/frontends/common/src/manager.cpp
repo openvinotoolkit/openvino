@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -105,11 +105,11 @@ public:
         m_plugins.push_back(std::move(plugin_info));
     }
 
-    void register_front_end(const std::string& name, const std::string& library_path) {
-        auto lib_path = ov::util::from_file_path(ov::util::get_plugin_path(library_path));
+    void register_front_end(const std::string& name, const std::filesystem::path& library_path) {
+        auto lib_path = ov::util::get_plugin_path(library_path);
         PluginInfo plugin;
-        plugin.m_file_path = lib_path;
-        plugin.m_file_name = ov::util::get_file_name(lib_path);
+        plugin.m_file_path = ov::util::get_plugin_path(ov::util::make_path(library_path));
+        plugin.m_file_name = plugin.m_file_path.filename();
         FRONT_END_GENERAL_CHECK(plugin.load(), "Cannot load frontend ", plugin.get_name_from_file());
         std::lock_guard<std::mutex> guard(m_loading_mutex);
         m_plugins.push_back(std::move(plugin));
@@ -172,7 +172,7 @@ private:
 #endif
         }
         if (!model_path.empty()) {
-            auto ext = ov::util::get_file_ext(model_path);
+            auto ext = ov::util::path_to_string(ov::util::make_path(model_path).extension());
             auto it = priority_fe_extensions.find(ext);
             if (it != priority_fe_extensions.end()) {
                 // Priority FE is found by file extension, try this first
@@ -208,9 +208,8 @@ private:
     }
 
     void search_all_plugins() {
-        auto fe_lib_dir = ov::util::get_ov_lib_path();
-        if (!fe_lib_dir.empty())
-            find_plugins(fe_lib_dir, m_plugins);
+        const auto fe_lib_dir = ov::util::get_ov_lib_path();
+        find_plugins(fe_lib_dir, m_plugins);
     }
 };
 
@@ -238,6 +237,10 @@ void FrontEndManager::register_front_end(const std::string& name, FrontEndFactor
 }
 
 void FrontEndManager::register_front_end(const std::string& name, const std::string& library_path) {
+    m_impl->register_front_end(name, ov::util::make_path(library_path));
+}
+
+void FrontEndManager::register_front_end(const std::string& name, const std::filesystem::path& library_path) {
     m_impl->register_front_end(name, library_path);
 }
 

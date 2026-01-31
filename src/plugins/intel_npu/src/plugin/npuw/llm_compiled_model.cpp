@@ -1,8 +1,10 @@
-// Copyright (C) 2023-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "llm_compiled_model.hpp"
 
+#include "embedding_infer_request.hpp"
+#include "embedding_model_utils.hpp"
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
 #include "openvino/op/convert.hpp"
@@ -14,6 +16,7 @@
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -115,8 +118,9 @@ public:
         auto past_key = node->input_value(3);
         auto past_value = node->input_value(4);
         auto seqlens_k = node->input_value(5);
-        auto cos_cache = node->input_value(6);
-        auto sin_cache = node->input_value(7);
+        auto total_sequence_length = node->input_value(6);
+        auto cos_cache = node->input_value(7);
+        auto sin_cache = node->input_value(8);
 
         // The length of all tokens (past + current) is `seqlens_k` + 1.
         // current = Q.shape[2], past = `seqlens_k` + 1 - current
@@ -307,101 +311,12 @@ public:
     }
 };
 
-class GemmaSlidingMask : public ov::pass::MatcherPass {
+class OldPhi3SlidingMaskMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::GemmaSlidingMask");
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::OldPhi3SlidingMaskMatcher");
 
-    struct Result {
-        Result() = default;
-
-        bool found = false;
-        int32_t window_size = 0;
-        std::shared_ptr<ov::op::v0::Parameter> mask_input;
-    };
-
-    explicit GemmaSlidingMask(Result* result) {
-        // Searching for gemma sliding mask pattern and replace it's output
-        // with Paramater of the same size and type.
-        /*                                                              -\
-          range_w -> unsqueeze -> unsqueeze -> unsqueeze1 -> convert -\/  => LessEqual -\
-                                                               \      /\-/               \
-                                                          /-----\----/                    =>BWAnd_res
-                                                         /       \                       /
-          range_h -> unsqueeze -> unsqueeze -> unsqueeze2 -> add -=> Greater -> BWAnd --/
-                                   const (-window_size) ----/
-        */
-        // Basically this subgrapgh is doing the following:
-        // range_w is range (0, ..., width - 1) (probably + something)
-        // renge_h is range (0, ..., height - 1)  (probably + something)
-        // And then doing the following check:
-        // y - window_size < x <= y
-        // Producing squared sliding mask:
-        // 1 0 0 0 0 0
-        // 1 1 0 0 0 0
-        // 1 1 1 0 0 0
-        // 0 1 1 1 0 0
-        // 0 0 1 1 1 0
-        // 0 0 0 1 1 1
-        //
-        // Please also note, that sliding windows size is stored as negative value and the
-        // subgraph is actually doing:
-        // y + (negative)window_size < x <= y
-
-        auto range_sequence = [&]() {
-            auto range = opp::wrap_type<ov::op::v4::Range>({opp::any_input(), opp::any_input(), opp::any_input()});
-            auto unsqueeze1 = opp::wrap_type<ov::op::v0::Unsqueeze>({range, opp::any_input()});
-            auto unsqueeze2 = opp::wrap_type<ov::op::v0::Unsqueeze>({unsqueeze1, opp::any_input()});
-            auto unsqueeze3 = opp::wrap_type<ov::op::v0::Unsqueeze>({unsqueeze2, opp::any_input()});
-
-            return unsqueeze3;
-        };
-
-        auto unsqueeze1 = range_sequence();
-        auto convert = opp::wrap_type<ov::op::v0::Convert>({unsqueeze1});
-        auto unsqueeze2 = range_sequence();
-        auto window_size = opp::wrap_type<ov::op::v0::Constant>();
-        auto add = opp::wrap_type<ov::op::v1::Add>({unsqueeze2, window_size});
-        auto greater = opp::wrap_type<ov::op::v1::Greater>({convert, add});
-        auto bwand = opp::wrap_type<ov::op::v13::BitwiseAnd>({opp::any_input(), greater});
-        auto less_equal = opp::wrap_type<ov::op::v1::LessEqual>({convert, unsqueeze2});
-        auto bwand_res = opp::wrap_type<ov::op::v13::BitwiseAnd>({bwand, less_equal});
-
-        auto callback = [=](ov::pass::pattern::Matcher& m) {
-            auto& node_to_output = m.get_pattern_value_map();
-            auto* bwand_matched_node = node_to_output.at(bwand_res).get_node();
-            auto* window_size_node = node_to_output.at(window_size).get_node();
-            auto output = bwand_matched_node->output(0);
-            auto target_inputs = output.get_target_inputs();
-
-            auto* window_size_constant = static_cast<ov::op::v0::Constant*>(window_size_node);
-            OPENVINO_ASSERT(window_size_constant->get_output_size() == 1,
-                            "Sliding window size constant must be of size 1, but got " +
-                                std::to_string(window_size_constant->get_output_size()));
-            OPENVINO_ASSERT(!result->found, "Second gemma sliding mask pattern found, what is unexpected!");
-
-            auto input = std::make_shared<ov::op::v0::Parameter>(output.get_element_type(), output.get_partial_shape());
-            input->set_friendly_name(ov::npuw::LLMInferRequest::layer_names::gemma_sliding_mask);
-            output.replace(input->output(0));
-
-            auto window_size_vec = window_size_constant->cast_vector<int32_t>(1);
-
-            result->found = true;
-            // since we are doing Add and need to do subtract window size is stored as negative value
-            result->window_size = -window_size_vec[0];
-            result->mask_input = input;
-
-            return true;
-        };
-        register_matcher(std::make_shared<opp::Matcher>(bwand_res, "GemmaSlidingMask"), std::move(callback));
-    }
-};
-
-class Phi3SlidingMask : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::Phi3SlidingMask");
-
-    Phi3SlidingMask() {
-        // Search for the Phi3 sliding mask pattern to extend it to work with right-padded
+    OldPhi3SlidingMaskMatcher() {
+        // Search for the Phi3 old sliding mask pattern to extend it to work with right-padded
         // past tokens and left-padded present tokens.
         //
         // Mask creation is simply done via "less_equal" and "greater" operations between
@@ -585,16 +500,17 @@ public:
 
             return true;
         };
-        register_matcher(std::make_shared<opp::Matcher>(inv_sliding_attention_mask, "Phi3SlidingMask"),
+        register_matcher(std::make_shared<opp::Matcher>(inv_sliding_attention_mask, "OldPhi3SlidingMaskMatcher"),
                          std::move(callback));
     }
 };
 
-class Phi3SlidingMask2 : public ov::pass::MatcherPass {
+class Phi3SlidingMaskMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::Phi3SlidingMask2");
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::Phi3SlidingMaskMatcher");
 
-    Phi3SlidingMask2() {
+    Phi3SlidingMaskMatcher(const std::shared_ptr<ov::Node>& attention_mask_node_ptr,
+                           const std::shared_ptr<ov::Node>& position_ids_node_ptr) {
         // Search for the Phi3 sliding mask pattern to extend it to work with right-padded
         // past tokens and left-padded present tokens. Logic to replace pattern is the same
         // as in Phi3SlidingMask rewriter, but adjusted to another set of operations for
@@ -620,17 +536,12 @@ public:
         };
 
         auto past_kv_len = opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
-        auto pos_ids_param = opp::wrap_type<ov::op::v0::Parameter>();
-        auto pos_ids_shape_of = opp::wrap_type<ov::op::v3::ShapeOf>({pos_ids_param});
-        auto pos_ids_len = opp::wrap_type<ov::op::v8::Gather>({pos_ids_shape_of, opp::any_input(), opp::any_input()});
-        auto full_ctx_len = opp::wrap_type<ov::op::v1::Add>({past_kv_len, pos_ids_len});
+        auto full_ctx_len = opp::wrap_type<ov::op::v1::Add>({past_kv_len, opp::any_input()});
         auto query_range = opp::wrap_type<ov::op::v4::Range>({past_kv_len, full_ctx_len, opp::any_input()});
         auto query_range_column = unsqueeze_sequence(query_range);
 
         auto zero_const = opp::wrap_type<ov::op::v0::Constant>();
-        auto pos_ids_len_reshaped = opp::wrap_type<ov::op::v1::Reshape>({pos_ids_len, opp::any_input()});
-        auto pos_ids_len_squeezed = opp::wrap_type<ov::op::v0::Squeeze>({pos_ids_len_reshaped, opp::any_input()});
-        auto full_ctx_len_2 = opp::wrap_type<ov::op::v1::Add>({pos_ids_len_squeezed, past_kv_len});
+        auto full_ctx_len_2 = opp::wrap_type<ov::op::v1::Add>({opp::any_input(), past_kv_len});
         auto key_range = opp::wrap_type<ov::op::v4::Range>({zero_const, full_ctx_len_2, opp::any_input()});
         auto key_range_row = unsqueeze_sequence(key_range);
         auto opt_key_range_row_f32 = opp::optional<ov::op::v0::Convert>({key_range_row->output(0)});
@@ -644,36 +555,19 @@ public:
         auto causal_mask = opp::wrap_type<ov::op::v1::LessEqual>({opt_key_range_row_f32, query_range_column});
 
         auto sliding_and_causal_mask = opp::wrap_type<ov::op::v13::BitwiseAnd>({sliding_and_true, causal_mask});
-        auto sliding_causal_and_true =
-            opp::wrap_type<ov::op::v13::BitwiseAnd>({opp::any_input(), sliding_and_causal_mask});
-
-        auto atten_mask_param = opp::wrap_type<ov::op::v0::Parameter>();
-        auto atten_mask_boolean = opp::wrap_type<ov::op::v0::Convert>({atten_mask_param});
-        auto atten_mask_reshaped = opp::wrap_type<ov::op::v1::Reshape>({atten_mask_boolean, opp::any_input()});
-        auto atten_mask_gathered =
-            opp::wrap_type<ov::op::v8::Gather>({atten_mask_reshaped, opp::any_input(), opp::any_input()});
-        auto atten_mask_reshaped_2 = opp::wrap_type<ov::op::v1::Reshape>({atten_mask_gathered, opp::any_input()});
-        auto atten_mask_reshaped_3 = opp::wrap_type<ov::op::v1::Reshape>({atten_mask_reshaped_2, opp::any_input()});
-
-        auto final_sliding_attention =
-            opp::wrap_type<ov::op::v13::BitwiseAnd>({sliding_causal_and_true, atten_mask_reshaped_3});
 
         auto callback = [=](ov::pass::pattern::Matcher& m) {
             LOG_INFO("Found (4.53) pattern for Phi-3 Sliding Window Attention, will be replaced with custom for static "
                      "shapes.");
             auto& node_to_output = m.get_pattern_value_map();
             auto node_past_kv_len = node_to_output.at(past_kv_len).get_node_shared_ptr();
-            auto node_pos_ids_param = node_to_output.at(pos_ids_param).get_node_shared_ptr();
             auto node_full_ctx_len = node_to_output.at(full_ctx_len).get_node_shared_ptr();
-            auto node_atten_mask_boolean = node_to_output.at(atten_mask_boolean).get_node_shared_ptr();
             auto node_neg_window_size = node_to_output.at(neg_window_size).get_node_shared_ptr();
             auto node_sliding_mask = node_to_output.at(sliding_mask).get_node_shared_ptr();
             auto node_sliding_and_causal_mask = node_to_output.at(sliding_and_causal_mask).get_node_shared_ptr();
 
             auto matched_past_kv_len = std::static_pointer_cast<ov::op::v8::Gather>(node_past_kv_len);
-            auto matched_pos_ids_input = std::static_pointer_cast<ov::op::v0::Parameter>(node_pos_ids_param);
             auto matched_full_ctx_len = std::static_pointer_cast<ov::op::v1::Add>(node_full_ctx_len);
-            auto matched_atten_mask_boolean = std::static_pointer_cast<ov::op::v0::Parameter>(node_atten_mask_boolean);
             std::shared_ptr<ov::Node> matched_key_range_row = nullptr;
             if (node_to_output.count(opt_key_range_row_f32)) {
                 auto node_key_range_row_f32 = node_to_output[opt_key_range_row_f32].get_node_shared_ptr();
@@ -690,14 +584,19 @@ public:
                             "Sliding window size constant must be of size 1, but got " +
                                 std::to_string(matched_neg_window_size->get_output_size()));
 
+            std::shared_ptr<ov::Node> passed_attention_mask = attention_mask_node_ptr;
+            std::shared_ptr<ov::Node> passed_position_ids = position_ids_node_ptr;
+            OPENVINO_ASSERT(passed_attention_mask, "Passed attention_mask node is nullptr!");
+            OPENVINO_ASSERT(passed_position_ids, "Passed position_ids node is nullptr!");
+
             auto const_zero = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, 0);
             auto const_one = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, 1);
             auto const_three = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, 3);
 
             // 1.(K range > (Q_pos range - sliding window).T) & (K range <= Q range.T)
-            std::shared_ptr<ov::Node> query_range_as_pos_ids = matched_pos_ids_input;
+            std::shared_ptr<ov::Node> query_range_as_pos_ids = passed_position_ids;
             if (matched_neg_window_size->output(0).get_element_type() == ov::element::f32) {
-                query_range_as_pos_ids = std::make_shared<ov::op::v0::Convert>(matched_pos_ids_input, ov::element::f32);
+                query_range_as_pos_ids = std::make_shared<ov::op::v0::Convert>(passed_position_ids, ov::element::f32);
             }
             auto query_range_as_pos_ids_unsqueezed =
                 std::make_shared<ov::op::v0::Unsqueeze>(query_range_as_pos_ids, const_zero);
@@ -735,7 +634,9 @@ public:
             auto full_ctx_len_reshaped =
                 std::make_shared<ov::op::v1::Reshape>(matched_full_ctx_len, shape_rank_one_const, false);
             auto const_one_rank_one = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, 1);
-            auto present_atten_mask_bool = std::make_shared<ov::op::v8::Slice>(matched_atten_mask_boolean,
+            auto attention_mask_bool =
+                std::make_shared<ov::op::v0::Convert>(passed_attention_mask, ov::element::boolean);
+            auto present_atten_mask_bool = std::make_shared<ov::op::v8::Slice>(attention_mask_bool,
                                                                                past_len_reshaped,
                                                                                full_ctx_len_reshaped,
                                                                                const_one_rank_one,
@@ -753,8 +654,43 @@ public:
 
             return true;
         };
-        register_matcher(std::make_shared<opp::Matcher>(final_sliding_attention, "Phi3SlidingMask2"),
+        register_matcher(std::make_shared<opp::Matcher>(sliding_and_causal_mask, "Phi3SlidingMaskMatcher"),
                          std::move(callback));
+    }
+};
+
+class Phi3SlidingMask : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("ov::npuw::LLMCompiledModel::Phi3SlidingMask");
+    Phi3SlidingMask() = default;
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        std::shared_ptr<ov::Node> attention_mask_node_ptr = nullptr;
+        std::shared_ptr<ov::Node> position_ids_node_ptr = nullptr;
+        for (const auto& i : model->inputs()) {
+            if (i.get_any_name() == "attention_mask") {
+                attention_mask_node_ptr = i.get_node_shared_ptr();
+            }
+            if (i.get_any_name() == "position_ids") {
+                position_ids_node_ptr = i.get_node_shared_ptr();
+            }
+        }
+        if (attention_mask_node_ptr == nullptr || position_ids_node_ptr == nullptr) {
+            return false;
+        }
+
+        auto pos_id_shape = position_ids_node_ptr->get_output_tensor(0).get_partial_shape();
+        if (pos_id_shape.size() != 2) {
+            // FIXME: Qwen2.5 VL/Omni uses 3D position_ids, which can't be directly used
+            //        in creation of sliding window mask.
+            return false;
+        }
+
+        ov::pass::Manager manager;
+        manager.set_per_pass_validation(true);
+        const auto rewriter = manager.register_pass<ov::pass::GraphRewrite>();
+        rewriter->add_matcher<Phi3SlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
+        rewriter->add_matcher<OldPhi3SlidingMaskMatcher>();
+        return manager.run_passes(model);
     }
 };
 
@@ -789,6 +725,17 @@ std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::M
     for (std::size_t i = ov::npuw::LLMInferRequest::layer_ids::kStartOutputKVCacheLayers; i < model->outputs().size();
          ++i) {
         auto kvout = model->output(i);
+
+        // Skip outputs that are not KV cache (e.g., last_hidden_state)
+        // KV cache outputs follow the pattern: present.{layer}.key or present.{layer}.value
+        const auto& output_name = kvout.get_any_name();
+        bool is_kv_cache =
+            (output_name.find("present") != std::string::npos) &&
+            (output_name.find("key") != std::string::npos || output_name.find("value") != std::string::npos);
+        if (!is_kv_cache) {
+            continue;
+        }
+
         auto kvrslt = kvout.get_node();
         auto kvcat = kvrslt->inputs()[0].get_source_output().get_node();
         auto kvval = kvcat->inputs()[1].get_source_output();
@@ -819,18 +766,11 @@ void decompose_GQA(std::shared_ptr<ov::Model> model, bool is_prefill_model) {
 }
 
 void patch_phi3_sliding_mask(const std::shared_ptr<ov::Model>& model) {
-    // FIXME: Don't do these transformations for gemma3 which has token_type_ids input.
-    // FIXME: Don't do these transformations for VLMs identified by inputs_embeds input.
-    //        Qwen2.5 VL/Omni uses 3D position_ids, which can't be directly used
-    //        in creation of sliding window mask.
-    if (!ov::npuw::util::has_input(model, "token_type_ids") && !ov::npuw::util::has_input(model, "inputs_embeds")) {
-        ov::pass::GraphRewrite rewr;
-        rewr.add_matcher<Phi3SlidingMask2>();
-        rewr.add_matcher<Phi3SlidingMask>();
-        rewr.run_on_model(model);
-        model->validate_nodes_and_infer_types();
-    }
+    ov::pass::Manager manager;
+    manager.register_pass<Phi3SlidingMask>();
+    manager.run_passes(model);
 }
+
 }  // namespace
 
 class CutLMHead : public ov::pass::MatcherPass {
@@ -880,6 +820,14 @@ public:
 
             auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
             auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(matched_node_result);
+
+            // Some LLMs add intermediate hidden state outputs that can interfere with LM head detection.
+            // Skip Result nodes that were manually added (marked with "manually_added_output" in RT_INFO).
+            // For example, Eagle-3 target/draft models add "last_hidden_state" output which should be skipped.
+            const auto& rt_info = matched_result->get_rt_info();
+            if (rt_info.count("manually_added_output")) {
+                return false;
+            }
 
             // Cut point:
             auto matmul_first_source = matched_matmul->input(0).get_source_output();
@@ -963,6 +911,8 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
             new_shape[0] = 1;  // batch_dim
+        } else if (ov::npuw::matchEagle3HiddenStatesString(input_name)) {
+            new_shape = ov::npuw::Eagle3Extension::get_static_input(model, input, input_size);
         } else if (ov::npuw::util::matchLoRAMatMulAString(input_name)) {
             new_shape = ov::PartialShape({lora_rank, input.get_partial_shape()[1]});
         } else if (ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
@@ -1180,6 +1130,10 @@ ov::AnyMap get_default_generate_config(const std::optional<NPUDesc>& npudesc,
     if (hint == ::intel_npu::npuw::llm::GenerateHint::FAST_COMPILE) {
         config.emplace("NPUW_UNFOLD_IREQS", "YES");
     }
+    // Specify NPUW DQ if Compiler DQ is not enabled
+    if (!npudesc.has_value() || !npudesc->compiler_dq) {
+        config.emplace("NPUW_DQ", "YES");
+    }
     // We don't need slice out for kv cache model, especially for speculative decoding which need
     // to generate more than 1 token for each inference
     config.erase("NPUW_SLICE_OUT");
@@ -1237,6 +1191,10 @@ void update_config_for_whisper(ov::AnyMap& config) {
     config.erase("NPUW_SLICE_OUT");
 }
 
+void update_config_for_text_embed(ov::AnyMap& config) {
+    config.erase("NPUW_SLICE_OUT");
+}
+
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     std::map<std::string, std::string> result;
     for (auto&& value : params) {
@@ -1287,41 +1245,6 @@ void ov::npuw::LLMCompiledModel::convert_stateful_lora_to_stateless(std::shared_
     }
 
     model->add_parameters(new_parameters);
-}
-
-void ov::npuw::LLMCompiledModel::gemma_transformations(const std::shared_ptr<ov::Model>& model) {
-    // For now only do transformations for gemma3 which has token_type_ids input.
-    bool token_type_ids_found = false;
-    for (const auto& input : model->inputs()) {
-        const auto& input_name = input.get_any_name();
-        if (input_name.find("token_type_ids") != std::string::npos) {
-            token_type_ids_found = true;
-            break;
-        }
-    }
-
-    if (token_type_ids_found) {
-        ov::pass::GraphRewrite rewr;
-        auto RewrRes = std::make_unique<GemmaSlidingMask::Result>();
-        rewr.add_matcher<GemmaSlidingMask>(RewrRes.get());
-        rewr.run_on_model(model);
-
-        if (RewrRes->found) {
-            OPENVINO_ASSERT(
-                RewrRes->window_size > 0,
-                "Gemma sliding window size must be strictly positive, but got " + std::to_string(RewrRes->window_size));
-
-            m_gemma_sliding_window_size = RewrRes->window_size;
-            auto mask_input = RewrRes->mask_input;
-            model->add_parameters({mask_input});
-            for (auto&& input : model->inputs()) {
-                if (input.get_node() == mask_input.get()) {
-                    input.set_names({mask_input->get_friendly_name()});
-                }
-            }
-            model->validate_nodes_and_infer_types();
-        }
-    }
 }
 
 std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_generate_model_variants(
@@ -1439,6 +1362,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     ov::AnyMap other_props;
     split_llm_properties(properties, npuw_llm_props, other_props);
     auto use_whisper_key = pop_option(other_props, std::string("NPUW_WHISPER"));
+    auto use_eagle_key = pop_option(other_props, std::string("NPUW_EAGLE"));
     // Solely used for serialization at the moment
     m_non_llm_props = other_props;
 
@@ -1460,40 +1384,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
         m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
         m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
+        m_cfg.update({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "NO"}});
     }
 
-    LOG_DEBUG("Creating kvcache model as clone of passed one.");
-    auto kvcache_model = model->clone();
-    LOG_DEBUG("Transform kvcache model from stateful to stateless.");
-    ov::pass::StatefulToStateless().run_on_model(kvcache_model);
-    convert_stateful_lora_to_stateless(kvcache_model);
-    LOG_DEBUG("   ...also convert BF16 to FP16");
-    // Note: we need to identify original bf16 constants for potential weightless deserialization later
-    // And only then do bf16 to f16 transformation
-    m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
-    ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
-
-    bool shared_head_enabled = m_cfg.get<::intel_npu::NPUW_LLM_SHARED_HEAD>();
-    std::shared_ptr<ov::Model> lm_head_model = nullptr;
-    if (shared_head_enabled) {
-        LOG_DEBUG("Trying to separate Vocabulary matrix multiplication op into additional model...");
-        lm_head_model = cut_lm_head(kvcache_model);
-        if (lm_head_model) {
-            LOG_INFO("Three-model pipeline will be created: LM head will be shared between prefill and generate.");
-        } else {
-            LOG_WARN("Three-model pipeline is requested, but LM head cutting is failed,"
-                     " two-model pipeline will be created!");
-        }
-    } else {
-        LOG_INFO("Two-model pipeline will be created.");
+    m_is_eagle = use_eagle_key.value_or(false).as<bool>() == true;
+    if (m_is_eagle) {
+        LOG_INFO("Eagle3 speculative decoding mode enabled");
     }
-
-    LOG_DEBUG("Try patch Phi-3 sliding window mask, if it exists.");
-    patch_phi3_sliding_mask(kvcache_model);
-
-    LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
-    auto prefill_model = kvcache_model->clone();
-    prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
 
     // NB: PREFILL_HINT is now compatible with the PREFILL_CONFIG section, unlike for
     // the generate model they're not mutually exclusive
@@ -1501,9 +1398,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_prefill_chunk_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>();
     m_use_chunk_prefill = (prefill_hint == ::intel_npu::npuw::llm::PrefillHint::DYNAMIC && m_prefill_chunk_size > 0);
 
-    const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
-    const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
-    KVAxesPosition axes{batch_dim, seq_len_dim};
     uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
     const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
     uint32_t max_generation_token_len = m_cfg.get<::intel_npu::NPUW_LLM_MAX_GENERATION_TOKEN_LEN>();
@@ -1514,6 +1408,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // If chunk size covers the entire prompt, just follow the static behavior.
     // Otherwise, use chunking and align the prompt size to the chunk size.
     if (m_use_chunk_prefill) {
+        OPENVINO_ASSERT(
+            !ov::npuw::util::has_input(model, "token_type_ids") || !ov::npuw::util::has_input(model, "inputs_embeds"),
+            "Chunking is not implemented for Gemma model family yet. "
+            "Please set NPUW_LLM_PREFILL_HINT to 'STATIC'");
         if (m_prefill_chunk_size >= max_prompt_len) {
             m_use_chunk_prefill = false;
         } else {
@@ -1546,6 +1444,56 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_VERB("Enabled prefill chunking: " << m_use_chunk_prefill);
     LOG_VERB("Prefill chunk size: " << m_prefill_chunk_size);
     LOG_VERB("Maximum prompt length: " << max_prompt_len);
+
+    const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
+    const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
+    KVAxesPosition axes{batch_dim, seq_len_dim};
+
+    LOG_DEBUG("Creating kvcache model as clone of passed one.");
+    auto kvcache_model = model->clone();
+
+    auto use_text_embed_key = pop_option(other_props, std::string("NPUW_TEXT_EMBED"));
+    m_is_embedding = use_text_embed_key.value_or(false).as<bool>() == true;
+
+    if (m_is_embedding) {
+        LOG_DEBUG("Text-embedding model rebuild");
+        ov::npuw::util::prepare_text_embedding_model(kvcache_model, seq_len_dim);
+    } else {
+        LOG_DEBUG("Transform kvcache model from stateful to stateless.");
+        ov::pass::StatefulToStateless().run_on_model(kvcache_model);
+    }
+
+    convert_stateful_lora_to_stateless(kvcache_model);
+
+    LOG_DEBUG("   ...also convert BF16 to FP16");
+    // Note: we need to identify original bf16 constants for potential weightless deserialization later
+    // And only then do bf16 to f16 transformation
+    m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
+    ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
+
+    bool shared_head_enabled = m_cfg.get<::intel_npu::NPUW_LLM_SHARED_HEAD>();
+    std::shared_ptr<ov::Model> lm_head_model = nullptr;
+    if (shared_head_enabled) {
+        LOG_DEBUG("Trying to separate Vocabulary matrix multiplication op into additional model...");
+        lm_head_model = cut_lm_head(kvcache_model);
+        if (lm_head_model) {
+            LOG_INFO("Three-model pipeline will be created: LM head will be shared between prefill and generate.");
+        } else {
+            LOG_WARN("Three-model pipeline is requested, but LM head cutting is failed,"
+                     " two-model pipeline will be created!");
+        }
+    } else {
+        LOG_INFO("Two-model pipeline will be created.");
+    }
+
+    if (!m_is_whisper) {
+        LOG_DEBUG("Try patch Phi-3 sliding window mask, if it exists.");
+        patch_phi3_sliding_mask(kvcache_model);
+    }
+
+    LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
+    auto prefill_model = kvcache_model->clone();
+    prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
 
     m_kvcache_desc =
         KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim, max_generation_token_len};
@@ -1584,12 +1532,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Create generate model variants with different sizes
     auto generate_model_variants = create_generate_model_variants(kvcache_model, axes, whisper_lhs_seq_size);
 
-    // Apply transformations to all generate variants
-    LOG_DEBUG("Try parametrize Gemma sliding window mask, if it exists.");
-    for (auto& model_variant : generate_model_variants) {
-        gemma_transformations(model_variant);
-    }
-
     if (lm_head_model) {
         LOG_DEBUG("Shared LM head: slice the prefill output");
         // KVCache model is already reshaped to [1, max_generation_token_len, embed size],
@@ -1612,6 +1554,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     const bool prefill_attn_pyramid = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::PYRAMID;
     const bool generate_attn_pyramid = generate_attn_hint == ::intel_npu::npuw::llm::AttentionHint::PYRAMID;
+
+    const bool prefill_attn_hfa = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::HFA;
+    const bool generate_attn_hfa = generate_attn_hint == ::intel_npu::npuw::llm::AttentionHint::HFA;
 
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
     if (optimize_v_tensors) {
@@ -1652,18 +1597,21 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Check and apply opt layout --- SKIPPED");
     }
 
-    if (!m_use_chunk_prefill) {
-        NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
-    } else {
-        LOG_DEBUG("Don't remove input key/values from prefill model.");
-        LOG_DEBUG("Ask prefill model to output key/values for prefill chunk size tokens.");
-        prefill_model = redirect_new_kv_to_output(prefill_model);
+    if (!m_is_embedding) {
+        if (!m_use_chunk_prefill) {
+            NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
+        } else {
+            LOG_DEBUG("Don't remove input key/values from prefill model.");
+            LOG_DEBUG("Ask prefill model to output key/values for prefill chunk size tokens.");
+            prefill_model = redirect_new_kv_to_output(prefill_model);
+        }
+
+        LOG_DEBUG("Optimize generate model to output key/values for new token.");
+        for (size_t i = 0; i < generate_model_variants.size(); ++i) {
+            generate_model_variants[i] = redirect_new_kv_to_output(generate_model_variants[i]);
+        }
     }
 
-    LOG_DEBUG("Optimize generate model to output key/values for new token.");
-    for (size_t i = 0; i < generate_model_variants.size(); ++i) {
-        generate_model_variants[i] = redirect_new_kv_to_output(generate_model_variants[i]);
-    }
     LOG_DEBUG("Converting KV-cache in generate model to FP16.");
     for (size_t i = 0; i < generate_model_variants.size(); ++i) {
         generate_model_variants[i] = cvt_kvcache_to_fp16(generate_model_variants[i]);
@@ -1692,6 +1640,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
 
+    // Convert LLM-specific attention hints to NPUW_ATTN
+    if (npuw_llm_props.count("NPUW_LLM_PREFILL_ATTENTION_HINT")) {
+        prefill_config["NPUW_ATTN"] = npuw_llm_props["NPUW_LLM_PREFILL_ATTENTION_HINT"];
+    }
+    if (npuw_llm_props.count("NPUW_LLM_GENERATE_ATTENTION_HINT")) {
+        generate_config["NPUW_ATTN"] = npuw_llm_props["NPUW_LLM_GENERATE_ATTENTION_HINT"];
+    }
+
     // Generate a random weights bank name unique to this LLMCompiledModel object
     auto weights_bank_name = ov::npuw::util::generate_random_string();
     LOG_VERB("Generated a unique weights bank name: " << weights_bank_name);
@@ -1706,10 +1662,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
         {"NPUW_UNFOLD_IREQS", "NO"},
     };
-    if (prefill_attn_dyn || prefill_attn_pyramid) {
+    if (prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_hfa) {
         merge_config_with(prefill_config, dyn_attn_opts);
     }
-    if (generate_attn_dyn || generate_attn_pyramid) {
+    if (generate_attn_dyn || generate_attn_pyramid || generate_attn_hfa) {
         merge_config_with(generate_config, dyn_attn_opts);
     }
 
@@ -1727,6 +1683,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     if (m_is_whisper) {
         update_config_for_whisper(prefill_config);
+    }
+
+    if (m_is_embedding) {
+        update_config_for_text_embed(prefill_config);
     }
 
     if (m_cfg.get<::intel_npu::NPUW_LLM_CACHE_ROPE>()) {
@@ -1761,12 +1721,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ov::pass::GraphRewrite rewr;
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast>();
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast2>();
-        if (generate_attn_dyn || generate_attn_pyramid) {
+        if (generate_attn_dyn || generate_attn_pyramid || generate_attn_hfa) {
             for (auto& model_variant : generate_model_variants) {
                 rewr.run_on_model(model_variant);
             }
         }
-        if (prefill_attn_dyn || prefill_attn_pyramid) {
+        if (prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_hfa) {
             rewr.run_on_model(prefill_model);
         }
 
@@ -1909,8 +1869,9 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_enable_prefix_caching);
         write(model_stream, m_prefix_caching_block_size);
         write(model_stream, m_prefix_caching_max_num_blocks);
-        write(model_stream, m_gemma_sliding_window_size);
         write(model_stream, m_is_whisper);
+        write(model_stream, m_is_eagle);
+        write(model_stream, m_is_embedding);
 
         // Write config
         write(model_stream, m_cfg);
@@ -2133,8 +2094,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_enable_prefix_caching);
         read(model_stream, compiled->m_prefix_caching_block_size);
         read(model_stream, compiled->m_prefix_caching_max_num_blocks);
-        read(model_stream, compiled->m_gemma_sliding_window_size);
         read(model_stream, compiled->m_is_whisper);
+        read(model_stream, compiled->m_is_eagle);
+        read(model_stream, compiled->m_is_embedding);
 
         // Deserialize config
         read(model_stream, compiled->m_cfg);
@@ -2169,6 +2131,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_lm_head_compiled =
                 ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         }
+
         return compiled;
     };
 
@@ -2213,7 +2176,13 @@ ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const 
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_sync_infer_request() const {
     auto* non_const_this = const_cast<ov::npuw::LLMCompiledModel*>(this);  // because of const in API
-    return m_is_whisper ? non_const_this->create_whisper_infer_request() : non_const_this->create_llm_infer_request();
+    if (m_is_whisper) {
+        return non_const_this->create_whisper_infer_request();
+    } else if (m_is_embedding) {
+        return non_const_this->create_embedding_infer_request();
+    } else {
+        return non_const_this->create_llm_infer_request();
+    }
 }
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_llm_infer_request() {
@@ -2224,6 +2193,11 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_llm_in
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_whisper_infer_request() {
     auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
     return std::make_shared<ov::npuw::WhisperInferRequest>(this_sptr);
+}
+
+std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_embedding_infer_request() {
+    auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
+    return std::make_shared<ov::npuw::EmbeddingInferRequest>(this_sptr);
 }
 
 void ov::npuw::LLMCompiledModel::implement_properties() {
@@ -2250,6 +2224,8 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::prefill_attn_hint, NPUW_LLM_PREFILL_ATTENTION_HINT, getString),
                           BIND(npuw::llm::generate_attn_hint, NPUW_LLM_GENERATE_ATTENTION_HINT, getString),
                           BIND(npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD, get),
-                          BIND(npuw::whisper::enabled, NPUW_WHISPER, get)});
+                          BIND(npuw::whisper::enabled, NPUW_WHISPER, get),
+                          BIND(npuw::eagle::enabled, NPUW_EAGLE, get),
+                          BIND(npuw::text_embed::enabled, NPUW_TEXT_EMBED, get)});
 #undef BIND
 }

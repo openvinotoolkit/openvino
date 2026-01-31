@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -17,7 +17,9 @@ class TestDetectron2ConvertModel(TestTorchConvertModel):
         import requests
 
         url = "http://images.cocodataset.org/val2017/000000039769.jpg"
-        self.image = Image.open(requests.get(url, stream=True).raw)
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+        self.image = Image.open(response.raw)
         self.image = self.image.resize([640, 480])
 
         subprocess.run([sys.executable, "-m", "pip", "install",

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,15 +45,26 @@ public:
 
     std::string getCompilerSupportedOptions() const;
 
-    bool isOptionSupported(std::string optname) const;
+    bool isOptionSupported(std::string optName, std::optional<std::string> optValue = std::nullopt) const;
     bool isTurboOptionSupported(const ze_graph_compiler_version_info_t& compilerVersion) const;
+
+    /**
+     * @brief Tells us whether or not the driver is able to receive and take into account a hash of the model instead of
+     * computing its own within the UMD.
+     */
+    bool isPluginModelHashSupported() const;
 
     void getGraphBinary(const GraphDescriptor& graphDescriptor,
                         std::vector<uint8_t>& blob,
                         const uint8_t*& blobPtr,
                         size_t& blobSize) const;
 
-    void setGraphArgumentValue(const GraphDescriptor& graphDescriptor, uint32_t argi_, const void* argv) const;
+    void setGraphArgumentValue(const GraphDescriptor& graphDescriptor, uint32_t id, const void* data) const;
+
+    void setGraphArgumentValueWithStrides(const GraphDescriptor& graphDescriptor,
+                                          uint32_t id,
+                                          const void* data,
+                                          const std::vector<size_t>& strides) const;
 
     void initializeGraph(const GraphDescriptor& graphDescriptor, uint32_t commandQueueGroupOrdinal) const;
 
@@ -74,5 +85,8 @@ private:
 
     Logger _logger;
 };
+
+// Parse the result string of query from format <name_0><name_1><name_2> to unordered_set of string
+std::unordered_set<std::string> parseQueryResult(std::vector<char>& data);
 
 }  // namespace intel_npu
