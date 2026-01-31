@@ -345,21 +345,6 @@ eltwise_inst::typed_primitive_inst(network& network, const eltwise_node& node) :
                 CLDNN_ERROR_NOT_EQUAL(node.id(), "Eltwise inputyx / stride_y", in_y_div_stride_y, "Eltwise output_y", out_y, "");
         }
     } else {
-        bool use_new_shape_infer = network.get_config().get_allow_new_shape_infer();
-        auto input0_pshape = node.get_input_pshape(0);
-
-        for (size_t i = 1; i < inputs_count; ++i) {
-            auto input_pshape = node.get_input_pshape(i);
-
-            if (input0_pshape.size() > input_pshape.size()) {
-                if (use_new_shape_infer) {
-                    input_pshape.insert(input_pshape.begin(), input0_pshape.size() - input_pshape.size(), 1);
-                } else {
-                    input_pshape.insert(input_pshape.end(), input0_pshape.size() - input_pshape.size(), 1);
-                }
-            }
-
-            auto base_pshape = input0_pshape;
             if (prim->broadcast_spec == ov::op::AutoBroadcastType::NUMPY && inputs_count >= 2) {
                 // Collect input shapes
                 std::vector<ov::PartialShape> input_shapes;
