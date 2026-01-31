@@ -1,16 +1,17 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <algorithm>
-#include <string>
-#include <vector>
-
 #include "eltwise_inst.h"
-#include "eltwise_shape_inference.hpp"
+#include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
+#include <string>
+#include <vector>
+#include <algorithm>
+
+#include "eltwise_shape_inference.hpp"
 #include "openvino/op/add.hpp"
-#include "primitive_type_base.h"
+
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(eltwise)
