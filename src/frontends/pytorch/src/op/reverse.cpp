@@ -6,7 +6,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/reverse.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -17,7 +16,7 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_reverse(const NodeContext& context) {
-    num_inputs_check(context, 1, 2);
+    num_inputs_check(context, 1, 3);
     auto data = context.get_input(0);
 
     Output<Node> axes;
