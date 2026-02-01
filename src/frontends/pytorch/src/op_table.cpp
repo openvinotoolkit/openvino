@@ -230,6 +230,7 @@ OP_CONVERTER(translate_repeat_interleave);
 OP_CONVERTER(translate_replication_pad_nd);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_reshape_as);
+OP_CONVERTER(translate_reverse);
 OP_CONVERTER(translate_rms_norm);
 OP_CONVERTER(translate_rnn);
 OP_CONVERTER(translate_roi_align);
@@ -531,7 +532,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::fill", op::translate_fill},
         {"aten::fill_diagonal", op::translate_fill_diagonal},
         {"aten::flatten", op::quantizable_op<op::translate_flatten>},
-        {"aten::flip", op::translate_flip},
+        {"aten::flip", op::translate_reverse},
         {"aten::floor", op::optional_out<op::translate_1to1_match_1_inputs<opset10::Floor>, 1>},
         {"aten::floor_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Floor>>},
         {"aten::floor_divide", op::translate_floor_divide},
@@ -691,6 +692,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::replication_pad3d", op::translate_replication_pad_nd},
         {"aten::reshape", op::translate_reshape},
         {"aten::reshape_as", op::translate_reshape_as},
+        {"aten::reverse", op::translate_reverse},
         // TO DO: enable behaviour for resolve_conj and resolve_neg complex tensors,
         // when complex dtype will be supported
         // for real dtypes, these operations return input tensor without changes and can be skipped
@@ -943,7 +945,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.fill_.Scalar", op::inplace_op<op::translate_fill>},
         {"aten.fill.Tensor", op::translate_fill},
         {"aten.fill_.Tensor", op::inplace_op<op::translate_fill>},
-        {"aten.flip.default", op::translate_flip},
+        {"aten.flip.default", op::translate_reverse},
         {"aten.floor.default", op::translate_1to1_match_1_inputs<opset10::Floor>},
         {"aten.floor_divide.default", op::translate_floor_divide},
         {"aten.fmod.Scalar", op::translate_fmod},
