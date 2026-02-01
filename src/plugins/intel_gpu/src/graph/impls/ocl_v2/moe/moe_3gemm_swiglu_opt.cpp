@@ -14,7 +14,7 @@
 // 0 - expert order
 // 1 - token_len ordering balancing
 // 2 - token_len zigzag balancing
-#define ENABLE_MOE_BALANCE_WORKLOAD 0
+#define MOE_TOKEN_REORDER_POLICY_IDX 0
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #    include <algorithm>
@@ -1341,7 +1341,7 @@ public:
             std::vector<int32_t> experts_info_start_idx_cpu(num_total_experts, -1);
             std::vector<int32_t> experts_id_cpu(num_total_experts, -1);
 
-#    if ENABLE_MOE_BALANCE_WORKLOAD == 1
+#    if MOE_TOKEN_REORDER_POLICY_IDX == 1
             std::vector<std::pair<int, int>> expert_order;
             for (int expert_idx = 0; expert_idx < num_total_experts; expert_idx++) {
                 if (!expert_mask_cpu.batch[expert_idx].empty()) {
@@ -1364,7 +1364,7 @@ public:
                     tokens_per_expert_cpu[tokens_per_expert_iter++] = t;
                 }
             }
-#elif ENABLE_MOE_BALANCE_WORKLOAD == 2
+#elif MOE_TOKEN_REORDER_POLICY_IDX == 2
             std::vector<std::pair<int, int>> expert_order;
             for (int expert_idx = 0; expert_idx < num_total_experts; expert_idx++) {
                 if (!expert_mask_cpu.batch[expert_idx].empty()) {

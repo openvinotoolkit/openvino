@@ -354,7 +354,9 @@ DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
         size_t persistent_groups = device_info.execution_units_count * 4;
         // Make sure we have at least some parallelism if EU count is weird, and ensure alignment isn't an issue.
         if (persistent_groups < 128) persistent_groups = 128;
-        wgs.global = {ceil_div(m, wg_tile_m), persistent_groups, 1};
+        // Flatten Dim0 (M) into the persistent pool to ensure perfect residency.
+        // We handle M-tiling inside the kernel loop.
+        wgs.global = {1, persistent_groups, 1};
 #else
         wgs.global = {ceil_div(m, wg_tile_m), ceil_div(n, wg_tile_n), static_cast<size_t>(rtp->num_actually_used_experts)};
 #endif

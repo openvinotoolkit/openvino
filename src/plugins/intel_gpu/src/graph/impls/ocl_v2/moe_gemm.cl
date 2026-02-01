@@ -270,30 +270,56 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
     uint total_tiles = expert_tile_offsets[num_experts];
      
     // Flattened Persistent Loop
-    uint global_dim1_idx = get_group_id(1);
-    uint global_dim1_stride = get_num_groups(1);
+    // Dispatch is now 1D-like in Group counts: [1, PersistentGroups, 1]
+    // We must iterate over both Tile Index (Dim1) and M-Block Index (Dim0)
+    uint num_m_blocks = (m + ugemm_moe_wg_tile_m - 1) / ugemm_moe_wg_tile_m;
+    uint total_tasks = total_tiles * num_m_blocks;
+
+    uint global_stride = get_num_groups(1); // Since get_num_groups(0) is 1.
+    uint global_idx = get_group_id(1);
     
-    // wg_i0 is uniform for all experts (M dim)
-    uint wg_i0 = get_group_id(0) * ugemm_moe_wg_tile_m;
+    // Original setup uses wg_i0 from group_id(0). Now we calculate it per task.
     uint sg_i = sub_group_broadcast(get_local_id(0)/SUBGROUP_SIZE, 0);
     uint sg_j = sub_group_broadcast(get_local_id(1), 0);
     uint sg_k = sub_group_broadcast(get_local_id(2), 0);
-    uint sg_i0 = wg_i0 + sg_i * ugemm_moe_sg_tile_m;
+    // uint sg_i0 = wg_i0 + sg_i * ugemm_moe_sg_tile_m; // Moved inside loop due to variable wg_i0
 
-    for (uint tile_idx = global_dim1_idx; tile_idx < total_tiles; tile_idx += global_dim1_stride) {
+    uint expert_id = 0; // Cached expert_id
+
+    for (uint task_idx = global_idx; task_idx < total_tasks; task_idx += global_stride) {
+        // Correct task mapping: reuse expert (tile_idx) across inner M blocks
+        // This ensures the same expert weight is used for M consecutive iterations if M-dim varies fast
+        // Actually, we want Weight reuse. So we want tile_idx to stay constant while m_block_idx changes.
+        // If task_idx is linear.
+        // Option A: task 0 = (tile 0, m 0), task 1 = (tile 0, m 1).
+        // Option B: task 0 = (tile 0, m 0), task 1 = (tile 1, m 0).
+        // A is better for L2 Cache (fetching Weight for Tile 0 once).
+        uint tile_idx = task_idx / num_m_blocks;
+        uint m_block_idx = task_idx % num_m_blocks;
+
+        // Optimization: Prefetch Expert ID for next iteration?
+        // Current logic uses cached expert_id and increments.
+        // If we stride tasks, tile_idx jumps by (stride / num_m_blocks).
+        // So expert_id changes significantly.
+        // The binary search optimization 'l = expert_id + 1' only helps if tile_idx increases.
+        
+        uint wg_i0 = m_block_idx * ugemm_moe_wg_tile_m;
+        uint sg_i0 = wg_i0 + sg_i * ugemm_moe_sg_tile_m;
+
         // Binary Search to find Expert ID
-        uint l = 0;
-        uint r = num_experts; // Range [0, num_experts)
-        while (l < r) {
-             uint mid = l + (r - l) / 2;
-             if (tile_idx >= expert_tile_offsets[mid]) {
-                 l = mid + 1;
-             } else {
-                 r = mid;
+        if (tile_idx >= expert_tile_offsets[expert_id + 1]) {
+             uint l = expert_id + 1;
+             uint r = num_experts;
+             while (l < r) {
+                 uint mid = l + (r - l) / 2;
+                 if (tile_idx >= expert_tile_offsets[mid]) {
+                     l = mid + 1;
+                 } else {
+                     r = mid;
+                 }
              }
+             expert_id = l - 1;
         }
-        // expert_id is l - 1
-        uint expert_id = l - 1;
         
         uint batch = expert_id; // Mapping expert_id to batch index as per original logic
 
