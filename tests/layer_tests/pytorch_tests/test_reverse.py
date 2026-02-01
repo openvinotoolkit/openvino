@@ -79,7 +79,11 @@ class TestReverse(PytorchLayerTest):
             Tuple of (model, ref_net, op_name)
         """
         if single_dim:
-            model = aten_flip_single_dim(dims[0])
+            if isinstance(dims, int):
+                dim_value = dims
+            else:
+                dim_value = dims[0]
+            model = aten_flip_single_dim(dim_value)
         elif dims == "all":
             model = aten_flip_all_dims(ndim)
         else:
