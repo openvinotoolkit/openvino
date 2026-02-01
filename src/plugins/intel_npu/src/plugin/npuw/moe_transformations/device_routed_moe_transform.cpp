@@ -27,6 +27,7 @@ struct LayerNodes {
     std::vector<std::shared_ptr<ov::op::v1::Reshape>> dynamic_reshapes;
     std::vector<std::shared_ptr<ov::op::v0::MatMul>> matmuls;
     std::vector<std::shared_ptr<ov::op::v1::Add>> adds;
+    std::vector<std::shared_ptr<ov::op::v1::Multiply>> multiplies;
     std::shared_ptr<ov::op::v1::Transpose> transpose;
     size_t num_experts = 0;
 
@@ -263,6 +264,52 @@ LayerNodes collect_layer_nodes(const std::shared_ptr<ov::Model>& model, const Ro
             continue;
         }
 
+        // Collect Multiply nodes, e.g. AWQ multiply (one input from constant, other input is not constant/convert, and
+        // user is not MatMul)
+        if (auto multiply = std::dynamic_pointer_cast<ov::op::v1::Multiply>(n)) {
+            // Skip if this Multiply is used by MatMul (it's MatMul weights multiply, which has been processed by
+            // transform_matmuls)
+            bool used_by_matmul = false;
+            for (const auto& output : multiply->outputs()) {
+                for (const auto& target : output.get_target_inputs()) {
+                    auto user = target.get_node()->shared_from_this();
+                    if (std::dynamic_pointer_cast<ov::op::v0::MatMul>(user)) {
+                        used_by_matmul = true;
+                        break;
+                    }
+                }
+                if (used_by_matmul)
+                    break;
+            }
+            if (used_by_matmul) {
+                continue;
+            }
+
+            // Check both inputs: one should be constant with expert dimension, other should not be constant/convert
+            for (size_t const_idx = 0; const_idx < 2; ++const_idx) {
+                size_t other_idx = 1 - const_idx;
+
+                auto const_source = get_weight_source(multiply->input_value(const_idx));
+                auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(const_source.get_node_shared_ptr());
+
+                if (const_node) {
+                    auto shape = const_node->get_shape();
+                    if (nodes.num_experts > 0 && shape.size() >= 1 && shape[0] == nodes.num_experts) {
+                        // Check if other input is not constant/convert
+                        auto other_input = multiply->input_value(other_idx);
+                        auto other_source = get_weight_source(other_input);
+                        auto other_node = other_source.get_node_shared_ptr();
+
+                        if (!std::dynamic_pointer_cast<ov::op::v0::Constant>(other_node)) {
+                            nodes.multiplies.push_back(multiply);
+                            break;
+                        }
+                    }
+                }
+            }
+            continue;
+        }
+
         // Collect Transpose node
         if (auto transpose = std::dynamic_pointer_cast<ov::op::v1::Transpose>(n)) {
             auto input_node = transpose->input_value(0).get_node_shared_ptr();
@@ -406,6 +453,35 @@ void transform_adds(LayerNodes& nodes, const std::shared_ptr<ov::op::v1::Reshape
     }
 }
 
+void transform_multiplies(LayerNodes& nodes, const std::shared_ptr<ov::op::v1::Reshape>& topk_indices) {
+    for (auto& multiply : nodes.multiplies) {
+        bool transformed = false;
+        for (size_t input_idx = 0; input_idx < 2; ++input_idx) {
+            auto const_input = multiply->input_value(input_idx);
+            auto const_source = get_weight_source(const_input);
+            auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(const_source.get_node_shared_ptr());
+
+            if (const_node) {
+                auto shape = const_node->get_shape();
+                if (nodes.num_experts > 0 && shape.size() >= 1 && shape[0] == nodes.num_experts) {
+                    auto gather_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+                    auto gathered = std::make_shared<ov::op::v8::Gather>(const_input, topk_indices, gather_axis);
+                    gathered->set_friendly_name(const_input.get_node()->get_friendly_name() + "/gathered");
+
+                    multiply->input(input_idx).replace_source_output(gathered);
+                    ov::copy_runtime_info(const_input.get_node_shared_ptr(), gathered);
+
+                    transformed = true;
+                    break;
+                }
+            }
+        }
+        OPENVINO_ASSERT(transformed,
+                        "Failed to transform Multiply constants for node: ",
+                        multiply->get_friendly_name());
+    }
+}
+
 void transform_transpose(LayerNodes& nodes, const ov::Output<ov::Node>& topk_softmax_scores) {
     if (nodes.transpose) {
         auto transpose_input = nodes.transpose->input_value(0);
@@ -438,12 +514,14 @@ bool apply_layer_transformation(const RouterInfo& router, LayerNodes& nodes) {
     transform_dynamic_reshapes(nodes);
     transform_matmuls(nodes, topk_indices);
     transform_adds(nodes, topk_indices);
+    transform_multiplies(nodes, topk_indices);
     transform_transpose(nodes, router.topk_softmax_scores);
 
     LOG_INFO("DeviceRoutedMoE transformation successful for " << router.layer_id);
     LOG_INFO("  Tiles: " << nodes.tiles.size() << ", ConstReshapes: " << nodes.constant_reshapes.size()
                          << ", DynReshapes: " << nodes.dynamic_reshapes.size() << ", MatMuls: " << nodes.matmuls.size()
-                         << ", Adds: " << nodes.adds.size() << ", K=" << router.k_value);
+                         << ", Adds: " << nodes.adds.size() << ", Multiplies: " << nodes.multiplies.size()
+                         << ", K=" << router.k_value);
 
     return true;
 }
