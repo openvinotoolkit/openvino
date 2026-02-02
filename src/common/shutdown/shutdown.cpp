@@ -13,8 +13,8 @@ extern "C" __declspec(allocate(".shutdown_sec$z")) void (*__ov_shutdown_end)(voi
 
 #elif defined(__GNUC__) || defined(__clang__)
 // Get the release start/end addresses (GCC/Clang)
-extern "C" void (*__start___shutdown_sec)(void);
-extern "C" void (*__stop___shutdown_sec)(void);
+extern "C" void (*__start___shutdown_sec)(void) __attribute__((weak));
+extern "C" void (*__stop___shutdown_sec)(void) __attribute__((weak));
 #else
 #    error "Compiler not supported"
 #endif
@@ -54,7 +54,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL,  // handle to DLL module
     }
     return TRUE;  // Successful DLL_PROCESS_ATTACH.
 }
-#elif defined(__linux__) || defined(__APPLE__)
+#elif defined(__linux__) || defined(__APPLE__) || defined(__EMSCRIPTEN__)
 extern "C" __attribute__((destructor)) void library_unload();
 void library_unload() {
     shutdown_resources();
