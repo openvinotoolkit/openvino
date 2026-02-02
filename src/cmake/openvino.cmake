@@ -63,6 +63,10 @@ if (TBBBIND_2_5_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()
 
+if(ANDROID)
+    target_link_options(${TARGET_NAME} PRIVATE "-Wl,-T,${OpenVINO_SOURCE_DIR}/src/common/shutdown/android.ld")
+endif()
+
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
