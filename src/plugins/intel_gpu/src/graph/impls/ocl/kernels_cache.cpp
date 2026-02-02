@@ -44,7 +44,7 @@
 #ifndef NOMINMAX
 # define NOMINMAX
 #endif
-#include "gpu/intel/microkernels/fuser.hpp"
+#include "gpu/intel/gemm/jit/include/gemmstone/microkernel/fuser.hpp"
 #endif
 
 namespace {
