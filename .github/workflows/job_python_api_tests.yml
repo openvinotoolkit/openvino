@@ -95,7 +95,6 @@ jobs:
         with:
           wheels-dir-path: ${{ env.INSTALL_DIR }}
           wheels-to-install: 'openvino'
-          free-threaded-python: ${{ contains(inputs.python-version, 't') }}
 
       - name: Install Python API tests dependencies
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/bindings/python/requirements_test.txt
@@ -114,7 +113,7 @@ jobs:
             --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
 
       - name: Python API Tests -- numpy<2.0.0
-        if: ${{ fromJSON(inputs.affected-components).Python_API.test && inputs.python-version != '3.14t' }} # Explanation for `3.14t` is in the 178162 ticket
+        if: fromJSON(inputs.affected-components).Python_API.test
         run: |
           python3 -m pip uninstall -y numpy
           python3 -m pip install "numpy~=1.26.0"
@@ -126,7 +125,7 @@ jobs:
             --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
 
       - name: Docs Python snippets
-        if: ${{ runner.os != 'macOS' && fromJSON(inputs.affected-components).docs_snippets.test && inputs.python-version != '3.14' && inputs.python-version != '3.14t' }} # Ticket: 178163
+        if: ${{ runner.os != 'macOS' && fromJSON(inputs.affected-components).docs_snippets.test }}
         run: |
           # torch, onnx
           python3 -m pip install -r ${INSTALL_TEST_DIR}/python/preprocess/torchvision/requirements.txt -r ${INSTALL_TEST_DIR}/requirements_onnx
@@ -137,7 +136,7 @@ jobs:
           python3 docs/articles_en/assets/snippets/main.py
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: ${{ !cancelled() }}
         with:
           name: test-results-python-api-${{ inputs.python-version }}

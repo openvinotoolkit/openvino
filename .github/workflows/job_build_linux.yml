@@ -223,13 +223,13 @@ jobs:
       - name: Build Python API and wheels
         if: ${{ inputs.build-additional-python-packages }}
         run: |
-          for py_version in "3.10" "3.11" "3.12" "3.13" "3.14" "3.14t"
+          for py_version in "3.10" "3.11" "3.12" "3.13"
           do
-            echo "Building Python API and wheels for Python ${py_version}"
             export PY_BUILD_DIR=${{ github.workspace }}/py$py_version
             mkdir -p $PY_BUILD_DIR
 
             python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
+          
             echo "Using Python executable at: ${python_exec_path}"
 
             $python_exec_path -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
@@ -239,6 +239,7 @@ jobs:
               echo "Adding ARM specific CMake options"
               CMAKE_OPTIONS+=" -DCMAKE_TOOLCHAIN_FILE=${{ env.OPENVINO_REPO }}/cmake/arm.toolchain.cmake -DPYTHON_MODULE_EXTENSION=$(/opt/python${py_version}_arm/bin/python${py_version}-config --extension-suffix) -DPython3_INCLUDE_DIR=/opt/python${py_version}_arm/include/python${py_version}"
             fi
+            
 
             if [[ $py_version == "3.14t" ]]; then
               CMAKE_OPTIONS+=" -DENABLE_GIL_PYTHON_API=OFF"
@@ -335,7 +336,7 @@ jobs:
       # Upload build artifacts and logs
       #
       - name: Upload build logs
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: always()
         with:
           name: build_logs
@@ -344,7 +345,7 @@ jobs:
 
       - name: Upload OpenVINO package
         if: ${{ always() }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -352,7 +353,7 @@ jobs:
 
       - name: Upload OpenVINO wheels
         if: ${{ inputs.os != 'debian_10' && inputs.arch != 'arm' }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_WHEELS_DIR }}/wheels/*.whl
@@ -360,7 +361,7 @@ jobs:
 
       - name: Upload OpenVINO js package
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: openvino_js_package
           path: ${{ env.BUILD_DIR }}/openvino_js_package.tar.gz
@@ -368,7 +369,7 @@ jobs:
 
       - name: Upload openvino-node NPM package
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: openvino_node_npm_package
           path: ${{ env.BUILD_DIR }}/openvino_node_npm_package.tar.gz
@@ -376,7 +377,7 @@ jobs:
 
       - name: Upload OpenVINO developer package
         if: ${{ always() }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: openvino_developer_package
           path: ${{ env.BUILD_DIR }}/developer_package.tar.gz
@@ -384,7 +385,7 @@ jobs:
 
       - name: Upload OpenVINO RPM packages
         if: ${{ inputs.build-rpm-packages }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: openvino_rpm_packages
           path: ${{ env.BUILD_DIR }}/*.rpm
@@ -392,7 +393,7 @@ jobs:
 
       - name: Upload OpenVINO debian packages
         if: ${{ inputs.build-debian-packages }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: openvino_debian_packages
           path: ${{ env.BUILD_DIR }}/*.deb
@@ -400,7 +401,7 @@ jobs:
 
       - name: Upload OpenVINO tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz

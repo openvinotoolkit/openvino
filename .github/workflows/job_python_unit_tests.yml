@@ -118,19 +118,7 @@ jobs:
         run: |
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/onnx -k 'not cuda' \
-            --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.graph_iterator_enabled.xml \
-            --ignore=${INSTALL_TEST_DIR}/onnx/test_python/test_zoo_models.py
-
-      - name: Python ONNX operators tests ONNX_ITERATOR=disabled (legacy implementation)
-        if: (fromJSON(inputs.affected-components).Python_API.test ||
-             fromJSON(inputs.affected-components).ONNX_FE.test) &&
-             runner.arch != 'ARM64' # Ticket: 123325
-        env:
-          ONNX_ITERATOR: "0"
-        run: |
-          # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
-          python3 -m pytest -sv ${INSTALL_TEST_DIR}/onnx -k 'not cuda' \
-            --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.graph_iterator_disabled.xml \
+            --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.xml \
             --ignore=${INSTALL_TEST_DIR}/onnx/test_python/test_zoo_models.py
 
       - name: OVC unit tests
@@ -164,7 +152,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: ${{ !cancelled() }}
         with:
           name: test-results-python
