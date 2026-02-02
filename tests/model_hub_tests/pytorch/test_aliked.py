@@ -3,6 +3,7 @@
 
 import math
 import os
+import platform
 import subprocess
 import sys
 import tempfile
@@ -120,9 +121,15 @@ class TestAlikedConvertModel(TestTorchConvertModel):
         # remove all downloaded files from cache
         self.repo_dir.cleanup()
 
+    def get_supported_precommit_models():
+        models = []
+        if platform.machine() not in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+            models.extend(['aliked-n16rot'])
+        return models
+
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.parametrize("name", ['aliked-n16rot'])
+    @pytest.mark.parametrize("name", get_supported_precommit_models())
     def test_convert_model_all_models_default(self, name, ie_device):
         self.run(name, None, ie_device)
 
