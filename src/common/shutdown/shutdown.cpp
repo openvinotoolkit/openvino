@@ -11,22 +11,24 @@
 extern "C" __declspec(allocate(".shutdown_sec$a")) void (*__ov_shutdown_start)(void) = nullptr;
 extern "C" __declspec(allocate(".shutdown_sec$z")) void (*__ov_shutdown_end)(void) = nullptr;
 
-#elif defined(__GNUC__) || defined(__clang__)
+#elif (defined(__GNUC__) || defined(__clang__))
+
+#    if defined(__APPLE__)
+extern "C" void (*__ov_shutdown_start)(void) __asm("section$start$__DATA$__shutdown_sec");
+extern "C" void (*__ov_shutdown_end)(void) __asm("section$end$__DATA$__shutdown_sec");
+#    else
 // Get the release start/end addresses (GCC/Clang)
-extern "C" void (*__start___shutdown_sec)(void) __attribute__((weak));
-extern "C" void (*__stop___shutdown_sec)(void) __attribute__((weak));
+extern "C" void (*__ov_shutdown_start)(void);
+extern "C" void (*__ov_shutdown_end)(void);
+#    endif
+
 #else
 #    error "Compiler not supported"
 #endif
 
 static void shutdown_resources() {
-#if defined(_MSC_VER)
     void (**start)(void) = &__ov_shutdown_start;
     void (**end)(void) = &__ov_shutdown_end;
-#elif defined(__GNUC__) || defined(__clang__)
-    void (**start)(void) = &__start___shutdown_sec;
-    void (**end)(void) = &__stop___shutdown_sec;
-#endif
 
     for (void (**func)(void) = start; func != end; ++func) {
         if (*func) {
