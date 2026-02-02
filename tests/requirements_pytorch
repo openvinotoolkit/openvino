@@ -8,8 +8,7 @@ torch==2.9.0
 
 torchvision==0.24.0
 torchaudio==2.9.0
-# before updating transformers version, make sure no tests (esp. sdpa2pa) are failing
-transformers==4.47.1
+transformers==4.53.0
 pytest==7.0.1; python_version < '3.10'
 pytest==7.2.0; python_version >= '3.10'
 pytest-html==4.2.0
@@ -22,6 +21,9 @@ triton==3.5.1; platform_system == "Linux" and platform_machine == "x86_64"
 auto-gptq==0.7.1; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.12"
 # peft is a dependency of auto-gptq, newer versions lead to gptq model loading failures
 peft==0.17.1; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.12"
+# optimum 2.x dropped auto-gptq support, requires gptqmodel which needs numpy>=2.2 and transformers>=4.57
+# pin to optimum 1.27.0 to keep auto-gptq working
+optimum==1.27.0; python_version < "3.12"
 av==13.0.0
 basicsr==1.4.2; python_version < "3.12"
 datasets==3.0.1
