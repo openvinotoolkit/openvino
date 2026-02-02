@@ -61,7 +61,7 @@ public:
         size_t alignedSize = 0;
         // use local zeGraphExt;
         auto localZeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
-        GraphDescriptor localGraphDescriptor = nullptr;
+        GraphDescriptor localGraphDescriptor = {};
         serializeIR();
         localGraphDescriptor = localZeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache());
         const uint8_t* blobPtr = nullptr;
@@ -183,6 +183,8 @@ TEST_P(ZeroGraphTest, GetGraphInitBlob) {
                            zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
                                                                    ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
     OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
+
+    ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
 }
 
 TEST_P(ZeroGraphTest, GetNetworkMeta) {
@@ -214,6 +216,8 @@ TEST_P(ZeroGraphTest, GetGraphBinary) {
     const uint8_t* blobPtr = nullptr;
     std::vector<uint8_t> blobVec;
     OV_ASSERT_NO_THROW(zeGraphExt->getGraphBinary(graphDescriptor, blobVec, blobPtr, alignedSize));
+
+    ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
 }
 
 TEST_P(ZeroGraphTest, SetGraphArgOnNullBuffer) {
