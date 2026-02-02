@@ -157,29 +157,17 @@ protected:
 // The "..." may be filled with expressions of any type that has an "operator<<" overload for
 // insertion into std::ostream.
 //
-#define OPENVINO_ASSERT_CHECK_CONDITION(check)                                                            \
-    do {                                                                                                  \
-        [](const auto& v) -> void {                                                                       \
-            using _ov_check_t = ::std::remove_reference_t<decltype(v)>;                                   \
-            if constexpr (::std::is_array_v<_ov_check_t> &&                                               \
-                          ::std::is_same_v<::std::remove_extent_t<_ov_check_t>, char>) {                  \
-                static_assert(sizeof(_ov_check_t) == 0,                                                   \
-                              "OPENVINO_ASSERT: string literal used as condition (always true). "         \
-                              "Did you mean to compare strings or check a pointer?");                     \
-            } else if constexpr (::std::is_array_v<_ov_check_t> &&                                        \
-                                 ::std::is_same_v<::std::remove_extent_t<_ov_check_t>, wchar_t>) {        \
-                static_assert(sizeof(_ov_check_t) == 0,                                                   \
-                              "OPENVINO_ASSERT: wide string literal used as condition (always true).");   \
-            } else if constexpr (::std::is_array_v<_ov_check_t> &&                                        \
-                                 ::std::is_same_v<::std::remove_extent_t<_ov_check_t>, char16_t>) {       \
-                static_assert(sizeof(_ov_check_t) == 0,                                                   \
-                              "OPENVINO_ASSERT: UTF-16 string literal used as condition (always true)."); \
-            } else if constexpr (::std::is_array_v<_ov_check_t> &&                                        \
-                                 ::std::is_same_v<::std::remove_extent_t<_ov_check_t>, char32_t>) {       \
-                static_assert(sizeof(_ov_check_t) == 0,                                                   \
-                              "OPENVINO_ASSERT: UTF-32 string literal used as condition (always true)."); \
-            }                                                                                             \
-        }(check);                                                                                         \
+#define OPENVINO_ASSERT_CHECK_CONDITION(check)                                                  \
+    do {                                                                                        \
+        using _ov_check_t = ::std::remove_reference_t<decltype((check))>;                       \
+        using _ov_elem_t = ::std::remove_extent_t<_ov_check_t>;                                 \
+        constexpr bool _ov_is_string_literal =                                                  \
+            ::std::is_array_v<_ov_check_t> &&                                                   \
+            (::std::is_same_v<_ov_elem_t, char> || ::std::is_same_v<_ov_elem_t, wchar_t> ||     \
+             ::std::is_same_v<_ov_elem_t, char16_t> || ::std::is_same_v<_ov_elem_t, char32_t>); \
+        static_assert(!_ov_is_string_literal,                                                   \
+                      "OPENVINO_ASSERT: string literal used as condition (always true). "       \
+                      "Did you mean to compare strings or check a pointer?");                   \
     } while (0)
 
 #define OPENVINO_ASSERT_HELPER2(exc_class, ctx, check, ...)                      \
