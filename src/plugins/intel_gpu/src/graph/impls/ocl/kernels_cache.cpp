@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -259,7 +259,8 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             // Add -g -s to build options to allow IGC assembly dumper to associate assembler sources with corresponding OpenCL kernel code lines
             // Should be used with the IGC_ShaderDump option
-            if (!dump_sources_dir.empty()) {
+            // Note: Skip adding -g -s for CM kernels as these options are not supported by CM compiler
+            if (!dump_sources_dir.empty() && b.language != kernel_language::CM) {
                 std::string current_dump_file_name = std::move(dump_sources_dir);
                 if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
                     current_dump_file_name += '/';
@@ -301,8 +302,10 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
         if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
             current_dump_file_name += '/';
 
+        // Use .cm extension for CM kernels, .cl for OpenCL kernels
+        std::string ext = (batch.language == kernel_language::CM) ? ".cm" : ".cl";
         current_dump_file_name += "clDNN_program_" + std::to_string(_prog_id) + "_bucket_" + std::to_string(batch.bucket_id)
-                               + "_part_" + std::to_string(batch.batch_id) + "_" + std::to_string(batch.hash_value) + ".cl";
+                               + "_part_" + std::to_string(batch.batch_id) + "_" + std::to_string(batch.hash_value) + ext;
     }
 
     std::ofstream dump_file;
@@ -318,7 +321,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     std::vector<uint8_t> precompiled;
     if (is_cache_enabled()) {
         std::lock_guard<std::mutex> lock(cacheAccessMutex);
-        precompiled = ov::util::load_binary(cached_bin_name);
+        precompiled = ov::util::load_binary(ov::util::make_path(cached_bin_name));
     }
     std::vector<kernel::ptr> kernels;
     if (!precompiled.empty()) {

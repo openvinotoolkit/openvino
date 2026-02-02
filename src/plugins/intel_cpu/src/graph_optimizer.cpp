@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -867,18 +867,17 @@ void GraphOptimizer::FuseConvDeconvFCAndConvertOnWeights(Graph& graph) {
             parent = transpose->getParentEdgeAt(0)->getParent();
         }
 
-        const auto convert = parent;
-        if (!isSuitableConvert(convert)) {
+        if (!isSuitableConvert(parent)) {
             continue;
         }
 
-        const auto weights = convert->getParentEdgeAt(0)->getParent();
+        const auto weights = parent->getParentEdgeAt(0)->getParent();
         const auto weights_out_edge = weights->getChildEdges()[0].lock();
         const auto fc_weights_path_edge =
             transpose ? transpose->getParentEdgeAt(0) : fullyConnected->getParentEdgeAt(1);
         const auto inNum = weights_out_edge->getInputNum();
         const auto outNum = fc_weights_path_edge->getOutputNum();
-        const auto originalPrecision = convert->getOriginalInputPrecisionAtPort(0);
+        const auto originalPrecision = parent->getOriginalInputPrecisionAtPort(0);
         fullyConnected->setOriginalInputPrecisionAtPort(1, originalPrecision);
         if (transpose) {
             transpose->setOriginalInputPrecisionAtPort(0, originalPrecision);
@@ -886,8 +885,8 @@ void GraphOptimizer::FuseConvDeconvFCAndConvertOnWeights(Graph& graph) {
         }
         graph.RemoveEdge(fc_weights_path_edge);
         graph.CreateEdge(weights, transpose ? transpose : fullyConnected, inNum, outNum);
-        if (convert->getChildEdges().empty()) {
-            graph.DropNode(convert);
+        if (parent->getChildEdges().empty()) {
+            graph.DropNode(parent);
         }
     }
 }

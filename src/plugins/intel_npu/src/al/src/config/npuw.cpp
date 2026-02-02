@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,8 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_SPATIAL>();
     desc.add<NPUW_SPATIAL_NWAY>();
     desc.add<NPUW_SPATIAL_DYN>();
+    desc.add<NPUW_MOE_TOKEN_CHUNK_SIZE>();
+    desc.add<NPUW_MOE_POOL_SIZE>();
     desc.add<NPUW_ATTN>();
     desc.add<NPUW_ATTN_DYN>();
     desc.add<NPUW_ATTN_NO_COPY>();
@@ -69,6 +71,8 @@ void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {
     desc.add<NPUW_LLM_MAX_LORA_RANK>();
     desc.add<NPUW_LLM_OPTIMIZE_V_TENSORS>();
     desc.add<NPUW_LLM_CACHE_ROPE>();
+    desc.add<NPUW_LLM_PREFILL_MOE_HINT>();
+    desc.add<NPUW_LLM_GENERATE_MOE_HINT>();
     desc.add<NPUW_LLM_GENERATE_PYRAMID>();
     desc.add<NPUW_LLM_PREFILL_CHUNK_SIZE>();
     desc.add<NPUW_LLM_ENABLE_PREFIX_CACHING>();
@@ -82,6 +86,13 @@ void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {
     desc.add<NPUW_LLM_SHARED_HEAD>();
     desc.add<NPUW_WHISPER>();
     desc.add<NPUW_EAGLE>();
+    desc.add<NPUW_TEXT_EMBED>();
+}
+
+void intel_npu::registerNPUWKokoroOptions(OptionsDesc& desc) {
+    desc.add<NPUW_KOKORO>();
+    desc.add<NPUW_KOKORO_BLOCK_SIZE>();
+    desc.add<NPUW_KOKORO_OVERLAP_SIZE>();
 }
 
 std::string ov::npuw::s11n::anyToString(const ov::Any& var) {

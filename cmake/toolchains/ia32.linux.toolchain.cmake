@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -21,6 +21,5 @@ macro(_set_if_not_defined var val)
         set(${var} ${val} CACHE BOOL "" FORCE)
     endif()
 endmacro()
-
 # for ittapi
 _set_if_not_defined(FORCE_32 ON)
