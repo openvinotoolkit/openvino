@@ -15,7 +15,7 @@
 #        define OV_SHUTDOWN_SECTION_NAME "__shutdown_sec"
 #    endif
 #    define DECLARE_OV_SHUTDOWN_FUNC(func) \
-        __attribute__((section(OV_SHUTDOWN_SECTION_NAME), used)) void (*__##func)(void) = func;
+        __attribute__((section(OV_SHUTDOWN_SECTION_NAME))) void (*__##func)(void) = func;
 #else
 #    error "Compiler not supported"
 #endif
