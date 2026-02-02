@@ -6,6 +6,7 @@
 #include "cumulative_schedule.hpp"
 #include "async_infer_request.hpp"
 #include "plugin.hpp"
+#include "openvino/util/file_util.hpp"
 
 // ------------------------------CumuSchedule----------------------------
 namespace ov {
