@@ -42,6 +42,7 @@
 #include "openvino/util/log.hpp"
 #include "ops_bridge.hpp"
 #include "transformations/resolve_names_collisions.hpp"
+#include "transformations/sequence_concat_replacer.hpp"
 #include "translate_session.hpp"
 #include "utils/common.hpp"
 #include "utils/onnx_internal.hpp"
@@ -221,9 +222,10 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::Input
 
     const auto& converted_model = model_onnx->convert();
 
+    normalize(converted_model);
+
     ov::frontend::onnx::common::collect_translation_exceptions(converted_model, m_extensions.telemetry);
 
-    normalize(converted_model);
     return converted_model;
 }
 
@@ -235,7 +237,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     // Here, you can register transformations as a second step of importing process
     // In particular, you can operate on not supported ops (it allows to N:N ONNX->OV mapping).
     ov::pass::Manager manager("Frontend:ONNX:normalize");
-    manager.register_pass<pass::ResolveNameCollisions>(true);
+    manager.register_pass<onnx::pass::SequenceConcatReplacer>();
+    manager.register_pass<ov::pass::ResolveNameCollisions>(true);
     manager.run_passes(model);
 }
 
@@ -260,7 +263,9 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& input_model)
         return model;
     }
 
-    const auto& converted_model = model_onnx->convert();
+    auto converted_model = model_onnx->convert();
+
+    normalize(converted_model);
 
     std::stringstream error_messages;
 
@@ -270,7 +275,6 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& input_model)
         FRONT_END_THROW(error_messages.str());
     }
 
-    normalize(converted_model);
     return converted_model;
 }
 
@@ -382,12 +386,13 @@ std::shared_ptr<ov::Model> FrontEnd::convert_unify(const InputModel::Ptr& input_
 
     translate_graph(input_model, false, false, ov_model);
 
+    normalize(ov_model);
+
     std::stringstream error_messages;
     if (ov::frontend::onnx::common::collect_translation_exceptions(ov_model, m_extensions.telemetry, &error_messages)) {
         FRONT_END_THROW(error_messages.str());
     }
 
-    normalize(ov_model);
     return ov_model;
 }
 
@@ -406,9 +411,10 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially_unify(const InputModel::P
     std::shared_ptr<ov::Model> ov_model;
     translate_graph(input_model, false, false, ov_model);
 
+    normalize(ov_model);
+
     ov::frontend::onnx::common::collect_translation_exceptions(ov_model, m_extensions.telemetry);
 
-    normalize(ov_model);
     return ov_model;
 }
 void FrontEnd::translate_graph(const InputModel::Ptr& input_model,
