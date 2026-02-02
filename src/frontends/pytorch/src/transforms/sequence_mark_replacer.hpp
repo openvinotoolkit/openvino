@@ -16,10 +16,10 @@ namespace pass {
 /// This transformation should run after all other transformations that might
 /// consume or remove SequenceMark nodes. It concatenates all inputs of the
 /// SequenceMark into a single 1D tensor.
-class SequenceMarkReplacer : public ov::pass::ModelPass {
+class SequenceMarkReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("ov::frontend::pytorch::pass::SequenceMarkReplacer");
-    bool run_on_model(const std::shared_ptr<Model>& model) override;
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::SequenceMarkReplacer");
+    SequenceMarkReplacer();
 };
 
 }  // namespace pass
