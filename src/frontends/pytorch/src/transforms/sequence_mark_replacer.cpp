@@ -65,7 +65,8 @@ SequenceMarkReplacer::SequenceMarkReplacer() {
         return true;
     };
 
-    const auto m = std::make_shared<ov::pass::pattern::Matcher>(seq_mark_pattern, "ov::frontend::pytorch::pass::SequenceMarkReplacer");
+    const auto m = std::make_shared<ov::pass::pattern::Matcher>(seq_mark_pattern,
+                                                                "ov::frontend::pytorch::pass::SequenceMarkReplacer");
     this->register_matcher(m, callback);
 }
 
