@@ -48,7 +48,7 @@
 #ifndef NOMINMAX
 # define NOMINMAX
 #endif
-#include "gpu/intel/microkernels/fuser.hpp"
+#include "gpu/intel/gemm/jit/include/gemmstone/microkernel/fuser.hpp"
 #endif
 
 namespace {
@@ -76,11 +76,10 @@ static const cldnn::device::ptr get_target_device(const cldnn::engine& engine) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 cl::Program fuse_microkernels(const cl::Context& context, const cl::Device& device, cl::Program& program, const std::string& code) {
-    using namespace dnnl::impl::gpu::intel;
     std::vector<std::vector<uint8_t>> binaries = program.getInfo<CL_PROGRAM_BINARIES>();
     OPENVINO_ASSERT(binaries.size() == 1);
     std::vector<uint8_t> binary = binaries[0];
-    micro::fuseMicrokernels(binary, code.c_str());
+    gemmstone::microkernel::fuse(binary, code.c_str());
 
     cl::Program::Binaries fused_binary = { binary };
     cl::Program fused_program(context, {device}, fused_binary);
