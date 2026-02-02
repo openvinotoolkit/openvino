@@ -58,6 +58,7 @@ public:
     const std::string& domain() const;
     const std::string& op_type() const;
     const std::string& name() const;
+    int64_t opset_version() const;
 
     const std::string& description() const;
     const std::vector<std::reference_wrapper<const std::string>>& get_output_names() const;
@@ -127,6 +128,9 @@ const std::string& Node::Impl::op_type() const {
 }
 const std::string& Node::Impl::name() const {
     return m_name;
+}
+int64_t Node::Impl::opset_version() const {
+    return m_graph->get_opset_version(m_domain);
 }
 const std::vector<std::reference_wrapper<const std::string>>& Node::Impl::get_output_names() const {
     return m_output_names;
@@ -434,6 +438,15 @@ const std::string& Node::get_name() const {
         return m_decoder->get_name();
     }
     FRONT_END_NOT_IMPLEMENTED(get_name);
+}
+
+int64_t Node::opset_version() const {
+    if (m_pimpl != nullptr) {
+        return m_pimpl->opset_version();
+    } else if (m_decoder != nullptr) {
+        return static_cast<int64_t>(m_decoder->get_op_set());
+    }
+    FRONT_END_NOT_IMPLEMENTED(opset_version);
 }
 
 const std::vector<std::reference_wrapper<const std::string>> Node::get_output_names() const {

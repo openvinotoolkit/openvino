@@ -55,6 +55,11 @@ public:
     ov::OutputVector make_ov_nodes(const ov::frontend::onnx::Node& onnx_node);
 
     const OpsetImports& get_opset_imports() const;
+
+    int64_t get_opset_version(const std::string& domain) const {
+        return m_model->get_opset_version(domain);
+    }
+
     virtual ~Graph() = default;
 
     const ov::frontend::ExtensionHolder& get_extensions() const {

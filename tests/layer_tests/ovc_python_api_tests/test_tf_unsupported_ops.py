@@ -83,7 +83,7 @@ class TestUnsupportedOps(unittest.TestCase):
         model = create_if_net(self.tmp_dir)
 
         with self.assertRaisesRegex(OpConversionFailure,
-                                    ".*Internal error, no translator found for operation\(s\): WriteFile.*"):
+                                    ".*No conversion rule found for operations: WriteFile.*"):
             convert_model(model)
 
     @pytest.mark.nightly
@@ -94,5 +94,5 @@ class TestUnsupportedOps(unittest.TestCase):
         model = create_part_call_net(self.tmp_dir)
 
         with self.assertRaisesRegex(OpConversionFailure,
-                                    '.*Internal error, no translator found for operation\(s\): WriteFile.*'):
+                                    '.*No conversion rule found for operations: WriteFile.*'):
             convert_model(model)

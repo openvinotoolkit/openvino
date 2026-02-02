@@ -37,65 +37,75 @@
 #include "transformations/transpose_sinking/ts_general.hpp"
 #include "transformations/uninitialized_variable_resolve.hpp"
 #include "translate_session.hpp"
+#include "unconverted_ops_report.hpp"
 #include "utils.hpp"
 
 using namespace ov;
 using namespace ov::frontend::tensorflow;
 
 namespace {
-void update_failures_unsupported_ops(const std::string& op_type,
-                                     const ov::op::util::FrameworkNodeAttrs& fw_node_attrs,
-                                     std::set<std::string>& unsupported_operations,
-                                     std::unordered_map<std::string, std::string>& failures) {
-    // if this operation is encountered among unsupported operations
-    // or conversion failures, skip it
-    if (failures.count(op_type) > 0 || unsupported_operations.count(op_type) > 0) {
-        return;
-    }
-    if (fw_node_attrs.find(FrameworkNode::failed_conversion_key) != fw_node_attrs.end()) {
-        // save only the first encountered failure that is more important for developer
-        // that means the translator is found but the conversion is failed
-        failures[op_type] = fw_node_attrs.at(FrameworkNode::failed_conversion_key);
-    } else {
-        // found new unsupported operation
-        unsupported_operations.insert(op_type);
-    }
-}
 
-void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model,
-                                             std::set<std::string>& unsupported_operations,
-                                             std::unordered_map<std::string, std::string>& failures) {
-    for (const auto& node : model->get_ordered_ops()) {
+ov::frontend::FrameworkNodeExtractor make_tensorflow_extractor() {
+    return [](const std::shared_ptr<ov::Node>& node) -> std::optional<std::pair<std::string, std::string>> {
         if (const auto& internal_op = ov::as_type_ptr<InternalOperation>(node)) {
             // handle internal operations separately
             // which can have elaborated reason of unconverted operation
             // like Const of string type
             auto op_type = internal_op->get_no_conversion_reason();
-            if (unsupported_operations.count(op_type) > 0) {
-                continue;
-            }
-            unsupported_operations.insert(op_type);
+            return std::make_pair(op_type, std::string{});
         } else if (const auto& variable = ov::as_type_ptr<Variable>(node)) {
             auto op_type = variable->get_decoder()->get_op_type();
             auto op_name = variable->get_name();
-            failures[op_type] = "Variable or resource `" + op_name + "` is not initialized, model is inconsistent";
+            return std::make_pair(op_type,
+                                  "Variable or resource `" + op_name + "` is not initialized, model is inconsistent");
         } else if (const auto& fw_node = ov::as_type_ptr<FrameworkNode>(node)) {
             auto op_type = fw_node->get_decoder()->get_op_type();
-            auto fw_node_attrs = fw_node->get_attrs();
-            update_failures_unsupported_ops(op_type, fw_node_attrs, unsupported_operations, failures);
+            const auto& fw_node_attrs = fw_node->get_attrs();
+            if (fw_node_attrs.find(FrameworkNode::failed_conversion_key) != fw_node_attrs.end()) {
+                return std::make_pair(op_type, fw_node_attrs.at(FrameworkNode::failed_conversion_key));
+            }
+            return std::make_pair(op_type, std::string{});
         } else if (const auto& fw_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(node)) {
             // handle auxiliary operations from common frontend like ComplexTypeMark
+            // Note: base FrameworkNode class doesn't have failed_conversion_key
             auto op_type = std::string(fw_node->get_type_name());
-            auto fw_node_attrs = fw_node->get_attrs();
-            update_failures_unsupported_ops(op_type, fw_node_attrs, unsupported_operations, failures);
+            return std::make_pair(op_type, std::string{});
         }
-        if (const auto& fw_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
-            int subgraphs_size = static_cast<int>(fw_node->get_internal_subgraphs_size());
-            for (int i = 0; i < subgraphs_size; ++i) {
-                get_unsupported_operations_and_failures(fw_node->get_function(i), unsupported_operations, failures);
+        return std::nullopt;
+    };
+}
+
+ov::frontend::AdditionalErrorCallback make_tokenizer_callback() {
+    return [](const std::set<std::string>& unsupported_ops) -> std::string {
+        std::stringstream additional_info;
+        additional_info << "To facilitate the conversion of unsupported operations, refer to Frontend Extension "
+                           "documentation: "
+                           "https://docs.openvino.ai/latest/openvino_docs_Extensibility_UG_Frontend_Extensions.html \n";
+
+        // Check for tokenizer operations
+        const auto& all_tokenizer_ops = ov::frontend::tensorflow::op::get_supported_ops_via_tokenizers();
+        std::string unsupported_ops_from_tokenizers;
+        size_t tokenizer_counter = 0;
+        for (const auto& unsupported_operation : unsupported_ops) {
+            if (std::find(all_tokenizer_ops.begin(), all_tokenizer_ops.end(), unsupported_operation) !=
+                all_tokenizer_ops.end()) {
+                if (tokenizer_counter > 0) {
+                    unsupported_ops_from_tokenizers += ", ";
+                }
+                unsupported_ops_from_tokenizers += unsupported_operation;
+                ++tokenizer_counter;
             }
         }
-    }
+
+        if (!unsupported_ops_from_tokenizers.empty()) {
+            additional_info << "\nEncountered unconverted operation(s) for which openvino-tokenizers package "
+                               "provides conversion extension(s): "
+                            << unsupported_ops_from_tokenizers
+                            << ". Install OpenVINO Tokenizers, refer to the documentation: "
+                               "https://docs.openvino.ai/2025/openvino-workflow-generative/ov-tokenizers.html \n";
+        }
+        return additional_info.str();
+    };
 }
 
 void translate_framework_node(const std::shared_ptr<FrameworkNode>& node,
@@ -416,66 +426,13 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
 std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& model) const {
     auto f = convert_partially(model);
 
-    std::unordered_map<std::string, std::string> failures;
-    std::set<std::string> unsupported_operations;
-    get_unsupported_operations_and_failures(f, unsupported_operations, failures);
-
-    std::stringstream exception_message;
-    for (const auto& failure : failures) {
-        auto exception_str = "[TensorFlow Frontend] Internal error, conversion is failed for " + failure.first +
-                             " operation with a message:\n" + failure.second + "\n";
-        exception_message << exception_str;
-        if (m_telemetry) {
-            m_telemetry->send_event("error_info",
-                                    ov::util::filter_lines_by_prefix(exception_str, "[TensorFlow Frontend] "));
-        }
-    }
-
-    if (m_telemetry) {
-        for (const auto& unsupported_operation : unsupported_operations) {
-            m_telemetry->send_event("error_cause", "tf_" + unsupported_operation);
-        }
-    }
-    if (unsupported_operations.size() > 0) {
-        exception_message << "[TensorFlow Frontend] Internal error, no translator found for operation(s): ";
-        size_t counter = 0;
-        size_t tokenizer_counter = 0;
-        std::string unsupported_ops_from_tokenizers;
-        const auto& all_tokenizer_ops = ov::frontend::tensorflow::op::get_supported_ops_via_tokenizers();
-        for (const auto& unsupported_operation : unsupported_operations) {
-            if (counter > 0) {
-                exception_message << ", ";
-            }
-            exception_message << unsupported_operation;
-            ++counter;
-
-            // collect a list of unconverted operations for which openvino-tokenizers provides conversion extensions
-            if (std::find(all_tokenizer_ops.begin(), all_tokenizer_ops.end(), unsupported_operation) !=
-                all_tokenizer_ops.end()) {
-                if (tokenizer_counter > 0) {
-                    unsupported_ops_from_tokenizers += ", ";
-                }
-                unsupported_ops_from_tokenizers += unsupported_operation;
-                ++tokenizer_counter;
-            }
-        }
-        exception_message
-            << "\nTo facilitate the conversion of unsupported operations, refer to Frontend Extension "
-               "documentation: "
-               "https://docs.openvino.ai/latest/openvino_docs_Extensibility_UG_Frontend_Extensions.html \n";
-
-        // recommend to use openvino-tokenizers if some unconverted operations from tokenizers are met
-        if (unsupported_ops_from_tokenizers.size() > 0) {
-            exception_message << "\nEncountered unconverted operation(s) for which openvino-tokenizers package "
-                                 "provides conversion extension(s): "
-                              << unsupported_ops_from_tokenizers
-                              << ". Install OpenVINO Tokenizers, refer to the documentation: "
-                                 "https://docs.openvino.ai/2025/openvino-workflow-generative/ov-tokenizers.html \n";
-        }
-    }
-
-    bool is_conversion_successful = ((unsupported_operations.size() == 0) && (failures.size() == 0));
-    FRONT_END_OP_CONVERSION_CHECK(is_conversion_successful, exception_message.str());
+    const auto report = ov::frontend::collect_unconverted_ops(f, make_tensorflow_extractor());
+    ov::frontend::check_unconverted_ops(report,
+                                        m_telemetry,
+                                        "tf",
+                                        "[TensorFlow Frontend] ",
+                                        "",
+                                        make_tokenizer_callback());
 
     return f;
 }

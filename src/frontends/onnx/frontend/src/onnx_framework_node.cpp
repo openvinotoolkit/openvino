@@ -29,12 +29,12 @@ std::shared_ptr<ov::Node> ONNXSubgraphFrameworkNode::clone_with_new_inputs(const
 
 std::shared_ptr<ov::Node> NotSupportedONNXNode::clone_with_new_inputs(const ov::OutputVector& inputs) const {
     const auto& attrs = get_attrs();
-    std::string error_message = attrs.at(failed_conversion_key);
     return std::make_shared<NotSupportedONNXNode>(inputs,
                                                   get_output_size(),
                                                   attrs.get_opset_name(),
                                                   attrs.get_type_name(),
-                                                  error_message);
+                                                  opset_version(),
+                                                  additional_error_message());
 }
 
 bool NotSupportedONNXNode::visit_attributes(ov::AttributeVisitor& visitor) {
