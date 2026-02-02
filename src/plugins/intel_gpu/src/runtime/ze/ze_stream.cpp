@@ -29,7 +29,7 @@
 #include <memory>
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-#include <oneapi/dnnl/dnnl_l0.hpp>
+#include <oneapi/dnnl/dnnl_ze.hpp>
 #endif
 
 namespace cldnn {
@@ -401,7 +401,7 @@ dnnl::stream& ze_stream::get_onednn_stream() {
     OPENVINO_ASSERT(m_queue_type == QueueTypes::in_order, "[GPU] Can't create onednn stream handle as onednn doesn't support out-of-order queue");
     OPENVINO_ASSERT(_engine.get_device_info().vendor_id == INTEL_VENDOR_ID, "[GPU] Can't create onednn stream handle as for non-Intel devices");
     if (!_onednn_stream) {
-        _onednn_stream = std::make_shared<dnnl::stream>(dnnl::l0_interop::make_stream(_engine.get_onednn_engine(), m_command_list, m_ev_factory->is_profiling_enabled()));
+        _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ze_interop::make_stream(_engine.get_onednn_engine(), m_command_list, m_ev_factory->is_profiling_enabled()));
     }
 
     return *_onednn_stream;

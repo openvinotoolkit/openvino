@@ -12,7 +12,7 @@
 #include <vector>
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-#include <oneapi/dnnl/dnnl_l0.hpp>
+#include <oneapi/dnnl/dnnl_ze.hpp>
 #endif
 
 namespace cldnn {
@@ -241,7 +241,7 @@ event::ptr gpu_usm::copy_to(stream& stream, void* data_ptr, size_t src_offset, s
 #ifdef ENABLE_ONEDNN_FOR_GPU
 dnnl::memory gpu_usm::get_onednn_memory(dnnl::memory::desc desc, int64_t offset) const {
     auto onednn_engine = _engine->get_onednn_engine();
-    dnnl::memory dnnl_mem = dnnl::l0_interop::make_memory(desc, onednn_engine,
+    dnnl::memory dnnl_mem = dnnl::ze_interop::make_memory(desc, onednn_engine,
         reinterpret_cast<uint8_t*>(_buffer.get()) + offset);
     return dnnl_mem;
 }
