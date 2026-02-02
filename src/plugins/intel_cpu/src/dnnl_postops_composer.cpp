@@ -28,6 +28,7 @@
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "nodes/common/cpu_convert.h"
 #include "nodes/executors/common/common_utils.hpp"
 #include "nodes/executors/dnnl/dnnl_post_op_data.hpp"
 #include "nodes/executors/memory_arguments.hpp"
@@ -37,11 +38,6 @@
 #include "utils/cpp/to_underlying.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
-
-#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
-#    include "nodes/common/cpu_convert.h"
-#    include "openvino/core/type/float16.hpp"
-#endif
 
 namespace ov::intel_cpu {
 
@@ -152,20 +148,6 @@ static dnnl::algorithm convertToOneDnn(const ActivationPostOp::Type type) {
 
     return dnnl::algorithm::undef;
 }
-
-#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
-static void convertBinaryToF16(const std::vector<float>& data,
-                               ov::element::Type& binaryType,
-                               const void*& binaryData,
-                               size_t& binaryBytes,
-                               std::vector<ov::float16>& dataF16) {
-    dataF16.resize(data.size());
-    cpu_convert(data.data(), dataF16.data(), ov::element::f32, ov::element::f16, data.size());
-    binaryType = ov::element::f16;
-    binaryData = dataF16.data();
-    binaryBytes = dataF16.size() * sizeof(ov::float16);
-}
-#endif
 
 bool DnnlPostOpsComposer::appendAttrPostOps(const ActivationPostOp& postOp,
                                             bool isLastPostOp,
@@ -516,24 +498,21 @@ void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vec
     DEBUG_LOG("Append binary post op with algorithm: ", convert_to_c(alg), " Shape: ", Shape(*pdims));
 
     ov::element::Type binaryType = ov::element::f32;
-    const void* binaryData = data.data();
-    size_t binaryBytes = data.size() * sizeof(float);
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
-    std::vector<ov::float16> dataF16;
     if (useF16Binary) {
         // DQ scale is fused but swiching back to non-INT8 for execution since
         // ACL executor is not able to handle such case
         // in this case original post op tensor is f32 even the model runs in f16 precision
         // to avoid fp32 convolution, postop is converted to f16
-        convertBinaryToF16(data, binaryType, binaryData, binaryBytes, dataF16);
+        binaryType = ov::element::f16;
     }
 #endif
 
     DnnlBlockedMemoryDesc memoryDesc(binaryType, Shape(*pdims));
     ops.append_binary(alg, memoryDesc.getDnnlDesc());
-    // copy the data as args
     auto mem = std::make_shared<Memory>(engine, memoryDesc);
-    memcpy(mem->getData(), binaryData, binaryBytes);
+    // convert will just copy in case of non-ARM
+    cpu_convert(data.data(), mem->getData(), ov::element::f32, binaryType, data.size());
 
     cpuArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = mem;
     dnnlArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = mem->getPrimitive();
