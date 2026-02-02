@@ -317,6 +317,35 @@ public:
     }
 };
 
+/**
+ * @brief AWQ parameter multiply unrolling with cleanup
+ *
+ * Unrolls Multiply operations with batched parameters (e.g., AWQ quantization scales)
+ * and removes unused parameters after unrolling. This is specifically designed for
+ * handling AWQ multiply nodes where one input is a batched parameter and the other
+ * is not a Concat (e.g., Swish activation).
+ *
+ * Included patterns:
+ * - UnrollParameterMultiply: Unroll Multiply with batched parameter
+ * - RemoveUnusedParameters: Clean up unused batched parameters
+ *
+ * Use cases:
+ * - Used in combination with MoEExpertUnrollingWeightsOnly for AWQ quantized models
+ * - Not needed with MoEExpertUnrolling (already handles all patterns comprehensively)
+ *
+ * @param model Model instance for parameter registration and cleanup
+ */
+
+class UnrollAWQParameterMultiply : public ov::pass::GraphRewrite {
+public:
+    OPENVINO_GRAPH_REWRITE_RTTI("npuw::pass::UnrollAWQParameterMultiply");
+
+    explicit UnrollAWQParameterMultiply(std::shared_ptr<ov::Model> model) {
+        add_matcher<UnrollParameterMultiply>(model);
+        add_matcher<RemoveUnusedParameters>(model);
+    }
+};
+
 }  // namespace pass
 }  // namespace npuw
 }  // namespace ov

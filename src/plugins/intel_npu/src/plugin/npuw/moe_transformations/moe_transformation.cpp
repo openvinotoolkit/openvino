@@ -805,8 +805,8 @@ std::shared_ptr<ov::Model> MoEModelTransformer::unroll_expert_dimension(const st
         } else {
             // Weight-only optimizations
             manager.register_pass<ov::npuw::pass::MoEExpertUnrollingWeightsOnly>(unrolled_model);
-            // Parameter unrolling for remaining cases (e.g., AWQ Multiply with non-Concat inputs)
-            manager.register_pass<ov::npuw::pass::UnrollParameterMultiply>(unrolled_model);
+            // AWQ parameter multiply unrolling with cleanup
+            manager.register_pass<ov::npuw::pass::UnrollAWQParameterMultiply>(unrolled_model);
         }
 
         manager.run_passes(unrolled_model);
