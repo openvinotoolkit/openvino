@@ -393,16 +393,24 @@ void Properties::registerPluginProperties() {
 
     TRY_REGISTER_CUSTOMFUNC_PROPERTY(ov::intel_npu::stepping, STEPPING, [&](const Config& config) {
         if (!config.has<STEPPING>()) {
-            const auto specifiedDeviceName = get_specified_device_name(config);
-            return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
+            try {
+                const auto specifiedDeviceName = get_specified_device_name(config);
+                return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
+            } catch (...) {
+                return STEPPING::defaultValue();
+            }
         } else {
             return config.get<STEPPING>();
         }
     });
     TRY_REGISTER_CUSTOMFUNC_PROPERTY(ov::intel_npu::max_tiles, MAX_TILES, [&](const Config& config) {
         if (!config.has<MAX_TILES>()) {
-            const auto specifiedDeviceName = get_specified_device_name(config);
-            return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
+            try {   
+                const auto specifiedDeviceName = get_specified_device_name(config);
+                return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
+            } catch (...) {
+                return MAX_TILES::defaultValue();
+            }
         } else {
             return config.get<MAX_TILES>();
         }

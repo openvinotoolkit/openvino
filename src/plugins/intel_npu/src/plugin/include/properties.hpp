@@ -67,7 +67,7 @@ private:
     std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
     std::vector<ov::PropertyName> _supportedProperties;
 
-    // internal registration functions basd on client object
+    // internal registration functions based on client object
     void registerPluginProperties();
     void registerCompiledModelProperties();
 
