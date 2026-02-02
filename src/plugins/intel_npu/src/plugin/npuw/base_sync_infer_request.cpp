@@ -420,6 +420,12 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
     const auto real_idx = comp_model_desc.replaced_by.value();
     auto& func_desc = m_npuw_model->m_compiled_submodels[real_idx];
 
+    // Skip MoE expert submodels - MoE experts require special unpacking logic according to the
+    // expert selection, which is handled later in the inference flow.
+    if (func_desc.moe_experts.has_value()) {
+        return;
+    }
+
     // Bind extra parameters from the function's closure
     // First, do easy things & delay heavy stuff
     std::vector<std::size_t> closure_unpack_required;
@@ -506,6 +512,12 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
     const auto& iodesc = m_subrequests_gio.at(idx);
 
     const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+
+    if (proto_comp_model_desc.moe_experts.has_value()) {
+        // Expert submodel does not have global parameters to bind
+        return;
+    }
+
     const bool is_spatial = proto_comp_model_desc.spatial.has_value();
     const bool is_attention = proto_comp_model_desc.attention.has_value();
     const bool is_pyramid_attention = proto_comp_model_desc.pyramid_attention.has_value();
