@@ -26,7 +26,6 @@
 #include "sdpa_gen_opt.hpp"
 #include "common_tools.h"
 
-const uint pack_size = 2;
 
 namespace ov::intel_gpu::ocl {
 namespace {
@@ -35,6 +34,7 @@ constexpr ov::element::Type softmax_accumulator_type = ov::element::f32;
 constexpr size_t paged_attention_block_size = 16;
 constexpr size_t seq_len_partition_size = 256;
 constexpr size_t subgroup_size = 16;
+constexpr size_t pack_size = 2;
 
 inline bool get_kv_compressed(const RuntimeParams& params) {
     auto key_cache_layout = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
