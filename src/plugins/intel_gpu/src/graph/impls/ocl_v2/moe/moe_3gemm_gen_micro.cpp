@@ -307,8 +307,11 @@ DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
         auto sg_per_wg_n = static_cast<size_t>(gemm_p.getSetting("sg_per_wg_n"));
         auto sg_per_wg_m = static_cast<size_t>(gemm_p.getSetting("sg_per_wg_m"));
         auto sg_per_wg_k = static_cast<size_t>(gemm_p.getSetting("sg_per_wg_k"));
+#    if ENABLE_MICRO_GEMM_WORKLOAD_BALANCE
+#    else
         auto wg_tile_m = gemm_p.getSetting("wg_tile_m");
         auto wg_tile_n = gemm_p.getSetting("wg_tile_n");
+#    endif
 
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;

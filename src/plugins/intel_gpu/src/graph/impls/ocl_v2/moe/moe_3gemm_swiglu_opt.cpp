@@ -7,9 +7,9 @@
 #include "moe_3gemm_swiglu_opt.hpp"
 // clang-format on
 
-#define DEBUG_MOE_LOG               0
-#define GPU_MOE_DEBUG_TRACE         std::cout
-#define DEBUG_MOE_EXPERTS_INFO      0
+#define DEBUG_MOE_LOG          0
+#define GPU_MOE_DEBUG_TRACE    std::cout
+#define DEBUG_MOE_EXPERTS_INFO 0
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #    include <algorithm>
