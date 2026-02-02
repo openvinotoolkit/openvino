@@ -1,7 +1,39 @@
 // Copyright (C) 2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "openvino/itt.hpp"
+#include "shutdown.hpp"
+
+// Shutdown functions section declaration
+#if defined(_MSC_VER)
+// Get the release start/end addresses (MSVC)
+#    pragma section(".shutdown_sec$a", read)
+#    pragma section(".shutdown_sec$z", read)
+extern "C" __declspec(allocate(".shutdown_sec$a")) void (*__ov_shutdown_start)(void) = nullptr;
+extern "C" __declspec(allocate(".shutdown_sec$z")) void (*__ov_shutdown_end)(void) = nullptr;
+
+#elif defined(__GNUC__) || defined(__clang__)
+// Get the release start/end addresses (GCC/Clang)
+extern "C" void (*__start___shutdown_sec)(void);
+extern "C" void (*__stop___shutdown_sec)(void);
+#else
+#    error "Compiler not supported"
+#endif
+
+static void shutdown_resources() {
+#if defined(_MSC_VER)
+    void (**start)(void) = &__ov_shutdown_start;
+    void (**end)(void) = &__ov_shutdown_end;
+#elif defined(__GNUC__) || defined(__clang__)
+    void (**start)(void) = &__start___shutdown_sec;
+    void (**end)(void) = &__stop___shutdown_sec;
+#endif
+
+    for (void (**func)(void) = start; func != end; ++func) {
+        if (*func) {
+            (**func)();
+        }
+    }
+}
 
 #if defined(_WIN32) && !defined(__MINGW32__) && !defined(__MINGW64__)
 #    include <windows.h>
@@ -17,7 +49,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL,  // handle to DLL module
         break;
 
     case DLL_PROCESS_DETACH:
-        openvino::itt::internal::shutdown();
+        shutdown_resources();
         break;
     }
     return TRUE;  // Successful DLL_PROCESS_ATTACH.
@@ -25,6 +57,6 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL,  // handle to DLL module
 #elif defined(__linux__) || defined(__APPLE__)
 extern "C" __attribute__((destructor)) void library_unload();
 void library_unload() {
-    openvino::itt::internal::shutdown();
+    shutdown_resources();
 }
 #endif

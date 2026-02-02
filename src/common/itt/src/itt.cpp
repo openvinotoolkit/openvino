@@ -9,6 +9,8 @@
 #include <mutex>
 #include <vector>
 
+#include "shutdown.hpp"
+
 #ifdef ENABLE_PROFILING_ITT
 #    include <ittnotify.h>
 #endif
@@ -139,3 +141,9 @@ void shutdown() {}
 }  // namespace internal
 }  // namespace itt
 }  // namespace openvino
+
+static void shutdown_itt_resources() {
+    openvino::itt::internal::shutdown();
+}
+
+DECLARE_OV_SHUTDOWN_FUNC(shutdown_itt_resources)

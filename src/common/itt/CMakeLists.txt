@@ -45,6 +45,9 @@ endif()
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 
+target_include_directories(${TARGET_NAME} PRIVATE
+    $<TARGET_PROPERTY:openvino::shutdown,INTERFACE_INCLUDE_DIRECTORIES>)
+
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 # install & export
