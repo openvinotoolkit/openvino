@@ -5,6 +5,7 @@ import copy
 import inspect
 
 import numpy as np
+import platform
 import pytest
 import torch
 from huggingface_hub import snapshot_download
@@ -340,12 +341,19 @@ class TestLLMModel(TestTorchConvertModel):
             self.cuda_available, self.gptq_postinit, self.orig_gemm_forward = None, None, None
         super().teardown_method()
 
-    @pytest.mark.parametrize("type,name", [
-        ("opt_gptq", "katuni4ka/opt-125m-gptq"),
-        ("llama", "TinyLlama/TinyLlama-1.1B-Chat-v1.0"),
-        ("gpt2", "openai-community/gpt2"),
-        ("llama_awq", "casperhansen/tinyllama-1b-awq")
-    ])
+    def get_supported_precommit_models():
+        models = [
+            ("gpt2", "openai-community/gpt2"),
+        ]
+        if platform.machine() not in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+            models.extend([
+                ("opt_gptq", "katuni4ka/opt-125m-gptq"),
+                ("llama", "TinyLlama/TinyLlama-1.1B-Chat-v1.0"),
+                ("llama_awq", "casperhansen/tinyllama-1b-awq"),
+            ])
+        return models
+
+    @pytest.mark.parametrize("type,name", get_supported_precommit_models())
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_convert_model_precommit(self, name, type, ie_device):
