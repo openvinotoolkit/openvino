@@ -12,7 +12,6 @@ on:
       - synchronize
       - reopened
       - ready_for_review
-  merge_group:
   push:
     branches:
       - master

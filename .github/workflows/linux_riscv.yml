@@ -16,6 +16,7 @@ on:
       - synchronize
       - reopened
       - ready_for_review
+  merge_group:
     paths:
       - '.github/workflows/linux_riscv_gnu_dev_cpu.yml'
       - 'src/plugins/intel_cpu/src/emitters/plugin/aarch64/**'
