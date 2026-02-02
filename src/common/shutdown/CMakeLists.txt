@@ -11,6 +11,4 @@ add_library(openvino::shutdown ALIAS ${TARGET_NAME})
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::itt)
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME openvino_shutdown)
 
-install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-        COMPONENT ${OV_CPACK_COMP_CORE}
-        ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})
+ov_developer_package_export_targets(TARGET openvino::shutdown)
