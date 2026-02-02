@@ -516,12 +516,17 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
                         .Case(tune_params(8, 2, 1, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
             }
 
-            if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16)
-                return selector.Default(tune_params(8, 1, 1, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT));
-            else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2)
+            if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
+                if (idx == 1) {
+                    return selector.Default(tune_params(8, 1, 2, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT));
+                } else {
+                    return selector.Default(tune_params(8, 1, 1, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT));
+                }
+            } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
                 return selector.Default(tune_params(8, 4, 1, 2, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT));
-            else
+            } else {
                 return selector.Default(tune_params(8, 2, 1, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT));
+            }
         }
     } else if (params.compressed && params.engineInfo.supports_immad) {
         return selector.Default(tune_params(1, 1, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT));
