@@ -192,7 +192,9 @@ void CumuSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     }
     try {
         if (!(m_context->m_model_path.empty())) {
-            context.m_compiled_model = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
+            context.m_compiled_model = m_context->m_ov_core->compile_model(ov::util::make_path(m_context->m_model_path),
+                                                                           device,
+                                                                           device_config);
         } else {
             context.m_compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
         }
