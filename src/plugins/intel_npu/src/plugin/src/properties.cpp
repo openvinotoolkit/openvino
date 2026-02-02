@@ -397,20 +397,22 @@ void Properties::registerPluginProperties() {
                 const auto specifiedDeviceName = get_specified_device_name(config);
                 return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
             } catch (...) {
+                Logger("Properties", ov::log::Level::WARNING)
+                    .warning("Metrics GetSteppingNumber failed to get value from device.");
             }
         }
-        
         return config.get<STEPPING>();
     });
     TRY_REGISTER_CUSTOMFUNC_PROPERTY(ov::intel_npu::max_tiles, MAX_TILES, [&](const Config& config) {
         if (!config.has<MAX_TILES>()) {
-            try {   
+            try {
                 const auto specifiedDeviceName = get_specified_device_name(config);
                 return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
             } catch (...) {
+                Logger("Properties", ov::log::Level::WARNING)
+                    .warning("Metrics GetMaxTiles failed to get value from device.");
             }
-        } 
-            
+        }
         return config.get<MAX_TILES>();
     });
 
