@@ -590,10 +590,10 @@ jobs:
       device: 'igpu'
       test_type: ${{ matrix.TEST_TYPE }}
       runner: "[ 'self-hosted', 'igpu' ]"
+      runner-group: 'Intel-GPU'
       image: ubuntu:22.04
-      options: "--group-add 109 --group-add 44 --device /dev/dri:/dev/dri"
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
-    if: ${{ 'false' }} # Ticket: 143677
+      options: "--group-add 44 --group-add 993 --device /dev/dri/card1:/dev/dri/card1 --device /dev/dri/renderD128:/dev/dri/renderD128"
+    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
 
   dGPU:
     name: dGPU Tests
@@ -608,8 +608,9 @@ jobs:
       device: 'dgpu'
       test_type: ${{ matrix.TEST_TYPE }}
       runner: "[ 'self-hosted', 'dgpu' ]"
+      runner-group: 'Intel-GPU'
       image: ubuntu:22.04
-      options: "--group-add 109 --group-add 44 --device /dev/dri/card0:/dev/dri/card0 --device /dev/dri/renderD128:/dev/dri/renderD128"
+      options: "--group-add 44 --group-add 993 --device /dev/dri/card2:/dev/dri/card2 --device /dev/dri/renderD129:/dev/dri/renderD129"
     # if: ${{ github.event_name == 'schedule' }}
     if: ${{ 'false' }} # Ticket: 143677
 
