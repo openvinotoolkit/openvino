@@ -190,6 +190,10 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 
 #else  // ENABLE_WORKLOAD_BALANCE
 
+#ifndef MAX_EXPERTS_COUNT
+#define MAX_EXPERTS_COUNT 1024
+#endif
+
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
         const global INPUT0_TYPE *input_ptr,
@@ -241,12 +245,13 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
     // LSM, Compute Prefix Scan of Tile Counts
-    local uint expert_tile_offsets[1025]; // Supports up to 1024 experts.
+    local uint expert_tile_offsets[MAX_EXPERTS_COUNT + 1]; // Supports up to MAX_EXPERTS_COUNT experts.
     uint lid = get_local_id(0) + get_local_id(1) * get_local_size(0);
     
     // Check if num_experts exceeds buffer
-    if (num_experts > 1024) num_experts = 1024; // Safety clamp
-
+    if (num_experts > MAX_EXPERTS_COUNT) {
+        return; // Early exit, or handle error as needed
+    }
     if (lid < num_experts) {
         int n = n_array[lid];
         // Calculate number of tiles for this expert

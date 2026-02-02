@@ -103,8 +103,10 @@ JitConstants MoEGemmMicroGenerator::get_jit_constants(const kernel_impl_params& 
         jit.make("IS_GENERATE", 1);
 
 #    if ENABLE_MICRO_GEMM_WORKLOAD_BALANCE
-    if (m_is_prefill)
+    if (m_is_prefill) {
         jit.make("ENABLE_WORKLOAD_BALANCE", 1);
+        jit.make("MAX_EXPERTS_COUNT", 128);
+    }
 #    endif
 
     if (cfg.has_batch_dim) {
