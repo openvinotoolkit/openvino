@@ -582,7 +582,7 @@ jobs:
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_gpu_tests.yml
     strategy:
-      max-parallel: 10
+      max-parallel: 2
       fail-fast: false
       matrix:
         TEST_TYPE: ['unit', 'func']
