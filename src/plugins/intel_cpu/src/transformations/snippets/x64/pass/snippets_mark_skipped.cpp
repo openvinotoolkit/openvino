@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "snippets_mark_skipped.hpp"
@@ -116,7 +116,7 @@ bool isFullyConnected(const std::shared_ptr<const ov::Node>& node) {
     const auto rank_w = out_weights.get_partial_shape().rank();
     return out_weights.get_partial_shape().is_static() && rank_a.is_static() && rank_w.is_static() &&
            rank_a.get_length() != 1 && rank_w.get_length() != 1 && rank_a.get_length() <= 3 &&
-           rank_w.get_length() <= 3 && ov::op::util::is_on_constant_path(out_weights);
+           rank_w.get_length() <= 3 && ov::op::util::is_on_path<ov::op::v0::Constant>(out_weights);
 }
 bool SupportsFusingWithConvolution_SumActivation(const std::shared_ptr<const Node>& node) {
     // todo: Do all PReLUs are fused? Not sure about round and softRelu
@@ -344,7 +344,8 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node>& node,
                 }
                 const auto bias_port = 1 - in.get_index();
                 const auto bias_out = node->input_value(bias_port);
-                if ((bias_out.get_target_inputs().size() > 1) || !ov::op::util::is_on_constant_path(bias_out)) {
+                if ((bias_out.get_target_inputs().size() > 1) ||
+                    !ov::op::util::is_on_path<ov::op::v0::Constant>(bias_out)) {
                     break;
                 }
                 const auto& bias_pshape = bias_out.get_partial_shape();
@@ -415,14 +416,14 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node>& node,
         size_t num_non_const_inputs = 0;
         size_t num_mm_inputs = 0;
         for (const auto& parent_out : node->input_values()) {
-            // To avoid endless check `is_on_constant_path` for MatMul branch
+            // To avoid endless check `is_on_path<ov::op::v0::Constant>` for MatMul branch
             if (any_of(GetNodeFusingType(parent_out.get_node_shared_ptr()),
                        NodeFusingType::FusedWithMatMul,
                        NodeFusingType::FusedWithMatMulI8,
                        NodeFusingType::FusedWithFC,
                        NodeFusingType::FusedWithFCI8)) {
                 num_mm_inputs++;
-            } else if (!ov::op::util::is_on_constant_path(parent_out)) {
+            } else if (!ov::op::util::is_on_path<ov::op::v0::Constant>(parent_out)) {
                 num_non_const_inputs++;
             }
         }
@@ -505,7 +506,7 @@ bool isSuitableGatherChild(const std::shared_ptr<const Node>& node) {
 bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
     return ov::is_type<ov::op::v0::MatMul>(node) &&
            !ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1)) &&
-           ov::op::util::is_on_constant_path(node->input_value(1));
+           ov::op::util::is_on_path<ov::op::v0::Constant>(node->input_value(1));
 }
 // Continue fusing chain of the passed type if the node has one child
 // Otherwise mark node as FusedTerminator (Fused, but fusing chain is interrupted)

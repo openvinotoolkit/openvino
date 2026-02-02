@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,8 @@
 #include "intel_npu/utils/zero/zero_mem.hpp"
 #include "intel_npu/utils/zero/zero_mem_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
-#include "ir_serializer.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "vcl_serializer.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 #include "zero_init_mock.hpp"
 
@@ -74,7 +74,7 @@ protected:
 
         std::tie(targetDevice, configuration, graphExtVersion) = this->GetParam();
 
-        const std::string BLOB_NAME = "blob_compatibility_dummy_model_MTL_ov_2025_1_0_driver_1003967.blob";
+        const std::string BLOB_NAME = "blob_compat_dummy_model_MTL_ov_2025_4_0_driver_2020509.blob";
         blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + BLOB_NAME;
 
         model = ov::test::utils::make_multi_single_conv();
@@ -82,10 +82,6 @@ protected:
         std::shared_ptr<ZeroInitStructsMock> zeroInitMock = std::make_shared<ZeroInitStructsMock>(graphExtVersion);
         zeroInitStruct = std::reinterpret_pointer_cast<ZeroInitStructsHolder>(zeroInitMock);
         zeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
-
-        auto compilerProperties = zeroInitStruct->getCompilerProperties();
-        const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
-        irSerializer = std::make_shared<IRSerializer>(IRSerializer(model, maxOpsetVersion));
     }
 
     void TearDown() override {
@@ -94,15 +90,15 @@ protected:
 
     void serializeIR() {
         auto compilerProperties = zeroInitStruct->getCompilerProperties();
-        const ze_graph_compiler_version_info_t& compilerVersion = compilerProperties.compilerVersion;
         const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
-        serializedIR = irSerializer->serializeIR(model, compilerVersion, maxOpsetVersion);
+        serializedIR =
+            driver_compiler_utils::serializeIR(model, compilerProperties.compilerVersion, maxOpsetVersion, true);
     }
 
     bool bypassUmdCache() {
         if (!configuration.empty()) {
             for (auto& configItem : configuration) {
-                if (configItem.first ==  ov::cache_dir.name()) {
+                if (configItem.first == ov::cache_dir.name()) {
                     const auto set_cache_dir = configItem.second;
                     if (!set_cache_dir.empty()) {
                         return true;
@@ -127,7 +123,6 @@ protected:
     GraphDescriptor graphDescriptor;
 
     std::shared_ptr<ov::Model> model;
-    std::shared_ptr<driver_compiler_utils::IRSerializer> irSerializer;
 
     std::string targetDevice;
     std::string blobPath;
@@ -328,7 +323,7 @@ TEST_P(ZeroGraphTest, SetUnalignedAddressBlob) {
                                localZeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
         const uint8_t* blobPtr = nullptr;
         std::vector<uint8_t> blobVec;  // plugin needs to keep a copy of the blob for older drivers
-        size_t blobSize;
+        size_t blobSize = 0;
         OV_ASSERT_NO_THROW(localZeGraphExt->getGraphBinary(localGraphDescriptor, blobVec, blobPtr, blobSize));
 
         alignedSize = calculate_size_with_alignment_padding(blobSize, ::utils::STANDARD_PAGE_SIZE);
@@ -364,7 +359,7 @@ TEST_P(ZeroGraphTest, SetUnalignedSizeBlob) {
                                localZeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
         const uint8_t* blobPtr = nullptr;
         std::vector<uint8_t> blobVec;  // plugin needs to keep a copy of the blob for older drivers
-        size_t blobSize;
+        size_t blobSize = 0;
         OV_ASSERT_NO_THROW(localZeGraphExt->getGraphBinary(localGraphDescriptor, blobVec, blobPtr, blobSize));
 
         alignedSize = calculate_size_with_alignment_padding(blobSize, ::utils::STANDARD_PAGE_SIZE);
@@ -400,7 +395,7 @@ TEST_P(ZeroGraphTest, SetAlignedBlob) {
                                localZeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache()));
         const uint8_t* blobPtr = nullptr;
         std::vector<uint8_t> blobVec;  // plugin needs to keep a copy of the blob for older drivers
-        size_t blobSize;
+        size_t blobSize = 0;
         OV_ASSERT_NO_THROW(localZeGraphExt->getGraphBinary(localGraphDescriptor, blobVec, blobPtr, blobSize));
 
         alignedSize = calculate_size_with_alignment_padding(blobSize, ::utils::STANDARD_PAGE_SIZE);

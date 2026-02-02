@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -171,6 +171,19 @@ static const TypeMapping dnnlMatMulTypeMapping {
     return config.attrs.postOps.empty();
 }
 
+[[maybe_unused]] static inline bool dnnlMatMulSupportedPrecision(const FCConfig& config) {
+    // support regular float type matmul
+    if (any_of(srcType(config), f32, f16, bf16) && any_of(weiType(config), f32, f16, bf16)) {
+        return true;
+    }
+    // i32 can be up converted to f32
+    if (any_of(srcType(config), i32) && any_of(weiType(config), i32)) {
+        return true;
+    }
+    // support integer type quantization matmul
+    return any_of(srcType(config), u8, i8) && any_of(weiType(config), u8, i8);
+}
+
 struct CreateOptimalConfigDefault {
     std::optional<ConvConfig> operator()(const ConvConfig& config) const {
         return createOptimalConfigCommon(config, dnnlMatMulTypeMapping, dnnlFCLayoutConfig, fcMappingNotation);
@@ -279,8 +292,9 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                         const std::shared_ptr<DnnlShapeAgnosticData>& shareAgnosticData) const {
 
                         const bool fcSemantic = true;
+                        const bool hasBias = !memory.at(ARG_BIAS)->getDesc().empty();
                         ConvAttrs convAttrs{{1}, {0}, {0}, {0},
-                                            AutoPaddingType::None, attrs.withBias, attrs.weightsNonTransposed,
+                                            AutoPaddingType::None, hasBias, attrs.weightsNonTransposed,
                                             false, false, fcSemantic, false, ZeroPointsType::None, {}, attrs.postOps};
 
                         auto primitive =
@@ -367,9 +381,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(all_of(f32, srcType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(any_of(weiType(config), f32, i8, i4), UNSUPPORTED_WEI_PRECISIONS);
-                if (config.attrs.withBias) {
-                    VERIFY(biaType(config) == f32, UNSUPPORTED_SRC_PRECISIONS);
-                }
+                VERIFY(implication(hasBias(config), biaType(config) == f32), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);
                 VERIFY(MatMulKleidiAIExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
 
@@ -408,7 +420,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                         VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                         return true;
                     })
-                VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+                VERIFY(dnnlMatMulSupportedPrecision(config), UNSUPPORTED_SRC_WEI_PRECISIONS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(weiRank(config) == 3U, UNSUPPORTED_WEI_RANK);
                 VERIFY(weiDims(config)[0] > 1, UNSUPPORTED_WEI_RANK);
@@ -426,13 +438,20 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCAttrs& attrs,
                const MemoryArgs& memory,
                const ExecutorContext::CPtr& context) -> ExecutorPtr {
-                MatMulAttrs matMulAttrs{false,
-                                        false};
-                matMulAttrs.postOps = attrs.postOps;
-                matMulAttrs.weightsNonTransposed = attrs.weightsNonTransposed;
-                matMulAttrs.constantWeights = true;
-                matMulAttrs.fcSemantic = true;
-                
+                const bool hasBias = !memory.at(ARG_BIAS)->getDesc().empty();
+                MatMulAttrs matMulAttrs {
+                    false,
+                    true,
+                    hasBias,
+                    attrs.weightsNonTransposed,
+                    false,
+                    true,
+                    true,
+                    0,
+                    {},
+                    attrs.postOps
+                };
+
                 return std::make_shared<
                     DnnlExecutor<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData,
                                  DefaultInstantiator<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData>>>(

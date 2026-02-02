@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <string>
@@ -215,5 +215,31 @@ std::string resample_inst::to_string(resample_node const& node) {
 }
 
 resample_inst::typed_primitive_inst(network& network, resample_node const& node) : parent(network, node) {
+}
+
+void resample_inst::on_execute() {
+    update_output_memory();
+}
+
+void resample_inst::update_output_memory() {
+    if (!can_be_optimized() || _impl_params->is_dynamic())
+        return;
+
+    build_deps();
+
+    if (get_node().get_program().is_new_shape_infer() && input_memory_ptr() == nullptr)
+        return;
+
+    if (_outputs[0] && get_network().get_engine().is_the_same_buffer(output_memory(), input_memory()))
+        return;
+
+    // Can_be_optimized nodes are allocating from memory_pool too. In this case,
+    // we need release the legacy output memory from memory pool explicitly.
+    if (static_cast<bool>(_outputs[0]) &&
+        get_node().get_program().get_config().get_enable_memory_pool()) {
+        get_network().get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), get_node().id(), get_network_id());
+    }
+    _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout());
+    _mem_allocated = false;
 }
 }  // namespace cldnn

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,6 +96,33 @@ void calculate_auto_pads(const ov::Shape& data_shape,
 /// \return     The OV PadType object representing 'auto_pad' attribute value.
 ///
 ov::op::PadType get_auto_pad(const ov::frontend::onnx::Node& node);
+
+/// \brief      Calculate paddings for ConvTranspose with auto_pad.
+///
+/// \details    For ConvTranspose with SAME_UPPER/SAME_LOWER, ONNX spec requires:
+///             output_shape[i] = input_shape[i] * strides[i]
+///
+///             This function calculates padding values to satisfy that constraint.
+///             Formula: output = (input-1)*stride + dilated_kernel - 2*padding + output_padding
+///             Solving for padding to achieve desired output = input * stride.
+///
+/// \param[in]      data_shape       The input data tensor shape.
+/// \param[in]      filter_shape     The input filters tensor shape.
+/// \param[in]      strides          The data strides.
+/// \param[in]      dilations        The data dilations.
+/// \param[in]      pad_type         The value of auto_pad attribute.
+/// \param[in]      output_padding   The output padding values.
+/// \param[in,out]  padding_below    The paddings below axis.
+/// \param[in,out]  padding_above    The paddings above axis.
+///
+void calculate_transpose_auto_pads(const ov::Shape& data_shape,
+                                   const ov::Shape& filter_shape,
+                                   const ov::Strides& strides,
+                                   const ov::Strides& dilations,
+                                   const ov::op::PadType& pad_type,
+                                   const ov::CoordinateDiff& output_padding,
+                                   ov::CoordinateDiff& padding_below,
+                                   ov::CoordinateDiff& padding_above);
 
 /// \brief      Reshape group convolution filters to match desired shape:
 ///             from [C_INPUT x C_OUTPUT/groups x k1 x k2 x ... x kn]

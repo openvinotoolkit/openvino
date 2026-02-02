@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -312,3 +312,5 @@ REGISTER_FACTORY(internal, PagedAttentionExtension);
 REGISTER_FACTORY(internal, LoraSubgraph);
 REGISTER_FACTORY(internal, LoraSubgraphFused);
 REGISTER_FACTORY(internal, VLSDPA);
+REGISTER_FACTORY(internal, MOE3GemmFusedCompressed);
+REGISTER_FACTORY(internal, MOECompressed);

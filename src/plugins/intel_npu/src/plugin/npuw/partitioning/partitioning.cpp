@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "patterns/dcoff.hpp"
+#include "patterns/moe.hpp"
 #include "patterns/opt.hpp"
 #include "traits.hpp"
 
@@ -150,7 +151,7 @@ ov::npuw::Ensemble load_groups(const std::shared_ptr<ov::Model>& model, const st
         this_group.gflops = get_float_attr(group, "gflops");
         this_group.repeated_id = get_str_attr(group, "repeated", "");
         this_group.avoid_list = get_str_attr(group, "avoid", "");
-        this_group.tag = get_str_attr(group, "tag", "");
+        this_group.settag(get_str_attr(group, "tag", ""));
         FOREACH_CHILD(input, group, "input") {
             this_group.input_layers.push_back(get_str_attr(input, "name"));
         }
@@ -182,7 +183,10 @@ ov::npuw::Ensemble load_groups(const std::shared_ptr<ov::Model>& model, const st
 
     LOG_INFO("Found " << repeated.size() << " different repeated block(s)");
 
-    return ov::npuw::Ensemble{get_float_attr(root, "gflops"), std::move(partitions), std::move(repeated)};
+    return ov::npuw::Ensemble{get_float_attr(root, "gflops"),
+                              get_bool_attr(root, "irregular_io", false),
+                              std::move(partitions),
+                              std::move(repeated)};
 }
 
 class Partitioner {
@@ -234,6 +238,11 @@ private:
 
     using Match = std::function<bool(const std::shared_ptr<ov::Node>& node)>;
     void propagate(const std::string& func_name, const Match& test, ov::npuw::RepeatedBlock::MatchedBank& bank);
+
+    // Helper method to find and cache router model for MoE transformations
+    // Returns cached router model if available, otherwise searches P.functions
+    // for a function tagged as "router" and caches it for future use
+    std::shared_ptr<ov::Model> getRouterModel();
 
     void createFunction(FunctionPipeline& func_ggg);
 
@@ -332,6 +341,13 @@ public:
     void matchRepeatedSubgraphs(const std::string& func_name);
     void spatial(const std::string& func_name);
     void attention(const std::string& func_name);
+
+    // MoE-specific transformations (require router model availability)
+    // transformMoeExperts: Transform expert functions (tag="expert") to optimized MoE expert models
+    // transformMoeDownstream: Transform downstream processing (pattern-based detection)
+    void transformMoeExperts(const std::string& func_name);
+    void transformMoeDownstream(const std::string& func_name);
+
     void optimize(const std::string& func_name);
     void decompressionCutOff(const std::string& func_name);
 
@@ -376,7 +392,7 @@ void Partitioner::identifySubgraphs() {
     LOG_INFO("Identifying subgraphs for model " << model->get_friendly_name() << "...");
     LOG_BLOCK();
 
-    const bool connect_in_f16 = cfg.get<::intel_npu::NPUW_F16IC>();
+    const bool connect_in_f16 = cfg.get<::intel_npu::NPUW_F16IC>() && !ens.irregular_io;
 
     using namespace ov::npuw;
     std::vector<ov::npuw::Group>& partitions = ens.groups;
@@ -420,7 +436,7 @@ void Partitioner::identifySubgraphs() {
         P.total_ops += group.sg._ops;
 
         group.sg._avoid_list = group.avoid_list;
-        group.sg._tag = group.tag;
+        group.sg.settag(group.gettag());
         // Note inputs and outputs are included in the above set, so if
         // we are here, those nodes should be present in the model.
 
@@ -1388,6 +1404,7 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
             HANDLE_CASE(f8e4m3, uint8_t);
             HANDLE_CASE(f16, uint16_t);
             HANDLE_CASE(f32, float);
+            HANDLE_CASE(u8, uint8_t);
 #undef HANDLE_CASE
         default:
             OPENVINO_THROW("Unable to handle type ", node_a->output(0));
@@ -1620,7 +1637,7 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
     ov::npuw::Function function;
     function._model = func_ggg.mdls.front();
     function._param_offset = body_sg._parameters.size();
-    function._tag = body_sg._tag;
+    function.settag(body_sg.gettag());
     std::size_t new_param_idx = function._param_offset;
 
     for (auto&& node_ptr : function._model->get_ordered_ops()) {
@@ -1686,7 +1703,7 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
 }
 
 void Partitioner::identifySpatialRange(ov::npuw::Function& f) {
-    NPUW_ASSERT(f._tag == "compute");
+    NPUW_ASSERT(f.gettag() == "compute");
 
     // NB: The current logic must be changed. Here we assume we only
     // apply this change to "compute" subgraphs which we identify
@@ -1844,7 +1861,7 @@ void Partitioner::spatial(const std::string& func_name) {
     // Identify the spatial dimension for this function
     // Works only for Compute case.
     // FIXME: Replace this string identification with smt better
-    if (!cfg.get<::intel_npu::NPUW_SPATIAL>() || f._tag != "compute") {
+    if (!cfg.get<::intel_npu::NPUW_SPATIAL>() || f.gettag() != "compute") {
         LOG_VERB("No spatial optimizations will be done to  " << func_name << " in model " << model->get_friendly_name()
                                                               << "...");
         return;
@@ -1886,21 +1903,136 @@ void Partitioner::attention(const std::string& func_name) {
     ov::npuw::Function& f = P.functions.at(func_name);
 
     // Support only attention at the time
-    if (f._tag != "attn") {
+    if (f.gettag() != "attn") {
         LOG_VERB("No dynamic handling be done to  " << func_name << " in model " << model->get_friendly_name()
                                                     << "...");
         return;
     }
 
-    LOG_VERB("Turn " << func_name << " into dynamic Attention block in model " << model->get_friendly_name() << "...");
-    LOG_BLOCK();
+    // Get attention mode from NPUW_ATTN config (string type)
+    const auto attn_mode = cfg.get<::intel_npu::NPUW_ATTN>();
 
-    f._attention = ov::npuw::function::Attention::from(f._model);
-    if (!f._attention) {
-        LOG_WARN("Do dynamic ranges found in the ATTN block");
+    // Check if attention optimization is disabled
+    if (attn_mode == "STATIC") {
+        LOG_VERB("Attention optimization disabled (STATIC mode) for " << func_name << " in model "
+                                                                      << model->get_friendly_name());
         return;
     }
-    LOG_VERB("Done");
+
+    LOG_VERB("Turn " << func_name << " into Attention block (mode: " << attn_mode << ") in model "
+                     << model->get_friendly_name() << "...");
+    LOG_BLOCK();
+
+    // Try DYNAMIC attention
+    if (attn_mode == "DYNAMIC") {
+        f._attention = ov::npuw::function::Attention::from(f._model);
+        if (f._attention) {
+            LOG_VERB("Done - DYNAMIC attention");
+            return;
+        }
+        LOG_WARN("No dynamic ranges found in the ATTN block");
+    }
+
+    // Try PYRAMID attention
+    if (attn_mode == "PYRAMID") {
+        LOG_DEBUG("Attempting PyramidAttention based on config");
+        f._pyramid_attention = ov::npuw::function::PyramidAttention::from(f._model);
+        if (f._pyramid_attention) {
+            LOG_VERB("Done - PYRAMID attention");
+            return;
+        }
+        LOG_WARN("No pyramid attention found in the ATTN block");
+    }
+
+    // Try HFA (Host Flash Attention)
+    if (attn_mode == "HFA") {
+        LOG_DEBUG("Attempting HostFlashAttention based on config");
+        f._host_flash_attention = ov::npuw::function::HostFlashAttention::from(f._model);
+        if (f._host_flash_attention) {
+            LOG_VERB("Done - HFA (Host Flash Attention)");
+            return;
+        }
+        LOG_WARN("No host flash attention found in the ATTN block");
+    }
+}
+
+std::shared_ptr<ov::Model> Partitioner::getRouterModel() {
+    // Find and cache router model in context if not already cached
+    if (part_ctx.router_model != nullptr) {
+        return part_ctx.router_model;
+    }
+
+    for (const auto& [name, func] : P.functions) {
+        LOG_DEBUG("Checking function " << name << " with tag " << func.gettag());
+        if (func.gettag() != ov::npuw::patterns::moe::ROUTER_TAG) {
+            continue;
+        }
+
+        part_ctx.router_model = func._model;
+        LOG_INFO("Found router model: " << name);
+        break;
+    }
+
+    return part_ctx.router_model;
+}
+
+void Partitioner::transformMoeExperts(const std::string& func_name) {
+    ov::npuw::Function& f = P.functions.at(func_name);
+
+    // Only process functions tagged as "expert"
+    if (f.gettag() != ov::npuw::patterns::moe::EXPERT_TAG) {
+        return;
+    }
+
+    // Retrieve router model (required for extracting K from TopK node)
+    auto router_model = getRouterModel();
+    if (!router_model) {
+        LOG_WARN("Router model not available yet, skipping MoE expert transformation for " << func_name);
+        return;
+    }
+
+    LOG_DEBUG("Transforming " << func_name << " into MoE expert block in model " << model->get_friendly_name()
+                              << "...");
+    LOG_BLOCK();
+
+    // Determine compilation strategy from configuration:
+    // - moe_chunk_size = 0 (default): Compile multiple models for various chunk sizes
+    //   {16, 32, 64, 128, 256} to enable dynamic chunk selection at runtime
+    // - moe_chunk_size > 0: Compile a single model with the specified fixed chunk size
+    const auto moe_chunk_size = cfg.get<::intel_npu::NPUW_MOE_TOKEN_CHUNK_SIZE>();
+
+    // Create MoEExperts using factory method:
+    // - Analyzes expert model structure
+    // - Extracts K (number of active experts) from router model's TopK node
+    // - Generates optimized expert models for prefill and/or decoding stages
+    f._moe_experts = ov::npuw::function::MoEExperts::from(f._model, router_model, moe_chunk_size);
+}
+
+void Partitioner::transformMoeDownstream(const std::string& func_name) {
+    ov::npuw::Function& f = P.functions.at(func_name);
+
+    // Retrieve router model (required for extracting active expert count)
+    auto router_model = getRouterModel();
+    if (!router_model) {
+        LOG_WARN("Router model not available, skipping MoE downstream transformation for " << func_name);
+        return;
+    }
+
+    LOG_DEBUG("Attempting MoE downstream transformation for " << func_name << "...");
+    LOG_BLOCK();
+
+    // Detect and transform MoE downstream processing pattern:
+    // Expected pattern: Parameter[total_experts, 1, H, W] -> Convert -> ReduceSum
+    //
+    // Transformation:
+    // - Identifies parameters with expert dimension (first dimension = total_experts)
+    // - Reshapes from [total_experts, ...] to [active_experts, ...]
+    // - active_experts (K) is extracted from router model's TopK node
+    //
+    // Note: No tag-based filtering - pattern matching determines applicability
+    // This allows downstream processing to be detected in any function that follows
+    // the structural pattern, regardless of how it was originally tagged
+    f._moe_experts_downstream = ov::npuw::function::create_moe_downstream(f._model, router_model);
 }
 
 void Partitioner::optimize(const std::string& func_name) {
@@ -2483,8 +2615,13 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
         if (cfg.get<::intel_npu::NPUW_FOLD>()) {
             // Do full-featured folding
             auto all_functions = p.initFunctionPipeline(Partitioner::FunctionPipelineType::FOLD);
+
+            // Pass 1: Register all functions and apply general transformations
+            // - matchRepeatedSubgraphs() populates P.functions with all function definitions
+            // - Other transformations (spatial, attention, optimize, etc.) can be applied
+            //   independently without cross-function dependencies
             for (auto&& func_group : all_functions) {
-                LOG_INFO("FOLD: Process function " << func_group << "...");
+                LOG_INFO("FOLD Pass 1: Register and transform function " << func_group << "...");
                 LOG_BLOCK();
                 p.propagateSlices(func_group);
                 p.propagateConverts(func_group);
@@ -2496,11 +2633,26 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.saveTailDictConstants(func_group);
                 p.matchParameters(func_group);
                 p.matchResults(func_group);
-                p.matchRepeatedSubgraphs(func_group);
+                p.matchRepeatedSubgraphs(func_group);  // This populates P.functions
                 p.spatial(func_group);
                 p.attention(func_group);
                 p.optimize(func_group);
                 p.decompressionCutOff(func_group);
+            }
+
+            // Pass 2: MoE-specific transformations (requires all functions registered)
+            //
+            // Why separate pass?
+            // - transformMoeExperts() and transformMoeDownstream() require the "router" function
+            // - Router function must be found in P.functions (populated in Pass 1)
+            // - Processing order in Pass 1 is not guaranteed (router may come after experts)
+            // - Therefore, MoE transformations run in Pass 2 after all function registration
+            //   completes, ensuring router model is always available when needed
+            for (auto&& func_group : all_functions) {
+                LOG_INFO("FOLD Pass 2: MoE-specific transformations for " << func_group << "...");
+                LOG_BLOCK();
+                p.transformMoeExperts(func_group);
+                p.transformMoeDownstream(func_group);
             }
         } else if (cfg.get<::intel_npu::NPUW_CWAI>()) {
             // Less brutal version - just transform repeated blocks

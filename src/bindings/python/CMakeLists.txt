@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -191,11 +191,8 @@ endif()
 # Build the code
 #
 
-if(CMAKE_CROSSCOMPILING)
-    set(pybind11_min_version 2.12.0)
-else()
-    set(pybind11_min_version 2.12.0)
-endif()
+
+set(pybind11_min_version 3.0.1)
 # search for FindPython3.cmake instead of legacy modules
 set(PYBIND11_FINDPYTHON ON)
 
@@ -214,10 +211,7 @@ add_subdirectory(src/pyopenvino)
 
 macro(ov_define_setup_py_packaging_vars)
     # Python3_VERSION_MAJOR and Python3_VERSION_MINOR are defined inside pybind11
-    set(pyversion python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
-    if(Python3_SOABI AND Python3_SOABI MATCHES "cpython-[0-9]+t-")
-        set(pyversion "${pyversion}t")
-    endif()
+    ov_get_pyversion(pyversion)
 
     # define version (syncronize with tools/openvino_dev/CMakeLists.txt)
     if(DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT "$ENV{CI_BUILD_DEV_TAG}" STREQUAL "")

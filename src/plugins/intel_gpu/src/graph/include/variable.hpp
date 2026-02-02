@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,12 @@ public:
 private:
     std::string m_variable_id;
     ov::element::Type m_user_specified_type;
+};
+
+class releasable_variable : public variable {
+public:
+    using variable::variable;
+    virtual void release_variable() = 0;
 };
 
 } // namespace memory_state

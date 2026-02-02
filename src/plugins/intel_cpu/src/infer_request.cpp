@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -103,8 +103,8 @@ void SyncInferRequest::update_external_tensor_ptrs() {
 }
 
 void SyncInferRequest::infer() {
-    using namespace openvino::itt;
-    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, m_profiling_task);
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::ov_cpu_inference,
+                            std::string("SyncInferenceCPU::infer::") + m_compiled_model.name());
     auto graphLock = m_compiled_model.lock();
     auto&& graph = graphLock._graph;
     auto message = ov::threading::message_manager();
@@ -360,7 +360,7 @@ const ov::Output<const ov::Node>& SyncInferRequest::get_internal_port(const ov::
 }
 
 void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, const ov::SoPtr<ov::ITensor>& in_tensor) {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "set_tensor");
+    OV_ITT_SCOPED_TASK(itt::domains::ov_intel_cpu, "set_tensor");
     OPENVINO_ASSERT(in_tensor, "Failed to set empty tensor for port!");
     auto port = get_internal_port(in_port);
     auto tensor = in_tensor;
@@ -480,7 +480,7 @@ void SyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
 }
 
 void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyncInferRequest::FoundPort::Type& type) {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "init_tensor");
+    OV_ITT_SCOPED_TASK(itt::domains::ov_intel_cpu, "init_tensor");
     auto&& graph = m_compiled_model.graph();
     OPENVINO_ASSERT(graph.IsReady(), "Graph is not ready!");
 

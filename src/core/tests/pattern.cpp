@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -469,7 +469,7 @@ TEST(pattern, optional_match_node_with_single_input) {
     TestMatcher matcher;
     // is_on_const_path
     auto param_predicate = [](const Output<Node>& output) {
-        return !ov::op::util::is_on_constant_path(output);
+        return !ov::op::util::is_on_path<ov::op::v0::Constant>(output);
     };
 
     auto pattern_in_0 = ov::pass::pattern::any_input();

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <cmath>
 #include <common/c_types_map.hpp>
-#include <common/dnnl_thread.hpp>
 #include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
@@ -1051,7 +1050,7 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
         }
     };
 
-    parallel_nd(MB, DG, OH, OW, [&](dim_t mb, dim_t dg, dim_t oh, dim_t ow) {
+    parallel_for4d(MB, DG, OH, OW, [&](dim_t mb, dim_t dg, dim_t oh, dim_t ow) {
         precompKer(static_cast<int>(mb), static_cast<int>(dg), static_cast<int>(oh), static_cast<int>(ow));
     });
 }
@@ -1133,7 +1132,7 @@ DeformableConvolution::DefConvExecutor::DefConvExecutor(
     jcp.ur_w = mayiuse(cpu::x64::avx512_core) ? 6 : 3;
     jcp.nb_oc_blocking = !mayiuse(cpu::x64::avx2) ? 2 : 4;
 
-    jcp.nthr = dnnl_get_max_threads();
+    jcp.nthr = parallel_get_max_threads();
 }
 
 DeformableConvolution::DefConvJitExecutor::DefConvJitExecutor(
@@ -1230,7 +1229,7 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
         return d;
     };
 
-    parallel_nd(G, MB, OC, OH, OW, [&](dnnl_dim_t g, dnnl_dim_t mb, dnnl_dim_t oc, dnnl_dim_t oh, dnnl_dim_t ow) {
+    parallel_for5d(G, MB, OC, OH, OW, [&](dnnl_dim_t g, dnnl_dim_t mb, dnnl_dim_t oc, dnnl_dim_t oh, dnnl_dim_t ow) {
         dst[mb * dstStrides[0] + (g * OC + oc) * dstStrides[1] + oh * dstStrides[2] + ow * dstStrides[3]] =
             compKer(static_cast<int>(g),
                     static_cast<int>(mb),

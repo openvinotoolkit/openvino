@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,6 +72,8 @@ std::vector<std::vector<ov::test::InputShape>> splitm_dynamic_shapes_4d = {
     },
 };
 
+static constexpr size_t expected_nodes_mha_splitm_4d_dyn = 2;
+
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHA_4D_SplitDimensionM_dynamic,
     MHA,
@@ -80,7 +82,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(false),
                        ::testing::Values(4),  // 4 Threads
-                       ::testing::Values(2), // Transpose1 + MHA
+                       ::testing::Values(expected_nodes_mha_splitm_4d_dyn),
                        ::testing::Values(2), // Transpose1 + MHA
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                        ::testing::Values(CPUTestUtils::empty_plugin_config)),

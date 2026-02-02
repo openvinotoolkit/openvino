@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <climits>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -32,11 +33,14 @@
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/tokenization_config.hpp"
 #include "snippets/remarks.hpp"
@@ -80,6 +84,37 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> b
     return !success;
 }
 }  // namespace
+
+std::function<bool(const std::shared_ptr<const ov::Node>&)> make_transpose_support_callback(bool include_brgemm_case) {
+    using ov::op::v0::Constant;
+    using ov::op::v0::MatMul;
+    using ov::op::v1::Transpose;
+
+    return [include_brgemm_case](const std::shared_ptr<const ov::Node>& node) -> bool {
+        const auto transpose = ov::as_type_ptr<const Transpose>(node->shared_from_this());
+        OPENVINO_ASSERT(transpose, "make_transpose_support_callback expects a Transpose node");
+        const auto order = ov::as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
+        OPENVINO_ASSERT(order, "make_transpose_support_callback expects a Constant order input");
+        const auto order_value = order->cast_vector<int>();
+        if (order_value.size() <= 2) {
+            return false;
+        }
+
+        bool allow = false;
+        if (include_brgemm_case) {
+            const auto& outputs = transpose->get_output_target_inputs(0);
+            OPENVINO_ASSERT(!outputs.empty(), "Transpose should have at least one output consumer");
+            const auto child_node = outputs.begin()->get_node()->shared_from_this();
+            const bool is_brgemm_case = ov::is_type<MatMul>(child_node);
+            allow = allow || (is_brgemm_case && ov::snippets::pass::TokenizeMHASnippets::get_fusion_transpose_order(
+                                                    order_value.size()) == order_value);
+        }
+        // Always allow decomposed order accepted by MHA tokenization
+        allow = allow || (ov::snippets::pass::TokenizeMHASnippets::get_decomposed_transpose_order(order_value.size()) ==
+                          order_value);
+        return allow;
+    };
+}
 
 bool tokenize_node(const std::shared_ptr<ov::Node>& node, const TokenizationConfig& config) {
     const auto getFusedNames = [](const std::shared_ptr<Node>& n) -> std::string {

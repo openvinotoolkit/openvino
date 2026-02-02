@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -29,7 +29,7 @@ public:
         for (auto& thread : threads) {
             thread = std::thread([&]() {
                 for (unsigned int i = 0; i < iterations; ++i) {
-                    func();
+                    OV_ASSERT_NO_THROW(func());
                 }
             });
         }

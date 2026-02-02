@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 
@@ -94,6 +94,8 @@ def test_float_to_f4e2m1_convert(ov_type, numpy_dtype):
     tensor = np.zeros(data.shape, dtype=numpy_dtype)
     result = compiled_model(tensor)[0]
 
-    expected = np.array([-6.0, -4.0, -3.0, -2.0, -1.5, -1.0, -0.0, 0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0], dtype=numpy_dtype)
+    expected = np.array(
+        [-6.0, -4.0, -3.0, -2.0, -1.5, -1.0, -0.0, 0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0], dtype=numpy_dtype
+    )
 
     assert np.allclose(result, expected)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -604,11 +604,6 @@ int main(int argc, char* argv[]) {
 
             if (is_virtual_device(device)) {
                 device_nstreams.erase(device);
-            }
-
-            if (!FLAGS_cache_dir.empty()) {
-                // Choose between better model compilation time and cache file size.
-                device_config[ov::cache_mode.name()] = ov::CacheMode::OPTIMIZE_SPEED;
             }
         }
         auto result = std::find_if(config.begin(), config.end(), [&](const std::pair<std::string, ov::AnyMap>& item) {

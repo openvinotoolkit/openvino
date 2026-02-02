@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,42 +10,44 @@
 #include "openvino/reference/convert.hpp"
 #include "openvino/reference/fake_convert.hpp"
 
-namespace ov {
-namespace op {
-namespace v13 {
-namespace fake_convert_details {
-static const std::vector<ov::element::Type>& get_valid_types() {
-    static const std::vector<ov::element::Type> valid_types{ov::element::f8e4m3, ov::element::f8e5m2};
-    return valid_types;
+namespace ov::op::v13 {
+namespace {
+
+constexpr bool validate_input_type(const element::Type& et) {
+    switch (et) {
+    case element::f16:
+    case element::bf16:
+    case element::f32:
+        return true;
+    default:
+        return false;
+    }
 }
+}  // namespace
 
 struct Evaluate : element::NoAction<bool> {
     using element::NoAction<bool>::visit;
+
     template <element::Type_t ET, class T = fundamental_type_for<ET>>
-    static result_type visit(ov::TensorVector& outputs,
-                             const ov::TensorVector& inputs,
-                             const ov::element::Type& destination_type) {
-        if (inputs.size() == 2) {  // Default shift
-            reference::fake_convert<T>(inputs[0].data<const T>(),
-                                       inputs[1].data<const T>(),
-                                       outputs[0].data<T>(),
-                                       inputs[0].get_shape(),
-                                       inputs[1].get_shape(),
-                                       destination_type);
-        } else {
-            reference::fake_convert<T>(inputs[0].data<const T>(),
-                                       inputs[1].data<const T>(),
-                                       inputs[2].data<const T>(),
-                                       outputs[0].data<T>(),
-                                       inputs[0].get_shape(),
-                                       inputs[1].get_shape(),
-                                       inputs[2].get_shape(),
-                                       destination_type);
-        }
+    static result_type visit(const Tensor& data,
+                             const Tensor& scale,
+                             const Tensor& shift,
+                             Tensor& output,
+                             const Shape& data_shape,
+                             const Shape& scale_shape,
+                             const Shape& shift_shape,
+                             const element::Type& destination_type) {
+        reference::fake_convert<T>(data.data<const T>(),
+                                   scale.data<const T>(),
+                                   shift.data<const T>(),
+                                   output.data<T>(),
+                                   data_shape,
+                                   scale_shape,
+                                   shift_shape,
+                                   destination_type);
         return true;
     }
 };
-}  // namespace fake_convert_details
 
 FakeConvert::FakeConvert(const ov::Output<ov::Node>& data,
                          const ov::Output<ov::Node>& scale,
@@ -95,15 +97,9 @@ void FakeConvert::validate_and_infer_types() {
         OPENVINO_ASSERT(element::Type::merge(out_type, out_type, get_input_element_type(i)),
                         "Mixed input types are not supported.");
     }
-    switch (out_type) {
-    case element::bf16:
-    case element::f16:
-    case element::f32:
-    case element::dynamic:
-        break;
-    default:
-        OPENVINO_THROW("The element type of the input tensor must be a bf16, f16, f32 but got: ", out_type);
-    }
+    const auto is_valid_type = validate_input_type(out_type) || (out_type == element::dynamic);
+    OPENVINO_ASSERT(is_valid_type, "The element type of the input tensor must be a bf16, f16, f32 but got: ", out_type);
+
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, out_type, output_shapes[0]);
@@ -127,7 +123,7 @@ bool FakeConvert::visit_attributes(ov::AttributeVisitor& visitor) {
 }
 
 void FakeConvert::validate_destination_type() const {
-    const auto& valid_types = fake_convert_details::get_valid_types();
+    static constexpr auto valid_types = ov::util::make_array(element::f8e4m3, element::f8e5m2);
     const auto is_supported_type =
         std::find(valid_types.begin(), valid_types.end(), m_destination_type) != valid_types.end();
     OPENVINO_ASSERT(is_supported_type, "Bad format for f8 conversion type: ", m_destination_type);
@@ -135,14 +131,7 @@ void FakeConvert::validate_destination_type() const {
 
 bool FakeConvert::has_evaluate() const {
     OV_OP_SCOPE(v13_FakeConvert_has_evaluate);
-    switch (get_input_element_type(0)) {
-    case element::f16:
-    case element::bf16:
-    case element::f32:
-        return true;
-    default:
-        return false;
-    }
+    return validate_input_type(get_input_element_type(0));
 }
 
 bool FakeConvert::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
@@ -151,19 +140,29 @@ bool FakeConvert::evaluate(ov::TensorVector& outputs, const ov::TensorVector& in
     OPENVINO_ASSERT(outputs.size() == 1);
     OPENVINO_ASSERT(inputs.size() == 2 || inputs.size() == 3);
 
-    outputs[0].set_shape(inputs[0].get_shape());
+    const auto make_zero_shift_tensor = [](auto&& scale_tensor) {
+        auto shift_tensor = Tensor(scale_tensor.get_element_type(), scale_tensor.get_shape());
+        std::memset(shift_tensor.data(), 0, shift_tensor.get_byte_size());
+        return shift_tensor;
+    };
+
+    const auto& data = inputs[0];
+    const auto& scale = inputs[1];
+    const auto& shift = inputs.size() == 3 ? inputs[2] : make_zero_shift_tensor(scale);
+    outputs[0].set_shape(data.get_shape());
 
     using namespace ov::element;
     return IF_TYPE_OF(v13_FakeConvert_evaluate,
                       OV_PP_ET_LIST(bf16, f16, f32),
-                      fake_convert_details::Evaluate,
-                      inputs[0].get_element_type(),
-                      outputs,
-                      inputs,
+                      Evaluate,
+                      data.get_element_type(),
+                      data,
+                      scale,
+                      shift,
+                      outputs[0],
+                      data.get_shape(),
+                      scale.get_shape(),
+                      shift.get_shape(),
                       get_destination_element_type());
-
-    return true;
 }
-}  // namespace v13
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::v13

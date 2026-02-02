@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/mlp_seq_tokenization.hpp"
 #include "snippets/pass/tokenization_config.hpp"
+#include "snippets/utils/tokenization_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -22,7 +23,12 @@ TokenizationConfig get_default_tokenization_config() {
 }
 
 CommonOptimizations::Config get_default_common_optimizations_config() {
-    static const CommonOptimizations::Config conf(1, true);
+    static CommonOptimizations::Config conf(1, true);
+    static bool initialized = false;
+    if (!initialized) {
+        conf.set_transpose_support_callback(ov::snippets::utils::make_transpose_support_callback(true));
+        initialized = true;
+    }
     return conf;
 }
 

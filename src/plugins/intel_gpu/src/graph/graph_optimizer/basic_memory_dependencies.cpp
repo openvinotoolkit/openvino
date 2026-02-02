@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,31 +56,6 @@ void basic_memory_dependencies::run(program& p) {
                     for (auto& user : node->get_users()) {
                         add_memory_dependency(user, &eltw_node);
                         add_memory_dependency(user, node);
-                    }
-                }
-            }
-
-            // onednn concatenation doesn't support non-zero padding which can occur for unaligned feature.
-            if (node->is_type<concatenation>()) {
-                auto is_feature_aligned = [](const cldnn::layout& l) {
-                    if (!format::is_blocked(l.format)) {
-                        return true;
-                    }
-
-                    const auto& order = format::internal_order(l.format);
-                    int f_bs = 1;
-                    for (const auto& [dim, bs] : format::block_sizes(l.format)) {
-                        if (dim < order.size() && order[dim] == 'f') {
-                            f_bs = bs;
-                        }
-                    }
-                    return l.feature() % f_bs == 0;
-                };
-
-                if (node->is_dynamic() || (!node->is_dynamic() && !is_feature_aligned(node->get_output_layout()))) {
-                    node->can_share_buffer(false);
-                    for (auto& dep : node->get_dependencies()) {
-                        dep.first->can_share_buffer(false);
                     }
                 }
             }

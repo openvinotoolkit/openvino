@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,7 +69,6 @@ std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
 
 void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& input_model,
                                        std::shared_ptr<ov::Model>& ov_model) {
-    const OperatorsBridge translate_map;
     const auto model_onnx = std::dynamic_pointer_cast<unify::InputModel>(input_model);
 
     auto& all_tensor_places = model_onnx->get_tensor_places();
@@ -126,7 +125,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         const auto out_size = decoder->get_output_size();
         ov::OutputVector ov_outputs(out_size);
         const Operator* translator =
-            translate_map.get_operator(decoder->get_domain(), decoder->get_op_type(), decoder->get_op_set());
+            m_translator_map->get_operator(decoder->get_domain(), decoder->get_op_type(), decoder->get_op_set());
         ov::frontend::onnx::Node node_context(*decoder, this);
         std::string error_message{};
         try {
@@ -199,7 +198,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     for (const auto& output : model_onnx->get_outputs()) {
         const auto tensor = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(output);
         FRONT_END_GENERAL_CHECK(tensor != nullptr,
-                                "Inputs of ov::frontend::onnx::InputModel must be TensorLitePlace instances");
+                                "Inputs of ov::frontend::onnx::InputModel must be TensorONNXPlace instances");
         const auto name = tensor->get_names()[0];
         if (!m_tensor_values.count(name)) {
             continue;
@@ -218,4 +217,10 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
     auto model_name = "onnx_Frontend_IR";
     ov_model = std::make_shared<ov::Model>(results, m_parameters, model_name);
+
+    const auto& metadata = model_onnx->get_metadata();
+    const std::string framework_section = "framework";
+    for (const auto& pair : metadata) {
+        ov_model->set_rt_info(pair.second, framework_section, pair.first);
+    }
 }

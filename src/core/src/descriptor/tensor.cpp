@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/core/descriptor/tensor.hpp"
 
 #include "atomic_guard.hpp"
+#include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/memory_util.hpp"
@@ -149,11 +150,9 @@ Tensor::Tensor(const element::Type& element_type,
                const std::unordered_set<std::string>& names)
     : m_impl(std::make_shared<BasicTensor>(element_type, pshape, names)) {}
 
-Tensor::Tensor(const element::Type& element_type, const PartialShape& pshape, ov::Node* node, size_t)
-    : m_impl(std::make_shared<BasicTensor>(element_type, pshape, std::unordered_set<std::string>{})) {}
-
 void Tensor::invalidate_values() {
-    if (ov::skip_invalidation(*this))
+    if (const auto ignore_skip = get_rt_info().extract(util::ForceInvalidation::get_type_info_static());
+        !ignore_skip && ov::skip_invalidation(*this))
         return;
     m_upper_value = {};
     m_lower_value = {};

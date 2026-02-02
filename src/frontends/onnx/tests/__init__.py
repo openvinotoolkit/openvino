@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -118,7 +118,6 @@ skip_issue_58676 = pytest.mark.skip(reason="AssertionError: Not equal to toleran
 xfail_issue_onnx_models_140 = xfail_test(reason="https://github.com/onnx/models/issues/140")
 
 xfail_issue_63033 = xfail_test(reason="BatchNormalization: Training mode is not supported")
-xfail_issue_63036 = xfail_test(reason="Changes in ConvTranspose padding")
 xfail_issue_63043 = xfail_test(reason="Recurrent node expects constants as W, R, B inputs.")
 
 skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with no seed.")
@@ -178,7 +177,6 @@ xfail_issue_139938 = xfail_test(reason = "QLinearMatMul accuracy fails")
 skip_issue_119896 = pytest.mark.skip(reason="Unsupported element type: FLOAT8")
 
 # ONNX 1.18
-xfail_issue_171766 = pytest.mark.skip(reason="Unsupported feature: Attention")
 xfail_issue_171767 = pytest.mark.skip(reason="Unsupported element type: FLOAT4E2M1")
 xfail_issue_171768 = pytest.mark.skip(reason="Unsupported feature: RMSNormalization")
 xfail_issue_171770 = pytest.mark.skip(reason="Unsupported feature: RotaryEmbedding")

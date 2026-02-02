@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "intel_npu/network_metadata.hpp"
-#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
@@ -34,7 +33,10 @@ public:
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                                     const Config& config) const = 0;
 
-    virtual void set_argument_value(uint32_t argi, const void* argv) const = 0;
+    virtual void set_argument_value(uint32_t id, const void* data) const = 0;
+    virtual void set_argument_value_with_strides(uint32_t id,
+                                                 const void* data,
+                                                 const std::vector<size_t>& strides) const = 0;
 
     virtual void initialize(const Config& config) = 0;
 
@@ -45,8 +47,6 @@ public:
 
     virtual void update_network_name(std::string_view name) = 0;
 
-    virtual const std::vector<ArgumentDescriptor>& get_input_descriptors() const = 0;
-    virtual const std::vector<ArgumentDescriptor>& get_output_descriptors() const = 0;
     virtual const std::shared_ptr<CommandQueue>& get_command_queue() const = 0;
     virtual uint32_t get_command_queue_group_ordinal() const = 0;
 
@@ -54,6 +54,10 @@ public:
 
     std::mutex& get_mutex() {
         return _mutex;
+    }
+
+    bool init_completed() {
+        return _init_completed;
     }
 
     virtual void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) = 0;
@@ -71,6 +75,7 @@ protected:
     // Used to protect zero pipeline creation in the graph. The pipeline should be created only once per graph when the
     // first inference starts running
     std::mutex _mutex;
+    bool _init_completed = false;
 };
 
 }  // namespace intel_npu

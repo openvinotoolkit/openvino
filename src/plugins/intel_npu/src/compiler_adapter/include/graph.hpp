@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,10 @@ public:
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                             const Config& config) const override;
 
-    void set_argument_value(uint32_t argi, const void* argv) const override;
+    void set_argument_value(uint32_t id, const void* data) const override;
+    void set_argument_value_with_strides(uint32_t id,
+                                         const void* data,
+                                         const std::vector<size_t>& strides) const override;
 
     void initialize(const Config& config) override;
 
@@ -42,8 +45,6 @@ public:
 
     void update_network_name(std::string_view name) override;
 
-    const std::vector<ArgumentDescriptor>& get_input_descriptors() const override;
-    const std::vector<ArgumentDescriptor>& get_output_descriptors() const override;
     const std::shared_ptr<CommandQueue>& get_command_queue() const override;
     uint32_t get_command_queue_group_ordinal() const override;
 
@@ -72,9 +73,6 @@ protected:
 
     GraphDescriptor _graphDesc;
     NetworkMetadata _metadata;
-
-    std::vector<ArgumentDescriptor> _inputDescriptors;
-    std::vector<ArgumentDescriptor> _outputDescriptors;
 
     std::shared_ptr<CommandQueue> _commandQueue;
     uint32_t _commandQueueGroupOrdinal = 0;

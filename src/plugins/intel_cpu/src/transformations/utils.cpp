@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "ov_ops/fully_connected.hpp"
@@ -38,7 +39,7 @@ bool has_matmul_with_compressed_weights(const std::shared_ptr<const ov::Model>& 
         }
 
         auto weights = op->input_value(1);
-        if (!ov::op::util::is_on_constant_path(weights)) {
+        if (!ov::op::util::is_on_path<ov::op::v0::Constant>(weights)) {
             continue;
         }
 

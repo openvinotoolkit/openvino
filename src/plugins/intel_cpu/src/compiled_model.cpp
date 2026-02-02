@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 
 #include "async_infer_request.h"
 #include "config.h"
+#include "cpu_parallel.hpp"
 #include "graph.h"
 #include "graph_context.h"
 #include "infer_request.h"
@@ -198,10 +199,12 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                     std::lock_guard<std::mutex> lock{*m_mutex};
                     auto isQuantizedFlag = (m_cfg.lpTransformsMode == Config::On) &&
                                            ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
+                    auto cpuParallel = std::make_shared<CpuParallel>(m_cfg.tbbPartitioner);
                     ctx = std::make_shared<GraphContext>(m_cfg,
                                                          m_socketWeights[socketId],
                                                          isQuantizedFlag,
                                                          streamsExecutor,
+                                                         cpuParallel,
                                                          m_sub_memory_manager);
                 }
 
@@ -298,6 +301,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::log::level.name()),
             RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
             RO_property(ov::intel_cpu::enable_tensor_parallel.name()),
+            RO_property(ov::intel_cpu::tbb_partitioner.name()),
             RO_property(ov::hint::dynamic_quantization_group_size.name()),
             RO_property(ov::hint::kv_cache_precision.name()),
             RO_property(ov::key_cache_precision.name()),
@@ -379,6 +383,9 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::intel_cpu::enable_tensor_parallel) {
         const auto& enable_tensor_parallel = config.enableTensorParallel;
         return enable_tensor_parallel;
+    }
+    if (name == ov::intel_cpu::tbb_partitioner) {
+        return config.tbbPartitioner;
     }
     if (name == ov::hint::dynamic_quantization_group_size) {
         return static_cast<decltype(ov::hint::dynamic_quantization_group_size)::value_type>(

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/common.hpp"
 
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if OV_THREAD_USE_TBB
 
 #    include <cstddef>
 #    include <memory>
@@ -173,5 +173,4 @@ int default_concurrency(numa_node_id id = task_arena::automatic);
 int default_concurrency(task_arena::constraints c);
 }  // namespace info
 }  // namespace custom
-#endif /*(OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)*/
-
+#endif /*(OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE)*/

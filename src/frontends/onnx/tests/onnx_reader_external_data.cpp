@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,6 +43,19 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data) {
 TEST_P(OnnxFeMmapFixture, onnx_external_data_0_size) {
     const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
                                                             "external_data/external_data_0_size.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_input<float>({4.f});
+    test_case.add_expected_output<float>({}, {4.f});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data_0_size_offset) {
+    const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                            "external_data/external_data_0_size_offset.onnx");
     Core core;
     core.set_property(enable_mmap(GetParam()));
     const auto model = core.read_model(path);

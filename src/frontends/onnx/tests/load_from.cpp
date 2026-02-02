@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "load_from.hpp"
@@ -7,6 +7,7 @@
 #include <onnx/onnx_pb.h>
 
 #include <fstream>
+#include <vector>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "onnx_utils.hpp"
@@ -159,3 +160,21 @@ TEST_P(FrontEndLoadFromTest, testLoadFromModelProtoUint64_Negative) {
                     testing::HasSubstr("unsupported IR version"));
 }
 // !!! End of Experimental feature !!!
+
+TEST(FrontEndInputModel, InitializersAreNotModelInputs) {
+    ov::frontend::FrontEnd::Ptr fe;
+    auto input_model = ov::frontend::onnx::tests::load_model("regression/initializer_shares_input_name.onnx", &fe);
+    ASSERT_NE(input_model, nullptr);
+
+    auto inputs = input_model->get_inputs();
+    ASSERT_EQ(inputs.size(), 1);
+
+    std::vector<std::string> input_names;
+    input_names.reserve(inputs.size());
+    for (const auto& place : inputs) {
+        ASSERT_FALSE(place->get_names().empty());
+        input_names.push_back(place->get_names().front());
+    }
+
+    EXPECT_THAT(input_names, ElementsAre("data"));
+}

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -8,7 +8,6 @@ ov_add_target(
         NAME ${TARGET_NAME}
         TYPE STATIC
         ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        ADD_CPPLINT
         INCLUDES
             PUBLIC
                 "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
@@ -24,7 +23,6 @@ ov_add_target(
 ov_build_target_faster(${TARGET_NAME}
     PCH_HEADER "src/precomp.hpp"
 )
-
 # install & export
 
 ov_developer_package_export_targets(TARGET ${TARGET_NAME}

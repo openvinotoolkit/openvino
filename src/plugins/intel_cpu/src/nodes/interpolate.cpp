@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -2509,7 +2509,7 @@ void Interpolate::prepareParams() {
     }
 
     if (canUseAclExecutor) {
-        interpAttrs.dataScales = scales5D;
+        interpAttrs.dataScales = std::move(scales5D);
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
@@ -2662,6 +2662,7 @@ std::vector<float> Interpolate::getScales(const VectorDims& srcDimPad, const Vec
 }
 
 void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto& cpu_parallel = context->getCpuParallel();
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
 
@@ -2690,35 +2691,46 @@ void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
             if (interpAttrs.layout == InterpolateLayoutType::planar) {
                 srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
                 auto* src_data_pad = static_cast<uint8_t*>(srcPadded.data());
-                parallel_for4d(srcDim5d[0], srcDim5d[1], srcDim5d[2], srcDim5d[3], [&](int n, int c, int d, int h) {
-                    const uint8_t* src = src_data_origin + (inShapeBlock[1] * n + inShapeBlock[2] * c +
-                                                            inShapeBlock[3] * d + inShapeBlock[4] * h) *
-                                                               srcDataSize;
-                    uint8_t* srcPad =
-                        src_data_pad + (inShapePadBlock[1] * (n + padB0) + inShapePadBlock[2] * (c + padB1) +
-                                        inShapePadBlock[3] * (d + padB2) + inShapePadBlock[4] * (h + padB3) + padB4) *
-                                           srcDataSize;
-                    cpu_memcpy(srcPad, src, srcDim5d[4] * srcDataSize);
-                });
+                cpu_parallel->parallel_for4d(
+                    srcDim5d[0],
+                    srcDim5d[1],
+                    srcDim5d[2],
+                    srcDim5d[3],
+                    [&](int n, int c, int d, int h) {
+                        const uint8_t* src = src_data_origin + (inShapeBlock[1] * n + inShapeBlock[2] * c +
+                                                                inShapeBlock[3] * d + inShapeBlock[4] * h) *
+                                                                   srcDataSize;
+                        uint8_t* srcPad =
+                            src_data_pad +
+                            (inShapePadBlock[1] * (n + padB0) + inShapePadBlock[2] * (c + padB1) +
+                             inShapePadBlock[3] * (d + padB2) + inShapePadBlock[4] * (h + padB3) + padB4) *
+                                srcDataSize;
+                        cpu_memcpy(srcPad, src, srcDim5d[4] * srcDataSize);
+                    });
                 src_data = src_data_pad;
             } else if (interpAttrs.layout == InterpolateLayoutType::by_channel) {
                 srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
                 auto* src_data_pad = static_cast<uint8_t*>(srcPadded.data());
-                parallel_for4d(srcDim5d[0], srcDim5d[2], srcDim5d[3], srcDim5d[4], [&](int n, int d, int h, int w) {
-                    const uint8_t* src =
-                        src_data_origin +
-                        (inShapeBlock[1] * n +
-                         (inShapeBlock[3] * d + inShapeBlock[4] * h + inShapeBlock[5] * w) * srcDim5d[1]) *
-                            srcDataSize;
-                    uint8_t* srcPad =
-                        src_data_pad + (inShapePadBlock[1] * (n + padB0) +
-                                        (inShapePadBlock[3] * (d + padB2) + inShapePadBlock[4] * (h + padB3) +
-                                         inShapePadBlock[5] * (w + padB4)) *
-                                            srcDimPad5d[1] +
-                                        padB1) *
-                                           srcDataSize;
-                    cpu_memcpy(srcPad, src, srcDim5d[1] * srcDataSize);
-                });
+                cpu_parallel->parallel_for4d(
+                    srcDim5d[0],
+                    srcDim5d[2],
+                    srcDim5d[3],
+                    srcDim5d[4],
+                    [&](int n, int d, int h, int w) {
+                        const uint8_t* src =
+                            src_data_origin +
+                            (inShapeBlock[1] * n +
+                             (inShapeBlock[3] * d + inShapeBlock[4] * h + inShapeBlock[5] * w) * srcDim5d[1]) *
+                                srcDataSize;
+                        uint8_t* srcPad =
+                            src_data_pad + (inShapePadBlock[1] * (n + padB0) +
+                                            (inShapePadBlock[3] * (d + padB2) + inShapePadBlock[4] * (h + padB3) +
+                                             inShapePadBlock[5] * (w + padB4)) *
+                                                srcDimPad5d[1] +
+                                            padB1) *
+                                               srcDataSize;
+                        cpu_memcpy(srcPad, src, srcDim5d[1] * srcDataSize);
+                    });
                 src_data = src_data_pad;
             } else if (interpAttrs.layout == InterpolateLayoutType::block) {
                 size_t blkSize = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
@@ -2728,28 +2740,28 @@ void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
                 auto* src_data_pad = static_cast<uint8_t*>(srcPadded.data());
                 CPU_NODE_ASSERT((srcDim5d[0] == srcDimPad5d[0]) && (srcDim5d[1] == srcDimPad5d[1]),
                                 "does not support padding on batch and channel dimensions");
-                parallel_for5d(srcDim5d[0],
-                               CB,
-                               srcDim5d[2],
-                               srcDim5d[3],
-                               srcDim5d[4],
-                               [&](int n, int cb, int d, int h, int w) {
-                                   const uint8_t* src =
-                                       src_data_origin +
-                                       (n * CB * srcDim5d[2] * srcDim5d[3] * srcDim5d[4] * blkSize) * srcDataSize +
-                                       (cb * srcDim5d[2] * srcDim5d[3] * srcDim5d[4] * blkSize) * srcDataSize +
-                                       (d * srcDim5d[3] * srcDim5d[4] * blkSize) * srcDataSize +
-                                       (h * srcDim5d[4] * blkSize) * srcDataSize + (w * blkSize) * srcDataSize;
-                                   uint8_t* srcPad =
-                                       src_data_pad +
-                                       (n * CB * srcDimPad5d[2] * srcDimPad5d[3] * srcDimPad5d[4] * blkSize) *
-                                           srcDataSize +
-                                       (cb * srcDimPad5d[2] * srcDimPad5d[3] * srcDimPad5d[4] * blkSize) * srcDataSize +
-                                       ((d + padB2) * srcDimPad5d[3] * srcDimPad5d[4] * blkSize) * srcDataSize +
-                                       ((h + padB3) * srcDimPad5d[4] * blkSize) * srcDataSize +
-                                       ((w + padB4) * blkSize) * srcDataSize;
-                                   cpu_memcpy(srcPad, src, blkSize * srcDataSize);
-                               });
+                cpu_parallel->parallel_for5d(
+                    srcDim5d[0],
+                    CB,
+                    srcDim5d[2],
+                    srcDim5d[3],
+                    srcDim5d[4],
+                    [&](int n, int cb, int d, int h, int w) {
+                        const uint8_t* src =
+                            src_data_origin +
+                            (n * CB * srcDim5d[2] * srcDim5d[3] * srcDim5d[4] * blkSize) * srcDataSize +
+                            (cb * srcDim5d[2] * srcDim5d[3] * srcDim5d[4] * blkSize) * srcDataSize +
+                            (d * srcDim5d[3] * srcDim5d[4] * blkSize) * srcDataSize +
+                            (h * srcDim5d[4] * blkSize) * srcDataSize + (w * blkSize) * srcDataSize;
+                        uint8_t* srcPad =
+                            src_data_pad +
+                            (n * CB * srcDimPad5d[2] * srcDimPad5d[3] * srcDimPad5d[4] * blkSize) * srcDataSize +
+                            (cb * srcDimPad5d[2] * srcDimPad5d[3] * srcDimPad5d[4] * blkSize) * srcDataSize +
+                            ((d + padB2) * srcDimPad5d[3] * srcDimPad5d[4] * blkSize) * srcDataSize +
+                            ((h + padB3) * srcDimPad5d[4] * blkSize) * srcDataSize +
+                            ((w + padB4) * blkSize) * srcDataSize;
+                        cpu_memcpy(srcPad, src, blkSize * srcDataSize);
+                    });
                 src_data = src_data_pad;
             }
         } else {

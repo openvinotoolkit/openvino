@@ -11,11 +11,17 @@ on:
         required: true
         default: 'CONCISE'
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
     paths:
       - '.github/workflows/linux_riscv_xuantie_dev_cpu.yml'
       - 'src/plugins/intel_cpu/src/emitters/plugin/aarch64/**'
       - 'src/plugins/intel_cpu/src/emitters/plugin/riscv64/**'
       - 'src/plugins/intel_cpu/src/emitters/plugin/x64/**'
+      - 'src/plugins/intel_cpu/src/emitters/snippets/riscv64/**'
       - 'src/plugins/intel_cpu/src/nodes/executors/aarch64/**'
       - 'src/plugins/intel_cpu/src/nodes/executors/shl/**'
       - 'src/plugins/intel_cpu/src/nodes/kernels/riscv64/**'
@@ -44,6 +50,7 @@ env:
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
@@ -51,7 +58,7 @@ jobs:
       target_branch: ${{ steps.set_target_branch.outputs.target_branch }}
     steps:
       - name: checkout action
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
@@ -68,7 +75,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
           skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
-      
+
       - name: Get target branch
         id: set_target_branch
         run: |
@@ -87,7 +94,7 @@ jobs:
       images: "${{ steps.handle_docker.outputs.images }}"
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
@@ -129,7 +136,7 @@ jobs:
 
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
@@ -141,7 +148,7 @@ jobs:
 
       - name: System info
         uses: ./openvino/.github/actions/system_info
-        
+
       - name: Setup ccache
         id: ccache_restore
         uses: ./openvino/.github/actions/cache
@@ -161,11 +168,10 @@ jobs:
       #
       - name: Clean ccache stats
         run: ccache --zero-stats
-      
+
       - name: CMake - Configure
         run: >
           cmake -G "${{ env.CMAKE_GENERATOR }}"
-          -DENABLE_CPPLINT=OFF
           -DENABLE_INTEL_GPU=OFF
           -DENABLE_INTEL_NPU=OFF
           -DENABLE_SAMPLES=OFF
@@ -176,7 +182,6 @@ jobs:
           -DCMAKE_VERBOSE_MAKEFILE=ON
           -DENABLE_WHEEL=OFF
           -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
-          -DENABLE_SYSTEM_TBB=ON
           -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64-100-xuantie-gnu.toolchain.cmake
           -S ${OPENVINO_REPO}
           -B ${BUILD_DIR}
@@ -188,37 +193,37 @@ jobs:
         run: |
           ccache --show-stats
           ccache --cleanup
-        
+
       - name: Cmake install - OpenVINO
         run: |
           cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
           cmake --install . --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
         working-directory: ${{ env.BUILD_DIR }}
-          
+
       - name: Pack openvino_package
         run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
         working-directory: ${{ env.INSTALL_DIR }}
-        
+
       - name: Pack openvino_tests
         run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
         working-directory: ${{ env.INSTALL_TEST_DIR }}
-        
+
       - name: Upload openvino package
         if: ${{ always() }}
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
-          
+
       - name: Upload openvino tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
-  
+
   CPU_Functional_Tests:
     name: CPU functional tests
     timeout-minutes: 30
@@ -234,7 +239,7 @@ jobs:
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      GTEST_FILTER: ${{ inputs.testFilterType == 'SMOKE' && '*smoke*' || '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*:*ExtremumLayerCPUTest*' }}
+      GTEST_FILTER: ${{ inputs.testFilterType == 'SMOKE' && '*smoke*' || '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*:*ExtremumLayerCPUTest*:smoke_Snippets*' }}
 
     steps:
       - name: Download OpenVINO artifacts (package)
@@ -242,19 +247,19 @@ jobs:
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
-      
+
       - name: Download OpenVINO artifacts (tests)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
-          
+
       - name: Extract OpenVINO packages and tests
         run: |
           pigz -dc openvino_package.tar.gz | tar -xvf - -C ${INSTALL_DIR}
           pigz -dc openvino_tests.tar.gz | tar -xvf - -C ${INSTALL_DIR}
         working-directory: ${{ env.INSTALL_DIR }}
-        
+
       - name: Intel CPU plugin func tests (parallel)
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh

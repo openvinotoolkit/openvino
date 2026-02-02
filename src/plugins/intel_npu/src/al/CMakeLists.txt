@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,6 +6,12 @@ set(TARGET_NAME openvino_npu_al)
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
+
+if(NOT ENABLE_NPU_DEBUG_CAPS)
+    list(REMOVE_ITEM SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/npu_mlir_runtime.hpp
+    )
+endif()
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
 add_library(openvino::npu_al ALIAS ${TARGET_NAME})

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,7 @@ struct convolution_params : public weight_bias_zero_point_params {
     bool bilinear_interpolation_pad {false};
     bool deformable_mask_enabled {false};
     bool has_explicit_paddings {false};
+    bool grouped_weights_shape {false};
     DataTensor intermediate_tensor;
 
     std::string to_string() const override;
