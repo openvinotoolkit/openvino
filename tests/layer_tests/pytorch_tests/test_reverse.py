@@ -130,7 +130,7 @@ class TestReverse(PytorchLayerTest):
     ):
         """Test reversing a single dimension with various shapes and data types."""
         # Skip invalid dimension indices
-        if abs(dim_to_flip) >= len(input_shape):
+        if dim_to_flip < -len(input_shape) or dim_to_flip >= len(input_shape):
             pytest.skip(f"Dimension {dim_to_flip} invalid for shape {input_shape}")
 
         self.input_shape = input_shape
@@ -180,7 +180,7 @@ class TestReverse(PytorchLayerTest):
     ):
         """Test reversing multiple dimensions simultaneously."""
         # Skip invalid dimension indices
-        if any(abs(d) >= len(input_shape) for d in dims_to_flip):
+        if any(d >= len(input_shape) or d < -len(input_shape) for d in dims_to_flip):
             pytest.skip(f"Dimensions {dims_to_flip} invalid for shape {input_shape}")
 
         # Normalize negative indices
@@ -252,7 +252,7 @@ class TestReverse(PytorchLayerTest):
         "input_shape,dims_to_flip",
         [
             ([10, 20], [0]),         # Large 2D, flip rows
-            ([10, 20], [1]),         # Large 2D, flip columns
+            ([10, 20], [-1]),         # Large 2D, flip columns
             ([5, 10, 15], [1]),      # Large 3D
             ([4, 8, 12, 16], [0, 2]), # Large 4D, multiple axes
         ],
