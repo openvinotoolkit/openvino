@@ -120,9 +120,6 @@ private:
 
     void updateWeiScales();
     void updateDestScales();
-#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
-    bool useF16Binary = false;
-#endif
 };
 
 }  // namespace ov::intel_cpu
