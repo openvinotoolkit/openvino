@@ -13,10 +13,23 @@
 #include "ocl_v2/utils/jitter.hpp"
 #include "../utils/kernel_generator.hpp"
 
-#define ENABLE_MICRO_GEMM_WORKLOAD_BALANCE 1
-
 // clang-format on
 namespace ov::intel_gpu::ocl {
+
+static bool can_enable_balance_workload(const kernel_impl_params& params) {
+    const auto& weight_shape = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).get_shape();
+    size_t expert_num = weight_shape[0];
+
+    // If model has a small number of Experts(<64), the average number of Tokens allocated to each Expert is large,
+    // and the load imbalance rate caused by random allocation will naturally decrease.
+    // At this time, the GPU itself is already close to the Saturated state under static scheduling.
+    // So here we set a simple threshold to disable workload balancing in this scenario
+    // to avoid the overhead brought by workload balancing.
+    if (expert_num >= 64) {
+        return true;
+    }
+    return false;
+}
 
 static size_t get_subgroup_size(gpu_arch arch) {
     switch (arch) {
@@ -125,10 +138,11 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
     if (enable_silu_mul && m_type == MoE3GemmMicroKernelType::MLP_GATE)
         jit.make("POST_PROC_SILU_MUL", 1);
 
-#    if ENABLE_MICRO_GEMM_WORKLOAD_BALANCE
-    jit.make("ENABLE_WORKLOAD_BALANCE", 1);
-    jit.make("MAX_EXPERTS_COUNT", desc->_config.num_expert);
-#    endif
+    bool enable_balance = can_enable_balance_workload(params);
+    if (enable_balance) {
+        jit.make("ENABLE_WORKLOAD_BALANCE", 1);
+        jit.make("MAX_EXPERTS_COUNT", desc->_config.num_expert);
+    }
 
     return jit;
 }
@@ -307,16 +321,14 @@ DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
         auto sg_per_wg_n = static_cast<size_t>(gemm_p.getSetting("sg_per_wg_n"));
         auto sg_per_wg_m = static_cast<size_t>(gemm_p.getSetting("sg_per_wg_m"));
         auto sg_per_wg_k = static_cast<size_t>(gemm_p.getSetting("sg_per_wg_k"));
-#    if ENABLE_MICRO_GEMM_WORKLOAD_BALANCE
-#    else
         auto wg_tile_m = gemm_p.getSetting("wg_tile_m");
         auto wg_tile_n = gemm_p.getSetting("wg_tile_n");
-#    endif
 
+        bool enable_balance = can_enable_balance_workload(params);
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         scalars.clear();
-        scalars.reserve(ENABLE_MICRO_GEMM_WORKLOAD_BALANCE ? 3 : 2);
+        scalars.reserve(enable_balance ? 3 : 2);
 
         auto input_layout = params.get_input_layout(0);
         auto experts_weight_layout = params.get_input_layout(wei_idx);
@@ -349,22 +361,22 @@ DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
         size_t k = experts_weight_shape.size() == 4 ? experts_weight_shape[2] * experts_weight_shape[3] : experts_weight_shape[2];
         wgs.local = {sg_per_wg_m * get_subgroup_size(device_info.arch), sg_per_wg_n, sg_per_wg_k};
 
-#    if ENABLE_MICRO_GEMM_WORKLOAD_BALANCE
-        // Use persistent threads strategy: Flatten expert and token dimensions
-        // Global size Y serves as a pool of workers.
-        // Size heuristic: We want enough threads to hide latency, but not so many that the "tail" (last wave)
-        // becomes a large portion of execution time with low occupancy.
-        // 4 threads per EU is a balanced choice (vs 8).
-        size_t persistent_groups = device_info.execution_units_count * 4;
-        // Make sure we have at least some parallelism if EU count is weird, and ensure alignment isn't an issue.
-        if (persistent_groups < 128)
-            persistent_groups = 128;
-        // Flatten Dim0 (M) into the persistent pool to ensure perfect residency.
-        // We handle M-tiling inside the kernel loop.
-        wgs.global = {1, persistent_groups, 1};
-#    else
-        wgs.global = {ceil_div(m, wg_tile_m), ceil_div(n, wg_tile_n), static_cast<size_t>(rtp->num_actually_used_experts)};
-#    endif
+        if (enable_balance) {
+            // Use persistent threads strategy: Flatten expert and token dimensions
+            // Global size Y serves as a pool of workers.
+            // Size heuristic: We want enough threads to hide latency, but not so many that the "tail" (last wave)
+            // becomes a large portion of execution time with low occupancy.
+            // 4 threads per EU is a balanced choice (vs 8).
+            size_t persistent_groups = device_info.execution_units_count * 4;
+            // Make sure we have at least some parallelism if EU count is weird, and ensure alignment isn't an issue.
+            if (persistent_groups < 128)
+                persistent_groups = 128;
+            // Flatten Dim0 (M) into the persistent pool to ensure perfect residency.
+            // We handle M-tiling inside the kernel loop.
+            wgs.global = {1, persistent_groups, 1};
+        } else {
+            wgs.global = {ceil_div(m, wg_tile_m), ceil_div(n, wg_tile_n), static_cast<size_t>(rtp->num_actually_used_experts)};
+        }
         wgs.global[0] *= wgs.local[0];
         wgs.global[1] *= wgs.local[1];
         wgs.global[2] *= wgs.local[2];
@@ -374,11 +386,11 @@ DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
         ScalarDescriptor s_k{ScalarDescriptor::Types::INT32};
         s_k.v.s32 = static_cast<int32_t>(k);
         scalars.push_back(s_k);
-#    if ENABLE_MICRO_GEMM_WORKLOAD_BALANCE
-        ScalarDescriptor s_num_experts{ScalarDescriptor::Types::INT32};
-        s_num_experts.v.s32 = static_cast<int32_t>(rtp->num_actually_used_experts);
-        scalars.push_back(s_num_experts);
-#    endif
+        if (enable_balance) {
+            ScalarDescriptor s_num_experts{ScalarDescriptor::Types::INT32};
+            s_num_experts.v.s32 = static_cast<int32_t>(rtp->num_actually_used_experts);
+            scalars.push_back(s_num_experts);
+        }
 
         GPU_DEBUG_TRACE_DETAIL << "\t m = " << m << ", k = " << k << ", num_experts = " << rtp->num_actually_used_experts << std::endl;
     }};
@@ -396,6 +408,7 @@ std::string MoE3GemmMicroGenerator::get_build_options(const kernel_impl_params& 
 Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& params) const {
     Arguments args;
     auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
+    bool enable_balance = can_enable_balance_workload(params);
 
     switch (m_type) {
     case MoE3GemmMicroKernelType::MLP_GATE:
@@ -414,9 +427,8 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_0)});                 // scale
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_0)});                    // zp
-#    if ENABLE_MICRO_GEMM_WORKLOAD_BALANCE
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // num_experts
-#    endif
+        if (enable_balance)
+            args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // num_experts
         break;
     case MoE3GemmMicroKernelType::MLP_UP:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_GATE_UP_INPUT});  // gather input tensor
@@ -429,9 +441,8 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_1)});                 // scale
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_1)});                    // zp
-#    if ENABLE_MICRO_GEMM_WORKLOAD_BALANCE
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // num_experts
-#    endif
+        if (enable_balance)
+            args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // num_experts
         break;
     case MoE3GemmMicroKernelType::MLP_DOWN:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_GATE_OUTPUT});  // intermediate_mem[6]
@@ -444,9 +455,8 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                            // k
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::SCALE_2)});                 // scale
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::ZP_2)});                    // zp
-#    if ENABLE_MICRO_GEMM_WORKLOAD_BALANCE
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // num_experts
-#    endif
+        if (enable_balance)
+            args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // num_experts
         break;
     default:
         OPENVINO_THROW("Unsupported MoE3GemmMicroKernelType");
