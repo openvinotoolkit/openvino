@@ -29,11 +29,6 @@ on:
         type: string
         required: false
         default: ''
-      artifact_name_suffix: # To be removed
-        description: 'Suffix to append to artifact name'
-        type: string
-        required: false
-        default: ''
 
 permissions: read-all
 
@@ -148,9 +143,9 @@ jobs:
 
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
         if: always()
         with:
-          name: test-results-${{ inputs.test_type }}-${{ inputs.device }}${{ inputs.artifact_name_suffix }}
+          name: test-results-${{ inputs.test_type }}-${{ inputs.device }}
           path: ${{ env.INSTALL_TEST_DIR }}/${{ steps.run_tests.outputs.test_results_dir }}
           if-no-files-found: 'error'
