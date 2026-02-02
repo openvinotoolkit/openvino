@@ -447,6 +447,9 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
     if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) && batchSizeCandidate.has_value()) {
         get_level_zero_inputs(foundPort.idx).resize(tensors.size());
 
+        std::vector<std::pair<ze_mutable_graph_argument_exp_desc_t, std::optional<ze_graph_argument_value_strides_t>>>
+            descs(tensors.size(), std::make_pair(ze_mutable_graph_argument_exp_desc_t{}, std::nullopt));
+
         for (size_t i = 0; i < tensors.size(); i++) {
             try {
                 _logger.debug("ZeroInferRequest::set_tensors - create zero tensor");
@@ -463,14 +466,17 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "allocate tensor");
                 get_level_zero_input(foundPort.idx, i) = allocate_tensor(foundPort.idx, INPUT, batchSizeCandidate);
             }
-
             if (_pipelineIsCreated && !_dynamicBatchValueChanged) {
                 OPENVINO_ASSERT(get_level_zero_input(foundPort.idx, i)->data(), "Empty buffer");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "updateCommandList");
                 _pipeline->update_graph_arguments(_metadata.inputs.at(foundPort.idx).indexUsedByDriver,
                                                   get_level_zero_input(foundPort.idx, i),
-                                                  i);
+                                                  i,
+                                                  descs);
             }
+        }
+        if (_pipelineIsCreated && !_dynamicBatchValueChanged) {
+            _pipeline->submit_update_graph_arguments();
         }
     }
     // If command list updates are not supported, fallback to copying tensors every time.

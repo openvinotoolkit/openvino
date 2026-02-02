@@ -73,9 +73,20 @@ public:
     void appendGraphExecute(const ze_graph_handle_t& graph_handle,
                             const ze_graph_profiling_query_handle_t& profiling_query_handle) const;
     void updateMutableCommandList(uint32_t index, const void* data) const;
+    void updateMutableCommandList(
+        uint32_t index,
+        const void* data,
+        std::vector<std::pair<ze_mutable_graph_argument_exp_desc_t, std::optional<ze_graph_argument_value_strides_t>>>&
+            descs) const;
     void updateMutableCommandListWithStrides(uint32_t index,
                                              const void* data,
                                              const std::vector<size_t>& strides) const;
+    void updateMutableCommandListWithStrides(
+        uint32_t index,
+        const void* data,
+        const std::vector<size_t>& strides,
+        std::vector<std::pair<ze_mutable_graph_argument_exp_desc_t, std::optional<ze_graph_argument_value_strides_t>>>&
+            descs) const;
     void appendNpuTimestamp(uint64_t* timestamp_buff) const;
     void appendBarrier() const;
     void close() const;
