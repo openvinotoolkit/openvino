@@ -579,7 +579,7 @@ void pa_kernel_lsc_prefetch_f16(
             } else if (causal_left < 0) {
                 St = -3.4e38f;
             }
-            #else
+            } else {
             if (causal_left == 0) {
                 // q_step is half of kv_step
                 // calsual mask first half of the kv
@@ -594,7 +594,7 @@ void pa_kernel_lsc_prefetch_f16(
                 St += 0.f;
                 apply_causal_mask<1>(St.select<q_step, 1, q_step, 1>(q_step, 0));
             }
-            #endif
+            }
             causal_left -= kv_step;
         } else {
             int kv_tokens = kv_stop - kv_pos;
