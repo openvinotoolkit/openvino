@@ -1156,7 +1156,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     if (d_full) {
         const auto sg_size = get_subgroup_size(device_info.arch);
         constexpr size_t packed_elems_per_uint = sizeof(uint32_t) / sizeof(ov::float16);
-        constexpr size_t max_block_elems = 16; // max 16 elements per block load/store per item
+        constexpr size_t max_block_elems = 16;  // max 16 elements per block load/store per item
         const auto q_block_elems = (d_max / packed_elems_per_uint) / sg_size;
         if (ldq % 4 == 0 && q_block_elems <= max_block_elems)
             jit.make("BLOCK_Q", 1);
