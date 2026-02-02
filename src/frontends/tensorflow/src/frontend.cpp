@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,7 +53,7 @@ void update_failures_unsupported_ops(const std::string& op_type,
         return;
     }
     if (fw_node_attrs.find(FrameworkNode::failed_conversion_key) != fw_node_attrs.end()) {
-        // save only the first encountered failure that is more improtant for developer
+        // save only the first encountered failure that is more important for developer
         // that means the translator is found but the conversion is failed
         failures[op_type] = fw_node_attrs.at(FrameworkNode::failed_conversion_key);
     } else {

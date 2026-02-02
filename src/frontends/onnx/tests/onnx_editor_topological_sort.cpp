@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
 #include "gtest/gtest.h"
+#include "onnx_editor_test_utils.hpp"
 #include "onnx_utils.hpp"
 
 using namespace ov;
@@ -17,18 +18,21 @@ using namespace ov::frontend::onnx::tests;
 static std::string s_manifest = onnx_backend_manifest("${MANIFEST}");
 
 OPENVINO_TEST(onnx_editor, topological_sort_two_nodes_swap) {
+    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/topological_sort/two_nodes_swap.onnx", &front_end);
     OV_ASSERT_NO_THROW(front_end->convert(input_model));
 }
 
 OPENVINO_TEST(onnx_editor, topological_sort_completely_unsorted) {
+    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/topological_sort/completely_unsorted.onnx", &front_end);
     OV_ASSERT_NO_THROW(front_end->convert(input_model));
 }
 
 OPENVINO_TEST(onnx_editor, topological_sort_completely_unsorted_2) {
+    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/topological_sort/completely_unsorted_2.onnx", &front_end);
     OV_ASSERT_NO_THROW(front_end->convert(input_model));
@@ -36,6 +40,7 @@ OPENVINO_TEST(onnx_editor, topological_sort_completely_unsorted_2) {
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 OPENVINO_TEST(onnx_editor, topological_sort_completely_unsorted_2_wstring) {
+    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model(L"model_editor/topological_sort/completely_unsorted_2.onnx", &front_end);
     OV_ASSERT_NO_THROW(front_end->convert(input_model));
@@ -43,6 +48,7 @@ OPENVINO_TEST(onnx_editor, topological_sort_completely_unsorted_2_wstring) {
 #endif
 
 OPENVINO_TEST(onnx_editor, topological_sort_constant_node_in_the_graph) {
+    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     const std::string rel_path_to_model = "model_editor/topological_sort/add_abc_const_node_unsorted.onnx";
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/topological_sort/completely_unsorted_2.onnx", &front_end);
@@ -51,6 +57,7 @@ OPENVINO_TEST(onnx_editor, topological_sort_constant_node_in_the_graph) {
 }
 
 OPENVINO_TEST(onnx_editor, topological_sort_multioutput_node) {
+    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     const std::string rel_path_to_model = "model_editor/topological_sort/multioutput_split_unsorted.onnx";
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/topological_sort/completely_unsorted_2.onnx", &front_end);

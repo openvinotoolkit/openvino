@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,6 +43,10 @@ protected:
     size_t num_unique_buffers = 0;
 
     std::shared_ptr<snippets::lowered::LinearIR> body;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    friend std::string init_info_jit_kernel_emitter(const jit_kernel_emitter* emitter);
+#endif
 };
 
 class jit_kernel_static_emitter : public jit_kernel_emitter {
@@ -61,6 +65,10 @@ private:
 
     std::vector<size_t> master_shape;
     std::vector<std::vector<size_t>> data_offsets;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    friend std::string init_info_jit_kernel_static_emitter(const jit_kernel_static_emitter* emitter);
+#endif
 };
 
 class jit_kernel_dynamic_emitter : public jit_kernel_emitter {
@@ -76,6 +84,10 @@ private:
     void init_data_pointers(const std::vector<Xbyak_riscv::Reg>& arg_regs,
                             const std::vector<Xbyak_riscv::Reg>& data_ptr_regs,
                             const std::vector<Xbyak_riscv::Reg>& aux_gprs) const override;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    friend std::string init_info_jit_kernel_dynamic_emitter(const jit_kernel_dynamic_emitter* emitter);
+#endif
 };
 
 }  // namespace ov::intel_cpu::riscv64

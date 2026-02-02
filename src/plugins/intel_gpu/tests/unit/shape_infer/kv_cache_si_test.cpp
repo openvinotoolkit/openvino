@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,7 @@ TEST_P(kv_cache_test, shape_infer) {
 
     ov::op::util::VariableInfo info{p.input_layouts[0].get_partial_shape(), p.input_layouts[0].data_type, "v0"};
 
-    auto kv_cache_prim = std::make_shared<kv_cache>("output", input_prims_ids, info, p.concat_axis, p.gather_axis, p.indirect);
+    auto kv_cache_prim = std::make_shared<kv_cache>("output", input_prims_ids, info, p.concat_axis, p.gather_axis, p.indirect, false, false);
     auto& kv_cache_node = prog.get_or_create(kv_cache_prim);
     for (size_t i = 0; i < p.input_layouts.size(); i++) {
         auto& input_node = prog.get_or_create(input_prims[i]);

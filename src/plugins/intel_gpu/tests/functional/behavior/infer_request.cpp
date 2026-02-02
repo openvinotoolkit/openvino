@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -338,7 +338,12 @@ TEST(VariablesTest, smoke_padded_tensor_set_get_state_with_convert) {
     }
 }
 
+#if defined(_WIN32)
+// Issue: 126388
+TEST(TensorTest, DISABLED_outputTensorShapesForDynamicInput) {
+#else
 TEST(TensorTest, smoke_outputTensorShapesForDynamicInput) {
+#endif
     auto core = ov::Core();
     using namespace ov::preprocess;
     auto p = PrePostProcessor(ov::test::utils::make_split_multi_conv_concat());

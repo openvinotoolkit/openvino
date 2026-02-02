@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -27,7 +27,7 @@ class TestLogAddExp(PytorchLayerTest):
 
             def forward(self, x, y):
                 return torch.logaddexp(x, y)
-        
+
             def forward_out(self, x, y, out):
                 return torch.logaddexp(x, y, out=out), out
 
@@ -57,19 +57,19 @@ class TestLogAddExp(PytorchLayerTest):
             (0.0, 0.0),        # log(exp(0) + exp(0)) = log(2)
             (1.0, 1.0),        # log(exp(1) + exp(1)) = log(2*e)
             (-1.0, -1.0),      # log(exp(-1) + exp(-1)) = log(2/e)
-            
+
             # One large, one small number
             (100.0, 0.0),      # Tests handling of large differences
             (-100.0, 0.0),     # Tests handling of negative large differences
-            
+
             # Both large numbers
             (100.0, 100.0),    # Tests numerical stability with large numbers
             (-100.0, -100.0),  # Tests numerical stability with large negative numbers
-            
+
             # Numbers with different signs
             (1.0, -1.0),       # Tests mixed positive/negative
             (-1.0, 1.0),       # Tests mixed negative/positive
-            
+
             # Near-zero cases
             (1e-7, 1e-7),      # Tests handling of very small numbers
             (-1e-7, -1e-7),    # Tests handling of very small negative numbers
@@ -122,7 +122,7 @@ class TestLogAddExp(PytorchLayerTest):
         # Generate random inputs within a reasonable range
         input1 = np.random.uniform(-10, 10, shape)
         input2 = np.random.uniform(-10, 10, shape)
-        
+
         self._test(
             *self.create_model(out),
             ie_device,
@@ -138,7 +138,7 @@ class TestLogAddExp(PytorchLayerTest):
         # Test broadcasting with different shapes
         input1 = np.array([[1.0, 2.0, 3.0]], dtype=np.float32)  # Shape (1, 3)
         input2 = np.array([[1.0], [2.0]], dtype=np.float32)     # Shape (2, 1)
-        
+
         self._test(
             *self.create_model(),
             ie_device,

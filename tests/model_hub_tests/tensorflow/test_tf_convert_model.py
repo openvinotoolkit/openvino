@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
@@ -11,7 +11,7 @@ import tensorflow as tf
 import tensorflow.compat.v1 as tf_v1
 import tensorflow_hub as hub
 # noinspection PyUnresolvedReferences
-import tensorflow_text  # do not delete, needed for text models
+#import tensorflow_text  # do not delete, needed for text models. Commended due to ticket 179327
 from huggingface_hub import snapshot_download
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list

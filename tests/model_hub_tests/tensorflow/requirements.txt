@@ -4,6 +4,6 @@ pytest
 pytest-html
 tensorflow
 tensorflow-hub
-tensorflow-text
+#tensorflow-text # ticket 179327
 transformers
 tf-sentence-transformers

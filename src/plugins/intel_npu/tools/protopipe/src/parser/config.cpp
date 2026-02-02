@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -879,6 +879,7 @@ Config parseConfig(const YAML::Node& node, const ReplaceBy& replace_by) {
     Logger::global_lvl = toLogLevel(global_opts.log_level);
 
     Config config;
+    config.npu_compiler_type = global_opts.compiler_type;
     config.scenarios = parseScenarios(node["multi_inference"], global_opts, replace_by);
 
     ASSERT(!config.scenarios.empty());

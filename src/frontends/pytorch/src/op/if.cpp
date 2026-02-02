@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -197,6 +197,119 @@ OutputVector translate_if(const NodeContext& context) {
     if_node->validate_and_infer_types();
     return res;
 };
+
+OutputVector translate_cond_fx(const NodeContext& context) {
+    // torch.cond(pred, true_fn, false_fn, operands)
+    // FX representation after decoder processing:
+    // - Input 0: pred (boolean tensor)
+    // - Subgraph 0: true_fn (GraphModule)
+    // - Subgraph 1: false_fn (GraphModule)
+    // - Inputs 1+: operands (unpacked from tuple by decoder)
+
+    auto decoder = context.get_decoder();
+    PYTORCH_OP_CONVERSION_CHECK(decoder->get_subgraph_size() == 2,
+                                "torch.cond must have exactly 2 subgraphs (true_fn and false_fn), got: ",
+                                decoder->get_subgraph_size());
+
+    // Get predicate (first input)
+    auto pred = context.get_input(0);
+
+    // Create If node with predicate
+    auto if_node = std::make_shared<v8::If>(pred);
+    context.mark_node(if_node);
+
+    // Convert subgraphs to OpenVINO Models
+    auto then_body = context.convert_subgraph(0);
+    auto else_body = context.convert_subgraph(1);
+
+    if_node->set_then_body(then_body);
+    if_node->set_else_body(else_body);
+
+    // Get body parameters - both branches receive the same operands in torch.cond
+    auto then_params = then_body->get_parameters();
+    auto else_params = else_body->get_parameters();
+
+    // Map operands to body parameters
+    // In FX, operands are explicitly passed and should match parameter count
+    const auto num_operands = context.get_input_size() - 1;  // exclude pred
+
+    // Connect each operand to corresponding parameter in both bodies
+    // Note: In torch.cond, both branches receive the same operands
+    for (size_t i = 0; i < num_operands && i < then_params.size() && i < else_params.size(); i++) {
+        auto operand = context.get_input(static_cast<int>(i) + 1);
+        if_node->set_input(operand, then_params[i], else_params[i]);
+    }
+
+    // Handle case where one body has more parameters (they might capture external tensors)
+    // This shouldn't happen in well-formed torch.cond, but handle defensively
+    auto session = context.get_session();
+    for (size_t i = num_operands; i < then_params.size(); i++) {
+        auto param = then_params[i];
+        auto input_idx = session->decode_tensor_name(param->output(0));
+        auto external_output = context.get_tensor_from_model_or_create_input(input_idx);
+
+        // Find or create matching parameter in else body
+        std::shared_ptr<v0::Parameter> else_param = nullptr;
+        for (const auto& ep : else_params) {
+            if (session->decode_tensor_name(ep->output(0)) == input_idx) {
+                else_param = ep;
+                break;
+            }
+        }
+        if (!else_param) {
+            else_param = std::make_shared<v0::Parameter>(element::dynamic, PartialShape::dynamic());
+            session->encode_tensor_name(else_param->output(0), input_idx);
+            auto else_result = std::make_shared<v0::Result>(else_param);
+            else_body->add_parameters({else_param});
+            else_body->add_results({else_result});
+        }
+        if_node->set_input(external_output, param, else_param);
+    }
+
+    for (size_t i = num_operands; i < else_params.size(); i++) {
+        auto param = else_params[i];
+        auto input_idx = session->decode_tensor_name(param->output(0));
+        auto external_output = context.get_tensor_from_model_or_create_input(input_idx);
+
+        // Find or create matching parameter in then body
+        std::shared_ptr<v0::Parameter> then_param = nullptr;
+        for (const auto& tp : then_params) {
+            if (session->decode_tensor_name(tp->output(0)) == input_idx) {
+                then_param = tp;
+                break;
+            }
+        }
+        if (!then_param) {
+            then_param = std::make_shared<v0::Parameter>(element::dynamic, PartialShape::dynamic());
+            session->encode_tensor_name(then_param->output(0), input_idx);
+            auto then_result = std::make_shared<v0::Result>(then_param);
+            then_body->add_parameters({then_param});
+            then_body->add_results({then_result});
+        }
+        if_node->set_input(external_output, then_param, param);
+    }
+
+    // Map outputs - both branches must have same number of results
+    auto then_results = then_body->get_results();
+    auto else_results = else_body->get_results();
+    PYTORCH_OP_CONVERSION_CHECK(then_results.size() == else_results.size(),
+                                "torch.cond branches must return same number of outputs. "
+                                "then_body has ",
+                                then_results.size(),
+                                " outputs, else_body has ",
+                                else_results.size());
+
+    OutputVector res;
+    for (size_t i = 0; i < then_results.size(); i++) {
+        align_result_types(context, then_results[i], else_results[i]);
+        res.push_back(if_node->set_output(then_results[i], else_results[i]));
+    }
+
+    if_node->validate_and_infer_types();
+
+    // Return outputs - torch.cond returns a tuple, so wrap in list construct
+    return {make_list_construct(res)};
+}
 
 }  // namespace op
 }  // namespace pytorch

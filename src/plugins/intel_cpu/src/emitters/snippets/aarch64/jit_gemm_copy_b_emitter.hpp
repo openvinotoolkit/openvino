@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,10 @@ protected:
     std::vector<size_t> m_memory_offsets;
     std::vector<size_t> m_buffer_ids;
     bool m_is_f16 = false;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    friend std::string init_info_jit_gemm_copy_b_emitter(const jit_gemm_copy_b_emitter* emitter);
+#endif
 };
 
 }  // namespace ov::intel_cpu::aarch64

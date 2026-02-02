@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -14,4 +14,3 @@ target_link_libraries(${TARGET_NAME} PRIVATE StressTestsCommon)
 
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
-

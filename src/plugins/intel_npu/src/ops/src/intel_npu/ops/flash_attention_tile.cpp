@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,6 @@ void flash_attention_evaluate(const float* query,
                               float* running_max,
                               float* running_sum,
                               const float* attention_mask,
-                              const float* scale,
                               bool is_head,
                               bool is_tail,
                               bool attention_mask_broadcasted,
@@ -32,19 +31,6 @@ void flash_attention_evaluate(const float* query,
                               int32_t S,
                               int32_t E,
                               int32_t Ev) {
-    const auto scale_val = [&]() -> float {
-        // If the layer is not first in the chain, then it shouldn't apply scaling
-        if (!is_head) {
-            return 1.f;
-        }
-
-        if (scale) {
-            return static_cast<float>(*scale);
-        }
-
-        return 1.0f / sqrtf(static_cast<float>(E));
-    }();
-
     std::vector<float> scores(S);
     std::vector<float> exp_scores(S);
 
@@ -76,8 +62,6 @@ void flash_attention_evaluate(const float* query,
                     for (int32_t e = 0; e < E; ++e) {
                         score += q_row[e] * k_row[e];
                     }
-
-                    score *= scale_val;
 
                     if (m_row) {
                         score += m_row[s];
@@ -143,8 +127,7 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
     using DimType = typename ov::PartialShape::value_type;
     const auto& inputs_count = input_shapes.size();
     const auto& has_attention_mask = (inputs_count >= 7) && (input_shapes[6].size() > 1);
-    const auto& has_scale = (inputs_count == 8);
-    NODE_VALIDATION_CHECK(op, inputs_count == 6 || has_attention_mask || has_scale);
+    NODE_VALIDATION_CHECK(op, inputs_count == 6 || has_attention_mask);
 
     DimType e_dim{};
     DimType l_dim{};
@@ -265,17 +248,6 @@ static std::vector<ov::PartialShape> shape_infer(const FlashAttentionTile* op,
                                "Attention mask input shape not compatible with other inputs.");
     }
 
-    if (has_scale) {
-        const auto& scale_shape = input_shapes[7];
-        const auto& scale_rank = scale_shape.rank();
-        const auto& scale_is_scalar = scale_rank.compatible(0);
-        const auto& scale_has_one_elem = scale_rank.compatible(1) && scale_shape[0].compatible(1);
-        NODE_SHAPE_INFER_CHECK(op,
-                               input_shapes,
-                               scale_is_scalar || scale_has_one_elem,
-                               "Scale input must be scalar or have 1 element.");
-    }
-
     auto result_running_output_shape = query_batch_dims;
     result_running_output_shape.push_back(l_dim);
     result_running_output_shape.push_back(ev_dim);
@@ -299,11 +271,8 @@ FlashAttentionTile::FlashAttentionTile(const Output<Node>& query,
                                        const Output<Node>& running_output,
                                        const Output<Node>& running_max,
                                        const Output<Node>& running_sum,
-                                       const Output<Node>& attn_mask,
-                                       const Output<Node>& scale,
                                        Config config)
-    : FlashAttentionTile({query, key, value, running_output, running_max, running_sum, attn_mask, scale},
-                         std::move(config)) {}
+    : FlashAttentionTile({query, key, value, running_output, running_max, running_sum}, std::move(config)) {}
 
 FlashAttentionTile::FlashAttentionTile(const Output<Node>& query,
                                        const Output<Node>& key,
@@ -314,15 +283,6 @@ FlashAttentionTile::FlashAttentionTile(const Output<Node>& query,
                                        const Output<Node>& attn_mask,
                                        Config config)
     : FlashAttentionTile({query, key, value, running_output, running_max, running_sum, attn_mask}, std::move(config)) {}
-
-FlashAttentionTile::FlashAttentionTile(const Output<Node>& query,
-                                       const Output<Node>& key,
-                                       const Output<Node>& value,
-                                       const Output<Node>& running_output,
-                                       const Output<Node>& running_max,
-                                       const Output<Node>& running_sum,
-                                       Config config)
-    : FlashAttentionTile({query, key, value, running_output, running_max, running_sum}, std::move(config)) {}
 
 void FlashAttentionTile::validate_and_infer_types() {
     const auto attention_mask_idx = 6;
@@ -386,7 +346,6 @@ enum FlashAttentionInputs {
     RUNNING_MAX = 4,     // [B, H, L]
     RUNNING_SUM = 5,     // [B, H, L]
     ATTENTION_MASK = 6,  // [B, H, L, S]
-    SCALE = 7            // scalar
 };
 
 enum FlashAttentionOutputs {
@@ -435,11 +394,6 @@ static bool evaluate_flash_attention_impl(ov::TensorVector& outputs,
         attention_mask_broadcasted = (*(mask_shape.end() - 3) == 1);
     }
 
-    const float* scale = nullptr;
-    if (inputs.size() == 8) {
-        scale = inputs[SCALE].data<const float>();
-    }
-
     auto* out_output = outputs[OUTPUT].data<float>();
     auto* out_max = outputs[OUTPUT_MAX].data<float>();
     auto* out_sum = outputs[OUTPUT_SUM].data<float>();
@@ -460,7 +414,6 @@ static bool evaluate_flash_attention_impl(ov::TensorVector& outputs,
                              out_max,
                              out_sum,
                              attention_mask,
-                             scale,
                              config.is_head,
                              config.is_tail,
                              attention_mask_broadcasted,

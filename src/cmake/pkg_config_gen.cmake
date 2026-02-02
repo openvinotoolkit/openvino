@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -18,7 +18,6 @@ endforeach()
 if(NOT EXISTS "${PKG_CONFIG_IN_FILE}")
     message(FATAL_ERROR "${PKG_CONFIG_IN_FILE} does not exist")
 endif()
-
 # execute
 
 configure_file("${PKG_CONFIG_IN_FILE}" "${PKG_CONFIG_OUT_FILE}" @ONLY)

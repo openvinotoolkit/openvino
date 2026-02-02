@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -250,12 +250,12 @@ def serialize_to_csv(report_filename: str, output_dir: os.path, op_list: list, d
         # csv_writer.writerow(['Operation'] + device_list)
         devices_csv = ['Operation']
         device_res_csv = ['Operation']
-        
-        for device in device_list:          
+
+        for device in device_list:
             for status in STATUS_CSV_ORDER:
                 devices_csv.append(device)
                 device_res_csv.append(status)
-            
+
         csv_writer.writerow(devices_csv)
         csv_writer.writerow(device_res_csv)
 
@@ -295,7 +295,7 @@ def create_summary(summary_root: Element, output_folder: os.path, expected_devic
         except:
             opsets = []
         op_list.update({op.tag: opsets})
-    
+
     if len(expected_devices) > 0 and sorted(expected_devices) != device_list:
         for expected_device in expected_devices:
             if expected_device in device_list:

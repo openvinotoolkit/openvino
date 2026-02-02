@@ -158,7 +158,7 @@ sudo apt-get install libpython3.10
 - [OpenVINO™ Notebooks](https://github.com/openvinotoolkit/openvino_notebooks)
 - [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)
 
-Copyright © 2018-2025 Intel Corporation
+Copyright © 2018-2026 Intel Corporation
 > **LEGAL NOTICE**: Your use of this software and any required dependent software (the
 “Software Package”) is subject to the terms and conditions of the
 [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0.html) for the Software Package,

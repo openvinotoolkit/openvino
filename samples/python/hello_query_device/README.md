@@ -15,6 +15,6 @@ The following Python API is used in the application:
 
 | Feature       | API                                                                                                                                                                                     | Description                            |
 | --------------| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------|
-| Basic         | [openvino.runtime.Core](https://docs.openvino.ai/2025/api/ie_python_api/_autosummary/openvino.runtime.Core.html)                                                                      | Common API                             |
-| Query Device  | [openvino.runtime.Core.available_devices](https://docs.openvino.ai/2025/api/ie_python_api/_autosummary/openvino.runtime.Core.html#openvino.runtime.Core.available_devices) ,          | Get device properties                  |
+| Basic         | [openvino.Core](https://docs.openvino.ai/2025/api/ie_python_api/_autosummary/openvino.Core.html)                                                                      | Common API                             |
+| Query Device  | [openvino.Core.available_devices](https://docs.openvino.ai/2025/api/ie_python_api/_autosummary/openvino.Core.html#openvino.Core.available_devices) ,          | Get device properties                  |
 

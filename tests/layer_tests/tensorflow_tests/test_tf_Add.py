@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -237,8 +237,8 @@ class TestComplexAdd(CommonTFLayerTest):
                 tf_net = sess.graph_def
 
             return tf_net, None
-        
-        
+
+
         test_data_basic = [
             dict(input_shape=[]),
             dict(input_shape=[2]),

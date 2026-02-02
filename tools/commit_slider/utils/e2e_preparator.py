@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from os import walk, path
@@ -9,7 +9,7 @@ from pathlib import Path
 try:
     import yaml
 except:
-    import subprocess
+    import subprocess  # nosec B404
     import sys
     p = subprocess.Popen('{} -m pip install pyyaml'.format(
             sys.executable

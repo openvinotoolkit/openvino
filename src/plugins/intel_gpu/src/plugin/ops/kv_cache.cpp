@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ namespace ov::intel_gpu {
 namespace {
 
 void CreateKVCacheOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::KVCache>& op) {
-    validate_inputs_count(op, {2, 3});
+    validate_inputs_count(op, {2, 3, 4, 5});
     auto inputs = p.GetInputInfo(op);
     int64_t rank = op->get_input_partial_shape(0).size();
     auto prim = cldnn::kv_cache(layer_type_name_ID(op),
@@ -31,7 +31,9 @@ void CreateKVCacheOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::
                                 op->get_variable()->get_info(),
                                 ov::util::normalize(op->get_concat_axis(), rank),
                                 ov::util::normalize(op->get_gather_axis(), rank),
-                                op->get_indirect());
+                                op->get_indirect(),
+                                op->get_trim(),
+                                op->get_update_kv());
 
     prim.num_outputs = op->get_output_size();
     prim.output_data_types = get_output_data_types(op);
@@ -40,7 +42,9 @@ void CreateKVCacheOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::
 }
 
 void CreateKVCacheCompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::KVCacheCompressed>& op) {
-    validate_inputs_count(op, {4, 5});
+    OPENVINO_ASSERT(!op->get_update_kv());  // compressed kv does not support update_kv
+    OPENVINO_ASSERT(op->get_indirect());  // compressed kv must be indirect
+    validate_inputs_count(op, {4, 5, 6});
     auto inputs = p.GetInputInfo(op);
     int64_t rank = op->get_input_partial_shape(0).size();
     auto prim = cldnn::kv_cache(layer_type_name_ID(op),
@@ -48,7 +52,9 @@ void CreateKVCacheCompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
                                 op->get_variable()->get_info(),
                                 ov::util::normalize(op->get_concat_axis(), rank),
                                 ov::util::normalize(op->get_gather_axis(), rank),
-                                op->get_indirect());
+                                op->get_indirect(),
+                                op->get_trim(),
+                                false);
 
     prim.compressed = true;
     prim.quantization_attributes = op->get_quantization_attrs();

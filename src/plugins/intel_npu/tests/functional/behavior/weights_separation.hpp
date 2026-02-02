@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -179,6 +179,7 @@ protected:
  */
 TEST_P(WeightsSeparationTests, CheckOneShotVersionThrows) {
     model = createTestModel();
+    configuration.insert(ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER));
     configuration.insert(ov::intel_npu::weightless_blob(true));
     configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ONE_SHOT));
     OV_EXPECT_THROW(compiled_model = core->compile_model(model, target_device, configuration), ov::Exception, _);

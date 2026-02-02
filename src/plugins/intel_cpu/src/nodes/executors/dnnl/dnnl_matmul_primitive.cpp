@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -372,7 +372,7 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                 const size_t highestPriority = prim_desc_w_priority.priority;
                 if (priorityId < highestPriority) {
                     auto desc_copy = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get(true)));
-                    prim_desc_w_priority = {desc_copy, priorityId};
+                    prim_desc_w_priority = {std::move(desc_copy), priorityId};
                 }
             });
 

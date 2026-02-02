@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -9,8 +9,8 @@ from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 class TestShiftOperators(PytorchLayerTest):
     def _prepare_input(self, lhs_dtype, rhs_dtype, lhs_shape, rhs_shape):
-        choices = np.array([1, 2, 4, 8, 16, 32])  
-        shifts = np.array([0, 1, 2, 3, 4, 5])     
+        choices = np.array([1, 2, 4, 8, 16, 32])
+        shifts = np.array([0, 1, 2, 3, 4, 5])
 
         x = np.random.choice(choices, lhs_shape).astype(lhs_dtype)
         y = np.random.choice(shifts, rhs_shape).astype(rhs_dtype)
@@ -19,7 +19,7 @@ class TestShiftOperators(PytorchLayerTest):
     def create_model(self):
         class aten_shift(torch.nn.Module):
             def forward(self, lhs, rhs):
-                return lhs << rhs, lhs >> rhs 
+                return lhs << rhs, lhs >> rhs
 
         ref_net = None
         return aten_shift(), ref_net, ("aten::__lshift__", "aten::__rshift__")
@@ -33,10 +33,10 @@ class TestShiftOperators(PytorchLayerTest):
     @pytest.mark.parametrize(
         ("lhs_shape", "rhs_shape"),
         [
-            ([2, 3], [2, 3]),  
-            ([2, 3], []),      
-            ([], [2, 3]),  
-            ([], []), 
+            ([2, 3], [2, 3]),
+            ([2, 3], []),
+            ([], [2, 3]),
+            ([], []),
         ],
     )
     def test_shift_operators(self, lhs_dtype, rhs_dtype, lhs_shape, rhs_shape, ie_device, precision, ir_version):
@@ -58,8 +58,8 @@ class TestShiftOperators(PytorchLayerTest):
 
 class TestBitwiseShiftFunctions(PytorchLayerTest):
     def _prepare_input(self, lhs_dtype, rhs_dtype, lhs_shape, rhs_shape):
-        choices = np.array([1, 2, 4, 8, 16, 32])  
-        shifts = np.array([0, 1, 2, 3, 4, 5])    
+        choices = np.array([1, 2, 4, 8, 16, 32])
+        shifts = np.array([0, 1, 2, 3, 4, 5])
 
         x = np.random.choice(choices, lhs_shape).astype(lhs_dtype)
         y = np.random.choice(shifts, rhs_shape).astype(rhs_dtype)
@@ -84,10 +84,10 @@ class TestBitwiseShiftFunctions(PytorchLayerTest):
     @pytest.mark.parametrize(
         ("lhs_shape", "rhs_shape"),
         [
-            ([2, 3], [2, 3]),  
-            ([2, 3], []),      
-            ([], [2, 3]),      
-            ([], []), 
+            ([2, 3], [2, 3]),
+            ([2, 3], []),
+            ([], [2, 3]),
+            ([], []),
         ],
     )
     def test_bitwise_shift_functions(self, lhs_dtype, rhs_dtype, lhs_shape, rhs_shape, ie_device, precision, ir_version):

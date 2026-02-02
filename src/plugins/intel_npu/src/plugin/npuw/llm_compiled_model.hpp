@@ -1,4 +1,4 @@
-// Copyright (C) 2024-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,11 +62,14 @@ public:
     ov::Any get_property(const std::string& name) const override;
 
 private:
+    friend class LLMInferBaseRequest;
     friend class LLMInferRequest;
     friend class WhisperInferRequest;
+    friend class EmbeddingInferRequest;
 
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_whisper_infer_request();
+    std::shared_ptr<ov::ISyncInferRequest> create_embedding_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     void implement_properties();
 
@@ -109,10 +112,8 @@ private:
     // Friend declarations for PrefixCachingHelper to access protected members
     friend class PrefixCachingHelper;
 
-    void gemma_transformations(const std::shared_ptr<ov::Model>& model);
-    int32_t m_gemma_sliding_window_size = 0;
-
     bool m_is_whisper = false;
+    bool m_is_embedding = false;
 
     // Create generate model variants with different sizes
     std::vector<std::shared_ptr<ov::Model>> create_generate_model_variants(

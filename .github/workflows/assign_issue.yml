@@ -86,6 +86,21 @@ jobs:
               const user = context.payload.comment.user.login;
 
               if (comment === ".take") {
+                if (!issue.labels?.some(l => l.name.toLowerCase() === LABEL)) {
+                  console.log(`Issue #${issue.number} - not a good first issue, ignoring .take command`);
+                  return;
+                }
+                if (issue.assignees?.length) {
+                  const currentAssignee = issue.assignees[0].login;
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    body: `@${user} this issue is already assigned to a contributor.`
+                  });
+                  console.log(`Issue #${issue.number} already assigned to ${currentAssignee}, ignoring .take from ${user}`);
+                  return;
+                }
                 await github.rest.issues.addAssignees({
                   owner: context.repo.owner,
                   repo: context.repo.repo,

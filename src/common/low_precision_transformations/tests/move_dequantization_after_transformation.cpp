@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -290,6 +290,20 @@ const std::vector<MoveDequantizationAfterTransformationParams> testValues = {
             { {ov::element::f32}, { 7.f }, { 10.f } },
         },
         false
+    },
+    {
+        ov::element::u8,
+        LayerTransformation::createParamsU8I8(),
+        true,
+        true,
+        {
+            {{ov::element::f16}, {128.f}, {0.1f}}
+        },
+        {
+            {},
+            ov::element::u8,
+            {{ov::element::f16}, {128.f}, {0.1f}}
+        }
     },
 };
 
