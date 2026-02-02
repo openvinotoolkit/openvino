@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+add_subdirectory(shutdown)
+
 add_subdirectory(itt)
 add_subdirectory(conditional_compilation)
 add_subdirectory(util)
-add_subdirectory(shutdown)
 
 if(ENABLE_INTEL_CPU)
     add_subdirectory(snippets)
