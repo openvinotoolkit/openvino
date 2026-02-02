@@ -15,6 +15,8 @@
 #include "../utils/kernel_generator.hpp"
 #include "gemmstone/kernel_selector.hpp"
 
+#define ENABLE_MICRO_GEMM_WORKLOAD_BALANCE 1
+
 // clang-format on
 namespace ov::intel_gpu::ocl {
 
@@ -99,6 +101,12 @@ JitConstants MoEGemmMicroGenerator::get_jit_constants(const kernel_impl_params& 
     jit.make("OUTPUT_STRIDE", params.input_layouts[1].get_shape()[1]);
     if (!m_is_prefill)
         jit.make("IS_GENERATE", 1);
+
+#    if ENABLE_MICRO_GEMM_WORKLOAD_BALANCE
+    if (m_is_prefill)
+        jit.make("ENABLE_WORKLOAD_BALANCE", 1);
+#    endif
+
     if (cfg.has_batch_dim) {
         jit.make("INPUT_SEQ_LEN", "INPUT0_FEATURE_NUM");
     } else {
@@ -240,7 +248,29 @@ DispatchDataFunc MoEGemmMicroGenerator::get_dispatch_data_func() const {
         size_t m = experts_weight_shape[1];
         size_t k = experts_weight_shape.size() == 4 ? experts_weight_shape[2] * experts_weight_shape[3] : experts_weight_shape[2];
         wgs.local = {sg_per_wg_m * get_subgroup_size(device_info.arch), sg_per_wg_n, sg_per_wg_k};
+#    if ENABLE_MICRO_GEMM_WORKLOAD_BALANCE
+        auto is_prefill_stage = [](const RuntimeParams& params) {
+            const auto target_seq_len = params.input_layouts[0].get_partial_shape()[0];
+            const auto num_offsets = params.input_layouts[3].get_partial_shape()[0];
+            if (num_offsets.is_dynamic())
+                return false;
+            if (target_seq_len.is_dynamic())
+                return false;
+            return (target_seq_len.get_length() / num_offsets.get_length()) > 1;
+        };
+        bool is_prefill = is_prefill_stage(params);
+        size_t persistent_groups = device_info.execution_units_count * 4;
+        if (persistent_groups < 128)
+            persistent_groups = 128;
+        // Flatten Dim0 (M) into the persistent pool to ensure perfect residency.
+        // We handle M-tiling inside the kernel loop.
+        if (is_prefill)
+            wgs.global = {1, persistent_groups, 1};
+        else
+            wgs.global = {ceil_div(m, wg_tile_m), ceil_div(n, wg_tile_n), static_cast<size_t>(rtp->num_actually_used_experts)};
+#    else
         wgs.global = {ceil_div(m, wg_tile_m), ceil_div(n, wg_tile_n), static_cast<size_t>(rtp->num_actually_used_experts)};
+#    endif
         wgs.global[0] *= wgs.local[0];
         wgs.global[1] *= wgs.local[1];
         wgs.global[2] *= wgs.local[2];
@@ -250,6 +280,13 @@ DispatchDataFunc MoEGemmMicroGenerator::get_dispatch_data_func() const {
         ScalarDescriptor s_k{ScalarDescriptor::Types::INT32};
         s_k.v.s32 = static_cast<int32_t>(k);
         scalars.push_back(s_k);
+#    if ENABLE_MICRO_GEMM_WORKLOAD_BALANCE
+        if (is_prefill) {
+            ScalarDescriptor s_num_experts{ScalarDescriptor::Types::INT32};
+            s_num_experts.v.s32 = static_cast<int32_t>(rtp->num_actually_used_experts);
+            scalars.push_back(s_num_experts);
+        }
+#    endif
     }};
 }
 
@@ -287,7 +324,10 @@ Arguments MoEGemmMicroGenerator::get_arguments_desc(const kernel_impl_params& pa
         if (!cfg.is_weight_symmetric_quantized)
             args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(cfg.weight_zp_idx)});
     }
-
+#    if ENABLE_MICRO_GEMM_WORKLOAD_BALANCE
+    if (m_is_prefill)
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // num_experts
+#    endif
     return args;
 }
 

@@ -240,7 +240,7 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
     #endif
 #endif
 
-    // Compute Prefix Scan of Tile Counts
+    // LSM, Compute Prefix Scan of Tile Counts
     local uint expert_tile_offsets[1025]; // Supports up to 1024 experts.
     uint lid = get_local_id(0) + get_local_id(1) * get_local_size(0);
     
@@ -255,7 +255,7 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
     
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // Single-thread Prefix Sum (Efficiency ok for small num_experts)
+    // Single-thread Prefix Sum (Efficiency for small num_experts)
     if (lid == 0) {
         uint acc = 0;
         for (int i = 0; i < num_experts; ++i) {
@@ -278,31 +278,23 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
     uint global_stride = get_num_groups(1); // Since get_num_groups(0) is 1.
     uint global_idx = get_group_id(1);
     
-    // Original setup uses wg_i0 from group_id(0). Now we calculate it per task.
+    // Calculate per task.
     uint sg_i = sub_group_broadcast(get_local_id(0)/SUBGROUP_SIZE, 0);
     uint sg_j = sub_group_broadcast(get_local_id(1), 0);
     uint sg_k = sub_group_broadcast(get_local_id(2), 0);
-    // uint sg_i0 = wg_i0 + sg_i * ugemm_moe_sg_tile_m; // Moved inside loop due to variable wg_i0
 
     uint expert_id = 0; // Cached expert_id
-
     for (uint task_idx = global_idx; task_idx < total_tasks; task_idx += global_stride) {
         // Correct task mapping: reuse expert (tile_idx) across inner M blocks
         // This ensures the same expert weight is used for M consecutive iterations if M-dim varies fast
-        // Actually, we want Weight reuse. So we want tile_idx to stay constant while m_block_idx changes.
-        // If task_idx is linear.
-        // Option A: task 0 = (tile 0, m 0), task 1 = (tile 0, m 1).
-        // Option B: task 0 = (tile 0, m 0), task 1 = (tile 1, m 0).
+        // For weight reuse, tile_idx will stay constant while m_block_idx changes.
+        // Task_idx is linear.
+        // Option A: task_0 = (tile_0, m_0), task_1 = (tile_0, m_1).
+        // Option B: task_0 = (tile_0, m_0), task_1 = (tile_1, m_0).
         // A is better for L2 Cache (fetching Weight for Tile 0 once).
         uint tile_idx = task_idx / num_m_blocks;
         uint m_block_idx = task_idx % num_m_blocks;
 
-        // Optimization: Prefetch Expert ID for next iteration?
-        // Current logic uses cached expert_id and increments.
-        // If we stride tasks, tile_idx jumps by (stride / num_m_blocks).
-        // So expert_id changes significantly.
-        // The binary search optimization 'l = expert_id + 1' only helps if tile_idx increases.
-        
         uint wg_i0 = m_block_idx * ugemm_moe_wg_tile_m;
         uint sg_i0 = wg_i0 + sg_i * ugemm_moe_sg_tile_m;
 
@@ -320,12 +312,10 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
              }
              expert_id = l - 1;
         }
-        
-        uint batch = expert_id; // Mapping expert_id to batch index as per original logic
-
+        uint batch = expert_id;
         // Calculate parameters for this expert
         int cur_n_tokens = n_array[batch];
-        
+
         // Calculate offsets
         int input_offset = sub_group_broadcast(input_offset_per_expert[batch], 0); 
         
@@ -334,10 +324,11 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
         uint wg_j0 = tile_in_expert * ugemm_moe_wg_tile_n;
         uint sg_j0 = wg_j0 + sg_j * ugemm_moe_sg_tile_n;
         
-        if (wg_j0 >= cur_n_tokens) continue; // Should not happen due to prefix sum logic, but safety
+        if (wg_j0 >= cur_n_tokens) continue;
 
         // Pointers Setup
         const global INPUT0_TYPE *curr_input_ptr = base_input_ptr;
+        // It is more benefit for prefilling stage, do we need generate stage? default is no.
         #ifdef IS_GENERATE
         if (INPUT_SEQ_LEN > 1) {
         #endif
@@ -381,7 +372,8 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
             uint scale_zp_leading_dim = NUM_GROUPS;
         #endif
 #endif
-    
+
+    // Default will not enter generate stage
 #ifdef IS_GENERATE
 #ifdef USE_SLM
     ugemm_moe_c_type c_tile = ugemm_moe(
@@ -486,7 +478,7 @@ KERNEL(moe_gemm)(OPTIONAL_SHAPE_INFO_ARG
 
     tile_store(c_tile_half, curr_out_ptr, m, cur_n_tokens, sg_i0, sg_j0);
 
-    } // End of For Scan Loop
+    } // End of Scan Loop
 }
 
 #endif
