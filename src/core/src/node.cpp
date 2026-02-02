@@ -21,8 +21,11 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/util/log.hpp"
+#include "openvino/runtime/allocator.hpp"
+#include "openvino/runtime/allocator_mmap.hpp"
 #include "shape_validation.hpp"
 #include "shared_node_info.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace std;
 
@@ -720,7 +723,12 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     if (!Node::can_constant_fold(input_values)) {
         return false;
     }
-
+    
+    std::cout << "Folding Constant: " << m_friendly_name << std::endl; 
+    
+    ov::pass::MemoryInfo mem_info_before = ov::pass::getProcessMemoryInfo();
+    mem_info_before.print();
+    
     NodeVector nodes;
     TensorVector input_tensors;
     for (const auto& input : input_values) {
@@ -733,18 +741,32 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     TensorVector output_tensors;
     for (const auto& output : outputs()) {
         const auto& et = output.get_element_type();
+        ov::Allocator mmap_allocator = ov::Allocator{ov::MmapAnonymousAllocator{}};
+        mmap_allocator.allocate(et.size() * shape_size(output.get_shape()));
+        ov::Tensor output_tensor = ov::Tensor(et, output.get_shape(), mmap_allocator);
         if (et.is_static()) {
-            output_tensors.emplace_back(output);
+            output_tensors.push_back(output_tensor);
+            // output_tensors.emplace_back(output);
+            std::cout << "Allocated MMAP constant tensor" << std::endl;
         } else {
             output_tensors.emplace_back();
         }
     }
 
+    ov::pass::MemoryInfo mem_info_middle= ov::pass::getProcessMemoryInfo();
+    mem_info_middle.print();
+    mem_info_middle.print_diff(mem_info_before);
+    
     if (evaluate(output_tensors, input_tensors)) {
         for (size_t i = 0; i < output_tensors.size(); ++i) {
             output_values[i] = make_shared<ov::op::v0::Constant>(output_tensors[i]);
             ov::copy_runtime_info(nodes, output_values[i].get_node_shared_ptr());
+            std::cout << "Allocated constant tensor for output " << i << " : " << output_values[i] << "size: " << output_tensors[i].get_byte_size() << std::endl;
         }
+        ov::pass::MemoryInfo mem_info_after = ov::pass::getProcessMemoryInfo();
+        mem_info_after.print();
+        mem_info_after.print_diff(mem_info_middle);
+
         return true;
     }
     return false;

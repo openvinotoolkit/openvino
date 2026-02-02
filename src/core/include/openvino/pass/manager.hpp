@@ -22,8 +22,22 @@ namespace pass {
 struct MemoryInfo {
     size_t vm_rss_bytes = 0;  // Resident set size (RAM in use)
     size_t vm_size_bytes = 0; // Virtual memory size (address space)
+    int64_t convert_to_mb(int64_t bytes) {
+        return bytes / 1024 / 1024;
+    }
+    int64_t diff(size_t before, size_t after) {
+        return static_cast<int64_t>(after) - static_cast<int64_t>(before);
+    }
+    void print() {
+        std::cout << "Memory Info: VmRSS = " << convert_to_mb(vm_rss_bytes) << " MB, VmSize = " << convert_to_mb(vm_size_bytes) << " MB"
+                  << std::endl;
+    }
+    void print_diff(const MemoryInfo& before) {
+        std::cout << "Memory Diff: VmRSS = " << convert_to_mb(diff(before.vm_rss_bytes, vm_rss_bytes))
+                  << " MB, VmSize = " << convert_to_mb(diff(before.vm_size_bytes, vm_size_bytes)) << " MB" << std::endl;
+    }
 };
-
+    
 MemoryInfo getProcessMemoryInfo();
  
 class OPENVINO_API Manager {

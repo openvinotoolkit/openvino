@@ -39,10 +39,10 @@ MemoryInfo getProcessMemoryInfo() {
     while (std::getline(status, line)) {
         if (line.rfind("VmRSS:", 0) == 0) {
             std::sscanf(line.c_str(), "VmRSS: %zu", &info.vm_rss_bytes);
-            info.vm_rss_bytes /= 1024; // KB → Mbytes
+            info.vm_rss_bytes *= 1024; // KB → bytes
         } else if (line.rfind("VmSize:", 0) == 0) {
             std::sscanf(line.c_str(), "VmSize: %zu", &info.vm_size_bytes);
-            info.vm_size_bytes /= 1024;
+            info.vm_size_bytes *= 1024;
         }
     }
     return info;
@@ -392,7 +392,7 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
         
         MemoryInfo mem_info_before = getProcessMemoryInfo();
         std::cout << "Pass: " << pass_name << std::endl;
-        std::cout << "Before: RSS = " << mem_info_before.vm_rss_bytes << ", VM = " << mem_info_before.vm_size_bytes << std::endl;
+        mem_info_before.print();
         
         if (needs_validation) {
             pass->m_pass_config->enable<ov::pass::Validate>();
@@ -404,8 +404,9 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
         pass_changed_model = run_pass(pass, model);
         
         MemoryInfo mem_info_after = getProcessMemoryInfo();
-        std::cout << "After: RSS = " << mem_info_after.vm_rss_bytes << ", VM = " << mem_info_after.vm_size_bytes << std::endl;
-        std::cout << "Diff: RSS = " << mem_info_after.vm_rss_bytes - mem_info_before.vm_rss_bytes << ", VM = " << mem_info_after.vm_size_bytes - mem_info_before.vm_size_bytes << std::endl;
+        mem_info_after.print();
+        mem_info_after.print_diff(mem_info_before);
+
         if(mem_info_after.vm_rss_bytes > max_vm_consumer.vm_rss) {
             max_vm_consumer.vm_rss = mem_info_after.vm_rss_bytes;
             max_vm_consumer.vm = mem_info_after.vm_size_bytes;
