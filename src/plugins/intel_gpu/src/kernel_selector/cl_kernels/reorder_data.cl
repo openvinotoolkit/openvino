@@ -232,17 +232,18 @@ KERNEL (reorder_data)(
         FUSED_OPS;
         output[output_idx] = FUSED_OPS_RESULT;
     #elif defined(INT4_OUTPUT) || defined(UINT4_OUTPUT)
-        OUTPUT_TYPE val_i = __TO_OUTPUT_REORDER_TYPE(res);
+        OUTPUT_TYPE val_char = __TO_OUTPUT_REORDER_TYPE(res);
+        int val_i32 = convert_int(val_char);
 
         #if !CONVERT_TRUNCATE
              #if defined(INT4_OUTPUT)
-                val_i = clamp(val_i, -8, 7);
+                val_i32 = clamp(val_i32, -8, 7);
              #else
-                val_i = clamp(val_i, 0, 15);
+                val_i32 = clamp(val_i32, 0, 15);
              #endif
         #endif
 
-        uint val_u32 = (uint)(val_i & 0x0F);
+        uint val_u32 = (uint)(val_i32 & 0x0F);
 
         volatile __global uint* output_u32 = (volatile __global uint*)output;
         uint main_idx = output_idx / 8;
