@@ -51,12 +51,7 @@ DynamicPipeline::DynamicPipeline(const Config& config,
                                  const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
                                  const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
                                  size_t batch_size)
-    : _init_structs(init_structs),
-      _graph(graph),
-      _config(config),
-      _id(_graph->get_unique_id()),
-      _number_of_command_lists(batch_size),
-      _logger("DynamicPipeline", _config.get<LOG_LEVEL>()) {
+    : Pipeline(config, init_structs, graph, input_tensors, output_tensors, "DynamicPipeline", batch_size) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::DynamicPipeline::DynamicPipeline");
 
     _logger.debug("DynamicPipeline - initialize started, number_of_command_lists %i", _number_of_command_lists);
@@ -339,8 +334,8 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
 
 void DynamicPipeline::update_graph_arguments(uint32_t index,
                                              const std::shared_ptr<ZeroTensor>& zeroTensor,
-                                             std::shared_ptr<ov::ITensor> userTensor,
-                                             size_t batch_index) {
+                                             size_t batch_index,
+                                             std::shared_ptr<ov::ITensor> userTensor) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL,
                       itt::domains::LevelZeroBackend,
                       "DynamicPipeline",

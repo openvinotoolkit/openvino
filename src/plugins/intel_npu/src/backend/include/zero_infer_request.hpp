@@ -17,7 +17,18 @@
 
 namespace intel_npu {
 
-class ZeroInferRequest final : public SyncInferRequest {
+constexpr std::size_t SINGLE_TENSOR = 0;
+constexpr bool INPUT = true;
+constexpr bool OUTPUT = false;
+
+std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
+                                                   const ov::PartialShape& ioShape,
+                                                   const std::shared_ptr<ov::ITensor>& tensor,
+                                                   const std::optional<size_t> batchSize);
+
+void* get_tensor_data_ptr(const std::shared_ptr<ov::ITensor>& tensor);
+
+class ZeroInferRequest : public SyncInferRequest {
 public:
     explicit ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                               const std::shared_ptr<const ICompiledModel>& compiledModel,
@@ -33,11 +44,12 @@ public:
 
     void get_result() override;
 
-private:
+protected:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
     void check_network_precision(const ov::element::Type_t precision) const override;
     void create_pipeline();
+    virtual void construct_pipeline();
 
     std::shared_ptr<ZeroTensor>& get_level_zero_input(size_t index, size_t tensorNo = 0) const;
     std::vector<std::shared_ptr<ZeroTensor>>& get_level_zero_inputs(size_t index) const;
@@ -68,7 +80,6 @@ private:
     // memory area for the tensor.
     mutable std::vector<std::vector<std::shared_ptr<ZeroTensor>>> _levelZeroInputTensors;
     mutable std::vector<std::shared_ptr<ZeroTensor>> _levelZeroOutputTensors;
-
     std::unique_ptr<Pipeline> _pipeline;
 
     bool _pipelineIsCreated = false;

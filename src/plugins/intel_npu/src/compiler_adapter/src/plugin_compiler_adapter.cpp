@@ -124,7 +124,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         tensor = std::move(networkDesc.compiledNetworkTensor);
     }
 
-    ov::Tensor tensor = make_tensor_from_vector(networkDesc.compiledNetwork);
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
     if (config.get<COMPILATION_MODE>() == "HostCompile") {
         // no _compiler::parse call is required. networkmetadata will be obtained in IRGraph constructor
