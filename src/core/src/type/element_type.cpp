@@ -19,7 +19,6 @@ namespace {
 constexpr size_t idx(Type_t e) noexcept {
     return static_cast<std::underlying_type_t<Type_t>>(e);
 }
-// comment for triggering CI
 
 // Update it when new type is added
 constexpr size_t enum_types_size = idx(f8e8m0) + 1;

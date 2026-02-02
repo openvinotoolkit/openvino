@@ -64,7 +64,6 @@ enum class Type_t {
     f4e2m1,   //!< f4e2m1 element type
     f8e8m0,   //!< f8e8m0 element type
 };
-// comment for triggering CI
 
 /// \brief Base class to define element type
 /// \ingroup ov_element_cpp_api
