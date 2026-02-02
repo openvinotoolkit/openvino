@@ -67,6 +67,7 @@ KERNEL(pa_sdpa_opt)(
 #endif
 #if HAS_QQ_BIAS
     const __global QQ_BIAS_DATA_T* qq_bias,
+    const __global QQ_BIAS_BEGINS_DATA_T* qq_bias_begins,
 #endif
     __global OUTPUT_TYPE* output,
 #if PAGED_ATTENTION_SCORES_OUTPUT
@@ -81,9 +82,6 @@ KERNEL(pa_sdpa_opt)(
     __global OUTPUT_TYPE* tmp_out
 #if MULTI_TOKENS_PROCESSING
     , __global const int* gws_subseq_mapping
-#if HAS_QQ_BIAS
-    , const uint spec_num
-#endif
 #endif
 ) {
     // Input shapes:
@@ -135,6 +133,10 @@ KERNEL(pa_sdpa_opt)(
     const int subsequence_end = subsequence_begins[subsequence_idx + 1];
     const uint seq_len = past_lens[subsequence_idx] + 1 + (seq_idx - subsequence_begin);
     const uint past_len = past_lens[subsequence_idx];
+    #if HAS_QQ_BIAS
+        const uint spec_num = qq_bias_begins[subsequence_idx + 1] - qq_bias_begins[subsequence_idx];
+        const uint cumulated_spec_num = qq_bias_begins[subsequence_idx];
+    #endif
 #else
     const uint subsequence_idx = seq_idx;
     const uint seq_len = past_lens[seq_idx] + 1;
@@ -328,7 +330,7 @@ KERNEL(pa_sdpa_opt)(
             if (spec_num > 0 && token_idx >= past_len && token_idx < seq_len) {
                 const uint spec_offset = token_idx - past_len;
                 if (spec_offset < spec_num) {
-                    const uint qq_bias_base = subsequence_idx * spec_num * spec_num + seq_idx * spec_num;
+                    const uint qq_bias_base = cumulated_spec_num * spec_num * spec_num + seq_idx * spec_num;
                     const uint qq_bias_offset = qq_bias_base + spec_offset;
                     if (qq_bias[qq_bias_offset] == 0) {
                         qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;

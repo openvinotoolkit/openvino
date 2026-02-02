@@ -175,12 +175,15 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     auto adaptive_rkv_diversity_block_set_indices_begins_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
     auto adaptive_rkv_diversity_block_set_indices_begins_mem = engine.allocate_memory(adaptive_rkv_diversity_block_set_indices_begins_layout);
 
-    auto qq_bias_layout = layout{ov::PartialShape{1, 4, 4}, data_types::boolean, format::bfyx};
+    auto qq_bias_layout = layout{ov::PartialShape{16}, data_types::boolean, format::bfyx};
     auto qq_bias_mem = engine.allocate_memory(qq_bias_layout);
     set_values<bool>(qq_bias_mem, {true, false, true, false,
                                    false, true, false, true,
                                    true, true, false, false,
                                    false, false, true, true});
+    auto qq_bias_begins_layout = layout{ov::PartialShape{2}, data_types::i32, format::bfyx};
+    auto qq_bias_begins_mem = engine.allocate_memory(qq_bias_begins_layout);
+    set_values(qq_bias_begins_mem, {0, 4});
     auto qq_bias_block_update_indices_layout = layout{ov::PartialShape{2}, data_types::i32, format::bfyx};
     auto qq_bias_block_update_indices_mem = engine.allocate_memory(qq_bias_block_update_indices_layout);
     set_values(qq_bias_block_update_indices_mem, {0, 1});
@@ -213,6 +216,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
                                          input_info("adaptive_rkv_diversity_block_set_indices"),
                                          input_info("adaptive_rkv_diversity_block_set_indices_begins"),
                                          input_info("qq_bias"),
+                                         input_info("qq_bias_begins"),
                                          input_info("qq_bias_block_update_indices"),
                                          input_info("qq_bias_block_update_indices_begins")
     };
@@ -256,6 +260,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     topology.add(input_layout("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_layout));
     topology.add(input_layout("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_layout));
     topology.add(input_layout("qq_bias", qq_bias_layout));
+    topology.add(input_layout("qq_bias_begins", qq_bias_begins_layout));
     topology.add(input_layout("qq_bias_block_update_indices", qq_bias_block_update_indices_layout));
     topology.add(input_layout("qq_bias_block_update_indices_begins", qq_bias_block_update_indices_begins_layout));
     topology.add(data("const_one", const_one_mem));
@@ -295,6 +300,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     network.set_input_data("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_mem);
     network.set_input_data("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_mem);
     network.set_input_data("qq_bias", qq_bias_mem);
+    network.set_input_data("qq_bias_begins", qq_bias_begins_mem);
     network.set_input_data("qq_bias_block_update_indices", qq_bias_block_update_indices_mem);
     network.set_input_data("qq_bias_block_update_indices_begins", qq_bias_block_update_indices_begins_mem);
 
@@ -341,6 +347,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     network.set_input_data("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_mem);
     network.set_input_data("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_mem);
     network.set_input_data("qq_bias", qq_bias_mem);
+    network.set_input_data("qq_bias_begins", qq_bias_begins_mem);
     network.set_input_data("qq_bias_block_update_indices", qq_bias_block_update_indices_mem);
     network.set_input_data("qq_bias_block_update_indices_begins", qq_bias_block_update_indices_begins_mem);
 

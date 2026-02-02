@@ -136,6 +136,7 @@ std::string paged_attention_inst::to_string(const paged_attention_node& node) {
     paged_attention_info.add("has_xattention", desc->has_xattention);
     paged_attention_info.add("has_sink_input", desc->has_sink_input);
     paged_attention_info.add("has_adaptive_rkv", desc->has_adaptive_rkv);
+    paged_attention_info.add("has_qq_bias", desc->has_qq_bias);
     paged_attention_info.add("scale", desc->scale_val.value_or(1.0f));
     paged_attention_info.add("is_key_by_channel", desc->is_key_by_channel);
     paged_attention_info.add("key_cache_dt", node.get_input_layout(cldnn::paged_attention::PagedAttentionInputIdx::KEY_CACHE).data_type);

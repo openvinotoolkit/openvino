@@ -569,6 +569,8 @@ public:
             jit.make("HAS_QQ_BIAS", 1);
             const auto& qq_layout = params.input_layouts[PagedAttentionInputIdx::QQ_BIAS];
             jit.make("QQ_BIAS_DATA_T", to_ocl_type(qq_layout.data_type));
+            const auto& qq_begins_layout = params.input_layouts[PagedAttentionInputIdx::QQ_BIAS_BEGINS];
+            jit.make("QQ_BIAS_BEGINS_DATA_T", to_ocl_type(qq_begins_layout.data_type));
         }
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
 
@@ -605,11 +607,10 @@ public:
         }
         if (has_qq_bias) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});  // qq_bias
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins
         }
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         add_intermediate_inputs(args, has_scores_output, true, desc->has_score_aggregation);
-        if (has_qq_bias)
-            args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // speculative validation length
         return args;
     }
 
@@ -619,7 +620,6 @@ public:
             auto& wgs = kd.params.workGroups;
             const auto desc = params.typed_desc<paged_attention>();
             auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
-            auto& scalars = kd.params.scalars;
             const size_t total_tokens = params.input_layouts[0].get_partial_shape()[0].get_length();
             const size_t heads_num = desc->heads_num;
             const size_t head_size = desc->v_head_size;
@@ -628,11 +628,11 @@ public:
             wgs.global = {total_tokens, heads_num, head_size * rtp->num_of_partitions * sg_scale};
             wgs.local = {1, 1, head_size * sg_scale};
 
-            if (desc->has_qq_bias) {
+            /*if (desc->has_qq_bias) {
                 scalars.resize(1);
                 scalars[0].t = ScalarDescriptor::Types::UINT32;
                 scalars[0].v.u32 = static_cast<uint32_t>(rtp->paged_attention_speculative_validation_len);
-            }
+            }*/
         }};
     }
 };
@@ -1471,11 +1471,11 @@ public:
             rt_params->use_gqa_kernel = false;
         }
 
-        if (rt_params->stage == PagedAttentionStage::MIXED && desc->has_qq_bias) {
+        /*if (rt_params->stage == PagedAttentionStage::MIXED && desc->has_qq_bias) {
             const auto& qq_bias_ps = params.get_input_layout(PagedAttentionInputIdx::QQ_BIAS).get_partial_shape();
             OPENVINO_ASSERT(qq_bias_ps.is_static(), "[GPU] Unexpected shape of qq_bias memory for Paged Attention for mixed stage with qq bias");
             rt_params->paged_attention_speculative_validation_len = static_cast<size_t>(qq_bias_ps[-1].get_length());
-        }
+        }*/
         return;
     }
 

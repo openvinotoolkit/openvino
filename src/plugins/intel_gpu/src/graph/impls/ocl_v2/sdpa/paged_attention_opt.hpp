@@ -28,7 +28,6 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     size_t sdpa_opt_seq_len_partition_size;
 
     size_t paged_attention_snap_kv_tokens;
-    size_t paged_attention_speculative_validation_len;
     bool use_micro_sdpa = false;
     bool use_gqa_kernel = false;
     size_t query_block_size = 16;

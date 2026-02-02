@@ -40,8 +40,9 @@ struct paged_attention : public primitive_base<paged_attention> {
         ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES = 23,
         ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS = 24,
         QQ_BIAS = 25,
-        BLOCK_UPDATE_INDICES = 26,
-        BLOCK_UPDATE_INDICES_BEGINS = 27
+        QQ_BIAS_BEGINS = 26,
+        BLOCK_UPDATE_INDICES = 27,
+        BLOCK_UPDATE_INDICES_BEGINS = 28
     };
 
     static constexpr size_t block_size = 16;
@@ -52,7 +53,7 @@ struct paged_attention : public primitive_base<paged_attention> {
     paged_attention(const primitive_id& id,
                     const std::vector<input_info>& inputs)
         : primitive_base(id, inputs) {
-        OPENVINO_ASSERT((inputs.size() == 28),
+        OPENVINO_ASSERT((inputs.size() == 29),
                         "[GPU] Unexpected inputs number for PagedAttention primitive: ",
                         inputs.size());
     }
@@ -74,6 +75,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         seed = hash_combine(seed, has_xattention);
         seed = hash_combine(seed, has_sink_input);
         seed = hash_combine(seed, has_adaptive_rkv);
+        seed = hash_combine(seed, has_qq_bias);
         if (scale_val.has_value()) {
             seed = hash_combine(seed, scale_val.value());
         }
@@ -99,6 +101,7 @@ struct paged_attention : public primitive_base<paged_attention> {
                has_xattention == rhs_casted.has_xattention &&
                has_sink_input == rhs_casted.has_sink_input &&
                has_adaptive_rkv == rhs_casted.has_adaptive_rkv &&
+               has_qq_bias == rhs_casted.has_qq_bias &&
                scale_val.value_or(1.0f) == rhs_casted.scale_val.value_or(1.0f) &&
                is_key_by_channel == rhs_casted.is_key_by_channel;
     }
@@ -116,6 +119,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ob << has_xattention;
         ob << has_sink_input;
         ob << has_adaptive_rkv;
+        ob << has_qq_bias;
 
         if (scale_val.has_value()) {
             ob << true;
@@ -139,6 +143,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ib >> has_xattention;
         ib >> has_sink_input;
         ib >> has_adaptive_rkv;
+        ib >> has_qq_bias;
 
         bool has_scale;
         ib >> has_scale;

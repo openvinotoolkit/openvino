@@ -984,6 +984,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
             jit.make("HAS_QQ_BIAS", 1);
             const auto& qq_bias_layout = params.input_layouts[paged_attention::PagedAttentionInputIdx::QQ_BIAS];
             jit.make("QQ_BIAS_DATA_T", to_ocl_type(qq_bias_layout.data_type));
+            const auto& qq_bias_begins_layout = params.input_layouts[paged_attention::PagedAttentionInputIdx::QQ_BIAS_BEGINS];
+            jit.make("QQ_BIAS_BEGINS_DATA_T", to_ocl_type(qq_bias_begins_layout.data_type));
         }
 
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
@@ -1302,7 +1304,7 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
 
         if (has_qq_bias && !m_is_prefill) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});  // qq_bias
-            args.push_back({ArgumentDescriptor::Types::SCALAR, 3});                               // qq_bias_num
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS}); //qq_bias_begins                              // qq_bias_num
         }
 
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // blocked_indexes_start_and_gws_mapping
@@ -1347,7 +1349,7 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         scalars.clear();
-        scalars.reserve(4);
+        scalars.reserve(3);
         auto params = impl_param;
         if (!params.is_dynamic()) {
             const auto& device_info = params.get_device_info();
@@ -1402,11 +1404,6 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
             ScalarDescriptor s_q{ScalarDescriptor::Types::INT32};
             s_q.v.s32 = to_int32(n_queries.get_length());
             scalars.push_back(s_q);
-
-            auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
-            ScalarDescriptor s_qq{ScalarDescriptor::Types::UINT32};
-            s_qq.v.u32 = static_cast<uint32_t>(rtp->paged_attention_speculative_validation_len);
-            scalars.push_back(s_qq);
         }
     }};
 }

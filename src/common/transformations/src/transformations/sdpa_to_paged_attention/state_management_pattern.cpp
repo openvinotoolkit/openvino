@@ -733,18 +733,22 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                 "an additional input (Parameter) called qq_bias.");
             pa_arguments.insert(pa_arguments.begin() + 25, optional_model_wide_params.at("qq_bias"));
             pa_arguments.insert(pa_arguments.begin() + 26,
-                                optional_model_wide_params.at("block_update_indices"));
+                                optional_model_wide_params.at("qq_bias_begins"));
             pa_arguments.insert(pa_arguments.begin() + 27,
+                                optional_model_wide_params.at("block_update_indices"));
+            pa_arguments.insert(pa_arguments.begin() + 28,
                                 optional_model_wide_params.at("block_update_indices_begins"));
         } else {
             pa_arguments.insert(pa_arguments.begin() + 25,
-                                v0::Constant::create(element::u8, Shape{0, 0, 0}, {}));
+                                v0::Constant::create(element::u8, Shape{0}, {}));
             pa_arguments.insert(pa_arguments.begin() + 26,
                                 v0::Constant::create(element::i32, Shape{0}, {}));
             pa_arguments.insert(pa_arguments.begin() + 27,
                                 v0::Constant::create(element::i32, Shape{0}, {}));
+            pa_arguments.insert(pa_arguments.begin() + 28,
+                                v0::Constant::create(element::i32, Shape{0}, {}));
         }
-        OPENVINO_ASSERT(pa_arguments.size() == 28);
+        OPENVINO_ASSERT(pa_arguments.size() == 29);
 
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
         paged_attention->get_rt_info()[NUM_K_HEADS] = num_k_heads;

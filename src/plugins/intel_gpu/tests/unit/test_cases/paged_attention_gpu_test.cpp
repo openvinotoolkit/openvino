@@ -47,9 +47,6 @@ using namespace ::tests;
  * [18]: adaptive_rkv_evictable_sizes, optional, shape: [batch_size_in_sequences], type: i32
  * [19]: adaptive_rkv_diversity_block_set_indices, optional, shape: [total_blocks], type: i32
  * [20]: adaptive_rkv_diversity_block_set_indices_begins, optional, shape: [batch_size_in_sequences + 1], type: i32
- * [21]: qq_bias, optional, shape: [seq_num, speculative_num, speculative_num], type: boolean
- * [22]: block_update_indices, optional, shape: [num_update_slots], type: i32
- * [23]: block_update_indices_begins, optional, shape: [batch_size_in_sequences + 1], type: i32
  */
 
 enum class ScoresMode {
@@ -118,6 +115,7 @@ struct PagedAttentionManager {
     std::vector<int> adaptive_rkv_diversity_block_set_indices_begins;
 
     std::vector<std::vector<bool>> qq_bias;
+    std::vector<int> qq_bias_begins;
     std::vector<int> qq_bias_block_update_indices;
     std::vector<int> qq_bias_block_update_indices_begins;
     cldnn::engine& test_engine;
@@ -602,6 +600,10 @@ struct PagedAttentionManager {
             }
         }
         return get_memory_from_vec(flat_qq_bias);
+    }
+
+    memory::ptr get_qq_bias_begins_memory() {
+        return get_memory_from_vec(qq_bias_begins);
     }
 
     memory::ptr get_qq_bias_block_update_indices_memory() {
@@ -1490,6 +1492,7 @@ public:
         auto adaptive_rkv_diversity_block_set_indices_mem = pam.get_adaptive_rkv_diversity_block_set_indices_memory();
         auto adaptive_rkv_diversity_block_set_indices_begins_mem = pam.get_adaptive_rkv_diversity_block_set_indices_begins_memory();
         auto qq_bias = pam.get_qq_bias_memory();
+        auto qq_bias_begins = pam.get_qq_bias_begins_memory();
         auto block_update_inidices = pam.get_qq_bias_block_update_indices_memory();
         auto block_update_inidices_begins = pam.get_qq_bias_block_update_indices_begins_memory();
         auto query_layout = query_mem->get_layout();
@@ -1518,6 +1521,7 @@ public:
         auto adaptive_rkv_diversity_block_set_indices_layout = adaptive_rkv_diversity_block_set_indices_mem->get_layout();
         auto adaptive_rkv_diversity_block_set_indices_begins_layout = adaptive_rkv_diversity_block_set_indices_begins_mem->get_layout();
         auto qq_bias_layout = qq_bias->get_layout();
+        auto qq_bias_begins_layout = qq_bias_begins->get_layout();
         auto block_update_inidices_layout = block_update_inidices->get_layout();
         auto block_update_inidices_begins_layout = block_update_inidices_begins->get_layout();
 
@@ -1549,7 +1553,8 @@ public:
         adaptive_rkv_evictable_sizes_layout.set_partial_shape(ov::PartialShape{ -1 });
         adaptive_rkv_diversity_block_set_indices_layout.set_partial_shape(ov::PartialShape{ -1 });
         adaptive_rkv_diversity_block_set_indices_begins_layout.set_partial_shape(ov::PartialShape{ -1 });
-        qq_bias_layout.set_partial_shape(ov::PartialShape{ -1, -1, -1 });
+        qq_bias_layout.set_partial_shape(ov::PartialShape{ -1 });
+        qq_bias_begins_layout.set_partial_shape(ov::PartialShape{ -1 });
         block_update_inidices_layout.set_partial_shape(ov::PartialShape{ -1 });
         block_update_inidices_begins_layout.set_partial_shape(ov::PartialShape{ -1 });
 
@@ -1611,6 +1616,7 @@ public:
             input_info("adaptive_rkv_diversity_block_set_indices"),
             input_info("adaptive_rkv_diversity_block_set_indices_begins"),
             input_info("qq_bias"),
+            input_info("qq_bias_begins"),
             input_info("block_update_inidices"),
             input_info("block_update_inidices_begins")
         };
@@ -1685,6 +1691,7 @@ public:
             topology.add(input_layout("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_layout));
             topology.add(input_layout("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_layout));
             topology.add(input_layout("qq_bias", qq_bias_layout));
+            topology.add(input_layout("qq_bias_begins", qq_bias_begins_layout));
             topology.add(input_layout("block_update_inidices", block_update_inidices_layout));
             topology.add(input_layout("block_update_inidices_begins", block_update_inidices_begins_layout));
         }
@@ -1722,6 +1729,7 @@ public:
         network->set_input_data("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_mem);
         network->set_input_data("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_mem);
         network->set_input_data("qq_bias", qq_bias);
+        network->set_input_data("qq_bias_begins", qq_bias_begins);
         network->set_input_data("block_update_inidices", block_update_inidices);
         network->set_input_data("block_update_inidices_begins", block_update_inidices_begins);
 
