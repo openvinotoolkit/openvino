@@ -519,6 +519,26 @@ const std::vector<std::vector<InputShape>> dynamic_shapes_4D {
             {ov::Shape{1, 1, 7, 7}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 10, 10}}}
         },
     },
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 512}, {ov::Shape{1, 8, 7, 512}, ov::Shape{1, 8, 1, 512}, ov::Shape{2, 8, 10, 512}}}},
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 512}, {ov::Shape{1, 8, 7, 512}, ov::Shape{1, 8, 1, 512}, ov::Shape{2, 8, 10, 512}}}},
+        // v shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 512}, {ov::Shape{1, 8, 7, 512}, ov::Shape{1, 8, 1, 512}, ov::Shape{2, 8, 10, 512}}}},
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1}, {ov::Shape{1, 1, 7, 7}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 10, 10}}}},
+    },
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 486}, {ov::Shape{1, 8, 7, 486}, ov::Shape{1, 8, 1, 486}, ov::Shape{2, 8, 10, 486}}}},
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 486}, {ov::Shape{1, 8, 7, 486}, ov::Shape{1, 8, 1, 486}, ov::Shape{2, 8, 10, 486}}}},
+        // v shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 486}, {ov::Shape{1, 8, 7, 486}, ov::Shape{1, 8, 1, 486}, ov::Shape{2, 8, 10, 486}}}},
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1}, {ov::Shape{1, 1, 7, 7}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 10, 10}}}},
+    },
     // head size not aligned to 16
     {
         // q shape
