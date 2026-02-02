@@ -572,7 +572,7 @@ void pa_kernel_lsc_prefetch_f16(
             }
         }
         if constexpr (use_causal_mask) {
-            #if kv_step == q_step
+            if constexpr (kv_step == q_step) {
             // since kv_step == q_step == 16, causal_left is n * kv_step
             if (causal_left == 0) {
                 apply_causal_mask<1>(St);
