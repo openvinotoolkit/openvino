@@ -1,7 +1,7 @@
 universal-sentence-encoder,https://tfhub.dev/google/universal-sentence-encoder/4?tf-hub-format=compressed
 imagenet/mobilenet_v1_100_224/classification,https://tfhub.dev/google/imagenet/mobilenet_v1_100_224/classification/5?tf-hub-format=compressed
 imagenet/mobilenet_v2_100_224/classification,https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/classification/5?tf-hub-format=compressed
-universal-sentence-encoder-multilingual,https://tfhub.dev/google/universal-sentence-encoder-multilingual/3?tf-hub-format=compressed
+universal-sentence-encoder-multilingual,https://tfhub.dev/google/universal-sentence-encoder-multilingual/3?tf-hub-format=compressed,skip,ticket 179327
 universal-sentence-encoder-large,https://tfhub.dev/google/universal-sentence-encoder-large/5?tf-hub-format=compressed
 imagenet/mobilenet_v2_075_224/classification,https://tfhub.dev/google/imagenet/mobilenet_v2_075_224/classification/5?tf-hub-format=compressed
 movenet/singlepose/lightning,https://tfhub.dev/google/movenet/singlepose/lightning/4?tf-hub-format=compressed

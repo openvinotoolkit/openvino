@@ -312,8 +312,13 @@ void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& m
 }
 
 static Config::ModelType getModelType(const std::shared_ptr<const Model>& model) {
-    if (op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) ||
-        op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model)) {
+    if (op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model)) {
+        if (!model->get_variables().empty()) {
+            return Config::ModelType::LLM;
+        }
+        return Config::ModelType::Unknown;
+    }
+    if (op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model)) {
         return Config::ModelType::LLM;
     }
     if (op::util::has_op_with_type<op::v1::Convolution>(model) ||

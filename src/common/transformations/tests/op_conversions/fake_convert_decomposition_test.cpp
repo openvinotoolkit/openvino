@@ -20,6 +20,8 @@
 
 using namespace ov;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 class FakeConvertDecompositionTestBase : public TransformationTestsF {
 protected:
     void SetUp() override {
@@ -86,23 +88,23 @@ protected:
                                          : static_cast<float>(std::numeric_limits<ov::float8_e5m2>::max());
 
             std::shared_ptr<Node> result;
-            const auto scale = std::make_shared<ov::op::v1::Multiply>(data, input_scale);
+            const auto scale = std::make_shared<v1::Multiply>(data, input_scale);
             if (default_shift) {
-                const auto clamp = std::make_shared<ov::op::v0::Clamp>(scale, lower_bound, upper_bound);
-                const auto downconvert = std::make_shared<ov::op::v0::Convert>(clamp, dst_prec);
-                result = std::make_shared<ov::op::v0::Convert>(downconvert, data_prec);
+                const auto clamp = std::make_shared<v0::Clamp>(scale, lower_bound, upper_bound);
+                const auto downconvert = std::make_shared<v0::Convert>(clamp, dst_prec);
+                result = std::make_shared<v0::Convert>(downconvert, data_prec);
             } else {
-                const auto shift = std::make_shared<ov::op::v1::Subtract>(scale, input_shift);
+                const auto shift = std::make_shared<v1::Subtract>(scale, input_shift);
 
-                const auto clamp = std::make_shared<ov::op::v0::Clamp>(shift, lower_bound, upper_bound);
-                const auto downconvert = std::make_shared<ov::op::v0::Convert>(clamp, dst_prec);
-                const auto upconvert = std::make_shared<ov::op::v0::Convert>(downconvert, data_prec);
+                const auto clamp = std::make_shared<v0::Clamp>(shift, lower_bound, upper_bound);
+                const auto downconvert = std::make_shared<v0::Convert>(clamp, dst_prec);
+                const auto upconvert = std::make_shared<v0::Convert>(downconvert, data_prec);
 
-                const auto output_shift = std::make_shared<ov::op::v0::Constant>(data_prec, shift_shape, -12.f);
-                result = std::make_shared<ov::op::v1::Subtract>(upconvert, output_shift);
+                const auto output_shift = std::make_shared<v0::Constant>(data_prec, shift_shape, -12.f);
+                result = std::make_shared<v1::Subtract>(upconvert, output_shift);
             }
             const auto output_scale = std::make_shared<opset1::Constant>(data_prec, scale_shape, 1.f / 4.f);
-            result = std::make_shared<ov::op::v1::Multiply>(result, output_scale);
+            result = std::make_shared<v1::Multiply>(result, output_scale);
             model_ref = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{data});
         }
     }
@@ -174,12 +176,12 @@ TEST_F(FakeConvertDecompositionTestBase, FakeConvert_Decomposition_TrivialShift)
         const auto lower_bound = static_cast<float>(std::numeric_limits<ov::float8_e4m3>::lowest());
         const auto upper_bound = static_cast<float>(std::numeric_limits<ov::float8_e4m3>::max());
 
-        const auto scale = std::make_shared<ov::op::v1::Multiply>(data, input_scale);
-        const auto clamp = std::make_shared<ov::op::v0::Clamp>(scale, lower_bound, upper_bound);
-        const auto downconvert = std::make_shared<ov::op::v0::Convert>(clamp, dst_prec);
-        const auto upconvert = std::make_shared<ov::op::v0::Convert>(downconvert, data_prec);
+        const auto scale = std::make_shared<v1::Multiply>(data, input_scale);
+        const auto clamp = std::make_shared<v0::Clamp>(scale, lower_bound, upper_bound);
+        const auto downconvert = std::make_shared<v0::Convert>(clamp, dst_prec);
+        const auto upconvert = std::make_shared<v0::Convert>(downconvert, data_prec);
         const auto output_scale = std::make_shared<opset1::Constant>(data_prec, Shape{}, 1.f / 4.f);
-        const auto out_multiply = std::make_shared<ov::op::v1::Multiply>(upconvert, output_scale);
+        const auto out_multiply = std::make_shared<v1::Multiply>(upconvert, output_scale);
         model_ref = std::make_shared<ov::Model>(OutputVector{out_multiply}, ParameterVector{data});
     }
 }

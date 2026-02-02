@@ -21,26 +21,26 @@ ov::frontend::tensorflow::pass::UninitializedVariableResolver::UninitializedVari
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         NodeRegistry rg;
 
-        auto unitialized_hash_table = ov::as_type_ptr<ov::frontend::tensorflow::HashTable>(m.get_match_root());
-        if (!unitialized_hash_table) {
+        auto uninitialized_hash_table = ov::as_type_ptr<ov::frontend::tensorflow::HashTable>(m.get_match_root());
+        if (!uninitialized_hash_table) {
             return false;
         }
 
-        auto keys = unitialized_hash_table->get_keys();
-        auto values = unitialized_hash_table->get_values();
+        auto keys = uninitialized_hash_table->get_keys();
+        auto values = uninitialized_hash_table->get_values();
 
         if (ov::as_type_ptr<HashTable>(keys.get_node_shared_ptr()) ||
             ov::as_type_ptr<HashTable>(values.get_node_shared_ptr())) {
-            // keys and values producer is still unitialized variable
+            // keys and values producer is still uninitialized variable
             return false;
         }
 
         rg.add(keys.get_node_shared_ptr());
         rg.add(values.get_node_shared_ptr());
 
-        copy_runtime_info(unitialized_hash_table, rg.get());
+        copy_runtime_info(uninitialized_hash_table, rg.get());
 
-        ov::replace_node(unitialized_hash_table, ov::OutputVector{unitialized_hash_table->output(0), keys, values});
+        ov::replace_node(uninitialized_hash_table, ov::OutputVector{uninitialized_hash_table->output(0), keys, values});
         return true;
     };
 
