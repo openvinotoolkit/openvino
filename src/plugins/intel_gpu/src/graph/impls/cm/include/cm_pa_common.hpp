@@ -71,6 +71,7 @@ void pa_lsc_u8(
     auto q_tokens_left = q_len;
     static_assert(q_step == REG_N);
     static_assert(kv_step == REG_K);
+    static_assert(head_size % REG_N == 0, "head_size must be divisible by REG_N");
 
     if (q_tokens_left < 0) q_tokens_left = 0;
     if (q_tokens_left > q_step) q_tokens_left = q_step;
@@ -168,8 +169,6 @@ void pa_lsc_u8(
                 b2dK.set_base_ptr(reinterpret_cast<uint8_t*>(k_cache_base+cur_block_id*quan_blk_stride));
                 b2dK.set_block_y(kv_pos%CMPA_BLOCK_SZ);
                 #endif
-                
-                // This condition only works for head_size <= 128
                 for(int k = REG_K*wg_local_id; k < head_size; k += REG_K*(local_size/2)) {
                     #if USE_LSC
                     cm_load<lsc::Normal>(quanKmat.format<uint8_t>(), b2dK.set_block_x(k));
@@ -515,33 +514,18 @@ void pa_kernel_lsc_prefetch_f16(
             #endif
 
 #if IS_BLOCK_SPARSE
-            if (SPARSE_BLOCK_SIZE > 1)
-            {
-            #if USE_LSC
-                auto kv_start_block = kv_pos / SPARSE_BLOCK_SIZE;
-                bool sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);
-            #else
-                uint kv_start_block = 0;
-                bool sparse_mask = true;
-                if (SPARSE_BLOCK_SIZE == 64) {
-                    kv_start_block = (uint)kv_pos >> 6;
-                    sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);
-                } else if (SPARSE_BLOCK_SIZE == 128) {
-                    kv_start_block = (uint)kv_pos >> 7;
-                    sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);
-                } else if (SPARSE_BLOCK_SIZE == 256) {
-                    kv_start_block = (uint)kv_pos >> 8;
-                    sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);
-                } else {
-                    sparse_mask = true;
-                }
-            #endif
-                if (!sparse_mask) {
-                    if constexpr (use_causal_mask) {
-                        causal_left -= kv_step;
-                    }
-                    continue;
-                }
+            const int sb_shift = (SPARSE_BLOCK_SIZE == 128) ? 7 :
+                                 (SPARSE_BLOCK_SIZE == 256) ? 8 : -1;
+
+            auto skip_compute = [&](int pos) -> bool {
+                if (sb_shift < 0) return false;
+                return !*(reinterpret_cast<bool*>(sparse_mask_base) + ((uint)pos >> sb_shift));
+            };
+
+            if (SPARSE_BLOCK_SIZE > 1 && skip_compute(kv_pos)) {
+                if constexpr (use_causal_mask)
+                    causal_left -= kv_step;
+                continue;
             }
 #endif
             #if USE_LSC
