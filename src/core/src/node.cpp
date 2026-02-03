@@ -736,10 +736,8 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     for (const auto& output : outputs()) {
         const auto& et = output.get_element_type();
         ov::Allocator mmap_allocator = ov::Allocator{ov::MmapAnonymousAllocator{}};
-        // mmap_allocator.allocate(et.size() * shape_size(output.get_shape()));
-        ov::Tensor output_tensor = ov::Tensor(et, output.get_shape(), mmap_allocator);
         if (et.is_static()) {
-            output_tensors.push_back(output_tensor);
+            output_tensors.emplace_back(et, output.get_shape(), mmap_allocator);
             // output_tensors.emplace_back(output);
         } else {
             output_tensors.emplace_back();
