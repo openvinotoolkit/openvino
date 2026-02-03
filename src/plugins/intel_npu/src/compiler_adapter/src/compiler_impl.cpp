@@ -408,6 +408,7 @@ VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerIm
 VCLCompilerImpl::~VCLCompilerImpl() {
     if (_compilerHandle) {
         vcl_result_t result = vclCompilerDestroy(_compilerHandle);
+        _compilerHandle = nullptr;
         if (result != VCL_RESULT_SUCCESS) {
             _logger.warning("Failed to destroy VCL compiler: result 0x%x - %s",
                             result,
