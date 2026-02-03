@@ -38,7 +38,6 @@ enum class ExecutorType : uint8_t {
     Dnnl,
     Acl,
     Mlas,
-    Shl,
     Kleidiai,
 };
 
