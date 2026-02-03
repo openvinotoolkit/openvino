@@ -530,14 +530,14 @@ KERNEL(pa_kv_cache_update)(
         {
             const uint comp_k_offset = block_k_base_offset + k_head_size * PAGED_ATTENTION_BLOCK_SIZE;
             // key processing
-            INPUT0_TYPE input_data[K_HEAD_SIZE / SUBGROUP_SIZE];
+            INPUT0_TYPE input_k_data[K_HEAD_SIZE / SUBGROUP_SIZE];
             FUNC_CALL(quantize_and_save_per_token)(key_data, key_in_offset, key_cache_data, key_out_offset, PAGED_ATTENTION_BLOCK_SIZE, comp_k_offset,
-                current_token_pos_in_block, sglid, K_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
+                current_token_pos_in_block, sglid, K_HEAD_SIZE / SUBGROUP_SIZE, &input_k_data[0]);
 
             const uint comp_v_offset = block_v_base_offset + v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
-            INPUT0_TYPE input_data[V_HEAD_SIZE / SUBGROUP_SIZE];
+            INPUT0_TYPE input_v_data[V_HEAD_SIZE / SUBGROUP_SIZE];
             FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, value_cache_data, value_out_offset, 1, comp_v_offset,
-                current_token_pos_in_block, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
+                current_token_pos_in_block, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_v_data[0]);
         }
         #endif
 #endif // IS_KV_COMPRESSED
@@ -738,14 +738,14 @@ KERNEL(pa_kv_cache_update)(
             #else // IS_KV_COMPRESSED
             {
                 // Key per token
-                INPUT0_TYPE input_data[K_HEAD_SIZE / SUBGROUP_SIZE];
+                INPUT0_TYPE input_k_data[K_HEAD_SIZE / SUBGROUP_SIZE];
                 FUNC_CALL(quantize_and_save_per_token)(key_data, key_in_offset, key_cache_data, key_out_offset, PAGED_ATTENTION_BLOCK_SIZE,
-                    comp_k_offset, token_num, sglid, K_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
+                    comp_k_offset, token_num, sglid, K_HEAD_SIZE / SUBGROUP_SIZE, &input_k_data[0]);
 
                 // Value per token
-                INPUT0_TYPE input_data[V_HEAD_SIZE / SUBGROUP_SIZE];
+                INPUT0_TYPE input_v_data[V_HEAD_SIZE / SUBGROUP_SIZE];
                 FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, value_cache_data, value_out_offset, 1,
-                    comp_v_offset, token_num, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
+                    comp_v_offset, token_num, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_v_data[0]);
             }
             #endif // IS_KV_COMPRESSED
                 key_in_offset += (KV_HEADS_NUM * K_HEAD_SIZE + INPUT0_PAD_AFTER_FEATURE_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM);
@@ -820,14 +820,14 @@ KERNEL(pa_kv_cache_update)(
             #else // IS_KV_COMPRESSED
                 {
                     // key processing
-                    INPUT0_TYPE input_data[K_HEAD_SIZE / SUBGROUP_SIZE];
+                    INPUT0_TYPE input_k_data[K_HEAD_SIZE / SUBGROUP_SIZE];
                     FUNC_CALL(quantize_and_save_per_token)(key_data, key_in_offset, key_cache_data, key_out_offset, PAGED_ATTENTION_BLOCK_SIZE,
-                        comp_k_offset, token_start_pos_key + token_num, sglid, K_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
+                        comp_k_offset, token_start_pos_key + token_num, sglid, K_HEAD_SIZE / SUBGROUP_SIZE, &input_k_data[0]);
 
                     // value processing
-                    INPUT0_TYPE input_data[V_HEAD_SIZE / SUBGROUP_SIZE];
+                    INPUT0_TYPE input_v_data[V_HEAD_SIZE / SUBGROUP_SIZE];
                     FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, value_cache_data, value_out_offset, 1,
-                        comp_v_offset, token_start_pos_val + token_num, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
+                        comp_v_offset, token_start_pos_val + token_num, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_v_data[0]);
                 }
             #endif // IS_KV_COMPRESSED
                 key_in_offset += (KV_HEADS_NUM * K_HEAD_SIZE + INPUT0_PAD_AFTER_FEATURE_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM);
