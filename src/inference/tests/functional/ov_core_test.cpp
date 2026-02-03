@@ -239,4 +239,38 @@ TEST_F(CoreBaseTest, compile_model_with_std_fs_path) {
     }
 #endif
 }
+
+TEST_F(CoreBaseTest, compile_model) {
+    generate_test_model_files("model2");
+
+    const auto model_path = model_file_name;
+    const auto weight_path = weight_file_name;
+
+    ov::Core core;
+    {
+        const auto model = core.compile_model(model_path);
+        EXPECT_TRUE(model);
+    }
+    {
+        const auto devices = core.get_available_devices();
+
+        const auto model = core.compile_model(model_path, devices.at(0), ov::AnyMap{});
+        EXPECT_TRUE(model);
+    }
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
+        const auto model_path_w = model_files_name_w[testIndex];
+        {
+            const auto model = core.compile_model(model_path_w);
+            EXPECT_TRUE(model);
+        }
+        {
+            const auto devices = core.get_available_devices();
+
+            const auto model = core.compile_model(model_path_w, devices.at(0), ov::AnyMap{});
+            EXPECT_TRUE(model);
+        }
+    }
+#endif
+}
 }  // namespace ov::test
