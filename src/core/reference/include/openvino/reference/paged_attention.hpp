@@ -197,9 +197,8 @@ struct cache_manager_adapter {
         L.key_head_size = kf / best_h;
         L.value_head_size = vf / best_h;
         L.num_blocks = cm.get_num_blocks();
-        // Cache block size is an explicit property of the cache manager.
-        // Do not try to infer it from bytes, as that is brittle and can diverge
-        // when key/value head sizes differ.
+        // The cache manager owns the authoritative block size. Inferring it from bytes is brittle
+        // (especially when key/value packing differs), so use the configured value directly.
         L.block_size = cm.get_block_size();
         return L;
     }
@@ -247,23 +246,21 @@ inline bool try_resolve_cached_block_and_offset(size_t sequence_index,
                                                 int32_t& out_off) {
     const int32_t begin = ctx.block_indices_begins[sequence_index];
     const int32_t end = ctx.block_indices_begins[sequence_index + 1];
-    const int32_t count = end - begin;  // number of blocks for this sequence
+    const int32_t num_seq_blocks = end - begin;
 
     const int32_t bs = static_cast<int32_t>(ctx.block_size);
     if (bs <= 0)
         return false;
 
-    // block_indices is a per-sequence list of *blocks* (not a per-token map):
-    //   block_indices[ begin : end ] are physical block IDs in key/value_cache.
-    const int32_t block_list_idx = key_pos / bs;
+    const int32_t block_list_index = key_pos / bs;
     const int32_t off_in_block = key_pos % bs;
 
-    if (block_list_idx < 0 || block_list_idx >= count)
+    if (block_list_index < 0 || block_list_index >= num_seq_blocks)
         return false;
 
-    out_block = ctx.block_indices[begin + block_list_idx];
+    out_block = ctx.block_indices[begin + block_list_index];
     out_off = off_in_block;
-    return true;
+    return out_block >= 0;
 }
 
 template <typename T>
@@ -424,13 +421,27 @@ void paged_attention(const size_t node_id,
         for (size_t h = 0; h < ctx.head_count; ++h) {
             const T* q_vec = static_cast<const T*>(ctx.query) + tok * ctx.query_feature_size + h * ctx.query_head_size;
 
-            const int32_t past_cnt = ctx.past_lens ? ctx.past_lens[seq] : 0;
+            const int32_t past_cnt_raw = ctx.past_lens ? ctx.past_lens[seq] : 0;
             const int32_t new_cnt =
                 ctx.subsequence_begins ? (ctx.subsequence_begins[seq + 1] - ctx.subsequence_begins[seq]) : 0;
+
+            // Clamp past tokens to what is actually addressable via the current block table.
+            const int32_t num_seq_blocks =
+                ctx.block_indices_begins ? (ctx.block_indices_begins[seq + 1] - ctx.block_indices_begins[seq]) : 0;
+            const int32_t past_cnt =
+                (num_seq_blocks > 0 && ctx.block_size > 0)
+                    ? std::min<int32_t>(past_cnt_raw, num_seq_blocks * static_cast<int32_t>(ctx.block_size))
+                    : past_cnt_raw;
+
             const int32_t total_unclamped = past_cnt + new_cnt;
-            const int32_t total = (ctx.max_context_length > 0)
-                                      ? std::min<int32_t>(total_unclamped, ctx.max_context_length)
-                                      : total_unclamped;
+
+            // Causal mask within the current batch segment: a query token must not attend to later new tokens.
+            const int32_t local_new_idx =
+                ctx.subsequence_begins ? static_cast<int32_t>(tok - ctx.subsequence_begins[seq]) : 0;
+            const int32_t causal_total = past_cnt + std::max<int32_t>(0, local_new_idx + 1);
+            const int32_t total_pre =
+                (ctx.max_context_length > 0) ? std::min<int32_t>(causal_total, ctx.max_context_length) : causal_total;
+            const int32_t total = std::max<int32_t>(0, total_pre);
 
             const int32_t keep_from = (ctx.sliding_window > 0) ? std::max<int32_t>(0, total - ctx.sliding_window) : 0;
 
@@ -461,6 +472,11 @@ void paged_attention(const size_t node_id,
             pa_math::compute_softmax_in_place(scores);
 
             std::vector<T> out_head(ctx.value_head_size, T(0));
+
+            if (out_scores && ctx.max_context_length > 0) {
+                const size_t base = (tok * ctx.head_count + h) * static_cast<size_t>(ctx.max_context_length);
+                std::fill_n(out_scores + base, static_cast<size_t>(ctx.max_context_length), T(0));
+            }
             for (int32_t k = 0; k < total; ++k) {
                 const T w = scores[k];
                 if (k < past_cnt) {
@@ -474,9 +490,11 @@ void paged_attention(const size_t node_id,
                     accumulate_value_from_new_key<T>(abs_idx, h, ctx, w, out_head);
                 }
 
-                const size_t sidx =
-                    (tok * ctx.head_count + h) * static_cast<size_t>(ctx.max_context_length) + static_cast<size_t>(k);
-                out_scores[sidx] = scores[k];
+                if (out_scores && ctx.max_context_length > 0) {
+                    const size_t sidx = (tok * ctx.head_count + h) * static_cast<size_t>(ctx.max_context_length) +
+                                        static_cast<size_t>(k);
+                    out_scores[sidx] = scores[k];
+                }
             }
 
             T* dst = out + tok * ctx.value_feature_size + h * ctx.value_head_size;

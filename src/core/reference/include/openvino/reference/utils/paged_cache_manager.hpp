@@ -70,13 +70,7 @@ public:
     ov::element::Type get_element_type() const noexcept;
     std::size_t get_num_blocks() noexcept;
     std::size_t get_block_size() noexcept;
-    // Bytes occupied by a single physical block in the key/value cache buffers.
-    // A physical block stores: [num_heads, block_size, head_size] elements.
-    // Historically this API returned an incorrect value (block_size * elem_bytes).
-    // Keep it for compatibility, but make it mean "key block bytes".
     std::size_t get_block_bytes() noexcept;
-    std::size_t get_key_block_bytes() noexcept;
-    std::size_t get_value_block_bytes() noexcept;
 
     // per-operator metadata
     SubsequenceView get_subsequence_begins(size_t node_id) const;
@@ -151,8 +145,8 @@ private:
     const std::size_t m_total_bytes{0};
 
     std::size_t m_block_size{0};
-    std::size_t m_key_block_bytes{0};
-    std::size_t m_value_block_bytes{0};
+    std::size_t m_key_block_bytes{0};    // num_heads * block_size * key_head_size * elem_bytes
+    std::size_t m_value_block_bytes{0};  // num_heads * block_size * value_head_size * elem_bytes
     std::size_t m_num_heads{0};
     std::size_t m_key_head_size{0};
     std::size_t m_value_head_size{0};

@@ -35,14 +35,6 @@ std::size_t ov::reference::paged_attention_cache::PagedCacheManager::get_block_b
     return m_key_block_bytes;
 }
 
-std::size_t ov::reference::paged_attention_cache::PagedCacheManager::get_key_block_bytes() noexcept {
-    return m_key_block_bytes;
-}
-
-std::size_t ov::reference::paged_attention_cache::PagedCacheManager::get_value_block_bytes() noexcept {
-    return m_value_block_bytes;
-}
-
 ov::reference::paged_attention_cache::PagedCacheManager::PagedCacheManager(ov::element::Type elem_type,
                                                                            std::size_t total_bytes)
     : m_elem_type(elem_type),
@@ -146,25 +138,15 @@ void ov::reference::paged_attention_cache::PagedCacheManager::compute_operator_c
 
     if (!m_num_blocks) {
         const size_t elem_bytes = static_cast<size_t>(m_elem_type.size());
-        const size_t half_bytes = m_total_bytes / 2;
-
-        // One physical block stores [num_heads, block_size, head_size] elements.
         m_key_block_bytes = m_num_heads * m_block_size * m_key_head_size * elem_bytes;
         m_value_block_bytes = m_num_heads * m_block_size * m_value_head_size * elem_bytes;
 
-        if (m_key_block_bytes == 0 || m_value_block_bytes == 0) {
-            OPENVINO_THROW("PagedCacheManager: invalid cache geometry (zero block bytes)");
-        }
-
-        size_t num_blocks_key_cache = half_bytes / m_key_block_bytes;
-        size_t num_blocks_value_cache = half_bytes / m_value_block_bytes;
+        const size_t half_bytes = m_total_bytes / 2;
+        size_t num_blocks_key_cache = (m_key_block_bytes > 0) ? (half_bytes / m_key_block_bytes) : 0;
+        size_t num_blocks_value_cache = (m_value_block_bytes > 0) ? (half_bytes / m_value_block_bytes) : 0;
         // If unequal we don't have the same available blocks in each cache.
         // Instead of reordering memory, for now it's simpler to just set max blocks count to lower bound.
         m_num_blocks = std::min(num_blocks_key_cache, num_blocks_value_cache);
-
-        if (m_num_blocks == 0) {
-            OPENVINO_THROW("PagedCacheManager: cache too small for one block (check CACHE_SIZE or shapes)");
-        }
 
         m_blocks.resize(m_num_blocks);
         for (std::size_t i = 0; i < m_num_blocks; ++i) {
@@ -264,10 +246,15 @@ void ov::reference::paged_attention_cache::PagedCacheManager::copy_blocks_into_b
         return;
     const auto* ksrc = static_cast<const unsigned char*>(key_src_bytes);
     const auto* vsrc = static_cast<const unsigned char*>(value_src_bytes);
+    const std::size_t key_bytes_per_block = m_key_block_bytes;
+    const std::size_t value_bytes_per_block = m_value_block_bytes;
+
     for (std::size_t i = 0; i < block_idxs.size(); ++i) {
         const std::size_t p = block_idxs[i];
-        std::memcpy(static_cast<unsigned char*>(offset_key(p)), ksrc + i * m_key_block_bytes, m_key_block_bytes);
-        std::memcpy(static_cast<unsigned char*>(offset_value(p)), vsrc + i * m_value_block_bytes, m_value_block_bytes);
+        std::memcpy(static_cast<unsigned char*>(offset_key(p)), ksrc + i * key_bytes_per_block, key_bytes_per_block);
+        std::memcpy(static_cast<unsigned char*>(offset_value(p)),
+                    vsrc + i * value_bytes_per_block,
+                    value_bytes_per_block);
     }
 }
 
