@@ -12,6 +12,7 @@
 #include "layout.hpp"
 #include "execution_config.hpp"
 #include "engine_configuration.hpp"
+#include "kernel_builder.hpp"
 
 #include <memory>
 #include <set>
@@ -83,7 +84,7 @@ public:
     /// Checks whether two memory objects represents the same physical memory
     virtual bool is_the_same_buffer(const memory& mem1, const memory& mem2) = 0;
 
-    virtual bool check_allocatable(const layout& layout, allocation_type type) = 0;
+    virtual bool check_allocatable(const layout& layout, allocation_type type);
 
     /// Returns basic allocation type which will be used as a fallback when allocation type is not specified or device doesn't support some features.
     virtual allocation_type get_default_allocation_type() const = 0;
@@ -141,7 +142,9 @@ public:
     virtual stream_ptr create_stream(const ExecutionConfig& config, void *handle) const = 0;
 
     /// Returns service stream which can be used during program build and optimizations
-    virtual stream& get_service_stream() const = 0;
+    virtual stream& get_service_stream() const;
+
+    virtual std::shared_ptr<kernel_builder> create_kernel_builder() const = 0;
 
     virtual allocation_type detect_usm_allocation_type(const void* memory) const = 0;
 
@@ -154,12 +157,8 @@ public:
     virtual void create_onednn_engine(const ExecutionConfig& config) = 0;
 
     /// Returns onednn engine object which shares device and context with current engine
-    virtual dnnl::engine& get_onednn_engine() const = 0;
+    virtual dnnl::engine& get_onednn_engine() const;
 #endif
-
-    /// This method is intended to create kernel handle for current engine from handle from arbitrary engine
-    /// For instance, source kernel can be compiled using ocl engine, and then we can build L0 kernel object based on that
-    virtual kernel::ptr prepare_kernel(const kernel::ptr kernel) const = 0;
 
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type
@@ -178,6 +177,12 @@ protected:
     engine(const device::ptr device);
     const device::ptr _device;
     bool enable_large_allocations = false;
+    std::unique_ptr<stream> _service_stream;
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    std::mutex onednn_mutex;
+    std::shared_ptr<dnnl::engine> _onednn_engine;
+#endif
 
     std::array<std::atomic<uint64_t>, static_cast<size_t>(allocation_type::max_value)> _memory_usage_data{};
     std::array<std::atomic<uint64_t>, static_cast<size_t>(allocation_type::max_value)> _peak_memory_usage_data{};
