@@ -42,7 +42,7 @@ std::function<bool(ov::Output<ov::Node>)> constant_value(const float target_valu
 }
 }  // namespace
 
-RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
+RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x, bool enable_without_gamma) {
     // Detect RMS decomposition pattern
     //  x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
     auto x = pattern::any_input();
@@ -93,13 +93,17 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
     auto gamma_convert = pattern::optional<v0::Convert>(gamma);
     auto mul_with_gamma = pattern::wrap_type<v1::Multiply>({gamma_convert, mul_or_div});
 
-    // Pattern 2: RMS without gamma, but multiplied with dynamic input
-    // RMS(x) * scale where scale is non-constant (e.g., gate, activation, residual)
-    // This allows partial fusion: only fuse up to mul_or_div
-    auto scale = pattern::any_input(pattern::class_other_than<v0::Constant>());
-    auto mul_with_scale = pattern::wrap_type<v1::Multiply>({mul_or_div, scale});
-
-    auto rms_mul = std::make_shared<pattern::op::Or>(OutputVector{mul_with_gamma, mul_with_scale});
+    std::shared_ptr<ov::Node> rms_mul;
+    if (enable_without_gamma) {
+        // Pattern 2: RMS without gamma, but multiplied with dynamic input
+        // RMS(x) * scale where scale is non-constant (e.g., gate, activation, residual)
+        // This allows partial fusion: only fuse up to mul_or_div
+        auto scale = pattern::any_input(pattern::class_other_than<v0::Constant>());
+        auto mul_with_scale = pattern::wrap_type<v1::Multiply>({mul_or_div, scale});
+        rms_mul = std::make_shared<pattern::op::Or>(OutputVector{mul_with_gamma, mul_with_scale});
+    } else {
+        rms_mul = mul_with_gamma;
+    }
 
     std::shared_ptr<ov::Node> comp = rms_mul;
     if (force_tail_convert) {
