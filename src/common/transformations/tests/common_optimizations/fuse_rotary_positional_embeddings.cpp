@@ -1234,23 +1234,23 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLMHF_2d_rope_GatherND_GPU) {
 
         auto sin = std::make_shared<ov::opset1::Parameter>(ov::element::f16,
                                                            ov::PartialShape{seq_len, 1, 1, (rotary_ndims / 2)});
-        auto Transpose = makeOP<ov::op::v1::Transpose>({sin, {3, 1, 2, 0}});
-        auto Reshape0 = makeOP<ov::op::v1::Reshape>({Transpose, {32, 1, 1, 1, -1}}, {{"special_zero", false}});
-        auto Param = std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::PartialShape{5});
-        auto Multiply = makeOP<ov::op::v3::Broadcast>({Reshape0, Param}, {{"mode", "bidirectional"}});
-        auto Constant = makeConst(ov::element::i32, ov::Shape({64, 2}), MOCK_VALUE);
-        auto GatherND = makeOP<ov::op::v8::GatherND>({Multiply, Constant}, {{"batch_dims", 0}});
-        auto Transpose0 = makeOP<ov::op::v1::Transpose>({GatherND, {3, 1, 2, 0}});
+        auto TransposeSin = makeOP<ov::op::v1::Transpose>({sin, {3, 1, 2, 0}});
+        auto ReshapeSin = makeOP<ov::op::v1::Reshape>({TransposeSin, {32, 1, 1, 1, -1}}, {{"special_zero", false}});
+        auto BroadcastSinParam = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{5});
+        auto BroadcastSin = makeOP<ov::op::v3::Broadcast>({ReshapeSin, BroadcastSinParam}, {{"mode", "bidirectional"}});
+        auto GatherNDSinConstant = makeConst(ov::element::i32, ov::Shape({64, 2}), MOCK_VALUE);
+        auto GatherNDSin = makeOP<ov::op::v8::GatherND>({BroadcastSin, GatherNDSinConstant}, {{"batch_dims", 0}});
+        auto TransposeSin0 = makeOP<ov::op::v1::Transpose>({GatherNDSin, {3, 1, 2, 0}});
 
         auto cos = std::make_shared<ov::opset1::Parameter>(ov::element::f16,
                                                            ov::PartialShape{seq_len, 1, 1, (rotary_ndims / 2)});
-        auto Transpose1 = makeOP<ov::op::v1::Transpose>({cos, {3, 1, 2, 0}});
-        auto Reshape1 = makeOP<ov::op::v1::Reshape>({Transpose1, {32, 1, 1, 1, -1}}, {{"special_zero", false}});
-        auto Param1 = std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::PartialShape{5});
-        auto Multiply0 = makeOP<ov::op::v3::Broadcast>({Reshape1, Param1}, {{"mode", "bidirectional"}});
-        auto Constant0 = makeConst(ov::element::i32, ov::Shape({64, 2}), MOCK_VALUE);
-        auto GatherND0 = makeOP<ov::op::v8::GatherND>({Multiply0, Constant0}, {{"batch_dims", 0}});
-        auto Transpose2 = makeOP<ov::op::v1::Transpose>({GatherND0, {3, 1, 2, 0}});
+        auto TransposeCos = makeOP<ov::op::v1::Transpose>({cos, {3, 1, 2, 0}});
+        auto ReshapeCos = makeOP<ov::op::v1::Reshape>({TransposeCos, {32, 1, 1, 1, -1}}, {{"special_zero", false}});
+        auto BroadcastCosParam = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{5});
+        auto BroadcastCos = makeOP<ov::op::v3::Broadcast>({ReshapeCos, BroadcastCosParam}, {{"mode", "bidirectional"}});
+        auto GatherNDCosConstant = makeConst(ov::element::i32, ov::Shape({64, 2}), MOCK_VALUE);
+        auto GatherNDCos = makeOP<ov::op::v8::GatherND>({BroadcastCos, GatherNDCosConstant}, {{"batch_dims", 0}});
+        auto TransposeCos0 = makeOP<ov::op::v1::Transpose>({GatherNDCos, {3, 1, 2, 0}});
 
         auto Strided_slice0 = makeOP<v1::StridedSlice>({strided_slice, {0, 0, 0, 1}, {0, 0, 0, INT_MAX}, {1, 1, 1, 2}},
                                                        {{"begin_mask", {1, 1, 1, 0}},
@@ -1277,9 +1277,9 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLMHF_2d_rope_GatherND_GPU) {
         auto Unsqueeze1 = makeOP<ov::op::v1::Reshape>({Strided_slice1, {-1, 32, 1, 32, 1}}, {{"special_zero", false}});
         auto Stack_reshape = makeOP<ov::op::v0::Concat>({Unsqueeze, Unsqueeze1}, {{"axis", -1}});
         auto Flatten_reshape = makeOP<ov::op::v1::Reshape>({Stack_reshape, {0, 32, 0, 64}}, {{"special_zero", true}});
-        auto Multiply1 = makeOP<ov::op::v1::Multiply>({Flatten_reshape, Transpose0}, {{"auto_broadcast", "numpy"}});
+        auto Multiply1 = makeOP<ov::op::v1::Multiply>({Flatten_reshape, TransposeSin0}, {{"auto_broadcast", "numpy"}});
 
-        auto Multiply2 = makeOP<ov::op::v1::Multiply>({strided_slice, Transpose2}, {{"auto_broadcast", "numpy"}});
+        auto Multiply2 = makeOP<ov::op::v1::Multiply>({strided_slice, TransposeCos0}, {{"auto_broadcast", "numpy"}});
         auto Add = makeOP<ov::op::v1::Add>({Multiply2, Multiply1}, {{"auto_broadcast", "numpy"}});
 
         auto Strided_slice2 = makeOP<v1::StridedSlice>({Reshape, {0, 0, 0, 64}, {0, 0, 0, INT_MAX}, {1, 1, 1, 1}},
@@ -1289,8 +1289,8 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLMHF_2d_rope_GatherND_GPU) {
                                                         {"shrink_axis_mask", {}},
                                                         {"ellipsis_mask", {}}});
         auto Concat = makeOP<v0::Concat>({Add, Strided_slice2}, {{"axis", -1}});
-        model =
-            std::make_shared<ov::Model>(ov::OutputVector{Concat}, ov::ParameterVector{input, cos, sin, Param, Param1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{Concat},
+                                            ov::ParameterVector{input, cos, sin, BroadcastSinParam, BroadcastCosParam});
     }
     manager.register_pass<ov::pass::RoPEFusion>(true);
     {
