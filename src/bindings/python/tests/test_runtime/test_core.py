@@ -153,7 +153,7 @@ def test_read_model_from_ir_with_user_config(request, tmp_path):
     core_cache_dir = core.get_property("CACHE_DIR")
     cache_path = tmp_path / Path("cache")
 
-    model = core.read_model(xml_path, bin_path, config={"CACHE_DIR": cache_path})
+    model = core.read_model(xml_path, bin_path, config={"CACHE_DIR": f"{cache_path}"})
 
     assert isinstance(model, Model)
     assert core_cache_dir == core.get_property("CACHE_DIR")
