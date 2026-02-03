@@ -19,10 +19,6 @@ ov_add_plugin(NAME ${NPU_PLUGIN_TARGET}
     VERSION_DEFINES_FOR ${NPU_PLUGIN_ENGINE_SOURCE_FILE}
 )
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    target_link_options(${TARGET_NAME} PRIVATE /WX:NO)
-endif()
-
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
@@ -57,6 +53,5 @@ cross_compiled_file(${TARGET_NAME}
         NAME        unpack_i4i8 unpack_u4i8 unpack_i4f16 unpack_i4f16_scale unpack_i4f16_z unpack_u4f16 unpack_u4f16_scale_zp unpack_u4f16_asymm_zp unpack_u4f16_z unpack_u4f32 unpack_i8f16 unpack_i8f16_scale unpack_u8f16 to_f16 copy_row_as_column transpose_i4 transpose_f16 transpose_f32 unpack_f8f16_scale
         NAMESPACE   ov::npuw::util::XARCH
 )
-if(NOT ENABLE_NPU_DEBUG_CAPS)
-    ov_add_api_validator_post_build_step(TARGET ${NPU_PLUGIN_TARGET})
-endif()
+
+ov_add_api_validator_post_build_step(TARGET ${NPU_PLUGIN_TARGET})
