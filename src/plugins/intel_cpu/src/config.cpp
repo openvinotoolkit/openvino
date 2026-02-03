@@ -555,13 +555,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         streamsChanged = true;
     }
 
-#if defined(OV_CPU_WITH_SHL)
-    // TODO: multi-stream execution is unsafe when SHL is used:
-    //       The library uses global static variables as flags and counters.
-    streams = 1;
-    streamsChanged = true;
-#endif
-
     this->modelType = modelType;
 
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());

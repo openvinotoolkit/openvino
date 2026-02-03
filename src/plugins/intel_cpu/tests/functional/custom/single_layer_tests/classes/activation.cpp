@@ -251,14 +251,6 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
             (activation_type == utils::ActivationTypes::Tanh))
             return "jit";
     }
-#if defined(OV_CPU_WITH_SHL)
-    if ((activation_type == utils::ActivationTypes::Relu) ||
-        (activation_type == utils::ActivationTypes::PReLu) ||
-        (activation_type == utils::ActivationTypes::Exp) ||
-        (activation_type == utils::ActivationTypes::Clamp)) {
-        return "shl";
-    }
-#endif
 #endif
     return CPUTestsBase::getPrimitiveType();
 }

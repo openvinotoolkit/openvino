@@ -53,10 +53,6 @@
 #    include "nodes/executors/common/common_utils.hpp"
 #endif
 
-#if defined(OV_CPU_WITH_SHL)
-#    include "nodes/executors/shl/shl_fullyconnected.hpp"
-#endif
-
 namespace ov::intel_cpu {
 
 using namespace ov::element;
@@ -390,24 +386,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             HasNoOptimalConfig<FCAttrs>{},
             AcceptsAnyShape<FCAttrs>,
             CreateDefault<MatMulKleidiAIExecutor, FCAttrs>{}
-            )
-        OV_CPU_INSTANCE_SHL(
-            "fullyconnected_shl",
-            ExecutorType::Shl,
-            OperationType::FullyConnected,
-            // supports
-            [](const FCConfig& config) -> bool {
-                VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
-                VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
-                VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
-                VERIFY(all_of(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
-                VERIFY(ShlFCExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
-
-                return true;
-            },
-            HasNoOptimalConfig<FCAttrs>{},
-            AcceptsAnyShape<FCAttrs>,
-            CreateDefault<ShlFCExecutor, FCAttrs>{}
             )
         OV_CPU_INSTANCE_DNNL(
             "matmul_dnnl",
