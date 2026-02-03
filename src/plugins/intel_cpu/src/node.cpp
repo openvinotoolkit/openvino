@@ -71,7 +71,6 @@ Node::NodesFactory& Node::factory() {
 
 Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory)
     : context(std::move(ctx)),
-
       fusingPort(-1),
       engine(context->getEngine()),
       name(op->get_friendly_name()),
@@ -643,7 +642,6 @@ std::string Node::getPrimitiveDescriptorType() const {
     SEARCH_TYPE(winograd);
     SEARCH_TYPE(sparse);
     SEARCH_TYPE(acl);
-    SEARCH_TYPE(shl);
     SEARCH_TYPE(kleidiai);
     SEARCH_TYPE(_dw);
     SEARCH_TYPE(_1x1);
@@ -820,6 +818,7 @@ void Node::updateDynamicParams() {
 }
 
 void Node::execute(const dnnl::stream& strm, int numaId) {
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::ov_op_cpu_details, getName());
     if (isDynamicNode()) {
         executeDynamic(strm, numaId);
     } else {

@@ -225,6 +225,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
 #if defined(OPENVINO_ARCH_RISCV64)
     if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
         if ((activation_type == utils::ActivationTypes::Abs) ||
+            (activation_type == utils::ActivationTypes::Ceiling) ||
             (activation_type == utils::ActivationTypes::Clamp) ||
             (activation_type == utils::ActivationTypes::Elu) ||
             (activation_type == utils::ActivationTypes::Erf) ||
@@ -250,14 +251,6 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
             (activation_type == utils::ActivationTypes::Tanh))
             return "jit";
     }
-#if defined(OV_CPU_WITH_SHL)
-    if ((activation_type == utils::ActivationTypes::Relu) ||
-        (activation_type == utils::ActivationTypes::PReLu) ||
-        (activation_type == utils::ActivationTypes::Exp) ||
-        (activation_type == utils::ActivationTypes::Clamp)) {
-        return "shl";
-    }
-#endif
 #endif
     return CPUTestsBase::getPrimitiveType();
 }
