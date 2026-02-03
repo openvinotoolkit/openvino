@@ -19,8 +19,6 @@ namespace ov {
 
 class HandleHolder {
     int m_handle = -1;
-
-public:
     void reset() noexcept {
         if (m_handle != -1) {
             close(m_handle);
@@ -28,6 +26,7 @@ public:
         }
     }
 
+public:
     explicit HandleHolder(int handle = -1) : m_handle(handle) {}
 
     HandleHolder(const HandleHolder&) = delete;
@@ -94,7 +93,9 @@ public:
     }
 
     ~MapHolder() {
-        reset();
+        if (m_data != MAP_FAILED) {
+            munmap(m_data, m_size);
+        }
     }
 
     char* data() noexcept override {
@@ -104,15 +105,6 @@ public:
     size_t size() const noexcept override {
         return m_size;
     }
-
-    void reset() override {
-        if (m_data != MAP_FAILED) {
-            munmap(m_data, m_size);
-            m_data = MAP_FAILED;
-        }
-        m_handle.reset();
-    }
-
 };
 
 std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& path) {
