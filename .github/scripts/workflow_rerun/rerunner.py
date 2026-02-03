@@ -20,11 +20,6 @@ from workflow_rerun.log_collector import collect_logs_for_run
 
 def record_rerun_to_db(repository_full_name: str, run_id: int, ticket_number: int, rerunner_run_id: int, error_text: str):
     """Record the rerun event to the PostgreSQL database."""
-
-    if ticket_number is None:
-        LOGGER.error('No ticket number provided, cannot record rerun to database.')
-        raise ValueError('Ticket number is required to record rerun to database.')
-
     db_username = os.environ.get('PGUSER')
     db_password = os.environ.get('PGPASSWORD')
     db_host = os.environ.get('PGHOST')
@@ -60,6 +55,53 @@ def record_rerun_to_db(repository_full_name: str, run_id: int, ticket_number: in
             cursor.close()
         conn.close()
 
+def rerun_failed_jobs(repository_name: str, run_id: int, session: requests.Session):
+    # PyGitHub does not expose the "/repos/{owner}/{repo}/actions/runs/RUN_ID/rerun-failed-jobs" endpoint
+    # so we have to use requests
+    response = session.post(
+        url=f'https://api.github.com/repos/{repository_name}/actions/runs/{run_id}/rerun-failed-jobs',
+        headers={'Authorization': f'Bearer {GITHUB_TOKEN}'}
+    )
+
+    response.raise_for_status()
+
+    LOGGER.info(f'RUN RETRIGGERED SUCCESSFULLY: {run.html_url}')
+
+def analyze_and_rerun(run, repository_name: str, run_id: int, rerunner_run_id: int,
+                      errors_file: Path, is_dry_run: bool, session: requests.Session):
+    with tempfile.TemporaryDirectory() as temp_dir:
+        logs_dir = Path(temp_dir)
+        collect_logs_for_run(
+            run=run,
+            logs_dir=logs_dir,
+            session=session
+        )
+
+        log_analyzer = LogAnalyzer(
+            path_to_logs=logs_dir,
+            path_to_errors_file=errors_file
+        )
+        log_analyzer.analyze()
+
+        if log_analyzer.found_matching_error:
+            LOGGER.info(f'FOUND MATCHING ERROR, RETRIGGERING {run.html_url}')
+            if is_dry_run:
+                LOGGER.info(f'RUNNING IN DRY RUN MODE, NOT RETRIGGERING, EXITING')
+                return
+
+            rerun_failed_jobs(repository_name, run_id, session)
+
+            if log_analyzer.found_error_ticket and log_analyzer.matched_error_text:
+                record_rerun_to_db(repository_name, run_id,
+                                   log_analyzer.found_error_ticket,
+                                   rerunner_run_id,
+                                   log_analyzer.matched_error_text)
+            else:
+                LOGGER.error(f'Cannot record to database: missing ticket_number or error_text')
+                raise ValueError('Missing ticket_number or error_text for database recording.')
+        else:
+            LOGGER.info(f'NO ERROR WAS FOUND, NOT RETRIGGERING')
+
 if __name__ == '__main__':
     args = get_arguments()
     run_id = args.run_id
@@ -91,30 +133,4 @@ if __name__ == '__main__':
         LOGGER.info(f'THERE ARE {run.run_attempt} ATTEMPTS ALREADY. NOT CHECKING LOGS AND NOT RETRIGGERING. EXITING')
         sys.exit(0)
 
-    with tempfile.TemporaryDirectory() as temp_dir:
-        logs_dir = Path(temp_dir)
-        collect_logs_for_run(
-            run=run,
-            logs_dir=logs_dir,
-            session=session
-        )
-
-        log_analyzer = LogAnalyzer(
-            path_to_logs=logs_dir,
-            path_to_errors_file=errors_file
-        )
-        log_analyzer.analyze()
-
-        if log_analyzer.found_matching_error:
-            LOGGER.info(f'FOUND MATCHING ERROR, RETRIGGERING {run.html_url}')
-            if is_dry_run:
-                LOGGER.info(f'RUNNING IN DRY RUN MODE, NOT RETRIGGERING, EXITING')
-                sys.exit(0)
-
-            # PyGitHub does not expose the "/repos/{owner}/{repo}/actions/runs/RUN_ID/rerun-failed-jobs" endpoint
-            # so we have to use requests
-            response = session.post(url=f'https://api.github.com/repos/{repository_name}/actions/runs/{run_id}/rerun-failed-jobs',
-                                    headers={'Authorization': f'Bearer {GITHUB_TOKEN}'})
-            response.raise_for_status()
-        else:
-            LOGGER.info(f'NO ERROR WAS FOUND, NOT RETRIGGERING')
+    analyze_and_rerun(run, repository_name, run_id, rerunner_run_id, errors_file, is_dry_run, session)

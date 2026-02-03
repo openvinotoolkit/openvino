@@ -24,7 +24,6 @@
 #include "openvino/core/node_output.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
 #include "snippets/emitter.hpp"
 #include "snippets/generator.hpp"
 #include "snippets/lowered/expression.hpp"
@@ -32,6 +31,7 @@
 #include "snippets/op/kernel.hpp"
 #include "snippets/op/load.hpp"
 #include "snippets/op/loop.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/target_machine.hpp"
@@ -122,7 +122,7 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
 
     // data movement
     jitters[op::v0::Parameter::get_type_info_static()] = emitter_factory.from_expr<jit_nop_emitter>();
-    jitters[op::v0::Result::get_type_info_static()] = emitter_factory.from_expr<jit_nop_emitter>();
+    jitters[snippets::op::Result::get_type_info_static()] = emitter_factory.from_expr<jit_nop_emitter>();
     jitters[snippets::op::Scalar::get_type_info_static()] = emitter_factory.from_expr<jit_scalar_emitter>();
 
     // memory access

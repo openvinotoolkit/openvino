@@ -75,7 +75,7 @@ ListConstructReplacer::ListConstructReplacer() {
             auto rank = input.get_partial_shape().rank();
             if (rank.is_static() && rank.get_length() > 1) {
                 // if list elements of rank higher then 1D we cannot resolve it
-                add_exception_to_fw_node(list, "unsupported list: all inputs must be 1D.");
+                add_exception_to_fw_node(list_out.get_node_shared_ptr(), "unsupported list: all inputs must be 1D.");
                 return false;
             }
             // reshape all elements to 1D
