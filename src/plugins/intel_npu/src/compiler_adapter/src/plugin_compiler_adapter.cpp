@@ -79,13 +79,13 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
         try {
             _compiler = load_compiler(libPath);
             if (!_compiler) {
-                OPENVINO_THROW("MLIR compiler load returned nullptr");
+                throw std::runtime_error("MLIR compiler load returned nullptr");
             } else {
                 _logger.info("MLIR compiler loaded successfully. PLUGIN compiler will be used.");
             }
         } catch (const std::exception& mlir_exception) {
             _logger.info("MLIR compiler load failed: %s", mlir_exception.what());
-            OPENVINO_THROW("Both VCL and MLIR compiler load failed, aborting.");
+            throw std::runtime_error("Both VCL and MLIR compiler load failed, aborting.");
         }
     }
 
