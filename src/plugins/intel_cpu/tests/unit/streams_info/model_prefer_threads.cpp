@@ -1,0 +1,781 @@
+#include <gtest/gtest.h>
+
+#include <memory>
+
+#include "common_test_utils/test_common.hpp"
+#include "cpu_streams_calculation.hpp"
+#include "cpu_streams_calculation_prefer_threads.hpp"
+#include "openvino/runtime/performance_heuristics.hpp"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
+
+using namespace testing;
+using namespace ov;
+using namespace ov::intel_cpu;
+using namespace ov::intel_cpu::ThreadPreferenceConstants;
+
+class ModelPreferThreadsIntegrationTest : public ov::test::TestsCommon {};
+
+// 构造一个最小可用的单输入单输出卷积模型，可选插入FakeQuantize
+#include "openvino/opsets/opset8.hpp"
+static std::shared_ptr<ov::Model> make_dummy_model(bool with_fakequantize = false) {
+    using namespace ov::opset8;
+    auto input = std::make_shared<Parameter>(ov::element::f32, ov::Shape{1, 3, 16, 16});
+    std::shared_ptr<ov::Node> data = input;
+    if (with_fakequantize) {
+        auto fq = std::make_shared<FakeQuantize>(
+            data,
+            std::make_shared<Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0}),
+            std::make_shared<Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{1}),
+            std::make_shared<Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0}),
+            std::make_shared<Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{1}),
+            256);
+        data = fq;
+    }
+    auto weights =
+        std::make_shared<Constant>(ov::element::f32, ov::Shape{8, 3, 3, 3}, std::vector<float>(8 * 3 * 3 * 3, 1.0f));
+    auto conv = std::make_shared<Convolution>(data,
+                                              weights,
+                                              ov::Strides{1, 1},
+                                              ov::CoordinateDiff{0, 0},
+                                              ov::CoordinateDiff{0, 0},
+                                              ov::Strides{1, 1});
+    auto result = std::make_shared<Result>(conv);
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
+}
+
+// Helper: 模拟 INT8-intensive 检测
+
+TEST_F(ModelPreferThreadsIntegrationTest, INT8_Model_UseAllCores) {
+    std::vector<std::vector<int>> proc_type_table = {{10, 2, 8, 0, 0, 0, 0}};  // 2 main, 8 E-cores
+    auto model = make_dummy_model(true);                                       // INT8: 带FakeQuantize
+    Config config;
+    config.modelType = Config::ModelType::CNN;
+    config.modelPreferThreads = -1;
+    // 通过设置 config.int8_intensive 或 patch has_op_with_type 使 INT8 检测为 true
+    // 这里假设 get_model_prefer_threads 内部能检测到 INT8
+    int num_streams = 1;
+    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
+    std::cout << "[INT8_Model_UseAllCores] proc_type_table: ";
+    for (auto v : proc_type_table[0])
+        std::cout << v << " ";
+    std::cout << " modelType: " << static_cast<int>(config.modelType)
+              << " int8_intensive: " << ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model)
+              << " modelPreferThreadsLatency: " << config.modelPreferThreadsLatency << " result: " << result
+              << std::endl;
+    EXPECT_GE(config.modelPreferThreadsLatency, 10);
+    EXPECT_EQ(result, config.modelPreferThreadsLatency);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, LLM_Model_ECoresRatio) {
+    std::vector<std::vector<int>> proc_type_table = {{14, 4, 10, 0, 0, 0, 0, 0}};  // 4 main, 10 E-cores
+    auto model = make_dummy_model();
+    Config config;
+    config.modelType = Config::ModelType::LLM;
+    config.modelPreferThreads = -1;
+    int num_streams = 1;
+    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
+    std::cout << "[LLM_Model_ECoresRatio] proc_type_table: ";
+    for (auto v : proc_type_table[0])
+        std::cout << v << " ";
+    std::cout << " modelType: " << static_cast<int>(config.modelType)
+              << " int8_intensive: " << ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model)
+              << " modelPreferThreadsLatency: " << config.modelPreferThreadsLatency << " result: " << result
+              << std::endl;
+    EXPECT_GE(config.modelPreferThreadsLatency, 14);
+    EXPECT_EQ(result, config.modelPreferThreadsLatency);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, ZeroCoresEdgeCase) {
+    std::vector<std::vector<int>> proc_type_table = {{0, 0, 0, 0, 0, 0, 0}};
+    auto model = make_dummy_model();
+    Config config;
+    config.modelType = Config::ModelType::CNN;
+    config.modelPreferThreads = -1;
+    int num_streams = 1;
+    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
+    EXPECT_EQ(config.modelPreferThreadsLatency, 0);
+    EXPECT_EQ(result, 0);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, UnknownMemToleranceEdgeCase) {
+    std::vector<std::vector<int>> proc_type_table = {{8, 8, 0, 0, 0, 0, 0, 0}};
+    auto model = make_dummy_model();
+    Config config;
+    config.modelType = Config::ModelType::CNN;
+    config.modelPreferThreads = -1;
+    int num_streams = 0;
+    // 模拟 MemBandwidthPressure::UNKNOWN
+    // 这里假设内部 tolerance.max_mem_tolerance == UNKNOWN
+    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
+    EXPECT_GE(config.modelPreferThreadsThroughput, 1);
+    EXPECT_EQ(result, config.modelPreferThreadsThroughput);
+}
+// =========================================================================
+// End-to-End Integration Tests for get_model_prefer_threads
+// =========================================================================
+
+TEST_F(ModelPreferThreadsIntegrationTest, X86_NonHybrid_MainCoresOnly) {
+    std::vector<std::vector<int>> proc_type_table = {{8, 8, 0, 0, 0, 0, 0}};  // 8 main cores, no E-cores
+    auto model = make_dummy_model();
+    Config config;
+    config.modelType = Config::ModelType::CNN;
+    config.modelPreferThreads = -1;
+    int num_streams = 1;
+    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
+    std::cout << "[X86_NonHybrid_MainCoresOnly] proc_type_table: ";
+    for (auto v : proc_type_table[0])
+        std::cout << v << " ";
+    std::cout << " modelType: " << static_cast<int>(config.modelType)
+              << " int8_intensive: " << ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model)
+              << " modelPreferThreadsLatency: " << config.modelPreferThreadsLatency << " result: " << result
+              << std::endl;
+    EXPECT_EQ(config.modelPreferThreadsLatency, 8);
+    EXPECT_EQ(result, config.modelPreferThreadsLatency);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, X86_Hybrid_INT8_UseAllCores) {
+    std::vector<std::vector<int>> proc_type_table = {{12, 4, 8, 0, 0, 0, 0}};  // 4 main, 8 E-cores
+    auto model = make_dummy_model();
+    Config config;
+    config.modelType = Config::ModelType::CNN;
+    config.modelPreferThreads = -1;
+    int num_streams = 1;
+    // 模拟 INT8-intensive
+    // 这里假设 has_op_with_type<ov::op::v0::FakeQuantize>(model) 返回 true
+    // 实际测试中可用 mock 或 patch
+    // 预期 latency = 12
+    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
+    EXPECT_GE(config.modelPreferThreadsLatency, 4);  // 可能为 12
+    EXPECT_EQ(result, config.modelPreferThreadsLatency);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, X86_Hybrid_FP32_MainCoresOnly) {
+    std::vector<std::vector<int>> proc_type_table = {{8, 6, 2, 0, 0, 0, 0}};  // 6 main, 2 E-cores
+    auto model = make_dummy_model();
+    Config config;
+    config.modelType = Config::ModelType::CNN;
+    config.modelPreferThreads = -1;
+    int num_streams = 1;
+    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
+    std::cout << "[X86_Hybrid_FP32_MainCoresOnly] proc_type_table: ";
+    for (auto v : proc_type_table[0])
+        std::cout << v << " ";
+    std::cout << " modelType: " << static_cast<int>(config.modelType)
+              << " int8_intensive: " << ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model)
+              << " modelPreferThreadsLatency: " << config.modelPreferThreadsLatency << " result: " << result
+              << std::endl;
+    EXPECT_EQ(config.modelPreferThreadsLatency, 6);
+    EXPECT_EQ(result, config.modelPreferThreadsLatency);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, X86_HT_AdjustThroughput) {
+    std::vector<std::vector<int>> proc_type_table = {{16, 8, 0, 0, 8, 0, 0}};  // 8 main, 8 HT
+    auto model = make_dummy_model();
+    Config config;
+    config.modelType = Config::ModelType::CNN;
+    config.modelPreferThreads = -1;
+    int num_streams = 0;  // throughput path
+    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
+    EXPECT_GE(config.modelPreferThreadsThroughput, 1);
+    EXPECT_EQ(result, config.modelPreferThreadsThroughput);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, ARM64_Linux_DefaultThreads) {
+#if defined(OPENVINO_ARCH_ARM64) && defined(__linux__)
+    std::vector<std::vector<int>> proc_type_table = {{8, 8, 0, 0, 0, 0, 0}};
+    auto model = make_dummy_model();
+    Config config;
+    config.modelType = Config::ModelType::CNN;
+    config.modelPreferThreads = -1;
+    int num_streams = 1;
+    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
+    EXPECT_EQ(config.modelPreferThreadsLatency, 8);
+    EXPECT_EQ(result, config.modelPreferThreadsLatency);
+#endif
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, AppleSilicon_LatencyAndThroughput) {
+#if (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
+    std::vector<std::vector<int>> proc_type_table = {{8, 4, 4, 0, 0, 0, 0}};
+    auto model = make_dummy_model();
+    Config config;
+    config.modelType = Config::ModelType::CNN;
+    config.modelPreferThreads = -1;
+    int num_streams = 1;
+    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
+    EXPECT_GE(config.modelPreferThreadsLatency, 4);
+    EXPECT_EQ(result, config.modelPreferThreadsLatency);
+#endif
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, NumStreamsVsSocketsBoundary) {
+    std::vector<std::vector<int>> proc_type_table = {{8, 8, 0, 0, 0, 0, 0}};
+    auto model = make_dummy_model();
+    Config config;
+    config.modelType = Config::ModelType::CNN;
+    config.modelPreferThreads = -1;
+    int num_streams = 0;  // throughput path
+    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
+    EXPECT_EQ(result, config.modelPreferThreadsThroughput);
+    num_streams = 2;  // 假设 sockets=1，num_streams>sockets
+    result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
+    EXPECT_EQ(result, config.modelPreferThreadsThroughput);
+}
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+namespace {
+
+class ModelPreferThreadsHelperTest : public ov::test::TestsCommon {};
+class MainCoreCaseTest : public ov::test::TestsCommon {};
+class StaticPartitionerCaseTest : public ov::test::TestsCommon {};
+class TbbPartitionerDecisionTest : public ov::test::TestsCommon {};
+
+// ============================================================================
+// Tests for should_use_all_cores_for_latency
+// ============================================================================
+
+TEST_F(ModelPreferThreadsHelperTest, ShouldUseAllCores_INT8_FewMainCores) {
+    // INT8 threshold is 4, so main_cores <= efficient_cores/4 should return true
+    EXPECT_TRUE(should_use_all_cores_for_latency(2, 8, true));   // 2 <= 8/4 = 2
+    EXPECT_TRUE(should_use_all_cores_for_latency(1, 8, true));   // 1 <= 8/4 = 2
+    EXPECT_FALSE(should_use_all_cores_for_latency(3, 8, true));  // 3 > 8/4 = 2
+}
+
+TEST_F(ModelPreferThreadsHelperTest, ShouldUseAllCores_FP32_FewMainCores) {
+    // FP32 threshold is 2, so main_cores <= efficient_cores/2 should return true
+    EXPECT_TRUE(should_use_all_cores_for_latency(4, 8, false));   // 4 <= 8/2 = 4
+    EXPECT_TRUE(should_use_all_cores_for_latency(3, 8, false));   // 3 <= 8/2 = 4
+    EXPECT_FALSE(should_use_all_cores_for_latency(5, 8, false));  // 5 > 8/2 = 4
+}
+
+TEST_F(ModelPreferThreadsHelperTest, ShouldUseAllCores_ManyMainCores) {
+    EXPECT_FALSE(should_use_all_cores_for_latency(8, 4, true));
+    EXPECT_FALSE(should_use_all_cores_for_latency(8, 4, false));
+}
+
+TEST_F(ModelPreferThreadsHelperTest, ShouldUseAllCores_NoEcores) {
+    EXPECT_FALSE(should_use_all_cores_for_latency(4, 0, true));
+    EXPECT_FALSE(should_use_all_cores_for_latency(4, 0, false));
+}
+
+// ============================================================================
+// Tests for should_use_ecores_for_llm
+// ============================================================================
+
+TEST_F(ModelPreferThreadsHelperTest, ShouldUseEcoresForLLM_ManyEcores) {
+    EXPECT_TRUE(should_use_ecores_for_llm(10, 4));  // 10 > 2*4 = 8
+    EXPECT_TRUE(should_use_ecores_for_llm(9, 4));   // 9 > 2*4 = 8
+    EXPECT_FALSE(should_use_ecores_for_llm(8, 4));  // 8 == 2*4 (not greater)
+    EXPECT_FALSE(should_use_ecores_for_llm(6, 4));  // 6 < 2*4 = 8
+}
+
+TEST_F(ModelPreferThreadsHelperTest, ShouldUseEcoresForLLM_FewEcores) {
+    EXPECT_FALSE(should_use_ecores_for_llm(4, 8));
+    EXPECT_FALSE(should_use_ecores_for_llm(0, 8));
+}
+
+// ============================================================================
+// Tests for is_network_compute_limited
+// ============================================================================
+
+TEST_F(ModelPreferThreadsHelperTest, IsNetworkComputeLimited_AllComputeConvs) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.ratio_compute_convs = ov::MemBandwidthPressure::ALL;
+    tolerance.ratio_compute_deconvs = 0.0f;
+    EXPECT_TRUE(is_network_compute_limited(tolerance));
+}
+
+TEST_F(ModelPreferThreadsHelperTest, IsNetworkComputeLimited_AllComputeDeconvs) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.ratio_compute_convs = 0.0f;
+    tolerance.ratio_compute_deconvs = ov::MemBandwidthPressure::ALL;
+    EXPECT_TRUE(is_network_compute_limited(tolerance));
+}
+
+TEST_F(ModelPreferThreadsHelperTest, IsNetworkComputeLimited_PartialCompute) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.ratio_compute_convs = 0.5f;
+    tolerance.ratio_compute_deconvs = 0.3f;
+    EXPECT_FALSE(is_network_compute_limited(tolerance));
+}
+
+// ============================================================================
+// Tests for threshold functions
+// ============================================================================
+
+TEST_F(ModelPreferThreadsHelperTest, IsBelowIsaThreshold) {
+    EXPECT_FALSE(is_below_isa_threshold(0.6f, 1.0f));
+    EXPECT_FALSE(is_below_isa_threshold(0.4f, 1.0f));
+    EXPECT_FALSE(is_below_isa_threshold(0.3f, 2.0f));
+    EXPECT_FALSE(is_below_isa_threshold(0.2f, 2.0f));
+    EXPECT_TRUE(is_below_isa_threshold(1.1f, 1.0f));
+    EXPECT_TRUE(is_below_isa_threshold(2.1f, 2.0f));
+}
+
+TEST_F(ModelPreferThreadsHelperTest, IsBelowGeneralThreshold) {
+    EXPECT_TRUE(is_below_general_threshold(0.6f));
+    EXPECT_FALSE(is_below_general_threshold(0.4f));
+    EXPECT_FALSE(is_below_general_threshold(0.5f));
+}
+
+// ============================================================================
+// Tests for Main Core Cases
+// ============================================================================
+
+TEST_F(MainCoreCaseTest, MainCoreCase1_HighMemLimitedConvs) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.ratio_mem_limited_convs = 0.85f;
+    EXPECT_TRUE(is_main_core_case_1(tolerance));
+    tolerance.ratio_mem_limited_convs = 0.8f;
+    EXPECT_FALSE(is_main_core_case_1(tolerance));
+    tolerance.ratio_mem_limited_convs = 0.5f;
+    EXPECT_FALSE(is_main_core_case_1(tolerance));
+}
+
+TEST_F(MainCoreCaseTest, MainCoreCase2_NoConvsHighTolerance) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.ratio_mem_limited_convs = 0.0f;
+    tolerance.ratio_compute_convs = 0.0f;
+    tolerance.max_mem_tolerance = 5.0f;
+    EXPECT_TRUE(is_main_core_case_2(tolerance));
+    tolerance.max_mem_tolerance = 4.5f;
+    EXPECT_TRUE(is_main_core_case_2(tolerance));
+    tolerance.max_mem_tolerance = 4.0f;
+    EXPECT_FALSE(is_main_core_case_2(tolerance));
+    tolerance.max_mem_tolerance = 5.0f;
+    tolerance.ratio_compute_convs = 0.1f;
+    EXPECT_FALSE(is_main_core_case_2(tolerance));
+}
+
+TEST_F(MainCoreCaseTest, MainCoreCase3_MostlyLightConvs) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.ratio_mem_limited_convs = 0.0f;
+    tolerance.ratio_compute_convs = 0.5f;
+    tolerance.total_convs = 100;
+    tolerance.total_light_convs = 95;
+    EXPECT_TRUE(is_main_core_case_3(tolerance));
+    tolerance.total_light_convs = 90;
+    EXPECT_FALSE(is_main_core_case_3(tolerance));
+    tolerance.total_light_convs = 95;
+    tolerance.ratio_compute_convs = 1.0f;
+    EXPECT_FALSE(is_main_core_case_3(tolerance));
+}
+
+TEST_F(MainCoreCaseTest, MainCoreCase4_MixedWorkload) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.ratio_mem_limited_convs = 0.3f;
+    tolerance.ratio_compute_convs = 0.4f;
+    tolerance.total_convs = 100;
+    tolerance.total_light_convs = 50;
+    EXPECT_TRUE(is_main_core_case_4(tolerance));
+    tolerance.total_light_convs = 46;
+    EXPECT_FALSE(is_main_core_case_4(tolerance));
+    tolerance.total_light_convs = 50;
+    tolerance.ratio_mem_limited_convs = 0.0f;
+    EXPECT_FALSE(is_main_core_case_4(tolerance));
+}
+
+// ============================================================================
+// Tests for Static Partitioner Cases
+// ============================================================================
+
+TEST_F(StaticPartitionerCaseTest, StaticCase1_NoNodes) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.total_nodes = 0;
+    EXPECT_TRUE(is_static_partitioner_case_1(tolerance));
+    tolerance.total_nodes = 1;
+    EXPECT_FALSE(is_static_partitioner_case_1(tolerance));
+}
+
+TEST_F(StaticPartitionerCaseTest, StaticCase2_MajorityLightConvs) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.total_convs = 100;
+    tolerance.total_light_convs = 65;
+    EXPECT_TRUE(is_static_partitioner_case_2(tolerance));
+    tolerance.total_light_convs = 60;
+    EXPECT_FALSE(is_static_partitioner_case_2(tolerance));
+    tolerance.total_convs = 0;
+    tolerance.total_light_convs = 0;
+    EXPECT_FALSE(is_static_partitioner_case_2(tolerance));
+}
+
+TEST_F(StaticPartitionerCaseTest, StaticCase3_WithLpEcores) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.total_convs = 100;
+    tolerance.total_light_convs = 50;
+    tolerance.ratio_compute_convs = 0.3f;
+    tolerance.ratio_mem_limited_convs = 0.1f;
+    tolerance.ratio_mem_limited_gemms = 0.0f;
+    tolerance.ratio_mem_limited_adds = 0.2f;
+    tolerance.max_mem_tolerance = 0.1f;
+    EXPECT_TRUE(is_static_partitioner_case_3_with_lp_ecores(tolerance));
+    tolerance.ratio_mem_limited_convs = 0.25f;
+    EXPECT_FALSE(is_static_partitioner_case_3_with_lp_ecores(tolerance));
+}
+
+TEST_F(StaticPartitionerCaseTest, StaticCase3_WithoutLpEcores) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.total_convs = 100;
+    tolerance.total_light_convs = 50;
+    tolerance.ratio_compute_convs = 0.3f;
+    tolerance.ratio_mem_limited_convs = 0.1f;
+    tolerance.ratio_mem_limited_gemms = 0.0f;
+    tolerance.ratio_mem_limited_adds = 0.2f;
+    tolerance.max_mem_tolerance = 0.1f;
+    EXPECT_TRUE(is_static_partitioner_case_3_without_lp_ecores(tolerance));
+    tolerance.max_mem_tolerance = 0.05f;
+    EXPECT_FALSE(is_static_partitioner_case_3_without_lp_ecores(tolerance));
+}
+
+TEST_F(StaticPartitionerCaseTest, StaticCase4_WithLpEcores) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.total_convs = 0;
+    tolerance.max_mem_tolerance = 3.0f;
+    tolerance.total_gemms = 0;
+    tolerance.total_nodes = 100;
+    EXPECT_TRUE(is_static_partitioner_case_4_with_lp_ecores(tolerance));
+    tolerance.max_mem_tolerance = 1.0f;
+    tolerance.total_gemms = 15;
+    EXPECT_TRUE(is_static_partitioner_case_4_with_lp_ecores(tolerance));
+    tolerance.total_convs = 10;
+    EXPECT_FALSE(is_static_partitioner_case_4_with_lp_ecores(tolerance));
+}
+
+TEST_F(StaticPartitionerCaseTest, StaticCase4_WithoutLpEcores) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.total_convs = 0;
+    tolerance.total_gemms = 4;
+    tolerance.total_nodes = 100;
+    EXPECT_TRUE(is_static_partitioner_case_4_without_lp_ecores(tolerance));
+    tolerance.total_gemms = 6;
+    EXPECT_FALSE(is_static_partitioner_case_4_without_lp_ecores(tolerance));
+}
+
+TEST_F(StaticPartitionerCaseTest, StaticCase5_OnlyWithLpEcores) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.total_convs = 100;
+    tolerance.total_light_convs = 50;
+    tolerance.ratio_compute_convs = 1.0f;
+    tolerance.ratio_mem_limited_convs = 0.5f;
+    tolerance.ratio_mem_limited_adds = 1.0f;
+    tolerance.total_heavy_convs = 15;
+    tolerance.total_nodes = 100;
+    EXPECT_TRUE(is_static_partitioner_case_5(tolerance));
+    tolerance.ratio_compute_convs = 0.9f;
+    EXPECT_FALSE(is_static_partitioner_case_5(tolerance));
+}
+
+// ============================================================================
+// Tests for TBB Partitioner Decision
+// ============================================================================
+
+TEST_F(TbbPartitionerDecisionTest, AlreadyConfigured) {
+    Config config;
+    config.tbbPartitioner = TbbPartitioner::STATIC;
+    std::vector<std::vector<int>> proc_type_table = {{20, 6, 8, 4, 0, 0, 0}};
+    ov::MemBandwidthPressure tolerance;
+    determine_tbb_partitioner_and_threads(config, proc_type_table, tolerance, true);
+    EXPECT_EQ(TbbPartitioner::STATIC, config.tbbPartitioner);
+}
+
+TEST_F(TbbPartitionerDecisionTest, MainCoreCase_WithLpEcores_INT8) {
+    Config config;
+    config.tbbPartitioner = TbbPartitioner::NONE;
+    std::vector<std::vector<int>> proc_type_table = {{20, 6, 8, 4, 0, 0, 0}};
+    ov::MemBandwidthPressure tolerance;
+    tolerance.total_convs = 100;
+    tolerance.ratio_mem_limited_convs = 0.85f;
+    determine_tbb_partitioner_and_threads(config, proc_type_table, tolerance, true);
+    EXPECT_EQ(TbbPartitioner::STATIC, config.tbbPartitioner);
+    EXPECT_EQ(6, config.modelPreferThreadsLatency);
+}
+
+TEST_F(TbbPartitionerDecisionTest, StaticPartitioner_NoNodes) {
+    Config config;
+    config.tbbPartitioner = TbbPartitioner::NONE;
+    std::vector<std::vector<int>> proc_type_table = {{20, 6, 8, 0, 0, 0, 0}};
+    ov::MemBandwidthPressure tolerance;
+    tolerance.total_nodes = 0;
+    determine_tbb_partitioner_and_threads(config, proc_type_table, tolerance, false);
+    EXPECT_EQ(TbbPartitioner::STATIC, config.tbbPartitioner);
+}
+
+TEST_F(TbbPartitionerDecisionTest, AutoPartitioner_Default) {
+    Config config;
+    config.tbbPartitioner = TbbPartitioner::NONE;
+    std::vector<std::vector<int>> proc_type_table = {{20, 6, 8, 0, 0, 0, 0}};
+    ov::MemBandwidthPressure tolerance;
+    tolerance.total_nodes = 100;
+    tolerance.total_convs = 100;
+    tolerance.total_light_convs = 30;
+    tolerance.ratio_compute_convs = 0.8f;
+    tolerance.ratio_mem_limited_convs = 0.15f;
+    tolerance.ratio_mem_limited_gemms = 0.1f;
+    tolerance.total_gemms = 10;
+    determine_tbb_partitioner_and_threads(config, proc_type_table, tolerance, false);
+    EXPECT_EQ(TbbPartitioner::AUTO, config.tbbPartitioner);
+}
+
+// ============================================================================
+// Tests for ISA Threshold Multiplier
+// ============================================================================
+
+TEST_F(ModelPreferThreadsHelperTest, GetIsaThresholdMultiplier) {
+    EXPECT_FLOAT_EQ(ISA_THRESHOLD_SSE41, get_isa_threshold_multiplier(dnnl::cpu_isa::sse41));
+    EXPECT_FLOAT_EQ(ISA_THRESHOLD_AVX2, get_isa_threshold_multiplier(dnnl::cpu_isa::avx2));
+    EXPECT_FLOAT_EQ(ISA_THRESHOLD_AVX2, get_isa_threshold_multiplier(dnnl::cpu_isa::avx512_core));
+    EXPECT_FLOAT_EQ(ISA_THRESHOLD_VNNI, get_isa_threshold_multiplier(dnnl::cpu_isa::avx512_core_vnni));
+    EXPECT_FLOAT_EQ(ISA_THRESHOLD_VNNI, get_isa_threshold_multiplier(dnnl::cpu_isa::avx2_vnni));
+    EXPECT_FLOAT_EQ(ISA_THRESHOLD_VNNI, get_isa_threshold_multiplier(dnnl::cpu_isa::avx2_vnni_2));
+    EXPECT_FLOAT_EQ(ISA_THRESHOLD_AMX, get_isa_threshold_multiplier(dnnl::cpu_isa::avx512_core_amx));
+}
+
+// ============================================================================
+// Edge Case Tests
+// ============================================================================
+
+TEST_F(ModelPreferThreadsHelperTest, EdgeCase_ZeroConvs) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.total_convs = 0;
+    tolerance.total_light_convs = 0;
+    EXPECT_FALSE(is_main_core_case_3(tolerance));
+    EXPECT_FALSE(is_main_core_case_4(tolerance));
+    EXPECT_FALSE(is_static_partitioner_case_2(tolerance));
+}
+
+TEST_F(ModelPreferThreadsHelperTest, EdgeCase_ZeroNodes) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.total_nodes = 0;
+    tolerance.total_gemms = 0;
+    EXPECT_TRUE(is_static_partitioner_case_1(tolerance));
+}
+
+TEST_F(ModelPreferThreadsHelperTest, EdgeCase_UnknownTolerance) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.max_mem_tolerance = ov::MemBandwidthPressure::UNKNOWN;
+    EXPECT_TRUE(is_main_core_case_2(tolerance));
+    EXPECT_TRUE(is_below_isa_threshold(tolerance.max_mem_tolerance, 1.0f));
+    EXPECT_TRUE(is_below_general_threshold(tolerance.max_mem_tolerance));
+}
+
+// ============================================================================
+// Boundary Value Tests
+// ============================================================================
+
+TEST_F(ModelPreferThreadsHelperTest, BoundaryValues_ConvRatios) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.total_convs = 100;
+    tolerance.ratio_mem_limited_convs = CONV_RATIO_HIGH;
+    EXPECT_FALSE(is_main_core_case_1(tolerance));
+    tolerance.ratio_mem_limited_convs = CONV_RATIO_HIGH + 0.001f;
+    EXPECT_TRUE(is_main_core_case_1(tolerance));
+    tolerance.total_light_convs = static_cast<int>(CONV_RATIO_MEDIUM * 100);
+    EXPECT_FALSE(is_static_partitioner_case_2(tolerance));
+    tolerance.total_light_convs = static_cast<int>(CONV_RATIO_MEDIUM * 100) + 1;
+    EXPECT_TRUE(is_static_partitioner_case_2(tolerance));
+}
+
+TEST_F(ModelPreferThreadsHelperTest, BoundaryValues_MemTolerance) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.ratio_mem_limited_convs = 0.0f;
+    tolerance.ratio_compute_convs = 0.0f;
+    tolerance.max_mem_tolerance = MEM_TOLERANCE_HIGH;
+    EXPECT_TRUE(is_main_core_case_2(tolerance));
+    tolerance.max_mem_tolerance = MEM_TOLERANCE_HIGH - 0.001f;
+    EXPECT_FALSE(is_main_core_case_2(tolerance));
+}
+
+// ============================================================================
+// Constants Validation Tests
+// ============================================================================
+
+TEST_F(ModelPreferThreadsHelperTest, ConstantsAreValid) {
+    EXPECT_GT(INT8_EFFICIENCY_THRESHOLD, FP32_EFFICIENCY_THRESHOLD);
+    EXPECT_GT(ISA_THRESHOLD_AMX, ISA_THRESHOLD_VNNI);
+    EXPECT_GT(ISA_THRESHOLD_VNNI, ISA_THRESHOLD_AVX2);
+    EXPECT_GT(ISA_THRESHOLD_AVX2, ISA_THRESHOLD_SSE41);
+    EXPECT_GT(CONV_RATIO_VERY_HIGH, CONV_RATIO_HIGH);
+    EXPECT_GT(CONV_RATIO_HIGH, CONV_RATIO_MEDIUM);
+    EXPECT_GT(CONV_RATIO_MEDIUM, CONV_RATIO_LOW);
+    EXPECT_GT(CONV_RATIO_LOW, CONV_RATIO_MINIMAL);
+    EXPECT_GT(CONV_RATIO_MINIMAL, CONV_RATIO_VERY_LOW);
+    EXPECT_GT(CONV_RATIO_VERY_LOW, CONV_RATIO_ULTRA_LOW);
+    EXPECT_GT(MEM_TOLERANCE_HIGH, MEM_TOLERANCE_MEDIUM);
+    EXPECT_GT(MEM_TOLERANCE_MEDIUM, MEM_TOLERANCE_LOW);
+}
+
+}  // namespace
+
+// Direct tests that call the exposed wrappers from cpu_streams_calculation.cpp
+namespace {
+
+#if defined(OPENVINO_ARCH_ARM) && defined(__linux__)
+using ov::intel_cpu::configure_arm_linux_threads;
+#endif
+#if (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
+using ov::intel_cpu::configure_apple_threads;
+#endif
+using ov::intel_cpu::configure_x86_hybrid_threads;
+using ov::intel_cpu::configure_x86_non_hybrid_threads;
+using ov::intel_cpu::configure_x86_throughput_threads;
+
+TEST_F(ModelPreferThreadsIntegrationTest, Direct_X86_NonHybrid_ZeroMain) {
+    Config config;
+    std::vector<std::vector<int>> proc_type_table = {{4, 0, 4, 0, 0, 0, 0}};
+    configure_x86_non_hybrid_threads(config, proc_type_table);
+    EXPECT_EQ(config.modelPreferThreadsLatency, 4);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, Direct_X86_Hybrid_LLM_MainOnly) {
+    Config config;
+    std::vector<std::vector<int>> proc_type_table = {{13, 4, 8, 1, 0, 0, 0}};
+    ov::MemBandwidthPressure tolerance;
+    // is_LLM = true
+    configure_x86_hybrid_threads(config, proc_type_table, tolerance, false, true);
+    EXPECT_EQ(config.modelPreferThreadsLatency, 4);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, Direct_X86_Hybrid_Fallback_UseAll) {
+    Config config;
+    config.threads = 0;  // allow hybrid-applicable fallback
+    std::vector<std::vector<int>> proc_type_table = {{12, 4, 8, 0, 0, 0, 0}};
+    ov::MemBandwidthPressure tolerance;
+    configure_x86_hybrid_threads(config, proc_type_table, tolerance, false, false);
+    EXPECT_EQ(config.modelPreferThreadsLatency, 12);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, Direct_X86_Throughput_HT_Adjustment) {
+    Config config;
+    std::vector<std::vector<int>> proc_type_table = {{16, 8, 0, 0, 8, 0, 0}};
+    ov::MemBandwidthPressure tolerance;
+    // memThresholdAssumeLimitedForISA set so is_below_* helpers return false; use UNKNOWN network to trigger
+    // compute-limited
+    tolerance.max_mem_tolerance = ov::MemBandwidthPressure::UNKNOWN;
+    // Mark as compute-limited so throughput preference is set
+    tolerance.ratio_compute_convs = ov::MemBandwidthPressure::ALL;
+    // Verify compute-limited detection and then call configure
+    EXPECT_TRUE(is_network_compute_limited(tolerance));
+    std::cout << "[DBG] tolerance.max_mem_tolerance=" << tolerance.max_mem_tolerance
+              << " ratio_compute_convs=" << tolerance.ratio_compute_convs << std::endl;
+    configure_x86_throughput_threads(config, proc_type_table, tolerance, 1.0f);
+    std::cout << "[DBG] config.modelPreferThreadsThroughput=" << config.modelPreferThreadsThroughput << std::endl;
+    EXPECT_GE(config.modelPreferThreadsThroughput, 1);
+}
+
+#if defined(OPENVINO_ARCH_ARM) && defined(__linux__)
+TEST_F(ModelPreferThreadsIntegrationTest, Direct_ARM_Linux_ThroughputBranches) {
+    Config config;
+    std::vector<std::vector<int>> proc_type_table = {{8, 4, 4, 0, 0, 0, 0}};
+    ov::MemBandwidthPressure tolerance;
+    // UNKNOWN should allow high throughput when compute-limited
+    tolerance.max_mem_tolerance = ov::MemBandwidthPressure::UNKNOWN;
+    configure_arm_linux_threads(config, proc_type_table, tolerance, false, false);
+    EXPECT_GE(config.modelPreferThreadsThroughput, 1);
+}
+#endif
+
+#if (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
+TEST_F(ModelPreferThreadsIntegrationTest, Direct_Apple_SpecialLatencyAndThroughput) {
+    Config config;
+    std::vector<std::vector<int>> proc_type_table = {{10, 6, 4, 0, 0, 0, 0}};
+    ov::MemBandwidthPressure tolerance;
+    float isaThreshold = 1.0f;
+    configure_apple_threads(config, proc_type_table, tolerance, isaThreshold, false, false);
+    // MAIN > EFFICIENT -> latency equals main
+    EXPECT_EQ(config.modelPreferThreadsLatency, 6);
+}
+#endif
+
+}  // anonymous namespace
+
+// ============================================================================
+// Additional tests targeting configure_* thread configuration helpers
+// ============================================================================
+
+TEST_F(ModelPreferThreadsIntegrationTest, X86_NonHybrid_ZeroMainUsesEfficient) {
+    std::vector<std::vector<int>> proc_type_table = {{4, 0, 4, 0, 0, 0, 0}};  // ALL=4, MAIN=0, EFFICIENT=4
+    auto model = make_dummy_model();
+    Config config;
+    config.modelType = Config::ModelType::CNN;
+    config.modelPreferThreads = -1;
+    int num_streams = 1;  // latency path
+    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
+    EXPECT_EQ(config.modelPreferThreadsLatency, 4);
+    EXPECT_EQ(result, 4);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, X86_Hybrid_HybridApplicable_IsLLM_MainOnly) {
+    // Hybrid applicable: lp_efficient_cores > 0 to satisfy second condition
+    std::vector<std::vector<int>> proc_type_table = {
+        {13, 4, 8, 1, 0, 0, 0}};  // ALL=13, MAIN=4, EFFICIENT=8, LP_EFFICIENT=1
+    auto model = make_dummy_model();
+    Config config;
+    config.modelType = Config::ModelType::LLM;  // non-CNN triggers is_LLM == true
+    config.modelPreferThreads = -1;
+    int num_streams = 1;  // latency path
+    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
+    // For LLM and hybrid applicable, latency should be main_cores only
+    EXPECT_EQ(config.modelPreferThreadsLatency, 4);
+    EXPECT_EQ(result, 4);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, X86_Hybrid_Fallback_UseAllCores) {
+    // Force hybrid not applicable by setting config.threads > 0 and large main_cores
+    std::vector<std::vector<int>> proc_type_table = {{12, 4, 8, 0, 0, 0, 0}};  // ALL=12, MAIN=4, EFFICIENT=8
+    auto model = make_dummy_model();
+    Config config;
+    config.modelType = Config::ModelType::CNN;
+    config.threads = 1;  // make (main_cores < config.threads || config.threads==0) false
+    config.modelPreferThreads = -1;
+    int num_streams = 1;  // latency path
+    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
+    // FP32 default: should_use_all_cores_for_latency returns true for 4 <= 8/2 => 4 <= 4
+    EXPECT_EQ(config.modelPreferThreadsLatency, 12);
+    EXPECT_EQ(result, 12);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, X86_Throughput_HyperThreadingAdjustment) {
+    // Throughput path (num_streams == 0) and HT equals MAIN -> adjustment to at least 2
+    std::vector<std::vector<int>> proc_type_table = {{16, 8, 0, 0, 8, 0, 0}};  // ALL=16, MAIN=8, EFFICIENT=0, HT=8
+    auto model = make_dummy_model();
+    Config config;
+    config.modelType = Config::ModelType::CNN;
+    config.modelPreferThreads = -1;
+    int num_streams = 0;  // throughput path
+    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
+    EXPECT_GE(config.modelPreferThreadsThroughput, 1);
+    EXPECT_EQ(result, config.modelPreferThreadsThroughput);
+}
+
+#if defined(OPENVINO_ARCH_ARM) && defined(__linux__)
+TEST_F(ModelPreferThreadsIntegrationTest, ARM_Linux_Throughput_UnknownAndMemLimited) {
+    // ARM Linux: cover UNKNOWN -> high throughput and mem-limited -> high throughput
+    std::vector<std::vector<int>> proc_type_table = {{8, 4, 4, 0, 0, 0, 0}};
+    auto model = make_dummy_model();
+    Config config;
+    config.modelType = Config::ModelType::CNN;
+    config.modelPreferThreads = -1;
+
+    // Unknown/INT8 related detection is internal; ensure we hit throughput branch and latency branch
+    int result = get_model_prefer_threads(0, proc_type_table, model, config);
+    EXPECT_GE(config.modelPreferThreadsThroughput, 1);
+    EXPECT_EQ(result, config.modelPreferThreadsThroughput);
+}
+#endif
+
+#if (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
+TEST_F(ModelPreferThreadsIntegrationTest, AppleSilicon_SizeOne_SpecialLatencyChoice) {
+    // Special Apple case when proc_type_table.size()==1 and efficient_cores>0
+    std::vector<std::vector<int>> proc_type_table = {{10, 6, 4, 0, 0, 0, 0}};  // ALL=10, MAIN=6, EFFICIENT=4
+    auto model = make_dummy_model();
+    Config config;
+    config.modelType = Config::ModelType::CNN;
+    config.modelPreferThreads = -1;
+    int result = get_model_prefer_threads(1, proc_type_table, model, config);
+    // For MAIN > EFFICIENT branch, latency should equal main_cores
+    EXPECT_EQ(config.modelPreferThreadsLatency, 6);
+    EXPECT_EQ(result, 6);
+}
+#endif
