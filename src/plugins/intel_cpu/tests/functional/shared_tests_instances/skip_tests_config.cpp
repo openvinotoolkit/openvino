@@ -490,11 +490,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_Snippets.*\[.*\?.*\].*)");
     retVector.emplace_back(R"(smoke_Snippets(?!_(Eltwise|ThreeInputsEltwise)(/|_)).*)");
     retVector.emplace_back(R"(.*_enforceSnippets=1.*)");
-    retVector.emplace_back(R"(smoke_Snippets_Eltwise/AddPair\..*)");
-    retVector.emplace_back(R"(smoke_Snippets_Eltwise/AddConst\..*)");
-    retVector.emplace_back(R"(smoke_Snippets_Eltwise/AddRollConst\..*)");
-    retVector.emplace_back(R"(smoke_Snippets_Eltwise_(FP16/)?AddConst\..*)");
-    retVector.emplace_back(R"(smoke_Snippets_Eltwise_(BF16/)?AddRollConst\..*)");
+    retVector.emplace_back(R"(smoke_Snippets_Eltwise(_(FP|BF)16)?/Add.*)");
     retVector.emplace_back(R"(smoke_Snippets_Eltwise/TwoInputsAndOutputs.*)");
 #endif
 #if defined(_WIN32)
