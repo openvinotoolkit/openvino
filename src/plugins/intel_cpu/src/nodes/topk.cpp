@@ -30,6 +30,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
@@ -2143,12 +2144,12 @@ void TopK::prepareParams() {
         // [case 1]: if 2 * (top_k + 1) + 2 <= count_xmm, thus top_k is small enough that the vector registers are
         // sufficient
         //           to keep all necessary data for sorting, no need to load and store frequently, use inplace bubble
-        //           sort; (horizotal sorting cases not included)
+        //           sort; (horizontal sorting cases not included)
         // [case 2]: if stable sorting is required, bubble sort(topk_bubble_vector/topk_bubble_BLK_on_channel_verti)
         // will be
         //           applied currently, because among the implemented sorting algorithms, these bubble sort
         //           implementations are the only stable ones;
-        // [case 3]: only when topk is imposed on innermost dimsension of planar(ncsp/nspc) layout, should heap sort be
+        // [case 3]: only when topk is imposed on innermost dimension of planar(ncsp/nspc) layout, should heap sort be
         // used; [case 4]: by default, use bitonic sort when alg_cost_bitonic < alg_cost_bubble, otherwise use bubble
         // sort.
         //           alg_cost_bitonic = (N / 4) * logN * (logN + 1)
@@ -2180,6 +2181,38 @@ void TopK::prepareParams() {
         }
 
         prepare_original_idx();
+
+        if (algorithm == TopKAlgorithm::topk_bitonic_sort) {
+            size_t src_count = srcMemPtr->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+#if defined(OPENVINO_ARCH_ARM64)
+            const size_t bitonic_data_size = 4;
+            const size_t process_vals = src_count * bitonic_data_size;
+#else
+            const size_t process_vals = src_count * data_size;
+#endif
+            const size_t process_idx = src_count * sizeof(int32_t);
+            if (vec_process_ptr.size() < process_vals) {
+                vec_process_ptr.resize(process_vals);
+            }
+            if (vec_process_idx_ptr.size() < process_idx) {
+                vec_process_idx_ptr.resize(process_idx);
+            }
+        }
+
+#if defined(OPENVINO_ARCH_ARM64)
+        {
+            const size_t topk_plus = static_cast<size_t>(top_k) + 1;
+            const size_t scratch_data_size = 4;
+            const size_t max_work_amount =
+                (layout == TopKLayoutType::topk_blocked && topk_innermost) ? 1 : static_cast<size_t>(blk_size);
+            const size_t scratch_vals = max_work_amount * topk_plus * scratch_data_size;
+            const size_t scratch_idx = max_work_amount * topk_plus * sizeof(int32_t);
+            const bool need_scratch = !(algorithm == TopKAlgorithm::topk_bubble_sort && bubble_inplace) &&
+                                      algorithm != TopKAlgorithm::topk_bitonic_sort;
+            process_scratch_bytes = need_scratch ? scratch_vals : 0;
+            process_idx_scratch_bytes = need_scratch ? scratch_idx : 0;
+        }
+#endif
     } else {  // reference mode
         for (int j = src_dims.size() - 1; j >= 0; j--) {
             if (src_dims[j] != 1) {
@@ -2229,7 +2262,11 @@ void TopK::createPrimitive() {
         jcp.sort_index = sort_index;
         jcp.topk_innermost = topk_innermost;
         jcp.algorithm = algorithm;
+#if defined(OPENVINO_ARCH_ARM64)
+        jcp.bubble_inplace = bubble_inplace && top_k <= 8;
+#else
         jcp.bubble_inplace = bubble_inplace;
+#endif
         jcp.stable = stable;
         jcp.sort_stride = static_cast<int>(I);
         jcp.work_amount = static_cast<int>(I);
@@ -2238,7 +2275,12 @@ void TopK::createPrimitive() {
 
         if (algorithm == TopKAlgorithm::topk_bitonic_sort) {
             size_t src_count = srcMemPtr->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+#if defined(OPENVINO_ARCH_ARM64)
+            const size_t scratch_data_size = 4;
+            vec_process_ptr.resize(src_count * scratch_data_size);
+#else
             vec_process_ptr.resize(src_count * data_size);
+#endif
             vec_process_idx_ptr.resize(src_count * sizeof(int32_t));
 
             calc_bitonic_idx(axis_dim, jcp.bitonic_idx_cnt, true);
@@ -2295,6 +2337,40 @@ void TopK::topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* out_id
     const auto& cpu_parallel = context->getCpuParallel();
     uint8_t* process_ptr = vec_process_ptr.data();
     uint8_t* process_idx_ptr = vec_process_idx_ptr.data();
+#if defined(OPENVINO_ARCH_ARM64)
+    const size_t bitonic_data_size = 4;
+#endif
+#if defined(OPENVINO_ARCH_ARM64)
+    if (algorithm != TopKAlgorithm::topk_bitonic_sort && process_scratch_bytes == 0) {
+        process_ptr = nullptr;
+        process_idx_ptr = nullptr;
+    }
+    if (process_scratch_bytes) {
+        const size_t threads = static_cast<size_t>(cpu_parallel->get_num_threads());
+        const size_t total_vals = threads * process_scratch_bytes;
+        const size_t total_idx = threads * process_idx_scratch_bytes;
+        if (vec_process_ptr.size() < total_vals) {
+            vec_process_ptr.resize(total_vals);
+        }
+        if (vec_process_idx_ptr.size() < total_idx) {
+            vec_process_idx_ptr.resize(total_idx);
+        }
+        process_ptr = vec_process_ptr.data();
+        process_idx_ptr = vec_process_idx_ptr.data();
+    }
+#endif
+    auto get_thread_scratch = [&](uint8_t* base, uint8_t* base_idx) {
+        uint8_t* prc = base;
+        uint8_t* prc_idx = base_idx;
+#if defined(OPENVINO_ARCH_ARM64)
+        if (prc && process_scratch_bytes) {
+            const size_t tid = static_cast<size_t>(parallel_get_thread_num());
+            prc += tid * process_scratch_bytes;
+            prc_idx += tid * process_idx_scratch_bytes;
+        }
+#endif
+        return std::make_pair(prc, prc_idx);
+    };
 
     // [blocked layout with topk on C]
     if (layout == TopKLayoutType::topk_blocked && topk_innermost) {
@@ -2305,14 +2381,28 @@ void TopK::topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* out_id
                 const uint8_t* in_ptr_a = in_ptr + (o * IA * I + i) * blk_size * data_size;
                 uint8_t* out_ptr_a = out_ptr + (o * OA * I + i) * blk_size * data_size;
                 uint8_t* out_idx_ptr_a = out_idx_ptr + (o * OA * I + i) * blk_size * sizeof(int32_t);
+                auto scratch = get_thread_scratch(process_ptr, process_idx_ptr);
+#if defined(OPENVINO_ARCH_ARM64)
+                uint8_t* process_ptr_a = scratch.first;
+                uint8_t* process_idx_ptr_a = scratch.second;
+                size_t work_amount = 1;
+                topk_kernel_process(in_ptr_a, out_ptr_a, out_idx_ptr_a, process_ptr_a, process_idx_ptr_a, work_amount);
+#else
                 size_t work_amount = 1;
                 topk_kernel_process(in_ptr_a, out_ptr_a, out_idx_ptr_a, nullptr, nullptr, work_amount);
+#endif
             });
         } else if (algorithm == TopKAlgorithm::topk_bitonic_sort) {
             cpu_parallel->parallel_for(O, [&](size_t o) {
                 const uint8_t* in_ptr_a = in_ptr + o * IA * I * blk_size * data_size;
-                uint8_t* process_ptr_a = process_ptr + o * IA * I * blk_size * data_size;
+#if defined(OPENVINO_ARCH_ARM64)
+                uint8_t* process_ptr_a = process_ptr + o * IA * I * blk_size * bitonic_data_size;
                 uint8_t* process_idx_ptr_a = process_idx_ptr + o * IA * I * blk_size * sizeof(int32_t);
+#else
+                auto scratch = get_thread_scratch(process_ptr, process_idx_ptr);
+                uint8_t* process_ptr_a = scratch.first + o * IA * I * blk_size * data_size;
+                uint8_t* process_idx_ptr_a = scratch.second + o * IA * I * blk_size * sizeof(int32_t);
+#endif
                 uint8_t* out_ptr_a = out_ptr + o * OA * I * blk_size * data_size;
                 uint8_t* out_idx_ptr_a = out_idx_ptr + o * OA * I * blk_size * sizeof(int32_t);
                 size_t work_amount = I;
@@ -2322,8 +2412,21 @@ void TopK::topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* out_id
     } else {  // [planar layout] [blocked layout with topk on non-C]
         cpu_parallel->parallel_for2d(O, I / blk_size, [&](size_t o, size_t k) {
             const uint8_t* in_ptr_a = in_ptr + (o * A * I + k * blk_size) * data_size;
-            uint8_t* process_ptr_a = process_ptr + (o * A * I + k * blk_size) * data_size;
-            uint8_t* process_idx_ptr_a = process_idx_ptr + (o * A * I + k * blk_size) * sizeof(int32_t);
+            auto scratch = get_thread_scratch(process_ptr, process_idx_ptr);
+#if defined(OPENVINO_ARCH_ARM64)
+            uint8_t* process_ptr_a = nullptr;
+            uint8_t* process_idx_ptr_a = nullptr;
+            if (algorithm == TopKAlgorithm::topk_bitonic_sort) {
+                process_ptr_a = process_ptr + (o * A * I + k * blk_size) * bitonic_data_size;
+                process_idx_ptr_a = process_idx_ptr + (o * A * I + k * blk_size) * sizeof(int32_t);
+            } else {
+                process_ptr_a = scratch.first;
+                process_idx_ptr_a = scratch.second;
+            }
+#else
+            uint8_t* process_ptr_a = scratch.first + (o * A * I + k * blk_size) * data_size;
+            uint8_t* process_idx_ptr_a = scratch.second + (o * A * I + k * blk_size) * sizeof(int32_t);
+#endif
             uint8_t* out_ptr_a = out_ptr + (o * top_k * I + k * blk_size) * data_size;
             uint8_t* out_idx_ptr_a = out_idx_ptr + (o * top_k * I + k * blk_size) * sizeof(int32_t);
             size_t work_amount = blk_size;
@@ -2335,8 +2438,21 @@ void TopK::topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* out_id
         if (work_amount) {
             cpu_parallel->parallel_for(O, [&](size_t o) {
                 const uint8_t* in_ptr_a = in_ptr + (o * A * I + tail_start) * data_size;
-                uint8_t* process_ptr_a = process_ptr + (o * A * I + tail_start) * data_size;
-                uint8_t* process_idx_ptr_a = process_idx_ptr + (o * A * I + tail_start) * sizeof(int32_t);
+                auto scratch = get_thread_scratch(process_ptr, process_idx_ptr);
+#if defined(OPENVINO_ARCH_ARM64)
+                uint8_t* process_ptr_a = nullptr;
+                uint8_t* process_idx_ptr_a = nullptr;
+                if (algorithm == TopKAlgorithm::topk_bitonic_sort) {
+                    process_ptr_a = process_ptr + (o * A * I + tail_start) * bitonic_data_size;
+                    process_idx_ptr_a = process_idx_ptr + (o * A * I + tail_start) * sizeof(int32_t);
+                } else {
+                    process_ptr_a = scratch.first;
+                    process_idx_ptr_a = scratch.second;
+                }
+#else
+                uint8_t* process_ptr_a = scratch.first + (o * A * I + tail_start) * data_size;
+                uint8_t* process_idx_ptr_a = scratch.second + (o * A * I + tail_start) * sizeof(int32_t);
+#endif
                 uint8_t* out_ptr_a = out_ptr + (o * top_k * I + tail_start) * data_size;
                 uint8_t* out_idx_ptr_a = out_idx_ptr + (o * top_k * I + tail_start) * sizeof(int32_t);
                 topk_kernel_process(in_ptr_a, out_ptr_a, out_idx_ptr_a, process_ptr_a, process_idx_ptr_a, work_amount);

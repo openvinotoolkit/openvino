@@ -169,10 +169,6 @@ file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
                       ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
-if(OV_CPU_TOPK_MICROBENCH)
-    list(APPEND EXCLUDE_PATHS
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/aarch64/topk_microbench.cpp)
-endif()
 
 if(NOT OV_CPU_WITH_ACL)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/acl/*
@@ -438,31 +434,6 @@ if(OV_CPU_WITH_ACL)
         target_include_directories(${TARGET_NAME}_obj PRIVATE
             ${OpenVINO_SOURCE_DIR}/src/inference/include)
     endif()
-endif()
-
-option(OV_CPU_TOPK_MICROBENCH "Build TopK microbenchmark (AArch64 only)" OFF)
-if(OV_CPU_TOPK_MICROBENCH AND AARCH64 AND BUILD_SHARED_LIBS)
-    set(OV_CPU_TOPK_MICROBENCH_OBJ $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
-    add_executable(ov_cpu_topk_microbench
-        src/nodes/kernels/aarch64/topk_microbench.cpp
-        ${OV_CPU_TOPK_MICROBENCH_OBJ})
-    target_include_directories(ov_cpu_topk_microbench PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${OpenVINO_SOURCE_DIR}/src/core/include
-        ${OpenVINO_SOURCE_DIR}/src/core/dev_api
-        $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
-        ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn
-        ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/third_party)
-    target_link_libraries(ov_cpu_topk_microbench PRIVATE
-        dnnl
-        openvino::shape_inference
-        openvino_runtime_s
-        openvino_xml_util
-        openvino::snippets
-        ov_snippets_models
-        openvino::pugixml)
-    ov_set_threading_interface_for(ov_cpu_topk_microbench)
 endif()
 
 if(ENABLE_TESTS)
