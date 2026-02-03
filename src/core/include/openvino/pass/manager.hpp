@@ -18,28 +18,6 @@ namespace pass {
  * @brief Manager class allows to manage transformation passes
  * @ingroup ov_pass_cpp_api
  */
-
-struct MemoryInfo {
-    size_t vm_rss_bytes = 0;  // Resident set size (RAM in use)
-    size_t vm_size_bytes = 0; // Virtual memory size (address space)
-    int64_t convert_to_mb(int64_t bytes) {
-        return bytes / 1024 / 1024;
-    }
-    int64_t diff(size_t before, size_t after) {
-        return static_cast<int64_t>(after) - static_cast<int64_t>(before);
-    }
-    void print() {
-        std::cout << "Memory Info: VmRSS = " << convert_to_mb(vm_rss_bytes) << " MB, VmSize = " << convert_to_mb(vm_size_bytes) << " MB"
-                  << std::endl;
-    }
-    void print_diff(const MemoryInfo& before) {
-        std::cout << "Memory Diff: VmRSS = " << convert_to_mb(diff(before.vm_rss_bytes, vm_rss_bytes))
-                  << " MB, VmSize = " << convert_to_mb(diff(before.vm_size_bytes, vm_size_bytes)) << " MB" << std::endl;
-    }
-};
-    
-MemoryInfo getProcessMemoryInfo();
- 
 class OPENVINO_API Manager {
 public:
     Manager();
@@ -101,8 +79,6 @@ public:
     /// each registered pass
     /// \param new_state Value "true" enables Validate pass run; "false", otherwise
     void set_per_pass_validation(bool new_state);
-    
-    void enable_pass_validation(bool new_state);
 
     /// \return PassConfig shared object. This object is used for transformations pipeline
     /// configuration.
@@ -125,11 +101,10 @@ protected:
     std::shared_ptr<PassConfig> m_pass_config;
     std::vector<std::shared_ptr<PassBase>> m_pass_list;
     bool m_per_pass_validation = true;
-    bool m_needs_validation = false;
     std::string m_name = "UnnamedManager";
 
 private:
-    bool run_pass(const std::shared_ptr<PassBase>& pass, const std::shared_ptr<Model>& model);
+    bool run_pass(const std::shared_ptr<PassBase>& pass, const std::shared_ptr<Model>& model, bool needs_validate);
 };
 }  // namespace pass
 }  // namespace ov

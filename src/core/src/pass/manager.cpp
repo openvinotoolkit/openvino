@@ -23,6 +23,8 @@
 #include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
 
+#ifdef ENABLE_PROFILING_ITT_FULL
+
 namespace ov {
 namespace pass {
 namespace {
@@ -31,25 +33,10 @@ PerfCounters& perf_counters() {
     return counters;
 }
 }  // namespace
-
-MemoryInfo getProcessMemoryInfo() {
-    std::ifstream status("/proc/self/status");
-    std::string line;
-    MemoryInfo info;
-    while (std::getline(status, line)) {
-        if (line.rfind("VmRSS:", 0) == 0) {
-            std::sscanf(line.c_str(), "VmRSS: %zu", &info.vm_rss_bytes);
-            info.vm_rss_bytes *= 1024; // KB → bytes
-        } else if (line.rfind("VmSize:", 0) == 0) {
-            std::sscanf(line.c_str(), "VmSize: %zu", &info.vm_size_bytes);
-            info.vm_size_bytes *= 1024;
-        }
-    }
-    return info;
-}
-
 }  // namespace pass
 }  // namespace ov
+
+#endif  // ENABLE_PROFILING_ITT_FULL
 
 namespace {
 
@@ -210,16 +197,6 @@ public:
         }
     }
 
-    void init() {
-        m_pass_time.start();
-    }
-
-    void finalize() {
-        std::cout << std::setw(25) << std::left;
-        std::cout << "Pass summary: ";
-        std::cout << std::setw(5) << std::right << m_pass_time.get_milliseconds() << "ms " << std::endl;
-    }
-
     void start_timer(const std::string& name) {
         if (m_profile_pass.is_enabled()) {
             stopwatches[name] = stopwatch();
@@ -326,9 +303,7 @@ private:
         file_name += "_" + index_str + "_" + pass_name;
         return file_name;
     }
-    
-    static stopwatch m_pass_time;
-    
+
     std::unordered_map<std::string, stopwatch> stopwatches;
 
     EnvVar m_visualize;
@@ -338,9 +313,6 @@ private:
     std::string m_manager_name;
     std::fstream m_file;
 };
-
-// Definition of the static member
-stopwatch Profiler::m_pass_time;
 
 }  // namespace
 
@@ -361,87 +333,34 @@ void ov::pass::Manager::set_per_pass_validation(bool new_state) {
     m_per_pass_validation = new_state;
 }
 
-void ov::pass::Manager::enable_pass_validation(bool new_state) {
-    m_needs_validation = new_state;
-}
-
 bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, "pass::Manager::run_passes");
     Profiler profiler(m_name);
 
     bool model_changed = false;
-    bool needs_validation = false;
     bool pass_changed_model = false;
 
-    struct Summarizer {
-        size_t vm_rss = 0;
-        size_t vm = 0;
-        std::string pass_name;
-    } summarizer;
-    
-    static Summarizer max_rss_consumer;
-    static Summarizer max_vm_consumer;
-    static Summarizer max_all_consumer;
-    
-    profiler.init();
     profiler.start_timer(m_name);
     for (const auto& pass : m_pass_list) {
         const auto& pass_name = pass->get_name();
 
         profiler.start_timer(pass_name);
-        
-        MemoryInfo mem_info_before = getProcessMemoryInfo();
-        std::cout << "Pass: " << pass_name << std::endl;
-        mem_info_before.print();
-        
-        if (needs_validation) {
-            pass->m_pass_config->enable<ov::pass::Validate>();
-            needs_validation = false;
-        } else {
-            pass->m_pass_config->disable<ov::pass::Validate>();
-        }
-        
-        pass_changed_model = run_pass(pass, model);
-        
-        MemoryInfo mem_info_after = getProcessMemoryInfo();
-        mem_info_after.print();
-        mem_info_after.print_diff(mem_info_before);
-
-        if(mem_info_after.vm_rss_bytes > max_vm_consumer.vm_rss) {
-            max_vm_consumer.vm_rss = mem_info_after.vm_rss_bytes;
-            max_vm_consumer.vm = mem_info_after.vm_size_bytes;
-            max_vm_consumer.pass_name = pass_name;
-        }
-        if(mem_info_after.vm_rss_bytes > max_rss_consumer.vm_rss) {
-            max_rss_consumer.vm_rss = mem_info_after.vm_rss_bytes;
-            max_rss_consumer.vm = mem_info_after.vm_size_bytes;
-            max_rss_consumer.pass_name = pass_name;
-        }
-        if (mem_info_after.vm_size_bytes + mem_info_after.vm_rss_bytes > max_all_consumer.vm + max_all_consumer.vm_rss) {
-            max_all_consumer.vm = mem_info_after.vm_size_bytes;
-            max_all_consumer.vm_rss = mem_info_after.vm_rss_bytes;
-            max_all_consumer.pass_name = pass_name;
-        }
+        pass_changed_model = run_pass(pass, model, pass_changed_model);
         profiler.stop_timer(pass_name, pass_changed_model);
-        
-        needs_validation = needs_validation || pass_changed_model;
+
         model_changed = model_changed || pass_changed_model;
 
         profiler.visualize(model, pass_name);
         profiler.serialize(model, pass_name);
     }
     profiler.stop_timer(m_name, model_changed);
-    profiler.finalize();
-
-    std::cout << "Max memory (RSS) allocated by pass: " << max_rss_consumer.pass_name << " RSS: " << max_rss_consumer.vm_rss << " VM: " << max_rss_consumer.vm << std::endl;
-    std::cout << "Max memory (VM) allocated by pass: " << max_vm_consumer.pass_name << " RSS: " << max_vm_consumer.vm_rss << " VM: " << max_vm_consumer.vm << std::endl;
-    std::cout << "Max memory allocated (RSS+VM): " << max_all_consumer.pass_name << " RSS: " << max_all_consumer.vm_rss << " VM: " << max_all_consumer.vm << std::endl;
 
     return model_changed;
 }
 
 bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass,
-                                 const std::shared_ptr<Model>& model) {
+                                 const std::shared_ptr<Model>& model,
+                                 bool needs_validate) {
     if (m_pass_config->is_disabled(pass->get_type_info())) {
         OPENVINO_DEBUG("Pass ", pass->get_name(), " is disabled.");
         return false;
@@ -463,6 +382,9 @@ bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass,
         // GraphRewrite is a temporary container for MatcherPass to make execution on entire ov::Model
         return GraphRewrite(matcher_pass).run_on_model(model);
     } else if (auto model_pass = ov::as_type_ptr<ModelPass>(pass)) {
+        if (ov::as_type_ptr<ov::pass::Validate>(model_pass) && !needs_validate) {
+            return false;
+        }
         return model_pass->run_on_model(model);
     }
     return false;

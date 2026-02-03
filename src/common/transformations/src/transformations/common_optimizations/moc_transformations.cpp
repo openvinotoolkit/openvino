@@ -98,7 +98,6 @@
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/smart_reshape/reshape_sinking.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
-#include "openvino/pass/serialize.hpp"
 
 using namespace ov::element;
 
@@ -255,9 +254,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(common_fusions, ConvertU4WeightsZeroPointToScalar)
     common_fusions->set_name("ov::pass::CommonFusions");
 
-    // manager.register_pass<Serialize>("model_before_mul_fusions.xml", "model_before_mul_fusions.bin");
     REGISTER_PASS(manager, PackMultiHeadAttention)
-    // manager.register_pass<Serialize>("model_after_mul_fusions.xml", "model_after_mul_fusions.bin");
     REGISTER_PASS(manager, SDPAFusion)
     REGISTER_PASS(manager, BinarizeWeights)
     REGISTER_PASS(manager, ConvToBinaryConv)
@@ -300,7 +297,6 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     // tests/model_hub_tests/transformation_tests/test_moe_transformation.py
     REGISTER_PASS(manager, FuseMOE)
     REGISTER_PASS(manager, VectorizedMOE2GEMMTransposeWeights)
-    manager.register_pass<Serialize>("model_moc.xml", "model_moc.bin");
 
     manager.run_passes(f);
 
