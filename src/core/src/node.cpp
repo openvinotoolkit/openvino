@@ -20,9 +20,9 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/util/log.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/allocator_mmap.hpp"
+#include "openvino/util/log.hpp"
 #include "shape_validation.hpp"
 #include "shared_node_info.hpp"
 
@@ -722,7 +722,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     if (!Node::can_constant_fold(input_values)) {
         return false;
     }
-    
+
     NodeVector nodes;
     TensorVector input_tensors;
     for (const auto& input : input_values) {
@@ -746,7 +746,6 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
         }
     }
 
-    
     if (evaluate(output_tensors, input_tensors)) {
         for (size_t i = 0; i < output_tensors.size(); ++i) {
             output_values[i] = make_shared<ov::op::v0::Constant>(output_tensors[i]);

@@ -124,7 +124,7 @@ struct MmapAnonymousAllocator {
         if (!handle) {
             return;
         }
-        std::cout << "Deallocating mmap memory: " << handle << std::endl; 
+        std::cout << "Deallocating mmap memory: " << handle << std::endl;
 
         auto* hdr = reinterpret_cast<Header*>(reinterpret_cast<std::uintptr_t>(handle) - sizeof(Header));
         if (hdr->fd >= 0) {
