@@ -14,12 +14,12 @@ extern "C" __declspec(allocate(".shutdown_sec$z")) void (*__ov_shutdown_end)(voi
 #elif (defined(__GNUC__) || defined(__clang__))
 
 #    if defined(__APPLE__)
-extern "C" void (*__ov_shutdown_start)(void) __asm("section$start$__DATA$__shutdown_sec");
-extern "C" void (*__ov_shutdown_end)(void) __asm("section$end$__DATA$__shutdown_sec");
+extern "C" void (*__start___shutdown_sec)(void) __asm("section$start$__DATA$__shutdown_sec");
+extern "C" void (*__stop___shutdown_sec)(void) __asm("section$end$__DATA$__shutdown_sec");
 #    else
 // Get the release start/end addresses (GCC/Clang)
-extern "C" void (*__ov_shutdown_start)(void);
-extern "C" void (*__ov_shutdown_end)(void);
+extern "C" void (*__start___shutdown_sec)(void);
+extern "C" void (*__stop___shutdown_sec)(void);
 #    endif
 
 #else
@@ -27,8 +27,13 @@ extern "C" void (*__ov_shutdown_end)(void);
 #endif
 
 static void shutdown_resources() {
+#if defined(_MSC_VER)
     void (**start)(void) = &__ov_shutdown_start;
     void (**end)(void) = &__ov_shutdown_end;
+#elif defined(__GNUC__) || defined(__clang__)
+    void (**start)(void) = &__start___shutdown_sec;
+    void (**end)(void) = &__stop___shutdown_sec;
+#endif
 
     for (void (**func)(void) = start; func != end; ++func) {
         if (*func) {
