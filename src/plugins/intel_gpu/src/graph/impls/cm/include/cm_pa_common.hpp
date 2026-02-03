@@ -15,12 +15,6 @@
  *******************************************************************************/
 #include "cm_attention_common.hpp"
 
-#ifdef CM_HAS_LSC_UNTYPED_2D
-#define USE_LSC 1
-#else
-#define USE_LSC 0
-#endif
-
 #if CMPA_KVCACHE_U8
 template<bool use_causal_mask, int num_heads, int num_kv_heads, int head_size, int is_q_fused = 0>
 void pa_lsc_u8(
@@ -32,14 +26,14 @@ void pa_lsc_u8(
     int kv_stop,
     int q_len,
     int kv_len,
-#if USE_LSC
+#ifdef CM_HAS_LSC_UNTYPED_2D
     svmptr_t q_base [[type("svmptr_t")]],
 #else
     SurfaceIndex q_gather,
     uint32_t q_gather_offset_bytes,
 #endif
     svmptr_t k_cache_base [[type("svmptr_t")]],
-#if USE_LSC
+#ifdef CM_HAS_LSC_UNTYPED_2D
     svmptr_t v_cache_base [[type("svmptr_t")]],
 #else
     SurfaceIndex v_cache_stateful [[type("buffer_t")]],
@@ -76,7 +70,7 @@ void pa_lsc_u8(
     if (q_tokens_left < 0) q_tokens_left = 0;
     if (q_tokens_left > q_step) q_tokens_left = q_step;
     if (q_tokens_left > 0) {
-        #if USE_LSC
+        #ifdef CM_HAS_LSC_UNTYPED_2D
         lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQ(reinterpret_cast<uint*>(q_base), q_tokens_left - 1, head_size*sizeof(half) - 1, q_pitch - 1, 0, 0);
         #pragma unroll
         for(int k = 0, ri = 0; k < head_size/2; k += REG_K/2, ri++) {
@@ -118,7 +112,7 @@ void pa_lsc_u8(
         }
         #endif
     }
-    #if USE_LSC
+    #ifdef CM_HAS_LSC_UNTYPED_2D
     lsc::block_2d_desc<uint8_t, 1, kv_step, REG_K> b2dK(k_cache_base, CMPA_BLOCK_SZ - 1, head_size*sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
     lsc::block_2d_desc<uint8_t, 1, REG_K, REG_N> b2dV(v_cache_base, CMPA_BLOCK_SZ - 1, head_size*sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
     #endif
@@ -165,12 +159,12 @@ void pa_lsc_u8(
 
                 matrix<half, kv_step, REG_K> kmat;
                 auto quanKmat = kmat.format<half, 2, kv_step * REG_K/2>()[1].format<uint8_t, kv_step, REG_K>();
-                #if USE_LSC
+                #ifdef CM_HAS_LSC_UNTYPED_2D
                 b2dK.set_base_ptr(reinterpret_cast<uint8_t*>(k_cache_base+cur_block_id*quan_blk_stride));
                 b2dK.set_block_y(kv_pos%CMPA_BLOCK_SZ);
                 #endif
                 for(int k = REG_K*wg_local_id; k < head_size; k += REG_K*(local_size/2)) {
-                    #if USE_LSC
+                    #ifdef CM_HAS_LSC_UNTYPED_2D
                     cm_load<lsc::Normal>(quanKmat.format<uint8_t>(), b2dK.set_block_x(k));
                     #else
                     auto k_base = reinterpret_cast<svmptr_t>((int8_t*)k_cache_base + cur_block_id * quan_blk_stride + (kv_pos % CMPA_BLOCK_SZ) * kv_pitch + k);
@@ -198,7 +192,7 @@ void pa_lsc_u8(
                     cm_slm_block_write(slm_K, slm_offset + k * kv_step * sizeof(half), kmat.format<half>());
                 }
             } else {
-#if USE_LSC
+#ifdef CM_HAS_LSC_UNTYPED_2D
                 cm_svm_block_read(reinterpret_cast<svmptr_t>(v_cache_base + dscale_offset), dscale);
                 cm_svm_block_read(reinterpret_cast<svmptr_t>(v_cache_base + dscale_offset + CMPA_BLOCK_SZ*sizeof(half)), zp);
 #else
@@ -216,13 +210,13 @@ void pa_lsc_u8(
                 matrix<half, REG_K/2, REG_N*2> VmatVNNI;
                 matrix<half, REG_K, REG_N> Vmat;
                 auto quanVmat = Vmat.format<half, 2, REG_K*REG_N/2>().row(1).format<uint8_t, REG_K, REG_N>();
-                #if USE_LSC
+                #ifdef CM_HAS_LSC_UNTYPED_2D
                 b2dV.set_base_ptr(reinterpret_cast<uint8_t*>(v_cache_base+cur_block_id*quan_blk_stride));
                 b2dV.set_block_y(kv_pos%CMPA_BLOCK_SZ);
                 #endif
                 #pragma unroll
                 for(int k = REG_N*(wg_local_id-(local_size/2)); k < head_size; k += REG_N*(local_size/2)) {
-                    #if USE_LSC
+                    #ifdef CM_HAS_LSC_UNTYPED_2D
                     cm_load<lsc::Normal>(quanVmat.format<uint8_t>(), b2dV.set_block_x(k));
                     #else
                     // Each row loads REG_N bytes (REG_N=16) => 4 dwords
@@ -350,12 +344,12 @@ void pa_lsc_u8(
     matrix<half, num_P_tiles*REG_M, REG_N> cur_O_f16;
     cur_sum = cm_inv(cur_sum);
 
-    #if USE_LSC
+    #ifdef CM_HAS_LSC_UNTYPED_2D
     lsc::block_2d_desc<half, 1, REG_M, REG_N> b2dO(o_base, q_tokens_left - 1, head_size*sizeof(half) - 1, o_pitch - 1, 0, 0);
     #endif
     #pragma unroll
     for(int k = 0, ri=0; k < head_size; k += REG_N, ri += num_P_tiles) {
-        #if USE_LSC
+        #ifdef CM_HAS_LSC_UNTYPED_2D
         b2dO.set_block_x(k);
         #endif
         #pragma unroll
@@ -365,7 +359,7 @@ void pa_lsc_u8(
             for(int r = 0; r < cO.n_rows(); r++) {
                 cur_O_f16[r + p*REG_M] = cm_mul<float>(cO.row(r), cur_sum[r + p*REG_M]);
             }
-            #if USE_LSC
+            #ifdef CM_HAS_LSC_UNTYPED_2D
             cm_store(b2dO.set_block_y(p * REG_M), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(p));
             #else
             int o_stride_elems = o_pitch / sizeof(half);
@@ -389,14 +383,14 @@ void pa_kernel_lsc_prefetch_f16(
     int kv_stop, //
     int q_len, //q_step
     int kv_len, //not used for now
-#if USE_LSC
+#ifdef CM_HAS_LSC_UNTYPED_2D
     svmptr_t q_base [[type("svmptr_t")]],
 #else
     SurfaceIndex q_gather,
     uint32_t q_gather_offset_bytes,
 #endif
     svmptr_t k_cache_base [[type("svmptr_t")]],
-#if USE_LSC
+#ifdef CM_HAS_LSC_UNTYPED_2D
     svmptr_t v_cache_base [[type("svmptr_t")]],
     #else
     SurfaceIndex v_cache_stateful,
@@ -424,7 +418,7 @@ void pa_kernel_lsc_prefetch_f16(
     cur_max = -3e38f;
     cur_sum = 0;
     constexpr int num_P_tiles = REG_N / REG_M;
-#if USE_LSC
+#ifdef CM_HAS_LSC_UNTYPED_2D
     constexpr int VALUE_TILE_NUM = 1;
 #else
     constexpr int VALUE_TILE_NUM = 2;
@@ -435,13 +429,15 @@ void pa_kernel_lsc_prefetch_f16(
     auto q_tokens_left = q_len;// - q_start;
     static_assert(q_step == REG_N);
     static_assert(kv_step == REG_K);
+    static_assert(REG_N % REG_M == 0, "REG_N must be divisible by REG_M");
+    static_assert(head_size % REG_M == 0, "head_size must be divisible by REG_M");
 
     if (q_tokens_left < 0) q_tokens_left = 0;
     if (q_tokens_left > q_step) q_tokens_left = q_step;
     if (q_tokens_left == 0) return;
 
     if (q_tokens_left > 0) {
-        #if USE_LSC
+        #ifdef CM_HAS_LSC_UNTYPED_2D
         lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQ(reinterpret_cast<uint*>(q_base), q_tokens_left - 1, head_size*sizeof(half) - 1, q_pitch - 1, 0, 0);
         #pragma unroll
         for(int k = 0, ri = 0; k < head_size/2; k += REG_K/2, ri++) {
@@ -481,7 +477,7 @@ void pa_kernel_lsc_prefetch_f16(
         #endif
     }
 
-    #if USE_LSC
+    #ifdef CM_HAS_LSC_UNTYPED_2D
     lsc::block_2d_desc<half, 1, kv_step, REG_K> b2dK(k_cache_base, CMPA_BLOCK_SZ - 1, head_size*sizeof(half) - 1, k_pitch - 1, 0, 0);
     lsc::block_2d_desc<half, 1, REG_K, REG_N> b2dV(v_cache_base, CMPA_BLOCK_SZ - 1, head_size*sizeof(half) - 1, v_pitch - 1, 0, 0);
     static_assert(wg_local_size == 16);
@@ -504,7 +500,7 @@ void pa_kernel_lsc_prefetch_f16(
 
             matrix<half, num_K, REG_M * REG_K> Kmat;
 
-            #if USE_LSC
+            #ifdef CM_HAS_LSC_UNTYPED_2D
             prefetch_K.set_base_ptr((reinterpret_cast<half*>(k_cache_base)+prefetch_block_id * blk_stride));
             prefetch_K.set_block_y((prefetch_kv_pos + wg_local_id) % CMPA_BLOCK_SZ);
             cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(0));
@@ -528,7 +524,7 @@ void pa_kernel_lsc_prefetch_f16(
                 continue;
             }
 #endif
-            #if USE_LSC
+            #ifdef CM_HAS_LSC_UNTYPED_2D
             b2dK.set_base_ptr((reinterpret_cast<half*>(k_cache_base)+cur_block_id*blk_stride));
             b2dK.set_block_y(kv_pos % CMPA_BLOCK_SZ);
             cm_load<lsc::Normal>(Kmat.format<half>(), b2dK.set_block_x(0));
@@ -555,7 +551,7 @@ void pa_kernel_lsc_prefetch_f16(
 
             #pragma unroll
             for(int ri = 1; ri < head_size/REG_K; ri++) {
-                #if USE_LSC
+                #ifdef CM_HAS_LSC_UNTYPED_2D
                 cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(ri*REG_K));
                 cm_load<lsc::Normal>(Kmat.format<half>(), b2dK.set_block_x(ri*REG_K));
                 #else
@@ -617,7 +613,7 @@ void pa_kernel_lsc_prefetch_f16(
         matrix<half, REG_N, REG_K> P;
         Transpose2DMatrix(St, P);
 
-        #if USE_LSC
+        #ifdef CM_HAS_LSC_UNTYPED_2D
         prefetch_V.set_base_ptr((reinterpret_cast<half*>(v_cache_base)+prefetch_block_id*blk_stride));
         prefetch_V.set_block_y((prefetch_kv_pos + wg_local_id) % CMPA_BLOCK_SZ);
 
@@ -628,7 +624,7 @@ void pa_kernel_lsc_prefetch_f16(
         matrix<half, REG_K/2, REG_N*2*VALUE_TILE_NUM> Vmat;
         #pragma unroll
         for(int k = 0, ri=0; k < head_size; k += REG_N * VALUE_TILE_NUM, ri += num_P_tiles * VALUE_TILE_NUM) {
-            #if USE_LSC
+            #ifdef CM_HAS_LSC_UNTYPED_2D
             cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(k));
             cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(k));
             #else
@@ -656,7 +652,7 @@ void pa_kernel_lsc_prefetch_f16(
                 Vmat.row(r).select<REG_N*VALUE_TILE_NUM, 2>(1) = Vmat_tmp.row(r*2+1);
             }
             #endif
-            #if USE_LSC
+            #ifdef CM_HAS_LSC_UNTYPED_2D
             // somtimes KV cache would be filled with random Nan, so need to clean up the unused value data.
             if ((kv_pos + kv_step) > kv_stop) {
                 uint valid_rows = kv_stop - kv_pos;
@@ -716,12 +712,12 @@ void pa_kernel_lsc_prefetch_f16(
     matrix<half, num_P_tiles * REG_M, REG_N> cur_O_f16;
     cur_sum = cm_inv(cur_sum);
 
-    #if USE_LSC
+    #ifdef CM_HAS_LSC_UNTYPED_2D
     lsc::block_2d_desc<half, 1, REG_M, REG_N> b2dO(o_base, q_tokens_left - 1, head_size*sizeof(half) - 1, o_pitch - 1, 0, 0);
     #endif
     #pragma unroll
     for(int k = 0, ri=0; k < head_size; k += REG_N, ri += num_P_tiles) {
-        #if USE_LSC
+        #ifdef CM_HAS_LSC_UNTYPED_2D
         b2dO.set_block_x(k);
         #endif
         #pragma unroll
@@ -731,7 +727,7 @@ void pa_kernel_lsc_prefetch_f16(
             for(int r = 0; r < cO.n_rows(); r++) {
                 cur_O_f16[r + p*REG_M] = cm_mul<float>(cO.row(r), cur_sum[r + p*REG_M]);
             }
-            #if USE_LSC
+            #ifdef CM_HAS_LSC_UNTYPED_2D
             cm_store(b2dO.set_block_y(p * REG_M), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(p));
             #else
             int o_stride_elems = o_pitch / sizeof(half);

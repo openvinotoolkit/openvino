@@ -234,16 +234,6 @@ CM_INLINE void gemm_qk(uint id_wg_m, uint id_wg_n, uint hq, uint slm,
     constexpr int SG_SIZE = details::get_dpas_execution_size((CmPrecisionType)9);    
     // constexpr int BLOCK_WG_K = 64;	// same in sg  // because unroll 4 times along K ??
     constexpr int SUM_N = BLOCK_SG_N / (BLOCK_SIZE/STRIDE);
-
-// // #ifndef BLOCK_SG_M
-//     #define BLOCK_SG_M  32
-//     #define BLOCK_SG_N  16
-//     #define SG_M  4
-//     #define SG_N  8
-//     #define HEAD_SIZE  128
-//     #define KV_BLOCK_SIZE  256
-//     #define STRIDE  16
-// // #endif
     // xehpg DPAS spec: dst: [8, 8], repeat: 1~8, depth: 8
     static constexpr int REPEAT = 8;
     static constexpr int DEPTH = 8;
