@@ -121,28 +121,29 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     const auto emitter_factory = ov::intel_cpu::EmitterFactory{get_host, isa, wrap_snippets_emitter};
 
     // data movement
-    jitters[op::v0::Parameter::get_type_info_static()] = emitter_factory.snippets<jit_nop_emitter>();
-    jitters[op::v0::Result::get_type_info_static()] = emitter_factory.snippets<jit_nop_emitter>();
-    jitters[snippets::op::Scalar::get_type_info_static()] = emitter_factory.snippets<jit_scalar_emitter>();
+    jitters[op::v0::Parameter::get_type_info_static()] = emitter_factory.from_expr<jit_nop_emitter>();
+    jitters[op::v0::Result::get_type_info_static()] = emitter_factory.from_expr<jit_nop_emitter>();
+    jitters[snippets::op::Scalar::get_type_info_static()] = emitter_factory.from_expr<jit_scalar_emitter>();
 
     // memory access
-    jitters[snippets::op::Load::get_type_info_static()] = emitter_factory.snippets<jit_load_memory_emitter>();
-    jitters[snippets::op::LoadReorder::get_type_info_static()] = emitter_factory.snippets<jit_load_memory_emitter>();
+    jitters[snippets::op::Load::get_type_info_static()] = emitter_factory.from_expr<jit_load_memory_emitter>();
+    jitters[snippets::op::LoadReorder::get_type_info_static()] = emitter_factory.from_expr<jit_load_memory_emitter>();
     jitters[snippets::op::BroadcastLoad::get_type_info_static()] =
-        emitter_factory.snippets<jit_load_broadcast_emitter>();
-    jitters[snippets::op::Store::get_type_info_static()] = emitter_factory.snippets<jit_store_memory_emitter>();
+        emitter_factory.from_expr<jit_load_broadcast_emitter>();
+    jitters[snippets::op::Store::get_type_info_static()] = emitter_factory.from_expr<jit_store_memory_emitter>();
 
     // loop control
-    jitters[snippets::op::LoopBegin::get_type_info_static()] = emitter_factory.snippets<jit_loop_begin_emitter>();
-    jitters[snippets::op::LoopEnd::get_type_info_static()] = emitter_factory.snippets<jit_loop_end_emitter>();
+    jitters[snippets::op::LoopBegin::get_type_info_static()] = emitter_factory.from_expr<jit_loop_begin_emitter>();
+    jitters[snippets::op::LoopEnd::get_type_info_static()] = emitter_factory.from_expr<jit_loop_end_emitter>();
 
     // service kernel entry points
-    jitters[snippets::op::KernelStatic::get_type_info_static()] = emitter_factory.snippets<jit_kernel_static_emitter>();
+    jitters[snippets::op::KernelStatic::get_type_info_static()] =
+        emitter_factory.from_expr<jit_kernel_static_emitter>();
     jitters[snippets::op::KernelDynamic::get_type_info_static()] =
-        emitter_factory.snippets<jit_kernel_dynamic_emitter>();
+        emitter_factory.from_expr<jit_kernel_dynamic_emitter>();
 
     // binary operations
-    jitters[op::v1::Add::get_type_info_static()] = emitter_factory.cpu<ov::intel_cpu::riscv64::jit_add_emitter>();
+    jitters[op::v1::Add::get_type_info_static()] = emitter_factory.from_node<ov::intel_cpu::riscv64::jit_add_emitter>();
 }
 
 std::shared_ptr<ov::snippets::TargetMachine> CPUTargetMachine::clone() const {
