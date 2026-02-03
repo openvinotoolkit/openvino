@@ -68,7 +68,9 @@ private:
     void init_options();
     void filter_global_config_safe(
         const std::optional<ov::intel_npu::CompilerType>& compilerChange = std::nullopt) const;
-    void filter_config_by_compiler_support(FilteredConfig& cfg) const;
+    void filter_config_by_compiler_support(
+        FilteredConfig& cfg,
+        std::optional<std::reference_wrapper<const ICompilerAdapter>> compiler = std::nullopt) const;
     FilteredConfig fork_local_config(const ov::AnyMap& properties,
                                      const std::unique_ptr<ICompilerAdapter>& compiler,
                                      OptionMode mode = OptionMode::Both) const;
