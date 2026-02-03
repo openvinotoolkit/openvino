@@ -317,7 +317,7 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
     auto actual_size = wlc_attribute.original_size;
     auto offset = wlc_attribute.bin_offset;
     auto w_size = m_origin_weights->size();
-    OPENVINO_ASSERT(w_size >= offset + actual_size, "Incorrect weights in bin file!");
+    OPENVINO_ASSERT(offset <= w_size && actual_size <= w_size - offset, "Incorrect weights in bin file!");
 
     auto original_dtype = wlc_attribute.original_dtype;
     char* data = m_origin_weights->get_ptr<char>() + offset;

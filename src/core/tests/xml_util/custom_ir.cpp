@@ -423,4 +423,99 @@ TEST_F(CustomIRTest, modified_serialization_deserialization) {
     const auto& [is_valid, error_msg] = model_comparator().compare(ov_model, drv_model);
     EXPECT_TRUE(is_valid) << error_msg;
 }
+
+TEST_F(CustomIRTest, overflow_protection_offset_size) {
+    // Test to verify protection against integer overflow in offset + size calculation
+    // This test ensures that malicious XML files with crafted offset/size values
+    // cannot bypass bounds checks through integer overflow
+
+    // Create a simple model to serialize
+    auto in0 = std::make_shared<Parameter>(element::f32, Shape{1, 2});
+    auto c1 = std::make_shared<Constant>(element::f32, Shape{1, 2}, std::vector<float>{1.f, 2.f});
+    auto add = std::make_shared<Add>(in0, c1);
+    auto model = std::make_shared<Model>(OutputVector{add}, ParameterVector{in0}, "OverflowTest");
+    
+    // Serialize to get valid XML structure
+    ov::serialize(model, m_out_xml_path, m_out_bin_path);
+
+    // Read the XML and modify it to have overflow-inducing values
+    std::ifstream xml_file(m_out_xml_path);
+    std::string xml_content((std::istreambuf_iterator<char>(xml_file)), std::istreambuf_iterator<char>());
+    xml_file.close();
+
+    pugi::xml_document xml_doc;
+    auto res = xml_doc.load_string(xml_content.c_str());
+    ASSERT_TRUE(res.status == pugi::status_ok);
+
+    // Find the data node with offset and size attributes
+    auto layers = xml_doc.select_nodes("//layer[@type='Const']");
+    ASSERT_FALSE(layers.empty());
+    
+    auto data_node = layers[0].node().child("data");
+    ASSERT_FALSE(data_node.empty());
+
+    // Create a small weights buffer (e.g., 100 bytes)
+    auto small_weights = std::make_shared<ov::AlignedBuffer>(100);
+
+    // Test case 1: offset + size would overflow and wrap to small value
+    // offset = SIZE_MAX - 50, size = 100
+    // offset + size = 49 (after overflow), which is < 100 (weights size)
+    // But actual access would be out of bounds
+    data_node.attribute("offset").set_value(std::to_string(SIZE_MAX - 50).c_str());
+    data_node.attribute("size").set_value("100");
+
+    // Try to deserialize with malicious values
+    std::stringstream modified_xml;
+    xml_doc.save(modified_xml, "  ", pugi::format_raw | pugi::format_no_declaration);
+    
+    std::unordered_map<std::string, ov::OpSet> opsets;
+    for (const auto& [name, mk_opset] : ov::get_available_opsets()) {
+        opsets[name] = mk_opset();
+    }
+    std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> extensions;
+    std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> variables;
+    
+    auto root = xml_doc.document_element();
+    auto version = static_cast<size_t>(ov::util::pugixml::get_uint64_attr(root, "version", 11));
+
+    // This should throw due to overflow protection
+    std::shared_ptr<ov::Model> deserialized_model;
+    EXPECT_THROW({
+        ov::util::XmlDeserializer visitor(root, small_weights, opsets, extensions, variables, version);
+        visitor.on_attribute("net", deserialized_model);
+    }, std::exception);
+
+    // Test case 2: Both offset and size are huge but individually valid looking
+    data_node.attribute("offset").set_value(std::to_string(SIZE_MAX / 2).c_str());
+    data_node.attribute("size").set_value(std::to_string(SIZE_MAX / 2 + 10).c_str());
+
+    modified_xml.str("");
+    modified_xml.clear();
+    xml_doc.save(modified_xml, "  ", pugi::format_raw | pugi::format_no_declaration);
+
+    // This should also throw due to overflow protection
+    EXPECT_THROW({
+        ov::util::XmlDeserializer visitor(root, small_weights, opsets, extensions, variables, version);
+        visitor.on_attribute("net", deserialized_model);
+    }, std::exception);
+
+    // Test case 3: Valid values should work
+    data_node.attribute("offset").set_value("0");
+    data_node.attribute("size").set_value("8");  // 2 floats = 8 bytes
+
+    auto valid_weights = std::make_shared<ov::AlignedBuffer>(100);
+    float* data = valid_weights->get_ptr<float>();
+    data[0] = 1.0f;
+    data[1] = 2.0f;
+
+    modified_xml.str("");
+    modified_xml.clear();
+    xml_doc.save(modified_xml, "  ", pugi::format_raw | pugi::format_no_declaration);
+
+    // This should succeed
+    EXPECT_NO_THROW({
+        ov::util::XmlDeserializer visitor(root, valid_weights, opsets, extensions, variables, version);
+        visitor.on_attribute("net", deserialized_model);
+    });
+}
 }  // namespace ov::test
