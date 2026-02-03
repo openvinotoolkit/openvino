@@ -151,6 +151,17 @@ static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig& bas
     return base_conf.get<COMPILER_TYPE>();
 }
 
+static std::string resolvePlatformType(const FilteredConfig& base_conf, const ov::AnyMap& local_conf) {
+    // first look if provided config changes platform
+    auto it = local_conf.find(std::string(PLATFORM::key()));
+    if (it != local_conf.end()) {
+        // if platform is provided by local config = use that
+        return it->second.as<std::string>();
+    }
+    // if there is no platform provided = use base_config value if different than AUTO_DETECT
+    return base_conf.has<PLATFORM>() ? base_conf.get<PLATFORM>() : std::string{};
+}
+
 /**
  * @brief Just checks if there is any "WeightlessCacheAttribute" present in the model. In the negative case, an error is
  * thrown. The weights separation flow in its current state cannot work without this attribuite.
@@ -434,27 +445,34 @@ void Plugin::init_options() {
     }
 }
 
-void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
+void Plugin::filter_config_by_compiler_support(
+    FilteredConfig& cfg,
+    std::optional<std::reference_wrapper<const ICompilerAdapter>> compiler) const {
     bool legacy = false;
     bool nocompiler = false;
-    std::unique_ptr<ICompilerAdapter> compiler = nullptr;
+    std::unique_ptr<ICompilerAdapter> ownedCompiler = nullptr;
     std::vector<std::string> compiler_support_list{};
     uint32_t compiler_version = 0;
 
-    // create a dummy compiler to fetch version and supported options
-    try {
-        auto compiler_type = cfg.get<COMPILER_TYPE>();
-        CompilerAdapterFactory factory;
-        compiler = factory.getCompiler(_backend, compiler_type);
-    } catch (...) {
-        // assuming getCompiler failed, meaning we are offline
-        _logger.warning("No available compiler. Enabling only runtime options ");
-        nocompiler = true;
+    if (!compiler.has_value()) {
+        try {
+            // create a dummy compiler to fetch version and supported options
+            auto compiler_type = cfg.get<COMPILER_TYPE>();
+            CompilerAdapterFactory factory;
+            ownedCompiler =
+                factory.getCompiler(_backend, compiler_type, cfg.has<PLATFORM>() ? cfg.get<PLATFORM>() : std::string{});
+
+            compiler = std::cref(*ownedCompiler);
+        } catch (...) {
+            // assuming getCompiler failed, meaning we are offline
+            _logger.warning("No available compiler. Enabling only runtime options ");
+            nocompiler = true;
+        }
     }
 
-    if (!nocompiler || (compiler != nullptr)) {
-        compiler_version = compiler->get_version();
-        compiler_support_list = compiler->get_supported_options();
+    if (!nocompiler || compiler.has_value()) {
+        compiler_version = compiler->get().get_version();
+        compiler_support_list = compiler->get().get_supported_options();
     }
     if (compiler_support_list.size() == 0) {
         _logger.info("No compiler support options list received! Fallback to version-based option registration");
@@ -493,9 +511,9 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
                     isEnabled = true;
                 } else {
                     // Not found in the supported options list.
-                    if (compiler != nullptr) {
+                    if (compiler.has_value()) {
                         // Checking if it is a private option?
-                        isEnabled = compiler->is_option_supported(key);
+                        isEnabled = compiler->get().is_option_supported(key);
                     } else {
                         // Not in the list and not a private option = disabling
                         isEnabled = false;
@@ -565,7 +583,7 @@ FilteredConfig Plugin::fork_local_config(const ov::AnyMap& properties,
             // Set new compiler type
             localConfigPtr->update({{std::string(COMPILER_TYPE::key()), it->second}});
             // enable/disable config keys based on what the new compiler supports
-            filter_config_by_compiler_support(*localConfigPtr);
+            filter_config_by_compiler_support(*localConfigPtr, std::cref(*compiler));
             compiler_changed = true;
             // set localConfig as filtered
             localConfigPtr->markAsInitialized();
@@ -718,13 +736,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ov::intel_npu::CompilerType compilerType = resolveCompilerType(_globalConfig, localProperties);
     const bool wasPreferPlugin = (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN);
     CompilerAdapterFactory factory;
-    auto compiler = factory.getCompiler(_backend, compilerType);
-    if (wasPreferPlugin) {
-        localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
-    }
+    auto compiler = factory.getCompiler(_backend, compilerType, resolvePlatformType(_globalConfig, localProperties));
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     auto localConfig = fork_local_config(localProperties, compiler);
+    if (wasPreferPlugin) {
+        localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
+    }
 
     const auto platform =
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
@@ -1083,12 +1101,13 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     ov::intel_npu::CompilerType compilerType = resolveCompilerType(_globalConfig, localProperties);
     const bool wasPreferPlugin = (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN);
     CompilerAdapterFactory factory;
-    auto compiler = factory.getCompiler(_backend, compilerType);
-    if (wasPreferPlugin) {
-        localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
-    }
+    auto compiler = factory.getCompiler(_backend, compilerType, resolvePlatformType(_globalConfig, localProperties));
 
     auto localConfig = fork_local_config(localProperties, compiler, OptionMode::CompileTime);
+    if (wasPreferPlugin) {
+        localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
+    }
+
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
@@ -1149,13 +1168,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     ov::intel_npu::CompilerType compilerType = resolveCompilerType(_globalConfig, localProperties);
     const bool wasPreferPlugin = (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN);
     CompilerAdapterFactory factory;
-    auto compiler = factory.getCompiler(_backend, compilerType);
-    if (wasPreferPlugin) {
-        localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
-    }
+    auto compiler = factory.getCompiler(_backend, compilerType, resolvePlatformType(_globalConfig, localProperties));
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
     auto localConfig = fork_local_config(localProperties, compiler, OptionMode::RunTime);
+    if (wasPreferPlugin) {
+        localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
+    }
+
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),

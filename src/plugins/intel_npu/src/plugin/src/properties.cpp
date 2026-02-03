@@ -572,7 +572,9 @@ void Properties::registerPluginProperties() {
             /// create dummy compiler
             auto compilerType = config.get<COMPILER_TYPE>();
             CompilerAdapterFactory factory;
-            auto dummyCompiler = factory.getCompiler(_backend, compilerType);
+            auto dummyCompiler = factory.getCompiler(_backend,
+                                                     compilerType,
+                                                     config.has<PLATFORM>() ? config.get<PLATFORM>() : std::string{});
             return dummyCompiler->get_version();
         });
         REGISTER_CUSTOM_METRIC(ov::internal::caching_properties, false, [&](const Config& config) {
@@ -726,7 +728,9 @@ void Properties::set_property(const ov::AnyMap& properties) {
                     // Only accepting unknown config keys in plugin
                     auto compilerType = _config.get<COMPILER_TYPE>();
                     CompilerAdapterFactory factory;
-                    compiler = factory.getCompiler(_backend, compilerType);
+                    compiler = factory.getCompiler(_backend,
+                                                   compilerType,
+                                                   _config.has<PLATFORM>() ? _config.get<PLATFORM>() : std::string{});
                 } catch (...) {
                     // just throw the exception below in case unknown property check is called
                 }

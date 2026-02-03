@@ -16,14 +16,23 @@ namespace intel_npu {
 class CompilerAdapterFactory final {
 public:
     std::unique_ptr<ICompilerAdapter> getCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
-                                                  ov::intel_npu::CompilerType& compilerType) const {
+                                                  ov::intel_npu::CompilerType& compilerType,
+                                                  std::string_view configPlatform) const {
         if (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
             if (engineBackend) {
-                auto platformName = engineBackend->getDevice()->getName();
-                if (_pluginCompilerIsPresent && platformName != ov::intel_npu::Platform::NPU3720 &&
-                    platformName != ov::intel_npu::Platform::AUTO_DETECT) {
+                std::string platform;
+                auto devicePlatform = engineBackend->getDevice()->getName();
+                platform = configPlatform.empty() ? devicePlatform : configPlatform;
+
+                if (_pluginCompilerIsPresent && platform != ov::intel_npu::Platform::NPU3720 &&
+                    platform != ov::intel_npu::Platform::AUTO_DETECT) {
                     try {
                         compilerType = ov::intel_npu::CompilerType::PLUGIN;
+
+                        if (devicePlatform != platform) {
+                            return std::make_unique<PluginCompilerAdapter>(nullptr);
+                        }
+
                         return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs());
                     } catch (...) {
                         _pluginCompilerIsPresent = false;
