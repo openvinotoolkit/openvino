@@ -5,6 +5,7 @@
 // clang-format off
 
 #include "mem_usage.hpp"
+#include "openvino/core/except.hpp"
 
 #if defined _WIN32
 
