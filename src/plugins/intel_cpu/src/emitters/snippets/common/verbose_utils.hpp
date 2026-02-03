@@ -54,6 +54,45 @@ std::string format_memory_emitter_info(const MemoryEmitter* emitter) {
 }
 
 /**
+ * @brief Initialize info string for load memory emitter
+ * @param emitter Pointer to load memory emitter
+ * @return Formatted info string
+ */
+template <typename LoadMemoryEmitter>
+std::string init_info_jit_load_memory_emitter(const LoadMemoryEmitter* emitter) {
+    std::stringstream ss;
+    std::string memory_emitter_info = format_memory_emitter_info(emitter);
+    ss << "Emitter_type_name:jit_load_memory_emitter" << memory_emitter_info;
+    return ss.str();
+}
+
+/**
+ * @brief Initialize info string for load broadcast emitter
+ * @param emitter Pointer to load broadcast emitter
+ * @return Formatted info string
+ */
+template <typename LoadBroadcastEmitter>
+std::string init_info_jit_load_broadcast_emitter(const LoadBroadcastEmitter* emitter) {
+    std::stringstream ss;
+    std::string memory_emitter_info = format_memory_emitter_info(emitter);
+    ss << "Emitter_type_name:jit_load_broadcast_emitter" << memory_emitter_info;
+    return ss.str();
+}
+
+/**
+ * @brief Initialize info string for store memory emitter
+ * @param emitter Pointer to store memory emitter
+ * @return Formatted info string
+ */
+template <typename StoreMemoryEmitter>
+std::string init_info_jit_store_memory_emitter(const StoreMemoryEmitter* emitter) {
+    std::stringstream ss;
+    std::string memory_emitter_info = format_memory_emitter_info(emitter);
+    ss << "Emitter_type_name:jit_store_memory_emitter" << memory_emitter_info;
+    return ss.str();
+}
+
+/**
  * @brief Base class for emitter info structure
  * Provides common initialization and access methods
  */

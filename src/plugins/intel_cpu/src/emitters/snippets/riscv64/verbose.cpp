@@ -17,27 +17,6 @@
 
 namespace ov::intel_cpu::riscv64 {
 
-static std::string init_info_jit_load_memory_emitter(const jit_load_memory_emitter* emitter) {
-    std::stringstream ss;
-    std::string memory_emitter_info = snippets_common::format_memory_emitter_info(emitter);
-    ss << "Emitter_type_name:jit_load_memory_emitter" << memory_emitter_info;
-    return ss.str();
-}
-
-static std::string init_info_jit_load_broadcast_emitter(const jit_load_broadcast_emitter* emitter) {
-    std::stringstream ss;
-    std::string memory_emitter_info = snippets_common::format_memory_emitter_info(emitter);
-    ss << "Emitter_type_name:jit_load_broadcast_emitter" << memory_emitter_info;
-    return ss.str();
-}
-
-static std::string init_info_jit_store_memory_emitter(const jit_store_memory_emitter* emitter) {
-    std::stringstream ss;
-    std::string memory_emitter_info = snippets_common::format_memory_emitter_info(emitter);
-    ss << "Emitter_type_name:jit_store_memory_emitter" << memory_emitter_info;
-    return ss.str();
-}
-
 std::string init_info_jit_kernel_emitter(const jit_kernel_emitter* emitter) {
     std::stringstream ss;
     ss << " jcp.exec_domain:" << ov::util::vector_to_string(emitter->jcp.exec_domain)
@@ -89,11 +68,11 @@ void jit_emitter_info_t::init(const void* emitter) {
     }
     const auto* e = static_cast<const jit_emitter*>(emitter);
     if (const auto* e_type = dynamic_cast<const jit_load_memory_emitter*>(e)) {
-        str_ = init_info_jit_load_memory_emitter(e_type);
+        str_ = snippets_common::init_info_jit_load_memory_emitter(e_type);
     } else if (const auto* e_type = dynamic_cast<const jit_load_broadcast_emitter*>(e)) {
-        str_ = init_info_jit_load_broadcast_emitter(e_type);
+        str_ = snippets_common::init_info_jit_load_broadcast_emitter(e_type);
     } else if (const auto* e_type = dynamic_cast<const jit_store_memory_emitter*>(e)) {
-        str_ = init_info_jit_store_memory_emitter(e_type);
+        str_ = snippets_common::init_info_jit_store_memory_emitter(e_type);
     } else if (const auto* e_type = dynamic_cast<const jit_kernel_static_emitter*>(e)) {
         str_ = init_info_jit_kernel_static_emitter(e_type);
     } else if (const auto* e_type = dynamic_cast<const jit_kernel_dynamic_emitter*>(e)) {
