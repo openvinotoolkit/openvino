@@ -15,6 +15,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "cache/multi_cache.h"
 #include "emitters/snippets/aarch64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/aarch64/kernel_executors/gemm_copy_b.hpp"
 #include "emitters/snippets/aarch64/utils.hpp"

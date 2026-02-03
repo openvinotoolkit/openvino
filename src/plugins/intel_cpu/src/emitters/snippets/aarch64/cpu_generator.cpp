@@ -10,7 +10,6 @@
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
 #include <cstddef>
-#include <functional>
 #include <memory>
 #include <set>
 #include <utility>
@@ -103,7 +102,6 @@
 #    include "snippets/op/perf_count.hpp"
 #endif
 #include "snippets/op/vector_buffer.hpp"
-#include "snippets/runtime_configurator.hpp"
 #include "snippets/target_machine.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
