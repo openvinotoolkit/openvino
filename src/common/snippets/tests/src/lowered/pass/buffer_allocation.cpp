@@ -4,8 +4,10 @@
 
 #include "lowered/pass/buffer_allocation.hpp"
 
+#include "openvino/core/node_vector.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "snippets/op/buffer.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/pass/positioned_pass.hpp"
@@ -133,7 +135,8 @@ std::shared_ptr<ov::Model> EltwiseBufferAllocationTest::GetModel(const std::vect
     const auto relu = std::make_shared<ov::op::v0::Relu>(buffer0);
     const auto buffer1 = std::make_shared<ov::snippets::op::Buffer>(relu);
     const auto exp = std::make_shared<ov::op::v0::Exp>(buffer1);
-    const auto body = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(exp), ov::ParameterVector{parameter0, parameter1});
+    const auto result = std::make_shared<ov::snippets::op::Result>(exp);
+    const auto body = std::make_shared<ov::Model>(result, ov::ParameterVector{parameter0, parameter1});
 
     MarkOp(add, subtensor_eltwise);
     MarkOp(relu, subtensor_eltwise);

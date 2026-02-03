@@ -78,6 +78,7 @@
 #include "snippets/lowered/pass/validate_unified_loops.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/reshape.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/shape_infer_op.hpp"
 #include "snippets/pass/align_element_types.hpp"
 #include "snippets/pass/broadcast_to_movebroadcast.hpp"
@@ -295,7 +296,7 @@ auto Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> s
 
     ov::ResultVector body_results;
     for (const auto& output : node->outputs()) {
-        body_results.push_back(std::make_shared<ov::opset1::Result>(body_node->output(output.get_index())));
+        body_results.push_back(std::make_shared<snippets::op::Result>(body_node->output(output.get_index())));
     }
 
     auto body = create_body(node->get_friendly_name(), body_results, body_parameters);
@@ -567,17 +568,16 @@ void Subgraph::control_flow_transformations(
 
     lowered::pass::PassPipeline gen_pipeline(lowered_pass_config);
     // Note: the order of all passes in this pipeline must not be changed since they have hard dependencies
-    //    1. InsertSpecificIterations must be called after AssignRegisters since tail loop expressions must have the
-    //    same
-    //       assigned registers as the corresponding ops in the main body.
+    //    1. AssignRegisters must be called after InsertSpecificIterations since specific loops maybe have
+    //       different expressions and connections each other. AssignRegisters should be performed on the expanded
+    //       loops.
     //    2. CleanupLoopOffsets must be called after InsertSpecificIterations to avoid violating the proportionality of
     //    the pointer increments
     //       (this might happen if tail loop and main loop have different increments)
     //    3. OptimizeLoopSingleEvaluation must be called after CleanupLoopOffsets
     //       since CleanupLoopOffsets can't handle loops with evaluate_once = true
-
-    gen_pipeline.register_pass<lowered::pass::InitRegisters>(get_generator(), lowered_pass_config);
     gen_pipeline.register_pass<lowered::pass::InsertSpecificIterations>();
+    gen_pipeline.register_pass<lowered::pass::InitRegisters>(get_generator(), lowered_pass_config);
     gen_pipeline.register_pass<lowered::pass::NormalizeLoopIDs>();
     gen_pipeline.register_pass<lowered::pass::ValidateExpandedLoops>();
     gen_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();

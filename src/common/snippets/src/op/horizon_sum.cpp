@@ -18,10 +18,13 @@ HorizonSum::HorizonSum(const Output<Node>& x) : Op({x}) {
     constructor_validate_and_infer_types();
 }
 
+HorizonSum::HorizonSum(const OutputVector& x) : Op(x) {
+    constructor_validate_and_infer_types();
+}
+
 std::shared_ptr<Node> HorizonSum::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(HorizonSum_clone_with_new_inputs);
-    check_new_args_count(this, new_args);
-    return std::make_shared<HorizonSum>(new_args.at(0));
+    return std::make_shared<HorizonSum>(new_args);
 }
 
 void HorizonSum::validate_and_infer_types() {
