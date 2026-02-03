@@ -262,9 +262,13 @@ public:
 
     CompiledModel compile_model(const std::filesystem::path& model_path, const AnyMap& properties = {});
 
-    template <class Path, std::enable_if_t<std::is_constructible_v<std::string, Path>>* = nullptr>
+    template <class Path>
     CompiledModel compile_model(const Path& model_path, const AnyMap& properties = {}) {
-        return compile_model(std::string(model_path), properties);
+        if constexpr (std::is_constructible_v<std::string, Path>) {
+            return compile_model(std::string(model_path), properties);
+        } else {
+            return compile_model(model_path, properties);
+        }
     }
     /// @}
 
@@ -283,10 +287,14 @@ public:
      * @return A compiled model
      * @{
      */
-    template <class Path, class... Properties, std::enable_if_t<std::is_constructible_v<std::string, Path>>* = nullptr>
+    template <class Path, class... Properties>
     util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const Path& model_path,
                                                                            Properties&&... properties) {
-        return compile_model(std::string(model_path), AnyMap{std::forward<Properties>(properties)...});
+        if constexpr (std::is_constructible_v<std::string, Path>) {
+            return compile_model(std::string(model_path), AnyMap{std::forward<Properties>(properties)...});
+        } else {
+            return compile_model(model_path, AnyMap{std::forward<Properties>(properties)...});
+        }
     }
 
     template <typename... Properties>
@@ -321,7 +329,11 @@ public:
 
     template <class Path, std::enable_if_t<std::is_constructible_v<std::string, Path>>* = nullptr>
     CompiledModel compile_model(const Path& model_path, const std::string& device_name, const AnyMap& properties = {}) {
-        return compile_model(std::string(model_path), device_name, properties);
+        if constexpr (std::is_constructible_v<std::string, Path>) {
+            return compile_model(std::string(model_path), device_name, properties);
+        } else {
+            return compile_model(model_path, device_name, properties);
+        }
     }
     /// @}
 
@@ -340,11 +352,15 @@ public:
      * @return A compiled model.
      * @{
      */
-    template <class Path, class... Properties, std::enable_if_t<std::is_constructible_v<Path, std::string>>* = nullptr>
+    template <class Path, class... Properties>
     util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const Path& model_path,
                                                                            const std::string& device_name,
                                                                            Properties&&... properties) {
-        return compile_model(std::string(model_path), device_name, AnyMap{std::forward<Properties>(properties)...});
+        if constexpr (std::is_constructible_v<std::string, Path>) {
+            return compile_model(std::string(model_path), device_name, AnyMap{std::forward<Properties>(properties)...});
+        } else {
+            return compile_model(model_path, device_name, AnyMap{std::forward<Properties>(properties)...});
+        }
     }
 
     template <typename... Properties>
