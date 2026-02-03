@@ -164,7 +164,7 @@ void ZeroDynamicInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
             OPENVINO_ASSERT(levelZeroTensor->data(), "Empty buffer");
 
             OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "update_graph_arguments");
-            if (levelZeroTensor->get_byte_size() > tensor->get_byte_size()) {
+            if (levelZeroTensor->get_byte_size() != tensor->get_byte_size()) {
                 _pipeline->update_graph_arguments(foundPort.is_input()
                                                       ? _metadata.inputs.at(foundPort.idx).indexUsedByDriver
                                                       : _metadata.outputs.at(foundPort.idx).indexUsedByDriver,
@@ -172,13 +172,17 @@ void ZeroDynamicInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                                                   tensor._ptr);
                 _isTensorChanged = true;
             } else {
-                // This L0 tensor shal have same info with user tensor
+                // This L0 tensor shall have same info with user tensor
                 _pipeline->update_graph_arguments(foundPort.is_input()
                                                       ? _metadata.inputs.at(foundPort.idx).indexUsedByDriver
                                                       : _metadata.outputs.at(foundPort.idx).indexUsedByDriver,
                                                   levelZeroTensor);
             }
         }
+    }
+    if (!_pipelineIsCreated) {
+        // If pipeline is not created, need to predict real output shape
+        _isTensorChanged = true;
     }
     // If command list updates are not supported, fallback to copying tensors every time.
 }
@@ -260,6 +264,10 @@ void ZeroDynamicInferRequest::set_tensors(const ov::Output<const ov::Node>& port
             }
         }
     }
+    if (!_pipelineIsCreated) {
+        // If pipeline is not created, need to predict real output shape
+        _isTensorChanged = true;
+    }
     // If command list updates are not supported, fallback to copying tensors every time.
 }
 
@@ -278,38 +286,6 @@ std::shared_ptr<ZeroTensor> ZeroDynamicInferRequest::allocate_tensor(const size_
                       _userOutputTensors.at(index)->get_shape().to_string().c_str(),
                       descriptor.shapeFromCompiler.to_string().c_str());
         descriptor.shapeFromCompiler = _userOutputTensors.at(index)->get_shape();
-    }
-
-    if (!isInput) {
-        // TODO : remove workaround to force output tensor shape, not set_tensor for output in benchmark now
-        //  set HACK_OURPUT_SHAPE=1*2*3*4
-        const char* env_p = std::getenv("HACK_OUTPUT_SHAPE");
-        if (env_p != nullptr) {
-            std::string env_value(env_p);
-            std::stringstream ss(env_value);
-            std::string item;
-
-            bool hack = true;
-            std::vector<size_t> a;
-            while (std::getline(ss, item, '*')) {
-                try {
-                    size_t number = std::stoul(item);
-                    a.push_back(number);
-                } catch (std::exception& e) {
-                    std::cerr << "Number out of range in environment variable: " << item << " error:" << e.what()
-                              << std::endl;
-                    hack = false;
-                    break;
-                }
-            }
-            if (hack) {
-                ov::Shape hackedShape = a;
-                _logger.debug("Hack output descriptor shape from %s to %s",
-                              descriptor.shapeFromCompiler.to_string().c_str(),
-                              hackedShape.to_string().c_str());
-                descriptor.shapeFromCompiler = hackedShape;
-            }
-        }
     }
 
     check_network_precision(descriptor.precision);
