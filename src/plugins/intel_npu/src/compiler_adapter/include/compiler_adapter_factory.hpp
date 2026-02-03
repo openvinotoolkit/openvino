@@ -15,23 +15,13 @@ namespace intel_npu {
 
 class CompilerAdapterFactory final {
 public:
-    static CompilerAdapterFactory& getInstance() {
-        static CompilerAdapterFactory instance;
-        return instance;
-    }
-
-    CompilerAdapterFactory(const CompilerAdapterFactory&) = delete;
-    CompilerAdapterFactory(CompilerAdapterFactory&&) = delete;
-    CompilerAdapterFactory& operator=(const CompilerAdapterFactory&) = delete;
-    CompilerAdapterFactory& operator=(CompilerAdapterFactory&&) = delete;
-
     std::unique_ptr<ICompilerAdapter> getCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
                                                   ov::intel_npu::CompilerType& compilerType) const {
         if (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
             if (engineBackend) {
                 auto platformName = engineBackend->getDevice()->getName();
-                if (platformName != ov::intel_npu::Platform::NPU3720 &&
-                    platformName != ov::intel_npu::Platform::AUTO_DETECT && _pluginCompilerIsPresent) {
+                if (_pluginCompilerIsPresent && platformName != ov::intel_npu::Platform::NPU3720 &&
+                    platformName != ov::intel_npu::Platform::AUTO_DETECT) {
                     try {
                         compilerType = ov::intel_npu::CompilerType::PLUGIN;
                         return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs());
@@ -39,6 +29,7 @@ public:
                         _pluginCompilerIsPresent = false;
                     }
                 }
+
                 compilerType = ov::intel_npu::CompilerType::DRIVER;
             } else {
                 // no backend present, offline compilation only
@@ -64,10 +55,7 @@ public:
     }
 
 private:
-    CompilerAdapterFactory() = default;
-    ~CompilerAdapterFactory() = default;
-
-    mutable std::atomic<bool> _pluginCompilerIsPresent = true;
+    inline static std::atomic<bool> _pluginCompilerIsPresent{true};
 };
 
 }  // namespace intel_npu

@@ -571,7 +571,8 @@ void Properties::registerPluginProperties() {
         REGISTER_CUSTOM_METRIC(ov::intel_npu::compiler_version, true, [&](const Config& config) {
             /// create dummy compiler
             auto compilerType = config.get<COMPILER_TYPE>();
-            auto dummyCompiler = CompilerAdapterFactory::getInstance().getCompiler(_backend, compilerType);
+            CompilerAdapterFactory factory;
+            auto dummyCompiler = factory.getCompiler(_backend, compilerType);
             return dummyCompiler->get_version();
         });
         REGISTER_CUSTOM_METRIC(ov::internal::caching_properties, false, [&](const Config& config) {
@@ -724,7 +725,8 @@ void Properties::set_property(const ov::AnyMap& properties) {
                 try {
                     // Only accepting unknown config keys in plugin
                     auto compilerType = _config.get<COMPILER_TYPE>();
-                    compiler = CompilerAdapterFactory::getInstance().getCompiler(_backend, compilerType);
+                    CompilerAdapterFactory factory;
+                    compiler = factory.getCompiler(_backend, compilerType);
                 } catch (...) {
                     // just throw the exception below in case unknown property check is called
                 }
