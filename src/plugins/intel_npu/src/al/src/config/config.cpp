@@ -168,9 +168,9 @@ details::OptionConcept OptionsDesc::get(std::string_view key, OptionMode mode) c
     if (mode == OptionMode::RunTime) {
         if (desc.mode() == OptionMode::CompileTime) {
             _log.warning("%s option '%s' was used in %s mode",
-                        stringifyEnum(desc.mode()).data(),
-                        key.data(),
-                        stringifyEnum(mode).data());
+                         stringifyEnum(desc.mode()).data(),
+                         key.data(),
+                         stringifyEnum(mode).data());
         }
     }
 
@@ -252,9 +252,9 @@ void Config::parseEnvVars() {
         if (!opt.envVar().empty()) {
             if (const auto envVar = std::getenv(opt.envVar().data())) {
                 _log.trace("Update option '%s' to value '%s' parsed from environment variable '%s'",
-                          opt.key().data(),
-                          envVar,
-                          opt.envVar().data());
+                           opt.key().data(),
+                           envVar,
+                           opt.envVar().data());
 
                 _impl[opt.key().data()] = opt.validateAndParse(envVar);
             }

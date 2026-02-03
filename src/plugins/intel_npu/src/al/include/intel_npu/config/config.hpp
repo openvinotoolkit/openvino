@@ -489,6 +489,7 @@ public:
 protected:
     std::shared_ptr<const OptionsDesc> _desc;
     ImplMap _impl;
+
 private:
     Logger _log{Logger::global().clone("Config")};
 };

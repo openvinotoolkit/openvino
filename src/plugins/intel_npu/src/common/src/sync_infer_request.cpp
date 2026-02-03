@@ -62,8 +62,8 @@ SyncInferRequest::FoundPort SyncInferRequest::find_port(const ov::Output<const o
     // Find port without caching work slow because we need each time iterate over all ports and compare different
     // strings So use WA with caching in order to make 2+ calls for the same ports faster.
     // Calculate hash for the port
-    size_t port_hash = ov::util::hash_combine(
-        {std::hash<const ov::Node*>()(port.get_node()), std::hash<size_t>()(port.get_index())});
+    size_t port_hash =
+        ov::util::hash_combine({std::hash<const ov::Node*>()(port.get_node()), std::hash<size_t>()(port.get_index())});
     {
         std::lock_guard<std::mutex> lock(_cacheMutex);
         if (_cachedPorts.find(port_hash) != _cachedPorts.end()) {
@@ -188,16 +188,14 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
     const auto& port_element_type = port.get_element_type();
     const auto& tensor_element_type = tensor->get_element_type();
 
-    if ((port_element_type == ov::element::Type_t::boolean ||
-         tensor_element_type == ov::element::Type_t::boolean) &&
+    if ((port_element_type == ov::element::Type_t::boolean || tensor_element_type == ov::element::Type_t::boolean) &&
         port_element_type != tensor_element_type) {
         // Exception case for boolean treated as u8 in the NPU driver
-        OPENVINO_ASSERT(
-            port_element_type == ov::element::Type_t::u8 || tensor_element_type == ov::element::Type_t::u8,
-            "The tensor element type is not corresponding with output element type (",
-            tensor_element_type,
-            " != ",
-            port_element_type);
+        OPENVINO_ASSERT(port_element_type == ov::element::Type_t::u8 || tensor_element_type == ov::element::Type_t::u8,
+                        "The tensor element type is not corresponding with output element type (",
+                        tensor_element_type,
+                        " != ",
+                        port_element_type);
     } else {
         OPENVINO_ASSERT(port_element_type == tensor_element_type,
                         "The tensor element type is not corresponding with output element type (",
