@@ -13,46 +13,13 @@
 #    include <string>
 #    include <typeinfo>
 
+#    include "openvino/util/common_util.hpp"
+
 #    ifndef _WIN32
 #        include <cxxabi.h>
 #    endif
 
 namespace ov::intel_cpu::snippets_common {
-
-/**
- * @brief Get demangled type name of an emitter
- * @param emitter Pointer to the emitter object
- * @return Demangled type name string
- */
-inline std::string get_emitter_type_name(const void* emitter) {
-    std::string name = typeid(*static_cast<const char*>(emitter)).name();
-#    ifndef _WIN32
-    int status = 0;
-    std::unique_ptr<char, void (*)(void*)> demangled_name(abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status),
-                                                          std::free);
-    if (status == 0 && demangled_name) {
-        name = demangled_name.get();
-    }
-#    endif
-    return name;
-}
-
-/**
- * @brief Generic template to get type name using typeid
- */
-template <typename T>
-std::string get_type_name(const T* obj) {
-    std::string name = typeid(*obj).name();
-#    ifndef _WIN32
-    int status = 0;
-    std::unique_ptr<char, void (*)(void*)> demangled_name(abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status),
-                                                          std::free);
-    if (status == 0 && demangled_name) {
-        name = demangled_name.get();
-    }
-#    endif
-    return name;
-}
 
 /**
  * @brief Get demangled type name of a jit_emitter
@@ -61,38 +28,29 @@ std::string get_type_name(const T* obj) {
  */
 template <typename JitEmitter>
 std::string get_emitter_type_name(const JitEmitter* emitter) {
-    return get_type_name(emitter);
-}
-
-/**
- * @brief Join elements of a container into a string
- * @param v Container with elements
- * @param sep Separator string (default: ", ")
- * @return Joined string
- */
-template <typename T>
-std::string join(const T& v, const std::string& sep = ", ") {
-    std::ostringstream ss;
-    size_t count = 0;
-    for (const auto& x : v) {
-        if (count++ > 0) {
-            ss << sep;
-        }
-        ss << x;
+    std::string name = typeid(*emitter).name();
+#    ifndef _WIN32
+    int status = 0;
+    std::unique_ptr<char, void (*)(void*)> demangled_name(abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status),
+                                                          std::free);
+    if (status == 0 && demangled_name) {
+        name = demangled_name.get();
     }
-    return ss.str();
+#    endif
+    return name;
 }
 
 /**
- * @brief Convert vector to string with brackets
- * @param v Vector to convert
- * @return String representation in format "[ elem1, elem2, ... ]"
+ * @brief Format memory emitter info
+ * @param emitter Pointer to memory emitter with src_prc, dst_prc, count, and compiled_byte_offset
+ * @return Formatted string with memory emitter information
  */
-template <typename T>
-std::string vector_to_string(const T& v) {
-    std::ostringstream os;
-    os << "[ " << join(v) << " ]";
-    return os.str();
+template <typename MemoryEmitter>
+std::string format_memory_emitter_info(const MemoryEmitter* emitter) {
+    std::stringstream ss;
+    ss << " src_precision:" << emitter->src_prc << " dst_precision:" << emitter->dst_prc
+       << " load/store_element_number:" << emitter->count << " byte_offset:" << emitter->compiled_byte_offset;
+    return ss.str();
 }
 
 /**
@@ -103,6 +61,9 @@ struct jit_emitter_info_base {
     jit_emitter_info_base() = default;
     jit_emitter_info_base(const jit_emitter_info_base& rhs) = default;
     jit_emitter_info_base& operator=(const jit_emitter_info_base& rhs) = default;
+    virtual ~jit_emitter_info_base() = default;
+
+    virtual void init(const void* emitter) = 0;
 
     [[nodiscard]] const char* c_str() const {
         return str_.c_str();

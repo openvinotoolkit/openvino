@@ -14,7 +14,7 @@ namespace ov::intel_cpu::aarch64 {
 class jit_emitter;
 
 struct jit_emitter_info_t : public snippets_common::jit_emitter_info_base {
-    void init(const jit_emitter* emitter);
+    void init(const void* emitter) override;
 };
 
 }  // namespace ov::intel_cpu::aarch64
