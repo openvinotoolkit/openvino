@@ -264,7 +264,8 @@ void AutoSchedule::init() {
             }
         };
         m_executor->run(std::move(recycleTask));
-    } else if (m_context->m_device_priorities.size() != 1 && m_context->m_runtime_fallback) {
+    } else if (m_context->m_device_priorities.size() != 1 && m_context->m_str_devices_initial.size() != 1 &&
+               m_context->m_runtime_fallback) {
         // The performance will has some drop then m_passthrough_compiled_model when enable ENABLE_RUNTIME_FALLBACK
         for (auto&& device : m_context->m_device_priorities) {
             // initialize containers before run async task
@@ -274,7 +275,9 @@ void AutoSchedule::init() {
         }
         m_compile_context[ACTUALDEVICE].m_task();
     } else {
-        // only one device need to compile model, do not need to compile it async
+        // Only one device, or multiple devices of the same type (e.g., all GPU devices, including iGPU and dGPU), can
+        // use passthrough model; no need to compile asynchronously
+        LOG_INFO_TAG("Only one device or multiple devices of the same type will use passthrough compiled model");
         m_compile_context[ACTUALDEVICE].m_task();
         m_passthrough_compiled_model = m_compile_context[ACTUALDEVICE].m_compiled_model;
         if (!m_context->m_bind_buffer) {
