@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,7 +83,6 @@ void IRGraph::GraphArguments::setArgumentProperties(uint32_t argi,
         if (idx < _outputs.size()) {
             _outputs[idx].basePtr = _outputs[idx].data = const_cast<void*>(argv);
 
-            // size_t stridesSize = strides.size();
             for (int64_t i = 0; i < _outputs[idx].dimsCount; i++) {
                 _outputs[idx].sizes[i] = sizes[i];
                 _outputs[idx].strides[i] = strides[i];
@@ -138,8 +137,6 @@ public:
     Logger _logger;
 };
 
-//bool IRGraphImpl::_initializedMLIR = false;
-
 void IRGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) {
     if (!_initializedMLIR) {
         initializeIRGraphExecution(blob, metadata);
@@ -167,8 +164,6 @@ void IRGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& m
                       output.shapeFromIRModel.has_value() ? output.shapeFromIRModel->to_string().c_str() : "N/A");
     }
 
-    _logger.debug("Dump MemRefType from initial metadata:");
-    _logger.debug("Inputs:");
     auto& inputs = _binding._inputs;
     inputs.resize(inputs.size());
     for (size_t i = 0; i < inputs.size(); ++i) {
@@ -180,7 +175,6 @@ void IRGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& m
         inputs[i].updateStride();
     }
 
-    _logger.debug("Outputs:");
     _binding._outputs.resize(metadata.outputs.size());
     auto& outputs = _binding._outputs;
     for (size_t i = 0; i < outputs.size(); ++i) {
@@ -242,7 +236,6 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
                     shapeFromIRModel.push_back(ov::Dimension(1, dynamicDim));
                 } else {
                     shapeFromIRModel.push_back(ov::Dimension(1, shapeFromCompiler[id]));
-                    // shapeFromIRModel.push_back(-1);
                 }
             }
         }
@@ -360,7 +353,6 @@ void IRGraphImpl::setArgumentValueWithStrides(uint32_t argi, const void* argv, c
         _logger.debug("setArgumentProperty for index %d (input %d)", argi, argi);
         inputs[argi].basePtr = inputs[argi].data = const_cast<void*>(argv);
 
-        // size_t stridesSize = strides.size();
         for (int64_t i = 0; i < inputs[argi].dimsCount; i++) {
             inputs[argi].strides[i] = strides[i];
         }
@@ -371,7 +363,6 @@ void IRGraphImpl::setArgumentValueWithStrides(uint32_t argi, const void* argv, c
         if (idx < outputs.size()) {
             outputs[idx].basePtr = outputs[idx].data = const_cast<void*>(argv);
 
-            // size_t stridesSize = strides.size();
             for (int64_t i = 0; i < outputs[idx].dimsCount; i++) {
                 outputs[idx].strides[i] = strides[i];
             }
