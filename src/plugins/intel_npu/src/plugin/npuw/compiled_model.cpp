@@ -3,10 +3,10 @@
 //
 #include "compiled_model.hpp"
 
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <string>
-#include <fstream>
 
 #include "accuracy/comparator.hpp"
 #include "intel_npu/npu_private_properties.hpp"
@@ -2059,7 +2059,7 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
     }
 
     const std::string file_name = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
-                            (funcall.empty() ? "" : "_" + funcall) + ".xml";
+                                  (funcall.empty() ? "" : "_" + funcall) + ".xml";
     const std::string model_dump_path = ov::util::path_join({dump_dir, file_name}).string();
     ov::save_model(model_to_dump, model_dump_path);
     LOG_INFO("Wrote " << model_dump_path);
@@ -2085,7 +2085,7 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
         LOG_INFO("NOTE: Subgraph[" << id << "] has a host flash attention mechanism.");
         const auto& hfa_tile_model = m_compiled_submodels[id].host_flash_attention.value()._tile_model_to_compile;
         std::string hfa_tile_model_name = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
-                                               (funcall.empty() ? "" : "_" + funcall) + "_hfa_tile.xml";
+                                          (funcall.empty() ? "" : "_" + funcall) + "_hfa_tile.xml";
         std::string hfa_tile_model_dump_path = ov::util::path_join({dump_dir, hfa_tile_model_name}).string();
         ov::save_model(hfa_tile_model, hfa_tile_model_dump_path);
         LOG_INFO("Wrote " << hfa_tile_model_dump_path);
@@ -2093,8 +2093,9 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
         const auto& hfa_final_tile_model =
             m_compiled_submodels[id].host_flash_attention.value()._final_tile_model_to_compile;
         std::string hfa_final_tile_model_name = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
-                                                     (funcall.empty() ? "" : "_" + funcall) + "_hfa_final_tile.xml";
-        std::string hfa_final_tile_model_dump_path = ov::util::path_join({dump_dir, hfa_final_tile_model_name}).string();
+                                                (funcall.empty() ? "" : "_" + funcall) + "_hfa_final_tile.xml";
+        std::string hfa_final_tile_model_dump_path =
+            ov::util::path_join({dump_dir, hfa_final_tile_model_name}).string();
         ov::save_model(hfa_final_tile_model, hfa_final_tile_model_dump_path);
     }
 }
