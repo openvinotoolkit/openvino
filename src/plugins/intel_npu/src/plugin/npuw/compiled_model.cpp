@@ -2050,8 +2050,8 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
                 size_t chunk_size = entry.first;
                 const auto& moe_model = entry.second;
 
-                std::string moe_model_file_name = format_subgraph_name(id, funcall) + "_moe_chunk_" +
-                                                  std::to_string(chunk_size) + ".xml";
+                std::string moe_model_file_name =
+                    format_subgraph_name(id, funcall) + "_moe_chunk_" + std::to_string(chunk_size) + ".xml";
                 std::string moe_model_dump_path = ov::util::path_join({dump_dir, moe_model_file_name}).string();
                 ov::save_model(moe_model, moe_model_dump_path);
                 LOG_INFO("Wrote " << moe_model_dump_path);
@@ -2112,37 +2112,50 @@ void ov::npuw::CompiledModel::dump_subgraph_composition(const std::vector<ov::np
     const std::string sg_file = "npuw_" + m_name + ".sg";
     const std::string sg_path = ov::util::path_join({dump_dir, sg_file}).string();
 
-    // Collect unique subgraphs via replaced_by to get the actual dumped subgraphs
-    std::set<std::size_t> unique_subgraph_ids;
+    // Collect unique subgraphs via replaced_by()
+    std::map<std::size_t, std::size_t> real_id_counts;
     for (size_t id = 0; id < orderedSubgraphs.size(); id++) {
         if (orderedSubgraphs[id]._optimized_out) {
             continue;
         }
         const std::size_t real_id = m_compiled_submodels[id].replaced_by.value_or(id);
-        unique_subgraph_ids.insert(real_id);
+        real_id_counts[real_id]++;
     }
 
-    // Get names and count occurrences
-    std::map<std::string, size_t> subgraph_counts;
-    std::vector<std::string> subgraph_order;
+    std::vector<std::pair<std::string, size_t>> subgraph_info;
+    std::vector<std::string> base_subgraphs;
+    std::vector<std::string> attn_subgraphs;
+    std::vector<std::string> moe_subgraphs;
 
-    for (const auto& real_id : unique_subgraph_ids) {
+    for (const auto& [real_id, count] : real_id_counts) {
         const std::string& funcall = orderedSubgraphs[real_id]._funcall;
-        std::string name = format_subgraph_name(real_id, funcall);
-        subgraph_order.push_back(name);
+        std::string base_name = format_subgraph_name(real_id, funcall);
+        subgraph_info.emplace_back(base_name, count);
 
-        // Count how many times this subgraph is referenced
-        size_t count = 0;
-        for (size_t id = 0; id < orderedSubgraphs.size(); id++) {
-            if (orderedSubgraphs[id]._optimized_out) {
-                continue;
+        if (m_compiled_submodels[real_id].moe_experts) {
+            const auto& moe_models = m_compiled_submodels[real_id].moe_experts.value()._models_to_compile;
+            if (!moe_models.empty()) {
+                for (const auto& [chunk_size, model] : moe_models) {
+                    moe_subgraphs.push_back(base_name + "_moe_chunk_" + std::to_string(chunk_size) + ".xml");
+                }
+            } else {
+                base_subgraphs.push_back(base_name + ".xml");
             }
-            const std::size_t ref_id = m_compiled_submodels[id].replaced_by.value_or(id);
-            if (ref_id == real_id) {
-                count++;
+        } else {
+            base_subgraphs.push_back(base_name + ".xml");
+
+            if (m_compiled_submodels[real_id].pyramid_attention) {
+                const auto& pyramid_models = m_compiled_submodels[real_id].pyramid_attention.value()._models_to_compile;
+                for (std::size_t idx = 0; idx < pyramid_models.size(); ++idx) {
+                    attn_subgraphs.push_back(base_name + "_pyramid_" + ov::npuw::util::fmt(idx, pyramid_models.size()) +
+                                             ".xml");
+                }
+            }
+            if (m_compiled_submodels[real_id].host_flash_attention) {
+                attn_subgraphs.push_back(base_name + "_hfa_tile.xml");
+                attn_subgraphs.push_back(base_name + "_hfa_final_tile.xml");
             }
         }
-        subgraph_counts[name] = count;
     }
 
     std::ofstream json_file(sg_path);
@@ -2154,21 +2167,48 @@ void ov::npuw::CompiledModel::dump_subgraph_composition(const std::vector<ov::np
     json_file << "{\n";
     json_file << "  \"pipeline_name\": \"npuw_" << m_name << "\",\n";
     json_file << "  \"repeated_numbers\": {\n";
-    json_file << "    \"total_subgraphs\": " << subgraph_order.size();
-    for (const auto& name : subgraph_order) {
-        json_file << ",\n    \"" << name << "\": " << subgraph_counts[name];
+    json_file << "    \"total_subgraphs\": " << subgraph_info.size();
+    for (const auto& [name, count] : subgraph_info) {
+        json_file << ",\n    \"" << name << "\": " << count;
     }
     json_file << "\n  },\n";
     json_file << "  \"subgraphs\": [\n";
-    for (size_t i = 0; i < subgraph_order.size(); i++) {
-        json_file << "    \"" << subgraph_order[i] << ".xml\"";
-        if (i < subgraph_order.size() - 1) {
+    for (size_t i = 0; i < base_subgraphs.size(); i++) {
+        json_file << "    \"" << base_subgraphs[i] << "\"";
+        if (i < base_subgraphs.size() - 1) {
             json_file << ",";
         }
         json_file << "\n";
     }
-    json_file << "  ]\n";
-    json_file << "}\n";
+    json_file << "  ]";
+
+    // Add attention subgraphs if any exist
+    if (!attn_subgraphs.empty()) {
+        json_file << ",\n  \"attn_subgraphs\": [\n";
+        for (size_t i = 0; i < attn_subgraphs.size(); i++) {
+            json_file << "    \"" << attn_subgraphs[i] << "\"";
+            if (i < attn_subgraphs.size() - 1) {
+                json_file << ",";
+            }
+            json_file << "\n";
+        }
+        json_file << "  ]";
+    }
+
+    // Add MoE subgraphs if any exist
+    if (!moe_subgraphs.empty()) {
+        json_file << ",\n  \"moe_subgraphs\": [\n";
+        for (size_t i = 0; i < moe_subgraphs.size(); i++) {
+            json_file << "    \"" << moe_subgraphs[i] << "\"";
+            if (i < moe_subgraphs.size() - 1) {
+                json_file << ",";
+            }
+            json_file << "\n";
+        }
+        json_file << "  ]";
+    }
+
+    json_file << "\n}\n";
 
     json_file.close();
     LOG_INFO("Wrote " << sg_path);
