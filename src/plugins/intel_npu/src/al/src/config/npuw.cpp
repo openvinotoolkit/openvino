@@ -70,6 +70,7 @@ void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {
     desc.add<NPUW_LLM_MIN_RESPONSE_LEN>();
     desc.add<NPUW_LLM_MAX_LORA_RANK>();
     desc.add<NPUW_LLM_OPTIMIZE_V_TENSORS>();
+    desc.add<NPUW_LLM_OPTIMIZE_FP8>();
     desc.add<NPUW_LLM_CACHE_ROPE>();
     desc.add<NPUW_LLM_PREFILL_MOE_HINT>();
     desc.add<NPUW_LLM_GENERATE_MOE_HINT>();
