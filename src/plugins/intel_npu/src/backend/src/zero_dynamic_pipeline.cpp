@@ -1,26 +1,21 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#    ifdef _MSC_VER
-#        pragma warning(push)
-#        pragma warning(disable : 4146 4267 4244 4996)
-#    endif
+#include "zero_dynamic_pipeline.hpp"
 
-#    include "zero_dynamic_pipeline.hpp"
+#include <ze_api.h>
+#include <ze_graph_ext.h>
 
-#    include <ze_api.h>
-#    include <ze_graph_ext.h>
+#include <sstream>
 
-#    include <sstream>
-
-#    include "intel_npu/common/itt.hpp"
-#    include "intel_npu/config/options.hpp"
-#    include "intel_npu/prefix.hpp"
-#    include "intel_npu/utils/logger/logger.hpp"
-#    include "intel_npu/utils/zero/zero_api.hpp"
-#    include "intel_npu/utils/zero/zero_remote_tensor.hpp"
-#    include "intel_npu/utils/zero/zero_types.hpp"
+#include "intel_npu/common/itt.hpp"
+#include "intel_npu/config/options.hpp"
+#include "intel_npu/prefix.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
+#include "intel_npu/utils/zero/zero_types.hpp"
 
 namespace {
 std::vector<size_t> get_strides(const std::vector<size_t>& strides_in_bytes, size_t element_size) {
@@ -383,7 +378,3 @@ std::vector<ov::ProfilingInfo> DynamicPipeline::get_profiling_info() const {
 }
 
 }  // namespace intel_npu
-
-#    ifdef _MSC_VER
-#        pragma warning(pop)
-#endif
