@@ -59,7 +59,7 @@ struct GroupNormalizationFsv16Fused : public GroupNormalizationBase {
         if (in0_layout.data_padding._lower_size[1] % fsv != 0)
             return false;
         // number of features per group must not exceed fsv
-        return in0_layout.get_padded_dims()[1] / std::static_pointer_cast<const group_normalization>(node.get_primitive())->num_groups <= fsv;
+        return size_t(in0_layout.get_padded_dims()[1] / std::static_pointer_cast<const group_normalization>(node.get_primitive())->num_groups) <= fsv;
     }
 };
 
