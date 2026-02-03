@@ -39,7 +39,12 @@ void pa_lsc_u8(
     uint32_t q_gather_offset_bytes,
 #endif
     svmptr_t k_cache_base [[type("svmptr_t")]],
+#if USE_LSC
     svmptr_t v_cache_base [[type("svmptr_t")]],
+#else
+    SurfaceIndex v_cache_stateful [[type("buffer_t")]],
+    uint32_t v_cache_stateful_offset_bytes,
+#endif
 #if IS_BLOCK_SPARSE
     svmptr_t sparse_mask_base [[type("svmptr_t")]],
     svmptr_t wg_sparse_mask_base [[type("svmptr_t")]],
@@ -194,8 +199,20 @@ void pa_lsc_u8(
                     cm_slm_block_write(slm_K, slm_offset + k * kv_step * sizeof(half), kmat.format<half>());
                 }
             } else {
+#if USE_LSC
                 cm_svm_block_read(reinterpret_cast<svmptr_t>(v_cache_base + dscale_offset), dscale);
-                cm_svm_block_read(reinterpret_cast<svmptr_t>(v_cache_base + dscale_offset+CMPA_BLOCK_SZ*sizeof(half)), zp);
+                cm_svm_block_read(reinterpret_cast<svmptr_t>(v_cache_base + dscale_offset + CMPA_BLOCK_SZ*sizeof(half)), zp);
+#else
+                // dscale/zp are half[kv_step] => 32 bytes each when kv_step=16
+                constexpr int half16_bytes = 16 * sizeof(half); // 32
+                constexpr int u32_per_half16 = half16_bytes / sizeof(uint); // 8
+                uint ds_off = v_cache_stateful_offset_bytes + dscale_offset;
+                uint zp_off = v_cache_stateful_offset_bytes + dscale_offset + CMPA_BLOCK_SZ*sizeof(half);
+                auto ds_u32 = cm_load<uint, u32_per_half16>(v_cache_stateful, ds_off);
+                auto zp_u32 = cm_load<uint, u32_per_half16>(v_cache_stateful, zp_off);
+                dscale.format<uint>() = ds_u32;
+                zp.format<uint>() = zp_u32;
+#endif
 
                 matrix<half, REG_K/2, REG_N*2> VmatVNNI;
                 matrix<half, REG_K, REG_N> Vmat;
@@ -209,10 +226,18 @@ void pa_lsc_u8(
                     #if USE_LSC
                     cm_load<lsc::Normal>(quanVmat.format<uint8_t>(), b2dV.set_block_x(k));
                     #else
-                    auto v_base = reinterpret_cast<svmptr_t>((int8_t*)v_cache_base + cur_block_id * quan_blk_stride + (kv_pos % CMPA_BLOCK_SZ) * kv_pitch + k);
+                    // Each row loads REG_N bytes (REG_N=16) => 4 dwords
+                    constexpr int v_row_u32 = REG_N / 4; // 4
                     #pragma unroll
-                    for(int r = 0; r < REG_K; r++) {
-                        cm_svm_block_read(v_base + r * kv_pitch, quanVmat.row(r));
+                    for (int r = 0; r < REG_K; r++) {
+                        uint elem_off_bytes =
+                            cur_block_id * quan_blk_stride +
+                            (kv_pos % CMPA_BLOCK_SZ) * kv_pitch +
+                            r * kv_pitch +
+                            k;
+                        uint cur_off = v_cache_stateful_offset_bytes + elem_off_bytes;
+                        auto row_u32 = cm_load<uint, v_row_u32>(v_cache_stateful, cur_off);
+                        quanVmat.row(r).format<uint>() = row_u32;
                     }
                     #endif
                     /*@bug: cm compiler in the tail process.
