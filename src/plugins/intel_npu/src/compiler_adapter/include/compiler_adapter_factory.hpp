@@ -29,17 +29,17 @@ public:
                                                   ov::intel_npu::CompilerType& compilerType) const {
         if (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
             if (engineBackend) {
-                if (_pluginCompilerIsPresent) {
+                auto platformName = engineBackend->getDevice()->getName();
+                if (_pluginCompilerIsPresent && platformName != ov::intel_npu::Platform::NPU3720 &&
+                    platformName != ov::intel_npu::Platform::AUTO_DETECT) {
                     try {
                         compilerType = ov::intel_npu::CompilerType::PLUGIN;
                         return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs());
                     } catch (...) {
                         _pluginCompilerIsPresent = false;
-                        compilerType = ov::intel_npu::CompilerType::DRIVER;
                     }
-                } else {
-                    compilerType = ov::intel_npu::CompilerType::DRIVER;
                 }
+                compilerType = ov::intel_npu::CompilerType::DRIVER;
             } else {
                 // no backend present, offline compilation only
                 compilerType = ov::intel_npu::CompilerType::PLUGIN;
