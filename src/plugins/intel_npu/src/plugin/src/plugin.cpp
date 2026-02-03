@@ -223,6 +223,18 @@ std::shared_ptr<const ov::Model> exclude_model_ptr_from_map(ov::AnyMap& properti
     return modelPtr;
 }
 
+int get_ir_version(const std::shared_ptr<const ov::Model>& model, const intel_npu::Logger& logger) {
+    const auto& rtInfo = model->get_rt_info();
+    const auto it = rtInfo.find("version");
+    if (it != rtInfo.end()) {
+        return static_cast<int>(it->second.as<int64_t>());
+    }
+
+    logger.warning("The IR version was not found within the runtime information attributes. The NPU plugin will "
+                   "continue execution assuming the version is 11. If wrong, compilation issues may occur.");
+    return 11;
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -376,6 +388,8 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_LLM_MIN_RESPONSE_LEN);
     REGISTER_OPTION(NPUW_LLM_OPTIMIZE_V_TENSORS);
     REGISTER_OPTION(NPUW_LLM_CACHE_ROPE);
+    REGISTER_OPTION(NPUW_LLM_PREFILL_MOE_HINT);
+    REGISTER_OPTION(NPUW_LLM_GENERATE_MOE_HINT);
     REGISTER_OPTION(NPUW_LLM_GENERATE_PYRAMID);
     REGISTER_OPTION(NPUW_LLM_PREFILL_CHUNK_SIZE);
     REGISTER_OPTION(NPUW_LLM_SHARED_HEAD);
@@ -672,19 +686,27 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // sure only the option supported by the compiler is registered in the config.
     bool useBaseModelSerializer = true;
     bool modelSerializerChosenExplicitly = false;
-    const std::string useBaseModelSerializerKey = ov::intel_npu::use_base_model_serializer.name();
-    const std::string modelSerializerVersionKey = ov::intel_npu::model_serializer_version.name();
-    if (localProperties.count(useBaseModelSerializerKey)) {
+
+    if (get_ir_version(model, _logger) > 10) {
+        const std::string useBaseModelSerializerKey = ov::intel_npu::use_base_model_serializer.name();
+        const std::string modelSerializerVersionKey = ov::intel_npu::model_serializer_version.name();
+        if (localProperties.count(useBaseModelSerializerKey)) {
+            modelSerializerChosenExplicitly = true;
+            useBaseModelSerializer = localProperties.at(useBaseModelSerializerKey).as<bool>();
+            localProperties.erase(useBaseModelSerializerKey);
+            localProperties.erase(modelSerializerVersionKey);
+        } else if (localProperties.count(modelSerializerVersionKey)) {
+            modelSerializerChosenExplicitly = true;
+            const auto modelSerializerVersion =
+                localProperties.at(modelSerializerVersionKey).as<ov::intel_npu::ModelSerializerVersion>();
+            useBaseModelSerializer =
+                !(modelSerializerVersion == ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
+            localProperties.erase(modelSerializerVersionKey);
+        }
+    } else {
+        // Models that use a version < 11 cannot be marshalled using the "no_weights_copy" algorithm. See C#179944.
+        // This is a hack that should be cleaned up after the config option migration is complete.
         modelSerializerChosenExplicitly = true;
-        useBaseModelSerializer = localProperties.at(useBaseModelSerializerKey).as<bool>();
-        localProperties.erase(useBaseModelSerializerKey);
-        localProperties.erase(modelSerializerVersionKey);
-    } else if (localProperties.count(modelSerializerVersionKey)) {
-        modelSerializerChosenExplicitly = true;
-        const auto modelSerializerVersion =
-            localProperties.at(modelSerializerVersionKey).as<ov::intel_npu::ModelSerializerVersion>();
-        useBaseModelSerializer = !(modelSerializerVersion == ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
-        localProperties.erase(modelSerializerVersionKey);
     }
 
     update_log_level(localProperties);
@@ -1032,19 +1054,26 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     // sure only the option supported by the compiler is registered in the config.
     bool useBaseModelSerializer = true;
     bool modelSerializerChosenExplicitly = false;
-    const std::string useBaseModelSerializerKey = ov::intel_npu::use_base_model_serializer.name();
-    const std::string modelSerializerVersionKey = ov::intel_npu::model_serializer_version.name();
-    if (localProperties.count(useBaseModelSerializerKey)) {
+    if (get_ir_version(model, _logger) > 10) {
+        const std::string useBaseModelSerializerKey = ov::intel_npu::use_base_model_serializer.name();
+        const std::string modelSerializerVersionKey = ov::intel_npu::model_serializer_version.name();
+        if (localProperties.count(useBaseModelSerializerKey)) {
+            modelSerializerChosenExplicitly = true;
+            useBaseModelSerializer = localProperties.at(useBaseModelSerializerKey).as<bool>();
+            localProperties.erase(useBaseModelSerializerKey);
+            localProperties.erase(modelSerializerVersionKey);
+        } else if (localProperties.count(modelSerializerVersionKey)) {
+            modelSerializerChosenExplicitly = true;
+            const auto modelSerializerVersion =
+                localProperties.at(modelSerializerVersionKey).as<ov::intel_npu::ModelSerializerVersion>();
+            useBaseModelSerializer =
+                !(modelSerializerVersion == ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
+            localProperties.erase(modelSerializerVersionKey);
+        }
+    } else {
+        // Models that use a version < 11 cannot be marshalled using the "no_weights_copy" algorithm. See C#179944.
+        // This is a hack that should be cleaned up after the config option migration is complete.
         modelSerializerChosenExplicitly = true;
-        useBaseModelSerializer = localProperties.at(useBaseModelSerializerKey).as<bool>();
-        localProperties.erase(useBaseModelSerializerKey);
-        localProperties.erase(modelSerializerVersionKey);
-    } else if (localProperties.count(modelSerializerVersionKey)) {
-        modelSerializerChosenExplicitly = true;
-        const auto modelSerializerVersion =
-            localProperties.at(modelSerializerVersionKey).as<ov::intel_npu::ModelSerializerVersion>();
-        useBaseModelSerializer = !(modelSerializerVersion == ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
-        localProperties.erase(modelSerializerVersionKey);
     }
     exclude_model_ptr_from_map(localProperties);
     update_log_level(localProperties);

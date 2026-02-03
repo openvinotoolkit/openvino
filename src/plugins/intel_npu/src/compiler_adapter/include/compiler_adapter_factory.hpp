@@ -27,18 +27,23 @@ public:
 
     std::unique_ptr<ICompilerAdapter> getCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
                                                   ov::intel_npu::CompilerType& compilerType) const {
-        if (_pluginCompilerIsPresent) {
-            if (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
-                try {
-                    compilerType = ov::intel_npu::CompilerType::PLUGIN;
-                    return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs());
-                } catch (...) {
-                    _pluginCompilerIsPresent = false;
+        if (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
+            if (engineBackend) {
+                if (_pluginCompilerIsPresent) {
+                    try {
+                        compilerType = ov::intel_npu::CompilerType::PLUGIN;
+                        return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs());
+                    } catch (...) {
+                        _pluginCompilerIsPresent = false;
+                        compilerType = ov::intel_npu::CompilerType::DRIVER;
+                    }
+                } else {
                     compilerType = ov::intel_npu::CompilerType::DRIVER;
                 }
+            } else {
+                // no backend present, offline compilation only
+                compilerType = ov::intel_npu::CompilerType::PLUGIN;
             }
-        } else {
-            compilerType = ov::intel_npu::CompilerType::DRIVER;
         }
 
         if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {

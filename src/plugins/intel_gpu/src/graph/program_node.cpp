@@ -1635,7 +1635,7 @@ void program_node::create_onednn_primitive_attributes(
                         new_layout.set_partial_shape(new_input_pshape);
                         in = new_layout;
                     }
-                    dnnl::memory::dims dims = onednn::convert_gemm_tensor(in.get_tensor(), rank, false);
+                    dnnl::memory::dims dims = onednn::convert_tensor(in.get_tensor(), rank, false);
                     dnnl::memory::data_type dt = onednn::convert_data_type(in.data_type);
                     dnnl::memory::format_tag fmt = onednn::convert_gemm_data_format(dims, in.format);
                     post_ops.append_binary(alg, dnnl::memory::desc(dims, dt, fmt));

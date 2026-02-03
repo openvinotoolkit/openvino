@@ -156,6 +156,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_intel_gpu_hint, ov::intel_gpu::hint::host_task_priority, "host_task_priority");
     wrap_property_RW(m_intel_gpu_hint, ov::intel_gpu::hint::available_device_mem, "available_device_mem");
     wrap_property_RW(m_intel_gpu_hint, ov::intel_gpu::hint::enable_lora_operation, "enable_lora_operation");
+    wrap_property_RW(m_intel_gpu_hint, ov::intel_gpu::hint::enable_large_allocations, "enable_large_allocations");
 
     // Submodule device
     py::module m_device =
@@ -353,6 +354,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_intel_npu, ov::intel_npu::qdq_optimization_aggressive, "qdq_optimization_aggressive");
     wrap_property_RW(m_intel_npu, ov::intel_npu::run_inferences_sequentially, "run_inferences_sequentially");
     wrap_property_RW(m_intel_npu, ov::intel_npu::disable_idle_memory_prunning, "disable_idle_memory_prunning");
+    wrap_property_RW(m_intel_npu, ov::intel_npu::enable_strides_for, "enable_strides_for");
 
     py::enum_<ov::intel_npu::CompilerType>(m_intel_npu, "CompilerType", py::arithmetic())
         .value("DRIVER", ov::intel_npu::CompilerType::DRIVER)

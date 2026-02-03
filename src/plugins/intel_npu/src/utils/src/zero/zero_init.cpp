@@ -80,8 +80,16 @@ void ZeroInitStructsHolder::initNpuDriver() {
         }
     };
 
+    bool get_loader_version = false;
+
     auto fallbackToZeDriverGet = [&]() {
         _log.debug("ZeroInitStructsHolder::initNpuDriver - zeInitDrivers not supported, fallback to zeDriverGet");
+
+        if (get_loader_version) {
+            // With a newer Loader but an older Driver where zeInitDriver is not supported, we still need to call zeInit
+            _log.debug("ZeroInitStructsHolder::initNpuDriver - performing zeInit on NPU only");
+            THROW_ON_FAIL_FOR_LEVELZERO("zeInit", zeInit(ZE_INIT_FLAG_VPU_ONLY));
+        }
 
         uint32_t drivers_count = 0;
         THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGet", zeDriverGet(&drivers_count, nullptr));
@@ -94,7 +102,6 @@ void ZeroInitStructsHolder::initNpuDriver() {
     };
 
     zel_version_t loader_version = {};
-    bool get_loader_version = false;
     try {
         _log.debug("ZeroInitStructsHolder::initNpuDriver - performing zelGetLoaderVersion");
         zel_component_version_t version;

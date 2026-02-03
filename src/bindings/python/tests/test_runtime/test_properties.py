@@ -452,6 +452,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((False, False),),
         ),
         (
+            intel_gpu_hint.enable_large_allocations,
+            "GPU_ENABLE_LARGE_ALLOCATIONS",
+            ((True, True),),
+        ),
+        (
             intel_npu.compilation_mode_params,
             "NPU_COMPILATION_MODE_PARAMS",
             (("dummy-op-replacement=true", "dummy-op-replacement=true"),),
@@ -507,6 +512,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             intel_npu.disable_idle_memory_prunning,
             "NPU_DISABLE_IDLE_MEMORY_PRUNING",
             ((True, True),),
+        ),
+        (
+            intel_npu.enable_strides_for,
+            "NPU_ENABLE_STRIDES_FOR",
+            (("inputs,outputs", "inputs,outputs"),),
         ),
         (
             intel_npu.compiler_type,
