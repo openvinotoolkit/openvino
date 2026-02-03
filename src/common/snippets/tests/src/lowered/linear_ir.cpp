@@ -7,6 +7,7 @@
 #include "openvino/op/result.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/reshape.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/online_softmax.hpp"
 #include "openvino/op/parameter.hpp"
 
@@ -24,8 +25,8 @@ using namespace ov::snippets;
 TEST(LinearIRReplaceWithNode, PreservesPerOutputDescriptors) {
     const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 6});
     const auto op = std::make_shared<ov::snippets::op::OnlineSoftmax>(param);
-    const auto result_0 = std::make_shared<ov::op::v0::Result>(op->output(0));
-    const auto result_1 = std::make_shared<ov::op::v0::Result>(op->output(1));
+    const auto result_0 = std::make_shared<ov::snippets::op::Result>(op->output(0));
+    const auto result_1 = std::make_shared<ov::snippets::op::Result>(op->output(1));
     const auto model = std::make_shared<ov::Model>(ov::OutputVector{result_0, result_1}, ov::ParameterVector{param});
 
     auto factory = std::make_shared<ov::snippets::IShapeInferSnippetsFactory>();
