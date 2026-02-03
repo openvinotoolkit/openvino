@@ -33,7 +33,8 @@ ReshapePRelu::ReshapePRelu() {
         const auto prelu_rank = prelu_pshape.rank();
         const auto slope_pshape = prelu->get_input_partial_shape(1);
         const auto slope_rank = slope_pshape.rank();
-        if (prelu_rank.get_length() == 1 || slope_rank.get_length() != 1) {
+        // Skip if prelu input rank < 2 (scalar or 1D) since we need to access channel_dim_idx=1
+        if (prelu_rank.get_length() < 2 || slope_rank.get_length() != 1) {
             return false;
         }
 
