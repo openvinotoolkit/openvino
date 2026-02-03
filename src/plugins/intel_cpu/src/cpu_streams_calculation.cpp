@@ -829,66 +829,63 @@ int get_model_prefer_threads(const int num_streams,
                              const std::vector<std::vector<int>>& proc_type_table,
                              const std::shared_ptr<ov::Model>& model,
                              Config& config) {
-    // Analyze workload characteristics
-    const bool int8_intensive = ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model);
-    const bool is_LLM = config.modelType != Config::ModelType::CNN;
     const int sockets = get_num_sockets();
 
-    // Early return if already configured
-    if (config.modelPreferThreads != -1) {
-        return config.modelPreferThreads;
-    }
+    if (config.modelPreferThreads == -1) {
+        const bool int8_intensive = ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model);
+        const bool is_LLM = config.modelType != Config::ModelType::CNN;
 
-    config.modelPreferThreads = 0;
+        config.modelPreferThreads = 0;
 
-    // Platform-specific configuration
+        // Platform-specific configuration
 #if defined(OPENVINO_ARCH_ARM64) && defined(__linux__)
-    configure_arm64_linux_threads(config, proc_type_table, int8_intensive, is_LLM);
+        configure_arm64_linux_threads(config, proc_type_table, int8_intensive, is_LLM);
 
 #else
-    // Calculate ISA-specific memory threshold
-    const float isaSpecificThreshold = get_isa_threshold_multiplier(dnnl::get_effective_cpu_isa());
-    const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
-    const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
+        // Calculate ISA-specific memory threshold
+        const float isaSpecificThreshold = get_isa_threshold_multiplier(dnnl::get_effective_cpu_isa());
+        const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
+        const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
 
-    // Analyze network memory bandwidth pressure
-    ov::MemBandwidthPressure networkToleranceForLowCache =
-        ov::mem_bandwidth_pressure_tolerance(model,
-                                             L2_cache_size,
-                                             memThresholdAssumeLimitedForISA,
-                                             config.inferencePrecision);
+        // Analyze network memory bandwidth pressure
+        ov::MemBandwidthPressure networkToleranceForLowCache =
+            ov::mem_bandwidth_pressure_tolerance(model,
+                                                 L2_cache_size,
+                                                 memThresholdAssumeLimitedForISA,
+                                                 config.inferencePrecision);
 
 #    if defined(OPENVINO_ARCH_ARM) && defined(__linux__)
-    configure_arm_linux_threads(config, proc_type_table, networkToleranceForLowCache, int8_intensive, is_LLM);
+        configure_arm_linux_threads(config, proc_type_table, networkToleranceForLowCache, int8_intensive, is_LLM);
 
 #    elif (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
-    configure_apple_threads(config,
-                            proc_type_table,
-                            networkToleranceForLowCache,
-                            memThresholdAssumeLimitedForISA,
-                            int8_intensive,
-                            is_LLM);
+        configure_apple_threads(config,
+                                proc_type_table,
+                                networkToleranceForLowCache,
+                                memThresholdAssumeLimitedForISA,
+                                int8_intensive,
+                                is_LLM);
 
 #    else
-    // x86/x64 platforms
-    const int main_cores = proc_type_table[0][MAIN_CORE_PROC];
-    const int efficient_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
+        // x86/x64 platforms
+        const int main_cores = proc_type_table[0][MAIN_CORE_PROC];
+        const int efficient_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
 
-    if (efficient_cores > 0 && main_cores > 0) {
-        // Hybrid architecture (e.g., Intel Alder Lake, Raptor Lake)
-        configure_x86_hybrid_threads(config, proc_type_table, networkToleranceForLowCache, int8_intensive, is_LLM);
-    } else {
-        // Non-hybrid architecture
-        configure_x86_non_hybrid_threads(config, proc_type_table);
-    }
+        if (efficient_cores > 0 && main_cores > 0) {
+            // Hybrid architecture (e.g., Intel Alder Lake, Raptor Lake)
+            configure_x86_hybrid_threads(config, proc_type_table, networkToleranceForLowCache, int8_intensive, is_LLM);
+        } else {
+            // Non-hybrid architecture
+            configure_x86_non_hybrid_threads(config, proc_type_table);
+        }
 
-    // Configure throughput threads for x86/x64
-    configure_x86_throughput_threads(config,
-                                     proc_type_table,
-                                     networkToleranceForLowCache,
-                                     memThresholdAssumeLimitedForISA);
+        // Configure throughput threads for x86/x64
+        configure_x86_throughput_threads(config,
+                                         proc_type_table,
+                                         networkToleranceForLowCache,
+                                         memThresholdAssumeLimitedForISA);
 #    endif
 #endif
+    }
 
     // Determine final thread preference based on stream configuration
     if (num_streams > sockets || num_streams == 0) {

@@ -693,6 +693,8 @@ TEST_F(ModelPreferThreadsIntegrationTest, Direct_Apple_SpecialLatencyAndThroughp
 // ============================================================================
 // Additional tests targeting configure_* thread configuration helpers
 // ============================================================================
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+// Wrapped above test to run only on x86 architectures.
 
 TEST_F(ModelPreferThreadsIntegrationTest, X86_NonHybrid_ZeroMainUsesEfficient) {
     std::vector<std::vector<int>> proc_type_table = {{4, 0, 4, 0, 0, 0, 0}};  // ALL=4, MAIN=0, EFFICIENT=4
@@ -748,6 +750,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, X86_Throughput_HyperThreadingAdjustmen
     EXPECT_GE(config.modelPreferThreadsThroughput, 1);
     EXPECT_EQ(result, config.modelPreferThreadsThroughput);
 }
+#endif
 
 #if defined(OPENVINO_ARCH_ARM) && defined(__linux__)
 TEST_F(ModelPreferThreadsIntegrationTest, ARM_Linux_Throughput_UnknownAndMemLimited) {
