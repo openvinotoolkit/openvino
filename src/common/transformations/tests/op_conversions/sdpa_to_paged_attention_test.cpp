@@ -4684,12 +4684,12 @@ TEST_F(SDPAToPATest, SDPAToPA_jais_13b_General) {
         auto Transpose5 = makeOP<v1::Transpose>({Transpose4, {0, 2, 1, 3}});
         auto Reshape8 = makeOP<v1::Reshape>({Transpose5, {0, -1}}, {{"special_zero", true}});
         auto alibi_slopes = makeConst(element::f32,
-                                    ov::Shape({
-                                        40,
-                                        1,
-                                        1,
-                                    }),
-                                    MOCK_VALUE);
+                                      ov::Shape({
+                                          40,
+                                          1,
+                                          1,
+                                      }),
+                                      MOCK_VALUE);
         auto Reshape9 = makeOP<v1::Reshape>({alibi_slopes, {-1}}, {{"special_zero", false}});
         auto Multiply4 = makeOP<v1::Multiply>({Reshape9, -1.000000f}, {{"auto_broadcast", "numpy"}});
         auto Constant11 = makeConst(element::f32,
