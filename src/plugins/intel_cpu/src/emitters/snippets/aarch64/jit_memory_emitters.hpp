@@ -15,6 +15,10 @@
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
 
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include "emitters/snippets/common/verbose_utils.hpp"
+#endif
+
 namespace ov::intel_cpu::aarch64 {
 
 class jit_memory_emitter : public jit_emitter {

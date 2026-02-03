@@ -8,13 +8,13 @@
 #include <string>
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#    include "openvino/util/common_util.hpp"
 #    include "emitters/snippets/common/verbose_utils.hpp"
 #    include "jit_gemm_copy_b_emitter.hpp"
 #    include "jit_gemm_emitter.hpp"
 #    include "jit_kernel_emitter.hpp"
 #    include "jit_memory_emitters.hpp"
 #    include "jit_segfault_detector_emitter.hpp"
+#    include "openvino/util/common_util.hpp"
 #    include "verbose.hpp"
 
 namespace ov::intel_cpu::aarch64 {
