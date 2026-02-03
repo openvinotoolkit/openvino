@@ -7,6 +7,7 @@
 #include <memory>
 #include <set>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "cache/multi_cache.h"
@@ -39,7 +40,8 @@ public:
         : get_host_(std::move(get_host)),
           isa_(isa),
           wrap_(std::move(wrap)),
-          get_kernel_executor_table_(nullptr) {}
+          get_kernel_executor_table_{},
+          compiled_kernel_cache_{} {}
 
     /**
      * @brief Constructs an EmitterFactory with caching support.
@@ -53,7 +55,7 @@ public:
     EmitterFactory(GetHost get_host,
                    Isa isa,
                    Wrap wrap,
-                   GetKernelExecutorTable get_kernel_executor_table,
+                   T get_kernel_executor_table,
                    MultiCacheWeakPtr compiled_kernel_cache)
         : get_host_(std::move(get_host)),
           isa_(isa),
@@ -146,8 +148,17 @@ private:
     GetHost get_host_;
     Isa isa_;
     Wrap wrap_;
-    GetKernelExecutorTable get_kernel_executor_table_;
-    MultiCacheWeakPtr compiled_kernel_cache_;
+    std::conditional_t<std::is_void_v<GetKernelExecutorTable>, std::monostate, GetKernelExecutorTable>
+        get_kernel_executor_table_;
+    std::conditional_t<std::is_void_v<GetKernelExecutorTable>, std::monostate, MultiCacheWeakPtr>
+        compiled_kernel_cache_;
 };
+
+template <typename GetHost, typename Isa, typename Wrap>
+EmitterFactory(GetHost, Isa, Wrap) -> EmitterFactory<GetHost, Isa, Wrap, void>;
+
+template <typename GetHost, typename Isa, typename Wrap, typename GetKernelExecutorTable>
+EmitterFactory(GetHost, Isa, Wrap, GetKernelExecutorTable, MultiCacheWeakPtr)
+    -> EmitterFactory<GetHost, Isa, Wrap, GetKernelExecutorTable>;
 
 }  // namespace ov::intel_cpu
