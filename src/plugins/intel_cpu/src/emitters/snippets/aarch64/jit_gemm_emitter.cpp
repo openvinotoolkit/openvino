@@ -38,7 +38,8 @@ using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 jit_gemm_emitter::jit_gemm_emitter(jit_generator* h,
                                    cpu_isa_t isa,
                                    const ExpressionPtr& expr,
-                                   const snippets::KernelExecutorTablePtr& kernel_table)
+                                   const snippets::KernelExecutorTablePtr& kernel_table,
+                                   const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache)
     : jit_binary_call_emitter(h, isa, expr->get_live_regs()) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     GemmKernelKaiConfig kernel_config;
