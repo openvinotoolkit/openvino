@@ -98,47 +98,45 @@ public:
         // q [batch_in_tokens, head_num * head_size]
         // k [batch_in_tokens, head_num * head_size]
         // v [batch_in_tokens, head_num * head_size]
-        auto q = make_param(PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, data_type, "q");
-        auto k = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "k");
-        auto v = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "v");
-        auto key_cache = make_param(PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
-                                    ov::element::dynamic,
-                                    "key_cache.0");
-        auto value_cache = make_param(PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
-                                      ov::element::dynamic,
-                                      "value_cache.0");
+        auto q = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "q");
+auto k = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "k");
+auto v = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "v");
+
+// Make cache shapes fully allocatable (last dim static)
+auto key_cache = make_param(PartialShape{ov::Dimension::dynamic(), 32, head_num * head_size},
+                            ov::element::dynamic,
+                            "key_cache.0");
+auto value_cache = make_param(PartialShape{ov::Dimension::dynamic(), 32, head_num * head_size},
+                              ov::element::dynamic,
+                              "value_cache.0");
+
         auto past_lens = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "past_lens");
         auto subsequence_begins =
             make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "subsequence_begins");
         auto block_indices = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "block_indices");
         auto block_indices_begins =
             make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "block_indices_begins");
-        float scale_value = 1.0 / std::sqrt(head_size);
-        auto scale =
-            std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale_value});
-        auto silding_windows =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{sliding_window});
-        auto alibi_slopes = std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{});
-        auto max_context_len =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<float>{1024});
-        auto score_aggregation_window =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
-        auto rotated_block_indices =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
-        auto rotation_deltas =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
-        auto rotation_trig_lut =
-            std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{0});
-        auto xattention_threshold =
-            std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{0});
-        if (enable_xattn) {
-            xattention_threshold =
-                std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{1}, std::vector<float>{0.9f});
-        }
-        auto xattention_block_size =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{64});
-        auto xattention_stride =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{8});
+
+        float scale_value = 1.0f / std::sqrt(static_cast<float>(head_size));
+auto scale = ov::op::v0::Constant::create(ov::element::f32, {}, {scale_value});
+
+auto sliding_windows = ov::op::v0::Constant::create(ov::element::i32, {}, {sliding_window});
+auto alibi_slopes = ov::op::v0::Constant::create(ov::element::f32, {0}, {});
+
+auto max_context_len = ov::op::v0::Constant::create(ov::element::i32, {}, {1024});
+auto score_aggregation_window = ov::op::v0::Constant::create(ov::element::i32, {}, {0});
+
+auto rotated_block_indices = ov::op::v0::Constant::create(ov::element::i32, {0}, {});
+auto rotation_deltas      = ov::op::v0::Constant::create(ov::element::i32, {0}, {});
+auto rotation_trig_lut    = ov::op::v0::Constant::create(ov::element::f32, {0}, {});
+
+auto xattention_threshold = enable_xattn
+    ? ov::op::v0::Constant::create(ov::element::f32, {1}, {0.9f})
+    : ov::op::v0::Constant::create(ov::element::f32, {0}, {});
+
+auto xattention_block_size = ov::op::v0::Constant::create(ov::element::i32, {}, {64});
+auto xattention_stride     = ov::op::v0::Constant::create(ov::element::i32, {}, {8});
+
         // Create sink input as Constant (not Parameter) for testing
         // PagedAttentionExtension requires sink input to be Constant
         // Use shape [1, head_num, 1, 1] when use_sink_input=true, or empty shape [0] when false
@@ -151,14 +149,10 @@ public:
             sinks = std::static_pointer_cast<ov::op::v0::Constant>(ov::test::utils::make_constant(data_type, Shape{0}));
         }
 
-        auto adaptive_rkv_start_size =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
-        auto adaptive_rkv_evictable_sizes =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
-        auto adaptive_rkv_diversity_block_set_indices =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
-        auto adaptive_rkv_diversity_block_set_indices_begins =
-            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
+auto adaptive_rkv_start_size = ov::op::v0::Constant::create(ov::element::i32, {}, {0});
+auto adaptive_rkv_evictable_sizes = ov::op::v0::Constant::create(ov::element::i32, {0}, {});
+auto adaptive_rkv_diversity_block_set_indices = ov::op::v0::Constant::create(ov::element::i32, {0}, {});
+auto adaptive_rkv_diversity_block_set_indices_begins = ov::op::v0::Constant::create(ov::element::i32, {0}, {});
         ParameterVector params =
             {q, k, v, key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins};
         OutputVector paged_attn_inputs = {q,
@@ -171,7 +165,7 @@ public:
                                           block_indices,
                                           block_indices_begins,
                                           scale,
-                                          silding_windows,
+                                          sliding_windows,
                                           alibi_slopes,
                                           max_context_len,
                                           score_aggregation_window,
@@ -885,76 +879,96 @@ public:
 
 
 class PagedAttnVSRefPluginTest : public PagedAttnTestBase {
-public:
-    std::shared_ptr<ov::Model> get_ref_model(ov::element::Type data_type,
-                                         ov::Dimension::value_type head_size = 64,
-                                         ov::Dimension::value_type head_num = 8,
-                                         bool use_sink_input = false) override {
-    // Build the SAME PagedAttention model (graph), just compile it on a different device later.
-    // enableXattn + sliding_window should match the test param / SetUp state.
-    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config] =
-        this->GetParam();
-
-    return get_model(data_type, enableXattn, head_size, head_num, use_sink_input, slidingWindow);
-}
-
+private: 
     std::vector<ov::Tensor> run_ref_test(std::shared_ptr<ov::Model> model, bool extendBlockIndices) {
-    // Save CPU device, config
-    const auto saved_device = targetDevice;
-    const auto saved_config = configuration;
+        // Save CPU device, config
+        const auto saved_device = targetDevice;
+        const auto saved_config = configuration;
 
-    targetDevice = ov::test::utils::DEVICE_TEMPLATE;
+        targetDevice = ov::test::utils::DEVICE_TEMPLATE;
 
-    configuration.clear();
-    configuration[ov::hint::inference_precision.name()] = ov::element::f32;
+        configuration.clear();
+        configuration[ov::hint::inference_precision.name()] = ov::element::f32;
 
-    function = model;
-    prepare();
+        function = model;
+        prepare();
 
-    for (const auto& input : compiledModel.inputs()) {
-        for (auto& name : input.get_names()) {
-            auto cache_precision = input.get_element_type();
-            const size_t block_nums = 4;
-            ov::PartialShape pshape;
-            if (name.find("key_cache.") == 0) {
-                pshape = input.get_partial_shape();
-                pshape[0] = block_nums;
-                key_cache = ov::Tensor(cache_precision, pshape.get_shape());
-                break;
-            } else if (name.find("value_cache.") == 0) {
-                pshape = input.get_partial_shape();
-                pshape[0] = block_nums;
-                value_cache = ov::Tensor(cache_precision, pshape.get_shape());
-                break;
+        for (const auto& input : compiledModel.inputs()) {
+            for (auto& name : input.get_names()) {
+                auto cache_precision = input.get_element_type();
+                const size_t block_nums = 4;
+                ov::PartialShape pshape;
+                if (name.find("key_cache.") == 0) {
+                    pshape = input.get_partial_shape();
+                    pshape[0] = block_nums;
+                    key_cache = ov::Tensor(cache_precision, pshape.get_shape());
+                    break;
+                } else if (name.find("value_cache.") == 0) {
+                    pshape = input.get_partial_shape();
+                    pshape[0] = block_nums;
+                    value_cache = ov::Tensor(cache_precision, pshape.get_shape());
+                    break;
+                }
             }
         }
-    }
 
-    std::vector<ov::Tensor> outputs;
-    int idx = 0;
+        std::vector<ov::Tensor> outputs;
+        int idx = 0;
 
-    // Critical: use PA input generation (true), not SDPA (false)
-    for (auto&& shapes : targetStaticShapes) {
-        generate(idx++, /*isPagedAttn=*/true, shapes, extendBlockIndices);
-        for (const auto& input : inputs) {
-            inferRequest.set_tensor(input.first, input.second);
+        // Critical: use PA input generation (true), not SDPA (false)
+        for (auto&& shapes : targetStaticShapes) {
+            generate(idx++, /*isPagedAttn=*/true, shapes, extendBlockIndices);
+            for (const auto& input : inputs) {
+                inferRequest.set_tensor(input.first, input.second);
+            }
+            inferRequest.infer();
+
+            auto outputTensor = inferRequest.get_output_tensor(0);
+            ov::Tensor copy{outputTensor.get_element_type(), outputTensor.get_shape()};
+            outputTensor.copy_to(copy);
+            outputs.push_back(copy);
         }
-        inferRequest.infer();
 
-        auto outputTensor = inferRequest.get_output_tensor(0);
-        ov::Tensor copy{outputTensor.get_element_type(), outputTensor.get_shape()};
-        outputTensor.copy_to(copy);
-        outputs.push_back(copy);
+        reset();
+
+        // Restore CPU device/config
+        targetDevice = saved_device;
+        configuration = saved_config;
+
+        return outputs;
     }
 
-    reset();
+public:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
+    }
+        std::shared_ptr<ov::Model> get_ref_model(ov::element::Type data_type,
+                                            ov::Dimension::value_type head_size = 64,
+                                            ov::Dimension::value_type head_num = 8,
+                                            bool use_sink_input = false) override {
+        // Build the SAME PagedAttention model (graph), just compile it on a different device later.
+        // enableXattn + sliding_window should match the test param / SetUp state.
+        const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config] =
+            this->GetParam();
 
-    // Restore CPU device/config
-    targetDevice = saved_device;
-    configuration = saved_config;
+        return get_model(data_type, enableXattn, head_size, head_num, use_sink_input, slidingWindow);
+    }
 
-    return outputs;
-}
+    std::vector<ov::Tensor> run_cpu(const std::shared_ptr<ov::Model>& model, bool extendBlockIndices) {
+        // Use whatever CPU config SetUp prepared (but ensure SageAttn off for this compare)
+        ov::AnyMap cfg = configuration;
+        cfg[ov::intel_cpu::enable_sage_attn.name()] = false;
+        return run_on_device(model, ov::test::utils::DEVICE_CPU, cfg, extendBlockIndices);
+    }
+
+    std::vector<ov::Tensor> run_template(const std::shared_ptr<ov::Model>& model, bool extendBlockIndices) {
+        // TEMPLATE must not receive CPU-only keys
+        ov::AnyMap cfg;
+        cfg[ov::hint::inference_precision.name()] = ov::element::f32;
+        // Optional if supported broadly in your build:
+        // cfg[ov::hint::kv_cache_precision.name()] = ov::element::f16;
+        return run_on_device(model, ov::test::utils::DEVICE_TEMPLATE, cfg, extendBlockIndices);
+    }
 };
 
 
@@ -982,19 +996,19 @@ TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
 
 TEST_P(PagedAttnVSRefPluginTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    const auto& [inType, inputShapes, extendBlockIndices,  enableXattn, sinkInput, slidingWindow, additional_config] = this->GetParam();
+    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config] =
+        this->GetParam();
+
     const bool isSageAttn =
         intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
-
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
     if (isSageAttn)
         GTEST_SKIP();
-    
-    // compare the logits from paged attn and sdpa
-    configuration[ov::intel_cpu::enable_sage_attn.name()] = false;
-    auto actualOutputs = run_test(function, extendBlockIndices);
-    auto expectedOutputs = run_ref_test(functionRefs, extendBlockIndices);
+
+    auto actualOutputs   = run_cpu(function, extendBlockIndices);
+    auto expectedOutputs = run_template(functionRefs, extendBlockIndices);
+
     for (size_t i = 0; i < actualOutputs.size(); i++) {
         ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
     }

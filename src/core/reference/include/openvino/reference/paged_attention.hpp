@@ -433,7 +433,7 @@ void paged_attention(const size_t node_id,
                     ? std::min<int32_t>(past_cnt_raw, num_seq_blocks * static_cast<int32_t>(ctx.block_size))
                     : past_cnt_raw;
 
-            // const int32_t total_unclamped = past_cnt + new_cnt;
+            const int32_t total_unclamped = past_cnt + new_cnt;
 
             // Causal mask within the current batch segment: a query token must not attend to later new tokens.
             const int32_t local_new_idx =
