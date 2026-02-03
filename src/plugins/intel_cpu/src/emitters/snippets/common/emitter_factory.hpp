@@ -49,6 +49,7 @@ public:
      * @param get_kernel_executor_table Callable that returns the current kernel executor table
      * @param compiled_kernel_cache Weak pointer to the compiled kernel cache
      */
+    template <typename T = GetKernelExecutorTable, typename = std::enable_if_t<!std::is_void_v<T>>>
     EmitterFactory(GetHost get_host,
                    Isa isa,
                    Wrap wrap,
@@ -87,7 +88,7 @@ public:
      * @tparam Emitter The emitter class type to instantiate
      * @return A jitters_value containing factory and precision query functions
      */
-    template <typename Emitter>
+    template <typename Emitter, typename T = GetKernelExecutorTable, typename = std::enable_if_t<!std::is_void_v<T>>>
     [[nodiscard]] ov::snippets::jitters_value from_expr_cached() const {
         OPENVINO_ASSERT(!compiled_kernel_cache_.expired(), "compiled_kernel_cache_ is expired in from_expr_cached");
         return {[get_host = get_host_,
