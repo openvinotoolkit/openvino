@@ -31,6 +31,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
+#include "openvino/util/ov_version.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "openvino/util/variant_visitor.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
@@ -235,7 +236,7 @@ ov::SoPtr<ov::ICompiledModel> import_compiled_model(const ov::Plugin& plugin,
     ov::SoPtr<ov::ICompiledModel> compiled_model;
     if (auto blob_hint = config.find(ov::hint::compiled_blob.name()); blob_hint != config.end()) {
         try {
-            auto compiled_blob = blob_hint->second.as<ov::Tensor>();
+            const auto& compiled_blob = blob_hint->second.as<ov::Tensor>();
             compiled_model = context ? plugin.import_model(compiled_blob, context, config)
                                      : plugin.import_model(compiled_blob, config);
         } catch (...) {
@@ -1049,7 +1050,7 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
                 devices.push_back(device_name + '.' + deviceID);
             }
         } else if (!devicesIDs.empty()) {
-            devices.push_back(device_name);
+            devices.push_back(std::move(device_name));
         }
     }
 
@@ -1541,7 +1542,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                                 "Original model runtime properties have been changed, not supported anymore!");
                         }
                     } else {
-                        if (header.get_openvino_version() != ov::get_openvino_version().buildNumber) {
+                        // Check whether the runtime version is not older than blob version
+                        if (!ov::util::is_version_compatible(
+                                ov::util::Version(header.get_openvino_version()),
+                                ov::util::Version(ov::get_openvino_version().buildNumber))) {
                             // Build number mismatch, don't use this cache
                             OPENVINO_THROW("Version does not match");
                         }

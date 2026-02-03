@@ -85,7 +85,7 @@ OutputVector translate_gru_block_cell_op(const ov::frontend::tensorflow::NodeCon
         hidden_size.is_static(),
         "[TensorFlow Frontend] internal error: GRUBlockCell is supported only for static hidden size");
 
-    // retrive input_size and hidden_size
+    // retrieve input_size and hidden_size
     auto x_shape = std::make_shared<v3::ShapeOf>(x, element::i64);
     auto ss_start = std::make_shared<v0::Constant>(element::i64, Shape{1}, 1);
     auto ss_end = std::make_shared<v0::Constant>(element::i64, Shape{1}, 2);

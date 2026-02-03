@@ -398,4 +398,12 @@ void visit_path(const lowered::ExpressionPtr& expr,
  */
 std::string tensor2str(const VectorDims& tensor, const std::string& delimiter = ", ");
 
+/**
+ * @brief check if the expression should be connected from all expanded loop iterations for passes such as register
+ * assignment.
+ * @param expr The expression to be checked.
+ * @return Returns true if full connectors are needed, false otherwise.
+ */
+bool need_full_connectors(const lowered::ExpressionPtr& expr);
+
 }  // namespace ov::snippets::utils

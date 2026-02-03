@@ -66,7 +66,6 @@
 #include "openvino/op/power.hpp"
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/relu.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/round.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/sigmoid.hpp"
@@ -96,6 +95,7 @@
 #include "snippets/op/reg_spill.hpp"
 #include "snippets/op/reorder.hpp"
 #include "snippets/op/reshape.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/op/vector_buffer.hpp"
@@ -249,7 +249,7 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
       compiled_kernel_cache(std::move(cache)) {
     // data movement
     jitters[op::v0::Parameter::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
-    jitters[op::v0::Result::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
+    jitters[snippets::op::Result::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
     jitters[snippets::op::Buffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
     jitters[snippets::op::VectorBuffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_nop_emitter);
     jitters[snippets::op::RankNormalization::get_type_info_static()] =
@@ -385,6 +385,9 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
 std::shared_ptr<snippets::TargetMachine> intel_cpu::CPUTargetMachine::clone() const {
     const auto cloned = std::make_shared<intel_cpu::CPUTargetMachine>(isa, compiled_kernel_cache);
     cloned->configurator = std::make_shared<ov::snippets::RuntimeConfigurator>(*configurator);
+#ifdef SNIPPETS_DEBUG_CAPS
+    cloned->debug_config = debug_config;
+#endif
     return cloned;
 }
 
