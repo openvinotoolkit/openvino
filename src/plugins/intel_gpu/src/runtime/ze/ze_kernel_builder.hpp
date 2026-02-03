@@ -11,6 +11,7 @@
 #include "ze_kernel.hpp"
 #include "ze_common.hpp"
 
+#include <mutex>
 namespace cldnn {
 namespace ocl {
 struct ocl_kernel_builder;
@@ -35,6 +36,7 @@ private:
     // OCL workaround for legacy devices that does not support l0 compilation
     mutable std::shared_ptr<::cldnn::ocl::ocl_kernel_builder> m_ocl_builder;
     mutable std::shared_ptr<::cldnn::ocl::ocl_device> m_ocl_device;
+    mutable std::mutex m_mutex;
 
 };
 }  // namespace ze

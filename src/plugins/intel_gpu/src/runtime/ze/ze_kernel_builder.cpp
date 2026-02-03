@@ -27,6 +27,8 @@ void ze_kernel_builder::init_ocl_builder() const {
         }
     }
     OPENVINO_ASSERT(m_ocl_device != nullptr, "[GPU] L0 kernel builder was not able to find matching OCL device");
+    if (!m_ocl_device->is_initialized())
+        m_ocl_device->initialize();
     m_ocl_builder = std::make_shared<ocl_kernel_builder>(*m_ocl_device);
 }
 
@@ -101,8 +103,12 @@ std::shared_ptr<ze_module_holder> ze_kernel_builder::build_module_ocl(const void
 void ze_kernel_builder::build_kernels(const void *src, size_t src_bytes, KernelFormat src_format, const std::string &options, std::vector<kernel::ptr> &out) const {
     std::shared_ptr<ze_module_holder> module_holder;
     if (src_format == KernelFormat::SOURCE && !check_l0_build_support()) {
-        if (!m_ocl_builder) {
-            init_ocl_builder();
+        {
+            std::lock_guard lock(this->m_mutex);
+            // Prevent ocl builder init call from multiple threads
+            if (!m_ocl_builder) {
+                init_ocl_builder();
+            }
         }
         module_holder = build_module_ocl(src, src_bytes, src_format, options);
     } else {
