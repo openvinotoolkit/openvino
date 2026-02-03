@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "gtest/gtest.h"
+#include "common_test_utils/common_utils.hpp"
 
 using ov::SharedStreamBuffer;
 
@@ -259,6 +260,22 @@ class SharedBufferTest : public ::testing::Test {
 protected:
     static constexpr size_t test_data_size = 100;
     char test_data[test_data_size] = "Test data for SharedBuffer tests";
+
+    std::string m_file_path;
+
+    void SetUp() override {
+        m_file_path = ov::test::utils::generateTestFilePrefix();
+    }
+
+    void TearDown() override {
+        std::remove(m_file_path.c_str());
+    }
+
+    void create_file() {
+        std::ofstream os(m_file_path, std::ios::binary);
+        os.write(test_data, test_data_size);
+        os.close();
+    }
 };
 
 // Test basic SharedBuffer with shared_ptr<void>
@@ -299,7 +316,8 @@ TEST_F(SharedBufferTest, with_empty_tag) {
 
 // Test is_mapped with MappedMemory
 TEST_F(SharedBufferTest, is_mapped_with_mapped_memory) {
-    auto mapped_memory = ov::load_mmap_object("/home/oleg/workspace/openvino/src/core/tests/shared_buffer.cpp");
+    create_file();
+    auto mapped_memory = ov::load_mmap_object(m_file_path);
     auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
         mapped_memory->data(), mapped_memory->size(), mapped_memory);
 
@@ -318,7 +336,8 @@ TEST_F(SharedBufferTest, is_mapped_false_for_non_mapped) {
 // Test nested SharedBuffer - is_mapped propagates through chain
 TEST_F(SharedBufferTest, is_mapped_propagates_through_nested_buffers) {
     // Create a mapped memory buffer
-    auto mapped_memory = ov::load_mmap_object("/home/oleg/workspace/openvino/src/core/tests/shared_buffer.cpp");
+    create_file();
+    auto mapped_memory = ov::load_mmap_object(m_file_path);
     auto inner_buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
         mapped_memory->data(), mapped_memory->size(), mapped_memory);
     EXPECT_TRUE(inner_buffer->is_mapped());
@@ -348,7 +367,8 @@ TEST_F(SharedBufferTest, is_mapped_false_for_nested_non_mapped) {
 
 // Test get_offset with AlignedBuffer (which has get_ptr method)
 TEST_F(SharedBufferTest, get_offset_with_aligned_buffer) {
-    auto mapped_memory = ov::load_mmap_object("/home/oleg/workspace/openvino/src/core/tests/shared_buffer.cpp");
+    create_file();
+    auto mapped_memory = ov::load_mmap_object(m_file_path);
     auto inner_buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
         mapped_memory->data(), mapped_memory->size(), mapped_memory);
 
@@ -368,7 +388,8 @@ TEST_F(SharedBufferTest, get_offset_with_aligned_buffer) {
 
 // Test get_offset returns 0 for MappedMemory (no get_ptr method)
 TEST_F(SharedBufferTest, get_offset_zero_for_mapped_memory) {
-    auto mapped_memory = ov::load_mmap_object("/home/oleg/workspace/openvino/src/core/tests/shared_buffer.cpp");
+    create_file();
+    auto mapped_memory = ov::load_mmap_object(m_file_path);
     auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
         mapped_memory->data(), mapped_memory->size(), mapped_memory);
 

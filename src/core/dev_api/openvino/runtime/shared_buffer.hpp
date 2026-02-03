@@ -20,9 +20,13 @@ public:
     virtual ~ITagBuffer() = default;
 };
 
+std::shared_ptr<ITagBuffer> as_itag_buffer(const std::shared_ptr<ov::AlignedBuffer>& buffer);
+
+const ITagBuffer* as_itag_buffer(const ov::AlignedBuffer& buffer);
+
 template <typename T>
 class SharedBufferBase : public ov::AlignedBuffer, public ITagBuffer {
-    private:
+private:
     template <typename U, typename = void>
     struct has_get_ptr : std::false_type {};
 
@@ -34,7 +38,7 @@ class SharedBufferBase : public ov::AlignedBuffer, public ITagBuffer {
 
     using mmaped_memory_ptr = std::shared_ptr<ov::MappedMemory>;
 
-    virtual const ITagBuffer* as_itag_buffer() const = 0;
+    virtual const ITagBuffer* shared_object_as_itag_buffer() const = 0;
 public:
     SharedBufferBase(char* data, size_t size, const T& shared_object, const std::string& tag)
         : _shared_object(shared_object),
@@ -67,7 +71,7 @@ public:
     bool is_mapped() const override {
         if constexpr (std::is_same<T, mmaped_memory_ptr>::value) {
             return true;
-        } else if (auto itabuf = as_itag_buffer(); itabuf) {
+        } else if (auto itabuf = shared_object_as_itag_buffer(); itabuf) {
             return itabuf->is_mapped();
         }
         return false;
@@ -94,7 +98,7 @@ template <typename T>
 class SharedBuffer : public SharedBufferBase<T> {
 protected:
     template <typename U>
-    const ITagBuffer* as_itag_buffer_impl(const U& obj) const {
+    const ITagBuffer* shared_object_as_itag_buffer_impl(const U& obj) const {
         using BareT = std::remove_cv_t<std::remove_reference_t<U>>;
 
         if constexpr (std::is_base_of_v<ITagBuffer, BareT>) {
@@ -108,8 +112,9 @@ protected:
         }
     }
 
-    const ITagBuffer* as_itag_buffer() const override {
-        return as_itag_buffer_impl<T>(this->_shared_object);
+    const ITagBuffer* shared_object_as_itag_buffer() const override {
+        static auto obj = shared_object_as_itag_buffer_impl<T>(this->_shared_object);
+        return obj;
     }
 
 public:
@@ -124,7 +129,7 @@ template <typename T>
 class SharedBuffer<std::shared_ptr<T>> : public SharedBufferBase<std::shared_ptr<T>> {
 protected:
     template <typename U>
-    const ITagBuffer* as_itag_buffer_impl(const U& obj) const {
+    const ITagBuffer* shared_object_as_itag_buffer_impl(const U& obj) const {
         if (!obj) {
             return nullptr;
         }
@@ -135,11 +140,12 @@ protected:
         }
     }
 
-    const ITagBuffer* as_itag_buffer() const override {
+    const ITagBuffer* shared_object_as_itag_buffer() const override {
         if constexpr (std::is_same_v<T, void>) {
             return nullptr;
         } else {
-            return as_itag_buffer_impl<std::shared_ptr<T>>(this->_shared_object);
+            static auto obj = shared_object_as_itag_buffer_impl<std::shared_ptr<T>>(this->_shared_object);
+            return obj;
         }
     }
 

@@ -5,6 +5,9 @@
 #pragma once
 
 #include <string>
+#include <unordered_map>
+#include <memory>
+#include <mutex>
 
 #include "openvino/core/node.hpp"
 #include "openvino/op/constant.hpp"
@@ -34,21 +37,58 @@ void OPENVINO_API set_name(ov::Node& node, const std::string& name, size_t outpu
 
 class ConstantDescriptor {
 public:
-    static ConstantDescriptor get_desc(const std::shared_ptr<ov::op::v0::Constant>& constant) {
-        ConstantDescriptor desc;
-        auto itag_buffer = std::dynamic_pointer_cast<ov::ITagBuffer>(constant->m_data);
-        if (itag_buffer && itag_buffer->is_mapped()) {
-            desc.m_data_mmaped = true;
+    static ConstantDescriptor& get_desc(const std::shared_ptr<ov::op::v0::Constant>& constant) {
+        std::lock_guard<std::mutex> lock(map_mutex);
+
+        auto const_ptr = constant.get();
+        auto it = descriptor_map.find(const_ptr);
+        if (it != descriptor_map.end()) {
+            return it->second;
         }
-        return desc;
+        ConstantDescriptor desc;
+        init_values(desc, constant);
+        auto result = descriptor_map.emplace(const_ptr, std::move(desc));
+        return result.first->second;
     }
 
     bool is_mmaped() const {
         return m_data_mmaped;
     }
+
+    void set_id(int id) {
+        m_id = id;
+    }
+
+    int get_id() const {
+        return m_id;
+    }
+
+    size_t get_data_id() const {
+        return m_data_id;
+    }
+
+    std::string_view get_data_tag() const {
+        return m_data_tag;
+    }
+
 private:
+    static void init_values(ConstantDescriptor& desc, const std::shared_ptr<ov::op::v0::Constant>& constant) {
+        if (auto itag_buffer = ov::as_itag_buffer(constant->m_data); itag_buffer) {
+            desc.m_data_mmaped = itag_buffer->is_mapped();
+            desc.m_data_id = itag_buffer->get_id();
+            desc.m_data_tag = itag_buffer->get_tag();
+        }
+    }
+
+
+    static std::unordered_map<ov::op::v0::Constant*, ConstantDescriptor> descriptor_map;
+    static std::mutex map_mutex;
+
     ConstantDescriptor() = default;
     bool m_data_mmaped = false;
+    size_t m_data_id = 0;
+    std::string_view m_data_tag;
+    int m_id = -1;
 };
 }  // namespace op::util
 }  // namespace ov
