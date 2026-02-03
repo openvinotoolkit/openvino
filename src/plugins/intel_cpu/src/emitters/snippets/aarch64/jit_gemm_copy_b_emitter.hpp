@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "cache/multi_cache.h"
 #include "emitters/snippets/aarch64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/aarch64/kernel_executors/gemm_copy_b.hpp"
 #include "snippets/emitter.hpp"
@@ -14,7 +15,8 @@ public:
     jit_gemm_copy_b_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
                             dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                             const ov::snippets::lowered::ExpressionPtr& expr,
-                            const snippets::KernelExecutorTablePtr& kernel_table);
+                            const snippets::KernelExecutorTablePtr& kernel_table,
+                            const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache);
 
     size_t get_inputs_count() const override {
         return 1;
