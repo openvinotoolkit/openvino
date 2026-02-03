@@ -27,6 +27,7 @@ public:
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
     void set_tensors(const ov::Output<const ov::Node>& port,
                      const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
+    void set_tensors(const std::map<ov::Output<const ov::Node>, ov::SoPtr<ov::ITensor>>& ports_tensors);
 
     void infer() override;
     void infer_async() override;

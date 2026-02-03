@@ -30,6 +30,11 @@ public:
     void reset() const;
 
     void update_graph_arguments(uint32_t index, const std::shared_ptr<ZeroTensor>& tensor);
+    void update_graph_arguments(
+        uint32_t index,
+        const std::shared_ptr<ZeroTensor>& tensor,
+        std::vector<std::pair<ze_mutable_graph_argument_exp_desc_t, std::optional<ze_graph_argument_value_strides_t>>>&
+            descs);
     void update_graph_arguments(uint32_t index, const std::shared_ptr<ZeroTensor>& tensor, size_t batch_index);
     void update_graph_arguments(
         uint32_t index,
