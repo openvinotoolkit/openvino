@@ -75,7 +75,6 @@
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
-#include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
@@ -91,11 +90,8 @@
 #include "transformations/op_conversions/convert_gather_upgrade.hpp"
 #include "transformations/op_conversions/convert_gelu.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
-#include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
 #include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
-#include "transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp"
-#include "transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp"
 #include "transformations/op_conversions/convert_previous_nms_to_nms_9.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 #include "transformations/op_conversions/convert_roi_align_v3_to_v9.hpp"
@@ -627,11 +623,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS3ToNMS9);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS4ToNMS9);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS5ToNMS9);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS9ToNMSIEInternal);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertMulticlassNmsToMulticlassNmsIE);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertMatrixNmsToMatrixNmsIE);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeMatMul);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
@@ -823,18 +814,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
         },
         ov::pass::SoftmaxDecomposition);
-
-    // NMS-alike nodes are always transformed to NMSIEInternal node in case of legacy api, for compatibility.
-    // And on the other hand in case of api 2.0, keep them internal dynamic for better performance and functionality.
-    auto nmsCallback = []([[maybe_unused]] const_node_ptr& node) -> bool {
-        // TODO: remove nmsCallback at all
-        const bool isLegacyApi = false;
-        return !isLegacyApi;
-    };
-
-    CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertNMS9ToNMSIEInternal);
-    CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMulticlassNmsToMulticlassNmsIE);
-    CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMatrixNmsToMatrixNmsIE);
 
     // List of enabled/disabled transformations
 
@@ -1063,15 +1042,7 @@ void Transformations::PostLpt() {
     ov::pass::Manager postLPTPassManager("CPU:PostLPT");
     postLPTPassManager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ConvertBroadcast3);
-    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::UnrollTensorIterator);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ReshapePRelu);
-    CPU_SET_CALLBACK_COMMON(
-        postLPTPassManager,
-        [](const_node_ptr& node) -> bool {
-            // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
-            return node->get_rt_info().count("UNROLL_TI") == 0;
-        },
-        ov::pass::UnrollTensorIterator);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MoveEltwiseUpThroughDataMov);
     CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::MoveEltwiseUpThroughDataMovPerChannel);
     CPU_SET_CALLBACK_COMMON(
