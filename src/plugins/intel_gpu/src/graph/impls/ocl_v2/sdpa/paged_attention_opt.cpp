@@ -606,7 +606,7 @@ public:
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::ALIBI});  // alibi
         }
         if (has_qq_bias) {
-            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});  // qq_bias
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});         // qq_bias
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins
         }
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
@@ -763,10 +763,10 @@ protected:
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
 
         constexpr static std::array input_ids = {PagedAttentionInputIdx::BLOCK_INDICES,
-                             PagedAttentionInputIdx::BLOCK_INDICES_BEGINS,
-                             PagedAttentionInputIdx::BLOCK_UPDATE_INDICES,
-                             PagedAttentionInputIdx::BLOCK_UPDATE_INDICES_BEGINS,
-                             PagedAttentionInputIdx::SUBSEQUENCE_BEGINS};
+                                                 PagedAttentionInputIdx::BLOCK_INDICES_BEGINS,
+                                                 PagedAttentionInputIdx::BLOCK_UPDATE_INDICES,
+                                                 PagedAttentionInputIdx::BLOCK_UPDATE_INDICES_BEGINS,
+                                                 PagedAttentionInputIdx::SUBSEQUENCE_BEGINS};
 
         for (size_t i = 0; i < input_ids.size(); i++) {
             const size_t tensor_id = input_ids.at(i);
@@ -819,11 +819,11 @@ protected:
             args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
         }
 
-        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES}); // block_indices
-        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS}); // block_indices_begins
-        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_UPDATE_INDICES}); // block_update_indices
-        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_UPDATE_INDICES_BEGINS}); // block_update_indices_begins
-        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS}); // subsequence_begins
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});                // block_indices
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});         // block_indices_begins
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_UPDATE_INDICES});         // block_update_indices
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_UPDATE_INDICES_BEGINS});  // block_update_indices_begins
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});           // subsequence_begins
 
         // Outputs
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});    // key_cache

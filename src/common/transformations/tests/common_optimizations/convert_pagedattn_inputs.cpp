@@ -121,7 +121,8 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
             std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto adaptive_rkv_diversity_block_set_indices_begins =
             std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto qq_bias = std::make_shared<v0::Parameter>(ov::element::f32, PartialShape{DYN, DYN});
+        auto qq_bias = std::make_shared<v0::Parameter>(ov::element::u8, PartialShape{DYN});
+        auto qq_bias_begins = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto qq_bias_block_update_indices = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto qq_bias_block_update_indices_begins = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto pa =
@@ -151,6 +152,7 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                        adaptive_rkv_diversity_block_set_indices,
                                                                        adaptive_rkv_diversity_block_set_indices_begins,
                                                                        qq_bias,
+                                                                       qq_bias_begins,
                                                                        qq_bias_block_update_indices,
                                                                        qq_bias_block_update_indices_begins});
         pa->get_rt_info()["num_k_heads"] = numKeyHeads;
@@ -181,6 +183,7 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                 adaptive_rkv_diversity_block_set_indices,
                                                                 adaptive_rkv_diversity_block_set_indices_begins,
                                                                 qq_bias,
+                                                                qq_bias_begins,
                                                                 qq_bias_block_update_indices,
                                                                 qq_bias_block_update_indices_begins});
 
@@ -262,7 +265,8 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
             std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto adaptive_rkv_diversity_block_set_indices_begins =
             std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
-        auto qq_bias = std::make_shared<v0::Parameter>(ov::element::f32, PartialShape{DYN, DYN});
+        auto qq_bias = std::make_shared<v0::Parameter>(ov::element::u8, PartialShape{DYN});
+        auto qq_bias_begins = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto qq_bias_block_update_indices = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto qq_bias_block_update_indices_begins = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto pa =
@@ -292,6 +296,7 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                        adaptive_rkv_diversity_block_set_indices,
                                                                        adaptive_rkv_diversity_block_set_indices_begins,
                                                                        qq_bias,
+                                                                       qq_bias_begins,
                                                                        qq_bias_block_update_indices,
                                                                        qq_bias_block_update_indices_begins});
         pa->get_rt_info()["num_k_heads"] = numKeyHeads;
@@ -322,6 +327,7 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                     adaptive_rkv_diversity_block_set_indices,
                                                                     adaptive_rkv_diversity_block_set_indices_begins,
                                                                     qq_bias,
+                                                                    qq_bias_begins,
                                                                     qq_bias_block_update_indices,
                                                                     qq_bias_block_update_indices_begins});
     }

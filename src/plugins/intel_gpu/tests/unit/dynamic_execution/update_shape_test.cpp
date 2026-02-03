@@ -177,19 +177,13 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
 
     auto qq_bias_layout = layout{ov::PartialShape{16}, data_types::boolean, format::bfyx};
     auto qq_bias_mem = engine.allocate_memory(qq_bias_layout);
-    set_values<bool>(qq_bias_mem, {true, false, true, false,
-                                   false, true, false, true,
-                                   true, true, false, false,
-                                   false, false, true, true});
     auto qq_bias_begins_layout = layout{ov::PartialShape{2}, data_types::i32, format::bfyx};
     auto qq_bias_begins_mem = engine.allocate_memory(qq_bias_begins_layout);
-    set_values(qq_bias_begins_mem, {0, 4});
     auto qq_bias_block_update_indices_layout = layout{ov::PartialShape{2}, data_types::i32, format::bfyx};
     auto qq_bias_block_update_indices_mem = engine.allocate_memory(qq_bias_block_update_indices_layout);
-    set_values(qq_bias_block_update_indices_mem, {0, 1});
     auto qq_bias_block_update_indices_begins_layout = layout{ov::PartialShape{2}, data_types::i32, format::bfyx};
     auto qq_bias_block_update_indices_begins_mem = engine.allocate_memory(qq_bias_block_update_indices_begins_layout);
-    set_values(qq_bias_block_update_indices_begins_mem, {0, 2});
+
     std::vector<input_info> pa_inputs = {input_info("query"),
                                          input_info("key"),
                                          input_info("value"),
