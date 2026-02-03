@@ -13,6 +13,7 @@ namespace intel_npu {
 
 // clang-format off
 #define nmr_symbols_list()                                      \
+    nmr_symbol_statement(npuMLIRRuntimeGetAPIVersion)           \
     nmr_symbol_statement(npuMLIRRuntimeCreate)                  \
     nmr_symbol_statement(npuMLIRRuntimeDestroy)                 \
     nmr_symbol_statement(npuMLIRRuntimeGetMetadata)             \
@@ -25,7 +26,9 @@ namespace intel_npu {
 
 
 //unsupported symbols with older runtime versions
-#define nmr_weak_symbols_list()                                 \
+#define nmr_weak_symbols_list()                                     \
+    nmr_symbol_statement(npuMLIRRuntimeCreateExecutionContext)      \
+    nmr_symbol_statement(npuMLIRRuntimeDestroyExecutionContext)     \
     nmr_symbol_statement(npuMLIRRuntimeUpdateMutableCommandList)
 // clang-format on
 
