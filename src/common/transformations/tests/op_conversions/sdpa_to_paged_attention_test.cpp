@@ -3624,7 +3624,10 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
         auto adaptive_rkv_evictable_sizes = makeConst(element::i32, ov::Shape({0}), {0});
         auto adaptive_rkv_diversity_block_set_indices = makeConst(element::i32, ov::Shape({0}), {0});
         auto adaptive_rkv_diversity_block_set_indices_begins = makeConst(element::i32, ov::Shape({0}), {0});
-
+        auto qq_bias = makeConst(element::u8, ov::Shape({0}), {0});
+        auto qq_bias_begins = makeConst(element::i32, ov::Shape({0}), {0});
+        auto block_update_indices = makeConst(element::i32, ov::Shape({0}), {0});
+        auto block_update_indices_begins = makeConst(element::i32, ov::Shape({0}), {0});
         auto Unsqueeze0 = makeOP<v0::Unsqueeze>({input_ids, 1});
         auto ShapeOf0 = makeOP<v3::ShapeOf>({Unsqueeze0}, {{"output_type", "i64"}});
         auto Gather0 = makeOP<v8::Gather>({ShapeOf0, {0}, 0}, {{"batch_dims", 0}});
@@ -4200,7 +4203,11 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
                          adaptive_rkv_start_size,
                          adaptive_rkv_evictable_sizes,
                          adaptive_rkv_diversity_block_set_indices,
-                         adaptive_rkv_diversity_block_set_indices_begins});
+                         adaptive_rkv_diversity_block_set_indices_begins,
+                         qq_bias,
+                         qq_bias_begins,
+                         block_update_indices,
+                         block_update_indices_begins});
         auto ShapeOf12 = makeOP<v3::ShapeOf>({Transpose15}, {{"output_type", "i64"}});
         auto Gather10 = makeOP<v8::Gather>({ShapeOf12, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze10 = makeOP<v0::Unsqueeze>({Gather10, 0});

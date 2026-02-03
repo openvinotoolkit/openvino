@@ -103,13 +103,14 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     if (m_allow_qq_bias) {
         optional_model_wide_params["qq_bias"] =
-            setName(std::make_shared<v0::Parameter>(element::u8, PartialShape{-1}), "qq_bias");
+            named_parameter(std::make_shared<v0::Parameter>(element::u8, PartialShape{-1}), "qq_bias");
         optional_model_wide_params["qq_bias_begins"] =
-            setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "qq_bias_begins");
+            named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "qq_bias_begins");
         optional_model_wide_params["block_update_indices"] =
-            setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_update_indices");
+            named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_update_indices");
         optional_model_wide_params["block_update_indices_begins"] =
-            setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_update_indices_begins");
+            named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
+                            "block_update_indices_begins");
     }
 
     auto get_parameter = [=](const std::shared_ptr<ov::Model>& model,
