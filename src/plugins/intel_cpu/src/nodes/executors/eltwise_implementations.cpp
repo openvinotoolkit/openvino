@@ -32,10 +32,6 @@
 #    include "nodes/executors/acl/acl_eltwise.hpp"
 #endif
 
-#if defined(OV_CPU_WITH_SHL)
-#    include "nodes/executors/shl/shl_eltwise.hpp"
-#endif
-
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
@@ -375,34 +371,6 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             },
             AcceptsAnyShape<EltwiseAttrs>,
             CreateDefault<AclEltwiseExecutor, EltwiseAttrs>{}
-            )
-        OV_CPU_INSTANCE_SHL(
-            "eltwise_shl_ncsp", ExecutorType::Shl, OperationType::Eltwise,
-            // supports
-            [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
-                VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::ncsp, LayoutType::ncsp},
-                                                 memoryFormatFilter, eltwiseMappingNotation), MEMORY_FORMAT_MISMATCH);
-                VERIFY(ShlEltwiseExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
-
-                return true;
-            },
-            createOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp}},
-            AcceptsAnyShape<EltwiseAttrs>,
-            CreateDefault<ShlEltwiseExecutor, EltwiseAttrs>{}
-            )
-        OV_CPU_INSTANCE_SHL(
-            "eltwise_shl_nspc", ExecutorType::Shl, OperationType::Eltwise,
-            // supports
-            [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
-                VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::nspc},
-                                                 memoryFormatFilter, eltwiseMappingNotation), MEMORY_FORMAT_MISMATCH);
-                VERIFY(ShlEltwiseExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
-
-                return true;
-            },
-            createOptimalConfigDefault{{LayoutType::nspc, LayoutType::nspc}},
-            AcceptsAnyShape<EltwiseAttrs>,
-            CreateDefault<ShlEltwiseExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_COMMON(
             "eltwise_ref_ncsp", ExecutorType::Reference, OperationType::Eltwise,

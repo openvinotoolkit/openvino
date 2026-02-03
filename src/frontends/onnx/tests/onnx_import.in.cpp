@@ -220,9 +220,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_unsupported_op) {
         FAIL() << "Expected ov::Exception";
     } catch (const ov::Exception& err) {
         std::string what{err.what()};
-        EXPECT_NE(what.find("OpenVINO does not support"), std::string::npos);
-        EXPECT_NE(what.find("FakeOpName"), std::string::npos);
-        EXPECT_NE(what.find("AnotherFakeOpName"), std::string::npos);
+        EXPECT_NE(what.find("No conversion rule found for operations"), std::string::npos);
+        EXPECT_NE(what.find("FakeOpName-8"), std::string::npos);
+        EXPECT_NE(what.find("AnotherFakeOpName-8"), std::string::npos);
     } catch (...) {
         FAIL() << "Expected ov::Exception";
     }
