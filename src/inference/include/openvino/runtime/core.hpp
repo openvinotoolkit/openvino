@@ -260,7 +260,7 @@ public:
      */
     CompiledModel compile_model(const std::string& model_path, const AnyMap& properties = {});
 
-    CompiledModel compile_model(const std::filesystem::path& model_path, const AnyMap& config);
+    CompiledModel compile_model(const std::filesystem::path& model_path, const AnyMap& properties = {});
 
     template <class Path, std::enable_if_t<std::is_constructible_v<std::string, Path>>* = nullptr>
     CompiledModel compile_model(const Path& model_path, const AnyMap& properties = {}) {
