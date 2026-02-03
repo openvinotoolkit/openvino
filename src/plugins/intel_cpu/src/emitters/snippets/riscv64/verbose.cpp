@@ -4,40 +4,17 @@
 
 #include <cstddef>
 #include <cstdlib>
-#include <memory>
 #include <sstream>
 #include <string>
 #ifdef SNIPPETS_DEBUG_CAPS
 
+#    include "emitters/snippets/common/verbose_utils.hpp"
 #    include "jit_kernel_emitter.hpp"
 #    include "jit_memory_emitters.hpp"
 #    include "jit_segfault_detector_emitter.hpp"
-#    include "openvino/util/common_util.hpp"
 #    include "verbose.hpp"
 
-#    ifndef _WIN32
-#        include <cxxabi.h>
-#    endif
-
 namespace ov::intel_cpu::riscv64 {
-
-template <typename T>
-std::string vector_to_string(const T& v) {
-    std::ostringstream os;
-    os << "[ " << ov::util::join(v) << " ]";
-    return os.str();
-}
-
-std::string get_emitter_type_name(const jit_emitter* emitter) {
-    std::string name = typeid(*emitter).name();
-#    ifndef _WIN32
-    int status = 0;
-    std::unique_ptr<char, void (*)(void*)> demangled_name(abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status),
-                                                          std::free);
-    name = demangled_name.get();
-#    endif
-    return name;
-}
 
 std::string init_info_jit_memory_emitter(const jit_memory_emitter* emitter) {
     std::stringstream ss;
@@ -69,18 +46,19 @@ static std::string init_info_jit_store_memory_emitter(const jit_store_memory_emi
 
 std::string init_info_jit_kernel_emitter(const jit_kernel_emitter* emitter) {
     std::stringstream ss;
-    ss << " jcp.exec_domain:" << vector_to_string(emitter->jcp.exec_domain) << " num_inputs:" << emitter->num_inputs
-       << " num_outputs:" << emitter->num_outputs << " num_unique_buffers:" << emitter->num_unique_buffers
-       << " data_ptr_regs_idx:" << vector_to_string(emitter->data_ptr_regs_idx);
+    ss << " jcp.exec_domain:" << snippets_common::vector_to_string(emitter->jcp.exec_domain)
+       << " num_inputs:" << emitter->num_inputs << " num_outputs:" << emitter->num_outputs
+       << " num_unique_buffers:" << emitter->num_unique_buffers
+       << " data_ptr_regs_idx:" << snippets_common::vector_to_string(emitter->data_ptr_regs_idx);
     return ss.str();
 }
 
 std::string init_info_jit_kernel_static_emitter(const jit_kernel_static_emitter* emitter) {
     std::stringstream ss;
     ss << "Emitter_type_name:jit_kernel_static_emitter" << init_info_jit_kernel_emitter(emitter)
-       << " master_shape:" << vector_to_string(emitter->master_shape);
+       << " master_shape:" << snippets_common::vector_to_string(emitter->master_shape);
     for (size_t i = 0; i < emitter->data_offsets.size(); ++i) {
-        ss << " data_offsets for " << i << " is:" << vector_to_string(emitter->data_offsets[i]);
+        ss << " data_offsets for " << i << " is:" << snippets_common::vector_to_string(emitter->data_offsets[i]);
     }
     return ss.str();
 }
@@ -107,7 +85,7 @@ std::string init_info_jit_uni_segfault_detector_emitter(const jit_uni_segfault_d
 
 static std::string init_info_jit_emitter_general(const jit_emitter* emitter) {
     std::stringstream ss;
-    ss << "Emitter_type_name:" << get_emitter_type_name(emitter);
+    ss << "Emitter_type_name:" << snippets_common::get_emitter_type_name(emitter);
     return ss.str();
 }
 

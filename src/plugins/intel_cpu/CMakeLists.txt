@@ -354,6 +354,7 @@ set(PCH_EXCLUDE_FILES
     src/emitters/plugin/x64/debug_capabilities.cpp
     src/emitters/plugin/aarch64/debug_capabilities.cpp
     src/nodes/executors/printers.cpp
+    src/emitters/snippets/common/verbose_utils.cpp
     src/emitters/snippets/x64/jit_debug_emitter.cpp
     src/emitters/snippets/x64/jit_debug_emitter.cpp
     src/emitters/snippets/x64/jit_perf_count_rdtsc_emitters.cpp
