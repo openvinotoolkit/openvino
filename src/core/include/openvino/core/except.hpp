@@ -93,6 +93,22 @@ protected:
     explicit NotImplemented(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
 };
 
+namespace detail {
+
+template <class T>
+inline void check_condition(const T&) noexcept {}
+
+template <typename CharT, std::size_t N, 
+          std::enable_if_t<std::is_same_v<CharT, char> || std::is_same_v<CharT, wchar_t> || 
+                           std::is_same_v<CharT, char16_t> || std::is_same_v<CharT, char32_t>, int> = 0>
+inline void check_condition(const CharT (&)[N]) noexcept {
+    static_assert(N == 0,
+                  "OPENVINO_ASSERT: string literal used as condition (always true). "
+                  "Did you mean to compare strings or check a pointer?");
+}
+
+}  // namespace detail
+
 }  // namespace ov
 
 //
@@ -157,22 +173,9 @@ protected:
 // The "..." may be filled with expressions of any type that has an "operator<<" overload for
 // insertion into std::ostream.
 //
-#define OPENVINO_ASSERT_CHECK_CONDITION(check)                                                  \
-    do {                                                                                        \
-        using _ov_check_t = ::std::remove_reference_t<decltype((check))>;                       \
-        using _ov_elem_t = ::std::remove_extent_t<_ov_check_t>;                                 \
-        constexpr bool _ov_is_string_literal =                                                  \
-            ::std::is_array_v<_ov_check_t> &&                                                   \
-            (::std::is_same_v<_ov_elem_t, char> || ::std::is_same_v<_ov_elem_t, wchar_t> ||     \
-             ::std::is_same_v<_ov_elem_t, char16_t> || ::std::is_same_v<_ov_elem_t, char32_t>); \
-        static_assert(!_ov_is_string_literal,                                                   \
-                      "OPENVINO_ASSERT: string literal used as condition (always true). "       \
-                      "Did you mean to compare strings or check a pointer?");                   \
-    } while (0)
-
 #define OPENVINO_ASSERT_HELPER2(exc_class, ctx, check, ...)                      \
     do {                                                                         \
-        OPENVINO_ASSERT_CHECK_CONDITION(check);                                  \
+        ::ov::detail::check_condition(check);                                    \
         if (!static_cast<bool>(check)) {                                         \
             ::std::ostringstream ss___;                                          \
             ::ov::write_all_to_stream(ss___, __VA_ARGS__);                       \
@@ -182,7 +185,7 @@ protected:
 
 #define OPENVINO_ASSERT_HELPER1(exc_class, ctx, check)                                      \
     do {                                                                                    \
-        OPENVINO_ASSERT_CHECK_CONDITION(check);                                             \
+        ::ov::detail::check_condition(check);                                               \
         if (!static_cast<bool>(check)) {                                                    \
             exc_class::create(__FILE__, __LINE__, (#check), (ctx), exc_class::default_msg); \
         }                                                                                   \
