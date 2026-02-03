@@ -4,8 +4,6 @@
 
 #include "intel_npu/utils/zero/zero_mem.hpp"
 
-#include <ze_mem_import_system_memory_ext.h>
-
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"

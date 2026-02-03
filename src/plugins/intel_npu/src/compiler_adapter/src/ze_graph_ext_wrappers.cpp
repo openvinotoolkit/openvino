@@ -4,8 +4,6 @@
 
 #include "ze_graph_ext_wrappers.hpp"
 
-#include <ze_mem_import_system_memory_ext.h>
-
 #include <string_view>
 
 #include "intel_npu/prefix.hpp"
