@@ -294,7 +294,6 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
                 child_consumers = next_child_consumers;
             }
 
-            // const auto consumers = node->get_output_target_inputs(0);
             for (const auto& child_consumer : child_consumers) {
                 const auto& type_info = child_consumer.get_node()->get_type_info();
                 if (cldnn::one_of(type_info, target_consumers)) {
@@ -411,11 +410,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
         enableInt8 = config.get_enable_lp_transformations() && is_model_quantized;
-        bool does_model_contain_mxfp_patterns = ov::pass::low_precision::LowPrecision::doesFunctionContainMXFPPatterns(func);
-        bool is_mxfp_config = cldnn::one_of(config.get_dynamic_quantization_data_type(),
-                                            {ov::hint::DynamicQuantizationDataType::MXF4E2M1,
-                                             ov::hint::DynamicQuantizationDataType::MXF8E4M3,
-                                             ov::hint::DynamicQuantizationDataType::MXF8E5M2});
+        const bool does_model_contain_mxfp_patterns = ov::pass::low_precision::LowPrecision::doesModelContainMXFPPatterns(func);
+        const bool is_mxfp_config = cldnn::one_of(config.get_dynamic_quantization_data_type(),
+                                                  {ov::hint::DynamicQuantizationDataType::MXF4E2M1,
+                                                   ov::hint::DynamicQuantizationDataType::MXF8E4M3,
+                                                   ov::hint::DynamicQuantizationDataType::MXF8E5M2});
 
         OPENVINO_ASSERT(does_model_contain_mxfp_patterns == is_mxfp_config,
                         "The model containing MXFP patterns can be run if and only if ov::hint::DynamicQuantizationDataType is configured to MXF* option. "
@@ -1424,7 +1423,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const bool use_gs128_for_int8_per_token = m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe2
                 && group_dyn_quan_allowed;
 
-            auto dynamic_quantization_data_type = config.get_dynamic_quantization_data_type();
+            const auto dynamic_quantization_data_type = config.get_dynamic_quantization_data_type();
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
                 const int64_t dyn_quan_bisect = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_bisect(), 0);    // 0 will be ignored from GPU_DEBUG_IF
                 const int64_t dyn_quan_single = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_single(), 0);    // 0 will be ignored from GPU_DEBUG_IF

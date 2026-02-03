@@ -62,17 +62,15 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
                                one_of(out_dt, {data_types::f16, data_types::f32, data_types::u8, data_types::i8});
         compressed_case = compressed_case || (one_of(in0_dt, {data_types::f8e4m3, data_types::f8e5m2}) && wei_dt == data_types::i4 &&
                                               one_of(out_dt, {data_types::f16, data_types::f32}));
-        bool mxfp_compressed_case = fc_prim->compressed_weights &&
-                                    one_of(in0_dt, {data_types::f8e4m3, data_types::f8e5m2}) &&
-                                    one_of(wei_dt, {data_types::f8e4m3, data_types::f8e5m2}) &&
-                                    one_of(out_dt, {data_types::f16, data_types::f32});
+        const bool mxfp_compressed_case = fc_prim->compressed_weights && one_of(in0_dt, {data_types::f8e4m3, data_types::f8e5m2}) &&
+                                          one_of(wei_dt, {data_types::f8e4m3, data_types::f8e5m2}) && one_of(out_dt, {data_types::f16, data_types::f32});
         if (!f16f16_case && !f32f32_case && !u8s8_case && !compressed_case && !mxfp_compressed_case)
             LOG_AND_RETURN_FALSE(node);
 
         if (fc_prim->compressed_weights) {
             if (fc_prim->decompression_zero_point.is_valid()) {
-                auto decompression_zp_idx = fc_prim->bias.is_valid() ? 4 : 3;
-                auto decompression_zp_dt = fc_node.get_input_layout(decompression_zp_idx).data_type;
+                const auto decompression_zp_idx = fc_prim->bias.is_valid() ? 4 : 3;
+                const auto decompression_zp_dt = fc_node.get_input_layout(decompression_zp_idx).data_type;
                 if ((wei_dt != ov::element::Type_t::u4 && wei_dt != ov::element::Type_t::u8) ||
                     (decompression_zp_dt != ov::element::Type_t::u8 && decompression_zp_dt != ov::element::Type_t::i8)) {
                     LOG_AND_RETURN_FALSE(node);

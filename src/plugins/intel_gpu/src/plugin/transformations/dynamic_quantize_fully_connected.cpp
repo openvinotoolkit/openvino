@@ -84,7 +84,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
             return false;
         }
 
-        auto rank = m_fc->get_input_partial_shape(0).size();
+        const auto rank = m_fc->get_input_partial_shape(0).size();
         std::vector<uint64_t> shape_group_size(rank, 1);
         shape_group_size.back() = adj_group_size;
 
@@ -107,10 +107,10 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
             default:
                 OPENVINO_THROW("Unexpected dtype scheme.");
         }
-        bool is_mxfp = cldnn::one_of(dtype_scheme,
-                                     {ov::hint::DynamicQuantizationDataType::MXF8E4M3,
-                                      ov::hint::DynamicQuantizationDataType::MXF8E5M2,
-                                      ov::hint::DynamicQuantizationDataType::MXF4E2M1});
+        const bool is_mxfp = cldnn::one_of(dtype_scheme,
+                                           {ov::hint::DynamicQuantizationDataType::MXF8E4M3,
+                                            ov::hint::DynamicQuantizationDataType::MXF8E5M2,
+                                            ov::hint::DynamicQuantizationDataType::MXF4E2M1});
 
         config.quantization_type = QuantizationType::Symmetric;
         config.scale_dt = is_mxfp ? element::f8e8m0 : element::f16;

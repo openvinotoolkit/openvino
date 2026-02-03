@@ -216,11 +216,11 @@ protected:
             mul_parent = std::make_shared<ov::op::v1::Subtract>(weights_convert, shift_convert);
         }
 
-        bool is_mxfp = cldnn::one_of(dyn_quan_dtype_scheme,
-                                     {ov::hint::DynamicQuantizationDataType::MXF8E4M3,
-                                      ov::hint::DynamicQuantizationDataType::MXF8E5M2,
-                                      ov::hint::DynamicQuantizationDataType::MXF4E2M1});
-        ov::element::Type scale_data_precision = is_mxfp ? ov::element::f8e8m0 : data_precision;
+        const bool is_mxfp = cldnn::one_of(dyn_quan_dtype_scheme,
+                                           {ov::hint::DynamicQuantizationDataType::MXF8E4M3,
+                                            ov::hint::DynamicQuantizationDataType::MXF8E5M2,
+                                            ov::hint::DynamicQuantizationDataType::MXF4E2M1});
+        const ov::element::Type scale_data_precision = is_mxfp ? ov::element::f8e8m0 : data_precision;
 
         ov::test::utils::InputGenerateData in_data;
         in_data.start_from = is_mxfp ? 0 : -0.5;

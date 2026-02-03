@@ -861,9 +861,9 @@ void program::add_intermediate(program_node& node,
         for (auto& dep : node.dependencies) {
             deps += dep.first->id() + " ( " + dep.first->get_primitive()->type_string() + " ), ";
         }
-        throw std::invalid_argument("Node which is about to be added in between two other nodes should not have any existing dependencies. Node: " + node.id() +
-                                    " ( " + node.get_primitive()->type_string() + " )" + ". Next: " + next.id() + " ( " + next.get_primitive()->type_string() +
-                                    " ). Dependencies: " + deps);
+        OPENVINO_THROW("Node which is about to be added in between two other nodes should not have any existing dependencies. Node: " + node.id() + " ( " +
+                       node.get_primitive()->type_string() + " )" + ". Next: " + next.id() + " ( " + next.get_primitive()->type_string() +
+                       " ). Dependencies: " + deps);
     }
 
     auto& prev = next.get_dependency(prev_idx);

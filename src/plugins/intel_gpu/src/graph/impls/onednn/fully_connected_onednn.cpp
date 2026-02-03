@@ -80,26 +80,26 @@ protected:
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_mem->get_onednn_memory(desc)});
             }
 
-            auto input_dt = instance.get_input_layout(0).data_type;
-            bool is_dyn_quan_input = cldnn::one_of(input_dt, {data_types::i8, data_types::u8, data_types::f8e4m3, data_types::f8e5m2});
+            const auto input_dt = instance.get_input_layout(0).data_type;
+            const bool is_dyn_quan_input = cldnn::one_of(input_dt, {data_types::i8, data_types::u8, data_types::f8e4m3, data_types::f8e5m2});
 
             if (is_dyn_quan_input && prim->activation_scale.is_valid()) {
-                auto activation_scale_idx = idx++;
-                auto act_scale_mem = instance.dep_memory_ptr(activation_scale_idx);
+                const auto activation_scale_idx = idx++;
+                const auto act_scale_mem = instance.dep_memory_ptr(activation_scale_idx);
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_scale_mem->get_layout(), dnnl::memory::format_tag::ab, onednn::mem_flags::flatten);
                 args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_SRC_0, act_scale_mem->get_onednn_memory(desc)});
             }
 
             if (is_dyn_quan_input && prim->activation_zero_point.is_valid()) {
-                auto activation_zp_idx = idx++;
-                auto act_zp_mem = instance.dep_memory_ptr(activation_zp_idx);
+                const auto activation_zp_idx = idx++;
+                const auto act_zp_mem = instance.dep_memory_ptr(activation_zp_idx);
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_zp_mem->get_layout(), dnnl::memory::format_tag::ab, onednn::mem_flags::flatten);
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC_0, act_zp_mem->get_onednn_memory(desc)});
             }
 
             if (is_dyn_quan_input && prim->activation_precomputed_reduction.is_valid()) {
-                auto activation_precomputed_reduction_idx = idx++;
-                auto act_precomputed_reduction_mem = instance.dep_memory_ptr(activation_precomputed_reduction_idx);
+                const auto activation_precomputed_reduction_idx = idx++;
+                const auto act_precomputed_reduction_mem = instance.dep_memory_ptr(activation_precomputed_reduction_idx);
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_precomputed_reduction_mem->get_layout(),
                                                                         dnnl::memory::format_tag::ab, onednn::mem_flags::flatten);
                 args.insert({DNNL_ARG_ATTR_PRECOMPUTED_REDUCTIONS | DNNL_ARG_SRC_0, act_precomputed_reduction_mem->get_onednn_memory(desc)});
@@ -342,8 +342,8 @@ public:
             }
         }
 
-        auto input_dt = impl_params->get_input_layout(0).data_type;
-        bool is_dyn_quan_input = cldnn::one_of(input_dt, {data_types::i8, data_types::u8, data_types::f8e4m3, data_types::f8e5m2});
+        const auto input_dt = impl_params->get_input_layout(0).data_type;
+        const bool is_dyn_quan_input = cldnn::one_of(input_dt, {data_types::i8, data_types::u8, data_types::f8e4m3, data_types::f8e5m2});
         if (is_dyn_quan_input && dynamic_quantized_activation) {
             auto src_scale_idx = ++idx;
             auto partial_shape = impl_params->get_input_layout(0).get_partial_shape();
@@ -390,8 +390,8 @@ public:
         int idx = !arg.bias_term() ? 1 : 2;
 
         if (prim->compressed_weights) {
-            auto input_dt = impl_params.get_input_layout(0).data_type;
-            bool is_dyn_quan_input = cldnn::one_of(input_dt, {data_types::i8, data_types::u8, data_types::f8e4m3, data_types::f8e5m2});
+            const auto input_dt = impl_params.get_input_layout(0).data_type;
+            const bool is_dyn_quan_input = cldnn::one_of(input_dt, {data_types::i8, data_types::u8, data_types::f8e4m3, data_types::f8e5m2});
             if (is_dyn_quan_input) {
                 OPENVINO_ASSERT(prim->input_size <= 3, "[GPU] Dynamic quantization for 4D matmul is not implemented");
             } else {

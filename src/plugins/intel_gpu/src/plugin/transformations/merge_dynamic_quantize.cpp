@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ bool MergeDynamicQuantize::run_on_model(const std::shared_ptr<Model>& model) {
             std::vector<std::shared_ptr<ov::op::internal::DynamicQuantize>> dq_nodes;
             for (const auto& output_node : output.get_target_inputs()) {
                 if (auto dq_node = ov::as_type_ptr<ov::op::internal::DynamicQuantize>(output_node.get_node()->shared_from_this())) {
-                    dq_nodes.push_back(dq_node);
+                    dq_nodes.emplace_back(std::move(dq_node));
                 }
             }
 
