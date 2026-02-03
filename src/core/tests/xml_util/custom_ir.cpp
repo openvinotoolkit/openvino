@@ -434,7 +434,7 @@ TEST_F(CustomIRTest, overflow_protection_offset_size) {
     auto c1 = std::make_shared<Constant>(element::f32, Shape{1, 2}, std::vector<float>{1.f, 2.f});
     auto add = std::make_shared<Add>(in0, c1);
     auto model = std::make_shared<Model>(OutputVector{add}, ParameterVector{in0}, "OverflowTest");
-    
+
     // Serialize to get valid XML structure
     ov::serialize(model, m_out_xml_path, m_out_bin_path);
 
@@ -450,7 +450,7 @@ TEST_F(CustomIRTest, overflow_protection_offset_size) {
     // Find the data node with offset and size attributes
     auto layers = xml_doc.select_nodes("//layer[@type='Const']");
     ASSERT_FALSE(layers.empty());
-    
+
     auto data_node = layers[0].node().child("data");
     ASSERT_FALSE(data_node.empty());
 
@@ -467,14 +467,14 @@ TEST_F(CustomIRTest, overflow_protection_offset_size) {
     // Try to deserialize with malicious values
     std::stringstream modified_xml;
     xml_doc.save(modified_xml, "  ", pugi::format_raw | pugi::format_no_declaration);
-    
+
     std::unordered_map<std::string, ov::OpSet> opsets;
     for (const auto& [name, mk_opset] : ov::get_available_opsets()) {
         opsets[name] = mk_opset();
     }
     std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> extensions;
     std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> variables;
-    
+
     auto root = xml_doc.document_element();
     auto version = static_cast<size_t>(ov::util::pugixml::get_uint64_attr(root, "version", 11));
 
