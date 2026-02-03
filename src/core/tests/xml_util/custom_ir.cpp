@@ -480,10 +480,12 @@ TEST_F(CustomIRTest, overflow_protection_offset_size) {
 
     // This should throw due to overflow protection
     std::shared_ptr<ov::Model> deserialized_model;
-    EXPECT_THROW({
-        ov::util::XmlDeserializer visitor(root, small_weights, opsets, extensions, variables, version);
-        visitor.on_attribute("net", deserialized_model);
-    }, std::exception);
+    EXPECT_THROW(
+        {
+            ov::util::XmlDeserializer visitor(root, small_weights, opsets, extensions, variables, version);
+            visitor.on_attribute("net", deserialized_model);
+        },
+        std::exception);
 
     // Test case 2: Both offset and size are huge but individually valid looking
     data_node.attribute("offset").set_value(std::to_string(SIZE_MAX / 2).c_str());
@@ -494,10 +496,12 @@ TEST_F(CustomIRTest, overflow_protection_offset_size) {
     xml_doc.save(modified_xml, "  ", pugi::format_raw | pugi::format_no_declaration);
 
     // This should also throw due to overflow protection
-    EXPECT_THROW({
-        ov::util::XmlDeserializer visitor(root, small_weights, opsets, extensions, variables, version);
-        visitor.on_attribute("net", deserialized_model);
-    }, std::exception);
+    EXPECT_THROW(
+        {
+            ov::util::XmlDeserializer visitor(root, small_weights, opsets, extensions, variables, version);
+            visitor.on_attribute("net", deserialized_model);
+        },
+        std::exception);
 
     // Test case 3: Valid values should work
     data_node.attribute("offset").set_value("0");

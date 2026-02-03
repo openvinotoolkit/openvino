@@ -904,7 +904,8 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
 
     const auto size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
     const auto offset = static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset"));
-    OPENVINO_ASSERT(offset <= m_weights->size() && size <= m_weights->size() - offset, "Incorrect weights in bin file!");
+    OPENVINO_ASSERT(offset <= m_weights->size() && size <= m_weights->size() - offset,
+                    "Incorrect weights in bin file!");
 
     char* data = m_weights->get_ptr<char>() + offset;
 
