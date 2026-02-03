@@ -4,19 +4,27 @@
 /// \file allocator_mmap.hpp
 /// \brief Public API for an allocator backed by OS virtual memory mapping.
 
+#pragma once
 
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <unistd.h>
-
 #include "openvino/core/except.hpp"
 
+#if defined(__unix__) || defined(__APPLE__)
+#    define OV_HAVE_POSIX_MMAP 1
+#    include <fcntl.h>
+#    include <sys/mman.h>
+#    include <unistd.h>
+#else
+#    define OV_HAVE_POSIX_MMAP 0
+#endif
+
 namespace ov {
+
+#if OV_HAVE_POSIX_MMAP
 
 inline size_t ov_get_page_size() {
     const long ps = ::sysconf(_SC_PAGESIZE);
@@ -132,4 +140,10 @@ struct MmapAnonymousAllocator {
     }
 };
 
-} // namespace ov
+#else  // OV_HAVE_POSIX_MMAP
+
+using MmapAnonymousAllocator = DefaultAllocator;
+
+#endif  // OV_HAVE_POSIX_MMAP
+
+}  // namespace ov
