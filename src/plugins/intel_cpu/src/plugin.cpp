@@ -296,7 +296,14 @@ void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& m
                 }
             }
         }
-        conf.modelPreferThreads = 0;
+        // When importing, restore preferred threads per-mode from cached hints so
+        // that subsequent streams calculation reproduces the original behavior.
+        if (conf.hintPerfMode == ov::hint::PerformanceMode::THROUGHPUT) {
+            conf.modelPreferThreads = conf.modelPreferThreadsThroughput;
+        } else {
+            conf.modelPreferThreads = conf.modelPreferThreadsLatency;
+        }
+        (void)0;
     }
     get_performance_streams(conf, model);
     // save model_prefer_threads to model rt_info when loading network
