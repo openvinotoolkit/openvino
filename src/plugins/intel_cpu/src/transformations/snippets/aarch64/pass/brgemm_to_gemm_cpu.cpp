@@ -43,9 +43,7 @@ pass::BrgemmToGemmCPU::BrgemmToGemmCPU() {
         const auto node = m.get_match_root();
         const auto brgemm = ov::as_type_ptr<snippets::op::Brgemm>(node);
         const auto gemm_plugin = ov::as_type_ptr<aarch64::GemmCPU>(node);
-        if (!brgemm || gemm_plugin) {
-            OPENVINO_ASSERT("GemmCPU cannot be in body before BrgemmToGemmCPU pass");
-        }
+        OPENVINO_ASSERT(brgemm && !gemm_plugin, "GemmCPU cannot be in body before BrgemmToGemmCPU pass");
 
         const auto& brgemm_in0_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(0));
         const auto& brgemm_in1_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(1));
