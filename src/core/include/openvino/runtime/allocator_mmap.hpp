@@ -5,11 +5,12 @@
 /// \brief Public API for an allocator backed by OS virtual memory mapping.
 
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <algorithm>
 #include <limits>
 
+#include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -26,10 +27,31 @@ inline size_t ov_align_up(size_t v, size_t a) {
     return (v + (a - 1)) & ~(a - 1);
 }
 
+inline int ov_create_tmp_file_fd() {
+    // mkstemp requires a writable buffer.
+    char path[] = "/tmp/openvino_mmap_XXXXXX";
+    int fd = ::mkstemp(path);
+    if (fd < 0) {
+        OPENVINO_THROW("mkstemp() failed");
+    }
+
+    // Remove directory entry right away; file will be removed when last fd is closed.
+    (void)::unlink(path);
+
+    // Best-effort CLOEXEC.
+    const int flags = ::fcntl(fd, F_GETFD);
+    if (flags >= 0) {
+        (void)::fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
+    }
+
+    return fd;
+}
+
 struct MmapAnonymousAllocator {
     struct Header {
         void* base;
         size_t map_size;
+        int fd;
     };
 
     void* allocate(size_t bytes, size_t alignment) {
@@ -52,30 +74,54 @@ struct MmapAnonymousAllocator {
         size_t request = bytes + sizeof(Header) + (min_align - 1);
         request = ov_align_up(request, page);
 
-        void* base = ::mmap(nullptr, request, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-        if (base == MAP_FAILED) {
-            OPENVINO_THROW("mmap(MAP_ANONYMOUS) failed");
+        int fd = -1;
+        void* base = MAP_FAILED;
+
+        try {
+            fd = ov_create_tmp_file_fd();
+
+            if (::ftruncate(fd, static_cast<off_t>(request)) != 0) {
+                OPENVINO_THROW("ftruncate() failed");
+            }
+
+            base = ::mmap(nullptr, request, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+            if (base == MAP_FAILED) {
+                OPENVINO_THROW("mmap(tmpfile) failed");
+            }
+
+            const auto base_u = reinterpret_cast<std::uintptr_t>(base);
+            const auto start = base_u + sizeof(Header);
+            const auto aligned = ov_align_up(static_cast<size_t>(start), min_align);
+
+            auto* hdr = reinterpret_cast<Header*>(static_cast<std::uintptr_t>(aligned) - sizeof(Header));
+            hdr->base = base;
+            hdr->map_size = request;
+            hdr->fd = fd;
+
+            std::cout << "Allocated " << bytes << " bytes at " << reinterpret_cast<void*>(aligned)
+                      << " using mmap allocator." << std::endl;
+            return reinterpret_cast<void*>(static_cast<std::uintptr_t>(aligned));
+        } catch (...) {
+            if (fd >= 0) {
+                (void)::close(fd);
+            }
+            if (base != MAP_FAILED) {
+                (void)::munmap(base, request);
+            }
+            throw;
         }
-
-        const auto base_u = reinterpret_cast<std::uintptr_t>(base);
-        const auto start = base_u + sizeof(Header);
-        const auto aligned = ov_align_up(static_cast<size_t>(start), min_align);
-
-        auto* hdr = reinterpret_cast<Header*>(static_cast<std::uintptr_t>(aligned) - sizeof(Header));
-        hdr->base = base;
-        hdr->map_size = request;
-
-        return reinterpret_cast<void*>(static_cast<std::uintptr_t>(aligned));
     }
 
-    void deallocate(void* handle,
-                    size_t bytes,
-                    size_t alignment) noexcept {
+    void deallocate(void* handle, size_t /*bytes*/, size_t /*alignment*/) noexcept {
         if (!handle) {
             return;
         }
+        std::cout << "Deallocating mmap memory: " << handle << std::endl; 
 
         auto* hdr = reinterpret_cast<Header*>(reinterpret_cast<std::uintptr_t>(handle) - sizeof(Header));
+        if (hdr->fd >= 0) {
+            (void)::close(hdr->fd);
+        }
         if (hdr->base && hdr->map_size) {
             (void)::munmap(hdr->base, hdr->map_size);
         }
