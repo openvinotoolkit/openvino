@@ -687,7 +687,7 @@ void ZeroInferRequest::infer_async() {
     auto batch_size = _graph->get_batch_size();
     size_t inputIndex = 0;
     for (const auto& userTensor : _userInputTensors) {
-        const IODescriptor inputDescriptor = _metadata.inputs.at(inputIndex);
+        const IODescriptor& inputDescriptor = _metadata.inputs.at(inputIndex);
 
         OPENVINO_ASSERT(!inputDescriptor.isInitInputWeights,
                         "This path should not be used for running inferences for the \"init\" model");
@@ -787,7 +787,7 @@ void ZeroInferRequest::get_result() {
 
     size_t outputIndex = 0;
     for (const auto& userTensor : _userOutputTensors) {
-        const IODescriptor outputDescriptor = _metadata.outputs.at(outputIndex);
+        const IODescriptor& outputDescriptor = _metadata.outputs.at(outputIndex);
         if (outputDescriptor.isShapeTensor) {
             OPENVINO_ASSERT(outputDescriptor.relatedDescriptorIndex.has_value(),
                             "The link between the dynamic tensor and its shape tensor is missing, entry name: ",
