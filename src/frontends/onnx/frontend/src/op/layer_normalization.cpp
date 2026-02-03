@@ -98,16 +98,19 @@ ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
     }
     auto scaled = std::make_shared<Multiply>(normalized, scale);
 
-    auto bias = inputs.at(2);
-    auto bias_rank = bias.get_partial_shape().rank();
-    if ((bias_rank.is_dynamic() && normalized_rank.is_dynamic()) ||
-        ((bias_rank.is_static() && normalized_rank.is_static()) &&
-         bias_rank.get_length() + normalize_axis(axis, normalized_rank.get_length()) !=
-             static_cast<size_t>(normalized_rank.get_length()))) {
-        bias = std::make_shared<v1::Reshape>(bias, sub_shape, false);
+    if (common::is_input_valid(node, 2)) {
+        auto bias = inputs.at(2);
+        auto bias_rank = bias.get_partial_shape().rank();
+        if ((bias_rank.is_dynamic() && normalized_rank.is_dynamic()) ||
+            ((bias_rank.is_static() && normalized_rank.is_static()) &&
+             bias_rank.get_length() + normalize_axis(axis, normalized_rank.get_length()) !=
+                 static_cast<size_t>(normalized_rank.get_length()))) {
+            bias = std::make_shared<v1::Reshape>(bias, sub_shape, false);
+        }
+        return {std::make_shared<Add>(scaled, bias)->output(0)};
+    } else {
+        return {scaled->output(0)};
     }
-    auto biased = (num_inputs == 3 ? std::make_shared<Add>(scaled, bias)->output(0) : scaled->output(0));
-    return ov::OutputVector{biased};
 }
 
 ONNX_OP("LayerNormalization", OPSET_SINCE(1), ai_onnx::opset_1::layer_normalization);

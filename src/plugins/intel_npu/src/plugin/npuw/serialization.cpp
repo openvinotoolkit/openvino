@@ -10,6 +10,7 @@
 #include "intel_npu/config/npuw.hpp"
 #include "lazy_tensor.hpp"
 #include "logging.hpp"
+#include "moe_transformations/moe_transformation.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -164,6 +165,46 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::HostF
     // Serialize tile_size
     write(stream, var._tile_size);
     // Note: _tile_model_to_compile and _compiled_tile_model are not serialized here
+    // They are handled separately in CompiledModelDesc::serialize()
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::MoEExperts& var) {
+    using ov::npuw::s11n::write;
+
+    // Serialize basic MoE metadata
+    write(stream, var.num_experts);
+    write(stream, var.expert_hidden_dim);
+    write(stream, var.num_active_experts);
+    write(stream, var.input_token_count);
+
+    // Serialize router scores index
+    write(stream, var._router_scores_idx.has_value());
+    if (var._router_scores_idx.has_value()) {
+        write(stream, var._router_scores_idx.value());
+    }
+
+    // Serialize expert input parameter index
+    write(stream, var._expert_input_param_idx.has_value());
+    if (var._expert_input_param_idx.has_value()) {
+        write(stream, var._expert_input_param_idx.value());
+    }
+
+    // Serialize parameter mapping
+    write(stream, var._param_mapping);
+
+    // Note: _compiled_models and _models_to_compile are not serialized here
+    // They are handled separately in CompiledModelDesc::serialize()
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::compiled::MoEDownstream& var) {
+    using ov::npuw::s11n::write;
+
+    // Serialize MoE downstream metadata
+    write(stream, var.total_experts_num);
+    write(stream, var.active_experts_num);
+    write(stream, var.expert_output_param_idx);
+
+    // Note: _compiled_model and _model_to_compile are not serialized here
     // They are handled separately in CompiledModelDesc::serialize()
 }
 
@@ -349,6 +390,52 @@ void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::HostFlashAtt
     // Deserialize tile_size
     read(stream, var._tile_size);
     // Note: _tile_model_to_compile and _compiled_tile_model are not deserialized here
+    // They are handled separately in CompiledModelDesc::deserialize()
+}
+
+void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::MoEExperts& var) {
+    using ov::npuw::s11n::read;
+
+    // Deserialize basic MoE metadata
+    read(stream, var.num_experts);
+    read(stream, var.expert_hidden_dim);
+    read(stream, var.num_active_experts);
+    read(stream, var.input_token_count);
+
+    // Deserialize router scores index
+    bool has_router_scores_idx = false;
+    read(stream, has_router_scores_idx);
+    if (has_router_scores_idx) {
+        size_t value = 0;
+        read(stream, value);
+        var._router_scores_idx = value;
+    }
+
+    // Deserialize expert input parameter index
+    bool has_expert_input_param_idx = false;
+    read(stream, has_expert_input_param_idx);
+    if (has_expert_input_param_idx) {
+        size_t value = 0;
+        read(stream, value);
+        var._expert_input_param_idx = value;
+    }
+
+    // Deserialize parameter mapping
+    read(stream, var._param_mapping);
+
+    // Note: _compiled_models and _models_to_compile are not deserialized here
+    // They are handled separately in CompiledModelDesc::deserialize()
+}
+
+void ov::npuw::s11n::read(std::istream& stream, ov::npuw::compiled::MoEDownstream& var) {
+    using ov::npuw::s11n::read;
+
+    // Deserialize MoE downstream metadata
+    read(stream, var.total_experts_num);
+    read(stream, var.active_experts_num);
+    read(stream, var.expert_output_param_idx);
+
+    // Note: _compiled_model and _model_to_compile are not deserialized here
     // They are handled separately in CompiledModelDesc::deserialize()
 }
 
