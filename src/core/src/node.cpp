@@ -704,7 +704,7 @@ bool ov::Node::evaluate_symbol(TensorSymbolVector& output_symbols) const {
 bool ov::Node::can_constant_fold(const OutputVector& input_values) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, "Node::can_constant_fold");
 
-    if (is_const_fold_disabled()) {
+    if (is_const_fold_disabled() || !has_evaluate()) {
         return false;
     }
 
@@ -737,8 +737,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
         const auto& et = output.get_element_type();
         ov::Allocator mmap_allocator = ov::Allocator{ov::MmapAnonymousAllocator{}};
         if (et.is_static()) {
-            output_tensors.emplace_back(et, output.get_shape(), mmap_allocator);
-            // output_tensors.emplace_back(output);
+            output_tensors.emplace_back(output, mmap_allocator);
         } else {
             output_tensors.emplace_back();
         }
