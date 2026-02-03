@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -127,7 +127,7 @@ public:
     void reset() const override;
     virtual void update_graph_arguments(uint32_t index,
                                         const std::shared_ptr<ZeroTensor>& tensor,
-                                        [[mayebe_unused]] std::shared_ptr<ov::ITensor> userTensor = nullptr) override;
+                                        [[maybe_unused]] std::shared_ptr<ov::ITensor> userTensor = nullptr) override;
     virtual void update_graph_arguments(uint32_t index,
                                         const std::shared_ptr<ZeroTensor>& tensor,
                                         size_t batch_index,

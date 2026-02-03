@@ -39,7 +39,7 @@ public:
 
     virtual void update_graph_arguments(uint32_t index,
                                         const std::shared_ptr<ZeroTensor>& tensor,
-                                        [[mayebe_unused]] std::shared_ptr<ov::ITensor> userTensor = nullptr);
+                                        [[maybe_unused]] std::shared_ptr<ov::ITensor> userTensor = nullptr);
     virtual void update_graph_arguments(uint32_t index,
                                         const std::shared_ptr<ZeroTensor>& tensor,
                                         size_t batch_index,
