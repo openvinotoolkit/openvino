@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <set>
 #include <string>
 
 #include "accuracy/comparator.hpp"
@@ -2011,6 +2012,14 @@ void ov::npuw::CompiledModel::dump_on_fail(std::size_t id, const std::string& de
     }
 }
 
+std::string ov::npuw::CompiledModel::format_subgraph_name(std::size_t id, const std::string& funcall) const {
+    std::string name = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size());
+    if (!funcall.empty()) {
+        name += "_" + funcall;
+    }
+    return name;
+}
+
 void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
                                                   const std::string& funcall,
                                                   const std::string& dump_sub_opt) {
@@ -2041,8 +2050,7 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
                 size_t chunk_size = entry.first;
                 const auto& moe_model = entry.second;
 
-                std::string moe_model_file_name = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
-                                                  (funcall.empty() ? "" : "_" + funcall) + "_moe_chunk_" +
+                std::string moe_model_file_name = format_subgraph_name(id, funcall) + "_moe_chunk_" +
                                                   std::to_string(chunk_size) + ".xml";
                 std::string moe_model_dump_path = ov::util::path_join({dump_dir, moe_model_file_name}).string();
                 ov::save_model(moe_model, moe_model_dump_path);
@@ -2058,8 +2066,7 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
         return;
     }
 
-    const std::string file_name = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
-                                  (funcall.empty() ? "" : "_" + funcall) + ".xml";
+    const std::string file_name = format_subgraph_name(id, funcall) + ".xml";
     const std::string model_dump_path = ov::util::path_join({dump_dir, file_name}).string();
     ov::save_model(model_to_dump, model_dump_path);
     LOG_INFO("Wrote " << model_dump_path);
@@ -2069,10 +2076,9 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
         LOG_INFO("NOTE: Subgraph[" << id << "] has a pyramid attention mechanism.");
         const auto& pyramid_attention_models = m_compiled_submodels[id].pyramid_attention.value()._models_to_compile;
         for (std::size_t idx = 0; idx < pyramid_attention_models.size(); ++idx) {
-            std::string pyramid_attention_model_name =
-                m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
-                (funcall.empty() ? "" : "_" + funcall) + "_pyramid_" +
-                ov::npuw::util::fmt(idx, pyramid_attention_models.size()) + ".xml";
+            std::string pyramid_attention_model_name = format_subgraph_name(id, funcall) + "_pyramid_" +
+                                                       ov::npuw::util::fmt(idx, pyramid_attention_models.size()) +
+                                                       ".xml";
             std::string pyramid_attention_model_dump_path =
                 ov::util::path_join({dump_dir, pyramid_attention_model_name}).string();
             ov::save_model(pyramid_attention_models[idx], pyramid_attention_model_dump_path);
@@ -2084,16 +2090,14 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
     if (m_compiled_submodels[id].host_flash_attention) {
         LOG_INFO("NOTE: Subgraph[" << id << "] has a host flash attention mechanism.");
         const auto& hfa_tile_model = m_compiled_submodels[id].host_flash_attention.value()._tile_model_to_compile;
-        std::string hfa_tile_model_name = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
-                                          (funcall.empty() ? "" : "_" + funcall) + "_hfa_tile.xml";
+        std::string hfa_tile_model_name = format_subgraph_name(id, funcall) + "_hfa_tile.xml";
         std::string hfa_tile_model_dump_path = ov::util::path_join({dump_dir, hfa_tile_model_name}).string();
         ov::save_model(hfa_tile_model, hfa_tile_model_dump_path);
         LOG_INFO("Wrote " << hfa_tile_model_dump_path);
 
         const auto& hfa_final_tile_model =
             m_compiled_submodels[id].host_flash_attention.value()._final_tile_model_to_compile;
-        std::string hfa_final_tile_model_name = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
-                                                (funcall.empty() ? "" : "_" + funcall) + "_hfa_final_tile.xml";
+        std::string hfa_final_tile_model_name = format_subgraph_name(id, funcall) + "_hfa_final_tile.xml";
         std::string hfa_final_tile_model_dump_path =
             ov::util::path_join({dump_dir, hfa_final_tile_model_name}).string();
         ov::save_model(hfa_final_tile_model, hfa_final_tile_model_dump_path);
@@ -2108,23 +2112,37 @@ void ov::npuw::CompiledModel::dump_subgraph_composition(const std::vector<ov::np
     const std::string sg_file = "npuw_" + m_name + ".sg";
     const std::string sg_path = ov::util::path_join({dump_dir, sg_file}).string();
 
-    // Collect unique subgraphs and counts
-    std::map<std::string, size_t> subgraph_counts;
-    std::vector<std::string> subgraph_order;
-
+    // Collect unique subgraphs via replaced_by to get the actual dumped subgraphs
+    std::set<std::size_t> unique_subgraph_ids;
     for (size_t id = 0; id < orderedSubgraphs.size(); id++) {
         if (orderedSubgraphs[id]._optimized_out) {
             continue;
         }
         const std::size_t real_id = m_compiled_submodels[id].replaced_by.value_or(id);
-        std::string name = m_name + "_" + ov::npuw::util::fmt(real_id, m_compiled_submodels.size());
-        if (!orderedSubgraphs[id]._funcall.empty()) {
-            name += "_" + orderedSubgraphs[id]._funcall;
+        unique_subgraph_ids.insert(real_id);
+    }
+
+    // Get names and count occurrences
+    std::map<std::string, size_t> subgraph_counts;
+    std::vector<std::string> subgraph_order;
+
+    for (const auto& real_id : unique_subgraph_ids) {
+        const std::string& funcall = orderedSubgraphs[real_id]._funcall;
+        std::string name = format_subgraph_name(real_id, funcall);
+        subgraph_order.push_back(name);
+
+        // Count how many times this subgraph is referenced
+        size_t count = 0;
+        for (size_t id = 0; id < orderedSubgraphs.size(); id++) {
+            if (orderedSubgraphs[id]._optimized_out) {
+                continue;
+            }
+            const std::size_t ref_id = m_compiled_submodels[id].replaced_by.value_or(id);
+            if (ref_id == real_id) {
+                count++;
+            }
         }
-        if (subgraph_counts.find(name) == subgraph_counts.end()) {
-            subgraph_order.push_back(name);
-        }
-        subgraph_counts[name]++;
+        subgraph_counts[name] = count;
     }
 
     std::ofstream json_file(sg_path);
