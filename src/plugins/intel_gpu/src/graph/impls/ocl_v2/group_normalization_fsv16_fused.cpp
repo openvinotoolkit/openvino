@@ -142,8 +142,6 @@ protected:
             }
             wgs.local[0] *= fsv;
             wgs.global[0] = wgs.local[0];
-            //std::cout << "calc_sqr_mean sizes: [" << wgs.global[0] << "," << wgs.global[1] << "," << wgs.global[2] << "], [" << wgs.local[0] << ","
-            //          << wgs.local[1] << "," << wgs.local[2] << "]" << std::endl;
         }};
     }
 };
@@ -162,13 +160,6 @@ public:
     std::unique_ptr<primitive_impl> clone() const override {
         return make_deep_copy<GroupNormalizationFsv16FusedImpl>(this);
     }
-
-    /*std::vector<BufferDescriptor> get_internal_buffer_descs(const RuntimeParams& params) const override {
-        // Use get_max_shape() for upper bounded dynamic shape. This is not called for non upper bounded dynamic shape.
-        const auto& shape = params.output_layouts[0].get_partial_shape().get_max_shape();
-        auto buf = BufferDescriptor{shape[0] * align_to(shape[1], fsv), ov::element::f32};
-        return {buf, buf};
-    }*/
 };
 
 }  // namespace
