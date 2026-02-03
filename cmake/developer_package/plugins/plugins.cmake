@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -40,7 +40,7 @@ endif()
 function(ov_add_plugin)
     set(options SKIP_INSTALL PSEUDO_DEVICE ADD_CLANG_FORMAT ADD_CLANG_TIDY AS_EXTENSION SKIP_REGISTRATION)
     set(oneValueArgs NAME DEVICE_NAME VERSION_DEFINES_FOR PSEUDO_PLUGIN_FOR)
-    set(multiValueArgs DEFAULT_CONFIG SOURCES OBJECT_LIBRARIES CPPLINT_FILTERS)
+    set(multiValueArgs DEFAULT_CONFIG SOURCES OBJECT_LIBRARIES)
     cmake_parse_arguments(OV_PLUGIN "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     if(NOT OV_PLUGIN_NAME)
@@ -57,7 +57,6 @@ function(ov_add_plugin)
         set(input_files ${OV_PLUGIN_SOURCES})
         foreach(obj_lib IN LISTS OV_PLUGIN_OBJECT_LIBRARIES)
             list(APPEND input_files $<TARGET_OBJECTS:${obj_lib}>)
-            add_cpplint_target(${obj_lib}_cpplint FOR_TARGETS ${obj_lib})
         endforeach()
 
         if(BUILD_SHARED_LIBS)
@@ -97,19 +96,12 @@ function(ov_add_plugin)
             endif()
         endif()
 
-        set(custom_filter "")
-        foreach(filter IN LISTS OV_PLUGIN_CPPLINT_FILTERS)
-            string(CONCAT custom_filter "${custom_filter}" "," "${filter}")
-        endforeach()
-
         if (OV_PLUGIN_ADD_CLANG_TIDY)
             ov_apply_clang_tidy(TARGET ${OV_PLUGIN_NAME})
         endif()
 
         if (OV_PLUGIN_ADD_CLANG_FORMAT)
             ov_add_clang_format_target(${OV_PLUGIN_NAME}_clang FOR_SOURCES ${OV_PLUGIN_SOURCES})
-        else()
-            add_cpplint_target(${OV_PLUGIN_NAME}_cpplint FOR_TARGETS ${OV_PLUGIN_NAME} CUSTOM_FILTERS ${custom_filter})
         endif()
 
         # plugins does not have to be CXX ABI free, because nobody links with plugins,

@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -203,7 +203,7 @@ protected:
     /**
      * @brief Extract layouts from m_io_descs
      */
-    [[nodiscard]] std::vector<ov::snippets::VectorDims> extract_layouts() const;
+    [[nodiscard]] std::vector<std::vector<size_t>> extract_layouts() const;
 
     std::shared_ptr<RuntimeConfig> m_config = nullptr;
 

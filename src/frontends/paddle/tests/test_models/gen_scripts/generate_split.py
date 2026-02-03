@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -15,7 +15,7 @@ def split(name : str, x, attrs : dict):
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype=x.dtype)
-        
+
         if paddle.__version__ >= '2.0.0':
             out = paddle.split(node_x, num_or_sections=attrs['num_or_sections'], axis=attrs['axis'])
         else:

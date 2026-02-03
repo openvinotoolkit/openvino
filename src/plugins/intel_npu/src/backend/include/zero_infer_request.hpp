@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,6 @@
 #include "intel_npu/common/sync_infer_request.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
-#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "zero_pipeline.hpp"
 #include "zero_tensor.hpp"
@@ -65,9 +64,6 @@ private:
     const Config _config;
     Logger _logger;
 
-    const std::vector<ArgumentDescriptor>& _graphInputDescriptors;
-    const std::vector<ArgumentDescriptor>& _graphOutputDescriptors;
-
     // A copy of each tensor is needed to maintain the original L0 memory allocation in case the user provides another
     // memory area for the tensor.
     mutable std::vector<std::vector<std::shared_ptr<ZeroTensor>>> _levelZeroInputTensors;
@@ -77,7 +73,6 @@ private:
 
     bool _pipelineIsCreated = false;
     bool _dynamicBatchValueChanged = false;
-    bool _externalMemoryStandardAllocationSupported = false;
 };
 
 }  //  namespace intel_npu

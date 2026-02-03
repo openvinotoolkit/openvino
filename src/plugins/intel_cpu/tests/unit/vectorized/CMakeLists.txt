@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -22,10 +22,6 @@ endif()
 
 if (ENABLE_MLAS_FOR_CPU)
     set(MLAS_LIBRARY "mlas")
-endif()
-
-if (ENABLE_SHL_FOR_CPU)
-    set(SHL_LIBRARY "shl")
 endif()
 
 ov_add_test_target(
@@ -53,8 +49,6 @@ ov_add_test_target(
             ov_snippets_models
             snippets_test_utils
             ${MLAS_LIBRARY}
-            ${SHL_LIBRARY}
-        ADD_CPPLINT
         LABELS
             OV UNIT CPU
 )

@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,6 +81,12 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         if (adj_group_size != UINT64_MAX &&
             (adj_group_size == 0 || (innermost_size % adj_group_size != 0 && innermost_size > adj_group_size))) {
             GPU_DEBUG_TRACE << "Dynamic quantization: shape is not aligned with group size " << innermost_size << " / " << adj_group_size << std::endl;
+            return false;
+        }
+
+        if (adj_group_size < 32) {
+            GPU_DEBUG_LOG << "Dynamic quantization: quantized activation by group size " << adj_group_size
+                            << " is not supported by onednn matmul if it is less than 32" << std::endl;
             return false;
         }
 

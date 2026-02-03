@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -154,7 +154,7 @@ inline MemoryPtr create_memory(MemoryDescPtr memdesc) {
 TEST_F(CPUTensorTest, canCreateTensor) {
     Shape shape{4, 3, 2};
     ov::Shape ov_shape = shape.toPartialShape().to_shape();
-    auto strides = VectorDims({6, 2, 1});
+    auto strides = ov::Strides({6, 2, 1});
     const std::size_t totalSize = ov::shape_size(ov_shape);
     ov::element::Type elem_type = ov::element::f32;
 
@@ -201,7 +201,7 @@ TEST_F(CPUTensorTest, canSetShape) {
 
     const Shape newShape({4, 5, 6});
     const ov::Shape ov_newShape = newShape.toPartialShape().to_shape();
-    auto new_strides = VectorDims{30, 6, 1};
+    auto new_strides = ov::Strides{30, 6, 1};
     auto new_memdesc = create_memdesc(ov::element::f32, newShape, new_strides);
 
     // set_shape to a bigger memory
@@ -231,7 +231,7 @@ TEST_F(CPUTensorTest, canSetShape) {
 TEST_F(CPUTensorTest, canSyncMemoryAndTensor) {
     const Shape origShape = {1, 2, 3};
     const ov::Shape ov_origShape = origShape.toPartialShape().to_shape();
-    auto strides = VectorDims({6, 3, 1});
+    auto strides = ov::Strides({6, 3, 1});
     auto memdesc = create_memdesc(ov::element::f32, origShape, strides);
     auto memptr = create_memory(memdesc);
     std::shared_ptr<ov::ITensor> t = std::make_shared<ov::intel_cpu::Tensor>(memptr);
@@ -241,7 +241,7 @@ TEST_F(CPUTensorTest, canSyncMemoryAndTensor) {
 
     const Shape newShape({4, 5, 6});
     const ov::Shape ov_newShape = newShape.toPartialShape().to_shape();
-    auto new_strides = VectorDims{30, 6, 1};
+    auto new_strides = ov::Strides{30, 6, 1};
     auto new_memdesc = create_memdesc(ov::element::f32, newShape, new_strides);
 
     // reallocate memory out boundary of tensor instance

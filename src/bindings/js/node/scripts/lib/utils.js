@@ -66,7 +66,7 @@ async function checkIfPathExists(path) {
 function downloadFile(url, destination, filename, proxy = null) {
   console.log(`Downloading file by link: ${url} to ${destination}` + `with filename: ${filename}`);
 
-  const timeout = 5000;
+  const timeout = 30000;
   const fullPath = path.resolve(destination, filename);
   const file = createWriteStream(fullPath);
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,8 +29,6 @@ public:
     OPENVINO_API Shape(const std::string& shape);
 
     OPENVINO_API Shape(const Shape& axis_lengths);
-
-    OPENVINO_API Shape(Shape&& other);
 
     OPENVINO_API explicit Shape(size_t n, size_t initial_value = 0);
 

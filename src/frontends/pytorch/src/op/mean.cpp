@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,18 +19,20 @@ OutputVector translate_mean(const NodeContext& context) {
     auto x = context.get_input(0);
     auto num_inputs = context.get_input_size();
     bool keep_dims = false;
-    Output<Node> axes;
+    Output<Node> axes = get_axes_range(context, 0);
     // aten::mean(Tensor self, *, ScalarType? dtype=None) -> Tensor
     if (num_inputs == 2) {
         if (!context.input_is_none(1)) {
             x = apply_dtype(context, 1, x);
         }
-        axes = get_axes_range(context, 0);
     } else {
         // aten::mean.dim(Tensor self, int[1]? dim, bool keepdim=False, *, ScalarType? dtype=None) -> Tensor
         // aten::mean.out(Tensor self, int[1]? dim, bool keepdim=False, *, ScalarType? dtype=None, Tensor(a!) out) ->
         // Tensor(a!)
-        axes = context.get_input(1);
+
+        if (!context.input_is_none(1)) {
+            axes = context.get_input(1);
+        }
         if (!context.input_is_none(2)) {
             keep_dims = context.const_input<bool>(2);
         }
@@ -54,12 +56,11 @@ OutputVector translate_mean_fx(const NodeContext& context) {
         auto dtype = context.get_attribute<element::Type>("dtype");
         x = context.mark_node(std::make_shared<v0::Convert>(x, dtype));
     }
-    Output<Node> axes;
-    if (num_inputs == 1) {
-        axes = get_node_axes_range(context, x);
-    } else if (num_inputs == 2) {
+    Output<Node> axes = get_node_axes_range(context, x);
+    if (!context.input_is_none(1)) {
         axes = context.get_input(1);
-    } else {
+    }
+    if (num_inputs > 2) {
         axes = context.get_input(1);
         if (!context.input_is_none(2)) {
             keep_dims = context.const_input<bool>(2);

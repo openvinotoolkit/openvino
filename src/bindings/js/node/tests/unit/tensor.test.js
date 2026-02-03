@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 const { addon: ov } = require("../..");
@@ -251,6 +251,125 @@ describe("ov.Tensor tests", () => {
     });
   });
 
+  describe("Tensor.copyTo()", () => {
+    const elementTypes = [
+      { type: ov.element.f32, TypedArray: Float32Array, name: "f32" },
+      { type: ov.element.i32, TypedArray: Int32Array, name: "i32" },
+      { type: ov.element.u8, TypedArray: Uint8Array, name: "u8" },
+      { type: ov.element.i64, TypedArray: BigInt64Array, name: "i64" },
+      { type: ov.element.f64, TypedArray: Float64Array, name: "f64" },
+      { type: ov.element.u16, TypedArray: Uint16Array, name: "u16" },
+    ];
+
+    elementTypes.forEach(({ type, TypedArray, name }) => {
+      test(`should copy data with ${name} type`, () => {
+        const sourceData = new TypedArray(name === "i64" ? [1n, 2n, 3n, 4n] : [1, 2, 3, 4]);
+        const sourceTensor = new ov.Tensor(type, [2, 2], sourceData);
+        const destTensor = new ov.Tensor(type, [2, 2]);
+
+        sourceTensor.copyTo(destTensor);
+
+        const destData = destTensor.getData();
+        assert.deepStrictEqual(Array.from(destData), Array.from(sourceData));
+      });
+    });
+    const shapes = [
+      { shape: [2, 3], size: 6, name: "2D" },
+      { shape: [2, 2, 2], size: 8, name: "3D" },
+      { shape: [4], size: 4, name: "1D" },
+      { shape: [3, 4], size: 12, name: "2D (3x4)" },
+    ];
+
+    shapes.forEach(({ shape, size, name }) => {
+      test(`should copy data with ${name} tensor shape`, () => {
+        const sourceData = new Float32Array(size);
+        for (let i = 0; i < size; i++) {
+          sourceData[i] = i + 1;
+        }
+
+        const sourceTensor = new ov.Tensor(ov.element.f32, shape, sourceData);
+        const destTensor = new ov.Tensor(ov.element.f32, shape);
+
+        sourceTensor.copyTo(destTensor);
+
+        const destData = destTensor.getData();
+        assert.deepStrictEqual(Array.from(destData), Array.from(sourceData));
+      });
+    });
+
+    test("should throw error when argument is missing", () => {
+      const sourceTensor = new ov.Tensor(ov.element.f32, [2, 2]);
+
+      assert.throws(
+        () => {
+          sourceTensor.copyTo();
+        },
+        {
+          message: /copyTo\(\) must receive one argument, which is the destination Tensor\./,
+        },
+      );
+    });
+
+    test("should throw error when argument is not a Tensor", () => {
+      const sourceTensor = new ov.Tensor(ov.element.f32, [2, 2]);
+
+      assert.throws(
+        () => {
+          sourceTensor.copyTo({});
+        },
+        {
+          message: /Invalid argument/,
+        },
+      );
+    });
+
+    test("should throw error when destination tensor is null", () => {
+      const sourceTensor = new ov.Tensor(ov.element.f32, [2, 2]);
+
+      assert.throws(
+        () => {
+          sourceTensor.copyTo(null);
+        },
+        {
+          message: /The argument must be a Tensor object\./,
+        },
+      );
+    });
+
+    test("should verify data independence after copy", () => {
+      const sourceData = new Float32Array([1.0, 2.0, 3.0, 4.0]);
+      const sourceTensor = new ov.Tensor(ov.element.f32, [4], sourceData);
+      const destTensor = new ov.Tensor(ov.element.f32, [4]);
+
+      sourceTensor.copyTo(destTensor);
+
+      const modifiedSourceData = new Float32Array([10.0, 20.0, 30.0, 40.0]);
+      sourceTensor.data = modifiedSourceData;
+
+      const destData = destTensor.getData();
+      assert.deepStrictEqual(Array.from(destData), [1.0, 2.0, 3.0, 4.0]);
+
+      const sourceDataAfterModification = sourceTensor.getData();
+      assert.deepStrictEqual(Array.from(sourceDataAfterModification), [10.0, 20.0, 30.0, 40.0]);
+    });
+
+    test("should handle large tensors", () => {
+      const size = 1000;
+      const sourceData = new Float32Array(size);
+      for (let i = 0; i < size; i++) {
+        sourceData[i] = i * 0.5;
+      }
+
+      const sourceTensor = new ov.Tensor(ov.element.f32, [size], sourceData);
+      const destTensor = new ov.Tensor(ov.element.f32, [size]);
+
+      sourceTensor.copyTo(destTensor);
+
+      const destData = destTensor.getData();
+      assert.deepStrictEqual(Array.from(destData), Array.from(sourceData));
+    });
+  });
+
   describe("Tensor element type", () => {
     it("comparisons of ov.element to string", () => {
       params.forEach(([elemType, val]) => {
@@ -318,6 +437,40 @@ describe("ov.Tensor tests", () => {
       assert.throws(() => tensor.isContinuous(1), {
         message: "isContinuous() does not accept any arguments.",
       });
+    });
+  });
+
+  describe("Native tensor interoperability and memory safety", () => {
+    test("__getExternalTensor and tensor creation from external pointer", () => {
+      // Test basic external pointer functionality
+      const originalData = Float32Array.from([1, 2, 3, 4, 5, 6]);
+      const originalTensor = new ov.Tensor(ov.element.f32, [2, 3], originalData);
+
+      const nativePtr = originalTensor.__getExternalTensor();
+      assert.strictEqual(typeof nativePtr, "object");
+      assert(nativePtr !== null, "Native tensor pointer should not be null");
+
+      // Create new tensor from external pointer
+      const newTensor = new ov.Tensor(nativePtr);
+      assert.deepStrictEqual(newTensor.getShape(), [2, 3]);
+      assert.strictEqual(newTensor.getElementType(), "f32");
+      assert.deepStrictEqual(newTensor.data, originalData);
+    });
+
+    test("Multiple tensors from same external pointer", () => {
+      const testData = Int32Array.from([100, 200, 300, 400]);
+      const baseTensor = new ov.Tensor(ov.element.i32, [2, 2], testData);
+      const nativePtr = baseTensor.__getExternalTensor();
+
+      // Create multiple tensors from same external pointer
+      const tensor1 = new ov.Tensor(nativePtr);
+      const tensor2 = new ov.Tensor(nativePtr);
+
+      testData[0] = 999; // Modify original data to see if reflected
+
+      // All should have consistent data and properties
+      assert.deepStrictEqual(tensor1.data, testData);
+      assert.deepStrictEqual(tensor2.data, testData);
     });
   });
 });

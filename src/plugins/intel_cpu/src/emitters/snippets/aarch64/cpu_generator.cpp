@@ -1,4 +1,4 @@
-// Copyright (C) 2024-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,6 @@
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
 #include <cstddef>
-#include <cstdint>
 #include <memory>
 #include <set>
 #include <utility>
@@ -96,7 +95,9 @@
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/store.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
+#    include "emitters/snippets/aarch64/jit_debug_emitter.hpp"
 #    include "jit_perf_count_chrono_emitters.hpp"
+#    include "jit_segfault_detector_emitter.hpp"
 #    include "snippets/op/perf_count.hpp"
 #endif
 #include "snippets/op/vector_buffer.hpp"
@@ -115,13 +116,52 @@
 
 namespace ov {
 
-#define CREATE_SNIPPETS_EMITTER(e_type, ...)                                                      \
-    {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-         return std::make_shared<e_type>(h.get(), isa, expr, ##__VA_ARGS__);                      \
-     },                                                                                           \
-     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {             \
-         return e_type::get_supported_precisions(n);                                              \
-     }}
+#ifdef SNIPPETS_DEBUG_CAPS
+static bool is_load_emitter(const intel_cpu::aarch64::jit_emitter* emitter) {
+    return (dynamic_cast<const intel_cpu::aarch64::jit_load_memory_emitter*>(emitter) != nullptr) ||
+           (dynamic_cast<const intel_cpu::aarch64::jit_load_broadcast_emitter*>(emitter) != nullptr);
+}
+
+static bool is_store_emitter(const intel_cpu::aarch64::jit_emitter* emitter) {
+    return dynamic_cast<const intel_cpu::aarch64::jit_store_memory_emitter*>(emitter) != nullptr;
+}
+
+static bool is_segfault_detector_emitter(const intel_cpu::aarch64::jit_emitter* emitter) {
+    return is_load_emitter(emitter) || is_store_emitter(emitter) ||
+           (dynamic_cast<const intel_cpu::aarch64::jit_gemm_emitter*>(emitter) != nullptr) ||
+           (dynamic_cast<const intel_cpu::aarch64::jit_gemm_copy_b_emitter*>(emitter) != nullptr);
+}
+
+#    define CREATE_SNIPPETS_EMITTER(e_type, ...)                                                                  \
+        {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> {             \
+             auto emitter = std::make_shared<e_type>(h.get(), isa, expr, ##__VA_ARGS__);                          \
+             if (debug_config.enable_segfault_detector && is_segfault_detector_emitter(emitter.get())) {          \
+                 auto segfault_emitter = std::make_shared<intel_cpu::aarch64::jit_uni_segfault_detector_emitter>( \
+                     h.get(),                                                                                     \
+                     isa,                                                                                         \
+                     emitter.get(),                                                                               \
+                     is_load_emitter(emitter.get()),                                                              \
+                     is_store_emitter(emitter.get()),                                                             \
+                     expr->get_node()->get_friendly_name());                                                      \
+                 return std::make_shared<intel_cpu::aarch64::jit_debug_emitter>(                                  \
+                     emitter,                                                                                     \
+                     segfault_emitter,                                                                            \
+                     intel_cpu::aarch64::jit_debug_emitter::EmissionLocation::preamble);                          \
+             }                                                                                                    \
+             return emitter;                                                                                      \
+         },                                                                                                       \
+         [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {                         \
+             return e_type::get_supported_precisions(n);                                                          \
+         }}
+#else
+#    define CREATE_SNIPPETS_EMITTER(e_type, ...)                                                      \
+        {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+             return std::make_shared<e_type>(h.get(), isa, expr, ##__VA_ARGS__);                      \
+         },                                                                                           \
+         [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {             \
+             return e_type::get_supported_precisions(n);                                              \
+         }}
+#endif
 
 #define CREATE_CPU_EMITTER(e_type)                                                                \
     {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
@@ -212,23 +252,6 @@ public:
 };
 
 namespace intel_cpu::aarch64 {
-
-CompiledSnippetCPU::CompiledSnippetCPU(std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator> h)
-    : h_compiled(std::move(h)) {
-    OPENVINO_ASSERT(h_compiled && h_compiled->jit_ker(), "Got invalid jit generator or kernel was nopt compiled");
-}
-
-const uint8_t* CompiledSnippetCPU::get_code() const {
-    return h_compiled->jit_ker();
-}
-
-size_t CompiledSnippetCPU::get_code_size() const {
-    return h_compiled->getSize();
-}
-
-bool CompiledSnippetCPU::empty() const {
-    return get_code_size() == 0;
-}
 
 CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa, ov::intel_cpu::MultiCacheWeakPtr cache)
     : TargetMachine(std::make_shared<CPURuntimeConfigurator>(cache)),
@@ -345,6 +368,9 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
 std::shared_ptr<snippets::TargetMachine> CPUTargetMachine::clone() const {
     const auto cloned = std::make_shared<CPUTargetMachine>(isa, compiled_kernel_cache);
     cloned->configurator = std::make_shared<ov::snippets::RuntimeConfigurator>(*configurator);
+#ifdef SNIPPETS_DEBUG_CAPS
+    cloned->debug_config = debug_config;
+#endif
     return cloned;
 }
 
@@ -440,7 +466,9 @@ ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Outpu
 bool CPUGenerator::uses_precompiled_kernel([[maybe_unused]] const std::shared_ptr<snippets::Emitter>& e) const {
     bool need = false;
 #ifdef SNIPPETS_DEBUG_CAPS
-    need = std::dynamic_pointer_cast<ov::intel_cpu::aarch64::jit_perf_count_chrono_start_emitter>(e) ||
+    const auto cpu_target_machine = std::dynamic_pointer_cast<CPUTargetMachine>(target);
+    need = need || (cpu_target_machine && cpu_target_machine->debug_config.enable_segfault_detector) ||
+           std::dynamic_pointer_cast<ov::intel_cpu::aarch64::jit_perf_count_chrono_start_emitter>(e) ||
            std::dynamic_pointer_cast<ov::intel_cpu::aarch64::jit_perf_count_chrono_end_emitter>(e);
 #endif
     return need;

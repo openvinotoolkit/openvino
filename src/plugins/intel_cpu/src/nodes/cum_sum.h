@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ private:
     void exec();
 
     template <bool reverse, bool exclusive, typename dataType>
-    void cumSum(const dataType* input, dataType* output, const VectorDims& strides);
+    void cumSum(const dataType* input, dataType* output, const std::vector<size_t>& strides);
 
     static void parallelItInit(size_t start, std::vector<size_t>& counters, const std::vector<size_t>& iterationRange);
 

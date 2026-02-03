@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ public:
     void set_state(size_t in_num,
                    const std::vector<ov::snippets::VectorDims>& shapes,
                    const std::vector<ov::snippets::VectorDims>& latest_shapes,
-                   const std::vector<ov::snippets::VectorDims>& layouts,
+                   const std::vector<std::vector<size_t>>& layouts,
                    const std::vector<size_t>& data_sizes,
                    size_t tensor_rank,
                    const std::vector<ov::snippets::VectorDims>& offsets) {

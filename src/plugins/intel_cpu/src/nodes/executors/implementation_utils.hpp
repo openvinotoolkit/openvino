@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,6 +31,11 @@ namespace ov::intel_cpu {
 template <typename Config, int idx>
 ov::element::Type memoryDescType(const Config& config) {
     return config.descs.at(idx)->getPrecision();
+}
+
+template <typename Config>
+bool hasBias(const Config& config) {
+    return !config.descs.at(ARG_BIAS)->empty();
 }
 
 template <typename Config>

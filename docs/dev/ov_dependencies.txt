@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #This file provides a comprehensive list of all dependencies of OpenVINO 2025.1
 #The file is part of the automation pipeline for posting OpenVINO IR models on the HuggingFace Hub, including OneBOM dependency checks.
@@ -92,7 +92,6 @@ gitdb
 gitpython
 google-auth
 google-auth-oauthlib
-google cpplint
 google fonts
 google-java-format
 google-pasta
@@ -366,8 +365,3 @@ httpx
 ultralytics
 llama.cpp
 lixsmm
-
-
-
-
-

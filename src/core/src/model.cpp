@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -132,9 +132,6 @@ ov::Model::Model(const ResultVector& results, const ov::ParameterVector& paramet
 
 ov::Model::Model(const OutputVector& results, const ov::ParameterVector& parameters, const std::string& name)
     : Model(as_result_vector(results), parameters, name) {}
-
-ov::Model::Model(const NodeVector& results, const ov::ParameterVector& parameters, const std::string& name)
-    : Model(as_output_vector(results), parameters, name) {}
 
 ov::Model::Model(const std::shared_ptr<Node>& result, const ov::ParameterVector& parameters, const std::string& name)
     : Model(verify_node(result)->outputs(), parameters, name) {}

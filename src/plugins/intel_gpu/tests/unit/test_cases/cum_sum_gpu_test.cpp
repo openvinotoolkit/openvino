@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -158,6 +158,8 @@ public:
             return data_types::i32;
         else if (std::is_same<input_type, int64_t>::value)
             return data_types::i64;
+        else if (std::is_same<input_type, unsigned char>::value)
+            return data_types::u8;
         else
             throw std::runtime_error("Unsupported cum sum data type in cum_sum_gpu_test.cpp");
     }
@@ -215,11 +217,13 @@ class cum_sum_gpu_fp16 : public ::cum_sum_gpu<cum_sum_test_params, ov::float16, 
 class cum_sum_gpu_fp32 : public ::cum_sum_gpu<cum_sum_test_params, float, float> {};
 class cum_sum_gpu_int32 : public ::cum_sum_gpu<cum_sum_test_params, int32_t, int32_t> {};
 class cum_sum_gpu_int64 : public ::cum_sum_gpu<cum_sum_test_params, int64_t, int64_t> {};
+class cum_sum_gpu_uint8 : public ::cum_sum_gpu<cum_sum_test_params, unsigned char, unsigned char> {};
 
 TEST_P(cum_sum_gpu_fp16, basic) { auto p = GetParam(); execute(p); }
 TEST_P(cum_sum_gpu_fp32, basic) { auto p = GetParam(); execute(p); }
 TEST_P(cum_sum_gpu_int32, basic) { auto p = GetParam(); execute(p); }
 TEST_P(cum_sum_gpu_int64, basic) { auto p = GetParam(); execute(p); }
+TEST_P(cum_sum_gpu_uint8, basic) { auto p = GetParam(); execute(p); }
 
 namespace {
     std::vector<std::vector<int>> axes = {
@@ -237,31 +241,37 @@ INSTANTIATE_TEST_SUITE_P(axis_0, cum_sum_gpu_fp16, ::testing::Combine(CASE_CUM_S
 INSTANTIATE_TEST_SUITE_P(axis_0, cum_sum_gpu_fp32, ::testing::Combine(CASE_CUM_SUM_AXIS_0));
 INSTANTIATE_TEST_SUITE_P(axis_0, cum_sum_gpu_int32, ::testing::Combine(CASE_CUM_SUM_AXIS_0));
 INSTANTIATE_TEST_SUITE_P(axis_0, cum_sum_gpu_int64, ::testing::Combine(CASE_CUM_SUM_AXIS_0));
+INSTANTIATE_TEST_SUITE_P(axis_0, cum_sum_gpu_uint8, ::testing::Combine(CASE_CUM_SUM_AXIS_0));
 
 INSTANTIATE_TEST_SUITE_P(axis_1, cum_sum_gpu_fp16, ::testing::Combine(CASE_CUM_SUM_AXIS_1));
 INSTANTIATE_TEST_SUITE_P(axis_1, cum_sum_gpu_fp32, ::testing::Combine(CASE_CUM_SUM_AXIS_1));
 INSTANTIATE_TEST_SUITE_P(axis_1, cum_sum_gpu_int32, ::testing::Combine(CASE_CUM_SUM_AXIS_1));
 INSTANTIATE_TEST_SUITE_P(axis_1, cum_sum_gpu_int64, ::testing::Combine(CASE_CUM_SUM_AXIS_1));
+INSTANTIATE_TEST_SUITE_P(axis_1, cum_sum_gpu_uint8, ::testing::Combine(CASE_CUM_SUM_AXIS_1));
 
 INSTANTIATE_TEST_SUITE_P(axis_2, cum_sum_gpu_fp16, ::testing::Combine(CASE_CUM_SUM_AXIS_2));
 INSTANTIATE_TEST_SUITE_P(axis_2, cum_sum_gpu_fp32, ::testing::Combine(CASE_CUM_SUM_AXIS_2));
 INSTANTIATE_TEST_SUITE_P(axis_2, cum_sum_gpu_int32, ::testing::Combine(CASE_CUM_SUM_AXIS_2));
 INSTANTIATE_TEST_SUITE_P(axis_2, cum_sum_gpu_int64, ::testing::Combine(CASE_CUM_SUM_AXIS_2));
+INSTANTIATE_TEST_SUITE_P(axis_2, cum_sum_gpu_uint8, ::testing::Combine(CASE_CUM_SUM_AXIS_2));
 
 INSTANTIATE_TEST_SUITE_P(axis_3, cum_sum_gpu_fp16, ::testing::Combine(CASE_CUM_SUM_AXIS_3));
 INSTANTIATE_TEST_SUITE_P(axis_3, cum_sum_gpu_fp32, ::testing::Combine(CASE_CUM_SUM_AXIS_3));
 INSTANTIATE_TEST_SUITE_P(axis_3, cum_sum_gpu_int32, ::testing::Combine(CASE_CUM_SUM_AXIS_3));
 INSTANTIATE_TEST_SUITE_P(axis_3, cum_sum_gpu_int64, ::testing::Combine(CASE_CUM_SUM_AXIS_3));
+INSTANTIATE_TEST_SUITE_P(axis_3, cum_sum_gpu_uint8, ::testing::Combine(CASE_CUM_SUM_AXIS_3));
 
 INSTANTIATE_TEST_SUITE_P(axis_4, cum_sum_gpu_fp16, ::testing::Combine(CASE_CUM_SUM_AXIS_4));
 INSTANTIATE_TEST_SUITE_P(axis_4, cum_sum_gpu_fp32, ::testing::Combine(CASE_CUM_SUM_AXIS_4));
 INSTANTIATE_TEST_SUITE_P(axis_4, cum_sum_gpu_int32, ::testing::Combine(CASE_CUM_SUM_AXIS_4));
 INSTANTIATE_TEST_SUITE_P(axis_4, cum_sum_gpu_int64, ::testing::Combine(CASE_CUM_SUM_AXIS_4));
+INSTANTIATE_TEST_SUITE_P(axis_4, cum_sum_gpu_uint8, ::testing::Combine(CASE_CUM_SUM_AXIS_4));
 
 INSTANTIATE_TEST_SUITE_P(axis_5, cum_sum_gpu_fp16, ::testing::Combine(CASE_CUM_SUM_AXIS_5));
 INSTANTIATE_TEST_SUITE_P(axis_5, cum_sum_gpu_fp32, ::testing::Combine(CASE_CUM_SUM_AXIS_5));
 INSTANTIATE_TEST_SUITE_P(axis_5, cum_sum_gpu_int32, ::testing::Combine(CASE_CUM_SUM_AXIS_5));
 INSTANTIATE_TEST_SUITE_P(axis_5, cum_sum_gpu_int64, ::testing::Combine(CASE_CUM_SUM_AXIS_5));
+INSTANTIATE_TEST_SUITE_P(axis_5, cum_sum_gpu_uint8, ::testing::Combine(CASE_CUM_SUM_AXIS_5));
 
 INSTANTIATE_TEST_SUITE_P(export_import, cum_sum_gpu_int64,
     ::testing::Combine(::testing::Values(5), ::testing::Values(5), ::testing::Values(5),

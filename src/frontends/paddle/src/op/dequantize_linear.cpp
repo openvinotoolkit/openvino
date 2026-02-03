@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,7 @@ NamedOutputs dequantize_linear(const NodeContext& node) {
     const auto real_scale = std::make_shared<default_opset::Multiply>(scale, range_node);
 
     auto q_node = std::make_shared<default_opset::Convert>(x, element::f32);
-    // extract the ATTRIBUTES and explaination for quant_axis:
+    // extract the ATTRIBUTES and explanation for quant_axis:
     //             / [-1]      --- per-tensor, scale is always 1-D
     // quant_axis  - [0 or 1]  --- per-channel, scale may be 1-D or 2-D, needing to reshape for input shape.
     //             \ [others]  --- unsupported

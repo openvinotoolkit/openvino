@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/add.hpp"
@@ -34,7 +35,7 @@
 #include "openvino/op/topk.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
+#include "shared_test_classes/subgraph/weights_decompression_params.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
@@ -48,8 +49,8 @@ std::shared_ptr<ov::Node> build_matmul_weights(
     bool use_weight_decompression,
     const std::optional<ov::element::Type>& decompression_precision = std::nullopt,
     const std::optional<ov::element::Type>& scale_precision = std::nullopt,
-    const std::optional<DecompressionType>& decompression_multiply_type = std::nullopt,
-    const std::optional<DecompressionType>& decompression_subtract_type = std::nullopt,
+    const std::optional<ov::test::utils::DecompressionType>& decompression_multiply_type = std::nullopt,
+    const std::optional<ov::test::utils::DecompressionType>& decompression_subtract_type = std::nullopt,
     const std::optional<bool>& reshape_on_decompression = std::nullopt,
     const std::optional<int>& decompression_group_size = std::nullopt) {
     if (!use_weight_decompression) {
@@ -73,31 +74,32 @@ std::shared_ptr<ov::Node> build_matmul_weights(
                         "reshape_on_decompression must be set when use_weight_decompression is true");
         OPENVINO_ASSERT(decompression_group_size.has_value(),
                         "decompression_group_size must be set when use_weight_decompression is true");
-        return initMatMulDecompressionSubgraphQuantization(weights_shape,
-                                                           decompression_group_size.value(),
-                                                           data_precision,
-                                                           weights_precision,
-                                                           decompression_precision.value(),
-                                                           scale_precision.value(),
-                                                           true,
-                                                           decompression_multiply_type.value(),
-                                                           decompression_subtract_type.value(),
-                                                           reshape_on_decompression.value(),
-                                                           false,
-                                                           seed);
+        return ov::test::utils::initMatMulDecompressionSubgraphQuantization(weights_shape,
+                                                                            decompression_group_size.value(),
+                                                                            data_precision,
+                                                                            weights_precision,
+                                                                            decompression_precision.value(),
+                                                                            scale_precision.value(),
+                                                                            true,
+                                                                            decompression_multiply_type.value(),
+                                                                            decompression_subtract_type.value(),
+                                                                            reshape_on_decompression.value(),
+                                                                            false,
+                                                                            seed);
     }
 }
 
-std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(const MoePatternParams& moe_params,
-                                                const ov::element::Type data_precision,
-                                                const ov::element::Type weights_precision,
-                                                const bool use_weight_decompression,
-                                                const std::optional<ov::element::Type> decompression_precision,
-                                                const std::optional<ov::element::Type> scale_precision,
-                                                const std::optional<DecompressionType> decompression_multiply_type,
-                                                const std::optional<DecompressionType> decompression_subtract_type,
-                                                const std::optional<bool> reshape_on_decompression,
-                                                const std::optional<int> decompression_group_size) {
+std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(
+    const MoePatternParams& moe_params,
+    const ov::element::Type data_precision,
+    const ov::element::Type weights_precision,
+    const bool use_weight_decompression,
+    const std::optional<ov::element::Type> decompression_precision,
+    const std::optional<ov::element::Type> scale_precision,
+    const std::optional<ov::test::utils::DecompressionType> decompression_multiply_type,
+    const std::optional<ov::test::utils::DecompressionType> decompression_subtract_type,
+    const std::optional<bool> reshape_on_decompression,
+    const std::optional<int> decompression_group_size) {
     // Use parameters from shape_params - static shapes only
     const auto& data_shape = moe_params.data_shape;
     const size_t intermediate_size = moe_params.intermediate_size;
@@ -297,16 +299,17 @@ std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(const MoePatternParams& moe_para
                                        "MoeSubgraph");
 }
 
-std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(const MoePatternParams& moe_params,
-                                                const ov::element::Type data_precision,
-                                                const ov::element::Type weights_precision,
-                                                const bool use_weight_decompression,
-                                                const std::optional<ov::element::Type> decompression_precision,
-                                                const std::optional<ov::element::Type> scale_precision,
-                                                const std::optional<DecompressionType> decompression_multiply_type,
-                                                const std::optional<DecompressionType> decompression_subtract_type,
-                                                const std::optional<bool> reshape_on_decompression,
-                                                const std::optional<int> decompression_group_size) {
+std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(
+    const MoePatternParams& moe_params,
+    const ov::element::Type data_precision,
+    const ov::element::Type weights_precision,
+    const bool use_weight_decompression,
+    const std::optional<ov::element::Type> decompression_precision,
+    const std::optional<ov::element::Type> scale_precision,
+    const std::optional<ov::test::utils::DecompressionType> decompression_multiply_type,
+    const std::optional<ov::test::utils::DecompressionType> decompression_subtract_type,
+    const std::optional<bool> reshape_on_decompression,
+    const std::optional<int> decompression_group_size) {
     // Use parameters from shape_params - static shapes only
     const auto& data_shape = moe_params.data_shape;
     const size_t intermediate_size = moe_params.intermediate_size;

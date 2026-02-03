@@ -1,4 +1,4 @@
-// Copyright (C) 2021-2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -98,7 +98,7 @@ std::vector<fusingSpecificParams> fusingParamsSet{emptyFusingSpec, fusingBias, f
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 const auto gemmParam = CPUSpecificParams{{}, {}, {"acl"}, "acl"};
-#elif OV_CPU_WITH_MLAS
+#elif defined(OV_CPU_WITH_MLAS)
 const auto gemmParam = CPUSpecificParams{{}, {}, {"gemm_mlas"}, "gemm_mlas"};
 #else
 const auto gemmParam = CPUSpecificParams{{}, {}, {"jit_gemm"}, "jit_gemm"};

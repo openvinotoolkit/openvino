@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -377,6 +377,7 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     if (batch_size % (tparams.tile_b * tparams.dispatch_bsv) != 0) {
         if ((tparams.dispatch_bsv != 1) || batch_size == 1)
             return false;
+
         size_t tile = simd;
         while (batch_size % tile != 0)
             tile--;
@@ -808,6 +809,12 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("TILE_IN_B_PITCH", tile_in_b_pitch));
         jit.AddConstant(MakeJitConstant("TILE_OUT_B_PITCH", params.outputs[0].Batch().pitch));
         jit.AddConstant(MakeJitConstant("BATCH_SIZE", "(OUTPUT_BATCH_NUM)"));
+    }
+    auto batch_size = get_input_bf_size(params).first;
+    if (batch_size % (dispatchData.tile_m * dispatchData.tile_ms) != 0) {
+        jit.AddConstant(MakeJitConstant("BATCH_LEFTOVER", 1));
+    } else {
+        jit.AddConstant(MakeJitConstant("BATCH_LEFTOVER", 0));
     }
 
     if (!params.fused_ops.empty() && !is_swiglu_fused(params)) {

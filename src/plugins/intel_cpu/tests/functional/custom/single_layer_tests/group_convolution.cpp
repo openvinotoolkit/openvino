@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -295,21 +295,19 @@ const std::vector<fusingSpecificParams> fusingParamsSet_Brdgmm{emptyFusingSpec,
                                                                fusingReluScaleShift,
                                                                // fake quantize
                                                                fusingFakeQuantizePerTensorRelu,
-                                                               fusingFakeQuantizePerChannelRelu
+                                                               fusingFakeQuantizePerChannelRelu,
                                                                // sum
-                                                               // comment out sum due to MFDNN-12841
-                                                               //fusingSumEluFQ,
-                                                               //fusingSum
+                                                               fusingSumEluFQ,
+                                                               fusingSum
                                                               };
 
 const std::vector<fusingSpecificParams> fusingParamsSetBF16_Brdgmm{emptyFusingSpec,
                                                                    // eltwise
                                                                    fusingRelu,
                                                                    // depthwise
-                                                                   fusingReluScaleShift
+                                                                   fusingReluScaleShift,
                                                                    // sum
-                                                                   // comment out sum due to MFDNN-12841
-                                                                   //fusingSum
+                                                                   fusingSum
                                                                   };
 
 const std::vector<fusingSpecificParams> fusingParamsSetFP16_Brdgmm = fusingParamsSetBF16_Brdgmm;

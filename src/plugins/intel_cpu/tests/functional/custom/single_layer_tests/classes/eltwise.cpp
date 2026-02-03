@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -292,6 +292,12 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
         return "jit";
     }
 #endif
+    if (eltwise_type == utils::EltwiseTypes::BITWISE_AND ||
+        eltwise_type == utils::EltwiseTypes::BITWISE_OR ||
+        eltwise_type == utils::EltwiseTypes::BITWISE_XOR ||
+        eltwise_type == utils::EltwiseTypes::BITWISE_NOT) {
+        return "ref";
+    }
     if (eltwise_type == utils::EltwiseTypes::FLOOR_MOD ||
         eltwise_type == utils::EltwiseTypes::MOD) {
         return "ref";
@@ -307,18 +313,11 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
             (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
             (eltwise_type == utils::EltwiseTypes::DIVIDE) ||
             (eltwiseType == utils::EltwiseTypes::MOD) ||
-            (eltwiseType == utils::EltwiseTypes::FLOOR_MOD)) {
+            (eltwiseType == utils::EltwiseTypes::FLOOR_MOD) ||
+            (eltwiseType == utils::EltwiseTypes::SQUARED_DIFF)) {
             return "jit";
         }
     }
-#if defined(OV_CPU_WITH_SHL)
-    if ((eltwise_type == utils::EltwiseTypes::ADD) ||
-        (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
-        (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
-        (eltwise_type == utils::EltwiseTypes::DIVIDE)) {
-        return "shl";
-    }
-#endif
 #endif
     return CPUTestsBase::getPrimitiveType();
 }

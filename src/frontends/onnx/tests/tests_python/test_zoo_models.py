@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import tests
@@ -132,7 +132,7 @@ def tolerance_map_key_in_model_path(path):
     return None
 
 zoo_models = []
-# rglob doesn't work for symlinks, so models have to be physically somwhere inside "MODELS_ROOT_DIR"
+# rglob doesn't work for symlinks, so models have to be physically somewhere inside "MODELS_ROOT_DIR"
 for path in Path(MODELS_ROOT_DIR).rglob("*.onnx"):
     mdir = path.parent
     file_name = path.name

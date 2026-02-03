@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,9 +77,7 @@ ov::Tensor read_weights(const std::string& filepath) {
  */
 std::shared_ptr<ov::Model> create_model(const std::string& path_to_weights) {
     const ov::Tensor weights = read_weights(path_to_weights);
-    OPENVINO_SUPPRESS_DEPRECATED_START  // keep until 2026.0 release
-        const std::uint8_t* data = weights.data<std::uint8_t>();
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const std::uint8_t* data = weights.data<std::uint8_t>();
 
     // -------input------
     std::vector<ptrdiff_t> padBegin{0, 0};

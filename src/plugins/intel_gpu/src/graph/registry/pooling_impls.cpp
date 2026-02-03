@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<pooli
             // ws_undef::undef:::,attr-scratchpad:user attr-post-ops:eltwise_linear:1.52456,alg:pooling_avg_include_padding,
             // mb1ic96_ih56oh28kh2sh2dh0ph0_iw56ow28kw2sw2dw0pw0,0.0400391
             // issue: 12579
-            if (in_layout.format == format::byxf && out_layout.format == format::bfyx && ov::element::Type(in_layout.data_type).is_integral_number())
+            if (in_layout.format == format::byxf && out_layout.format == format::bfyx)
                 return false;
             return true;
         })

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,8 +33,6 @@ ov::Shape::Shape(const std::initializer_list<size_t>& axis_lengths) : std::vecto
 ov::Shape::Shape(const std::vector<size_t>& axis_lengths) : std::vector<size_t>(axis_lengths) {}
 
 ov::Shape::Shape(const Shape& axis_lengths) = default;
-
-ov::Shape::Shape(Shape&& other) = default;
 
 ov::Shape::Shape(size_t n, size_t initial_value) : std::vector<size_t>(n, initial_value) {}
 

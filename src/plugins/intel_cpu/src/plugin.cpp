@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <istream>
 #include <memory>
@@ -107,7 +108,7 @@ static std::string getDeviceFullName() {
             }
             return s.substr(start, end - start + 1);
         };
-        auto read_first_line = [&](const char* path) -> std::string {
+        auto read_first_line = [&](const std::filesystem::path& path) -> std::string {
             std::ifstream f(path);
             if (!f.is_open()) {
                 return {};
@@ -311,14 +312,18 @@ void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& m
 }
 
 static Config::ModelType getModelType(const std::shared_ptr<const Model>& model) {
+    if (op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model)) {
+        if (!model->get_variables().empty()) {
+            return Config::ModelType::LLM;
+        }
+        return Config::ModelType::Unknown;
+    }
+    if (op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model)) {
+        return Config::ModelType::LLM;
+    }
     if (op::util::has_op_with_type<op::v1::Convolution>(model) ||
         op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model)) {
         return Config::ModelType::CNN;
-    }
-
-    if ((op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) && !model->get_variables().empty()) ||
-        op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model)) {
-        return Config::ModelType::LLM;
     }
 
     return Config::ModelType::Unknown;
@@ -767,10 +772,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
     auto decrypt_from_string = get_cache_decrypt_fn(config, decrypt);
     const auto origin_weights_path = get_origin_weights_path(config);
 
+    // `const_cast` intentionally used as AlignedBuffer requires non-const pointer
+    // but is used as read-only in deserializer
+    auto* model_data_ptr = reinterpret_cast<char*>(const_cast<void*>(model_tensor.data()));
     std::shared_ptr<ov::AlignedBuffer> model_buffer =
-        std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(model_tensor.data()),
-                                                       model_tensor.get_byte_size(),
-                                                       model_tensor);
+        std::make_shared<ov::SharedBuffer<ov::Tensor>>(model_data_ptr, model_tensor.get_byte_size(), model_tensor);
 
     ModelDeserializer deserializer(model_buffer, get_core(), decrypt, decrypt_from_string, origin_weights_path);
 

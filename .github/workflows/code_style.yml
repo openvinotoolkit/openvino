@@ -1,5 +1,12 @@
 name: Code Style
-on: [pull_request, merge_group]
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  merge_group:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -10,13 +17,14 @@ permissions: read-all
 jobs:
   Smart_CI:
       runs-on: ubuntu-latest
+      if: github.event.pull_request.draft == false || github.run_attempt > 1
       outputs:
         affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
         changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
         skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
       steps:
         - name: checkout action
-          uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+          uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
           timeout-minutes: 15
           with:
             sparse-checkout: .github/actions/smart-ci
@@ -50,7 +58,7 @@ jobs:
       images: "${{ steps.handle_docker.outputs.images }}"
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
@@ -72,7 +80,7 @@ jobs:
         - /mount:/mount
       options: --user 1001 # We use standard github-actions user inside container to avoid permission issues after checkout
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
         with:
           submodules: 'true'
@@ -104,7 +112,7 @@ jobs:
         - /mount:/mount
       options: --user 1001 # We use standard github-actions user inside container to avoid permission issues after checkout
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
         with:
           submodules: 'true'
@@ -136,13 +144,13 @@ jobs:
         - /mount:/mount
       options: --user 1001 # We use standard github-actions user inside container to avoid permission issues after checkout
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
         with:
           submodules: 'true'
 
       - name: CMake configure
-        run: cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=FULL -DSELECTIVE_BUILD=COLLECT -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/riscv64.linux.toolchain.cmake -B build_riscv64
+        run: cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=FULL -DSELECTIVE_BUILD=COLLECT -DTHREADING=SEQ -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/riscv64.linux.toolchain.cmake -B build_riscv64
 
       - name: Create code style diff
         run: cmake --build build_riscv64 --target clang_format_fix_all -j8
@@ -165,7 +173,7 @@ jobs:
         - /mount:/mount
       options: --user 1001 # We use standard github-actions user inside container to avoid permission issues after checkout
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
         with:
           submodules: 'true'
@@ -198,7 +206,7 @@ jobs:
         - /mount:/mount
       options: --user 1001 # We use standard github-actions user inside container to avoid permission issues after checkout
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
         with:
           submodules: 'true'
