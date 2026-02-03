@@ -82,9 +82,6 @@ std::string ExtremumLayerCPUTest::getPrimitiveType() {
     if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
         return "jit";
     }
-#if defined(OV_CPU_WITH_SHL)
-    return "shl";
-#endif
 #endif
     return CPUTestsBase::getPrimitiveType();
 }
