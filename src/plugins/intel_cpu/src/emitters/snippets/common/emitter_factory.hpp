@@ -127,10 +127,11 @@ public:
     }
 
     /**
-     * @brief Creates a jitters_value for operations that are recognized but not yet implemented.
-     * This method returns a factory that produces nullptr (indicating no emitter implementation)
-     * while still advertising the supported precisions for the operation. This is useful for
-     * operations that are recognized by the system but have no platform-specific implementation yet.
+     * @brief Creates a jitters_value for operations that are decomposed into low-level expressions.
+     * This method returns a factory that produces nullptr (indicating no direct emitter implementation)
+     * while still advertising the supported precisions for the operation. This is used for
+     * high-level operations that are decomposed into lower-level expressions during compilation,
+     * where the actual code generation happens at the decomposed expression level.
      * @param supported_precisions The set of precision combinations supported by this operation
      * @return A jitters_value with a null emitter factory and the provided precision information
      */
