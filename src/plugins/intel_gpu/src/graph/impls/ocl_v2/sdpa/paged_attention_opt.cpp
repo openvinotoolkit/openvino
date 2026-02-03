@@ -15,6 +15,7 @@
 #include <utility>
 
 #include "../primitive_ocl_base.hpp"
+#include "common_tools.h"
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
@@ -24,8 +25,6 @@
 #include "primitive_inst.h"
 #include "sdpa_base.hpp"
 #include "sdpa_gen_opt.hpp"
-#include "common_tools.h"
-
 
 namespace ov::intel_gpu::ocl {
 namespace {
@@ -272,13 +271,13 @@ public:
                 // INT4 compression is packing elements along groups in head which has different scalea and zp
                 scales_zp_size = get_element_size(kv_dt) * 4;
                 jit.make("IS_INT4_COMPRESSED", true);
-                jit.make("PACKED_K_HEAD_SIZE", kernel_selector::Align(desc->k_head_size/pack_size, subgroup_size));
-                jit.make("PACKED_ADJUSTED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size/pack_size, subgroup_size)) + scales_zp_size);
-                jit.make("PACKED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size/pack_size, subgroup_size)));
+                jit.make("PACKED_K_HEAD_SIZE", kernel_selector::Align(desc->k_head_size / pack_size, subgroup_size));
+                jit.make("PACKED_ADJUSTED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size / pack_size, subgroup_size)) + scales_zp_size);
+                jit.make("PACKED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size / pack_size, subgroup_size)));
                 if (is_key_by_channel) {
-                    jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size/pack_size, subgroup_size)));
+                    jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size / pack_size, subgroup_size)));
                 } else {
-                    jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size/pack_size, subgroup_size)) + scales_zp_size);
+                    jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size / pack_size, subgroup_size)) + scales_zp_size);
                 }
             } else {
                 jit.make("IS_INT4_COMPRESSED", false);
@@ -642,7 +641,6 @@ public:
             wgs.local = {1, 1, head_size * sg_scale};
             // [DEBUG]
             // printf(">>>> [DEBUG] local(2):(%lu) head_size(%lu), sg_scale(%lu)\n", wgs.local[2], head_size, sg_scale);
-
         }};
     }
 };
@@ -930,13 +928,13 @@ protected:
                 // INT4 compression is packing elements along groups in head which has different scalea and zp
                 scales_zp_size = get_element_size(data_type) * 4;
                 jit.make("IS_INT4_COMPRESSED", true);
-                jit.make("PACKED_K_HEAD_SIZE", kernel_selector::Align(desc->k_head_size/pack_size, subgroup_size));
-                jit.make("PACKED_ADJUSTED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size/pack_size, subgroup_size)) + scales_zp_size);
-                jit.make("PACKED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size/pack_size, subgroup_size)));
+                jit.make("PACKED_K_HEAD_SIZE", kernel_selector::Align(desc->k_head_size / pack_size, subgroup_size));
+                jit.make("PACKED_ADJUSTED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size / pack_size, subgroup_size)) + scales_zp_size);
+                jit.make("PACKED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size / pack_size, subgroup_size)));
                 if (is_key_by_channel) {
-                    jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size/pack_size, subgroup_size)));
+                    jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size / pack_size, subgroup_size)));
                 } else {
-                    jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size/pack_size, subgroup_size)) + scales_zp_size);
+                    jit.make("PACKED_ADJUSTED_K_HEAD_SIZE", (kernel_selector::Align(desc->k_head_size / pack_size, subgroup_size)) + scales_zp_size);
                 }
             } else {
                 jit.make("IS_INT4_COMPRESSED", false);
@@ -1013,7 +1011,9 @@ protected:
                 size_t head_size_partition = get_num_k_head_size_partitions(desc->is_key_by_channel, desc->k_head_size);
                 const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
                 if (data_type_traits::is_i4_u4(kv_cache_dt) && head_size_partition > 1)
-                    wgs.global = {static_cast<size_t>(sequences_number), heads_number, kernel_selector::Align(subgroup_size * head_size_partition / pack_size, subgroup_size)};
+                    wgs.global = {static_cast<size_t>(sequences_number),
+                                  heads_number,
+                                  kernel_selector::Align(subgroup_size * head_size_partition / pack_size, subgroup_size)};
                 else
                     wgs.global = {static_cast<size_t>(sequences_number), heads_number, subgroup_size * head_size_partition};
                 wgs.local = {1, 1, subgroup_size};
