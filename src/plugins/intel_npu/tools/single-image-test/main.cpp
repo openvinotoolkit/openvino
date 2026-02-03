@@ -69,8 +69,8 @@ DEFINE_string(compiled_blob, "", "Output compiled network file (compiled result 
 DEFINE_uint32(override_model_batch_size, 1, "Enforce a model to be compiled for batch size");
 DEFINE_string(device, "", "Device to use");
 DEFINE_string(config, "", "Path to the configuration file (optional)");
-DEFINE_string(ip, "", "Input precision (default: U8, available: FP32, FP16, I32, I64, U8)");
-DEFINE_string(op, "", "Output precision (default: FP32, available: FP32, FP16, I32, I64, U8)");
+DEFINE_string(ip, "", "Input precision (default: U8, available: FP32, FP16, I32, I64, U8, U16, I16, U4, I4, U2, BF8, HF8)");
+DEFINE_string(op, "", "Output precision (default: FP32, available: FP32, FP16, I32, I64, U8, U16, I16, U4, I4, U2, BF8, HF8)");
 DEFINE_string(
         il, "",
         "Input layout for all inputs, or ';' separated list of pairs <input>:<layout>. Regex in <input> is supported");
@@ -2658,15 +2658,16 @@ static int runSingleImageTest() {
         // 9. (For loadable networks) Compile model
         // 10. Store compile model (if given)
         // 11. Run inference / tests
-        const std::unordered_set<std::string> allowedPrecision = {"U8", "I32", "I64", "FP16", "FP32"};
+        const std::unordered_set<std::string> allowedPrecision = {"U8", "I32", "I64", "FP16", "FP32",
+                            "U16", "I16", "U4", "I4", "U2", "BF8", "HF8"};
         if (!FLAGS_ip.empty()) {
-            // input precision is U8, I32, I64, FP16 or FP32 only
+            // input precision: U8, U16, I16, I32, I64, FP16, FP32, U4, I4, U2, BF8, HF8
             std::transform(FLAGS_ip.begin(), FLAGS_ip.end(), FLAGS_ip.begin(), ::toupper);
             if (allowedPrecision.count(FLAGS_ip) == 0)
                 throw std::logic_error("Parameter -ip " + FLAGS_ip + " is not supported");
         }
         if (!FLAGS_op.empty()) {
-            // output precision is U8, I32, I64, FP16 or FP32 only
+            // output precision: U8, U16, I16, I32, I64, FP16, FP32, U4, I4, U2, BF8, HF8
             std::transform(FLAGS_op.begin(), FLAGS_op.end(), FLAGS_op.begin(), ::toupper);
             if (allowedPrecision.count(FLAGS_op) == 0)
                 throw std::logic_error("Parameter -op " + FLAGS_op + " is not supported");
@@ -2709,6 +2710,20 @@ static int runSingleImageTest() {
                     prc_in = ov::element::i32;
                 else if (FLAGS_ip == "I64")
                     prc_in = ov::element::i64;
+                else if (FLAGS_ip == "U16")
+                    prc_in = ov::element::u16;
+                else if (FLAGS_ip == "I16")
+                    prc_in = ov::element::i16;
+                else if (FLAGS_ip == "U4")
+                    prc_in = ov::element::u4;
+                else if (FLAGS_ip == "I4")
+                    prc_in = ov::element::i4;
+                else if (FLAGS_ip == "U2")
+                    prc_in = ov::element::u2;
+                else if (FLAGS_ip == "BF8")
+                    prc_in = ov::element::f8e5m2;
+                else if (FLAGS_ip == "HF8")
+                    prc_in = ov::element::f8e4m3;
                 else
                     prc_in = ov::element::u8;
 
@@ -2770,6 +2785,20 @@ static int runSingleImageTest() {
                     prc_out = ov::element::i32;
                 else if (FLAGS_op == "I64")
                     prc_out = ov::element::i64;
+                else if (FLAGS_op == "U16")
+                    prc_out = ov::element::u16;
+                else if (FLAGS_op == "I16")
+                    prc_out = ov::element::i16;
+                else if (FLAGS_op == "U4")
+                    prc_out = ov::element::u4;
+                else if (FLAGS_op == "I4")
+                    prc_out = ov::element::i4;
+                else if (FLAGS_op == "U2")
+                    prc_out = ov::element::u2;
+                else if (FLAGS_op == "BF8")
+                    prc_out = ov::element::f8e5m2;
+                else if (FLAGS_op == "HF8")
+                    prc_out = ov::element::f8e4m3;
                 else
                     prc_out = ov::element::u8;
 
@@ -2908,10 +2937,23 @@ static int runSingleImageTest() {
                         inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::i64;
                     } else if (strEq(precision, "U8")) {
                         inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::u8;
+                    } else if (strEq(precision, "U16")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::u16;
+                    } else if (strEq(precision, "I16")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::i16;
+                    } else if (strEq(precision, "U4")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::u4;
+                    } else if (strEq(precision, "I4")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::i4;
+                    } else if (strEq(precision, "U2")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::u2;
+                    } else if (strEq(precision, "BF8")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::f8e5m2;
+                    } else if (strEq(precision, "HF8")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::f8e4m3;
                     } else {
                         std::cout << "WARNING: Unhandled precision '" << precision
-                                << "'! Only FP32, FP16, I32, I64 and U8 can be currently converted to the network's"
-                                << "input tensor precision.";
+                                << "'! Only FP32, FP16, I32, I64, U8, U16, I16, U4, I4, U2, BF8 and HF8 can be currently converted to the network's";
                     }
                     ++precisionIdx;
                 }
