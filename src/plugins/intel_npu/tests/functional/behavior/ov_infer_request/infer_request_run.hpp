@@ -196,22 +196,18 @@ TEST_P(ProfilingBlob, NoProfilingCompileProfilingImport) {
 
     configuration[ov::enable_profiling.name()] = false;
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
-    ASSERT_TRUE(compiled_model);
 
     std::stringstream export_stream;
     compiled_model.export_model(export_stream);
 
     configuration[ov::enable_profiling.name()] = true;
     OV_ASSERT_NO_THROW(compiled_model = core->import_model(export_stream, target_device, configuration));
-    ASSERT_TRUE(compiled_model);
 
     ov::InferRequest inferReq;
 
     OV_ASSERT_NO_THROW(inferReq = compiled_model.create_infer_request());
 
-    OV_ASSERT_NO_THROW(inferReq.start_async());
-
-    ASSERT_ANY_THROW(inferReq.wait());
+    ASSERT_ANY_THROW(inferReq.infer());
 }
 
 TEST_P(ProfilingBlob, ProfilingCompileNoProfilingImport) {
@@ -220,22 +216,18 @@ TEST_P(ProfilingBlob, ProfilingCompileNoProfilingImport) {
 
     configuration[ov::enable_profiling.name()] = true;
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
-    ASSERT_TRUE(compiled_model);
 
     std::stringstream export_stream;
     compiled_model.export_model(export_stream);
 
     configuration[ov::enable_profiling.name()] = false;
     OV_ASSERT_NO_THROW(compiled_model = core->import_model(export_stream, target_device, configuration));
-    ASSERT_TRUE(compiled_model);
 
     ov::InferRequest inferReq;
 
     OV_ASSERT_NO_THROW(inferReq = compiled_model.create_infer_request());
 
-    OV_ASSERT_NO_THROW(inferReq.start_async());
-
-    OV_ASSERT_NO_THROW(inferReq.wait());
+    OV_ASSERT_NO_THROW(inferReq.infer());
 }
 
 TEST_P(ProfilingBlob, ProfilingCompileProfilingImport) {
@@ -244,21 +236,17 @@ TEST_P(ProfilingBlob, ProfilingCompileProfilingImport) {
 
     configuration[ov::enable_profiling.name()] = true;
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
-    ASSERT_TRUE(compiled_model);
 
     std::stringstream export_stream;
     compiled_model.export_model(export_stream);
 
     OV_ASSERT_NO_THROW(compiled_model = core->import_model(export_stream, target_device, configuration));
-    ASSERT_TRUE(compiled_model);
 
     ov::InferRequest inferReq;
 
     OV_ASSERT_NO_THROW(inferReq = compiled_model.create_infer_request());
 
-    OV_ASSERT_NO_THROW(inferReq.start_async());
-
-    OV_ASSERT_NO_THROW(inferReq.wait());
+    OV_ASSERT_NO_THROW(inferReq.infer());
 }
 
 TEST_P(InferRequestRunTests, MultipleExecutorTestsSyncInfers) {
