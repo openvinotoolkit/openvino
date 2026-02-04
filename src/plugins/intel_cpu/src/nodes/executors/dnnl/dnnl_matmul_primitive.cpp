@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -246,8 +246,7 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const MatMulAttrs& attrs,
     // by default fp16 matmul ACL kernels accumulate into fp32
     // the default behaviour is changed by using f16 accumulator to improve performance
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    if (srcDesc->getPrecision() == ov::element::f16 &&
-        weiDesc->getPrecision() == ov::element::f16 &&
+    if (srcDesc->getPrecision() == ov::element::f16 && weiDesc->getPrecision() == ov::element::f16 &&
         dstDesc->getPrecision() == ov::element::f16) {
         primAttrs.attr.set_accumulation_mode(dnnl::accumulation_mode::f16);
     }
@@ -379,7 +378,7 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                 const size_t highestPriority = prim_desc_w_priority.priority;
                 if (priorityId < highestPriority) {
                     auto desc_copy = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get(true)));
-                    prim_desc_w_priority = {desc_copy, priorityId};
+                    prim_desc_w_priority = {std::move(desc_copy), priorityId};
                 }
             });
 

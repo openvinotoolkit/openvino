@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -41,10 +41,6 @@ else()
     set(MLAS_LIBRARY "mlas")
 endif()
 
-if (ENABLE_SHL_FOR_CPU)
-    set(SHL_LIBRARY "shl")
-endif()
-
 if (ENABLE_KLEIDIAI_FOR_CPU)
     set(KLEIDIAI_LIBRARY "kleidiai")
 endif()
@@ -80,7 +76,6 @@ ov_add_test_target(
             ov_snippets_models
             snippets_test_utils
             ${MLAS_LIBRARY}
-            ${SHL_LIBRARY}
             ${KLEIDIAI_LIBRARY}
         LABELS
             OV UNIT CPU
