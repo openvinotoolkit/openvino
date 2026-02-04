@@ -2953,7 +2953,8 @@ static int runSingleImageTest() {
                         inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::f8e4m3;
                     } else {
                         std::cout << "WARNING: Unhandled precision '" << precision
-                                << "'! Only FP32, FP16, I32, I64, U8, U16, I16, U4, I4, U2, BF8 and HF8 can be currently converted to the network's";
+                                << "'! Only FP32, FP16, I32, I64, U8, U16, I16, U4, I4, U2, BF8 and HF8 "
+                                << "can be currently converted to the network's input tensor precision.";
                     }
                     ++precisionIdx;
                 }
