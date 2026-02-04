@@ -15,14 +15,7 @@
 #include "openvino/core/model_util.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
-
-// Helper for std::visit with multiple lambdas
-template <class... Ts>
-struct overloaded : Ts... {
-    using Ts::operator()...;
-};
-template <class... Ts>
-overloaded(Ts...) -> overloaded<Ts...>;
+#include "openvino/util/variant_visitor.hpp"
 
 void validate_set_property_args(const Napi::CallbackInfo& info) {
     const size_t args_length = info.Length();
@@ -359,7 +352,7 @@ Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
 }
 
 void ImportModelFinalizer(Napi::Env env, void* finalizeData, ImportModelContext* context) {
-    context->nativeThread.join();
+    context->native_thread.join();
     delete context;
 };
 
@@ -369,24 +362,18 @@ void importModelThread(ImportModelContext* context, std::mutex& mutex) {
         const std::lock_guard<std::mutex> lock(mutex);
 
         context->_compiled_model =
-            std::visit(overloaded{
+            std::visit(ov::util::VariantVisitor{
                            [](std::monostate&) -> ov::CompiledModel {
-                               throw std::runtime_error("ImportModelContext source not initialized");
+                               OPENVINO_ASSERT(false, "ImportModelContext source not initialized");
                            },
-                           [&](ImportModelContext::BufferSource& src) -> ov::CompiledModel {
-                               std::istream stream(src.shared_buf.get());
-                               return context->_core.import_model(stream, context->_device, context->_config);
-                           },
-                           [&](ImportModelContext::TensorSource& src) -> ov::CompiledModel {
-                               return context->_core.import_model(src.tensor, context->_device, context->_config);
+                           [&](auto& src) -> ov::CompiledModel {
+                               return src.import(context->_core, context->_device, context->_config);
                            },
                        },
                        context->source);
 
     } catch (const std::exception& e) {
         context->_error_msg = e.what();
-    } catch (...) {
-        context->_error_msg = "Unknown error in importModel worker thread";
     }
 
     // Callback to return to JS the results of core.import_model()
@@ -412,11 +399,11 @@ Napi::Value CoreWrap::import_model_async(const Napi::CallbackInfo& info) {
         ov::js::validate<TensorWrap, Napi::String, Napi::Object>(info, allowed_signatures)) {
         auto* context_data = new ImportModelContext(env, _core);
         try {
-            ImportModelContext::TensorSource tensor_src;
+            // Construct TensorSource in-place within the variant
+            context_data->source.emplace<ImportModelContext::TensorSource>();
+            auto& tensor_src = std::get<ImportModelContext::TensorSource>(context_data->source);
             tensor_src.tensor_ref = Napi::Persistent(info[0].ToObject());
             tensor_src.tensor = cast_to_tensor(info, 0);
-
-            context_data->source = std::move(tensor_src);
             context_data->_device = info[1].ToString();
             context_data->_config = info.Length() == 3 ? to_anyMap(env, info[2]) : ov::AnyMap{};
 
@@ -429,7 +416,7 @@ Napi::Value CoreWrap::import_model_async(const Napi::CallbackInfo& info) {
                                                                ImportModelFinalizer,
                                                                (void*)nullptr);
 
-            context_data->nativeThread = std::thread(importModelThread, context_data, std::ref(_mutex));
+            context_data->native_thread = std::thread(importModelThread, context_data, std::ref(_mutex));
             return context_data->deferred.Promise();
         } catch (...) {
             delete context_data;
@@ -443,11 +430,11 @@ Napi::Value CoreWrap::import_model_async(const Napi::CallbackInfo& info) {
         try {
             auto buf = info[0].As<Napi::Buffer<uint8_t>>();
 
-            ImportModelContext::BufferSource buf_src;
+            // Construct BufferSource in-place within the variant (SharedStreamBuffer isn't movable)
+            context_data->source.emplace<ImportModelContext::BufferSource>();
+            auto& buf_src = std::get<ImportModelContext::BufferSource>(context_data->source);
             buf_src.buffer_ref = Napi::Persistent(buf.ToObject());
-            buf_src.shared_buf = std::make_unique<ov::SharedStreamBuffer>(buf.Data(), buf.Length());
-
-            context_data->source = std::move(buf_src);
+            buf_src.shared_buf.emplace(buf.Data(), buf.Length());
             context_data->_device = info[1].ToString();
             context_data->_config = info.Length() == 3 ? to_anyMap(env, info[2]) : ov::AnyMap{};
 
@@ -460,7 +447,7 @@ Napi::Value CoreWrap::import_model_async(const Napi::CallbackInfo& info) {
                                                                ImportModelFinalizer,
                                                                (void*)nullptr);
 
-            context_data->nativeThread = std::thread(importModelThread, context_data, std::ref(_mutex));
+            context_data->native_thread = std::thread(importModelThread, context_data, std::ref(_mutex));
             return context_data->deferred.Promise();
         } catch (...) {
             delete context_data;

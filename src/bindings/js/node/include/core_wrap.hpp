@@ -7,6 +7,7 @@
 
 #include <istream>
 #include <memory>
+#include <optional>
 #include <thread>
 #include <variant>
 
@@ -141,22 +142,30 @@ struct TsfnContextPath {
 struct ImportModelContext {
     // Buffer source: pins JS Buffer, wraps with SharedStreamBuffer (zero-copy)
     struct BufferSource {
-        Napi::ObjectReference buffer_ref;  // pins JS Buffer
-        std::unique_ptr<ov::SharedStreamBuffer> shared_buf;
+        Napi::ObjectReference buffer_ref;
+        std::optional<ov::SharedStreamBuffer> shared_buf;
+
+        ov::CompiledModel import(ov::Core& core, const std::string& device, const ov::AnyMap& config) {
+            std::istream stream(&*shared_buf);
+            return core.import_model(stream, device, config);
+        }
     };
 
-    // Tensor source: stores tensor + pins JS object
     struct TensorSource {
-        Napi::ObjectReference tensor_ref;  // pins JS TensorWrap
+        Napi::ObjectReference tensor_ref;
         ov::Tensor tensor;
+
+        ov::CompiledModel import(ov::Core& core, const std::string& device, const ov::AnyMap& config) {
+            return core.import_model(tensor, device, config);
+        }
     };
 
     using Source = std::variant<std::monostate, BufferSource, TensorSource>;
-    Source source{std::monostate{}};
+    Source source{};
 
     ImportModelContext(Napi::Env env, ov::Core& core) : deferred(Napi::Promise::Deferred::New(env)), _core{core} {}
 
-    std::thread nativeThread;
+    std::thread native_thread;
     Napi::Promise::Deferred deferred;
     Napi::ThreadSafeFunction tsfn;
 
