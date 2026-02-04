@@ -471,7 +471,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16}, TypeVector{f32}, true);
             qdq_stripping_manager.register_pass<ov::pass::Serialize>("qdq_stripping/after_qdq.xml", "");
             // 2. Strip FQ layers with unsupported levels
-            qdq_stripping_manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, false);
+            qdq_stripping_manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16});
             qdq_stripping_manager.register_pass<ov::pass::Serialize>("qdq_stripping/after.xml", "");
             qdq_stripping_manager.run_passes(model);
         }
