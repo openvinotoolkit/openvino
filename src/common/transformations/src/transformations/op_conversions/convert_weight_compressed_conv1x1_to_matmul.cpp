@@ -40,7 +40,9 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
     auto first_input_m = ov::pass::pattern::any_input();
     auto a_order_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto transpose_activations_m = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({first_input_m, a_order_m});
-    auto reshape_activations_m = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({first_input_m, a_order_m});
+    auto reshape_activations_m =
+        ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({first_input_m, a_order_m},
+                                                          pattern::shape_matches("[?, hidden_in, 1, 1]"));
     auto a_m =
         std::make_shared<ov::pass::pattern::op::Or>(OutputVector{transpose_activations_m, reshape_activations_m});
 
@@ -209,6 +211,26 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
             ov::copy_runtime_info(weight_reshape, final_weight_reshape);
             final_weight_reshape->set_friendly_name(weight_reshape->get_friendly_name() + "_reshape_weight");
             scaled_weight = final_weight_reshape;
+        }
+
+        // When activation is reshaped to [?, hidden_in, 1, 1], two possible cases:
+        // 1. reshape from [..., hidden_in]
+        //    direct use it in matmul.
+        // 2. reshape from [..., num_head, head_dim]
+        //    can't use it directly, need reshape it to [..., hidden_in], then use in matmul.
+        if (pattern_map.count(reshape_activations_m)) {
+            auto reshape_activations = pattern_map.at(reshape_activations_m).get_node_shared_ptr();
+            auto shape_in = reshape_activations->get_input_partial_shape(0);
+            auto shape_out = reshape_activations->get_output_partial_shape(0);
+            if (shape_in[-1].is_dynamic() || shape_in[-1].get_length() != shape_out[1].get_length()) {
+                auto reshape_const =
+                    std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+                                                           ov::Shape{4},
+                                                           std::vector<int64_t>{1, 1, -1, shape_out[1].get_length()});
+                auto reshape_activations_new = std::make_shared<ov::op::v1::Reshape>(activation, reshape_const, false);
+                ov::copy_runtime_info(reshape_activations, reshape_activations_new);
+                activation = reshape_activations_new;
+            }
         }
 
         auto matmul = std::make_shared<ov::op::v0::MatMul>(activation, scaled_weight, false, true);
