@@ -10,6 +10,7 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/mvn.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/subtract.hpp"
@@ -21,7 +22,7 @@ namespace test {
 
 using ov::test::InputShape;
 
-enum class PatternType { SharedDQ, NeedScalingMulMatMul };
+enum class PatternType { SharedDQ, NeedScalingMulMatMul, NeedScalingResidualBlock };
 
 inline std::ostream& operator<<(std::ostream& os, PatternType pattern_type) {
     switch (pattern_type) {
@@ -30,6 +31,9 @@ inline std::ostream& operator<<(std::ostream& os, PatternType pattern_type) {
         break;
     case PatternType::NeedScalingMulMatMul:
         os << "NeedScalingMulMatMul";
+        break;
+    case PatternType::NeedScalingResidualBlock:
+        os << "NeedScalingResidualBlock";
         break;
     default:
         OPENVINO_THROW("Unknown PatternType");
@@ -79,8 +83,71 @@ public:
     }
 
 protected:
+    std::shared_ptr<ov::Model> build_need_scaling_residual_block_pattern(
+        const ov::PartialShape& input_shape,
+        const ov::element::Type& quantization_precision) {
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
+
+        // First convolution
+        ov::test::utils::InputGenerateData weights1_gen_data;
+        weights1_gen_data.seed = 1;
+        auto weight1 = ov::test::utils::make_constant(ov::element::f32, ov::Shape{32, 3, 3, 3}, weights1_gen_data);
+        auto conv1 = std::make_shared<ov::op::v1::Convolution>(params[0],
+                                                               weight1,
+                                                               ov::Strides{1, 1},
+                                                               ov::CoordinateDiff{1, 1},
+                                                               ov::CoordinateDiff{1, 1},
+                                                               ov::Strides{1, 1});
+
+        // QDQ pattern after first convolution
+        static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>>
+            quantization_params{
+                {ov::element::Type_t::u16,
+                 {{0.f, 10.f, 0.f, 65535.f, 0}, {-6.244578838348389f, 6.347373962402344f, 0.f, 65535.f, 32500}}},
+                {ov::element::Type_t::i16,
+                 {{-5.000076293945312f, 4.999923706054688f, -32768.f, 32767.f, 0},
+                  {-6.296072483062744f, 6.295880317687988f, -32768.f, 32767.f, 0}}},
+            };
+
+        const auto& qp = quantization_params.at(quantization_precision).first;
+        auto fq = qp.build_fq(conv1);
+        auto convert1 = std::make_shared<ov::op::v0::Convert>(fq, quantization_precision);
+        auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
+        auto dq = qp.build_dq(convert2, quantization_precision);
+
+        // Helper lambda to create a residual block
+        auto create_residual_block = [&](const ov::Output<ov::Node>& input, size_t seed) {
+            auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {3}, {1, 2, 3});
+            // Left branch: MVN -> Conv
+            auto mvn =
+                std::make_shared<ov::op::v6::MVN>(input, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
+
+            ov::test::utils::InputGenerateData weights_gen_data;
+            weights_gen_data.seed = seed;
+            auto weight = ov::test::utils::make_constant(ov::element::f32, ov::Shape{32, 32, 3, 3}, weights_gen_data);
+            auto conv = std::make_shared<ov::op::v1::Convolution>(mvn,
+                                                                  weight,
+                                                                  ov::Strides{1, 1},
+                                                                  ov::CoordinateDiff{1, 1},
+                                                                  ov::CoordinateDiff{1, 1},
+                                                                  ov::Strides{1, 1});
+            return std::make_shared<ov::op::v1::Add>(conv, input);
+        };
+
+        auto add1 = create_residual_block(dq, 2);
+        auto add2 = create_residual_block(add1, 3);
+        auto add3 = create_residual_block(add2, 4);
+
+        auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {3}, {1, 2, 3});
+        auto final_mvn =
+            std::make_shared<ov::op::v6::MVN>(add3, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
+
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{final_mvn}, params, "QDQStripping");
+        return model;
+    }
+
     std::shared_ptr<ov::Model> build_need_scaling_mul_matmul_pattern(const ov::PartialShape& input_shape,
-                                                                      const ov::element::Type& quantization_precision) {
+                                                                     const ov::element::Type& quantization_precision) {
         auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
         auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
         ov::ParameterVector params{param1, param2};
@@ -121,7 +188,7 @@ protected:
     }
 
     std::shared_ptr<ov::Model> build_shared_dq_pattern(const ov::PartialShape& input_shape,
-                                                        const ov::element::Type& quantization_precision) {
+                                                       const ov::element::Type& quantization_precision) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
         // Note: these params are taken from the real cases
         static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>>
@@ -188,16 +255,12 @@ protected:
         } else {
             init_input_shapes({input_shape});
         }
-        
+
         inType = outType = input_precision;
 
         OPENVINO_ASSERT(quantization_precision == ov::element::i16 || quantization_precision == ov::element::u16,
                         "Only i16 and u16 quantization precisions are supported in the test");
-
-        // Since the FQ are not executed in a strictly 'fair' manner, and just replaced with clamp ops, a small accuracy
-        // deviation is expected.
-        // NeedScalingMulMatMul pattern has larger accumulated error due to MatMul operations
-        abs_threshold = (pattern_type == PatternType::NeedScalingMulMatMul) ? 1e-2f : 1e-3f;
+        abs_threshold = (pattern_type == PatternType::NeedScalingResidualBlock) ? 3.f : 1e-2f;
 
         switch (pattern_type) {
         case PatternType::SharedDQ:
@@ -205,6 +268,9 @@ protected:
             break;
         case PatternType::NeedScalingMulMatMul:
             function = build_need_scaling_mul_matmul_pattern(input_shape.first, quantization_precision);
+            break;
+        case PatternType::NeedScalingResidualBlock:
+            function = build_need_scaling_residual_block_pattern(input_shape.first, quantization_precision);
             break;
         default:
             OPENVINO_THROW("Unknown PatternType");
@@ -235,7 +301,9 @@ namespace {
 const std::vector<ov::test::InputShape> input_shapes = {{{-1, -1, -1, -1}, {{1, 3, 128, 128}}}};
 const std::vector<ov::element::Type> input_precisions = {ov::element::f32};
 const std::vector<ov::element::Type> quantization_precisions = {ov::element::u16, ov::element::i16};
-const std::vector<PatternType> pattern_types = {PatternType::SharedDQ, PatternType::NeedScalingMulMatMul};
+const std::vector<PatternType> pattern_types = {PatternType::SharedDQ,
+                                                PatternType::NeedScalingMulMatMul,
+                                                PatternType::NeedScalingResidualBlock};
 
 INSTANTIATE_TEST_SUITE_P(smoke_QDQStripping,
                          QDQStrippingTest,
