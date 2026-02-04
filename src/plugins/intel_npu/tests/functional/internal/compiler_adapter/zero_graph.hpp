@@ -360,7 +360,7 @@ TEST_P(ZeroGraphTest, SetUnalignedSizeBlob) {
 TEST_P(ZeroGraphTest, SetAlignedBlob) {
     // create blob -> compile model first
     void* blob = nullptr;
-    size_t alignedSize;
+    size_t alignedSize = 0;
 
     OV_ASSERT_NO_THROW(std::tie(blob, alignedSize) = make_blob());
 
