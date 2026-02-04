@@ -80,7 +80,7 @@ void jit_fill_emitter::emit_isa(const std::vector<size_t>& in, const std::vector
 
     const size_t supported_et_size = 4;
     const auto register_capacity = (src_vmm.getBit() / 8) / supported_et_size;
-    OPENVINO_ASSERT(offset <= register_capacity,
+    OPENVINO_ASSERT(offset < register_capacity,
                     "Fill emitter offset ",
                     offset,
                     " exceeds register capacity ",

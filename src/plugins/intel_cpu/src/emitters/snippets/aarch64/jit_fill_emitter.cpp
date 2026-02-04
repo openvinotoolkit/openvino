@@ -64,7 +64,7 @@ void jit_fill_emitter::emit_impl(const std::vector<size_t>& in, const std::vecto
 template <cpu_isa_t isa>
 void jit_fill_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     const size_t supported_et_size = dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::vlen / exec_prc_.size();
-    OPENVINO_ASSERT(offset <= supported_et_size,
+    OPENVINO_ASSERT(offset < supported_et_size,
                     "Fill emitter offset ",
                     offset,
                     " exceeds register capacity ",
