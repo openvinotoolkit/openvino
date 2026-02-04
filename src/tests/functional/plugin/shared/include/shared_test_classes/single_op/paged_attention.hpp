@@ -87,8 +87,8 @@ private:
 
         // IMPORTANT: cache should match PA expectation (use rank-4 here)
         // [num_blocks, num_kv_heads, block_size, head_size]
-        auto key_cache   = make_param({ov::Dimension::dynamic(), head_num, 32, head_size}, ov::element::dynamic, "key_cache.0");
-        auto value_cache = make_param({ov::Dimension::dynamic(), head_num, 32, head_size}, ov::element::dynamic, "value_cache.0");
+        auto key_cache   = make_param({ov::Dimension::dynamic(), head_num, 32, head_size}, data_type, "key_cache.0");
+        auto value_cache = make_param({ov::Dimension::dynamic(), head_num, 32, head_size}, data_type, "value_cache.0");
 
         auto past_lens = make_param({ov::Dimension::dynamic()}, ov::element::i32, "past_lens");
         auto subseq_begins = make_param({ov::Dimension::dynamic()}, ov::element::i32, "subsequence_begins");
