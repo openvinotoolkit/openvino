@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,499 +6,472 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstring>
+#include <cstdint>
 #include <limits>
-#include <numeric>
-#include <string>
+#include <unordered_map>
 #include <vector>
 
+#include "openvino/core/except.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/reference/utils/paged_cache_manager.hpp"
-
-#ifndef PA_DEBUG
-#    define PA_DEBUG 0
-#endif
 
 namespace ov {
 namespace reference {
 
-namespace pa_math {
-template <typename T>
-inline T compute_dot_product(const T* a, const T* b, size_t n) {
-    T s = T(0);
-    for (size_t i = 0; i < n; ++i)
-        s += a[i] * b[i];
-    return s;
-}
-template <typename T>
-inline void compute_softmax_in_place(std::vector<T>& v) {
-    const T m = *std::max_element(v.begin(), v.end());
-    T sum = T(0);
-    for (auto& x : v) {
-        x = std::exp(x - m);
-        sum += x;
-    }
-    const T inv = sum ? T(1) / sum : T(0);
-    for (auto& x : v)
-        x *= inv;
-}
-}  // namespace pa_math
+namespace detail {
 
-namespace pa_rotary {
-template <typename T>
-inline void apply_rotary_embedding_to_vector(T* vec, size_t head_size, const T* trig_lut, size_t trig_index) {
-    const size_t half = head_size / 2;
-    const T* row = trig_lut + trig_index * head_size;
-    for (size_t i = 0; i < half; ++i) {
-        const T x0 = vec[2 * i], x1 = vec[2 * i + 1];
-        vec[2 * i] = x0 * row[i] - x1 * row[half + i];
-        vec[2 * i + 1] = x0 * row[half + i] + x1 * row[i];
+inline float read_scalar_as_f32(const void* ptr, const ov::element::Type& et) {
+    OPENVINO_ASSERT(ptr != nullptr, "read_scalar_as_f32: null pointer");
+    if (et == ov::element::f32) {
+        return *static_cast<const float*>(ptr);
+    }
+    if (et == ov::element::f64) {
+        return static_cast<float>(*static_cast<const double*>(ptr));
+    }
+    if (et == ov::element::f16) {
+        return static_cast<float>(*static_cast<const ov::float16*>(ptr));
+    }
+    if (et == ov::element::bf16) {
+        return static_cast<float>(*static_cast<const ov::bfloat16*>(ptr));
+    }
+    OPENVINO_THROW("PagedAttention reference: unsupported scalar type: ", et);
+}
+
+inline float read_at_as_f32(const void* base, const ov::element::Type& et, std::size_t idx) {
+    OPENVINO_ASSERT(base != nullptr, "read_at_as_f32: null pointer");
+    if (et == ov::element::f32) {
+        return static_cast<const float*>(base)[idx];
+    }
+    if (et == ov::element::f64) {
+        return static_cast<float>(static_cast<const double*>(base)[idx]);
+    }
+    if (et == ov::element::f16) {
+        return static_cast<float>(static_cast<const ov::float16*>(base)[idx]);
+    }
+    if (et == ov::element::bf16) {
+        return static_cast<float>(static_cast<const ov::bfloat16*>(base)[idx]);
+    }
+    OPENVINO_THROW("PagedAttention reference: unsupported array type: ", et);
+}
+
+inline void softmax_inplace(std::vector<float>& scores) {
+    if (scores.empty()) {
+        return;
+    }
+    const float m = *std::max_element(scores.begin(), scores.end());
+    float sum = 0.f;
+    for (float& s : scores) {
+        s = std::exp(s - m);
+        sum += s;
+    }
+    const float inv = (sum > 0.f) ? (1.f / sum) : 0.f;
+    for (float& s : scores) {
+        s *= inv;
     }
 }
-inline bool block_has_rotary(int32_t block_id,
-                             const int32_t* rotated_block_indices,
-                             size_t rotated_block_count,
-                             int32_t& out_idx) {
-    if (!rotated_block_indices)
-        return false;
-    for (size_t i = 0; i < rotated_block_count; ++i)
-        if (rotated_block_indices[i] == block_id) {
-            out_idx = (int32_t)i;
-            return true;
+
+inline void apply_rotary_inplace(std::vector<float>& vec,
+                                 const void* trig_lut,
+                                 const ov::element::Type& trig_et,
+                                 std::size_t trig_row,
+                                 std::size_t head_size) {
+    if (trig_lut == nullptr || head_size < 2 || (head_size % 2) != 0) {
+        return;
+    }
+    const std::size_t half = head_size / 2;
+    const std::size_t row_base = trig_row * head_size;
+    for (std::size_t i = 0; i < half; ++i) {
+        const float x0 = vec[2 * i];
+        const float x1 = vec[2 * i + 1];
+        const float c = read_at_as_f32(trig_lut, trig_et, row_base + i);
+        const float s = read_at_as_f32(trig_lut, trig_et, row_base + half + i);
+        vec[2 * i] = x0 * c - x1 * s;
+        vec[2 * i + 1] = x0 * s + x1 * c;
+    }
+}
+
+inline std::vector<std::size_t> parse_subsequence_ranges(const int32_t* subseq_begins,
+                                                         std::size_t subseq_count,
+                                                         std::size_t seq_count,
+                                                         std::size_t batch_tokens) {
+    // Returns a vector of size (seq_count + 1) with begins and a final end
+    std::vector<std::size_t> begins(seq_count + 1, 0);
+    if (subseq_begins == nullptr || subseq_count == 0 || seq_count == 0) {
+        begins[0] = 0;
+        begins[seq_count] = batch_tokens;
+        return begins;
+    }
+
+    const std::size_t usable = std::min(subseq_count, seq_count);
+    for (std::size_t s = 0; s < usable; ++s) {
+        const std::int32_t v = subseq_begins[s];
+        begins[s] = (v < 0) ? 0 : static_cast<std::size_t>(v);
+    }
+
+    if (subseq_count >= seq_count + 1) {
+        const std::int32_t vend = subseq_begins[seq_count];
+        begins[seq_count] = (vend < 0) ? batch_tokens : static_cast<std::size_t>(vend);
+    } else {
+        begins[seq_count] = batch_tokens;
+    }
+
+    // Clamp and monotonic fix.
+    begins[0] = std::min(begins[0], batch_tokens);
+    for (std::size_t s = 1; s <= seq_count; ++s) {
+        begins[s] = std::min(begins[s], batch_tokens);
+        if (begins[s] < begins[s - 1]) {
+            begins[s] = begins[s - 1];
         }
-    return false;
-}
-inline int32_t compute_trig_row_index(int32_t rotated_index,
-                                      int32_t token_offset_in_block,
-                                      const int32_t* rotation_deltas,
-                                      size_t rotation_deltas_dim,
-                                      size_t block_size) {
-    if (!rotation_deltas)
-        return 0;
-    if (rotation_deltas_dim == 1)
-        return rotation_deltas[rotated_index];
-    return rotation_deltas[rotated_index * (int32_t)block_size + token_offset_in_block];
-}
-}  // namespace pa_rotary
-
-inline int32_t find_first_negative_index(const int32_t* data, size_t n) {
-    const int32_t* first = data;
-    const int32_t* last = data + static_cast<std::ptrdiff_t>(n);
-
-    auto it = std::find_if(first, last, [](int32_t v) {
-        return v < 0;
-    });
-
-    if (it == last)
-        return -1;
-
-    return static_cast<int32_t>(std::distance(first, it));
-}
-inline size_t resolve_sequence_index_for_token(size_t token_index, const int32_t* subseq_begins, size_t seq_count) {
-    if (subseq_begins == nullptr || seq_count <= 1)
-        return 0;
-
-    for (size_t s = 0; s + 1 < seq_count; ++s) {
-        const size_t begin = static_cast<size_t>(subseq_begins[s]);
-        const size_t end = static_cast<size_t>(subseq_begins[s + 1]);
-
-        if (token_index >= begin && token_index < end)
-            return s;
     }
-
-    return 0;
-}
-inline int32_t acquire_or_recycle_block_for_sequence(size_t seq_idx,
-                                                     int32_t* block_indices,
-                                                     int32_t* block_indices_begins,
-                                                     std::vector<int32_t>& seq_block_count,
-                                                     size_t max_blocks) {
-    const int32_t begin = block_indices_begins[seq_idx];
-    const int32_t count = seq_block_count[seq_idx];
-    if (count < std::numeric_limits<int32_t>::max()) {
-        const int32_t free_block = find_first_negative_index(block_indices, max_blocks);
-        if (free_block != -1) {
-            seq_block_count[seq_idx] = count + 1;
-            return free_block;
-        }
-    }
-    const int32_t oldest = block_indices[begin];
-    for (int32_t i = 0; i + 1 < count; ++i)
-        block_indices[begin + i] = block_indices[begin + i + 1];
-    return oldest;
+    return begins;
 }
 
-struct paged_attention_kernel_context {
-    const void* query{nullptr};
-    const void* key{nullptr};
-    const void* value{nullptr};
-    void* key_cache_base{nullptr};
-    void* value_cache_base{nullptr};
-    const int32_t* past_lens{nullptr};
-    const int32_t* subsequence_begins{nullptr};
-    int32_t* block_indices{nullptr};
-    int32_t* block_indices_begins{nullptr};
-    const void* alibi_slopes{nullptr};
-    const int32_t* rotated_block_indices{nullptr};
-    const int32_t* rotation_deltas{nullptr};
-    const void* rotation_trig_lut{nullptr};
-    std::vector<int32_t> sequence_block_count;
-    size_t batch_token_count{0}, sequence_count{0};
-    size_t head_count{0}, block_size{0}, block_count{0};
-    size_t query_head_size{0}, key_head_size{0}, value_head_size{0};
-    size_t query_feature_size{0}, key_feature_size{0}, value_feature_size{0};
-    int32_t max_context_length{0}, sliding_window{0};
-    size_t rotated_block_count{0}, rotation_lut_rows{0}, rotation_deltas_dim{0};
-};
+}  // namespace detail
 
-struct cache_manager_adapter {
-    ov::reference::paged_attention_cache::PagedCacheManager& cm;
-    size_t node_id;
-
-    explicit cache_manager_adapter(ov::reference::paged_attention_cache::PagedCacheManager& mgr, size_t node_id)
-        : cm(mgr),
-          node_id(node_id) {}
-
-    inline void* get_key_cache_base() const {
-        return cm.get_cache_blocks().key_base;
-    }
-    inline void* get_value_cache_base() const {
-        return cm.get_cache_blocks().value_base;
-    }
-
-    inline const int32_t* get_subsequence_begins_or_null() const {
-        auto sv = cm.get_subsequence_begins(node_id);
-        return sv.data;
-    }
-
-    struct inferred_layout {
-        size_t num_blocks, num_heads, block_size, key_head_size, value_head_size, query_head_size;
-    };
-
-    static size_t gcd_size_t(size_t a, size_t b) {
-        while (b) {
-            size_t t = a % b;
-            a = b;
-            b = t;
-        }
-        return a;
-    }
-
-    inferred_layout infer_layout_from_shapes(const ov::Shape& q, const ov::Shape& k, const ov::Shape& v) const {
-        inferred_layout L{};
-        const size_t qf = static_cast<size_t>(q[1]), kf = static_cast<size_t>(k[1]), vf = static_cast<size_t>(v[1]);
-        size_t g = gcd_size_t(qf, gcd_size_t(kf, vf));
-        size_t best_h = 1;
-        for (size_t h = 1; h <= g; ++h)
-            if ((qf % h) == 0 && (kf % h) == 0 && (vf % h) == 0)
-                best_h = h;
-        L.num_heads = best_h;
-        L.query_head_size = qf / best_h;
-        L.key_head_size = kf / best_h;
-        L.value_head_size = vf / best_h;
-        L.num_blocks = cm.get_num_blocks();
-        // The cache manager owns the authoritative block size. Inferring it from bytes is brittle
-        // (especially when key/value packing differs), so use the configured value directly.
-        L.block_size = cm.get_block_size();
-        return L;
-    }
-};
-
+// Reference implementation of ov::op::PagedAttentionExtension
+//
+// This implementation currently does the following:
+// - It stores KV into the provided PagedCacheManager (copied from init cache once per node)
+// - It computes causal attention for the newly provided tokens (query/key/value inputs)
+// - It supports GQA (num_heads != num_kv_heads)
+// - It supports ALiBi (optional vector; broadcast if length == 1)
+// - It supports basic RoPE re-rotation of cached blocks (rotated_block_indices + rotation_deltas + trig LUT)
+//
+// However, the implementation does not yet support advanced cache-eviction related inputs,
+// And those are currently ignored by the reference kernel
+// They remain in the function signature so the operator can be evaluated with the full input list
 template <typename T>
-inline void copy_token_key_value_into_cache(const paged_attention_kernel_context& ctx,
-                                            size_t token_index,
-                                            size_t sequence_index) {
-    const T* ksrc = static_cast<const T*>(ctx.key);
-    const T* vsrc = static_cast<const T*>(ctx.value);
-    T* kdst = static_cast<T*>(ctx.key_cache_base);
-    T* vdst = static_cast<T*>(ctx.value_cache_base);
-
-    const size_t local_index = token_index - static_cast<size_t>(ctx.subsequence_begins[sequence_index]);
-    const size_t off_in_block = local_index % ctx.block_size;
-
-    const int32_t bid =
-        acquire_or_recycle_block_for_sequence(sequence_index,
-                                              ctx.block_indices,
-                                              ctx.block_indices_begins,
-                                              const_cast<std::vector<int32_t>&>(ctx.sequence_block_count),
-                                              ctx.block_count);
-
-    const int32_t begin = ctx.block_indices_begins[sequence_index];
-    const int32_t tail = ctx.sequence_block_count[sequence_index] - 1;
-    ctx.block_indices[begin + tail] = bid;
-
-    for (size_t h = 0; h < ctx.head_count; ++h) {
-        const size_t k_off = (static_cast<size_t>(bid) * ctx.head_count + h) * ctx.block_size + off_in_block;
-        std::memcpy(kdst + k_off * ctx.key_head_size,
-                    ksrc + token_index * ctx.key_feature_size + h * ctx.key_head_size,
-                    ctx.key_head_size * sizeof(T));
-        const size_t v_off = (static_cast<size_t>(bid) * ctx.head_count + h) * ctx.block_size + off_in_block;
-        std::memcpy(vdst + v_off * ctx.value_head_size,
-                    vsrc + token_index * ctx.value_feature_size + h * ctx.value_head_size,
-                    ctx.value_head_size * sizeof(T));
-    }
-}
-
-inline bool try_resolve_cached_block_and_offset(size_t sequence_index,
-                                                int32_t key_pos,
-                                                const paged_attention_kernel_context& ctx,
-                                                int32_t& out_block,
-                                                int32_t& out_off) {
-    const int32_t begin = ctx.block_indices_begins[sequence_index];
-    const int32_t end = ctx.block_indices_begins[sequence_index + 1];
-    const int32_t num_seq_blocks = end - begin;
-
-    const int32_t bs = static_cast<int32_t>(ctx.block_size);
-    if (bs <= 0)
-        return false;
-
-    const int32_t block_list_index = key_pos / bs;
-    const int32_t off_in_block = key_pos % bs;
-
-    if (block_list_index < 0 || block_list_index >= num_seq_blocks)
-        return false;
-
-    out_block = ctx.block_indices[begin + block_list_index];
-    out_off = off_in_block;
-    return out_block >= 0;
-}
-
-template <typename T>
-inline T compute_score_against_cached_key(const T* q_vec,
-                                          size_t h,
-                                          const paged_attention_kernel_context& ctx,
-                                          int32_t block_id,
-                                          int32_t off) {
-    const T* kc = static_cast<const T*>(ctx.key_cache_base);
-    const T* k_vec =
-        kc + ((static_cast<size_t>(block_id) * ctx.head_count + h) * ctx.block_size + static_cast<size_t>(off)) *
-                 ctx.key_head_size;
-
-    T s = pa_math::compute_dot_product(q_vec, k_vec, ctx.key_head_size);
-
-    int32_t rot_idx;
-    if (pa_rotary::block_has_rotary(block_id, ctx.rotated_block_indices, ctx.rotated_block_count, rot_idx)) {
-        std::vector<T> tmp(k_vec, k_vec + ctx.key_head_size);
-        const int32_t trig_row = pa_rotary::compute_trig_row_index(rot_idx,
-                                                                   off,
-                                                                   ctx.rotation_deltas,
-                                                                   ctx.rotation_deltas_dim,
-                                                                   ctx.block_size);
-        pa_rotary::apply_rotary_embedding_to_vector(tmp.data(),
-                                                    ctx.key_head_size,
-                                                    static_cast<const T*>(ctx.rotation_trig_lut),
-                                                    static_cast<size_t>(trig_row));
-        s = pa_math::compute_dot_product(q_vec, tmp.data(), ctx.key_head_size);
-    }
-    return s;
-}
-
-template <typename T>
-inline T compute_score_against_new_key(const T* q_vec,
-                                       size_t h,
-                                       int32_t abs_token_idx,
-                                       const paged_attention_kernel_context& ctx) {
-    const T* ksrc = static_cast<const T*>(ctx.key);
-    const T* k_vec = ksrc + static_cast<size_t>(abs_token_idx) * ctx.key_feature_size + h * ctx.key_head_size;
-    return pa_math::compute_dot_product(q_vec, k_vec, ctx.key_head_size);
-}
-
-template <typename T>
-inline void accumulate_value_from_cached_key(size_t h,
-                                             const paged_attention_kernel_context& ctx,
-                                             int32_t block_id,
-                                             int32_t off,
-                                             T w,
-                                             std::vector<T>& out_vec) {
-    const T* vc = static_cast<const T*>(ctx.value_cache_base);
-    const T* v_vec =
-        vc + ((static_cast<size_t>(block_id) * ctx.head_count + h) * ctx.block_size + static_cast<size_t>(off)) *
-                 ctx.value_head_size;
-    for (size_t i = 0; i < ctx.value_head_size; ++i)
-        out_vec[i] += w * v_vec[i];
-}
-
-template <typename T>
-inline void accumulate_value_from_new_key(int32_t abs_token_idx,
-                                          size_t h,
-                                          const paged_attention_kernel_context& ctx,
-                                          T w,
-                                          std::vector<T>& out_vec) {
-    const T* vsrc = static_cast<const T*>(ctx.value);
-    const T* v_vec = vsrc + static_cast<size_t>(abs_token_idx) * ctx.value_feature_size + h * ctx.value_head_size;
-    for (size_t i = 0; i < ctx.value_head_size; ++i)
-        out_vec[i] += w * v_vec[i];
-}
-
-template <typename T>
-void paged_attention(const size_t node_id,
+void paged_attention(std::uintptr_t node_key,
                      ov::reference::paged_attention_cache::PagedCacheManager* cache_manager,
                      T* out,
                      T* out_scores,
+                     T* out_aux,
                      const T* query,
                      const T* key,
                      const T* value,
-                     const T* key_cache,
-                     const T* value_cache,
+                     const T* key_cache_init,
+                     const T* value_cache_init,
                      const int32_t* past_lens,
-                     const int32_t* subseq_begins_opt,
-                     const int32_t* block_indices,
-                     const int32_t* block_indices_begins,
-                     const T* scale_opt,
-                     const int32_t* sliding_window_opt,
-                     const T* alibi_slopes_opt,
-                     const int32_t* max_context_len_opt,
-                     const int32_t* rotated_block_indices_opt,
-                     const int32_t* rotation_deltas_opt,
-                     const T* rotation_trig_lut_opt,
+                     const int32_t* subsequence_begins,
+                     const int32_t* block_indices_init,
+                     std::size_t block_indices_count,
+                     const int32_t* block_indices_begins_init,
+                     std::size_t block_indices_begins_count,
+                     const void* scale,
+                     const ov::element::Type& scale_et,
+                     const int32_t* sliding_window,
+                     const void* alibi_slopes,
+                     const ov::element::Type& alibi_et,
+                     const ov::Shape& alibi_shape,
+                     const int32_t* max_context_len,
+                     const int32_t* score_aggregation_window,
+                     const int32_t* rotated_block_indices,
+                     std::size_t rotated_block_count,
+                     const int32_t* rotation_deltas,
+                     const ov::Shape& rotation_deltas_shape,
+                     const void* rotation_trig_lut,
+                     const ov::element::Type& trig_lut_et,
+                     const ov::Shape& trig_lut_shape,
+                     const void* xattention_threshold,
+                     const ov::element::Type& xattention_threshold_et,
+                     const int32_t* xattention_block_size,
+                     const int32_t* xattention_stride,
+                     const void* sinks,
+                     const ov::element::Type& sinks_et,
+                     const int32_t* adaptive_rkv_start_size,
+                     const int32_t* adaptive_rkv_evictable_sizes,
+                     const int32_t* adaptive_rkv_diversity_block_set_indices,
+                     const int32_t* adaptive_rkv_diversity_block_set_indices_begins,
                      const ov::Shape& query_shape,
                      const ov::Shape& key_shape,
                      const ov::Shape& value_shape,
                      const ov::Shape& key_cache_shape,
                      const ov::Shape& value_cache_shape,
                      const ov::Shape& past_lens_shape,
-                     const ov::Shape& rotated_block_indices_shape,
-                     const ov::Shape& rotation_deltas_shape,
-                     const ov::Shape& rotation_trig_lut_shape) {
-    cache_manager_adapter cm(*cache_manager, node_id);
-    const auto L = cm.infer_layout_from_shapes(query_shape, key_shape, value_shape);
+                     const ov::Shape& subseq_shape) {
+    OPENVINO_ASSERT(cache_manager != nullptr, "PagedAttention reference: cache_manager is null");
+    OPENVINO_ASSERT(query != nullptr && key != nullptr && value != nullptr, "PagedAttention reference: null Q/K/V");
+    OPENVINO_ASSERT(out != nullptr, "PagedAttention reference: output is null");
 
-    paged_attention_kernel_context ctx{};
-    ctx.query = query;
-    ctx.key = key;
-    ctx.value = value;
-    ctx.key_cache_base = cm.get_key_cache_base();
-    ctx.value_cache_base = cm.get_value_cache_base();
-    ctx.past_lens = past_lens;
-    const int32_t* subseq_from_cm = cm.get_subsequence_begins_or_null();
-    ctx.subsequence_begins = subseq_begins_opt ? subseq_begins_opt : subseq_from_cm;
-    ctx.block_indices = const_cast<int32_t*>(block_indices);
-    ctx.block_indices_begins = const_cast<int32_t*>(block_indices_begins);
-    ctx.alibi_slopes = alibi_slopes_opt;
-    ctx.rotated_block_indices = rotated_block_indices_opt;
-    ctx.rotation_deltas = rotation_deltas_opt;
-    ctx.rotation_trig_lut = rotation_trig_lut_opt;
+    // Currently ignored output (with shape_infer)
+    (void)out_aux;
 
-    ctx.batch_token_count = static_cast<size_t>(query_shape[0]);
-    ctx.query_feature_size = static_cast<size_t>(query_shape[1]);
-    ctx.key_feature_size = static_cast<size_t>(key_shape[1]);
-    ctx.value_feature_size = static_cast<size_t>(value_shape[1]);
+    // Currently ignored inputs
+    (void)xattention_threshold;
+    (void)xattention_threshold_et;
+    (void)xattention_block_size;
+    (void)xattention_stride;
+    (void)sinks;
+    (void)sinks_et;
+    (void)adaptive_rkv_start_size;
+    (void)adaptive_rkv_evictable_sizes;
+    (void)adaptive_rkv_diversity_block_set_indices;
+    (void)adaptive_rkv_diversity_block_set_indices_begins;
 
-    ctx.block_count = L.num_blocks;
-    ctx.head_count = L.num_heads;
-    ctx.block_size = L.block_size;
-    ctx.key_head_size = L.key_head_size;
-    ctx.value_head_size = L.value_head_size;
-    ctx.query_head_size = L.query_head_size ? L.query_head_size : (ctx.query_feature_size / ctx.head_count);
+    OPENVINO_ASSERT(query_shape.size() == 2 && key_shape.size() == 2 && value_shape.size() == 2,
+                    "PagedAttention reference: expected Q/K/V rank 2");
+    OPENVINO_ASSERT(past_lens_shape.size() == 1 && subseq_shape.size() == 1,
+                    "PagedAttention reference: expected past_lens/subsequence_begins rank 1");
 
-    ctx.sequence_count = static_cast<size_t>(past_lens_shape[0]);
-    ctx.rotated_block_count =
-        rotated_block_indices_shape.empty() ? 0 : static_cast<size_t>(rotated_block_indices_shape[0]);
-    ctx.rotation_deltas_dim = (rotation_deltas_shape.empty() || ctx.rotated_block_count == 0)
-                                  ? 0
-                                  : static_cast<size_t>(rotation_deltas_shape[1]);
-    ctx.rotation_lut_rows = rotation_trig_lut_shape.empty() ? 0 : static_cast<size_t>(rotation_trig_lut_shape[0]);
+    const std::size_t batch_tokens = static_cast<std::size_t>(query_shape[0]);
+    const std::size_t query_features = static_cast<std::size_t>(query_shape[1]);
+    const std::size_t key_features = static_cast<std::size_t>(key_shape[1]);
+    const std::size_t value_features = static_cast<std::size_t>(value_shape[1]);
 
-    ctx.max_context_length = max_context_len_opt ? max_context_len_opt[0] : 0;
-    ctx.sliding_window = sliding_window_opt ? sliding_window_opt[0] : 0;
+    const std::size_t seq_count = static_cast<std::size_t>(past_lens_shape[0]);
+    const std::size_t subseq_count = static_cast<std::size_t>(subseq_shape[0]);
 
-    ctx.sequence_block_count.resize(ctx.sequence_count);
-    for (size_t s = 0; s < ctx.sequence_count; ++s) {
-        const int32_t b = ctx.block_indices_begins[s];
-        const int32_t e = ctx.block_indices_begins[s + 1];
-        ctx.sequence_block_count[s] = e - b;
+    // Register operator once per node and copy init cache.
+    cache_manager->ensure_operator(node_key,
+                                   key_cache_init,
+                                   value_cache_init,
+                                   key_cache_shape,
+                                   value_cache_shape,
+                                   block_indices_init,
+                                   block_indices_count,
+                                   block_indices_begins_init,
+                                   block_indices_begins_count,
+                                   past_lens,
+                                   seq_count);
+
+    const std::size_t head_size = cache_manager->key_head_size(node_key);
+    const std::size_t kv_heads = cache_manager->num_kv_heads(node_key);
+    const std::size_t v_head_size = cache_manager->value_head_size(node_key);
+
+    OPENVINO_ASSERT(head_size > 0 && kv_heads > 0 && v_head_size > 0, "PagedAttention reference: invalid cache layout");
+    OPENVINO_ASSERT(key_features == kv_heads * head_size,
+                    "PagedAttention reference: key feature dim mismatch with cache layout");
+    OPENVINO_ASSERT(value_features == kv_heads * v_head_size,
+                    "PagedAttention reference: value feature dim mismatch with cache layout");
+    OPENVINO_ASSERT((query_features % head_size) == 0,
+                    "PagedAttention reference: query features not divisible by head_size");
+
+    const std::size_t q_heads = query_features / head_size;
+    OPENVINO_ASSERT((q_heads % kv_heads) == 0,
+                    "PagedAttention reference: expected num_heads to be divisible by num_kv_heads (GQA)");
+    const std::size_t group = q_heads / kv_heads;
+
+    const std::size_t out_features = q_heads * v_head_size;
+    const float scale_f = detail::read_scalar_as_f32(scale, scale_et);
+    const int32_t sliding_window_i = sliding_window ? sliding_window[0] : 0;
+    const int32_t max_context_i = max_context_len ? max_context_len[0] : 0;
+    const int32_t score_window_i = score_aggregation_window ? score_aggregation_window[0] : 0;
+    const std::size_t alibi_len = alibi_shape.empty() ? 0 : static_cast<std::size_t>(alibi_shape[0]);
+
+    // Initialize per-sequence view of current lengths.
+    cache_manager->begin_step(node_key, past_lens, seq_count);
+
+    // Parse token-to-sequence partition.
+    const auto seq_begins = detail::parse_subsequence_ranges(subsequence_begins, subseq_count, seq_count, batch_tokens);
+
+    // Prepare mapping for rotated blocks (block_id -> rotated_index).
+    std::unordered_map<int32_t, int32_t> rotated_map;
+    rotated_map.reserve(rotated_block_count);
+    for (std::size_t i = 0; i < rotated_block_count; ++i) {
+        rotated_map.emplace(rotated_block_indices[i], static_cast<int32_t>(i));
     }
 
-    const T scale = scale_opt ? scale_opt[0] : T(1) / std::sqrt((T)ctx.key_head_size);
+    const bool has_trig = (rotation_trig_lut != nullptr) && (!trig_lut_shape.empty());
+    const std::size_t trig_rows = trig_lut_shape.size() == 2   ? static_cast<std::size_t>(trig_lut_shape[0])
+                                  : trig_lut_shape.size() == 1 ? 1
+                                                               : 0;
+    const bool deltas_is_2d = rotation_deltas_shape.size() == 2;
+    const std::size_t deltas_stride = deltas_is_2d ? static_cast<std::size_t>(rotation_deltas_shape[1]) : 0;
 
-    for (size_t tok = 0; tok < ctx.batch_token_count; ++tok) {
-        const size_t seq = resolve_sequence_index_for_token(tok, ctx.subsequence_begins, ctx.sequence_count);
-
-        if (ctx.subsequence_begins && tok >= static_cast<size_t>(ctx.subsequence_begins[seq])) {
-            copy_token_key_value_into_cache<T>(ctx, tok, seq);
+    // out_scores: concatenation of [past_len + new_len] for each sequence.
+    std::vector<float> scores_acc;
+    if (out_scores != nullptr) {
+        std::size_t total = 0;
+        for (std::size_t s = 0; s < seq_count; ++s) {
+            const std::size_t past = past_lens ? static_cast<std::size_t>(past_lens[s]) : 0;
+            const std::size_t new_len = seq_begins[s + 1] - seq_begins[s];
+            total += past + new_len;
         }
+        scores_acc.assign(total, 0.f);
+    }
 
-        for (size_t h = 0; h < ctx.head_count; ++h) {
-            const T* q_vec = static_cast<const T*>(ctx.query) + tok * ctx.query_feature_size + h * ctx.query_head_size;
+    std::vector<float> logits;
+    std::vector<float> out_head;
+    std::vector<float> key_buf;  // used for rotary
 
-            const int32_t past_cnt_raw = ctx.past_lens ? ctx.past_lens[seq] : 0;
-            const int32_t new_cnt =
-                ctx.subsequence_begins ? (ctx.subsequence_begins[seq + 1] - ctx.subsequence_begins[seq]) : 0;
+    // Prefix offsets for out_scores concatenation
+    std::vector<std::size_t> score_prefix(seq_count + 1, 0);
+    if (!scores_acc.empty()) {
+        for (std::size_t s = 0; s < seq_count; ++s) {
+            const std::size_t past = past_lens ? static_cast<std::size_t>(past_lens[s]) : 0;
+            const std::size_t new_len = seq_begins[s + 1] - seq_begins[s];
+            score_prefix[s + 1] = score_prefix[s] + past + new_len;
+        }
+    }
 
-            // Clamp past tokens to what is actually addressable via the current block table.
-            const int32_t num_seq_blocks =
-                ctx.block_indices_begins ? (ctx.block_indices_begins[seq + 1] - ctx.block_indices_begins[seq]) : 0;
-            const int32_t past_cnt =
-                (num_seq_blocks > 0 && ctx.block_size > 0)
-                    ? std::min<int32_t>(past_cnt_raw, num_seq_blocks * static_cast<int32_t>(ctx.block_size))
-                    : past_cnt_raw;
+    for (std::size_t s = 0; s < seq_count; ++s) {
+        const std::size_t t_begin = seq_begins[s];
+        const std::size_t t_end = seq_begins[s + 1];
+        if (t_begin >= t_end) {
+            continue;
+        }
+        OPENVINO_ASSERT(t_end <= batch_tokens, "PagedAttention reference: subsequence range exceeds batch_tokens");
 
-            const int32_t total_unclamped = past_cnt + new_cnt;
+        const std::int32_t past = past_lens ? past_lens[s] : 0;
+        OPENVINO_ASSERT(past >= 0, "PagedAttention reference: negative past_lens");
+        const std::size_t new_len = t_end - t_begin;
 
-            // Causal mask within the current batch segment: a query token must not attend to later new tokens.
-            const int32_t local_new_idx =
-                ctx.subsequence_begins ? static_cast<int32_t>(tok - ctx.subsequence_begins[seq]) : 0;
-            const int32_t causal_total = past_cnt + std::max<int32_t>(0, local_new_idx + 1);
-            const int32_t total_pre =
-                (ctx.max_context_length > 0) ? std::min<int32_t>(causal_total, ctx.max_context_length) : causal_total;
-            const int32_t total = std::max<int32_t>(0, total_pre);
+        // Base offset for out_scores for this sequence (concatenation order is sequence order).
+        const std::size_t score_base = score_prefix[s];
 
-            const int32_t keep_from = (ctx.sliding_window > 0) ? std::max<int32_t>(0, total - ctx.sliding_window) : 0;
+        for (std::size_t i = 0; i < new_len; ++i) {
+            const std::size_t token = t_begin + i;
+            const std::int32_t qpos = past + static_cast<std::int32_t>(i);
 
-            std::vector<T> scores(static_cast<size_t>(total), T(0));
+            // Append this token's KV into the cache.
+            const T* krow = key + token * key_features;
+            const T* vrow = value + token * value_features;
+            cache_manager->write_token_kv<T>(node_key, s, qpos, krow, vrow);
 
-            for (int32_t k = 0; k < total; ++k) {
-                if (ctx.sliding_window > 0 && k < keep_from) {
-                    scores[k] = -std::numeric_limits<T>::infinity();
-                    continue;
-                }
+            // Determine attention window.
+            std::int32_t start = 0;
+            if (max_context_i > 0) {
+                start = std::max(start, qpos + 1 - max_context_i);
+            }
+            if (sliding_window_i > 0) {
+                start = std::max(start, qpos + 1 - sliding_window_i);
+            }
+            if (start < 0) {
+                start = 0;
+            }
+            const std::int32_t end = qpos;
+            const std::size_t ctx_len = (end >= start) ? static_cast<std::size_t>(end - start + 1) : 0;
+            if (ctx_len == 0) {
+                // No context (shouldn't happen for causal), output zeros
+                std::fill(out + token * out_features, out + (token + 1) * out_features, T(0));
+                continue;
+            }
 
-                T s = T(0);
-                if (k < past_cnt) {
-                    int32_t bid, off;
-                    if (try_resolve_cached_block_and_offset(seq, k, ctx, bid, off)) {
-                        s = compute_score_against_cached_key(q_vec, h, ctx, bid, off);
+            // For out_scores aggregation, decide whether to include this query
+            const bool include_in_scores =
+                (scores_acc.empty())
+                    ? false
+                    : (score_window_i <= 0 ? true : (static_cast<std::int32_t>(new_len - i) <= score_window_i));
+
+            const T* qrow = query + token * query_features;
+
+            for (std::size_t h = 0; h < q_heads; ++h) {
+                const std::size_t kvh = h / group;
+                const float slope = (alibi_slopes == nullptr || alibi_len == 0)
+                                        ? 0.f
+                                        : detail::read_at_as_f32(alibi_slopes,
+                                                                 alibi_et,
+                                                                 (alibi_len == 1) ? 0 : std::min(h, alibi_len - 1));
+
+                const T* qptr = qrow + h * head_size;
+
+                logits.assign(ctx_len, 0.f);
+                out_head.assign(v_head_size, 0.f);
+
+                for (std::size_t t = 0; t < ctx_len; ++t) {
+                    const std::int32_t kpos = start + static_cast<std::int32_t>(t);
+                    ov::reference::paged_attention_cache::PagedCacheManager::TokenAddress addr;
+                    const bool ok = cache_manager->resolve_token(node_key, s, kpos, addr);
+                    if (!ok) {
+                        logits[t] = -std::numeric_limits<float>::infinity();
+                        continue;
                     }
-                } else {
-                    const int32_t abs_idx =
-                        ctx.subsequence_begins ? (ctx.subsequence_begins[seq] + (k - past_cnt)) : (k - past_cnt);
-                    s = compute_score_against_new_key(q_vec, h, abs_idx, ctx);
-                }
 
-                const T alibi = ctx.alibi_slopes ? static_cast<const T*>(ctx.alibi_slopes)[h] : T(0);
-                scores[k] = s * scale + alibi * T(-(total - k - 1));
-            }
-
-            pa_math::compute_softmax_in_place(scores);
-
-            std::vector<T> out_head(ctx.value_head_size, T(0));
-
-            if (out_scores && ctx.max_context_length > 0) {
-                const size_t base = (tok * ctx.head_count + h) * static_cast<size_t>(ctx.max_context_length);
-                std::fill_n(out_scores + base, static_cast<size_t>(ctx.max_context_length), T(0));
-            }
-            for (int32_t k = 0; k < total; ++k) {
-                const T w = scores[k];
-                if (k < past_cnt) {
-                    int32_t bid, off;
-                    if (try_resolve_cached_block_and_offset(seq, k, ctx, bid, off)) {
-                        accumulate_value_from_cached_key(h, ctx, bid, off, w, out_head);
+                    const T* kptr = cache_manager->key_ptr<T>(node_key, addr, kvh);
+                    if (kptr == nullptr) {
+                        logits[t] = -std::numeric_limits<float>::infinity();
+                        continue;
                     }
-                } else {
-                    const int32_t abs_idx =
-                        ctx.subsequence_begins ? (ctx.subsequence_begins[seq] + (k - past_cnt)) : (k - past_cnt);
-                    accumulate_value_from_new_key<T>(abs_idx, h, ctx, w, out_head);
+
+                    // Optional rotary re-rotation for specific blocks
+                    float dot = 0.f;
+                    const auto it = rotated_map.find(addr.block);
+                    if (has_trig && rotation_deltas != nullptr && it != rotated_map.end()) {
+                        const int32_t rot_idx = it->second;
+                        std::size_t trig_row = 0;
+                        if (deltas_is_2d) {
+                            const std::size_t off = static_cast<std::size_t>(addr.offset);
+                            const std::size_t di = static_cast<std::size_t>(rot_idx) * deltas_stride + off;
+                            const std::size_t deltas_total = static_cast<std::size_t>(rotation_deltas_shape[0]) *
+                                                             static_cast<std::size_t>(rotation_deltas_shape[1]);
+                            const int32_t raw = (di < deltas_total) ? rotation_deltas[di] : 0;
+                            trig_row = raw < 0 ? 0 : static_cast<std::size_t>(raw);
+                        } else {
+                            const std::size_t deltas_total = rotation_deltas_shape.size() == 1
+                                                                 ? static_cast<std::size_t>(rotation_deltas_shape[0])
+                                                                 : 0;
+                            const std::size_t di = static_cast<std::size_t>(rot_idx);
+                            const int32_t raw = (di < deltas_total) ? rotation_deltas[di] : 0;
+                            trig_row = raw < 0 ? 0 : static_cast<std::size_t>(raw);
+                        }
+                        if (trig_rows > 0) {
+                            trig_row = std::min(trig_row, trig_rows - 1);
+                        }
+
+                        key_buf.assign(head_size, 0.f);
+                        for (std::size_t d = 0; d < head_size; ++d) {
+                            key_buf[d] = static_cast<float>(kptr[d]);
+                        }
+                        detail::apply_rotary_inplace(key_buf, rotation_trig_lut, trig_lut_et, trig_row, head_size);
+                        for (std::size_t d = 0; d < head_size; ++d) {
+                            dot += static_cast<float>(qptr[d]) * key_buf[d];
+                        }
+                    } else {
+                        for (std::size_t d = 0; d < head_size; ++d) {
+                            dot += static_cast<float>(qptr[d]) * static_cast<float>(kptr[d]);
+                        }
+                    }
+
+                    float l = dot * scale_f;
+                    if (alibi_slopes != nullptr) {
+                        // Typical ALiBi: bias proportional to distance (key_pos - query_pos)
+                        l += slope * static_cast<float>(kpos - qpos);
+                    }
+                    logits[t] = l;
                 }
 
-                if (out_scores && ctx.max_context_length > 0) {
-                    const size_t sidx = (tok * ctx.head_count + h) * static_cast<size_t>(ctx.max_context_length) +
-                                        static_cast<size_t>(k);
-                    out_scores[sidx] = scores[k];
+                detail::softmax_inplace(logits);
+
+                for (std::size_t t = 0; t < ctx_len; ++t) {
+                    const std::int32_t kpos = start + static_cast<std::int32_t>(t);
+                    ov::reference::paged_attention_cache::PagedCacheManager::TokenAddress addr;
+                    if (!cache_manager->resolve_token(node_key, s, kpos, addr)) {
+                        continue;
+                    }
+                    const T* vptr = cache_manager->value_ptr<T>(node_key, addr, kvh);
+                    if (!vptr) {
+                        continue;
+                    }
+                    const float w = logits[t];
+                    for (std::size_t d = 0; d < v_head_size; ++d) {
+                        out_head[d] += w * static_cast<float>(vptr[d]);
+                    }
+
+                    if (include_in_scores) {
+                        // Accumulate score per key position (sum over heads and query tokens in the window)
+                        // Index within this sequence's concatenated [past + new] timeline:
+                        // past occupies [0, past-1], new tokens occupy [past, past+new_len-1]
+                        const std::size_t idx = score_base + static_cast<std::size_t>(kpos);
+                        if (idx < scores_acc.size()) {
+                            scores_acc[idx] += w;
+                        }
+                    }
+                }
+
+                T* out_ptr = out + token * out_features + h * v_head_size;
+                for (std::size_t d = 0; d < v_head_size; ++d) {
+                    out_ptr[d] = static_cast<T>(out_head[d]);
                 }
             }
+        }
+    }
 
-            T* dst = out + tok * ctx.value_feature_size + h * ctx.value_head_size;
-            std::memcpy(dst, out_head.data(), ctx.value_head_size * sizeof(T));
+    if (out_scores != nullptr) {
+        for (std::size_t i = 0; i < scores_acc.size(); ++i) {
+            out_scores[i] = static_cast<T>(scores_acc[i]);
         }
     }
 }

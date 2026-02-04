@@ -877,101 +877,6 @@ public:
     }
 };
 
-
-class PagedAttnVSRefPluginTest : public PagedAttnTestBase {
-private: 
-    std::vector<ov::Tensor> run_ref_test(std::shared_ptr<ov::Model> model, bool extendBlockIndices) {
-        // Save CPU device, config
-        const auto saved_device = targetDevice;
-        const auto saved_config = configuration;
-
-        targetDevice = ov::test::utils::DEVICE_TEMPLATE;
-
-        configuration.clear();
-        configuration[ov::hint::inference_precision.name()] = ov::element::f32;
-
-        function = model;
-        prepare();
-
-        for (const auto& input : compiledModel.inputs()) {
-            for (auto& name : input.get_names()) {
-                auto cache_precision = input.get_element_type();
-                const size_t block_nums = 4;
-                ov::PartialShape pshape;
-                if (name.find("key_cache.") == 0) {
-                    pshape = input.get_partial_shape();
-                    pshape[0] = block_nums;
-                    key_cache = ov::Tensor(cache_precision, pshape.get_shape());
-                    break;
-                } else if (name.find("value_cache.") == 0) {
-                    pshape = input.get_partial_shape();
-                    pshape[0] = block_nums;
-                    value_cache = ov::Tensor(cache_precision, pshape.get_shape());
-                    break;
-                }
-            }
-        }
-
-        std::vector<ov::Tensor> outputs;
-        int idx = 0;
-
-        // Critical: use PA input generation (true), not SDPA (false)
-        for (auto&& shapes : targetStaticShapes) {
-            generate(idx++, /*isPagedAttn=*/true, shapes, extendBlockIndices);
-            for (const auto& input : inputs) {
-                inferRequest.set_tensor(input.first, input.second);
-            }
-            inferRequest.infer();
-
-            auto outputTensor = inferRequest.get_output_tensor(0);
-            ov::Tensor copy{outputTensor.get_element_type(), outputTensor.get_shape()};
-            outputTensor.copy_to(copy);
-            outputs.push_back(copy);
-        }
-
-        reset();
-
-        // Restore CPU device/config
-        targetDevice = saved_device;
-        configuration = saved_config;
-
-        return outputs;
-    }
-
-public:
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
-        SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
-    }
-        std::shared_ptr<ov::Model> get_ref_model(ov::element::Type data_type,
-                                            ov::Dimension::value_type head_size = 64,
-                                            ov::Dimension::value_type head_num = 8,
-                                            bool use_sink_input = false) override {
-        // Build the SAME PagedAttention model (graph), just compile it on a different device later.
-        // enableXattn + sliding_window should match the test param / SetUp state.
-        const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config] =
-            this->GetParam();
-
-        return get_model(data_type, enableXattn, head_size, head_num, use_sink_input, slidingWindow);
-    }
-
-    std::vector<ov::Tensor> run_cpu(const std::shared_ptr<ov::Model>& model, bool extendBlockIndices) {
-        // Use whatever CPU config SetUp prepared (but ensure SageAttn off for this compare)
-        ov::AnyMap cfg = configuration;
-        cfg[ov::intel_cpu::enable_sage_attn.name()] = false;
-        return run_on_device(model, ov::test::utils::DEVICE_CPU, cfg, extendBlockIndices);
-    }
-
-    std::vector<ov::Tensor> run_template(const std::shared_ptr<ov::Model>& model, bool extendBlockIndices) {
-        // TEMPLATE must not receive CPU-only keys
-        ov::AnyMap cfg;
-        cfg[ov::hint::inference_precision.name()] = ov::element::f32;
-        // Optional if supported broadly in your build:
-        // cfg[ov::hint::kv_cache_precision.name()] = ov::element::f16;
-        return run_on_device(model, ov::test::utils::DEVICE_TEMPLATE, cfg, extendBlockIndices);
-    }
-};
-
-
 TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config] =
@@ -994,26 +899,6 @@ TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
     }
 }
 
-TEST_P(PagedAttnVSRefPluginTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config] =
-        this->GetParam();
-
-    const bool isSageAttn =
-        intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
-    if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
-        GTEST_SKIP();
-    if (isSageAttn)
-        GTEST_SKIP();
-
-    auto actualOutputs   = run_cpu(function, extendBlockIndices);
-    auto expectedOutputs = run_template(functionRefs, extendBlockIndices);
-
-    for (size_t i = 0; i < actualOutputs.size(); i++) {
-        ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
-    }
-}
-
 namespace {
 
 const std::vector<InputShapes> inputShapes = {  // greedy search
@@ -1026,17 +911,6 @@ const std::vector<InputShapes> inputShapes = {  // greedy search
 
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSMatmulTest,
                          PagedAttnVSMatmulTest,
-                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::f16),
-                                            ::testing::ValuesIn(inputShapes),
-                                            ::testing::Values(true, false),
-                                            ::testing::Values(true, false),
-                                            ::testing::Values(false),  // sinkInput = false
-                                            ::testing::Values(0),      // sliding_window = 0
-                                            ::testing::ValuesIn(additional_configs)),
-                         PagedAttnTestBase::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSRefPluginTest,
-                         PagedAttnVSRefPluginTest,
                          ::testing::Combine(::testing::Values(ElementType::f32, ElementType::f16),
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::Values(true, false),

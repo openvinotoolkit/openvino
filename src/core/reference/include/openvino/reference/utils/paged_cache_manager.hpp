@@ -1,214 +1,258 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <deque>
 #include <limits>
-#include <list>
-#include <memory>
-#include <type_traits>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
-
-#ifndef CM_DEBUG
-#    define CM_DEBUG 0
-#endif
-
-// The following value defines the default cache size of a full cache.
-// There is so far no other method to set it (constructor is provided, but there is no way for user to input it yet).
-//
-// The number of elements that fit inside is based on the element type of the cache.
-// That means, since PA needs a key and a value cache, each cache receives half the bytes.
-// This cache size does not include the "utilities" such as vector of available blocks, block indices, ect.
 
 namespace ov {
 namespace reference {
 namespace paged_attention_cache {
 
-inline constexpr std::size_t CACHE_SIZE = 1000000;
-
-class PagedCacheManager {
+// A single-threaded CacheManager used by the reference implementation of PagedAttentionExtension.
+class OPENVINO_API PagedCacheManager {
 public:
-    struct CacheBlocks {
-        void* key_base{nullptr};
-        void* value_base{nullptr};
-        size_t key_bytes{0};
-        size_t value_bytes{0};
+    struct TokenAddress {
+        std::int32_t block = -1;
+        std::int32_t offset = 0;
     };
 
-    struct SubsequenceView {
-        const std::int32_t* data{nullptr};
-        size_t count{0};
-    };
-
-    PagedCacheManager(ov::element::Type elem_type, std::size_t total_bytes = CACHE_SIZE);
+    explicit PagedCacheManager(ov::element::Type elem_type);
     PagedCacheManager(const PagedCacheManager&) = delete;
     PagedCacheManager& operator=(const PagedCacheManager&) = delete;
 
-    // adds a PagedAttention to the pool of managed ops if not added before
-    size_t register_operator(const size_t block_size,
-                             const size_t num_heads,
-                             const size_t key_head_size,
-                             const size_t value_head_size,
-                             const size_t query_head_size);
-    bool operator_registered(const size_t node_id);
+    // Register (or find) an operator state for a PagedAttentionExtension node
+    bool ensure_operator(std::uintptr_t node_key,
+                         const void* key_cache_init,
+                         const void* value_cache_init,
+                         const ov::Shape& key_cache_shape,
+                         const ov::Shape& value_cache_shape,
+                         const std::int32_t* block_indices_init,
+                         std::size_t block_indices_count,
+                         const std::int32_t* block_indices_begins_init,
+                         std::size_t block_indices_begins_count,
+                         const std::int32_t* past_lens_init,
+                         std::size_t past_lens_count);
 
-    // shared buffer access
-    CacheBlocks get_cache_blocks() const noexcept;
-    void* get_key_base() const noexcept;
-    void* get_value_base() const noexcept;
-    std::size_t get_total_bytes() const noexcept;
-    ov::element::Type get_element_type() const noexcept;
-    std::size_t get_num_blocks() noexcept;
-    std::size_t get_block_size() noexcept;
-    std::size_t get_block_bytes() noexcept;
+    // Update per-sequence logical lengths at the beginning of a step
+    //
+    // The reference implementation assumes that tokens are appended and that past_lens represents the current
+    // logical length of each sequence before appending the new tokens from this call.
+    void begin_step(std::uintptr_t node_key, const std::int32_t* past_lens, std::size_t seq_count);
 
-    // per-operator metadata
-    SubsequenceView get_subsequence_begins(size_t node_id) const;
+    // Ensure storage for a token position within a sequence
+    //
+    // token_pos is the logical token index within the sequence timeline (0...logical_length - 1)
+    // This function allocates (or reuses) blocks as needed
+    TokenAddress ensure_token(std::uintptr_t node_key, std::size_t seq_idx, std::int32_t token_pos);
 
-    // block lifecycle
-    std::vector<std::size_t> acquire_blocks(size_t node_id, std::size_t block_count);
-    void release_blocks(size_t node_id, const std::vector<std::size_t>& blocks);
+    /// Resolve an existing token address
+    /// Returns false if the token is out of the retained window (trimmed) or beyond logical length
+    bool resolve_token(std::uintptr_t node_key,
+                       std::size_t seq_idx,
+                       std::int32_t token_pos,
+                       TokenAddress& out_addr) const;
 
-    // insert and scoring
+    // Write key/value vectors for a token into the cache
+    //
+    // key_row layout:   [num_kv_heads * key_head_size]
+    // value_row layout: [num_kv_heads * value_head_size]
     template <typename T>
-    std::vector<std::size_t> insert(size_t node_id,
-                                    const T* key_src,
-                                    const T* value_src,
-                                    std::size_t block_count,
-                                    const T* scores /* may be nullptr */);
+    void write_token_kv(std::uintptr_t node_key,
+                        std::size_t seq_idx,
+                        std::int32_t token_pos,
+                        const T* key_row,
+                        const T* value_row);
+
+    // Access pointers for an already resolved token
+    template <typename T>
+    const T* key_ptr(std::uintptr_t node_key, TokenAddress addr, std::size_t kv_head) const;
 
     template <typename T>
-    void set_block_scores(size_t node_id, const std::vector<std::size_t>& block_indices, const T* scores);
+    const T* value_ptr(std::uintptr_t node_key, TokenAddress addr, std::size_t kv_head) const;
 
-    // evict to maintain free pool
-    void evict_to_target_free(std::size_t target_free_blocks);
+    // Cache layout getters (per node)
+    std::size_t num_blocks(std::uintptr_t node_key) const;
+    std::size_t block_size(std::uintptr_t node_key) const;
+    std::size_t num_kv_heads(std::uintptr_t node_key) const;
+    std::size_t key_head_size(std::uintptr_t node_key) const;
+    std::size_t value_head_size(std::uintptr_t node_key) const;
+
+    ov::element::Type element_type() const noexcept {
+        return m_elem_type;
+    }
 
 private:
-    inline static size_t m_node_id = 0;
-
-    struct block_t {
-        std::size_t index{0};
-        float score{std::numeric_limits<float>::infinity()};
-        size_t owner{0};
+    struct SequenceState {
+        std::int32_t logical_length = 0;  // expected by external past_lens
+        std::int32_t trim_front = 0;      // number of tokens trimmed from front (multiple of block_size)
+        std::deque<std::int32_t> blocks;  // physical block IDs for [trim_front, trim_front + blocks*block_size)
     };
 
-    struct operator_state {
-        size_t node_id;
-        std::vector<std::size_t> blocks;
-        std::vector<float> scores;
-        std::vector<std::int32_t> subsequence_begins;
+    struct OperatorState {
+        // layout
+        std::size_t num_blocks = 0;
+        std::size_t block_size = 0;
+        std::size_t num_kv_heads = 0;
+        std::size_t key_head_size = 0;
+        std::size_t value_head_size = 0;
 
-        std::size_t num_blocks{0}, num_heads{0}, block_size{0};
-        std::size_t key_head_size{0}, value_head_size{0}, query_head_size{0};
+        // bytes per block
+        std::size_t key_block_bytes = 0;
+        std::size_t value_block_bytes = 0;
+
+        // owned storage (copied once from init tensors)
+        ov::AlignedBuffer key_cache;
+        ov::AlignedBuffer value_cache;
+
+        // free list and per-seq state
+        std::vector<std::uint8_t> block_used;   // 0/1
+        std::vector<std::int32_t> free_blocks;  // stack
+        std::vector<SequenceState> sequences;
     };
 
-    // helpers
-    void* offset_key(std::size_t block_idx) const noexcept;
-    void* offset_value(std::size_t block_idx) const noexcept;
+    OperatorState& get_state(std::uintptr_t node_key);
+    const OperatorState& get_state(std::uintptr_t node_key) const;
 
-    void compute_operator_cache_geometry(operator_state& state,
-                                         const size_t block_size,
-                                         const size_t num_heads,
-                                         const size_t key_head_size,
-                                         const size_t value_head_size,
-                                         const size_t query_head_size);
+    static std::size_t tensor_byte_size(const ov::Shape& shape, std::size_t elem_bytes);
 
-    void ensure_free_blocks_unlocked(std::size_t need_blocks);
-    void evict_one_unlocked();
+    void init_sequences_from_block_tables(OperatorState& st,
+                                          const std::int32_t* block_indices,
+                                          std::size_t block_indices_count,
+                                          const std::int32_t* block_indices_begins,
+                                          std::size_t begins_count,
+                                          const std::int32_t* past_lens,
+                                          std::size_t past_lens_count);
 
-    std::vector<std::size_t> acquire_blocks_unlocked(size_t node_id, std::size_t block_count);
-    void copy_blocks_into_buffers_unlocked(const void* key_src_bytes,
-                                           const void* value_src_bytes,
-                                           const std::vector<std::size_t>& block_idxs);
-    void set_scores_for_blocks_unlocked(size_t node_id,
-                                        const std::vector<std::size_t>& block_idxs,
-                                        const float* scores);
+    std::int32_t allocate_block(OperatorState& st, std::size_t requester_seq);
+    std::int32_t steal_block_from_victim(OperatorState& st, std::size_t requester_seq);
 
-    static float cast_score_to_float(ov::element::Type et, const void* src_scalar) noexcept;
-    static bool is_element_compatible_with_T(ov::element::Type et, size_t sizeofT) noexcept;
+    static std::size_t elem_bytes_or_throw(ov::element::Type et);
 
-    void rebuild_evict_heap_unlocked();
-    static bool heap_less(const std::vector<block_t>& blocks, std::size_t a, std::size_t b) noexcept;
+    static void validate_cache_rank4_or_throw(const ov::Shape& key_cache_shape, const ov::Shape& value_cache_shape);
+
+    static void parse_cache_layout_or_throw(OperatorState& st,
+                                            const ov::Shape& key_cache_shape,
+                                            const ov::Shape& value_cache_shape,
+                                            std::size_t elem_bytes);
+
+    template <typename T>
+    static void memcpy_typed(void* dst, const void* src, std::size_t count) {
+        std::memcpy(dst, src, count * sizeof(T));
+    }
+
+    // compute base pointers into internal storage
+    template <typename T>
+    static T* key_block_base(OperatorState& st, std::int32_t block_id, std::size_t kv_head) {
+        auto* base = static_cast<T*>(st.key_cache.get_ptr());
+        const std::size_t block_stride = st.num_kv_heads * st.block_size * st.key_head_size;
+        const std::size_t head_stride = st.block_size * st.key_head_size;
+        return base + static_cast<std::size_t>(block_id) * block_stride + kv_head * head_stride;
+    }
+
+    template <typename T>
+    static T* value_block_base(OperatorState& st, std::int32_t block_id, std::size_t kv_head) {
+        auto* base = static_cast<T*>(st.value_cache.get_ptr());
+        const std::size_t block_stride = st.num_kv_heads * st.block_size * st.value_head_size;
+        const std::size_t head_stride = st.block_size * st.value_head_size;
+        return base + static_cast<std::size_t>(block_id) * block_stride + kv_head * head_stride;
+    }
+
+    template <typename T>
+    static const T* key_block_base(const OperatorState& st, std::int32_t block_id, std::size_t kv_head) {
+        auto* base = static_cast<const T*>(st.key_cache.get_ptr());
+        const std::size_t block_stride = st.num_kv_heads * st.block_size * st.key_head_size;
+        const std::size_t head_stride = st.block_size * st.key_head_size;
+        return base + static_cast<std::size_t>(block_id) * block_stride + kv_head * head_stride;
+    }
+
+    template <typename T>
+    static const T* value_block_base(const OperatorState& st, std::int32_t block_id, std::size_t kv_head) {
+        auto* base = static_cast<const T*>(st.value_cache.get_ptr());
+        const std::size_t block_stride = st.num_kv_heads * st.block_size * st.value_head_size;
+        const std::size_t head_stride = st.block_size * st.value_head_size;
+        return base + static_cast<std::size_t>(block_id) * block_stride + kv_head * head_stride;
+    }
 
 private:
-    const ov::element::Type m_elem_type{};
-    const std::size_t m_total_bytes{0};
-
-    std::size_t m_block_size{0};
-    std::size_t m_key_block_bytes{0};    // num_heads * block_size * key_head_size * elem_bytes
-    std::size_t m_value_block_bytes{0};  // num_heads * block_size * value_head_size * elem_bytes
-    std::size_t m_num_heads{0};
-    std::size_t m_key_head_size{0};
-    std::size_t m_value_head_size{0};
-
-    std::size_t m_num_blocks{0};
-
-    ov::AlignedBuffer m_key_buffer;
-    ov::AlignedBuffer m_value_buffer;
-
-    std::vector<block_t> m_blocks;
-    std::list<std::size_t> m_free_block_list;
-    std::unordered_map<size_t, operator_state> m_ops;
-
-    std::vector<std::size_t> m_evict_heap;
+    ov::element::Type m_elem_type;
+    std::unordered_map<std::uintptr_t, OperatorState> m_ops;
 };
 
-// -------- templates --------
+// ---------------- template impl ----------------
 
 template <typename T>
-std::vector<std::size_t> PagedCacheManager::insert(size_t node_id,
-                                                   const T* key_src,
-                                                   const T* value_src,
-                                                   std::size_t block_count,
-                                                   const T* scores) {
-    if (!is_element_compatible_with_T(m_elem_type, sizeof(T))) {
-        OPENVINO_THROW("PagedCacheManager::insert<T>: T does not match element type");
-    }
-    if (block_count == 0)
-        return {};
-
-    auto block_idxs = acquire_blocks_unlocked(node_id, block_count);
-
-    const void* kbytes = static_cast<const void*>(key_src);
-    const void* vbytes = static_cast<const void*>(value_src);
-    copy_blocks_into_buffers_unlocked(kbytes, vbytes, block_idxs);
-
-    if (scores) {
-        std::vector<float> fs(block_count);
-        for (std::size_t i = 0; i < block_count; ++i) {
-            fs[i] = cast_score_to_float(m_elem_type, static_cast<const void*>(&scores[i]));
-        }
-        set_scores_for_blocks_unlocked(node_id, block_idxs, fs.data());
+void PagedCacheManager::write_token_kv(std::uintptr_t node_key,
+                                       std::size_t seq_idx,
+                                       std::int32_t token_pos,
+                                       const T* key_row,
+                                       const T* value_row) {
+    auto& st = get_state(node_key);
+    if (seq_idx >= st.sequences.size()) {
+        OPENVINO_THROW("PagedCacheManager::write_token_kv: seq_idx out of range");
     }
 
-    return block_idxs;
+    const auto addr = ensure_token(node_key, seq_idx, token_pos);
+    if (addr.block < 0) {
+        OPENVINO_THROW("PagedCacheManager::write_token_kv: failed to allocate block");
+    }
+
+    // Copy per-kv-head vectors into the block storage.
+    for (std::size_t kvh = 0; kvh < st.num_kv_heads; ++kvh) {
+        T* kdst = key_block_base<T>(st, addr.block, kvh) + static_cast<std::size_t>(addr.offset) * st.key_head_size;
+        const T* ksrc = key_row + kvh * st.key_head_size;
+        std::memcpy(kdst, ksrc, st.key_head_size * sizeof(T));
+
+        T* vdst = value_block_base<T>(st, addr.block, kvh) + static_cast<std::size_t>(addr.offset) * st.value_head_size;
+        const T* vsrc = value_row + kvh * st.value_head_size;
+        std::memcpy(vdst, vsrc, st.value_head_size * sizeof(T));
+    }
+
+    // Maintains logical length
+    auto& seq = st.sequences[seq_idx];
+    if (token_pos >= seq.logical_length) {
+        seq.logical_length = token_pos + 1;
+    }
 }
 
 template <typename T>
-void PagedCacheManager::set_block_scores(size_t node_id,
-                                         const std::vector<std::size_t>& block_indices,
-                                         const T* scores) {
-    if (!is_element_compatible_with_T(m_elem_type, sizeof(T))) {
-        OPENVINO_THROW("PagedCacheManager::set_block_scores<T>: T does not match element type");
+const T* PagedCacheManager::key_ptr(std::uintptr_t node_key, TokenAddress addr, std::size_t kv_head) const {
+    const auto& st = get_state(node_key);
+    if (addr.block < 0) {
+        return nullptr;
     }
-    if (block_indices.empty())
-        return;
+    if (kv_head >= st.num_kv_heads) {
+        return nullptr;
+    }
+    const T* base = key_block_base<T>(st, addr.block, kv_head);
+    return base + static_cast<std::size_t>(addr.offset) * st.key_head_size;
+}
 
-    std::vector<float> fs(block_indices.size());
-    for (std::size_t i = 0; i < block_indices.size(); ++i) {
-        fs[i] = cast_score_to_float(m_elem_type, static_cast<const void*>(&scores[i]));
+template <typename T>
+const T* PagedCacheManager::value_ptr(std::uintptr_t node_key, TokenAddress addr, std::size_t kv_head) const {
+    const auto& st = get_state(node_key);
+    if (addr.block < 0) {
+        return nullptr;
     }
-    set_scores_for_blocks_unlocked(node_id, block_indices, fs.data());
+    if (kv_head >= st.num_kv_heads) {
+        return nullptr;
+    }
+    const T* base = value_block_base<T>(st, addr.block, kv_head);
+    return base + static_cast<std::size_t>(addr.offset) * st.value_head_size;
 }
 
 }  // namespace paged_attention_cache
