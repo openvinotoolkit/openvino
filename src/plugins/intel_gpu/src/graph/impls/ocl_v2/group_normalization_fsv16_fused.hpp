@@ -58,7 +58,7 @@ struct GroupNormalizationFsv16Fused : public GroupNormalizationBase {
             return false;
         }
 
-        constexpr size_t fsv = 16;
+        constexpr int64_t fsv = 16;
         // feature count needs to be static for following checks
         if (in0_layout.get_partial_shape()[1].is_dynamic())
             return false;
