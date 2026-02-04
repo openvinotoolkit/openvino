@@ -32,6 +32,10 @@ const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8,
                                                                ov::element::i4,
                                                                ov::element::nf4};
 
+const std::vector<ov::test::ElementType> weights_3d_precisions = {ov::element::u8,
+                                                                  ov::element::u4,
+                                                                  ov::element::i4};
+
 const std::vector<ov::test::ElementType> weights_precisions_fp8 = {ov::element::f8e4m3, ov::element::f8e5m2};
 
 const std::vector<MatMulDecompressionShapeParams> input_shapes_basic = {
@@ -429,19 +433,45 @@ const std::vector<MatMulDecompressionShapeParams> input_shapes_with_3d_weight = 
     {{{}, {{3, 10, 32}}}, {3, 32, 128}},
     {{{}, {{2, 16}}}, {5, 16, 64}},
 };
+
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_3D_Weights,
                          MatmulWeightsDecompression,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_with_3d_weight),
-                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::ValuesIn(weights_3d_precisions),
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::Values(ov::element::dynamic),
-                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(transpose_weights),
                                             ::testing::Values(DecompressionType::full),
                                             ::testing::Values(DecompressionType::empty),
                                             ::testing::Values(false),
                                             ::testing::ValuesIn(filter_additional_config_basic()),
                                             ::testing::Values(emptyFusingSpec),
-                                            ::testing::Values(false)),
+                                            ::testing::Values(true)),
+                         MatmulWeightsDecompression::getTestCaseName);
+
+// GPT-OSS tiny bmm i4-like architecture:
+// data: [B, S, K] = [32, 16, 2880]
+// matmul logical weights: [B, K, N] = [32, 2880, 5760]
+// packed i4 weights in model: [B, N, K/group_size, group_size] = [32, 5760, 90, 32], group_size = 32
+const std::vector<ov::test::ElementType> weights_3d_precisions_gptoss = {ov::element::u4,
+                                                                         ov::element::i4};
+const std::vector<MatMulDecompressionShapeParams> input_shapes_with_3d_weight_gptoss_i4 = {
+    {{{}, {{4, 4, 8}}}, {4, 8, 128}, 32ul},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_3D_Weights_GPTOSS_i4,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_with_3d_weight_gptoss_i4),
+                                            ::testing::ValuesIn(weights_3d_precisions_gptoss),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(true),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(DecompressionType::empty),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(filter_additional_config_basic()),
+                                            ::testing::Values(emptyFusingSpec),
+                                            ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
 }  // namespace
 }  // namespace test

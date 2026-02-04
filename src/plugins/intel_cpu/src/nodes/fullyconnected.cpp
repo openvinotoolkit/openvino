@@ -171,7 +171,9 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
         }
 
         // 3D weights decompression is not supported due to the oneDNN limitations.
-        if (op->get_input_partial_shape(WEIGHTS).rank().get_length() == 3) {
+        // @todo remove the such limitation when nf4 is enabled.
+        if (op->get_input_partial_shape(WEIGHTS).rank().get_length() == 3 &&
+            op->get_input_element_type(WEIGHTS) == ov::element::nf4) {
             return false;
         }
     } catch (...) {
