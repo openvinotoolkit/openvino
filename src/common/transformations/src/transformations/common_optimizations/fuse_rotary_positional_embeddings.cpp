@@ -779,7 +779,7 @@ RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
 static std::shared_ptr<ov::Node> build_ChatGLMHF_interleave_pattern(std::shared_ptr<ov::Node> cos_or_sin) {
     auto transpose = pattern::wrap_type<v1::Transpose>({cos_or_sin, pattern::any_input()});
     auto reshape = pattern::wrap_type<v1::Reshape>({transpose, pattern::any_input()});
-    auto multiply = pattern::wrap_type<v1::Multiply>({reshape, pattern::any_input()});
+    auto multiply = pattern::wrap_type<v1::Multiply, ov::op::util::BroadcastBase>({reshape, pattern::any_input()});
     auto gather_nd = pattern::wrap_type<v8::GatherND>({multiply, pattern::any_input()});
     auto transpose_1 = pattern::wrap_type<v1::Transpose>({gather_nd, pattern::any_input()});
 
