@@ -135,7 +135,6 @@ public:
             output.copy_to(outputs[0]);
             return true;
         });
-        
         ON_CALL(*this, has_evaluate).WillByDefault(::testing::Return(true));
     };
 
