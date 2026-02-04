@@ -3062,8 +3062,14 @@ static int runSingleImageTest() {
                         continue;
                     }
 
+                    auto refIt = referenceTensors.find(tensorName);
+                    if (refIt == referenceTensors.end()) {
+                        std::cerr << "Reference tensor not found for output layer: " << tensorName << std::endl;
+                        continue;
+                    }
+
                     filteredOutputTensors[tensorName] = tensor;
-                    filteredReferenceTensors[tensorName] = referenceTensors.at(tensorName);
+                    filteredReferenceTensors[tensorName] = refIt->second;
 
                     auto layoutIt = outputLayouts.find(tensorName);
                     if (layoutIt != outputLayouts.end()) {
