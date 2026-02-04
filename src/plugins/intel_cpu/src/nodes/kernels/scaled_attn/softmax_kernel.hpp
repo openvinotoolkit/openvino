@@ -1537,6 +1537,9 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
     }
 
     ov::float16 sum = 0.0F;
+    if (sink != nullptr) {
+        max = std::max(max, static_cast<const ov::float16>(*sink));
+    }
 #    if defined(OPENVINO_ARCH_ARM64)
     const float max_f = static_cast<float>(max);
     if (std::isinf(max_f) && max_f > 0.0F) {
@@ -1544,16 +1547,17 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
         return;
     }
 #    endif
+    exp_reduce_sum_f32(a, max, len, sum);
+    if (sink != nullptr) {
+        sum += std::exp(*sink - max);
+    }
+    ov::float16 scalar = 1.0F / sum;
     if (dst_precision == ov::element::f32) {
-        exp_reduce_sum_f32(a, max, len, sum);
-        ov::float16 scalar = 1.0F / sum;
         multiply_scalar(a, static_cast<float*>(a_dst), scalar, len);
         // apply causual mask to final result instead of attn_score
         if (total_size > len)
             memset(static_cast<float*>(a_dst) + len, 0, sizeof(float) * (total_size - len));
     } else {
-        exp_reduce_sum_f32(a, max, len, sum);
-        ov::float16 scalar = 1.0F / sum;
         multiply_scalar_f32(a, static_cast<ov::float16*>(a_dst), scalar, len);
         // apply causual mask to final result instead of attn_score
         if (total_size > len)
