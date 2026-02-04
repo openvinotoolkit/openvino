@@ -439,7 +439,9 @@ static constexpr ov::Property<std::string> subgraphs{"NPUW_DUMP_SUBS"};
  * @brief
  * Type: std::string.
  * Directory path for dumping subgraph models (.xml).
- * Default value: empty (current directory).
+ * Default behavior: when this property is not set or set to an empty string,
+ * the current working directory is used. Any non-empty value is interpreted
+ * as a directory path.
  */
 static constexpr ov::Property<std::string> subgraphs_dir{"NPUW_DUMP_SUBS_DIR"};
 

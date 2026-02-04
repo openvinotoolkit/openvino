@@ -2160,7 +2160,12 @@ void ov::npuw::CompiledModel::dump_subgraph_composition(const std::vector<ov::np
 
     std::ofstream json_file(sg_path);
     if (!json_file.is_open()) {
-        LOG_ERROR("Failed to open file for writing: " << sg_path);
+        const auto dir_path = ov::util::make_path(dump_dir);
+        if (!ov::util::directory_exists(dir_path)) {
+            LOG_ERROR("Failed to open file for writing: " << sg_path << ". Directory does not exist: " << dump_dir);
+        } else {
+            LOG_ERROR("Failed to open file for writing: " << sg_path << ". Check file permissions or disk space.");
+        }
         return;
     }
 
