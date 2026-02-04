@@ -33,6 +33,11 @@
 namespace cldnn {
 namespace ocl {
 
+static std::mutex& get_stream_mutex() {
+    static std::mutex mutex;
+    return mutex;
+}
+
 namespace {
 inline cl::NDRange toNDRange(const std::vector<size_t>& v) {
     switch (v.size()) {
@@ -224,15 +229,32 @@ ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config)
     bool queue_families_extension = engine.get_device_info().supports_queue_families;
     queue_builder.set_supports_queue_families(queue_families_extension);
 
-    _command_queue = queue_builder.build(context, device);
+    {
+        // Acquire a global lock to ensure only one thread calls the driver's Create Queue at a time
+        std::lock_guard<std::mutex> lock(get_stream_mutex());
+        _command_queue = queue_builder.build(context, device);
+    }
 }
 
 ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config, void *handle)
     : stream(ocl_stream::detect_queue_type(handle), stream::get_expected_sync_method(config))
     , _engine(engine) {
     auto casted_handle = static_cast<cl_command_queue>(handle);
-    _command_queue = ocl_queue_type(casted_handle, true);
+    {
+        std::lock_guard<std::mutex> lock(get_stream_mutex());
+        _command_queue = ocl_queue_type(casted_handle, true);
+    }
 }
+
+ocl_stream::~ocl_stream() {
+    std::lock_guard<std::mutex> lock(get_stream_mutex());
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    _onednn_stream.reset();
+#endif
+    _last_barrier_ev = {};
+    _command_queue = {};
+}
+
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 dnnl::stream& ocl_stream::get_onednn_stream() {
