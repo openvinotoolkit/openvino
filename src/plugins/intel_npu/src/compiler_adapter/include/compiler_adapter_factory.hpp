@@ -22,7 +22,7 @@ public:
             if (engineBackend) {
                 std::string platform;
                 auto devicePlatform = engineBackend->getDevice()->getName();
-                platform = configPlatform.empty() ? devicePlatform : configPlatform;
+                platform = configPlatform == ov::intel_npu::Platform::AUTO_DETECT ? devicePlatform : configPlatform;
 
                 if (_pluginCompilerIsPresent && platform != ov::intel_npu::Platform::NPU3720 &&
                     platform != ov::intel_npu::Platform::AUTO_DETECT) {
