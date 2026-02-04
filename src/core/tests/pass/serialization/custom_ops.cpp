@@ -151,7 +151,6 @@ public:
                 evaluate,
                 (ov::TensorVector & output_values, const ov::TensorVector& input_values),
                 (const, override));
-    
     MOCK_METHOD(bool, has_evaluate, (), (const, override));
 };
 
