@@ -40,6 +40,7 @@ struct Config {
     IAccuracyMetric::Ptr metric;
     bool disable_high_resolution_timer;
     std::vector<ScenarioDesc> scenarios;
+    std::string npu_compiler_type;
 };
 
 struct ReplaceBy {

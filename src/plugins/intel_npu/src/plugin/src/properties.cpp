@@ -466,7 +466,10 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::max_generation_token_len, NPUW_LLM_MAX_GENERATION_TOKEN_LEN);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::optimize_fp8, NPUW_LLM_OPTIMIZE_FP8);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::prefill_moe_hint, NPUW_LLM_PREFILL_MOE_HINT);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::generate_moe_hint, NPUW_LLM_GENERATE_MOE_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::generate_pyramid, NPUW_LLM_GENERATE_PYRAMID);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::prefill_chunk_size, NPUW_LLM_PREFILL_CHUNK_SIZE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD);
@@ -559,8 +562,8 @@ void Properties::registerPluginProperties() {
         });
         REGISTER_CUSTOM_METRIC(ov::intel_npu::compiler_version, true, [&](const Config& config) {
             /// create dummy compiler
-            CompilerAdapterFactory compilerAdapterFactory;
-            auto dummyCompiler = compilerAdapterFactory.getCompiler(_backend, config.get<COMPILER_TYPE>());
+            auto compilerType = config.get<COMPILER_TYPE>();
+            auto dummyCompiler = CompilerAdapterFactory::getInstance().getCompiler(_backend, compilerType);
             return dummyCompiler->get_version();
         });
         REGISTER_CUSTOM_METRIC(ov::internal::caching_properties, false, [&](const Config& config) {
@@ -605,6 +608,7 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::compilation_num_threads, COMPILATION_NUM_THREADS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::inference_precision, INFERENCE_PRECISION_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::cache_mode, CACHE_MODE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::compiler_type, COMPILER_TYPE);
 
     // Properties we shall only enable if they were set prior-to-compilation
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::weights_path, WEIGHTS_PATH);
@@ -616,7 +620,6 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::dma_engines, DMA_ENGINES);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::tiles, TILES);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compilation_mode, COMPILATION_MODE);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compiler_type, COMPILER_TYPE);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::platform, PLATFORM);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::dynamic_shape_to_static, DYNAMIC_SHAPE_TO_STATIC);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::backend_compilation_params, BACKEND_COMPILATION_PARAMS);
@@ -712,8 +715,8 @@ void Properties::set_property(const ov::AnyMap& properties) {
             if (_pType == PropertiesType::PLUGIN) {
                 try {
                     // Only accepting unknown config keys in plugin
-                    CompilerAdapterFactory compilerAdapterFactory;
-                    compiler = compilerAdapterFactory.getCompiler(_backend, _config.get<COMPILER_TYPE>());
+                    auto compilerType = _config.get<COMPILER_TYPE>();
+                    compiler = CompilerAdapterFactory::getInstance().getCompiler(_backend, compilerType);
                 } catch (...) {
                     // just throw the exception below in case unknown property check is called
                 }
