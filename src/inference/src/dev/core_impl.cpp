@@ -921,7 +921,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         const auto lock = m_cache_guard.get_hash_lock(cache_content.m_blob_id);
         compiled_model = load_model_from_cache(cache_content, plugin, parsed.m_config, {}, [&]() {
             const auto model =
-                util::read_model(model_path, "", get_extensions_copy(), parsed.m_core_config.get_enable_mmap());
+                util::read_model(util::make_path(model_path), "", get_extensions_copy(), parsed.m_core_config.get_enable_mmap());
             return compile_model_and_cache(plugin, model, parsed.m_config, {}, cache_content);
         });
     } else {
@@ -1726,13 +1726,13 @@ void ov::CoreImpl::add_mutex(const std::string& dev_name) {
     m_dev_mutexes[dev_name];
 }
 
-std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& modelPath,
-                                                    const std::string& binPath,
+std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::filesystem::path& model_path,
+                                                    const std::filesystem::path& bin_path,
                                                     const AnyMap& properties) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from file");
     auto local_core_config = m_core_config;
     local_core_config.set(properties, {});
-    return ov::util::read_model(modelPath, binPath, get_extensions_copy(), local_core_config.get_enable_mmap());
+    return ov::util::read_model(model_path, bin_path, get_extensions_copy(), local_core_config.get_enable_mmap());
 }
 
 std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& model,
