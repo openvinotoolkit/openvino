@@ -2640,9 +2640,7 @@ jit_power_static_emitter::jit_power_static_emitter(ov::intel_cpu::riscv64::jit_g
                                                    ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     const auto power_static = ov::as_type_ptr<ov::snippets::op::PowerStatic>(node);
-    if (!power_static) {
-        OV_CPU_JIT_EMITTER_THROW("Can't cast to snippets::op::PowerStatic");
-    }
+    OV_CPU_JIT_EMITTER_ASSERT(power_static, "Can't cast to snippets::op::PowerStatic");
 
     power = power_static->get_power();
     scale = 1.F;

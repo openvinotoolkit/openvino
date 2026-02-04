@@ -1439,8 +1439,7 @@ void Transformations::MainSnippets() {
                                        ov::op::v0::Sigmoid,
                                        ov::op::v9::SoftSign,
                                        ov::op::v0::Sqrt,
-                                       ov::op::v0::Tanh,
-                                       ov::op::v0::Xor>(n));
+                                       ov::op::v0::Tanh>(n));
         };
         return is_supported(n);
 #else
