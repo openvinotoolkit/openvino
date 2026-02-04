@@ -301,10 +301,15 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         });
     }
 
+    bool is_fp16_acc = (params.inputs[0].GetDType() == Datatype::F16) || (params.inputs[1].GetDType() == Datatype::F16);
+    jit.AddConstants({MakeJitConstant("USE_FP16_ACC", is_fp16_acc)});
+
     if (tuning_data.tile_n_size > tuning_data.simd_size) {
         jit.AddConstants({
             MakeJitConstant("B_VEC_SIZE", b_vec_size),
             MakeJitConstant("B_FLOATN", std::string("CAT(INPUT1_TYPE, ") + toCodeString(b_vec_size) + ")"),
+            MakeJitConstant("ACC_FLOATN", is_fp16_acc ? (std::string("CAT(float, ") + toCodeString(b_vec_size) + ")")
+                                                      : (std::string("CAT(INPUT1_TYPE, ") + toCodeString(b_vec_size) + ")")),
             MakeJitConstant("OUTPUT_TYPE_VEC", std::string("CAT(OUTPUT_TYPE, ") + toCodeString(b_vec_size) + ")"),
             MakeJitConstant("ACCUMULATOR_TYPE_VEC", std::string("CAT(ACCUMULATOR_TYPE, ") + toCodeString(b_vec_size) + ")"),
         });
@@ -313,9 +318,23 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         jit.AddConstants({
             MakeJitConstant("B_VEC_SIZE", b_vec_size),
             MakeJitConstant("B_FLOATN", std::string("INPUT1_TYPE")),
+            MakeJitConstant("ACC_FLOATN", is_fp16_acc ? std::string("float") : std::string("INPUT1_TYPE")),
             MakeJitConstant("OUTPUT_TYPE_VEC", std::string("OUTPUT_TYPE")),
             MakeJitConstant("ACCUMULATOR_TYPE_VEC", std::string("ACCUMULATOR_TYPE")),
         });
+    }
+
+    // Define type conversion macros
+    jit.AddConstant(MakeJitConstant("TO_ACCUMULATOR_TYPE_VEC(x)", b_vec_size > 1 ? "CAT(convert_, ACCUMULATOR_TYPE_VEC)(x)"
+                                                                                 : "TO_ACCUMULATOR_TYPE(x)"));
+
+    if (is_fp16_acc) {
+        jit.AddConstant(MakeJitConstant("ACC_CAST_A(x)", "convert_float(x)"));
+        jit.AddConstant(MakeJitConstant("ACC_CAST_B(x)", b_vec_size > 1 ? std::string("CAT(convert_float, B_VEC_SIZE)((CAT(INPUT1_TYPE, B_VEC_SIZE))(x))")
+                                                                        : "convert_float(x)"));
+    } else {
+        jit.AddConstant(MakeJitConstant("ACC_CAST_A(x)", "(INPUT0_TYPE)(x)"));
+        jit.AddConstant(MakeJitConstant("ACC_CAST_B(x)", "(x)"));
     }
 
     if (!params.fused_ops.empty()) {
