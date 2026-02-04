@@ -337,20 +337,29 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, "pass::Manager::run_passes");
     Profiler profiler(m_name);
 
-    bool pass_changed_model = false;
     bool manager_changed_model = false;
     bool needs_validation = false;
 
     profiler.start_timer(m_name);
     for (const auto& pass : m_pass_list) {
+        const bool is_validate = ov::as_type_ptr<ov::pass::Validate>(pass) != nullptr;
+
+        if (is_validate && !needs_validation) {
+            continue;
+        }
+
         const auto& pass_name = pass->get_name();
 
         profiler.start_timer(pass_name);
-        pass_changed_model = run_pass(pass, model, needs_validation);
+        bool pass_changed_model = run_pass(pass, model);
         profiler.stop_timer(pass_name, pass_changed_model);
 
         manager_changed_model = manager_changed_model || pass_changed_model;
-        needs_validation = needs_validation || pass_changed_model;
+        if (is_validate) {
+            needs_validation = false;
+        } else {
+            needs_validation = needs_validation || pass_changed_model;
+        }
 
         profiler.visualize(model, pass_name);
         profiler.serialize(model, pass_name);
@@ -360,9 +369,10 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
     return manager_changed_model;
 }
 
-bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass,
-                                 const std::shared_ptr<Model>& model,
-                                 bool& needs_validation) {
+// For the current testing, once the run_pass() function changes,
+// we need to change ValidateTestManager::run_pass() too. It's dirty,
+// but there's no native way of counting exectued passes.
+bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass, const std::shared_ptr<Model>& model) {
     if (m_pass_config->is_disabled(pass->get_type_info())) {
         OPENVINO_DEBUG("Pass ", pass->get_name(), " is disabled.");
         return false;
@@ -384,12 +394,6 @@ bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass,
         // GraphRewrite is a temporary container for MatcherPass to make execution on entire ov::Model
         return GraphRewrite(matcher_pass).run_on_model(model);
     } else if (auto model_pass = ov::as_type_ptr<ModelPass>(pass)) {
-        if (ov::as_type_ptr<ov::pass::Validate>(model_pass)) {
-            if (!needs_validation) {
-                return false;
-            }
-            needs_validation = false;
-        }
         return model_pass->run_on_model(model);
     }
     return false;

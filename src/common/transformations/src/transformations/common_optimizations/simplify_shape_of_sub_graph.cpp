@@ -391,8 +391,6 @@ bool pass::SimplifyShapeOfSubGraph::run_on_model(const std::shared_ptr<Model>& f
     REGISTER_PASS(manager, GatherNopElimination)
     REGISTER_PASS(manager, SimplifyGatherShapeOf)
     REGISTER_PASS(manager, SimplifySecondInputOfReshape)
-
-    // TODO: potentially this Validate is not needed but it requires additional validation
     REGISTER_PASS(manager, Validate)
 
     manager.run_passes(f);

@@ -900,6 +900,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstAndDecompression);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::LoraSubgraphFusion);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
 
     manager.run_passes(model);
 }
@@ -1039,6 +1040,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         },
         FuseConvertTransformation);
 
+    CPU_REGISTER_PASS_COMMON(lptManager, ov::pass::Validate);
     lptManager.run_passes(model);
 }
 
@@ -1165,6 +1167,7 @@ void Transformations::PostLpt() {
     auto symbolic_pipeline = CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::SymbolicOptimizations, false);
     symbolic_pipeline->get_manager()->register_pass<NgramFusion>();
 
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::Validate);
     postLPTPassManager.run_passes(model);
 }
 
