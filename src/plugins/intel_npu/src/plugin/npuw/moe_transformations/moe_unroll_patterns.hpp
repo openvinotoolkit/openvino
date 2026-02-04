@@ -124,6 +124,38 @@ public:
 };
 
 // =============================================================================
+// UnrollParameterMultiply: Unroll Multiply with parameter when other input is not Concat
+// =============================================================================
+/**
+ * @brief Unrolls Multiply operation when one input is a batched Parameter and the other is not Concat (e.g., AWQ
+ * Multiply where Swish is the other input)
+ *
+ * Handles cases like: Multiply(k_parameter[N,...], Swish) where Swish is not unrolled
+ * The parameter must be unrolled for correct weight loading in partial unroll scenarios.
+ *
+ * Transforms: Multiply(Param[N,...], NonConcat) → Concat([Multiply(Param[0], Slice(NonConcat,0)),
+ *                                                          Multiply(Param[1], Slice(NonConcat,1)),
+ *                                                          ...,
+ *                                                          Multiply(Param[N-1], Slice(NonConcat,N-1))])
+ *
+ * Requirements:
+ * - One input must be a Parameter with first dimension N > 1 (possibly through Convert)
+ * - Other input must NOT be a Concat (to avoid conflicts with PushMultiplyBeforeConcat)
+ * - Other input must have compatible shape for slicing on axis 0
+ *
+ * @param model Model to register split parameters with
+ */
+
+class UnrollParameterMultiply : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::pass::UnrollParameterMultiply");
+    explicit UnrollParameterMultiply(std::shared_ptr<ov::Model> model);
+
+private:
+    std::shared_ptr<ov::Model> model_;
+};
+
+// =============================================================================
 // PushMultiplyBeforeConcat: Push Multiply before Concat
 // =============================================================================
 /**
@@ -281,6 +313,35 @@ public:
         add_matcher<PushMultiplyBeforeConcat>();
         add_matcher<PushReshapeBeforeConcat>();
         add_matcher<FuseConcatReduceSum>();
+        add_matcher<RemoveUnusedParameters>(model);
+    }
+};
+
+/**
+ * @brief AWQ parameter multiply unrolling with cleanup
+ *
+ * Unrolls Multiply operations with batched parameters (e.g., AWQ quantization scales)
+ * and removes unused parameters after unrolling. This is specifically designed for
+ * handling AWQ multiply nodes where one input is a batched parameter and the other
+ * is not a Concat (e.g., Swish activation).
+ *
+ * Included patterns:
+ * - UnrollParameterMultiply: Unroll Multiply with batched parameter
+ * - RemoveUnusedParameters: Clean up unused batched parameters
+ *
+ * Use cases:
+ * - Used in combination with MoEExpertUnrollingWeightsOnly for AWQ quantized models
+ * - Not needed with MoEExpertUnrolling (already handles all patterns comprehensively)
+ *
+ * @param model Model instance for parameter registration and cleanup
+ */
+
+class UnrollAWQParameterMultiply : public ov::pass::GraphRewrite {
+public:
+    OPENVINO_GRAPH_REWRITE_RTTI("npuw::pass::UnrollAWQParameterMultiply");
+
+    explicit UnrollAWQParameterMultiply(std::shared_ptr<ov::Model> model) {
+        add_matcher<UnrollParameterMultiply>(model);
         add_matcher<RemoveUnusedParameters>(model);
     }
 };

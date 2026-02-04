@@ -776,6 +776,173 @@ PushScalarElementwiseBeforeConcat::PushScalarElementwiseBeforeConcat() {
 }
 
 // =============================================================================
+// UnrollParameterMultiply
+// =============================================================================
+// Transforms: Multiply(Param[N,...], NonConcat)  =>  Concat([Multiply(Param[0], Slice(NonConcat,0)), ...])
+// Handles cases like Multiply(k_parameter, Swish) where Swish is not unrolled
+// The parameter must be unrolled for correct weight loading in partial unroll scenarios
+
+UnrollParameterMultiply::UnrollParameterMultiply(std::shared_ptr<ov::Model> model) : model_(model) {
+    MATCHER_SCOPE(UnrollParameterMultiply);
+
+    auto multiply_pattern = ov::pass::pattern::wrap_type<ov::opset1::Multiply>();
+
+    auto callback = [this](ov::pass::pattern::Matcher& m) {
+        auto multiply = m.get_match_root();
+        LOG_INFO("UnrollParameterMultiply: Checking Multiply " << multiply->get_friendly_name());
+
+        auto multiply_op = std::dynamic_pointer_cast<ov::opset1::Multiply>(multiply);
+        if (!multiply_op) {
+            return false;
+        }
+
+        auto input0 = multiply_op->input_value(0);
+        auto input1 = multiply_op->input_value(1);
+
+        // Check if either input is a Concat - if so, skip (handled by PushMultiplyBeforeConcat)
+        auto input0_concat = std::dynamic_pointer_cast<ov::opset1::Concat>(input0.get_node_shared_ptr());
+        auto input1_concat = std::dynamic_pointer_cast<ov::opset1::Concat>(input1.get_node_shared_ptr());
+
+        if (input0_concat || input1_concat) {
+            LOG_DEBUG("UnrollParameterMultiply: One input is Concat, skipping (handled by PushMultiplyBeforeConcat)");
+            return false;
+        }
+
+        // Try to find a parameter input (possibly through Convert)
+        ov::Output<ov::Node> param_input, other_input;
+        std::shared_ptr<ov::op::v0::Parameter> param_node;
+
+        auto param0 = get_param_node(input0);
+        auto param1 = get_param_node(input1);
+
+        if (param0 && !param1) {
+            param_node = param0;
+            param_input = input0;
+            other_input = input1;
+        } else if (param1 && !param0) {
+            param_node = param1;
+            param_input = input1;
+            other_input = input0;
+        } else {
+            // Either no parameter or both are parameters - skip
+            return false;
+        }
+
+        // Check parameter shape: first dimension must be > 1 for unrolling
+        auto param_shape = param_node->get_partial_shape();
+
+        if (!param_shape.rank().is_static() || !param_shape[0].is_static()) {
+            LOG_DEBUG("UnrollParameterMultiply: Parameter shape not static, skipping");
+            return false;
+        }
+
+        int64_t num_branches = param_shape[0].get_length();
+
+        if (num_branches <= 1) {
+            LOG_DEBUG("UnrollParameterMultiply: Parameter first dimension <= 1, no need to unroll");
+            return false;
+        }
+
+        // Check other input shape compatibility for slicing
+        auto other_shape = other_input.get_partial_shape();
+
+        if (!other_shape.rank().is_static() || !other_shape[0].is_static()) {
+            LOG_DEBUG("UnrollParameterMultiply: Other input shape not static, cannot slice");
+            return false;
+        }
+
+        int64_t other_dim0 = other_shape[0].get_length();
+
+        if (other_dim0 != num_branches) {
+            LOG_DEBUG("UnrollParameterMultiply: Shape mismatch - param[0]=" << num_branches
+                                                                            << " vs other[0]=" << other_dim0);
+            return false;
+        }
+
+        LOG_INFO("UnrollParameterMultiply: Unrolling Multiply with parameter");
+        LOG_INFO("  Parameter: " << param_node->get_friendly_name() << ", shape: " << param_shape);
+        LOG_INFO("  Other input type: " << other_input.get_node()->get_type_name());
+        LOG_INFO("  Number of branches: " << num_branches);
+
+        // Create new per-branch parameters
+        auto orig_shape = param_shape.to_shape();
+        ov::Shape new_param_shape = orig_shape;
+        new_param_shape[0] = 1;  // Change first dimension from N to 1
+
+        ov::NodeVector new_multiply_outputs;
+        ov::ParameterVector new_params;
+
+        // Check if there's a Convert between parameter and multiply
+        auto param_source = param_input;
+        std::shared_ptr<ov::opset1::Convert> param_convert;
+        if (auto conv = std::dynamic_pointer_cast<ov::opset1::Convert>(param_input.get_node_shared_ptr())) {
+            param_convert = conv;
+        }
+
+        for (size_t i = 0; i < static_cast<size_t>(num_branches); ++i) {
+            // Create new parameter for this branch
+            auto new_param = std::make_shared<ov::op::v0::Parameter>(param_node->get_element_type(),
+                                                                     ov::PartialShape(new_param_shape));
+            new_param->set_friendly_name(param_node->get_friendly_name() + "/branch_" + std::to_string(i));
+            new_param->get_rt_info()["moe_original_param"] = param_node->get_friendly_name();
+            new_param->get_rt_info()["moe_expert_index"] = static_cast<int64_t>(i);
+            new_params.push_back(new_param);
+
+            ov::Output<ov::Node> param_for_multiply = new_param->output(0);
+
+            // Apply Convert if original had one
+            if (param_convert) {
+                auto new_convert =
+                    std::make_shared<ov::opset1::Convert>(param_for_multiply, param_convert->get_destination_type());
+                new_convert->set_friendly_name(param_convert->get_friendly_name() + "/branch_" + std::to_string(i));
+                param_for_multiply = new_convert->output(0);
+            }
+
+            // Slice other input for this branch
+            // Create Slice: other_input[i:i+1, ...]
+            auto start = ov::opset1::Constant::create(ov::element::i64, {1}, {static_cast<int64_t>(i)});
+            auto stop = ov::opset1::Constant::create(ov::element::i64, {1}, {static_cast<int64_t>(i + 1)});
+            auto step = ov::opset1::Constant::create(ov::element::i64, {1}, {1});
+            auto axes = ov::opset1::Constant::create(ov::element::i64, {1}, {0});
+
+            auto slice = std::make_shared<ov::op::v8::Slice>(other_input, start, stop, step, axes);
+            slice->set_friendly_name(other_input.get_node()->get_friendly_name() + "/slice_" + std::to_string(i));
+
+            // Create Multiply for this branch
+            ov::Output<ov::Node> multiply_input0, multiply_input1;
+            if (param_input == multiply->input_value(0)) {
+                multiply_input0 = param_for_multiply;
+                multiply_input1 = slice->output(0);
+            } else {
+                multiply_input0 = slice->output(0);
+                multiply_input1 = param_for_multiply;
+            }
+
+            auto new_multiply = std::make_shared<ov::opset1::Multiply>(multiply_input0, multiply_input1);
+            new_multiply->set_friendly_name(multiply->get_friendly_name() + "/branch_" + std::to_string(i));
+            new_multiply_outputs.push_back(new_multiply);
+        }
+
+        // Concat all branch outputs
+        auto new_concat = std::make_shared<ov::opset1::Concat>(new_multiply_outputs, 0);
+        new_concat->set_friendly_name(multiply->get_friendly_name() + "/concat");
+
+        // Register new parameters with model
+        model_->add_parameters(new_params);
+
+        ov::copy_runtime_info(multiply, new_concat);
+        ov::replace_node(multiply, new_concat);
+
+        LOG_INFO("  Successfully unrolled Multiply into " << num_branches << " branches with " << new_params.size()
+                                                          << " new parameters");
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(multiply_pattern, matcher_name);
+    register_matcher(m, callback);
+}
+
+// =============================================================================
 // PushMultiplyBeforeConcat
 // =============================================================================
 // Transforms: Concat([a,b,c]) * Concat([d,e,f])  =>  Concat([a*d, b*e, c*f])
