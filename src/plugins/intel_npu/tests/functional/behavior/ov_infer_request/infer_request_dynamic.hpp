@@ -162,7 +162,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkSetShapeCPUTensor) {
     ov::InferRequest req;
     const std::string outputName = "Relu_2";
 
-    ov::Shape originalShape = {1, 1, 5};
+    ov::Shape originalShape = {1, 2, 14};
 
     auto inputTensor = ov::test::utils::create_and_fill_tensor(ov::element::f32, originalShape, 100, 0);
     OV_ASSERT_NO_THROW(req = model.create_infer_request());
@@ -175,7 +175,7 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkSetShapeCPUTensor) {
 
         bool inferShallFail = false;
         for (auto i = 0; i < shapes[inputName].rank().get_length(); ++i) {
-            if (shape[i] > shapes[inputName].get_max_shape()[i]) {
+            if (shape[i] > shapes[inputName].get_max_shape()[i] || shape[i] < shapes[inputName].get_min_shape()[i]) {
                 inferShallFail = true;
             }
         }
