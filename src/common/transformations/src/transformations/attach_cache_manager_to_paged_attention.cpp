@@ -22,6 +22,7 @@ bool ov::pass::AttachCacheManagerToPagedAttention::run_on_model(const std::share
 
     ov::op::PagedAttentionExtension::PagedCacheManagerHandle shared_cache_manager;
     ov::element::Type cache_manager_dtype;
+    bool changed = false;
 
     for (const auto& node : model->get_ordered_ops()) {
         auto pa = std::dynamic_pointer_cast<ov::op::PagedAttentionExtension>(node);
@@ -48,7 +49,8 @@ bool ov::pass::AttachCacheManagerToPagedAttention::run_on_model(const std::share
 
         // Attach the shared CacheManager to this PagedAttention
         pa->set_cache_manager(shared_cache_manager);
+        changed = true;
     }
 
-    return false;
+    return changed;
 }
