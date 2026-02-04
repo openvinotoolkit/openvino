@@ -23,6 +23,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/divide.hpp"
@@ -196,58 +197,57 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
         emitter_factory.from_expr<jit_kernel_dynamic_emitter>();
 
     // binary operations
-    jitters[op::v1::Add::get_type_info_static()] = emitter_factory.from_expr<jit_add_emitter>();
-    jitters[op::v1::Divide::get_type_info_static()] = emitter_factory.from_expr<jit_divide_emitter>();
-    jitters[op::v1::Maximum::get_type_info_static()] = emitter_factory.from_expr<jit_maximum_emitter>();
-    jitters[op::v1::Minimum::get_type_info_static()] = emitter_factory.from_expr<jit_minimum_emitter>();
-    jitters[op::v1::Mod::get_type_info_static()] = emitter_factory.from_expr<jit_mod_emitter>();
-    jitters[op::v1::Multiply::get_type_info_static()] = emitter_factory.from_expr<jit_multiply_emitter>();
-    jitters[snippets::op::PowerStatic::get_type_info_static()] = emitter_factory.from_expr<jit_power_static_emitter>();
+    jitters[op::v1::Add::get_type_info_static()] = emitter_factory.from_node<jit_add_emitter>();
+    jitters[op::v1::Divide::get_type_info_static()] = emitter_factory.from_node<jit_divide_emitter>();
+    jitters[op::v1::Maximum::get_type_info_static()] = emitter_factory.from_node<jit_maximum_emitter>();
+    jitters[op::v1::Minimum::get_type_info_static()] = emitter_factory.from_node<jit_minimum_emitter>();
+    jitters[op::v1::Mod::get_type_info_static()] = emitter_factory.from_node<jit_mod_emitter>();
+    jitters[op::v1::Multiply::get_type_info_static()] = emitter_factory.from_node<jit_multiply_emitter>();
+    jitters[snippets::op::PowerStatic::get_type_info_static()] = emitter_factory.from_node<jit_power_static_emitter>();
     jitters[op::v0::SquaredDifference::get_type_info_static()] =
-        emitter_factory.from_expr<jit_squared_difference_emitter>();
-    jitters[op::v1::Subtract::get_type_info_static()] = emitter_factory.from_expr<jit_subtract_emitter>();
-    jitters[op::v0::Xor::get_type_info_static()] = emitter_factory.from_expr<jit_logical_xor_emitter>();
+        emitter_factory.from_node<jit_squared_difference_emitter>();
+    jitters[op::v1::Subtract::get_type_info_static()] = emitter_factory.from_node<jit_subtract_emitter>();
+    jitters[op::v0::Xor::get_type_info_static()] = emitter_factory.from_node<jit_logical_xor_emitter>();
 
     // comparison operations
-    jitters[op::v1::Equal::get_type_info_static()] = emitter_factory.from_expr<jit_equal_emitter>();
-    jitters[op::v1::Greater::get_type_info_static()] = emitter_factory.from_expr<jit_greater_emitter>();
-    jitters[op::v1::GreaterEqual::get_type_info_static()] = emitter_factory.from_expr<jit_greater_equal_emitter>();
-    jitters[op::v1::Less::get_type_info_static()] = emitter_factory.from_expr<jit_less_emitter>();
-    jitters[op::v1::LessEqual::get_type_info_static()] = emitter_factory.from_expr<jit_less_equal_emitter>();
-    jitters[op::v1::NotEqual::get_type_info_static()] = emitter_factory.from_expr<jit_not_equal_emitter>();
+    jitters[op::v1::Equal::get_type_info_static()] = emitter_factory.from_node<jit_equal_emitter>();
+    jitters[op::v1::Greater::get_type_info_static()] = emitter_factory.from_node<jit_greater_emitter>();
+    jitters[op::v1::GreaterEqual::get_type_info_static()] = emitter_factory.from_node<jit_greater_equal_emitter>();
+    jitters[op::v1::Less::get_type_info_static()] = emitter_factory.from_node<jit_less_emitter>();
+    jitters[op::v1::LessEqual::get_type_info_static()] = emitter_factory.from_node<jit_less_equal_emitter>();
+    jitters[op::v1::NotEqual::get_type_info_static()] = emitter_factory.from_node<jit_not_equal_emitter>();
 
     // logical operations
-    jitters[op::v1::LogicalAnd::get_type_info_static()] = emitter_factory.from_expr<jit_logical_and_emitter>();
-    jitters[op::v1::LogicalOr::get_type_info_static()] = emitter_factory.from_expr<jit_logical_or_emitter>();
-    jitters[op::v1::LogicalNot::get_type_info_static()] = emitter_factory.from_expr<jit_logical_not_emitter>();
-    jitters[op::v1::LogicalXor::get_type_info_static()] = emitter_factory.from_expr<jit_logical_xor_emitter>();
+    jitters[op::v1::LogicalAnd::get_type_info_static()] = emitter_factory.from_node<jit_logical_and_emitter>();
+    jitters[op::v1::LogicalOr::get_type_info_static()] = emitter_factory.from_node<jit_logical_or_emitter>();
+    jitters[op::v1::LogicalNot::get_type_info_static()] = emitter_factory.from_node<jit_logical_not_emitter>();
+    jitters[op::v1::LogicalXor::get_type_info_static()] = emitter_factory.from_node<jit_logical_xor_emitter>();
 
     // unary operations
-    jitters[ov::op::v0::Abs::get_type_info_static()] = emitter_factory.from_expr<jit_abs_emitter>();
-    jitters[ov::op::v0::Clamp::get_type_info_static()] = emitter_factory.from_expr<jit_clamp_emitter>();
-    jitters[ov::op::v0::Elu::get_type_info_static()] = emitter_factory.from_expr<jit_elu_emitter>();
-    jitters[ov::op::v0::Erf::get_type_info_static()] = emitter_factory.from_expr<jit_erf_emitter>();
-    jitters[ov::op::v0::Exp::get_type_info_static()] = emitter_factory.from_expr<jit_exp_emitter>();
-    jitters[ov::op::v0::Floor::get_type_info_static()] = emitter_factory.from_expr<jit_floor_emitter>();
-    jitters[ov::op::v1::FloorMod::get_type_info_static()] = emitter_factory.from_expr<jit_floor_mod_emitter>();
-    jitters[ov::op::v0::Gelu::get_type_info_static()] = emitter_factory.from_expr<jit_gelu_erf_emitter>();
-    jitters[ov::op::v7::Gelu::get_type_info_static()] =
-        emitter_factory.from_expr<jit_gelu_erf_emitter, jit_gelu_tanh_emitter>();
-    jitters[ov::op::v5::HSigmoid::get_type_info_static()] = emitter_factory.from_expr<jit_hsigmoid_emitter>();
-    jitters[ov::op::v4::HSwish::get_type_info_static()] = emitter_factory.from_expr<jit_hswish_emitter>();
-    jitters[ov::op::v10::IsFinite::get_type_info_static()] = emitter_factory.from_expr<jit_is_finite_emitter>();
-    jitters[ov::op::v10::IsInf::get_type_info_static()] = emitter_factory.from_expr<jit_is_inf_emitter>();
-    jitters[ov::op::v10::IsNaN::get_type_info_static()] = emitter_factory.from_expr<jit_is_nan_emitter>();
-    jitters[ov::op::v4::Mish::get_type_info_static()] = emitter_factory.from_expr<jit_mish_emitter>();
-    jitters[ov::op::v0::Negative::get_type_info_static()] = emitter_factory.from_expr<jit_negative_emitter>();
-    jitters[ov::op::v0::PRelu::get_type_info_static()] = emitter_factory.from_expr<jit_prelu_emitter>();
-    jitters[ov::op::v0::Relu::get_type_info_static()] = emitter_factory.from_expr<jit_relu_emitter>();
+    jitters[ov::op::v0::Abs::get_type_info_static()] = emitter_factory.from_node<jit_abs_emitter>();
+    jitters[ov::op::v0::Clamp::get_type_info_static()] = emitter_factory.from_node<jit_clamp_emitter>();
+    jitters[ov::op::v0::Elu::get_type_info_static()] = emitter_factory.from_node<jit_elu_emitter>();
+    jitters[ov::op::v0::Erf::get_type_info_static()] = emitter_factory.from_node<jit_erf_emitter>();
+    jitters[ov::op::v0::Exp::get_type_info_static()] = emitter_factory.from_node<jit_exp_emitter>();
+    jitters[ov::op::v0::Floor::get_type_info_static()] = emitter_factory.from_node<jit_floor_emitter>();
+    jitters[ov::op::v1::FloorMod::get_type_info_static()] = emitter_factory.from_node<jit_floor_mod_emitter>();
+    jitters[ov::op::v0::Gelu::get_type_info_static()] = emitter_factory.from_node<jit_gelu_erf_emitter>();
+    jitters[ov::op::v7::Gelu::get_type_info_static()] = emitter_factory.from_node<jit_gelu_erf_emitter>();
+    jitters[ov::op::v5::HSigmoid::get_type_info_static()] = emitter_factory.from_node<jit_hsigmoid_emitter>();
+    jitters[ov::op::v4::HSwish::get_type_info_static()] = emitter_factory.from_node<jit_hswish_emitter>();
+    jitters[ov::op::v10::IsFinite::get_type_info_static()] = emitter_factory.from_node<jit_is_finite_emitter>();
+    jitters[ov::op::v10::IsInf::get_type_info_static()] = emitter_factory.from_node<jit_is_inf_emitter>();
+    jitters[ov::op::v10::IsNaN::get_type_info_static()] = emitter_factory.from_node<jit_is_nan_emitter>();
+    jitters[ov::op::v4::Mish::get_type_info_static()] = emitter_factory.from_node<jit_mish_emitter>();
+    jitters[ov::op::v0::Negative::get_type_info_static()] = emitter_factory.from_node<jit_negative_emitter>();
+    jitters[ov::op::v0::PRelu::get_type_info_static()] = emitter_factory.from_node<jit_prelu_emitter>();
+    jitters[ov::op::v0::Relu::get_type_info_static()] = emitter_factory.from_node<jit_relu_emitter>();
     jitters[ov::op::v5::Round::get_type_info_static()] =
-        emitter_factory.from_expr<jit_round_half_away_from_zero_emitter, jit_round_half_to_even_emitter>();
-    jitters[ov::op::v0::Sigmoid::get_type_info_static()] = emitter_factory.from_expr<jit_sigmoid_emitter>();
-    jitters[ov::op::v9::SoftSign::get_type_info_static()] = emitter_factory.from_expr<jit_softsign_emitter>();
-    jitters[ov::op::v0::Sqrt::get_type_info_static()] = emitter_factory.from_expr<jit_sqrt_emitter>();
-    jitters[ov::op::v0::Tanh::get_type_info_static()] = emitter_factory.from_expr<jit_tanh_emitter>();
+        emitter_factory.from_node<jit_round_half_away_from_zero_emitter>();
+    jitters[ov::op::v0::Sigmoid::get_type_info_static()] = emitter_factory.from_node<jit_sigmoid_emitter>();
+    jitters[ov::op::v9::SoftSign::get_type_info_static()] = emitter_factory.from_node<jit_softsign_emitter>();
+    jitters[ov::op::v0::Sqrt::get_type_info_static()] = emitter_factory.from_node<jit_sqrt_emitter>();
+    jitters[ov::op::v0::Tanh::get_type_info_static()] = emitter_factory.from_node<jit_tanh_emitter>();
 }
 
 std::shared_ptr<ov::snippets::TargetMachine> CPUTargetMachine::clone() const {
