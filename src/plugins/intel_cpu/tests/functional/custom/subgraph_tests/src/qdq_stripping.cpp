@@ -59,7 +59,8 @@ public:
         auto act_zp_convert = std::make_shared<ov::op::v0::Convert>(act_zero_point, ov::element::f32);
 
         auto act_subtract = std::make_shared<ov::op::v1::Subtract>(input, act_zp_convert);
-        auto act_scale = ov::op::v0::Constant::create(ov::element::f32, {}, {(i_h - i_l) / (o_h - o_l)});
+        float scale_value = (i_h - i_l) / (o_h - o_l);
+        auto act_scale = ov::op::v0::Constant::create(ov::element::f32, {}, {scale_value});
 
         return std::make_shared<ov::op::v1::Multiply>(act_subtract, act_scale);
     }
@@ -88,10 +89,13 @@ protected:
         const ov::element::Type& quantization_precision) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
 
-        // First convolution
+        // First convolution with weight DQ
         ov::test::utils::InputGenerateData weights1_gen_data;
         weights1_gen_data.seed = 1;
-        auto weight1 = ov::test::utils::make_constant(ov::element::f32, ov::Shape{32, 3, 3, 3}, weights1_gen_data);
+        auto weight1_quantized = ov::test::utils::make_constant(ov::element::i8, ov::Shape{32, 3, 3, 3}, weights1_gen_data);
+        auto weight1_convert = std::make_shared<ov::op::v0::Convert>(weight1_quantized, ov::element::f32);
+        auto weight1_scale = ov::op::v0::Constant::create(ov::element::f32, {}, {0.01f});
+        auto weight1 = std::make_shared<ov::op::v1::Multiply>(weight1_convert, weight1_scale);
         auto conv1 = std::make_shared<ov::op::v1::Convolution>(params[0],
                                                                weight1,
                                                                ov::Strides{1, 1},
@@ -100,13 +104,14 @@ protected:
                                                                ov::Strides{1, 1});
 
         // QDQ pattern after first convolution
+        // Note: Using larger input ranges to trigger scale adjustment in FQStrippingTransformation
         static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>>
             quantization_params{
                 {ov::element::Type_t::u16,
-                 {{0.f, 10.f, 0.f, 65535.f, 0}, {-6.244578838348389f, 6.347373962402344f, 0.f, 65535.f, 32500}}},
+                 {{0.f, 100000.f, 0.f, 65535.f, 0}, {-6244.578838348389f, 6347.373962402344f, 0.f, 65535.f, 32500}}},
                 {ov::element::Type_t::i16,
-                 {{-5.000076293945312f, 4.999923706054688f, -32768.f, 32767.f, 0},
-                  {-6.296072483062744f, 6.295880317687988f, -32768.f, 32767.f, 0}}},
+                 {{-50000.f, 50000.f, -32768.f, 32767.f, 0},
+                  {-6296.072483062744f, 6295.880317687988f, -32768.f, 32767.f, 0}}},
             };
 
         const auto& qp = quantization_params.at(quantization_precision).first;
@@ -124,7 +129,10 @@ protected:
 
             ov::test::utils::InputGenerateData weights_gen_data;
             weights_gen_data.seed = seed;
-            auto weight = ov::test::utils::make_constant(ov::element::f32, ov::Shape{32, 32, 3, 3}, weights_gen_data);
+            auto weight_quantized = ov::test::utils::make_constant(ov::element::i8, ov::Shape{32, 32, 3, 3}, weights_gen_data);
+            auto weight_convert = std::make_shared<ov::op::v0::Convert>(weight_quantized, ov::element::f32);
+            auto weight_scale = ov::op::v0::Constant::create(ov::element::f32, {}, {0.01f});
+            auto weight = std::make_shared<ov::op::v1::Multiply>(weight_convert, weight_scale);
             auto conv = std::make_shared<ov::op::v1::Convolution>(mvn,
                                                                   weight,
                                                                   ov::Strides{1, 1},
@@ -152,8 +160,11 @@ protected:
         auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
         ov::ParameterVector params{param1, param2};
 
-        // Common constant
-        auto common_constant = ov::op::v0::Constant::create(ov::element::f32, {}, {0.1f});
+        // Weight DQ pattern: quantized constant -> convert -> multiply (scale)
+        auto weight_quantized = ov::op::v0::Constant::create(ov::element::i8, {}, {100});
+        auto weight_convert = std::make_shared<ov::op::v0::Convert>(weight_quantized, ov::element::f32);
+        auto weight_scale = ov::op::v0::Constant::create(ov::element::f32, {}, {0.001f});
+        auto common_constant = std::make_shared<ov::op::v1::Multiply>(weight_convert, weight_scale);
 
         // param1 * common_constant
         auto mul1 = std::make_shared<ov::op::v1::Multiply>(param1, common_constant);
@@ -168,10 +179,10 @@ protected:
         static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>>
             quantization_params{
                 {ov::element::Type_t::u16,
-                 {{0.f, 10.f, 0.f, 65535.f, 0}, {-6.244578838348389f, 6.347373962402344f, 0.f, 65535.f, 32500}}},
+                 {{0.f, 100000.f, 0.f, 65535.f, 0}, {-6244.578838348389f, 6347.373962402344f, 0.f, 65535.f, 32500}}},
                 {ov::element::Type_t::i16,
-                 {{-5.000076293945312f, 4.999923706054688f, -32768.f, 32767.f, 0},
-                  {-6.296072483062744f, 6.295880317687988f, -32768.f, 32767.f, 0}}},
+                 {{-50000.076293945312f, 49999.923706054688f, -32768.f, 32767.f, 0},
+                  {-6296.072483062744f, 6295.880317687988f, -32768.f, 32767.f, 0}}},
             };
 
         const auto& qp = quantization_params.at(quantization_precision).first;
@@ -194,10 +205,10 @@ protected:
         static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>>
             quantization_params{
                 {ov::element::Type_t::u16,
-                 {{0.f, 10.f, 0.f, 65535.f, 0}, {-6.244578838348389f, 6.347373962402344f, 0.f, 65535.f, 32500}}},
+                 {{0.f, 100000.f, 0.f, 65535.f, 0}, {-6244.578838348389f, 6347.373962402344f, 0.f, 65535.f, 32500}}},
                 {ov::element::Type_t::i16,
-                 {{-5.000076293945312f, 4.999923706054688f, -32768.f, 32767.f, 0},
-                  {-6.296072483062744f, 6.295880317687988f, -32768.f, 32767.f, 0}}},
+                 {{-50000.076293945312f, 49999.923706054688f, -32768.f, 32767.f, 0},
+                  {-6296.072483062744f, 6295.880317687988f, -32768.f, 32767.f, 0}}},
             };
 
         const auto& q_params = quantization_params.at(quantization_precision);
@@ -260,7 +271,7 @@ protected:
 
         OPENVINO_ASSERT(quantization_precision == ov::element::i16 || quantization_precision == ov::element::u16,
                         "Only i16 and u16 quantization precisions are supported in the test");
-        abs_threshold = (pattern_type == PatternType::NeedScalingResidualBlock) ? 3.f : 1e-2f;
+        abs_threshold = 0.07f;  // Relaxed threshold to account for FP numerical precision in scale adjustments
 
         switch (pattern_type) {
         case PatternType::SharedDQ:
