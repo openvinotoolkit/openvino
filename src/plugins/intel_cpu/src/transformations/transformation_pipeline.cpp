@@ -292,6 +292,14 @@
 #    include "transformations/cpu_opset/arm/pass/mish_decomposition.hpp"
 #endif
 
+#if defined(OPENVINO_ARCH_RISCV64)
+#    include "openvino/op/hsigmoid.hpp"
+#    include "openvino/op/is_finite.hpp"
+#    include "openvino/op/is_inf.hpp"
+#    include "openvino/op/is_nan.hpp"
+#    include "openvino/op/softsign.hpp"
+#endif
+
 #if defined(SNIPPETS_LIBXSMM_TPP)
 #    include "transformations/tpp/common/pass/brgemm_to_brgemm_tpp.hpp"
 #endif
@@ -1412,8 +1420,28 @@ void Transformations::MainSnippets() {
         };
         return is_supported(n) || is_supported_with_scalar_inputs(n);
 #elif defined(OPENVINO_ARCH_RISCV64)
-        // Snippets on RISC-V arch are enabled only in tests for now
-        return false;
+        auto is_supported = [](const std::shared_ptr<const ov::Node>& n) {
+            return (ov::is_type_any_of<ov::op::v0::Abs,
+                                       ov::op::v0::Clamp,
+                                       ov::op::v0::Elu,
+                                       ov::op::v0::Erf,
+                                       ov::op::v0::Exp,
+                                       ov::op::v0::Floor,
+                                       ov::op::v0::Gelu,
+                                       ov::op::v5::HSigmoid,
+                                       ov::op::v4::HSwish,
+                                       ov::op::v10::IsFinite,
+                                       ov::op::v10::IsInf,
+                                       ov::op::v10::IsNaN,
+                                       ov::op::v4::Mish,
+                                       ov::op::v0::Negative,
+                                       ov::op::v0::Relu,
+                                       ov::op::v0::Sigmoid,
+                                       ov::op::v9::SoftSign,
+                                       ov::op::v0::Sqrt,
+                                       ov::op::v0::Tanh>(n));
+        };
+        return is_supported(n);
 #else
         // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
         // and CPU Plugin does not support Mish for x64
