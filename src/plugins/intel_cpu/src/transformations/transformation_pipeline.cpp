@@ -622,9 +622,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS3ToNMS9);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS4ToNMS9);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS5ToNMS9);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS9ToNMSIEInternal);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertMulticlassNmsToMulticlassNmsIE);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertMatrixNmsToMatrixNmsIE);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeMatMul);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
     CPU_REGISTER_PASS_ARM64(manager, ov::pass::HardSigmoidDecomposition);
