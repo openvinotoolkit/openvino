@@ -332,8 +332,6 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             return true;
         }
 
-        std::stringstream msg;
-        msg << "prim::ListUnpack: unsupported input node: " << input_node;
         // Check for SequenceMark - if it is, we can directly use its elements
         if (auto seq_mark = ov::as_type_ptr<SequenceMark>(input_node)) {
             auto outputs = seq_mark->get_sequence();
@@ -341,6 +339,8 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             replace_node(list_unpack, outputs);
             return true;
         }
+        std::stringstream msg;
+        msg << "prim::ListUnpack: unsupported input node: " << input_node;
         add_exception_to_fw_node(list_unpack, msg.str());
         return false;
     };

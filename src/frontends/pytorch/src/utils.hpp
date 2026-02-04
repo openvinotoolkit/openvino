@@ -92,11 +92,6 @@ std::function<bool(const ov::Output<ov::Node>&)> fw_node_predicate(const std::in
 /// \return SequenceMark node representing the sequence.
 std::shared_ptr<SequenceMark> make_list_construct(const ov::OutputVector& inputs);
 
-/// \brief Casts node to SequenceMark if it represents a sequence (list or tuple).
-/// \param node Node to check.
-/// \return SequenceMark if node is a sequence construct, nullptr otherwise.
-std::shared_ptr<SequenceMark> cast_to_sequence_construct(const std::shared_ptr<Node>& node);
-
 bool is_none_node(const Output<Node>& node);
 
 // TODO: Eliminate the need of this function by implementing more accurate custom data type handling

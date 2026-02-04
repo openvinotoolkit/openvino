@@ -461,10 +461,6 @@ std::shared_ptr<SequenceMark> make_list_construct(const ov::OutputVector& inputs
     return std::make_shared<SequenceMark>(inputs);
 }
 
-std::shared_ptr<SequenceMark> cast_to_sequence_construct(const std::shared_ptr<Node>& node) {
-    return ov::as_type_ptr<SequenceMark>(node);
-}
-
 bool is_none_node(const Output<Node>& node) {
     if (const auto& fw_node_inp = ov::as_type_ptr<ov::op::util::FrameworkNode>(node.get_node_shared_ptr())) {
         const auto& attrs = fw_node_inp->get_attrs();

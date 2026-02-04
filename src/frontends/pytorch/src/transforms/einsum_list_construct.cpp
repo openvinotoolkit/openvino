@@ -42,10 +42,7 @@ AtenEinsumListConstructReplacer::AtenEinsumListConstructReplacer() {
         // Check if SequenceMark is an input
         if (auto seq_mark = ov::as_type_ptr<SequenceMark>(tensor_list)) {
             const auto& list_inputs = seq_mark->input_values();
-            OutputVector node_vector;
-            for (const auto& list_input : list_inputs) {
-                node_vector.push_back(list_input);
-            }
+            OutputVector node_vector(list_inputs.begin(), list_inputs.end());
             auto einsum = std::make_shared<v7::Einsum>(node_vector, equation);
             copy_runtime_info_and_name(einsum_op, {einsum}, {equation_input, tensor_list});
             replace_node(einsum_op, einsum);
