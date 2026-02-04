@@ -43,7 +43,15 @@ if "%INTEL_OPENVINO_DIR%"=="" (
 
 if exist "%SAMPLES_BUILD_DIR%\CMakeCache.txt" del "%SAMPLES_BUILD_DIR%\CMakeCache.txt"
 
-cd /d "%SAMPLES_SOURCE_DIR%" && cmake -E make_directory "%SAMPLES_BUILD_DIR%" && cd /d "%SAMPLES_BUILD_DIR%" && cmake -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON "%SAMPLES_SOURCE_DIR%"
+@REM %SAMPLES_SOURCE_DIR% ends with a backslash. \ escapes
+@REM the closing quote in "%SAMPLES_SOURCE_DIR%", causing CMake 4.0+ to treat the
+@REM escaped quote as a literal character and produce an invalid path.
+@REM Appending \. prevents the trailing \ from escaping the quote, while still
+@REM referring to the same directory. Without this, CMake reports the error:
+@REM CMake Error: The source directory "<prefix>/samples/cpp"" does not exist.
+@REM
+@REM Note: `cmake --build "%SAMPLES_BUILD_DIR%"` does not suffer from this issue.
+cd /d "%SAMPLES_SOURCE_DIR%" && cmake -E make_directory "%SAMPLES_BUILD_DIR%" && cd /d "%SAMPLES_BUILD_DIR%" && cmake -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON "%SAMPLES_SOURCE_DIR%\."
 if ERRORLEVEL 1 GOTO errorHandling
 
 echo.
