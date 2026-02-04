@@ -282,7 +282,7 @@ static auto get_specified_device_name(const Config config) {
 // Note: this is the value provided by the plugin, application should query and consider it, but may supply its own
 // preference for number of parallel requests via dedicated configuration
 static int64_t getOptimalNumberOfInferRequestsInParallel(const Config& config) {
-    const std::string platform = ov::intel_npu::Platform::standardize(config.get<PLATFORM>());
+    const std::string platform = config.get<PLATFORM>();
 
     if (platform == ov::intel_npu::Platform::NPU3720) {
         if (config.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::THROUGHPUT) {
@@ -519,10 +519,10 @@ void Properties::registerPluginProperties() {
             true,
             static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(add_platform_to_the_config(
                 config,
-                utils::getCompilationPlatform(
+                ov::intel_npu::Platform::standardize(utils::getCompilationPlatform(
                     config.get<PLATFORM>(),
                     config.get<DEVICE_ID>(),
-                    _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames())))));
+                    _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames()))))));
         REGISTER_SIMPLE_METRIC(ov::range_for_async_infer_requests, true, _metrics->GetRangeForAsyncInferRequest());
         REGISTER_SIMPLE_METRIC(ov::range_for_streams, true, _metrics->GetRangeForStreams());
         REGISTER_SIMPLE_METRIC(ov::device::pci_info, true, _metrics->GetPciInfo(get_specified_device_name(config)));

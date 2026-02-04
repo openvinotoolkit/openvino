@@ -156,7 +156,7 @@ static std::string resolvePlatformType(const FilteredConfig& base_conf, const ov
     auto it = local_conf.find(std::string(PLATFORM::key()));
     if (it != local_conf.end()) {
         // if platform is provided by local config = use that
-        return it->second.as<std::string>();
+        return ov::intel_npu::Platform::standardize(it->second.as<std::string>());
     }
     // if there is no platform provided = use base_config value if different than AUTO_DETECT
     return base_conf.has<PLATFORM>() ? base_conf.get<PLATFORM>() : std::string{};
@@ -744,10 +744,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
     }
 
-    const auto platform =
+    const auto platform = ov::intel_npu::Platform::standardize(
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
                                       localConfig.get<DEVICE_ID>(),
-                                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+                                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames()));
     auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
@@ -805,8 +805,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
     // Ignore, if compilation was requested for platform, different from current
-    if (!localConfig.has<STEPPING>() && device != nullptr &&
-        device->getName() == ov::intel_npu::Platform::standardize(platform)) {
+    if (!localConfig.has<STEPPING>() && device != nullptr && device->getName() == platform) {
         try {
             localConfig.update({{ov::intel_npu::stepping.name(), std::to_string(device->getSubDevId())}});
         } catch (...) {
@@ -816,8 +815,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
     // Update max_tiles w/ information from driver, unless provided by user or we are off-device
     // Ignore, if compilation was requested for platform, different from current
-    if (!localConfig.has<MAX_TILES>() && device != nullptr &&
-        device->getName() == ov::intel_npu::Platform::standardize(platform)) {
+    if (!localConfig.has<MAX_TILES>() && device != nullptr && device->getName() == platform) {
         try {
             localConfig.update({{ov::intel_npu::max_tiles.name(), std::to_string(device->getMaxNumSlices())}});
         } catch (...) {
@@ -1109,10 +1107,10 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     }
 
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
-    const auto platform =
+    const auto platform = ov::intel_npu::Platform::standardize(
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
                                       localConfig.get<DEVICE_ID>(),
-                                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+                                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames()));
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
     if (modelSerializerChosenExplicitly) {
@@ -1177,10 +1175,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     }
 
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
-    const auto platform =
+    const auto platform = ov::intel_npu::Platform::standardize(
         utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
                                       localConfig.get<DEVICE_ID>(),
-                                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+                                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames()));
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
     auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
 
