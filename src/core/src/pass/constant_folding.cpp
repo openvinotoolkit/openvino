@@ -107,10 +107,9 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
     bool rewritten = pre_calculated_values_folding(model);
 
     std::vector<std::shared_ptr<ov::Node>> nodes = model->get_ordered_ops();
-    std::deque<std::shared_ptr<ov::Node>> nodes_q = std::deque<std::shared_ptr<ov::Node>>(
-        std::make_move_iterator(nodes.begin()),
-        std::make_move_iterator(nodes.end())
-    );
+    std::deque<std::shared_ptr<ov::Node>> nodes_q =
+        std::deque<std::shared_ptr<ov::Node>>(std::make_move_iterator(nodes.begin()),
+                                              std::make_move_iterator(nodes.end()));
     while (!nodes_q.empty()) {
         auto original_node = nodes_q.front();
         auto node = original_node;
