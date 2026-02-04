@@ -656,7 +656,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                     PlainTensor& output_emb,
                     bool has_out_transpose,
                     bool auto_causal,
-                    [[maybe_unused]] PlainTensor& sink_input,
+                    PlainTensor& sink_input,
                     float d_scale = 0.0F) {
         auto B = query.size(0);
         auto H = query.size(1);
