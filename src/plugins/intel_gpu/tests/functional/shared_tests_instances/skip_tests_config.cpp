@@ -62,6 +62,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke.*BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
             R"(.*smoke.*BehaviorTests.*DynamicOutputToDynamicInput.*)",
             R"(.*smoke.*BehaviorTests.*DynamicInputToDynamicOutput.*)",
+            // TODO: Issue: 180519
+            R"(.*CoreThreadingTestsWithIter.*)",
             // TODO: Issue: 145926
             R"(.*CoreThreadingTest.smoke_QueryModel.*)",
             // Assign-3/ReadValue-3 does not have evaluate() methods; ref implementation does not save the value across the inferences.
