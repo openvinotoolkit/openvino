@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation.
+// Copyright (C) 2018-2026 Intel Corporation.
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,6 +36,10 @@ public:
         visitor.on_attribute(POINTER_KEY.data(), memory_pointer);
         visitor.on_attribute(BYTE_SIZE_KEY.data(), byte_size);
         return true;
+    }
+
+    bool is_deterministic() const override {
+        return false;
     }
 
     size_t memory_pointer;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,7 @@ AppendListUnpackReplacer::AppendListUnpackReplacer() {
                       std::make_move_iterator(tmp_inputs.rend()));
         if (getitem_node) {
             // If aten::__getitem__, expect inputs to be equivalent of pytorch Tensor[][].
-            // Tensor selected by aten::__getitem__ index needs to be splitted in axis 0.
+            // Tensor selected by aten::__getitem__ index needs to be split along axis 0.
             auto getitem_index_const = ov::util::get_constant_from_source(getitem_node->input_value(1));
             if (!getitem_index_const)
                 return false;
@@ -90,7 +90,7 @@ AppendListUnpackReplacer::AppendListUnpackReplacer() {
             replace_node(list_unpack, res);
             return true;
         } else {
-            // Without aten::__getitem__, expect inputs to be equivalent od pytorch Tensor[].
+            // Without aten::__getitem__, expect inputs to be equivalent of pytorch Tensor[].
             // Return all inputs.
             replace_node(list_unpack, inputs);
             return true;

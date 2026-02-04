@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,8 +22,9 @@ void QuantizedModelsTests::SetUp() {
 }
 
 static std::string getModelFullPath(const char* path) {
-    return ov::util::make_path<char>(ov::util::make_path<char>(ov::test::utils::getExecutableDirectory(), TEST_MODELS),
-                                     path);
+    return ov::test::utils::makePath<char>(
+        ov::test::utils::makePath<char>(ov::test::utils::getExecutableDirectory(), TEST_MODELS),
+        path);
 }
 
 void QuantizedModelsTests::run_model(const char* model, const LayerInputTypes& expected_layer_input_types, float thr) {

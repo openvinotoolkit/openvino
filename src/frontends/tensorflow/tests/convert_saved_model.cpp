@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -172,7 +172,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithNumericalNames) {
     comparator.enable(FunctionsComparator::CmpValues::TENSOR_NAMES);
     // The test aims to check that model with only numerical names for operation
     // is successfully converted
-    // it is a tricky case because colision between naming input and output ports may occur
+    // it is a tricky case because collision between naming input and output ports may occur
     { model = convert_model("saved_model_with_numerical_names"); }
     {
         // create a reference graph

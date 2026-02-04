@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,6 @@ enum class ExecutorType : uint8_t {
     Dnnl,
     Acl,
     Mlas,
-    Shl,
     Kleidiai,
 };
 

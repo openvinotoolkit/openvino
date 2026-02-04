@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,25 +91,27 @@ void CompiledModel::export_model(std::ostream& stream) const {
 
     auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream);
 
-    std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
-    std::optional<std::vector<ov::Layout>> outputLayouts = std::vector<ov::Layout>();
+    if (!_config.get<EXPORT_RAW_BLOB>()) {
+        std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
+        std::optional<std::vector<ov::Layout>> outputLayouts = std::vector<ov::Layout>();
 
-    for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
-        inputLayouts->push_back(
-            std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
-    }
-    for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
-        outputLayouts->push_back(
-            std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
-    }
+        for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
+            inputLayouts->push_back(
+                std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
+        }
+        for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
+            outputLayouts->push_back(
+                std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
+        }
 
-    Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
-                                       CURRENT_OPENVINO_VERSION,
-                                       initBlobSizes,
-                                       _batchSize,
-                                       inputLayouts,
-                                       outputLayouts)
-        .write(stream);
+        Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
+                                           CURRENT_OPENVINO_VERSION,
+                                           std::move(initBlobSizes),
+                                           _batchSize,
+                                           std::move(inputLayouts),
+                                           std::move(outputLayouts))
+            .write(stream);
+    }
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {

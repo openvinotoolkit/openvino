@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -37,29 +37,29 @@ class TestSparseFillEmptyRows(CommonTFLayerTest):
         num_rows = self.dense_shape[0]
         num_cols = self.dense_shape[1]
         values_count = values_shape[0]
-        
+
         available_rows = list(range(num_rows))
         if self.empty_rows:
             # Remove specific rows to ensure they're empty
             empty_row_indices = sorted(rng.choice(available_rows, size=self.empty_rows, replace=False))
             for row in empty_row_indices:
                 available_rows.remove(row)
-        
+
         row_indices = rng.choice(available_rows, size=values_count, replace=True)
         col_indices = rng.integers(0, num_cols, size=values_count)
-        
+
         indices = np.column_stack((row_indices, col_indices))
         # Sort indices by row, then by column for consistent ordering
         indices = indices[np.lexsort((indices[:, 1], indices[:, 0]))]
         inputs_data['indices:0'] = indices.astype(np.int64)
-        
+
         return inputs_data
 
     def create_sparse_fill_empty_rows_net(self, data_type, dense_shape, values_count, empty_rows=2):
         self.data_type = data_type
         self.dense_shape = dense_shape
         self.empty_rows = empty_rows
-        
+
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
             indices = tf.compat.v1.placeholder(tf.int64, [values_count, 2], 'indices')
@@ -71,7 +71,7 @@ class TestSparseFillEmptyRows(CommonTFLayerTest):
                 values=values,
                 dense_shape=dense_shape,
                 default_value=default_value)
-                
+
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
         return tf_net, None

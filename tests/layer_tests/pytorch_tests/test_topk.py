@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import os
 
@@ -64,5 +64,6 @@ class TestTopK(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_topK(self, input_shape, k, dim, largest, sort, ie_device, precision, ir_version):
-        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
+        rng = np.random.default_rng(43)
+        self.input_tensor = rng.normal(size=(input_shape)).astype(np.float32)
         self._test(*self.create_model(k, dim, largest, sort), ie_device, precision, ir_version)

@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,8 +74,8 @@ namespace ov::intel_gpu {
          mul_m_##SUFFIX, mul2_m_##SUFFIX, convert_mul_m_##SUFFIX});
 
 #define MOE_COMPRESSED_WEIGHT_GEMM3_PATTERN(SUFFIX)\
-    auto gemm3_compressed_weights_m_##SUFFIX = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));\
-    auto gemm3_zp_m_##SUFFIX = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));\
+    auto gemm3_compressed_weights_m_##SUFFIX = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4,ov::element::u8}));\
+    auto gemm3_zp_m_##SUFFIX = wrap_type<ov::op::v0::Constant>(type_matches_any({ov::element::u4, ov::element::u8}));\
     \
     auto gemm3_weight_convert_m_##SUFFIX = wrap_type<ov::op::v0::Convert>({gemm3_compressed_weights_m_##SUFFIX}, type_matches(ov::element::f16));\
     auto gemm3_zp_convert_m_##SUFFIX = wrap_type<ov::op::v0::Convert>({gemm3_zp_m_##SUFFIX}, type_matches(ov::element::f16));\
@@ -234,6 +234,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             }
             config.top_k = topk_shape[1].get_length();
             config.out_type = ov::element::f16;
+            config.has_batch_dim = is_pa ? 0 : 1;
             auto moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(args, config);
 
             moe_compressed->set_friendly_name(moe->get_friendly_name());

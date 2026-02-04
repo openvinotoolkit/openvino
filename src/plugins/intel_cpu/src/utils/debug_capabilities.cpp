@@ -1,5 +1,5 @@
 
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <oneapi/dnnl/dnnl_common_types.h>
@@ -501,7 +501,7 @@ public:
     template <class Container>
     std::string join(const Container& strs) {
         std::stringstream ss;
-        ss << "[" << ov::intel_cpu::join(strs, ',') << "]";
+        ss << "[" << ov::util::join(strs, ",") << "]";
         return ss.str();
     }
 };

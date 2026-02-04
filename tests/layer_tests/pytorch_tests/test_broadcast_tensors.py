@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -10,8 +10,8 @@ class TestBroadcastTensors(PytorchLayerTest):
     def _prepare_input(self, x_shape, y_shape, z_shape, x_dtype, y_dtype, z_dtype):
         import numpy as np
         return (
-            np.random.randn(*x_shape).astype(x_dtype), 
-            np.random.randn(*y_shape).astype(y_dtype), 
+            np.random.randn(*x_shape).astype(x_dtype),
+            np.random.randn(*y_shape).astype(y_dtype),
             np.random.randn(*z_shape).astype(z_dtype))
 
     def create_model(self):

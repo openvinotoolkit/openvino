@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2025 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,7 +53,7 @@ ov::OutputVector skip_simplified_layer_normalization(const ov::frontend::onnx::N
         input = std::make_shared<v1::Add>(input, bias);
     }
 
-    float epsilon = node.get_attribute_value<float>("epsilon");
+    float epsilon = node.get_attribute_value<float>("epsilon", 1e-12f);
     ov::element::Type element_type = input->get_output_element_type(0);
 
     auto squared_input = std::make_shared<v1::Multiply>(input, input);

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -89,6 +89,5 @@ macro(ov_define_component_include_rules)
 endmacro()
 
 ov_define_component_include_rules()
-
 # New in version 3.18
 set(CPACK_ARCHIVE_THREADS 8)

@@ -142,10 +142,14 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         const global KEY_DATA_T *K,
         const global QRY_DATA_T *Q,
         const global VAL_DATA_T *V,
+#if IS_PAGED_ATTENTION && !IS_PREFILL
+        const global QRY_DATA_T *Kc,
+        const global QRY_DATA_T *Vc,
+#endif
         global half *A,
 #if IS_PAGED_ATTENTION
         const __global INPUT3_TYPE* subsequence_begins,
-    #if IS_PREFILL == 0
+    #if !IS_PREFILL
         const __global INPUT3_TYPE* past_lens,
         const __global INPUT3_TYPE* block_indices,
         const __global INPUT3_TYPE* block_indices_begins,
@@ -179,18 +183,25 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     const uint subsequence_begin = subsequence_begins[gws_mapping];
     const uint subsequence_end = subsequence_begins[gws_mapping + 1];
     const uint subsequence_query_block_idx = block_start_pos - subsequence_begin;
-    const int q = subsequence_end - subsequence_begin;
+    int q = subsequence_end - subsequence_begin;
 #if IS_PREFILL
     const int k = q;
 #else
     const int k = q + past_lens[gws_mapping];
 #endif
     const int d = HEAD_SIZE;
+#if IS_GQA_SINGLE_TOKEN
+    q *= KV_GROUP_SIZE;
+#endif
 #endif
     uint sg_ij = sub_group_broadcast(get_local_id(1), 0);
     uint b0 = get_group_id(1);
     uint b1 = get_group_id(2);
+#if IS_GQA_SINGLE_TOKEN
+    uint b0_kv = b0;
+#else
     uint b0_kv = b0 / KV_GROUP_SIZE;
+#endif
 
 #if IS_PAGED_ATTENTION
     uint wg_j0 = subsequence_query_block_idx;
@@ -199,14 +210,21 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
     /* Leading dimension for matrices */
 #if IS_PAGED_ATTENTION
-    uint ldq = HEAD_SIZE * HEADS_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM;
-    uint lda = HEAD_SIZE * HEADS_NUM;
+    #if IS_GQA_SINGLE_TOKEN
+        uint ldq = HEAD_SIZE + INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM;
+        uint lda = HEAD_SIZE;
+    #else
+        uint ldq = HEAD_SIZE * HEADS_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM;
+        uint lda = HEAD_SIZE * HEADS_NUM;
+    #endif
     #if IS_PREFILL
         uint ldk = HEAD_SIZE * KV_HEADS_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM + INPUT1_PAD_AFTER_FEATURE_NUM;
         uint ldv = HEAD_SIZE * KV_HEADS_NUM + INPUT2_PAD_BEFORE_FEATURE_NUM + INPUT2_PAD_AFTER_FEATURE_NUM;
     #else
         uint ldk = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
         uint ldv = HEAD_SIZE;
+        uint ldkc = HEAD_SIZE * KV_HEADS_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM + INPUT1_PAD_AFTER_FEATURE_NUM;
+        uint ldvc = HEAD_SIZE * KV_HEADS_NUM + INPUT2_PAD_BEFORE_FEATURE_NUM + INPUT2_PAD_AFTER_FEATURE_NUM;
         #if IS_KV_COMPRESSED_PA
             #if IS_KEY_BY_CHANNEL
                 uint ldkq = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE / 2;
@@ -262,10 +280,17 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
     /* Locate K/Q/V/A matrices within batch */
 #if IS_PAGED_ATTENTION
-    Q += subsequence_begin * ldq
-       + b0 * HEAD_SIZE + INPUT0_PAD_BEFORE_FEATURE_NUM;
-    A += subsequence_begin * lda
-       + b0 * HEAD_SIZE;
+    #if IS_GQA_SINGLE_TOKEN
+        Q += subsequence_begin * ldq
+           + b0 * HEAD_SIZE * KV_GROUP_SIZE + INPUT0_PAD_BEFORE_FEATURE_NUM;
+        A += subsequence_begin * lda
+           + b0 * HEAD_SIZE * KV_GROUP_SIZE;
+    #else
+        Q += subsequence_begin * ldq
+           + b0 * HEAD_SIZE + INPUT0_PAD_BEFORE_FEATURE_NUM;
+        A += subsequence_begin * lda
+           + b0 * HEAD_SIZE;
+    #endif
     #if IS_PREFILL
         K += subsequence_begin * ldk
            + b0_kv * HEAD_SIZE + INPUT1_PAD_BEFORE_FEATURE_NUM;
@@ -276,6 +301,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
         K += b0_kv * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
         V += b0_kv * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+        Kc += subsequence_begin * ldkc
+            + b0_kv * HEAD_SIZE + INPUT1_PAD_BEFORE_FEATURE_NUM;
+        Vc += subsequence_begin * ldvc
+            + b0_kv * HEAD_SIZE + INPUT2_PAD_BEFORE_FEATURE_NUM;
     #endif
 #else
     K += (KEY_OFF(b1, b0_kv, 0, 0) + INPUT1_OFFSET) / KEY_ELEMENTS_PER_BYTE;
@@ -357,7 +386,12 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     float masked_scale = iscale * STATIC_SCALAR_ATTN_MASK_VALUE;
 #endif
 #ifdef HAS_SINK_INPUT
-    const float sink_val = convert_float(sink_ptr[b0]);
+    #if IS_GQA_SINGLE_TOKEN
+        int sink_idx = b0 * KV_GROUP_SIZE + get_sub_group_local_id();
+        const float sink_val = convert_float(sink_ptr[sink_idx]);
+    #else
+        const float sink_val = convert_float(sink_ptr[b0]);
+    #endif
     #define MULTI_TOKENS_PER_WI ((ugemm_kq_sg_tile_n/SUBGROUP_SIZE) > 1)
     #if MULTI_TOKENS_PER_WI
         #define VEC_SIZE (ugemm_kq_sg_tile_n / SUBGROUP_SIZE)
@@ -471,26 +505,49 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
         /* Calculate S = (K^T) * Q */
-#if IS_PAGED_ATTENTION && IS_PREFILL == 0
-        int k_block_num = k0 / PAGED_ATTENTION_BLOCK_SIZE + sg_i_kq;
-        global KEY_DATA_T *K0 = K + KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + k_block_num]
-                               - PAGED_ATTENTION_BLOCK_SIZE * sg_i_kq;
-        #if IS_KV_COMPRESSED_PA
-            #if IS_KEY_BY_CHANNEL
-                global KEY_DATA_T *K0_scales = K0 + PAGED_ATTENTION_BLOCK_SIZE * (sg_i_kq + 1);
-                global KEY_DATA_T *K0_zp = K0_scales + 2;
-            #else
-                global KEY_DATA_T *K0_scales = K0 + PAGED_ATTENTION_BLOCK_SIZE * (HEAD_SIZE - sg_i_kq);
-                global KEY_DATA_T *K0_zp = K0_scales + 2 * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
-            #endif
-        #endif
+#if IS_PAGED_ATTENTION && !IS_PREFILL
+    #if !IS_GQA_SINGLE_TOKEN
+        s_tile_type S_tile;
+        tile_fill(S_tile, 0.0f);
 
-        s_tile_type S_tile
-                = ugemm_kq(K0, ldk, Q_slm, D_MAX, k_chunk, ugemm_kq_wg_tile_n, d, 0,
-                        0, 0, sg_i_kq, sg_j_kq, (local char *)ugemm_slm
-        #if IS_KV_COMPRESSED_PA
-                        , (global half *)K0_scales, (global half *)K0_zp, ldkq
+        for (;k0 < past_lens[gws_mapping];) {
+    #endif
+            int k_block_num = k0 / PAGED_ATTENTION_BLOCK_SIZE + sg_i_kq;
+            global KEY_DATA_T *K0 = K + KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + k_block_num]
+                                - PAGED_ATTENTION_BLOCK_SIZE * sg_i_kq;
+            #if IS_KV_COMPRESSED_PA
+                #if IS_KEY_BY_CHANNEL
+                    global KEY_DATA_T *K0_scales = K0 + PAGED_ATTENTION_BLOCK_SIZE * (sg_i_kq + 1);
+                    global KEY_DATA_T *K0_zp = K0_scales + 2;
+                #else
+                    global KEY_DATA_T *K0_scales = K0 + PAGED_ATTENTION_BLOCK_SIZE * (HEAD_SIZE - sg_i_kq);
+                    global KEY_DATA_T *K0_zp = K0_scales + 2 * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+                #endif
+            #endif
+
+        #if IS_GQA_SINGLE_TOKEN
+            s_tile_type S_tile =
+        #else
+            s_tile_type S_tile1 =
         #endif
+            ugemm_kq(K0, ldk, Q_slm, D_MAX, k_chunk, ugemm_kq_wg_tile_n, d, 0,
+                           0, 0, sg_i_kq, sg_j_kq, (local char *)ugemm_slm
+            #if IS_KV_COMPRESSED_PA
+                           , (global half *)K0_scales, (global half *)K0_zp, ldkq
+            #endif
+                    );
+    #if !IS_GQA_SINGLE_TOKEN
+            tile_binary(S_tile, S_tile1, binary_add);
+            break;
+        }
+
+        for (; k0 >= past_lens[gws_mapping];) {
+            s_tile_type S_tile1 = ugemm_kcq(Kc, ldkc, Q_slm, D_MAX, (k - past_lens[gws_mapping]), ugemm_kq_wg_tile_n, d, (k0 - past_lens[gws_mapping]),
+                        0, 0, sg_i_kq, sg_j_kq, (local char *)ugemm_slm);
+            tile_binary(S_tile, S_tile1, binary_add);
+            break;
+        }
+    #endif
 #else
         s_tile_type S_tile
                 = ugemm_kq(K, ldk, Q_slm, D_MAX, k, ugemm_kq_wg_tile_n, d, k0,
@@ -507,8 +564,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                         ,
                         ldkq
         #endif
-#endif
                 );
+#endif
 
 #if KEY_SCALES == QUANTIZE_COMMON
 #define k_scale_op(x) ((x)*k_scale)
@@ -548,8 +605,12 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #endif
                              
         int col_offset = wg_j0 + sg_j0_kq;
-    #if IS_PAGED_ATTENTION && IS_PREFILL == 0
-        col_offset += k - q;
+    #if IS_PAGED_ATTENTION && !IS_PREFILL
+        #if IS_GQA_SINGLE_TOKEN
+            col_offset += k - 1 - get_sub_group_local_id();
+        #else
+            col_offset += k - q;
+        #endif
     #endif
 
         /* Apply causal mask */
@@ -790,8 +851,14 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             intel_work_group_barrier_arrive(CLK_LOCAL_MEM_FENCE);
 
         /* Accumulate A += V * S */
-#if IS_PAGED_ATTENTION && IS_PREFILL == 0
-        for (int kb0 = 0; kb0 < k_chunk; kb0 += PAGED_ATTENTION_BLOCK_SIZE) {
+#if IS_PAGED_ATTENTION && !IS_PREFILL
+        int kb0 = 0;
+        for (; kb0 < k_chunk; kb0 += PAGED_ATTENTION_BLOCK_SIZE) {
+            #if !IS_GQA_SINGLE_TOKEN
+                if ((k0 + kb0) >= past_lens[gws_mapping]) {
+                    break;
+                }
+            #endif
             uint s_block_num = kb0 / PAGED_ATTENTION_BLOCK_SIZE;
             local half *Sb0 = S_slm + s_block_num * ugemm_kq_sg_tile_m * ugemm_kq_sg_tile_n;
             uint v_block_num = (k0 + kb0) / PAGED_ATTENTION_BLOCK_SIZE;
@@ -814,6 +881,22 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
             tile_binary(A_tile, A_tile1, binary_add);
         }
+    #if !IS_GQA_SINGLE_TOKEN
+        for (; kb0 < k_chunk; kb0 += k_chunk) {
+            global QRY_DATA_T *Vb0 = Vc + ldvc * (k0 + kb0 - past_lens[gws_mapping]);
+            uint s_block_num = kb0 / PAGED_ATTENTION_BLOCK_SIZE;
+            local half *Sb0 = S_slm + s_block_num * ugemm_kq_sg_tile_m * ugemm_kq_sg_tile_n;
+            int kb_chunk = k_chunk - kb0;
+
+            a_tile_type A_tile1 = ugemm_vcs(
+                    Vb0, ldvc, Sb0, ugemm_kq_wg_tile_m,
+                    d, ugemm_kq_wg_tile_n, kb_chunk,
+                    0, 0, 0,
+                    sg_i_vs, sg_j_vs, (local char *)ugemm_slm);
+
+            tile_binary(A_tile, A_tile1, binary_add);
+        }
+    #endif
 #else
         a_tile_type A_tile1 = ugemm_vs(
                 V, ldv, S_slm, ugemm_kq_wg_tile_m, d, ugemm_kq_wg_tile_n,
@@ -841,7 +924,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #if VAL_ZERO_POINTS == QUANTIZE_2D
         V_zp += ldvq * ugemm_kq_wg_tile_m / VAL_ZP_ELEMENTS_PER_BYTE;
 #endif
-#if IS_PAGED_ATTENTION && IS_PREFILL == 0
+#if IS_PAGED_ATTENTION && !IS_PREFILL
         // already done
 #else
         tile_binary(A_tile, A_tile1, binary_add);

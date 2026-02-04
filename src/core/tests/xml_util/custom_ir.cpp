@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "openvino/xml_util/constant_writer.hpp"
 #include "openvino/xml_util/xml_deserialize_util.hpp"
@@ -412,8 +413,11 @@ TEST_F(CustomIRTest, modified_serialization_deserialization) {
     }
 
     // Driver will import model with custom deserializer for IR
-    auto weights = ov::read_tensor_data(m_out_bin_path);  // read weights as mapped file
-    auto w_buffer = std::make_shared<SharedBuffer<Tensor>>(weights.data<char>(), weights.get_byte_size(), weights);
+    auto mapped_memory = ov::load_mmap_object(m_out_bin_path);
+    auto w_buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
+                                                                                          mapped_memory->size(),
+                                                                                          mapped_memory);
+
     auto drv_model = read_model<ov::test::XmlDeserializer>(blob_stream.str(), w_buffer, weights_map);
 
     const auto& [is_valid, error_msg] = model_comparator().compare(ov_model, drv_model);

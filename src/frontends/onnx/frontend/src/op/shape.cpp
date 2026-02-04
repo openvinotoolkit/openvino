@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <cstdint>
+#include <limits>
 
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"

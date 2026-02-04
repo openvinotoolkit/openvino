@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -63,8 +63,8 @@ class Testwhere(PytorchLayerTest):
         self._test(*self.create_model(False, dtypes=(x_dtype, y_dtype)),
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={
-                       'mask_fill': mask_fill, 
-                       'mask_dtype': mask_dtype, 
+                       'mask_fill': mask_fill,
+                       'mask_dtype': mask_dtype,
                        'return_x_y': True,
                        "x_dtype": x_dtype,
                        "y_dtype": y_dtype
@@ -80,8 +80,8 @@ class Testwhere(PytorchLayerTest):
         self._test(*self.create_model(True),
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={
-                       'mask_fill': mask_fill, 
-                       'mask_dtype': mask_dtype, 
+                       'mask_fill': mask_fill,
+                       'mask_dtype': mask_dtype,
                        'return_x_y': False,
                        "x_dtype": x_dtype,
                        },

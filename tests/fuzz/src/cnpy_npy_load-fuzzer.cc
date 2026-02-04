@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t * inputData, size_t inputSize) {
     MemoryFile file(inputData, inputSize);
-    
+
     try {
         cnpy::NpyArray array = cnpy::npy_load(file.name());
     }

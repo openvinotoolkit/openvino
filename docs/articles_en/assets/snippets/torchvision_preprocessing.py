@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 
@@ -41,7 +41,7 @@ def main():
        ]
    )
 
-    # 3. Read the model into OpenVINO    
+    # 3. Read the model into OpenVINO
     torch_model = Convnet(input_channels=3)
     torch.onnx.export(torch_model, torch.randn(1, 3, 224, 224), "test_convnet.onnx", verbose=False, input_names=["input"], output_names=["output"])
     core = ov.Core()
@@ -61,5 +61,5 @@ def main():
     output = ov_model.output(0)
     ov_result = ov_model(ov_input)[output]
     #! [torchvision_preprocessing]
- 
+
     return 0

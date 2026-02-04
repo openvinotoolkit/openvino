@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/allocator.hpp"
+#include "openvino/runtime/file_handle.hpp"
 
 namespace ov {
 
@@ -219,6 +220,8 @@ public:
 
     /**
      * @brief Provides an access to the underlying host memory
+     * @note The method throws an exception:
+     * - if tensor implementation does not allow non-const access to memory.
      * @return A host pointer to tensor memory
      * @{
      */
@@ -229,8 +232,9 @@ public:
     /**
      * @brief Provides an access to the underlying host memory
      * @param type Optional type parameter.
-     * @note The method throws an exception
-     * if specified type's fundamental type does not match with tensor element type's fundamental type
+     * @note The method throws an exception:
+     * - if specified type's fundamental type does not match with tensor element type's fundamental type
+     * - if tensor implementation does not allow non-const access to memory.
      * @return A host pointer to tensor memory
      * @{
      */
@@ -322,4 +326,18 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
                         const PartialShape& shape = PartialShape::dynamic(1),
                         std::size_t offset_in_bytes = 0,
                         bool mmap = true);
+
+/// \brief Read a tensor content from an externally provided file handle. Only raw data is loaded.
+/// \param file_handle File handle to read. File handle should be opened by the caller OpenVINO takes ownership of the
+/// file
+///                    handle and is responsible for closing it. File should be opened with GENERIC_READ,
+///                    FILE_SHARE_READ flags on Windows and O_RDONLY on Linux.
+/// \param element_type Element type, when not specified the it is assumed as element::u8.
+/// \param shape Shape for resulting tensor.
+/// \param offset_in_bytes Read file starting from specified offset.
+OPENVINO_API
+Tensor read_tensor_data(ov::FileHandle file_handle,
+                        const element::Type& element_type = element::u8,
+                        const PartialShape& shape = PartialShape::dynamic(1),
+                        std::size_t offset_in_bytes = 0);
 }  // namespace ov

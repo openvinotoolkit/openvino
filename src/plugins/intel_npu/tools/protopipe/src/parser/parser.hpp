@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,6 +40,7 @@ struct Config {
     IAccuracyMetric::Ptr metric;
     bool disable_high_resolution_timer;
     std::vector<ScenarioDesc> scenarios;
+    std::string npu_compiler_type;
 };
 
 struct ReplaceBy {

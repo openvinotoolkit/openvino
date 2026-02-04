@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -13,7 +13,7 @@ data_type = 'float32'
 
 def full_like(name:str, x, value, dtype=None):
     paddle.enable_static()
-    
+
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         data = paddle.static.data(name='x', shape=x.shape, dtype = x.dtype)
         out = paddle.full_like(data, value, dtype=dtype)

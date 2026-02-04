@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,10 @@ struct NetworkDescription final {
     NetworkDescription(std::vector<uint8_t>&& compiledNetwork, NetworkMetadata&& metadata)
         : compiledNetwork(std::move(compiledNetwork)),
           metadata(std::move(metadata)) {}
+    NetworkDescription(ov::Tensor&& compiledNetWorkTensor, NetworkMetadata&& metadata)
+        : compiledNetwork(),
+          metadata(std::move(metadata)),
+          compiledNetworkTensor(std::move(compiledNetWorkTensor)) {}
     // Force move semantics to prevent blob copies
     NetworkDescription(const NetworkDescription&) = delete;
     NetworkDescription(NetworkDescription&&) = default;
@@ -37,6 +41,8 @@ struct NetworkDescription final {
     std::vector<uint8_t> compiledNetwork;
 
     NetworkMetadata metadata;
+
+    ov::Tensor compiledNetworkTensor;
 };
 
 /**

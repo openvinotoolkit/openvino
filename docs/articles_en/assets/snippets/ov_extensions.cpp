@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <openvino/openvino.hpp>
@@ -241,7 +241,7 @@ core.add_extension(ov::frontend::ConversionExtension("top_k_v2", [](const ov::fr
 core.add_extension(ov::frontend::ConversionExtension("TopKV2", [](const ov::frontend::NodeContext& node) {
     auto input = node.get_input(0);
     auto k_input = node.get_input(1);
-    bool sorted = node.get_attribute<bool>("sorted", true);    
+    bool sorted = node.get_attribute<bool>("sorted", true);
     auto mode = ov::opset11::TopK::Mode::MAX;
     auto sort_type = sorted ? ov::opset11::TopK::SortType::SORT_VALUES : ov::opset11::TopK::SortType::SORT_INDICES;
     auto top_k = std::make_shared<ov::opset11::TopK>(input, k_input, -1, mode, sort_type, ov::element::i32, true);

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -58,7 +58,7 @@ class TestEmptyLike(PytorchLayerTest):
     def create_model(self, dtype, out, no_expose_dtype=False):
 
         class aten_empty_like(torch.nn.Module):
-                
+
             def __init__(self, dtype=None, out=False, no_expose_dtype=False):
                 dtype_map = {
                     "float32": torch.float32,
@@ -107,7 +107,7 @@ class TestEmptyLike(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_empty_like(self, ie_device, precision, ir_version, dtype, input_shape, out):
-        self._test(*self.create_model(dtype, out), ie_device, precision, ir_version, 
+        self._test(*self.create_model(dtype, out), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"shape": input_shape, "out": out, "dtype": dtype})
 
     @pytest.mark.parametrize('dtype', (None, "float32", "float64", "int64", "int32", "uint8", "int8"))
@@ -115,7 +115,7 @@ class TestEmptyLike(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_empty_like_no_dtype(self, ie_device, precision, ir_version, dtype, input_shape):
-        self._test(*self.create_model(dtype, out=False, no_expose_dtype=True), ie_device, precision, ir_version, 
+        self._test(*self.create_model(dtype, out=False, no_expose_dtype=True), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"shape": input_shape, "out": False, "dtype": dtype})
 
 

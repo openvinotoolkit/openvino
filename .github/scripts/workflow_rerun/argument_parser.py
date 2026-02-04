@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -7,15 +7,19 @@ from pathlib import Path
 
 def get_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument('-r', '--repository-name', 
-                        type=str, 
+    parser.add_argument('-r', '--repository-name',
+                        type=str,
                         required=True,
                         help='Repository name in the OWNER/REPOSITORY format')
-    parser.add_argument('--run-id', 
-                        type=int, 
+    parser.add_argument('--run-id',
+                        type=int,
                         required=True,
                         help='Workflow Run ID')
-    parser.add_argument('--errors-to-look-for-file', 
+    parser.add_argument('--rerunner-run-id',
+                        type=int,
+                        required=True,
+                        help='Workflow Run ID for the rerunner run itself')
+    parser.add_argument('--errors-to-look-for-file',
                         type=Path,
                         required=False,
                         help='.json file with the errors to look for in logs',

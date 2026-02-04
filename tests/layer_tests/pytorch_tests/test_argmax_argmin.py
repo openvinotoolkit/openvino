@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -81,5 +81,5 @@ class TestArgMinArgMax(PytorchLayerTest):
                        reason='Ticket - 122715')
     def test_argmin_argmax(self, axes, keep_dims, op_type, dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(op_type, axes, keep_dims),
-                   ie_device, precision, ir_version, trace_model=True, 
+                   ie_device, precision, ir_version, trace_model=True,
                    kwargs_to_prepare_input={"dtype": dtype})

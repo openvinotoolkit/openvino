@@ -16,7 +16,7 @@ Block::Block(const OutputVector& inputs, const OutputVector& outputs, const std:
 }
 
 bool Block::match_value(Matcher* matcher, const Output<Node>& pattern_value, const Output<Node>& graph_value) {
-    auto block_pattern_root = m_outputs.front();
+    const auto& block_pattern_root = m_outputs.front();
 
     // Using a local matcher to match only those patterns that are encapsulated into the current Block.
     auto local_matcher = std::make_shared<Matcher>(block_pattern_root.get_node_shared_ptr(), "BlockMatcher");

@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -130,6 +130,14 @@ public:
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<uint32_t>{0});
         auto sinks =
             std::make_shared<ov::op::v0::Constant>(data_type, Shape{0, 0, 0, 0}, std::vector<float>{});
+        auto adaptive_rkv_start_size =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
+        auto adaptive_rkv_evictable_sizes =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
+        auto adaptive_rkv_diversity_block_set_indices =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
+        auto adaptive_rkv_diversity_block_set_indices_begins =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
         ParameterVector params =
             {q, k, v, key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins};
         auto paged_attn = std::make_shared<op::PagedAttentionExtension>(OutputVector{q,
@@ -152,7 +160,11 @@ public:
                                                                                      xattention_threshold,
                                                                                      xattention_block_size,
                                                                                      xattention_stride,
-                                                                                     sinks});
+                                                                                     sinks,
+                                                                                     adaptive_rkv_start_size,
+                                                                                     adaptive_rkv_evictable_sizes,
+                                                                                     adaptive_rkv_diversity_block_set_indices,
+                                                                                     adaptive_rkv_diversity_block_set_indices_begins});
         paged_attn->get_rt_info()["num_k_heads"] = head_num;
         paged_attn->get_rt_info()["k_head_size"] = head_size;
         paged_attn->get_rt_info()["num_v_heads"] = head_num;

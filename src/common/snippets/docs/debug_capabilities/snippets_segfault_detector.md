@@ -8,4 +8,4 @@ To turn on snippets segfault detector, the following environment variable should
 ```
 
 Currently snippets segfault detector has only one level, any digit can be used for activation.
-Currently snippets segfault detector is only effective for x86 or x86-64 CPU backend.
+Currently snippets segfault detector is only effective for x86, x86-64, aarch64 or RISC-V CPU backends.

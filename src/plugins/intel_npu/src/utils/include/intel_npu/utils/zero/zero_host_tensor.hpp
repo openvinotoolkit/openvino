@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,8 @@ public:
 
     void* data() override;
     void* data(const ov::element::Type& element_type) override;
+    void* data_rw() override;
+    void* data_rw(const ov::element::Type& element_type) override;
     const void* data() const override;
     const void* data(const ov::element::Type& element_type) const override;
     const ov::element::Type& get_element_type() const override;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,10 +51,6 @@
 #    include "nodes/executors/acl/acl_fullyconnected.hpp"
 #    include "nodes/executors/acl/acl_lowp_fullyconnected.hpp"
 #    include "nodes/executors/common/common_utils.hpp"
-#endif
-
-#if defined(OV_CPU_WITH_SHL)
-#    include "nodes/executors/shl/shl_fullyconnected.hpp"
 #endif
 
 namespace ov::intel_cpu {
@@ -391,24 +387,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             AcceptsAnyShape<FCAttrs>,
             CreateDefault<MatMulKleidiAIExecutor, FCAttrs>{}
             )
-        OV_CPU_INSTANCE_SHL(
-            "fullyconnected_shl",
-            ExecutorType::Shl,
-            OperationType::FullyConnected,
-            // supports
-            [](const FCConfig& config) -> bool {
-                VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
-                VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
-                VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
-                VERIFY(all_of(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
-                VERIFY(ShlFCExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
-
-                return true;
-            },
-            HasNoOptimalConfig<FCAttrs>{},
-            AcceptsAnyShape<FCAttrs>,
-            CreateDefault<ShlFCExecutor, FCAttrs>{}
-            )
         OV_CPU_INSTANCE_DNNL(
             "matmul_dnnl",
             ExecutorType::Dnnl,
@@ -438,13 +416,20 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCAttrs& attrs,
                const MemoryArgs& memory,
                const ExecutorContext::CPtr& context) -> ExecutorPtr {
-                MatMulAttrs matMulAttrs{false,
-                                        false};
-                matMulAttrs.postOps = attrs.postOps;
-                matMulAttrs.weightsNonTransposed = attrs.weightsNonTransposed;
-                matMulAttrs.constantWeights = true;
-                matMulAttrs.fcSemantic = true;
-                
+                const bool hasBias = !memory.at(ARG_BIAS)->getDesc().empty();
+                MatMulAttrs matMulAttrs {
+                    false,
+                    true,
+                    hasBias,
+                    attrs.weightsNonTransposed,
+                    false,
+                    true,
+                    true,
+                    0,
+                    {},
+                    attrs.postOps
+                };
+
                 return std::make_shared<
                     DnnlExecutor<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData,
                                  DefaultInstantiator<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData>>>(

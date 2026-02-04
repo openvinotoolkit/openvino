@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,17 @@ namespace ov::intel_gpu::ocl {
 #ifdef ENABLE_ONEDNN_FOR_GPU
 class SDPAMicroGenerator : public SDPABase {
 public:
-    explicit SDPAMicroGenerator(bool prefill) : SDPABase("sdpa_micro", prefill ? "_prefill" : "_generate", false), m_is_prefill(prefill) {}
+    explicit SDPAMicroGenerator(bool prefill, bool gqa_single_token = false)
+        : SDPABase("sdpa_micro",
+                   prefill            ? "_prefill"
+                   : gqa_single_token ? "_gqa_single_token"
+                                      : "_generate",
+                   false),
+          m_is_prefill(prefill),
+          m_is_gqa_single_token(gqa_single_token) {
+        if (gqa_single_token)
+            OPENVINO_ASSERT(prefill == false, "prefill should be false when gqa_single_token is true");
+    }
 
     [[nodiscard]] std::string get_build_options(const kernel_impl_params& params) const override;
     [[nodiscard]] KernelData get_kernel_data(const kernel_impl_params& params) const override;
@@ -43,14 +53,20 @@ private:
                                   const sdpa_configuration& sdpa_config,
                                   micro::Package& gemm_kq,
                                   micro::Package& gemm_vs,
-                                  bool is_prefill);
+                                  micro::Package& gemm_kcq,
+                                  micro::Package& gemm_vcs,
+                                  bool is_prefill,
+                                  bool is_gqa_single_token);
     static void init_sdpa_configuration(const kernel_impl_params& params, sdpa_configuration& config);
 
     bool m_is_prefill;
+    bool m_is_gqa_single_token;
     static std::mutex m;
 
     static constexpr size_t kq_id = 0;
     static constexpr size_t vs_id = 1;
+    static constexpr size_t kcq_id = 2;  // kc - key from current input
+    static constexpr size_t vcs_id = 3;  // vc - value from current input
     static constexpr size_t prefill_id = 0;
     static constexpr size_t generate_id = 1;
 

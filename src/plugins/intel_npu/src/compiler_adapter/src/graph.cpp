@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,8 +91,9 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
         OPENVINO_THROW("Model was imported and released after initialization. Model export is not allowed anymore.");
     }
 
-    if (_blob ==
-        std::nullopt) {  // when compiling the model using Compiler in Driver, the blob is handled by the driver
+    if (_blob == std::nullopt) {
+        OPENVINO_ASSERT(_zeGraphExt != nullptr, "Zero compiler adapter wasn't initialized");
+        // when compiling the model using Compiler in Driver, the blob is handled by the driver
         _zeGraphExt->getGraphBinary(_graphDesc, blobVec, blobPtr, blobSize);
     } else {  // in all other cases, the blob is handled by the plugin
         blobPtr = static_cast<const uint8_t*>(_blob->data());
@@ -149,11 +150,18 @@ std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector
     return _compiler->process_profiling_output(profData, blob, config);
 }
 
-void Graph::set_argument_value(uint32_t argi, const void* argv) const {
+void Graph::set_argument_value(uint32_t id, const void* data) const {
     if (_zeGraphExt == nullptr) {
         OPENVINO_THROW("Zero compiler adapter wasn't initialized");
     }
-    _zeGraphExt->setGraphArgumentValue(_graphDesc, argi, argv);
+    _zeGraphExt->setGraphArgumentValue(_graphDesc, id, data);
+}
+
+void Graph::set_argument_value_with_strides(uint32_t id, const void* data, const std::vector<size_t>& strides) const {
+    if (_zeGraphExt == nullptr) {
+        OPENVINO_THROW("Zero compiler adapter wasn't initialized");
+    }
+    _zeGraphExt->setGraphArgumentValueWithStrides(_graphDesc, id, data, strides);
 }
 
 void Graph::initialize(const Config& config) {
@@ -221,7 +229,7 @@ bool Graph::release_blob(const Config& config) {
     }
 
     ze_graph_properties_2_t properties = {};
-    properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
+    properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_2;
     _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(_graphDesc._handle, &properties);
 
     if (~properties.initStageRequired & ZE_GRAPH_STAGE_INITIALIZE) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -320,6 +320,7 @@ public:
     bool mem_allocated() const { return _mem_allocated; }
     bool is_dynamic() const { return _is_dynamic; }
     bool can_share_buffer() const { return _can_share_buffer; }
+    bool can_share_internal_buffer() const { return _can_share_internal_buffer; }
     bool is_constant() const { return _is_constant; }
     bool needs_completion_event() const { return _needs_completion_event; }
     bool has_unfused_subgraph() const { return (_unfused_subgraph != nullptr); }
@@ -437,6 +438,7 @@ protected:
     size_t _fused_mem_offset = 0;
     bool _can_be_optimized = false;
     bool _can_share_buffer = true;
+    bool _can_share_internal_buffer = true;
     bool _is_constant = false;
     bool _needs_completion_event = false;
 
@@ -464,6 +466,8 @@ protected:
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
     void update_impl(bool use_async_compilation);
     void realloc_if_needed(bool prev_execution_skipped = false);
+    void realloc_outputs(bool prev_execution_skipped = false);
+    void realloc_intermediates();
 
     cldnn::network::ptr get_unfused_subgraph();
 

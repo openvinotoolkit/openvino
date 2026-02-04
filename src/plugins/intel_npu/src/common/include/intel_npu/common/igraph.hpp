@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,10 @@ public:
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                                     const Config& config) const = 0;
 
-    virtual void set_argument_value(uint32_t argi, const void* argv) const = 0;
+    virtual void set_argument_value(uint32_t id, const void* data) const = 0;
+    virtual void set_argument_value_with_strides(uint32_t id,
+                                                 const void* data,
+                                                 const std::vector<size_t>& strides) const = 0;
 
     virtual void initialize(const Config& config) = 0;
 

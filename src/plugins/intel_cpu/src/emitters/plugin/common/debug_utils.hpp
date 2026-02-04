@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,6 +63,12 @@ void print_reg_prc(const char* name, const char* orig_name, T* ptr) {
 template <typename PRC_T, size_t vlen>
 void print_vmm_prc(const char* name, const char* orig_name, PRC_T* ptr) {
     constexpr size_t elems = vlen / sizeof(PRC_T);
+    detail::print_values_impl(name, orig_name, ptr, elems);
+}
+
+template <typename PRC_T>
+void print_vmm_prc_runtime(const char* name, const char* orig_name, PRC_T* ptr, size_t vlen_bytes) {
+    const size_t elems = vlen_bytes / sizeof(PRC_T);
     detail::print_values_impl(name, orig_name, ptr, elems);
 }
 

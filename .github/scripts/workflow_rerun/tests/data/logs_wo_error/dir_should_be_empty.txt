@@ -1,0 +1,1 @@
+script should NOT download logs for successful jobs

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -25,7 +25,7 @@ class TestSegmentMax(CommonTFLayerTest):
     def create_segment_max_net(self, data_shape, segment_ids_shape, data_type=np.float32, segment_ids_type=np.int32):
         self.data_type = data_type
         self.segment_ids_type = segment_ids_type
-        
+
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
             data = tf.compat.v1.placeholder(data_type, data_shape, 'data')
@@ -93,7 +93,7 @@ class TestSegmentMax(CommonTFLayerTest):
     def test_segment_max_with_missing_ids(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip("Operation SegmentMax is not supported on GPU")
-        
+
         original_prepare_input = self._prepare_input
         self._prepare_input = self._prepare_missing_segments_input
         self._test(*self.create_segment_max_with_missing_ids_net(**params), ie_device, precision, ir_version, temp_dir=temp_dir)

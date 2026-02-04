@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,9 @@
 #include <vector>
 
 #include "base_sync_infer_request.hpp"
+#include "host_flash_attention.hpp"
+#include "moe/moe_executor.hpp"
+#include "moe/moe_infer_utils.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -66,9 +69,18 @@ private:
     AllocFcn m_alloc;
 };
 
-class JustInferRequest final : public IBaseInferRequest {
+class JustInferRequest final : public IBaseInferRequest, public ISubrequestAccessor {
 public:
     explicit JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
+
+    ////////////////////////////////////
+    // Implement ISubrequestAccessor interface
+    ov::SoPtr<ov::IAsyncInferRequest> get_subrequest(size_t idx) override;
+    const void* get_submodel_desc(size_t idx) override;
+    TensorPtr allocate_mem(const ov::element::Type& type, const ov::Shape& shape, const std::string& device) override;
+    bool is_gather_closure(size_t idx, size_t cidx) override;
+    bool unpack_required(size_t idx, size_t cidx) override;
+    bool needs_copy_closure(size_t idx, size_t cidx) override;
 
 protected:
     ////////////////////////////////////
@@ -106,11 +118,39 @@ protected:
     void unsafe_infer_spatial(std::size_t real_idx, std::size_t idx);
     void unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared_p);
 
+    void run_hfa_tiled_inference(std::size_t real_idx, std::size_t idx);
+
+    // HFA helper functions
+    static void hfa_extract_and_copy_tile(const ov::SoPtr<ov::ITensor>& source_tensor,
+                                          const ov::SoPtr<ov::ITensor>& dest_tensor,
+                                          uint32_t sequence_dim,
+                                          int64_t sequence_offset,
+                                          int64_t sequence_length,
+                                          const std::string& tensor_name);
+
+    static bool hfa_can_reuse_tensor_zero_copy(const ov::SoPtr<ov::ITensor>& source_tensor,
+                                               const ov::SoPtr<ov::ITensor>& dest_tensor,
+                                               uint32_t sequence_dim,
+                                               int64_t sequence_offset,
+                                               int64_t tile_length);
+
     void connect_subrequests();
     void recreate_subrequests(std::size_t idx);
 
     // Helper function to setup pyramid attention infer requests
     void setup_pyramid_infer_requests(std::size_t real_idx, bool is_piped, bool is_recreate);
+
+    // Helper function to setup host flash attention tile infer requests
+    void setup_hfa_infer_requests(std::size_t real_idx,
+                                  bool is_piped,
+                                  bool is_recreate,
+                                  bool enable_hfa_optimizations = true);
+
+    // Helper function to initialize/reinitialize MoE executor
+    void initialize_moe_executor();
+
+    // Helper function to recreate MoE resources after subrequest recreation
+    void recreate_moe_resources(std::size_t idx, std::size_t real_idx);
 
     FuncMemMgr m_func_mem_mgr;                       // Owns memory
     std::map<LinkFrom, TensorPtr> m_funcall_result;  // Provides a convenient link
@@ -138,6 +178,12 @@ protected:
 
     // Cached attention mask for SDPA operations to avoid recomputing
     ov::SoPtr<ov::ITensor> m_cached_attention_mask;
+
+    // HFA runtime context (holds cached masks, pre-allocated buffers, and state buffers)
+    std::optional<runtime::host_flash_attention::HFARuntimeContext> m_hfa_runtime_ctx;
+
+    // MoE executor (encapsulates MoE inference logic and profiling)
+    std::unique_ptr<ov::npuw::moe::MoEExecutor> m_moe_executor;
 };
 
 }  // namespace npuw

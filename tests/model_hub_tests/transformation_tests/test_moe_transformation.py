@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from huggingface_hub import snapshot_download
@@ -18,10 +18,10 @@ pytestmark = pytest.mark.skip(reason="FuseMOE transformation temporarily disable
 def verify_moe_fusion(ov_model: ov.Model, model_id: str):
     """
     Verify that MoE fusion was applied correctly by checking for fused weight tensors.
-    
+
     After MoE fusion, we expect to find MatMul operations with weights that have
     an expert dimension (first dimension should equal the number of experts).
-    
+
     Returns:
         int: Number of fused MoE layers detected
     """
@@ -29,7 +29,7 @@ def verify_moe_fusion(ov_model: ov.Model, model_id: str):
     # For tiny-random-qwen3_moe, we expect num_experts parameter in config
     num_experts = None
     for op in ov_model.get_ordered_ops():
-        # Look for patterns indicating fused MoE: 
+        # Look for patterns indicating fused MoE:
         # - MatMul with 3D weight tensor [num_experts, hidden_dim, intermediate_dim]
         # - Tile operation that replicates input for all experts
         if op.get_type_name() == "MatMul":
@@ -56,14 +56,14 @@ def verify_moe_fusion(ov_model: ov.Model, model_id: str):
                             else:
                                 assert weight_shape[0] == num_experts, \
                                     f"Inconsistent expert count: expected {num_experts}, got {weight_shape[0]}"
-    
+
     # If we found fused weights, verify the number of experts makes sense
     if num_experts is not None:
         assert num_experts > 1, f"Expected multiple experts, found {num_experts}"
         # For tiny-random-qwen3_moe, we expect 4 experts
         print(f"Detected {num_experts} experts in fused MoE layers")
         return num_experts
-    
+
     return 0
 
 
@@ -72,11 +72,11 @@ def verify_fused_moe_pattern(ov_model: ov.Model,
                             ie_device: str):
     """
     Verify that the model has the fused MoE pattern.
-    
+
     Since MOC transformations (including FuseMOE) are applied during model loading,
     we don't need to apply them again. Instead, we verify that the loaded model
     already contains the characteristic fused MoE subgraph with 3D weight tensors.
-    
+
     This function:
     1. Verifies MoE fusion by checking for 3D fused weight tensors
     2. Compiles the model to ensure validity
@@ -84,7 +84,7 @@ def verify_fused_moe_pattern(ov_model: ov.Model,
     # Verify that MoE fusion is present in the loaded model
     num_experts = verify_moe_fusion(ov_model, model_id)
     assert num_experts > 0, "Model does not contain fused MoE pattern with 3D weight tensors"
-    
+
     # Compile to ensure the model is valid
     ov.Core().compile_model(ov_model, ie_device)
 
@@ -92,7 +92,7 @@ def verify_fused_moe_pattern(ov_model: ov.Model,
 def create_synthetic_moe_model(tmp_path, num_layers, num_experts, dtype="float32", hidden_size=512, intermediate_size=192):
     """
     Create a synthetic Qwen3 MoE model from config for testing.
-    
+
     Args:
         tmp_path: Temporary directory path
         num_layers: Number of hidden layers (MoE layers)
@@ -100,7 +100,7 @@ def create_synthetic_moe_model(tmp_path, num_layers, num_experts, dtype="float32
         dtype: Model dtype (float32, bfloat16, float16)
         hidden_size: Hidden dimension size
         intermediate_size: MoE intermediate size
-    
+
     Returns:
         str: Path to the saved model
     """
@@ -113,11 +113,11 @@ def create_synthetic_moe_model(tmp_path, num_layers, num_experts, dtype="float32
     config.torch_dtype = dtype
     config.hidden_size = hidden_size
     config.moe_intermediate_size = intermediate_size
-    
+
     model = AutoModelForCausalLM.from_config(config)
     model_path = os.path.join(tmp_path, f"synthetic_qwen3_moe_l{num_layers}_e{num_experts}_{dtype}")
     model.save_pretrained(model_path)
-    
+
     return model_path
 
 
@@ -129,22 +129,22 @@ def run_moe(tmp_path,
             batch_size=1):
     """
     Test that MoE models are loaded with fused expert subgraphs.
-    
+
     MOC transformations (including FuseMOE) are automatically applied during
     model loading with from_pretrained, so we verify that the loaded model
     contains the characteristic fused MoE pattern.
-    
+
     Additionally verifies output correctness by comparing with original PyTorch model.
-    
+
     Args:
         batch_size: Number of sequences to process in parallel (default: 1)
     """
     model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
-    
+
     # Load original PyTorch model and tokenizer for comparison (from cache to avoid rate limits)
     pt_model = AutoModelForCausalLM.from_pretrained(model_cached, trust_remote_code=True)
     tokenizer = AutoTokenizer.from_pretrained(model_cached, trust_remote_code=True)
-    
+
     # Prepare test input with specified batch size
     if batch_size == 1:
         test_text = "Test input for MoE model verification"
@@ -152,37 +152,37 @@ def run_moe(tmp_path,
         # Create a list of different texts for batch processing
         test_text = [f"Test input {i} for MoE model batch verification" for i in range(batch_size)]
     inputs = tokenizer(test_text, return_tensors="pt", padding=True)
-    
+
     # Get PyTorch output
     with torch.no_grad():
         pt_outputs = pt_model(**inputs)
         pt_logits = pt_outputs.logits.numpy()
-    
+
     # Clean up PyTorch model to free memory
     del pt_model
     del pt_outputs
-    
+
     # Load the OpenVINO model - MOC transformations are applied during loading
     ov_model = OVModelForCausalLM.from_pretrained(
-        model_cached, 
-        export=True, 
+        model_cached,
+        export=True,
         trust_remote_code=True,
         compile=False  # Don't compile yet, but transformations are still applied
     )
-    
+
     # Verify that the loaded model has the fused MoE pattern
     verify_fused_moe_pattern(ov_model.model, model_id, ie_device)
-    
+
     # Get OpenVINO output and compare with PyTorch
     ov_outputs = ov_model(**inputs)
     ov_logits = ov_outputs.logits.numpy()
-    
+
     # Compare outputs (allow small numerical differences due to precision)
     max_diff = np.abs(pt_logits - ov_logits).max()
     mean_diff = np.abs(pt_logits - ov_logits).mean()
-    
+
     print(f"Output comparison (batch_size={batch_size}): max_diff={max_diff:.6f}, mean_diff={mean_diff:.6f}")
-    
+
     # Verify outputs are close
     # Tolerances: rtol=1e-3, atol=1e-3 account for OpenVINO IR conversion and execution differences
     assert np.allclose(pt_logits, ov_logits, rtol=1e-3, atol=1e-3), \
@@ -198,23 +198,23 @@ def run_moe_synthetic(tmp_path,
                      batch_size=1):
     """
     Test MoE fusion on synthetically generated models.
-    
+
     Creates a model from config with specified parameters and verifies
     that MoE fusion produces the expected fused pattern.
-    
+
     Additionally verifies output correctness by comparing with original PyTorch model.
-    
+
     Args:
         batch_size: Number of sequences to process in parallel (default: 1)
     """
     model_path = create_synthetic_moe_model(tmp_path, num_layers, num_experts, dtype)
-    
+
     # Load original PyTorch model for comparison (from local path)
     pt_model = AutoModelForCausalLM.from_pretrained(model_path, trust_remote_code=True)
     # Load tokenizer from cache to avoid HuggingFace rate limits
     tokenizer_cache = snapshot_download("optimum-internal-testing/tiny-random-qwen3_moe")
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_cache, trust_remote_code=True)
-    
+
     # Prepare test input with specified batch size
     if batch_size == 1:
         test_text = "Test input for synthetic MoE model"
@@ -222,16 +222,16 @@ def run_moe_synthetic(tmp_path,
         # Create a list of different texts for batch processing
         test_text = [f"Synthetic test input {i} for MoE batch validation" for i in range(batch_size)]
     inputs = tokenizer(test_text, return_tensors="pt", padding=True)
-    
+
     # Get PyTorch output
     with torch.no_grad():
         pt_outputs = pt_model(**inputs)
         pt_logits = pt_outputs.logits.numpy()
-    
+
     # Clean up PyTorch model to free memory
     del pt_model
     del pt_outputs
-    
+
     # Load and export the OpenVINO model with MoE fusion
     ov_model = OVModelForCausalLM.from_pretrained(
         model_path,
@@ -239,25 +239,25 @@ def run_moe_synthetic(tmp_path,
         trust_remote_code=True,
         compile=False
     )
-    
+
     # Verify that the loaded model has the fused MoE pattern
     verify_fused_moe_pattern(ov_model.model, f"synthetic_l{num_layers}_e{num_experts}_{dtype}", ie_device)
-    
+
     # Verify the expected number of experts
     detected_experts = verify_moe_fusion(ov_model.model, f"synthetic_l{num_layers}_e{num_experts}_{dtype}")
     assert detected_experts == num_experts, \
         f"Expected {num_experts} experts, but detected {detected_experts}"
-    
+
     # Get OpenVINO output and compare with PyTorch
     ov_outputs = ov_model(**inputs)
     ov_logits = ov_outputs.logits.numpy()
-    
+
     # Compare outputs (allow small numerical differences)
     max_diff = np.abs(pt_logits - ov_logits).max()
     mean_diff = np.abs(pt_logits - ov_logits).mean()
-    
+
     print(f"Synthetic ({num_layers}L, {num_experts}E, {dtype}, batch={batch_size}): max_diff={max_diff:.6f}, mean_diff={mean_diff:.6f}")
-    
+
     # Adjust tolerances based on dtype
     # FP16/BF16 have lower precision, so allow larger numerical differences
     rtol = 1e-2 if dtype in ["float16", "bfloat16"] else 1e-3
@@ -268,7 +268,7 @@ def run_moe_synthetic(tmp_path,
 
 
 MOE_PRECOMMIT_TEST_CASES = [
-    (OVModelForCausalLM, *model_info_tuple) 
+    (OVModelForCausalLM, *model_info_tuple)
     for model_info_tuple in utils.get_models_list(
         os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-moe-models-precommit")
     )
@@ -302,7 +302,7 @@ def test_moe_precommit(tmp_path, model_info_tuple, ie_device, batch_size):
         pytest.skip(reason)
     elif mark == 'xfail':
         pytest.xfail(reason)
-    
+
     run_moe(tmp_path, model_name, model_link, ie_device, batch_size)
 
 
@@ -317,7 +317,7 @@ MOE_SYNTHETIC_TEST_CASES = [
     (2, 4, "float32", 4),   # Two MoE layers, larger batch
     (3, 4, "float32", 1),   # Three MoE layers, single batch
     (3, 4, "float32", 2),   # Three MoE layers, small batch
-    
+
     # Test different numbers of experts with batch processing
     (1, 2, "float32", 1),   # Minimal: 2 experts, single batch
     (1, 2, "float32", 4),   # Minimal: 2 experts, larger batch
@@ -325,19 +325,19 @@ MOE_SYNTHETIC_TEST_CASES = [
     (1, 8, "float32", 2),   # More experts: 8, small batch
     (1, 16, "float32", 1),  # Many experts: 16, single batch
     (1, 16, "float32", 4),  # Many experts: 16, larger batch
-    
+
     # Test different dtypes with batch processing (important for decompression pattern testing)
     (1, 4, "float16", 1),   # FP16 - may have decompression, single batch
     (1, 4, "float16", 4),   # FP16 - may have decompression, larger batch
     (1, 4, "bfloat16", 1),  # BF16 - may have decompression, single batch
     (1, 4, "bfloat16", 2),  # BF16 - may have decompression, small batch
-    
+
     # Combined variations with batch processing
     (2, 8, "float16", 1),   # Multiple layers + more experts + FP16, single batch
     (2, 8, "float16", 4),   # Multiple layers + more experts + FP16, larger batch
     (3, 16, "bfloat16", 1), # Multiple layers + many experts + BF16, single batch
     (3, 16, "bfloat16", 2), # Multiple layers + many experts + BF16, small batch
-    
+
     # Edge cases: larger batch sizes
     (1, 4, "float32", 8),   # Large batch size
     (2, 8, "float32", 8),   # Large batch with more complex model
@@ -355,7 +355,7 @@ def synthetic_test_idfn(entry):
 def test_moe_synthetic(tmp_path, test_params, ie_device):
     """
     Test MoE fusion with synthetically generated models.
-    
+
     This tests various configurations:
     - Different numbers of MoE layers (1, 2, 3)
     - Different numbers of experts (2, 4, 8, 16)

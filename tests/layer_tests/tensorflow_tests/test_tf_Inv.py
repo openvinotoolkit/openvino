@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -31,7 +31,7 @@ class TestInv(CommonTFLayerTest):
     test_data_basic = [
         dict(input_shape=[], input_type=np.float32),
         dict(input_shape=[10, 20], input_type=np.float32),
-        dict(input_shape=[2, 3, 4], input_type=np.float32),   
+        dict(input_shape=[2, 3, 4], input_type=np.float32),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)

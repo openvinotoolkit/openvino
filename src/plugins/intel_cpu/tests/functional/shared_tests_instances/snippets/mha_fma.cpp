@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,12 +12,7 @@ namespace snippets {
 
 namespace {
 
-// Transpose is moved outside of Subgraph on ARM64
-#if defined(OPENVINO_ARCH_ARM64)
-static constexpr size_t expected_nodes_mha_mul_add = 4;
-#else
 static constexpr size_t expected_nodes_mha_mul_add = 2;
-#endif
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHAMulAdd,

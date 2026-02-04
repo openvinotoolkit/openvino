@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -84,17 +84,17 @@ SDPA::SDPA(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const st
                 \       /
                  Concat
                     |
-                Unsqueeze
+                opt:Unsqueeze
                     |
-                Broadcast   Convert
+                opt:Broadcast   Convert
                     |       \       /
-                Reshape       Concat
+                opt:Reshape       Concat
         \           /           |
-            MatMul           Unsqueeze
+            MatMul           opt:Unsqueeze
     \       /                   |
-       Add                   Broadcast
+       Add                   opt:Broadcast
         |                       |
-     Softmax                Reshape
+     Softmax                opt:Reshape
             \               /
                   MatMul
                     |
@@ -108,15 +108,19 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
                                const std::string& isol_tag) {
     auto convert1 = opp::wrap_type<ov::op::v0::Convert>({opp::any_input()});
     auto concat1 = opp::wrap_type<ov::op::v0::Concat>({convert1, opp::any_input()});
-    auto unsqueeze1 = opp::wrap_type<ov::op::v0::Unsqueeze>({concat1, opp::any_input()});
-    auto broadcast1 = opp::wrap_type<ov::op::v3::Broadcast>({unsqueeze1, opp::any_input()});
-    auto reshape1 = opp::wrap_type<ov::op::v1::Reshape>({broadcast1, opp::any_input()});
+
+    // GQA optional nodes
+    auto unsqueeze1 = opp::optional<ov::op::v0::Unsqueeze>({concat1, opp::any_input()});
+    auto broadcast1 = opp::optional<ov::op::v3::Broadcast>({unsqueeze1, opp::any_input()});
+    auto reshape1 = opp::optional<ov::op::v1::Reshape>({broadcast1, opp::any_input()});
 
     auto convert2 = opp::wrap_type<ov::op::v0::Convert>({opp::any_input()});
     auto concat2 = opp::wrap_type<ov::op::v0::Concat>({convert2, opp::any_input()});
-    auto unsqueeze2 = opp::wrap_type<ov::op::v0::Unsqueeze>({concat2, opp::any_input()});
-    auto broadcast2 = opp::wrap_type<ov::op::v3::Broadcast>({unsqueeze2, opp::any_input()});
-    auto reshape2 = opp::wrap_type<ov::op::v1::Reshape>({broadcast2, opp::any_input()});
+
+    // GQA optional nodes
+    auto unsqueeze2 = opp::optional<ov::op::v0::Unsqueeze>({concat2, opp::any_input()});
+    auto broadcast2 = opp::optional<ov::op::v3::Broadcast>({unsqueeze2, opp::any_input()});
+    auto reshape2 = opp::optional<ov::op::v1::Reshape>({broadcast2, opp::any_input()});
 
     auto matmul1 = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), reshape1});
     auto add = opp::wrap_type<ov::op::v1::Add>({matmul1, opp::any_input()});
@@ -136,8 +140,11 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
 
         // Helper lambda to extract and isolate matched nodes
         auto isolate_matched = [&](const auto& pattern) {
-            auto matched_node = node_to_output.at(pattern).get_node_shared_ptr();
-            node_to_gptr->at(matched_node)->isolate(isol_tag);
+            auto optional_node = node_to_output.find(pattern);
+            if (optional_node != node_to_output.end()) {
+                auto matched_node = optional_node->second.get_node_shared_ptr();
+                node_to_gptr->at(matched_node)->isolate(isol_tag);
+            }
         };
 
         // Isolate all matched nodes in the pattern

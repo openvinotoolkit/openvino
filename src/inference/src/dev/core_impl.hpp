@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,10 +28,10 @@ public:
     CoreConfig& operator=(const CoreConfig&) = delete;
 
     struct CacheConfig {
-        std::string m_cache_dir;
+        std::filesystem::path m_cache_dir;
         std::shared_ptr<ov::ICacheManager> m_cache_manager;
 
-        static CacheConfig create(const std::string& dir);
+        static CacheConfig create(const std::filesystem::path& dir);
     };
 
     void set(const ov::AnyMap& config, const std::string& device_name);
@@ -43,7 +43,7 @@ public:
      */
     void set_and_update(ov::AnyMap& config, const std::string& device_name);
 
-    std::string get_cache_dir() const;
+    std::filesystem::path get_cache_dir() const;
 
     bool get_enable_mmap() const;
 
@@ -148,13 +148,13 @@ private:
     struct CacheContent {
         explicit CacheContent(const std::shared_ptr<ov::ICacheManager>& cache_manager,
                               bool mmap_enabled = false,
-                              const std::string model_path = {})
+                              const std::filesystem::path model_path = {})
             : m_cache_manager(cache_manager),
               m_model_path(model_path),
               m_mmap_enabled{mmap_enabled} {}
         std::shared_ptr<ov::ICacheManager> m_cache_manager{};
         std::string m_blob_id{};
-        std::string m_model_path{};
+        std::filesystem::path m_model_path{};
         std::shared_ptr<const ov::Model> model{};
         bool m_mmap_enabled{};
     };
@@ -169,19 +169,19 @@ private:
     struct PluginDescriptor {
         std::filesystem::path m_lib_location{};
         ov::AnyMap m_default_config{};
-        std::vector<ov::util::FilePath> m_list_of_extensions{};
+        std::vector<std::filesystem::path> m_list_of_extensions{};
         CreatePluginEngineFunc* m_plugin_create_func = nullptr;
         CreateExtensionFunc* m_extension_create_func = nullptr;
         mutable std::vector<Extension::Ptr> m_extensions{};  // mutable because of lazy init
 
         PluginDescriptor() = default;
 
-        PluginDescriptor(const ov::util::FilePath& lib_location,
+        PluginDescriptor(const std::filesystem::path& lib_location,
                          const ov::AnyMap& default_config = {},
-                         const std::vector<ov::util::FilePath>& list_of_extentions = {})
+                         const std::vector<std::filesystem::path>& list_of_extensions = {})
             : m_lib_location(lib_location),
               m_default_config(default_config),
-              m_list_of_extensions(list_of_extentions) {}
+              m_list_of_extensions(list_of_extensions) {}
 
         PluginDescriptor(CreatePluginEngineFunc* plugin_create_func,
                          const ov::AnyMap& default_config = {},
@@ -237,10 +237,10 @@ public:
     /**
      * @brief Register plugins for devices which are located in .xml configuration file.
      * @note The function supports UNICODE path
-     * @param xml_config_file An .xml configuraion with device / plugin information
+     * @param xml_config_file An .xml configuration with device / plugin information
      * @param by_abs_path A boolean value - register plugins by absolute file path or not
      */
-    void register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path = false);
+    void register_plugins_in_registry(const std::filesystem::path& xml_config_file, const bool by_abs_path = false);
 
     std::shared_ptr<const ov::Model> apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
                                                          std::string& device_name,

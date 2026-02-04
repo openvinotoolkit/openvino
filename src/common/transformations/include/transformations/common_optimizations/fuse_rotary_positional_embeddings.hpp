@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ public:
 class ov::pass::RoPEFusionFlux : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("RoPEFusionFlux");
-    RoPEFusionFlux();
+    RoPEFusionFlux(bool num_heads_transposed = true);
 };
 
 class ov::pass::RoPEFusionGPTJ : public ov::pass::MatcherPass {

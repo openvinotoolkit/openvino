@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -167,6 +167,11 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
         }
 
         if (IC % G != 0 || IC / G < 4 || OC == 1) {
+            return false;
+        }
+
+        // 3D weights decompression is not supported due to the oneDNN limitations.
+        if (op->get_input_partial_shape(WEIGHTS).rank().get_length() == 3) {
             return false;
         }
     } catch (...) {
@@ -425,9 +430,6 @@ void FullyConnected::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 bool FullyConnected::canFuse(const NodePtr& node) const {
-#if defined(OV_CPU_WITH_SHL)
-    return false;
-#endif
     if (node->getType() == Type::FakeQuantize) {
         auto* fq = dynamic_cast<FakeQuantize*>(node.get());
         if (!fq) {
@@ -466,7 +468,6 @@ const std::vector<impl_desc_type>& FullyConnected::getDefaultImplPriority() {
     static const std::vector<impl_desc_type> priorities = {
         impl_desc_type::unknown,
         impl_desc_type::acl,
-        impl_desc_type::shl,
         impl_desc_type::brgemm_sparse_avx512_amx,
         impl_desc_type::brgemm_avx512_amx,
         impl_desc_type::brgconv_avx512_1x1,
