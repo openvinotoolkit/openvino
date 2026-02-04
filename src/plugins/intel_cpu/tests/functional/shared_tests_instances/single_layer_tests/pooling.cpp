@@ -8,8 +8,6 @@
 
 #include "common_test_utils/test_constants.hpp"
 
-#include "openvino/op/avg_pool.hpp"
-
 
 namespace {
 using ov::test::AvgPoolingV16LayerTest;
