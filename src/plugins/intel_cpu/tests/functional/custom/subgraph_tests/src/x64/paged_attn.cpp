@@ -98,45 +98,47 @@ public:
         // q [batch_in_tokens, head_num * head_size]
         // k [batch_in_tokens, head_num * head_size]
         // v [batch_in_tokens, head_num * head_size]
-        auto q = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "q");
-auto k = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "k");
-auto v = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "v");
-
-// Make cache shapes fully allocatable (last dim static)
-auto key_cache = make_param(PartialShape{ov::Dimension::dynamic(), 32, head_num * head_size},
-                            ov::element::dynamic,
-                            "key_cache.0");
-auto value_cache = make_param(PartialShape{ov::Dimension::dynamic(), 32, head_num * head_size},
-                              ov::element::dynamic,
-                              "value_cache.0");
-
+        auto q = make_param(PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, data_type, "q");
+        auto k = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "k");
+        auto v = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "v");
+        auto key_cache = make_param(PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
+                                    ov::element::dynamic,
+                                    "key_cache.0");
+        auto value_cache = make_param(PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
+                                      ov::element::dynamic,
+                                      "value_cache.0");
         auto past_lens = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "past_lens");
         auto subsequence_begins =
             make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "subsequence_begins");
         auto block_indices = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "block_indices");
         auto block_indices_begins =
             make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "block_indices_begins");
-
-        float scale_value = 1.0f / std::sqrt(static_cast<float>(head_size));
-auto scale = ov::op::v0::Constant::create(ov::element::f32, {}, {scale_value});
-
-auto sliding_windows = ov::op::v0::Constant::create(ov::element::i32, {}, {sliding_window});
-auto alibi_slopes = ov::op::v0::Constant::create(ov::element::f32, {0}, {});
-
-auto max_context_len = ov::op::v0::Constant::create(ov::element::i32, {}, {1024});
-auto score_aggregation_window = ov::op::v0::Constant::create(ov::element::i32, {}, {0});
-
-auto rotated_block_indices = ov::op::v0::Constant::create(ov::element::i32, {0}, {});
-auto rotation_deltas      = ov::op::v0::Constant::create(ov::element::i32, {0}, {});
-auto rotation_trig_lut    = ov::op::v0::Constant::create(ov::element::f32, {0}, {});
-
-auto xattention_threshold = enable_xattn
-    ? ov::op::v0::Constant::create(ov::element::f32, {1}, {0.9f})
-    : ov::op::v0::Constant::create(ov::element::f32, {0}, {});
-
-auto xattention_block_size = ov::op::v0::Constant::create(ov::element::i32, {}, {64});
-auto xattention_stride     = ov::op::v0::Constant::create(ov::element::i32, {}, {8});
-
+        float scale_value = 1.0 / std::sqrt(head_size);
+        auto scale =
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale_value});
+        auto silding_windows =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{sliding_window});
+        auto alibi_slopes = std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{});
+        auto max_context_len =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<float>{1024});
+        auto score_aggregation_window =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
+        auto rotated_block_indices =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
+        auto rotation_deltas =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
+        auto rotation_trig_lut =
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{0});
+        auto xattention_threshold =
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{0});
+        if (enable_xattn) {
+            xattention_threshold =
+                std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{1}, std::vector<float>{0.9f});
+        }
+        auto xattention_block_size =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{64});
+        auto xattention_stride =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{8});
         // Create sink input as Constant (not Parameter) for testing
         // PagedAttentionExtension requires sink input to be Constant
         // Use shape [1, head_num, 1, 1] when use_sink_input=true, or empty shape [0] when false
@@ -149,10 +151,14 @@ auto xattention_stride     = ov::op::v0::Constant::create(ov::element::i32, {}, 
             sinks = std::static_pointer_cast<ov::op::v0::Constant>(ov::test::utils::make_constant(data_type, Shape{0}));
         }
 
-auto adaptive_rkv_start_size = ov::op::v0::Constant::create(ov::element::i32, {}, {0});
-auto adaptive_rkv_evictable_sizes = ov::op::v0::Constant::create(ov::element::i32, {0}, {});
-auto adaptive_rkv_diversity_block_set_indices = ov::op::v0::Constant::create(ov::element::i32, {0}, {});
-auto adaptive_rkv_diversity_block_set_indices_begins = ov::op::v0::Constant::create(ov::element::i32, {0}, {});
+        auto adaptive_rkv_start_size =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
+        auto adaptive_rkv_evictable_sizes =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
+        auto adaptive_rkv_diversity_block_set_indices =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
+        auto adaptive_rkv_diversity_block_set_indices_begins =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
         ParameterVector params =
             {q, k, v, key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins};
         OutputVector paged_attn_inputs = {q,
@@ -165,7 +171,7 @@ auto adaptive_rkv_diversity_block_set_indices_begins = ov::op::v0::Constant::cre
                                           block_indices,
                                           block_indices_begins,
                                           scale,
-                                          sliding_windows,
+                                          silding_windows,
                                           alibi_slopes,
                                           max_context_len,
                                           score_aggregation_window,
