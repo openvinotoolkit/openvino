@@ -34,7 +34,8 @@ ov::OutputVector group_norm(const ov::frontend::onnx::Node& node) {
     FRONT_END_GENERAL_CHECK(activation == 0 || activation == 1,
                             "Expected activation to be either 0 or 1, actual value is: " + std::to_string(activation));
 
-    FRONT_END_GENERAL_CHECK(channels_last == 0 || channels_last == 1,
+    FRONT_END_GENERAL_CHECK(
+        channels_last == 0 || channels_last == 1,
         "Expected channels_last to be either 0 or 1, actual value is: " + std::to_string(channels_last));
 
     if (!scale.get_partial_shape().rank().compatible(1)) {
@@ -50,7 +51,8 @@ ov::OutputVector group_norm(const ov::frontend::onnx::Node& node) {
         data = std::make_shared<v1::Transpose>(data, perm);
     }
 
-    std::shared_ptr<ov::Node> group_norm = std::make_shared<v12::GroupNormalization>(data, scale, bias, num_groups, eps);
+    std::shared_ptr<ov::Node> group_norm =
+        std::make_shared<v12::GroupNormalization>(data, scale, bias, num_groups, eps);
 
     if (channels_last == 1) {
         // Transpose back from NCHW to NHWC
