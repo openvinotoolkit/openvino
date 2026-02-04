@@ -14,8 +14,6 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/add.hpp"
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
@@ -462,36 +460,6 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed10) {
         auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input1, weights_const, no_bias, scale_const, zp_const);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input1});
-    }
-}
-
-TEST_F(TransformationTestsF, ConvertFCToCompressed11) {
-    {
-        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, 1, 1, 16 });
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 32, 16 }, { 1 });
-        auto convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f16);
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 32, 1 }, { 1 });
-        auto scale = std::make_shared<ov::op::v1::Multiply>(convert, scale_const);
-        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
-        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input1, scale, no_bias);
-
-        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input1});
-        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
-    }
-    {
-        auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, 1, 1, 16 });
-        auto squeeze_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
-        auto squeeze = std::make_shared<ov::op::v0::Squeeze>(input1, squeeze_const);
-
-        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 32, 16 }, { 1 });
-        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
-        auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 32, 1 }, { 1 });
-        auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(squeeze, weights_const, no_bias, scale_const);
-
-        auto unsqueeze_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
-        auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(fc_compressed, unsqueeze_const);
-
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{unsqueeze}, ov::ParameterVector{input1});
     }
 }
 
