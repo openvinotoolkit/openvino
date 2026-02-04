@@ -13,6 +13,8 @@ namespace op {
 /// \ingroup ov_ops_cpp_api
 ///
 /// This operation computes attention using a paged memory model, allowing efficient handling of long sequences.
+
+using PagedCacheManagerHandle = std::shared_ptr<void>;  // Void handle to avoid inconsistent linkage
 class OPENVINO_API PagedAttentionExtension : public ov::op::Op {
 public:
     OPENVINO_OP("PagedAttentionExtension");
@@ -55,7 +57,6 @@ public:
     const ov::element::Type get_out_type(int index) const;
     void set_out_type(int index, const ov::element::Type& output_type);
 
-    using PagedCacheManagerHandle = std::shared_ptr<void>;
     PagedCacheManagerHandle get_cache_manager() const;
     void set_cache_manager(PagedCacheManagerHandle cache_manager);
 

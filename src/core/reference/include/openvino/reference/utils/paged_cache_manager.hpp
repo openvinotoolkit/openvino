@@ -13,7 +13,6 @@
 #include <utility>
 #include <vector>
 
-#include "openvino/core/core_visibility.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -24,7 +23,7 @@ namespace reference {
 namespace paged_attention_cache {
 
 // A single-threaded CacheManager used by the reference implementation of PagedAttentionExtension.
-class OPENVINO_API PagedCacheManager {
+class PagedCacheManager {
 public:
     struct TokenAddress {
         std::int32_t block = -1;

@@ -12,7 +12,7 @@
 namespace ov {
 namespace test {
 
-TEST_P(PagedAttentionLayerTest, CompareWithRefs) {
+TEST_P(PagedAttentionLayerTest, Inference) {
     const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config] = GetParam();
     (void)inputShapes; (void)enableXattn; (void)sinkInput; (void)slidingWindow;
 
