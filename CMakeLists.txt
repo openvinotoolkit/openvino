@@ -154,6 +154,9 @@ include(cmake/tpp-mlir.cmake)
 # Graph Compiler
 #
 if (ENABLE_GRAPH_COMPILER)
+    find_package(LLVM REQUIRED CONFIG)
+    find_package(MLIR REQUIRED CONFIG)
+
     include(cmake/graph-compiler.cmake)
     add_definitions(-DGRAPH_COMPILER)
 endif()

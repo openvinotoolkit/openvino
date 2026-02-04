@@ -62,7 +62,8 @@
 #include "mlir/Target/LLVMIR/ModuleTranslation.h"
 
 #ifdef GRAPH_COMPILER
-#include "gc/ExecutionEngine/Driver/Driver.h"
+#include "gc/Transforms/Passes.h"
+// #include "gc/Dialect/Linalgx/IR/LinalgxDialect.h"
 #endif
 
 #ifdef TPP_MLIR // If TPP is available
@@ -83,6 +84,7 @@
 #include "op/squeeze.hpp"
 #include "op/transpose.hpp"
 #include "op/unsqueeze.hpp"
+#include "op/sdpa.hpp"
 #include "op/binary_eltwise.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -320,6 +322,7 @@ void injectMLIR(std::shared_ptr<ov::Model> model,
     using namespace ov::op;
     manager.set_per_pass_validation(false);
     manager.register_pass<ov::pass::SymbolicPropagation>();
+    manager.register_pass<SDPAPattern>();
     manager.register_pass<BinaryEltwisePattern<v1::Add, linalg::AddOp>>();
     manager.register_pass<BinaryEltwisePattern<v1::Subtract, linalg::SubOp>>();
     manager.register_pass<BinaryEltwisePattern<v1::Multiply, linalg::MulOp>>();
@@ -343,6 +346,7 @@ void loadDialects(MLIRContext* context) {
     context->loadDialect<mlir::DLTIDialect>();
     context->loadDialect<mlir::func::FuncDialect>();
     context->loadDialect<mlir::linalg::LinalgDialect>();
+    // context->loadDialect<mlir::gc::linalgx::LinalgxDialect>();
     context->loadDialect<mlir::bufferization::BufferizationDialect>();
     context->loadDialect<mlir::shape::ShapeDialect>();
 }
@@ -368,7 +372,7 @@ MLIRContext* get_shared_mlir_context(MlirMode mode) {
 #ifdef GRAPH_COMPILER
     if (mode == MLIR_MODE_GC || mode == MLIR_MODE_GC_GPU) {
         OPENVINO_MLIR_DEBUG_PRINT("GC\n");
-        context = std::make_shared<MLIRContext>(gc::initCompilerAndGetDialects());
+        context = std::make_shared<MLIRContext>(gc::getDialectRegistry());
     } else {
 #endif
         // Initialize the LLVM machinery

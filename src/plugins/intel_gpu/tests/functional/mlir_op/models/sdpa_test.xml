@@ -1,0 +1,134 @@
+<?xml version="1.0"?>
+<net name="SDPA_Model" version="11">
+  <layers>
+
+    <!-- q -->
+    <layer id="0" name="q" type="Parameter" version="opset1">
+      <data element_type="f32" shape="1,64,80"/>
+      <output>
+        <port id="0" precision="FP32" names="q">
+          <dim>1</dim>
+          <dim>64</dim>
+          <dim>80</dim>
+        </port>
+      </output>
+    </layer>
+
+    <!-- k -->
+    <layer id="1" name="k" type="Parameter" version="opset1">
+      <data element_type="f32" shape="1,128,80"/>
+      <output>
+        <port id="0" precision="FP32" names="k">
+          <dim>1</dim>
+          <dim>128</dim>
+          <dim>80</dim>
+        </port>
+      </output>
+    </layer>
+
+    <!-- v -->
+    <layer id="2" name="v" type="Parameter" version="opset1">
+      <data element_type="f32" shape="1,128,80"/>
+      <output>
+        <port id="0" precision="FP32" names="v">
+          <dim>1</dim>
+          <dim>128</dim>
+          <dim>80</dim>
+        </port>
+      </output>
+    </layer>
+
+    <!-- attention_mask = 0 (scalar), means "no mask" -->
+<!-- attention_mask input -->
+<layer id="3" name="attn_mask" type="Parameter" version="opset1">
+  <data element_type="f32" shape="1,1,128"/>
+  <output>
+    <port id="0" precision="FP32" names="attn_mask">
+      <dim>1</dim>
+      <dim>1</dim>
+      <dim>128</dim>
+    </port>
+  </output>
+</layer>
+
+
+
+
+
+
+    <!-- scale (scalar) -->
+    <layer id="4" name="scale" type="Parameter" version="opset1">
+      <data element_type="f32" shape=""/>
+      <output>
+        <port id="0" precision="FP32" names="scale">
+          <!-- scalar -->
+        </port>
+      </output>
+    </layer>
+
+    <!-- ScaledDotProductAttention -->
+    <layer id="5" name="sdpa" type="ScaledDotProductAttention" version="opset13">
+      <data causal="false"/>
+      <input>
+        <port id="0" precision="FP32"> <!-- query -->
+          <dim>1</dim>
+          <dim>64</dim>
+          <dim>80</dim>
+        </port>
+        <port id="1" precision="FP32"> <!-- key -->
+          <dim>1</dim>
+          <dim>128</dim>
+          <dim>80</dim>
+        </port>
+        <port id="2" precision="FP32"> <!-- value -->
+          <dim>1</dim>
+          <dim>128</dim>
+          <dim>80</dim>
+        </port>
+<port id="3" precision="FP32">
+  <dim>1</dim>
+  <dim>1</dim>
+  <dim>128</dim>
+</port>
+
+        <port id="4" precision="FP32"> <!-- scale (scalar) -->
+          <!-- scalar -->
+        </port>
+      </input>
+      <output>
+        <port id="5" precision="FP32" names="sdpa_out">
+          <dim>1</dim>
+          <dim>64</dim>
+          <dim>80</dim>
+        </port>
+      </output>
+    </layer>
+
+    <!-- Result -->
+    <layer id="6" name="Result" type="Result" version="opset1">
+      <input>
+        <port id="0" precision="FP32">
+          <dim>1</dim>
+          <dim>64</dim>
+          <dim>80</dim>
+        </port>
+      </input>
+    </layer>
+
+  </layers>
+
+  <edges>
+    <edge from-layer="0" from-port="0" to-layer="5" to-port="0"/>
+    <edge from-layer="1" from-port="0" to-layer="5" to-port="1"/>
+    <edge from-layer="2" from-port="0" to-layer="5" to-port="2"/>
+    <edge from-layer="3" from-port="0" to-layer="5" to-port="3"/>
+    <edge from-layer="4" from-port="0" to-layer="5" to-port="4"/>
+    <edge from-layer="5" from-port="5" to-layer="6" to-port="0"/>
+  </edges>
+
+  <rt_info>
+    <conversion_parameters>
+      <framework value="manual"/>
+    </conversion_parameters>
+  </rt_info>
+</net>

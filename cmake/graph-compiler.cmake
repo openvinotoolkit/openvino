@@ -56,8 +56,7 @@ if (NOT DEFINED GRAPH_COMPILER_LIBS)
 
     set(GRAPH_COMPILER_LIBS
             GcInterface
-            GcJitWrapper
-            GcCpuRuntime
+            # MLIRLinalgx
     )
 
     if (ENABLE_INTEL_GPU)
@@ -66,6 +65,14 @@ if (NOT DEFINED GRAPH_COMPILER_LIBS)
 
     set_property(GLOBAL PROPERTY GRAPH_COMPILER_LIBS ${GRAPH_COMPILER_LIBS})
 endif ()
+
+if (NOT TARGET GcInterface)
+  if (DEFINED GraphCompiler_DIR AND EXISTS "${GraphCompiler_DIR}/GraphCompilerTargets.cmake")
+    include("${GraphCompiler_DIR}/GraphCompilerTargets.cmake")
+  elseif (DEFINED GraphCompiler_ROOT)
+    include("${GraphCompiler_ROOT}/lib/cmake/GraphCompiler/GraphCompilerTargets.cmake")
+  endif()
+endif()
 
 get_target_property(GRAPH_COMPILER_INCLUDES GcInterface INTERFACE_INCLUDE_DIRECTORIES)
 get_target_property(GRAPH_COMPILER_COMPILE_OPTIONS GcInterface INTERFACE_COMPILE_OPTIONS)

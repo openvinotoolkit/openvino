@@ -172,9 +172,24 @@ static std::map<size_t, ov::Tensor> allocate_input_tensors(
     return input_tensors;
 }
 
+TEST(MLIRExecution, SimpleSDPA) {
+    if (ov::util::getenv_string("OV_MLIR_MODE") != "GC_GPU")
+        GTEST_SKIP() << "This test is only for GC_GPU MLIR mode. Set 'OV_MLIR_MODE' env variable to 'GC_GPU'";
+
+    ov::Core core;
+    auto model = core.read_model(
+        model_full_path("sdpa_test.xml"));
+
+    ov::AnyMap device_config;
+    device_config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::THROUGHPUT;
+    device_config[ov::enable_profiling.name()] = false;
+
+    auto compiled_model = core.compile_model(model, "GPU", device_config);
+}
+
 TEST(MLIRExecution, SimpleMatmulf32) {
-    // if (ov::util::getenv_string("OV_MLIR_MODE") != "GC_GPU")
-    //     GTEST_SKIP() << "This test is only for GC_GPU MLIR mode. Set 'OV_MLIR_MODE' env variable to 'GC_GPU'";
+    if (ov::util::getenv_string("OV_MLIR_MODE") != "GC_GPU")
+        GTEST_SKIP() << "This test is only for GC_GPU MLIR mode. Set 'OV_MLIR_MODE' env variable to 'GC_GPU'";
 
     ov::Core core;
     auto model = core.read_model(
@@ -217,8 +232,8 @@ TEST(MLIRExecution, SimpleMatmulf32) {
 }
 
 TEST(MLIRExecution, SimpleMatmulf32CLBuffer) {
-    // if (ov::util::getenv_string("OV_MLIR_MODE") != "GC_GPU")
-    //     GTEST_SKIP() << "This test is only for GC_GPU MLIR mode. Set 'OV_MLIR_MODE' env variable to 'GC_GPU'";
+    if (ov::util::getenv_string("OV_MLIR_MODE") != "GC_GPU")
+        GTEST_SKIP() << "This test is only for GC_GPU MLIR mode. Set 'OV_MLIR_MODE' env variable to 'GC_GPU'";
 
     ov::Core core;
     auto model = core.read_model(
@@ -261,8 +276,8 @@ TEST(MLIRExecution, SimpleMatmulf32CLBuffer) {
 }
 
 TEST(MLIRExecution, SimpleMatmulf16) {
-    // if (ov::util::getenv_string("OV_MLIR_MODE") != "GC_GPU")
-    //     GTEST_SKIP() << "This test is only for GC_GPU MLIR mode. Set 'OV_MLIR_MODE' env variable to 'GC_GPU'";
+    if (ov::util::getenv_string("OV_MLIR_MODE") != "GC_GPU")
+        GTEST_SKIP() << "This test is only for GC_GPU MLIR mode. Set 'OV_MLIR_MODE' env variable to 'GC_GPU'";
 
     ov::Core core;
     auto model = core.read_model(

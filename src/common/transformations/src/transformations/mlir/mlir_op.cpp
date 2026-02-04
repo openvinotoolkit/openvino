@@ -93,7 +93,8 @@ void prepareMLIRKernelWithoutWrapper(mlir::OwningOpRef<mlir::ModuleOp>& module, 
 #endif
 #ifdef GRAPH_COMPILER
         case ov::mlir::MLIR_MODE_GC: {
-            gc::populateCPUPipeline(pm);
+            gc::GPUPipelineOptions opts;
+            gc::populateGPUPipeline(pm, opts);
             break;
         }
 #endif
