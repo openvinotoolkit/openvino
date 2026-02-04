@@ -8,8 +8,10 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/softmax.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -19,12 +21,15 @@ namespace test {
 
 using ov::test::InputShape;
 
-enum class PatternType { SharedDQ };
+enum class PatternType { SharedDQ, NeedScalingMulMatMul };
 
 inline std::ostream& operator<<(std::ostream& os, PatternType pattern_type) {
     switch (pattern_type) {
     case PatternType::SharedDQ:
         os << "SharedDQ";
+        break;
+    case PatternType::NeedScalingMulMatMul:
+        os << "NeedScalingMulMatMul";
         break;
     default:
         OPENVINO_THROW("Unknown PatternType");
@@ -74,6 +79,47 @@ public:
     }
 
 protected:
+    std::shared_ptr<ov::Model> build_need_scaling_mul_matmul_pattern(const ov::PartialShape& input_shape,
+                                                                      const ov::element::Type& quantization_precision) {
+        auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+        auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+        ov::ParameterVector params{param1, param2};
+
+        // Common constant
+        auto common_constant = ov::op::v0::Constant::create(ov::element::f32, {}, {0.1f});
+
+        // param1 * common_constant
+        auto mul1 = std::make_shared<ov::op::v1::Multiply>(param1, common_constant);
+
+        // param2 * common_constant
+        auto mul2 = std::make_shared<ov::op::v1::Multiply>(param2, common_constant);
+
+        // MatMul
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(mul1, mul2, false, true);
+
+        // QDQ pattern
+        static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>>
+            quantization_params{
+                {ov::element::Type_t::u16,
+                 {{0.f, 10.f, 0.f, 65535.f, 0}, {-6.244578838348389f, 6.347373962402344f, 0.f, 65535.f, 32500}}},
+                {ov::element::Type_t::i16,
+                 {{-5.000076293945312f, 4.999923706054688f, -32768.f, 32767.f, 0},
+                  {-6.296072483062744f, 6.295880317687988f, -32768.f, 32767.f, 0}}},
+            };
+
+        const auto& qp = quantization_params.at(quantization_precision).first;
+        auto fq = qp.build_fq(matmul);
+        auto convert1 = std::make_shared<ov::op::v0::Convert>(fq, quantization_precision);
+        auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
+        auto dq = qp.build_dq(convert2, quantization_precision);
+
+        // Softmax
+        auto softmax = std::make_shared<ov::op::v8::Softmax>(dq, -1);
+
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{softmax}, params, "QDQStripping");
+        return model;
+    }
+
     std::shared_ptr<ov::Model> build_shared_dq_pattern(const ov::PartialShape& input_shape,
                                                         const ov::element::Type& quantization_precision) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
@@ -135,7 +181,14 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
         const auto& [input_shape, input_precision, quantization_precision, pattern_type] = GetParam();
-        init_input_shapes({input_shape});
+
+        // NeedScalingMulMatMul pattern has 2 parameters, SharedDQ has 1
+        if (pattern_type == PatternType::NeedScalingMulMatMul) {
+            init_input_shapes({input_shape, input_shape});
+        } else {
+            init_input_shapes({input_shape});
+        }
+        
         inType = outType = input_precision;
 
         OPENVINO_ASSERT(quantization_precision == ov::element::i16 || quantization_precision == ov::element::u16,
@@ -143,11 +196,15 @@ protected:
 
         // Since the FQ are not executed in a strictly 'fair' manner, and just replaced with clamp ops, a small accuracy
         // deviation is expected.
-        abs_threshold = 1e-3f;
+        // NeedScalingMulMatMul pattern has larger accumulated error due to MatMul operations
+        abs_threshold = (pattern_type == PatternType::NeedScalingMulMatMul) ? 1e-2f : 1e-3f;
 
         switch (pattern_type) {
         case PatternType::SharedDQ:
             function = build_shared_dq_pattern(input_shape.first, quantization_precision);
+            break;
+        case PatternType::NeedScalingMulMatMul:
+            function = build_need_scaling_mul_matmul_pattern(input_shape.first, quantization_precision);
             break;
         default:
             OPENVINO_THROW("Unknown PatternType");
@@ -178,7 +235,7 @@ namespace {
 const std::vector<ov::test::InputShape> input_shapes = {{{-1, -1, -1, -1}, {{1, 3, 128, 128}}}};
 const std::vector<ov::element::Type> input_precisions = {ov::element::f32};
 const std::vector<ov::element::Type> quantization_precisions = {ov::element::u16, ov::element::i16};
-const std::vector<PatternType> pattern_types = {PatternType::SharedDQ};
+const std::vector<PatternType> pattern_types = {PatternType::SharedDQ, PatternType::NeedScalingMulMatMul};
 
 INSTANTIATE_TEST_SUITE_P(smoke_QDQStripping,
                          QDQStrippingTest,
