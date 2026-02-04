@@ -3,8 +3,10 @@
 //
 #include "compiled_model.hpp"
 
+#include <fstream>
 #include <iostream>
 #include <memory>
+#include <set>
 #include <string>
 
 #include "accuracy/comparator.hpp"
@@ -476,6 +478,12 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
         dump_subgraph_model(id, subgraph._funcall, dump_sub_opt);
     }  // for(orderedSubGraphs)
+
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    if (!dump_sub_opt.empty()) {
+        dump_subgraph_composition(orderedSubgraphs);
+    }
+#endif
 
     std::map<std::size_t, std::string> forced_sub_devices{};
     std::string fsd_opt = m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>();
@@ -2004,6 +2012,14 @@ void ov::npuw::CompiledModel::dump_on_fail(std::size_t id, const std::string& de
     }
 }
 
+std::string ov::npuw::CompiledModel::format_subgraph_name(std::size_t id, const std::string& funcall) const {
+    std::string name = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size());
+    if (!funcall.empty()) {
+        name += "_" + funcall;
+    }
+    return name;
+}
+
 void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
                                                   const std::string& funcall,
                                                   const std::string& dump_sub_opt) {
@@ -2020,6 +2036,8 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
         LOG_INFO("NOTE: Dumping Subgraph[" << real_id << "]" << " as it is a function body for Subgraph[" << id << "]");
     }
 
+    const std::string dump_dir = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS_DIR>();
+
     // Dump MoE expert models if present
     if (m_compiled_submodels[id].moe_experts) {
         LOG_INFO("NOTE: Subgraph[" << id << "] has MoE experts mechanism.");
@@ -2032,9 +2050,9 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
                 size_t chunk_size = entry.first;
                 const auto& moe_model = entry.second;
 
-                std::string moe_model_dump_path = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
-                                                  (funcall.empty() ? "" : "_" + funcall) + "_moe_chunk_" +
-                                                  std::to_string(chunk_size) + ".xml";
+                std::string moe_model_file_name =
+                    format_subgraph_name(id, funcall) + "_moe_chunk_" + std::to_string(chunk_size) + ".xml";
+                std::string moe_model_dump_path = ov::util::path_join({dump_dir, moe_model_file_name}).string();
                 ov::save_model(moe_model, moe_model_dump_path);
                 LOG_INFO("Wrote " << moe_model_dump_path);
             }
@@ -2048,8 +2066,8 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
         return;
     }
 
-    std::string model_dump_path = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
-                                  (funcall.empty() ? "" : "_" + funcall) + ".xml";
+    const std::string file_name = format_subgraph_name(id, funcall) + ".xml";
+    const std::string model_dump_path = ov::util::path_join({dump_dir, file_name}).string();
     ov::save_model(model_to_dump, model_dump_path);
     LOG_INFO("Wrote " << model_dump_path);
 
@@ -2058,10 +2076,11 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
         LOG_INFO("NOTE: Subgraph[" << id << "] has a pyramid attention mechanism.");
         const auto& pyramid_attention_models = m_compiled_submodels[id].pyramid_attention.value()._models_to_compile;
         for (std::size_t idx = 0; idx < pyramid_attention_models.size(); ++idx) {
+            std::string pyramid_attention_model_name = format_subgraph_name(id, funcall) + "_pyramid_" +
+                                                       ov::npuw::util::fmt(idx, pyramid_attention_models.size()) +
+                                                       ".xml";
             std::string pyramid_attention_model_dump_path =
-                m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
-                (funcall.empty() ? "" : "_" + funcall) + "_pyramid_" +
-                ov::npuw::util::fmt(idx, pyramid_attention_models.size()) + ".xml";
+                ov::util::path_join({dump_dir, pyramid_attention_model_name}).string();
             ov::save_model(pyramid_attention_models[idx], pyramid_attention_model_dump_path);
             LOG_INFO("Wrote " << pyramid_attention_model_dump_path);
         }
@@ -2071,18 +2090,133 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
     if (m_compiled_submodels[id].host_flash_attention) {
         LOG_INFO("NOTE: Subgraph[" << id << "] has a host flash attention mechanism.");
         const auto& hfa_tile_model = m_compiled_submodels[id].host_flash_attention.value()._tile_model_to_compile;
-        std::string hfa_tile_model_dump_path = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
-                                               (funcall.empty() ? "" : "_" + funcall) + "_hfa_tile.xml";
+        std::string hfa_tile_model_name = format_subgraph_name(id, funcall) + "_hfa_tile.xml";
+        std::string hfa_tile_model_dump_path = ov::util::path_join({dump_dir, hfa_tile_model_name}).string();
         ov::save_model(hfa_tile_model, hfa_tile_model_dump_path);
         LOG_INFO("Wrote " << hfa_tile_model_dump_path);
 
         const auto& hfa_final_tile_model =
             m_compiled_submodels[id].host_flash_attention.value()._final_tile_model_to_compile;
-        std::string hfa_final_tile_model_dump_path = m_name + "_" +
-                                                     ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
-                                                     (funcall.empty() ? "" : "_" + funcall) + "_hfa_final_tile.xml";
+        std::string hfa_final_tile_model_name = format_subgraph_name(id, funcall) + "_hfa_final_tile.xml";
+        std::string hfa_final_tile_model_dump_path =
+            ov::util::path_join({dump_dir, hfa_final_tile_model_name}).string();
         ov::save_model(hfa_final_tile_model, hfa_final_tile_model_dump_path);
     }
+}
+
+void ov::npuw::CompiledModel::dump_subgraph_composition(const std::vector<ov::npuw::Subgraph>& orderedSubgraphs) const {
+    LOG_INFO("Dumping subgraph composition for " << m_name << "...");
+    LOG_BLOCK();
+
+    const std::string dump_dir = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS_DIR>();
+    const std::string sg_file = "npuw_" + m_name + ".sg";
+    const std::string sg_path = ov::util::path_join({dump_dir, sg_file}).string();
+
+    // Collect unique subgraphs via replaced_by()
+    std::map<std::size_t, std::size_t> real_id_counts;
+    for (size_t id = 0; id < orderedSubgraphs.size(); id++) {
+        if (orderedSubgraphs[id]._optimized_out) {
+            continue;
+        }
+        const std::size_t real_id = m_compiled_submodels[id].replaced_by.value_or(id);
+        real_id_counts[real_id]++;
+    }
+
+    std::vector<std::pair<std::string, size_t>> subgraph_info;
+    std::vector<std::string> base_subgraphs;
+    std::vector<std::string> attn_subgraphs;
+    std::vector<std::string> moe_subgraphs;
+
+    for (const auto& [real_id, count] : real_id_counts) {
+        const std::string& funcall = orderedSubgraphs[real_id]._funcall;
+        std::string base_name = format_subgraph_name(real_id, funcall);
+        subgraph_info.emplace_back(base_name, count);
+
+        if (m_compiled_submodels[real_id].moe_experts) {
+            const auto& moe_models = m_compiled_submodels[real_id].moe_experts.value()._models_to_compile;
+            if (!moe_models.empty()) {
+                for (const auto& [chunk_size, model] : moe_models) {
+                    moe_subgraphs.push_back(base_name + "_moe_chunk_" + std::to_string(chunk_size) + ".xml");
+                }
+            } else {
+                base_subgraphs.push_back(base_name + ".xml");
+            }
+        } else {
+            base_subgraphs.push_back(base_name + ".xml");
+
+            if (m_compiled_submodels[real_id].pyramid_attention) {
+                const auto& pyramid_models = m_compiled_submodels[real_id].pyramid_attention.value()._models_to_compile;
+                for (std::size_t idx = 0; idx < pyramid_models.size(); ++idx) {
+                    attn_subgraphs.push_back(base_name + "_pyramid_" + ov::npuw::util::fmt(idx, pyramid_models.size()) +
+                                             ".xml");
+                }
+            }
+            if (m_compiled_submodels[real_id].host_flash_attention) {
+                attn_subgraphs.push_back(base_name + "_hfa_tile.xml");
+                attn_subgraphs.push_back(base_name + "_hfa_final_tile.xml");
+            }
+        }
+    }
+
+    std::ofstream json_file(sg_path);
+    if (!json_file.is_open()) {
+        const auto dir_path = ov::util::make_path(dump_dir);
+        if (!ov::util::directory_exists(dir_path)) {
+            LOG_ERROR("Failed to open file for writing: " << sg_path << ". Directory does not exist: " << dump_dir);
+        } else {
+            LOG_ERROR("Failed to open file for writing: " << sg_path << ". Check file permissions or disk space.");
+        }
+        return;
+    }
+
+    json_file << "{\n";
+    json_file << "  \"pipeline_name\": \"npuw_" << m_name << "\",\n";
+    json_file << "  \"repeated_numbers\": {\n";
+    json_file << "    \"total_subgraphs\": " << subgraph_info.size();
+    for (const auto& [name, count] : subgraph_info) {
+        json_file << ",\n    \"" << name << "\": " << count;
+    }
+    json_file << "\n  },\n";
+    json_file << "  \"subgraphs\": [\n";
+    for (size_t i = 0; i < base_subgraphs.size(); i++) {
+        json_file << "    \"" << base_subgraphs[i] << "\"";
+        if (i < base_subgraphs.size() - 1) {
+            json_file << ",";
+        }
+        json_file << "\n";
+    }
+    json_file << "  ]";
+
+    // Add attention subgraphs if any exist
+    if (!attn_subgraphs.empty()) {
+        json_file << ",\n  \"attn_subgraphs\": [\n";
+        for (size_t i = 0; i < attn_subgraphs.size(); i++) {
+            json_file << "    \"" << attn_subgraphs[i] << "\"";
+            if (i < attn_subgraphs.size() - 1) {
+                json_file << ",";
+            }
+            json_file << "\n";
+        }
+        json_file << "  ]";
+    }
+
+    // Add MoE subgraphs if any exist
+    if (!moe_subgraphs.empty()) {
+        json_file << ",\n  \"moe_subgraphs\": [\n";
+        for (size_t i = 0; i < moe_subgraphs.size(); i++) {
+            json_file << "    \"" << moe_subgraphs[i] << "\"";
+            if (i < moe_subgraphs.size() - 1) {
+                json_file << ",";
+            }
+            json_file << "\n";
+        }
+        json_file << "  ]";
+    }
+
+    json_file << "\n}\n";
+
+    json_file.close();
+    LOG_INFO("Wrote " << sg_path);
 }
 
 std::shared_ptr<ov::npuw::IBaseInferRequest> ov::npuw::CompiledModel::create_base_infer_request() const {

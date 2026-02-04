@@ -56,6 +56,7 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
     desc.add<NPUW_DUMP_FULL>();
     desc.add<NPUW_DUMP_SUBS>();
+    desc.add<NPUW_DUMP_SUBS_DIR>();
     desc.add<NPUW_DUMP_SUBS_ON_FAIL>();
     desc.add<NPUW_DUMP_IO>();
     desc.add<NPUW_DUMP_IO_ITERS>();
