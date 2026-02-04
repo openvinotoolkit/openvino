@@ -5,6 +5,7 @@
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
@@ -330,15 +331,25 @@ KeepConstPrecision::KeepConstPrecision(const element::TypeVector& precisions,
 KeepDequantizationPrecision::KeepDequantizationPrecision(const element::TypeVector& precisions,
                                                          bool add_precision_sensitive_convert) {
     MATCHER_SCOPE(KeepDequantizationPrecision);
+    auto data_pattern = pattern::any_input();
+    auto input_low_pattern = pattern::any_input();
+    auto input_high_pattern = pattern::any_input();
+    auto output_low_pattern = pattern::any_input();
+    auto output_high_pattern = pattern::any_input();
 
-    auto input_pattern = pattern::wrap_type<v0::Constant>(pattern::type_matches_any(precisions));
-    auto convert_pattern = pattern::wrap_type<v0::Convert>({input_pattern}, pattern::consumers_count(1));
+    auto fq_pattern = pattern::wrap_type<v0::FakeQuantize>(
+        {data_pattern, input_low_pattern, input_high_pattern, output_low_pattern, output_high_pattern});
+    auto convert1_pattern = pattern::wrap_type<v0::Convert>(fq_pattern, pattern::type_matches_any({precisions}));
+    auto constant_pattern = pattern::wrap_type<v0::Constant>(pattern::type_matches_any(precisions));
+
+    auto input_pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{convert1_pattern, constant_pattern});
+    auto convert2_pattern = pattern::optional<v0::Convert>({input_pattern}, pattern::consumers_count(1));
 
     // zero points:
     auto zp_pattern = pattern::wrap_type<v0::Constant>();
     auto zp_convert_pattern = pattern::optional<v0::Convert>(zp_pattern);
     auto zp_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({zp_convert_pattern, pattern::any_input()});
-    auto subtract_pattern = pattern::optional<v1::Subtract>({convert_pattern, zp_reshape_pattern});
+    auto subtract_pattern = pattern::optional<v1::Subtract>({convert2_pattern, zp_reshape_pattern});
 
     // scale:
     auto scale_pattern = pattern::wrap_type<v0::Constant>();
@@ -355,13 +366,14 @@ KeepDequantizationPrecision::KeepDequantizationPrecision(const element::TypeVect
             return false;
         }
 
-        auto nodes_to_mark = {convert_pattern,
+        auto nodes_to_mark = {convert1_pattern,
                               multiply_pattern,
                               subtract_pattern,
                               zp_convert_pattern,
                               zp_reshape_pattern,
                               scale_convert_pattern,
-                              scale_reshape_pattern};
+                              scale_reshape_pattern,
+                              convert2_pattern};
 
         for (const auto& node_to_mark : nodes_to_mark) {
             if (pt_map.count(node_to_mark)) {
