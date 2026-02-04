@@ -55,13 +55,6 @@ TEST_F(ModelPreferThreadsIntegrationTest, INT8_Model_UseAllCores) {
     // 这里假设 get_model_prefer_threads 内部能检测到 INT8
     int num_streams = 1;
     int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
-    std::cout << "[INT8_Model_UseAllCores] proc_type_table: ";
-    for (auto v : proc_type_table[0])
-        std::cout << v << " ";
-    std::cout << " modelType: " << static_cast<int>(config.modelType)
-              << " int8_intensive: " << ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model)
-              << " modelPreferThreadsLatency: " << config.modelPreferThreadsLatency << " result: " << result
-              << std::endl;
     EXPECT_GE(config.modelPreferThreadsLatency, 10);
     EXPECT_EQ(result, config.modelPreferThreadsLatency);
 }
@@ -74,13 +67,6 @@ TEST_F(ModelPreferThreadsIntegrationTest, LLM_Model_ECoresRatio) {
     config.modelPreferThreads = -1;
     int num_streams = 1;
     int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
-    std::cout << "[LLM_Model_ECoresRatio] proc_type_table: ";
-    for (auto v : proc_type_table[0])
-        std::cout << v << " ";
-    std::cout << " modelType: " << static_cast<int>(config.modelType)
-              << " int8_intensive: " << ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model)
-              << " modelPreferThreadsLatency: " << config.modelPreferThreadsLatency << " result: " << result
-              << std::endl;
     EXPECT_GE(config.modelPreferThreadsLatency, 14);
     EXPECT_EQ(result, config.modelPreferThreadsLatency);
 }
@@ -122,13 +108,6 @@ TEST_F(ModelPreferThreadsIntegrationTest, X86_NonHybrid_MainCoresOnly) {
     config.modelPreferThreads = -1;
     int num_streams = 1;
     int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
-    std::cout << "[X86_NonHybrid_MainCoresOnly] proc_type_table: ";
-    for (auto v : proc_type_table[0])
-        std::cout << v << " ";
-    std::cout << " modelType: " << static_cast<int>(config.modelType)
-              << " int8_intensive: " << ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model)
-              << " modelPreferThreadsLatency: " << config.modelPreferThreadsLatency << " result: " << result
-              << std::endl;
     EXPECT_EQ(config.modelPreferThreadsLatency, 8);
     EXPECT_EQ(result, config.modelPreferThreadsLatency);
 }
@@ -157,13 +136,6 @@ TEST_F(ModelPreferThreadsIntegrationTest, X86_Hybrid_FP32_MainCoresOnly) {
     config.modelPreferThreads = -1;
     int num_streams = 1;
     int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
-    std::cout << "[X86_Hybrid_FP32_MainCoresOnly] proc_type_table: ";
-    for (auto v : proc_type_table[0])
-        std::cout << v << " ";
-    std::cout << " modelType: " << static_cast<int>(config.modelType)
-              << " int8_intensive: " << ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model)
-              << " modelPreferThreadsLatency: " << config.modelPreferThreadsLatency << " result: " << result
-              << std::endl;
     EXPECT_EQ(config.modelPreferThreadsLatency, 6);
     EXPECT_EQ(result, config.modelPreferThreadsLatency);
 }
@@ -217,7 +189,9 @@ TEST_F(ModelPreferThreadsIntegrationTest, NumStreamsVsSocketsBoundary) {
     int num_streams = 0;  // throughput path
     int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
     EXPECT_EQ(result, config.modelPreferThreadsThroughput);
-    num_streams = 2;  // 假设 sockets=1，num_streams>sockets
+    // Ensure the second case actually exercises the "num_streams > sockets" branch
+    int sockets = get_num_sockets();
+    num_streams = sockets + 1;  // guarantee num_streams > sockets
     result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
     EXPECT_EQ(result, config.modelPreferThreadsThroughput);
 }
@@ -657,10 +631,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, Direct_X86_Throughput_HT_Adjustment) {
     tolerance.ratio_compute_convs = ov::MemBandwidthPressure::ALL;
     // Verify compute-limited detection and then call configure
     EXPECT_TRUE(is_network_compute_limited(tolerance));
-    std::cout << "[DBG] tolerance.max_mem_tolerance=" << tolerance.max_mem_tolerance
-              << " ratio_compute_convs=" << tolerance.ratio_compute_convs << std::endl;
     configure_x86_throughput_threads(config, proc_type_table, tolerance, 1.0f);
-    std::cout << "[DBG] config.modelPreferThreadsThroughput=" << config.modelPreferThreadsThroughput << std::endl;
     EXPECT_GE(config.modelPreferThreadsThroughput, 1);
 }
 
