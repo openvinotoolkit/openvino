@@ -447,9 +447,6 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
     if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) && batchSizeCandidate.has_value()) {
         get_level_zero_inputs(foundPort.idx).resize(tensors.size());
 
-        std::vector<std::pair<ze_mutable_graph_argument_exp_desc_t, std::optional<ze_graph_argument_value_strides_t>>>
-            descs(tensors.size(), std::make_pair(ze_mutable_graph_argument_exp_desc_t{}, std::nullopt));
-
         for (size_t i = 0; i < tensors.size(); i++) {
             try {
                 _logger.debug("ZeroInferRequest::set_tensors - create zero tensor");
@@ -466,17 +463,14 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "allocate tensor");
                 get_level_zero_input(foundPort.idx, i) = allocate_tensor(foundPort.idx, INPUT, batchSizeCandidate);
             }
+
             if (_pipelineIsCreated && !_dynamicBatchValueChanged) {
                 OPENVINO_ASSERT(get_level_zero_input(foundPort.idx, i)->data(), "Empty buffer");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "updateCommandList");
                 _pipeline->update_graph_arguments(_metadata.inputs.at(foundPort.idx).indexUsedByDriver,
                                                   get_level_zero_input(foundPort.idx, i),
-                                                  i,
-                                                  descs);
+                                                  i);
             }
-        }
-        if (_pipelineIsCreated && !_dynamicBatchValueChanged) {
-            _pipeline->submit_update_graph_arguments(descs);
         }
     }
     // If command list updates are not supported, fallback to copying tensors every time.
@@ -484,9 +478,9 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
 
 void ZeroInferRequest::set_tensors(const std::map<ov::Output<const ov::Node>, ov::SoPtr<ov::ITensor>>& ports_tensors) {
     OV_ITT_TASK_CHAIN(ZERO_SET_TENSOR, itt::domains::LevelZeroBackend, "set_tensors", "set_tensors");
-    std::vector<std::pair<ze_mutable_graph_argument_exp_desc_t, std::optional<ze_graph_argument_value_strides_t>>>
-        descs(ports_tensors.size(), std::make_pair(ze_mutable_graph_argument_exp_desc_t{}, std::nullopt));
     bool updateCommandListArg = false;
+    std::vector<std::pair<uint32_t, std::shared_ptr<ZeroTensor>>> zeroTensors(ports_tensors.size(), {0, nullptr});
+    size_t ioIndex = 0;
     for (const auto& [port, tensor] : ports_tensors) {
         auto foundPort = find_port(port);
         OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);
@@ -605,24 +599,21 @@ void ZeroInferRequest::set_tensors(const std::map<ov::Output<const ov::Node>, ov
                                   "with the user");
                 }
             }
-
             if (_pipelineIsCreated && updateCommandListArg && !_dynamicBatchValueChanged) {
-                _logger.debug("ZeroInferRequest::infer_async - update command list");
-
                 OPENVINO_ASSERT(levelZeroTensor->data(), "Empty buffer");
-
-                OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "update_graph_arguments");
-                _pipeline->update_graph_arguments(foundPort.is_input()
-                                                      ? _metadata.inputs.at(foundPort.idx).indexUsedByDriver
-                                                      : _metadata.outputs.at(foundPort.idx).indexUsedByDriver,
-                                                  levelZeroTensor,
-                                                  descs);
             }
+            zeroTensors.at(ioIndex++) =
+                std::make_pair(foundPort.is_input() ? _metadata.inputs.at(foundPort.idx).indexUsedByDriver
+                                                    : _metadata.outputs.at(foundPort.idx).indexUsedByDriver,
+                               levelZeroTensor);
         }
         // If command list updates are not supported, fallback to copying tensors every time.
     }
     if (_pipelineIsCreated && updateCommandListArg && !_dynamicBatchValueChanged) {
-        _pipeline->submit_update_graph_arguments(descs);
+        _logger.debug("ZeroInferRequest::infer_async - update command list");
+
+        OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "update_graph_arguments");
+        _pipeline->update_graph_arguments(zeroTensors);
     }
 }
 

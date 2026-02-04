@@ -287,29 +287,37 @@ void Pipeline::update_graph_arguments(uint32_t index, const std::shared_ptr<Zero
     }
 };
 
-void Pipeline::update_graph_arguments(
-    uint32_t index,
-    const std::shared_ptr<ZeroTensor>& tensor,
-    std::vector<std::pair<ze_mutable_graph_argument_exp_desc_t, std::optional<ze_graph_argument_value_strides_t>>>&
-        descs) {
+void Pipeline::update_graph_arguments(const std::vector<std::pair<uint32_t, std::shared_ptr<ZeroTensor>>>& tensors) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandList");
     _logger.debug("Pipeline - updateCommandList");
 
     const size_t number_of_command_lists = _command_lists.size();
 
     for (size_t i = 0; i < number_of_command_lists; i++) {
-        if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
-            _command_lists.at(i)->updateMutableCommandList(index,
-                                                           static_cast<const unsigned char*>(tensor->data()) +
-                                                               (i * tensor->get_byte_size()) / number_of_command_lists,
-                                                           descs);
-        } else {
-            _command_lists.at(i)->updateMutableCommandListWithStrides(
-                index,
-                static_cast<const unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                get_strides(tensor->get_strides(), tensor->get_element_type().size()),
-                descs);
+        std::vector<std::pair<ze_mutable_graph_argument_exp_desc_t, std::optional<ze_graph_argument_value_strides_t>>>
+            descs(tensors.size(), {ze_mutable_graph_argument_exp_desc_t{}, std::nullopt});
+        for (const auto& [index, tensor] : tensors) {
+            if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
+                _command_lists.at(i)->updateMutableCommandList(
+                    index,
+                    static_cast<const unsigned char*>(tensor->data()) +
+                        (i * tensor->get_byte_size()) / number_of_command_lists,
+                    descs);
+            } else {
+                _command_lists.at(i)->updateMutableCommandListWithStrides(
+                    index,
+                    static_cast<const unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
+                    get_strides(tensor->get_strides(), tensor->get_element_type().size()),
+                    descs);
+            }
         }
+        ze_mutable_commands_exp_desc_t mutable_commands_exp_desc_t = {ZE_STRUCTURE_TYPE_MUTABLE_COMMANDS_EXP_DESC,
+                                                                      &descs.at(0).first,
+                                                                      0};
+
+        THROW_ON_FAIL_FOR_LEVELZERO(
+            "zeCommandListUpdateMutableCommandsExp",
+            zeCommandListUpdateMutableCommandsExp(_command_lists.at(i)->handle(), &mutable_commands_exp_desc_t));
     }
 };
 
@@ -333,41 +341,6 @@ void Pipeline::update_graph_arguments(uint32_t index, const std::shared_ptr<Zero
                 get_strides(tensor->get_strides(), tensor->get_element_type().size()));
     }
 };
-
-void Pipeline::update_graph_arguments(
-    uint32_t index,
-    const std::shared_ptr<ZeroTensor>& tensor,
-    size_t batch_index,
-    std::vector<std::pair<ze_mutable_graph_argument_exp_desc_t, std::optional<ze_graph_argument_value_strides_t>>>&
-        descs) {
-    OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandListIndex");
-    _logger.debug("Pipeline - updateCommandListIndex");
-
-    const size_t number_of_command_lists = _command_lists.size();
-
-    OPENVINO_ASSERT(batch_index < number_of_command_lists,
-                    "Command list index is higher than the number of Command lists ",
-                    batch_index);
-
-    if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
-        _command_lists.at(batch_index)->updateMutableCommandList(index, tensor->data(), descs);
-    } else {
-        _command_lists.at(batch_index)
-            ->updateMutableCommandListWithStrides(index,
-                                                  tensor->data(),
-                                                  get_strides(tensor->get_strides(), tensor->get_element_type().size()),
-                                                  descs);
-    }
-};
-
-void Pipeline::submit_update_graph_arguments(
-    const std::vector<std::pair<ze_mutable_graph_argument_exp_desc_t,
-                                std::optional<ze_graph_argument_value_strides_t>>>& descs) const {
-    OPENVINO_ASSERT(!descs.empty(), "Update mutable command list submission called on an empty list of descriptors!");
-    ze_mutable_commands_exp_desc_t mutable_commands_exp_desc_t = {ZE_STRUCTURE_TYPE_MUTABLE_COMMANDS_EXP_DESC,
-                                                                  &descs.at(0).first,
-                                                                  0};
-}
 
 std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
     _logger.debug("InferRequest::get_profiling_info started");
