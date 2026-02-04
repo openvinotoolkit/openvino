@@ -387,10 +387,23 @@ VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerIm
     // This information cannot be determined during the initialization phase; set device desc default value, the related
     // info will be processed in compile phase if passed by user.
     _logger.info("Device description is not provided, using default values");
-    vcl_device_desc_t device_desc = {sizeof(vcl_device_desc_t),
-                                     0x00,
-                                     static_cast<uint16_t>(-1),
-                                     static_cast<uint32_t>(-1)};
+    const char* varName = "MY_ENV_VAR_USE_STATIC16";
+    const char* value = getenv(varName);
+    vcl_device_desc_t device_desc;
+    if (value) {
+        std::cout << "Environment variable found, USE static16" << " = " << value << std::endl;
+        device_desc = {sizeof(vcl_device_desc_t),
+                                    0x00,
+                                    static_cast<uint16_t>(-1),
+                                    static_cast<uint16_t>(-1)};
+    } else {
+        std::cerr << "Environment variable not found, USE static32" << std::endl;
+        device_desc = {sizeof(vcl_device_desc_t),
+                                    0x00,
+                                    static_cast<uint16_t>(-1),
+                                    static_cast<uint32_t>(-1)};
+    }
+
     THROW_ON_FAIL_FOR_VCL("vclCompilerCreate",
                           vclCompilerCreate(&compilerDesc, &device_desc, &_compilerHandle, &_logHandle),
                           nullptr);
