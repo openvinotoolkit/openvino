@@ -172,7 +172,7 @@ TEST_P(ZeroGraphCompilationTests, GetInitSetArgsDestroyGraphAlignedMemoryIR) {
 
 TEST_P(ZeroGraphTest, GetGraphInitBlob) {
     void* blob = nullptr;
-    size_t alignedSize;
+    size_t alignedSize = 0;
 
     OV_ASSERT_NO_THROW(std::tie(blob, alignedSize) = make_blob());
 
@@ -201,7 +201,7 @@ TEST_P(ZeroGraphTest, QueryGraph) {
 
 TEST_P(ZeroGraphTest, GetGraphBinary) {
     void* blob = nullptr;
-    size_t alignedSize;
+    size_t alignedSize = 0;
 
     OV_ASSERT_NO_THROW(std::tie(blob, alignedSize) = make_blob());
 
@@ -236,7 +236,7 @@ TEST_P(ZeroGraphTest, SetGraphArgOnNullBuffer) {
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob) {
     void* blob = nullptr;
-    size_t alignedSize;
+    size_t alignedSize = 0;
 
     OV_ASSERT_NO_THROW(std::tie(blob, alignedSize) = make_blob());
 
@@ -261,7 +261,7 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob) {
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob) {
     void* blob = nullptr;
-    size_t alignedSize;
+    size_t alignedSize = 0;
 
     OV_ASSERT_NO_THROW(std::tie(blob, alignedSize) = make_blob());
 
