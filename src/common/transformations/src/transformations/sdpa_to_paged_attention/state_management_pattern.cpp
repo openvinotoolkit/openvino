@@ -71,10 +71,13 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> general_
 
 static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> jais_13b_alibi_pattern() {
     auto jais_13b_alibi = any_input();
+    auto alibi_opt_conv = optional<v0::Convert>(jais_13b_alibi);
     auto mirroring_abs = wrap_type<v0::Abs>({any_input()});
     auto unsqueeze = wrap_type<v0::Unsqueeze>({mirroring_abs, any_input()});
-    auto jais_alibi_mask = wrap_type<v1::Multiply>({jais_13b_alibi, unsqueeze});
-    jais_alibi_mask = wrap_type<v3::Broadcast>({jais_alibi_mask, any_input()});
+    auto broadcast = optional<ov::op::util::BroadcastBase>({unsqueeze, any_input()});
+    broadcast = optional<v0::Convert>(broadcast);
+    auto jais_alibi_mask = wrap_type<v1::Multiply>({alibi_opt_conv, broadcast});
+    jais_alibi_mask = optional<ov::op::util::BroadcastBase>({jais_alibi_mask, any_input()});
     jais_alibi_mask = wrap_type<v0::Unsqueeze>({jais_alibi_mask, any_input()});
     jais_alibi_mask = wrap_type<v1::Add>({any_input(), jais_alibi_mask});
     return {jais_13b_alibi, jais_alibi_mask};
