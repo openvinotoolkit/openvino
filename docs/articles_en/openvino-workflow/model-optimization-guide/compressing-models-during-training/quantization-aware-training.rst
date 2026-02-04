@@ -12,11 +12,6 @@ knowledgeable in Python programming and familiar with the training code for the 
 
 Steps required to apply QAT to the model:
 
-.. note::
-   Currently, NNCF for TensorFlow supports the optimization of models created using the Keras
-   `Sequential API <https://www.tensorflow.org/guide/keras/sequential_model>`__ or
-   `Functional API <https://www.tensorflow.org/guide/keras/functional>`__.
-
 1. Apply Post Training Quantization to the Model
 #################################################
 
@@ -28,13 +23,6 @@ Quantize the model using the :doc:`Post-Training Quantization <../quantizing-mod
       :sync: pytorch
 
       .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-         :language: python
-         :fragment: [quantize]
-
-   .. tab-item:: TensorFlow 2
-      :sync: tensorflow-2
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
          :language: python
          :fragment: [quantize]
 
@@ -53,13 +41,6 @@ forward and backward passes.
       :sync: pytorch
 
       .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-         :language: python
-         :fragment: [tune_model]
-
-   .. tab-item:: TensorFlow 2
-      :sync: tensorflow-2
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
          :language: python
          :fragment: [tune_model]
 
@@ -85,13 +66,6 @@ To save a model checkpoint, use the following API:
          :language: python
          :fragment: [save_checkpoint]
 
-   .. tab-item:: TensorFlow 2
-      :sync: tensorflow-2
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
-         :language: python
-         :fragment: [save_checkpoint]
-
 4. (Optional) Restore from Checkpoint
 ######################################
 
@@ -103,13 +77,6 @@ To restore the model from checkpoint, use the following API:
       :sync: pytorch
 
       .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_torch.py
-         :language: python
-         :fragment: [load_checkpoint]
-
-   .. tab-item:: TensorFlow 2
-      :sync: tensorflow-2
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/code/qat_tf.py
          :language: python
          :fragment: [load_checkpoint]
 
@@ -128,12 +95,6 @@ any additional steps.
          :language: python
          :fragment:  [inference]
 
-   .. tab-item:: TensorFlow 2
-      :sync: tensorflow-2
-
-      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_tensorflow.py
-         :language: python
-         :fragment:  [inference]
 
 For more details, see the corresponding :doc:`documentation <../../running-inference>`.
 
@@ -142,4 +103,3 @@ Examples
 
 * `Quantization-aware Training of Resnet18 PyTorch Model <https://github.com/openvinotoolkit/nncf/tree/develop/examples/quantization_aware_training/torch/resnet18>`__
 * `Quantization-aware Training of STFPM PyTorch Model <https://github.com/openvinotoolkit/nncf/tree/develop/examples/quantization_aware_training/torch/anomalib>`__
-* `Quantization-aware Training of MobileNet v2 TensorFlow Model <https://github.com/openvinotoolkit/nncf/tree/develop/examples/quantization_aware_training/tensorflow/mobilenet_v2>`__

@@ -8,12 +8,12 @@
 #include <memory>
 #include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
 #include <nodes/kernels/riscv64/jit_generator.hpp>
-#include <set>
 #include <utility>
 #include <vector>
 
 #include "cache/multi_cache.h"
 #include "emitters/plugin/riscv64/jit_eltwise_emitters.hpp"
+#include "emitters/snippets/common/emitter_factory.hpp"
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "jit_kernel_emitter.hpp"
 #include "jit_loop_emitters.hpp"
@@ -22,10 +22,8 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
-#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
 #include "snippets/emitter.hpp"
 #include "snippets/generator.hpp"
 #include "snippets/lowered/expression.hpp"
@@ -33,6 +31,7 @@
 #include "snippets/op/kernel.hpp"
 #include "snippets/op/load.hpp"
 #include "snippets/op/loop.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/target_machine.hpp"
@@ -72,44 +71,7 @@ static bool is_segfault_detector_emitter(const intel_cpu::riscv64::jit_emitter* 
     return ret;
 }
 
-#    define CREATE_SNIPPETS_EMITTER(e_type, ...)                                                                  \
-        {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> {             \
-             auto emitter = std::make_shared<e_type>(h.get(), isa, expr, ##__VA_ARGS__);                          \
-             if (debug_config.enable_segfault_detector && is_segfault_detector_emitter(emitter.get())) {          \
-                 auto segfault_emitter = std::make_shared<intel_cpu::riscv64::jit_uni_segfault_detector_emitter>( \
-                     h.get(),                                                                                     \
-                     isa,                                                                                         \
-                     emitter.get(),                                                                               \
-                     is_load_emitter(emitter.get()),                                                              \
-                     is_store_emitter(emitter.get()),                                                             \
-                     expr->get_node()->get_friendly_name());                                                      \
-                 return std::make_shared<intel_cpu::riscv64::jit_debug_emitter>(                                  \
-                     emitter,                                                                                     \
-                     segfault_emitter,                                                                            \
-                     intel_cpu::riscv64::jit_debug_emitter::EmissionLocation::preamble);                          \
-             }                                                                                                    \
-             return emitter;                                                                                      \
-         },                                                                                                       \
-         [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {                         \
-             return e_type::get_supported_precisions(n);                                                          \
-         }}
-#else
-#    define CREATE_SNIPPETS_EMITTER(e_type, ...)                                                      \
-        {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-             return std::make_shared<e_type>(h.get(), isa, expr, ##__VA_ARGS__);                      \
-         },                                                                                           \
-         [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {             \
-             return e_type::get_supported_precisions(n);                                              \
-         }}
 #endif
-
-#define CREATE_CPU_EMITTER(e_type)                                                                \
-    {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-         return std::make_shared<e_type>(h.get(), isa, expr->get_node());                         \
-     },                                                                                           \
-     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {             \
-         return e_type::get_supported_precisions(n);                                              \
-     }}
 
 class jit_snippet : public ov::intel_cpu::riscv64::jit_generator_t {
 public:
@@ -133,27 +95,55 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
       h(new jit_snippet()),
       isa(host_isa),
       compiled_kernel_cache(std::move(cache)) {
+    const auto get_host = [this]() {
+        return h.get();
+    };
+    const auto wrap_snippets_emitter =
+        [&](const auto& emitter,
+            [[maybe_unused]] const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> {
+#ifdef SNIPPETS_DEBUG_CAPS
+        if (debug_config.enable_segfault_detector && is_segfault_detector_emitter(emitter.get())) {
+            auto segfault_emitter = std::make_shared<intel_cpu::riscv64::jit_uni_segfault_detector_emitter>(
+                h.get(),
+                isa,
+                emitter.get(),
+                is_load_emitter(emitter.get()),
+                is_store_emitter(emitter.get()),
+                expr->get_node()->get_friendly_name());
+            return std::make_shared<intel_cpu::riscv64::jit_debug_emitter>(
+                emitter,
+                segfault_emitter,
+                intel_cpu::riscv64::jit_debug_emitter::EmissionLocation::preamble);
+        }
+#endif
+        return emitter;
+    };
+    const auto emitter_factory = ov::intel_cpu::EmitterFactory{get_host, isa, wrap_snippets_emitter};
+
     // data movement
-    jitters[op::v0::Parameter::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
-    jitters[op::v0::Result::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
-    jitters[snippets::op::Scalar::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_scalar_emitter);
+    jitters[op::v0::Parameter::get_type_info_static()] = emitter_factory.from_expr<jit_nop_emitter>();
+    jitters[snippets::op::Result::get_type_info_static()] = emitter_factory.from_expr<jit_nop_emitter>();
+    jitters[snippets::op::Scalar::get_type_info_static()] = emitter_factory.from_expr<jit_scalar_emitter>();
 
     // memory access
-    jitters[snippets::op::Load::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_load_memory_emitter);
-    jitters[snippets::op::LoadReorder::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_load_memory_emitter);
-    jitters[snippets::op::BroadcastLoad::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_load_broadcast_emitter);
-    jitters[snippets::op::Store::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_store_memory_emitter);
+    jitters[snippets::op::Load::get_type_info_static()] = emitter_factory.from_expr<jit_load_memory_emitter>();
+    jitters[snippets::op::LoadReorder::get_type_info_static()] = emitter_factory.from_expr<jit_load_memory_emitter>();
+    jitters[snippets::op::BroadcastLoad::get_type_info_static()] =
+        emitter_factory.from_expr<jit_load_broadcast_emitter>();
+    jitters[snippets::op::Store::get_type_info_static()] = emitter_factory.from_expr<jit_store_memory_emitter>();
 
     // loop control
-    jitters[snippets::op::LoopBegin::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_loop_begin_emitter);
-    jitters[snippets::op::LoopEnd::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_loop_end_emitter);
+    jitters[snippets::op::LoopBegin::get_type_info_static()] = emitter_factory.from_expr<jit_loop_begin_emitter>();
+    jitters[snippets::op::LoopEnd::get_type_info_static()] = emitter_factory.from_expr<jit_loop_end_emitter>();
 
     // service kernel entry points
-    jitters[snippets::op::KernelStatic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_kernel_static_emitter);
-    jitters[snippets::op::KernelDynamic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_kernel_dynamic_emitter);
+    jitters[snippets::op::KernelStatic::get_type_info_static()] =
+        emitter_factory.from_expr<jit_kernel_static_emitter>();
+    jitters[snippets::op::KernelDynamic::get_type_info_static()] =
+        emitter_factory.from_expr<jit_kernel_dynamic_emitter>();
 
     // binary operations
-    jitters[op::v1::Add::get_type_info_static()] = CREATE_CPU_EMITTER(ov::intel_cpu::riscv64::jit_add_emitter);
+    jitters[op::v1::Add::get_type_info_static()] = emitter_factory.from_node<ov::intel_cpu::riscv64::jit_add_emitter>();
 }
 
 std::shared_ptr<ov::snippets::TargetMachine> CPUTargetMachine::clone() const {
