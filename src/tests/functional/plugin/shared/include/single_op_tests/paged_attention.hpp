@@ -18,7 +18,6 @@ TEST_P(PagedAttentionLayerTest, Inference) {
 
     // CPU config
     ov::AnyMap cpu_cfg = additional_config;
-    // cpu_cfg[ov::intel_cpu::enable_sage_attn.name()] = false;
     cpu_cfg[ov::hint::inference_precision.name()] = ov::element::f32;
 
     // TEMPLATE config

@@ -10,6 +10,9 @@
 #include "single_op_tests/paged_attention.hpp"
 #include "shared_test_classes/single_op/paged_attention.hpp"
 
+#include "internal_properties.hpp"
+#include "openvino/runtime/properties.hpp"
+
 namespace {
 using ov::test::PagedAttentionLayerTest;
 using ElementType = ov::element::Type_t;
@@ -23,7 +26,18 @@ const std::vector<InputShapes> input_shapes_ref = {  // greedy search
     {{-1, 1, 8, 64}, {{0, 1, 8, 64}, {10, 1, 8, 64}}},
 }};
 
-const std::vector<ov::AnyMap> additional_configs_ref = {{}};
+const std::vector<ov::AnyMap> additional_configs_ref = {{
+    {ov::intel_cpu::enable_sage_attn.name(), false},
+
+    // Force float cache (match compute precision)
+    {ov::hint::kv_cache_precision.name(), ov::element::f32},
+    {ov::key_cache_precision.name(), ov::element::f32},
+    {ov::value_cache_precision.name(), ov::element::f32},
+
+    // Disable grouped / quantized cache paths
+    {ov::key_cache_group_size.name(), 0},
+    {ov::value_cache_group_size.name(), 0},
+}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttentionLayerTest,
                          PagedAttentionLayerTest,

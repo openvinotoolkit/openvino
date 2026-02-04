@@ -25,7 +25,7 @@ std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
     const auto& evictable_sizes_ps = input_shapes[22];
 
     // Compute for output shape
-    if (out_ps.rank().is_static()) {
+    if (out_ps.rank().is_static() && out_ps.rank().get_length() >= 2 && out_ps[1].is_static()) {
         if (key_ps.rank().is_static() && key_ps.rank().get_length() >= 2 && key_ps[1].is_static() &&
             value_ps.rank().is_static() && value_ps.rank().get_length() >= 2 && value_ps[1].is_static()) {
             // The dim of out_ps[1] should be `num_heads * v_head_size`, it can be obtained from:

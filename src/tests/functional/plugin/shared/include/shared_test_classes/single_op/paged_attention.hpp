@@ -87,8 +87,8 @@ private:
 
         // IMPORTANT: cache should match PA expectation (use rank-4 here)
         // [num_blocks, num_kv_heads, block_size, head_size]
-        auto key_cache   = make_param({ov::Dimension::dynamic(), head_num, 32, head_size}, data_type, "key_cache.0");
-        auto value_cache = make_param({ov::Dimension::dynamic(), head_num, 32, head_size}, data_type, "value_cache.0");
+        auto key_cache   = make_param({ov::Dimension::dynamic(), head_num, 32, head_size}, ov::element::dynamic, "key_cache.0");
+        auto value_cache = make_param({ov::Dimension::dynamic(), head_num, 32, head_size}, ov::element::dynamic, "value_cache.0");
 
         auto past_lens = make_param({ov::Dimension::dynamic()}, ov::element::i32, "past_lens");
         auto subseq_begins = make_param({ov::Dimension::dynamic()}, ov::element::i32, "subsequence_begins");
@@ -233,7 +233,32 @@ public:
                                        bool extendBlockIndices,
                                        const std::vector<StepInputs>& steps) {
         ov::Core core;
+        //// =====================
+
+        for (size_t i = 0; i < model->inputs().size(); ++i) {
+            const auto& p = model->input(i);
+            std::cerr << "MODEL IN[" << i << "] " << p.get_any_name()
+                    << " " << p.get_element_type()
+                    << " " << p.get_partial_shape() << "\n";
+        }
+        std::cerr << "CPU supported_properties:\n";
+        auto props = core.get_property("CPU", ov::supported_properties);
+
+for (const ov::PropertyName& p : props) {
+    std::cerr << p << std::endl;
+}
+        //// =====================
+
         auto compiled = core.compile_model(model, device, cfg);
+        //// =====================
+        auto inputs = compiled.inputs();
+        for (size_t i = 0; i < inputs.size(); ++i) {
+            const auto& p = inputs[i];
+            std::cerr << "COMPILED IN[" << i << "] name=" << p.get_any_name()
+                    << " type=" << p.get_element_type()
+                    << " shape=" << p.get_partial_shape() << "\n";
+        }
+        //// =====================
         auto req = compiled.create_infer_request();
 
         std::vector<ov::Tensor> outs;
@@ -253,6 +278,7 @@ public:
     }
 
     void SetUp() override {
+        is_report_stages = true;
         const auto& [inType, inputShapes, extendBlockIndices, enableXattn, sinkInput, slidingWindow, additional_config] = GetParam();
         (void)sinkInput;
 
@@ -290,9 +316,9 @@ public:
         ps_k[0] = static_cast<int64_t>(block_nums);
         ps_v[0] = static_cast<int64_t>(block_nums);
 
-        // Use f16 for cache storage if you want determinism; simplest: use f16 always.
-        key_cache_init_ = ov::Tensor(ov::element::f16, ps_k.get_shape());
-        value_cache_init_ = ov::Tensor(ov::element::f16, ps_v.get_shape());
+        // Set explicitly to u8 to mattch CPU & PA precision transformation
+        key_cache_init_ = ov::Tensor(ov::element::f32, ps_k.get_shape());
+        value_cache_init_ = ov::Tensor(ov::element::f32, ps_v.get_shape());
         std::memset(key_cache_init_.data(), 0, key_cache_init_.get_byte_size());
         std::memset(value_cache_init_.data(), 0, value_cache_init_.get_byte_size());
     }
