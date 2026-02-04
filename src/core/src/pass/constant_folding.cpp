@@ -106,12 +106,9 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
 
     bool rewritten = pre_calculated_values_folding(model);
 
-    std::vector<std::shared_ptr<ov::Node>> nodes = model->get_ordered_ops();
-    std::deque<std::shared_ptr<ov::Node>> nodes_q =
-        std::deque<std::shared_ptr<ov::Node>>(std::make_move_iterator(nodes.begin()),
-                                              std::make_move_iterator(nodes.end()));
-    while (!nodes_q.empty()) {
-        auto original_node = nodes_q.front();
+    auto nodes = model->get_ordered_ops();
+    for (size_t n = 0; n < nodes.size(); ++n) {
+        auto original_node = std::move(nodes[n]);
         auto node = original_node;
         if (!original_node->can_constant_fold(original_node->input_values())) {
             if (auto sub_graph_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
@@ -126,7 +123,6 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
             if (rewritten) {
                 original_node->validate_and_infer_types();
             }
-            nodes_q.pop_front();
             continue;
         }
         if (node_has_requires_precision_conversion_attribute(node)) {
@@ -175,7 +171,6 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                 rewritten = true;
             }
         }
-        nodes_q.pop_front();
     }
 
     return rewritten;
