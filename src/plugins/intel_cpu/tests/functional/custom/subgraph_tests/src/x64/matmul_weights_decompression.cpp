@@ -441,7 +441,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_3D_Weights,
                                             ::testing::Values(false),
                                             ::testing::ValuesIn(filter_additional_config_basic()),
                                             ::testing::Values(emptyFusingSpec),
-                                            ::testing::Values(false)),
+                                            ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
 }  // namespace
 }  // namespace test
