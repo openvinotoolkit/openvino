@@ -29,6 +29,10 @@ env:
 
 permissions: read-all
 
+defaults:
+  run:
+    shell: pwsh -NoProfile -NonInteractive -Command "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"
+
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
@@ -86,9 +90,6 @@ jobs:
     needs: [ Build, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).samples
     timeout-minutes: 20
-    defaults:
-      run:
-        shell: pwsh
     runs-on: aks-win-4-cores-8gb
     env:
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
@@ -184,9 +185,6 @@ jobs:
   JS_API:
     name: JS API
     needs: [ Build, Smart_CI ]
-    defaults:
-      run:
-        shell: pwsh
     runs-on: 'aks-win-4-cores-8gb'
     env:
       OPENVINO_JS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node"
@@ -272,9 +270,6 @@ jobs:
     name: Python unit tests
     needs: [ Build, Smart_CI ]
     timeout-minutes: 75
-    defaults:
-      run:
-        shell: pwsh
     runs-on: aks-win-8-cores-16gb-test
     env:
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
@@ -417,9 +412,6 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"]
-    defaults:
-      run:
-        shell: pwsh
     runs-on: aks-win-8-cores-16gb-test
     env:
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
@@ -555,9 +547,6 @@ jobs:
     name: CPU functional tests
     needs: [ Build, Smart_CI ]
     timeout-minutes: 70
-    defaults:
-      run:
-        shell: pwsh
     runs-on: aks-win-8-cores-16gb-test
     env:
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"

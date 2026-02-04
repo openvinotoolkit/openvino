@@ -27,6 +27,10 @@ permissions: read-all
 env:
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
+defaults:
+  run:
+    shell: pwsh -NoProfile -NonInteractive -Command "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"
+
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest

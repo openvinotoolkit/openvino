@@ -32,6 +32,10 @@ env:
   PYTHON_VERSION: '3.11'
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
+defaults:
+  run:
+    shell: pwsh -NoProfile -NonInteractive -Command "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"
+
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
@@ -62,9 +66,6 @@ jobs:
   Build:
     needs: Smart_CI
     timeout-minutes: 300 # 5 hours without cache
-    defaults:
-      run:
-        shell: pwsh
     runs-on: aks-win-32-cores-128gb-build
     env:
       CMAKE_BUILD_TYPE: 'Release'
@@ -314,9 +315,6 @@ jobs:
     name: Conditional Compilation
     timeout-minutes: 40
     needs: [Build, Smart_CI]
-    defaults:
-      run:
-        shell: pwsh
     runs-on: aks-win-16-cores-32gb-build
     env:
       CMAKE_BUILD_TYPE: 'Release'
@@ -395,9 +393,6 @@ jobs:
     name: CPU functional tests
     needs: [Build, Smart_CI]
     timeout-minutes: 85
-    defaults:
-      run:
-        shell: pwsh
     runs-on: aks-win-8-cores-16gb-test
     env:
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
