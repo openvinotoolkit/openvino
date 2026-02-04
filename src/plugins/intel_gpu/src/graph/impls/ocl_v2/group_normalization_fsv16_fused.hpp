@@ -28,7 +28,6 @@ struct GroupNormalizationFsv16Fused : public GroupNormalizationBase {
 
         static constexpr std::array supported_output_fmts = {
             format::b_fs_yx_fsv16,
-            format::bfyx,
         };
 
         static constexpr std::array supported_types = {
@@ -54,12 +53,21 @@ struct GroupNormalizationFsv16Fused : public GroupNormalizationBase {
             }
         }
 
-        constexpr size_t fsv = 16;
-        // feature paddings should be multiples of fsv.
-        if (in0_layout.data_padding._lower_size[1] % fsv != 0)
+        // padding is not supported
+        if (in0_layout.data_padding != padding() || out_layout.data_padding != padding()) {
             return false;
-        // number of features per group must not exceed fsv
-        return size_t(in0_layout.get_padded_dims()[1] / std::static_pointer_cast<const group_normalization>(node.get_primitive())->num_groups) <= fsv;
+        }
+
+        constexpr size_t fsv = 16;
+        // feature count needs to be static for following checks
+        if (in0_layout.get_partial_shape()[1].is_dynamic())
+            return false;
+        // feature count should be a multiple of fsv
+        if (in0_layout.feature() % fsv != 0)
+            return false;
+        // group size must be a divisor of fsv
+        const auto group_size = in0_layout.feature() / std::static_pointer_cast<const group_normalization>(node.get_primitive())->num_groups;
+        return group_size <= fsv && fsv % group_size == 0;
     }
 };
 

@@ -195,6 +195,18 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn({padding(), padding({0, 16, 0, 0})})));
 
 INSTANTIATE_TEST_SUITE_P(
+    GroupNormalizationGPUTest_blocked_layouts_support_4d_fused, GroupNormalizationGPUTest,
+    ::testing::Combine(
+        ::testing::ValuesIn({std::vector<ov::Dimension::value_type>{3, 64, 32, 64}, std::vector<ov::Dimension::value_type>{3, 128, 97, 61},
+                             std::vector<ov::Dimension::value_type>{1, 48, 151, 1}, std::vector<ov::Dimension::value_type>{1, 16, 2175, 1}}),
+        ::testing::ValuesIn(std::vector<size_t>{4, 8}),
+        ::testing::Values(0.0025),
+        ::testing::ValuesIn(f_blocked_4d_formats),
+        ::testing::Values(padding()),
+        ::testing::ValuesIn(f_blocked_4d_formats),
+        ::testing::Values(padding())));
+
+INSTANTIATE_TEST_SUITE_P(
     GroupNormalizationGPUTest_planar_layouts_support_5d, GroupNormalizationGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn({std::vector<ov::Dimension::value_type>{3, 64, 28, 32, 12}, std::vector<ov::Dimension::value_type>{3, 124, 10, 97, 61},
@@ -332,9 +344,9 @@ TEST(group_normalization, basic_b_fs_yx_fsv16) {
     ov::intel_gpu::ImplementationDesc gn_impl = {format::b_fs_yx_fsv16, "group_normalization_fsv16", impl_types::ocl};
     config.set_property(
         ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"group_normalization_fsv16_f32", gn_impl}}));
+    */
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
-    */
 
     network network(engine, topology, config);
     network.set_input_data("input_bfyx_f32", input_mem);
@@ -366,7 +378,7 @@ TEST(group_normalization, basic_b_fs_yx_fsv16) {
 TEST(group_normalization, basic_b_fs_yx_fsv16_fused) {
     auto& engine = get_test_engine();
 
-    const ov::Shape input_shape = {1, 128, 512, 512};
+    const ov::Shape input_shape = {1, 128, 256, 256};
     const ov::Shape param_shape = {128, 1, 1, 1};
     auto in_layout = layout{input_shape, data_types::f32, format::bfyx};
     auto scale_layout = layout{param_shape, data_types::f32, format::bfyx};
@@ -408,9 +420,9 @@ TEST(group_normalization, basic_b_fs_yx_fsv16_fused) {
     /*
     ov::intel_gpu::ImplementationDesc gn_impl = {format::b_fs_yx_fsv16, "group_normalization_fsv16_fused", impl_types::ocl};
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"group_normalization_fsv16_fused_f32", gn_impl}}));
+    */
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
-    */
 
     network network(engine, topology, config);
     network.set_input_data("input_bfyx_f32", input_mem);

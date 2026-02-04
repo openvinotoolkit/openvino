@@ -21,14 +21,13 @@ KERNEL(calc_mean_sqr_mean_per_feature)(
     const uint in_data_set_idx = get_global_id(0);
     const uint workers_per_dataset = LWS0 / FSV;    // 16 datasets are handled by one local workgroup
     const uint data_set_size = INPUT0_SIZE_X * INPUT0_SIZE_Y;
-    const uint padded_data_set_size = (INPUT0_SIZE_X + INPUT0_PAD_BEFORE_SIZE_X + INPUT0_PAD_AFTER_SIZE_X) * (INPUT0_SIZE_Y + INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y);
-    const uint items_num = padded_data_set_size / workers_per_dataset;
-    const uint leftovers = padded_data_set_size - (items_num * workers_per_dataset);
+    const uint items_num = data_set_size / workers_per_dataset;
+    const uint leftovers = data_set_size - (items_num * workers_per_dataset);
 
     const uint INPUT0_ALIGNED_FEATURE_NUM = ALIGN(INPUT0_FEATURE_NUM, FSV);
     const uint b = (data_set_idx * FSV) / INPUT0_ALIGNED_FEATURE_NUM;
     const uint f_base = (data_set_idx * FSV) % INPUT0_ALIGNED_FEATURE_NUM;
-    const uint data_set_offset = INPUT0_GET_INDEX(b, f_base, -INPUT0_PAD_BEFORE_SIZE_Y, -INPUT0_PAD_BEFORE_SIZE_X);
+    const uint data_set_offset = INPUT0_GET_INDEX(b, f_base, 0, 0);
     const uint input_data_offset = data_set_offset + in_data_set_idx;
 
     __local ACCUMULATOR_TYPE sum_per_feature[SLM_SIZE];
@@ -101,7 +100,7 @@ KERNEL(calc_mean_sqr_mean_per_feature)(
     variance = native_powr(variance + TO_ACCUMULATOR_TYPE(EPSILON), -0.5f);
 
     const uint f = f_base + in_data_set_idx % FSV;
-    const uint output_base_offset = OUTPUT_GET_INDEX(b, f_base, -INPUT0_PAD_BEFORE_SIZE_Y, -INPUT0_PAD_BEFORE_SIZE_X);
+    const uint output_base_offset = OUTPUT_GET_INDEX(b, f_base, 0, 0);
     const uint output_data_offset = output_base_offset + in_data_set_idx;
     ACTIVATION_TYPE scale_f = TO_ACTIVATION_TYPE(scale[f]);
     ACTIVATION_TYPE bias_f = TO_ACTIVATION_TYPE(bias[f]);
@@ -124,28 +123,24 @@ KERNEL(calc_mean_sqr_mean_per_feature)(
                     output[output_data_offset + (i  + j * CHUNK_SIZE) * workers_per_dataset * FSV] = TO_OUTPUT_TYPE(normalized);
                 #endif
             } else {
-                #ifdef OUTPUT_LAYOUT_B_FS_YX_FSV16
-                    output[output_data_offset + (i  + j * CHUNK_SIZE) * workers_per_dataset * FSV] = OUTPUT_VAL_ZERO;
-                #endif
+                output[output_data_offset + (i  + j * CHUNK_SIZE) * workers_per_dataset * FSV] = OUTPUT_VAL_ZERO;
             }
         }
     }
 
     if (in_data_set_idx < leftovers) {
-        ACTIVATION_TYPE normalized = (TO_ACTIVATION_TYPE(input[input_data_offset + items_num * workers_per_dataset * FSV]) - mean) * variance;
+        ACTIVATION_TYPE normalized = (TO_ACTIVATION_TYPE(input[input_data_offset + items_num * workers_per_dataset * FSV + in_data_set_idx]) - mean) * variance;
         normalized = normalized * scale_f + bias_f;
         if (f < OUTPUT_FEATURE_NUM) {
             #if HAS_FUSED_OPS
                 FUSED_OPS;
-                output[output_data_offset + items_num * workers_per_dataset * FSV] = FUSED_OPS_RESULT;
+                output[output_data_offset + items_num * workers_per_dataset * FSV + in_data_set_idx] = FUSED_OPS_RESULT;
             #else
-                output[output_data_offset + items_num * workers_per_dataset * FSV] = TO_OUTPUT_TYPE(normalized);
+                output[output_data_offset + items_num * workers_per_dataset * FSV + in_data_set_idx] = TO_OUTPUT_TYPE(normalized);
             #endif
+        } else {
+            output[output_data_offset + items_num * workers_per_dataset * FSV + in_data_set_idx] = OUTPUT_VAL_ZERO;
         }
-    } else {
-        #ifdef OUTPUT_LAYOUT_B_FS_YX_FSV16
-            output[output_data_offset + items_num * workers_per_dataset * FSV] = OUTPUT_VAL_ZERO;
-        #endif
     }
 }
 #endif
