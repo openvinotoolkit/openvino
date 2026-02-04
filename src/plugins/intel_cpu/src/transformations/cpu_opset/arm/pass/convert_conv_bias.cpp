@@ -5,6 +5,7 @@
 
 #include <memory>
 
+#include "low_precision/network_helper.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
@@ -39,13 +40,13 @@ ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
     auto conv_u8 = pattern::wrap_type<ov::op::v1::Convolution>({conv_u8_activation, conv_i8_u8_weights});
     auto conv_m = conv_u8 | conv_i8;
 
+    auto multiply_m = pattern::wrap_type<ov::op::v1::Multiply>({conv_m, pattern::any_input()});
     auto bias_const_m = pattern::wrap_type<ov::op::v0::Constant>([](const ov::Output<ov::Node>& output) {
         return !pattern::type_matches(ov::element::i32)(output);
     });
-    auto add_m = pattern::wrap_type<ov::op::v1::Add>({conv_m, bias_const_m});
-    auto multiply_m = pattern::wrap_type<ov::op::v1::Multiply>({add_m, pattern::any_input()});
+    auto add_m = pattern::wrap_type<ov::op::v1::Add>({multiply_m, bias_const_m});
     auto fakeQuantize =
-        pattern::wrap_type<ov::op::v0::FakeQuantize>({multiply_m,
+        pattern::wrap_type<ov::op::v0::FakeQuantize>({add_m,
                                                       pass::pattern::any_input(),
                                                       pass::pattern::any_input(),
                                                       pass::pattern::any_input(),
@@ -63,18 +64,23 @@ ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
         if (fakeQuantize->get_output_element_type(0) != conv->get_input_element_type(0)) {
             return false;
         }
+        auto add = pattern_map.at(add_m).get_node_shared_ptr();
+        auto new_mul = ov::as_type_ptr<ov::opset1::Multiply>(low_precision::NetworkHelper::swapMultiplyAndAdd(ov::as_type_ptr<ov::opset1::Add>(add), 0));
+        if (!new_mul) {
+            return false;
+        }
         // mark Multiply as dequantization node to avoid its conversion to PowerStatic
-        ov::mark_as_dequantization_node(mul);
+        ov::mark_as_dequantization_node(new_mul);
 
-        auto bias_const = pattern_map.at(bias_const_m).get_node_shared_ptr();
+        add = ov::as_type_ptr<ov::opset1::Add>(new_mul->get_input_node_shared_ptr(0));
+        auto bias_const = ov::as_type_ptr<ov::op::v0::Constant>(add->get_input_node_shared_ptr(1));
         auto round = std::make_shared<ov::op::v5::Round>(bias_const, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
         auto convert_to_i32 = std::make_shared<ov::op::v0::Convert>(round, ov::element::i32);
 
-        auto add = pattern_map.at(add_m).get_node_shared_ptr();
         auto new_add = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Add>>(
             ov::element::TypeVector{ov::element::f32, ov::element::f32},
             ov::element::TypeVector{ov::element::f32},
-            ov::op::TemporaryReplaceOutputType(pattern_map.at(conv_m), ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(add->input_value(0), ov::element::f32).get(),
             ov::op::TemporaryReplaceOutputType(convert_to_i32->output(0), ov::element::f32).get());
         new_add->set_friendly_name(add->get_friendly_name());
         ov::copy_runtime_info({add, bias_const}, {round, convert_to_i32, new_add});

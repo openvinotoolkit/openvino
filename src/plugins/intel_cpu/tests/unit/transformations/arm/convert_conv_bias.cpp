@@ -74,7 +74,7 @@ static std::shared_ptr<ov::op::v0::FakeQuantize> createFakeQuantize(const ov::Ou
         ov::test::utils::make_fake_quantize(input, input_type, levels, {}, {low}, {high}, {low}, {high}));
 }
 
-// Pattern: Input -> Convolution -> Add(bias) -> Multiply -> FQ -> Result
+// Pattern: Input -> Convolution -> Multiply -> Add(bias) -> FQ -> Result
 static std::shared_ptr<ov::Model> createInitGraph(ov::element::Type input_type,
                                                   ov::element::Type weights_type,
                                                   ov::element::Type bias_type,
@@ -82,19 +82,19 @@ static std::shared_ptr<ov::Model> createInitGraph(ov::element::Type input_type,
     std::shared_ptr<ov::op::v0::Parameter> input;
     auto conv = createConvolution(input_type, weights_type, input);
 
-    auto bias = ov::op::v0::Constant::create(bias_type, {1, 16, 1, 1}, {1.5f});
-    auto add = createAdd(conv, bias);
-
     auto dequant_scale = ov::op::v0::Constant::create(ov::element::f32, {1}, {0.5f});
-    auto multiply = std::make_shared<ov::op::v1::Multiply>(add, dequant_scale);
+    auto multiply = std::make_shared<ov::op::v1::Multiply>(conv, dequant_scale);
 
-    auto fq = createFakeQuantize(multiply, input_type, 256);
+    auto bias = ov::op::v0::Constant::create(bias_type, {1, 16, 1, 1}, {1.5f});
+    auto add = createAdd(multiply, bias);
+
+    auto fq = createFakeQuantize(add, input_type, 256);
     fq->set_output_type(0, keep_fq_output_precision ? ov::element::f32 : input_type, fq->get_output_shape(0));
 
     return std::make_shared<ov::Model>(ov::OutputVector{fq}, ov::ParameterVector{input});
 }
 
-// Pattern: Input -> Convolution -> Add(Round(bias)->Convert(i32)) -> Multiply -> FQ -> Result
+// Pattern: Input -> Convolution -> Multiply -> Add(Round(bias)->Convert(i32)) -> FQ -> Result
 static std::shared_ptr<ov::Model> createRefGraph(ov::element::Type input_type,
                                                  ov::element::Type weights_type,
                                                  ov::element::Type bias_type) {
@@ -105,13 +105,13 @@ static std::shared_ptr<ov::Model> createRefGraph(ov::element::Type input_type,
     auto round = std::make_shared<ov::op::v5::Round>(bias, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
     auto convert = std::make_shared<ov::op::v0::Convert>(round, ov::element::i32);
 
-    // The transformation creates a TypeRelaxed Add when the original Add is not TypeRelaxed
-    auto add = createAdd(conv, convert, true);
-
     auto dequant_scale = ov::op::v0::Constant::create(ov::element::f32, {1}, {0.5f});
-    auto multiply = std::make_shared<ov::op::v1::Multiply>(add, dequant_scale);
+    auto multiply = std::make_shared<ov::op::v1::Multiply>(conv, dequant_scale);
 
-    auto fq = createFakeQuantize(multiply, input_type, 256);
+    // The transformation creates a TypeRelaxed Add when the original Add is not TypeRelaxed
+    auto add = createAdd(multiply, convert, true);
+
+    auto fq = createFakeQuantize(add, input_type, 256);
 
     return std::make_shared<ov::Model>(ov::OutputVector{fq}, ov::ParameterVector{input});
 }

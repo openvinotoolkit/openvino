@@ -980,19 +980,8 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
             return match_conv_stride_oc_ic_limit(node, {1, 1}, ov::Shape{3, 3}, 512);
         },
         ConvolutionTransformation);
-    CPU_SET_CALLBACK_ARM(
-        lptManager,
-        [](const_node_ptr& node) -> bool {
-            // Run the transformation for convolution bias only on ARM
-            // Convolution bias is handled in ConvertConvolutionBias transformation
-            if (match_conv_mul_add(node)) {
-                return false;
-            }
 
-            return ov::marked_as_bias(node);
-        },
-        AddTransformation);
-    CPU_SET_CALLBACK_X64(
+    CPU_SET_CALLBACK_COMMON(
         lptManager,
         [](const_node_ptr& node) -> bool {
             return ov::marked_as_bias(node);
@@ -1001,19 +990,19 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     CPU_SET_CALLBACK_ARM(
         lptManager,
         [](const_node_ptr& node) -> bool {
-            return match_conv_add_mul_fq<ov::op::v1::Subtract>(node);
+            return match_conv_mul_add_fq<ov::op::v1::Subtract>(node);
         },
         FuseSubtractToFakeQuantizeTransformation);
     CPU_SET_CALLBACK_ARM(
         lptManager,
         [](const_node_ptr& node) -> bool {
-            return match_conv_add_mul_fq<ov::op::v1::Multiply>(node);
+            return match_conv_mul_add_fq<ov::op::v1::Multiply>(node);
         },
         FuseMultiplyToFakeQuantizeTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
     CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
-    CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
+        CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, MaxPoolTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, MVNTransformation);
@@ -1041,10 +1030,13 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         lptManager,
         [&](const_node_ptr& node) -> bool {
             auto eltwise = node->get_input_node_shared_ptr(0);
-            if (ov::is_type<ov::op::v1::Multiply>(eltwise) && FakeQuantizeTransformation::checkElementwise(eltwise)) {
+            if ((ov::is_type<ov::op::v1::Multiply>(eltwise) || ov::is_type<ov::op::v1::Add>(eltwise)) &&
+                FakeQuantizeTransformation::checkElementwise(eltwise)) {
                 // avoid convolution dequantization fusion to FQ node to keep
-                // Conv->Bias->DQ_scale->Requantization pattern which is supported by the ACL
-                return match_fq_mul_conv_bias_same_types(node);
+                // Conv->DQ_scale->Bias->Requantization pattern
+                // Mul-Add pattern will be swapped later to Add-Mul by ConvertConvolutionBias
+                // to get subgraph Conv-Add-Mul supported by the ACL
+                return match_fq_mul_conv_bias_same_types(node, FQMulAddPattern::ConvMulAdd);
             }
             return false;
         },
@@ -1690,7 +1682,7 @@ void Transformations::PostSnippets() {
                 ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
                 // int8 ACL Convolution executor supports only same activation and output types
                 // if types are different, decompose FQ to avoid reference FQ
-                return match_fq_mul_conv_bias_same_types(node);
+                return match_fq_mul_conv_bias_same_types(node, FQMulAddPattern::ConvAddMul);
             }
             return false;
         },
