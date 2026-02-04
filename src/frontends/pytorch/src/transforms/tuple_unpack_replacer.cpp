@@ -82,7 +82,7 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
                         if (then_body_idx != -1) {
                             add_exception_to_fw_node(
                                 tuple_construct,
-                                "Unexpected: TupleConstruct output is used in body more then once.");
+                                "Unexpected: TupleConstruct output is used in body more than once.");
                         } else {
                             then_body_idx = static_cast<int>(inp_desc->m_body_parameter_index);
                         }
@@ -93,7 +93,7 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
                         if (else_body_idx != -1) {
                             add_exception_to_fw_node(
                                 tuple_construct,
-                                "Unexpected: TupleConstruct output is used in body more then once.");
+                                "Unexpected: TupleConstruct output is used in body more than once.");
                         } else {
                             else_body_idx = static_cast<int>(inp_desc->m_body_parameter_index);
                         }
