@@ -5,8 +5,10 @@
 #include <vector>
 
 #include "common_test_utils/test_enums.hpp"
-#include "single_op_tests/paged_attention.hpp"
 #include "common_test_utils/test_constants.hpp"
+
+#include "single_op_tests/paged_attention.hpp"
+#include "shared_test_classes/single_op/paged_attention.hpp"
 
 namespace {
 using ov::test::PagedAttentionLayerTest;
@@ -21,7 +23,7 @@ const std::vector<InputShapes> input_shapes_ref = {  // greedy search
     {{-1, 1, 8, 64}, {{0, 1, 8, 64}, {10, 1, 8, 64}}},
 }};
 
-const std::vector<ov::AnyMap> additional_configs_ref = {};
+const std::vector<ov::AnyMap> additional_configs_ref = {{}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttentionLayerTest,
                          PagedAttentionLayerTest,
