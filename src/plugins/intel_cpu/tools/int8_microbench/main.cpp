@@ -32,6 +32,7 @@
 #    include <arm_compute/core/Types.h>
 #    include <arm_compute/runtime/NEON/functions/NEGEMMLowpMatrixMultiplyCore.h>
 #    include <arm_compute/runtime/NEON/functions/NEConvolutionLayer.h>
+#    include <arm_compute/runtime/Scheduler.h>
 #    include <arm_compute/runtime/Tensor.h>
 #    include <arm_compute/runtime/TensorAllocator.h>
 #    include <arm_compute/runtime/NEON/NEFunctions.h>
@@ -2123,6 +2124,7 @@ TimerResult bench_kleidiai_gemm(const Args& args, bool& supported) {
 #if defined(OV_CPU_WITH_ACL)
 TimerResult bench_acl_gemm(const Args& args) {
     using namespace arm_compute;
+    Scheduler::get().set_num_threads(1);
 
     const size_t M = args.M;
     const size_t N = args.N;
@@ -2175,6 +2177,7 @@ TimerResult bench_acl_gemm(const Args& args) {
 
 TimerResult bench_acl_conv_1x1(const Args& args) {
     using namespace arm_compute;
+    Scheduler::get().set_num_threads(1);
     const size_t N = args.Nn;
     const size_t H = args.H;
     const size_t W = args.W;

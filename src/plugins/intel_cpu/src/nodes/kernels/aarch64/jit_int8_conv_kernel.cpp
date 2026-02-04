@@ -3529,8 +3529,7 @@ void jit_int8_brgemm_kernel_4x4_smmla_packed::generate() {
     ldr(DReg(v_tmp1.getIdx()), ptr(reg_src3));
     ins(v_a23.d[1], v_tmp1.d[0]);
 
-    ldr(QReg(v_w01.getIdx()), ptr(reg_wei));
-    ldr(QReg(v_w23.getIdx()), ptr(reg_wei, 16));
+    ldp(QReg(v_w01.getIdx()), QReg(v_w23.getIdx()), ptr(reg_wei));
 
     emit_smmla(v_acc00.s, v_a01.b, v_w01.b);
     emit_smmla(v_acc01.s, v_a01.b, v_w23.b);
@@ -3550,8 +3549,7 @@ void jit_int8_brgemm_kernel_4x4_smmla_packed::generate() {
     ldr(DReg(v_tmp1.getIdx()), ptr(reg_src3));
     ins(v_a23.d[1], v_tmp1.d[0]);
 
-    ldr(QReg(v_w01.getIdx()), ptr(reg_wei));
-    ldr(QReg(v_w23.getIdx()), ptr(reg_wei, 16));
+    ldp(QReg(v_w01.getIdx()), QReg(v_w23.getIdx()), ptr(reg_wei));
 
     emit_smmla(v_acc00.s, v_a01.b, v_w01.b);
     emit_smmla(v_acc01.s, v_a01.b, v_w23.b);
@@ -3577,8 +3575,7 @@ void jit_int8_brgemm_kernel_4x4_smmla_packed::generate() {
     ldr(DReg(v_tmp1.getIdx()), ptr(reg_src3));
     ins(v_a23.d[1], v_tmp1.d[0]);
 
-    ldr(QReg(v_w01.getIdx()), ptr(reg_wei));
-    ldr(QReg(v_w23.getIdx()), ptr(reg_wei, 16));
+    ldp(QReg(v_w01.getIdx()), QReg(v_w23.getIdx()), ptr(reg_wei));
 
     emit_smmla(v_acc00.s, v_a01.b, v_w01.b);
     emit_smmla(v_acc01.s, v_a01.b, v_w23.b);
@@ -3804,10 +3801,8 @@ void jit_int8_brgemm_kernel_4x8_smmla_packed::generate() {
     ldr(DReg(v_tmp1.getIdx()), ptr(reg_src3));
     ins(v_a23.d[1], v_tmp1.d[0]);
 
-    ldr(QReg(v_w01.getIdx()), ptr(reg_wei));
-    ldr(QReg(v_w23.getIdx()), ptr(reg_wei, 16));
-    ldr(QReg(v_w45.getIdx()), ptr(reg_wei, 32));
-    ldr(QReg(v_w67.getIdx()), ptr(reg_wei, 48));
+    ldp(QReg(v_w01.getIdx()), QReg(v_w23.getIdx()), ptr(reg_wei));
+    ldp(QReg(v_w45.getIdx()), QReg(v_w67.getIdx()), ptr(reg_wei, 32));
 
     emit_smmla(v_acc00.s, v_a01.b, v_w01.b);
     emit_smmla(v_acc01.s, v_a01.b, v_w23.b);
@@ -3831,10 +3826,8 @@ void jit_int8_brgemm_kernel_4x8_smmla_packed::generate() {
     ldr(DReg(v_tmp1.getIdx()), ptr(reg_src3));
     ins(v_a23.d[1], v_tmp1.d[0]);
 
-    ldr(QReg(v_w01.getIdx()), ptr(reg_wei));
-    ldr(QReg(v_w23.getIdx()), ptr(reg_wei, 16));
-    ldr(QReg(v_w45.getIdx()), ptr(reg_wei, 32));
-    ldr(QReg(v_w67.getIdx()), ptr(reg_wei, 48));
+    ldp(QReg(v_w01.getIdx()), QReg(v_w23.getIdx()), ptr(reg_wei));
+    ldp(QReg(v_w45.getIdx()), QReg(v_w67.getIdx()), ptr(reg_wei, 32));
 
     emit_smmla(v_acc00.s, v_a01.b, v_w01.b);
     emit_smmla(v_acc01.s, v_a01.b, v_w23.b);
@@ -3864,10 +3857,8 @@ void jit_int8_brgemm_kernel_4x8_smmla_packed::generate() {
     ldr(DReg(v_tmp1.getIdx()), ptr(reg_src3));
     ins(v_a23.d[1], v_tmp1.d[0]);
 
-    ldr(QReg(v_w01.getIdx()), ptr(reg_wei));
-    ldr(QReg(v_w23.getIdx()), ptr(reg_wei, 16));
-    ldr(QReg(v_w45.getIdx()), ptr(reg_wei, 32));
-    ldr(QReg(v_w67.getIdx()), ptr(reg_wei, 48));
+    ldp(QReg(v_w01.getIdx()), QReg(v_w23.getIdx()), ptr(reg_wei));
+    ldp(QReg(v_w45.getIdx()), QReg(v_w67.getIdx()), ptr(reg_wei, 32));
 
     emit_smmla(v_acc00.s, v_a01.b, v_w01.b);
     emit_smmla(v_acc01.s, v_a01.b, v_w23.b);
@@ -4213,14 +4204,10 @@ void jit_int8_brgemm_kernel_4x16_smmla_packed::generate() {
     ldr(DReg(v_tmp1.getIdx()), ptr(reg_src3));
     ins(v_a23.d[1], v_tmp1.d[0]);
 
-    ldr(QReg(v_w01.getIdx()), ptr(reg_wei));
-    ldr(QReg(v_w23.getIdx()), ptr(reg_wei, 16));
-    ldr(QReg(v_w45.getIdx()), ptr(reg_wei, 32));
-    ldr(QReg(v_w67.getIdx()), ptr(reg_wei, 48));
-    ldr(QReg(v_w89.getIdx()), ptr(reg_wei, 64));
-    ldr(QReg(v_wab.getIdx()), ptr(reg_wei, 80));
-    ldr(QReg(v_wcd.getIdx()), ptr(reg_wei, 96));
-    ldr(QReg(v_wef.getIdx()), ptr(reg_wei, 112));
+    ldp(QReg(v_w01.getIdx()), QReg(v_w23.getIdx()), ptr(reg_wei));
+    ldp(QReg(v_w45.getIdx()), QReg(v_w67.getIdx()), ptr(reg_wei, 32));
+    ldp(QReg(v_w89.getIdx()), QReg(v_wab.getIdx()), ptr(reg_wei, 64));
+    ldp(QReg(v_wcd.getIdx()), QReg(v_wef.getIdx()), ptr(reg_wei, 96));
 
     emit_smmla(v_acc00.s, v_a01.b, v_w01.b);
     emit_smmla(v_acc01.s, v_a01.b, v_w23.b);
@@ -4252,14 +4239,10 @@ void jit_int8_brgemm_kernel_4x16_smmla_packed::generate() {
     ldr(DReg(v_tmp1.getIdx()), ptr(reg_src3));
     ins(v_a23.d[1], v_tmp1.d[0]);
 
-    ldr(QReg(v_w01.getIdx()), ptr(reg_wei));
-    ldr(QReg(v_w23.getIdx()), ptr(reg_wei, 16));
-    ldr(QReg(v_w45.getIdx()), ptr(reg_wei, 32));
-    ldr(QReg(v_w67.getIdx()), ptr(reg_wei, 48));
-    ldr(QReg(v_w89.getIdx()), ptr(reg_wei, 64));
-    ldr(QReg(v_wab.getIdx()), ptr(reg_wei, 80));
-    ldr(QReg(v_wcd.getIdx()), ptr(reg_wei, 96));
-    ldr(QReg(v_wef.getIdx()), ptr(reg_wei, 112));
+    ldp(QReg(v_w01.getIdx()), QReg(v_w23.getIdx()), ptr(reg_wei));
+    ldp(QReg(v_w45.getIdx()), QReg(v_w67.getIdx()), ptr(reg_wei, 32));
+    ldp(QReg(v_w89.getIdx()), QReg(v_wab.getIdx()), ptr(reg_wei, 64));
+    ldp(QReg(v_wcd.getIdx()), QReg(v_wef.getIdx()), ptr(reg_wei, 96));
 
     emit_smmla(v_acc00.s, v_a01.b, v_w01.b);
     emit_smmla(v_acc01.s, v_a01.b, v_w23.b);
@@ -4297,14 +4280,10 @@ void jit_int8_brgemm_kernel_4x16_smmla_packed::generate() {
     ldr(DReg(v_tmp1.getIdx()), ptr(reg_src3));
     ins(v_a23.d[1], v_tmp1.d[0]);
 
-    ldr(QReg(v_w01.getIdx()), ptr(reg_wei));
-    ldr(QReg(v_w23.getIdx()), ptr(reg_wei, 16));
-    ldr(QReg(v_w45.getIdx()), ptr(reg_wei, 32));
-    ldr(QReg(v_w67.getIdx()), ptr(reg_wei, 48));
-    ldr(QReg(v_w89.getIdx()), ptr(reg_wei, 64));
-    ldr(QReg(v_wab.getIdx()), ptr(reg_wei, 80));
-    ldr(QReg(v_wcd.getIdx()), ptr(reg_wei, 96));
-    ldr(QReg(v_wef.getIdx()), ptr(reg_wei, 112));
+    ldp(QReg(v_w01.getIdx()), QReg(v_w23.getIdx()), ptr(reg_wei));
+    ldp(QReg(v_w45.getIdx()), QReg(v_w67.getIdx()), ptr(reg_wei, 32));
+    ldp(QReg(v_w89.getIdx()), QReg(v_wab.getIdx()), ptr(reg_wei, 64));
+    ldp(QReg(v_wcd.getIdx()), QReg(v_wef.getIdx()), ptr(reg_wei, 96));
 
     emit_smmla(v_acc00.s, v_a01.b, v_w01.b);
     emit_smmla(v_acc01.s, v_a01.b, v_w23.b);
@@ -4518,8 +4497,7 @@ void jit_int8_brgemm_kernel_4x4_usmmla_packed::generate() {
     ldr(DReg(v_tmp1.getIdx()), ptr(reg_src3));
     ins(v_a23.d[1], v_tmp1.d[0]);
 
-    ldr(QReg(v_w01.getIdx()), ptr(reg_wei));
-    ldr(QReg(v_w23.getIdx()), ptr(reg_wei, 16));
+    ldp(QReg(v_w01.getIdx()), QReg(v_w23.getIdx()), ptr(reg_wei));
 
     emit_usmmla(v_acc00.s, v_a01.b, v_w01.b);
     emit_usmmla(v_acc01.s, v_a01.b, v_w23.b);
@@ -4539,8 +4517,7 @@ void jit_int8_brgemm_kernel_4x4_usmmla_packed::generate() {
     ldr(DReg(v_tmp1.getIdx()), ptr(reg_src3));
     ins(v_a23.d[1], v_tmp1.d[0]);
 
-    ldr(QReg(v_w01.getIdx()), ptr(reg_wei));
-    ldr(QReg(v_w23.getIdx()), ptr(reg_wei, 16));
+    ldp(QReg(v_w01.getIdx()), QReg(v_w23.getIdx()), ptr(reg_wei));
 
     emit_usmmla(v_acc00.s, v_a01.b, v_w01.b);
     emit_usmmla(v_acc01.s, v_a01.b, v_w23.b);
@@ -4566,8 +4543,7 @@ void jit_int8_brgemm_kernel_4x4_usmmla_packed::generate() {
     ldr(DReg(v_tmp1.getIdx()), ptr(reg_src3));
     ins(v_a23.d[1], v_tmp1.d[0]);
 
-    ldr(QReg(v_w01.getIdx()), ptr(reg_wei));
-    ldr(QReg(v_w23.getIdx()), ptr(reg_wei, 16));
+    ldp(QReg(v_w01.getIdx()), QReg(v_w23.getIdx()), ptr(reg_wei));
 
     emit_usmmla(v_acc00.s, v_a01.b, v_w01.b);
     emit_usmmla(v_acc01.s, v_a01.b, v_w23.b);
@@ -4793,10 +4769,8 @@ void jit_int8_brgemm_kernel_4x8_usmmla_packed::generate() {
     ldr(DReg(v_tmp1.getIdx()), ptr(reg_src3));
     ins(v_a23.d[1], v_tmp1.d[0]);
 
-    ldr(QReg(v_w01.getIdx()), ptr(reg_wei));
-    ldr(QReg(v_w23.getIdx()), ptr(reg_wei, 16));
-    ldr(QReg(v_w45.getIdx()), ptr(reg_wei, 32));
-    ldr(QReg(v_w67.getIdx()), ptr(reg_wei, 48));
+    ldp(QReg(v_w01.getIdx()), QReg(v_w23.getIdx()), ptr(reg_wei));
+    ldp(QReg(v_w45.getIdx()), QReg(v_w67.getIdx()), ptr(reg_wei, 32));
 
     emit_usmmla(v_acc00.s, v_a01.b, v_w01.b);
     emit_usmmla(v_acc01.s, v_a01.b, v_w23.b);
@@ -4820,10 +4794,8 @@ void jit_int8_brgemm_kernel_4x8_usmmla_packed::generate() {
     ldr(DReg(v_tmp1.getIdx()), ptr(reg_src3));
     ins(v_a23.d[1], v_tmp1.d[0]);
 
-    ldr(QReg(v_w01.getIdx()), ptr(reg_wei));
-    ldr(QReg(v_w23.getIdx()), ptr(reg_wei, 16));
-    ldr(QReg(v_w45.getIdx()), ptr(reg_wei, 32));
-    ldr(QReg(v_w67.getIdx()), ptr(reg_wei, 48));
+    ldp(QReg(v_w01.getIdx()), QReg(v_w23.getIdx()), ptr(reg_wei));
+    ldp(QReg(v_w45.getIdx()), QReg(v_w67.getIdx()), ptr(reg_wei, 32));
 
     emit_usmmla(v_acc00.s, v_a01.b, v_w01.b);
     emit_usmmla(v_acc01.s, v_a01.b, v_w23.b);
@@ -4853,10 +4825,8 @@ void jit_int8_brgemm_kernel_4x8_usmmla_packed::generate() {
     ldr(DReg(v_tmp1.getIdx()), ptr(reg_src3));
     ins(v_a23.d[1], v_tmp1.d[0]);
 
-    ldr(QReg(v_w01.getIdx()), ptr(reg_wei));
-    ldr(QReg(v_w23.getIdx()), ptr(reg_wei, 16));
-    ldr(QReg(v_w45.getIdx()), ptr(reg_wei, 32));
-    ldr(QReg(v_w67.getIdx()), ptr(reg_wei, 48));
+    ldp(QReg(v_w01.getIdx()), QReg(v_w23.getIdx()), ptr(reg_wei));
+    ldp(QReg(v_w45.getIdx()), QReg(v_w67.getIdx()), ptr(reg_wei, 32));
 
     emit_usmmla(v_acc00.s, v_a01.b, v_w01.b);
     emit_usmmla(v_acc01.s, v_a01.b, v_w23.b);
@@ -5202,14 +5172,10 @@ void jit_int8_brgemm_kernel_4x16_usmmla_packed::generate() {
     ldr(DReg(v_tmp1.getIdx()), ptr(reg_src3));
     ins(v_a23.d[1], v_tmp1.d[0]);
 
-    ldr(QReg(v_w01.getIdx()), ptr(reg_wei));
-    ldr(QReg(v_w23.getIdx()), ptr(reg_wei, 16));
-    ldr(QReg(v_w45.getIdx()), ptr(reg_wei, 32));
-    ldr(QReg(v_w67.getIdx()), ptr(reg_wei, 48));
-    ldr(QReg(v_w89.getIdx()), ptr(reg_wei, 64));
-    ldr(QReg(v_wab.getIdx()), ptr(reg_wei, 80));
-    ldr(QReg(v_wcd.getIdx()), ptr(reg_wei, 96));
-    ldr(QReg(v_wef.getIdx()), ptr(reg_wei, 112));
+    ldp(QReg(v_w01.getIdx()), QReg(v_w23.getIdx()), ptr(reg_wei));
+    ldp(QReg(v_w45.getIdx()), QReg(v_w67.getIdx()), ptr(reg_wei, 32));
+    ldp(QReg(v_w89.getIdx()), QReg(v_wab.getIdx()), ptr(reg_wei, 64));
+    ldp(QReg(v_wcd.getIdx()), QReg(v_wef.getIdx()), ptr(reg_wei, 96));
 
     emit_usmmla(v_acc00.s, v_a01.b, v_w01.b);
     emit_usmmla(v_acc01.s, v_a01.b, v_w23.b);
@@ -5241,14 +5207,10 @@ void jit_int8_brgemm_kernel_4x16_usmmla_packed::generate() {
     ldr(DReg(v_tmp1.getIdx()), ptr(reg_src3));
     ins(v_a23.d[1], v_tmp1.d[0]);
 
-    ldr(QReg(v_w01.getIdx()), ptr(reg_wei));
-    ldr(QReg(v_w23.getIdx()), ptr(reg_wei, 16));
-    ldr(QReg(v_w45.getIdx()), ptr(reg_wei, 32));
-    ldr(QReg(v_w67.getIdx()), ptr(reg_wei, 48));
-    ldr(QReg(v_w89.getIdx()), ptr(reg_wei, 64));
-    ldr(QReg(v_wab.getIdx()), ptr(reg_wei, 80));
-    ldr(QReg(v_wcd.getIdx()), ptr(reg_wei, 96));
-    ldr(QReg(v_wef.getIdx()), ptr(reg_wei, 112));
+    ldp(QReg(v_w01.getIdx()), QReg(v_w23.getIdx()), ptr(reg_wei));
+    ldp(QReg(v_w45.getIdx()), QReg(v_w67.getIdx()), ptr(reg_wei, 32));
+    ldp(QReg(v_w89.getIdx()), QReg(v_wab.getIdx()), ptr(reg_wei, 64));
+    ldp(QReg(v_wcd.getIdx()), QReg(v_wef.getIdx()), ptr(reg_wei, 96));
 
     emit_usmmla(v_acc00.s, v_a01.b, v_w01.b);
     emit_usmmla(v_acc01.s, v_a01.b, v_w23.b);
@@ -5286,14 +5248,10 @@ void jit_int8_brgemm_kernel_4x16_usmmla_packed::generate() {
     ldr(DReg(v_tmp1.getIdx()), ptr(reg_src3));
     ins(v_a23.d[1], v_tmp1.d[0]);
 
-    ldr(QReg(v_w01.getIdx()), ptr(reg_wei));
-    ldr(QReg(v_w23.getIdx()), ptr(reg_wei, 16));
-    ldr(QReg(v_w45.getIdx()), ptr(reg_wei, 32));
-    ldr(QReg(v_w67.getIdx()), ptr(reg_wei, 48));
-    ldr(QReg(v_w89.getIdx()), ptr(reg_wei, 64));
-    ldr(QReg(v_wab.getIdx()), ptr(reg_wei, 80));
-    ldr(QReg(v_wcd.getIdx()), ptr(reg_wei, 96));
-    ldr(QReg(v_wef.getIdx()), ptr(reg_wei, 112));
+    ldp(QReg(v_w01.getIdx()), QReg(v_w23.getIdx()), ptr(reg_wei));
+    ldp(QReg(v_w45.getIdx()), QReg(v_w67.getIdx()), ptr(reg_wei, 32));
+    ldp(QReg(v_w89.getIdx()), QReg(v_wab.getIdx()), ptr(reg_wei, 64));
+    ldp(QReg(v_wcd.getIdx()), QReg(v_wef.getIdx()), ptr(reg_wei, 96));
 
     emit_usmmla(v_acc00.s, v_a01.b, v_w01.b);
     emit_usmmla(v_acc01.s, v_a01.b, v_w23.b);
