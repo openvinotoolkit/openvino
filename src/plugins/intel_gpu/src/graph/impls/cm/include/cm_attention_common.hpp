@@ -86,24 +86,18 @@ CM_INLINE void Transpose_16x16(matrix_ref<T1, 16, 16> in,
 
 template <typename T1, typename T2>
 CM_INLINE void Transpose_8x8(matrix_ref<T1, 8, 8> in, matrix_ref<T2, 8, 8> out) {
-  matrix<T2, 8, 8> temp;
-  temp.row(0) = in.template select<2, 1, 4, 2>(0, 0);
-  temp.row(1) = in.template select<2, 1, 4, 2>(2, 0);
-  temp.row(2) = in.template select<2, 1, 4, 2>(4, 0);
-  temp.row(3) = in.template select<2, 1, 4, 2>(6, 0);
-  temp.row(4) = in.template select<2, 1, 4, 2>(0, 1);
-  temp.row(5) = in.template select<2, 1, 4, 2>(2, 1);
-  temp.row(6) = in.template select<2, 1, 4, 2>(4, 1);
-  temp.row(7) = in.template select<2, 1, 4, 2>(6, 1);
+    matrix<T2, 8, 8> temp;
+    #pragma unroll
+    for (int i = 0; i < 4; ++i) {
+        temp.row(i)     = in.template select<2, 1, 4, 2>(i * 2, 0);
+        temp.row(i + 4) = in.template select<2, 1, 4, 2>(i * 2, 1);
+    }
 
-  out.row(0) = temp.template select<4, 1, 2, 4>(0, 0);
-  out.row(2) = temp.template select<4, 1, 2, 4>(0, 1);
-  out.row(4) = temp.template select<4, 1, 2, 4>(0, 2);
-  out.row(6) = temp.template select<4, 1, 2, 4>(0, 3);
-  out.row(1) = temp.template select<4, 1, 2, 4>(4, 0);
-  out.row(3) = temp.template select<4, 1, 2, 4>(4, 1);
-  out.row(5) = temp.template select<4, 1, 2, 4>(4, 2);
-  out.row(7) = temp.template select<4, 1, 2, 4>(4, 3);
+    #pragma unroll
+    for (int i = 0; i < 4; ++i) {
+        out.row(i * 2)     = temp.template select<4, 1, 2, 4>(0, i);
+        out.row(i * 2 + 1) = temp.template select<4, 1, 2, 4>(4, i);
+    }
 }
 
 // function templates cannot be partially specialized; use overloading to achieve the same effect
