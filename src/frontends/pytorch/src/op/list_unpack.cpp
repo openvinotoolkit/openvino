@@ -4,6 +4,7 @@
 
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
 #include "utils_quantize.hpp"
@@ -20,9 +21,10 @@ OutputVector translate_list_unpack(const NodeContext& context) {
     // wrap outputs. This ensures transformations see clean graph without ComplexTypeMark.
     auto [input, complex] = unwrap_complex(context.get_input(0));
 
-    if (const auto& list = cast_fw_node(input.get_node_shared_ptr(), "prim::ListConstruct")) {
-        // ListConstruct -> ListUnpack can be annihilated
-        auto res = list->input_values();
+    // Check for SequenceMark first (new list/tuple construct mechanism)
+    if (const auto& seq_mark = ov::as_type_ptr<SequenceMark>(input.get_node_shared_ptr())) {
+        // SequenceMark -> ListUnpack can be annihilated
+        auto res = seq_mark->get_sequence();
         return wrap_complex(context, res, complex);
     } else {
         // Create FrameworkNode with UNWRAPPED input (transformations will see clean graph)
