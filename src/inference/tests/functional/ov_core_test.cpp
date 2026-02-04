@@ -240,11 +240,26 @@ TEST_F(CoreBaseTest, compile_model_with_std_fs_path) {
 #endif
 }
 
-TEST_F(CoreBaseTest, compile_model) {
-    generate_test_model_files("model2");
+class UnicodePathTest : public testing::Test, public ::testing::WithParamInterface<utils::StringPathVariant> {};
 
-    const auto model_path = model_file_name;
-    const auto weight_path = weight_file_name;
+static auto dir_name = testing::Values("test.folder", L"test_folder", u"test_folder/", U"test_folder/");
+
+INSTANTIATE_TEST_SUITE_P(paths, UnicodePathTest, dir_name);
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+static auto dir_name_unicode = testing::Values("这是.folder", L"这是_folder", u"这是_folder/", U"这是_folder/");
+
+INSTANTIATE_TEST_SUITE_P(unicode_paths, UnicodePathTest, dir_name_unicode);
+#endif
+
+TEST_P(UnicodePathTest, compile_model_with_std_fs_path) {
+    const std::string model_name = "test-model";
+    const auto prefix_dir = utils::generateTestFilePrefix();
+    const auto test_dir = std::filesystem::path(prefix_dir) / utils::to_fs_path(GetParam());
+
+    const auto model_path = test_dir / std::filesystem::path(model_name + ".xml");
+    const auto weight_path = test_dir / std::filesystem::path(model_name + ".bin");
+    ov::test::utils::generate_test_model(model_path, weight_path);
 
     ov::Core core;
     {
@@ -257,20 +272,8 @@ TEST_F(CoreBaseTest, compile_model) {
         const auto model = core.compile_model(model_path, devices.at(0), ov::AnyMap{});
         EXPECT_TRUE(model);
     }
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
-        const auto model_path_w = model_files_name_w[testIndex];
-        {
-            const auto model = core.compile_model(model_path_w);
-            EXPECT_TRUE(model);
-        }
-        {
-            const auto devices = core.get_available_devices();
 
-            const auto model = core.compile_model(model_path_w, devices.at(0), ov::AnyMap{});
-            EXPECT_TRUE(model);
-        }
-    }
-#endif
+    std::filesystem::remove_all(prefix_dir);
 }
+
 }  // namespace ov::test
