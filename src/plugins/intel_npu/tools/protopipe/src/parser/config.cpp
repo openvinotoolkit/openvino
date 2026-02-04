@@ -667,7 +667,7 @@ static void parseWorkloadType(const YAML::Node& node, StreamDesc& stream) {
         THROW_ERROR("Missing workload type change interval");
     }
     if (node["change_to"]) {
-        workload_type.changes = node["change_to"].as<std::vector<std::string>>();
+        workload_type.change_to = node["change_to"].as<std::vector<std::string>>();
     }
     else {
         THROW_ERROR("Missing workload type change values");

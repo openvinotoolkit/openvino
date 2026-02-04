@@ -18,7 +18,7 @@ using ITermCriterionPtr = std::shared_ptr<ITermCriterion>;
 
 struct WorkloadTypeDesc {
     std::string initial_value;
-    std::vector<std::string> changes;
+    std::vector<std::string> change_to;
     uint64_t change_interval;
     bool repeat;
 };
