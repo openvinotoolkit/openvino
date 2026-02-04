@@ -277,14 +277,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     }
 #endif
 
-    _logger.debug("parse start");
-    std::vector<uint8_t> network(mainBlob.get_byte_size());
-    network.assign(reinterpret_cast<const uint8_t*>(mainBlob.data()),
-                   reinterpret_cast<const uint8_t*>(mainBlob.data()) + mainBlob.get_byte_size());
-    auto networkMeta = _compiler->parse(network, config);
-    network.clear();
-    network.shrink_to_fit();
-
     GraphDescriptor mainGraphDesc;
     NetworkMetadata mainNetworkMetadata;
 
