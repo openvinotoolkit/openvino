@@ -519,10 +519,11 @@ void Properties::registerPluginProperties() {
             true,
             static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(add_platform_to_the_config(
                 config,
-                ov::intel_npu::Platform::standardize(utils::getCompilationPlatform(
+                utils::getCompilationPlatform(
                     config.get<PLATFORM>(),
-                    config.get<DEVICE_ID>(),
-                    _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames()))))));
+                    _backend == nullptr ? config.get<DEVICE_ID>()
+                                        : _backend->getDevice(config.get<DEVICE_ID>())->getName(),
+                    _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames())))));
         REGISTER_SIMPLE_METRIC(ov::range_for_async_infer_requests, true, _metrics->GetRangeForAsyncInferRequest());
         REGISTER_SIMPLE_METRIC(ov::range_for_streams, true, _metrics->GetRangeForStreams());
         REGISTER_SIMPLE_METRIC(ov::device::pci_info, true, _metrics->GetPciInfo(get_specified_device_name(config)));
@@ -572,9 +573,7 @@ void Properties::registerPluginProperties() {
             /// create dummy compiler
             auto compilerType = config.get<COMPILER_TYPE>();
             CompilerAdapterFactory factory;
-            auto dummyCompiler = factory.getCompiler(_backend,
-                                                     compilerType,
-                                                     config.has<PLATFORM>() ? config.get<PLATFORM>() : std::string{});
+            auto dummyCompiler = factory.getCompiler(_backend, compilerType, config.get<PLATFORM>());
             return dummyCompiler->get_version();
         });
         REGISTER_CUSTOM_METRIC(ov::internal::caching_properties, false, [&](const Config& config) {
@@ -728,9 +727,7 @@ void Properties::set_property(const ov::AnyMap& properties) {
                     // Only accepting unknown config keys in plugin
                     auto compilerType = _config.get<COMPILER_TYPE>();
                     CompilerAdapterFactory factory;
-                    compiler = factory.getCompiler(_backend,
-                                                   compilerType,
-                                                   _config.has<PLATFORM>() ? _config.get<PLATFORM>() : std::string{});
+                    compiler = factory.getCompiler(_backend, compilerType, _config.get<PLATFORM>());
                 } catch (...) {
                     // just throw the exception below in case unknown property check is called
                 }
