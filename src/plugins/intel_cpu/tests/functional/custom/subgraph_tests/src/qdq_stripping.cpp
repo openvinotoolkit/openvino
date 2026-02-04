@@ -19,7 +19,20 @@ namespace test {
 
 using ov::test::InputShape;
 
-using QDQStrippingParams = std::tuple<ov::test::InputShape, ov::element::Type, ov::element::Type>;
+enum class PatternType { SharedDQ };
+
+inline std::ostream& operator<<(std::ostream& os, PatternType pattern_type) {
+    switch (pattern_type) {
+    case PatternType::SharedDQ:
+        os << "SharedDQ";
+        break;
+    default:
+        OPENVINO_THROW("Unknown PatternType");
+    }
+    return os;
+}
+
+using QDQStrippingParams = std::tuple<ov::test::InputShape, ov::element::Type, ov::element::Type, PatternType>;
 
 class QuantizationParams {
 public:
@@ -31,7 +44,8 @@ public:
         return std::make_shared<ov::op::v0::FakeQuantize>(input, input_low, input_high, output_low, output_high, 65536);
     }
 
-    ov::Output<ov::Node> build_dq(const ov::Output<ov::Node>& input, const ov::element::Type& quantization_precision) const {
+    ov::Output<ov::Node> build_dq(const ov::Output<ov::Node>& input,
+                                  const ov::element::Type& quantization_precision) const {
         auto act_zero_point = ov::op::v0::Constant::create(quantization_precision, {}, {zero_point});
         auto act_zp_convert = std::make_shared<ov::op::v0::Convert>(act_zero_point, ov::element::f32);
 
@@ -48,26 +62,30 @@ public:
     int zero_point;
 };
 
-class QDQStrippingTest : public testing::WithParamInterface<QDQStrippingParams>, virtual public ov::test::SubgraphBaseTest {
+class QDQStrippingTest : public testing::WithParamInterface<QDQStrippingParams>,
+                         virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<QDQStrippingParams>& obj) {
-        const auto& [input_shape, input_precision, quantization_precision] = obj.param;
+        const auto& [input_shape, input_precision, quantization_precision, pattern_type] = obj.param;
         std::ostringstream result;
-        result << "input_shape=" << input_shape << "_input_precision=" << input_precision << "_quantization_precision=" << quantization_precision;
+        result << "input_shape=" << input_shape << "_input_precision=" << input_precision
+               << "_quantization_precision=" << quantization_precision << "_pattern=" << pattern_type;
         return result.str();
     }
 
 protected:
-    std::shared_ptr<ov::Model> init_subgraph(const ov::PartialShape& input_shape, const ov::element::Type& quantization_precision) {
-        OPENVINO_ASSERT(quantization_precision == ov::element::i16 || quantization_precision == ov::element::u16,
-                        "Only i16 and u16 quantization precisions are supported in the test");
+    std::shared_ptr<ov::Model> build_shared_dq_pattern(const ov::PartialShape& input_shape,
+                                                        const ov::element::Type& quantization_precision) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
         // Note: these params are taken from the real cases
-        static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>> quantization_params{
-            {ov::element::Type_t::u16, {{0.f, 10.f, 0.f, 65535.f, 0}, {-6.244578838348389f, 6.347373962402344f, 0.f, 65535.f, 32500}}},
-            {ov::element::Type_t::i16,
-             {{-5.000076293945312f, 4.999923706054688f, -32768.f, 32767.f, 0}, {-6.296072483062744f, 6.295880317687988f, -32768.f, 32767.f, 0}}},
-        };
+        static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>>
+            quantization_params{
+                {ov::element::Type_t::u16,
+                 {{0.f, 10.f, 0.f, 65535.f, 0}, {-6.244578838348389f, 6.347373962402344f, 0.f, 65535.f, 32500}}},
+                {ov::element::Type_t::i16,
+                 {{-5.000076293945312f, 4.999923706054688f, -32768.f, 32767.f, 0},
+                  {-6.296072483062744f, 6.295880317687988f, -32768.f, 32767.f, 0}}},
+            };
 
         const auto& q_params = quantization_params.at(quantization_precision);
         const auto& qp_1 = q_params.first;
@@ -81,9 +99,11 @@ protected:
             auto input_dequantized = qp_1.build_dq(input_convert2, quantization_precision);
             ov::test::utils::InputGenerateData weights_gen_data;
             weights_gen_data.seed = seed;
-            auto weight_quantized = ov::test::utils::make_constant(ov::element::i8, ov::Shape{32, 3, 3, 3}, weights_gen_data);
+            auto weight_quantized =
+                ov::test::utils::make_constant(ov::element::i8, ov::Shape{32, 3, 3, 3}, weights_gen_data);
             auto weight_convert = std::make_shared<ov::op::v0::Convert>(weight_quantized, ov::element::f32);
-            auto weight_scale = ov::test::utils::make_constant(ov::element::f32, {}, std::vector<float>{weight_scale_value});
+            auto weight_scale =
+                ov::test::utils::make_constant(ov::element::f32, {}, std::vector<float>{weight_scale_value});
             auto weight_dequantized = std::make_shared<ov::op::v1::Multiply>(weight_convert, weight_scale);
 
             auto conv = std::make_shared<ov::op::v1::Convolution>(input_dequantized,
@@ -114,13 +134,24 @@ protected:
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        const auto& [input_shape, input_precision, quantization_precision] = GetParam();
+        const auto& [input_shape, input_precision, quantization_precision, pattern_type] = GetParam();
         init_input_shapes({input_shape});
         inType = outType = input_precision;
 
-        // Since the FQ are not executed in a strictly 'fair' manner, and just replaced with clamp ops, a small accuracy deviation is expected.
+        OPENVINO_ASSERT(quantization_precision == ov::element::i16 || quantization_precision == ov::element::u16,
+                        "Only i16 and u16 quantization precisions are supported in the test");
+
+        // Since the FQ are not executed in a strictly 'fair' manner, and just replaced with clamp ops, a small accuracy
+        // deviation is expected.
         abs_threshold = 1e-3f;
-        function = init_subgraph(input_shape.first, quantization_precision);
+
+        switch (pattern_type) {
+        case PatternType::SharedDQ:
+            function = build_shared_dq_pattern(input_shape.first, quantization_precision);
+            break;
+        default:
+            OPENVINO_THROW("Unknown PatternType");
+        }
     }
 
     void validate() override {
@@ -147,12 +178,14 @@ namespace {
 const std::vector<ov::test::InputShape> input_shapes = {{{-1, -1, -1, -1}, {{1, 3, 128, 128}}}};
 const std::vector<ov::element::Type> input_precisions = {ov::element::f32};
 const std::vector<ov::element::Type> quantization_precisions = {ov::element::u16, ov::element::i16};
+const std::vector<PatternType> pattern_types = {PatternType::SharedDQ};
 
 INSTANTIATE_TEST_SUITE_P(smoke_QDQStripping,
                          QDQStrippingTest,
                          ::testing::Combine(::testing::ValuesIn(input_shapes),
                                             ::testing::ValuesIn(input_precisions),
-                                            ::testing::ValuesIn(quantization_precisions)),
+                                            ::testing::ValuesIn(quantization_precisions),
+                                            ::testing::ValuesIn(pattern_types)),
                          QDQStrippingTest::getTestCaseName);
 }  // namespace
 
