@@ -15,6 +15,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "cache/multi_cache.h"
 #include "emitters/snippets/aarch64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/aarch64/kernel_executors/gemm_copy_b.hpp"
 #include "emitters/snippets/aarch64/utils.hpp"
@@ -34,10 +35,12 @@ using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
-jit_gemm_copy_b_emitter::jit_gemm_copy_b_emitter(jit_generator* h,
-                                                 cpu_isa_t isa,
-                                                 const ExpressionPtr& expr,
-                                                 const snippets::KernelExecutorTablePtr& kernel_table)
+jit_gemm_copy_b_emitter::jit_gemm_copy_b_emitter(
+    jit_generator* h,
+    cpu_isa_t isa,
+    const ExpressionPtr& expr,
+    const snippets::KernelExecutorTablePtr& kernel_table,
+    [[maybe_unused]] const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache)
     : jit_binary_call_emitter(h, isa, expr->get_live_regs()) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto gemm_repack = ov::as_type_ptr<GemmCopyB>(expr->get_node());
