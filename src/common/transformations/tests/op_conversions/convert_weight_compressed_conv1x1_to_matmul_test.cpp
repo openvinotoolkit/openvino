@@ -40,17 +40,21 @@ struct Conv1x1ToMatmulTestParams {
     bool with_bias;
     bool with_convert;
     bool with_param_weight;
+    bool with_act_new_reshape;
     std::string activation_op_type;
 };
 
 std::shared_ptr<ov::Model> gen_model(const Conv1x1ToMatmulTestParams& p) {
-    auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 1, 2, 10});
+    auto input = std::make_shared<ov::opset1::Parameter>(
+        ov::element::f16,
+        (p.activation_op_type == "Reshape" && p.with_act_new_reshape) ? ov::Shape{1, 1, 2, 5} : ov::Shape{1, 1, 1, 10});
+
     std::shared_ptr<ov::Node> act_node;
     if (p.activation_op_type == "Transpose") {
         auto transpose_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
         act_node = std::make_shared<ov::opset1::Transpose>(input, transpose_const);
     } else {
-        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {1, 10, 1, 2});
+        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {1, 10, 1, 1});
         act_node = std::make_shared<ov::opset1::Reshape>(input, reshape_const, false);
     }
 
@@ -114,7 +118,7 @@ std::shared_ptr<ov::Model> gen_model(const Conv1x1ToMatmulTestParams& p) {
         auto transpose_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
         out_node = std::make_shared<ov::opset1::Transpose>(current_node, transpose_const);
     } else {
-        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {1, 1, 2, 15});
+        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {1, 1, 1, 15});
         out_node = std::make_shared<ov::opset1::Reshape>(current_node, reshape_const, false);
     }
 
@@ -122,7 +126,9 @@ std::shared_ptr<ov::Model> gen_model(const Conv1x1ToMatmulTestParams& p) {
 }
 
 std::shared_ptr<ov::Model> gen_model_ref(const Conv1x1ToMatmulTestParams& p) {
-    auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 1, 2, 10});
+    auto input = std::make_shared<ov::opset1::Parameter>(
+        ov::element::f16,
+        (p.activation_op_type == "Reshape" && p.with_act_new_reshape) ? ov::Shape{1, 1, 2, 5} : ov::Shape{1, 1, 1, 10});
 
     std::shared_ptr<ov::Node> weights_node;
     ov::ParameterVector params = {input};
@@ -162,7 +168,12 @@ std::shared_ptr<ov::Model> gen_model_ref(const Conv1x1ToMatmulTestParams& p) {
         mul = std::make_shared<ov::opset1::Reshape>(mul, reshape_const, false);
     }
 
-    auto matmul = std::make_shared<ov::op::v0::MatMul>(input, mul, false, true);
+    std::shared_ptr<ov::Node> act_node = input;
+    if (p.activation_op_type == "Reshape" && p.with_act_new_reshape) {
+        auto reshape_const = ov::opset1::Constant::create(ov::element::i64, ov::Shape{4}, {1, 1, 1, 10});
+        act_node = std::make_shared<ov::opset1::Reshape>(input, reshape_const, false);
+    }
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(act_node, mul, false, true);
     current_node = matmul;
 
     if (p.with_bias) {
@@ -175,7 +186,7 @@ std::shared_ptr<ov::Model> gen_model_ref(const Conv1x1ToMatmulTestParams& p) {
 
     std::shared_ptr<ov::Node> out_node;
     if (p.activation_op_type == "Reshape") {
-        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {1, 1, 2, 15});
+        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {1, 1, 1, 15});
         out_node = std::make_shared<ov::opset1::Reshape>(current_node, reshape_const, false);
     } else {
         out_node = current_node;
@@ -187,12 +198,17 @@ std::shared_ptr<ov::Model> gen_model_ref(const Conv1x1ToMatmulTestParams& p) {
 
 class ConvertWeightCompressedConv1x1ToMatmulTest
     : public TransformationTestsF,
-      public WithParamInterface<std::tuple<bool, bool, bool, bool, bool, std::string>> {
+      public WithParamInterface<std::tuple<bool, bool, bool, bool, bool, bool, std::string>> {
 public:
     static std::string get_test_case_name(
-        const testing::TestParamInfo<std::tuple<bool, bool, bool, bool, bool, std::string>>& obj) {
-        const auto& [with_group_quant, with_zp, with_bias, with_convert, with_param_weight, activation_op_type] =
-            obj.param;
+        const testing::TestParamInfo<std::tuple<bool, bool, bool, bool, bool, bool, std::string>>& obj) {
+        const auto& [with_group_quant,
+                     with_zp,
+                     with_bias,
+                     with_convert,
+                     with_param_weight,
+                     with_act_new_reshape,
+                     activation_op_type] = obj.param;
 
         std::ostringstream result;
         result << "with_group_quant=" << with_group_quant << "_";
@@ -200,6 +216,7 @@ public:
         result << "with_bias=" << with_bias << "_";
         result << "with_convert=" << with_convert << "_";
         result << "with_param_weight=" << with_param_weight << "_";
+        result << "with_act_new_reshape=" << with_act_new_reshape << "_";
         result << "activation_op_type=" << activation_op_type;
         return result.str();
     }
@@ -207,13 +224,19 @@ public:
 protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
-        const auto& [with_group_quant, with_zp, with_bias, with_convert, with_param_weight, activation_op_type] =
-            GetParam();
+        const auto& [with_group_quant,
+                     with_zp,
+                     with_bias,
+                     with_convert,
+                     with_param_weight,
+                     with_act_new_reshape,
+                     activation_op_type] = GetParam();
         Conv1x1ToMatmulTestParams params{with_group_quant,
                                          with_zp,
                                          with_bias,
                                          with_convert,
                                          with_param_weight,
+                                         with_act_new_reshape,
                                          activation_op_type};
         model = gen_model(params);
         model_ref = gen_model_ref(params);
@@ -226,6 +249,7 @@ TEST_P(ConvertWeightCompressedConv1x1ToMatmulTest, CompareFunctions) {}
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          ConvertWeightCompressedConv1x1ToMatmulTest,
                          ::testing::Combine(::testing::Bool(),
+                                            ::testing::Bool(),
                                             ::testing::Bool(),
                                             ::testing::Bool(),
                                             ::testing::Bool(),
