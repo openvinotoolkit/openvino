@@ -28,8 +28,14 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/block.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/env_util.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
+
+// Macro for conditional debug logging based on OV_DEBUG_QDQ_STRIPPING environment variable
+#define QDQ_DEBUG_LOG                                                                     \
+    if (static const bool debug = ov::util::getenv_bool("OV_DEBUG_QDQ_STRIPPING"); debug) \
+    std::cout
 
 namespace ov {
 namespace pass {
@@ -104,16 +110,16 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
     bool model_changed = false;
     float max_q_scale = 0.0f;
 
-    std::cout << "\n[ INFO ] === QDQ Stripping Pass ===" << std::endl;
-    std::cout << "[ INFO ] Total nodes in graph: " << f->get_ops().size() << std::endl;
-    std::cout << "[ INFO ] Levels to strip: ";
+    QDQ_DEBUG_LOG << "\n[ INFO ] === QDQ Stripping Pass ===" << std::endl;
+    QDQ_DEBUG_LOG << "[ INFO ] Total nodes in graph: " << f->get_ops().size() << std::endl;
+    QDQ_DEBUG_LOG << "[ INFO ] Levels to strip: ";
     for (auto level : levels_to_strip) {
-        std::cout << level << " ";
+        QDQ_DEBUG_LOG << level << " ";
     }
-    std::cout << std::endl;
+    QDQ_DEBUG_LOG << std::endl;
 
     NodeVector scale_invariant_nodes;
-    
+
     // Process each FQ node
     for (const auto& node : f->get_ordered_ops()) {
         if (ov::is_type_any_of<ov::op::v0::MVN, ov::op::v6::MVN, ov::op::v1::Softmax, ov::op::v8::Softmax>(node)) {
@@ -130,11 +136,12 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             continue;
         }
 
-        std::cout << "\n======== Processing FQ: " << fq->get_friendly_name() << " (levels=" << fq->get_levels() << ") ========" << std::endl;
+        QDQ_DEBUG_LOG << "\n======== Processing FQ: " << fq->get_friendly_name() << " (levels=" << fq->get_levels()
+                      << ") ========" << std::endl;
 
         // Check if FQ has valid constants
         if (!check_fq_constants(fq)) {
-            std::cout << "  [ DEBUG ] Skipped: invalid or degenerate FQ constants" << std::endl;
+            QDQ_DEBUG_LOG << "  [ DEBUG ] Skipped: invalid or degenerate FQ constants" << std::endl;
             continue;
         }
 
@@ -153,9 +160,11 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         size_t levels = fq->get_levels();
         float q_scale = (levels - 1) / input_range;
 
-        std::cout << "  [ DEBUG ] Input range: [" << input_low_val << ", " << input_high_val << "] = " << input_range << std::endl;
-        std::cout << "  [ DEBUG ] Output range: [" << output_low_val << ", " << output_high_val << "] = " << output_range << std::endl;
-        std::cout << "  [ DEBUG ] Q scale: " << q_scale << " (levels=" << levels << ")" << std::endl;
+        QDQ_DEBUG_LOG << "  [ DEBUG ] Input range: [" << input_low_val << ", " << input_high_val
+                      << "] = " << input_range << std::endl;
+        QDQ_DEBUG_LOG << "  [ DEBUG ] Output range: [" << output_low_val << ", " << output_high_val
+                      << "] = " << output_range << std::endl;
+        QDQ_DEBUG_LOG << "  [ DEBUG ] Q scale: " << q_scale << " (levels=" << levels << ")" << std::endl;
 
         // Track max q_scale
         if (q_scale > max_q_scale) {
@@ -163,24 +172,26 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         }
 
         // Remove the FQ
-        std::cout << "  [ INFO ] Removing FQ: " << fq->get_friendly_name() << std::endl;
+        QDQ_DEBUG_LOG << "  [ INFO ] Removing FQ: " << fq->get_friendly_name() << std::endl;
         OPENVINO_ASSERT(replace_output_update_name(fq->output(0), fq->input_value(0)), "FQ stripping failed");
         model_changed = true;
-        std::cout << "========================================" << std::endl;
+        QDQ_DEBUG_LOG << "========================================" << std::endl;
     }
 
-    std::cout << "  [ INFO ] Max q_scale across model: " << max_q_scale << std::endl;
+    QDQ_DEBUG_LOG << "  [ INFO ] Max q_scale across model: " << max_q_scale << std::endl;
     const auto threshold = 1.f;
     if (max_q_scale <= threshold) {
-        std::cout << "  [ INFO ] No scale adjustment needed, skipping" << std::endl;
+        QDQ_DEBUG_LOG << "  [ INFO ] No scale adjustment needed, skipping" << std::endl;
     }
 
     if (max_q_scale > threshold && scale_invariant_nodes.empty()) {
-        std::cout << "  [ INFO ] Scale adjustment is needed, but no scale-invariant nodes found, so this stage is skipped" << std::endl;
+        QDQ_DEBUG_LOG << "  [ INFO ] Scale adjustment is needed, but no scale-invariant nodes found, so this stage "
+                         "is skipped"
+                      << std::endl;
     }
 
     if (max_q_scale > threshold && !scale_invariant_nodes.empty()) {
-        std::cout << "\n======== Applying backward scale adjustment ========" << std::endl;
+        QDQ_DEBUG_LOG << "\n======== Applying backward scale adjustment ========" << std::endl;
         std::unordered_set<ov::Node*> visited;
         auto skip_node_predicate = [](ov::Node* n) {
             return false;
@@ -194,13 +205,13 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             auto old_multiply = dq_block->get_anchor("multiply", pattern_map).value().get_node_shared_ptr();
             auto mul_input = dq_block->get_anchor("mul_input", pattern_map).value().get_node_shared_ptr();
             if (visited.find(old_multiply.get()) != visited.end()) {
-                std::cout << "        [ DEBUG ]   Node " << mul_input->get_friendly_name()
-                          << " already visited, skipping scale adjustment" << std::endl;
+                QDQ_DEBUG_LOG << "        [ DEBUG ]   Node " << mul_input->get_friendly_name()
+                              << " already visited, skipping scale adjustment" << std::endl;
                 return;
             }
 
-            std::cout << "        [ DEBUG ]     Scaling multiply " << old_multiply->get_friendly_name() << " by "
-                      << scale_adj << std::endl;
+            QDQ_DEBUG_LOG << "        [ DEBUG ]     Scaling multiply " << old_multiply->get_friendly_name() << " by "
+                          << scale_adj << std::endl;
 
             // Create new scaled constant
             auto scale_const =
@@ -215,7 +226,8 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         };
 
         auto adjust_weights_scale = [&](ov::Node* node) {
-            std::cout << "    [ INFO ] adjust_weights_scale called for node: " << node->get_friendly_name() << std::endl;
+            QDQ_DEBUG_LOG << "    [ INFO ] adjust_weights_scale called for node: " << node->get_friendly_name()
+                          << std::endl;
             using namespace ov::pass::pattern;
             const auto node_shared = node->shared_from_this();
             // Case 1: Convolution + Add (bias) - scale both Add's constant and Conv weights
@@ -227,7 +239,7 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
                 auto matcher = std::make_shared<Matcher>(add_pattern, "ConvAddPattern");
 
                 if (matcher->match(node_shared)) {
-                    std::cout << "        [ INFO ]   Matched Conv+Add(bias) pattern" << std::endl;
+                    QDQ_DEBUG_LOG << "        [ INFO ]   Matched Conv+Add(bias) pattern" << std::endl;
                     auto pattern_map = matcher->get_pattern_value_map();
                     apply_scale_to_weight(pattern_map, conv_weights_dq_block);
                     apply_scale_to_weight(pattern_map, bias_dq_block);
@@ -242,7 +254,7 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
                 auto matcher = std::make_shared<Matcher>(matmul_pattern, "MatMulPattern");
 
                 if (matcher->match(node_shared)) {
-                    std::cout << "        [ INFO ]   Matched MatMul with weights pattern" << std::endl;
+                    QDQ_DEBUG_LOG << "        [ INFO ]   Matched MatMul with weights pattern" << std::endl;
                     auto pattern_map = matcher->get_pattern_value_map();
                     apply_scale_to_weight(pattern_map, weights_dq_block);
                     return;
@@ -256,7 +268,7 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
                 auto matcher = std::make_shared<Matcher>(multiply_pattern, "MultiplyPattern");
 
                 if (matcher->match(node_shared)) {
-                    std::cout << "        [ INFO ]   Matched Multiply with weights pattern" << std::endl;
+                    QDQ_DEBUG_LOG << "        [ INFO ]   Matched Multiply with weights pattern" << std::endl;
                     auto pattern_map = matcher->get_pattern_value_map();
                     apply_scale_to_weight(pattern_map, weights_dq_block);
                     return;
@@ -264,14 +276,14 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             }
         };
         for (const auto& node : scale_invariant_nodes) {
-            std::cout << "  [ INFO ] Processing scale-invariant node: " << node->get_friendly_name()
-                      << " type=" << node->get_type_name() << std::endl;
+            QDQ_DEBUG_LOG << "  [ INFO ] Processing scale-invariant node: " << node->get_friendly_name()
+                          << " type=" << node->get_type_name() << std::endl;
             ov::op::util::visit_path(node->get_input_node_ptr(0), visited, adjust_weights_scale, skip_node_predicate);
         }
-        std::cout << "========================================" << std::endl;
+        QDQ_DEBUG_LOG << "========================================" << std::endl;
     }
 
-    std::cout << "\n[ INFO ] === QDQ Stripping Pass Completed ===" << std::endl;
+    QDQ_DEBUG_LOG << "\n[ INFO ] === QDQ Stripping Pass Completed ===" << std::endl;
     return model_changed;
 }
 
