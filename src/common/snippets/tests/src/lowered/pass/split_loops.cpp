@@ -7,8 +7,8 @@
 #include "lir_test_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
 #include "snippets/op/brgemm.hpp"
+#include "snippets/op/result.hpp"
 
 namespace ov {
 namespace test {
@@ -64,7 +64,7 @@ TEST_F(SplitLoopsTest, BrgemmAdd) {
         auto brgemm = linear_ir->push_node<ov::snippets::op::Brgemm>(param0.second, param1.second);
         init_expr_descriptors(*brgemm.first, {brgemm_a_subtensor, brgemm_b_subtensor, brgemm_c_subtensor});
         auto add = linear_ir->push_node<ov::op::v1::Add>(brgemm.second, param2.second);
-        auto result = linear_ir->push_node<ov::op::v0::Result>(add.second);
+        auto result = linear_ir->push_node<ov::snippets::op::Result>(add.second);
 
         const auto& loop_manager = linear_ir->get_loop_manager();
         const auto inner_add_loop = std::make_shared<UnifiedLoopInfo>(
@@ -114,7 +114,7 @@ TEST_F(SplitLoopsTest, BrgemmAdd) {
         auto brgemm = linear_ir_ref->push_node<ov::snippets::op::Brgemm>(param0.second, param1.second);
         init_expr_descriptors(*brgemm.first, {brgemm_a_subtensor, brgemm_b_subtensor, brgemm_c_subtensor});
         auto add = linear_ir_ref->push_node<ov::op::v1::Add>(brgemm.second, param2.second);
-        auto result = linear_ir_ref->push_node<ov::op::v0::Result>(add.second);
+        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(add.second);
 
         const auto& loop_manager = linear_ir_ref->get_loop_manager();
         const auto blocking_n_loop = std::make_shared<UnifiedLoopInfo>(
@@ -193,7 +193,7 @@ TEST_F(SplitLoopsTest, AddBrgemm) {
         auto add = linear_ir->push_node<ov::op::v1::Add>(param0.second, param1.second);
         auto brgemm = linear_ir->push_node<ov::snippets::op::Brgemm>(add.second, param2.second);
         init_expr_descriptors(*brgemm.first, {brgemm_a_subtensor, brgemm_b_subtensor, brgemm_c_subtensor});
-        auto result = linear_ir->push_node<ov::op::v0::Result>(brgemm.second);
+        auto result = linear_ir->push_node<ov::snippets::op::Result>(brgemm.second);
 
         const auto& loop_manager = linear_ir->get_loop_manager();
         const auto inner_add_loop = std::make_shared<UnifiedLoopInfo>(
@@ -243,7 +243,7 @@ TEST_F(SplitLoopsTest, AddBrgemm) {
         auto add = linear_ir_ref->push_node<ov::op::v1::Add>(param0.second, param1.second);
         auto brgemm = linear_ir_ref->push_node<ov::snippets::op::Brgemm>(add.second, param2.second);
         init_expr_descriptors(*brgemm.first, {brgemm_a_subtensor, brgemm_b_subtensor, brgemm_c_subtensor});
-        auto result = linear_ir_ref->push_node<ov::op::v0::Result>(brgemm.second);
+        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(brgemm.second);
 
         const auto& loop_manager = linear_ir_ref->get_loop_manager();
         const auto inner_add_loop = std::make_shared<UnifiedLoopInfo>(
@@ -329,7 +329,7 @@ TEST_F(SplitLoopsTest, BrgemmAddBrgemm) {
         auto add = linear_ir->push_node<ov::op::v1::Add>(brgemm1.second, param2.second);
         auto brgemm2 = linear_ir->push_node<ov::snippets::op::Brgemm>(add.second, param3.second);
         init_expr_descriptors(*brgemm2.first, {brgemm_a_subtensor, brgemm_b_subtensor, brgemm_c_subtensor});
-        auto result = linear_ir->push_node<ov::op::v0::Result>(brgemm2.second);
+        auto result = linear_ir->push_node<ov::snippets::op::Result>(brgemm2.second);
 
         const auto& loop_manager = linear_ir->get_loop_manager();
         const auto inner_add_loop = std::make_shared<UnifiedLoopInfo>(
@@ -403,7 +403,7 @@ TEST_F(SplitLoopsTest, BrgemmAddBrgemm) {
         auto add = linear_ir_ref->push_node<ov::op::v1::Add>(brgemm1.second, param2.second);
         auto brgemm2 = linear_ir_ref->push_node<ov::snippets::op::Brgemm>(add.second, param3.second);
         init_expr_descriptors(*brgemm2.first, {brgemm_a_subtensor, brgemm_b_subtensor, brgemm_c_subtensor});
-        auto result = linear_ir_ref->push_node<ov::op::v0::Result>(brgemm2.second);
+        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(brgemm2.second);
 
         const auto& loop_manager = linear_ir_ref->get_loop_manager();
 
@@ -502,7 +502,7 @@ TEST_F(SplitLoopsTest, BrgemmAddOnlyNLoops) {
         auto brgemm = linear_ir->push_node<ov::snippets::op::Brgemm>(param0.second, param1.second);
         init_expr_descriptors(*brgemm.first, {brgemm_a_subtensor, brgemm_b_subtensor, brgemm_c_subtensor});
         auto add = linear_ir->push_node<ov::op::v1::Add>(brgemm.second, param2.second);
-        auto result = linear_ir->push_node<ov::op::v0::Result>(add.second);
+        auto result = linear_ir->push_node<ov::snippets::op::Result>(add.second);
 
         const auto& loop_manager = linear_ir->get_loop_manager();
         const auto inner_add_loop = std::make_shared<UnifiedLoopInfo>(
@@ -534,7 +534,7 @@ TEST_F(SplitLoopsTest, BrgemmAddOnlyNLoops) {
         auto brgemm = linear_ir_ref->push_node<ov::snippets::op::Brgemm>(param0.second, param1.second);
         init_expr_descriptors(*brgemm.first, {brgemm_a_subtensor, brgemm_b_subtensor, brgemm_c_subtensor});
         auto add = linear_ir_ref->push_node<ov::op::v1::Add>(brgemm.second, param2.second);
-        auto result = linear_ir_ref->push_node<ov::op::v0::Result>(add.second);
+        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(add.second);
 
         const auto& loop_manager = linear_ir_ref->get_loop_manager();
         const auto brgemm_n_loop = std::make_shared<UnifiedLoopInfo>(
