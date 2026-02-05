@@ -135,7 +135,6 @@ public:
             output.copy_to(outputs[0]);
             return true;
         });
-        ON_CALL(*this, has_evaluate).WillByDefault(::testing::Return(true));
     };
 
     void validate_and_infer_types() override {
@@ -151,7 +150,6 @@ public:
                 evaluate,
                 (ov::TensorVector & output_values, const ov::TensorVector& input_values),
                 (const, override));
-    MOCK_METHOD(bool, has_evaluate, (), (const, override));
 };
 
 TEST(PostponedOpSerializationTest, CorrectRtInfo) {
