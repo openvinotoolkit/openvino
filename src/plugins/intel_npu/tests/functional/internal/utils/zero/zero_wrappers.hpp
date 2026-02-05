@@ -159,56 +159,60 @@ TEST_P(ZeroCommandListsTests, UpdateMutableCommandListPerformance) {
                                                           /* is_input = */ true);
         }
 
-        size_t duration_sequential_update_mutable_command_list = 0;
-        size_t duration_chained_update_mutable_command_list = 0;
-        std::vector<std::pair<ze_mutable_graph_argument_exp_desc_t, std::optional<ze_graph_argument_value_strides_t>>>
-            descs(zeroTensorPool.size(), std::make_pair(ze_mutable_graph_argument_exp_desc_t{}, std::nullopt));
+        double duration_sequential_update_mutable_command_list = .0;
+        double duration_chained_update_mutable_command_list = .0;
 
-        ioIndex = 0;
-        for (const auto& tensor : zeroTensorPool) {
-            auto sequential_update_mutable_command_list_time_start{std::chrono::high_resolution_clock::now()};
-            commandList.updateMutableCommandList(ioIndex,
-                                                 static_cast<const unsigned char*>(tensor->data()) +
-                                                     (0 * tensor->get_byte_size()) / /* number_of_command_lists = */ 1);
-            auto sequential_update_mutable_command_list_time_end{std::chrono::high_resolution_clock::now()};
-            duration_sequential_update_mutable_command_list +=
-                std::chrono::duration_cast<std::chrono::microseconds>(sequential_update_mutable_command_list_time_end -
-                                                                      sequential_update_mutable_command_list_time_start)
-                    .count();
-            auto chained_update_mutable_command_list_time_start{std::chrono::high_resolution_clock::now()};
-            commandList.updateMutableCommandList(ioIndex,
-                                                 static_cast<const unsigned char*>(tensor->data()) +
-                                                     (0 * tensor->get_byte_size() / /* number_of_command_lists = */ 1),
-                                                 descs);
-            auto chained_update_mutable_command_list_time_end{std::chrono::high_resolution_clock::now()};
+        const size_t num_iter = 10000;
+        for (size_t i = 0; i < num_iter; ++i) {
+            std::vector<std::pair<ze_mutable_graph_argument_exp_desc_t, std::optional<ze_graph_argument_value_strides_t>>>
+                descs;
+            descs.reserve(zeroTensorPool.size());
+            ioIndex = 0;
+            for (const auto& tensor : zeroTensorPool) {
+                auto sequential_update_mutable_command_list_time_start{std::chrono::high_resolution_clock::now()};
+                commandList.updateMutableCommandList(ioIndex,
+                                                    static_cast<const unsigned char*>(tensor->data()) +
+                                                        (0 * tensor->get_byte_size()) / /* number_of_command_lists = */ 1);
+                auto sequential_update_mutable_command_list_time_end{std::chrono::high_resolution_clock::now()};
+                duration_sequential_update_mutable_command_list +=
+                    std::chrono::duration_cast<std::chrono::microseconds>(sequential_update_mutable_command_list_time_end -
+                                                                        sequential_update_mutable_command_list_time_start)
+                        .count();
+                auto chained_update_mutable_command_list_time_start{std::chrono::high_resolution_clock::now()};
+                commandList.updateMutableCommandList(ioIndex,
+                                                    static_cast<const unsigned char*>(tensor->data()) +
+                                                        (0 * tensor->get_byte_size() / /* number_of_command_lists = */ 1),
+                                                    descs);
+                auto chained_update_mutable_command_list_time_end{std::chrono::high_resolution_clock::now()};
+                duration_chained_update_mutable_command_list +=
+                    std::chrono::duration_cast<std::chrono::microseconds>(chained_update_mutable_command_list_time_end -
+                                                                        chained_update_mutable_command_list_time_start)
+                        .count();
+                ++ioIndex;
+            }
+
+            using ::intel_npu::ze_result_to_description;
+            using ::intel_npu::ze_result_to_string;
+            using ::intel_npu::zeCommandListUpdateMutableCommandsExp;
+            auto submit_chained_update_mutable_command_list_time_start{std::chrono::high_resolution_clock::now()};
+            ze_mutable_commands_exp_desc_t mutable_commands_exp_desc_t = {ZE_STRUCTURE_TYPE_MUTABLE_COMMANDS_EXP_DESC,
+                                                                        &descs.at(0).first,
+                                                                        0};
+
+            THROW_ON_FAIL_FOR_LEVELZERO(
+                "zeCommandListUpdateMutableCommandsExp",
+                zeCommandListUpdateMutableCommandsExp(commandList.handle(), &mutable_commands_exp_desc_t));
+            auto submit_chained_update_mutable_command_list_time_end{std::chrono::high_resolution_clock::now()};
             duration_chained_update_mutable_command_list +=
-                std::chrono::duration_cast<std::chrono::microseconds>(chained_update_mutable_command_list_time_end -
-                                                                      chained_update_mutable_command_list_time_start)
+                std::chrono::duration_cast<std::chrono::microseconds>(submit_chained_update_mutable_command_list_time_end -
+                                                                    submit_chained_update_mutable_command_list_time_start)
                     .count();
-            ++ioIndex;
         }
 
-        using ::intel_npu::ze_result_to_description;
-        using ::intel_npu::ze_result_to_string;
-        using ::intel_npu::zeCommandListUpdateMutableCommandsExp;
-        auto submit_chained_update_mutable_command_list_time_start{std::chrono::high_resolution_clock::now()};
-        ze_mutable_commands_exp_desc_t mutable_commands_exp_desc_t = {ZE_STRUCTURE_TYPE_MUTABLE_COMMANDS_EXP_DESC,
-                                                                      &descs.at(0).first,
-                                                                      0};
-
-        THROW_ON_FAIL_FOR_LEVELZERO(
-            "zeCommandListUpdateMutableCommandsExp",
-            zeCommandListUpdateMutableCommandsExp(commandList.handle(), &mutable_commands_exp_desc_t));
-        auto submit_chained_update_mutable_command_list_time_end{std::chrono::high_resolution_clock::now()};
-        duration_chained_update_mutable_command_list +=
-            std::chrono::duration_cast<std::chrono::microseconds>(submit_chained_update_mutable_command_list_time_end -
-                                                                  submit_chained_update_mutable_command_list_time_start)
-                .count();
-
         std::cout << std::fixed << "duration_sequential_update_mutable_command_list = "
-                  << duration_sequential_update_mutable_command_list << " ms" << std::endl;
+                  << duration_sequential_update_mutable_command_list / 1000.0 / (2.0 * num_iter) << " ms" << std::endl;
         std::cout << std::fixed
-                  << "duration_chained_update_mutable_command_list = " << duration_chained_update_mutable_command_list
+                  << "duration_chained_update_mutable_command_list = " << duration_chained_update_mutable_command_list / 1000.0 / (2.0 * num_iter)
                   << " ms" << std::endl;
     }
     zeGraphExt->destroyGraph(graphDescriptor);

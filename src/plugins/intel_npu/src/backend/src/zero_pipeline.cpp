@@ -295,7 +295,8 @@ void Pipeline::update_graph_arguments(const std::vector<std::pair<uint32_t, std:
 
     for (size_t i = 0; i < number_of_command_lists; i++) {
         std::vector<std::pair<ze_mutable_graph_argument_exp_desc_t, std::optional<ze_graph_argument_value_strides_t>>>
-            descs(tensors.size(), {ze_mutable_graph_argument_exp_desc_t{}, std::nullopt});
+            descs;
+        descs.reserve(tensors.size());
         for (const auto& [index, tensor] : tensors) {
             if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
                 _command_lists.at(i)->updateMutableCommandList(

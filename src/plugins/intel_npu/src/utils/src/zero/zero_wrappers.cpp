@@ -130,63 +130,42 @@ CommandList::~CommandList() {
     _handle = nullptr;
 }
 void CommandList::updateMutableCommandList(uint32_t index, const void* data) const {
-    static ze_mutable_graph_argument_exp_desc_t last_desc = {
-        (_init_structs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 11))
-            ? ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC
-            : static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED),
-        nullptr,
-        0,
-        0,
-        nullptr};
-    static size_t counter = 0;
-    if (counter == 1) {
-        ze_mutable_graph_argument_exp_desc_t desc = {};
+    ze_mutable_graph_argument_exp_desc_t desc = {};
 
-        desc.stype =
-            (_init_structs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 11))
-                ? ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC
-                : static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED);
-        desc.commandId = _command_id;
-        desc.argIndex = index;
-        desc.pArgValue = data;
+    desc.stype = (_init_structs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 11))
+                     ? ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC
+                     : static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED);
+    desc.commandId = _command_id;
+    desc.argIndex = index;
+    desc.pArgValue = data;
 
-        last_desc.pNext = &desc;
+    ze_mutable_commands_exp_desc_t mutable_commands_exp_desc_t = {ZE_STRUCTURE_TYPE_MUTABLE_COMMANDS_EXP_DESC,
+                                                                  &desc,
+                                                                  0};
 
-        ze_mutable_commands_exp_desc_t mutable_commands_exp_desc_t = {ZE_STRUCTURE_TYPE_MUTABLE_COMMANDS_EXP_DESC,
-                                                                      &last_desc,
-                                                                      0};
-
-        THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListUpdateMutableCommandsExp",
-                                    zeCommandListUpdateMutableCommandsExp(_handle, &mutable_commands_exp_desc_t));
-        counter = 0;
-    } else {
-        last_desc.commandId = _command_id;
-        last_desc.argIndex = index;
-        last_desc.pArgValue = data;
-        ++counter;
-    }
+    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListUpdateMutableCommandsExp",
+                                zeCommandListUpdateMutableCommandsExp(_handle, &mutable_commands_exp_desc_t));
 }
 void CommandList::updateMutableCommandList(
     uint32_t index,
     const void* data,
     std::vector<std::pair<ze_mutable_graph_argument_exp_desc_t, std::optional<ze_graph_argument_value_strides_t>>>&
         descs) const {
-    auto& desc = descs.at(index);
+    auto desc = ze_mutable_graph_argument_exp_desc_t{};
+    desc.stype = (_init_structs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 11))
+                     ? ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC
+                     : static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED);
+    desc.commandId = _command_id;
+    desc.argIndex = index;
+    desc.pArgValue = data;
+    auto it = descs.insert(descs.end(), {desc, std::nullopt});
 
-    desc.first.stype =
-        (_init_structs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 11))
-            ? ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC
-            : static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED);
-    desc.first.commandId = _command_id;
-    desc.first.argIndex = index;
-    desc.first.pArgValue = data;
-
-    if (index > 0) {
-        auto& last_desc = descs.at(index - 1);
-        if (last_desc.second != std::nullopt) {
-            last_desc.second->pNext = &desc.first;
+    if (it > descs.begin()) {
+        auto prev_elm = std::prev(it);
+        if (prev_elm->second != std::nullopt) {
+            prev_elm->second->pNext = &it->first;
         } else {
-            last_desc.first.pNext = &desc.first;
+            prev_elm->first.pNext = &it->first;
         }
     }
 }
@@ -239,10 +218,11 @@ void CommandList::updateMutableCommandListWithStrides(
     const std::vector<size_t>& strides,
     std::vector<std::pair<ze_mutable_graph_argument_exp_desc_t, std::optional<ze_graph_argument_value_strides_t>>>&
         descs) const {
-    auto& desc = descs.at(index);
-    desc.first.commandId = _command_id;
-    desc.first.argIndex = index;
-    desc.first.pArgValue = data;
+    auto desc = ze_mutable_graph_argument_exp_desc_t{};
+    desc.commandId = _command_id;
+    desc.argIndex = index;
+    desc.pArgValue = data;
+    auto it = descs.insert(descs.end(), {desc, std::nullopt});
 
     if (!strides.empty()) {
         if (_init_structs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 15)) {
@@ -255,24 +235,24 @@ void CommandList::updateMutableCommandListWithStrides(
                            "dimensions.");
         }
 
-        desc.second = ze_graph_argument_value_strides_t{};
-        desc.second->stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_STRIDES;
+        it->second = ze_graph_argument_value_strides_t{};
+        it->second->stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_STRIDES;
         for (size_t i = 0; i < strides.size(); ++i) {
             if (strides[i] > std::numeric_limits<uint32_t>::max()) {
                 OPENVINO_THROW("Stride value exceeds uint32_t range supported by the driver");
             }
-            desc.second->userStrides[i] = static_cast<uint32_t>(strides[i]);
+            it->second->userStrides[i] = static_cast<uint32_t>(strides[i]);
         }
 
-        desc.first.pNext = &desc.second;
+        it->first.pNext = &it->second;
     }
 
-    if (index > 0) {
-        auto& last_desc = descs.at(index - 1);
-        if (last_desc.second != std::nullopt) {
-            last_desc.second->pNext = &desc.first;
+    if (it > descs.begin()) {
+        auto prev_elm = std::prev(it);
+        if (prev_elm->second != std::nullopt) {
+            prev_elm->second->pNext = &it->first;
         } else {
-            last_desc.first.pNext = &desc.first;
+            prev_elm->first.pNext = &it->first;
         }
     }
 }
