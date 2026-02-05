@@ -192,6 +192,7 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
 #endif
     int j;
     for (j = 2; j < k_block_pad; j++) {
+        sum_cur += sorted_value_p[j];
 #if DEBUG_ACC == 1
         acc_score_p[j] = sum_cur;
 #endif
@@ -202,7 +203,6 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
         } else {
             break;
         }
-        sum_cur += sorted_value_p[j];
     }
 #if DEBUG_ACC == 1
     for (; j < k_block_pad; j++) {
