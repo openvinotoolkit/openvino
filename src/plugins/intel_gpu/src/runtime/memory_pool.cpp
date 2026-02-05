@@ -161,13 +161,18 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
     const auto layout_bytes_count = layout.bytes_count();
     auto it = _non_padded_pool.lower_bound(layout_bytes_count);
     while (it != _non_padded_pool.end()) {
-        if ((!is_dynamic || (layout_bytes_count > it->second._memory->get_layout().bytes_count() * _mem_pool_util_threshold)) &&
+        const auto& mem_layout = it->second._memory->get_layout();
+        if ((!is_dynamic || (layout_bytes_count > mem_layout.bytes_count() * _mem_pool_util_threshold)) &&
             (it->second._network_id == network_id &&
             it->second._type == type &&
-            it->second._memory->get_layout().format != format::fs_b_yx_fsv32 &&
+            mem_layout.format != format::fs_b_yx_fsv32 &&
             layout.format != format::fs_b_yx_fsv32 &&
             ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
              (layout.feature() % 32 == 0)) &&
+#ifdef ENABLE_ONEDNN_FOR_GPU
+            (!format::is_blocked(layout.format) || layout.feature() % 16 == 0 ||
+             (mem_layout.format == layout.format && mem_layout.feature() == layout.feature())) &&
+#endif // ENABLE_ONEDNN_FOR_GPU
             !has_conflict(it->second._users, restrictions))) {
             it->second._users.insert(memory_user(MEM_USER(unique_id, network_id, prim_id, layout_bytes_count)));
             auto ret_mem = _engine->reinterpret_buffer(*it->second._memory, layout);
@@ -205,14 +210,19 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
     auto first_level_cache = _padded_pool.find(layout);
     if (first_level_cache != _padded_pool.end()) {
         for (auto& rec_list : first_level_cache->second) {
+            const auto& mem_layout = rec_list._memory->get_layout();
             if (rec_list._network_id == network_id &&
                 rec_list._type == type &&
                 ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
                  (layout.feature() % 32 == 0)) &&
+#ifdef ENABLE_ONEDNN_FOR_GPU
+                (!format::is_blocked(layout.format) || layout.feature() % 16 == 0 ||
+                 mem_layout.feature() == layout.feature()) &&
+#endif // ENABLE_ONEDNN_FOR_GPU
                 // TODO: check if this condition always correct
-                layout.feature() <= rec_list._memory->get_layout().feature() &&
-                layout.batch() <= rec_list._memory->get_layout().batch() &&
-                rec_list._memory->get_layout().format != format::fs_b_yx_fsv32 &&
+                layout.feature() <= mem_layout.feature() &&
+                layout.batch() <= mem_layout.batch() &&
+                mem_layout.format != format::fs_b_yx_fsv32 &&
                 layout.format != format::fs_b_yx_fsv32 &&
                 !has_conflict(rec_list._users, restrictions)) {
                 auto ret_mem = _engine->reinterpret_buffer(*(rec_list._memory), layout);

@@ -2579,37 +2579,10 @@ void primitive_inst::update_weights() {
 }
 
 static bool user_requesting_mem_reuse_false(const program_node& node) {
-    auto is_feature_aligned = [](const cldnn::layout& l) -> bool {
-        const auto& order = format::internal_order(l.format);
-        int f_bs = 1;
-        for (const auto& [dim, bs] : format::block_sizes(l.format)) {
-            if (dim < order.size() && order[dim] == 'f') {
-                f_bs = bs;
-            }
-        }
-        return l.feature() % f_bs == 0;
-    };
-
-    const auto& l_node = node.get_output_layout();
-
-    auto should_forbid_reuse_due_to_alignment = [&](const program_node& user) -> bool {
-        const auto& l_user = user.get_output_layout();
-        return format::is_blocked(l_user.format) &&
-               format::is_blocked(l_node.format) &&
-               !(is_feature_aligned(l_user) && is_feature_aligned(l_node)) &&
-               (l_user != l_node);
-    };
-
     for (auto& user : node.get_users()) {
-        const auto* user_impl = user->get_selected_impl();
-        if (user_impl != nullptr) {
-            if (user_impl->can_reuse_memory == false) {
-                return true;
-            }
-            if (user_impl->is_onednn() && should_forbid_reuse_due_to_alignment(*user)) {
-                return true;
-            }
-        } else {
+        if ((user->get_selected_impl() != nullptr) && (user->get_selected_impl()->can_reuse_memory == false)) {
+            return true;
+        } else if (user->get_selected_impl() == nullptr) {
             if (user->is_dynamic()) {
                 return true;
             }
