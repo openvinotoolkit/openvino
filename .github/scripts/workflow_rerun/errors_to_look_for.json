@@ -158,5 +158,9 @@
     {
         "error_text": "CERT_TRUST_REVOCATION_STATUS_UNKNOWN",
         "ticket": 177273
+    },
+    {
+        "error_text": "urllib3.exceptions.IncompleteRead",
+        "ticket": 173184
     }
 ]
