@@ -850,7 +850,3 @@ KERNEL(gemm_tiled_opt)(
 #undef BLOCK_READ_B
 #undef BLOCK_WRITE_C
 #undef VLOAD
-#undef TO_ACCUMULATOR_TYPE_VEC
-#undef ACC_CAST_A
-#undef ACC_CAST_B
-#undef USE_FP16_ACC
