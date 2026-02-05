@@ -24,6 +24,9 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -132,82 +135,136 @@ void apply_scale_backward(const std::shared_ptr<Node>& node,
                           float scale_adj,
                           std::unordered_set<std::shared_ptr<Node>>& visited,
                           std::vector<std::shared_ptr<Node>>& affected_weights) {
-    if (!node || visited.count(node))
+    if (!node || visited.count(node)) {
+        if (!node) {
+            std::cout << "  [ DEBUG ] apply_scale_backward: nullptr node, returning" << std::endl;
+        } else {
+            std::cout << "  [ DEBUG ] apply_scale_backward: already visited " << node->get_friendly_name() << ", returning" << std::endl;
+        }
         return;
+    }
     visited.insert(node);
 
-    std::cout << "[ DEBUG ] apply_scale_backward: node=" << node->get_friendly_name()
+    std::cout << "  [ DEBUG ] apply_scale_backward: node=" << node->get_friendly_name()
               << " type=" << node->get_type_name() << " scale_adj=" << scale_adj << std::endl;
 
-    if (ov::is_type<ov::op::v1::Convolution>(node)) {
-        std::cout << "[ DEBUG ]   Conv node, checking weight input" << std::endl;
-        // For Conv, check weight input (input 1) for dequantization pattern
-        if (node->get_input_size() > 1) {
-            auto weight_input = node->get_input_node_shared_ptr(1);
-            std::cout << "[ DEBUG ]     Weight input: " << weight_input->get_friendly_name()
-                      << " type=" << weight_input->get_type_name() << std::endl;
+    using namespace ov::pass::pattern;
 
-            // Check if it's a dequantization Multiply
+    // Case 1: Convolution + Add (bias) - scale both Add's constant and Conv weights
+    {
+        auto conv_pattern = wrap_type<ov::op::v1::Convolution>();
+        auto add_pattern = wrap_type<ov::op::v1::Add>({conv_pattern, any_input()});
+        auto matcher = std::make_shared<Matcher>(add_pattern, "ConvAddPattern");
+        
+        if (matcher->match(node)) {
+            std::cout << "  [ DEBUG ]   Matched Conv+Add(bias) pattern" << std::endl;
+            auto pattern_map = matcher->get_pattern_value_map();
+            auto conv_node = ov::as_type_ptr<ov::op::v1::Convolution>(pattern_map[conv_pattern].get_node_shared_ptr());
+            auto add_node = ov::as_type_ptr<ov::op::v1::Add>(pattern_map[add_pattern].get_node_shared_ptr());
+            
+            OPENVINO_ASSERT(conv_node && add_node, "Matched Conv+Add pattern but failed to extract nodes");
+            
+            // Scale Conv weights (input 1)
+            auto weight_input = conv_node->get_input_node_shared_ptr(1);
+            std::cout << "  [ DEBUG ]     Conv weight: " << weight_input->get_friendly_name() << std::endl;
+            
             auto dequant_multiply = find_weight_dequant_multiply(weight_input);
             if (dequant_multiply) {
                 multiply_scale_factor(dequant_multiply, scale_adj);
                 affected_weights.push_back(dequant_multiply);
-                std::cout << "[ DEBUG ]     Found weight dequant Multiply: " << dequant_multiply->get_friendly_name()
-                          << " new_scale_factor=" << get_scale_factor(dequant_multiply) << std::endl;
+                std::cout << "  [ DEBUG ]     Scaled weight dequant Multiply" << std::endl;
             } else if (ov::is_type<ov::op::v0::Constant>(weight_input)) {
-                // Unquantized constant weight - will need a new Multiply
                 multiply_scale_factor(weight_input, scale_adj);
                 affected_weights.push_back(weight_input);
-                std::cout << "[ DEBUG ]     Constant weight (unquantized) will get Multiply: "
-                          << weight_input->get_friendly_name() << " new_scale_factor=" << get_scale_factor(weight_input)
-                          << std::endl;
+                std::cout << "  [ DEBUG ]     Scaled constant weight" << std::endl;
             }
+            
+            // Scale Add's constant (bias)
+            for (size_t i = 0; i < add_node->get_input_size(); ++i) {
+                auto input = add_node->get_input_node_shared_ptr(i);
+                if (ov::is_type<ov::op::v0::Constant>(input)) {
+                    multiply_scale_factor(input, scale_adj);
+                    affected_weights.push_back(input);
+                    std::cout << "  [ DEBUG ]     Scaled Add bias constant: " << input->get_friendly_name() << std::endl;
+                    break;
+                }
+            }
+            return;
+        } else {
+            std::cout << "  [ DEBUG ]   Conv+Add pattern did not match" << std::endl;
         }
-        return;
     }
 
-    if (ov::is_type<ov::op::v0::MatMul>(node)) {
-        std::cout << "[ DEBUG ]   MatMul node, checking weight inputs" << std::endl;
-        // For MatMul, check both inputs for dequantization pattern
-        for (size_t i = 0; i < node->get_input_size(); ++i) {
-            auto input_node = node->get_input_node_shared_ptr(i);
-            std::cout << "[ DEBUG ]     Input " << i << ": " << input_node->get_friendly_name()
-                      << " type=" << input_node->get_type_name() << std::endl;
+    // Case 2 & 3: MatMul with constant weights or MatMul with 2 activations
+    if (auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(node)) {
+        std::cout << "  [ DEBUG ]   MatMul node" << std::endl;
+        
+        // Check both inputs for constants/weights
+        bool found_weight = false;
+        for (size_t i = 0; i < matmul->get_input_size(); ++i) {
+            auto input_node = matmul->get_input_node_shared_ptr(i);
+            std::cout << "  [ DEBUG ]     Input " << i << ": " << input_node->get_friendly_name() << std::endl;
+            
+            // Check for dequantization pattern or constant
             auto dequant_multiply = find_weight_dequant_multiply(input_node);
             if (dequant_multiply) {
                 multiply_scale_factor(dequant_multiply, scale_adj);
                 affected_weights.push_back(dequant_multiply);
-                std::cout << "[ DEBUG ]     Found weight dequant Multiply at input " << i << ": "
-                          << dequant_multiply->get_friendly_name()
-                          << " new_scale_factor=" << get_scale_factor(dequant_multiply) << std::endl;
-                // Don't return yet - check other input too
+                std::cout << "  [ DEBUG ]     Found and scaled weight dequant Multiply" << std::endl;
+                found_weight = true;
+            } else if (ov::is_type<ov::op::v0::Constant>(input_node)) {
+                multiply_scale_factor(input_node, scale_adj);
+                affected_weights.push_back(input_node);
+                std::cout << "  [ DEBUG ]     Found and scaled constant weight" << std::endl;
+                found_weight = true;
             }
         }
-        // If weights were found, we're done
-        if (!affected_weights.empty()) {
+        
+        // Case 2: Found weight(s) - done
+        if (found_weight) {
+            std::cout << "  [ DEBUG ]   MatMul: Found weights, done" << std::endl;
             return;
         }
-        // Otherwise propagate to first input (activation path)
-        if (node->get_input_size() > 0) {
-            apply_scale_backward(node->get_input_node_shared_ptr(0), scale_adj, visited, affected_weights);
+        
+        // Case 3: MatMul with 2 activations - propagate to input 1
+        std::cout << "  [ DEBUG ]   MatMul with 2 activations, propagating to input(1)" << std::endl;
+        if (matmul->get_input_size() > 1) {
+            apply_scale_backward(matmul->get_input_node_shared_ptr(1), scale_adj, visited, affected_weights);
         }
         return;
     }
 
-    if (ov::is_type<ov::op::v1::Add>(node)) {
-        // Propagate to all inputs
-        for (size_t i = 0; i < node->get_input_size(); ++i) {
-            apply_scale_backward(node->get_input_node_shared_ptr(i), scale_adj, visited, affected_weights);
+    // Case 4 & 5: Multiply with constant or Multiply with 2 activations
+    if (auto multiply = ov::as_type_ptr<ov::op::v1::Multiply>(node)) {
+        std::cout << "  [ DEBUG ]   Multiply node" << std::endl;
+        
+        // Check for constant input
+        for (size_t i = 0; i < multiply->get_input_size(); ++i) {
+            auto input = multiply->get_input_node_shared_ptr(i);
+            if (ov::is_type<ov::op::v0::Constant>(input)) {
+                // Case 4: Multiply with constant
+                multiply_scale_factor(input, scale_adj);
+                affected_weights.push_back(input);
+                std::cout << "  [ DEBUG ]     Found and scaled constant: " << input->get_friendly_name() << std::endl;
+                std::cout << "  [ DEBUG ]   Multiply: Found constant, done" << std::endl;
+                return;
+            }
+        }
+        
+        // Case 5: Multiply with 2 activations - propagate to input 1
+        std::cout << "  [ DEBUG ]   Multiply with 2 activations (no constants found), propagating to input(1)" << std::endl;
+        if (multiply->get_input_size() > 1) {
+            apply_scale_backward(multiply->get_input_node_shared_ptr(1), scale_adj, visited, affected_weights);
         }
         return;
     }
 
-    if (ov::is_type<ov::op::v1::Multiply>(node)) {
-        // Could be dequantization Multiply or just a regular Multiply - propagate to inputs
-        for (size_t i = 0; i < node->get_input_size(); ++i) {
-            apply_scale_backward(node->get_input_node_shared_ptr(i), scale_adj, visited, affected_weights);
-        }
-        return;
+    // Default: propagate to first input
+    std::cout << "  [ DEBUG ]   Default case for node type " << node->get_type_name() << ", propagating to input(0)" << std::endl;
+    if (node->get_input_size() > 0) {
+        apply_scale_backward(node->get_input_node_shared_ptr(0), scale_adj, visited, affected_weights);
+    } else {
+        std::cout << "  [ DEBUG ]   No inputs available, stopping" << std::endl;
     }
 }
 
@@ -273,6 +330,7 @@ void insert_multiply_on_weight(const std::shared_ptr<Node>& weight_node, float m
     float scale_factor = get_scale_factor(weight_node);
     if (std::abs(scale_factor - 1.0f) < 1e-6f)
         return;
+    scale_factor = 1 / scale_factor;
 
     std::cout << "[ DEBUG ] insert_multiply_on_weight: node=" << weight_node->get_friendly_name()
               << " type=" << weight_node->get_type_name() << " scale_factor=" << scale_factor << std::endl;
@@ -417,16 +475,16 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             continue;
         }
 
-        std::cout << "[ DEBUG ] Found FQ: " << fq->get_friendly_name() << " levels=" << fq->get_levels() << std::endl;
+        std::cout << "\n======== Processing FQ: " << fq->get_friendly_name() << " (levels=" << fq->get_levels() << ") ========" << std::endl;
 
         if (!levels_to_strip.count(fq->get_levels())) {
-            std::cout << "[ DEBUG ]   Skipped: level not in levels_to_strip" << std::endl;
+            std::cout << "  [ DEBUG ] Skipped: level not in levels_to_strip" << std::endl;
             continue;
         }
 
         // Step 1: Check if FQ has valid constants (non-degenerate ranges)
         if (!check_fq_constants(fq)) {
-            std::cout << "[ DEBUG ]   Skipped: invalid or degenerate FQ constants" << std::endl;
+            std::cout << "  [ DEBUG ] Skipped: invalid or degenerate FQ constants" << std::endl;
             continue;
         }
 
@@ -451,11 +509,11 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         float current_scale_factor = get_scale_factor(fq);
         float effective_scale = q_scale / current_scale_factor;
 
-        std::cout << "[ DEBUG ]   Input range: [" << input_low_val << ", " << input_high_val << "] = " << input_range
+        std::cout << "  [ DEBUG ] Input range: [" << input_low_val << ", " << input_high_val << "] = " << input_range
                   << std::endl;
-        std::cout << "[ DEBUG ]   Output range: [" << output_low_val << ", " << output_high_val
+        std::cout << "  [ DEBUG ] Output range: [" << output_low_val << ", " << output_high_val
                   << "] = " << output_range << std::endl;
-        std::cout << "[ DEBUG ]   Q scale: " << q_scale << " (levels=" << levels
+        std::cout << "  [ DEBUG ] Q scale: " << q_scale << " (levels=" << levels
                   << "), effective_scale: " << effective_scale << std::endl;
 
         // Check if this FQ has multiple effective consumers (traversing through transparent ops like Convert)
@@ -464,12 +522,12 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         bool has_multiple_consumers = num_consumers > 1;
 
         if (has_multiple_consumers) {
-            std::cout << "[ DEBUG ]   FQ has " << num_consumers << " effective consumers" << std::endl;
+            std::cout << "  [ DEBUG ] FQ has " << num_consumers << " effective consumers" << std::endl;
         }
 
         // Step 3: Decision based on effective_scale vs threshold
         if (effective_scale <= threshold) {
-            std::cout << "[ INFO ] Removing FQ (effective_scale=" << effective_scale << " <= threshold=" << threshold
+            std::cout << "  [ INFO ] Removing FQ (effective_scale=" << effective_scale << " <= threshold=" << threshold
                         << "): " << fq->get_friendly_name() << std::endl;
             OPENVINO_ASSERT(replace_output_update_name(fq->output(0), fq->input_value(0)), "FQ stripping failed");
             model_changed = true;
@@ -480,43 +538,43 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         // This handles both cases:
         // 1. effective_scale > threshold: normal scale adjustment needed
         // 2. effective_scale <= threshold with multiple consumers: use scale adjustment to handle multiple paths
-        std::cout << "\n[ INFO ] --- Adjusting FQ (effective_scale=" << effective_scale
+        std::cout << "  [ INFO ] --- Adjusting FQ (effective_scale=" << effective_scale
                   << (effective_scale > threshold ? " >= " : " <= ") << "threshold=" << threshold
                   << "): " << fq->get_friendly_name() << " ---" << std::endl;
 
         // Calculate scale adjustment
         float scale_adj = effective_scale / threshold * ratio;
-        std::cout << "[ INFO ] Scale adjustment: " << scale_adj << std::endl;
+        std::cout << "  [ INFO ] Scale adjustment: " << scale_adj << std::endl;
 
         // Apply scale backward to find weight nodes to adjust
-        std::cout << "[ INFO ] Backward propagation:" << std::endl;
+        std::cout << "  [ INFO ] Backward propagation:" << std::endl;
         std::unordered_set<std::shared_ptr<Node>> visited_backward;
         std::vector<std::shared_ptr<Node>> affected_weights;
 
         apply_scale_backward(fq->get_input_node_shared_ptr(0), scale_adj, visited_backward, affected_weights);
 
-        std::cout << "[ INFO ] Affected weights: " << affected_weights.size() << std::endl;
+        std::cout << "  [ INFO ] Affected weights: " << affected_weights.size() << std::endl;
 
         // Propagate scale forward to collect affected FQs
-        std::cout << "[ INFO ] Forward propagation:" << std::endl;
+        std::cout << "  [ INFO ] Forward propagation:" << std::endl;
         std::unordered_set<std::shared_ptr<Node>> visited_forward;
         std::vector<std::shared_ptr<Node>> affected_fqs;
 
         for (auto& weight_node : affected_weights) {
-            visited_forward.clear();
+            // Don't clear visited_forward - reuse it to avoid visiting same FQ multiple times
             propagate_scale_forward(weight_node, scale_adj, visited_forward, affected_fqs, affected_weights);
         }
 
-        std::cout << "[ INFO ] Affected downstream FQs: " << affected_fqs.size() << std::endl;
+        std::cout << "  [ INFO ] Affected downstream FQs: " << affected_fqs.size() << std::endl;
 
         // If no weights/FQs were affected, we can't compensate - keep the FQ unchanged
         if (affected_weights.empty() && affected_fqs.empty()) {
-            std::cout << "[ WARNING ] No compensation possible - keeping FQ unchanged" << std::endl;
+            std::cout << "  [ WARNING ] No compensation possible - keeping FQ unchanged" << std::endl;
             continue;
         }
 
         // Apply physical modifications
-        std::cout << "[ INFO ] Applying physical modifications:" << std::endl;
+        std::cout << "  [ INFO ] Applying physical modifications:" << std::endl;
         // 1. Insert Multiply on weights (both dequant Multiply and Constant)
         for (auto& weight_node : affected_weights) {
             insert_multiply_on_weight(weight_node, scale_adj);
@@ -530,16 +588,17 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         }
 
         // After successfully adjusting scales, remove the FQ since its effect is now distributed
-        std::cout << "[ INFO ] Removing FQ after scale adjustment (distributed to " << affected_weights.size()
+        std::cout << "  [ INFO ] Removing FQ after scale adjustment (distributed to " << affected_weights.size()
                   << " weights, " << affected_fqs.size() << " FQs)" << std::endl;
         OPENVINO_ASSERT(replace_output_update_name(fq->output(0), fq->input_value(0)),
                         "FQ stripping failed after adjustment");
 
         model_changed = true;
-        std::cout << "[ INFO ] QDQ Stripping: adjusted and removed FakeQuantize " << fq->get_friendly_name()
+        std::cout << "  [ INFO ] ✓ Completed: adjusted and removed FakeQuantize " << fq->get_friendly_name()
                   << " (effective_scale=" << effective_scale << ", adjustment=" << scale_adj
                   << ", affected_weights=" << affected_weights.size() << ", affected_fqs=" << affected_fqs.size() << ")"
                   << std::endl;
+        std::cout << "========================================" << std::endl;
     }
 
     return model_changed;
