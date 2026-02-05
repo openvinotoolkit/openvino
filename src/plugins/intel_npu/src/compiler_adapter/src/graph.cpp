@@ -20,7 +20,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              std::optional<ov::Tensor> blob,
              const Config& config,
              const bool blobIsPersistent,
-             const ov::SoPtr<ICompiler>& compiler,
+             const ov::SoPtr<VCLCompilerImpl>& compiler,
              const bool calledFromWeightlessGraph)
     : IGraph(),
       _zeGraphExt(zeGraphExt),
