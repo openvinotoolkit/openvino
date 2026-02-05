@@ -175,7 +175,8 @@ TEST_P(ZeroGraphCompilationTests, GetInitSetArgsDestroyGraphAlignedMemoryIR) {
 }
 
 TEST_P(ZeroGraphTest, GetGraphInitBlob) {
-    size_t alignedSize = make_blob();
+    size_t alignedSize = 0;
+    OV_ASSERT_NO_THROW(alignedSize = make_blob());
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, alignedSize));
 
@@ -199,7 +200,8 @@ TEST_P(ZeroGraphTest, QueryGraph) {
 }
 
 TEST_P(ZeroGraphTest, GetGraphBinary) {
-    size_t alignedSize = make_blob();
+    size_t alignedSize = 0;
+    OV_ASSERT_NO_THROW(alignedSize = make_blob());
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, alignedSize));
 
@@ -229,7 +231,8 @@ TEST_P(ZeroGraphTest, SetGraphArgOnNullBuffer) {
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob) {
-    size_t alignedSize = make_blob();
+    size_t alignedSize = 0;
+    OV_ASSERT_NO_THROW(alignedSize = make_blob());
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, alignedSize));
 
@@ -249,7 +252,8 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob) {
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob) {
-    size_t alignedSize = make_blob();
+    size_t alignedSize = 0;
+    OV_ASSERT_NO_THROW(alignedSize = make_blob());
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, alignedSize));
 
@@ -337,7 +341,8 @@ TEST_P(ZeroGraphTest, SetUnalignedSizeBlob) {
 
 TEST_P(ZeroGraphTest, SetAlignedBlob) {
     // create blob -> compile model first
-    size_t alignedSize = make_blob();
+    size_t alignedSize = 0;
+    OV_ASSERT_NO_THROW(alignedSize = make_blob());
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, alignedSize));
     uint32_t initCommandQueueOrdinal = 0;
