@@ -383,13 +383,21 @@ void IRGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zer
                                ze_graph_profiling_pool_handle_t profiling) {
     npu_mlir_runtime_execute_params_t* params = &args._executeParams;
 
+    // Only need to store handles in MemRef container once, then update them in following executions
+    bool reuseInputsHandles = args._inputMemRefs.size() > 0;
+    bool reuseOutputsHandles = args._outputMemRefs.size() > 0;
+
     for (auto& in : args._inputs) {
         in.UpdateMemRefHandleStatus();
-        args._inputMemRefs.push_back(in.memRef);
+        if (!reuseInputsHandles) {
+            args._inputMemRefs.push_back(in.memRef);
+        }
     }
     for (auto& out : args._outputs) {
         out.UpdateMemRefHandleStatus();
-        args._outputMemRefs.push_back(out.memRef);
+        if (!reuseOutputsHandles) {
+            args._outputMemRefs.push_back(out.memRef);
+        }
     }
 
     params->pInputs = args._inputMemRefs.data();
