@@ -91,13 +91,12 @@ protected:
     std::shared_ptr<ov::Model> build_shared_dq_pattern(const ov::PartialShape& input_shape,
                                                        const ov::element::Type& quantization_precision) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
-        // Note: these params are taken from the real cases
         static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>>
             quantization_params{
                 {ov::element::Type_t::u16,
-                 {{0.f, 100000.f, 0.f, 65535.f, 0}, {-6244.578838348389f, 6347.373962402344f, 0.f, 65535.f, 32500}}},
+                 {{0.f, 10.f, 0.f, 65535.f, 0}, {-6244.578838348389f, 6347.373962402344f, 0.f, 65535.f, 32500}}},
                 {ov::element::Type_t::i16,
-                 {{-50000.076293945312f, 49999.923706054688f, -32768.f, 32767.f, 0},
+                 {{-5.f, 5.f, -32768.f, 32767.f, 0},
                   {-6296.072483062744f, 6295.880317687988f, -32768.f, 32767.f, 0}}},
             };
 
