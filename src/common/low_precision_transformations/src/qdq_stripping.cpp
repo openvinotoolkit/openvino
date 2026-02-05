@@ -37,28 +37,26 @@ namespace low_precision {
 
 class WeightsDequantizationBlock : public ov::pass::pattern::op::Block {
 public:
-    WeightsDequantizationBlock();
-};
+    WeightsDequantizationBlock() : Block({}, {}, "WeightsDequantizationBlock") {
+        using namespace ov::pass::pattern;
 
-WeightsDequantizationBlock::WeightsDequantizationBlock() : Block({}, {}, "WeightsDequantizationBlock") {
-    using namespace ov::pass::pattern;
-    
-    // Const (quantized weights) -> Convert -> [optional Subtract] -> Multiply (with scale const)
-    auto weights = wrap_type<ov::op::v0::Constant>();
-    auto convert = wrap_type<ov::op::v0::Convert>({weights});
-    
-    auto sub_const = wrap_type<ov::op::v0::Constant>();
-    auto subtract = wrap_type<ov::op::v1::Subtract>({convert, sub_const});
-    
-    // Multiply can have either (subtract, const) or (convert, const) as inputs
-    auto mul_input = subtract | convert;
-    auto mul_const = wrap_type<ov::op::v0::Constant>();
-    auto multiply = wrap_type<ov::op::v1::Multiply>({mul_input, mul_const});
-    
-    m_inputs = ov::OutputVector{weights};
-    m_outputs = ov::OutputVector{multiply};
-    REGISTER_ANCHORS(this, weights, convert, sub_const, subtract, mul_const, multiply);
-}
+        // Const (quantized weights) -> Convert -> [optional Subtract] -> Multiply (with scale const)
+        auto weights = wrap_type<ov::op::v0::Constant>();
+        auto convert = wrap_type<ov::op::v0::Convert>({weights});
+
+        auto sub_const = wrap_type<ov::op::v0::Constant>();
+        auto subtract = wrap_type<ov::op::v1::Subtract>({convert, sub_const});
+
+        // Multiply can have either (subtract, const) or (convert, const) as inputs
+        auto mul_input = subtract | convert;
+        auto mul_const = wrap_type<ov::op::v0::Constant>();
+        auto multiply = wrap_type<ov::op::v1::Multiply>({mul_input, mul_const});
+
+        m_inputs = ov::OutputVector{weights};
+        m_outputs = ov::OutputVector{multiply};
+        REGISTER_ANCHORS(this, weights, convert, sub_const, subtract, mul_input, mul_const, multiply);
+    }
+};
 
 namespace {
 
@@ -188,34 +186,34 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             return false;
         };
         const auto scale_adj = 1 / max_q_scale;
-        
+
         // Lambda to apply scale to weight DQ subgraph
         auto apply_scale_to_weight = [&](const ov::pass::pattern::PatternValueMap& pattern_map,
-                                          const std::shared_ptr<WeightsDequantizationBlock>& dq_block) {
-            auto mul_const_anchor = dq_block->get_anchor("mul_const", pattern_map);
-            auto original_constant = ov::as_type_ptr<ov::op::v0::Constant>(mul_const_anchor->get_node_shared_ptr());
-            
-            auto multiply_anchor = dq_block->get_anchor("multiply", pattern_map);
-            auto old_multiply = ov::as_type_ptr<ov::op::v1::Multiply>(multiply_anchor->get_node_shared_ptr());
-            
-            auto mul_input_anchor = dq_block->get_anchor("mul_input", pattern_map);
-            auto mul_input = mul_input_anchor->get_node_shared_ptr();
-            
+                                         const std::shared_ptr<WeightsDequantizationBlock>& dq_block) {
+            auto original_constant = dq_block->get_anchor("mul_const", pattern_map).value().get_node_shared_ptr();
+            auto old_multiply = dq_block->get_anchor("multiply", pattern_map).value().get_node_shared_ptr();
+            auto mul_input = dq_block->get_anchor("mul_input", pattern_map).value().get_node_shared_ptr();
+            if (visited.find(old_multiply.get()) != visited.end()) {
+                std::cout << "        [ DEBUG ]   Node " << mul_input->get_friendly_name()
+                          << " already visited, skipping scale adjustment" << std::endl;
+                return;
+            }
+
             std::cout << "        [ DEBUG ]     Scaling multiply " << old_multiply->get_friendly_name() << " by "
                       << scale_adj << std::endl;
-            
+
             // Create new scaled constant
-            auto scale_const = ov::op::v0::Constant::create(original_constant->get_element_type(), {}, {scale_adj});
+            auto scale_const =
+                ov::op::v0::Constant::create(original_constant->get_output_element_type(0), {}, {scale_adj});
             auto new_constant = ov::op::util::make_try_fold<ov::op::v1::Multiply>(original_constant, scale_const);
-            
+
             // Create new multiply with the scaled constant
-            auto new_multiply = std::make_shared<ov::op::v1::Multiply>(mul_input, new_constant);
-            
+            auto new_multiply = old_multiply->clone_with_new_inputs({mul_input, new_constant});
+
             ov::replace_node(old_multiply, new_multiply);
             visited.insert(new_multiply.get());
-            std::cout << "        [ DEBUG ]       Replaced multiply with scaled version" << std::endl;
         };
-        
+
         auto adjust_weights_scale = [&](ov::Node* node) {
             std::cout << "    [ INFO ] adjust_weights_scale called for node: " << node->get_friendly_name() << std::endl;
             using namespace ov::pass::pattern;
@@ -232,9 +230,7 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
                     std::cout << "        [ INFO ]   Matched Conv+Add(bias) pattern" << std::endl;
                     auto pattern_map = matcher->get_pattern_value_map();
                     apply_scale_to_weight(pattern_map, conv_weights_dq_block);
-                    std::cout << "        [ INFO ]     Scaled Conv weights" << std::endl;
                     apply_scale_to_weight(pattern_map, bias_dq_block);
-                    std::cout << "        [ INFO ]     Scaled Add bias" << std::endl;
                     return;
                 }
             }
@@ -249,7 +245,6 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
                     std::cout << "        [ INFO ]   Matched MatMul with weights pattern" << std::endl;
                     auto pattern_map = matcher->get_pattern_value_map();
                     apply_scale_to_weight(pattern_map, weights_dq_block);
-                    std::cout << "        [ INFO ]     Scaled MatMul weights" << std::endl;
                     return;
                 }
             }
@@ -264,7 +259,6 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
                     std::cout << "        [ INFO ]   Matched Multiply with weights pattern" << std::endl;
                     auto pattern_map = matcher->get_pattern_value_map();
                     apply_scale_to_weight(pattern_map, weights_dq_block);
-                    std::cout << "        [ INFO ]     Scaled Multiply weights" << std::endl;
                     return;
                 }
             }
