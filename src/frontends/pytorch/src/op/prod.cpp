@@ -43,7 +43,7 @@ OutputVector translate_prod(const NodeContext& context) {
         keepdim = false;
         dtype_idx = 1;
     } else if (context.get_input_size() == 4) {
-        dim = context.get_input(1);
+        dim = get_input_concat_if_list(context, 1);
         keepdim = context.const_input<bool>(2);
         dtype_idx = 3;
     } else {
@@ -67,7 +67,7 @@ OutputVector translate_prod_fx(const NodeContext& context) {
     bool keepdim = false;
     Output<Node> dim;
     if (!context.input_is_none(1)) {
-        dim = context.get_input(1);
+        dim = get_input_concat_if_list(context, 1);
     } else {
         dim = get_axes_range(context, 0);
     }
