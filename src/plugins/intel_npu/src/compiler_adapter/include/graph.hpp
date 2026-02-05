@@ -61,7 +61,7 @@ public:
     void set_last_submitted_id(uint32_t id_index) override;
     uint32_t get_last_submitted_id() const override;
 
-    bool is_profiling_blob() const override;
+    std::optional<bool> is_profiling_blob() const override;
 
     ~Graph() override;
 

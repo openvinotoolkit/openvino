@@ -270,7 +270,7 @@ uint32_t Graph::get_last_submitted_id() const {
     return _lastSubmittedId;
 }
 
-bool Graph::is_profiling_blob() const {
+std::optional<bool> Graph::is_profiling_blob() const {
     bool compiled_with_profiling = false;
 
     if (_zeroInitStruct->getGraphDdiTable().version() >= ZE_MAKE_VERSION(1, 16)) {
@@ -283,6 +283,7 @@ bool Graph::is_profiling_blob() const {
         compiled_with_profiling = graphProperties.flags & ZE_GRAPH_PROPERTIES_FLAG_PROFILING_ENABLED;
     } else {
         _logger.debug("Cannot determine if the blob was compiled for profiling");
+        return std::nullopt;
     }
     return compiled_with_profiling;
 }

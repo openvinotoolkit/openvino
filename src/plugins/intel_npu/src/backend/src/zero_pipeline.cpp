@@ -54,43 +54,36 @@ Pipeline::Pipeline(const Config& config,
 
     _logger.debug("Pipeline - initialize started, number_of_command_lists %i", _number_of_command_lists);
 
-    if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-        _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    _extension_version = _init_structs->getCommandQueueDdiTable().version();
+    if (_extension_version < ZE_MAKE_VERSION(1, 1) && _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         _graph->resize_last_submitted_event(_number_of_command_lists);
     }
 
     OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>() ||
-                        _init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
+                        _extension_version >= ZE_MAKE_VERSION(1, 1),
                     "In-order execution doesn't work in case synchronization of the inferences is done using events");
 
-    bool compiled_with_profiling = graph->is_profiling_blob();
+    std::optional<bool> compiled_with_profiling = graph->is_profiling_blob();
 
-    if ((_config.has<PERF_COUNT>() && _config.get<PERF_COUNT>()) || compiled_with_profiling) {
-        if (_init_structs->getGraphDdiTable().version() >= ZE_MAKE_VERSION(1, 16) && !compiled_with_profiling) {
-            OPENVINO_THROW("Blob was not compiled for profiling");
+    if (compiled_with_profiling.has_value()) {
+        if ((_config.has<PERF_COUNT>() && _config.get<PERF_COUNT>()) && !compiled_with_profiling.value()) {
+            OPENVINO_THROW("Model was not compiled with profiling enabled");
         }
 
-        if (!_config.get<PERF_COUNT>() && compiled_with_profiling) {
-            _logger.warning("Blob was compiled with profiling but PERF_COUNT is set to 'NO'");
+        if (compiled_with_profiling.value()) {
+            if (!_config.has<PERF_COUNT>() || !_config.get<PERF_COUNT>()) {
+                _logger.warning("Model was compiled with profiling enabled but PERF_COUNT is set to 'NO'");
+            }
+            enable_profiling();
         }
-
-        auto profiling_pool =
-            std::make_shared<zeroProfiling::ProfilingPool>(_init_structs, _graph, zeroProfiling::POOL_SIZE);
-        _profiling_query = std::make_unique<zeroProfiling::ProfilingQuery>(_init_structs, 0);
-
-        if (profiling_pool->create()) {
-            _profiling_query->create(profiling_pool);
-        }
-
-        if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
-            _logger.debug("ZeroInferRequest::ZeroInferRequest - profiling type == ov::intel_npu::ProfilingType::INFER");
-            _npu_profiling =
-                std::make_shared<zeroProfiling::NpuInferProfiling>(_init_structs, _config.get<LOG_LEVEL>());
+    } else {
+        if (_config.has<PERF_COUNT>() && _config.get<PERF_COUNT>()) {
+            enable_profiling();
         }
     }
 
-    if (!_sync_output_with_fences || (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-                                      _config.get<RUN_INFERENCES_SEQUENTIALLY>())) {
+    if (!_sync_output_with_fences ||
+        (_extension_version < ZE_MAKE_VERSION(1, 1) && _config.get<RUN_INFERENCES_SEQUENTIALLY>())) {
         _event_pool =
             std::make_shared<EventPool>(_init_structs->getDevice(),
                                         _init_structs->getContext(),
@@ -173,8 +166,7 @@ Pipeline::Pipeline(const Config& config,
             ++io_index;
         }
 
-        if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-            _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        if (_extension_version < ZE_MAKE_VERSION(1, 1) && _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
             if (_graph->get_last_submitted_event(i)) {
                 _graph->get_last_submitted_event(i)->AppendWaitOnEvent(*_command_lists.at(i));
             }
@@ -195,8 +187,7 @@ Pipeline::Pipeline(const Config& config,
             _command_lists.at(i)->appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_end));
         }
 
-        if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-            _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        if (_extension_version < ZE_MAKE_VERSION(1, 1) && _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
             if (_graph->get_last_submitted_event(i)) {
                 _graph->get_last_submitted_event(i)->AppendEventReset(*_command_lists.at(i));
             }
@@ -217,8 +208,7 @@ Pipeline::Pipeline(const Config& config,
 void Pipeline::push() {
     _logger.debug("Pipeline - push() started");
 
-    if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-        _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    if (_extension_version < ZE_MAKE_VERSION(1, 1) && _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         if (_id) {
             auto previousIndex = _graph->get_last_submitted_id();
 
@@ -338,6 +328,21 @@ std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
     } else {
         _logger.debug("InferRequest::get_profiling_info complete with _profiling_query.getLayerStatistics().");
         return _profiling_query->getLayerStatistics();
+    }
+}
+
+void Pipeline::enable_profiling() {
+    auto profiling_pool =
+        std::make_shared<zeroProfiling::ProfilingPool>(_init_structs, _graph, zeroProfiling::POOL_SIZE);
+    _profiling_query = std::make_unique<zeroProfiling::ProfilingQuery>(_init_structs, 0);
+
+    if (profiling_pool->create()) {
+        _profiling_query->create(profiling_pool);
+    }
+
+    if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
+        _logger.debug("Profiling type == ov::intel_npu::ProfilingType::INFER");
+        _npu_profiling = std::make_shared<zeroProfiling::NpuInferProfiling>(_init_structs, _config.get<LOG_LEVEL>());
     }
 }
 
