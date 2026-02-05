@@ -150,6 +150,21 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
 #endif
 }
 
+static bool is_feature_aligned(const layout& l) {
+    const cldnn::format fmt = l.format;
+    const auto& order = cldnn::format::internal_order(fmt);
+
+    int f_bs = 1;
+    for (const auto& [dim, bs] : cldnn::format::block_sizes(fmt)) {
+        if (dim < order.size() && order[dim] == 'f') {
+            f_bs = static_cast<int>(bs);
+            break;
+        }
+    }
+
+    return (l.feature() % std::max(1, f_bs)) == 0;
+}
+
 memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
                                                   const primitive_id& prim_id,
                                                   size_t unique_id,
@@ -159,6 +174,7 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
                                                   bool reset,
                                                   bool is_dynamic) {
     const auto layout_bytes_count = layout.bytes_count();
+    const bool feature_aligned = is_feature_aligned(layout);
     auto it = _non_padded_pool.lower_bound(layout_bytes_count);
     while (it != _non_padded_pool.end()) {
         const auto& mem_layout = it->second._memory->get_layout();
@@ -168,9 +184,9 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
             mem_layout.format != format::fs_b_yx_fsv32 &&
             layout.format != format::fs_b_yx_fsv32 &&
             ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
-             (layout.feature() % 32 == 0)) &&
+             feature_aligned) &&
 #ifdef ENABLE_ONEDNN_FOR_GPU
-            (!format::is_blocked(layout.format) || layout.feature() % 16 == 0 ||
+            (!format::is_blocked(layout.format) || feature_aligned ||
              (mem_layout.format == layout.format && mem_layout.feature() == layout.feature())) &&
 #endif // ENABLE_ONEDNN_FOR_GPU
             !has_conflict(it->second._users, restrictions))) {
@@ -207,6 +223,7 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
                                               uint32_t network_id,
                                               const memory_restricter<uint32_t>& restrictions,
                                               allocation_type type) {
+    const bool feature_aligned = is_feature_aligned(layout);
     auto first_level_cache = _padded_pool.find(layout);
     if (first_level_cache != _padded_pool.end()) {
         for (auto& rec_list : first_level_cache->second) {
@@ -214,9 +231,9 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
             if (rec_list._network_id == network_id &&
                 rec_list._type == type &&
                 ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
-                 (layout.feature() % 32 == 0)) &&
+                 feature_aligned) &&
 #ifdef ENABLE_ONEDNN_FOR_GPU
-                (!format::is_blocked(layout.format) || layout.feature() % 16 == 0 ||
+                (!format::is_blocked(layout.format) || feature_aligned ||
                  mem_layout.feature() == layout.feature()) &&
 #endif // ENABLE_ONEDNN_FOR_GPU
                 // TODO: check if this condition always correct
