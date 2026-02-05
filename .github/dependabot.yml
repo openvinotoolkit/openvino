@@ -143,6 +143,8 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Asia/Dubai"
+    exclude-paths:
+      - ".github/workflows/job_gpu_tests.yml"
     assignees:
       - "akashchi"
       - "mryzhov"
