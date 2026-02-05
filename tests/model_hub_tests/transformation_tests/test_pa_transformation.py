@@ -93,7 +93,8 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
         interesting_input_patterns["adaptive_rkv_diversity_block_set_indices_begins"] = r'^adaptive_rkv_diversity_block_set_indices_begins\.[0-9]+';
 
     if (allow_qq_bias):
-        interesting_input_patterns["qq_bias"] = r'^qq_bias\.[0-9]+';
+        interesting_input_patterns["qq_bias"] = r'^qq_bias$';
+        interesting_input_patterns["qq_bias_begins"] = r'^qq_bias_begins$';
         interesting_input_patterns["block_update_indices"] = r'^block_update_indices$';
         interesting_input_patterns["block_update_indices_begins"] = r'^block_update_indices_begins$';
 
@@ -131,6 +132,10 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
         input_counters.pop("adaptive_rkv_evictable_sizes")
 
     if allow_qq_bias:
+        assert input_counters["qq_bias"] == 1
+        input_counters.pop("qq_bias")
+        assert input_counters["qq_bias_begins"] == 1
+        input_counters.pop("qq_bias_begins")
         assert input_counters["block_update_indices"] == 1
         input_counters.pop("block_update_indices")
         assert input_counters["block_update_indices_begins"] == 1
