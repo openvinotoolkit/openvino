@@ -159,6 +159,68 @@ void Eagle3Extension::update_last_hidden_state(
                        << ": Retrieved last_hidden_state output tensor");
 }
 
+void Eagle3Extension::accumulate_chunk_last_hidden_state(
+    const std::shared_ptr<ov::IAsyncInferRequest>& request,
+    const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports,
+    uint32_t chunk_token_count,
+    uint32_t total_seq_len) {
+    if (m_role == Eagle3ModelRole::None) {
+        return;
+    }
+
+    auto last_hidden_state_it = out_ports.find(Eagle3LayerNames::last_hidden_state);
+    OPENVINO_ASSERT(last_hidden_state_it != out_ports.end(), "Eagle3 model must have last_hidden_state output port");
+
+    auto chunk_output = request->get_tensor(last_hidden_state_it->second);
+    const auto& chunk_shape = chunk_output->get_shape();
+
+    OPENVINO_ASSERT(chunk_shape.size() == 3, "last_hidden_state must have 3 dimensions: [batch, seq_len, hidden_size]");
+
+    const uint32_t batch_size = static_cast<uint32_t>(chunk_shape[0]);
+    const uint32_t chunk_seq_len = static_cast<uint32_t>(chunk_shape[1]);
+    const uint32_t hidden_size = static_cast<uint32_t>(chunk_shape[2]);
+
+    OPENVINO_ASSERT(batch_size == 1, "Batch size must be 1 for Eagle3");
+    OPENVINO_ASSERT(chunk_token_count <= chunk_seq_len, "chunk_token_count must be <= chunk_seq_len");
+
+    // Pre-allocate tensor on first chunk
+    if (!m_last_hidden_state) {
+        m_last_hidden_state = ov::get_tensor_impl(
+            ov::Tensor(chunk_output->get_element_type(), ov::Shape{batch_size, total_seq_len, hidden_size}));
+        m_chunked_seq_offset = 0;
+
+        LOG_VERB("Eagle3: Pre-allocated last_hidden_state tensor with shape=[" << batch_size << "," << total_seq_len
+                                                                               << "," << hidden_size << "]");
+    }
+
+    const auto& target_shape = m_last_hidden_state->get_shape();
+    const uint32_t target_total_len = static_cast<uint32_t>(target_shape[1]);
+
+    OPENVINO_ASSERT(m_chunked_seq_offset + chunk_token_count <= target_total_len,
+                    "Chunked sequence offset exceeds pre-allocated size");
+
+    // Extract only the rightmost chunk_token_count tokens from the output
+    // The chunk_output is right-aligned with padding on the left
+    const uint32_t chunk_start_offset = chunk_seq_len - chunk_token_count;
+    const size_t hidden_elem_size = chunk_output->get_element_type().size();
+    const size_t row_bytes = hidden_size * hidden_elem_size;
+
+    const uint8_t* chunk_ptr = reinterpret_cast<const uint8_t*>(chunk_output->data());
+    chunk_ptr += chunk_start_offset * row_bytes;  // Skip padding, point to valid tokens
+
+    // Copy chunk data directly to the correct position in pre-allocated tensor
+    uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(m_last_hidden_state->data());
+    dst_ptr += m_chunked_seq_offset * row_bytes;  // Move to the current write position
+
+    std::copy_n(chunk_ptr, chunk_token_count * row_bytes, dst_ptr);
+
+    LOG_VERB("Eagle3: Copied chunk [" << chunk_start_offset << ":" << chunk_seq_len << "] to position ["
+                                      << m_chunked_seq_offset << ":" << (m_chunked_seq_offset + chunk_token_count)
+                                      << "], " << chunk_token_count << " tokens");
+
+    m_chunked_seq_offset += chunk_token_count;
+}
+
 void Eagle3Extension::prepare_inputs_for_chunk(
     const std::shared_ptr<ov::IAsyncInferRequest>& request,
     const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
