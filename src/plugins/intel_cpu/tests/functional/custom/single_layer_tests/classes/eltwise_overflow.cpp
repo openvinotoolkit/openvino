@@ -6,6 +6,7 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/subtract.hpp"
 
 namespace ov {
@@ -39,7 +40,8 @@ void EltwiseOverflowLayerCPUTest::SetUp() {
         op = std::make_shared<ov::op::v1::Add>(a, b);
     }
 
-    function = makeNgraphFunction(ov::element::u8, {a, b}, op, "EltwiseOverflow");
+    auto result = std::make_shared<ov::op::v0::Result>(op);
+    function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{a, b}, "EltwiseOverflow");
 }
 
 void EltwiseOverflowLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -50,22 +52,25 @@ void EltwiseOverflowLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& 
 
     const size_t size = ov::shape_size(targetInputStaticShapes[0]);
 
+    // Hardcoded values that guarantee underflow/overflow regardless of shape size.
+    // Pattern repeats to fill any shape.
+    static const std::vector<uint8_t> underflow_a = {3, 0, 1, 5, 10, 0, 100, 50};
+    static const std::vector<uint8_t> underflow_b = {4, 1, 2, 3, 20, 1, 200, 51};
+    // Expected results (wrap): 255, 255, 255, 2, 246, 255, 156, 255
+
+    static const std::vector<uint8_t> overflow_a = {255, 254, 200, 128, 255, 250, 255, 1};
+    static const std::vector<uint8_t> overflow_b = {1, 2, 100, 128, 255, 10, 128, 255};
+    // Expected results (wrap): 0, 0, 44, 0, 254, 4, 127, 0
+
+    const auto& src_a = (overflowKind == EltwiseOverflowKind::UNDERFLOW) ? underflow_a : overflow_a;
+    const auto& src_b = (overflowKind == EltwiseOverflowKind::UNDERFLOW) ? underflow_b : overflow_b;
+
     std::vector<uint8_t> data0(size);
     std::vector<uint8_t> data1(size);
 
-    if (overflowKind == EltwiseOverflowKind::UNDERFLOW) {
-        // u8 subtract underflow: should wrap, not saturate.
-        // E.g., 3 - 4 = 255 (not 0)
-        for (size_t i = 0; i < size; ++i) {
-            data0[i] = static_cast<uint8_t>(i % 10);        // 0-9 repeating
-            data1[i] = static_cast<uint8_t>((i % 10) + 1);  // 1-10 repeating
-        }
-    } else {
-        // u8 add overflow: should wrap (255 + 1 = 0).
-        for (size_t i = 0; i < size; ++i) {
-            data0[i] = static_cast<uint8_t>(250 + (i % 6));  // 250-255 repeating
-            data1[i] = static_cast<uint8_t>((i % 10) + 1);   // 1-10 repeating
-        }
+    for (size_t i = 0; i < size; ++i) {
+        data0[i] = src_a[i % src_a.size()];
+        data1[i] = src_b[i % src_b.size()];
     }
 
     auto t0 = ov::Tensor(ov::element::u8, targetInputStaticShapes[0]);
