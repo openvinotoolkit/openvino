@@ -35,9 +35,9 @@
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
 
-// Macro for conditional debug logging based on OV_DEBUG_QDQ_STRIPPING environment variable
+// Macro for conditional debug logging based on OV_QDQ_DEBUG_LOG environment variable
 #define QDQ_DEBUG_LOG                                                                     \
-    if (static const bool debug = ov::util::getenv_bool("OV_DEBUG_QDQ_STRIPPING"); debug) \
+    if (static const bool debug = ov::util::getenv_bool("OV_QDQ_DEBUG_LOG"); debug) \
     std::cout
 
 // Macro for model visualization dumping
