@@ -71,12 +71,12 @@ protected:
     void update_pipeline_if_memory_changed();
     void update_states_if_memory_changed();
 
-    virtual void updateCommandListForTensor(SyncInferRequest::FoundPort& foundPort,
-                                            const ov::SoPtr<ov::ITensor>& tensor);
+    virtual void update_command_list_for_tensor(SyncInferRequest::FoundPort& foundPort,
+                                                const ov::SoPtr<ov::ITensor>& tensor);
 
-    virtual void updateCommandListForTensors(SyncInferRequest::FoundPort& foundPort,
-                                             const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
-                                             std::optional<size_t> batchSizeCandidate = std::nullopt);
+    virtual void update_command_list_for_tensors(SyncInferRequest::FoundPort& foundPort,
+                                                 const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
+                                                 std::optional<size_t> batchSizeCandidate = std::nullopt);
 
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
     const std::shared_ptr<IGraph> _graph;

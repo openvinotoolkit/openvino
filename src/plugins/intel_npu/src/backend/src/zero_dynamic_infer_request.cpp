@@ -33,8 +33,9 @@ void ZeroDynamicInferRequest::construct_pipeline() {
     _logger.debug("create_pipeline - completed");
 }
 
-void ZeroDynamicInferRequest::updateCommandListForTensor(SyncInferRequest::FoundPort& foundPort,
-                                                         const ov::SoPtr<ov::ITensor>& tensor) {
+void ZeroDynamicInferRequest::update_command_list_for_tensor(SyncInferRequest::FoundPort& foundPort,
+                                                             const ov::SoPtr<ov::ITensor>& tensor) {
+    OV_ITT_TASK_CHAIN(ZERO_SET_TENSOR, itt::domains::LevelZeroBackend, "set_tensor", "update_command_list_for_tensor");
     if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
         auto& levelZeroTensor =
             foundPort.is_input() ? get_level_zero_input(foundPort.idx) : _levelZeroOutputTensors.at(foundPort.idx);
@@ -94,9 +95,13 @@ void ZeroDynamicInferRequest::updateCommandListForTensor(SyncInferRequest::Found
     // If command list updates are not supported, fallback to copying tensors every time.
 }
 
-void ZeroDynamicInferRequest::updateCommandListForTensors(SyncInferRequest::FoundPort& foundPort,
-                                                          const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
-                                                          std::optional<size_t> batchSizeCandidate) {
+void ZeroDynamicInferRequest::update_command_list_for_tensors(SyncInferRequest::FoundPort& foundPort,
+                                                              const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
+                                                              std::optional<size_t> batchSizeCandidate) {
+    OV_ITT_TASK_CHAIN(ZERO_SET_TENSORS,
+                      itt::domains::LevelZeroBackend,
+                      "set_tensors",
+                      "update_command_list_for_tensors");
     if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) && batchSizeCandidate.has_value()) {
         get_level_zero_inputs(foundPort.idx).resize(tensors.size());
 
