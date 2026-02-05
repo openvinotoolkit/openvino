@@ -187,7 +187,7 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
              feature_aligned) &&
 #ifdef ENABLE_ONEDNN_FOR_GPU
             (!format::is_blocked(layout.format) || feature_aligned ||
-             (mem_layout.format == layout.format && mem_layout.feature() == layout.feature())) &&
+             (mem_layout.format == layout.format && mem_layout.feature() % layout.feature() == 0)) &&
 #endif // ENABLE_ONEDNN_FOR_GPU
             !has_conflict(it->second._users, restrictions))) {
             it->second._users.insert(memory_user(MEM_USER(unique_id, network_id, prim_id, layout_bytes_count)));
@@ -234,7 +234,7 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
                  feature_aligned) &&
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 (!format::is_blocked(layout.format) || feature_aligned ||
-                 mem_layout.feature() == layout.feature()) &&
+                 mem_layout.feature() % layout.feature() == 0) &&
 #endif // ENABLE_ONEDNN_FOR_GPU
                 // TODO: check if this condition always correct
                 layout.feature() <= mem_layout.feature() &&
