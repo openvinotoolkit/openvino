@@ -243,14 +243,9 @@ void ov::npuw::IBaseInferRequest::handle_set_remote_input(const ov::Output<const
                 if (::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(
                         static_cast<ze_context_handle_t>(zrh.as<void*>()),
                         tensor->data()) > 0) {
-                    if (tensor->is_continuous()) {
                         // Note: no need for locking as it's internal method that should
                         // only be called from set_tensor()
-                        m_input_allocated.insert(tensor->data());
-                    } else {
-                        LOG_WARN("Strided remote tensor is not supported on the device! Expect worse performance due "
-                                 "to CPU runtime copy.");
-                    }
+                    m_input_allocated.insert(tensor->data());
                 }
             }
         }
