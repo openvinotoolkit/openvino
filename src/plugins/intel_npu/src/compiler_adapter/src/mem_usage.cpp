@@ -5,6 +5,7 @@
 // clang-format off
 
 #include "mem_usage.hpp"
+#include "openvino/core/except.hpp"
 
 #if defined _WIN32
 
@@ -17,7 +18,7 @@
 int64_t intel_npu::get_peak_memory_usage() {
     PROCESS_MEMORY_COUNTERS mem_counters;
     if (!GetProcessMemoryInfo(GetCurrentProcess(), &mem_counters, sizeof(mem_counters))) {
-        throw std::runtime_error("Can't get system memory values");
+        OPENVINO_THROW("Can't get system memory values");
     }
 
     // Linux tracks memory usage in pages and then converts them to kB.
@@ -59,7 +60,7 @@ int64_t intel_npu::get_peak_memory_usage() {
     }
 
     if (!mem_values_found) {
-        throw std::runtime_error("Can't get system memory values");
+        OPENVINO_THROW("Can't get system memory values");
     }
 
     // please note then we calculate difference

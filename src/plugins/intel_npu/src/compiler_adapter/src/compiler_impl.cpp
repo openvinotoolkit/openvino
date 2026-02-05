@@ -407,8 +407,15 @@ VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerIm
 
 VCLCompilerImpl::~VCLCompilerImpl() {
     if (_compilerHandle) {
-        THROW_ON_FAIL_FOR_VCL("vclCompilerDestroy", vclCompilerDestroy(_compilerHandle), _logHandle);
+        vcl_result_t result = vclCompilerDestroy(_compilerHandle);
+        _compilerHandle = nullptr;
+        if (result != VCL_RESULT_SUCCESS) {
+            _logger.warning("Failed to destroy VCL compiler: result 0x%x - %s",
+                            result,
+                            getLatestVCLLog(_logHandle).c_str());
+        }
     }
+
     if (_logHandle) {
         _logHandle = nullptr;  // Log handle is released automatically with the compiler
     }
