@@ -56,8 +56,7 @@ public:
         return result.str();
     }
 
-    std::tuple<void*, size_t> make_blob() {
-        void* blob = nullptr;
+    size_t make_blob() {
         size_t alignedSize = 0;
         // use local zeGraphExt;
         auto localZeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
@@ -74,7 +73,7 @@ public:
         std::memcpy(blob, blobPtr, blobSize);
         localZeGraphExt->destroyGraph(localGraphDescriptor);
 
-        return std::make_tuple(blob, alignedSize);
+        return alignedSize;
     }
 
 protected:
@@ -86,6 +85,7 @@ protected:
         std::tie(targetDevice, configuration, graphExtVersion) = this->GetParam();
 
         model = ov::test::utils::make_multi_single_conv();
+        blob = nullptr;
 
         std::shared_ptr<ZeroInitStructsMock> zeroInitMock = std::make_shared<ZeroInitStructsMock>(graphExtVersion);
         zeroInitStruct = std::reinterpret_pointer_cast<ZeroInitStructsHolder>(zeroInitMock);
@@ -94,6 +94,9 @@ protected:
 
     void TearDown() override {
         zeGraphExt->destroyGraph(graphDescriptor);
+        if (blob) {
+            ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
+        }
     }
 
     void serializeIR() {
@@ -131,6 +134,7 @@ protected:
     GraphDescriptor graphDescriptor;
 
     std::shared_ptr<ov::Model> model;
+    void* blob;
 
     std::string targetDevice;
     std::string blobPath;
@@ -171,10 +175,7 @@ TEST_P(ZeroGraphCompilationTests, GetInitSetArgsDestroyGraphAlignedMemoryIR) {
 }
 
 TEST_P(ZeroGraphTest, GetGraphInitBlob) {
-    void* blob = nullptr;
-    size_t alignedSize = 0;
-
-    OV_ASSERT_NO_THROW(std::tie(blob, alignedSize) = make_blob());
+    size_t alignedSize = make_blob();
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, alignedSize));
 
@@ -183,8 +184,6 @@ TEST_P(ZeroGraphTest, GetGraphInitBlob) {
                            zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
                                                                    ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
     OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
-
-    ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
 }
 
 TEST_P(ZeroGraphTest, GetNetworkMeta) {
@@ -200,10 +199,7 @@ TEST_P(ZeroGraphTest, QueryGraph) {
 }
 
 TEST_P(ZeroGraphTest, GetGraphBinary) {
-    void* blob = nullptr;
-    size_t alignedSize = 0;
-
-    OV_ASSERT_NO_THROW(std::tie(blob, alignedSize) = make_blob());
+    size_t alignedSize = make_blob();
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, alignedSize));
 
@@ -216,8 +212,6 @@ TEST_P(ZeroGraphTest, GetGraphBinary) {
     const uint8_t* blobPtr = nullptr;
     std::vector<uint8_t> blobVec;
     OV_ASSERT_NO_THROW(zeGraphExt->getGraphBinary(graphDescriptor, blobVec, blobPtr, alignedSize));
-
-    ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
 }
 
 TEST_P(ZeroGraphTest, SetGraphArgOnNullBuffer) {
@@ -235,10 +229,7 @@ TEST_P(ZeroGraphTest, SetGraphArgOnNullBuffer) {
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob) {
-    void* blob = nullptr;
-    size_t alignedSize = 0;
-
-    OV_ASSERT_NO_THROW(std::tie(blob, alignedSize) = make_blob());
+    size_t alignedSize = make_blob();
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, alignedSize));
 
@@ -255,15 +246,10 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob) {
                                                                                  false));
 
     OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, buffer->data()));
-
-    ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob) {
-    void* blob = nullptr;
-    size_t alignedSize = 0;
-
-    OV_ASSERT_NO_THROW(std::tie(blob, alignedSize) = make_blob());
+    size_t alignedSize = make_blob();
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, alignedSize));
 
@@ -280,13 +266,10 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob) {
                                                                                  false));
 
     OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, static_cast<char*>(buffer->data()) + 1));
-
-    ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
 }
 
 TEST_P(ZeroGraphTest, SetUnalignedAddressBlob) {
     // create blob -> compile model first
-    void* blob = nullptr;
     void* blobAddressUnaligned = nullptr;
     size_t alignedSize;
     {
@@ -316,13 +299,10 @@ TEST_P(ZeroGraphTest, SetUnalignedAddressBlob) {
                                                                    ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
     OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
     ASSERT_FALSE(zeGraphExt->isBlobDataImported(graphDescriptor));
-
-    ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
 }
 
 TEST_P(ZeroGraphTest, SetUnalignedSizeBlob) {
     // create blob -> compile model first
-    void* blob = nullptr;
     size_t alignedSize;
     size_t unalignedSize;
     {
@@ -353,16 +333,11 @@ TEST_P(ZeroGraphTest, SetUnalignedSizeBlob) {
     OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
 
     ASSERT_FALSE(zeGraphExt->isBlobDataImported(graphDescriptor));
-
-    ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
 }
 
 TEST_P(ZeroGraphTest, SetAlignedBlob) {
     // create blob -> compile model first
-    void* blob = nullptr;
-    size_t alignedSize = 0;
-
-    OV_ASSERT_NO_THROW(std::tie(blob, alignedSize) = make_blob());
+    size_t alignedSize = make_blob();
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, alignedSize));
     uint32_t initCommandQueueOrdinal = 0;
@@ -376,8 +351,6 @@ TEST_P(ZeroGraphTest, SetAlignedBlob) {
     } else {
         ASSERT_FALSE(zeGraphExt->isBlobDataImported(graphDescriptor));
     }
-
-    ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
 }
 
 #ifdef _WIN32
