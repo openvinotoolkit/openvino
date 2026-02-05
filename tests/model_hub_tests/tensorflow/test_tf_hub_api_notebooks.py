@@ -37,10 +37,7 @@ class TestTFHubApiNotebooks(TestConvertModel):
             )
             film_layer = hub.KerasLayer(
                 "https://www.kaggle.com/models/google/film/frameworks/tensorFlow2/variations/film/versions/1")(inputs)
-            # Use 'image' output which is the interpolated frame - the main result of FILM model.
-            # Using list(film_layer.values())[0] is incorrect because dict iteration order
-            # is non-deterministic and may return different outputs (like flow pyramids)
-            # on different runs, causing shape mismatch errors.
+            # Select 'image' output - the interpolated frame
             film_model = tf.keras.Model(inputs=inputs, outputs=film_layer['image'])
             return film_model
         else:
