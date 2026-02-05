@@ -1653,9 +1653,7 @@ void program_node::create_onednn_primitive_attributes(
                     post_ops.append_binary(alg, dnnl::memory::desc(dims, dt, fmt));
                     update_onednn_post_op_list(op_type, dep_idx, fmt, false, dims, dt);
                 } else if (is_type<reduce>()) {
-                    auto mem_desc = std::static_pointer_cast<reduce>(this->desc)->keep_dims
-                                        ? onednn::layout_to_memory_desc_blocked(in, dnnl::memory::format_tag::undef)
-                                        : onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::undef);
+                    auto mem_desc = onednn::layout_to_memory_desc_blocked(in, dnnl::memory::format_tag::undef);
                     post_ops.append_binary(alg, mem_desc);
                     update_onednn_post_op_list(op_type, dep_idx, onednn::convert_data_format(in.format), false,
                             mem_desc.get_dims(), mem_desc.get_data_type());
