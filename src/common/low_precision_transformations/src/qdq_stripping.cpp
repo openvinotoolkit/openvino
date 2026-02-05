@@ -36,71 +36,6 @@ namespace low_precision {
 
 namespace {
 
-// Helper functions for scale_factor management via rt_info
-constexpr const char* SCALE_FACTOR_KEY = "qdq_scale_factor";
-
-float get_scale_factor(const std::shared_ptr<Node>& node) {
-    if (!node)
-        return 1.0f;
-    const auto& rt_info = node->get_rt_info();
-    auto it = rt_info.find(SCALE_FACTOR_KEY);
-    if (it != rt_info.end()) {
-        return it->second.as<float>();
-    }
-    return 1.0f;
-}
-
-void set_scale_factor(const std::shared_ptr<Node>& node, float factor) {
-    if (!node)
-        return;
-    node->get_rt_info()[SCALE_FACTOR_KEY] = factor;
-}
-
-void multiply_scale_factor(const std::shared_ptr<Node>& node, float multiplier) {
-    float current = get_scale_factor(node);
-    set_scale_factor(node, current * multiplier);
-}
-
-// Check if operation is scale-invariant (stops propagation)
-bool is_scale_invariant_op(const std::shared_ptr<Node>& node) {
-    return ov::is_type<ov::op::v0::MVN>(node) || ov::is_type<ov::op::v6::MVN>(node) ||
-           ov::is_type<ov::op::v1::Softmax>(node) || ov::is_type<ov::op::v8::Softmax>(node);
-}
-
-// Check if node is a transparent scale-propagating op (Convert, etc.)
-bool is_transparent_op(const std::shared_ptr<Node>& node) {
-    return ov::is_type<ov::op::v0::Convert>(node);
-}
-
-// Count effective downstream consumers by traversing through transparent ops
-size_t count_effective_consumers(const std::shared_ptr<Node>& node,
-                                 std::unordered_set<std::shared_ptr<Node>>& visited,
-                                 int depth = 0) {
-    if (!node || visited.count(node))
-        return 0;
-    visited.insert(node);
-
-    size_t count = 0;
-    for (auto& output : node->outputs()) {
-        auto target_inputs = output.get_target_inputs();
-        if (target_inputs.empty())
-            continue;
-
-        for (auto& target_input : target_inputs) {
-            auto consumer = target_input.get_node()->shared_from_this();
-            if (is_transparent_op(consumer)) {
-                // Recurse through transparent ops
-                count += count_effective_consumers(consumer, visited, depth + 1);
-            } else {
-                // Found a real consumer
-                count++;
-            }
-        }
-    }
-
-    return count;
-}
-
 // Helper to detect weight dequantization pattern: Convert->Subtract->Multiply
 std::shared_ptr<ov::op::v1::Multiply> find_weight_dequant_multiply(const std::shared_ptr<Node>& node) {
     // Check if this is a Multiply that's part of dequant pattern
@@ -130,11 +65,58 @@ std::shared_ptr<ov::op::v1::Multiply> find_weight_dequant_multiply(const std::sh
     return nullptr;
 }
 
-// Apply scale backward to find operations to adjust
+// Helper to apply scale directly to weight constant or DQ subgraph
+void apply_scale_to_weight(const std::shared_ptr<Node>& weight_node, float scale) {
+    std::cout << "  [ DEBUG ]     Applying scale " << scale << " to " << weight_node->get_friendly_name() << std::endl;
+    
+    // Check if this is a dequantization Multiply - modify its scale constant
+    if (auto multiply = ov::as_type_ptr<ov::op::v1::Multiply>(weight_node)) {
+        std::cout << "  [ DEBUG ]       Modifying existing DQ Multiply scale" << std::endl;
+        // Find the scale constant (typically input 1, but check both)
+        for (size_t i = 0; i < multiply->get_input_size(); ++i) {
+            auto input = multiply->get_input_node_shared_ptr(i);
+            if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(input)) {
+                // This is the scale constant - multiply it by scale
+                auto old_values = constant->cast_vector<float>();
+                std::vector<float> new_values;
+                for (auto val : old_values) {
+                    new_values.push_back(val * scale);
+                }
+                auto new_constant =
+                    ov::op::v0::Constant::create(constant->get_element_type(), constant->get_shape(), new_values);
+                multiply->input(i).replace_source_output(new_constant);
+                std::cout << "  [ DEBUG ]       Updated DQ scale constant" << std::endl;
+                return;
+            }
+        }
+        std::cout << "  [ WARNING ]   Could not find scale constant in DQ Multiply" << std::endl;
+        return;
+    }
+
+    // Otherwise it's a Constant weight - scale it directly
+    if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(weight_node)) {
+        std::cout << "  [ DEBUG ]       Scaling constant weight directly" << std::endl;
+        auto old_values = constant->cast_vector<float>();
+        std::vector<float> new_values;
+        for (auto val : old_values) {
+            new_values.push_back(val * scale);
+        }
+        auto new_constant = ov::op::v0::Constant::create(constant->get_element_type(), constant->get_shape(), new_values);
+        
+        // Replace the constant in the graph
+        for (auto& output : weight_node->outputs()) {
+            for (auto target_input : output.get_target_inputs()) {
+                target_input.replace_source_output(new_constant);
+            }
+        }
+        std::cout << "  [ DEBUG ]       Replaced constant weight" << std::endl;
+    }
+}
+
+// Apply scale backward to find and scale weight operations
 void apply_scale_backward(const std::shared_ptr<Node>& node,
                           float scale_adj,
-                          std::unordered_set<std::shared_ptr<Node>>& visited,
-                          std::vector<std::shared_ptr<Node>>& affected_weights) {
+                          std::unordered_set<std::shared_ptr<Node>>& visited) {
     if (!node || visited.count(node)) {
         if (!node) {
             std::cout << "  [ DEBUG ] apply_scale_backward: nullptr node, returning" << std::endl;
@@ -170,12 +152,10 @@ void apply_scale_backward(const std::shared_ptr<Node>& node,
             
             auto dequant_multiply = find_weight_dequant_multiply(weight_input);
             if (dequant_multiply) {
-                multiply_scale_factor(dequant_multiply, scale_adj);
-                affected_weights.push_back(dequant_multiply);
+                apply_scale_to_weight(dequant_multiply, scale_adj);
                 std::cout << "  [ DEBUG ]     Scaled weight dequant Multiply" << std::endl;
             } else if (ov::is_type<ov::op::v0::Constant>(weight_input)) {
-                multiply_scale_factor(weight_input, scale_adj);
-                affected_weights.push_back(weight_input);
+                apply_scale_to_weight(weight_input, scale_adj);
                 std::cout << "  [ DEBUG ]     Scaled constant weight" << std::endl;
             }
             
@@ -183,8 +163,7 @@ void apply_scale_backward(const std::shared_ptr<Node>& node,
             for (size_t i = 0; i < add_node->get_input_size(); ++i) {
                 auto input = add_node->get_input_node_shared_ptr(i);
                 if (ov::is_type<ov::op::v0::Constant>(input)) {
-                    multiply_scale_factor(input, scale_adj);
-                    affected_weights.push_back(input);
+                    apply_scale_to_weight(input, scale_adj);
                     std::cout << "  [ DEBUG ]     Scaled Add bias constant: " << input->get_friendly_name() << std::endl;
                     break;
                 }
@@ -208,13 +187,11 @@ void apply_scale_backward(const std::shared_ptr<Node>& node,
             // Check for dequantization pattern or constant
             auto dequant_multiply = find_weight_dequant_multiply(input_node);
             if (dequant_multiply) {
-                multiply_scale_factor(dequant_multiply, scale_adj);
-                affected_weights.push_back(dequant_multiply);
+                apply_scale_to_weight(dequant_multiply, scale_adj);
                 std::cout << "  [ DEBUG ]     Found and scaled weight dequant Multiply" << std::endl;
                 found_weight = true;
             } else if (ov::is_type<ov::op::v0::Constant>(input_node)) {
-                multiply_scale_factor(input_node, scale_adj);
-                affected_weights.push_back(input_node);
+                apply_scale_to_weight(input_node, scale_adj);
                 std::cout << "  [ DEBUG ]     Found and scaled constant weight" << std::endl;
                 found_weight = true;
             }
@@ -229,7 +206,7 @@ void apply_scale_backward(const std::shared_ptr<Node>& node,
         // Case 3: MatMul with 2 activations - propagate to input 1
         std::cout << "  [ DEBUG ]   MatMul with 2 activations, propagating to input(1)" << std::endl;
         if (matmul->get_input_size() > 1) {
-            apply_scale_backward(matmul->get_input_node_shared_ptr(1), scale_adj, visited, affected_weights);
+            apply_scale_backward(matmul->get_input_node_shared_ptr(1), scale_adj, visited);
         }
         return;
     }
@@ -243,8 +220,7 @@ void apply_scale_backward(const std::shared_ptr<Node>& node,
             auto input = multiply->get_input_node_shared_ptr(i);
             if (ov::is_type<ov::op::v0::Constant>(input)) {
                 // Case 4: Multiply with constant
-                multiply_scale_factor(input, scale_adj);
-                affected_weights.push_back(input);
+                apply_scale_to_weight(input, scale_adj);
                 std::cout << "  [ DEBUG ]     Found and scaled constant: " << input->get_friendly_name() << std::endl;
                 std::cout << "  [ DEBUG ]   Multiply: Found constant, done" << std::endl;
                 return;
@@ -254,7 +230,7 @@ void apply_scale_backward(const std::shared_ptr<Node>& node,
         // Case 5: Multiply with 2 activations - propagate to input 1
         std::cout << "  [ DEBUG ]   Multiply with 2 activations (no constants found), propagating to input(1)" << std::endl;
         if (multiply->get_input_size() > 1) {
-            apply_scale_backward(multiply->get_input_node_shared_ptr(1), scale_adj, visited, affected_weights);
+            apply_scale_backward(multiply->get_input_node_shared_ptr(1), scale_adj, visited);
         }
         return;
     }
@@ -262,123 +238,10 @@ void apply_scale_backward(const std::shared_ptr<Node>& node,
     // Default: propagate to first input
     std::cout << "  [ DEBUG ]   Default case for node type " << node->get_type_name() << ", propagating to input(0)" << std::endl;
     if (node->get_input_size() > 0) {
-        apply_scale_backward(node->get_input_node_shared_ptr(0), scale_adj, visited, affected_weights);
+        apply_scale_backward(node->get_input_node_shared_ptr(0), scale_adj, visited);
     } else {
         std::cout << "  [ DEBUG ]   No inputs available, stopping" << std::endl;
     }
-}
-
-// Propagate scale forward to collect affected FQ nodes
-void propagate_scale_forward(const std::shared_ptr<Node>& node,
-                             float scale_adj,
-                             std::unordered_set<std::shared_ptr<Node>>& visited,
-                             std::vector<std::shared_ptr<Node>>& affected_fqs,
-                             const std::vector<std::shared_ptr<Node>>& source_weights) {
-    if (!node || visited.count(node))
-        return;
-    visited.insert(node);
-
-    std::cout << "[ DEBUG ] propagate_scale_forward: node=" << node->get_friendly_name()
-              << " type=" << node->get_type_name() << std::endl;
-
-    // Stop at scale-invariant operations
-    if (is_scale_invariant_op(node)) {
-        std::cout << "[ DEBUG ]   Stopped at scale-invariant op" << std::endl;
-        return;
-    }
-
-    if (ov::is_type<ov::op::v0::FakeQuantize>(node)) {
-        // FakeQuantize on activations - scale it and STOP
-        // This FQ will be processed independently in its own iteration
-        multiply_scale_factor(node, scale_adj);
-        affected_fqs.push_back(node);
-        std::cout << "[ DEBUG ]   Scaled downstream FQ: " << node->get_friendly_name()
-                  << " new_scale_factor=" << get_scale_factor(node) << std::endl;
-        std::cout << "[ DEBUG ]   Stopped propagation at downstream FQ" << std::endl;
-        return;
-    }
-
-    if (ov::is_type<ov::op::v1::Add>(node)) {
-        // For Add, need to propagate up through both branches first to ensure consistency
-        // For simplicity, we'll just propagate forward
-        for (auto& output : node->outputs()) {
-            for (auto& target_input : output.get_target_inputs()) {
-                propagate_scale_forward(target_input.get_node()->shared_from_this(),
-                                        scale_adj,
-                                        visited,
-                                        affected_fqs,
-                                        source_weights);
-            }
-        }
-        return;
-    }
-
-    // Continue propagation forward
-    for (auto& output : node->outputs()) {
-        for (auto& target_input : output.get_target_inputs()) {
-            propagate_scale_forward(target_input.get_node()->shared_from_this(),
-                                    scale_adj,
-                                    visited,
-                                    affected_fqs,
-                                    source_weights);
-        }
-    }
-}
-
-// Modify weight scale (for dequant Multiply) or insert new Multiply (for Constant)
-void insert_multiply_on_weight(const std::shared_ptr<Node>& weight_node, float multiplier) {
-    float scale_factor = get_scale_factor(weight_node);
-    if (std::abs(scale_factor - 1.0f) < 1e-6f)
-        return;
-    scale_factor = 1 / scale_factor;
-
-    std::cout << "[ DEBUG ] insert_multiply_on_weight: node=" << weight_node->get_friendly_name()
-              << " type=" << weight_node->get_type_name() << " scale_factor=" << scale_factor << std::endl;
-
-    // Check if this is a dequantization Multiply - modify its scale constant
-    if (auto multiply = ov::as_type_ptr<ov::op::v1::Multiply>(weight_node)) {
-        std::cout << "[ DEBUG ]   Modifying existing dequant Multiply" << std::endl;
-        // Find the scale constant (typically input 1, but check both)
-        for (size_t i = 0; i < multiply->get_input_size(); ++i) {
-            auto input = multiply->get_input_node_shared_ptr(i);
-            if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(input)) {
-                // This is the scale constant - multiply it by scale_factor
-                auto old_values = constant->cast_vector<float>();
-                std::vector<float> new_values;
-                for (auto val : old_values) {
-                    new_values.push_back(val * scale_factor);
-                }
-                auto new_constant =
-                    ov::op::v0::Constant::create(constant->get_element_type(), constant->get_shape(), new_values);
-                multiply->input(i).replace_source_output(new_constant);
-                std::cout << "[ DEBUG ]   Updated dequant scale constant by factor " << scale_factor << std::endl;
-                set_scale_factor(weight_node, 1.0f);
-                return;
-            }
-        }
-        std::cout << "[ WARNING ] Could not find scale constant in dequant Multiply" << std::endl;
-        return;
-    }
-
-    // Otherwise it's an unquantized Constant weight - insert new Multiply
-    if (ov::is_type<ov::op::v0::Constant>(weight_node)) {
-        std::cout << "[ DEBUG ]   Inserting new Multiply for Constant weight" << std::endl;
-        auto mult_const = ov::op::v0::Constant::create(weight_node->get_element_type(), ov::Shape{}, {scale_factor});
-        auto multiply = std::make_shared<ov::op::v1::Multiply>(weight_node, mult_const);
-
-        // Replace all uses of weight_node (except the multiply we just created) with multiply
-        for (auto& output : weight_node->outputs()) {
-            for (auto target_input : output.get_target_inputs()) {
-                if (target_input.get_node()->shared_from_this() != multiply) {
-                    target_input.replace_source_output(multiply);
-                }
-            }
-        }
-        std::cout << "[ DEBUG ]   Inserted new Multiply with factor " << scale_factor << std::endl;
-    }
-
-    // Reset scale factor
-    set_scale_factor(weight_node, 1.0f);
 }
 
 // Helper to get scalar float value from a constant node
@@ -387,36 +250,6 @@ float get_const_float_value(const std::shared_ptr<Node>& node) {
     if (!constant || ov::shape_size(constant->get_shape()) != 1)
         return 0.0f;
     return constant->cast_vector<float>()[0];
-}
-
-// Adjust FakeQuantize intervals by dividing by scale_factor
-void adjust_fq_intervals(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) {
-    float scale_factor = get_scale_factor(fq);
-    if (std::abs(scale_factor - 1.0f) < 1e-6f)
-        return;
-
-    float input_low = get_const_float_value(fq->get_input_node_shared_ptr(1));
-    float input_high = get_const_float_value(fq->get_input_node_shared_ptr(2));
-
-    std::cout << "[ DEBUG ] adjust_fq_intervals: FQ=" << fq->get_friendly_name() << " scale_factor=" << scale_factor
-              << " old_input_range=[" << input_low << ", " << input_high << "]" << std::endl;
-
-    // Adjust input range (divide by scale_factor)
-    input_low /= scale_factor;
-    input_high /= scale_factor;
-
-    // Create new constants
-    auto new_input_low = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {input_low});
-    auto new_input_high = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {input_high});
-
-    // Replace inputs
-    fq->input(1).replace_source_output(new_input_low);
-    fq->input(2).replace_source_output(new_input_high);
-
-    std::cout << "[ DEBUG ]   new_input_range=[" << input_low << ", " << input_high << "]" << std::endl;
-
-    // Reset scale factor
-    set_scale_factor(fq, 1.0f);
 }
 
 }  // namespace
@@ -453,11 +286,9 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
     };
 
     bool model_changed = false;
-    const float threshold = 1.0f;
-    const float ratio = 10.0f;
+    float max_q_scale = 0.0f;
 
-    std::cout << "\n[ INFO ] === QDQ Stripping Pass (threshold=" << threshold << ", ratio=" << ratio
-              << ") ===" << std::endl;
+    std::cout << "\n[ INFO ] === QDQ Stripping Pass ===" << std::endl;
     std::cout << "[ INFO ] Total nodes in graph: " << f->get_ops().size() << std::endl;
     std::cout << "[ INFO ] Levels to strip: ";
     for (auto level : levels_to_strip) {
@@ -465,31 +296,33 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
     }
     std::cout << std::endl;
 
+    NodeVector scale_invariant_nodes;
+    
     // Process each FQ node
     for (const auto& node : f->get_ordered_ops()) {
-        if (transformation_callback(node)) {
+        if (ov::is_type_any_of<ov::op::v0::MVN, ov::op::v6::MVN, ov::op::v1::Softmax, ov::op::v8::Softmax>(node)) {
+            scale_invariant_nodes.push_back(node);
             continue;
         }
+
         auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node);
-        if (!fq) {
+        if (!fq || transformation_callback(node)) {
+            continue;
+        }
+
+        if (!levels_to_strip.count(fq->get_levels())) {
             continue;
         }
 
         std::cout << "\n======== Processing FQ: " << fq->get_friendly_name() << " (levels=" << fq->get_levels() << ") ========" << std::endl;
 
-        if (!levels_to_strip.count(fq->get_levels())) {
-            std::cout << "  [ DEBUG ] Skipped: level not in levels_to_strip" << std::endl;
-            continue;
-        }
-
-        // Step 1: Check if FQ has valid constants (non-degenerate ranges)
+        // Check if FQ has valid constants
         if (!check_fq_constants(fq)) {
             std::cout << "  [ DEBUG ] Skipped: invalid or degenerate FQ constants" << std::endl;
             continue;
         }
 
-        // Step 2: Compute effective scale for this FQ
-        // Get FQ parameters
+        // Compute q_scale for this FQ
         float input_low_val =
             ov::as_type_ptr<ov::op::v0::Constant>(fq->input_value(1).get_node_shared_ptr())->cast_vector<float>()[0];
         float input_high_val =
@@ -501,106 +334,41 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         float input_range = input_high_val - input_low_val;
         float output_range = output_high_val - output_low_val;
 
-        // Compute actual quantization scale using FQ formula
-        // For QDQ-like FQ (where input_range ≈ output_range), this gives the real quantization scale
         size_t levels = fq->get_levels();
         float q_scale = (levels - 1) / input_range;
 
-        float current_scale_factor = get_scale_factor(fq);
-        float effective_scale = q_scale / current_scale_factor;
+        std::cout << "  [ DEBUG ] Input range: [" << input_low_val << ", " << input_high_val << "] = " << input_range << std::endl;
+        std::cout << "  [ DEBUG ] Output range: [" << output_low_val << ", " << output_high_val << "] = " << output_range << std::endl;
+        std::cout << "  [ DEBUG ] Q scale: " << q_scale << " (levels=" << levels << ")" << std::endl;
 
-        std::cout << "  [ DEBUG ] Input range: [" << input_low_val << ", " << input_high_val << "] = " << input_range
-                  << std::endl;
-        std::cout << "  [ DEBUG ] Output range: [" << output_low_val << ", " << output_high_val
-                  << "] = " << output_range << std::endl;
-        std::cout << "  [ DEBUG ] Q scale: " << q_scale << " (levels=" << levels
-                  << "), effective_scale: " << effective_scale << std::endl;
-
-        // Check if this FQ has multiple effective consumers (traversing through transparent ops like Convert)
-        std::unordered_set<std::shared_ptr<Node>> visited_consumers;
-        size_t num_consumers = count_effective_consumers(fq, visited_consumers);
-        bool has_multiple_consumers = num_consumers > 1;
-
-        if (has_multiple_consumers) {
-            std::cout << "  [ DEBUG ] FQ has " << num_consumers << " effective consumers" << std::endl;
+        // Track max q_scale
+        if (q_scale > max_q_scale) {
+            max_q_scale = q_scale;
         }
 
-        // Step 3: Decision based on effective_scale vs threshold
-        if (effective_scale <= threshold) {
-            std::cout << "  [ INFO ] Removing FQ (effective_scale=" << effective_scale << " <= threshold=" << threshold
-                        << "): " << fq->get_friendly_name() << std::endl;
-            OPENVINO_ASSERT(replace_output_update_name(fq->output(0), fq->input_value(0)), "FQ stripping failed");
-            model_changed = true;
-            continue;
-        }
-
-        // Step 4: Adjust scales via propagation
-        // This handles both cases:
-        // 1. effective_scale > threshold: normal scale adjustment needed
-        // 2. effective_scale <= threshold with multiple consumers: use scale adjustment to handle multiple paths
-        std::cout << "  [ INFO ] --- Adjusting FQ (effective_scale=" << effective_scale
-                  << (effective_scale > threshold ? " >= " : " <= ") << "threshold=" << threshold
-                  << "): " << fq->get_friendly_name() << " ---" << std::endl;
-
-        // Calculate scale adjustment
-        float scale_adj = effective_scale / threshold * ratio;
-        std::cout << "  [ INFO ] Scale adjustment: " << scale_adj << std::endl;
-
-        // Apply scale backward to find weight nodes to adjust
-        std::cout << "  [ INFO ] Backward propagation:" << std::endl;
-        std::unordered_set<std::shared_ptr<Node>> visited_backward;
-        std::vector<std::shared_ptr<Node>> affected_weights;
-
-        apply_scale_backward(fq->get_input_node_shared_ptr(0), scale_adj, visited_backward, affected_weights);
-
-        std::cout << "  [ INFO ] Affected weights: " << affected_weights.size() << std::endl;
-
-        // Propagate scale forward to collect affected FQs
-        std::cout << "  [ INFO ] Forward propagation:" << std::endl;
-        std::unordered_set<std::shared_ptr<Node>> visited_forward;
-        std::vector<std::shared_ptr<Node>> affected_fqs;
-
-        for (auto& weight_node : affected_weights) {
-            // Don't clear visited_forward - reuse it to avoid visiting same FQ multiple times
-            propagate_scale_forward(weight_node, scale_adj, visited_forward, affected_fqs, affected_weights);
-        }
-
-        std::cout << "  [ INFO ] Affected downstream FQs: " << affected_fqs.size() << std::endl;
-
-        // If no weights/FQs were affected, we can't compensate - keep the FQ unchanged
-        if (affected_weights.empty() && affected_fqs.empty()) {
-            std::cout << "  [ WARNING ] No compensation possible - keeping FQ unchanged" << std::endl;
-            continue;
-        }
-
-        // Apply physical modifications
-        std::cout << "  [ INFO ] Applying physical modifications:" << std::endl;
-        // 1. Insert Multiply on weights (both dequant Multiply and Constant)
-        for (auto& weight_node : affected_weights) {
-            insert_multiply_on_weight(weight_node, scale_adj);
-        }
-
-        // 2. Adjust FQ intervals for downstream FQs
-        for (auto& affected_node : affected_fqs) {
-            if (auto affected_fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(affected_node)) {
-                adjust_fq_intervals(affected_fq);
-            }
-        }
-
-        // After successfully adjusting scales, remove the FQ since its effect is now distributed
-        std::cout << "  [ INFO ] Removing FQ after scale adjustment (distributed to " << affected_weights.size()
-                  << " weights, " << affected_fqs.size() << " FQs)" << std::endl;
-        OPENVINO_ASSERT(replace_output_update_name(fq->output(0), fq->input_value(0)),
-                        "FQ stripping failed after adjustment");
-
+        // Remove the FQ
+        std::cout << "  [ INFO ] Removing FQ: " << fq->get_friendly_name() << std::endl;
+        OPENVINO_ASSERT(replace_output_update_name(fq->output(0), fq->input_value(0)), "FQ stripping failed");
         model_changed = true;
-        std::cout << "  [ INFO ] ✓ Completed: adjusted and removed FakeQuantize " << fq->get_friendly_name()
-                  << " (effective_scale=" << effective_scale << ", adjustment=" << scale_adj
-                  << ", affected_weights=" << affected_weights.size() << ", affected_fqs=" << affected_fqs.size() << ")"
-                  << std::endl;
         std::cout << "========================================" << std::endl;
     }
 
+    std::cout << "  [ INFO ] Max q_scale across model: " << max_q_scale << std::endl;
+    const auto threshold = 1.f;
+    if (max_q_scale <= threshold) {
+        std::cout << "  [ INFO ] No scale adjustment needed, skipping" << std::endl;
+    }
+
+    if (max_q_scale > threshold && scale_invariant_nodes.empty()) {
+        std::cout << "  [ INFO ] Scale adjustment is needed, but no scale-invariant nodes found, so this stage is skipped" << std::endl;
+    }
+
+    if (max_q_scale > threshold && !scale_invariant_nodes.empty()) {
+        std::cout << "\n======== Applying backward scale adjustment ========" << std::endl;
+        std::cout << "========================================" << std::endl;
+    }
+
+    std::cout << "\n[ INFO ] === QDQ Stripping Pass Completed ===" << std::endl;
     return model_changed;
 }
 
