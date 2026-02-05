@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "gtest/gtest.h"
 #include "openvino/core/model.hpp"
@@ -50,6 +51,12 @@ protected:
 #endif
         return this->PGLink;
     }
+};
+
+class UnicodePathTest : public testing::Test, public ::testing::WithParamInterface<utils::StringPathVariant> {
+protected:
+    std::filesystem::path get_path_param() const;
+    std::filesystem::path fs_path_from_variant() const;
 };
 
 }  // namespace test
