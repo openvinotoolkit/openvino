@@ -443,9 +443,6 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         float input_range = input_high_val - input_low_val;
         float output_range = output_high_val - output_low_val;
 
-        // Check if this is an identity FQ (QDQ-like where input_range ≈ output_range)
-        bool is_identity_fq = std::abs(input_range - output_range) < 1e-4f;
-
         // Compute actual quantization scale using FQ formula
         // For QDQ-like FQ (where input_range ≈ output_range), this gives the real quantization scale
         size_t levels = fq->get_levels();
@@ -459,7 +456,7 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         std::cout << "[ DEBUG ]   Output range: [" << output_low_val << ", " << output_high_val
                   << "] = " << output_range << std::endl;
         std::cout << "[ DEBUG ]   Q scale: " << q_scale << " (levels=" << levels
-                  << "), effective_scale: " << effective_scale << ", identity_fq: " << is_identity_fq << std::endl;
+                  << "), effective_scale: " << effective_scale << std::endl;
 
         // Check if this FQ has multiple effective consumers (traversing through transparent ops like Convert)
         std::unordered_set<std::shared_ptr<Node>> visited_consumers;
@@ -472,30 +469,19 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
 
         // Step 3: Decision based on effective_scale vs threshold
         if (effective_scale <= threshold) {
-            // For FQs with multiple effective consumers, skip removal to avoid inconsistent scale adjustments
-            if (has_multiple_consumers) {
-                std::cout << "[ WARNING ] Skipping FQ with multiple effective consumers (effective_scale="
-                          << effective_scale << ", consumers=" << num_consumers << "): " << fq->get_friendly_name()
-                          << std::endl;
-                continue;
-            }
-
-            // Remove FQ if scale is at or below threshold and it only has one consumer path
             std::cout << "[ INFO ] Removing FQ (effective_scale=" << effective_scale << " <= threshold=" << threshold
-                      << "): " << fq->get_friendly_name() << std::endl;
-            OPENVINO_ASSERT(replace_output_update_name(fq->output(0), fq->input_value(0)), "FQ stripping failed");
-            model_changed = true;
-        } else if (is_identity_fq) {
-            // For identity FQs (QDQ-like), always remove them regardless of scale
-            std::cout << "[ INFO ] Removing identity FQ (input_range ≈ output_range): " << fq->get_friendly_name()
-                      << std::endl;
+                        << "): " << fq->get_friendly_name() << std::endl;
             OPENVINO_ASSERT(replace_output_update_name(fq->output(0), fq->input_value(0)), "FQ stripping failed");
             model_changed = true;
             continue;
         }
 
         // Step 4: Adjust scales via propagation
-        std::cout << "\n[ INFO ] --- Adjusting FQ (effective_scale=" << effective_scale << " >= threshold=" << threshold
+        // This handles both cases:
+        // 1. effective_scale > threshold: normal scale adjustment needed
+        // 2. effective_scale <= threshold with multiple consumers: use scale adjustment to handle multiple paths
+        std::cout << "\n[ INFO ] --- Adjusting FQ (effective_scale=" << effective_scale
+                  << (effective_scale > threshold ? " >= " : " <= ") << "threshold=" << threshold
                   << "): " << fq->get_friendly_name() << " ---" << std::endl;
 
         // Calculate scale adjustment
@@ -507,10 +493,7 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         std::unordered_set<std::shared_ptr<Node>> visited_backward;
         std::vector<std::shared_ptr<Node>> affected_weights;
 
-        if (fq->get_input_size() > 0) {
-            auto input_node = fq->get_input_node_shared_ptr(0);
-            apply_scale_backward(input_node, scale_adj, visited_backward, affected_weights);
-        }
+        apply_scale_backward(fq->get_input_node_shared_ptr(0), scale_adj, visited_backward, affected_weights);
 
         std::cout << "[ INFO ] Affected weights: " << affected_weights.size() << std::endl;
 
