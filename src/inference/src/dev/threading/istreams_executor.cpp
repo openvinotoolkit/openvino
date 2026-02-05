@@ -58,8 +58,7 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
             if (val_i < 0) {
                 OPENVINO_THROW("Wrong value for property key ",
                                ov::inference_num_threads.name(),
-                               ". Expected only non negative integer numbers.",
-                               " Got: ",
+                               ". Expected only non negative integer numbers. Got: ",
                                val_i);
             }
             _threads = val_i;
