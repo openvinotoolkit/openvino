@@ -42,6 +42,9 @@ if(NOT ENABLE_PROFILING_ITT STREQUAL "OFF")
     endif()
 endif()
 
+target_include_directories(${TARGET_NAME} PRIVATE
+    $<TARGET_PROPERTY:openvino::lib_load_unload,INTERFACE_INCLUDE_DIRECTORIES>)
+
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 

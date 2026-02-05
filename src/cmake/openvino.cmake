@@ -52,6 +52,7 @@ target_include_directories(${TARGET_NAME} INTERFACE
 target_link_libraries(${TARGET_NAME}
     PRIVATE openvino::reference
     openvino::shape_inference
+    openvino::lib_load_unload
     openvino::pugixml
     ${CMAKE_DL_LIBS}
     Threads::Threads
