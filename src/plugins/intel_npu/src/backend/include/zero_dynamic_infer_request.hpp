@@ -16,10 +16,6 @@ public:
                                      const std::shared_ptr<const ICompiledModel>& compiledModel,
                                      const Config& config);
 
-    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
-    void set_tensors(const ov::Output<const ov::Node>& port,
-                     const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
-
     void infer_async() override;
 
 protected:
@@ -37,7 +33,12 @@ protected:
                                                 const bool isInput,
                                                 const std::optional<std::size_t> batchSize = std::nullopt) const;
 
-    IODescriptor prepare_io_descriptor_with_user_info(const IODescriptor& descriptor, bool isInput);
+    void updateCommandListForTensor(SyncInferRequest::FoundPort& foundPort,
+                                    const ov::SoPtr<ov::ITensor>& tensor) override;
+
+    void updateCommandListForTensors(SyncInferRequest::FoundPort& foundPort,
+                                     const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
+                                     std::optional<size_t> batchSizeCandidate = std::nullopt) override;
 
     bool _isTensorChanged = false;
 };
