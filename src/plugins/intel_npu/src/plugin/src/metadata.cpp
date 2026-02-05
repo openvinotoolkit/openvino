@@ -254,6 +254,8 @@ void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
 
     writeLayouts(_inputLayouts);
     writeLayouts(_outputLayouts);
+
+    append_padding_blob_size_and_magic(stream);
 }
 
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
