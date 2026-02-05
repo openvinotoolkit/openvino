@@ -33,12 +33,12 @@ protected:
                                                 const bool isInput,
                                                 const std::optional<std::size_t> batchSize = std::nullopt) const;
 
-    void updateCommandListForTensor(SyncInferRequest::FoundPort& foundPort,
-                                    const ov::SoPtr<ov::ITensor>& tensor) override;
+    void update_command_list_for_tensor(SyncInferRequest::FoundPort& foundPort,
+                                        const ov::SoPtr<ov::ITensor>& tensor) override;
 
-    void updateCommandListForTensors(SyncInferRequest::FoundPort& foundPort,
-                                     const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
-                                     std::optional<size_t> batchSizeCandidate = std::nullopt) override;
+    void update_command_list_for_tensors(SyncInferRequest::FoundPort& foundPort,
+                                         const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
+                                         std::optional<size_t> batchSizeCandidate = std::nullopt) override;
 
     bool _isTensorChanged = false;
 };
