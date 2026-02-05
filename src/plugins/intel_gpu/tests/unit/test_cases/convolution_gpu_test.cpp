@@ -12651,3 +12651,152 @@ TEST_P(conv_3d_test_mmad, convolution_gpu_b_fs_zyx_mmad) {
         ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
     }
 }
+
+TEST(convolution_f32_fw_gpu, basic_convolution_1D_stride_no_pad) {
+    //  Filter : 2x3
+    //  Stride : 1x1
+    //  Input  : 4x5
+    //  Output : 2x3
+    //
+    //  Input:
+    //  1  2  3  4  5
+    //  2  2  3  4  6
+    //  3  3  3  5  1
+    //  1  1  1  1  1
+    //
+    //  Filter:
+    //  1  2  1
+    //  2  1  2
+    //
+    //  Output:
+    // 21  28  39
+    // 25  32  31
+    // 18  20  20
+    //
+    //  Bias:
+    //  1
+
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 3, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+
+    set_values(input, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
+    set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
+    set_values(biases, { 1.0f });
+    VVF<float> output_vec = {
+        { 21.0f, 28.0f, 39.0f },
+        { 25.0f, 32.0f, 31.0f },
+        { 18.0f, 20.0f, 20.0f } };
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        data("weights", weights),
+        data("biases", biases),
+        convolution( "conv", input_info("input"), "weights", "biases", 1, {1}, {1}, {0}, {0}, false));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "conv");
+
+    auto output_memory = outputs.at("conv").get_memory();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 3);
+    ASSERT_EQ(x_size, 3);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
+    for (int y = 0; y < y_size; ++y) {
+        for (int x = 0; x < x_size; ++x) {
+            ASSERT_EQ(output_vec[y][x], output_ptr[y * x_size + x]);
+        }
+    }
+}
+
+TEST(convolution_f32_fw_gpu, basic_convolution_1D_stride_2x1_pad) {
+    //  Filter : 2x3
+    //  Stride : 1x1
+    //  Input  : 4x5
+    //  Output : 2x3
+    //
+    //  Input:
+    //  1  2  3  4  5
+    //  2  2  3  4  6
+    //  3  3  3  5  1
+    //  1  1  1  1  1
+    //
+    //  Filter:
+    //  1  2  1
+    //  2  1  2
+    //
+    //  Output:
+    // 21  28  39
+    // 25  32  31
+    // 18  20  20
+    //
+    //  Bias:
+    //  1
+
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 3, 2 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+
+    set_values(input, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
+    set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
+    set_values(biases, { 1.0f });
+    VVF<float> output_vec = {
+        { 1.0f, 1.0f, 1.0f },
+        { 11.0f, 16.0f, 21.0f },
+        { 21.0f, 28.0f, 39.0f },
+        { 25.0f, 32.0f, 31.0f },
+        { 18.0f, 20.0f, 20.0f },
+        { 5.0f,  5.0f,  5.0f },
+        { 1.0f, 1.0f, 1.0f } };
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        data("weights", weights),
+        data("biases", biases),
+        convolution( "conv", input_info("input"), "weights", "biases", 1, {1}, {1}, {2}, {2}, false));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "conv");
+
+    auto output_memory = outputs.at("conv").get_memory();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 7);
+    ASSERT_EQ(x_size, 3);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
+    for (int y = 0; y < y_size; ++y) {
+        for (int x = 0; x < x_size; ++x) {
+            ASSERT_EQ(output_vec[y][x], output_ptr[y * x_size + x]) << output_ptr[y * x_size + x]
+            << " " << output_ptr[y * x_size + x+1]
+            << " " << output_ptr[y * x_size + x+2]
+            ;
+        }
+    }
+}
