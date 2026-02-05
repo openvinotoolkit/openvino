@@ -242,17 +242,19 @@ void DynamicPipeline::push() {
 
         auto& command_lists = _command_lists.at(i);
         auto& graphArguments = command_lists->getBinding();
-        _logger.debug("Inputs info for IRGraph:");
-        for (auto& memType : graphArguments._inputs) {
-            _logger.debug("input: %s", memType.toString().c_str());
+        if (_logger.level() >= ov::log::Level::DEBUG) {
+            _logger.debug("Inputs info for IRGraph:");
+            for (auto& memType : graphArguments._inputs) {
+                _logger.debug("input: %s", memType.toString().c_str());
+            }
+            _logger.debug("Outputs info for IRGraph:");
+            for (auto& memType : graphArguments._outputs) {
+                _logger.debug("output: %s", memType.toString().c_str());
+            }
         }
-        _logger.debug("Outputs info for IRGraph:");
-        for (auto& memType : graphArguments._outputs) {
-            _logger.debug("output: %s", memType.toString().c_str());
-        }
-        // Before call execute, shall clear memref containers in graphArguments to avoid dangling ptrs
-        graphArguments._inputMemRefs.clear();
-        graphArguments._outputMemRefs.clear();
+
+        // L0 wrapper handle closed command list
+        command_lists->resetCommandList();
 
         dynamic_cast<IRGraph*>(_graph.get())
             ->execute(_init_structs,
