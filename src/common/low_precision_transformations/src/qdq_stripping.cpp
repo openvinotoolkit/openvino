@@ -196,7 +196,42 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         auto skip_node_predicate = [](ov::Node* n) {
             return false;
         };
-        const auto scale_adj = 1 / max_q_scale;
+
+        // Allow directly forcing scale_factor via environment variable
+        float scale_factor;
+        auto force_scale_str = ov::util::getenv_string("OV_QDQ_FORCE_SCALE");
+        if (!force_scale_str.empty()) {
+            try {
+                scale_factor = std::stof(force_scale_str);
+                QDQ_DEBUG_LOG << "  [ INFO ] Using scale_factor directly from env: " << scale_factor
+                              << " (original max_q_scale: " << max_q_scale << ")" << std::endl;
+            } catch (const std::exception& e) {
+                QDQ_DEBUG_LOG << "  [ WARNING ] Invalid OV_QDQ_FORCE_SCALE value: " << force_scale_str
+                              << ", falling back to multiplier approach" << std::endl;
+                force_scale_str.clear();
+            }
+        }
+
+        // If not directly set, compute from max_q_scale with optional multiplier
+        if (force_scale_str.empty()) {
+            float max_q_scale_multiplier = 1.0f;
+            auto multiplier_str = ov::util::getenv_string("OV_QDQ_SCALE_MULTIPLIER");
+            if (!multiplier_str.empty()) {
+                try {
+                    max_q_scale_multiplier = std::stof(multiplier_str);
+                    QDQ_DEBUG_LOG << "  [ INFO ] Using max_q_scale multiplier from env: " << max_q_scale_multiplier
+                                  << std::endl;
+                } catch (const std::exception& e) {
+                    QDQ_DEBUG_LOG << "  [ WARNING ] Invalid OV_QDQ_SCALE_MULTIPLIER value: " << multiplier_str
+                                  << ", using default 1.0" << std::endl;
+                }
+            }
+            float adjusted_max_q_scale = max_q_scale * max_q_scale_multiplier;
+            scale_factor = 1 / adjusted_max_q_scale;
+            QDQ_DEBUG_LOG << "  [ INFO ] Adjusted max_q_scale: " << adjusted_max_q_scale
+                          << " (original: " << max_q_scale << " * " << max_q_scale_multiplier << ")" << std::endl;
+            QDQ_DEBUG_LOG << "  [ INFO ] Scale factor: " << scale_factor << std::endl;
+        }
 
         // Lambda to apply scale to weight DQ subgraph
         auto apply_scale_to_weight = [&](const ov::pass::pattern::PatternValueMap& pattern_map,
@@ -211,11 +246,11 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             }
 
             QDQ_DEBUG_LOG << "        [ DEBUG ]     Scaling multiply " << old_multiply->get_friendly_name() << " by "
-                          << scale_adj << std::endl;
+                          << scale_factor << std::endl;
 
             // Create new scaled constant
             auto scale_const =
-                ov::op::v0::Constant::create(original_constant->get_output_element_type(0), {}, {scale_adj});
+                ov::op::v0::Constant::create(original_constant->get_output_element_type(0), {}, {scale_factor});
             auto new_constant = ov::op::util::make_try_fold<ov::op::v1::Multiply>(original_constant, scale_const);
 
             // Create new multiply with the scaled constant
