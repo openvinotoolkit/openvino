@@ -65,10 +65,6 @@ CM_INLINE void Transpose_8x8(matrix_ref<T1, 8, 8> in, matrix_ref<T2, 8, 8> out) 
     }
 }
 
-CM_INLINE uint get_cm_global_id_2nd(uint dim) {
-    return cm_group_id(dim) * cm_local_size(dim) + cm_local_id(dim);
-}
-
 extern "C" _GENX_MAIN_ void KERNEL_NAME(
     half* query [[type("svmptr_t")]],
     KV_ELEMENT_TYPE* key [[type("svmptr_t")]],
@@ -100,11 +96,11 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
     //# Each WG processes a partition, which is KV_PARTITION_SIZE long and multiple of KV_BLOCK_SIZE.
     //# KV_BLOCK_SIZE can be 32/64/128/256, etc.
-    const uint seq_idx = get_cm_global_id_2nd(0);
-    const uint kv_head_num_idx = get_cm_global_id_2nd(1) / Q_head_chunks_per_kv_head;
-    const uint head_num_idx = get_cm_global_id_2nd(1) * Q_head_chunk_size;
+    const uint seq_idx = cm_global_id(0);
+    const uint kv_head_num_idx = cm_global_id(1) / Q_head_chunks_per_kv_head;
+    const uint head_num_idx = cm_global_id(1) * Q_head_chunk_size;
     //# KV_PARTITION_SIZE --> EU thread
-    const uint wg_thread_id = get_cm_global_id_2nd(2);
+    const uint wg_thread_id = cm_global_id(2);
     const uint kv_partition_num = cm_group_count(2);
     const uint kv_partition_idx = cm_group_id(2);
 
