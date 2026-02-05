@@ -109,14 +109,12 @@ void CompiledModel::export_model(std::ostream& stream) const {
                                            std::move(initBlobSizes),
                                            _batchSize,
                                            std::move(inputLayouts),
-                                           std::move(outputLayouts),
-                                           _graph->get_blob_type())
+                                           std::move(outputLayouts))
             .write(stream);
     }
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
-    _logger.debug("Call get_runtime_model");
     ov::ParameterVector parameters;
     ov::ResultVector results;
     std::shared_ptr<const ov::Model> dummyModel;

@@ -96,18 +96,6 @@ Metadata<METADATA_VERSION_2_3>::Metadata(uint64_t blobSize,
     _version = METADATA_VERSION_2_3;
 }
 
-Metadata<METADATA_VERSION_2_4>::Metadata(uint64_t blobSize,
-                                         const std::optional<OpenvinoVersion>& ovVersion,
-                                         const std::optional<std::vector<uint64_t>>& initSizes,
-                                         const std::optional<int64_t> batchSize,
-                                         const std::optional<std::vector<ov::Layout>>& inputLayouts,
-                                         const std::optional<std::vector<ov::Layout>>& outputLayouts,
-                                         BlobType blobType)
-    : Metadata<METADATA_VERSION_2_3>{blobSize, ovVersion, initSizes, batchSize, inputLayouts, outputLayouts},
-      _blobType{blobType} {
-    _version = METADATA_VERSION_2_4;
-}
-
 void MetadataBase::read(std::istream& tensor) {
     _source = Source(tensor);
     read();
@@ -220,11 +208,6 @@ void Metadata<METADATA_VERSION_2_3>::read() {
     _outputLayouts = readNLayouts(numberOfOutputLayouts, "Output");
 }
 
-void Metadata<METADATA_VERSION_2_4>::read() {
-    Metadata<METADATA_VERSION_2_3>::read();
-    read_data_from_source(reinterpret_cast<char*>(&_blobType), sizeof(_blobType));
-}
-
 void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&_version), sizeof(_version));
     _ovVersion.write(stream);
@@ -273,13 +256,6 @@ void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
     writeLayouts(_outputLayouts);
 }
 
-void Metadata<METADATA_VERSION_2_4>::write(std::ostream& stream) {
-    Metadata<METADATA_VERSION_2_3>::write(stream);
-    stream.write(reinterpret_cast<const char*>(&_blobType), sizeof(_blobType));
-
-    append_padding_blob_size_and_magic(stream);
-}
-
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
     uint16_t major = MetadataBase::get_major(version), minor = MetadataBase::get_minor(version);
     if (major != CURRENT_METADATA_MAJOR_VERSION || minor > CURRENT_METADATA_MINOR_VERSION) {
@@ -302,8 +278,6 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
         return std::make_unique<Metadata<METADATA_VERSION_2_2>>(blobSize);
     case METADATA_VERSION_2_3:
         return std::make_unique<Metadata<METADATA_VERSION_2_3>>(blobSize);
-    case METADATA_VERSION_2_4:
-        return std::make_unique<Metadata<METADATA_VERSION_2_4>>(blobSize);
     default:
         return nullptr;
     }
@@ -355,6 +329,7 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
 
     uint32_t metaVersion;
     stream.read(reinterpret_cast<char*>(&metaVersion), sizeof(metaVersion));
+
     std::unique_ptr<MetadataBase> storedMeta;
     try {
         storedMeta = create_metadata(metaVersion, blobDataSize);
@@ -476,14 +451,6 @@ size_t Metadata<METADATA_VERSION_2_3>::get_metadata_size() const {
     }
 
     return metadataSize;
-}
-
-size_t Metadata<METADATA_VERSION_2_4>::get_metadata_size() const {
-    return Metadata<METADATA_VERSION_2_3>::get_metadata_size() + sizeof(_blobType);
-}
-
-BlobType MetadataBase::get_blob_type() const {
-    return BlobType::ELF;  // Default blob type, can be overridden in derived classes
 }
 
 }  // namespace intel_npu

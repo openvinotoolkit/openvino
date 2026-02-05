@@ -11,7 +11,6 @@
 #include <variant>
 #include <vector>
 
-#include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/core/version.hpp"
@@ -59,8 +58,6 @@ public:
      * @returns Batch size. Populated in case of plugin batching.
      */
     virtual std::optional<int64_t> get_batch_size() const;
-
-    virtual BlobType get_blob_type() const;
 
     virtual ~MetadataBase() = default;
 
@@ -140,12 +137,11 @@ constexpr uint32_t METADATA_VERSION_2_0{MetadataBase::make_version(2, 0)};
 constexpr uint32_t METADATA_VERSION_2_1{MetadataBase::make_version(2, 1)};
 constexpr uint32_t METADATA_VERSION_2_2{MetadataBase::make_version(2, 2)};
 constexpr uint32_t METADATA_VERSION_2_3{MetadataBase::make_version(2, 3)};
-constexpr uint32_t METADATA_VERSION_2_4{MetadataBase::make_version(2, 4)};
 
 /**
  * @brief Current metadata version.
  */
-constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_4};
+constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_3};
 
 constexpr uint16_t CURRENT_METADATA_MAJOR_VERSION{MetadataBase::get_major(CURRENT_METADATA_VERSION)};
 constexpr uint16_t CURRENT_METADATA_MINOR_VERSION{MetadataBase::get_minor(CURRENT_METADATA_VERSION)};
@@ -263,7 +259,7 @@ public:
 
     size_t get_metadata_size() const override;
 
-protected:
+private:
     std::optional<std::vector<uint64_t>> _initSizes;
     uint64_t _numberOfInits = 0;
 };
@@ -318,39 +314,6 @@ public:
 private:
     std::optional<std::vector<ov::Layout>> _inputLayouts;
     std::optional<std::vector<ov::Layout>> _outputLayouts;
-};
-
-template <>
-class Metadata<METADATA_VERSION_2_4> : public Metadata<METADATA_VERSION_2_3> {
-public:
-    Metadata(uint64_t blobSize,
-             const std::optional<OpenvinoVersion>& ovVersion = std::nullopt,
-             const std::optional<std::vector<uint64_t>>& initSizes = std::nullopt,
-             const std::optional<int64_t> batchSize = std::nullopt,
-             const std::optional<std::vector<ov::Layout>>& inputLayouts = std::nullopt,
-             const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt,
-             BlobType blobType = BlobType::ELF);
-
-    /**
-     * @details The number of init schedules, along with the size of each init binary object are read in addition to the
-     * information provided by the previous metadata versions.
-     */
-    void read() override;
-
-    /**
-     * @details The number of init schedules, along with the size of each init binary object are written in addition to
-     * the information registered by the previous metadata versions.
-     */
-    void write(std::ostream& stream) override;
-
-    size_t get_metadata_size() const override;
-
-    BlobType get_blob_type() const override {
-        return _blobType;
-    }
-
-protected:
-    BlobType _blobType;
 };
 
 /**
