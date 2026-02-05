@@ -218,20 +218,19 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
                         port_length);
 
         if (port_length > 0) {
+            const auto& port_max_shape = port_partial_shape.get_max_shape();
             for (auto i = 0; i < port_length; ++i) {
-                if (tensor_shape[i] > port_partial_shape.get_max_shape()[i]) {
+                if (tensor_shape[i] > port_max_shape[i]) {
                     OPENVINO_THROW("The tensor shape is not compatible with the model input/output max shape: got ",
                                    tensor_shape,
                                    " expecting max shape ",
-                                   port_partial_shape.get_max_shape());
+                                   port_max_shape);
                 }
             }
         }
     }
 
-    const auto& port_shape = port.get_shape();
-
-    OPENVINO_ASSERT(is_dynamic || port_shape == tensor_shape,
+    OPENVINO_ASSERT(is_dynamic || port_partial_shape == tensor_shape,
                     "The ",
                     tensor_type,
                     " tensor size is not equal to the model ",
@@ -239,7 +238,7 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
                     " type: got ",
                     tensor_shape,
                     " expecting ",
-                    port_shape,
+                    port_partial_shape,
                     ".");
     OPENVINO_ASSERT(
         std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) || tensor->data() != nullptr || is_dynamic,
