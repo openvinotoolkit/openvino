@@ -187,6 +187,12 @@ void quant_u8(const T* src, uint8_t* dst, size_t n, float& scale, float& zp) {
     scale = (max - min) / 255;
     if (scale == 0) {
         scale = 0.0001f;
+#ifdef __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+        // For FP16 in ARM we use FP16 accumulator
+        if constexpr (std::is_same_v<T, ov::float16>) {
+            scale = 0.05f;
+        }
+#endif
     }
     zp = -min / scale;
 #if defined(HAVE_AVX512F)
