@@ -4,6 +4,8 @@
 
 #include "low_precision/qdq_stripping.hpp"
 
+#include <cstdlib>
+#include <filesystem>
 #include <memory>
 #include <queue>
 #include <unordered_set>
@@ -28,6 +30,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/block.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
@@ -36,6 +39,18 @@
 #define QDQ_DEBUG_LOG                                                                     \
     if (static const bool debug = ov::util::getenv_bool("OV_DEBUG_QDQ_STRIPPING"); debug) \
     std::cout
+
+// Macro for model visualization dumping
+#define DUMP_MODEL(folder, filename, stage_desc)                                                                 \
+    if (!folder.empty()) {                                                                                       \
+        try {                                                                                                    \
+            auto dump_path = (std::filesystem::path(folder) / filename).string();                                \
+            ov::pass::VisualizeTree(dump_path).run_on_model(f);                                                  \
+            QDQ_DEBUG_LOG << "[ INFO ] Model dumped to: " << dump_path << std::endl;                             \
+        } catch (const std::exception& e) {                                                                      \
+            QDQ_DEBUG_LOG << "[ WARNING ] Failed to dump " << stage_desc << " model: " << e.what() << std::endl; \
+        }                                                                                                        \
+    }
 
 namespace ov {
 namespace pass {
@@ -74,6 +89,50 @@ float get_const_float_value(const std::shared_ptr<Node>& node) {
     return constant->cast_vector<float>()[0];
 }
 
+// RAII helper to temporarily set environment variables and restore them on destruction
+class EnvVarGuard {
+public:
+    EnvVarGuard(const std::vector<std::pair<std::string, std::string>>& vars_to_set) {
+        for (const auto& [name, value] : vars_to_set) {
+            // Save original value
+            const char* original = std::getenv(name.c_str());
+            m_original_values[name] = original ? std::optional<std::string>(original) : std::nullopt;
+
+            // Set new value
+#ifdef _WIN32
+            _putenv_s(name.c_str(), value.c_str());
+#else
+            setenv(name.c_str(), value.c_str(), 1);
+#endif
+        }
+    }
+
+    ~EnvVarGuard() {
+        // Restore original values
+        for (const auto& [name, original_value] : m_original_values) {
+            if (original_value.has_value()) {
+#ifdef _WIN32
+                _putenv_s(name.c_str(), original_value->c_str());
+#else
+                setenv(name.c_str(), original_value->c_str(), 1);
+#endif
+            } else {
+#ifdef _WIN32
+                _putenv_s(name.c_str(), "");
+#else
+                unsetenv(name.c_str());
+#endif
+            }
+        }
+    }
+
+    EnvVarGuard(const EnvVarGuard&) = delete;
+    EnvVarGuard& operator=(const EnvVarGuard&) = delete;
+
+private:
+    std::unordered_map<std::string, std::optional<std::string>> m_original_values;
+};
+
 }  // namespace
 
 FQStrippingTransformation::FQStrippingTransformation(const std::set<size_t>& levels_to_strip)
@@ -84,6 +143,18 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
     if (levels_to_strip.empty()) {
         return false;
     }
+
+    // Check if model dumping is enabled
+    auto dump_folder = ov::util::getenv_string("OV_QDQ_DUMP_MODEL_DIR");
+    // Set visualization env variables for the duration of model dumping
+    std::unique_ptr<EnvVarGuard> vis_env_guard;
+    if (!dump_folder.empty()) {
+        vis_env_guard = std::make_unique<EnvVarGuard>(
+            std::vector<std::pair<std::string, std::string>>{{"OV_VISUALIZE_TREE_OUTPUT_SHAPES", "1"},
+                                                             {"OV_VISUALIZE_TREE_OUTPUT_TYPES", "1"},
+                                                             {"OV_VISUALIZE_TREE_IO", "1"}});
+    }
+    DUMP_MODEL(dump_folder, "01_initial", "initial");
 
     auto check_fq_constants = [&](const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) -> bool {
         auto is_scalar_const = [](const std::shared_ptr<Node>& node) -> bool {
@@ -179,6 +250,10 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
     }
 
     QDQ_DEBUG_LOG << "  [ INFO ] Max q_scale across model: " << max_q_scale << std::endl;
+
+    // Dump model after FQ removal
+    DUMP_MODEL(dump_folder, "02_after_fq_removal", "after FQ removal");
+
     const auto threshold = 1.f;
     if (max_q_scale <= threshold) {
         QDQ_DEBUG_LOG << "  [ INFO ] No scale adjustment needed, skipping" << std::endl;
@@ -319,6 +394,10 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
     }
 
     QDQ_DEBUG_LOG << "\n[ INFO ] === QDQ Stripping Pass Completed ===" << std::endl;
+
+    // Dump final model
+    DUMP_MODEL(dump_folder, "03_final", "final");
+
     return model_changed;
 }
 
