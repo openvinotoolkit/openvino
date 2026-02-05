@@ -52,8 +52,7 @@ public:
         return std::make_shared<ov::op::v0::FakeQuantize>(input, input_low, input_high, output_low, output_high, 65536);
     }
 
-    ov::Output<ov::Node> build_dq(const ov::Output<ov::Node>& input,
-                                  const ov::element::Type& quantization_precision) const {
+    ov::Output<ov::Node> build_dq(const ov::Output<ov::Node>& input, const ov::element::Type& quantization_precision) const {
         auto act_zero_point = ov::op::v0::Constant::create(quantization_precision, {}, {zero_point});
         auto act_zp_convert = std::make_shared<ov::op::v0::Convert>(act_zero_point, ov::element::f32);
 
@@ -71,8 +70,7 @@ public:
     int zero_point;
 };
 
-class QDQStrippingTest : public testing::WithParamInterface<QDQStrippingParams>,
-                         virtual public ov::test::SubgraphBaseTest {
+class QDQStrippingTest : public testing::WithParamInterface<QDQStrippingParams>, virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<QDQStrippingParams>& obj) {
         const auto& [input_shape, input_precision, quantization_precision, pattern_type] = obj.param;
@@ -82,23 +80,17 @@ public:
         for (const auto& ts : input_shape.second) {
             result << "(" << ov::test::utils::vec2str(ts) << ")_";
         }
-        result << "Precision=" << input_precision
-               << "_QuantPrecision=" << quantization_precision << "_Pattern=" << pattern_type;
+        result << "Precision=" << input_precision << "_QuantPrecision=" << quantization_precision << "_Pattern=" << pattern_type;
         return result.str();
     }
 
 protected:
-    std::shared_ptr<ov::Model> build_shared_dq_pattern(const ov::PartialShape& input_shape,
-                                                       const ov::element::Type& quantization_precision) {
+    std::shared_ptr<ov::Model> build_shared_dq_pattern(const ov::PartialShape& input_shape, const ov::element::Type& quantization_precision) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
-        static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>>
-            quantization_params{
-                {ov::element::Type_t::u16,
-                 {{0.f, 10.f, 0.f, 65535.f, 0}, {-6244.578838348389f, 6347.373962402344f, 0.f, 65535.f, 32500}}},
-                {ov::element::Type_t::i16,
-                 {{-5.f, 5.f, -32768.f, 32767.f, 0},
-                  {-6296.072483062744f, 6295.880317687988f, -32768.f, 32767.f, 0}}},
-            };
+        static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>> quantization_params{
+            {ov::element::Type_t::u16, {{0.f, 10.f, 0.f, 65535.f, 0}, {-6244.578838348389f, 6347.373962402344f, 0.f, 65535.f, 32500}}},
+            {ov::element::Type_t::i16, {{-5.f, 5.f, -32768.f, 32767.f, 0}, {-6296.072483062744f, 6295.880317687988f, -32768.f, 32767.f, 0}}},
+        };
 
         const auto& q_params = quantization_params.at(quantization_precision);
         const auto& qp_1 = q_params.first;
@@ -112,11 +104,9 @@ protected:
             auto input_dequantized = qp_1.build_dq(input_convert2, quantization_precision);
             ov::test::utils::InputGenerateData weights_gen_data;
             weights_gen_data.seed = seed;
-            auto weight_quantized =
-                ov::test::utils::make_constant(ov::element::i8, ov::Shape{32, 3, 3, 3}, weights_gen_data);
+            auto weight_quantized = ov::test::utils::make_constant(ov::element::i8, ov::Shape{32, 3, 3, 3}, weights_gen_data);
             auto weight_convert = std::make_shared<ov::op::v0::Convert>(weight_quantized, ov::element::f32);
-            auto weight_scale =
-                ov::test::utils::make_constant(ov::element::f32, {}, std::vector<float>{weight_scale_value});
+            auto weight_scale = ov::test::utils::make_constant(ov::element::f32, {}, std::vector<float>{weight_scale_value});
             auto weight_dequantized = std::make_shared<ov::op::v1::Multiply>(weight_convert, weight_scale);
 
             auto conv = std::make_shared<ov::op::v1::Convolution>(input_dequantized,
@@ -145,8 +135,7 @@ protected:
         return model;
     }
 
-    std::shared_ptr<ov::Model> build_need_scaling_mul_matmul_pattern(const ov::PartialShape& input_shape,
-                                                                     const ov::element::Type& quantization_precision) {
+    std::shared_ptr<ov::Model> build_need_scaling_mul_matmul_pattern(const ov::PartialShape& input_shape, const ov::element::Type& quantization_precision) {
         auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
         auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
         ov::ParameterVector params{param1, param2};
@@ -167,14 +156,10 @@ protected:
         auto matmul = std::make_shared<ov::op::v0::MatMul>(mul1, mul2, false, true);
 
         // QDQ pattern
-        static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>>
-            quantization_params{
-                {ov::element::Type_t::u16,
-                 {{0.f, 1000.f, 0.f, 65535.f, 0}, {-6244.578838348389f, 6347.373962402344f, 0.f, 65535.f, 32500}}},
-                {ov::element::Type_t::i16,
-                 {{-500.f, 500.f, -32768.f, 32767.f, 0},
-                  {-6296.072483062744f, 6295.880317687988f, -32768.f, 32767.f, 0}}},
-            };
+        static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>> quantization_params{
+            {ov::element::Type_t::u16, {{0.f, 1000.f, 0.f, 65535.f, 0}, {-6244.578838348389f, 6347.373962402344f, 0.f, 65535.f, 32500}}},
+            {ov::element::Type_t::i16, {{-500.f, 500.f, -32768.f, 32767.f, 0}, {-6296.072483062744f, 6295.880317687988f, -32768.f, 32767.f, 0}}},
+        };
 
         const auto& qp = quantization_params.at(quantization_precision).first;
         auto fq = qp.build_fq(matmul);
@@ -189,9 +174,7 @@ protected:
         return model;
     }
 
-    std::shared_ptr<ov::Model> build_need_scaling_residual_block_pattern(
-        const ov::PartialShape& input_shape,
-        const ov::element::Type& quantization_precision) {
+    std::shared_ptr<ov::Model> build_need_scaling_residual_block_pattern(const ov::PartialShape& input_shape, const ov::element::Type& quantization_precision) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
 
         // First convolution with weight DQ
@@ -208,18 +191,21 @@ protected:
                                                                ov::CoordinateDiff{1, 1},
                                                                ov::Strides{1, 1});
 
+        // Bias with DQ for first convolution
+        auto bias1_quantized = ov::op::v0::Constant::create(ov::element::i8, {1, 32, 1, 1}, {10});
+        auto bias1_convert = std::make_shared<ov::op::v0::Convert>(bias1_quantized, ov::element::f32);
+        auto bias1_scale = ov::op::v0::Constant::create(ov::element::f32, {}, {0.001f});
+        auto bias1 = std::make_shared<ov::op::v1::Multiply>(bias1_convert, bias1_scale);
+        auto conv1_biased = std::make_shared<ov::op::v1::Add>(conv1, bias1);
+
         // QDQ pattern after first convolution
-        static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>>
-            quantization_params{
-                {ov::element::Type_t::u16,
-                 {{0.f, 1000.f, 0.f, 65535.f, 0}, {-6244.578838348389f, 6347.373962402344f, 0.f, 65535.f, 32500}}},
-                {ov::element::Type_t::i16,
-                 {{-500.f, 500.f, -32768.f, 32767.f, 0},
-                  {-6296.072483062744f, 6295.880317687988f, -32768.f, 32767.f, 0}}},
-            };
+        static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>> quantization_params{
+            {ov::element::Type_t::u16, {{0.f, 1000.f, 0.f, 65535.f, 0}, {-6244.578838348389f, 6347.373962402344f, 0.f, 65535.f, 32500}}},
+            {ov::element::Type_t::i16, {{-500.f, 500.f, -32768.f, 32767.f, 0}, {-6296.072483062744f, 6295.880317687988f, -32768.f, 32767.f, 0}}},
+        };
 
         const auto& qp = quantization_params.at(quantization_precision).first;
-        auto fq = qp.build_fq(conv1);
+        auto fq = qp.build_fq(conv1_biased);
         auto convert1 = std::make_shared<ov::op::v0::Convert>(fq, quantization_precision);
         auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
         auto dq = qp.build_dq(convert2, quantization_precision);
@@ -228,8 +214,7 @@ protected:
         auto create_residual_block = [&](const ov::Output<ov::Node>& input, size_t seed) {
             auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {3}, {1, 2, 3});
             // Left branch: MVN -> Conv
-            auto mvn =
-                std::make_shared<ov::op::v6::MVN>(input, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
+            auto mvn = std::make_shared<ov::op::v6::MVN>(input, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
 
             ov::test::utils::InputGenerateData weights_gen_data;
             weights_gen_data.seed = seed;
@@ -243,7 +228,15 @@ protected:
                                                                   ov::CoordinateDiff{1, 1},
                                                                   ov::CoordinateDiff{1, 1},
                                                                   ov::Strides{1, 1});
-            return std::make_shared<ov::op::v1::Add>(conv, input);
+
+            // Bias with DQ
+            auto bias_quantized = ov::op::v0::Constant::create(ov::element::i8, {1, 32, 1, 1}, {10});
+            auto bias_convert = std::make_shared<ov::op::v0::Convert>(bias_quantized, ov::element::f32);
+            auto bias_scale = ov::op::v0::Constant::create(ov::element::f32, {}, {0.001f});
+            auto bias = std::make_shared<ov::op::v1::Multiply>(bias_convert, bias_scale);
+            auto conv_biased = std::make_shared<ov::op::v1::Add>(conv, bias);
+
+            return std::make_shared<ov::op::v1::Add>(conv_biased, input);
         };
 
         auto add1 = create_residual_block(dq, 2);
@@ -251,8 +244,7 @@ protected:
         auto add3 = create_residual_block(add2, 4);
 
         auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {3}, {1, 2, 3});
-        auto final_mvn =
-            std::make_shared<ov::op::v6::MVN>(add3, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
+        auto final_mvn = std::make_shared<ov::op::v6::MVN>(add3, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
 
         auto model = std::make_shared<ov::Model>(ov::OutputVector{final_mvn}, params, "QDQStripping");
         return model;
@@ -313,9 +305,7 @@ TEST_P(QDQStrippingTest, Inference) {
 const std::vector<ov::test::InputShape> input_shapes = {{{-1, -1, -1, -1}, {{1, 3, 128, 128}}}};
 const std::vector<ov::element::Type> input_precisions = {ov::element::f32};
 const std::vector<ov::element::Type> quantization_precisions = {ov::element::u16, ov::element::i16};
-const std::vector<PatternType> pattern_types = {PatternType::SharedDQ,
-                                                PatternType::NeedScalingMulMatMul,
-                                                PatternType::NeedScalingResidualBlock};
+const std::vector<PatternType> pattern_types = {PatternType::SharedDQ, PatternType::NeedScalingMulMatMul, PatternType::NeedScalingResidualBlock};
 
 INSTANTIATE_TEST_SUITE_P(smoke_QDQStripping,
                          QDQStrippingTest,
