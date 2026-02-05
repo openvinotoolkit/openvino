@@ -26,6 +26,7 @@
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/block.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
@@ -34,215 +35,32 @@ namespace ov {
 namespace pass {
 namespace low_precision {
 
-namespace {
+class WeightsDequantizationBlock : public ov::pass::pattern::op::Block {
+public:
+    WeightsDequantizationBlock();
+};
 
-// Helper to detect weight dequantization pattern: Convert->Subtract->Multiply
-std::shared_ptr<ov::op::v1::Multiply> find_weight_dequant_multiply(const std::shared_ptr<Node>& node) {
-    // Check if this is a Multiply that's part of dequant pattern
-    auto multiply = ov::as_type_ptr<ov::op::v1::Multiply>(node);
-    if (!multiply)
-        return nullptr;
-
-    // Dequantization Multiply has one input that is Subtract or Convert,
-    // and another input that is a Constant scale factor
-    bool has_subtract_or_convert = false;
-    bool has_constant = false;
-
-    for (size_t i = 0; i < multiply->get_input_size(); ++i) {
-        auto input = multiply->get_input_node_shared_ptr(i);
-        if (ov::is_type<ov::op::v1::Subtract>(input) || ov::is_type<ov::op::v0::Convert>(input)) {
-            has_subtract_or_convert = true;
-        }
-        if (ov::is_type<ov::op::v0::Constant>(input)) {
-            has_constant = true;
-        }
-    }
-
-    // Valid dequant pattern needs both
-    if (has_subtract_or_convert && has_constant) {
-        return multiply;
-    }
-    return nullptr;
-}
-
-// Helper to apply scale directly to weight constant or DQ subgraph
-void apply_scale_to_weight(const std::shared_ptr<Node>& weight_node, float scale) {
-    std::cout << "  [ DEBUG ]     Applying scale " << scale << " to " << weight_node->get_friendly_name() << std::endl;
-    
-    // Check if this is a dequantization Multiply - modify its scale constant
-    if (auto multiply = ov::as_type_ptr<ov::op::v1::Multiply>(weight_node)) {
-        std::cout << "  [ DEBUG ]       Modifying existing DQ Multiply scale" << std::endl;
-        // Find the scale constant (typically input 1, but check both)
-        for (size_t i = 0; i < multiply->get_input_size(); ++i) {
-            auto input = multiply->get_input_node_shared_ptr(i);
-            if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(input)) {
-                // This is the scale constant - multiply it by scale
-                auto old_values = constant->cast_vector<float>();
-                std::vector<float> new_values;
-                for (auto val : old_values) {
-                    new_values.push_back(val * scale);
-                }
-                auto new_constant =
-                    ov::op::v0::Constant::create(constant->get_element_type(), constant->get_shape(), new_values);
-                multiply->input(i).replace_source_output(new_constant);
-                std::cout << "  [ DEBUG ]       Updated DQ scale constant" << std::endl;
-                return;
-            }
-        }
-        std::cout << "  [ WARNING ]   Could not find scale constant in DQ Multiply" << std::endl;
-        return;
-    }
-
-    // Otherwise it's a Constant weight - scale it directly
-    if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(weight_node)) {
-        std::cout << "  [ DEBUG ]       Scaling constant weight directly" << std::endl;
-        auto old_values = constant->cast_vector<float>();
-        std::vector<float> new_values;
-        for (auto val : old_values) {
-            new_values.push_back(val * scale);
-        }
-        auto new_constant = ov::op::v0::Constant::create(constant->get_element_type(), constant->get_shape(), new_values);
-        
-        // Replace the constant in the graph
-        for (auto& output : weight_node->outputs()) {
-            for (auto target_input : output.get_target_inputs()) {
-                target_input.replace_source_output(new_constant);
-            }
-        }
-        std::cout << "  [ DEBUG ]       Replaced constant weight" << std::endl;
-    }
-}
-
-// Apply scale backward to find and scale weight operations
-void apply_scale_backward(const std::shared_ptr<Node>& node,
-                          float scale_adj,
-                          std::unordered_set<std::shared_ptr<Node>>& visited) {
-    if (!node || visited.count(node)) {
-        if (!node) {
-            std::cout << "  [ DEBUG ] apply_scale_backward: nullptr node, returning" << std::endl;
-        } else {
-            std::cout << "  [ DEBUG ] apply_scale_backward: already visited " << node->get_friendly_name() << ", returning" << std::endl;
-        }
-        return;
-    }
-    visited.insert(node);
-
-    std::cout << "  [ DEBUG ] apply_scale_backward: node=" << node->get_friendly_name()
-              << " type=" << node->get_type_name() << " scale_adj=" << scale_adj << std::endl;
-
+WeightsDequantizationBlock::WeightsDequantizationBlock() : Block({}, {}, "WeightsDequantizationBlock") {
     using namespace ov::pass::pattern;
-
-    // Case 1: Convolution + Add (bias) - scale both Add's constant and Conv weights
-    {
-        auto conv_pattern = wrap_type<ov::op::v1::Convolution>();
-        auto add_pattern = wrap_type<ov::op::v1::Add>({conv_pattern, any_input()});
-        auto matcher = std::make_shared<Matcher>(add_pattern, "ConvAddPattern");
-        
-        if (matcher->match(node)) {
-            std::cout << "  [ DEBUG ]   Matched Conv+Add(bias) pattern" << std::endl;
-            auto pattern_map = matcher->get_pattern_value_map();
-            auto conv_node = ov::as_type_ptr<ov::op::v1::Convolution>(pattern_map[conv_pattern].get_node_shared_ptr());
-            auto add_node = ov::as_type_ptr<ov::op::v1::Add>(pattern_map[add_pattern].get_node_shared_ptr());
-            
-            OPENVINO_ASSERT(conv_node && add_node, "Matched Conv+Add pattern but failed to extract nodes");
-            
-            // Scale Conv weights (input 1)
-            auto weight_input = conv_node->get_input_node_shared_ptr(1);
-            std::cout << "  [ DEBUG ]     Conv weight: " << weight_input->get_friendly_name() << std::endl;
-            
-            auto dequant_multiply = find_weight_dequant_multiply(weight_input);
-            if (dequant_multiply) {
-                apply_scale_to_weight(dequant_multiply, scale_adj);
-                std::cout << "  [ DEBUG ]     Scaled weight dequant Multiply" << std::endl;
-            } else if (ov::is_type<ov::op::v0::Constant>(weight_input)) {
-                apply_scale_to_weight(weight_input, scale_adj);
-                std::cout << "  [ DEBUG ]     Scaled constant weight" << std::endl;
-            }
-            
-            // Scale Add's constant (bias)
-            for (size_t i = 0; i < add_node->get_input_size(); ++i) {
-                auto input = add_node->get_input_node_shared_ptr(i);
-                if (ov::is_type<ov::op::v0::Constant>(input)) {
-                    apply_scale_to_weight(input, scale_adj);
-                    std::cout << "  [ DEBUG ]     Scaled Add bias constant: " << input->get_friendly_name() << std::endl;
-                    break;
-                }
-            }
-            return;
-        } else {
-            std::cout << "  [ DEBUG ]   Conv+Add pattern did not match" << std::endl;
-        }
-    }
-
-    // Case 2 & 3: MatMul with constant weights or MatMul with 2 activations
-    if (auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(node)) {
-        std::cout << "  [ DEBUG ]   MatMul node" << std::endl;
-        
-        // Check both inputs for constants/weights
-        bool found_weight = false;
-        for (size_t i = 0; i < matmul->get_input_size(); ++i) {
-            auto input_node = matmul->get_input_node_shared_ptr(i);
-            std::cout << "  [ DEBUG ]     Input " << i << ": " << input_node->get_friendly_name() << std::endl;
-            
-            // Check for dequantization pattern or constant
-            auto dequant_multiply = find_weight_dequant_multiply(input_node);
-            if (dequant_multiply) {
-                apply_scale_to_weight(dequant_multiply, scale_adj);
-                std::cout << "  [ DEBUG ]     Found and scaled weight dequant Multiply" << std::endl;
-                found_weight = true;
-            } else if (ov::is_type<ov::op::v0::Constant>(input_node)) {
-                apply_scale_to_weight(input_node, scale_adj);
-                std::cout << "  [ DEBUG ]     Found and scaled constant weight" << std::endl;
-                found_weight = true;
-            }
-        }
-        
-        // Case 2: Found weight(s) - done
-        if (found_weight) {
-            std::cout << "  [ DEBUG ]   MatMul: Found weights, done" << std::endl;
-            return;
-        }
-        
-        // Case 3: MatMul with 2 activations - propagate to input 1
-        std::cout << "  [ DEBUG ]   MatMul with 2 activations, propagating to input(1)" << std::endl;
-        if (matmul->get_input_size() > 1) {
-            apply_scale_backward(matmul->get_input_node_shared_ptr(1), scale_adj, visited);
-        }
-        return;
-    }
-
-    // Case 4 & 5: Multiply with constant or Multiply with 2 activations
-    if (auto multiply = ov::as_type_ptr<ov::op::v1::Multiply>(node)) {
-        std::cout << "  [ DEBUG ]   Multiply node" << std::endl;
-        
-        // Check for constant input
-        for (size_t i = 0; i < multiply->get_input_size(); ++i) {
-            auto input = multiply->get_input_node_shared_ptr(i);
-            if (ov::is_type<ov::op::v0::Constant>(input)) {
-                // Case 4: Multiply with constant
-                apply_scale_to_weight(input, scale_adj);
-                std::cout << "  [ DEBUG ]     Found and scaled constant: " << input->get_friendly_name() << std::endl;
-                std::cout << "  [ DEBUG ]   Multiply: Found constant, done" << std::endl;
-                return;
-            }
-        }
-        
-        // Case 5: Multiply with 2 activations - propagate to input 1
-        std::cout << "  [ DEBUG ]   Multiply with 2 activations (no constants found), propagating to input(1)" << std::endl;
-        if (multiply->get_input_size() > 1) {
-            apply_scale_backward(multiply->get_input_node_shared_ptr(1), scale_adj, visited);
-        }
-        return;
-    }
-
-    // Default: propagate to first input
-    std::cout << "  [ DEBUG ]   Default case for node type " << node->get_type_name() << ", propagating to input(0)" << std::endl;
-    if (node->get_input_size() > 0) {
-        apply_scale_backward(node->get_input_node_shared_ptr(0), scale_adj, visited);
-    } else {
-        std::cout << "  [ DEBUG ]   No inputs available, stopping" << std::endl;
-    }
+    
+    // Const (quantized weights) -> Convert -> [optional Subtract] -> Multiply (with scale const)
+    auto weights = wrap_type<ov::op::v0::Constant>();
+    auto convert = wrap_type<ov::op::v0::Convert>({weights});
+    
+    auto sub_const = wrap_type<ov::op::v0::Constant>();
+    auto subtract = wrap_type<ov::op::v1::Subtract>({convert, sub_const});
+    
+    // Multiply can have either (subtract, const) or (convert, const) as inputs
+    auto mul_input = subtract | convert;
+    auto mul_const = wrap_type<ov::op::v0::Constant>();
+    auto multiply = wrap_type<ov::op::v1::Multiply>({mul_input, mul_const});
+    
+    m_inputs = ov::OutputVector{weights};
+    m_outputs = ov::OutputVector{multiply};
+    REGISTER_ANCHORS(this, weights, convert, sub_const, subtract, mul_const, multiply);
 }
+
+namespace {
 
 // Helper to get scalar float value from a constant node
 float get_const_float_value(const std::shared_ptr<Node>& node) {
@@ -365,6 +183,97 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
 
     if (max_q_scale > threshold && !scale_invariant_nodes.empty()) {
         std::cout << "\n======== Applying backward scale adjustment ========" << std::endl;
+        std::unordered_set<ov::Node*> visited;
+        auto skip_node_predicate = [](ov::Node* n) {
+            return false;
+        };
+        const auto scale_adj = 1 / max_q_scale;
+        
+        // Lambda to apply scale to weight DQ subgraph
+        auto apply_scale_to_weight = [&](const ov::pass::pattern::PatternValueMap& pattern_map,
+                                          const std::shared_ptr<WeightsDequantizationBlock>& dq_block) {
+            auto mul_const_anchor = dq_block->get_anchor("mul_const", pattern_map);
+            auto original_constant = ov::as_type_ptr<ov::op::v0::Constant>(mul_const_anchor->get_node_shared_ptr());
+            
+            auto multiply_anchor = dq_block->get_anchor("multiply", pattern_map);
+            auto old_multiply = ov::as_type_ptr<ov::op::v1::Multiply>(multiply_anchor->get_node_shared_ptr());
+            
+            auto mul_input_anchor = dq_block->get_anchor("mul_input", pattern_map);
+            auto mul_input = mul_input_anchor->get_node_shared_ptr();
+            
+            std::cout << "        [ DEBUG ]     Scaling multiply " << old_multiply->get_friendly_name() << " by "
+                      << scale_adj << std::endl;
+            
+            // Create new scaled constant
+            auto scale_const = ov::op::v0::Constant::create(original_constant->get_element_type(), {}, {scale_adj});
+            auto new_constant = ov::op::util::make_try_fold<ov::op::v1::Multiply>(original_constant, scale_const);
+            
+            // Create new multiply with the scaled constant
+            auto new_multiply = std::make_shared<ov::op::v1::Multiply>(mul_input, new_constant);
+            
+            ov::replace_node(old_multiply, new_multiply);
+            visited.insert(new_multiply.get());
+            std::cout << "        [ DEBUG ]       Replaced multiply with scaled version" << std::endl;
+        };
+        
+        auto adjust_weights_scale = [&](ov::Node* node) {
+            std::cout << "    [ INFO ] adjust_weights_scale called for node: " << node->get_friendly_name() << std::endl;
+            using namespace ov::pass::pattern;
+            const auto node_shared = node->shared_from_this();
+            // Case 1: Convolution + Add (bias) - scale both Add's constant and Conv weights
+            {
+                auto conv_weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
+                auto conv_pattern = wrap_type<ov::op::v1::Convolution>({any_input(), conv_weights_dq_block});
+                auto bias_dq_block = std::make_shared<WeightsDequantizationBlock>();
+                auto add_pattern = wrap_type<ov::op::v1::Add>({conv_pattern, bias_dq_block});
+                auto matcher = std::make_shared<Matcher>(add_pattern, "ConvAddPattern");
+
+                if (matcher->match(node_shared)) {
+                    std::cout << "        [ INFO ]   Matched Conv+Add(bias) pattern" << std::endl;
+                    auto pattern_map = matcher->get_pattern_value_map();
+                    apply_scale_to_weight(pattern_map, conv_weights_dq_block);
+                    std::cout << "        [ INFO ]     Scaled Conv weights" << std::endl;
+                    apply_scale_to_weight(pattern_map, bias_dq_block);
+                    std::cout << "        [ INFO ]     Scaled Add bias" << std::endl;
+                    return;
+                }
+            }
+
+            // Case 2: MatMul with weights
+            {
+                auto weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
+                auto matmul_pattern = wrap_type<ov::op::v0::MatMul>({any_input(), weights_dq_block});
+                auto matcher = std::make_shared<Matcher>(matmul_pattern, "MatMulPattern");
+
+                if (matcher->match(node_shared)) {
+                    std::cout << "        [ INFO ]   Matched MatMul with weights pattern" << std::endl;
+                    auto pattern_map = matcher->get_pattern_value_map();
+                    apply_scale_to_weight(pattern_map, weights_dq_block);
+                    std::cout << "        [ INFO ]     Scaled MatMul weights" << std::endl;
+                    return;
+                }
+            }
+
+            // Case 3: Multiply with weights
+            {
+                auto weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
+                auto multiply_pattern = wrap_type<ov::op::v1::Multiply>({any_input(), weights_dq_block});
+                auto matcher = std::make_shared<Matcher>(multiply_pattern, "MultiplyPattern");
+
+                if (matcher->match(node_shared)) {
+                    std::cout << "        [ INFO ]   Matched Multiply with weights pattern" << std::endl;
+                    auto pattern_map = matcher->get_pattern_value_map();
+                    apply_scale_to_weight(pattern_map, weights_dq_block);
+                    std::cout << "        [ INFO ]     Scaled Multiply weights" << std::endl;
+                    return;
+                }
+            }
+        };
+        for (const auto& node : scale_invariant_nodes) {
+            std::cout << "  [ INFO ] Processing scale-invariant node: " << node->get_friendly_name()
+                      << " type=" << node->get_type_name() << std::endl;
+            ov::op::util::visit_path(node->get_input_node_ptr(0), visited, adjust_weights_scale, skip_node_predicate);
+        }
         std::cout << "========================================" << std::endl;
     }
 
