@@ -208,9 +208,6 @@ public:
                                          const std::vector<size_t>& strides) const override;
 
     ze_graph_handle_t get_handle() const override;
-    BlobType get_blob_type() override {
-        return BlobType::LLVM;
-    }
 
     void initialize(const Config& config) override;
 

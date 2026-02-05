@@ -16,8 +16,6 @@
 
 namespace intel_npu {
 
-enum class BlobType { ELF, LLVM };
-
 class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
     IGraph() = default;
@@ -46,10 +44,6 @@ public:
 
     virtual const NetworkMetadata& get_metadata() const = 0;
     virtual ze_graph_handle_t get_handle() const = 0;
-    virtual BlobType get_blob_type() {
-        // 0 For ELF
-        return BlobType::ELF;
-    }
 
     virtual void update_network_name(std::string_view name) = 0;
 
