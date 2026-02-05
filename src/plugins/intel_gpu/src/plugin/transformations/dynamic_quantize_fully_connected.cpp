@@ -23,8 +23,7 @@ namespace ov::intel_gpu {
 DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size,
                                                             bool asymmetric,
                                                             bool precomputed_reduction,
-                                                            bool use_gs128_for_int8_per_token,
-                                                            ov::hint::DynamicQuantizationDataType dtype_scheme)
+                                                            bool use_gs128_for_int8_per_token)
     : ov::pass::MatcherPass() {
     using namespace ov::pass::pattern;
     using QuantizationType = ov::op::internal::DynamicQuantize::QuantizationType;
@@ -88,29 +87,20 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         std::vector<uint64_t> shape_group_size(rank, 1);
         shape_group_size.back() = adj_group_size;
 
-        switch (dtype_scheme) {
-            case ov::hint::DynamicQuantizationDataType::INT8:
-                config.quantization_dt = element::i8;
-                break;
-            case ov::hint::DynamicQuantizationDataType::F8E4M3:
-            case ov::hint::DynamicQuantizationDataType::MXF8E4M3:
-                config.quantization_dt = element::f8e4m3;
-                break;
-            case ov::hint::DynamicQuantizationDataType::F8E5M2:
-            case ov::hint::DynamicQuantizationDataType::MXF8E5M2:
-                config.quantization_dt = element::f8e5m2;
-                break;
-            case ov::hint::DynamicQuantizationDataType::F4E2M1:
-            case ov::hint::DynamicQuantizationDataType::MXF4E2M1:
-                config.quantization_dt = element::f4e2m1;
-                break;
-            default:
-                OPENVINO_THROW("Unexpected dtype scheme.");
+        auto weight_dtype = m_fc->get_input_element_type(1);
+        auto scale_dtype = m_fc->get_input_element_type(3);
+        if (weight_dtype.is_integral()) {
+            config.quantization_dt = element::i8;
+        } else if (weight_dtype == element::f8e4m3) {
+            config.quantization_dt = element::f8e4m3;
+        } else if (weight_dtype == element::f8e5m2) {
+            config.quantization_dt = element::f8e5m2;
+        } else if (weight_dtype == element::f4e2m1) {
+            config.quantization_dt = element::f4e2m1;
+        } else {
+            OPENVINO_THROW("Unexpected weight data type: " + weight_dtype.to_string());
         }
-        const bool is_mxfp = cldnn::one_of(dtype_scheme,
-                                           {ov::hint::DynamicQuantizationDataType::MXF8E4M3,
-                                            ov::hint::DynamicQuantizationDataType::MXF8E5M2,
-                                            ov::hint::DynamicQuantizationDataType::MXF4E2M1});
+        const bool is_mxfp = scale_dtype == element::f8e8m0;
 
         config.quantization_type = QuantizationType::Symmetric;
         config.scale_dt = is_mxfp ? element::f8e8m0 : element::f16;

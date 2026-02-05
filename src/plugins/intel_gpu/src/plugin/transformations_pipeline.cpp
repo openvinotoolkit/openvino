@@ -411,14 +411,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
         enableInt8 = config.get_enable_lp_transformations() && is_model_quantized;
         const bool does_model_contain_mxfp_patterns = ov::pass::low_precision::LowPrecision::doesModelContainMXFPPatterns(func);
-        const bool is_mxfp_config = cldnn::one_of(config.get_dynamic_quantization_data_type(),
-                                                  {ov::hint::DynamicQuantizationDataType::MXF4E2M1,
-                                                   ov::hint::DynamicQuantizationDataType::MXF8E4M3,
-                                                   ov::hint::DynamicQuantizationDataType::MXF8E5M2});
-
-        OPENVINO_ASSERT(does_model_contain_mxfp_patterns == is_mxfp_config,
-                        "The model containing MXFP patterns can be run if and only if ov::hint::DynamicQuantizationDataType is configured to MXF* option. "
-                        "Please make sure both conditions are met.");
 
         manager.register_pass<ov::pass::MarkDequantization>(std::vector<ov::element::Type>{ov::element::i8,
                                                                                            ov::element::u8,
@@ -1432,7 +1424,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const bool use_gs128_for_int8_per_token = m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe2
                 && group_dyn_quan_allowed;
 
-            const auto dynamic_quantization_data_type = config.get_dynamic_quantization_data_type();
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
                 const int64_t dyn_quan_bisect = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_bisect(), 0);    // 0 will be ignored from GPU_DEBUG_IF
                 const int64_t dyn_quan_single = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_single(), 0);    // 0 will be ignored from GPU_DEBUG_IF
@@ -1514,8 +1505,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size,
                                                                                     asymmetric_dyn_quant,
                                                                                     precomputed_reduction,
-                                                                                    use_gs128_for_int8_per_token,
-                                                                                    dynamic_quantization_data_type);
+                                                                                    use_gs128_for_int8_per_token);
                 manager.register_pass<ov::intel_gpu::MergeDynamicQuantize>();
             }
         }

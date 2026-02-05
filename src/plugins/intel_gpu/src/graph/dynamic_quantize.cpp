@@ -15,8 +15,8 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(dynamic_quantize);
 
 // We should skip dynamic_quantization execution for 2nd token of LLM because it does not show performance gain.
 // can_be_optimized flag will be turned on from primitive_inst::update_shape function
-static bool should_skip_execution(dynamic_quantize_node const& node, const layout &act_layout) {
-    if (node.get_program().get_config().get_dynamic_quantization_data_type() != ov::hint::DynamicQuantizationDataType::INT8) {
+static bool should_skip_execution(const dynamic_quantize_node& node, const layout& act_layout, const dynamic_quantize::Attributes& attrs) {
+    if (cldnn::data_type_traits::is_floating_point(attrs.quantization_dt)) {
         return false; // TODO: Skipping is disabled because OCL kernels don't support low precision floating point types. Remove this when they do.
     }
 
@@ -73,7 +73,7 @@ std::vector<layout> dynamic_quantize_inst::__calc_output_layouts(const dynamic_q
     std::vector<layout> output_layouts = {  layout(output_shapes[0], attrs.quantization_dt, output_format),
                                             layout(output_shapes[1], attrs.scale_dt, output_format) };
 
-    auto flag_skip_execution = should_skip_execution(node, act_layout);
+    auto flag_skip_execution = should_skip_execution(node, act_layout, attrs);
 
     GPU_DEBUG_TRACE_DETAIL << node.id() << "  should_skip_execution " << flag_skip_execution << std::endl;
 
