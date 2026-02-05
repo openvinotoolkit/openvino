@@ -345,6 +345,11 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         _userOutputTensors.at(foundPort.idx) = tensor;
     }
 
+    updateCommandListForTensor(foundPort, tensor);
+}
+
+void ZeroInferRequest::updateCommandListForTensor(SyncInferRequest::FoundPort& foundPort,
+                                                  const ov::SoPtr<ov::ITensor>& tensor) {
     if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
         auto& levelZeroTensor =
             foundPort.is_input() ? get_level_zero_input(foundPort.idx) : _levelZeroOutputTensors.at(foundPort.idx);
@@ -439,6 +444,12 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
     get_user_inputs(foundPort.idx).resize(tensors.size());
     get_user_inputs(foundPort.idx) = tensors;
 
+    updateCommandListForTensors(foundPort, tensors, batchSizeCandidate);
+}
+
+void ZeroInferRequest::updateCommandListForTensors(SyncInferRequest::FoundPort& foundPort,
+                                                   const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
+                                                   std::optional<size_t> batchSizeCandidate) {
     if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) && batchSizeCandidate.has_value()) {
         get_level_zero_inputs(foundPort.idx).resize(tensors.size());
 
