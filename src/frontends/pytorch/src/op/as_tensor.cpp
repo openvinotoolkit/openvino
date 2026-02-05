@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -43,7 +44,7 @@ OutputVector translate_as_tensor(const NodeContext& context) {
             });
         }
     }
-    if (list_elems.size() > 1 || cast_fw_node(data.get_node_shared_ptr(), "prim::ListConstruct")) {
+    if (list_elems.size() > 1 || ov::as_type_ptr<SequenceMark>(data.get_node_shared_ptr())) {
         auto zero = v0::Constant::create(element::i32, Shape{}, {0});
         std::for_each(list_elems.begin(), list_elems.end(), [&](Output<Node>& n) {
             n = context.mark_node(std::make_shared<v0::Unsqueeze>(n, zero));

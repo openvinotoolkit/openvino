@@ -112,7 +112,7 @@
         "ticket": 159547
     },
     {
-        "error_text": "Failed to connect to github.com port 443: Connection refused",
+        "error_text": "Failed to connect to github.com port 443",
         "ticket": 156593
     },
     {

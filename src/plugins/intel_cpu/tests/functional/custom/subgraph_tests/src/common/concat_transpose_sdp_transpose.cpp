@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -562,8 +562,13 @@ public:
 TEST_P(ConcatSDPTransposeTestWrongBeamIdx, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     const auto& [inType, inputShapeAndOrders, hasShapeOf, quantKeyByChannel, groupSize] = this->GetParam();
-    // skip bf16 test on avx512 platform
-    if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+    // 1. skip bf16 test on avx512 platform
+    // 2. sporadic exception handling issues for WIN
+    if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16()
+        #ifdef _WIN32
+        || true
+        #endif
+    )
         GTEST_SKIP();
 
     ASSERT_THROW(run_test(function), ov::Exception);

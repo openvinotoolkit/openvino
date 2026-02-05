@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,10 @@
 #include "attention.hpp"
 #include "base_sync_infer_request.hpp"
 #include "common.hpp"
+#include "host_flash_attention.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
+#include "moe_transformations/moe_transformation.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
@@ -37,7 +39,13 @@ public:
     ICompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin);
 };
 
+// Forward declarations
 class InferRequest;
+
+namespace moe {
+class MoEExecutor;
+}
+
 class CompiledModel : public ov::npuw::ICompiledModel {
     using DevList = std::vector<std::string>;
     using GetPropertiesMap =
@@ -74,14 +82,21 @@ private:
     friend class FuncMemMgr;
     friend class LLMCompiledModel;
     friend class LLMInferRequest;
+    friend class moe::MoEExecutor;
 
     bool compile_for_success(std::size_t id);
     bool compile_for_device(std::size_t id, const std::string& device_to_try);
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
                                                    const std::string& device);
+    void compile_main_model(std::size_t id, const std::string& device);
+    void compile_moe_models(std::size_t id, const std::string& device);
     void compile_pyramid_attention_models(std::size_t id, const std::string& device);
+    void compile_host_flash_attention_model(std::size_t id, const std::string& device);
 
     void dump_on_fail(std::size_t id, const std::string& device_to_stry, const char* extra);
+    std::string format_subgraph_name(std::size_t id, const std::string& funcall) const;
+    void dump_subgraph_model(std::size_t id, const std::string& funcall, const std::string& dump_sub_opt);
+    void dump_subgraph_composition(const std::vector<ov::npuw::Subgraph>& orderedSubgraphs) const;
 
     void report_io() const;
 
@@ -180,6 +195,9 @@ private:
         std::optional<ov::npuw::compiled::Spatial> spatial;
         std::optional<ov::npuw::compiled::Attention> attention;
         std::optional<ov::npuw::compiled::PyramidAttention> pyramid_attention;
+        std::optional<ov::npuw::compiled::HostFlashAttention> host_flash_attention;
+        std::optional<ov::npuw::compiled::MoEExperts> moe_experts;
+        std::optional<ov::npuw::compiled::MoEDownstream> moe_experts_downstream;
 
         // Infer requests for pyramid attention models (if pyramid_attention is present)
         std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_infer_requests;
@@ -187,6 +205,25 @@ private:
         // Pipeline infer requests for pyramid attention models (if pyramid_attention is present and pipelining is
         // enabled)
         std::vector<ov::SoPtr<ov::IAsyncInferRequest>> pyramid_pipeline_requests;
+
+        // HFA tile model indices for infer request vectors
+        enum HFATileIdx : size_t {
+            REGULAR_TILE = 0,  // Regular tile model (intermediate tiles)
+            FINAL_TILE = 1,    // Final tile model (last tile with division and transpose)
+            COUNT = 2          // Total number of HFA tile models
+        };
+
+        // Infer requests for host flash attention tile models (if host_flash_attention is present)
+        // [REGULAR_TILE]: regular tile model, [FINAL_TILE]: final tile model
+        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> hfa_infer_requests;
+
+        // Pipeline infer requests for host flash attention tile models (if host_flash_attention is present and
+        // pipelining is enabled)
+        std::vector<ov::SoPtr<ov::IAsyncInferRequest>> hfa_pipeline_requests;
+
+        // Infer requests for MoE expert models with different chunk sizes (if moe_experts is present)
+        // Map: chunk_size -> infer_request
+        std::map<size_t, ov::SoPtr<ov::IAsyncInferRequest>> moe_infer_requests;
 
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
         // w.r.t. function calls
@@ -224,7 +261,7 @@ private:
         void serialize(std::ostream& stream, const ov::npuw::s11n::WeightsContext& ctx) const;
         void deserialize(std::istream& stream,
                          const ov::npuw::s11n::WeightsContext& ctx,
-                         const ov::npuw::s11n::PyramidCtx& pyramid_ctx);
+                         const ov::npuw::s11n::SubmodelDeserializeCtx& submodel_ctx);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 

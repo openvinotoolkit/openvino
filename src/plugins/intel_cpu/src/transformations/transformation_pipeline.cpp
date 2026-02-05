@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,7 +75,6 @@
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
-#include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
@@ -91,11 +90,8 @@
 #include "transformations/op_conversions/convert_gather_upgrade.hpp"
 #include "transformations/op_conversions/convert_gelu.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
-#include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
 #include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
-#include "transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp"
-#include "transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp"
 #include "transformations/op_conversions/convert_previous_nms_to_nms_9.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 #include "transformations/op_conversions/convert_roi_align_v3_to_v9.hpp"
@@ -294,6 +290,14 @@
 
 #if defined(OPENVINO_ARCH_ARM)
 #    include "transformations/cpu_opset/arm/pass/mish_decomposition.hpp"
+#endif
+
+#if defined(OPENVINO_ARCH_RISCV64)
+#    include "openvino/op/hsigmoid.hpp"
+#    include "openvino/op/is_finite.hpp"
+#    include "openvino/op/is_inf.hpp"
+#    include "openvino/op/is_nan.hpp"
+#    include "openvino/op/softsign.hpp"
 #endif
 
 #if defined(SNIPPETS_LIBXSMM_TPP)
@@ -627,11 +631,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS3ToNMS9);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS4ToNMS9);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS5ToNMS9);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS9ToNMSIEInternal);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertMulticlassNmsToMulticlassNmsIE);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertMatrixNmsToMatrixNmsIE);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeMatMul);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
@@ -823,18 +822,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
         },
         ov::pass::SoftmaxDecomposition);
-
-    // NMS-alike nodes are always transformed to NMSIEInternal node in case of legacy api, for compatibility.
-    // And on the other hand in case of api 2.0, keep them internal dynamic for better performance and functionality.
-    auto nmsCallback = []([[maybe_unused]] const_node_ptr& node) -> bool {
-        // TODO: remove nmsCallback at all
-        const bool isLegacyApi = false;
-        return !isLegacyApi;
-    };
-
-    CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertNMS9ToNMSIEInternal);
-    CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMulticlassNmsToMulticlassNmsIE);
-    CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMatrixNmsToMatrixNmsIE);
 
     // List of enabled/disabled transformations
 
@@ -1063,15 +1050,7 @@ void Transformations::PostLpt() {
     ov::pass::Manager postLPTPassManager("CPU:PostLPT");
     postLPTPassManager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ConvertBroadcast3);
-    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::UnrollTensorIterator);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ReshapePRelu);
-    CPU_SET_CALLBACK_COMMON(
-        postLPTPassManager,
-        [](const_node_ptr& node) -> bool {
-            // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
-            return node->get_rt_info().count("UNROLL_TI") == 0;
-        },
-        ov::pass::UnrollTensorIterator);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MoveEltwiseUpThroughDataMov);
     CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::MoveEltwiseUpThroughDataMovPerChannel);
     CPU_SET_CALLBACK_COMMON(
@@ -1237,12 +1216,9 @@ void Transformations::MainSnippets() {
     // Config::SnippetsMode::IgnoreCallback
     bool split_m_dimension = !ignoreCallback;
     CommonOptimizations::Config common_optimizations_config(concurrency, split_m_dimension);
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     common_optimizations_config.set_transpose_support_callback(
         ov::snippets::utils::make_transpose_support_callback(true));
-#elif defined(OPENVINO_ARCH_ARM64)
-    common_optimizations_config.set_transpose_support_callback(
-        ov::snippets::utils::make_transpose_support_callback(false));
 #else
     common_optimizations_config.set_transpose_support_callback([](const std::shared_ptr<const ov::Node>&) -> bool {
         return false;
@@ -1322,7 +1298,7 @@ void Transformations::MainSnippets() {
     const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_brgemm;
 #elif defined(OPENVINO_ARCH_ARM64)
     const auto is_infer_prc_supported_by_brgemm =
-        any_of(config.inferencePrecision, ov::element::f32, ov::element::dynamic);
+        any_of(config.inferencePrecision, ov::element::f32, ov::element::f16, ov::element::dynamic);
     const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_brgemm;
 #else
     const bool isMHASupported = false;
@@ -1444,8 +1420,28 @@ void Transformations::MainSnippets() {
         };
         return is_supported(n) || is_supported_with_scalar_inputs(n);
 #elif defined(OPENVINO_ARCH_RISCV64)
-        // Snippets on RISC-V arch are enabled only in tests for now
-        return false;
+        auto is_supported = [](const std::shared_ptr<const ov::Node>& n) {
+            return (ov::is_type_any_of<ov::op::v0::Abs,
+                                       ov::op::v0::Clamp,
+                                       ov::op::v0::Elu,
+                                       ov::op::v0::Erf,
+                                       ov::op::v0::Exp,
+                                       ov::op::v0::Floor,
+                                       ov::op::v0::Gelu,
+                                       ov::op::v5::HSigmoid,
+                                       ov::op::v4::HSwish,
+                                       ov::op::v10::IsFinite,
+                                       ov::op::v10::IsInf,
+                                       ov::op::v10::IsNaN,
+                                       ov::op::v4::Mish,
+                                       ov::op::v0::Negative,
+                                       ov::op::v0::Relu,
+                                       ov::op::v0::Sigmoid,
+                                       ov::op::v9::SoftSign,
+                                       ov::op::v0::Sqrt,
+                                       ov::op::v0::Tanh>(n));
+        };
+        return is_supported(n);
 #else
         // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
         // and CPU Plugin does not support Mish for x64

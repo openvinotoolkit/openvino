@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,6 +39,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/weightless_properties_utils.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/weights_path.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
@@ -164,8 +165,8 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
 
     std::string dump_path = GPU_DEBUG_VALUE_OR(config_copy.get_dump_graphs_path(), "");
     GPU_DEBUG_IF(!dump_path.empty()) {
-        auto path_base = dump_path + "/" + cloned_model->get_name();
-        ov::pass::VisualizeTree(path_base + ".svg").run_on_model(cloned_model);
+        auto path_base = ov::util::make_path(dump_path) / (cloned_model->get_name() + ".svg");
+        ov::pass::VisualizeTree(path_base).run_on_model(cloned_model);
     }
 
     // Set weightless cache attribute only for non IR (e.g. onnxruntime) models
@@ -193,8 +194,8 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
     }
 
     GPU_DEBUG_IF(!dump_path.empty()) {
-        auto path_base = dump_path + "/" + cloned_model->get_name() + "_" +  "transformed_func";
-        ov::pass::VisualizeTree(path_base + ".svg").run_on_model(cloned_model);
+        auto path_base = std::filesystem::path(dump_path) / (cloned_model->get_name() + "_" + "transformed_func.svg");
+        ov::pass::VisualizeTree(path_base).run_on_model(cloned_model);
     }
     return cloned_model;
 }
@@ -709,6 +710,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::hint::enable_sdpa_optimization.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::hint::enable_lora_operation.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::intel_gpu::hint::enable_large_allocations.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::disable_winograd_convolution.name(), PropertyMutability::RW},
         ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RW},

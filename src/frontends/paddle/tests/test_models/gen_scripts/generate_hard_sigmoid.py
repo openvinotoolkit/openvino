@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -24,7 +24,7 @@ def hard_sigmoid(name: str, x, slope: float = 0.2, offset: float = 0.5, data_typ
 
         outs = exe.run(
             feed={'x': x},
-            fetch_list=[out])             
+            fetch_list=[out])
 
         saveModel(name, exe, feed_vars=[node_x], fetchlist=[out],
                   inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])

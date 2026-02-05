@@ -1,10 +1,11 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "llm_compiled_model_utils.hpp"
 
 #include <regex>
+#include <transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp>
 
 #include "logging.hpp"
 #include "openvino/op/ops.hpp"
@@ -70,22 +71,25 @@ protected:
     }
 };
 
-// llama2 pattern for value tensor concate
-class TransposeValueTensors_llama2 : public TransposeValueTensors {
+// MHA (Multi-Head Attention) pattern for value tensor concatenation
+class TransposeValueTensors_MHA : public TransposeValueTensors {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeValueTensors_llama2");
-    TransposeValueTensors_llama2(Context::Ref ctx) {
-        register_matcher_llama2(ctx);
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeValueTensors_MHA");
+    TransposeValueTensors_MHA(Context::Ref ctx) {
+        register_matcher_mha(ctx);
     }
 
 private:
-    void register_matcher_llama2(Context::Ref ctx) {
+    void register_matcher_mha(Context::Ref ctx) {
         auto param = opp::wrap_type<ov::op::v0::Parameter>();
         auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
         auto convert = opp::optional<ov::op::v0::Convert>({param->output(0)});
         auto concat = opp::wrap_type<ov::op::v0::Concat>({convert, transpose});
         auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
-        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, concat});
+        // Softmax output maybe sliced when SDPA with sink input is decomposed
+        auto maybe_slice = opp::optional<ov::op::v8::Slice>(
+            {softmax, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
+        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({maybe_slice, concat});
 
         auto callback = [=](ov::pass::pattern::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
@@ -100,23 +104,24 @@ private:
                                matched_node_concat,
                                matched_node_transpose,
                                matched_node_matmul);
-            LOG_DEBUG("vtensors transposed: LLama2 pattern");
+            LOG_DEBUG("vtensors transposed: MHA pattern");
             return true;
         };
-        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeValueTensors_llama2"), std::move(callback));
+        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeValueTensors_MHA"), std::move(callback));
     }
 };
 
-// llama3, phi3, mistral, etc, concate value tensors with broadcasting
-class TransposeValueTensors_llama3 : public TransposeValueTensors {
+// GQA (Grouped Query Attention) pattern for value tensors with broadcasting
+// Used by llama3, phi3, mistral, GPT-OSS, etc.
+class TransposeValueTensors_GQA : public TransposeValueTensors {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeValueTensors_llama3");
-    TransposeValueTensors_llama3(Context::Ref ctx) {
-        register_matcher_llama3(ctx);
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeValueTensors_GQA");
+    TransposeValueTensors_GQA(Context::Ref ctx) {
+        register_matcher_gqa(ctx);
     }
 
 private:
-    void register_matcher_llama3(Context::Ref ctx) {
+    void register_matcher_gqa(Context::Ref ctx) {
         auto param = opp::wrap_type<ov::op::v0::Parameter>();
         auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
         auto convert = opp::optional<ov::op::v0::Convert>({param->output(0)});
@@ -130,7 +135,10 @@ private:
 
         // v8 softmax? what? can be other softmaxes
         auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
-        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, reshape});
+        // Softmax output maybe sliced when SDPA with sink input is decomposed (e.g. GPT-OSS)
+        auto maybe_slice = opp::optional<ov::op::v8::Slice>(
+            {softmax, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
+        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({maybe_slice, reshape});
 
         auto callback = [=](ov::pass::pattern::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
@@ -176,10 +184,10 @@ private:
             matched_reshape->input(1).replace_source_output(reshape_axes_node);
 
             transpose_matmul_b(ctx, matched_param, matched_concat, matched_transpose, matched_matmul);
-            LOG_DEBUG("vtensors transposed: LLama3 pattern");
+            LOG_DEBUG("vtensors transposed: GQA pattern");
             return true;
         };
-        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeValueTensors_llama3"), std::move(callback));
+        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeValueTensors_GQA"), std::move(callback));
     }
 };
 
@@ -508,10 +516,28 @@ bool ov::npuw::util::has_input(const std::shared_ptr<ov::Model>& model, const st
 
 bool ov::npuw::util::optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill) {
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ScaledDotProductAttentionDecomposition>(isPrefill);
+
+    // Check if any SDPA has sink input
+    bool has_sdpa_with_sink = false;
+    for (const auto& op : model->get_ops()) {
+        if (auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(op)) {
+            if (sdpa->get_input_size() == 6) {
+                has_sdpa_with_sink = true;
+                break;
+            }
+        }
+    }
+
+    if (has_sdpa_with_sink) {
+        // TODO:  evaluate performance by older npu-drivers
+        rewr.add_matcher<ov::pass::ScaledDotProductAttentionDecomposition>();
+    } else {
+        rewr.add_matcher<ScaledDotProductAttentionDecomposition>(isPrefill);
+    }
+
     TransposeValueTensors::Context ctx;
-    rewr.add_matcher<TransposeValueTensors_llama2>(std::ref(ctx));
-    rewr.add_matcher<TransposeValueTensors_llama3>(std::ref(ctx));
+    rewr.add_matcher<TransposeValueTensors_MHA>(std::ref(ctx));
+    rewr.add_matcher<TransposeValueTensors_GQA>(std::ref(ctx));
     rewr.run_on_model(model);
 
     ov::pass::Validate().run_on_model(model);

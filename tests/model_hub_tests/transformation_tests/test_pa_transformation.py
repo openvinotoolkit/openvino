@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from huggingface_hub import snapshot_download
@@ -14,6 +14,7 @@ import models_hub_common.utils as utils
 from sdpa2pa_ref_diff import ref_diff_map, ref_diff_map_optimizations, nodes_to_compare
 import pytest
 import os
+import platform
 import re
 
 def apply_transformation_and_compare_diffs(ov_model: ov.Model,
@@ -58,7 +59,7 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
                 shape = input.get_partial_shape()
                 for i in range(shape.rank.get_length()):
                     # PagedAttention uses key_cache and value_cache inputs with all 4 dims being dynamic
-                    assert shape[i].is_dynamic, "Dimension {i} of input '{name}' in '{model_id}' is not dynamic: {shape}" 
+                    assert shape[i].is_dynamic, "Dimension {i} of input '{name}' in '{model_id}' is not dynamic: {shape}"
 
     interesting_input_patterns = {}
     interesting_output_patterns = {}
@@ -190,6 +191,8 @@ def test_pa_precommit(tmp_path, model_info_tuple, ie_device, use_optimizations):
     model_class, model_name, model_link, mark, reason = model_info_tuple
     assert mark is None or mark == 'skip' or mark == 'xfail', \
         "Incorrect test case: {}, {}".format(model_name, model_link)
+    if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+        pytest.skip("PagedAttention tests are not enabled on ARM")
     if mark == 'skip':
         pytest.skip(reason)
     elif mark == 'xfail':
