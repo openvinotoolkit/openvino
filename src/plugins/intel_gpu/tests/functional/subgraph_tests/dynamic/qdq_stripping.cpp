@@ -85,6 +85,37 @@ public:
     }
 
 protected:
+    ov::Output<ov::Node> build_dq_subgraph(ov::element::Type quantized_type,
+                                           const ov::Shape& shape,
+                                           float scale_value,
+                                           int zero_point = 0,
+                                           std::optional<size_t> seed = std::nullopt,
+                                           std::optional<std::vector<int>> constant_values = std::nullopt) {
+        std::shared_ptr<ov::Node> quantized_const;
+
+        if (seed.has_value()) {
+            ov::test::utils::InputGenerateData gen_data;
+            gen_data.seed = seed.value();
+            quantized_const = ov::test::utils::make_constant(quantized_type, shape, gen_data);
+        } else if (constant_values.has_value()) {
+            quantized_const = ov::test::utils::make_constant(quantized_type, shape, constant_values.value());
+        } else {
+            // Default: single value 10
+            quantized_const = ov::op::v0::Constant::create(quantized_type, shape, {10});
+        }
+
+        auto convert = std::make_shared<ov::op::v0::Convert>(quantized_const, ov::element::f32);
+
+        auto zp_quantized = ov::op::v0::Constant::create(quantized_type, {}, {zero_point});
+        auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp_quantized, ov::element::f32);
+        std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v1::Subtract>(convert, zp_convert);
+
+        auto scale = ov::op::v0::Constant::create(ov::element::f32, {}, {scale_value});
+        result = std::make_shared<ov::op::v1::Multiply>(result, scale);
+
+        return result;
+    }
+
     std::shared_ptr<ov::Model> build_shared_dq_pattern(const ov::PartialShape& input_shape, const ov::element::Type& quantization_precision) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
         static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>> quantization_params{
@@ -141,13 +172,7 @@ protected:
         ov::ParameterVector params{param1, param2};
 
         // Weight DQ pattern: quantized constant -> convert -> subtract (zero point) -> multiply (scale)
-        auto weight_quantized = ov::op::v0::Constant::create(ov::element::i8, {}, {100});
-        auto weight_convert = std::make_shared<ov::op::v0::Convert>(weight_quantized, ov::element::f32);
-        auto weight_zp_quantized = ov::op::v0::Constant::create(ov::element::i8, {}, {10});
-        auto weight_zp_convert = std::make_shared<ov::op::v0::Convert>(weight_zp_quantized, ov::element::f32);
-        auto weight_subtract = std::make_shared<ov::op::v1::Subtract>(weight_convert, weight_zp_convert);
-        auto weight_scale = ov::op::v0::Constant::create(ov::element::f32, {}, {0.001f});
-        auto common_constant = std::make_shared<ov::op::v1::Multiply>(weight_subtract, weight_scale);
+        auto common_constant = build_dq_subgraph(ov::element::i8, {}, 0.001f, 10, std::nullopt, std::vector<int>{100});
 
         // param1 * common_constant
         auto mul1 = std::make_shared<ov::op::v1::Multiply>(param1, common_constant);
@@ -181,12 +206,7 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
 
         // First convolution with weight DQ
-        ov::test::utils::InputGenerateData weights1_gen_data;
-        weights1_gen_data.seed = 1;
-        auto weight1_quantized = ov::test::utils::make_constant(ov::element::i8, ov::Shape{32, 3, 3, 3}, weights1_gen_data);
-        auto weight1_convert = std::make_shared<ov::op::v0::Convert>(weight1_quantized, ov::element::f32);
-        auto weight1_scale = ov::op::v0::Constant::create(ov::element::f32, {}, {0.01f});
-        auto weight1 = std::make_shared<ov::op::v1::Multiply>(weight1_convert, weight1_scale);
+        auto weight1 = build_dq_subgraph(ov::element::i8, ov::Shape{32, 3, 3, 3}, 0.01f, 0, 1);
         auto conv1 = std::make_shared<ov::op::v1::Convolution>(params[0],
                                                                weight1,
                                                                ov::Strides{1, 1},
@@ -195,10 +215,7 @@ protected:
                                                                ov::Strides{1, 1});
 
         // Bias with DQ for first convolution
-        auto bias1_quantized = ov::op::v0::Constant::create(ov::element::i8, {1, 32, 1, 1}, {10});
-        auto bias1_convert = std::make_shared<ov::op::v0::Convert>(bias1_quantized, ov::element::f32);
-        auto bias1_scale = ov::op::v0::Constant::create(ov::element::f32, {}, {0.001f});
-        auto bias1 = std::make_shared<ov::op::v1::Multiply>(bias1_convert, bias1_scale);
+        auto bias1 = build_dq_subgraph(ov::element::i8, {1, 32, 1, 1}, 0.001f, 0);
         auto conv1_biased = std::make_shared<ov::op::v1::Add>(conv1, bias1);
 
         // QDQ pattern after first convolution
@@ -219,12 +236,7 @@ protected:
             // Left branch: MVN -> Conv
             auto mvn = std::make_shared<ov::op::v6::MVN>(input, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
 
-            ov::test::utils::InputGenerateData weights_gen_data;
-            weights_gen_data.seed = seed;
-            auto weight_quantized = ov::test::utils::make_constant(ov::element::i8, ov::Shape{32, 32, 3, 3}, weights_gen_data);
-            auto weight_convert = std::make_shared<ov::op::v0::Convert>(weight_quantized, ov::element::f32);
-            auto weight_scale = ov::op::v0::Constant::create(ov::element::f32, {}, {0.01f});
-            auto weight = std::make_shared<ov::op::v1::Multiply>(weight_convert, weight_scale);
+            auto weight = build_dq_subgraph(ov::element::i8, ov::Shape{32, 32, 3, 3}, 0.01f, 0, seed);
             auto conv = std::make_shared<ov::op::v1::Convolution>(mvn,
                                                                   weight,
                                                                   ov::Strides{1, 1},
@@ -233,10 +245,7 @@ protected:
                                                                   ov::Strides{1, 1});
 
             // Bias with DQ
-            auto bias_quantized = ov::op::v0::Constant::create(ov::element::i8, {1, 32, 1, 1}, {10});
-            auto bias_convert = std::make_shared<ov::op::v0::Convert>(bias_quantized, ov::element::f32);
-            auto bias_scale = ov::op::v0::Constant::create(ov::element::f32, {}, {0.001f});
-            auto bias = std::make_shared<ov::op::v1::Multiply>(bias_convert, bias_scale);
+            auto bias = build_dq_subgraph(ov::element::i8, {1, 32, 1, 1}, 0.001f, 0);
             auto conv_biased = std::make_shared<ov::op::v1::Add>(conv, bias);
 
             return std::make_shared<ov::op::v1::Add>(conv_biased, input);
