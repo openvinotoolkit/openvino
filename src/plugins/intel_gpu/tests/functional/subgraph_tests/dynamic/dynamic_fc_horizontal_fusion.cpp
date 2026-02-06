@@ -373,6 +373,10 @@ protected:
                 bool is_large_input = std::accumulate(input_shape.begin(), input_shape.end(), 1ul, std::multiplies<size_t>()) > 1024ul;
                 if (is_large_input) {
                     abs_threshold = 4.0f;
+                } else {
+                    // Increased threshold to account for float32 accumulation precision improvement
+                    // which causes difference between GPU (float32 acc) and reference (native precision)
+                    abs_threshold = 8.0f;
                 }
             }
         } else {
