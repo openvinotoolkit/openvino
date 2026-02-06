@@ -562,9 +562,13 @@ std::ostream& operator<<(std::ostream& os, const PrintableModel& model) {
                 auto sz = shape_size(constop->get_shape());
                 if (sz < 9) {
                     sep = "";
-                    for (const auto& v : constop->get_value_strings()) {
-                        os << sep << v;
-                        sep = ",";
+                    if (constop->get_element_type().is_dynamic()) {
+                        os << "...";
+                    } else {
+                        for (const auto& v : constop->get_value_strings()) {
+                            os << sep << v;
+                            sep = ",";
+                        }
                     }
                 } else {
                     os << "...";
