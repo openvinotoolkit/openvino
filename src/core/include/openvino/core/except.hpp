@@ -119,7 +119,11 @@ inline void check_condition(const CharT (&)[N]) noexcept {
 // programming mistakes at compile time (e.g., using string literals as conditions).
 // Always enabled to ensure these errors are caught in all builds including CI.
 //
-#define OPENVINO_CHECK_CONDITION(check) ::ov::detail::check_condition(check)
+#ifndef NDEBUG
+#    define OPENVINO_CHECK_CONDITION(check) ::ov::detail::check_condition(check)
+#else
+#    define OPENVINO_CHECK_CONDITION(check)
+#endif
 
 //
 // Helper macro for defining custom check macros, which throw custom exception classes and provide
