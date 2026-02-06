@@ -30,6 +30,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/block.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/log.hpp"
@@ -41,14 +42,27 @@
     std::cout
 
 // Macro for model visualization dumping
-#define DUMP_MODEL(folder, filename, stage_desc)                                                                 \
+#define VISUALIZE_MODEL(folder, filename, stage_desc)                                                            \
     if (!folder.empty()) {                                                                                       \
         try {                                                                                                    \
             auto dump_path = (std::filesystem::path(folder) / filename).string();                                \
             ov::pass::VisualizeTree(dump_path).run_on_model(f);                                                  \
-            QDQ_DEBUG_LOG << "[ INFO ] Model dumped to: " << dump_path << std::endl;                             \
+            QDQ_DEBUG_LOG << "[ INFO ] Model visualized to: " << dump_path << std::endl;                         \
         } catch (const std::exception& e) {                                                                      \
-            QDQ_DEBUG_LOG << "[ WARNING ] Failed to dump " << stage_desc << " model: " << e.what() << std::endl; \
+            QDQ_DEBUG_LOG << "[ WARNING ] Failed to visualize " << stage_desc << " model: " << e.what() << std::endl; \
+        }                                                                                                        \
+    }
+
+// Macro for model serialization
+#define SERIALIZE_MODEL(folder, filename, stage_desc)                                                            \
+    if (!folder.empty()) {                                                                                       \
+        try {                                                                                                    \
+            auto xml_path = (std::filesystem::path(folder) / (std::string(filename) + ".xml")).string();         \
+            auto bin_path = (std::filesystem::path(folder) / (std::string(filename) + ".bin")).string();         \
+            ov::pass::Serialize(xml_path, bin_path).run_on_model(f);                                             \
+            QDQ_DEBUG_LOG << "[ INFO ] Model serialized to: " << xml_path << std::endl;                          \
+        } catch (const std::exception& e) {                                                                      \
+            QDQ_DEBUG_LOG << "[ WARNING ] Failed to serialize " << stage_desc << " model: " << e.what() << std::endl; \
         }                                                                                                        \
     }
 
@@ -144,17 +158,20 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         return false;
     }
 
-    // Check if model dumping is enabled
-    auto dump_folder = ov::util::getenv_string("OV_QDQ_DUMP_MODEL_DIR");
+    // Check if model visualization is enabled
+    auto visualize_folder = ov::util::getenv_string("OV_QDQ_VISUALIZE_MODEL_DIR");
+    auto serialize_folder = ov::util::getenv_string("OV_QDQ_SERIALIZE_MODEL_DIR");
+    
     // Set visualization env variables for the duration of model dumping
     std::unique_ptr<EnvVarGuard> vis_env_guard;
-    if (!dump_folder.empty()) {
+    if (!visualize_folder.empty()) {
         vis_env_guard = std::make_unique<EnvVarGuard>(
             std::vector<std::pair<std::string, std::string>>{{"OV_VISUALIZE_TREE_OUTPUT_SHAPES", "1"},
                                                              {"OV_VISUALIZE_TREE_OUTPUT_TYPES", "1"},
                                                              {"OV_VISUALIZE_TREE_IO", "1"}});
     }
-    DUMP_MODEL(dump_folder, "01_initial", "initial");
+    VISUALIZE_MODEL(visualize_folder, "01_initial", "initial");
+    SERIALIZE_MODEL(serialize_folder, "01_initial", "initial");
 
     auto check_fq_constants = [&](const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) -> bool {
         auto is_scalar_const = [](const std::shared_ptr<Node>& node) -> bool {
@@ -252,7 +269,8 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
     QDQ_DEBUG_LOG << "  [ INFO ] Max q_scale across model: " << max_q_scale << std::endl;
 
     // Dump model after FQ removal
-    DUMP_MODEL(dump_folder, "02_after_fq_removal", "after FQ removal");
+    VISUALIZE_MODEL(visualize_folder, "02_after_fq_removal", "after FQ removal");
+    SERIALIZE_MODEL(serialize_folder, "02_after_fq_removal", "after FQ removal");
 
     const auto threshold = 1.f;
     if (max_q_scale <= threshold) {
@@ -396,7 +414,8 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
     QDQ_DEBUG_LOG << "\n[ INFO ] === QDQ Stripping Pass Completed ===" << std::endl;
 
     // Dump final model
-    DUMP_MODEL(dump_folder, "03_final", "final");
+    VISUALIZE_MODEL(visualize_folder, "03_final", "final");
+    SERIALIZE_MODEL(serialize_folder, "03_final", "final");
 
     return model_changed;
 }
