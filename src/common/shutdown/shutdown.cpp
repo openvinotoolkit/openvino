@@ -3,41 +3,28 @@
 //
 #include "shutdown.hpp"
 
-// Shutdown functions section declaration
-#if defined(_MSC_VER)
-// Get the release start/end addresses (MSVC)
-#    pragma section(".shutdown_sec$a", read)
-#    pragma section(".shutdown_sec$z", read)
-extern "C" __declspec(allocate(".shutdown_sec$a")) void (*__ov_shutdown_start)(void) = nullptr;
-extern "C" __declspec(allocate(".shutdown_sec$z")) void (*__ov_shutdown_end)(void) = nullptr;
+// Shutdown callback registration mechanism
+// ...existing code...
+#include <vector>
+#include <functional>
 
-#elif (defined(__GNUC__) || defined(__clang__))
+namespace ov {
+    static std::vector<std::function<void()>> g_shutdown_callbacks;
 
-#    if defined(__APPLE__)
-extern "C" void (*__start___shutdown_sec)(void) __asm("section$start$__DATA$__shutdown_sec");
-extern "C" void (*__stop___shutdown_sec)(void) __asm("section$end$__DATA$__shutdown_sec");
-#    else
-// Get the release start/end addresses (GCC/Clang)
-extern "C" void (*__start___shutdown_sec)(void);
-extern "C" void (*__stop___shutdown_sec)(void);
-#    endif
+    bool register_shutdown_callback(const std::function<void()>& func) {
+        g_shutdown_callbacks.emplace_back(func);
+        return true;
+    }
 
-#else
-#    error "Compiler not supported"
-#endif
+    const std::vector<std::function<void()>>& shutdown_callbacks() {
+        return g_shutdown_callbacks;
+    }
+}
 
 static void shutdown_resources() {
-#if defined(_MSC_VER)
-    void (**start)(void) = &__ov_shutdown_start;
-    void (**end)(void) = &__ov_shutdown_end;
-#elif defined(__GNUC__) || defined(__clang__)
-    void (**start)(void) = &__start___shutdown_sec;
-    void (**end)(void) = &__stop___shutdown_sec;
-#endif
-
-    for (void (**func)(void) = start; func != end; ++func) {
-        if (*func) {
-            (**func)();
+    for (auto& func : ov::shutdown_callbacks()) {
+        if (func) {
+            func();
         }
     }
 }

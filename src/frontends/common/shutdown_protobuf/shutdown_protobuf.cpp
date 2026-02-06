@@ -10,4 +10,4 @@ static void shutdown_frontend_resources() {
     google::protobuf::ShutdownProtobufLibrary();
 }
 
-DECLARE_OV_SHUTDOWN_FUNC(shutdown_frontend_resources)
+OV_REGISTER_SHUTDOWN_CALLBACK(shutdown_frontend_resources)

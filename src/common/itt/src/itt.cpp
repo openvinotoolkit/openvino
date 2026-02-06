@@ -146,4 +146,4 @@ static void shutdown_itt_resources() {
     openvino::itt::internal::shutdown();
 }
 
-DECLARE_OV_SHUTDOWN_FUNC(shutdown_itt_resources)
+OV_REGISTER_SHUTDOWN_CALLBACK(shutdown_itt_resources)
