@@ -22,7 +22,6 @@ ReshapePRelu::ReshapePRelu() {
     MATCHER_SCOPE(ReshapePRelu);
     // PRelu input must have rank >= 2 to access channel_dim_idx=1
     auto input_m = pattern::any_input(pattern::has_static_rank() && pattern::rank_more_than(1));
-    // Slope must have rank == 1
     auto slope_m = pattern::any_input(pattern::has_static_rank() && pattern::rank_equals(1));
     auto prelu_m = pattern::wrap_type<v0::PRelu>({input_m, slope_m});
 
