@@ -78,6 +78,21 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
         return std::make_shared<v0::Convert>(node, ov::element::u8);
     };
 
+    auto convert_u2const_to_u8 = [](std::shared_ptr<ov::Node> node) -> std::shared_ptr<ov::Node> {
+        auto constant = ov::as_type_ptr<v0::Constant>(node);
+        if (constant->get_element_type() != ov::element::u2)
+            return std::dynamic_pointer_cast<ov::Node>(constant);
+        return std::make_shared<v0::Convert>(node, ov::element::u8);
+    };
+
+    // TODO: remove WA
+    auto convert_u2const_to_u4 = [](std::shared_ptr<ov::Node> node) -> std::shared_ptr<ov::Node> {
+        auto constant = ov::as_type_ptr<v0::Constant>(node);
+        if (constant->get_element_type() != ov::element::u2)
+            return std::dynamic_pointer_cast<ov::Node>(constant);
+        return std::make_shared<v0::Convert>(node, ov::element::u4);
+    };
+
     const auto& scale =
         combine_groups(weights_block->get_anchor("mul_const", pattern_map).value().get_node_shared_ptr());
     std::shared_ptr<ov::Node> optional_zero_point = nullptr;
@@ -85,13 +100,14 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
     const bool with_zero_point = weights_block->get_anchor("sub_no_convert", pattern_map) ||
                                  weights_block->get_anchor("sub_with_convert", pattern_map);
     if (with_zero_point) {
-        // WA: Convert ZP to u8 for OneDNN case to avoid u4 reorder
-        optional_zero_point = convert_u4const_to_u8(
-            combine_groups(weights_block->get_anchor("sub_const", pattern_map).value().get_node_shared_ptr()));
+        // WA: Convert ZP to u8 for OneDNN case to avoid u2/u4 reorder
+        optional_zero_point = convert_u2const_to_u8(convert_u4const_to_u8(
+            combine_groups(weights_block->get_anchor("sub_const", pattern_map).value().get_node_shared_ptr())));
     }
 
-    std::shared_ptr<ov::Node> fc_input_b =
-        combine_groups(weights_block->get_anchor("weights", pattern_map).value().get_node_shared_ptr());
+    // TODO: remove WA
+    std::shared_ptr<ov::Node> fc_input_b = convert_u2const_to_u4(
+        combine_groups(weights_block->get_anchor("weights", pattern_map).value().get_node_shared_ptr()));
     std::shared_ptr<ov::Node> fc_input_scale = scale;
     std::shared_ptr<ov::Node> fc_input_zp = optional_zero_point;
 
