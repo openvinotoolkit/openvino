@@ -26,7 +26,7 @@ enum TopKLayoutType : uint8_t { topk_ncsp, topk_nspc, topk_blocked };
 enum TopKAlgorithm : uint8_t { topk_bubble_sort, topk_bitonic_sort, topk_heap_sort };
 
 struct jit_topk_config_params {
-    bool mode_max = false;        // which of the two elements to select. ture: max; false: min
+    bool mode_max = false;        // which of the two elements to select. true: max; false: min
     bool sort_index = false;      // sort by value or index. true: index; false: value
     bool topk_innermost = false;  // if topk sorting is applied on innermost dimension or other dimension
     bool bubble_inplace = false;  // all the elements in sorting is right in the register, no need to load and store for
@@ -57,10 +57,11 @@ struct jit_topk_call_args {
     const int* idx_block_buf;  // original idx sequence, repeated by block (eg. 00000000,11111111,...,77777777), only
                                // used in bubble sort
     const int* idx_seq_buf;    // original idx sequence (eg. 01234567), only used in bubble sort and heap sort
-    size_t axis_dim;  // point to axis_dim, only used in heap sort with dynamic shapes to achieve axis_dim agnosic
+    size_t axis_dim;  // points to axis_dim, only used in heap sort with dynamic shapes to achieve axis_dim agnostic
     size_t top_k;
     size_t work_amount;
     size_t sort_stride;
+    const jit_topk_config_params* config = nullptr;
 };
 
 struct jit_uni_topk_kernel {
@@ -151,6 +152,8 @@ private:
 
     std::vector<uint8_t> vec_process_ptr;
     std::vector<uint8_t> vec_process_idx_ptr;
+    size_t process_scratch_bytes = 0;
+    size_t process_idx_scratch_bytes = 0;
 
     std::shared_ptr<jit_uni_topk_kernel> topk_kernel = nullptr;
 };

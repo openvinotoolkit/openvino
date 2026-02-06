@@ -72,7 +72,9 @@ std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpec
                                                                                CPUTestUtils::cpu_memory_format_t::nchw,
                                                                                CPUTestUtils::cpu_memory_format_t::nhwc,
                                                                                CPUTestUtils::cpu_memory_format_t::ndhwc,
-                                                                               CPUTestUtils::cpu_memory_format_t::ncdhw};
+                                                                               CPUTestUtils::cpu_memory_format_t::ncdhw,
+                                                                               CPUTestUtils::cpu_memory_format_t::nChw8c,
+                                                                               CPUTestUtils::cpu_memory_format_t::nChw16c};
     std::vector<CPUSpecificParams> filteredParamsVector = paramsVector;
     filteredParamsVector.erase(std::remove_if(filteredParamsVector.begin(),
                                filteredParamsVector.end(),

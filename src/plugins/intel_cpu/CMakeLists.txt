@@ -167,7 +167,8 @@ endif()
 
 file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
-                          ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
+                      ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
+
 
 if(NOT OV_CPU_WITH_ACL)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/acl/*
@@ -286,6 +287,7 @@ target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,
 # Temporal solution to use template reference implementations in cases where optimizied implementation
 # is not (yet) needed.
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:openvino::reference,INTERFACE_INCLUDE_DIRECTORIES>)
+
 
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
