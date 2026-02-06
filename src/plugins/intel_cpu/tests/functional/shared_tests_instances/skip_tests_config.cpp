@@ -274,6 +274,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_CompareWithRefs_5D_MemOrder_Blocked_Blocked\/EltwiseLayerCPUTest.CompareWithRefs\/IS=\(\[\]_\[\]_\)_TS=.*2.17.6.5.1.*_.*1.17.1.1.4.*_\)_eltwise_op_type=Sub_secondary_input_type=CONSTANT_opType=VECTOR_model_type=bf16_InType=dynamic_OutType=dynamic_trgDev=CPU_config_item=INFERENCE_PRECISION_HINT=f32_inFmts=nCdhw16c.nCdhw16c_outFmts=nCdhw16c_enforceSnippets=0.*)",
         R"(.*.*smoke_CompareWithRefs_4D_Fusing_Blocked_Blocked\/EltwiseLayerCPUTest.CompareWithRefs\/IS=\(\[\]_\)_TS=\(\(2.4.4.1\)_\)_eltwise_op_type=Mod_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f32_InType=dynamic_OutType=dynamic_trgDev=CPU_config_item=INFERENCE_PRECISION_HINT=f32_inFmts=nChw16c.nChw16c_outFmts=nChw16c_Fused=FakeQuantize\(PerChannel\).Sigmoid.FakeQuantize\(PerTensor\)_enforceSnippets=0.*)",
         R"(.*smoke_Conv_1D_GEMM_FP32\/ConvolutionLayerCPUTest.CompareWithRefs\/IS=\[\]_TS=\(\(2.12.7\)_\)_K\(3\)_S\(2\)_PB\(1\)_PE\(0\)_D=\(1\)_O=6_AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=ncw_outFmts=ncw_primitive=jit_gemm_Fused=Relu.*)",
+        // Issue: 170623
+        R"(.*smoke_ConcatSDPTransposeTestWrongBeamIdx.*)",
 
         // Disabled due to dependency on tests execution order, issue: 178036
 #if !(defined(__APPLE__) && defined(__MACH__)) && (defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM))
