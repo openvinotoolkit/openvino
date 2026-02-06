@@ -878,14 +878,11 @@ Example:
     </skip_config>
 
     <skip_config>
-        <message>Behavior is different on some PV driver profiling cases</message>
-        <enable_rules>
-            <driver_version>1688</driver_version>
-            <operating_system>windows</operating_system>
-        </enable_rules>
+        <message>Skip failing tests until next driver update</message>
         <filters>
             <filter>.*ProfilingBlob.*NoProfilingCompileProfilingImport.*</filter>
             <filter>.*ProfilingBlob.*ProfilingCompileNoProfilingImport.*</filter>
+            <filter>.*ProfilingBlob.*ProfilingCompileProfilingImport.*</filter>
         </filters>
     </skip_config>
 
