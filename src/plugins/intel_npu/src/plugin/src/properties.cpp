@@ -393,19 +393,27 @@ void Properties::registerPluginProperties() {
 
     TRY_REGISTER_CUSTOMFUNC_PROPERTY(ov::intel_npu::stepping, STEPPING, [&](const Config& config) {
         if (!config.has<STEPPING>()) {
-            const auto specifiedDeviceName = get_specified_device_name(config);
-            return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
-        } else {
-            return config.get<STEPPING>();
+            try {
+                const auto specifiedDeviceName = get_specified_device_name(config);
+                return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
+            } catch (...) {
+                Logger("Properties", ov::log::Level::WARNING)
+                    .warning("Metrics GetSteppingNumber failed to get value from device.");
+            }
         }
+        return config.get<STEPPING>();
     });
     TRY_REGISTER_CUSTOMFUNC_PROPERTY(ov::intel_npu::max_tiles, MAX_TILES, [&](const Config& config) {
         if (!config.has<MAX_TILES>()) {
-            const auto specifiedDeviceName = get_specified_device_name(config);
-            return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
-        } else {
-            return config.get<MAX_TILES>();
+            try {
+                const auto specifiedDeviceName = get_specified_device_name(config);
+                return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
+            } catch (...) {
+                Logger("Properties", ov::log::Level::WARNING)
+                    .warning("Metrics GetMaxTiles failed to get value from device.");
+            }
         }
+        return config.get<MAX_TILES>();
     });
 
     TRY_REGISTER_VARPUB_PROPERTY(ov::intel_npu::run_inferences_sequentially, RUN_INFERENCES_SEQUENTIALLY, [&] {
@@ -466,6 +474,7 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::max_generation_token_len, NPUW_LLM_MAX_GENERATION_TOKEN_LEN);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::optimize_fp8, NPUW_LLM_OPTIMIZE_FP8);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::prefill_moe_hint, NPUW_LLM_PREFILL_MOE_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::generate_moe_hint, NPUW_LLM_GENERATE_MOE_HINT);
