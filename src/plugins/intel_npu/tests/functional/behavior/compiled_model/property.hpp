@@ -10,6 +10,7 @@
 #include "behavior/compiled_model/properties.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "openvino/core/log.hpp"
 
 using namespace ov::test::behavior;
 
@@ -231,7 +232,7 @@ TEST_P(ClassExecutableNetworkInvalidDeviceIDTestSuite, InvalidNPUdeviceIDTest) {
 
 using CheckCompilerTypeProperty = ClassExecutableNetworkGetPropertiesTestNPU;
 
-TEST_P(CheckCompilerTypeProperty, CheckCompilerTypeProperty) {
+TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyFromCompiledModel) {
     std::string platform = ov::test::utils::getTestsPlatformFromEnvironmentOr(deviceName);
     size_t pos0 = platform.find("5010");
     size_t pos1 = platform.find("4000");
@@ -289,6 +290,34 @@ TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyAfterSettingExtraConf
     } else {
         ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::DRIVER);
     }
+}
+
+TEST_P(CheckCompilerTypeProperty, CheckLogAfterSettingExtraConfigToGetProperty) {
+    std::string logs;
+    std::mutex logs_mutex;
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    ie.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
+    ie.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN));
+
+    ov::util::set_log_callback(log_cb);
+    auto compiler_type = ie.get_property(
+        deviceName,
+        ov::intel_npu::compiler_type,
+        {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER), ov::intel_npu::qdq_optimization(true)});
+    ov::util::reset_log_callback();
+
+    ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::DRIVER);
+    ASSERT_NE(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+
+    compiler_type = ie.get_property(deviceName, ov::intel_npu::compiler_type);
+    ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::PLUGIN);
 }
 
 }  // namespace

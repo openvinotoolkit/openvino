@@ -66,8 +66,9 @@ public:
 
 private:
     void init_options();
-    void filter_global_config_safe(const ov::AnyMap& properties,
-                                   std::optional<std::string> propertyName = std::nullopt) const;
+    void filter_global_config_safe(const std::unique_ptr<Properties>& properties,
+                                   FilteredConfig& cfg,
+                                   const ov::AnyMap& arguments) const;
     void filter_config_by_compiler_support(FilteredConfig& cfg,
                                            const std::unique_ptr<ICompilerAdapter>& compiler) const;
     FilteredConfig fork_local_config(const ov::AnyMap& properties,
@@ -103,7 +104,6 @@ private:
     std::unique_ptr<Properties> _properties;
 
     static std::atomic<int> _compiledModelLoadCounter;
-    mutable std::atomic<bool> _compilerInitialized = false;
     mutable std::mutex _mutex;
 };
 

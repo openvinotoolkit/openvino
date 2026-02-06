@@ -528,11 +528,13 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg,
     }
 }
 
-void Plugin::filter_global_config_safe(const ov::AnyMap& arguments, std::optional<std::string> propertyName) const {
+void Plugin::filter_global_config_safe(const std::unique_ptr<Properties>& properties,
+                                       FilteredConfig& cfg,
+                                       const ov::AnyMap& arguments) const {
     std::lock_guard<std::mutex> lock(_mutex);
-    auto compilerType = resolveCompilerType(_globalConfig, arguments);
-    auto platform = resolvePlatformOption(_globalConfig, arguments);
-    auto deviceId = resolveDeviceIdOption(_globalConfig, arguments);
+    auto compilerType = resolveCompilerType(cfg, arguments);
+    auto platform = resolvePlatformOption(cfg, arguments);
+    auto deviceId = resolveDeviceIdOption(cfg, arguments);
     std::string deviceName;
     try {
         deviceName = _backend == nullptr ? std::string() : _backend->getDevice(deviceId)->getName();
@@ -541,34 +543,20 @@ void Plugin::filter_global_config_safe(const ov::AnyMap& arguments, std::optiona
     }
 
     bool changeCompiler = false;
-    if (compilerType != _globalConfig.get<COMPILER_TYPE>() || platform != _globalConfig.get<PLATFORM>() ||
-        deviceId != _globalConfig.get<DEVICE_ID>()) {
+    if (compilerType != cfg.get<COMPILER_TYPE>() || platform != cfg.get<PLATFORM>() ||
+        deviceId != cfg.get<DEVICE_ID>()) {
         changeCompiler = true;
     }
 
     bool argumentNotRegistered = false;
     for (const auto& arg : arguments) {
-        if (!_properties->isPropertyRegistered(arg.first)) {
+        if (!properties->isPropertyRegistered(arg.first)) {
             argumentNotRegistered = true;
             break;
         }
     }
 
-    bool propertyNotRegistered = false;
-    if (propertyName.has_value()) {
-        // Mark as not registered if the property is not registered
-        propertyNotRegistered = !_properties->isPropertyRegistered(propertyName.value());
-        // Always mark as not registered if it's supported_properties
-        if (propertyName.value() == ov::supported_properties.name()) {
-            propertyNotRegistered = true;
-        }
-    }
-
-    bool updateCompilerProperties = (!_globalConfig.wasInitialized() && propertyNotRegistered) ||
-                                    (_globalConfig.wasInitialized() && !_compilerInitialized) || changeCompiler ||
-                                    argumentNotRegistered;
-
-    if (updateCompilerProperties) {
+    if (!cfg.wasInitialized() || changeCompiler || argumentNotRegistered) {
         std::unique_ptr<ICompilerAdapter> compiler = nullptr;
         try {
             // create a compiler to fetch version and supported options
@@ -586,17 +574,11 @@ void Plugin::filter_global_config_safe(const ov::AnyMap& arguments, std::optiona
         }
 
         // filter out unsupported options
-        filter_config_by_compiler_support(_globalConfig, compiler);
+        filter_config_by_compiler_support(cfg, compiler);
         // reset properties for the new options
-        _properties->registerProperties();
+        properties->registerProperties();
         // set globalConfig as filtered
-        _globalConfig.markAsInitialized();
-
-        if (!propertyName.has_value()) {
-            _compilerInitialized = true;
-        } else {
-            _compilerInitialized = !changeCompiler;
-        }
+        cfg.markAsInitialized();
     }
 }
 
@@ -617,48 +599,11 @@ FilteredConfig Plugin::fork_local_config(const ov::AnyMap& properties,
         localConfigPtr = std::make_unique<FilteredConfig>(_globalConfig);
     }
 
+    auto local_properties = std::make_unique<Properties>(*_properties);
+    filter_global_config_safe(local_properties, *localConfigPtr, properties);
+
     const std::map<std::string, std::string> rawConfig = any_copy(properties);
 
-    // Check if compiler was changed
-    // 1. Check for compiler change
-    auto has_changed = [&](const std::string& key, const std::string& current) {
-        auto it = rawConfig.find(key);
-        return it != rawConfig.end() && it->second != current;
-    };
-
-    const bool change_compiler =
-        has_changed(ov::intel_npu::compiler_type.name(), localConfigPtr->getString<COMPILER_TYPE>()) ||
-        has_changed(ov::intel_npu::platform.name(), localConfigPtr->getString<PLATFORM>()) ||
-        has_changed(ov::device::id.name(), localConfigPtr->getString<DEVICE_ID>());
-
-    if (change_compiler) {
-        // enable/disable config keys based on what the new compiler supports
-        filter_config_by_compiler_support(*localConfigPtr, compiler);
-        // set localConfig as filtered
-        localConfigPtr->markAsInitialized();
-    }
-
-    // If localConfig was not initialized not even by compiler type change, then both localConfig and _globalConfig need
-    // to be initialized
-    if (!localConfigPtr->wasInitialized()) {
-        filter_global_config_safe(properties);
-        {
-            std::lock_guard<std::mutex> lock(_mutex);
-            localConfigPtr = std::make_unique<FilteredConfig>(_globalConfig);
-        }
-    }
-
-    // 2. Revalidate unknown internal configs
-    // look for unsupported internals
-    // first in what we inherited from globalconfig by forking it - ONLY if compiler has changed
-    if (change_compiler) {
-        localConfigPtr->walkInternals([&](const std::string& key) {
-            if (!compiler->is_option_supported(key)) {
-                OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
-            }
-        });
-    }
-    // secondly, in the new config provided by user
     std::map<std::string, std::string> cfgs_to_set;
     for (const auto& [key, value] : rawConfig) {
         if (!localConfigPtr->hasOpt(key)) {
@@ -673,7 +618,6 @@ FilteredConfig Plugin::fork_local_config(const ov::AnyMap& properties,
         }
     }
 
-    // 3. If all good so far, update values
     localConfigPtr->update(cfgs_to_set, mode);
     return *localConfigPtr;
 }
@@ -683,8 +627,8 @@ void Plugin::set_property(const ov::AnyMap& properties) {
         return;
     }
 
-    // 1. Check if config wasn't initialized or need to update compiler properties
-    filter_global_config_safe(properties);
+    // 1. Filter global config
+    filter_global_config_safe(_properties, _globalConfig, properties);
 
     // 2. Set the property via Properties interface
     _properties->set_property(properties);
@@ -704,10 +648,27 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     auto npu_plugin_properties = arguments;
     exclude_model_ptr_from_map(npu_plugin_properties);
 
-    // Check if config wasn't initialized or need to update compiler properties
-    filter_global_config_safe(arguments, name);
+    if (!npu_plugin_properties.empty()) {
+        auto local_properties = std::make_unique<Properties>(*_properties);
 
-    return _properties->get_property(name, npu_plugin_properties);
+        // create a copy of the global config
+        std::unique_ptr<FilteredConfig>
+            localConfigPtr;  // no default constructor from FilteredConfig, needed to switch to ptr
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
+            localConfigPtr = std::make_unique<FilteredConfig>(_globalConfig);
+        }
+
+        filter_global_config_safe(local_properties, *localConfigPtr, npu_plugin_properties);
+
+        return local_properties->get_property(name, npu_plugin_properties);
+    }
+
+    if ((!_properties->isPropertyRegistered(name) || name == ov::supported_properties.name())) {
+        filter_global_config_safe(_properties, _globalConfig, npu_plugin_properties);
+    }
+
+    return _properties->get_property(name);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -1051,6 +1012,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compiled_blob,
                                                          const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
+
+    std::cout << "Start import" << std::endl;
 
     // Need to create intermediate istream for NPUW
     ov::SharedStreamBuffer buffer{compiled_blob.data(), compiled_blob.get_byte_size()};
