@@ -34,8 +34,7 @@
 
 #include "shared_test_classes/base/utils/ranges.hpp"
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
 std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
     auto shape_str = ov::test::utils::vec2str(inputShape.second);
@@ -57,6 +56,8 @@ void SubgraphBaseTest::run() {
     if (isCurrentTestDisabled)
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
 
+    m_check_models_caching = utils::is_model_cache_for_current_test_enabled();
+
     // in case of crash jump will be made and work will be continued
     auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
 
@@ -77,6 +78,9 @@ void SubgraphBaseTest::run() {
             for (const auto& targetStaticShapeVec : targetStaticShapes) {
                 generate_inputs(targetStaticShapeVec);
                 validate();
+                if (m_check_models_caching) {
+                    models_cache();
+                }
             }
             status = ov::test::utils::PassRate::Statuses::PASSED;
         } catch (const std::exception& ex) {
@@ -433,14 +437,14 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
         inputs_ref[param] = inputs.at(matched_parameters[param]);
     }
 
-    auto outputs = ov::test::utils::infer_on_template(functionRefs, inputs_ref);
+    m_expected_outputs = ov::test::utils::infer_on_template(functionRefs, inputs_ref);
 
     if (is_report_stages) {
         auto end_time = std::chrono::system_clock::now();
         std::chrono::duration<double> duration = end_time - start_time;
         std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
     }
-    return outputs;
+    return m_expected_outputs;
 }
 
 std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
@@ -641,5 +645,91 @@ void SubgraphBaseTest::compare_models_param_res(const std::shared_ptr<ov::Model>
     }
 }
 
-}  // namespace test
-}  // namespace ov
+void SubgraphBaseTest::models_cache() {
+    const std::string gen_ir_name = ov::test::utils::generateTestFilePrefix();
+
+    const std::string xml_path   = gen_ir_name + ".xml";
+    const std::string bin_path   = gen_ir_name + ".bin";
+    const std::string cache_path = gen_ir_name + ".blob";
+    const std::string cache_dir  = gen_ir_name + "_cache_dir";
+    // Save IR to disk
+    ov::pass::Serialize(xml_path, bin_path).run_on_model(function);
+
+    auto config = configuration;
+    config.insert(ov::cache_dir(cache_dir));
+    // Load, compile and create cache of the model.
+    auto compiled_model = core->compile_model(xml_path, targetDevice, config);
+
+    auto get_cache_path = [](const std::string& cache_dir) {
+        auto blobs = ov::test::utils::listFilesWithExt(cache_dir, "blob");
+        EXPECT_EQ(blobs.size(), 1);
+        return blobs[0];
+    };
+    auto get_modification_time = [](const std::string& path) {
+        struct stat result;
+        if (stat(path.c_str(), &result) == 0) {
+            return result.st_mtime;
+        }
+        return static_cast<time_t>(0);
+    };
+
+    const auto first_mod_time = get_modification_time(get_cache_path(cache_dir));
+    ASSERT_NE(first_mod_time, static_cast<time_t>(0));
+
+    auto compile_and_execute = [&]() {
+        // Load compiled model from cache.
+        auto imported_model = core->compile_model(xml_path, targetDevice, config);
+
+        const auto second_mod_time = get_modification_time(get_cache_path(cache_dir));
+        // There is some issue if a new cache is created during the second run.
+        ASSERT_EQ(first_mod_time, second_mod_time);
+
+        auto cache_infer_request = imported_model.create_infer_request();
+        for (const auto& input : inputs) {
+            cache_infer_request.set_tensor(input.first, input.second);
+        }
+
+        cache_infer_request.infer();
+
+        std::vector<ov::Tensor> cache_outputs{};
+        for (const auto& output : function->outputs()) {
+            cache_outputs.push_back(cache_infer_request.get_tensor(output));
+        }
+        compare(m_expected_outputs, cache_outputs);
+    };
+
+    try {  // compile_model API
+        compile_and_execute();
+    } catch (const std::exception& ex) {
+        GTEST_FATAL_FAILURE_((std::string("[ MODEL_CACHE ] Compile model API: ") + ex.what()).data());
+    } catch (...) {
+        GTEST_FATAL_FAILURE_("[ MODEL_CACHE ] compile model API: unknown exception.");
+    }
+
+    try {  // Weightless cache
+        config.insert(ov::enable_weightless(true));
+        compile_and_execute();
+    } catch (const std::exception& ex) {
+        GTEST_FATAL_FAILURE_((std::string("[ MODEL_CACHE ] Weightless cache: ") + ex.what()).data());
+    } catch (...) {
+        GTEST_FATAL_FAILURE_("[ MODEL_CACHE ] Weightless cache: unknown exception.");
+    }
+
+    // Cleanup files
+    std::remove(xml_path.c_str());
+    std::remove(bin_path.c_str());
+    std::remove(cache_path.c_str());
+
+    ov::test::utils::removeFilesWithExt(cache_dir, "blob");
+    ov::test::utils::removeFilesWithExt(cache_dir, "cl_cache");
+    ov::test::utils::removeDir(cache_dir);
+}
+
+void SubgraphBaseTest::TearDown() {
+    if (this->HasFailure() && !is_reported) {
+        summary.setDeviceName(targetDevice);
+        summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::FAILED, rel_influence_coef);
+    }
+}
+
+}  // namespace ov::test
