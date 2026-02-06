@@ -485,7 +485,7 @@ class OPENVINO_API Any {
         using Ptr = std::shared_ptr<Base>;
         virtual const std::type_info& type_info() const = 0;
         virtual std::vector<std::type_index> base_type_info() const = 0;
-        bool is_base_type_info(const std::type_info& type_info) const;
+        virtual bool is_base_type_info(const std::type_info& type_info) const = 0;
         virtual const void* addressof() const = 0;
         void* addressof() {
             return const_cast<void*>(const_cast<const Base*>(this)->addressof());
@@ -577,6 +577,10 @@ class OPENVINO_API Any {
             return {typeid(std::shared_ptr<RuntimeAttribute>)};
         }
 
+        bool is_base_type_info(const std::type_info& type_info) const override {
+            return util::equal(typeid(std::shared_ptr<RuntimeAttribute>), type_info);
+        }
+
         const void* addressof() const override {
             return std::addressof(runtime_attribute);
         }
@@ -636,6 +640,13 @@ class OPENVINO_API Any {
 
         std::vector<std::type_index> base_type_info() const override {
             return base_type_info_impl<T>();
+        }
+
+        bool is_base_type_info(const std::type_info& type_info) const override {
+            for (const auto& t : base_type_info_impl<T>()) {
+                if (util::equal(t, type_info)) return true;
+            }
+            return false;
         }
 
         bool equal(const Base& rhs) const override {
