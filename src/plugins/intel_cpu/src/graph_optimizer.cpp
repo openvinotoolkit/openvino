@@ -19,6 +19,7 @@
 #include <set>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -52,6 +53,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
@@ -334,6 +336,136 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
         return true;
     };
 
+    auto foldDQScalesIntoConvolutionWeights = [&](const NodePtr& convNode, const NodePtr& scalesNode) {
+#if !defined(OPENVINO_ARCH_ARM) && !defined(OPENVINO_ARCH_ARM64)
+        return false;
+#else
+        if (convNode->getType() != Type::Convolution || convNode->getParentEdges().size() < 2) {
+            return false;
+        }
+
+        const auto weightsNode = convNode->getParentEdgeAt(1)->getParent();
+        if (weightsNode->getType() != Type::Input || !weightsNode->isConstant() || weightsNode->getChildEdges().size() != 1) {
+            return false;
+        }
+
+        auto* weightsInput = dynamic_cast<node::Input*>(weightsNode.get());
+        auto* scalesInput = dynamic_cast<node::Input*>(scalesNode.get());
+        if (!weightsInput || !scalesInput) {
+            return false;
+        }
+
+        auto weightsMemory = weightsInput->getMemoryPtr();
+        auto scalesMemory = scalesInput->getMemoryPtr();
+        if (!weightsMemory || !scalesMemory) {
+            return false;
+        }
+
+        const auto weightsShape = weightsNode->getOutputShapeAtPort(0).getDims();
+        if (weightsShape.size() != 4 && weightsShape.size() != 5) {
+            return false;
+        }
+
+        const auto scalesShape = scalesNode->getOutputShapeAtPort(0).getDims();
+        if (scalesShape.empty()) {
+            return false;
+        }
+
+        const auto* scalesData = static_cast<const float*>(scalesMemory->getData());
+        if (!scalesData) {
+            return false;
+        }
+
+        const size_t outputChannels = std::accumulate(weightsShape.begin(),
+                                                      weightsShape.begin() + (weightsShape.size() == 5 ? 2 : 1),
+                                                      size_t{1},
+                                                      std::multiplies<size_t>());
+        if (outputChannels == 0) {
+            return false;
+        }
+
+        const auto scalesDims = getNormalizedDimsBySize(scalesShape, weightsShape.size());
+        const auto channelAxis = convNode->getFusingAxis();
+        if (channelAxis < 0 || channelAxis >= static_cast<int>(scalesDims.size())) {
+            return false;
+        }
+        const auto perChannelScaleCount = scalesDims[channelAxis];
+        if (perChannelScaleCount != 1 && perChannelScaleCount != outputChannels) {
+            return false;
+        }
+
+        const size_t channelStride = std::accumulate(weightsShape.begin() + (weightsShape.size() == 5 ? 2 : 1),
+                                                     weightsShape.end(),
+                                                     size_t{1},
+                                                     std::multiplies<size_t>());
+        if (channelStride == 0) {
+            return false;
+        }
+
+        auto applyScale = [&](auto* weightsData) {
+            using WeightsType = std::decay_t<decltype(weightsData[0])>;
+            for (size_t oc = 0; oc < outputChannels; ++oc) {
+                const float scale = (perChannelScaleCount == 1) ? scalesData[0] : scalesData[oc];
+                const size_t baseOffset = oc * channelStride;
+                for (size_t i = 0; i < channelStride; ++i) {
+                    const float value = static_cast<float>(weightsData[baseOffset + i]);
+                    weightsData[baseOffset + i] = static_cast<WeightsType>(value * scale);
+                }
+            }
+        };
+
+        const auto weightsPrecision = weightsNode->getOriginalOutputPrecisionAtPort(0);
+        if (weightsPrecision == ov::element::f16) {
+            auto* weightsData = static_cast<ov::float16*>(weightsMemory->getData());
+            if (!weightsData) {
+                return false;
+            }
+            applyScale(weightsData);
+            return true;
+        }
+        if (weightsPrecision == ov::element::f32) {
+            auto* weightsData = static_cast<float*>(weightsMemory->getData());
+            if (!weightsData) {
+                return false;
+            }
+            applyScale(weightsData);
+            return true;
+        }
+        if (weightsPrecision == ov::element::i8) {
+            const auto* srcData = static_cast<const int8_t*>(weightsMemory->getData());
+            if (!srcData) {
+                return false;
+            }
+
+            const size_t weightsCount = outputChannels * channelStride;
+            std::vector<ov::float16> dequantizedWeights(weightsCount);
+            for (size_t oc = 0; oc < outputChannels; ++oc) {
+                const float scale = (perChannelScaleCount == 1) ? scalesData[0] : scalesData[oc];
+                const size_t baseOffset = oc * channelStride;
+                for (size_t i = 0; i < channelStride; ++i) {
+                    dequantizedWeights[baseOffset + i] = ov::float16(static_cast<float>(srcData[baseOffset + i]) * scale);
+                }
+            }
+
+            ov::Shape weightsOvShape(weightsShape.size());
+            std::transform(weightsShape.begin(), weightsShape.end(), weightsOvShape.begin(), [](Dim d) {
+                return static_cast<size_t>(d);
+            });
+            auto newWeightsOp =
+                std::make_shared<ov::op::v0::Constant>(ov::element::f16, weightsOvShape, dequantizedWeights);
+            newWeightsOp->set_friendly_name(weightsNode->getName() + "_dequantized_f16");
+            auto newWeightsNode = std::make_shared<node::Input>(newWeightsOp, graph.getGraphContext());
+            graph.AddNode(newWeightsNode);
+
+            auto weightsEdge = convNode->getParentEdgeAt(1);
+            graph.RemoveEdge(weightsEdge);
+            graph.CreateEdge(newWeightsNode, convNode, 0, 1);
+            return true;
+        }
+        return false;
+#endif
+    };
+
     for (const auto& mul : graphNodes) {
         if (!isDQScaleGraphPattern(mul)) {
             continue;
@@ -347,11 +479,41 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
             continue;
         }
 
-        if (initializeDeQuantizedScales(node, scales)) {
+        bool hasSplitBiasAddChild = false;
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+        if (node->getType() == Type::Convolution && mul->getChildEdges().size() == 1) {
+            const auto addNode = mul->getChildEdgeAt(0)->getChild();
+            if (addNode->getType() == Type::Eltwise && addNode->getAlgorithm() == Algorithm::EltwiseAdd &&
+                addNode->getParentEdges().size() == 2) {
+                const auto biasPort = addNode->getParentEdgeAt(0)->getParent() == mul ? 1 : 0;
+                const auto biasNode = addNode->getParentEdgeAt(biasPort)->getParent();
+                hasSplitBiasAddChild =
+                    biasNode->getType() == Type::Input && biasNode->isConstant() && biasNode->getChildEdges().size() == 1;
+            }
+        }
+#endif
+
+        bool scalesHandled = false;
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+        if (hasSplitBiasAddChild) {
+            scalesHandled = foldDQScalesIntoConvolutionWeights(node, scales);
+        }
+#endif
+        if (!scalesHandled) {
+            scalesHandled = initializeDeQuantizedScales(node, scales);
+        }
+
+        if (scalesHandled) {
             DEBUG_LOG("GraphOptimizer##FusingDQ: Node ##",
                       mul->getName(),
                       " optimized as DQ scales of Node ##",
                       node->getName());
+            if (hasSplitBiasAddChild) {
+                // Keep swapped split-bias pattern in low precision domain.
+                node->setOriginalInputPrecisionAtPort(0, ov::element::f16);
+                node->setOriginalInputPrecisionAtPort(1, ov::element::f16);
+                node->setOriginalOutputPrecisionAtPort(0, ov::element::f16);
+            }
             node->addOriginalLayer(mul->getOriginalLayers());
             auto p_edge = mul->getParentEdgeAt(1);
             graph.RemoveEdge(p_edge);
