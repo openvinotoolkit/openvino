@@ -159,7 +159,7 @@ static int get_feature_block_size(const cldnn::format& fmt) {
             break;
         }
     }
-    return std::max(1, f_bs);
+    return f_bs;
 }
 
 memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
@@ -181,7 +181,7 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
             mem_layout.format != format::fs_b_yx_fsv32 &&
             layout.format != format::fs_b_yx_fsv32 &&
             ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
-             layout.feature() % f_block_size == 0) &&
+             layout.feature() % 32 == 0) &&
 #ifdef ENABLE_ONEDNN_FOR_GPU
             (!format::is_blocked(layout.format) || layout.feature() % f_block_size == 0 ||
              (mem_layout.format == layout.format &&
@@ -229,7 +229,7 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
             if (rec_list._network_id == network_id &&
                 rec_list._type == type &&
                 ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
-                 layout.feature() % f_block_size == 0) &&
+                 layout.feature() % 32 == 0) &&
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 (!format::is_blocked(layout.format) || layout.feature() % f_block_size == 0 ||
                  mem_layout.feature() % f_block_size == layout.feature() % f_block_size) &&
