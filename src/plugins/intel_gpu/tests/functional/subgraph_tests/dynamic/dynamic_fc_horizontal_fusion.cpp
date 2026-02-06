@@ -373,10 +373,6 @@ protected:
                 bool is_large_input = std::accumulate(input_shape.begin(), input_shape.end(), 1ul, std::multiplies<size_t>()) > 1024ul;
                 if (is_large_input) {
                     abs_threshold = 4.0f;
-                } else {
-                    // Increased threshold to account for float32 accumulation precision improvement
-                    // which causes difference between GPU (float32 acc) and reference (native precision)
-                    abs_threshold = 8.0f;
                 }
             }
         } else {
@@ -429,19 +425,31 @@ protected:
         inferRequest = compiledModel.create_infer_request();
         ASSERT_TRUE(inferRequest);
 
-        // use the Template plugin as a reference
-        auto compiledReferenceModel = core->compile_model(function, ov::test::utils::DEVICE_TEMPLATE);
-        auto inferRequestRef = compiledReferenceModel.create_infer_request();
-        ASSERT_TRUE(inferRequestRef);
-
         generate_inputs(targetStaticShapes.front());
         for (const auto& input : inputs) {
             inferRequest.set_tensor(input.first, input.second);
+        }
+
+        // use the Template plugin as a reference
+        if (net_type == ov::element::f16) {
+            // F32 is used as a reference for F16.
+            const auto& input_shape = std::get<0>(GetParam()).data_shape.second.front();
+            bool is_large_input = std::accumulate(input_shape.begin(), input_shape.end(), 1ul, std::multiplies<size_t>()) > 1024ul;
+            if (!is_large_input) {
+                convert_precisions.insert({ov::element::f16, ov::element::f32});
+            }
+        }
+        update_ref_model();
+        auto compiledReferenceModel = core->compile_model(functionRefs, ov::test::utils::DEVICE_TEMPLATE);
+        auto inferRequestRef = compiledReferenceModel.create_infer_request();
+        ASSERT_TRUE(inferRequestRef);
+
+        for (const auto& input : inputs) {
             inferRequestRef.set_tensor(input.first, input.second);
         }
 
         std::unordered_map<std::string, ov::Shape> stateShapes;
-        auto&& vars = function->get_variables();
+        auto&& vars = functionRefs->get_variables();
 
         for (auto&& var : vars) {
             auto var_info = var->get_info();
