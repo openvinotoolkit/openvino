@@ -229,4 +229,66 @@ TEST_P(ClassExecutableNetworkInvalidDeviceIDTestSuite, InvalidNPUdeviceIDTest) {
                                   "Could not find available NPU device");
 }
 
+using CheckCompilerTypeProperty = ClassExecutableNetworkGetPropertiesTestNPU;
+
+TEST_P(CheckCompilerTypeProperty, CheckCompilerTypeProperty) {
+    std::string platform = ov::test::utils::getTestsPlatformFromEnvironmentOr(deviceName);
+    size_t pos0 = platform.find("5010");
+    size_t pos1 = platform.find("4000");
+
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = ie.compile_model(model, deviceName));
+    auto compiler_type = compiled_model.get_property(ov::intel_npu::compiler_type);
+
+    if (pos0 != std::string::npos || pos1 != std::string::npos) {
+        ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::PLUGIN);
+    } else {
+        ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::DRIVER);
+    }
+
+    OV_ASSERT_NO_THROW(
+        compiled_model =
+            ie.compile_model(model, deviceName, {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}));
+    compiler_type = compiled_model.get_property(ov::intel_npu::compiler_type);
+    ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::DRIVER);
+
+    if (pos0 != std::string::npos || pos1 != std::string::npos) {
+        OV_ASSERT_NO_THROW(compiled_model =
+                               ie.compile_model(model,
+                                                deviceName,
+                                                {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}));
+        compiler_type = compiled_model.get_property(ov::intel_npu::compiler_type);
+        ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::PLUGIN);
+    }
+}
+
+TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyAfterSettingExtraConfigToGetProperty) {
+    std::string platform = ov::test::utils::getTestsPlatformFromEnvironmentOr(deviceName);
+    size_t pos0 = platform.find("5010");
+    size_t pos1 = platform.find("4000");
+
+    auto test_custom_compiler_type =
+        ie.get_property(deviceName,
+                        ov::intel_npu::compiler_type,
+                        {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)});
+    ASSERT_TRUE(test_custom_compiler_type == ov::intel_npu::CompilerType::DRIVER);
+
+    test_custom_compiler_type = ie.get_property(deviceName, ov::intel_npu::compiler_type);
+    if (pos0 != std::string::npos || pos1 != std::string::npos) {
+        ASSERT_TRUE(test_custom_compiler_type == ov::intel_npu::CompilerType::PREFER_PLUGIN);
+    } else {
+        ASSERT_TRUE(test_custom_compiler_type == ov::intel_npu::CompilerType::DRIVER);
+    }
+
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = ie.compile_model(model, deviceName));
+    auto compiler_type = compiled_model.get_property(ov::intel_npu::compiler_type);
+
+    if (pos0 != std::string::npos || pos1 != std::string::npos) {
+        ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::PLUGIN);
+    } else {
+        ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::DRIVER);
+    }
+}
+
 }  // namespace
