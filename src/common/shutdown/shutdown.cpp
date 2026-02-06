@@ -3,6 +3,8 @@
 //
 #include "shutdown.hpp"
 
+void shutdown_resources();
+
 #if defined(SHUTDOWN_STATIC_LIBRARY)
 // Shutdown callback registration mechanism
 // ...existing code...
@@ -31,7 +33,6 @@ void shutdown_resources() {
 }
 
 #else
-extern void shutdown_resources();
 
 #if defined(_WIN32) && !defined(__MINGW32__) && !defined(__MINGW64__)
 #    include <windows.h>
