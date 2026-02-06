@@ -64,20 +64,21 @@ Pipeline::Pipeline(const Config& config,
                     "In-order execution doesn't work in case synchronization of the inferences is done using events");
 
     std::optional<bool> compiled_with_profiling = graph->is_profiling_blob();
+    bool perf_count_enabled = _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>();
 
     if (compiled_with_profiling.has_value()) {
-        if ((_config.has<PERF_COUNT>() && _config.get<PERF_COUNT>()) && !compiled_with_profiling.value()) {
+        if (perf_count_enabled && !compiled_with_profiling.value()) {
             OPENVINO_THROW("Model was not compiled with profiling enabled");
         }
 
         if (compiled_with_profiling.value()) {
-            if (!_config.has<PERF_COUNT>() || !_config.get<PERF_COUNT>()) {
+            if (!perf_count_enabled) {
                 _logger.warning("Model was compiled with profiling enabled but PERF_COUNT is set to 'NO'");
             }
             enable_profiling();
         }
     } else {
-        if (_config.has<PERF_COUNT>() && _config.get<PERF_COUNT>()) {
+        if (perf_count_enabled) {
             enable_profiling();
         }
     }

@@ -271,21 +271,17 @@ uint32_t Graph::get_last_submitted_id() const {
 }
 
 std::optional<bool> Graph::is_profiling_blob() const {
-    bool compiled_with_profiling = false;
-
-    if (_zeroInitStruct->getGraphDdiTable().version() >= ZE_MAKE_VERSION(1, 16)) {
-        ze_graph_properties_3_t graphProperties = {};
-        graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_3;
-
-        auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties3(get_handle(), &graphProperties);
-        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
-
-        compiled_with_profiling = graphProperties.flags & ZE_GRAPH_PROPERTIES_FLAG_PROFILING_ENABLED;
-    } else {
+    if (_zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
         _logger.debug("Cannot determine if the blob was compiled for profiling");
         return std::nullopt;
     }
-    return compiled_with_profiling;
+    ze_graph_properties_3_t graphProperties = {};
+    graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_3;
+
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties3(get_handle(), &graphProperties);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
+
+    return graphProperties.flags & ZE_GRAPH_PROPERTIES_FLAG_PROFILING_ENABLED;
 }
 
 std::optional<size_t> Graph::determine_batch_size() {
