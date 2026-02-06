@@ -6,8 +6,8 @@
 
 #pragma once
 
+#include "compiler_impl.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
-#include "intel_npu/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -44,7 +44,7 @@ private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
-    ov::SoPtr<ICompiler> _compiler;
+    ov::SoPtr<VCLCompilerImpl> _compiler;
 
     Logger _logger;
 };
