@@ -196,23 +196,27 @@ void Eagle3Extension::accumulate_chunk_last_hidden_state(
     const auto& target_shape = m_last_hidden_state->get_shape();
     const uint32_t target_total_len = static_cast<uint32_t>(target_shape[1]);
 
+    OPENVINO_ASSERT(target_total_len == total_seq_len,
+                    "Pre-allocated tensor size (" + std::to_string(target_total_len) + ") must match total_seq_len (" +
+                        std::to_string(total_seq_len) + ")");
+
     OPENVINO_ASSERT(m_chunked_seq_offset + chunk_token_count <= target_total_len,
-                    "Chunked sequence offset exceeds pre-allocated size");
+                    "Can't write chunk by stored chunked sequence offset and requested number of tokens, as it will "
+                    "exceed pre-allocated size");
 
     // Extract only the rightmost chunk_token_count tokens from the output
     // The chunk_output is right-aligned with padding on the left
+    constexpr uint32_t seq_dim = 1;
     const uint32_t chunk_start_offset = chunk_seq_len - chunk_token_count;
-    const size_t hidden_elem_size = chunk_output->get_element_type().size();
-    const size_t row_bytes = hidden_size * hidden_elem_size;
 
-    const uint8_t* chunk_ptr = reinterpret_cast<const uint8_t*>(chunk_output->data());
-    chunk_ptr += chunk_start_offset * row_bytes;  // Skip padding, point to valid tokens
+    auto chunk_output_slice = util::make_tensor_slice(chunk_output, seq_dim, chunk_start_offset, chunk_seq_len);
 
-    // Copy chunk data directly to the correct position in pre-allocated tensor
-    uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(m_last_hidden_state->data());
-    dst_ptr += m_chunked_seq_offset * row_bytes;  // Move to the current write position
+    auto target_slice = util::make_tensor_slice(m_last_hidden_state,
+                                                seq_dim,
+                                                m_chunked_seq_offset,
+                                                m_chunked_seq_offset + chunk_token_count);
 
-    std::copy_n(chunk_ptr, chunk_token_count * row_bytes, dst_ptr);
+    chunk_output_slice->copy_to(target_slice._ptr);
 
     LOG_VERB("Eagle3: Copied chunk [" << chunk_start_offset << ":" << chunk_seq_len << "] to position ["
                                       << m_chunked_seq_offset << ":" << (m_chunked_seq_offset + chunk_token_count)
