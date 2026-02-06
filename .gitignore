@@ -75,4 +75,14 @@ examples/fastapi/public/
 
 # Local test scripts
 test_infer.py
+# Local Python environments
+openvino-env/
+
+# Downloaded models / runtime assets
+public/
+
+# Python cache
+__pycache__/
+*.pyc
+
 
