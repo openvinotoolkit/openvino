@@ -137,4 +137,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_ClassExecutableNetworkInvalidDevice
                                             ::testing::ValuesIn(invalid_device_ids)),
                          ClassExecutableNetworkInvalidDeviceIDTestSuite::getTestCaseName);
 
+std::vector<std::pair<std::string, ov::Any>> valid_device_ids = {
+    {ov::device::id.name(), "NPU"},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CheckCompilerType,
+                         CheckCompilerTypeProperty,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(valid_device_ids)),
+                         CheckCompilerTypeProperty::getTestCaseName);
+
 }  // namespace
