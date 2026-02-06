@@ -140,11 +140,14 @@ protected:
         auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
         ov::ParameterVector params{param1, param2};
 
-        // Weight DQ pattern: quantized constant -> convert -> multiply (scale)
+        // Weight DQ pattern: quantized constant -> convert -> subtract (zero point) -> multiply (scale)
         auto weight_quantized = ov::op::v0::Constant::create(ov::element::i8, {}, {100});
         auto weight_convert = std::make_shared<ov::op::v0::Convert>(weight_quantized, ov::element::f32);
+        auto weight_zp_quantized = ov::op::v0::Constant::create(ov::element::i8, {}, {10});
+        auto weight_zp_convert = std::make_shared<ov::op::v0::Convert>(weight_zp_quantized, ov::element::f32);
+        auto weight_subtract = std::make_shared<ov::op::v1::Subtract>(weight_convert, weight_zp_convert);
         auto weight_scale = ov::op::v0::Constant::create(ov::element::f32, {}, {0.001f});
-        auto common_constant = std::make_shared<ov::op::v1::Multiply>(weight_convert, weight_scale);
+        auto common_constant = std::make_shared<ov::op::v1::Multiply>(weight_subtract, weight_scale);
 
         // param1 * common_constant
         auto mul1 = std::make_shared<ov::op::v1::Multiply>(param1, common_constant);
