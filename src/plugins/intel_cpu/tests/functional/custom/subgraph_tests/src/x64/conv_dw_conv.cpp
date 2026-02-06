@@ -55,7 +55,7 @@ protected:
                                                      ov::CoordinateDiff{1, 1},
                                                      std::vector<size_t>{1, 1},
                                                      ov::op::PadType::EXPLICIT);
-        auto bias_const = utils::make_constant(precision, {1, out_channels  , 1, 1});
+        auto bias_const = utils::make_constant(precision, {1, out_channels, 1, 1});
         auto bias = std::make_shared<ov::op::v1::Add>(dw_conv, bias_const);
 
         function = create_ov_model(precision, params, bias, "ConvDWConv");

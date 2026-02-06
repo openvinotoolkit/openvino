@@ -1200,7 +1200,8 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     // There is no optimized implementation for avx512, so two avx512 convolutions
     // are expected to be faster than single fused avx2 convolution
-    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
+    if (implication(impl::cpu::x64::mayiuse(impl::cpu::x64::avx2),
+                    impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core))) {
         return;
     }
 
