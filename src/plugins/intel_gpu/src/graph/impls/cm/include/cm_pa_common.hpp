@@ -434,7 +434,9 @@ void pa_kernel_lsc_prefetch_f16(
 
     if (q_tokens_left < 0) q_tokens_left = 0;
     if (q_tokens_left > q_step) q_tokens_left = q_step;
+    #ifndef CM_HAS_LSC_UNTYPED_2D
     if (q_tokens_left == 0) return;
+    #endif
 
     if (q_tokens_left > 0) {
         #ifdef CM_HAS_LSC_UNTYPED_2D
@@ -707,6 +709,9 @@ void pa_kernel_lsc_prefetch_f16(
             }
         }
     }
+    #ifdef CM_HAS_LSC_UNTYPED_2D
+    if (q_tokens_left == 0) return;
+    #endif
 
     //# save cur_O/cur_sum.transpose(0, 1)
     matrix<half, num_P_tiles * REG_M, REG_N> cur_O_f16;
