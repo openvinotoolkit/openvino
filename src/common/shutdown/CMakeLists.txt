@@ -9,5 +9,4 @@ add_library(${TARGET_NAME} OBJECT shutdown.cpp)
 
 add_library(openvino::shutdown ALIAS ${TARGET_NAME})
 target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(${TARGET_NAME} PRIVATE openvino::itt)
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME openvino_shutdown)

@@ -1,9 +1,8 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-if(BUILD_SHARED_LIBS)
-    add_subdirectory(shutdown)
-endif()
+
+add_subdirectory(shutdown)
 
 add_subdirectory(itt)
 add_subdirectory(conditional_compilation)
