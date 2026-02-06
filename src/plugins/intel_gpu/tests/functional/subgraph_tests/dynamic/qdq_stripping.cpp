@@ -4,6 +4,8 @@
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
@@ -12,6 +14,8 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
@@ -116,6 +120,25 @@ protected:
         return result;
     }
 
+    // Helper to build realistic bias pattern: reshapes 1D bias to [1, C, 1, 1, ...] based on conv rank
+    ov::Output<ov::Node> add_bias(const ov::Output<ov::Node>& conv, const ov::Output<ov::Node>& bias) {
+        const auto conv_shape = std::make_shared<ov::op::v3::ShapeOf>(conv);
+        const auto conv_rank = std::make_shared<ov::op::v3::ShapeOf>(conv_shape);
+
+        // Prepare tail shape (rank = conv.rank - 2): [1, 1, 1, 1, ... ]
+        const auto one_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        const auto two_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+        const auto tail_shape_rank = std::make_shared<ov::op::v1::Subtract>(conv_rank, two_const);
+        const auto tail_shape = std::make_shared<ov::op::v3::Broadcast>(one_const, tail_shape_rank);
+
+        // Construct new bias shape: [1, C, 1, 1, ... ]
+        const auto C_dim = std::make_shared<ov::op::v3::ShapeOf>(bias);
+        const auto new_shape = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{one_const, C_dim, tail_shape}, 0);
+        const auto reshaped_bias = std::make_shared<ov::op::v1::Reshape>(bias, new_shape, false);
+
+        return std::make_shared<ov::op::v1::Add>(conv, reshaped_bias);
+    }
+
     std::shared_ptr<ov::Model> build_shared_dq_pattern(const ov::PartialShape& input_shape, const ov::element::Type& quantization_precision) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
         static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>> quantization_params{
@@ -214,9 +237,9 @@ protected:
                                                                ov::CoordinateDiff{1, 1},
                                                                ov::Strides{1, 1});
 
-        // Bias with DQ for first convolution
-        auto bias1 = build_dq_subgraph(ov::element::i8, {1, 32, 1, 1}, 0.001f, 0);
-        auto conv1_biased = std::make_shared<ov::op::v1::Add>(conv1, bias1);
+        // Bias with DQ for first convolution (1D bias: [32])
+        auto bias1 = build_dq_subgraph(ov::element::i8, {32}, 0.001f, 0);
+        auto conv1_biased = add_bias(conv1, bias1);
 
         // QDQ pattern after first convolution
         static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>> quantization_params{
@@ -244,9 +267,9 @@ protected:
                                                                   ov::CoordinateDiff{1, 1},
                                                                   ov::Strides{1, 1});
 
-            // Bias with DQ
-            auto bias = build_dq_subgraph(ov::element::i8, {1, 32, 1, 1}, 0.001f, 0);
-            auto conv_biased = std::make_shared<ov::op::v1::Add>(conv, bias);
+            // Bias with DQ (1D bias: [32])
+            auto bias = build_dq_subgraph(ov::element::i8, {32}, 0.001f, 0);
+            auto conv_biased = add_bias(conv, bias);
 
             return std::make_shared<ov::op::v1::Add>(conv_biased, input);
         };
