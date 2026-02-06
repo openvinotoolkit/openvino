@@ -17,14 +17,19 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/clamp.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -38,33 +43,33 @@
 #include "transformations/utils/utils.hpp"
 
 // Macro for conditional debug logging based on OV_QDQ_DEBUG_LOG environment variable
-#define QDQ_DEBUG_LOG                                                                     \
+#define QDQ_DEBUG_LOG                                                               \
     if (static const bool debug = ov::util::getenv_bool("OV_QDQ_DEBUG_LOG"); debug) \
     std::cout
 
 // Macro for model visualization dumping
-#define VISUALIZE_MODEL(folder, filename, stage_desc)                                                            \
-    if (!folder.empty()) {                                                                                       \
-        try {                                                                                                    \
-            auto dump_path = (std::filesystem::path(folder) / filename).string();                                \
-            ov::pass::VisualizeTree(dump_path).run_on_model(f);                                                  \
-            QDQ_DEBUG_LOG << "[ INFO ] Model visualized to: " << dump_path << std::endl;                         \
-        } catch (const std::exception& e) {                                                                      \
+#define VISUALIZE_MODEL(folder, filename, stage_desc)                                                                 \
+    if (!folder.empty()) {                                                                                            \
+        try {                                                                                                         \
+            auto dump_path = (std::filesystem::path(folder) / filename).string();                                     \
+            ov::pass::VisualizeTree(dump_path).run_on_model(f);                                                       \
+            QDQ_DEBUG_LOG << "[ INFO ] Model visualized to: " << dump_path << std::endl;                              \
+        } catch (const std::exception& e) {                                                                           \
             QDQ_DEBUG_LOG << "[ WARNING ] Failed to visualize " << stage_desc << " model: " << e.what() << std::endl; \
-        }                                                                                                        \
+        }                                                                                                             \
     }
 
 // Macro for model serialization
-#define SERIALIZE_MODEL(folder, filename, stage_desc)                                                            \
-    if (!folder.empty()) {                                                                                       \
-        try {                                                                                                    \
-            auto xml_path = (std::filesystem::path(folder) / (std::string(filename) + ".xml")).string();         \
-            auto bin_path = (std::filesystem::path(folder) / (std::string(filename) + ".bin")).string();         \
-            ov::pass::Serialize(xml_path, bin_path).run_on_model(f);                                             \
-            QDQ_DEBUG_LOG << "[ INFO ] Model serialized to: " << xml_path << std::endl;                          \
-        } catch (const std::exception& e) {                                                                      \
+#define SERIALIZE_MODEL(folder, filename, stage_desc)                                                                 \
+    if (!folder.empty()) {                                                                                            \
+        try {                                                                                                         \
+            auto xml_path = (std::filesystem::path(folder) / (std::string(filename) + ".xml")).string();              \
+            auto bin_path = (std::filesystem::path(folder) / (std::string(filename) + ".bin")).string();              \
+            ov::pass::Serialize(xml_path, bin_path).run_on_model(f);                                                  \
+            QDQ_DEBUG_LOG << "[ INFO ] Model serialized to: " << xml_path << std::endl;                               \
+        } catch (const std::exception& e) {                                                                           \
             QDQ_DEBUG_LOG << "[ WARNING ] Failed to serialize " << stage_desc << " model: " << e.what() << std::endl; \
-        }                                                                                                        \
+        }                                                                                                             \
     }
 
 namespace ov {
@@ -161,7 +166,7 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
     // Check if model visualization is enabled
     auto visualize_folder = ov::util::getenv_string("OV_QDQ_VISUALIZE_MODEL_DIR");
     auto serialize_folder = ov::util::getenv_string("OV_QDQ_SERIALIZE_MODEL_DIR");
-    
+
     // Set visualization env variables for the duration of model dumping
     std::unique_ptr<EnvVarGuard> vis_env_guard;
     if (!visualize_folder.empty()) {
@@ -326,14 +331,14 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             QDQ_DEBUG_LOG << "  [ INFO ] Scale factor: " << scale_factor << std::endl;
         }
 
-        // Lambda to apply scale to weight DQ subgraph
         auto apply_scale_to_weight = [&](const ov::pass::pattern::PatternValueMap& pattern_map,
                                          const std::shared_ptr<WeightsDequantizationBlock>& dq_block) {
             auto original_constant = dq_block->get_anchor("mul_const", pattern_map).value().get_node_shared_ptr();
             auto old_multiply = dq_block->get_anchor("multiply", pattern_map).value().get_node_shared_ptr();
             auto mul_input = dq_block->get_anchor("mul_input", pattern_map).value().get_node_shared_ptr();
+            
             if (visited.find(old_multiply.get()) != visited.end()) {
-                QDQ_DEBUG_LOG << "        [ DEBUG ]   Node " << mul_input->get_friendly_name()
+                QDQ_DEBUG_LOG << "        [ DEBUG ]   Node " << old_multiply->get_friendly_name()
                               << " already visited, skipping scale adjustment" << std::endl;
                 return;
             }
@@ -359,11 +364,25 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             using namespace ov::pass::pattern;
             const auto node_shared = node->shared_from_this();
             // Case 1: Convolution + Add (bias) - scale both Add's constant and Conv weights
+            // The bias pattern came from ONNX FE
             {
+                // Conv with weights DQ
                 auto conv_weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
                 auto conv_pattern = wrap_type<ov::op::v1::Convolution>({any_input(), conv_weights_dq_block});
+
+                // Bias DQ and reshape with shape computation
+                // Shape computation: ShapeOf(conv) -> ShapeOf -> Subtract -> Broadcast, ShapeOf(bias) -> Concat
+                auto conv_shape = wrap_type<ov::op::v3::ShapeOf>({conv_pattern});
+                auto conv_rank = wrap_type<ov::op::v3::ShapeOf>({conv_shape});
+                auto rank_minus_2 = wrap_type<ov::op::v1::Subtract>({conv_rank, any_input()});
+                auto tail = wrap_type<ov::op::v3::Broadcast>({any_input(), rank_minus_2});
+
                 auto bias_dq_block = std::make_shared<WeightsDequantizationBlock>();
-                auto add_pattern = wrap_type<ov::op::v1::Add>({conv_pattern, bias_dq_block});
+                auto c_dim = wrap_type<ov::op::v3::ShapeOf>({bias_dq_block});
+                auto target_shape = wrap_type<ov::op::v0::Concat>({any_input(), c_dim, tail});
+                auto reshape_pattern = wrap_type<ov::op::v1::Reshape>({bias_dq_block, target_shape});
+
+                auto add_pattern = wrap_type<ov::op::v1::Add>({conv_pattern, reshape_pattern});
                 auto matcher = std::make_shared<Matcher>(add_pattern, "ConvAddPattern");
 
                 if (matcher->match(node_shared)) {
