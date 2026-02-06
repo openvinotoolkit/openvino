@@ -64,15 +64,23 @@ Pipeline::Pipeline(const Config& config,
                     "In-order execution doesn't work in case synchronization of the inferences is done using events");
 
     bool perf_count_enabled = _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>();
+    std::optional<bool> compiled_with_profiling;
 
     if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
         if (perf_count_enabled) {
             _logger.debug("Profiling type == ov::intel_npu::ProfilingType::INFER");
             _npu_profiling =
                 std::make_shared<zeroProfiling::NpuInferProfiling>(_init_structs, _config.get<LOG_LEVEL>());
+        } else {
+            compiled_with_profiling = graph->is_profiling_blob();
+            if (compiled_with_profiling.has_value() && compiled_with_profiling.value()) {
+                _logger.warning("Model was compiled with profiling enabled, PERF_COUNT is NOT set and timestamps will "
+                                "not be extracted");
+                enable_profiling();
+            }
         }
     } else {
-        std::optional<bool> compiled_with_profiling = graph->is_profiling_blob();
+        compiled_with_profiling = graph->is_profiling_blob();
         if (compiled_with_profiling.has_value()) {
             if (perf_count_enabled && !compiled_with_profiling.value()) {
                 OPENVINO_THROW("Model was not compiled with profiling enabled");
@@ -80,7 +88,7 @@ Pipeline::Pipeline(const Config& config,
 
             if (compiled_with_profiling.value()) {
                 if (!perf_count_enabled) {
-                    _logger.warning("Model was compiled with profiling enabled, PERF_COUNT is set to 'NO' and "
+                    _logger.warning("Model was compiled with profiling enabled, PERF_COUNT is NOT set and "
                                     "statistics will not be extracted");
                 }
                 enable_profiling();
