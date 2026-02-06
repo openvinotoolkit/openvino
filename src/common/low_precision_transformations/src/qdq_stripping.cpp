@@ -29,6 +29,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/block.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/pass/visualize_tree.hpp"
@@ -75,14 +76,13 @@ public:
     WeightsDequantizationBlock() : Block({}, {}, "WeightsDequantizationBlock") {
         using namespace ov::pass::pattern;
 
-        // Const (quantized weights) -> Convert -> [optional Subtract] -> Multiply (with scale const)
         auto weights = wrap_type<ov::op::v0::Constant>();
         auto convert = wrap_type<ov::op::v0::Convert>({weights});
 
         auto sub_const = wrap_type<ov::op::v0::Constant>();
-        auto subtract = wrap_type<ov::op::v1::Subtract>({convert, sub_const});
+        auto sub_const_convert = optional<ov::op::v0::Convert>({sub_const});
+        auto subtract = wrap_type<ov::op::v1::Subtract>({convert, sub_const_convert});
 
-        // Multiply can have either (subtract, const) or (convert, const) as inputs
         auto mul_input = subtract | convert;
         auto mul_const = wrap_type<ov::op::v0::Constant>();
         auto multiply = wrap_type<ov::op::v1::Multiply>({mul_input, mul_const});
