@@ -354,8 +354,8 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         };
 
         auto adjust_weights_scale = [&](ov::Node* node) {
-            QDQ_DEBUG_LOG << "    [ INFO ] adjust_weights_scale called for node: " << node->get_friendly_name()
-                          << std::endl;
+            QDQ_DEBUG_LOG << "    [ INFO ] adjust_weights_scale called for node with type: " << node->get_type_name()
+                          << ", with name: " << node->get_friendly_name() << std::endl;
             using namespace ov::pass::pattern;
             const auto node_shared = node->shared_from_this();
             // Case 1: Convolution + Add (bias) - scale both Add's constant and Conv weights
@@ -406,7 +406,7 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         for (const auto& node : scale_invariant_nodes) {
             QDQ_DEBUG_LOG << "  [ INFO ] Processing scale-invariant node: " << node->get_friendly_name()
                           << " type=" << node->get_type_name() << std::endl;
-            ov::op::util::visit_path(node->get_input_node_ptr(0), visited, adjust_weights_scale, skip_node_predicate);
+            ov::op::util::visit_path(node.get(), visited, adjust_weights_scale, skip_node_predicate);
         }
         QDQ_DEBUG_LOG << "========================================" << std::endl;
     }
