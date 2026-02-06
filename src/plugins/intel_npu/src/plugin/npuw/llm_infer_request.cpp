@@ -631,6 +631,10 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         remaining_prompts = cache_context.remaining_prompts;
     }
 
+    if (m_eagle3_ext.is_eagle3_model()) {
+        m_eagle3_ext.reset_chunked_prefill_state();
+    }
+
     while (remaining_prompts > 0) {
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by

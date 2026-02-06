@@ -83,6 +83,12 @@ public:
         uint32_t chunk_token_count,
         uint32_t total_seq_len);
 
+    // Reset chunked prefill state before starting a new chunked prefill session
+    void reset_chunked_prefill_state() {
+        m_last_hidden_state = {};
+        m_chunked_seq_offset = 0;
+    }
+
     ov::SoPtr<ov::ITensor> get_last_hidden_state() const {
         return m_last_hidden_state;
     }
