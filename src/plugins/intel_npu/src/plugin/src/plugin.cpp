@@ -683,8 +683,13 @@ void Plugin::set_property(const ov::AnyMap& properties) {
         return;
     }
 
-    // 1. Check if config wasn't initialized or need to update compiler properties
-    filter_global_config_safe(properties);
+    // 1. Check if property isn't registered
+    for (const auto& prop : properties) {
+        if (!_properties->isPropertyRegistered(prop.first)) {
+            filter_global_config_safe(properties);
+            break;
+        }
+    }
 
     // 2. Set the property via Properties interface
     _properties->set_property(properties);
