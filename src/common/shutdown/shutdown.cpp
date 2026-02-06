@@ -3,31 +3,35 @@
 //
 #include "shutdown.hpp"
 
+#if defined(SHUTDOWN_STATIC_LIBRARY)
 // Shutdown callback registration mechanism
 // ...existing code...
-#include <vector>
 #include <functional>
+#include <vector>
 
 namespace ov {
-    static std::vector<std::function<void()>> g_shutdown_callbacks;
+static std::vector<std::function<void()>> g_shutdown_callbacks;
 
-    bool register_shutdown_callback(const std::function<void()>& func) {
-        g_shutdown_callbacks.emplace_back(func);
-        return true;
-    }
-
-    const std::vector<std::function<void()>>& shutdown_callbacks() {
-        return g_shutdown_callbacks;
-    }
+bool register_shutdown_callback(const std::function<void()>& func) {
+    g_shutdown_callbacks.emplace_back(func);
+    return true;
 }
 
-static void shutdown_resources() {
+const std::vector<std::function<void()>>& shutdown_callbacks() {
+    return g_shutdown_callbacks;
+}
+}  // namespace ov
+
+void shutdown_resources() {
     for (auto& func : ov::shutdown_callbacks()) {
         if (func) {
             func();
         }
     }
 }
+
+#else
+extern void shutdown_resources();
 
 #if defined(_WIN32) && !defined(__MINGW32__) && !defined(__MINGW64__)
 #    include <windows.h>
@@ -53,4 +57,6 @@ extern "C" __attribute__((destructor)) void library_unload();
 void library_unload() {
     shutdown_resources();
 }
+#endif
+
 #endif

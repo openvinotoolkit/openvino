@@ -11,7 +11,7 @@ add_library(${TARGET_NAME} STATIC ${SOURCES})
 add_library(openvino::itt ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME itt)
 
-target_link_libraries(${TARGET_NAME} PUBLIC openvino::util)
+target_link_libraries(${TARGET_NAME} PUBLIC openvino::util openvino::shutdown)
 
 if(NOT ENABLE_PROFILING_ITT STREQUAL "OFF")
     if(TARGET ittapi::ittnotify)
@@ -44,9 +44,6 @@ endif()
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-
-target_include_directories(${TARGET_NAME} PRIVATE
-    $<TARGET_PROPERTY:openvino::shutdown,INTERFACE_INCLUDE_DIRECTORIES>)
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 

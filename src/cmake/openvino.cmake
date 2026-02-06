@@ -59,7 +59,7 @@ target_link_libraries(${TARGET_NAME}
     $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:c++fs>)
 
 if(BUILD_SHARED_LIBS)
-    target_link_libraries(${TARGET_NAME} PRIVATE $<TARGET_OBJECTS:openvino_shutdown>)
+    target_link_libraries(${TARGET_NAME} PRIVATE $<TARGET_OBJECTS:openvino_shutdown_dyn>)
 endif()
 
 if (TBBBIND_2_5_FOUND)
