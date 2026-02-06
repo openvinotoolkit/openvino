@@ -73,7 +73,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         }
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-        auto is_3d_decompression_path = [](const std::shared_ptr<Node>& root) {
+        auto is_3d_decompression_path1 = [](const std::shared_ptr<Node>& root) {
             std::shared_ptr<Node> multiply_node = ov::as_type_ptr<ov::op::v1::Multiply>(root);
             if (!multiply_node) {
                 return false;
@@ -98,11 +98,35 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             }
             auto const_shape = const_node->get_shape();
             auto const_dtype = const_node->get_element_type();
-            return (any_of(const_dtype, ov::element::u4, ov::element::i4, ov::element::u8, ov::element::i8) &&
+            return (any_of(const_dtype, ov::element::nf4) &&
                     (const_shape.size() == 3 && const_shape[0] > 1));
         };
 
-        if (is_3d_decompression_path(fc_input_b.get_node_shared_ptr())) {
+        auto is_3d_decompression_path2 = [](const std::shared_ptr<Node>& root) {
+            std::shared_ptr<Node> multiply_node = ov::as_type_ptr<ov::op::v1::Multiply>(root);
+            if (!multiply_node) {
+                return false;
+            }
+            // convert
+            std::shared_ptr<Node> convert_node =
+                ov::as_type_ptr<ov::op::v0::Convert>(multiply_node->get_input_node_shared_ptr(0));
+            if (!convert_node) {
+                return false;
+            }
+            // const
+            std::shared_ptr<Node> const_node =
+                ov::as_type_ptr<ov::op::v0::Constant>(convert_node->get_input_node_shared_ptr(0));
+            if (!const_node) {
+                return false;
+            }
+            auto const_shape = const_node->get_shape();
+            auto const_dtype = const_node->get_element_type();
+            return (any_of(const_dtype, ov::element::nf4) &&
+                    (const_shape.size() == 3 && const_shape[0] > 1));
+        };
+
+        if (is_3d_decompression_path1(fc_input_b.get_node_shared_ptr()) ||
+            is_3d_decompression_path2(fc_input_b.get_node_shared_ptr())) {
             return false;
         }
 #endif
