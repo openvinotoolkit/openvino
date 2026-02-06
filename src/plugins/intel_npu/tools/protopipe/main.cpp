@@ -5,16 +5,17 @@
 
 #include <future>
 #include <iostream>
+#include <memory>
 #include <regex>
 
 #include <gflags/gflags.h>
 
 #include "parser/parser.hpp"
-#include "scenario/scenario_graph.hpp"
 #include "simulation/performance_mode.hpp"
 #include "simulation/reference_mode.hpp"
 #include "simulation/validation_mode.hpp"
 #include "simulation/accuracy_mode.hpp"
+#include "simulation/workload_type.hpp"
 
 #include "utils/error.hpp"
 #include "utils/logger.hpp"
@@ -259,8 +260,29 @@ int main(int argc, char* argv[]) {
                     }
                     criterion = global_criterion->clone();
                 }
+                std::shared_ptr<WorkloadTypeInfo> workload_type;
+                if (stream.workload_type.has_value())
+                {
+                    workload_type = std::make_shared<WorkloadTypeInfo>();
+                    workload_type->wl_ov =  std::make_shared<cv::gapi::wip::ov::WorkloadTypeOV>();
+                    workload_type->wl_onnx= std::make_shared<cv::gapi::onnx::WorkloadTypeONNX>();
+                    workload_type->workload_config = stream.workload_type.value();
+                    criterion->setWorkloadTrigger(workload_type);
+                }
+
                 auto simulation = createSimulation(FLAGS_mode, std::move(stream), FLAGS_inference_only, config);
+                if (workload_type)
+                    simulation->workload = workload_type;
+
+
                 auto compiled = compileSimulation(simulation, FLAGS_pipeline, FLAGS_drop_frames);
+
+                if (simulation->workload) {
+                    simulation->workload->wl_onnx->set(simulation->workload->workload_config.initial_value);
+                    simulation->workload->wl_ov->set(simulation->workload->workload_config.initial_value);
+                    LOG_INFO() << "Setting initial value of workload type to " << simulation->workload->workload_config.initial_value << std::endl;
+                }
+
                 tasks.emplace_back(std::move(compiled), std::move(stream_name), std::move(criterion));
                 runner.add(std::ref(tasks.back()));
             }

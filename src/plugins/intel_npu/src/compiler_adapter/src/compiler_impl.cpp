@@ -390,7 +390,7 @@ VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerIm
     vcl_device_desc_t device_desc = {sizeof(vcl_device_desc_t),
                                      0x00,
                                      static_cast<uint16_t>(-1),
-                                     static_cast<uint16_t>(-1)};
+                                     static_cast<uint32_t>(-1)};
     THROW_ON_FAIL_FOR_VCL("vclCompilerCreate",
                           vclCompilerCreate(&compilerDesc, &device_desc, &_compilerHandle, &_logHandle),
                           nullptr);
@@ -407,8 +407,15 @@ VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerIm
 
 VCLCompilerImpl::~VCLCompilerImpl() {
     if (_compilerHandle) {
-        THROW_ON_FAIL_FOR_VCL("vclCompilerDestroy", vclCompilerDestroy(_compilerHandle), _logHandle);
+        vcl_result_t result = vclCompilerDestroy(_compilerHandle);
+        _compilerHandle = nullptr;
+        if (result != VCL_RESULT_SUCCESS) {
+            _logger.warning("Failed to destroy VCL compiler: result 0x%x - %s",
+                            result,
+                            getLatestVCLLog(_logHandle).c_str());
+        }
     }
+
     if (_logHandle) {
         _logHandle = nullptr;  // Log handle is released automatically with the compiler
     }
@@ -460,7 +467,9 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     _logger.debug("create build flags");
     buildFlags += driver_compiler_utils::serializeIOInfo(model, true);
     buildFlags += " ";
-    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig, compilerVersion);
+    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig,
+                                                         compilerVersion,
+                                                         is_option_supported(ov::intel_npu::turbo.name()));
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
     vcl_executable_desc_t exeDesc = {serializedIR.buffer.get(),
@@ -533,7 +542,9 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     _logger.debug("create build flags");
     buildFlags += driver_compiler_utils::serializeIOInfo(model, true);
     buildFlags += " ";
-    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig, compilerVersion);
+    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig,
+                                                         compilerVersion,
+                                                         is_option_supported(ov::intel_npu::turbo.name()));
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
     vcl_executable_desc_t exeDesc = {serializedIR.buffer.get(),
@@ -657,7 +668,9 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
         driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
 
     std::string buildFlags;
-    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig, compilerVersion);
+    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig,
+                                                         compilerVersion,
+                                                         is_option_supported(ov::intel_npu::turbo.name()));
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     vcl_query_handle_t queryHandle;

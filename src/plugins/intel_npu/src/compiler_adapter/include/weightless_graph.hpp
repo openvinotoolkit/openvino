@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "compiler_impl.hpp"
 #include "graph.hpp"
 #include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "openvino/op/constant.hpp"
@@ -32,7 +33,7 @@ public:
                     const std::shared_ptr<const ov::Model>& model,
                     const Config& config,
                     const bool blobIsPersistent = false,
-                    const ov::SoPtr<ICompiler>& compiler = {nullptr});
+                    const ov::SoPtr<VCLCompilerImpl>& compiler = {nullptr});
 
     /**
      * @brief The main schedule along with the weights initialization ones are exported.
