@@ -196,7 +196,8 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
 #if DEBUG_ACC == 1
         acc_score_p[j] = sum_cur;
 #endif
-        if (sum_cur < thresh_act) {
+        // Use <= to handle floating point rounding errors when sum_cur approaches thresh_act
+        if (sum_cur <= thresh_act) {
             auto k_idx = sorted_index_p[j];
             if (k_idx <= causal_start_index + m_block)
                 block_mask_p[k_idx] = 1;
