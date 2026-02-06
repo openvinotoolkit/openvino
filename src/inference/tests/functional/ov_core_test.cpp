@@ -12,7 +12,6 @@
 #include "functional_test_utils/test_model/test_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
-#include "common_test_utils/test_common.hpp"
 
 class CoreBaseTest : public testing::Test {
 protected:
