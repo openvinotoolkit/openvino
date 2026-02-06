@@ -11,11 +11,10 @@ target_compile_definitions(${TARGET_NAME} PUBLIC SHUTDOWN_STATIC_LIBRARY)
 target_include_directories(${TARGET_NAME} PUBLIC
                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
                 $<INSTALL_INTERFACE:include>)
-set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME openvino_shutdown)
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME shutdown)
 
 # Use OBJECT instead of STATIC to ensure DLLMain is invoked when the shared library is unloaded
 add_library(${TARGET_NAME}_dyn OBJECT shutdown.cpp)
-set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME openvino_shutdown)
 
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         COMPONENT ${OV_CPACK_COMP_CORE}
