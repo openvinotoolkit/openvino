@@ -92,7 +92,7 @@ protected:
         auto gruCellOp =
             ov::test::utils::make_gru(paramsOuts, WRB, hiddenSize, activations, {}, {}, clip, linearBeforeReset);
 
-        function = create_ov_model(netPrecision, params, gruCellOp, "GRUCell");
+        function = makeNgraphFunction(netPrecision, params, gruCellOp, "GRUCell");
     }
 };
 

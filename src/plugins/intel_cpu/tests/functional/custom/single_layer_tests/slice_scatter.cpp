@@ -164,7 +164,7 @@ protected:
                            secondaryInputType);
         }
 
-        function = create_ov_model(netPrecision, params, sliceNode, "SliceScatter");
+        function = makeNgraphFunction(netPrecision, params, sliceNode, "SliceScatter");
     }
     SliceScatterSpecificParams sliceParams;
 };

@@ -99,7 +99,7 @@ protected:
                 sorted);
         }
 
-        function = create_ov_model(modelPrecision, params, uniqueNode, "UniqueCPU");
+        function = makeNgraphFunction(modelPrecision, params, uniqueNode, "UniqueCPU");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {

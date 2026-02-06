@@ -94,7 +94,7 @@ protected:
         auto augruCellOp =
             ov::test::utils::make_augru(paramsOuts, WRB, hiddenSize /*, activations, {}, {}, clip, linearBeforeReset*/);
 
-        function = create_ov_model(netPrecision, params, augruCellOp, "AUGRUCell");
+        function = makeNgraphFunction(netPrecision, params, augruCellOp, "AUGRUCell");
     }
 };
 

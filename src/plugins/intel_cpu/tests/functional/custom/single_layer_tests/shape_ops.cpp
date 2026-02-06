@@ -184,7 +184,7 @@ protected:
         }
         }
 
-        function = create_ov_model(prc, inputs, shapeOps, "ShapeOpsCPUTest");
+        function = makeNgraphFunction(prc, inputs, shapeOps, "ShapeOpsCPUTest");
     }
 
 private:

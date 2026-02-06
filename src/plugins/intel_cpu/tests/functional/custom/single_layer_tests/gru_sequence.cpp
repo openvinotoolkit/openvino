@@ -128,7 +128,7 @@ protected:
                                                       direction,
                                                       seqMode);
 
-        function = create_ov_model(netPrecision, params, gruSequenceOp, "gruSequenceOp");
+        function = makeNgraphFunction(netPrecision, params, gruSequenceOp, "gruSequenceOp");
 
         if (seqMode != ov::test::utils::SequenceTestsMode::PURE_SEQ) {
             ov::pass::Manager manager;

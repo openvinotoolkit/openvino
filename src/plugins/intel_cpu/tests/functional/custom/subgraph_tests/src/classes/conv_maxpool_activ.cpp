@@ -68,7 +68,7 @@ void ConvPoolActivTest::SetUp() {
 #else
     selectedType = makeSelectedTypeStr(getPrimitiveType(), element::f32);
 #endif
-    function = create_ov_model(element::f32, inputParams, pooling, "ConvPoolActiv");
+    function = makeNgraphFunction(element::f32, inputParams, pooling, "ConvPoolActiv");
 }
 
 bool ConvPoolActivTest::primTypeCheck(std::string primType) const {

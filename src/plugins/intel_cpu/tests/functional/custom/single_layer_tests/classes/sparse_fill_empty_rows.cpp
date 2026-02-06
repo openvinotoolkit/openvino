@@ -144,7 +144,7 @@ void SparseFillEmptyRowsLayerCPUTest::SetUp() {
         sparseFillEmptyRows = std::make_shared<ov::op::v16::SparseFillEmptyRows>(
             valuesParameter, denseShapeParameter, indicesParameter, defaultValueParameter);
     }
-    function = create_ov_model(valuesPrecision, params, sparseFillEmptyRows, "SparseFillEmptyRows");
+    function = makeNgraphFunction(valuesPrecision, params, sparseFillEmptyRows, "SparseFillEmptyRows");
 }
 
 TEST_P(SparseFillEmptyRowsLayerCPUTest, CompareWithRefs) {

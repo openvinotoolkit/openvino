@@ -128,7 +128,7 @@ void BitwiseShiftLayerCPUTest::SetUp() {
     }
 
     auto eltwise = utils::make_eltwise(parameters[0], secondaryInput, eltwiseType);
-    function = create_ov_model(netType, parameters, eltwise, "Eltwise");
+    function = makeNgraphFunction(netType, parameters, eltwise, "Eltwise");
 }
 
 TEST_P(BitwiseShiftLayerCPUTest, CompareWithRefs) {

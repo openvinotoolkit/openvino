@@ -142,7 +142,7 @@ void MatMulLayerCPUTest::SetUp() {
     }
 
     auto matMul = std::make_shared<ov::op::v0::MatMul>(paramOuts[0], matrixB, transpA, transpB);
-    function = create_ov_model(netType, params, matMul, cpuNodeType);
+    function = makeNgraphFunction(netType, params, matMul, cpuNodeType);
     checkFusingPosition = false;
 }
 
