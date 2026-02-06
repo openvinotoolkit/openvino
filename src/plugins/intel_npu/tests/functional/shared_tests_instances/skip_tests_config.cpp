@@ -250,7 +250,7 @@ std::vector<std::string> disabledTestPatterns() {
             // Error returned from pugixml, fallback to legacy skips
             if (!xmlResult.error_msg.empty()) {
                 _log.error(xmlResult.error_msg.c_str());
-                throw std::runtime_error("No skip filters are applied");
+                OPENVINO_THROW("No skip filters are applied");
             }
 
             pugi::xml_document& xmlSkipConfig = *xmlResult.xml;
