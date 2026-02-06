@@ -70,7 +70,7 @@ class TestCondFX(PytorchLayerTest):
         self.pred_value = pred_value
         self.input_shape = input_shape
         self._test(*self.create_simple_cond_model(), ie_device, precision, ir_version,
-                   use_convert_model=True)
+                   use_convert_model=True, fx_kind="cond")
 
     @pytest.mark.parametrize("pred_value", [np.array(True), np.array(False)])
     @pytest.mark.parametrize("input_shape", [(1, 4)])
@@ -82,7 +82,7 @@ class TestCondFX(PytorchLayerTest):
         self.pred_value = pred_value
         self.input_shape = input_shape
         self._test(*self.create_multi_output_cond_model(), ie_device, precision, ir_version,
-                   use_convert_model=True)
+                   use_convert_model=True, fx_kind="cond")
 
     @pytest.mark.parametrize("pred_value", [np.array(True), np.array(False)])
     @pytest.mark.parametrize("input_shape,hidden_size", [((1, 10, 64), 64)])
@@ -92,4 +92,4 @@ class TestCondFX(PytorchLayerTest):
         self.pred_value = pred_value
         self.input_shape = input_shape
         self._test(*self.create_linear_cond_model(hidden_size), ie_device, precision, ir_version,
-                   use_convert_model=True)
+                   use_convert_model=True, fx_kind="cond")

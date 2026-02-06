@@ -55,6 +55,57 @@ class PytorchLayerTest:
         return False
 
     @staticmethod
+    def _check_fx_op_exist(exported_program, op_name):
+        """Check if an operation exists in the FX graph of an ExportedProgram.
+        
+        Args:
+            exported_program: torch.export.ExportedProgram
+            op_name: str - operation name like "aten.add.Tensor" or just "aten.add"
+        
+        Returns:
+            bool - True if operation exists in the graph
+        """
+        for node in exported_program.graph.nodes:
+            if node.op == "call_function":
+                target_str = str(node.target)
+                # Support both full name (aten.add.Tensor) and partial match (aten.add)
+                if target_str == op_name or target_str.startswith(op_name + "."):
+                    return True
+        return False
+
+    @staticmethod
+    def _derive_fx_kind_from_kind(kind):
+        """Derive FX graph operation name from TorchScript kind.
+        
+        Converts TorchScript operation names like "aten::add" to FX names like "aten.add".
+        
+        Args:
+            kind: str or tuple of str - TorchScript operation name(s)
+        
+        Returns:
+            list of str - FX operation names, or None if conversion not possible
+        """
+        if kind is None:
+            return None
+        
+        if isinstance(kind, str):
+            kinds = [kind]
+        else:
+            kinds = list(kind)
+        
+        fx_kinds = []
+        for k in kinds:
+            # Convert "aten::op_name" to "aten.op_name"
+            if "::" in k:
+                fx_kind = k.replace("::", ".")
+                fx_kinds.append(fx_kind)
+            else:
+                # Cannot auto-derive, return None to require explicit fx_kind
+                return None
+        
+        return fx_kinds if fx_kinds else None
+
+    @staticmethod
     def use_torch_compile_backend():
         torch_compile_env = os.getenv("PYTORCH_TRACING_MODE")
         if torch_compile_env is not None:
@@ -126,6 +177,18 @@ class PytorchLayerTest:
                 dynamic_shapes = kwargs.get('dynamic_shapes_for_export', {})
 
                 em = export(model, tuple(torch_inputs), dynamic_shapes=dynamic_shapes)
+
+                # Verify FX graph operations exist
+                # Use explicit fx_kind if provided, otherwise auto-derive from TorchScript kind
+                fx_kind = kwargs.get('fx_kind', None)
+                if fx_kind is None:
+                    fx_kind = self._derive_fx_kind_from_kind(kind)
+                
+                assert fx_kind is not None, f"fx_kind must be provided explicitly or derivable from kind. Graph:\n{em.graph}"
+                if not isinstance(fx_kind, (tuple, list)):
+                    fx_kind = [fx_kind]
+                for op in fx_kind:
+                    assert self._check_fx_op_exist(em, op), f"Operation {op} doesn't exist in FX graph. Graph:\n{em.graph}"
 
                 converted_model = convert_model(
                     em, example_input=torch_inputs, verbose=True)

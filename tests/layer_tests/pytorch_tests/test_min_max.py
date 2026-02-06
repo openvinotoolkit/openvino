@@ -79,7 +79,7 @@ class TestMinMax(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     def test_reduce_min_max(self, axes, keep_dims, op_type, ie_device, precision, ir_version):
         self._test(*self.create_model(op_type, axes, keep_dims,
-                                      single_input=True), ie_device, precision, ir_version)
+                                      single_input=True), ie_device, precision, ir_version, fx_kind=f"aten.{op_type}")
 
     @pytest.mark.parametrize("op_type", ['min', 'max'])
     @pytest.mark.parametrize("second_input_dtype", ["float32", "int32", "float64", "int64", "uint8"])
@@ -93,8 +93,8 @@ class TestMinMax(PytorchLayerTest):
             pytest.xfail(reason="Cumsum for i8 is unsupported on GPU")
         self._test(*self.create_model(op_type, None, None, single_input=False, dtypes=(first_input_dtype, second_input_dtype)),
                    ie_device, precision, ir_version, kwargs_to_prepare_input=
-                   {"second_input": True, "input_dtype": first_input_dtype, "second_input_dtype": second_input_dtype}
-                   )
+                   {"second_input": True, "input_dtype": first_input_dtype, "second_input_dtype": second_input_dtype},
+                   fx_kind=f"aten.{op_type}")
 
 
 class TestPrimMax(PytorchLayerTest):
@@ -276,8 +276,8 @@ class TestMinimumMaximum(PytorchLayerTest):
         ):
         self._test(*self.create_model(op_type, dtypes=(first_input_dtype, second_input_dtype), out=False),
                    ie_device, precision, ir_version, kwargs_to_prepare_input=
-                   {"input_dtype": first_input_dtype, "second_input_dtype": second_input_dtype, "out": False}
-                   )
+                   {"input_dtype": first_input_dtype, "second_input_dtype": second_input_dtype, "out": False},
+                   fx_kind=f"aten.{op_type}")
 
 
     @pytest.mark.parametrize("op_type", ['minimum', 'maximum'])
@@ -347,4 +347,4 @@ class TestAminAmax(PytorchLayerTest):
         self._test(*self.create_model(op_type, axis, keep_dims, out),
                    ie_device, precision, ir_version, kwargs_to_prepare_input=
                    {"input_dtype": input_dtype, "out": out, "axes": axis, "keep_dims": keep_dims},
-                   )
+                   fx_kind=f"aten.{op_type}")

@@ -39,5 +39,5 @@ class TestMatMulOperation(PytorchLayerTest):
             ie_device,
             precision,
             ir_version,
-            kwargs_to_prepare_input={"matrix": matrix_input, "vector": vector_input}
+            kwargs_to_prepare_input={"matrix": matrix_input, "vector": vector_input},
         )

@@ -17,16 +17,14 @@ class TestStrides(PytorchLayerTest):
 
         class strided_const(torch.nn.Module):
             def __init__(self):
-                super(strided_const, self).__init__()
+                super().__init__()
                 self.const = torch.randint(0, 10, [1, 3, 2, 2], dtype=torch.float32)
                 self.const = self.const.to(memory_format=torch.channels_last)
 
             def forward(self, x):
                 return x + self.const
 
-        ref_net = None
-
-        return strided_const(), ref_net, None
+        return strided_const(), None, "aten::add"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

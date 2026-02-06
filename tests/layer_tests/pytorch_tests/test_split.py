@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import torch
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class TestSplit(PytorchLayerTest):
@@ -15,46 +15,43 @@ class TestSplit(PytorchLayerTest):
     def create_model_split_getitem(self):
         class aten_split(torch.nn.Module):
             def __init__(self, split, axis, getitem):
+                super().__init__()
                 self.split = split
                 self.axis = axis
                 self.getitem = getitem
-                super(aten_split, self).__init__()
 
             def forward(self, input):
                 return torch.split(input, self.split, self.axis)[self.getitem]
 
-        ref_net = None
-
         return (
             aten_split(self.split_param, self.axis, self.getitem),
-            ref_net,
+            None,
             "aten::split",
         )
 
     def create_model_split_listunpack(self):
         class aten_split(torch.nn.Module):
             def __init__(self, split, axis):
+                super().__init__()
                 self.split = split
                 self.axis = axis
-                super(aten_split, self).__init__()
 
             def forward(self, input):
                 # Hardcode to test with ListUnpack
                 a, b, c, d, e = torch.split(input, self.split, self.axis)
                 return b
 
-        ref_net = None
-
-        return aten_split(self.split_param, self.axis), ref_net, "aten::split"
+        return aten_split(self.split_param, self.axis), None, "aten::split"
 
     # Test case - (split_param, axis), always split into 5 due to hardcoded number of outputs in ListUnpack test.
     test_cases = [
         (2, 1),
         (45, 2),
         (45, -1),
-        ([2, 2, 2, 2, 2], 1),
-        ([200, 20, 1, 1, 2], 2),
-        ([20, 200, 1, 1, 2], -1),
+        # the following test cases produce split_with_sizes for FX
+        skip_if_export(([2, 2, 2, 2, 2], 1)),
+        skip_if_export(([200, 20, 1, 1, 2], 2)),
+        skip_if_export(([20, 200, 1, 1, 2], -1)),
     ]
 
     @pytest.mark.parametrize("params", test_cases)
@@ -99,7 +96,8 @@ class TestSplitWithSizes(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     def test_split_with_sizes(self, ie_device, precision, ir_version):
         self._test(*self.create_model(),
-                   ie_device, precision, ir_version, trace_model=True)
+                   ie_device, precision, ir_version, trace_model=True,
+                   fx_kind="aten.split_with_sizes.default")
 
 
 class TestSplitWithSizesCopy(PytorchLayerTest):
@@ -111,9 +109,6 @@ class TestSplitWithSizesCopy(PytorchLayerTest):
         import torch
 
         class aten_split_with_sizes_copy(torch.nn.Module):
-            def __init__(self):
-                super(aten_split_with_sizes_copy, self).__init__()
-
             def forward(self, x, y):
                 return torch.split_with_sizes_copy(x, [y.shape[0]], dim=0)
 
@@ -121,10 +116,12 @@ class TestSplitWithSizesCopy(PytorchLayerTest):
 
         return aten_split_with_sizes_copy(), ref_net, ["aten::split_with_sizes", "prim::ListConstruct"]
 
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_split_with_sizes_copy(self, ie_device, precision, ir_version):
         self._test(*self.create_model(),
-                   ie_device, precision, ir_version, trace_model=True)
+                   ie_device, precision, ir_version, trace_model=True,
+                   fx_kind="aten.split_with_sizes_copy.default")
 
 
 class TestSplitWithSizesComplex(PytorchLayerTest):
@@ -153,4 +150,5 @@ class TestSplitWithSizesComplex(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     def test_split_with_sizes_complex(self, ie_device, precision, ir_version):
         self._test(*self.create_model(),
-                   ie_device, precision, ir_version, trace_model=True)
+                   ie_device, precision, ir_version, trace_model=True,
+                   fx_kind="aten.split_with_sizes.default")

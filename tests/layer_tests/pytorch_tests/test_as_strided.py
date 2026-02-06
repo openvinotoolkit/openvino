@@ -136,7 +136,8 @@ class TestAsStridedListConstruct(PytorchLayerTest):
             precision,
             ir_version,
             kwargs_to_prepare_input=inp_kwargs,
-            trace_model=True
+            trace_model=True,
+            fx_kind="aten.as_strided.default",
         )
 
 
