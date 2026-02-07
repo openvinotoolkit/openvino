@@ -15,31 +15,31 @@ namespace intel_npu {
 
 class CompilerAdapterFactory final {
 public:
-    static CompilerAdapterFactory& getInstance() {
-        static CompilerAdapterFactory instance;
-        return instance;
-    }
-
-    CompilerAdapterFactory(const CompilerAdapterFactory&) = delete;
-    CompilerAdapterFactory(CompilerAdapterFactory&&) = delete;
-    CompilerAdapterFactory& operator=(const CompilerAdapterFactory&) = delete;
-    CompilerAdapterFactory& operator=(CompilerAdapterFactory&&) = delete;
-
     std::unique_ptr<ICompilerAdapter> getCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
-                                                  ov::intel_npu::CompilerType& compilerType) const {
+                                                  ov::intel_npu::CompilerType& compilerType,
+                                                  std::string_view configPlatform) const {
         if (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
             if (engineBackend) {
-                if (_pluginCompilerIsPresent) {
+                std::string platform;
+                auto devicePlatform = engineBackend->getDevice()->getName();
+                platform = configPlatform == ov::intel_npu::Platform::AUTO_DETECT ? devicePlatform : configPlatform;
+
+                if (_pluginCompilerIsPresent && platform != ov::intel_npu::Platform::NPU3720 &&
+                    platform != ov::intel_npu::Platform::AUTO_DETECT) {
                     try {
                         compilerType = ov::intel_npu::CompilerType::PLUGIN;
+
+                        if (devicePlatform != platform) {
+                            return std::make_unique<PluginCompilerAdapter>(nullptr);
+                        }
+
                         return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs());
                     } catch (...) {
                         _pluginCompilerIsPresent = false;
-                        compilerType = ov::intel_npu::CompilerType::DRIVER;
                     }
-                } else {
-                    compilerType = ov::intel_npu::CompilerType::DRIVER;
                 }
+
+                compilerType = ov::intel_npu::CompilerType::DRIVER;
             } else {
                 // no backend present, offline compilation only
                 compilerType = ov::intel_npu::CompilerType::PLUGIN;
@@ -64,10 +64,7 @@ public:
     }
 
 private:
-    CompilerAdapterFactory() = default;
-    ~CompilerAdapterFactory() = default;
-
-    mutable std::atomic<bool> _pluginCompilerIsPresent = true;
+    inline static std::atomic<bool> _pluginCompilerIsPresent{true};
 };
 
 }  // namespace intel_npu

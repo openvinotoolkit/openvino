@@ -282,7 +282,7 @@ static auto get_specified_device_name(const Config config) {
 // Note: this is the value provided by the plugin, application should query and consider it, but may supply its own
 // preference for number of parallel requests via dedicated configuration
 static int64_t getOptimalNumberOfInferRequestsInParallel(const Config& config) {
-    const std::string platform = ov::intel_npu::Platform::standardize(config.get<PLATFORM>());
+    const std::string platform = config.get<PLATFORM>();
 
     if (platform == ov::intel_npu::Platform::NPU3720) {
         if (config.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::THROUGHPUT) {
@@ -521,7 +521,8 @@ void Properties::registerPluginProperties() {
                 config,
                 utils::getCompilationPlatform(
                     config.get<PLATFORM>(),
-                    config.get<DEVICE_ID>(),
+                    _backend == nullptr ? config.get<DEVICE_ID>()
+                                        : _backend->getDevice(config.get<DEVICE_ID>())->getName(),
                     _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames())))));
         REGISTER_SIMPLE_METRIC(ov::range_for_async_infer_requests, true, _metrics->GetRangeForAsyncInferRequest());
         REGISTER_SIMPLE_METRIC(ov::range_for_streams, true, _metrics->GetRangeForStreams());
@@ -571,7 +572,8 @@ void Properties::registerPluginProperties() {
         REGISTER_CUSTOM_METRIC(ov::intel_npu::compiler_version, true, [&](const Config& config) {
             /// create dummy compiler
             auto compilerType = config.get<COMPILER_TYPE>();
-            auto dummyCompiler = CompilerAdapterFactory::getInstance().getCompiler(_backend, compilerType);
+            CompilerAdapterFactory factory;
+            auto dummyCompiler = factory.getCompiler(_backend, compilerType, config.get<PLATFORM>());
             return dummyCompiler->get_version();
         });
         REGISTER_CUSTOM_METRIC(ov::internal::caching_properties, false, [&](const Config& config) {
@@ -724,7 +726,8 @@ void Properties::set_property(const ov::AnyMap& properties) {
                 try {
                     // Only accepting unknown config keys in plugin
                     auto compilerType = _config.get<COMPILER_TYPE>();
-                    compiler = CompilerAdapterFactory::getInstance().getCompiler(_backend, compilerType);
+                    CompilerAdapterFactory factory;
+                    compiler = factory.getCompiler(_backend, compilerType, _config.get<PLATFORM>());
                 } catch (...) {
                     // just throw the exception below in case unknown property check is called
                 }
