@@ -84,6 +84,8 @@ public:
         uint32_t total_seq_len);
 
     // Reset chunked prefill state before starting a new chunked prefill session
+    // NOTE: m_last_hidden_state holds tensors of different sizes in prefill vs generation phases
+    // Must reset to avoid size mismatch when starting a new prefill after previous generations
     void reset_chunked_prefill_state() {
         m_last_hidden_state = {};
         m_chunked_seq_offset = 0;
