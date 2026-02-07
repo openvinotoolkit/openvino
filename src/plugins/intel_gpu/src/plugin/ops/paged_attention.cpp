@@ -21,7 +21,7 @@ using PagedAttentionExtension = ov::op::PagedAttentionExtension;
 namespace ov::intel_gpu {
 
 static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::PagedAttentionExtension>& op) {
-    validate_inputs_count(op, {25});
+    validate_inputs_count(op, {29});
     auto inputs = p.GetInputInfo(op);
     auto prim = cldnn::paged_attention(layer_type_name_ID(op), inputs);
 
@@ -118,6 +118,11 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     OPENVINO_ASSERT(sinks_const != nullptr);
     prim.has_sink_input = ov::shape_size(sinks_const->get_output_shape(0)) > 0;
 
+    const size_t qq_bias_idx = cldnn::paged_attention::PagedAttentionInputIdx::QQ_BIAS;
+    auto qq_bias_input = ov::as_type_ptr<ov::op::v0::Parameter>(op->get_input_node_shared_ptr(qq_bias_idx));
+    if (qq_bias_input && qq_bias_input->get_output_partial_shape(0).is_dynamic()) {
+        prim.has_qq_bias = true;
+    }
     prim.is_key_by_channel = p.get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
     prim.num_outputs = 1;
 
@@ -138,6 +143,6 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     p.add_primitive(*op, prim);
 }
 
-REGISTER_FACTORY_IMPL(internal, PagedAttentionExtension)
+REGISTER_FACTORY_IMPL(internal, PagedAttentionExtension);
 
 }  // namespace ov::intel_gpu
