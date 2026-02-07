@@ -94,6 +94,7 @@ TF_OP_CONVERTER(translate_fifo_queue_op);
 TF_OP_CONVERTER(translate_gru_block_cell_op);
 TF_OP_CONVERTER(translate_hash_table_op);
 TF_OP_CONVERTER(translate_if_op);
+TF_OP_CONVERTER(translate_case_op);
 TF_OP_CONVERTER(translate_iterator_get_next_op);
 TF_OP_CONVERTER(translate_iterator_op);
 TF_OP_CONVERTER(translate_lookup_table_import_op);
@@ -225,6 +226,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Bucketize", CreatorFunction(translate_bucketize_op)},
         {"BiasAdd", CreatorFunction(translate_bias_add_op)},
         {"Bincount", CreatorFunction(translate_bincount_op)},
+        {"Case", CreatorFunction(translate_case_op)},
         {"Cast", CreatorFunction(translate_cast_op)},
         {"CheckNumerics", CreatorFunction(translate_identity_op)},
         {"CheckNumericsV2", CreatorFunction(translate_identity_op)},
