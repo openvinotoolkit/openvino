@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstring>
 #include <sstream>
 #include <stdexcept>
 #include <type_traits>
@@ -45,22 +46,56 @@ private:
 class BinaryInputBuffer : public InputBuffer<BinaryInputBuffer> {
 public:
     BinaryInputBuffer(std::istream& stream, engine& engine)
-    : InputBuffer<BinaryInputBuffer>(this, engine), _stream(stream), _impl_params(nullptr) {}
+    : BinaryInputBuffer(&stream, engine) {}
 
     virtual ~BinaryInputBuffer() = default;
 
     virtual void read(void* const data, std::streamsize size) {
-        auto const read_size = _stream.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
-        OPENVINO_ASSERT(read_size == size,
-            "[GPU] Failed to read " + std::to_string(size) + " bytes from stream! Read " + std::to_string(read_size));
+        OPENVINO_ASSERT(_stream != nullptr);
+        auto const read_size = _stream->rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
+        OPENVINO_ASSERT(read_size == size, "[GPU] Failed to read ", size, " bytes from stream! Read ", read_size);
     }
 
     void setKernelImplParams(void* impl_params) { _impl_params = impl_params; }
     void* getKernelImplParams() const { return _impl_params; }
 
+protected:
+    BinaryInputBuffer(std::istream* stream, engine& engine) 
+    : InputBuffer<BinaryInputBuffer>(this, engine), _stream(stream), _impl_params(nullptr) {}
+
 private:
-    std::istream& _stream;
+    std::istream* _stream;
     void* _impl_params;
+};
+
+class DirectBinaryInputBuffer : public BinaryInputBuffer {
+public:
+    DirectBinaryInputBuffer(const char* data, const size_t size, engine& engine)
+    : BinaryInputBuffer(nullptr, engine), data_(data), size_(size), offset(0) {
+        OPENVINO_ASSERT(data);
+    }
+
+    ~DirectBinaryInputBuffer() override = default;
+
+    void read(void* const data, std::streamsize size) override {
+        const auto read_size = std::min<std::streamsize>(size_ - offset, size);
+        std::memcpy(data, data_ + offset, read_size);
+        offset += read_size;
+        OPENVINO_ASSERT(read_size == size, "[GPU] Failed to read ", size, " bytes from stream! Read ", read_size);
+    }
+
+    const char* readView(std::streamsize size) {
+        const auto read_size = std::min<std::streamsize>(size_ - offset, size);
+        OPENVINO_ASSERT(read_size == size, "[GPU] Failed to read view due to buffer does not have enough size!");
+        const auto data = data_ + offset;
+        offset += read_size;
+        return data;
+    }
+
+private:
+    const char* data_;
+    size_t size_;
+    size_t offset;
 };
 
 class EncryptedBinaryOutputBuffer : public BinaryOutputBuffer {
@@ -90,39 +125,39 @@ private:
     std::function<std::string(const std::string&)> encrypt;
 };
 
-class EncryptedBinaryInputBuffer : public BinaryInputBuffer {
+class EncryptedBinaryInputBuffer : public DirectBinaryInputBuffer {
 public:
-    EncryptedBinaryInputBuffer(std::istream& stream,
-                               engine& engine,
-                               std::function<std::string(const std::string&)> decrypt)
-        : BinaryInputBuffer(stream, engine),
-          decrypt(decrypt) {
+    EncryptedBinaryInputBuffer(std::istream& stream, engine& engine, std::function<std::string(const std::string&)> decrypt)
+        : EncryptedBinaryInputBuffer(decryptAll(stream, decrypt), engine) {}
+
+    ~EncryptedBinaryInputBuffer() override = default;
+
+private:
+    EncryptedBinaryInputBuffer(std::unique_ptr<std::string> text, engine& engine)
+    : DirectBinaryInputBuffer(text->c_str(), text->size(), engine), plaintext(std::move(text)) { }
+
+    static std::unique_ptr<std::string> decryptAll(std::istream& stream, std::function<std::string(const std::string&)> decrypt) {
         OPENVINO_ASSERT(decrypt);
 
-        size_t bytes;
-        BinaryInputBuffer::read(make_data(&bytes, sizeof(bytes)).data, sizeof(bytes));
+        auto buf = stream.rdbuf();
+        OPENVINO_ASSERT(buf);
+
+        size_t bytes = 0;
+        const auto read_size_bytes = buf->sgetn(reinterpret_cast<char*>(&bytes), sizeof(bytes));
+        OPENVINO_ASSERT(read_size_bytes == sizeof(bytes));
 
         // Not reading directly to plaintext_stream because decrypt(plaintext_stream.str()) would create an additional
         // copy.
         std::string str(bytes, 0);
-        BinaryInputBuffer::read(
-            make_data(const_cast<void*>(reinterpret_cast<const void*>(str.c_str())), str.size()).data,
-            str.size());
-        plaintext_stream.str(decrypt(str));
+        const auto read_size_str = buf->sgetn(str.data(), str.size());
+        OPENVINO_ASSERT(read_size_str > 0 && static_cast<size_t>(read_size_str) == bytes);
+
+        auto plaintext = decrypt(str);
+
+        return std::make_unique<std::string>(std::move(plaintext));
     }
 
-    ~EncryptedBinaryInputBuffer() override = default;
-
-    void read(void* const data, std::streamsize size) override {
-        auto const read_size = plaintext_stream.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
-        OPENVINO_ASSERT(
-            read_size == size,
-            "[GPU] Failed to read " + std::to_string(size) + " bytes from stream! Read " + std::to_string(read_size));
-    }
-
-private:
-    std::stringstream plaintext_stream;
-    std::function<std::string(const std::string&)> decrypt;
+    std::unique_ptr<std::string> plaintext;
 };
 
 template <typename T>
