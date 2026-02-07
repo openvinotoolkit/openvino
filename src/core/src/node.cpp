@@ -20,6 +20,8 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/runtime/allocator.hpp"
+#include "openvino/runtime/allocator_mmap.hpp"
 #include "openvino/util/log.hpp"
 #include "shape_validation.hpp"
 #include "shared_node_info.hpp"
@@ -733,8 +735,9 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     TensorVector output_tensors;
     for (const auto& output : outputs()) {
         const auto& et = output.get_element_type();
+        ov::Allocator mmap_allocator = ov::Allocator{ov::MmapAnonymousAllocator{}};
         if (et.is_static()) {
-            output_tensors.emplace_back(output);
+            output_tensors.emplace_back(output, mmap_allocator);
         } else {
             output_tensors.emplace_back();
         }
@@ -745,6 +748,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
             output_values[i] = make_shared<ov::op::v0::Constant>(output_tensors[i]);
             ov::copy_runtime_info(nodes, output_values[i].get_node_shared_ptr());
         }
+
         return true;
     }
     return false;
