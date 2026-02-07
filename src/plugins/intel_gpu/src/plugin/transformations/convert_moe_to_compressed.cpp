@@ -173,7 +173,6 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-
         auto moe = ov::as_type_ptr<ov::op::internal::MOE>(pattern_map.at(moe_root).get_node_shared_ptr());
         if (!moe || transformation_callback(moe)) {
             return false;
@@ -298,7 +297,6 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
         } else {
             OPENVINO_THROW("Unsupported MOE expert type in ConvertMOEToMOECompressed");
         }
-
         return true;
     };
 
