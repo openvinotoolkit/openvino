@@ -139,7 +139,7 @@ void get_reference(const std::vector<ov::float16>& input,
                                 acc += fa0 * input_r[2 * ki];
                                 acc += fa1 * input_r[2 * ki + 1];
                             } else {
-                                OPENVINO_ASSERT("Not implemented dt");
+                                OPENVINO_THROW("Not implemented dt");
                             }
                         }
                         scale_group++;

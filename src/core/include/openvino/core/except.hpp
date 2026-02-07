@@ -8,6 +8,7 @@
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
+#include <type_traits>
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/deprecated.hpp"
@@ -91,7 +92,38 @@ public:
 protected:
     explicit NotImplemented(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
 };
+
+namespace detail {
+
+template <class T>
+inline void check_condition(const T&) noexcept {}
+
+template <typename CharT,
+          std::size_t N,
+          std::enable_if_t<std::is_same_v<CharT, char> || std::is_same_v<CharT, wchar_t> ||
+                               std::is_same_v<CharT, char16_t> || std::is_same_v<CharT, char32_t>,
+                           int> = 0>
+inline void check_condition(const CharT (&)[N]) noexcept {
+    static_assert(N == 0,
+                  "OPENVINO_ASSERT: string literal used as condition (always true). "
+                  "Did you mean to compare strings or check a pointer?");
+}
+
+}  // namespace detail
+
 }  // namespace ov
+
+//
+// Wrapper for check_condition that performs compile-time checks for programming errors.
+// Since check_condition uses static_assert, it has zero runtime overhead and only catches
+// programming mistakes at compile time (e.g., using string literals as conditions).
+// Always enabled to ensure these errors are caught in all builds including CI.
+//
+#ifndef NDEBUG
+#    define OPENVINO_CHECK_CONDITION(check) ::ov::detail::check_condition(check)
+#else
+#    define OPENVINO_CHECK_CONDITION(check)
+#endif
 
 //
 // Helper macro for defining custom check macros, which throw custom exception classes and provide
@@ -157,6 +189,7 @@ protected:
 //
 #define OPENVINO_ASSERT_HELPER2(exc_class, ctx, check, ...)                      \
     do {                                                                         \
+        OPENVINO_CHECK_CONDITION(check);                                         \
         if (!static_cast<bool>(check)) {                                         \
             ::std::ostringstream ss___;                                          \
             ::ov::write_all_to_stream(ss___, __VA_ARGS__);                       \
@@ -166,6 +199,7 @@ protected:
 
 #define OPENVINO_ASSERT_HELPER1(exc_class, ctx, check)                                      \
     do {                                                                                    \
+        OPENVINO_CHECK_CONDITION(check);                                                    \
         if (!static_cast<bool>(check)) {                                                    \
             exc_class::create(__FILE__, __LINE__, (#check), (ctx), exc_class::default_msg); \
         }                                                                                   \

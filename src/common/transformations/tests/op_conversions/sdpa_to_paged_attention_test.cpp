@@ -82,18 +82,18 @@ namespace v15 = ov::op::v15;
 namespace {
 
 // Constants and Parameters attributes:
-auto el_type_i64 = std::pair<std::string, detail::AttrAny>({"element_type", "i64"});
-auto el_type_i32 = std::pair<std::string, detail::AttrAny>({"element_type", "i32"});
-auto el_type_f32 = std::pair<std::string, detail::AttrAny>({"element_type", "f32"});
+auto el_type_i64 = std::pair<std::string, gen_pattern::detail::AttrAny>({"element_type", "i64"});
+auto el_type_i32 = std::pair<std::string, gen_pattern::detail::AttrAny>({"element_type", "i32"});
+auto el_type_f32 = std::pair<std::string, gen_pattern::detail::AttrAny>({"element_type", "f32"});
 
 // Convert ops attributes:
-auto dest_type_i64 = std::pair<std::string, detail::AttrAny>({"destination_type", "i64"});
-auto dest_type_f32 = std::pair<std::string, detail::AttrAny>({"destination_type", "f32"});
-auto dest_type_f16 = std::pair<std::string, detail::AttrAny>({"destination_type", "f16"});
+auto dest_type_i64 = std::pair<std::string, gen_pattern::detail::AttrAny>({"destination_type", "i64"});
+auto dest_type_f32 = std::pair<std::string, gen_pattern::detail::AttrAny>({"destination_type", "f32"});
+auto dest_type_f16 = std::pair<std::string, gen_pattern::detail::AttrAny>({"destination_type", "f16"});
 
 // Other attributes:
-auto numpy_broadcast = std::pair<std::string, detail::AttrAny>({"auto_broadcast", "numpy"});
-auto special_zero_true = std::pair<std::string, detail::AttrAny>({"special_zero", true});
+auto numpy_broadcast = std::pair<std::string, gen_pattern::detail::AttrAny>({"auto_broadcast", "numpy"});
+auto special_zero_true = std::pair<std::string, gen_pattern::detail::AttrAny>({"special_zero", true});
 
 auto single_val = [](int rank, float val) {
     return makeConst(element::f32, ov::Shape{std::vector<size_t>(rank, 1)}, {val});
