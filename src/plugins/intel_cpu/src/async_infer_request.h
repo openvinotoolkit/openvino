@@ -25,6 +25,7 @@ public:
     ~AsyncInferRequest() override;
 
     void infer() override;
+    void cancel() override;
 
     void setSubInferRequest(const std::vector<std::shared_ptr<IAsyncInferRequest>>& requests);
 
