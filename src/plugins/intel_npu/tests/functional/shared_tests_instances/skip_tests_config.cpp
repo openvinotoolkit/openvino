@@ -229,9 +229,9 @@ bool categoryRuleEnabler(const std::string& category,
     return false;
 }
 
-std::vector<std::string> disabledTestPatterns();
+const std::vector<std::regex>& disabled_test_patterns();
 
-std::vector<std::string> disabledTestPatterns() {
+const std::vector<std::regex>& disabled_test_patterns() {
     // Initialize skip registry
     static const auto skipRegistry = []() {
         SkipRegistry _skipRegistry;
@@ -293,9 +293,10 @@ std::vector<std::string> disabledTestPatterns() {
     }();
     // clang-format on
 
-    std::vector<std::string> matchingPatterns;
+    static std::vector<std::regex> patterns;
+    patterns.clear();
     const auto currentTestName = getCurrentTestName();
-    matchingPatterns.emplace_back(skipRegistry.getMatchingPattern(currentTestName));
+    patterns.emplace_back(skipRegistry.getMatchingPattern(currentTestName));
 
-    return matchingPatterns;
+    return patterns;
 }

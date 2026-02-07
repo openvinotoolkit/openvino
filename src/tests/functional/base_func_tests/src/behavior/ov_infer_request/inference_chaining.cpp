@@ -145,7 +145,7 @@ void OVInferenceChaining::Run() {
 
 // DEPRECATED VERSION
 TEST_P(OVInferenceChaining, StaticOutputToStaticInput) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     function0 = getFirstStaticFunction();
@@ -156,7 +156,7 @@ TEST_P(OVInferenceChaining, StaticOutputToStaticInput) {
 }
 
 TEST_P(OVInferenceChainingStatic, StaticOutputToStaticInput) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     function0 = getFirstStaticFunction();
@@ -167,7 +167,7 @@ TEST_P(OVInferenceChainingStatic, StaticOutputToStaticInput) {
 }
 
 TEST_P(OVInferenceChaining, StaticOutputToDynamicInput) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     const auto dynamic = ov::PartialShape::dynamic(ov::Rank(1));
@@ -179,7 +179,7 @@ TEST_P(OVInferenceChaining, StaticOutputToDynamicInput) {
 }
 
 TEST_P(OVInferenceChaining, DynamicOutputToDynamicInput) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     const auto dynamic = ov::PartialShape::dynamic();
@@ -191,7 +191,7 @@ TEST_P(OVInferenceChaining, DynamicOutputToDynamicInput) {
 }
 
 TEST_P(OVInferenceChaining, DynamicInputToDynamicOutput) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     this->outputToInput = false;

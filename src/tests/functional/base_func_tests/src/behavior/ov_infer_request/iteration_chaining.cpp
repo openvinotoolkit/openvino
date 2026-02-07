@@ -55,7 +55,7 @@ std::shared_ptr<ov::Model> OVIterationChaining::getIterativeFunction() {
 
 void OVIterationChaining::SetUp() {
     std::tie(target_device, configuration) = this->GetParam();
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     APIBaseTest::SetUp();
     function = getIterativeFunction();
@@ -114,7 +114,7 @@ void OVIterationChaining::Run() {
 }
 
 TEST_P(OVIterationChaining, Simple) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();

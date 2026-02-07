@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 
-std::vector<std::string> disabledTestPatterns() {
-    return {};
+const std::vector<std::regex>& disabled_test_patterns() {
+    const static std::vector<std::regex> patterns{};
+
+    return patterns;
 }
