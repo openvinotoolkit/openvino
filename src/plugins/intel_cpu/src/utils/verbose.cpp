@@ -1,47 +1,36 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "verbose.h"
+
+#include <node.h>
+
 #include <algorithm>
+#include <atomic>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <iostream>
+#include <sstream>
+#include <string>
 #include <utility>
 
+#include "common/c_types_map.hpp"
+#include "common/verbose.hpp"
+#include "cpu/platform.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
+#include "oneapi/dnnl/dnnl.hpp"
 #include "onednn/iml_type_mapper.h"
-#include "utils/general_utils.h"
-#ifdef CPU_DEBUG_CAPS
-
-#    include <node.h>
-
-#    include <cstdlib>
-#    include <iostream>
-#    include <sstream>
-#    include <string>
-
-#    include "common/c_types_map.hpp"
-#    include "common/verbose.hpp"
-#    include "cpu_types.h"
-#    include "memory_desc/cpu_memory_desc_utils.h"
-#    include "verbose.h"
+#include "openvino/core/log_util.hpp"
+#include "openvino/core/version.hpp"
+#include "openvino/util/env_util.hpp"
+#include "utils/threading.hpp"
 
 namespace ov::intel_cpu {
-
-bool Verbose::shouldBePrinted() const {
-    if (lvl < 1) {
-        return false;
-    }
-
-    if (lvl < 2 && any_of(node->getType(), Type::Input, Type::Output)) {
-        return false;
-    }
-
-    const bool low_level = lvl < 3;
-    const bool is_constant = node->isConstant();
-    const bool skip_node = low_level && is_constant;
-    return !skip_node;
-}
 
 /**
  * Print node verbose execution information to cout.
@@ -49,7 +38,7 @@ bool Verbose::shouldBePrinted() const {
  * Formating written in C using oneDNN format functions.
  * Can be rewritten in pure C++ if necessary
  */
-void Verbose::printInfo() {
+std::stringstream& printInfo(std::stringstream& stream, const NodePtr& node, bool colorUp) {
     enum Color : uint8_t { RED, GREEN, YELLOW, BLUE, PURPLE, CYAN };
 
     auto colorize = [&](const Color color, const std::string& str) {
@@ -185,17 +174,61 @@ void Verbose::printInfo() {
 
     stream << "ov_cpu_verbose" << ',' << "exec" << ',' << nodeImplementer << ',' << nodeName << ":" << nodeType << ":"
            << nodeAlg << ',' << nodePrimImplType << ',' << portsInfo << ',' << post_ops << ',';
+    return stream;
 }
 
-void Verbose::printDuration() {
+std::stringstream& printDuration(std::stringstream& stream, const NodePtr& node) {
     const auto& duration = node->PerfCounter().duration().count();
     stream << duration << "ms";
+    return stream;
 }
 
-void Verbose::flush() const {
-    std::cout << stream.rdbuf() << "\n";
+template <typename... Args>
+void log(Args&&... args) {
+    std::ostringstream oss;
+    (oss << ... << std::forward<Args>(args));
+    ov::util::log_message(oss.str());
+}
+
+static void printPluginInfo() {
+    const auto& ov_version = ov::get_openvino_version();
+    const auto& dnnl_version = dnnl::version();
+    log("ov_cpu_verbose,info,intel_cpu_plugin,version: ", ov_version.buildNumber);
+    log("ov_cpu_verbose,info,onednn,version: ",
+        dnnl_version->major,
+        ".",
+        dnnl_version->minor,
+        ".",
+        dnnl_version->patch,
+        " (commit ",
+        dnnl_version->hash,
+        ")");
+    // @todo add more info regarding other backends if available
+    log("ov_cpu_verbose,info,isa: ", dnnl::impl::cpu::platform::get_isa_info());
+    log("ov_cpu_verbose,info,intel_cpu_plugin,runtime: ", threadingType());
+}
+
+void printPluginInfoOnce() {
+    static std::atomic_flag infoPrinted = ATOMIC_FLAG_INIT;
+    if (infoPrinted.test_and_set()) {
+        return;
+    }
+
+    // @todo To avoid dealing with environment variables in multiple places
+    //       read them all in one place and pass to CPU plugin / config as a parameter
+    const auto& ovCpuVerbose = ov::util::getenv_string("OV_CPU_VERBOSE");
+#if defined(CPU_DEBUG_CAPS)
+    // in case of debug caps enabled print info if OV_CPU_VERBOSE is set to any value
+    if (ovCpuVerbose.empty()) {
+        return;
+    }
+#else
+    if (ovCpuVerbose != "info") {
+        return;
+    }
+#endif
+
+    printPluginInfo();
 }
 
 }  // namespace ov::intel_cpu
-
-#endif  // CPU_DEBUG_CAPS

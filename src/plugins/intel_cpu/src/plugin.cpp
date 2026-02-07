@@ -16,6 +16,8 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+#include "utils/verbose.h"
 #if defined(__APPLE__)
 #    include <sys/sysctl.h>
 #    include <sys/types.h>
@@ -240,6 +242,7 @@ Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpec
     const auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = std::string(ov_version.buildNumber);
     m_msg_manager = ov::threading::message_manager();
+    printPluginInfoOnce();
 }
 
 Plugin::~Plugin() {
