@@ -38,6 +38,7 @@
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/weights_path.hpp"
@@ -252,6 +253,10 @@ Plugin::Plugin() {
     m_compiled_model_runtime_properties["OV_VERSION"] = ov_version.buildNumber;
 }
 
+Plugin::~Plugin() {
+    ov::util::reset_custom_tensor_impl_generator();
+}
+
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model");
     std::string device_id = get_device_id(orig_config);
@@ -344,6 +349,18 @@ void Plugin::set_property(const ov::AnyMap &config) {
             for (auto& conf : m_configs_map) {
                 update_config(conf.second, config);
             }
+        }
+    }
+
+    // handle default usm host tensor alloc
+    if (config.find(ov::intel_gpu::default_usm_host_tensor_allocation.name()) != config.end()) {
+        bool enable_usm_host_alloc = config.at(ov::intel_gpu::default_usm_host_tensor_allocation.name()).as<bool>();
+        if (enable_usm_host_alloc) {
+            auto context = get_default_context(m_default_device_id);
+            ov::util::set_custom_tensor_impl_generator([context](const element::Type& type, const Shape& shape) {
+                auto usm_host_tensor = context->create_host_tensor(type, shape);
+                return usm_host_tensor._ptr;
+            });
         }
     }
 }
@@ -730,6 +747,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::intel_gpu::hint::enable_large_allocations.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::disable_winograd_convolution.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::intel_gpu::default_usm_host_tensor_allocation.name(), PropertyMutability::RW},
         ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
         ov::PropertyName{ov::cache_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
