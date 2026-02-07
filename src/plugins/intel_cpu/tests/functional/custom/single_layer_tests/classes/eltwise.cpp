@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -318,14 +318,6 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
             return "jit";
         }
     }
-#if defined(OV_CPU_WITH_SHL)
-    if ((eltwise_type == utils::EltwiseTypes::ADD) ||
-        (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
-        (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
-        (eltwise_type == utils::EltwiseTypes::DIVIDE)) {
-        return "shl";
-    }
-#endif
 #endif
     return CPUTestsBase::getPrimitiveType();
 }

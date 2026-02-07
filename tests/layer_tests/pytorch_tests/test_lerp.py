@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -51,10 +51,12 @@ class TestLerp(PytorchLayerTest):
         self.input_rhs = np.random.randn(*input_shape_rhs).astype(np.float32)
         if isinstance(weight, list):
             weight = torch.rand(weight)
+        fx_op = "aten.lerp_" if op_type == "lerp_" else "aten.lerp"
         self._test(
             *self.create_model(weight, op_type),
             ie_device,
             precision,
             ir_version,
             use_convert_model=True,
+            fx_kind=fx_op,
         )

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -397,5 +397,13 @@ void visit_path(const lowered::ExpressionPtr& expr,
  * @return A string representation of the tensor.
  */
 std::string tensor2str(const VectorDims& tensor, const std::string& delimiter = ", ");
+
+/**
+ * @brief check if the expression should be connected from all expanded loop iterations for passes such as register
+ * assignment.
+ * @param expr The expression to be checked.
+ * @return Returns true if full connectors are needed, false otherwise.
+ */
+bool need_full_connectors(const lowered::ExpressionPtr& expr);
 
 }  // namespace ov::snippets::utils

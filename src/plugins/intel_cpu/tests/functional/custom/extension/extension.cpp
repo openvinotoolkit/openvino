@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,8 +66,9 @@ static void infer_model(ov::Core& core,
 }
 
 static std::string model_full_path(const char* path) {
-    return ov::util::make_path<char>(ov::util::make_path<char>(ov::test::utils::getExecutableDirectory(), TEST_MODELS),
-                                     path);
+    return ov::test::utils::makePath<char>(
+        ov::test::utils::makePath<char>(ov::test::utils::getExecutableDirectory(), TEST_MODELS),
+        path);
 }
 
 TEST(DISABLED_Extension, XmlModelWithCustomAbs) {

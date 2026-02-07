@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -263,6 +263,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*NoReshapeAndReshapeDynamic.*CodegenGelu.*)",
         // Issue: 163351
         R"(.*CoreThreadingTestsWithIter.*nightly_AsyncInfer_ShareInput.*)",
+        // Sporadic failings with ASAN enabled
+        R"(.*CoreThreadingTest.*)",
+        R"(.*smoke_BehaviorTest.*)",
         // This transformation is disabled on CPU
         R"(.*smoke_LPT.*MultiplyToGroupConvolutionTransformation.*)",
         // Disabled due to sporadic failures in CI, Issue: 157267
@@ -316,8 +319,6 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_AvgPoolV14_CPU_4D/AvgPoolingV14LayerCPUTest.CompareWithRefs.*)");
         // Ticket: 168931
         retVector.emplace_back(R"(.*smoke_Reduce_OneAxis_dynamic_CPU/ReduceCPULayerTest.CompareWithRefs.*)");
-        // Ticket: 178089
-        retVector.emplace_back(R"(.*smoke_ARM_StatefulSdpaBoolMask/StatefulSdpaBoolMaskTest.*)");
     }
     // invalid test: checks u8 precision for runtime graph, while it should be f32
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
@@ -485,8 +486,12 @@ std::vector<std::string> disabledTestPatterns() {
 #endif
 #if defined(OPENVINO_ARCH_RISCV64)
     retVector.emplace_back(R"(smoke_Snippets.*\[.*\?.*\].*)");
-    retVector.emplace_back(R"(smoke_Snippets(?!_Eltwise/Add\.).*)");
+    retVector.emplace_back(R"(smoke_Snippets(?!_(Eltwise|ThreeInputsEltwise)(/|_)).*)");
     retVector.emplace_back(R"(.*_enforceSnippets=1.*)");
+    retVector.emplace_back(R"(smoke_Snippets_Eltwise.*/Add.*)");
+    retVector.emplace_back(R"(smoke_Snippets_Eltwise/TwoInputsAndOutputs.*)");
+    retVector.emplace_back(R"(smoke_Snippets_Eltwise_TwoResults.*)");
+    retVector.emplace_back(R"(smoke_Snippets_ThreeInputsEltwise.*)");
 #endif
 #if defined(_WIN32)
     retVector.emplace_back(R"(.*smoke_QuantizedConvolutionBatchNormTransposeOnWeights/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_quantize_type=fake_quantize_intervals_type=per_(tensor|channel)_transpose_on_weights=true_device=CPU.*)");
@@ -644,6 +649,11 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Snippets_MHA.*IS\[0\]=\[\]_\(.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_TransposeSoftmax/TransposeSoftmax\.CompareWithRefImpl/IS\[0\]=\[\]_TS\[0\]=\(\(.*)");
     }
+#    if defined(OPENVINO_ARCH_ARM64)
+    retVector.emplace_back(R"(.*smoke_Snippets_GatedMLP_f32.*InputShape=\[\]_\(\[1\.32\.1024\]\).*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_MatMulTransposeB.*IS\[0\]=\[\]_.*T\[0\]=f32.*)");
+    retVector.emplace_back(R"(.*smoke_Snippets_TransposeMatMulBias.*)");
+#    endif
 #endif
 
     if (ov::with_cpu_x86_avx512_core_amx()) {

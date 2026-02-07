@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,14 +67,18 @@ private:
     std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
     std::vector<ov::PropertyName> _supportedProperties;
 
-    // internal registration functions basd on client object
+    // internal registration functions based on client object
     void registerPluginProperties();
     void registerCompiledModelProperties();
 
     const std::vector<ov::PropertyName> _cachingProperties = {
         ov::cache_mode.name(),
+        ov::enable_profiling.name(),
         ov::device::architecture.name(),
         ov::hint::execution_mode.name(),
+        ov::hint::inference_precision.name(),
+        ov::hint::performance_mode.name(),
+        ov::intel_npu::batch_compiler_mode_settings.name(),
         ov::intel_npu::batch_mode.name(),
         ov::intel_npu::compilation_mode.name(),
         ov::intel_npu::compilation_mode_params.name(),
@@ -82,8 +86,14 @@ private:
         ov::intel_npu::compiler_type.name(),
         ov::intel_npu::dma_engines.name(),
         ov::intel_npu::driver_version.name(),
+        ov::intel_npu::dynamic_shape_to_static.name(),
         ov::intel_npu::enable_strides_for.name(),
+        ov::intel_npu::max_tiles.name(),
+        ov::intel_npu::stepping.name(),
         ov::intel_npu::tiles.name(),
+        ov::intel_npu::turbo.name(),
+        ov::intel_npu::qdq_optimization.name(),
+        ov::intel_npu::qdq_optimization_aggressive.name(),
         // NPUW caching properties
         ov::intel_npu::use_npuw.name(),
         ov::intel_npu::npuw::devices.name(),
@@ -140,6 +150,7 @@ private:
         ov::intel_npu::npuw::llm::generate_attn_hint.name(),
         ov::intel_npu::npuw::llm::shared_lm_head_config.name(),
         ov::intel_npu::npuw::llm::additional_shared_lm_head_config.name(),
+        ov::intel_npu::npuw::llm::optimize_fp8.name(),
         ov::intel_npu::npuw::eagle::enabled.name()};
 
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),

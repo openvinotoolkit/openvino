@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -250,7 +250,7 @@ std::vector<std::string> disabledTestPatterns() {
             // Error returned from pugixml, fallback to legacy skips
             if (!xmlResult.error_msg.empty()) {
                 _log.error(xmlResult.error_msg.c_str());
-                throw std::runtime_error("No skip filters are applied");
+                OPENVINO_THROW("No skip filters are applied");
             }
 
             pugi::xml_document& xmlSkipConfig = *xmlResult.xml;
@@ -288,7 +288,7 @@ std::vector<std::string> disabledTestPatterns() {
         } catch (const std::runtime_error& e) {
             // No skip filters to apply
             _log.warning(e.what());
-        }        
+        }
         return _skipRegistry;
     }();
     // clang-format on

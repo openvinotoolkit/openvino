@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,7 @@ std::vector<std::string> DeviceIDParser::get_hetero_devices(const std::string& f
     }
 
     if (!fallback_dev.empty())
-        deviceNames.push_back(fallback_dev);
+        deviceNames.push_back(std::move(fallback_dev));
 
     return deviceNames;
 }

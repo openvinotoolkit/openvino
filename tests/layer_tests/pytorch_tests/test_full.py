@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -129,13 +129,13 @@ class TestFill(PytorchLayerTest):
 
             def forward_inplace(self, input_t: torch.Tensor, x: float):
                 return input_t.fill_(x)
-        
+
             def forward_out(self, input_t: torch.Tensor, x: float, out: torch.Tensor):
                 return input_t.fill(x, out=out), out
-            
+
             def forward(self, input_t: torch.Tensor, x:float):
                 return input_t.fill(x)
-    
+
         ref_net = None
 
         model = aten_fill(mode)
@@ -154,9 +154,9 @@ class TestFill(PytorchLayerTest):
     def test_fill(self, shape, value, input_dtype, value_dtype, mode, ie_device, precision, ir_version):
         self._test(*self.create_model(mode), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={
-                       'value': value, 
-                       'shape': shape, 
-                       "input_dtype": input_dtype, 
+                       'value': value,
+                       'shape': shape,
+                       "input_dtype": input_dtype,
                        "value_dtype": value_dtype,
                        "out": mode == "out"
                        })
@@ -177,7 +177,7 @@ class TestFillDiagonal(PytorchLayerTest):
             def forward(self, x:torch.Tensor, y:float):
                 x = x.reshape(self.input_shape)
                 return x.fill_diagonal_(y, wrap=self.wrap), x
-        
+
         ref_net = None
 
         model = aten_fill_diagonal(shape, wrap)
@@ -197,9 +197,9 @@ class TestFillDiagonal(PytorchLayerTest):
             pytest.xfail(reason="fill_diagonal is not supported on GPU")
         self._test(*self.create_model(shape, wrap), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={
-                       'value': value, 
-                       'shape': shape, 
-                       "input_dtype": input_dtype, 
+                       'value': value,
+                       'shape': shape,
+                       "input_dtype": input_dtype,
                        "value_dtype": value_dtype
                        })
 

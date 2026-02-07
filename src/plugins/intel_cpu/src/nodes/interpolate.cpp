@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -2509,7 +2509,7 @@ void Interpolate::prepareParams() {
     }
 
     if (canUseAclExecutor) {
-        interpAttrs.dataScales = scales5D;
+        interpAttrs.dataScales = std::move(scales5D);
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getParentEdges().size(); i++) {

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -285,4 +285,5 @@ class TestScatterAdd(PytorchLayerTest):
             precision,
             ir_version,
             kwargs_to_prepare_input={"dtype": dtype},
+            fx_kind="aten.scatter_add",
         )

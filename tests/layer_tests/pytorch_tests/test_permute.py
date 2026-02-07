@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -93,4 +93,5 @@ class TestPermuteList(PytorchLayerTest):
     def test_permute_list(self, order, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"permute_shape": order},
-                   dynamic_shapes=ie_device != "GPU")
+                   dynamic_shapes=ie_device != "GPU",
+                   fx_kind="aten.permute.default")

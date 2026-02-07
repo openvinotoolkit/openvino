@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/profiling.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -55,6 +56,126 @@ bool isUseBaseModelSerializer(UsedVersion useVersion, const intel_npu::FilteredC
 
     // No VCL serializer was chosen explicitly, will default to the "no weights copy" implementation
     return false;
+}
+
+template <typename T>
+class ByteAlignedAllocator {
+private:
+    intel_npu::utils::AlignedAllocator allocator_;
+
+public:
+    using value_type = T;
+    using size_type = std::size_t;
+    using difference_type = std::ptrdiff_t;
+    using pointer = T*;
+    using const_pointer = const T*;
+
+    template <typename U>
+    struct rebind {
+        using other = ByteAlignedAllocator<U>;
+    };
+
+    ByteAlignedAllocator() : allocator_(intel_npu::utils::STANDARD_PAGE_SIZE) {}
+
+    ByteAlignedAllocator(const ByteAlignedAllocator& other) : allocator_(intel_npu::utils::STANDARD_PAGE_SIZE) {}
+
+    template <typename U>
+    ByteAlignedAllocator(const ByteAlignedAllocator<U>& other) : allocator_(intel_npu::utils::STANDARD_PAGE_SIZE) {}
+
+    ByteAlignedAllocator& operator=(const ByteAlignedAllocator& other) {
+        return *this;
+    }
+
+    T* allocate(size_t n) {
+        size_t aligned_size = intel_npu::utils::align_size_to_standard_page_size(n);
+        return static_cast<T*>(allocator_.allocate(aligned_size, 1));
+    }
+
+    void deallocate(T* ptr, size_t n) {
+        size_t aligned_size = intel_npu::utils::align_size_to_standard_page_size(n);
+        allocator_.deallocate(ptr, aligned_size, 1);
+    }
+
+    template <typename U>
+    bool operator==(const ByteAlignedAllocator<U>& other) const {
+        return allocator_.is_equal(other.allocator_);
+    }
+
+    template <typename U>
+    bool operator!=(const ByteAlignedAllocator<U>& other) const {
+        return !(*this == other);
+    }
+
+    size_type max_size() const noexcept {
+        return std::numeric_limits<size_type>::max() / sizeof(T);
+    }
+};
+
+using AlignedVector = std::vector<uint8_t, ByteAlignedAllocator<uint8_t>>;
+struct vcl_allocator_vector : vcl_allocator2_t {
+    vcl_allocator_vector() : vcl_allocator2_t{vector_allocate, vector_deallocate} {}
+
+    static uint8_t* vector_allocate(vcl_allocator2_t* allocator, size_t size) {
+        vcl_allocator_vector* vecAllocator = static_cast<vcl_allocator_vector*>(allocator);
+        size_t aligned_size = intel_npu::utils::align_size_to_standard_page_size(size);
+        auto newVec = std::make_shared<AlignedVector>();
+        vecAllocator->m_vec = newVec;
+        vecAllocator->m_vec->resize(aligned_size);
+        if (intel_npu::utils::memory_and_size_aligned_to_standard_page_size(vecAllocator->m_vec->data(),
+                                                                            vecAllocator->m_vec->size()) == false) {
+            OPENVINO_THROW("vcl_allocator_vector: allocated memory is not aligned to standard page size");
+        }
+        return vecAllocator->m_vec->data();
+    }
+
+    static void vector_deallocate(vcl_allocator2_t* allocator, uint8_t* ptr) {
+        vcl_allocator_vector* vecAllocator = static_cast<vcl_allocator_vector*>(allocator);
+        vecAllocator->m_vec->clear();
+        vecAllocator->m_vec->shrink_to_fit();
+    }
+
+    std::shared_ptr<AlignedVector> m_vec;
+};
+
+struct vcl_allocator_vector_2 : vcl_allocator2_t {
+    vcl_allocator_vector_2() : vcl_allocator2_t{vector_allocate, vector_deallocate} {}
+
+    static uint8_t* vector_allocate(vcl_allocator2_t* allocator, size_t size) {
+        vcl_allocator_vector_2* vecAllocator = static_cast<vcl_allocator_vector_2*>(allocator);
+        size_t aligned_size = intel_npu::utils::align_size_to_standard_page_size(size);
+        auto newVec = std::make_shared<AlignedVector>();
+        newVec->resize(aligned_size);
+        uint8_t* ptr = newVec->data();
+        if (intel_npu::utils::memory_and_size_aligned_to_standard_page_size(newVec->data(), newVec->size()) == false) {
+            OPENVINO_THROW("vcl_allocator_vector: allocated memory is not aligned to standard page size");
+        }
+        vecAllocator->m_vector.emplace_back(newVec);
+
+        return ptr;
+    }
+
+    static void vector_deallocate(vcl_allocator2_t* allocator, uint8_t* ptr) {
+        vcl_allocator_vector_2* vecAllocator = static_cast<vcl_allocator_vector_2*>(allocator);
+        auto it = std::find_if(vecAllocator->m_vector.begin(), vecAllocator->m_vector.end(), [ptr](const auto& vec) {
+            return vec->data() == ptr;
+        });
+
+        if (it != vecAllocator->m_vector.end()) {
+            vecAllocator->m_vector.erase(it);
+            vecAllocator->m_vector.shrink_to_fit();
+        } else {
+            OPENVINO_THROW("vcl_allocator_vector_2: pointer to deallocate not found");
+        }
+    }
+
+    std::vector<std::shared_ptr<AlignedVector>> m_vector;
+};
+
+ov::Tensor make_tensor_from_aligned_vector(std::shared_ptr<AlignedVector> vector) {
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{vector->size()}, vector->data());
+    auto impl = ov::get_tensor_impl(std::move(tensor));
+    impl._so = vector;
+    return ov::make_tensor(impl);
 }
 
 }  // namespace
@@ -180,16 +301,11 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
     }
 
 VCLApi::VCLApi() : _logger("VCLApi", Logger::global().level()) {
-    const std::string baseName = "openvino_intel_npu_compiler";
+    const std::filesystem::path baseName = "openvino_intel_npu_compiler";
     try {
-        auto libpath = ov::util::make_plugin_library_name({}, baseName);
+        auto libpath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName);
         _logger.debug("Try to load openvino_intel_npu_compiler");
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        this->lib = ov::util::load_shared_object(ov::util::string_to_wstring(libpath).c_str());
-#else
-        this->lib = ov::util::load_shared_object(libpath.c_str());
-#endif
+        this->lib = ov::util::load_shared_object(libpath);
     } catch (const std::runtime_error& error) {
         _logger.debug("Failed to load openvino_intel_npu_compiler");
         OPENVINO_THROW(error.what());
@@ -274,7 +390,7 @@ VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerIm
     vcl_device_desc_t device_desc = {sizeof(vcl_device_desc_t),
                                      0x00,
                                      static_cast<uint16_t>(-1),
-                                     static_cast<uint16_t>(-1)};
+                                     static_cast<uint32_t>(-1)};
     THROW_ON_FAIL_FOR_VCL("vclCompilerCreate",
                           vclCompilerCreate(&compilerDesc, &device_desc, &_compilerHandle, &_logHandle),
                           nullptr);
@@ -291,8 +407,15 @@ VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerIm
 
 VCLCompilerImpl::~VCLCompilerImpl() {
     if (_compilerHandle) {
-        THROW_ON_FAIL_FOR_VCL("vclCompilerDestroy", vclCompilerDestroy(_compilerHandle), _logHandle);
+        vcl_result_t result = vclCompilerDestroy(_compilerHandle);
+        _compilerHandle = nullptr;
+        if (result != VCL_RESULT_SUCCESS) {
+            _logger.warning("Failed to destroy VCL compiler: result 0x%x - %s",
+                            result,
+                            getLatestVCLLog(_logHandle).c_str());
+        }
     }
+
     if (_logHandle) {
         _logHandle = nullptr;  // Log handle is released automatically with the compiler
     }
@@ -302,55 +425,6 @@ VCLCompilerImpl::~VCLCompilerImpl() {
 std::shared_ptr<void> VCLCompilerImpl::getLinkedLibrary() const {
     return VCLApi::getInstance()->getLibrary();
 }
-
-struct vcl_allocator_vector : vcl_allocator2_t {
-    vcl_allocator_vector() : vcl_allocator2_t{vector_allocate, vector_deallocate} {}
-
-    static uint8_t* vector_allocate(vcl_allocator2_t* allocator, size_t size) {
-        vcl_allocator_vector* vecAllocator = static_cast<vcl_allocator_vector*>(allocator);
-        vecAllocator->m_vec.resize(size);
-        return vecAllocator->m_vec.data();
-    }
-
-    static void vector_deallocate(vcl_allocator2_t* allocator, uint8_t* ptr) {
-        vcl_allocator_vector* vecAllocator = static_cast<vcl_allocator_vector*>(allocator);
-        vecAllocator->m_vec.clear();
-        vecAllocator->m_vec.shrink_to_fit();
-    }
-
-    std::vector<uint8_t> m_vec;
-};
-
-struct vcl_allocator_vector_2 : vcl_allocator2_t {
-    vcl_allocator_vector_2() : vcl_allocator2_t{vector_allocate, vector_deallocate} {}
-
-    static uint8_t* vector_allocate(vcl_allocator2_t* allocator, size_t size) {
-        vcl_allocator_vector_2* vecAllocator = static_cast<vcl_allocator_vector_2*>(allocator);
-        auto newVec = std::make_shared<std::vector<uint8_t>>();
-        newVec->resize(size);
-        uint8_t* ptr = newVec->data();
-        vecAllocator->m_vector.emplace_back(newVec);
-        return ptr;
-    }
-
-    static void vector_deallocate(vcl_allocator2_t* allocator, uint8_t* ptr) {
-        vcl_allocator_vector_2* vecAllocator = static_cast<vcl_allocator_vector_2*>(allocator);
-        vecAllocator->m_vector.clear();
-        vecAllocator->m_vector.shrink_to_fit();
-    }
-
-    std::vector<std::shared_ptr<std::vector<uint8_t>>> m_vector;
-};
-
-struct vcl_allocator_malloc {
-    static uint8_t* vcl_allocate(uint64_t size) {
-        return reinterpret_cast<uint8_t*>(malloc(size));
-    }
-
-    static void vcl_deallocate(uint8_t* ptr) {
-        free(ptr);
-    }
-};
 
 NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
     return compile(model, config, false);
@@ -393,7 +467,9 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     _logger.debug("create build flags");
     buildFlags += driver_compiler_utils::serializeIOInfo(model, true);
     buildFlags += " ";
-    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig, compilerVersion);
+    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig,
+                                                         compilerVersion,
+                                                         is_option_supported(ov::intel_npu::turbo.name()));
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
     vcl_executable_desc_t exeDesc = {serializedIR.buffer.get(),
@@ -415,12 +491,17 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
         if (size == 0 || blob == nullptr) {
             OPENVINO_THROW("Failed to create VCL executable, size is zero or blob is null");
         }
+        // The allocated size from VCL will be equal or smaller than the allocated size in allocator
+        _logger.debug("Blob size from VCL: %zu ptr %p", size, static_cast<void*>(blob));
+        _logger.debug("Allocated vector size: %zu ptr: %p",
+                      allocator.m_vec->size(),
+                      static_cast<void*>(allocator.m_vec->data()));
 
         // Use empty metadata as VCL does not support metadata extraction
         NetworkMetadata metadata;
 
-        _logger.debug("compile end, blob size:%d", allocator.m_vec.size());
-        return NetworkDescription(std::move(allocator.m_vec), std::move(metadata));
+        _logger.debug("compile end, blob size:%d", allocator.m_vec->size());
+        return NetworkDescription(make_tensor_from_aligned_vector(allocator.m_vec), std::move(metadata));
     } else {
         OPENVINO_THROW("Not supported VCL version: %d.%d, please use VCL 6.1 or later",
                        _vclVersion.major,
@@ -461,7 +542,9 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     _logger.debug("create build flags");
     buildFlags += driver_compiler_utils::serializeIOInfo(model, true);
     buildFlags += " ";
-    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig, compilerVersion);
+    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig,
+                                                         compilerVersion,
+                                                         is_option_supported(ov::intel_npu::turbo.name()));
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
     vcl_executable_desc_t exeDesc = {serializedIR.buffer.get(),
@@ -485,7 +568,8 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     for (auto& blob : allocator.m_vector) {
         // Use empty metadata as VCL does not support metadata extraction
         NetworkMetadata metadata;
-        networkDescrs.emplace_back(std::make_shared<NetworkDescription>(std::move(*blob), std::move(metadata)));
+        networkDescrs.emplace_back(
+            std::make_shared<NetworkDescription>(make_tensor_from_aligned_vector(blob), std::move(metadata)));
     }
     return networkDescrs;
 }
@@ -584,7 +668,9 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
         driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
 
     std::string buildFlags;
-    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig, compilerVersion);
+    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig,
+                                                         compilerVersion,
+                                                         is_option_supported(ov::intel_npu::turbo.name()));
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     vcl_query_handle_t queryHandle;

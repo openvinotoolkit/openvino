@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -36,7 +36,7 @@ class TestOuter(PytorchLayerTest):
 
             def forward(self, x, y):
                 return torch.outer(x.to(self.x_dtype), y.to(self.y_dtype))
-    
+
             def forward_out(self, x, y, out):
                 return torch.outer(x.to(self.x_dtype), y.to(self.y_dtype), out=out), out
 
