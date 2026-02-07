@@ -100,6 +100,8 @@ if(ENABLE_ONEDNN_FOR_GPU)
         set(onednn_gpu_lib "${CMAKE_STATIC_LIBRARY_PREFIX}${DNNL_GPU_LIBRARY_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
         set(ONEDNN_GPU_LIB_PATH ${ONEDNN_INSTALL_DIR}/lib/${onednn_gpu_lib} CACHE FILEPATH "Path to oneDNN GPU library")
 
+        set(ONEDNN_GPU_RUNTIME "OCL" CACHE STRING "Runtime for oneDNN GPU library")
+
         ExternalProject_Add(onednn_gpu_build
             # Directory Options:
             PREFIX "${ONEDNN_PREFIX_DIR}"
@@ -113,7 +115,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
                 "-DDNNL_TARGET_ARCH=${ONEDNN_TARGET_ARCH}"
                 "-DDNNL_CPU_RUNTIME=NONE"
-                "-DDNNL_GPU_RUNTIME=OCL"
+                "-DDNNL_GPU_RUNTIME=${ONEDNN_GPU_RUNTIME}"
                 "-DDNNL_LIBRARY_NAME=${DNNL_GPU_LIBRARY_NAME}"
                 "-DCMAKE_INSTALL_PREFIX=${ONEDNN_INSTALL_DIR}"
                 "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
