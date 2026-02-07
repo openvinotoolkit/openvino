@@ -108,19 +108,15 @@ class TestSliceAndSqueeze(PytorchLayerTest):
 
     def create_model(self):
         class aten_slice(torch.nn.Module):
-            def __init__(self) -> None:
-                super().__init__()
-
             def forward(self, x):
                 a = torch.squeeze(x, 1)
                 return a[:, None, :]
 
-        ref_net = None
-
-        return aten_slice(), ref_net, "aten::slice"
+        return aten_slice(), None, "aten::slice"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     def test_slice_and_squeeze(self, ie_device, precision, ir_version):
-        self._test(*self.create_model(), ie_device, precision, ir_version, dynamic_shapes=False)
+        self._test(*self.create_model(), ie_device, precision, ir_version,
+                   dynamic_shapes=False, fx_kind="aten.unsqueeze.default")

@@ -5,8 +5,6 @@
 
 #include "reference_mode.hpp"
 
-#include <fstream>
-
 #include "simulation/computation_builder.hpp"
 #include "simulation/executor.hpp"
 #include "simulation/layers_data.hpp"
@@ -347,6 +345,14 @@ CalcRefSimulation::CalcRefSimulation(Simulation::Config&& cfg, CalcRefSimulation
 
 std::shared_ptr<PipelinedCompiled> CalcRefSimulation::compilePipelined(DummySources&& sources,
                                                                        cv::GCompileArgs&& compile_args) {
+    if (workload) {
+        if (workload->wl_onnx) {
+            compile_args += cv::compile_args(workload->wl_onnx);
+        }
+        if (workload->wl_ov) {
+            compile_args += cv::compile_args(workload->wl_ov);
+        }
+    }
     auto compiled = m_comp.compileStreaming(descr_of(sources), std::move(compile_args));
     auto out_meta = m_comp.getOutMeta();
     return std::make_shared<PipelinedSimulation>(std::move(compiled), std::move(sources), std::move(out_meta),
@@ -354,6 +360,14 @@ std::shared_ptr<PipelinedCompiled> CalcRefSimulation::compilePipelined(DummySour
 }
 
 std::shared_ptr<SyncCompiled> CalcRefSimulation::compileSync(DummySources&& sources, cv::GCompileArgs&& compile_args) {
+    if (workload) {
+        if (workload->wl_onnx) {
+            compile_args += cv::compile_args(workload->wl_onnx);
+        }
+        if (workload->wl_ov) {
+            compile_args += cv::compile_args(workload->wl_ov);
+        }
+    }
     auto compiled = m_comp.compile(descr_of(sources), std::move(compile_args));
     auto out_meta = m_comp.getOutMeta();
     return std::make_shared<SyncSimulation>(std::move(compiled), std::move(sources), std::move(out_meta),
