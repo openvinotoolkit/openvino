@@ -202,6 +202,7 @@ OP_CONVERTER(translate_pad);
 OP_CONVERTER(translate_pad_packed_sequence);
 OP_CONVERTER(translate_permute);
 OP_CONVERTER(translate_pairwise_distance);
+OP_CONVERTER(translate_percent_format);
 OP_CONVERTER(translate_pixel_shuffle);
 OP_CONVERTER(translate_pixel_unshuffle);
 OP_CONVERTER(translate_polar);
@@ -657,6 +658,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::outer", op::translate_outer},
         {"aten::pad", op::translate_pad},
         {"aten::pairwise_distance", op::translate_pairwise_distance},
+        {"aten::percentFormat", op::translate_percent_format},
         {"aten::permute", op::translate_permute},
         {"aten::pixel_shuffle", op::translate_pixel_shuffle},
         {"aten::pixel_unshuffle", op::translate_pixel_unshuffle},
