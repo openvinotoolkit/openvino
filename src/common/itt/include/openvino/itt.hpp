@@ -48,6 +48,7 @@ void taskEnd(domain_t d);
 void threadName(const char* name);
 void regionBegin(domain_t d, handle_t t);
 void regionEnd(domain_t d);
+void shutdown();
 }  // namespace internal
 /**
  * @endcond
