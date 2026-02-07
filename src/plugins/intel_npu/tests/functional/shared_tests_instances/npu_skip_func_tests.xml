@@ -874,7 +874,15 @@ Example:
             <filter>.*CompileModelLoadFromCacheTest.*NPU_TURBO.*</filter>
             <filter>.*CompileModelLoadFromCacheTest.*NPU_QDQ_OPTIMIZATION.*</filter>
             <filter>.*CompileModelLoadFromCacheTest.*NPU_QDQ_OPTIMIZATION_AGGRESSIVE.*</filter>
-            
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Skip failing tests until next driver update</message>
+        <filters>
+            <filter>.*ProfilingBlob.*NoProfilingCompileProfilingImport.*</filter>
+            <filter>.*ProfilingBlob.*ProfilingCompileNoProfilingImport.*</filter>
+            <filter>.*ProfilingBlob.*ProfilingCompileProfilingImport.*</filter>
         </filters>
     </skip_config>
 

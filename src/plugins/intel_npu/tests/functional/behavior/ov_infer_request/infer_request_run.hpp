@@ -188,6 +188,67 @@ TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsAsyncInfers) {
     }
 }
 
+using ProfilingBlob = InferRequestRunTests;
+
+TEST_P(ProfilingBlob, NoProfilingCompileProfilingImport) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::CompiledModel compiled_model;
+
+    configuration[ov::enable_profiling.name()] = false;
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    configuration[ov::enable_profiling.name()] = true;
+    OV_ASSERT_NO_THROW(compiled_model = core->import_model(export_stream, target_device, configuration));
+
+    ov::InferRequest inferReq;
+
+    OV_ASSERT_NO_THROW(inferReq = compiled_model.create_infer_request());
+
+    ASSERT_ANY_THROW(inferReq.infer());
+}
+
+TEST_P(ProfilingBlob, ProfilingCompileNoProfilingImport) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::CompiledModel compiled_model;
+
+    configuration[ov::enable_profiling.name()] = true;
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    configuration[ov::enable_profiling.name()] = false;
+    OV_ASSERT_NO_THROW(compiled_model = core->import_model(export_stream, target_device, configuration));
+
+    ov::InferRequest inferReq;
+
+    OV_ASSERT_NO_THROW(inferReq = compiled_model.create_infer_request());
+
+    OV_ASSERT_NO_THROW(inferReq.infer());
+}
+
+TEST_P(ProfilingBlob, ProfilingCompileProfilingImport) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::CompiledModel compiled_model;
+
+    configuration[ov::enable_profiling.name()] = true;
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    OV_ASSERT_NO_THROW(compiled_model = core->import_model(export_stream, target_device, configuration));
+
+    ov::InferRequest inferReq;
+
+    OV_ASSERT_NO_THROW(inferReq = compiled_model.create_infer_request());
+
+    OV_ASSERT_NO_THROW(inferReq.infer());
+}
+
 TEST_P(InferRequestRunTests, MultipleExecutorTestsSyncInfers) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::CompiledModel compiled_model;
@@ -479,7 +540,7 @@ TEST_P(BatchingRunTests, CheckBatchingSupportInfer) {
 TEST_P(BatchingRunTests, CheckBatchingSupportAsync) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-        ov::CompiledModel compiled_model;
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
     auto batch_shape = Shape{4, 2, 32, 32};
     std::shared_ptr<ov::Model> ov_model_batch = createModel(element::f32, batch_shape, "N...");
