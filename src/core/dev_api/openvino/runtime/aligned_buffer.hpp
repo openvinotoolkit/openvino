@@ -70,5 +70,4 @@ public:
     ~AttributeAdapter() override;
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>");
 };
-
 }  // namespace ov

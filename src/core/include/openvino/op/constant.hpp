@@ -21,6 +21,10 @@ namespace ov {
 class AlignedBuffer;
 
 namespace op {
+namespace util {
+    class ConstantDescriptor;
+}  // namespace util
+
 namespace v0 {
 /// \brief Class for constants.
 /// \ingroup ov_ops_cpp_api
@@ -388,6 +392,8 @@ private:
     mutable std::atomic_bool m_all_elements_bitwise_identical{false};
     mutable std::atomic_bool m_all_elements_bitwise_identical_checked{false};
     bool m_alloc_buffer_on_visit_attributes{true};
+
+    friend class ov::op::util::ConstantDescriptor;
 };
 
 template <>
