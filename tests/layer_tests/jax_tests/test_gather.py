@@ -115,7 +115,7 @@ class TestGather(JaxLayerTest):
             indices_shape=[16, 1],
             slice_sizes=(1, 128, 512),
             dimension_numbers=lax.GatherDimensionNumbers(
-                offset_dims=(0, 1, 2), # Semua dimensi dipertahankan (kecuali yang dicollapse)
+                offset_dims=(1, 2), # Semua dimensi dipertahankan (kecuali yang dicollapse)
                 collapsed_slice_dims=(0,),
                 start_index_map=(0,)
             ),

@@ -1,16 +1,15 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
+#include "openvino/op/gather.hpp"
 #include <algorithm>
-#include <iterator>
+#include <cstdint>
 #include <memory>
-#include <numeric>
 #include <vector>
 
+#include "openvino/frontend/jax/node_context.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/exception.hpp"
-#include "openvino/frontend/jax/node_context.hpp"
-#include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather_nd.hpp"
@@ -33,16 +32,11 @@ namespace op {
 using namespace ov::op;
 
 namespace {
-
-// --- Helper Functions ---
-
 std::shared_ptr<Node> make_transpose(const Output<Node>& input, const std::vector<int64_t>& permutation) {
     auto perm_node = std::make_shared<v0::Constant>(element::i64, Shape{permutation.size()}, permutation);
     return std::make_shared<v1::Transpose>(input, perm_node);
 }
 
-// Reorders the operand dimensions based on start_index_map to align with GatherND requirements.
-// Moves dimensions referenced in start_index_map to the front.
 std::vector<int64_t> compute_gather_input_permutation(int64_t operand_rank,
                                                       const std::vector<int64_t>& start_index_map) {
     std::vector<int64_t> permutation;
@@ -64,7 +58,6 @@ std::vector<int64_t> compute_gather_input_permutation(int64_t operand_rank,
     return permutation;
 }
 
-// Reorders a vector (e.g., slice_sizes) according to a permutation.
 std::vector<int64_t> reorder_vector(const std::vector<int64_t>& original, const std::vector<int64_t>& permutation) {
     std::vector<int64_t> reordered(original.size());
     for (size_t i = 0; i < original.size(); i++) {
@@ -75,12 +68,10 @@ std::vector<int64_t> reorder_vector(const std::vector<int64_t>& original, const 
     return reordered;
 }
 
-// Computes the output permutation required to satisfy offset_dims.
 std::vector<int64_t> compute_output_permutation(int64_t total_rank, const std::vector<int64_t>& offset_dims) {
     std::vector<int64_t> perm(total_rank, -1);
     std::vector<int64_t> batch_dims;
     
-    // Identify batch dims (dimensions NOT in offset_dims)
     for (int64_t i = 0; i < total_rank; ++i) {
         bool is_offset = false;
         for (auto off : offset_dims) {
@@ -106,10 +97,9 @@ std::vector<int64_t> compute_output_permutation(int64_t total_rank, const std::v
     return perm;
 }
 
-// Normalizes start_indices so the index vector dimension is always the last dimension.
 Output<Node> normalize_start_indices(const Output<Node>& indices, int64_t index_vector_dim) {
     auto pshape = indices.get_partial_shape();
-    FRONT_END_OP_CONVERSION_CHECK(pshape.rank().is_static(),
+    JAX_OP_CONVERSION_CHECK(pshape.rank().is_static(),
                                   "Dynamic rank for start_indices is not supported yet in normalize_start_indices");
 
     int64_t rank = pshape.rank().get_length();
@@ -131,8 +121,6 @@ Output<Node> normalize_start_indices(const Output<Node>& indices, int64_t index_
     return make_transpose(indices, permutation);
 }
 
-// Applies masking logic for FILL_OR_DROP mode.
-// It checks if original indices are within bounds defined by (operand_dim - window_size).
 Output<Node> apply_fill_or_drop(const Output<Node>& gathered,
                                 const Output<Node>& indices,
                                 const Output<Node>& operand,
@@ -146,20 +134,18 @@ Output<Node> apply_fill_or_drop(const Output<Node>& gathered,
     for (size_t i = 0; i < start_index_map.size(); ++i) {
         int64_t dim_idx = start_index_map[i];
         
-        FRONT_END_OP_CONVERSION_CHECK(operand_pshape[dim_idx].is_static(),
+    JAX_OP_CONVERSION_CHECK(operand_pshape[dim_idx].is_static(),
                                       "Dynamic operand shape not supported for FILL_OR_DROP check yet.");
 
         int64_t dim_size = operand_pshape[dim_idx].get_length();
         int64_t window_size = slice_sizes_reordered[i];
         
-        // JAX semantics: window must fully fit inside the operand
         int64_t valid_limit = dim_size - window_size;
         if (valid_limit < 0) valid_limit = 0;
         
         upper_bounds_val.push_back(valid_limit);
     }
 
-    // Prepare constants for broadcasting
     int64_t indices_rank = indices.get_partial_shape().rank().get_length();
     Shape limits_shape(indices_rank, 1);
     limits_shape.back() = upper_bounds_val.size(); // Broadcast matches the last dim (index depth)
@@ -167,17 +153,13 @@ Output<Node> apply_fill_or_drop(const Output<Node>& gathered,
     auto upper_bounds_const = v0::Constant::create(element::i64, limits_shape, upper_bounds_val);
     auto zero_const = v0::Constant::create(element::i64, Shape{1}, {0});
 
-    // Mask generation: 0 <= index <= (dim - window)
     auto mask_ge = std::make_shared<v1::GreaterEqual>(indices, zero_const);
     auto mask_le = std::make_shared<v1::LessEqual>(indices, upper_bounds_const);
     auto is_in_bounds = std::make_shared<v1::LogicalAnd>(mask_ge, mask_le);
 
-    // Reduce mask along the index vector dimension (last dim)
-    // If any coordinate is OOB, the whole gather slice is OOB.
     auto reduce_axis = v0::Constant::create(element::i64, Shape{1}, {indices_rank - 1});
     auto valid_mask = std::make_shared<v1::ReduceLogicalAnd>(is_in_bounds, reduce_axis, false); 
 
-    // Apply Fill Value
     auto fill_const = v0::Constant::create(element::i64, Shape{1}, {fill_value_scalar});
     auto fill_value_converted = std::make_shared<v0::Convert>(fill_const, gathered.get_element_type());
 
@@ -186,38 +168,42 @@ Output<Node> apply_fill_or_drop(const Output<Node>& gathered,
 
 } // namespace
 
-// --- Main Translation Function ---
-
 OutputVector translate_gather(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto operand = context.get_input(0);
     auto start_indices = context.get_input(1);
 
-    // Retrieve JAX parameters
-    auto collapsed_slice_dims = context.const_named_param<std::vector<int64_t>>("collapsed_slice_dims");
-    auto offset_dims = context.const_named_param<std::vector<int64_t>>("offset_dims");
-    auto start_index_map = context.const_named_param<std::vector<int64_t>>("start_index_map");
-    auto slice_sizes = context.const_named_param<std::vector<int64_t>>("slice_sizes");
-    
-    // JAX GatherScatterMode: 0=PROMISE_IN_BOUNDS, 1=CLIP, 2=FILL_OR_DROP
+    auto collapsed_slice_dims = context.get_attribute<std::vector<int64_t>>("collapsed_slice_dims");
+    auto offset_dims = context.get_attribute<std::vector<int64_t>>("offset_dims");
+    auto start_index_map = context.get_attribute<std::vector<int64_t>>("start_index_map");
+    auto slice_sizes = context.get_attribute<std::vector<int64_t>>("slice_sizes");
+
     int64_t mode = 0;
     if (context.has_param("mode")) {
         mode = context.const_named_param<int64_t>("mode");
     }
 
-    // Rank Validation
+    if (context.has_param("fill_value")) {
+        // upcoming true!
+    }
+
+    if (context.has_param("indices_are_sorted")) {
+        // upcoming true! 
+    }
+
+    if (context.has_param("unique_indices")) {
+        // upcoming true!
+    }
+
     auto operand_pshape = operand.get_partial_shape();
-    FRONT_END_OP_CONVERSION_CHECK(operand_pshape.rank().is_static(), 
+    JAX_OP_CONVERSION_CHECK(operand_pshape.rank().is_static(), 
                                   "Dynamic rank for gather operand is not supported yet.");
     int64_t operand_rank = operand_pshape.rank().get_length();
 
-    // 1. Prepare Operand (Transpose to align with start_index_map)
     auto input_perm = compute_gather_input_permutation(operand_rank, start_index_map);
     auto operand_reordered = make_transpose(operand, input_perm);
     auto slice_sizes_reordered = reorder_vector(slice_sizes, input_perm);
 
-    // 2. Prepare Indices (Normalize layout)
-    int64_t index_depth = start_index_map.size();
     int64_t index_vector_axis = -1;
     if (context.has_param("index_vector_dim")) {
         index_vector_axis = context.const_named_param<int64_t>("index_vector_dim");
@@ -230,13 +216,11 @@ OutputVector translate_gather(const NodeContext& context) {
 
     auto normalized_indices = normalize_start_indices(start_indices, index_vector_axis);
     
-    // Validate indices rank for subsequent logic
     auto indices_pshape_norm = normalized_indices.get_partial_shape();
-    FRONT_END_OP_CONVERSION_CHECK(indices_pshape_norm.rank().is_static(),
+    JAX_OP_CONVERSION_CHECK(indices_pshape_norm.rank().is_static(),
                                   "Dynamic rank for start_indices is not supported yet.");
     int64_t indices_rank_val = indices_pshape_norm.rank().get_length();
 
-    // Preserve raw indices for FILL_OR_DROP mask check logic
     Output<Node> indices_for_mask = normalized_indices;
 
     // 3. Mode Handling: Clamping
@@ -254,7 +238,7 @@ OutputVector translate_gather(const NodeContext& context) {
             int64_t dim_idx = start_index_map[i];
 
             if (operand_pshape[dim_idx].is_dynamic()) {
-                FRONT_END_OP_CONVERSION_CHECK(false,
+                JAX_OP_CONVERSION_CHECK(false,
                                               "Dynamic Dimension in operand is not supported for 'clip' mode yet.");
             }
 
@@ -285,8 +269,7 @@ OutputVector translate_gather(const NodeContext& context) {
     bool all_slice_one = std::all_of(slice_sizes_reordered.begin(), slice_sizes_reordered.end(), [](int64_t s){ return s == 1; });
     if (!all_slice_one) {
         FRONT_END_NOT_IMPLEMENTED("Slice gathering (slice_sizes > 1) is not fully implemented yet.");
-    }
-
+    } 
 
     int64_t batch_dims = indices_rank_val - 1;
     Output<Node> gathered = std::make_shared<v8::GatherND>(operand_reordered, normalized_indices, batch_dims);
