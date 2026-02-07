@@ -52,6 +52,7 @@ def cached_model_name(model_hash_str, device, args, cache_root, reversed=False):
 
 
 def openvino_compile_cached_model(cached_model_path, options, *example_inputs):
+    logger.info(f"Loading fully-supported cached OpenVINO model for device {_get_device(options)}")
     core = Core()
     om = core.read_model(cached_model_path + ".xml")
 
@@ -91,8 +92,10 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
     file_name = cached_model_name(model_hash_str, device, args, cache_root)
 
     if file_name is not None and os.path.isfile(file_name + ".xml") and os.path.isfile(file_name + ".bin"):
+        logger.info(f"Loading cached OpenVINO model for device {device}")
         om = core.read_model(file_name + ".xml")
     else:
+        logger.info(f"Compiling new OpenVINO model for device {device}")
         fe_manager = FrontEndManager()
         fe = fe_manager.load_by_framework("pytorch")
 
