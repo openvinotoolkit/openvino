@@ -146,6 +146,8 @@ RoPEFusionFlux::RoPEFusionFlux(bool num_heads_transposed) {
         config.rotary_ndims = config.head_size;
         config.is_interleaved = true;
         config.output_trans0213 = false;
+        config.use_rope_cache = false;
+        config.cos_sin_ndims = static_cast<size_t>(head_size.i());
 
         OutputVector new_args;
         new_args.push_back(pattern_map.at(x));
@@ -538,6 +540,8 @@ RoPEFusionGPTJ::RoPEFusionGPTJ() {
                               pattern_map.at(rotary_emb).get_node_shared_ptr(),
                               pattern_map.at(result).get_node_shared_ptr()};
         config.rotary_ndims = static_cast<size_t>(ndims.i());
+        config.use_rope_cache = true;
+        config.cos_sin_ndims = static_cast<size_t>(ndims_over_2.i());
 
         // Fuse output transpose to Rope.
         auto root_target_inputs = root->output(0).get_target_inputs();
@@ -739,7 +743,7 @@ RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
         config.use_rope_cache = true;
         config.head_cnt = static_cast<size_t>(head_cnt.i());
         config.head_size = static_cast<size_t>(head_size.i());
-
+        config.cos_sin_ndims = static_cast<size_t>(ndims_over_2.i());
         const auto& qkv_proj_node = pattern_map.at(qkv_proj);
         const size_t qkv_proj_output_id = qkv_proj_node.get_index();
         if (qkv_proj_output_id == 0) {
