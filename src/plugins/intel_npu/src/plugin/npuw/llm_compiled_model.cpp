@@ -1160,6 +1160,19 @@ bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
     return false;
 }
 
+bool is_int8_compressed(const std::shared_ptr<ov::Model>& model) {
+    std::vector<std::string> rt_info_path = {"nncf", "weight_compression", "mode"};
+    if (!model->has_rt_info(rt_info_path)) {
+        // NB: Model isn't compressed by NNCF - skip
+        return false;
+    }
+    auto mode = model->get_rt_info<std::string>(rt_info_path);
+    if (mode.find("int8") != std::string::npos) {
+        return true;
+    }
+    return false;
+}
+
 struct NPUDesc {
     std::string arch;
     int64_t max_tiles = 0;
@@ -1328,6 +1341,12 @@ void refine_dynamic_props(ov::AnyMap& llm_properties, const std::optional<NPUDes
 
 void update_config_for_whisper(ov::AnyMap& config) {
     config.erase("NPUW_SLICE_OUT");
+}
+
+void disable_ws_for_whisper(ov::AnyMap& config) {
+    config.erase("NPUW_FUNCALL_FOR_ALL");
+    config.erase("NPUW_FOLD");
+    config.erase("NPUW_CWAI");
 }
 
 void update_config_for_text_embed(ov::AnyMap& config) {
@@ -1939,6 +1958,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     if (m_is_whisper) {
         update_config_for_whisper(prefill_config);
+        if (is_int8_compressed(model)) {
+            disable_ws_for_whisper(prefill_config);
+            disable_ws_for_whisper(generate_config);
+            LOG_INFO(" WS is disabled for Whisper int8 model!");
+        }
     }
 
     if (m_is_embedding) {
