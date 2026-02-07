@@ -41,6 +41,21 @@ static size_t get_subgroup_size(gpu_arch arch) {
     }
 }
 
+static bool can_enable_balance_workload(const kernel_impl_params& params) {
+    const auto& weight_shape = params.get_input_layout(moe_gemm::MoEGemmInputIdx::WEIGHT).get_shape();
+    size_t expert_num = weight_shape[0];
+
+    // If model has a small number of Experts(<64), the average number of Tokens allocated to each Expert is large,
+    // and the load imbalance rate caused by random allocation will naturally decrease.
+    // At this time, the GPU itself is already close to the Saturated state under static scheduling.
+    // So here we set a simple threshold to disable workload balancing in this scenario
+    // to avoid the overhead brought by workload balancing.
+    if (expert_num >= 64) {
+        return true;
+    }
+    return false;
+}
+
 JitConstants MoEGemmMicroGenerator::get_jit_constants(const kernel_impl_params& params, const micro::Package& moe_gemm, const moe_config& cfg) const {
     const auto& device_info = params.get_device_info();
     auto jit = make_base_jit_constants(params);
@@ -99,6 +114,13 @@ JitConstants MoEGemmMicroGenerator::get_jit_constants(const kernel_impl_params& 
     jit.make("OUTPUT_STRIDE", params.input_layouts[1].get_shape()[1]);
     if (!m_is_prefill)
         jit.make("IS_GENERATE", 1);
+
+    bool enable_balance = can_enable_balance_workload(params);
+    if (m_is_prefill && enable_balance) {
+        jit.make("ENABLE_WORKLOAD_BALANCE", 1);
+        jit.make("MAX_EXPERTS_COUNT", 128);
+    }
+
     if (cfg.has_batch_dim) {
         jit.make("INPUT_SEQ_LEN", "INPUT0_FEATURE_NUM");
     } else {
@@ -240,7 +262,28 @@ DispatchDataFunc MoEGemmMicroGenerator::get_dispatch_data_func() const {
         size_t m = experts_weight_shape[1];
         size_t k = experts_weight_shape.size() == 4 ? experts_weight_shape[2] * experts_weight_shape[3] : experts_weight_shape[2];
         wgs.local = {sg_per_wg_m * get_subgroup_size(device_info.arch), sg_per_wg_n, sg_per_wg_k};
-        wgs.global = {ceil_div(m, wg_tile_m), ceil_div(n, wg_tile_n), static_cast<size_t>(rtp->num_actually_used_experts)};
+
+        auto is_prefill_stage = [](const RuntimeParams& params) {
+            const auto target_seq_len = params.input_layouts[0].get_partial_shape()[0];
+            const auto num_offsets = params.input_layouts[3].get_partial_shape()[0];
+            if (num_offsets.is_dynamic())
+                return false;
+            if (target_seq_len.is_dynamic())
+                return false;
+            return (target_seq_len.get_length() / num_offsets.get_length()) > 1;
+        };
+        bool is_prefill = is_prefill_stage(params);
+        bool enable_balance = can_enable_balance_workload(params) && is_prefill;
+        if (enable_balance) {
+            size_t persistent_groups = device_info.execution_units_count * 4;
+            if (persistent_groups < 128)
+                persistent_groups = 128;
+            // Flatten Dim0 (M) into the persistent pool to ensure perfect residency.
+            // We handle M-tiling inside the kernel loop.
+            wgs.global = {1, persistent_groups, 1};
+        } else {
+            wgs.global = {ceil_div(m, wg_tile_m), ceil_div(n, wg_tile_n), static_cast<size_t>(rtp->num_actually_used_experts)};
+        }
         wgs.global[0] *= wgs.local[0];
         wgs.global[1] *= wgs.local[1];
         wgs.global[2] *= wgs.local[2];
@@ -250,6 +293,11 @@ DispatchDataFunc MoEGemmMicroGenerator::get_dispatch_data_func() const {
         ScalarDescriptor s_k{ScalarDescriptor::Types::INT32};
         s_k.v.s32 = static_cast<int32_t>(k);
         scalars.push_back(s_k);
+        if (enable_balance) {
+            ScalarDescriptor s_num_experts{ScalarDescriptor::Types::INT32};
+            s_num_experts.v.s32 = static_cast<int32_t>(rtp->num_actually_used_experts);
+            scalars.push_back(s_num_experts);
+        }
     }};
 }
 
@@ -288,6 +336,9 @@ Arguments MoEGemmMicroGenerator::get_arguments_desc(const kernel_impl_params& pa
             args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(cfg.weight_zp_idx)});
     }
 
+    bool enable_balance = can_enable_balance_workload(params) && m_is_prefill;
+    if (enable_balance)
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // num_experts
     return args;
 }
 
