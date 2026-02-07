@@ -440,6 +440,30 @@ elseif(NOT TARGET arm_compute::arm_compute)
         set(arm_compute build/${OV_CPU_ARM_TARGET_ARCH}/libarm_compute-static.a)
     endif()
 
+    # Print ACL build context and SCons invocation for CI diagnostics.
+    string(REPLACE ";" " " ARM_COMPUTE_OPTIONS_STR "${ARM_COMPUTE_OPTIONS}")
+    message(STATUS "ACL build context:")
+    message(STATUS "  CMAKE_SYSTEM_NAME=${CMAKE_SYSTEM_NAME}")
+    message(STATUS "  CMAKE_SYSTEM_PROCESSOR=${CMAKE_SYSTEM_PROCESSOR}")
+    message(STATUS "  CMAKE_CROSSCOMPILING=${CMAKE_CROSSCOMPILING}")
+    message(STATUS "  ANDROID=${ANDROID}")
+    if(ANDROID)
+        message(STATUS "  ANDROID_ABI=${ANDROID_ABI}")
+        message(STATUS "  ANDROID_PLATFORM=${ANDROID_PLATFORM}")
+        message(STATUS "  ANDROID_STL=${ANDROID_STL}")
+        message(STATUS "  ANDROID_NDK=${ANDROID_NDK}")
+        message(STATUS "  ANDROID_NDK_HOME=${ANDROID_NDK_HOME}")
+        message(STATUS "  ANDROID_TOOLCHAIN_ROOT=${ANDROID_TOOLCHAIN_ROOT}")
+    endif()
+    message(STATUS "  CMAKE_C_COMPILER=${CMAKE_C_COMPILER}")
+    message(STATUS "  CMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}")
+    message(STATUS "  CMAKE_ASM_COMPILER=${CMAKE_ASM_COMPILER}")
+    message(STATUS "  CMAKE_C_FLAGS=${CMAKE_C_FLAGS}")
+    message(STATUS "  CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
+    message(STATUS "  CMAKE_EXE_LINKER_FLAGS=${CMAKE_EXE_LINKER_FLAGS}")
+    message(STATUS "  CMAKE_SHARED_LINKER_FLAGS=${CMAKE_SHARED_LINKER_FLAGS}")
+    message(STATUS "ACL SCons command: ${SCONS} ${ARM_COMPUTE_OPTIONS_STR} ${arm_compute}")
+
     # Configure and build ACL using ExternalProject
     ExternalProject_Add(arm_compute_build
         PREFIX ${ARM_COMPUTE_BUILD_DIR}
