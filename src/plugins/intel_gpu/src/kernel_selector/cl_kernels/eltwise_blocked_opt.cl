@@ -6,7 +6,6 @@
 
 #define OUTPUT_TYPE_BLOCK               MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE)
 #define TO_TYPE(type, val)              CAT(convert_, type)(val)
-#define TO_TYPE_SAT(type, val)          CAT(CAT(convert_, type), _sat)(val)
 
 #if ELTWISE_BROADCAST
     #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX_SAFE)(idx_order)
@@ -76,11 +75,7 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
     FUSED_OPS;
     OUTPUT_TYPE_BLOCK out = TO_TYPE(MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE), FUSED_OPS_RESULT);
 #else
-#if QUANTIZATION_TERM && !OUTPUT_IS_FP
-    OUTPUT_TYPE_BLOCK out = ACTIVATION_TYPED(TO_TYPE_SAT(MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE), res), ACTIVATION_PARAMS_TYPED);
-#else
     OUTPUT_TYPE_BLOCK out = ACTIVATION_TYPED(TO_TYPE(MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE), res), ACTIVATION_PARAMS_TYPED);
-#endif
 #endif
 
 #ifdef LEFTOVERS
@@ -105,4 +100,3 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
 
 #undef OUTPUT_TYPE_BLOCK
 #undef TO_TYPE
-#undef TO_TYPE_SAT
