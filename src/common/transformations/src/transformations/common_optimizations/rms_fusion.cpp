@@ -53,7 +53,7 @@ RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
     auto power = pattern::wrap_type<v1::Power>({x, const_power_convert});
 
     // ReduceMean(x^2,axes)
-    auto mean_axes = pattern::wrap_type<v0::Constant>(constant_value(-1));
+    auto mean_axes = pattern::wrap_type<v0::Constant>();
     auto mean = pattern::wrap_type<v1::ReduceMean>({power, mean_axes});
 
     // ReduceMean(x^2,axes)+eps
