@@ -12,9 +12,6 @@ from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 import torch
 import numpy as np
 
-pytestmark = pytest.mark.skip(reason="FuseMOE transformation temporarily disabled in moc_transformations.cpp")
-
-
 def verify_moe_fusion(ov_model: ov.Model, model_id: str):
     """
     Verify that MoE fusion was applied correctly by checking for fused weight tensors.
@@ -350,7 +347,7 @@ def synthetic_test_idfn(entry):
     return f"synthetic-l{num_layers}-e{num_experts}-{dtype}-b{batch_size}"
 
 
-@pytest.mark.precommit
+@pytest.mark.nightly
 @pytest.mark.parametrize("test_params", MOE_SYNTHETIC_TEST_CASES, ids=synthetic_test_idfn)
 def test_moe_synthetic(tmp_path, test_params, ie_device):
     """
