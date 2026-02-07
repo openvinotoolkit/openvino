@@ -612,6 +612,18 @@ int main(int argc, char* argv[]) {
         ov::AnyMap device_config = {};
         if (result != config.end())
             device_config = result->second;
+
+        auto reload_compiled_model_from_cache = [&](ov::CompiledModel& model) {
+            if (!FLAGS_export_import_cache) {
+                return;
+            }
+
+            std::stringstream compiled_model_stream;
+            model.export_model(compiled_model_stream);
+            compiled_model_stream.seekg(0);
+            model = core.import_model(compiled_model_stream, device_name, device_config);
+        };
+
         size_t batchSize = FLAGS_b;
         ov::element::Type type = ov::element::dynamic;
         std::string topology_name = "";
@@ -661,6 +673,8 @@ int main(int argc, char* argv[]) {
 
             slog::info << "Original model I/O parameters:" << slog::endl;
             printInputAndOutputsInfoShort(compiledModel);
+
+            reload_compiled_model_from_cache(compiledModel);
 
             if (statistics)
                 statistics->add_parameters(
@@ -848,6 +862,8 @@ int main(int argc, char* argv[]) {
             slog::info << "End of compilation memory usage: Peak " << compile_model_mem_end << " KB" << slog::endl;
             slog::info << "Compile model ram used " << compile_model_mem_end - compile_model_mem_start << " KB"
                        << slog::endl;
+
+            reload_compiled_model_from_cache(compiledModel);
 
             if (statistics)
                 statistics->add_parameters(
