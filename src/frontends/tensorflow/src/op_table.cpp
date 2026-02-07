@@ -311,6 +311,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"MatMul", CreatorFunction(translate_mat_mul_op)},
         {"MatrixBandPart", CreatorFunction(translate_matrix_band_part_op)},
         {"MatrixDiag", CreatorFunction(translate_matrix_diag_op)},
+        {"MatrixDiagV3", CreatorFunction(translate_matrix_diag_v3_op)},
         {"MatrixInverse", CreatorFunction(translate_matrix_inverse_op)},
         {"MaxPool", CreatorFunction(translate_max_pool_op)},
         {"MaxPoolV2", CreatorFunction(translate_max_pool_op)},
