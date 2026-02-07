@@ -87,6 +87,7 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, Upda
             return cache_precision == ov::element::f16 && infer_precision == ov::element::bf16 ? infer_precision
                                                                                                : cache_precision;
         };
+
         auto init_cache_shape = [&](const size_t head_nums,
                                     const size_t head_size,
                                     const size_t block_size,
@@ -105,6 +106,7 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, Upda
                 }
             }
             size_t group_num = _head_size / _group_size;
+            // Update head_size and block_size by precision and quantizing channel mode
             m_update_shape_func(precision, bychannel, group_num, _head_size, _block_size);
 
             auto block_shape = ov::PartialShape::dynamic(4);
@@ -117,8 +119,14 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, Upda
         };
         auto key_cache_precision = format_cache_precision(m_config.keyCachePrecision, m_config.inferencePrecision);
         auto value_cache_precision = format_cache_precision(m_config.valueCachePrecision, m_config.inferencePrecision);
-        key_cache->set_element_type(key_cache_precision);
-        value_cache->set_element_type(value_cache_precision);
+        if (key_cache_precision.bitwidth() == 4 || value_cache_precision.bitwidth() == 4) {
+            // Packing 2 elements into 1-Byte along continuous groups in K_HEAD or V_HEAD
+            key_cache->set_element_type(ov::element::i8);
+            value_cache->set_element_type(ov::element::i8);
+        } else {
+            key_cache->set_element_type(key_cache_precision);
+            value_cache->set_element_type(value_cache_precision);
+        }
         bool status = false;
         if (pa_op->get_rt_info().count("num_k_heads") && pa_op->get_rt_info().count("k_head_size") &&
             pa_op->get_rt_info().count("num_v_heads") && pa_op->get_rt_info().count("v_head_size")) {
