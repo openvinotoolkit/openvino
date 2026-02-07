@@ -16,6 +16,11 @@
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
+
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+#    include "irgraph.hpp"
+#endif
+
 #include "mem_usage.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -85,6 +90,15 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     } else {
         tensor = std::move(networkDesc.compiledNetworkTensor);
     }
+
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    if (config.get<COMPILATION_MODE>() == "HostCompile") {
+        // no _compiler::parse call is required. networkmetadata will be obtained in IRGraph constructor
+        _logger.debug("blob is not ELF format, create graph for LLVM IR!");
+        return std::make_shared<IRGraph>(_zeroInitStruct, std::move(tensor), true, config, _compiler);
+    }
+#endif
+
     GraphDescriptor graphDesc;
     NetworkMetadata networkMeta;
 
@@ -280,6 +294,16 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     const std::optional<std::vector<ov::Tensor>>& initBlobs,
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
+
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    if (config.get<COMPILATION_MODE>() == "HostCompile") {
+        // no _compiler::parse call is required. networkmetadata will be obtained in IRGraph constructor
+        _logger.debug("blob is not ELF format, create graph for LLVM IR!");
+        return std::make_shared<IRGraph>(_zeroInitStruct, std::move(mainBlob), true, config, _compiler);
+    } else {
+        _logger.debug("blob is ELF format, create graph for elf blob!");
+    }
+#endif
 
     GraphDescriptor mainGraphDesc;
     NetworkMetadata mainNetworkMetadata;
