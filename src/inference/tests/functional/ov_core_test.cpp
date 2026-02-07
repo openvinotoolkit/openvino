@@ -239,4 +239,29 @@ TEST_F(CoreBaseTest, compile_model_with_std_fs_path) {
     }
 #endif
 }
+
+TEST_P(UnicodePathTest, core_compile_model) {
+    const std::string model_name = "test-model";
+    const auto prefix_dir = utils::generateTestFilePrefix();
+    const auto test_dir = std::filesystem::path(prefix_dir) / fs_path_from_variant();
+
+    const auto model_path = test_dir / std::filesystem::path(model_name + ".xml");
+    const auto weight_path = test_dir / std::filesystem::path(model_name + ".bin");
+    ov::test::utils::generate_test_model(model_path, weight_path);
+
+    ov::Core core;
+    {
+        const auto model = core.compile_model(model_path);
+        EXPECT_TRUE(model);
+    }
+    {
+        const auto devices = core.get_available_devices();
+
+        const auto model = core.compile_model(model_path, devices.at(0), ov::AnyMap{});
+        EXPECT_TRUE(model);
+    }
+
+    std::filesystem::remove_all(prefix_dir);
+}
+
 }  // namespace ov::test

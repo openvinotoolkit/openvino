@@ -164,3 +164,11 @@ extern const std::vector<std::wstring> test_unicode_postfix_vector;
 }  // namespace test
 }  // namespace ov
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+
+namespace ov::test {
+class UnicodePathTest : public testing::Test, public ::testing::WithParamInterface<utils::StringPathVariant> {
+protected:
+    std::filesystem::path get_path_param() const;
+    std::filesystem::path fs_path_from_variant() const;
+};
+}  // namespace ov::test
