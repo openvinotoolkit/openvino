@@ -1881,13 +1881,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
 
-    // Convert LLM-specific attention hints to NPUW_ATTN
-    if (npuw_llm_props.count("NPUW_LLM_PREFILL_ATTENTION_HINT")) {
-        prefill_config["NPUW_ATTN"] = npuw_llm_props["NPUW_LLM_PREFILL_ATTENTION_HINT"];
-    }
-    if (npuw_llm_props.count("NPUW_LLM_GENERATE_ATTENTION_HINT")) {
-        generate_config["NPUW_ATTN"] = npuw_llm_props["NPUW_LLM_GENERATE_ATTENTION_HINT"];
-    }
+    // Dispatch LLM-specific attention hints to the downstream models via NPUW_ATTN
+    prefill_config["NPUW_ATTN"] = ::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT::toString(prefill_attn_hint);
+    generate_config["NPUW_ATTN"] = ::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT::toString(generate_attn_hint);
 
     // Generate a random weights bank name unique to this LLMCompiledModel object
     auto weights_bank_name = ov::npuw::util::generate_random_string();

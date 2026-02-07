@@ -282,6 +282,9 @@ struct NPUW_LLM_PREFILL_ATTENTION_HINT final : ATTN_HINT_BASE {
     static std::string_view key() {
         return ov::intel_npu::npuw::llm::prefill_attn_hint.name();
     }
+    static ::intel_npu::npuw::llm::AttentionHint defaultValue() {
+        return ::intel_npu::npuw::llm::AttentionHint::PYRAMID;
+    }
 };
 
 struct MOE_HINT_BASE : OptionBase<MOE_HINT_BASE, ::intel_npu::npuw::llm::MoEHint> {
