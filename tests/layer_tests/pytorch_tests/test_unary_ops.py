@@ -299,7 +299,7 @@ class TestUnaryOp(PytorchLayerTest):
     def test_prim_abs(self, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
         self._test(prim_abs_net(dtype), None, "prim::abs",
-                   ie_device, precision, ir_version)
+                   ie_device, precision, ir_version, fx_kind="aten.abs")
 
     @pytest.mark.nightly
     @pytest.mark.precommit

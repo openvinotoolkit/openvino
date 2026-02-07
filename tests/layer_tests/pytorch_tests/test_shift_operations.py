@@ -53,6 +53,7 @@ class TestShiftOperators(PytorchLayerTest):
             },
             trace_model=True,
             freeze_model=False,
+            fx_kind=["aten.__lshift__", "aten.__rshift__"],
         )
 
 
@@ -104,4 +105,5 @@ class TestBitwiseShiftFunctions(PytorchLayerTest):
             },
             trace_model=True,
             freeze_model=False,
+            fx_kind="aten.bitwise_left_shift",
         )

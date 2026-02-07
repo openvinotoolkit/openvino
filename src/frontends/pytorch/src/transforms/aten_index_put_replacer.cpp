@@ -8,6 +8,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/pytorch/visibility.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -76,9 +77,11 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
 
         int64_t indices_list_len;
         OutputVector indices_inputs;
-        if (auto listconstruct = cast_fw_node(indices.get_node_shared_ptr(), "prim::ListConstruct")) {
-            rt_copy_from.push_back(listconstruct);
-            indices_inputs = listconstruct->input_values();
+
+        // Check for SequenceMark
+        if (auto seq_mark = ov::as_type_ptr<SequenceMark>(indices.get_node_shared_ptr())) {
+            rt_copy_from.push_back(seq_mark);
+            indices_inputs = seq_mark->input_values();
             indices_list_len = static_cast<int64_t>(indices_inputs.size());
         } else {
             auto indices_partial_shape = indices.get_partial_shape();

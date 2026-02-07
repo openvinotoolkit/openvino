@@ -166,9 +166,16 @@ protected:
     virtual void register_table_entries() {}
 
     void load_table_addr() const {
-        const auto address = reinterpret_cast<uintptr_t>(l_table->getAddress());
-        OPENVINO_ASSERT(address != 0, "Address of data section is missed!");
-        h->uni_li(p_table, address);
+        // Use a local literal pool with a forward label reference so we don't require the data
+        // label to be defined before code emission.
+        constexpr int32_t literal_offset = 16;  // 4 insns * 4 bytes -> 8-byte aligned literal
+        Xbyak_riscv::Label after_literal;
+        h->auipc(p_table, 0);
+        h->ld(p_table, p_table, literal_offset);
+        h->nop();
+        h->j_(after_literal);
+        h->putL(*l_table);
+        h->L(after_literal);
     }
 
     void load_table_val(const std::string& key, const Xbyak_riscv::FReg& freg, size_t key_off_val_shift = 0) const {

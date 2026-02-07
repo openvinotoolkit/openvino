@@ -185,13 +185,9 @@ void read_tensor_via_ifstream(const std::filesystem::path& file_name, Tensor& te
     OPENVINO_ASSERT(tensor.get_element_type() != ov::element::string);
     std::ifstream fin(file_name, std::ios::binary);
     fin.seekg(offset);
-    auto bytes_to_read = tensor.get_byte_size();
+    const auto bytes_to_read = static_cast<std::streamsize>(tensor.get_byte_size());
     fin.read(static_cast<char*>(tensor.data()), bytes_to_read);
-    OPENVINO_ASSERT(static_cast<size_t>(fin.gcount()) == bytes_to_read,
-                    "Cannot read ",
-                    bytes_to_read,
-                    "bytes from ",
-                    file_name);
+    OPENVINO_ASSERT(fin.gcount() == bytes_to_read, "Cannot read ", bytes_to_read, " bytes from ", file_name);
 }
 
 ov::Tensor wrap_obj_to_viewtensor(const std::shared_ptr<void>& shared_obj,

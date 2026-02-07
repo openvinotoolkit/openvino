@@ -76,7 +76,6 @@
 #include "plugin/transformations/clamp_fp16_output.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
-#include "plugin/transformations/convert_moe_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/convert_moe_to_compressed.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
@@ -102,6 +101,8 @@
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
+#include "plugin/transformations/disable_fp16_comp_sin_gen.hpp"
+#include "plugin/transformations/increase_rms_input_precision.hpp"
 #include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
@@ -568,6 +569,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::RMSFusion>(false, true);
         manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
         manager.register_pass<DisableFP16ComForGPTOSSROPEPattern>();
+        manager.register_pass<DisableFP16ComSinGenPatternForHiFiGAN>();
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
         const bool store_original_precision_as_rt_attribute = true;
@@ -740,15 +742,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                  return false;
              }
 
-            const auto head_size = query_ps[query_ps.size() - 1].get_length();
+            const auto head_size = static_cast<uint64_t>(query_ps[query_ps.size() - 1].get_length());
             if (device_info.supports_immad && cldnn::query_microkernels_supported(m_context->get_engine(), config) && head_size <= 256)
                 return true;
 
-            // - Head size should be 128 for any model type; or should be in the range of 64 to 256 for stateful LLMs because of performance reasons.
+            // - Head size should be 128 for any model type; or should be in the range of 64 to 512 for stateful LLMs because of performance
+            // reasons and implementation limitations (see sdpa micro and sdpa opt kernels).
             //   This limitations is recommended to prevent performance drop in models with small head size, such as SD,
             //   until the SDPA operation is optimized for these cases
-            bool valid_head_size = (head_size >= 64 && head_size <= 256);
-            if (!valid_head_size) {
+            bool valid_head_size = (head_size >= 64 && head_size <= std::min(device_info.max_work_group_size, static_cast<uint64_t>(512)));
+            if (!valid_head_size || head_size % 2 != 0) { // head_size should be an even number (until the SDPA opt kernel is fixed for odd head size)
                 return false;
             }
 
@@ -1373,6 +1376,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.set_per_pass_validation(false);
 
         manager.register_pass<ov::pass::ConvertWeightCompressedConv1x1ToMatmul>();
+        manager.register_pass<ov::intel_gpu::IncreaseRMSInputPrecision>();
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>(device_info.supports_immad);
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();

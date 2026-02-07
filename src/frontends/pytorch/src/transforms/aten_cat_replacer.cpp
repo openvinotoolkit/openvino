@@ -10,6 +10,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
@@ -71,9 +72,12 @@ bool process_loop_case(std::shared_ptr<Node> cat, std::shared_ptr<v5::Loop> loop
     }
     FRONT_END_GENERAL_CHECK(input_index >= 0, "Couldn't find descriptor for input.");
 
-    auto list_construct = cast_fw_node(loop->get_input_node_shared_ptr(input_index), "prim::ListConstruct");
-    if (!list_construct || list_construct->get_input_size() > 0) {
-        add_exception_to_fw_node(cat, "<aten/quantized>::cat unsupported case: invalid ListConstruct.");
+    auto input_node = loop->get_input_node_shared_ptr(input_index);
+    // Check for SequenceMark - it should be empty as the list is built inside the loop via append
+    auto seq_mark_list = ov::as_type_ptr<SequenceMark>(input_node);
+
+    if (!seq_mark_list || !seq_mark_list->empty()) {
+        add_exception_to_fw_node(cat, "<aten/quantized>::cat unsupported case: expected empty SequenceMark.");
         return false;
     }
 
@@ -205,7 +209,6 @@ AtenCatToConcat::AtenCatToConcat() {
 
         if (is_stack) {
             // Special case for GPTQ pattern
-            auto list_construct = cast_fw_node(input_node, "prim::ListConstruct");
             if (const auto& compression = u4_compression_stack(input_node->input_values(), axis)) {
                 copy_runtime_info_and_name(cat, {compression}, {input_node});
                 replace_node(cat, compression);

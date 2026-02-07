@@ -501,7 +501,7 @@ public:
     template <class Container>
     std::string join(const Container& strs) {
         std::stringstream ss;
-        ss << "[" << ov::intel_cpu::join(strs, ',') << "]";
+        ss << "[" << ov::util::join(strs, ",") << "]";
         return ss.str();
     }
 };

@@ -35,7 +35,7 @@ class TestAtan2(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     def test_atan2(self, ie_device, precision, ir_version, input_shape_rhs):
         self.input_rhs = np.random.randn(*input_shape_rhs).astype(np.float32)
-        self._test(*self.create_model(), ie_device, precision, ir_version, use_convert_model=True)
+        self._test(*self.create_model(), ie_device, precision, ir_version, use_convert_model=True, fx_kind="aten.arctan2")
 
 class TestAtan2Types(PytorchLayerTest):
 
@@ -77,4 +77,4 @@ class TestAtan2Types(PytorchLayerTest):
         self.rhs_type = rhs_type
         self.rhs_shape = rhs_shape
         self._test(*self.create_model(lhs_type, rhs_type),
-                   ie_device, precision, ir_version, freeze_model=False, trace_model=True)
+                   ie_device, precision, ir_version, freeze_model=False, trace_model=True, fx_kind="aten.arctan2")

@@ -10,6 +10,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -49,13 +50,13 @@ AppendListUnpackReplacer::AppendListUnpackReplacer() {
             input_node = append_node->input(0).get_source_output().get_node_shared_ptr();
         }
         OutputVector inputs;
-        auto list_construct_node = cast_fw_node(std::move(input_node), "prim::ListConstruct");
-        if (!list_construct_node) {
+        auto seq_mark = ov::as_type_ptr<SequenceMark>(input_node);
+        if (!seq_mark) {
             return false;
         }
-        inputs.reserve(list_construct_node->inputs().size() + tmp_inputs.size());
-        rt_copy_from.push_back(list_construct_node);
-        for (auto& input : list_construct_node->inputs()) {
+        inputs.reserve(seq_mark->inputs().size() + tmp_inputs.size());
+        rt_copy_from.push_back(seq_mark);
+        for (auto& input : seq_mark->inputs()) {
             inputs.push_back(input.get_source_output());
         }
 
@@ -64,7 +65,7 @@ AppendListUnpackReplacer::AppendListUnpackReplacer() {
                       std::make_move_iterator(tmp_inputs.rend()));
         if (getitem_node) {
             // If aten::__getitem__, expect inputs to be equivalent of pytorch Tensor[][].
-            // Tensor selected by aten::__getitem__ index needs to be splitted in axis 0.
+            // Tensor selected by aten::__getitem__ index needs to be split along axis 0.
             auto getitem_index_const = ov::util::get_constant_from_source(getitem_node->input_value(1));
             if (!getitem_index_const)
                 return false;
@@ -90,7 +91,7 @@ AppendListUnpackReplacer::AppendListUnpackReplacer() {
             replace_node(list_unpack, res);
             return true;
         } else {
-            // Without aten::__getitem__, expect inputs to be equivalent od pytorch Tensor[].
+            // Without aten::__getitem__, expect inputs to be equivalent of pytorch Tensor[].
             // Return all inputs.
             replace_node(list_unpack, inputs);
             return true;

@@ -571,7 +571,7 @@ class InlinedInputDecoder (BaseFXDecoder):
     def get_op_type(self):
         # return specific type for inlined inputs
         if not self.is_const:
-            return "prim::ListConstruct"
+            return "inlined.list.default"
         return "inlined.constant.default"
 
     def outputs(self):

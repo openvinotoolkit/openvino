@@ -4,6 +4,7 @@
 import os
 import sys
 import subprocess
+import platform
 import pytest
 import torch
 from models_hub_common.utils import get_models_list, compare_two_tensors
@@ -96,6 +97,8 @@ class TestDetectron2ConvertModel(TestTorchConvertModel):
                              get_models_list(os.path.join(os.path.dirname(__file__), "detectron2_precommit")))
     @pytest.mark.precommit
     def test_detectron2_precommit(self, name, type, mark, reason, ie_device):
+        if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+            pytest.skip("Detectron2 models are not enabled on ARM")
         self.run(name, None, ie_device)
 
     @pytest.mark.parametrize("name",

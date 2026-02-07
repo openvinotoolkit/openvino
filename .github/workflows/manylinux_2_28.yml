@@ -38,7 +38,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
@@ -78,7 +78,7 @@ jobs:
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
@@ -130,7 +130,7 @@ jobs:
       MANIFEST_PATH: ${{ github.workspace }}/manifest.yml
       PRODUCT_TYPE: public_manylinux_2_28_x86_64_release
       NODE_VERSION: 22
-      
+
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
         shell: bash
@@ -141,7 +141,7 @@ jobs:
           echo "✓ Connection string loaded and masked"
 
       - name: Clone OpenVINO
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
@@ -154,7 +154,7 @@ jobs:
 
       - name: System info
         uses: ./src/.github/actions/system_info
-        
+
       - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
         id: create_manifest
         uses: ./src/.github/actions/create_manifest
@@ -184,7 +184,7 @@ jobs:
           /usr/bin/cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
         env:
           CXXFLAGS: "-Wno-dangling-reference" # bug in gcc-14: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=107532
-            
+
       - name: Build Python API (Python 3.10-3.14t)
         run: |
           SUPPORTED_PYTHON_VERSIONS=("3.10" "3.11" "3.12" "3.13" "3.14" "3.14t")
@@ -212,7 +212,7 @@ jobs:
             /usr/bin/cmake --build ${py_build_dir} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
             /usr/bin/cmake --install ${py_build_dir} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
             /usr/bin/cmake --install ${py_build_dir} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }} --component pyopenvino_python${PY_VER}
-          
+
           done
 
       - name: Build OpenVINO JS API
@@ -249,7 +249,7 @@ jobs:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
-      
+
       - name: Upload OpenVINO wheels
         if: ${{ always() }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0

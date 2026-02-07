@@ -88,20 +88,6 @@ std::pair<uint32_t, uint32_t> get_lora_dims_by_name(const std::string& state_nam
     return std::make_pair(low_rank_dim, full_rank_dim);
 }
 
-void fill_sliding_mask(const ov::SoPtr<ov::ITensor>& mask, int64_t curr_pos, int64_t window_size) {
-    auto start = curr_pos - window_size;
-    auto end = curr_pos;
-
-    auto* mask_data = mask->data<bool>();
-    for (int64_t i = 0; i < static_cast<int64_t>(mask->get_size()); ++i) {
-        // Unlike original subgraph which do i <= end we are excluding end
-        // as it is a new token and is located in last position of mask buffer
-        mask_data[i] = i > start && i < end;
-    }
-
-    mask_data[mask->get_size() - 1] = true;
-}
-
 }  // anonymous namespace
 
 void ov::npuw::LLMInferRequest::init_lora_states() {
@@ -218,7 +204,6 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     }
 
     m_generate_initialized = false;
-    m_gemma_sliding_window_size = compiled_model->m_gemma_sliding_window_size;
 }
 
 std::string ov::npuw::LLMInferRequest::init_pre_alloc_device() {
@@ -816,9 +801,9 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
     const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
     if (use_chunk_prefill) {
-        OPENVINO_ASSERT(m_gemma_sliding_window_size == 0,
+        OPENVINO_ASSERT(!token_type_ids,
                         "Chunking is not implemented for Gemma model family yet. "
-                        "Please use set NPUW_LLM_PREFILL_HINT to 'STATIC'");
+                        "Please set NPUW_LLM_PREFILL_HINT to 'STATIC'");
         infer_chunked_prefill(input_ids, attention_mask, position_ids);
     } else {
         infer_whole_prefill(input_ids, attention_mask, position_ids, token_type_ids);
@@ -879,14 +864,6 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     // NB: KV-cache is full, further generation is impossible
     if (kvcache_desc.num_stored_tokens + input_tokens_len > kvcache_desc.total_size) {
         OPENVINO_THROW("KV-Cache is full.");
-    }
-
-    if (auto sliding_mask_port = m_kvcache_in_ports.find(layer_names::gemma_sliding_mask);
-        sliding_mask_port != m_kvcache_in_ports.end()) {
-        // TODO: Fill once and update on each iteration instead
-        fill_sliding_mask(m_kvcache_request->get_tensor(sliding_mask_port->second),
-                          kvcache_desc.num_stored_tokens + input_tokens_len,
-                          m_gemma_sliding_window_size);
     }
 
     // FIXME: these tensors should be shared between the parent & child models
