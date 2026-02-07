@@ -193,7 +193,16 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
                 OPENVINO_THROW("Moe weight shape must be 3D or 4D.");
             }
             OutputVector args(12);
-            args[0] = pattern_map.at(hidden_states_m);
+            bool convert_f16 = false;
+            auto hidden_states = pattern_map.at(hidden_states_m);
+            if (hidden_states.get_element_type() == ov::element::f32) {
+                auto convert = std::make_shared<ov::op::v0::Convert>(hidden_states, ov::element::f16);
+                ov::copy_runtime_info(moe, convert);
+                args[0] = convert;
+                convert_f16 = true;
+            } else {
+                args[0] = hidden_states;
+            }
             args[1] = pattern_map.at(routing_weights_m);
             args[2] = pattern_map.at(topk_m);
             args[3] = pattern_map.at(gemm3_compressed_weights_m_gate);
@@ -236,10 +245,16 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             config.out_type = ov::element::f16;
             config.has_batch_dim = is_pa ? 0 : 1;
             auto moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(args, config);
-
-            moe_compressed->set_friendly_name(moe->get_friendly_name());
-            ov::copy_runtime_info(moe, moe_compressed);
-            ov::replace_node(moe, moe_compressed);
+            if (convert_f16) {
+                auto convert_back = std::make_shared<ov::op::v0::Convert>(moe_compressed, ov::element::f32);
+                convert_back->set_friendly_name(moe->get_friendly_name());
+                ov::copy_runtime_info(moe, {moe_compressed, convert_back});
+                ov::replace_node(moe, convert_back);
+            } else {
+                moe_compressed->set_friendly_name(moe->get_friendly_name());
+                ov::copy_runtime_info(moe, moe_compressed);
+                ov::replace_node(moe, moe_compressed);
+            }
         } else if (moe->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP) {
             OutputVector args;
             auto topk_indice_node = pattern_map.at(topk_indices_gemm2_m);
