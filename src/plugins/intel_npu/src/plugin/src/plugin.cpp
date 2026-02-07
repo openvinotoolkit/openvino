@@ -1221,7 +1221,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
                                    ". A \".bin\" or \".onnx\" extension was expected.");
                 }
 
-                originalModel = get_core()->read_model(xmlPath, weightsPath, properties);
+                originalModel =
+                    get_core()->read_model(ov::util::make_path(xmlPath), ov::util::make_path(weightsPath), properties);
             } else {
                 OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");
             }
