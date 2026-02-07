@@ -61,8 +61,14 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_OVCheckGetSupportedROMetricsPropsTests,
     OVCheckGetSupportedROMetricsPropsTests,
     ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
-                       ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::configureProperties(
-                        { ov::device::uuid.name(), ov::device::luid.name(), ov::device::gops.name(), ov::device::type.name(), ov::device::full_name.name() }))),
+                       ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::configureProperties({ov::device::uuid.name(),
+                                                                                                        ov::device::luid.name(),
+                                                                                                        ov::device::gops.name(),
+                                                                                                        ov::device::type.name(),
+                                                                                                        ov::device::full_name.name(),
+                                                                                                        ov::execution_devices.name(),
+                                                                                                        ov::model_name.name(),
+                                                                                                        ov::optimal_number_of_infer_requests.name()}))),
     OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_gpuOVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
@@ -76,7 +82,15 @@ INSTANTIATE_TEST_SUITE_P(
     OVCheckSetSupportedRWMetricsPropsTests,
     ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
                        ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWMandatoryPropertiesValues(
-                           {ov::hint::execution_mode.name()}))),
+                           {ov::hint::execution_mode.name(), ov::log::level.name()}))),
+    OVCheckSetSupportedRWMetricsPropsTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_OVCheckSetSupportedRWOptionalMetricsPropsTests,
+    OVCheckSetSupportedRWMetricsPropsTests,
+    ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
+                       ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWOptionalPropertiesValues(
+                           {ov::log::level.name()}))),
     OVCheckSetSupportedRWMetricsPropsTests::getTestCaseName);
 
 //
