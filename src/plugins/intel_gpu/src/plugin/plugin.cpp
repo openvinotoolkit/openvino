@@ -720,6 +720,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::intel_gpu::memory_statistics.name(), PropertyMutability::RO},
 
         // Configs
+        ov::PropertyName{ov::log::level.name(), PropertyMutability::RW},
         ov::PropertyName{ov::enable_profiling.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::model_priority.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::hint::host_task_priority.name(), PropertyMutability::RW},
