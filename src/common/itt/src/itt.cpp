@@ -43,10 +43,16 @@ static thread_local uint64_t current_region_counter = 0;
 static thread_local void* current_region_handle = nullptr;
 
 domain_t domain(const char* name) {
+    if (!is_initialized() || name == nullptr) {
+        return nullptr;
+    }
     return reinterpret_cast<domain_t>(__itt_domain_create(name));
 }
 
 handle_t handle(const char* name) {
+    if (!is_initialized() || name == nullptr) {
+        return nullptr;
+    }
     return reinterpret_cast<handle_t>(__itt_string_handle_create(name));
 }
 
@@ -61,6 +67,26 @@ void taskBegin(domain_t d, handle_t t) {
                          __itt_null,
                          parent_id,
                          reinterpret_cast<__itt_string_handle*>(t));
+    }
+}
+
+void taskBegin(domain_t d, handle_t t, const char* key, uint64_t value) {
+    if (!is_initialized() || d == nullptr || t == nullptr || key == nullptr) {
+        return;
+    }
+    if (!callStackDepth() || call_stack_depth++ < callStackDepth()) {
+        __itt_id parent_id =
+            current_region_counter != 0 ? __itt_id_make(current_region_handle, current_region_counter) : __itt_null;
+        __itt_domain* domain = reinterpret_cast<__itt_domain*>(d);
+        __itt_task_begin(domain, __itt_null, parent_id, reinterpret_cast<__itt_string_handle*>(t));
+        // The task id to which the metadata is assigned to is not available at this point. It will
+        // default to the parent task's ID
+        __itt_metadata_add(domain,
+                           __itt_null,
+                           __itt_string_handle_create(key),
+                           __itt_metadata_u64,
+                           1,
+                           static_cast<void*>(const_cast<uint64_t*>(&value)));
     }
 }
 
@@ -94,6 +120,26 @@ void regionBegin(domain_t d, handle_t t) {
                        reinterpret_cast<__itt_string_handle*>(t));
 }
 
+void regionBegin(domain_t d, handle_t t, const char* key, uint64_t value) {
+    if (!is_initialized() || d == nullptr || t == nullptr || key == nullptr) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(region_mutex);
+    auto region_counter = nextRegionId();
+    current_region_counter = region_counter;
+    current_region_handle = reinterpret_cast<void*>(t);
+    __itt_domain* domain = reinterpret_cast<__itt_domain*>(d);
+    __itt_id region_id = __itt_id_make(current_region_handle, current_region_counter);
+    __itt_region_begin(domain, region_id, __itt_null, reinterpret_cast<__itt_string_handle*>(t));
+    // Associate the <key-value> pair with the region
+    __itt_metadata_add(domain,
+                       region_id,
+                       __itt_string_handle_create(key),
+                       __itt_metadata_u64,
+                       1,
+                       static_cast<void*>(const_cast<uint64_t*>(&value)));
+}
+
 void regionEnd(domain_t d) {
     if (!is_initialized() || d == nullptr) {
         return;
@@ -120,11 +166,15 @@ handle_t handle(const char*) {
 
 void taskBegin(domain_t, handle_t) {}
 
+void taskBegin(domain_t, handle_t, const char*, uint64_t) {}
+
 void taskEnd(domain_t) {}
 
 void threadName(const char*) {}
 
 void regionBegin(domain_t, handle_t) {}
+
+void regionBegin(domain_t, handle_t, const char*, uint64_t) {}
 
 void regionEnd(domain_t) {}
 
