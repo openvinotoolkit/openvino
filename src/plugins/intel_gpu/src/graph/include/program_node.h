@@ -238,6 +238,22 @@ public:
     std::unique_ptr<json_composite> desc_to_json() const;
     // do not modify primitive directly to keep synchronisation with graph
     std::shared_ptr<const primitive> get_primitive() const { return desc; }
+
+    // Update the requested primitive output data type for a given output index
+    void set_primitive_output_data_type(data_types dtype, size_t idx = 0) {
+        OPENVINO_ASSERT(desc != nullptr, "program_node: primitive descriptor is null");
+        OPENVINO_ASSERT(desc->output_data_types.size() > idx, "program_node: output data type index out of range");
+
+        if (desc->output_data_types[idx] && desc->output_data_types[idx].value() == dtype)
+            return;
+
+        if (desc.use_count() > 1)
+            desc = desc->clone();
+
+        desc->output_data_types[idx] = optional_data_type{dtype};
+        recalc_output_layouts(true);
+    }
+
     // primitive modification functions
     void set_output_padding(padding const& padd, size_t idx = 0) {
         // changing output padding shouldn't cause any changes to other primitives
