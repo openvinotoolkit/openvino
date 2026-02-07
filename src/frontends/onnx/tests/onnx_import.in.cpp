@@ -2674,6 +2674,48 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_matmul_vec_ten3d) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_activation_celu) {
+    auto model = convert_model("activation_celu.onnx");
+
+    // -1.0f, 0, 1.0f, 10.f,                    normal input values for activation
+    // 100.0f, -100.0f, 1000.0f, -1000.0f,      input values that leads to exp() overflow
+    // FLT_MIN, FLT_MIN / 16, -FLT_MIN / 16,    min, denorm, -denorm
+    // FLT_MAX, -FLT_MAX,                       max, -max;
+    Inputs inputs{std::vector<float>{-1.0f,
+                                     0,
+                                     1.0f,
+                                     10.f,
+                                     100.0f,
+                                     -100.0f,
+                                     1000.0f,
+                                     -1000.0f,
+                                     FLT_MIN,
+                                     FLT_MIN / 16,
+                                     -FLT_MIN / 16,
+                                     FLT_MAX,
+                                     -FLT_MAX}};
+
+    const auto inf = std::numeric_limits<float>::infinity();
+    std::vector<float> output{-3.194527864456177f,
+                              0.0f,
+                              1.f,
+                              10.f,
+                              100.0f,
+                              -inf,
+                              1000.0f,
+                              -inf,
+                              1.175494350822288e-38f,
+                              7.346839692639297e-40f,
+                              0.0f,
+                              inf,
+                              -inf};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softplus) {
     auto model = convert_model("softplus.onnx");
 
