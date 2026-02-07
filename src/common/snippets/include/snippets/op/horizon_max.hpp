@@ -24,6 +24,7 @@ public:
     OPENVINO_OP("HorizonMax", "SnippetsOpset");
 
     explicit HorizonMax(const Output<Node>& x);
+    explicit HorizonMax(const OutputVector& x);
     HorizonMax() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
