@@ -54,9 +54,11 @@ constexpr float ISA_THRESHOLD_AMX = 4.0F;    ///< AMX: 4x compute for matrix ope
 /**
  * @brief Memory tolerance thresholds for workload classification
  */
-constexpr float MEM_TOLERANCE_HIGH = 4.5F;    ///< High memory tolerance (compute-bound)
-constexpr float MEM_TOLERANCE_MEDIUM = 2.5F;  ///< Medium memory tolerance
-constexpr float MEM_TOLERANCE_LOW = 0.06F;    ///< Low memory tolerance threshold
+constexpr float MEM_TOLERANCE_VERY_HIGH = 50.0F;  ///< Very high memory tolerance (compute-bound)
+constexpr float MEM_TOLERANCE_HIGH = 4.5F;        ///< High memory tolerance (compute-bound)
+constexpr float MEM_TOLERANCE_MEDIUM = 2.5F;      ///< Medium memory tolerance
+constexpr float MEM_TOLERANCE_LOW = 0.5F;         ///< Low memory tolerance threshold
+constexpr float MEM_TOLERANCE_VERY_LOW = 0.06F;   ///< Very low memory tolerance threshold
 
 /**
  * @brief Convolution ratio thresholds for workload analysis
@@ -140,7 +142,7 @@ inline float get_isa_threshold_multiplier(dnnl::cpu_isa isa) {
 inline bool should_use_all_cores_for_latency(int main_cores, int efficient_cores, bool int8_intensive) {
     using namespace ThreadPreferenceConstants;
     const int threshold = int8_intensive ? INT8_EFFICIENCY_THRESHOLD : FP32_EFFICIENCY_THRESHOLD;
-    return main_cores <= (efficient_cores / threshold);
+    return main_cores * threshold <= efficient_cores;
 }
 
 /**
@@ -246,7 +248,7 @@ inline bool is_static_partitioner_case_3_with_lp_ecores(const ov::MemBandwidthPr
            tolerance.ratio_compute_convs + tolerance.ratio_mem_limited_convs < CONV_RATIO_VERY_HIGH &&
            tolerance.ratio_mem_limited_convs < CONV_RATIO_VERY_LOW && tolerance.ratio_mem_limited_gemms == 0.0F &&
            ((tolerance.ratio_mem_limited_adds < CONV_RATIO_MINIMAL &&
-             tolerance.max_mem_tolerance >= MEM_TOLERANCE_LOW) ||
+             tolerance.max_mem_tolerance >= MEM_TOLERANCE_VERY_LOW) ||
             tolerance.ratio_compute_convs == 0 || tolerance.ratio_mem_limited_convs == 0);
 }
 
@@ -260,7 +262,7 @@ inline bool is_static_partitioner_case_3_without_lp_ecores(const ov::MemBandwidt
                CONV_RATIO_MEDIUM * static_cast<float>(tolerance.total_convs) &&
            tolerance.ratio_compute_convs + tolerance.ratio_mem_limited_convs < CONV_RATIO_VERY_HIGH &&
            tolerance.ratio_mem_limited_convs < CONV_RATIO_VERY_LOW && tolerance.ratio_mem_limited_gemms == 0.0F &&
-           tolerance.ratio_mem_limited_adds < CONV_RATIO_MINIMAL && tolerance.max_mem_tolerance >= MEM_TOLERANCE_LOW;
+           tolerance.ratio_mem_limited_adds < CONV_RATIO_MINIMAL && tolerance.max_mem_tolerance >= MEM_TOLERANCE_VERY_LOW;
 }
 
 /**
@@ -370,6 +372,20 @@ inline bool is_below_isa_threshold(float max_tolerance, float memThresholdAssume
  */
 inline bool is_below_general_threshold(float max_tolerance) {
     return max_tolerance > ov::MemBandwidthPressure::LIMITED;
+}
+
+inline bool is_lp_main_core_case_1(const ov::MemBandwidthPressure& tolerance) {
+    using namespace ThreadPreferenceConstants;
+    return tolerance.total_convs == 0 && tolerance.max_mem_tolerance > MEM_TOLERANCE_VERY_HIGH &&
+           static_cast<float>(tolerance.total_gemms) < GEMM_RATIO_LOW * static_cast<float>(tolerance.total_nodes);
+}
+
+inline bool is_lp_main_core_case_2(const ov::MemBandwidthPressure& tolerance) {
+    using namespace ThreadPreferenceConstants;
+    return tolerance.total_convs > 0 && tolerance.total_gemms == 1 &&
+           tolerance.max_mem_tolerance<MEM_TOLERANCE_LOW&& static_cast<float>(
+               tolerance.total_light_convs)> CONV_RATIO_HIGH *
+               static_cast<float>(tolerance.total_convs);
 }
 
 }  // namespace ov::intel_cpu

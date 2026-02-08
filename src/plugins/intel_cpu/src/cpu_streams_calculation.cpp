@@ -760,6 +760,22 @@ void configure_x86_hybrid_threads(Config& config,
 }
 
 /**
+ * @brief Configure thread preferences for x86/x64 hybrid architectures
+ */
+void configure_x86_hybrid_lp_threads(Config& config,
+                                     const std::vector<std::vector<int>>& proc_type_table,
+                                     const ov::MemBandwidthPressure& tolerance) {
+    const int main_cores = proc_type_table[0][MAIN_CORE_PROC];
+    const int lp_efficient_cores = proc_type_table[0][LP_EFFICIENT_CORE_PROC];
+
+    if (is_lp_main_core_case_1(tolerance) || is_lp_main_core_case_2(tolerance)) {
+        config.modelPreferThreadsLatency = main_cores;
+    } else {
+        config.modelPreferThreadsLatency = main_cores + lp_efficient_cores;
+    }
+}
+
+/**
  * @brief Configure thread preferences for x86/x64 non-hybrid architectures
  */
 void configure_x86_non_hybrid_threads(Config& config, const std::vector<std::vector<int>>& proc_type_table) {
@@ -869,16 +885,16 @@ int get_model_prefer_threads(const int num_streams,
         // x86/x64 platforms
         const int main_cores = proc_type_table[0][MAIN_CORE_PROC];
         const int efficient_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
+        const int lp_efficient_cores = proc_type_table[0][LP_EFFICIENT_CORE_PROC];
 
         if (efficient_cores > 0 && main_cores > 0) {
-            // Hybrid architecture (e.g., Intel Alder Lake, Raptor Lake)
             configure_x86_hybrid_threads(config, proc_type_table, networkToleranceForLowCache, int8_intensive, is_LLM);
+        } else if (efficient_cores == 0 && main_cores * 2 <= lp_efficient_cores) {
+            configure_x86_hybrid_lp_threads(config, proc_type_table, networkToleranceForLowCache);
         } else {
-            // Non-hybrid architecture
             configure_x86_non_hybrid_threads(config, proc_type_table);
         }
 
-        // Configure throughput threads for x86/x64
         configure_x86_throughput_threads(config,
                                          proc_type_table,
                                          networkToleranceForLowCache,

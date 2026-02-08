@@ -442,6 +442,83 @@ TEST_F(StaticPartitionerCaseTest, StaticCase5_OnlyWithLpEcores) {
 }
 
 // ============================================================================
+// Tests for LP-main-core (LP E-core) hybrid helpers
+// ============================================================================
+
+TEST_F(ModelPreferThreadsHelperTest, IsLpMainCoreCase1_TrueAndFalse) {
+    ov::MemBandwidthPressure tolerance;
+    // True: no convs, very high mem tolerance, few gemms relative to nodes
+    tolerance.total_convs = 0;
+    tolerance.max_mem_tolerance = MEM_TOLERANCE_VERY_HIGH + 1.0f;
+    tolerance.total_nodes = 100;
+    tolerance.total_gemms = 4;  // GEMM_RATIO_LOW * total_nodes = 0.05 * 100 = 5
+    EXPECT_TRUE(is_lp_main_core_case_1(tolerance));
+
+    // False when gemms exceed threshold
+    tolerance.total_gemms = 6;
+    EXPECT_FALSE(is_lp_main_core_case_1(tolerance));
+
+    // False when mem tolerance is not strictly greater than threshold
+    tolerance.total_gemms = 4;
+    tolerance.max_mem_tolerance = MEM_TOLERANCE_VERY_HIGH;
+    EXPECT_FALSE(is_lp_main_core_case_1(tolerance));
+
+    // False when there are convs
+    tolerance.max_mem_tolerance = MEM_TOLERANCE_VERY_HIGH + 0.1f;
+    tolerance.total_convs = 1;
+    EXPECT_FALSE(is_lp_main_core_case_1(tolerance));
+}
+
+TEST_F(ModelPreferThreadsHelperTest, IsLpMainCoreCase2_TrueAndFalse) {
+    ov::MemBandwidthPressure tolerance;
+    // True case: some convs, single gemm, low mem tolerance, mostly light convs
+    tolerance.total_convs = 10;
+    tolerance.total_gemms = 1;
+    tolerance.max_mem_tolerance = MEM_TOLERANCE_LOW - 0.1f;
+    tolerance.total_light_convs = 9;  // CONV_RATIO_HIGH * 10 = 8
+    EXPECT_TRUE(is_lp_main_core_case_2(tolerance));
+
+    // False when not enough light convs
+    tolerance.total_light_convs = 7;
+    EXPECT_FALSE(is_lp_main_core_case_2(tolerance));
+
+    // False when gemms != 1
+    tolerance.total_light_convs = 9;
+    tolerance.total_gemms = 2;
+    EXPECT_FALSE(is_lp_main_core_case_2(tolerance));
+
+    // False when mem tolerance too high
+    tolerance.total_gemms = 1;
+    tolerance.max_mem_tolerance = MEM_TOLERANCE_LOW + 0.1f;
+    EXPECT_FALSE(is_lp_main_core_case_2(tolerance));
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, Configure_X86_Hybrid_LP_UsesMainOrMainPlusLp) {
+    // Proc table: ALL=20, MAIN=6, EFFICIENT=8, LP_EFFICIENT=4
+    std::vector<std::vector<int>> proc_type_table = {{6, 2, 0, 4, 0, 0, 0}};
+
+    // Case where LP-main-core case1 holds -> should use main
+    Config cfg1;
+    ov::MemBandwidthPressure tol1;
+    tol1.total_convs = 0;
+    tol1.max_mem_tolerance = MEM_TOLERANCE_VERY_HIGH + 2.0f;
+    tol1.total_nodes = 100;
+    tol1.total_gemms = 2;  // below threshold
+    configure_x86_hybrid_lp_threads(cfg1, proc_type_table, tol1);
+    EXPECT_EQ(cfg1.modelPreferThreadsLatency, 2);
+
+    // Case where neither LP-main-core predicate holds -> use main only
+    Config cfg2;
+    ov::MemBandwidthPressure tol2;
+    tol2.total_convs = 10;
+    tol2.total_gemms = 1;
+    tol2.max_mem_tolerance = MEM_TOLERANCE_LOW + 0.2f;  // not low enough for case2
+    tol2.total_light_convs = 5;                       // not enough light convs
+    configure_x86_hybrid_lp_threads(cfg2, proc_type_table, tol2);
+    EXPECT_EQ(cfg2.modelPreferThreadsLatency, 2 + 4);
+}
+
+// ============================================================================
 // Tests for TBB Partitioner Decision
 // ============================================================================
 
@@ -578,6 +655,7 @@ TEST_F(ModelPreferThreadsHelperTest, ConstantsAreValid) {
     EXPECT_GT(CONV_RATIO_VERY_LOW, CONV_RATIO_ULTRA_LOW);
     EXPECT_GT(MEM_TOLERANCE_HIGH, MEM_TOLERANCE_MEDIUM);
     EXPECT_GT(MEM_TOLERANCE_MEDIUM, MEM_TOLERANCE_LOW);
+    EXPECT_GT(MEM_TOLERANCE_LOW, MEM_TOLERANCE_VERY_LOW);
 }
 
 }  // namespace

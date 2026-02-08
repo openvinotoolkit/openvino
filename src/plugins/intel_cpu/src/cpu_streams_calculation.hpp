@@ -144,6 +144,10 @@ void configure_x86_hybrid_threads(Config& config,
                                   bool int8_intensive,
                                   bool is_LLM);
 
+void configure_x86_hybrid_lp_threads(Config& config,
+                                     const std::vector<std::vector<int>>& proc_type_table,
+                                     const ov::MemBandwidthPressure& tolerance);
+
 // Make x86 non-hybrid helper publicly callable
 void configure_x86_non_hybrid_threads(Config& config, const std::vector<std::vector<int>>& proc_type_table);
 
