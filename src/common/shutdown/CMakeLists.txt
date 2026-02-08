@@ -22,4 +22,5 @@ set_target_properties(openvino_shutdown_dyn PROPERTIES EXPORT_NAME shutdown_dyn)
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 ov_developer_package_export_targets(TARGET openvino::shutdown
                                     INSTALL_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/")
+ov_install_static_lib(openvino_shutdown_dyn ${OV_CPACK_COMP_CORE})
 ov_developer_package_export_targets(TARGET openvino_shutdown_dyn)
