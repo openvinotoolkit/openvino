@@ -20,7 +20,7 @@ on:
    branches:
      - 'master'
      - 'releases/**'
-  pull_request:  # TODO: remove
+  # pull_request:
   #  paths-ignore:
   #    - '**/docs/**'
   #    - 'docs/**'
