@@ -757,17 +757,21 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (bcast_node.get_outputs_count() != 1)
                 return false;
 
-            bool out_eltw = bcast_node.get_users().front()->is_type<eltwise>();
-            if (!out_eltw)
-                return false;
-
-            auto input_layout = bcast_node.get_output_layout();
-            auto output_layout = bcast_node.get_users().front()->get_output_layout();
-            if (input_layout.data_type != output_layout.data_type) {
-                return false;
+            const auto& consumer = bcast_node.get_users().front();
+            if (consumer->is_type<quantize>()) {
+                return true;
             }
 
-            return true;
+            if (consumer->is_type<eltwise>()) {
+                const auto& input_layout = bcast_node.get_output_layout();
+                const auto& output_layout = consumer->get_output_layout();
+                if (input_layout.data_type != output_layout.data_type) {
+                    return false;
+                }
+                return true;
+            }
+
+            return false;
         };
 
         auto fuse_activation_f = [&](activation_node& activation_node) {
@@ -1006,6 +1010,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                            input_data.as<softmax>().get_primitive()->dimension == 1 &&
                            per_tensor_values;
 
+            should_fuse |= input_data.is_type<broadcast>() && broadcast_supports_fusings(input_data.as<broadcast>());
 
             if (!should_fuse)
                 return;
