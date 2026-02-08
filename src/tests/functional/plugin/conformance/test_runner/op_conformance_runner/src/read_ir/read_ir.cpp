@@ -134,7 +134,7 @@ void ReadIRTest::SetUp() {
         auto input_info = meta_info.get_input_info();
         rel_influence_coef = meta_info.get_graph_priority();
 
-        auto inputMap = utils::getInputMap();
+        const auto& inputMap = utils::getInputMap();
         std::vector<std::shared_ptr<ov::op::v0::Parameter>> parameter_to_remove;
         for (const auto& param : function->get_parameters()) {
             auto in_info = input_info.find(param->get_friendly_name())->second;

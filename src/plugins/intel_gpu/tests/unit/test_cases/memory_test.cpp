@@ -642,6 +642,57 @@ public:
                       std::static_pointer_cast<fully_connected_inst>(network.get_primitive("relu2"))->output_memory_ptr()->buffer_ptr());
         }
     }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    void test_static_reuse_unaligned_feature() {
+        auto& engine = get_test_engine();
+        if (!engine.get_device_info().supports_immad)
+            return;
+
+        const int32_t x = 64;
+        const int32_t y = 64;
+        const int32_t f_can = 97;
+        const int32_t f_req = 88;
+
+        auto l_in = layout{ ov::PartialShape{1, f_can, y, x}, data_types::f16, format::bfyx };
+        auto l_can_blk = layout{ ov::PartialShape{1, f_can, y, x}, data_types::f16, format::b_fs_yx_fsv16 };
+        auto l_can_pln = layout{ ov::PartialShape{1, f_can, y, x}, data_types::f16, format::bfyx };
+        auto l_req_blk = layout{ ov::PartialShape{1, f_req, y, x}, data_types::f16, format::b_fs_yx_fsv16 };
+        auto m_in = engine.allocate_memory(l_in);
+
+        topology topology(
+            input_layout("input", l_in),
+            reorder("can_a", input_info("input"), l_can_blk),
+            reorder("can_b", input_info("input"), l_can_blk),
+            eltwise("reuse_can", { input_info("can_a"), input_info("can_b") }, eltwise_mode::sum),
+            reorder("can_planar", input_info("reuse_can"), l_can_pln),
+            activation("can_consume", input_info("can_planar"), activation_func::relu),
+            crop("req_crop", input_info("can_consume"),{ 1, f_req, x, y }, { 0, 0, 0, 0 }),
+            reorder("req_a", input_info("req_crop"), l_req_blk),
+            reorder("req_b", input_info("req_crop"), l_req_blk),
+            eltwise("reuse_req", { input_info("req_a"), input_info("req_b") }, eltwise_mode::sum),
+            activation("req_sink", input_info("reuse_req"), activation_func::relu)
+        );
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        network network(engine, topology, config);
+        network.set_input_data("input", m_in);
+        network.execute();
+
+        auto m_can = network.get_primitive("reuse_can")->output_memory_ptr();
+        auto m_req = network.get_primitive("reuse_req")->output_memory_ptr();
+
+        ASSERT_NE(m_can, nullptr);
+        ASSERT_NE(m_req, nullptr);
+        ASSERT_NE(m_can->buffer_ptr(), nullptr);
+        ASSERT_NE(m_req->buffer_ptr(), nullptr);
+
+        EXPECT_NE(m_can->buffer_ptr(), m_req->buffer_ptr());
+    }
+#endif // ENABLE_ONEDNN_FOR_GPU
+
 };
 
 TEST_F(memory_pool, basic_non_padded_relu_pipe) {
@@ -691,6 +742,12 @@ TEST_F(memory_pool, dynamic_mem_reuse) {
 TEST_F(memory_pool, dynamic_mem_reuse_for_null_sel_impl) {
     this->test_dynamic_mem_reuse_for_null_sel_impl();
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST_F(memory_pool, test_static_reuse_unaligned_feature) {
+    this->test_static_reuse_unaligned_feature();
+}
+#endif
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
 TEST_F(memory_pool, basic_non_padded_relu_pipe_cached) {

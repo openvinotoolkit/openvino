@@ -173,7 +173,7 @@ class KVCacheTests: public ::testing::Test {
         auto compare_tensors = [&model, &inference_precision](const std::vector<ov::Tensor> expected, const std::vector<ov::Tensor>& actual) {
                 ASSERT_EQ(expected.size(), actual.size());
                 ASSERT_EQ(expected.size(), model->get_results().size());
-                auto compareMap = ov::test::utils::getCompareMap();
+                const auto& compareMap = ov::test::utils::getCompareMap();
                 const auto& results = model->get_results();
                 for (size_t j = 0; j < results.size(); j++) {
                     const auto result = results[j];
@@ -484,7 +484,7 @@ class KVCacheTests: public ::testing::Test {
         auto compare_tensors = [&model, &inference_precision](const std::vector<ov::Tensor> expected, const std::vector<ov::Tensor>& actual) {
             ASSERT_EQ(expected.size(), actual.size());
             ASSERT_EQ(expected.size(), model->get_results().size());
-            auto compareMap = ov::test::utils::getCompareMap();
+            const auto& compareMap = ov::test::utils::getCompareMap();
             const auto& results = model->get_results();
             for (size_t j = 0; j < results.size(); j++) {
                 const auto result = results[j];

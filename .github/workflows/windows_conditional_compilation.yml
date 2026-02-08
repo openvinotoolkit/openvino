@@ -123,20 +123,20 @@ jobs:
       - name: Install python dependencies
         run: |
           # For running ONNX frontend unit tests
-          python3 -m pip install -vv --force-reinstall -r ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/requirements.txt
+          python3 -m pip install --force-reinstall -r ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/requirements.txt
 
           # For running TensorFlow frontend unit tests
-          python3 -m pip install -vv -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow/tests/requirements.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow/tests/requirements.txt
 
           # For running TensorFlow Lite frontend unit tests
-          python3 -m pip install -vv -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow_lite/tests/requirements.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow_lite/tests/requirements.txt
 
           # For getting rid of SSL issues during model downloading for unit tests
-          python3 -m pip install -vv certifi
+          python3 -m pip install certifi
 
           # Disabled because of CVS-95904
           # For running Paddle frontend unit tests
-          # python3 -m pip install -vv -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
+          # python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
 
       #
       # Build
@@ -433,7 +433,7 @@ jobs:
           self-hosted-runner: 'false'
 
       - name: Install python dependencies for run_parallel.py
-        run: python3 -m pip install -vv -r ${{ env.INSTALL_TEST_DIR }}/layer_tests_summary/requirements.txt
+        run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/layer_tests_summary/requirements.txt
 
       - name: Restore tests execution time
         uses: actions/cache/restore@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2

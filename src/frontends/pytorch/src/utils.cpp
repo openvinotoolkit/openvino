@@ -9,6 +9,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -261,8 +262,8 @@ PadType convert_pad(const std::string& pt_pad) {
 };
 
 Output<Node> concat_list_construct(const Output<Node>& input) {
-    if (auto list_construct = cast_fw_node(input.get_node_shared_ptr(), "prim::ListConstruct")) {
-        auto list_inputs = list_construct->input_values();
+    if (auto seq_mark = ov::as_type_ptr<SequenceMark>(input.get_node_shared_ptr())) {
+        auto list_inputs = seq_mark->input_values();
         OutputVector node_vector;
         auto zero = v0::Constant::create(element::i32, Shape{}, {0});
         for (size_t i = 0; i < list_inputs.size(); i++) {
@@ -276,8 +277,8 @@ Output<Node> concat_list_construct(const Output<Node>& input) {
 }
 
 bool is_empty_list(const Output<Node>& input) {
-    if (const auto list_construct = cast_fw_node(input.get_node_shared_ptr(), "prim::ListConstruct")) {
-        return list_construct->get_input_size() == 0;
+    if (auto seq_mark = ov::as_type_ptr<SequenceMark>(input.get_node_shared_ptr())) {
+        return seq_mark->empty();
     }
     return false;
 }
@@ -456,14 +457,8 @@ std::function<bool(const ov::Output<ov::Node>&)> fw_node_predicate(const std::in
     };
 }
 
-std::shared_ptr<ov::Node> make_list_construct(const ov::OutputVector& inputs) {
-    auto list_construct = std::make_shared<ov::op::util::FrameworkNode>(inputs, inputs.size());
-    ov::op::util::FrameworkNodeAttrs attrs;
-    attrs.set_type_name("PTFrameworkNode");
-    attrs[PtFrameworkNode::op_type_key] = "prim::ListConstruct";
-    list_construct->set_attrs(attrs);
-    list_construct->validate_and_infer_types();
-    return list_construct;
+std::shared_ptr<SequenceMark> make_list_construct(const ov::OutputVector& inputs) {
+    return std::make_shared<SequenceMark>(inputs);
 }
 
 bool is_none_node(const Output<Node>& node) {
@@ -592,6 +587,10 @@ Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx
 
 Output<Node> get_input_as_i32(const NodeContext& context, size_t idx) {
     auto x = context.get_input(static_cast<int>(idx));
+    // Handle SequenceMark (list construct) - concatenate elements
+    if (auto seq_mark = ov::as_type_ptr<SequenceMark>(x.get_node_shared_ptr())) {
+        x = concat_list_construct(x);
+    }
     if (x.get_element_type() != element::i32) {
         x = context.mark_node(std::make_shared<v0::Convert>(x, element::i32));
     }
@@ -600,20 +599,28 @@ Output<Node> get_input_as_i32(const NodeContext& context, size_t idx) {
 
 Output<Node> get_input_concat_if_list(const NodeContext& context, size_t idx) {
     auto x = context.get_input(static_cast<int>(idx));
-    if (context.get_input_type(idx).is<type::List>() &&
-        ov::as_type_ptr<ov::op::util::FrameworkNode>(x.get_node_shared_ptr())) {
+    const auto& node = x.get_node_shared_ptr();
+
+    // Check if input is a list that needs concatenation
+    const bool is_sequence_mark = ov::as_type_ptr<SequenceMark>(node) != nullptr;
+    const bool is_list_fw_node =
+        context.get_input_type(idx).is<type::List>() && ov::as_type_ptr<ov::op::util::FrameworkNode>(node) != nullptr;
+
+    if (is_sequence_mark || is_list_fw_node) {
         auto elems = get_list_as_outputs(x, true);
-        if (elems.size() == 0)
-            // Can we figure real type for empty list?
-            return std::make_shared<v0::Constant>(element::i32, Shape{0}, std::vector<int>{});
+        if (elems.empty()) {
+            return v0::Constant::create(element::i32, Shape{0}, std::vector<int>{});
+        }
         OutputVector inputs;
-        for (auto& elem : elems) {
+        inputs.reserve(elems.size());
+        for (const auto& elem : elems) {
             inputs.push_back(try_constfold(elem));
         }
         auto new_x = std::make_shared<v0::Concat>(inputs, 0);
-        new_x->set_friendly_name(x.get_node_shared_ptr()->get_friendly_name());
+        new_x->set_friendly_name(node->get_friendly_name());
         x = new_x;
     }
+
     if (const auto x_const = ov::util::get_constant_from_source(x)) {
         return x_const;
     }
@@ -638,40 +645,66 @@ std::tuple<Output<Node>, Output<Node>> get_inputs_with_promoted_types(const Node
 std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool unsqueeze_for_concat) {
     std::deque<Output<Node>> res;
     auto current_output = start;
-    auto zero = v0::Constant::create(element::i32, Shape{}, {0});
+    const auto zero = v0::Constant::create(element::i32, Shape{}, {0});
+
     FRONT_END_OP_CONVERSION_CHECK(
         !ov::as_type_ptr<v5::Loop>(current_output.get_node_shared_ptr()),
         "List is concatenated using loop. This case should be handled by a specific transformation.");
-    while (const auto& input_fw_node =
-               ov::as_type_ptr<ov::op::util::FrameworkNode>(current_output.get_node_shared_ptr())) {
-        const auto& attrs = input_fw_node->get_attrs();
-        if (attrs.find(PtFrameworkNode::op_type_key) == attrs.end()) {
-            break;
-        }
-        if (attrs.at(PtFrameworkNode::op_type_key) == "aten::append") {
-            auto elem = input_fw_node->get_input_source_output(1);
+
+    // Helper to prepend SequenceMark inputs - iterate in reverse with push_front to preserve order
+    auto prepend_seq_mark_inputs = [&res, &zero, unsqueeze_for_concat](const std::shared_ptr<SequenceMark>& seq_mark) {
+        const auto& inputs = seq_mark->inputs();
+        for (auto it = inputs.rbegin(); it != inputs.rend(); ++it) {
+            auto elem = it->get_source_output();
             if (unsqueeze_for_concat) {
                 elem = std::make_shared<v0::Unsqueeze>(elem, zero);
             }
             res.push_front(elem);
-        } else if (attrs.at(PtFrameworkNode::op_type_key) == "aten::add") {
-            const auto&& rhs_list = get_list_as_outputs(input_fw_node->get_input_source_output(1));
-            res.insert(res.end(), rhs_list.begin(), rhs_list.end());
+        }
+    };
+
+    // First check if it's a SequenceMark - just return its inputs in order
+    if (auto seq_mark = ov::as_type_ptr<SequenceMark>(current_output.get_node_shared_ptr())) {
+        // For direct SequenceMark, iterate in reverse with push_front to preserve order
+        const auto& inputs = seq_mark->inputs();
+        for (auto it = inputs.rbegin(); it != inputs.rend(); ++it) {
+            auto elem = it->get_source_output();
+            if (unsqueeze_for_concat) {
+                elem = std::make_shared<v0::Unsqueeze>(elem, zero);
+            }
+            res.push_front(elem);
+        }
+        return res;
+    }
+
+    while (const auto& fw_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(current_output.get_node_shared_ptr())) {
+        const auto& attrs = fw_node->get_attrs();
+        const auto op_type_it = attrs.find(PtFrameworkNode::op_type_key);
+        if (op_type_it == attrs.end()) {
+            break;
+        }
+
+        const auto& op_type = op_type_it->second;
+        if (op_type == "aten::append") {
+            auto elem = fw_node->get_input_source_output(1);
+            if (unsqueeze_for_concat) {
+                elem = std::make_shared<v0::Unsqueeze>(elem, zero);
+            }
+            res.push_front(elem);
+        } else if (op_type == "aten::add") {
+            // Insert at beginning because we're walking backward through the chain.
+            // Elements from RHS list come before any elements appended after this add operation.
+            auto&& rhs_list = get_list_as_outputs(fw_node->get_input_source_output(1));
+            res.insert(res.begin(), rhs_list.begin(), rhs_list.end());
         } else {
             break;
         }
-        current_output = input_fw_node->get_input_source_output(0);
+        current_output = fw_node->get_input_source_output(0);
     }
-    auto list_construct = cast_fw_node(current_output.get_node_shared_ptr(), "prim::ListConstruct");
-    if (list_construct) {
-        auto inputs = list_construct->inputs();
-        for (auto input_it = inputs.rbegin(); input_it != inputs.rend(); ++input_it) {
-            auto elem = input_it->get_source_output();
-            if (unsqueeze_for_concat) {
-                elem = std::make_shared<v0::Unsqueeze>(elem, zero);
-            }
-            res.push_front(elem);
-        }
+
+    // Check for SequenceMark at the end of chain - prepend its elements
+    if (auto seq_mark = ov::as_type_ptr<SequenceMark>(current_output.get_node_shared_ptr())) {
+        prepend_seq_mark_inputs(seq_mark);
     } else {
         res.push_front(current_output);
     }

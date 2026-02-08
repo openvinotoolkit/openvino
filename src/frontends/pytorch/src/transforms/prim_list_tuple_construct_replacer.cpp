@@ -6,6 +6,7 @@
 #include <deque>
 
 #include "openvino/frontend/pytorch/decoder.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "utils.hpp"
@@ -31,9 +32,11 @@ bool DecomposeListTupleResults::run_on_model(const std::shared_ptr<Model>& model
         auto result = results.front();
         results.pop_front();
         auto input_node = result->get_input_node_shared_ptr(0);
-        auto tuple_construct = cast_fw_node(input_node, "prim::TupleConstruct");
-        auto list_construct = cast_fw_node(input_node, "prim::ListConstruct");
-        if (!tuple_construct && !list_construct) {
+
+        // Check for SequenceMark
+        auto sequence_mark = ov::as_type_ptr<SequenceMark>(input_node);
+
+        if (!sequence_mark) {
             updated_results.push_back(result);
             continue;
         }

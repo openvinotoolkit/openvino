@@ -4,6 +4,7 @@
 
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
 
@@ -19,9 +20,9 @@ OutputVector translate_tuple_unpack(const NodeContext& context) {
     // wrap outputs. This ensures transformations see clean graph without ComplexTypeMark.
     auto [input, complex] = unwrap_complex(context.get_input(0));
 
-    if (const auto& tuple = cast_fw_node(input.get_node_shared_ptr(), "prim::TupleConstruct")) {
-        // TupleConstruct -> TupleUnpack can be annihilated
-        auto res = tuple->input_values();
+    if (const auto& seq_mark = ov::as_type_ptr<SequenceMark>(input.get_node_shared_ptr())) {
+        // SequenceMark -> TupleUnpack can be annihilated
+        auto res = seq_mark->get_sequence();
         return wrap_complex(context, res, complex);
     } else {
         // Create FrameworkNode with UNWRAPPED input (transformations will see clean graph)

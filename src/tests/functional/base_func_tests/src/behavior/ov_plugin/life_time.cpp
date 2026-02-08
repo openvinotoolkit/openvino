@@ -99,7 +99,7 @@ TEST_P(OVHoldersTest, LoadedAny) {
 }
 
 TEST_P(OVHoldersTest, LoadedRemoteContext) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::RemoteContext ctx;
     {
