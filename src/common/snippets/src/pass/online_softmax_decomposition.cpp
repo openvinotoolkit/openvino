@@ -31,8 +31,8 @@ namespace ov::snippets::pass {
 OnlineSoftmaxDecomposition::OnlineSoftmaxDecomposition() {
     MATCHER_SCOPE(OnlineSoftmaxDecomposition);
 
-    using namespace ov::pass::pattern;
-    const auto online_softmax_m = wrap_type<ov::snippets::op::OnlineSoftmax>({any_input()});
+    const auto online_softmax_m =
+        ov::pass::pattern::wrap_type<ov::snippets::op::OnlineSoftmax>({ov::pass::pattern::any_input()});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::OnlineSoftmaxDecomposition")

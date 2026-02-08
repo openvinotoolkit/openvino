@@ -39,11 +39,10 @@
 #include "snippets/utils/tokenization_utils.hpp"
 #include "snippets/utils/utils.hpp"
 
-using namespace ov::snippets::utils;
-
 namespace {
 bool is_supported_tensor(const ov::descriptor::Tensor& t) {
-    return t.get_partial_shape().rank().is_static() && any_of(t.get_partial_shape().size(), 2LU, 3LU, 4LU);
+    return t.get_partial_shape().rank().is_static() &&
+           ov::snippets::utils::any_of(t.get_partial_shape().size(), 2LU, 3LU, 4LU);
 }
 
 bool is_supported_intermediate_op(const std::shared_ptr<ov::Node>& node) {
@@ -198,7 +197,7 @@ bool update_intermediate_supported_ops(std::shared_ptr<ov::Node>& interm_op,
             }
         }
 
-        n_potential_body_params += get_potential_body_params(interm_op);
+        n_potential_body_params += ov::snippets::utils::get_potential_body_params(interm_op);
 
         ordered_ops.push_back(interm_op);
         interm_op = interm_op->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
@@ -418,7 +417,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
                     break;
                 }
 
-                n_potential_body_params += get_potential_body_params(child);
+                n_potential_body_params += ov::snippets::utils::get_potential_body_params(child);
                 const size_t n_child_consumers = child->get_output_target_inputs(0).size();
                 // TODO [75567]: move this plugin-specific constraint to the plugin callback
                 if (!config.is_gprs_count_sufficient(n_potential_body_params + n_child_consumers,
@@ -455,7 +454,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
 
             /* ======= Plugin related checks ========= */
             const bool is_dynamic =
-                std::any_of(ordered_ops.cbegin(), ordered_ops.cend(), [](const std::shared_ptr<Node>& n) {
+                std::any_of(ordered_ops.cbegin(), ordered_ops.cend(), [](const std::shared_ptr<ov::Node>& n) {
                     return n->is_dynamic();
                 });
             if (is_dynamic && !config.is_dynamic_mha_token_enabled()) {
@@ -468,7 +467,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
                 return false;
             }
 
-            const auto subgraph = tokenize_ordered_nodes(ordered_ops);
+            const auto subgraph = ov::snippets::utils::tokenize_ordered_nodes(ordered_ops);
             // mark the Subgraph as Completed to not allow Snippets to include any nodes into the MHA Subgraph in common
             // Tokenization
             SetSnippetsSubgraphType(subgraph, SnippetsSubgraphType::Completed);

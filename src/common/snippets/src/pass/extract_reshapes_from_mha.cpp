@@ -30,24 +30,25 @@
 #include "snippets/itt.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
 
-using namespace ov::pass;
-
 ov::snippets::pass::ExtractPairsAfterMatmul::ExtractPairsAfterMatmul() {
     MATCHER_SCOPE(ExtractPairsAfterMatmul);
     auto static_shape_single_consumer = [](const ov::Output<ov::Node>& out) {
-        return pattern::has_static_shape()(out) && pattern::consumers_count(1)(out);
+        return ov::pass::pattern::has_static_shape()(out) && ov::pass::pattern::consumers_count(1)(out);
     };
-    auto matmul_m = pattern::wrap_type<opset1::MatMul>(static_shape_single_consumer);
-    auto reshape_1_m = pattern::wrap_type<opset1::Reshape>({matmul_m, pattern::wrap_type<opset1::Constant>()},
-                                                           static_shape_single_consumer);
-    auto sparse_input_1_m = pattern::any_input(pattern::has_static_shape());
-    auto sparse_input_2_m = pattern::any_input(pattern::has_static_shape());
-    auto add_1_m = pattern::wrap_type<opset1::Add>({reshape_1_m, sparse_input_1_m}, static_shape_single_consumer);
-    auto add_2_m = pattern::wrap_type<opset1::Add>({add_1_m, sparse_input_2_m}, static_shape_single_consumer);
-    auto reshape_2_m = pattern::wrap_type<opset1::Reshape>({add_2_m, pattern::wrap_type<opset1::Constant>()},
-                                                           pattern::has_static_shape());
+    auto matmul_m = ov::pass::pattern::wrap_type<opset1::MatMul>(static_shape_single_consumer);
+    auto reshape_1_m =
+        ov::pass::pattern::wrap_type<opset1::Reshape>({matmul_m, ov::pass::pattern::wrap_type<opset1::Constant>()},
+                                                      static_shape_single_consumer);
+    auto sparse_input_1_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape());
+    auto sparse_input_2_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape());
+    auto add_1_m =
+        ov::pass::pattern::wrap_type<opset1::Add>({reshape_1_m, sparse_input_1_m}, static_shape_single_consumer);
+    auto add_2_m = ov::pass::pattern::wrap_type<opset1::Add>({add_1_m, sparse_input_2_m}, static_shape_single_consumer);
+    auto reshape_2_m =
+        ov::pass::pattern::wrap_type<opset1::Reshape>({add_2_m, ov::pass::pattern::wrap_type<opset1::Constant>()},
+                                                      ov::pass::pattern::has_static_shape());
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::ExtractPairsAfterMatmul")
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& matmul = pattern_map.at(matmul_m);
@@ -88,14 +89,14 @@ ov::snippets::pass::ExtractPairsAfterMatmul::ExtractPairsAfterMatmul() {
         return ov::replace_output_update_name(old_reshape, new_add);
     };
 
-    auto m = std::make_shared<pattern::Matcher>(reshape_2_m, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(reshape_2_m, matcher_name);
     register_matcher(m, callback);
 }
 
 ov::snippets::pass::RankUpgradeToRankReduction::RankUpgradeToRankReduction() {
     MATCHER_SCOPE(RankUpgradeToRankReduction);
     auto static_shape_single_consumer = [](const ov::Output<ov::Node>& out) {
-        return pattern::has_static_shape()(out) && pattern::consumers_count(1)(out);
+        return ov::pass::pattern::has_static_shape()(out) && ov::pass::pattern::consumers_count(1)(out);
     };
     // reshape_1_m insert leading dimension of 1.
     auto rank_upgrade_reshape = [&](const ov::Output<ov::Node>& out) {
@@ -140,19 +141,23 @@ ov::snippets::pass::RankUpgradeToRankReduction::RankUpgradeToRankReduction() {
         return out_shape == in_shape;
     };
 
-    auto matmul_m = pattern::wrap_type<opset1::MatMul>(static_shape_single_consumer);
-    auto input_1_m = pattern::any_input(pattern::has_static_shape());
-    auto eltwise_1_m = pattern::optional<ov::op::util::BinaryElementwiseArithmetic>({matmul_m, input_1_m},
-                                                                                    static_shape_single_consumer);
-    auto reshape_1_m = pattern::wrap_type<opset1::Reshape>({eltwise_1_m, pattern::wrap_type<opset1::Constant>()},
-                                                           rank_upgrade_reshape);
-    auto input_2_m = pattern::any_input(has_leading_dimension_one);
-    auto eltwise_2_m = pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>({reshape_1_m, input_2_m},
-                                                                                     static_shape_single_consumer);
-    auto reshape_2_m = pattern::wrap_type<opset1::Reshape>({eltwise_2_m, pattern::wrap_type<opset1::Constant>()},
-                                                           rank_reduction_reshape);
+    auto matmul_m = ov::pass::pattern::wrap_type<opset1::MatMul>(static_shape_single_consumer);
+    auto input_1_m = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape());
+    auto eltwise_1_m =
+        ov::pass::pattern::optional<ov::op::util::BinaryElementwiseArithmetic>({matmul_m, input_1_m},
+                                                                               static_shape_single_consumer);
+    auto reshape_1_m =
+        ov::pass::pattern::wrap_type<opset1::Reshape>({eltwise_1_m, ov::pass::pattern::wrap_type<opset1::Constant>()},
+                                                      rank_upgrade_reshape);
+    auto input_2_m = ov::pass::pattern::any_input(has_leading_dimension_one);
+    auto eltwise_2_m =
+        ov::pass::pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>({reshape_1_m, input_2_m},
+                                                                                static_shape_single_consumer);
+    auto reshape_2_m =
+        ov::pass::pattern::wrap_type<opset1::Reshape>({eltwise_2_m, ov::pass::pattern::wrap_type<opset1::Constant>()},
+                                                      rank_reduction_reshape);
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::RankUpgradeToRankReduction")
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& matmul = pattern_map.at(matmul_m);
@@ -164,7 +169,7 @@ ov::snippets::pass::RankUpgradeToRankReduction::RankUpgradeToRankReduction() {
         const auto& eltwise_2 = pattern_map.at(eltwise_2_m).get_node_shared_ptr();
         const auto& shapes = ov::util::get_node_input_partial_shapes(*eltwise_2);
         OPENVINO_ASSERT(!shapes.empty(), "Eltwise node should has at least one input.");
-        auto equal_rank = [&](const PartialShape& p) {
+        auto equal_rank = [&](const ov::PartialShape& p) {
             return p.size() == shapes[0].size();
         };
         if (!std::all_of(shapes.cbegin(), shapes.cend(), equal_rank)) {
@@ -184,12 +189,12 @@ ov::snippets::pass::RankUpgradeToRankReduction::RankUpgradeToRankReduction() {
             first_input = pattern_map.at(eltwise_1_m);
         }
 
-        OutputVector new_args({first_input, reshaped_input2});
+        ov::OutputVector new_args({first_input, reshaped_input2});
         eltwise_2->set_arguments(new_args);
         const auto& old_reshape = pattern_map.at(reshape_2_m);
         return ov::replace_output_update_name(old_reshape, eltwise_2);
     };
 
-    auto m = std::make_shared<pattern::Matcher>(reshape_2_m, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(reshape_2_m, matcher_name);
     register_matcher(m, callback);
 }
