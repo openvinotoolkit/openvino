@@ -11,6 +11,7 @@ namespace intel_npu {
 
 class IDynamicGraph : public IGraph {
 public:
+    typedef void* execution_context_handle_t;
     struct MemRefType {
         const void* _basePtr;
         const void* _data;
@@ -65,7 +66,8 @@ public:
                          ze_command_queue_handle_t commandQueue,
                          ze_fence_handle_t inferenceFence,
                          ze_event_handle_t event,
-                         ze_graph_profiling_pool_handle_t profiling);
+                         ze_graph_profiling_pool_handle_t profiling,
+                         execution_context_handle_t executionContext);
 
     virtual void getBinding(GraphArguments& args);
 
@@ -73,6 +75,11 @@ public:
 
     virtual void predict_output_shape(std::vector<MemRefType>& inputDescriptors,
                                       std::vector<MemRefType>& outputDescriptors);
+
+    virtual execution_context_handle_t create_execution_context();
+    virtual void destroy_execution_context(execution_context_handle_t);
+    virtual void update_mutable_commandlist(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                      GraphArguments& args, const std::vector<uint64_t>& argIndexArray);
 };
 
 }  // namespace intel_npu

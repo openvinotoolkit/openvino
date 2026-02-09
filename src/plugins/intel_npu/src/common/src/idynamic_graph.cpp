@@ -123,7 +123,8 @@ void IDynamicGraph::execute(const std::shared_ptr<ZeroInitStructsHolder>&,
                             ze_command_queue_handle_t,
                             ze_fence_handle_t,
                             ze_event_handle_t,
-                            ze_graph_profiling_pool_handle_t) {
+                            ze_graph_profiling_pool_handle_t,
+                            execution_context_handle_t) {
     OPENVINO_THROW("execute not implemented");
 }
 
@@ -137,6 +138,23 @@ uint64_t IDynamicGraph::get_num_subgraphs() const {
 
 void IDynamicGraph::predict_output_shape(std::vector<MemRefType>&, std::vector<MemRefType>&) {
     OPENVINO_THROW("predict_output_shape not implemented");
+}
+void IDynamicGraph::update_mutable_commandlist( const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+    GraphArguments& args,
+    const std::vector<uint64_t>& argIndexArray )
+{
+    OPENVINO_THROW("update_mutable_commandlist not implemented");
+}
+
+
+IDynamicGraph::execution_context_handle_t IDynamicGraph::create_execution_context()
+{
+    OPENVINO_THROW("create_execution_context not implemented");
+}
+
+void IDynamicGraph::destroy_execution_context( execution_context_handle_t handle )
+{
+    OPENVINO_THROW("destroy_execution_context not implemented");
 }
 
 }  // namespace intel_npu
