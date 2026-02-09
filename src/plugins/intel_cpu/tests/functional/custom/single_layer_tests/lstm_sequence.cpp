@@ -134,7 +134,7 @@ protected:
                                                seqMode,
                                                WRB_range);
 
-        function = makeNgraphFunction(netPrecision, params, lstmSequenceOp, "lstmSequenceOp");
+        function = create_ov_model(netPrecision, params, lstmSequenceOp, "lstmSequenceOp");
 
         if (seqMode != ov::test::utils::SequenceTestsMode::PURE_SEQ) {
             ov::pass::Manager manager;

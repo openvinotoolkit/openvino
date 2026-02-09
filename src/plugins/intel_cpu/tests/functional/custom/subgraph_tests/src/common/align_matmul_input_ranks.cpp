@@ -54,7 +54,7 @@ protected:
                                         std::make_shared<ov::op::v0::Parameter>(ngPrec, inShapes.second)};
         const auto matMul = std::make_shared<ov::op::v0::MatMul>(inputParams[0], inputParams[1], false, false);
 
-        function = makeNgraphFunction(ngPrec, inputParams, matMul, "AlignMatMulInputRanks");
+        function = create_ov_model(ngPrec, inputParams, matMul, "AlignMatMulInputRanks");
     }
 
     int expectedNumOfReshapes = 0;

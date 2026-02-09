@@ -67,7 +67,7 @@ protected:
         const auto fcConcatAxis = rank == 3 ? 1 : 0;
         const auto concatMatMuls = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{fc1, fc2}, fcConcatAxis);
 
-        function = makeNgraphFunction(netPrecision, params, concatMatMuls, "FullyConnectedStridedInputsOutputs");
+        function = create_ov_model(netPrecision, params, concatMatMuls, "FullyConnectedStridedInputsOutputs");
     }
 };
 
