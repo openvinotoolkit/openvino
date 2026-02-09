@@ -5,8 +5,8 @@
 #pragma once
 
 #include "cache_guard.hpp"
-#include "cache_manager.hpp"
 #include "dev/plugin.hpp"
+#include "icache_manager.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/core/so_extension.hpp"
