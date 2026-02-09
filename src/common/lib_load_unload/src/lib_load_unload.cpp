@@ -6,16 +6,10 @@
 #include <vector>
 
 namespace {
-#define UNLOAD_FUNC(func_name) &func_name,
-    std::vector<void(*)()> unload_functions = {
-    #include "openvino/unload_functions.inc"
-    };
-#undef UNLOAD_FUNC
-
 void call_on_unload() {
-    for (const auto& func : unload_functions) {
-        func();
-    }
+#define UNLOAD_FUNC(func_name) func_name();
+#include "openvino/unload_functions.inc"
+#undef UNLOAD_FUNC
 }
 } // namespace
 
