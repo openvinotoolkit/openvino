@@ -265,7 +265,14 @@ Every stream has the following execution parameters:
 - `target_fps` - **Optional**. Execution frequency of the stream. `target_fps = 1000 / frames_interval_in_ms`. `target_fps` and `frames_interval_in_ms` are mutually exclusive and cannot be provided together.
 - `target_latency_in_ms` - **Optional**. When iteration isn't finished within specified interval, the next frame will be dropped from execution. (**Default**: Disabled)
 - `op_desc`/`conections` or `network` - **Required**. Execution graph structure. Follow [Graph structure](#graph-structure) for the details.
-
+- `workload_type` - **Optional**. Configure workload type updates at runtime. `workload_type` has the following parameters:
+  - `initial_value` - **Required**. Initial value for workload type. This value will be used when starting the simulation.
+  - `change_to` - **Required**. A list containing the values used to update the workload type during runtime.
+  - `change_interval` - **Required**. A value that represents the number of seconds or iterations depending on stream configuration (iteration_count or exec_time_in_secs is set). The workload type will be update according to this interval value.
+  - `repeat` - **Optional**. If this value is set to true and all the values in the `change_to` list were used, but the simulation is still running, the values in the `change_to` list will be reiterated. If set to false or not set at all, workload type updates will stop after the last value in `change_to` list, even if the simulation is still running.
+  - #### example:
+    `workload_type : {initial_value: Default, change_to: [Efficient, Default],  change_interval: 5, repeat: true}`
+    - This config sets the initial value of workload_type to Default, then after every 5 seconds/iterations it changes to Efficient then to Default again. Considering that `exec_time_in_secs` is set to 20, and `repeat` is true, there will be 4 changes: Default->Efficient after 5 seconds, Efficient->Default after 10 seconds, Default->Efficient after 15 seconds and Efficient->Default after 20 seconds. If `repeat` is false there will be only 2 changes: after 5 seconds Default->Efficient and after 10 seconds Efficient->Default, for the remaining 10 seconds of the simulation workload_type will remain set to Default. `workload_type` values should start with capital letter.
 ### Config example
 Consider the following scenario that consists of two parallel streams specified on `config.yaml`:  
 ```

@@ -1411,6 +1411,12 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
         }
         return false;
     };
+    // Helper to check if a constant is MoE Gather indices (marked by GatherTo2DGather pass)
+    auto is_moe_gather_const = [](const CTPtr& const_node) -> bool {
+        const auto& rt_info = const_node->get_rt_info();
+        return rt_info.count("npuw_moe_gather_indices") > 0;
+    };
+
     auto check_and_mark = [&](const ov::npuw::RepeatedBlock::MatchedLayers& bank) {
         std::unordered_set<CTPtr> instances;
         for (auto&& l : bank) {
@@ -1422,19 +1428,30 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
         LOG_DEBUG("Checking a bank with prototype node " << proto_node << "...");
         LOG_BLOCK();
 
-        if (ov::npuw::partitioning::traits::is_tiny_shape(proto_shape) &&
-            std::all_of(instances.begin(), instances.end(), [&](const CTPtr& other_node) -> bool {
-                return (other_node->output(0).get_shape() == proto_node->output(0).get_shape()) &&
-                       values_are_the_same(proto_node, other_node);
-            })) {
-            // Check passed for this group.
-            LOG_DEBUG("[KEEP] It is safe to keep this bank in function");
-            for (auto&& const_node : instances) {
-                func_group.consts_to_keep.insert(const_node);
-            }
-        } else {
-            LOG_DEBUG("[CUT ] This group of Const ops will be cut-off from the function: "
+        bool is_tiny = ov::npuw::partitioning::traits::is_tiny_shape(proto_shape);
+        bool is_moe_gather = is_moe_gather_const(proto_node);
+        if (!is_tiny && !is_moe_gather) {
+            LOG_DEBUG("[CUT ] Not tiny shape and not MoE Gather indices - will be cut-off from the function");
+            return;
+        }
+
+        bool all_identical = std::all_of(instances.begin(), instances.end(), [&](const CTPtr& other_node) -> bool {
+            return (other_node->output(0).get_shape() == proto_node->output(0).get_shape()) &&
+                   values_are_the_same(proto_node, other_node);
+        });
+        if (!all_identical) {
+            LOG_DEBUG("[CUT ] Values differ across instances - will be cut-off from the function: "
                       << proto_node->get_friendly_name());
+            return;
+        }
+
+        if (is_moe_gather) {
+            LOG_DEBUG("[KEEP] MoE Gather indices constant - identical across all repeats");
+        } else {
+            LOG_DEBUG("[KEEP] Tiny shape constant - safe to keep in function");
+        }
+        for (auto&& const_node : instances) {
+            func_group.consts_to_keep.insert(const_node);
         }
     };
     for (auto&& bank : rep_block.consts) {
