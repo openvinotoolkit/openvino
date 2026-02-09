@@ -46,6 +46,14 @@ OutputVector translate_to(const NodeContext& context) {
             // Cast only to device without changing dtype. Return input node unchanged.
             return {context.get_input(0)};
         }
+    } else if (context.get_input_size() == 7) {
+        // aten::_to_copy(Tensor self, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None,
+        //                bool? pin_memory=None, bool non_blocking=False, MemoryFormat? memory_format=None) -> Tensor
+        dtype_idx = 1;
+        if (context.input_is_none(dtype_idx)) {
+            // No dtype change requested. Return input node unchanged.
+            return {context.get_input(0)};
+        }
     } else if (context.get_input_size() == 8) {
         // aten::to(Tensor(a) self, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool?
         // pin_memory=None, bool non_blocking=False, bool copy=False, MemoryFormat? memory_format=None)
