@@ -9,7 +9,7 @@
 #include "model_builder/model_builder.hpp"
 #include "openvino/openvino.hpp"
 
-using namespace ov::test::npuw;
+using ov::test::npuw::ModelBuilder;
 
 // FIXME: parametrize all the tests below
 

@@ -16,7 +16,7 @@
 #include "partitioning/online/group.hpp"
 #include "partitioning/online/snapshot.hpp"
 
-using namespace ov::test::npuw;
+using ov::test::npuw::ModelBuilder;
 
 namespace {
 

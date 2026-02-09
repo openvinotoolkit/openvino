@@ -16,7 +16,7 @@
 #include "openvino/openvino.hpp"
 #include "spatial.hpp"
 
-using namespace ov::test::npuw;
+using ov::test::npuw::ModelBuilder;
 
 // FIXME: parametrize all the tests below
 
