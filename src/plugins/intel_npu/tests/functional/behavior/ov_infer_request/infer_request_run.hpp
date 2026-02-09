@@ -207,7 +207,11 @@ TEST_P(ProfilingBlob, NoProfilingCompileProfilingImport) {
 
     OV_ASSERT_NO_THROW(inferReq = compiled_model.create_infer_request());
 
-    ASSERT_ANY_THROW(inferReq.infer());
+    if (configuration.find(ov::intel_npu::profiling_type.name())->second == ov::intel_npu::ProfilingType::MODEL) {
+        ASSERT_ANY_THROW(inferReq.infer());
+    } else {
+        OV_ASSERT_NO_THROW(inferReq.infer());
+    }
 }
 
 TEST_P(ProfilingBlob, ProfilingCompileNoProfilingImport) {
