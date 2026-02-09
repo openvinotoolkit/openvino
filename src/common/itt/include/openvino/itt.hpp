@@ -44,9 +44,11 @@ namespace internal {
 domain_t domain(const char* name);
 handle_t handle(const char* name);
 void taskBegin(domain_t d, handle_t t);
+void taskBegin(domain_t d, handle_t t, const char* key, uint64_t value);
 void taskEnd(domain_t d);
 void threadName(const char* name);
 void regionBegin(domain_t d, handle_t t);
+void regionBegin(domain_t d, handle_t t, const char* key, uint64_t value);
 void regionEnd(domain_t d);
 }  // namespace internal
 /**
@@ -116,6 +118,27 @@ struct ScopedTask {
     }
 
     /**
+     * @brief Constructs a scoped task with an associated key-value metadata pair.
+     *
+     * Creates an ITT (Intel Tracing Technology) scoped task that will automatically
+     * begin upon construction and end when the object goes out of scope (RAII pattern).
+     * This overload allows attaching custom metadata to the task for enhanced profiling.
+     *
+     * @param taskHandle Handle identifying the task type for profiling tools.
+     * @param key String identifier for the metadata attribute (e.g., "InferenceID").
+     * @param value Numeric value associated with the key (e.g., unique request ID).
+     *
+     * @note The task begins immediately upon construction via internal::taskBegin.
+     * @note The key string must remain valid for the duration of the task scope.
+     * @note This constructor is noexcept, ensuring exception safety in profiling code.
+     *
+     * @see ScopedTask(handle_t) for the basic constructor without metadata.
+     */
+    ScopedTask(handle_t taskHandle, const char* key, uint64_t value) noexcept {
+        internal::taskBegin(domain(), taskHandle, key, value);
+    }
+
+    /**
      * @brief The ScopedTask destructor closes or ends the task scope
      */
     ~ScopedTask() noexcept {
@@ -141,6 +164,20 @@ struct ScopedRegion {
      */
     ScopedRegion(handle_t handle) noexcept {
         internal::regionBegin(domain(), handle);
+    }
+
+    /**
+     * @brief Constructs a scoped region with metadata for ITT profiling.
+     *
+     * @param handle Region identifier for profiling tools.
+     * @param key Metadata attribute name (e.g., "RequestID").
+     * @param value Metadata numeric value associated with the key.
+     *
+     * @note Region begins immediately and ends when object goes out of scope (RAII).
+     * @note The key string must remain valid for the region's lifetime.
+     */
+    ScopedRegion(handle_t handle, const char* key, uint64_t value) noexcept {
+        internal::regionBegin(domain(), handle, key, value);
     }
 
     /**
@@ -308,8 +345,15 @@ public:
  * @ingroup ov_dev_profiling
  * @brief Annotate section of code till scope exit for BASE/FULL modes regardless of profiling filter groups.
  * @details In case if handle or taskName absent, the current function name is used.
+ * @note All *_BASE() macros are enabled by default and will be used by supporting toolchains. The strings
+ *       used/provided by these calls should follow the following rules:
+ *       - Should NOT be deleted or modified to ensure correct visible names in profiling tools
+ *         until CVS-179230 is implemented/resolved.
+ *       - Should use string literals or constant strings when possible
  * @param domain [in] Known at compile time name of module or library (the domain name).
  * @param handleOrTaskName [in] The annotation name or handle for section of code. Parameter is optional.
+ * @param metadata_key [in] A metadata element's key as a string. Parameter is optional.
+ * @param metadata_value [in] The metadata value. Parameter is optional.
  */
 #define OV_ITT_SCOPED_TASK_BASE(...) OV_PP_OVERLOAD(OV_ITT_SCOPED_TASK_BASE, __VA_ARGS__)
 
@@ -321,6 +365,12 @@ public:
     openvino::itt::ScopedTask<domain> OV_PP_CAT(ittScopedTask, __LINE__)( \
         openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>(taskOrTaskName));
 
+#define OV_ITT_SCOPED_TASK_BASE_4(domain, taskOrTaskName, metadata_key, metadata_value) \
+    openvino::itt::ScopedTask<domain> OV_PP_CAT(ittScopedTask, __LINE__)(               \
+        openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>(taskOrTaskName),        \
+        metadata_key,                                                                   \
+        metadata_value);
+
 /**
  * @def OV_ITT_SCOPED_REGION_BASE(domain, handleOrRegionName)
  * @ingroup ov_dev_profiling
@@ -328,8 +378,15 @@ public:
  * @details In case if handle or regionName absent, the current function name is used.
  * @note Implements a region scope (single-active per thread; tasks started within
  *       the region attach as children).
+ * @note All *_BASE() macros are enabled by default and will be used by supporting toolchains. The strings
+ *       used/provided by these calls should follow the following rules:
+ *       - Should NOT be deleted or modified to ensure correct visible names in profiling tools
+ *         until CVS-179230 is implemented/resolved.
+ *       - Should use string literals or constant strings when possible
  * @param domain [in] Known at compile time name of module or library (the domain name).
  * @param handleOrRegionName [in] The annotation name or handle for section of code. Parameter is optional.
+ * @param metadata_key [in] A metadata element's key as a string. Parameter is optional.
+ * @param metadata_value [in] The metadata value. Parameter is optional.
  */
 #define OV_ITT_SCOPED_REGION_BASE(...) OV_PP_OVERLOAD(OV_ITT_SCOPED_REGION_BASE, __VA_ARGS__)
 
@@ -340,6 +397,12 @@ public:
 #define OV_ITT_SCOPED_REGION_BASE_2(domain, regionOrRegionName)               \
     openvino::itt::ScopedRegion<domain> OV_PP_CAT(ittScopedRegion, __LINE__)( \
         openvino::itt::handle<struct OV_PP_CAT(Region, __LINE__)>(regionOrRegionName));
+
+#define OV_ITT_SCOPED_REGION_BASE_4(domain, regionOrRegionName, metadata_key, metadata_value) \
+    openvino::itt::ScopedRegion<domain> OV_PP_CAT(ittScopedRegion, __LINE__)(                 \
+        openvino::itt::handle<struct OV_PP_CAT(Region, __LINE__)>(regionOrRegionName),        \
+        metadata_key,                                                                         \
+        metadata_value);
 
 /**
  * @def OV_ITT_SCOPED_REGION(group, domain, handleOrRegionName)
