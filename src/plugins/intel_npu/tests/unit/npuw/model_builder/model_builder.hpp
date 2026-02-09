@@ -163,6 +163,7 @@ public:
     ov::Output<ov::Node> make_repeat_kv(const ov::Output<ov::Node>& kv,
                                         size_t num_heads,
                                         size_t num_kv_heads,
+                                        size_t head_dim,
                                         const std::string& name);
 
     struct KVCacheResult {

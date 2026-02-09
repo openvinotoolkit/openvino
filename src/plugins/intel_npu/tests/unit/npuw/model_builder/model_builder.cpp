@@ -685,6 +685,7 @@ ov::Output<ov::Node> ModelBuilder::make_attention_transpose(const ov::Output<ov:
 ov::Output<ov::Node> ModelBuilder::make_repeat_kv(const ov::Output<ov::Node>& kv,
                                                   size_t num_heads,
                                                   size_t num_kv_heads,
+                                                  size_t head_dim,
                                                   const std::string& name) {
     if (num_heads == num_kv_heads) {
         return kv;
@@ -744,7 +745,7 @@ ov::Output<ov::Node> ModelBuilder::make_repeat_kv(const ov::Output<ov::Node>& kv
         std::vector<int64_t>{0,
                              static_cast<int64_t>(num_heads),
                              -1,
-                             static_cast<int64_t>(kv.get_partial_shape()[3].get_length())});
+                             static_cast<int64_t>(head_dim)});
     new_shape->set_friendly_name(name + "_shape");
     m_nodes.push_back(new_shape);
 
@@ -1236,8 +1237,8 @@ LayerResult ModelBuilder::make_attention_block(const ov::Output<ov::Node>& input
     }
 
     // For GQA: repeat K/V heads to match Q head count
-    auto k_expanded = make_repeat_kv(k_for_attn, num_heads, kv_heads, prefix + "k_repeat");
-    auto v_expanded = make_repeat_kv(v_for_attn, num_heads, kv_heads, prefix + "v_repeat");
+    auto k_expanded = make_repeat_kv(k_for_attn, num_heads, kv_heads, head_dim, prefix + "k_repeat");
+    auto v_expanded = make_repeat_kv(v_for_attn, num_heads, kv_heads, head_dim, prefix + "v_repeat");
 
     // SDPA (attention_mask is expected to be pre-transformed 4D float mask)
     auto attn_output = make_attention(q_trans, k_expanded, v_expanded, head_dim, prefix + "attn", prec, attention_mask);
