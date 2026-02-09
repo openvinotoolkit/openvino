@@ -245,8 +245,8 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
-  CXX_Unit_Tests:
-    name: C++ unit tests
+  CXX_Common_Tests:
+    name: C++ common tests
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     needs: [Docker, Build]
     timeout-minutes: 180
@@ -410,13 +410,6 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_snippets_func_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-SnippetsFuncTests.xml
 
-      - name: CPU plugin unit tests
-        if: ${{ !cancelled() }}
-        run: |
-          source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_cpu_unit_tests --gtest_print_time=1 \
-                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUUnitTests.xml
-
       - name: ov_subgraphs_dumper_tests tests
         if: ${{ !cancelled() }}
         run: |
@@ -498,9 +491,8 @@ jobs:
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'error'
 
-  CXX_Func_Tests:
-    # todo: move another plugin's func tests here
-    name: C++ func tests
+  CXX_CPU_Tests:
+    name: C++ cpu tests
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     needs: [Docker, Build]
     timeout-minutes: 380
@@ -515,7 +507,7 @@ jobs:
       fail-fast: false
       matrix:
         SANITIZER: ['AddressAndLeak', 'UndefinedBehavior', 'Thread']
-        SHARD: [0, 1, 2, 3, 4]
+        SHARD: [0, 1, 2, 3, 4, 5]
 
     steps:
       - name: Check matrix
@@ -570,18 +562,28 @@ jobs:
       # Tests
       #
 
-      - name: CPU plugin func tests
+      - name: CPU plugin tests
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
         env:
           GTEST_FILTER: ${{ github.event_name == 'workflow_dispatch' && inputs.gtestFilter || '*smoke*' }}
-          GTEST_TOTAL_SHARDS: 5
-          # 5 shards is a minimum amount to keep job duration < 6 hours
+          GTEST_TOTAL_SHARDS: 6
+          # 6 shards is a minimum amount to keep job duration < 6 hours
           GTEST_SHARD_INDEX: ${{ matrix.SHARD }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_print_time=1 \
                 --gtest_filter=${{ env.GTEST_FILTER }} \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUFuncTests-${{ matrix.SHARD }}.xml
+      
+      - name: CPU plugin unit tests
+        if: ${{ steps.check_matrix.conclusion != 'skipped' }}
+        env:
+          GTEST_TOTAL_SHARDS: 6
+          GTEST_SHARD_INDEX: ${{ matrix.SHARD }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_cpu_unit_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUUnitTests-${{ matrix.SHARD }}.xml
 
       - name: Upload Test Results
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
