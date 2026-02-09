@@ -16,7 +16,7 @@ class TestIndexAdd(PytorchLayerTest):
     def create_model(self, dim, index, src, mode, alpha):
         class aten_index_add(torch.nn.Module):
             def __init__(self, dim, index, src, mode, alpha):
-                super(aten_index_add, self).__init__()
+                super().__init__()
                 self.dim = dim
                 self.index = index
                 self.src = src
@@ -38,7 +38,7 @@ class TestIndexAdd(PytorchLayerTest):
 
         op_name = "aten::index_add_" if mode == "inplace" else "aten::index_add"
 
-        return aten_index_add(dim, index, src, mode, alpha), None, op_name
+        return aten_index_add(dim, index, src, mode, alpha), op_name
 
     @pytest.mark.nightly
     @pytest.mark.precommit

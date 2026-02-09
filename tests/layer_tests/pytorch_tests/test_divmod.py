@@ -6,6 +6,10 @@ import openvino as ov
 import pytest
 import torch
 
+from pytorch_layer_test_class import SeededRandom
+
+_rng = SeededRandom(42)
+
 
 # do not test via PytorchLayerTest since PytorchLayerTest triggers own TorchScript tracing
 # this test validates TorchScript patched inside ov.convert_model
@@ -31,7 +35,7 @@ class TestBuiltinDivmod():
     @pytest.mark.precommit
     def test_divmod_on_assert_path(self, ie_device, precision):
         fw_model = self.divmod_on_assert_path()
-        inputs = torch.randn(2, 3, 28)
+        inputs = _rng.torch_randn(2, 3, 28)
 
         example_input = inputs
         ov_model = ov.convert_model(input_model=fw_model, example_input=example_input)
@@ -51,7 +55,7 @@ class TestBuiltinDivmod():
     @pytest.mark.precommit
     def test_divmod_on_compute_path(self, ie_device, precision, x_shape):
         fw_model = self.divmod_on_compute_path()
-        x = torch.randn(x_shape)
+        x = _rng.torch_randn(*x_shape)
 
         example_input = x
         ov_model = ov.convert_model(input_model=fw_model,

@@ -5,13 +5,14 @@ import pytest
 import numpy as np
 import torch
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, SeededRandom
+
+_rng = SeededRandom(42)
 
 
 class TestIndex(PytorchLayerTest):
     def _prepare_input(self, input_shape, idx=None):
-        rng = np.random.default_rng(42)
-        x = rng.standard_normal(size=input_shape, dtype=np.float32)
+        x = self.random.randn(*input_shape)
         return (x,) if idx is None else (x, idx)
 
     def create_model(self, model="list"):
@@ -49,7 +50,7 @@ class TestIndex(PytorchLayerTest):
 
         aten_index = cases[model]
 
-        return aten_index(), None, "aten::index"
+        return aten_index(), "aten::index"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -87,8 +88,7 @@ class TestIndex(PytorchLayerTest):
 
 class TestIndexRange(PytorchLayerTest):
     def _prepare_input(self, input_shape, idx):
-        rng = np.random.default_rng(42)
-        x = rng.standard_normal(size=input_shape, dtype=np.float32)
+        x = self.random.randn(*input_shape)
         return (x, np.array(idx).astype(np.int32))
 
     def create_model(self):
@@ -98,7 +98,7 @@ class TestIndexRange(PytorchLayerTest):
                 x = x.reshape(x.shape[0], -1)
                 return x[torch.arange(x.shape[0]), y]
 
-        return aten_index_arange(), None, "aten::index"
+        return aten_index_arange(), "aten::index"
 
     def create_model2(self):
         class aten_index_arange(torch.nn.Module):
@@ -107,7 +107,7 @@ class TestIndexRange(PytorchLayerTest):
                 x = x.reshape(x.shape[0], x.shape[1], -1, 1)
                 return x[torch.arange(x.shape[0]), y]
 
-        return aten_index_arange(), None, "aten::index"
+        return aten_index_arange(), "aten::index"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -134,8 +134,7 @@ class TestIndexRange(PytorchLayerTest):
 
 class TestIndexMask(PytorchLayerTest):
     def _prepare_input(self, input_shape):
-        rng = np.random.default_rng(42)
-        return (rng.standard_normal(size=input_shape, dtype=np.float32),)
+        return (self.random.randn(*input_shape),)
 
     def create_model(self):
         import torch
@@ -144,7 +143,7 @@ class TestIndexMask(PytorchLayerTest):
             def forward(self, x):
                 return x[x > 0]
 
-        return aten_index_mask(), None, "aten::index"
+        return aten_index_mask(), "aten::index"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -159,8 +158,7 @@ class TestIndexMask(PytorchLayerTest):
 
 class TestIndexNone(PytorchLayerTest):
     def _prepare_input(self, input_shape):
-        rng = np.random.default_rng(42)
-        return (rng.standard_normal(size=input_shape, dtype=np.float32),)
+        return (self.random.randn(*input_shape),)
 
     class aten_index_list(torch.nn.Module):
         def __init__(self, idxs):
@@ -172,10 +170,10 @@ class TestIndexNone(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.parametrize(("input_shape,idxs"), [
-        ((2, 3, 4, 5), (torch.unsqueeze(torch.randint(0, 2, [14], dtype=torch.int32), 1),)),
-        ((2, 3, 4, 5), (torch.unsqueeze(torch.randint(0, 2, [14], dtype=torch.int32), 1), torch.randint(0, 3, [14], dtype=torch.int32))),
-        ((2, 3, 4, 5), (None, None, torch.unsqueeze(torch.randint(0, 2, [14], dtype=torch.int32), 1), torch.randint(0, 3, [14], dtype=torch.int32))),
+        ((2, 3, 4, 5), (torch.unsqueeze(_rng.torch_randint(0, 2, [14], dtype=torch.int32), 1),)),
+        ((2, 3, 4, 5), (torch.unsqueeze(_rng.torch_randint(0, 2, [14], dtype=torch.int32), 1), _rng.torch_randint(0, 3, [14], dtype=torch.int32))),
+        ((2, 3, 4, 5), (None, None, torch.unsqueeze(_rng.torch_randint(0, 2, [14], dtype=torch.int32), 1), _rng.torch_randint(0, 3, [14], dtype=torch.int32))),
         ])
     def test_index(self, input_shape, idxs, ie_device, precision, ir_version):
-        self._test(self.aten_index_list(idxs), None, "aten::index", ie_device, precision,
+        self._test(self.aten_index_list(idxs), "aten::index", ie_device, precision,
                    ir_version,kwargs_to_prepare_input={"input_shape": input_shape}, use_convert_model=True, trace_model=True)

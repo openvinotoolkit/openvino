@@ -3,7 +3,6 @@
 
 import platform
 
-import numpy as np
 import pytest
 import torch
 
@@ -17,7 +16,7 @@ BATCH_SIZE = 1
 NO_MASK, ATTN_MASK, KEY_PAD_MASK, MERGED_MASK = -1, 0, 1, 2
 
 class aten_native_multi_head_attention(torch.nn.Module):
-    def __init__(self, mask, need_weights, average_attn_weights) -> None:
+    def __init__(self, mask, need_weights, average_attn_weights, mask_data=None) -> None:
         super().__init__()
         self.qkv = torch.nn.Linear(EMBED_DIM, 3 * EMBED_DIM, dtype = torch.float32)
         self.qkv.requires_grad_(False)
@@ -33,13 +32,13 @@ class aten_native_multi_head_attention(torch.nn.Module):
         # Float masks raise a warning in PyTorch and are (incorrectly) converted to bool,
         # which later returns NaNs as MHA's output
         if mask == 0:
-            self.mask = torch.from_numpy(np.random.randint(0, 2, (SEQ_LENGTH, SEQ_LENGTH)).astype("bool"))
+            self.mask = torch.from_numpy(mask_data.astype("bool")) if mask_data is not None else None
             self.mask_type = 0
         elif mask == 1:
-            self.mask = torch.from_numpy(np.random.randint(0, 2, (BATCH_SIZE, SEQ_LENGTH)).astype("bool"))
+            self.mask = torch.from_numpy(mask_data.astype("bool")) if mask_data is not None else None
             self.mask_type = 1
         elif mask == 2:
-            self.mask = torch.from_numpy(np.random.randint(0, 2, (BATCH_SIZE, NUM_HEADS, SEQ_LENGTH, SEQ_LENGTH)).astype("bool"))
+            self.mask = torch.from_numpy(mask_data.astype("bool")) if mask_data is not None else None
             self.mask_type = 2
         else:
             self.mask = None
@@ -61,10 +60,20 @@ class aten_native_multi_head_attention(torch.nn.Module):
 class TestNativeMultiHeadAttention(PytorchLayerTest):
     def _prepare_input(self):
         # NativeMHA is self-attention
-        qkv_tensor = np.random.randn(BATCH_SIZE, SEQ_LENGTH, EMBED_DIM).astype(np.float32)
+        qkv_tensor = self.random.randn(BATCH_SIZE, SEQ_LENGTH, EMBED_DIM)
         return (qkv_tensor.copy(),
                 qkv_tensor.copy(),
                 qkv_tensor.copy())
+
+    def _get_mask_data(self, mask):
+        """Generate mask data based on mask type."""
+        if mask == 0:  # ATTN_MASK
+            return self.random.randint(0, 2, (SEQ_LENGTH, SEQ_LENGTH))
+        elif mask == 1:  # KEY_PAD_MASK
+            return self.random.randint(0, 2, (BATCH_SIZE, SEQ_LENGTH))
+        elif mask == 2:  # MERGED_MASK
+            return self.random.randint(0, 2, (BATCH_SIZE, NUM_HEADS, SEQ_LENGTH, SEQ_LENGTH))
+        return None
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -81,5 +90,5 @@ class TestNativeMultiHeadAttention(PytorchLayerTest):
                                                                                                      'arm64', 'ARM64'),
                        reason='Ticket - 122715')
     def test_native_multi_head_attention(self, ie_device, precision, ir_version, mask, need_weights, average_attn_weights):
-        self._test(aten_native_multi_head_attention(mask, need_weights, average_attn_weights),
-                   None, "aten::_native_multi_head_attention", ie_device, precision, ir_version)
+        mask_data = self._get_mask_data(mask)
+        self._test(aten_native_multi_head_attention(mask, need_weights, average_attn_weights, mask_data), "aten::_native_multi_head_attention", ie_device, precision, ir_version)
