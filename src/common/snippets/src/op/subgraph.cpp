@@ -572,29 +572,14 @@ void Subgraph::control_flow_transformations(
     //    1. AssignRegisters must be called after InsertSpecificIterations since specific loops maybe have
     //       different expressions and connections each other. AssignRegisters should be performed on the expanded
     //       loops.
-    //    2. EliminateInplaceOps must be called after InsertSpecificIterations to eliminate inplace Fill operations
-    //       that appear with offset == register_capacity after loop decomposition. This resolves ticket 126270.
-    //    3. CleanupLoopOffsets must be called after InsertSpecificIterations to avoid violating the proportionality of
+    //    2. CleanupLoopOffsets must be called after InsertSpecificIterations to avoid violating the proportionality of
     //    the pointer increments
     //       (this might happen if tail loop and main loop have different increments)
-    //    4. OptimizeLoopSingleEvaluation must be called after CleanupLoopOffsets
+    //    3. OptimizeLoopSingleEvaluation must be called after CleanupLoopOffsets
     //       since CleanupLoopOffsets can't handle loops with evaluate_once = true
     gen_pipeline.register_pass<lowered::pass::InsertSpecificIterations>();
     // Callback to determine if Fill operation is inplace based on actual register capacity
     // get_lanes() returns the number of float32 (4-byte) elements that fit in a vector register
-    const size_t lanes_for_float32 = get_generator()->get_target_machine()->get_lanes();
-    auto is_inplace_fill_callback = [lanes_for_float32](size_t offset, size_t element_size) -> bool {
-        // When offset is 0, Fill fills the entire register (not inplace)
-        if (offset == 0) {
-            return false;
-        }
-        // Calculate register capacity for the given element size
-        // Scale from float32 capacity: capacity(T) = capacity(float32) * sizeof(float32) / sizeof(T)
-        const size_t register_capacity = (lanes_for_float32 * sizeof(float)) / element_size;
-        // Fill is inplace when offset equals the register capacity
-        return offset == register_capacity;
-    };
-    gen_pipeline.register_pass<lowered::pass::EliminateInplaceOps>(is_inplace_fill_callback);
     gen_pipeline.register_pass<lowered::pass::InitRegisters>(get_generator(), lowered_pass_config);
     gen_pipeline.register_pass<lowered::pass::NormalizeLoopIDs>();
     gen_pipeline.register_pass<lowered::pass::ValidateExpandedLoops>();
