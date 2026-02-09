@@ -27,6 +27,9 @@
 #include <tuple>
 
 #include "convolution_inst.h"
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "graph/impls/onednn/utils.hpp"
+#endif
 
 using namespace cldnn;
 using namespace ::tests;
@@ -12651,3 +12654,38 @@ TEST_P(conv_3d_test_mmad, convolution_gpu_b_fs_zyx_mmad) {
         ASSERT_EQ(output_ptr[i], output_ptr_ref[i]);
     }
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST(convolution_gpu, onednn_custom_format_3d_weights) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    ov::PartialShape weights_shape{192, 1, 1};
+
+    format_traits custom_traits;
+    custom_traits.str = "custom";
+    custom_traits.order = "oiy";
+    custom_traits.internal_order = "oixyz";
+    custom_traits.batch_num = 0;
+    custom_traits.feature_num = 1;
+    custom_traits.spatial_num = 1;
+    custom_traits.group_num = 0;
+    custom_traits._order = {0, 1, 2};
+    custom_traits.block_sizes = {};
+    custom_traits.logic_block_sizes = {};
+
+    cldnn::format custom_fmt(format::custom);
+    custom_fmt.custom_traits = custom_traits;
+    layout custom_layout(weights_shape, data_types::f16, custom_fmt);
+
+    ASSERT_NO_THROW({
+        auto md = onednn::layout_to_memory_desc(custom_layout, dnnl::memory::format_tag::undef);
+        ASSERT_EQ(md.get_ndims(), 3);
+        ASSERT_EQ(md.get_dims()[0], 192);
+        ASSERT_EQ(md.get_dims()[1], 1);
+        ASSERT_EQ(md.get_dims()[2], 1);
+    });
+}
+#endif  // ENABLE_ONEDNN_FOR_GPU
