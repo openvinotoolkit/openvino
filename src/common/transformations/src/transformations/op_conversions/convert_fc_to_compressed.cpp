@@ -4,7 +4,6 @@
 
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
 
-#include <algorithm>
 #include <memory>
 #include <tuple>
 
