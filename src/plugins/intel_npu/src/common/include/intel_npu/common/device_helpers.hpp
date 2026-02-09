@@ -17,7 +17,7 @@ uint32_t getSliceIdBySwDeviceId(const uint32_t swDevId);
 std::string getPlatformByDeviceName(const std::string_view deviceName);
 std::string getCompilationPlatform(const std::string_view platform,
                                    const std::string_view deviceId,
-                                   const std::vector<std::string> availableDevicesNames);
+                                   std::vector<std::string> availableDevicesNames);
 }  // namespace utils
 
 }  // namespace intel_npu

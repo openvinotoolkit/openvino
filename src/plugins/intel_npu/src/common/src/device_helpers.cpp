@@ -29,18 +29,18 @@ uint32_t utils::getSliceIdBySwDeviceId(const uint32_t swDevId) {
 
 std::string utils::getPlatformByDeviceName(const std::string_view deviceName) {
     const auto platformPos = deviceName.rfind('.');
-    const auto platformName =
-        (platformPos == std::string::npos) ? std::string(deviceName) : std::string(deviceName.substr(0, platformPos));
+    const std::string_view platformName =
+        (platformPos == std::string::npos) ? deviceName : deviceName.substr(0, platformPos);
 
-    return platformName;
+    return std::string(platformName);
 }
 
 std::string utils::getCompilationPlatform(const std::string_view platform,
                                           const std::string_view deviceId,
-                                          const std::vector<std::string> availableDevicesNames) {
+                                          std::vector<std::string> availableDevicesNames) {
     // Platform parameter has a higher priority than deviceID
     if (platform != ov::intel_npu::Platform::AUTO_DETECT) {
-        return ov::intel_npu::Platform::standardize(std::string(platform));
+        return ov::intel_npu::Platform::standardize(platform);
     }
 
     // Get compilation platform from deviceID
