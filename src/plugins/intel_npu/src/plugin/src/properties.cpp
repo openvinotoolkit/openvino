@@ -740,10 +740,10 @@ void Properties::set_property(const ov::AnyMap& properties) {
                 } else {
                     OPENVINO_THROW("Unsupported configuration key: ", value.first);
                 }
-            } else if (!_backend) {
-                OPENVINO_THROW("No available backend");    
             } else {
-                OPENVINO_THROW("Unsupported configuration key: ", value.first);
+                OPENVINO_THROW("Unsupported configuration key: ",
+                               value.first,
+                               ", couldn't query the property for empty compiler");
             }
         } else {
             if (std::get<1>(_properties[value.first]) == ov::PropertyMutability::RO) {
