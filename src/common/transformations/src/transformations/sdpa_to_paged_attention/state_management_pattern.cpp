@@ -737,6 +737,16 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         }
         OPENVINO_ASSERT(pa_arguments.size() == 25);
 
+        // token_type_ids for bidirectional attention within image token groups (e.g. Gemma3 VLM).
+        // Only add the 26th input when the model actually has token_type_ids —
+        // this keeps PA nodes at 25 inputs for models without it, so the GPU
+        // plugin (which requires exactly 25 inputs) is not affected.
+        if (optional_model_wide_params.find("token_type_ids") != optional_model_wide_params.end()) {
+            // DEBUG: Use empty constant instead of parameter to test if the reorder issue is type/shape related
+            pa_arguments.insert(pa_arguments.begin() + 25, v0::Constant::create(element::i32, Shape{0}, {}));
+            OPENVINO_ASSERT(pa_arguments.size() == 26);
+        }
+
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
         paged_attention->get_rt_info()[NUM_K_HEADS] = num_k_heads;
         paged_attention->get_rt_info()[K_HEAD_SIZE] = k_head_size;
