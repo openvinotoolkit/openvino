@@ -106,6 +106,8 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
 
     bool rewritten = pre_calculated_values_folding(model);
 
+    // Creating a local vector and moving each element to reduce memory peak.
+    // Elements of 'nodes' vector are nullptr after the std::move in the loop.
     auto nodes = model->get_ordered_ops();
     for (size_t n = 0; n < nodes.size(); ++n) {
         auto original_node = std::move(nodes[n]);
