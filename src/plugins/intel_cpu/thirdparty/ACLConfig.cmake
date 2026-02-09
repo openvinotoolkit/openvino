@@ -133,7 +133,6 @@ elseif(NOT TARGET arm_compute::arm_compute)
 
     set(ARM_COMPUTE_SCONS_JOBS "8" CACHE STRING "Number of parallel threads to build ARM Compute Library")
     set(ARM_COMPUTE_SOURCE_DIR "${intel_cpu_thirdparty_SOURCE_DIR}/ComputeLibrary")
-    set(ARM_COMPUTE_AR "" CACHE STRING "Archiver executable to build ARM Compute Library")
 
     message(STATUS "Configure to build ${ARM_COMPUTE_SOURCE_DIR}")
 
@@ -200,12 +199,8 @@ elseif(NOT TARGET arm_compute::arm_compute)
             ov_arm_compute_add_option("toolchain_prefix" "")
             ov_arm_compute_add_option("compiler_prefix" "${android_compiler_prefix}")
 
-            if(NOT ARM_COMPUTE_AR)
-                set(ARM_COMPUTE_AR "llvm-ar")
-            endif()
-            set(ARM_COMPUTE_AR "${ARM_COMPUTE_AR}" PARENT_SCOPE)
             set(cmake_build_env
-                AR=${ARM_COMPUTE_AR}
+                AR=llvm-ar
                 PATH=${ANDROID_TOOLCHAIN_ROOT}/bin:$ENV{PATH} PARENT_SCOPE)
 
             set(extra_cc_flags "--target=${ANDROID_LLVM_TRIPLE}" PARENT_SCOPE)
