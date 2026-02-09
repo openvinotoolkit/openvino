@@ -48,7 +48,6 @@
 #include "snippets/lowered/pass/allocate_buffers.hpp"
 #include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
 #include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
-#include "snippets/lowered/pass/eliminate_inplace_ops.hpp"
 #include "snippets/lowered/pass/extract_loop_invariants.hpp"
 #include "snippets/lowered/pass/fuse_loops.hpp"
 #include "snippets/lowered/pass/init_loops.hpp"

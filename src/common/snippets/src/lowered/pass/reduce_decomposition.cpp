@@ -15,6 +15,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
+#include "openvino/core/rtti.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/maximum.hpp"
@@ -80,7 +81,7 @@ public:
         const auto& accumulation_expr = accumulation_output_it->get_expr_port()->get_expr();
         OPENVINO_ASSERT(accumulation_expr, "InsertTailFill failed to get accumulation expression.");
 
-        size_t recurrent_input_port_idx = utils::get_dynamic_value<size_t>();
+        auto recurrent_input_port_idx = utils::get_dynamic_value<size_t>();
         for (const auto& input_loop_port : loop_info->get_input_ports()) {
             const auto& input_port = input_loop_port.get_expr_port();
             if (input_port->get_type() == ExpressionPort::Input && input_port->get_expr() == accumulation_expr) {
@@ -91,7 +92,7 @@ public:
         OPENVINO_ASSERT(!utils::is_dynamic_value(recurrent_input_port_idx),
                         "InsertTailFill failed to find recurrent accumulation input port.");
 
-        size_t data_input_port_idx = utils::get_dynamic_value<size_t>();
+        auto data_input_port_idx = utils::get_dynamic_value<size_t>();
         for (size_t i = 0; i < accumulation_expr->get_input_count(); ++i) {
             if (i != recurrent_input_port_idx) {
                 data_input_port_idx = i;
@@ -188,7 +189,7 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
         const auto fill_value = get_initial_value(reduce_type_info);
         const auto is_single_iteration = !utils::is_dynamic_value(work_amount) && work_amount == increment;
         const auto tail_size = utils::is_dynamic_value(work_amount) ? 1LU : work_amount % increment;
-        const bool insert_fill_in_loop = is_single_iteration;
+        const bool insert_fill_in_loop = is_single_iteration && increment < m_vector_size;
         const bool insert_fill_in_last_iter = !is_single_iteration && tail_size != 0;
         // Note: VectorBuffer is a special case, since it should go before the initial Load.
         // The buffer must be initialized with fill_value before reduction
@@ -196,7 +197,7 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
         const auto initial_fill = linear_ir.insert_node<op::Fill>(expr_it, vector_buffer.second, 0, fill_value);
 
         ov::Output<ov::Node> accumulation_input = reduce->get_input_source_output(0);
-        LinearIR::constExprIt reduce_loop_begin = expr_it;
+        auto reduce_loop_begin = expr_it;
         ExpressionPort reduce_loop_input_port;
         if (insert_fill_in_loop) {
             const auto fill = linear_ir.insert_node<op::Fill>(expr_it, accumulation_input, increment, fill_value);
