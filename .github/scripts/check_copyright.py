@@ -29,6 +29,11 @@ def get_file_type_info(file_path: str) -> Optional[Tuple[str, bool]]:
     return None
 
 
+def is_supported_file_type(file_path: str) -> bool:
+    """Check if this file type should have copyright headers validated."""
+    return get_file_type_info(file_path) is not None
+
+
 def get_expected_header(file_path: str) -> str:
     """Get the expected copyright header for a file."""
     info = get_file_type_info(file_path)
@@ -46,7 +51,7 @@ def get_expected_header(file_path: str) -> str:
 
 def should_check_file(file_path: str) -> bool:
     """Determine if a file should be checked for copyright header."""
-    return os.path.isfile(file_path) and get_file_type_info(file_path) is not None
+    return os.path.isfile(file_path) and is_supported_file_type(file_path)
 
 
 def get_file_header(file_path: str, num_lines: int = 3) -> str:
@@ -79,7 +84,7 @@ def generate_diff(file_path: str) -> str:
         with open(file_path, 'r', encoding='utf-8-sig', errors='ignore') as f:
             lines = f.read().split('\n')
     except Exception as e:
-        return f"# Error reading {file_path}: {e}\n"
+        raise IOError(f"Could not read {file_path}: {e}")
     
     info = get_file_type_info(file_path)
     if not info:
@@ -148,7 +153,12 @@ def main():
         else:
             print(f"❌ {file_path}")
             issues.append(file_path)
-            diff_content.append(generate_diff(file_path))
+            try:
+                diff_content.append(generate_diff(file_path))
+            except IOError as e:
+                print(f"Error: {e}")
+                print(f"File '{file_path}' was identified as having copyright issues but cannot be read for generating fixes.")
+                sys.exit(1)
     
     print()
     
