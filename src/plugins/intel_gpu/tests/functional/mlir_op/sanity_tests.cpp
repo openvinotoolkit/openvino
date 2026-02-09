@@ -15,6 +15,8 @@
 #include <openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp>
 #include "opencl_helper_instance.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 
 using testing::ElementsAreArray;
 
@@ -172,13 +174,27 @@ static std::map<size_t, ov::Tensor> allocate_input_tensors(
     return input_tensors;
 }
 
-TEST(MLIRExecution, SimpleSDPA) {
-    if (ov::util::getenv_string("OV_MLIR_MODE") != "GC_GPU")
-        GTEST_SKIP() << "This test is only for GC_GPU MLIR mode. Set 'OV_MLIR_MODE' env variable to 'GC_GPU'";
+TEST(MLIRExecution, CompileBasicSDPA) {
+    const ov::PartialShape query_shape{2, 2, 4096, 64};
+    const ov::PartialShape key_shape{2, 2, 4096, 64};
+    const ov::PartialShape value_shape{2, 2, 4096, 64};
 
+    const auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, query_shape);
+    const auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, key_shape);
+    const auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, value_shape);
+    const auto sdpa_mask_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, std::vector<float>{0.0f});
+    const auto sdpa_scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, std::vector<float>{2.0f});
+    const auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, std::vector<float>{8.0f});
+    const auto casual = false;
+    const auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query,
+                                                                        key,
+                                                                        value,
+                                                                        sdpa_mask_const,
+                                                                        sdpa_scale_const,
+                                                                        casual);
+
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{query, key, value});
     ov::Core core;
-    auto model = core.read_model(
-        model_full_path("sdpa_test.xml"));
 
     ov::AnyMap device_config;
     device_config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::THROUGHPUT;

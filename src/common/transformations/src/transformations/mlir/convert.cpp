@@ -63,7 +63,6 @@
 
 #ifdef GRAPH_COMPILER
 #include "gc/Transforms/Passes.h"
-// #include "gc/Dialect/Linalgx/IR/LinalgxDialect.h"
 #endif
 
 #ifdef TPP_MLIR // If TPP is available
@@ -343,12 +342,7 @@ void injectMLIR(std::shared_ptr<ov::Model> model,
 }
 
 void loadDialects(MLIRContext* context) {
-    context->loadDialect<mlir::DLTIDialect>();
-    context->loadDialect<mlir::func::FuncDialect>();
-    context->loadDialect<mlir::linalg::LinalgDialect>();
-    // context->loadDialect<mlir::gc::linalgx::LinalgxDialect>();
-    context->loadDialect<mlir::bufferization::BufferizationDialect>();
-    context->loadDialect<mlir::shape::ShapeDialect>();
+    context->loadAllAvailableDialects();
 }
 
 MLIRContext* get_shared_mlir_context(MlirMode mode) {

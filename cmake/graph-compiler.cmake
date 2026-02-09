@@ -56,7 +56,7 @@ if (NOT DEFINED GRAPH_COMPILER_LIBS)
 
     set(GRAPH_COMPILER_LIBS
             GcInterface
-            # MLIRLinalgx
+            MLIRLinalgx
     )
 
     if (ENABLE_INTEL_GPU)
