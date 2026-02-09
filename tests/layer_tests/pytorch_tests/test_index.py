@@ -5,9 +5,7 @@ import pytest
 import numpy as np
 import torch
 
-from pytorch_layer_test_class import PytorchLayerTest, SeededRandom
-
-_rng = SeededRandom(42)
+from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestIndex(PytorchLayerTest):
@@ -157,8 +155,8 @@ class TestIndexMask(PytorchLayerTest):
 
 
 class TestIndexNone(PytorchLayerTest):
-    def _prepare_input(self, input_shape):
-        return (self.random.randn(*input_shape),)
+    def _prepare_input(self):
+        return (self.random.randn(2, 3, 4, 5),)
 
     class aten_index_list(torch.nn.Module):
         def __init__(self, idxs):
@@ -169,11 +167,17 @@ class TestIndexNone(PytorchLayerTest):
             return x[self.idxs]
 
     @pytest.mark.nightly
-    @pytest.mark.parametrize(("input_shape,idxs"), [
-        ((2, 3, 4, 5), (torch.unsqueeze(_rng.torch_randint(0, 2, [14], dtype=torch.int32), 1),)),
-        ((2, 3, 4, 5), (torch.unsqueeze(_rng.torch_randint(0, 2, [14], dtype=torch.int32), 1), _rng.torch_randint(0, 3, [14], dtype=torch.int32))),
-        ((2, 3, 4, 5), (None, None, torch.unsqueeze(_rng.torch_randint(0, 2, [14], dtype=torch.int32), 1), _rng.torch_randint(0, 3, [14], dtype=torch.int32))),
-        ])
-    def test_index(self, input_shape, idxs, ie_device, precision, ir_version):
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("case", ["two_nones", "none_second"])
+    def test_index(self, case, ie_device, precision, ir_version):
+        idx_a = self.random.torch_randint(0, 2, [14], dtype=torch.int32)
+        idx_b = self.random.torch_randint(0, 3, [14], dtype=torch.int32)
+        idx_c = self.random.torch_randint(0, 2, [14, 1], dtype=torch.int32)
+
+        if case == "two_nones":
+            idxs = (None, None, idx_c, idx_b)
+        else:
+            idxs = (idx_a, None, idx_c, idx_b)
+
         self._test(self.aten_index_list(idxs), "aten::index", ie_device, precision,
-                   ir_version,kwargs_to_prepare_input={"input_shape": input_shape}, use_convert_model=True, trace_model=True)
+                   ir_version, use_convert_model=True, trace_model=True)
