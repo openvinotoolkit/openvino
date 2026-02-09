@@ -113,7 +113,7 @@ public:
      * operation
      * @return A pointer to compiled model
      */
-    virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_path,
+    virtual ov::SoPtr<ov::ICompiledModel> compile_model(const std::filesystem::path& model_path,
                                                         const std::string& device_name,
                                                         const ov::AnyMap& config) const = 0;
 

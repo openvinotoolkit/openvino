@@ -192,7 +192,7 @@ protected:
                                                                                   withBilinearInterpolationPad);
         }
 
-        function = makeNgraphFunction(netPrecision, parameters, deformable_conv, "deformable_convolution");
+        function = create_ov_model(netPrecision, parameters, deformable_conv, "deformable_convolution");
 
         if (netPrecision == ov::element::f32) {
             abs_threshold = 5e-6;

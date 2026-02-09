@@ -144,7 +144,7 @@ protected:
         auto off_value_const = std::make_shared<ov::op::v0::Constant>(outType, ov::Shape{ }, OffValue);
         auto oneHot =
             std::make_shared<ov::op::v16::OneHot>(params[0], depth, on_value_const, off_value_const, Axis, Mode);
-        return makeNgraphFunction(ov::element::i32, params, oneHot, "OneHot");
+        return create_ov_model(ov::element::i32, params, oneHot, "OneHot");
     }
     void generateDepth() {
         testing::internal::Random random(time(nullptr));

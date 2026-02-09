@@ -75,7 +75,7 @@ void Col2ImLayerCPUTest::SetUp() {
                                                         pads_begin,
                                                         pads_end);
     ov::ParameterVector params{dataParameter};
-    function = makeNgraphFunction(inputPrecision, params, Col2Im, "Col2Im");
+    function = create_ov_model(inputPrecision, params, Col2Im, "Col2Im");
     if (inputPrecision == ov::element::bf16) {
         rel_threshold = 0.02;
     }

@@ -106,7 +106,7 @@ void RMSNormLayerCPUTest::SetUp() {
     inputParams.push_back(scale);
     auto rms = std::make_shared<ov::op::internal::RMS>(data, scale, 0.1f);
     rms->set_friendly_name("rms");
-    function = makeNgraphFunction(inType, inputParams, rms, "rms");
+    function = create_ov_model(inType, inputParams, rms, "rms");
 }
 
 TEST_P(RMSNormLayerCPUTest, CompareWithRefs) {

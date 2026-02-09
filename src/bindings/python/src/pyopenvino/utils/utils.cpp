@@ -453,8 +453,9 @@ std::tuple<Args...> tuple_from_py_tuple(const py::tuple& py_tuple) {
 ov::Any py_object_to_any(const py::object& py_obj) {
     // Python types
     py::object float_32_type = py::module_::import("numpy").attr("float32");
-    if (py::isinstance<py::str>(py_obj)) {
-        return py_obj.cast<std::string>();
+    py::object Path = py::module_::import("pathlib").attr("Path");
+    if (py::isinstance<py::str>(py_obj) || py::isinstance(py_obj, Path)) {
+        return py::str(py_obj).cast<std::string>();
     } else if (py::isinstance<py::bool_>(py_obj)) {
         return py_obj.cast<bool>();
     } else if (py::isinstance<py::bytes>(py_obj)) {
