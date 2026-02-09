@@ -437,7 +437,7 @@ void Plugin::init_options(FilteredConfig& filteredConfig) {
     filteredConfig.enable(ov::log::level.name(), true);  // needed also by runtime options
 
     if (filteredConfig.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
-        if (_backend && _backend->getDevice()) {
+        if (_backend) {
             auto device = _backend->getDevice();
             if (device) {
                 auto platformName = device->getName();
@@ -454,7 +454,7 @@ void Plugin::init_options(FilteredConfig& filteredConfig) {
 }
 
 void Plugin::filter_config_by_compiler_support(const std::unique_ptr<Properties>& properties,
-                                               const std::unique_ptr<ICompilerAdapter>& compiler) const {
+                                               const ICompilerAdapter* compiler) const {
     bool legacy = false;
     std::vector<std::string> compiler_support_list{};
     uint32_t compiler_version = 0;
@@ -534,7 +534,8 @@ void Plugin::filter_config_by_compiler_support(const std::unique_ptr<Properties>
 }
 
 void Plugin::filter_global_config_safe(const std::unique_ptr<Properties>& properties,
-                                       const ov::AnyMap& arguments) const {
+                                       const ov::AnyMap& arguments,
+                                       const ICompilerAdapter* compiler) const {
     std::lock_guard<std::mutex> lock(_mutex);
     FilteredConfig cfg = properties->getConfig();
     auto compilerType = resolveCompilerType(cfg, arguments);
@@ -562,31 +563,37 @@ void Plugin::filter_global_config_safe(const std::unique_ptr<Properties>& proper
     }
 
     if (!properties->wasInitialized() || changeCompiler || argumentNotRegistered) {
-        std::unique_ptr<ICompilerAdapter> compiler = nullptr;
-        try {
-            // create a compiler to fetch version and supported options
-            CompilerAdapterFactory factory;
-            compiler =
-                factory.getCompiler(_backend,
-                                    compilerType,
-                                    utils::getCompilationPlatform(
-                                        platform,
-                                        deviceName.empty() ? deviceId : deviceName,
-                                        _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames()));
-        } catch (...) {
-            // assuming getCompiler failed, meaning we are offline
-            _logger.warning("No available compiler. Enabling only runtime options ");
+        const ICompilerAdapter* localCompiler = nullptr;
+        std::unique_ptr<ICompilerAdapter> compilerPtr = nullptr;
+        if (compiler != nullptr) {
+            localCompiler = compiler;
+        } else {
+            try {
+                // create a compiler to fetch version and supported options
+                CompilerAdapterFactory factory;
+                compilerPtr = factory.getCompiler(
+                    _backend,
+                    compilerType,
+                    utils::getCompilationPlatform(
+                        platform,
+                        deviceName.empty() ? deviceId : deviceName,
+                        _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames()));
+                localCompiler = compilerPtr.get();
+            } catch (...) {
+                // assuming getCompiler failed, meaning we are offline
+                _logger.warning("No available compiler. Enabling only runtime options ");
+            }
         }
 
         // filter out unsupported options
-        filter_config_by_compiler_support(properties, compiler);
+        filter_config_by_compiler_support(properties, localCompiler);
         // set config as filtered
         properties->markAsInitialized();
     }
 }
 
 FilteredConfig Plugin::fork_local_config(const ov::AnyMap& properties,
-                                         const std::unique_ptr<ICompilerAdapter>& compiler,
+                                         const ICompilerAdapter* compiler,
                                          OptionMode mode) const {
     update_log_level(properties);
 
@@ -595,7 +602,7 @@ FilteredConfig Plugin::fork_local_config(const ov::AnyMap& properties,
     }
 
     auto local_properties = std::make_unique<Properties>(*_properties);
-    filter_global_config_safe(local_properties, properties);
+    filter_global_config_safe(local_properties, properties, compiler);
 
     FilteredConfig localConfig = local_properties->getConfig();
 
@@ -719,8 +726,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::shared_ptr<IDevice> device = nullptr;
     try {
         device = _backend == nullptr ? nullptr : _backend->getDevice(deviceId);
-    } catch (...) {
-        // do nothing, will be handled later
+    } catch (const std::exception& ex) {
+        if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
+            OPENVINO_THROW(ex.what());
+        } else {
+            _logger.warning("The specified device (\"%s\") was not found.", deviceId.c_str());
+        }
     }
 
     const auto platform =
@@ -732,7 +743,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto compiler = factory.getCompiler(_backend, compilerType, platform);
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
-    auto localConfig = fork_local_config(localProperties, compiler);
+    auto localConfig = fork_local_config(localProperties, compiler.get());
     if (wasPreferPlugin) {
         localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
     }
@@ -1090,8 +1101,12 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     std::shared_ptr<IDevice> device = nullptr;
     try {
         device = _backend == nullptr ? nullptr : _backend->getDevice(deviceId);
-    } catch (...) {
-        // do nothing, will be handled later
+    } catch (const std::exception& ex) {
+        if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
+            OPENVINO_THROW(ex.what());
+        } else {
+            _logger.warning("The specified device (\"%s\") was not found.", deviceId.c_str());
+        }
     }
 
     const auto platform =
@@ -1102,7 +1117,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     CompilerAdapterFactory factory;
     auto compiler = factory.getCompiler(_backend, compilerType, platform);
 
-    auto localConfig = fork_local_config(localProperties, compiler, OptionMode::CompileTime);
+    auto localConfig = fork_local_config(localProperties, compiler.get(), OptionMode::CompileTime);
     if (wasPreferPlugin) {
         localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
     }
@@ -1167,8 +1182,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     std::shared_ptr<IDevice> device = nullptr;
     try {
         device = _backend == nullptr ? nullptr : _backend->getDevice(deviceId);
-    } catch (...) {
-        // do nothing, will be handled later
+    } catch (const std::exception& ex) {
+        if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
+            OPENVINO_THROW(ex.what());
+        } else {
+            _logger.warning("The specified device (\"%s\") was not found.", deviceId.c_str());
+        }
     }
 
     const auto platform =
@@ -1180,7 +1199,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     auto compiler = factory.getCompiler(_backend, compilerType, platform);
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
-    auto localConfig = fork_local_config(localProperties, compiler, OptionMode::RunTime);
+    auto localConfig = fork_local_config(localProperties, compiler.get(), OptionMode::RunTime);
     if (wasPreferPlugin) {
         localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
     }

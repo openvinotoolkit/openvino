@@ -66,11 +66,13 @@ public:
 
 private:
     void init_options(FilteredConfig& filteredConfig);
-    void filter_global_config_safe(const std::unique_ptr<Properties>& properties, const ov::AnyMap& arguments) const;
+    void filter_global_config_safe(const std::unique_ptr<Properties>& properties,
+                                   const ov::AnyMap& arguments,
+                                   const ICompilerAdapter* compiler = nullptr) const;
     void filter_config_by_compiler_support(const std::unique_ptr<Properties>& properties,
-                                           const std::unique_ptr<ICompilerAdapter>& compiler) const;
+                                           const ICompilerAdapter* compiler) const;
     FilteredConfig fork_local_config(const ov::AnyMap& properties,
-                                     const std::unique_ptr<ICompilerAdapter>& compiler,
+                                     const ICompilerAdapter* compiler,
                                      OptionMode mode = OptionMode::Both) const;
 
     /**
