@@ -66,7 +66,7 @@ Pipeline::Pipeline(const Config& config,
     bool perf_count_enabled = _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>();
     std::optional<bool> compiled_with_profiling = graph->is_profiling_blob();
 
-    if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
+    if (_config.has<PROFILING_TYPE>() && _config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
         if (perf_count_enabled) {
             _logger.debug("Profiling type == ov::intel_npu::ProfilingType::INFER");
             _npu_profiling =
