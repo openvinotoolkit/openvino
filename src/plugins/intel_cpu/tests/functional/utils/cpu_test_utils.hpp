@@ -141,7 +141,7 @@ public:
                             const ov::AnyMap& config);
 
     CPUInfo getCPUInfo() const;
-    std::shared_ptr<ov::Model> makeNgraphFunction(const ov::element::Type& ngPrc,
+    std::shared_ptr<ov::Model> create_ov_model(const ov::element::Type& ngPrc,
                                                   ov::ParameterVector& params,
                                                   const std::shared_ptr<ov::Node>& lastNode,
                                                   std::string name,
