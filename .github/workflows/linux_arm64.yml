@@ -258,9 +258,8 @@ jobs:
 
   TensorFlow_Models_Tests:
     name: TensorFlow Models tests
-    if: ${{ 'false' }} # TODO: Enable once the dependencies are ready for arm (no tensorflow-text available for arm from PyPI)
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
-    #     fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
+    if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
+        fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
     needs: [ Build, Docker, Smart_CI, Openvino_tokenizers]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
