@@ -101,7 +101,8 @@ class TestExpandList(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_expand(self, dims, op_type, ie_device, precision, ir_version):
-        self._test(*self.create_model(op_type), ie_device, precision, ir_version, kwargs_to_prepare_input={"broadcast_shape": dims})
+        self._test(*self.create_model(op_type), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"broadcast_shape": dims}, fx_kind=f"aten.{op_type}")
 
 
 class TestExpandAs(PytorchLayerTest):

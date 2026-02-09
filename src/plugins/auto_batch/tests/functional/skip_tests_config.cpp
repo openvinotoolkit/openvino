@@ -7,31 +7,31 @@
 #include <string>
 #include <vector>
 
-std::vector<std::string> disabledTestPatterns() {
-    std::vector<std::string> disabled_items = {
+const std::vector<std::regex>& disabled_test_patterns() {
+    const static std::vector<std::regex> patterns{
         // TODO: for CVS-68949
         // Not implemented yet:
-        R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
-        R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
-        R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
-        R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)",
+        std::regex(R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)"),
+        std::regex(R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)"),
+        std::regex(R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)"),
+        std::regex(R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)"),
         // Not supported by TEMPLATE plugin
-        R"(.*OVExecutableNetworkBaseTest.*CheckExecGraphInfo.*)",
+        std::regex(R"(.*OVExecutableNetworkBaseTest.*CheckExecGraphInfo.*)"),
         // Issue: 90539
-        R"(.*OVInferRequestIOTensorTest.InferStaticNetworkSetChangedInputTensorThrow.*)",
-        R"(.*OVInferRequestIOTensorTest.canInferAfterIOBlobReallocation.*)",
-        R"(.*VirtualPlugin.*BehaviorTests.*OVHoldersTest.*)",
+        std::regex(R"(.*OVInferRequestIOTensorTest.InferStaticNetworkSetChangedInputTensorThrow.*)"),
+        std::regex(R"(.*OVInferRequestIOTensorTest.canInferAfterIOBlobReallocation.*)"),
+        std::regex(R"(.*VirtualPlugin.*BehaviorTests.*OVHoldersTest.*)"),
         // BATCH plugin doesn't support this case
-        R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
+        std::regex(R"(.*LoadNetworkCreateDefaultExecGraphResult.*)"),
         // BATCH/TEMPLATE plugin doesn't support this case
-        R"(.*OVInferRequestPerfCountersTest.*CheckOperationInProfilingInfo.*)",
+        std::regex(R"(.*OVInferRequestPerfCountersTest.*CheckOperationInProfilingInfo.*)"),
         // requires export_model be implemented
-        R"(.*Behavior.*OVCompiledModelBaseTest.*import_from_weightless_blob.*targetDevice=(BATCH).*)",
-        R"(.*Behavior.*OVCompiledModelBaseTest.*compile_from.*_blob.*targetDevice=(BATCH).*)",
-        R"(.*Behavior.*OVCompiledModelBaseTest.*use_blob_hint.*targetDevice=(BATCH).*)",
+        std::regex(R"(.*Behavior.*OVCompiledModelBaseTest.*import_from_weightless_blob.*targetDevice=(BATCH).*)"),
+        std::regex(R"(.*Behavior.*OVCompiledModelBaseTest.*compile_from.*_blob.*targetDevice=(BATCH).*)"),
+        std::regex(R"(.*Behavior.*OVCompiledModelBaseTest.*use_blob_hint.*targetDevice=(BATCH).*)"),
         // model import is not supported
-        R"(.*OVCompiledModelBaseTest.import_from_.*)"
+        std::regex(R"(.*OVCompiledModelBaseTest.import_from_.*)")
     };
 
-    return disabled_items;
+    return patterns;
 }
