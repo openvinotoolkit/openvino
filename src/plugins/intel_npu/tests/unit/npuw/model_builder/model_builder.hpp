@@ -4,39 +4,344 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "openvino/openvino.hpp"
+#include "openvino/opsets/opset11.hpp"
 
 namespace ov {
 namespace test {
 namespace npuw {
 
-/// FFN activation type
-enum class FFNType {
-    SWIGLU,  ///< SwiGLU activation with gated linear unit
-    GELU     ///< GELU activation
+// ============================================================================
+// Result types (namespace-level)
+// ============================================================================
+
+struct KVCacheResult {
+    ov::Output<ov::Node> concatenated;
+    std::shared_ptr<ov::Node> assign;  // Sink node for stateful model
 };
 
-/// Normalization type
-enum class NormType { LAYER_NORM, RMS_NORM };
-
-/// Rotary Position Embedding type
-enum class RoPEType {
-    HALF_ROTATION,  ///< Split in half, rotate each half
-    INTERLEAVED     ///< Interleave odd/even elements
+/// Result from building a decoder layer or attention block
+struct LayerResult {
+    ov::Output<ov::Node> output;
+    std::vector<std::shared_ptr<ov::Node>> sinks;  // Assign nodes for stateful KV cache
 };
 
-/// Weight storage format for compressed weight patterns
-/// INT4/INT8 match DCOFF SymmNoZP pattern: low-bit -> Convert(f16) -> Multiply(f16 scale)
-enum class WeightFormat {
-    FP32,  ///< f32 weights (default, no compression)
-    FP16,  ///< f16 weights with Convert to compute precision
-    INT8,  ///< i8 weights -> Convert(f16) -> Multiply(f16 per-channel scale)
-    INT4   ///< i4 weights -> Convert(f16) -> Multiply(f16 per-channel scale)
+// ============================================================================
+// Functor type aliases
+// ============================================================================
+
+/// Weight functor: construction captures format-specific params;
+/// call takes (name, rows, cols, compute_precision) -> output
+using WeightFn = std::function<ov::Output<ov::Node>(const std::string&, size_t, size_t, ov::element::Type)>;
+
+/// Norm functor: construction captures hidden_size, precision, eps;
+/// call takes (input, name) -> output
+using NormFn = std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&, const std::string&)>;
+
+/// FFN functor: construction captures hidden_size, intermediate_size, precision, weight_fn;
+/// call takes (input, name) -> output
+using FFNFn = std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&, const std::string&)>;
+
+/// RoPE functor: construction captures head_dim, max_position, precision;
+/// call takes (input, position_ids, name) -> output
+using RoPEFn =
+    std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&, const ov::Output<ov::Node>&, const std::string&)>;
+
+/// PositionIds functor: creates the position_ids tensor (as input parameter or subgraph).
+/// For input-based variants, creates a Parameter node (auto-tracked by build_llm).
+using PositionIdsFn = std::function<ov::Output<ov::Node>()>;
+
+// ============================================================================
+// Weight functors
+// ============================================================================
+
+/// f32 weights (no compression)
+struct FP32Weight {
+    ov::Output<ov::Node> operator()(const std::string& name,
+                                    size_t rows,
+                                    size_t cols,
+                                    ov::element::Type compute_precision) const;
 };
+
+/// f16 weights with Convert to compute precision
+struct FP16Weight {
+    ov::Output<ov::Node> operator()(const std::string& name,
+                                    size_t rows,
+                                    size_t cols,
+                                    ov::element::Type compute_precision) const;
+};
+
+/// Compressed integer weights -> Convert(f16) -> Multiply(f16 per-channel scale)
+/// Matches DCOFF SymmNoZP pattern. Parameterized by storage element type (i8, i4, u4, etc.)
+struct CompressedWeight {
+    ov::element::Type storage_type;
+
+    explicit CompressedWeight(ov::element::Type st) : storage_type(st) {}
+
+    ov::Output<ov::Node> operator()(const std::string& name,
+                                    size_t rows,
+                                    size_t cols,
+                                    ov::element::Type compute_precision) const;
+};
+
+/// i8 compressed weights
+struct INT8Weight : CompressedWeight {
+    INT8Weight() : CompressedWeight(ov::element::i8) {}
+};
+
+/// i4 compressed weights
+struct INT4Weight : CompressedWeight {
+    INT4Weight() : CompressedWeight(ov::element::i4) {}
+};
+
+// ============================================================================
+// Norm functors
+// ============================================================================
+
+/// Layer normalization (MVN + scale + bias)
+struct LayerNorm {
+    size_t hidden_size;
+    ov::element::Type precision;
+    float eps;
+
+    LayerNorm(size_t hs, ov::element::Type prec = ov::element::f32, float e = 1e-5f)
+        : hidden_size(hs),
+          precision(prec),
+          eps(e) {}
+
+    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
+};
+
+/// RMS normalization (scale only, no mean subtraction)
+struct RMSNorm {
+    size_t hidden_size;
+    ov::element::Type precision;
+    float eps;
+
+    RMSNorm(size_t hs, ov::element::Type prec = ov::element::f32, float e = 1e-5f)
+        : hidden_size(hs),
+          precision(prec),
+          eps(e) {}
+
+    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
+};
+
+// ============================================================================
+// RoPE functors
+// ============================================================================
+
+/// Half-rotation RoPE: split in half, rotate each half
+struct HalfRotationRoPE {
+    size_t head_dim;
+    size_t max_position;
+    ov::element::Type precision;
+
+    HalfRotationRoPE(size_t hd, size_t mp, ov::element::Type prec = ov::element::f32)
+        : head_dim(hd),
+          max_position(mp),
+          precision(prec) {}
+
+    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input,
+                                    const ov::Output<ov::Node>& position_ids,
+                                    const std::string& name) const;
+};
+
+/// Interleaved RoPE: interleave odd/even elements
+struct InterleavedRoPE {
+    size_t head_dim;
+    size_t max_position;
+    ov::element::Type precision;
+
+    InterleavedRoPE(size_t hd, size_t mp, ov::element::Type prec = ov::element::f32)
+        : head_dim(hd),
+          max_position(mp),
+          precision(prec) {}
+
+    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input,
+                                    const ov::Output<ov::Node>& position_ids,
+                                    const std::string& name) const;
+};
+
+// ============================================================================
+// RoPE embedding helper
+// ============================================================================
+
+/// Gathered cos/sin embeddings for RoPE, unsqueezed for broadcasting
+struct RoPEEmbeddings {
+    ov::Output<ov::Node> cos;
+    ov::Output<ov::Node> sin;
+};
+
+/// Create cos/sin embedding tables, gather by position_ids, and unsqueeze for broadcast.
+/// Shared preamble used by both HalfRotationRoPE and InterleavedRoPE.
+RoPEEmbeddings gather_rope_embeddings(size_t head_dim,
+                                      size_t max_position,
+                                      ov::element::Type precision,
+                                      const ov::Output<ov::Node>& position_ids,
+                                      const std::string& name);
+
+// ============================================================================
+// PositionIds functors
+// ============================================================================
+
+/// 2D position_ids as a model input parameter: [batch, seq]
+struct Input2DPositionIds {
+    ov::Output<ov::Node> operator()() const;
+};
+
+// ============================================================================
+// FFN functors
+// ============================================================================
+
+/// SwiGLU FFN: gate_proj * silu(up_proj), then down_proj
+struct SwiGLU {
+    size_t hidden_size;
+    size_t intermediate_size;
+    ov::element::Type precision;
+    WeightFn weight_fn;
+
+    SwiGLU(size_t hs, size_t is, ov::element::Type prec, WeightFn wf)
+        : hidden_size(hs),
+          intermediate_size(is),
+          precision(prec),
+          weight_fn(std::move(wf)) {}
+
+    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
+};
+
+/// GELU FFN: up_proj -> GELU -> down_proj
+struct GELUFn {
+    size_t hidden_size;
+    size_t intermediate_size;
+    ov::element::Type precision;
+    WeightFn weight_fn;
+
+    GELUFn(size_t hs, size_t is, ov::element::Type prec, WeightFn wf)
+        : hidden_size(hs),
+          intermediate_size(is),
+          precision(prec),
+          weight_fn(std::move(wf)) {}
+
+    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
+};
+
+// ============================================================================
+// Free building-block functions
+// ============================================================================
+
+/// Linear projection (MatMul with weight + optional bias)
+ov::Output<ov::Node> make_linear(const ov::Output<ov::Node>& input,
+                                 size_t in_features,
+                                 size_t out_features,
+                                 const std::string& name,
+                                 ov::element::Type precision = ov::element::f32,
+                                 bool add_bias = false,
+                                 const WeightFn& weight_fn = FP32Weight{});
+
+/// Reshape for multi-head: [batch, seq, hidden] -> [batch, seq, heads, head_dim]
+ov::Output<ov::Node> make_multihead_reshape(const ov::Output<ov::Node>& input,
+                                            size_t num_heads,
+                                            size_t head_dim,
+                                            const std::string& name);
+
+/// Transpose for attention: [batch, seq, heads, dim] <-> [batch, heads, seq, dim]
+ov::Output<ov::Node> make_attention_transpose(const ov::Output<ov::Node>& input, const std::string& name);
+
+/// Repeat KV heads for GQA: [batch, kv_heads, seq, dim] -> [batch, num_heads, seq, dim]
+ov::Output<ov::Node> make_repeat_kv(const ov::Output<ov::Node>& kv,
+                                    size_t num_heads,
+                                    size_t num_kv_heads,
+                                    size_t head_dim,
+                                    const std::string& name);
+
+/// Create stateful KV cache pattern (ReadValue -> Gather(beam_idx) -> Concat -> Assign)
+KVCacheResult make_kv_cache_concat(const ov::Output<ov::Node>& current_kv,
+                                   const ov::Output<ov::Node>& batch_source,
+                                   const ov::Output<ov::Node>& beam_idx,
+                                   size_t num_heads,
+                                   size_t head_dim,
+                                   const std::string& name,
+                                   ov::element::Type precision = ov::element::f32);
+
+/// Compute scaled dot-product attention using native SDPA v13 op
+ov::Output<ov::Node> make_sdpa(const ov::Output<ov::Node>& q,
+                               const ov::Output<ov::Node>& k,
+                               const ov::Output<ov::Node>& v,
+                               const std::string& name,
+                               const ov::Output<ov::Node>& attention_mask = ov::Output<ov::Node>());
+
+/// Token embedding lookup
+ov::Output<ov::Node> make_embedding(const ov::Output<ov::Node>& input_ids,
+                                    size_t vocab_size,
+                                    size_t hidden_size,
+                                    const std::string& name,
+                                    ov::element::Type precision = ov::element::f32);
+
+/// LM head (linear projection to vocabulary)
+ov::Output<ov::Node> make_lm_head(const ov::Output<ov::Node>& hidden_states,
+                                  size_t hidden_size,
+                                  size_t vocab_size,
+                                  const std::string& name,
+                                  ov::element::Type precision = ov::element::f32,
+                                  const WeightFn& weight_fn = FP32Weight{});
+
+// ============================================================================
+// SDPAttention functor
+// ============================================================================
+
+/// Full self-attention mechanism: Q/K/V proj -> reshape -> RoPE -> transpose ->
+/// KV cache -> GQA repeat -> SDPA -> reshape -> O proj.
+/// Does NOT include norm or residual (handled by make_decoder_layer template).
+struct SDPAttention {
+    size_t hidden_size, num_heads, num_kv_heads, head_dim;
+    ov::element::Type precision;
+    WeightFn weight_fn;
+    RoPEFn rope_fn;  // may be empty (no RoPE)
+    bool use_kv_cache;
+    ov::Output<ov::Node> position_ids;    // may be empty
+    ov::Output<ov::Node> batch_source;    // for KV cache init shape
+    ov::Output<ov::Node> beam_idx;        // for beam search reordering
+    ov::Output<ov::Node> attention_mask;  // pre-transformed 4D float mask
+    size_t layer_idx;
+
+    LayerResult operator()(const ov::Output<ov::Node>& input, const std::string& prefix) const;
+};
+
+// ============================================================================
+// Template decoder layer composition
+// ============================================================================
+
+/// Compose norm + attention + FFN + residual connections into a decoder layer.
+/// Works with concrete types (zero-overhead) or std::function types.
+template <typename Norm, typename Attention, typename FFN>
+LayerResult make_decoder_layer(const ov::Output<ov::Node>& input,
+                               const Norm& norm,
+                               const Attention& attention,
+                               const FFN& ffn,
+                               const std::string& prefix) {
+    // Pre-attention norm + attention + residual
+    auto normed1 = norm(input, prefix + "input_layernorm");
+    auto attn_result = attention(normed1, prefix);
+    auto residual1 = std::make_shared<ov::opset11::Add>(input, attn_result.output);
+    residual1->set_friendly_name(prefix + "attn_residual");
+
+    // Post-attention norm + FFN + residual
+    auto normed2 = norm(residual1->output(0), prefix + "post_attention_layernorm");
+    auto ffn_out = ffn(normed2, prefix + "mlp");
+    auto residual2 = std::make_shared<ov::opset11::Add>(residual1, ffn_out);
+    residual2->set_friendly_name(prefix + "ffn_residual");
+
+    return {residual2->output(0), attn_result.sinks};
+}
+
+// ============================================================================
+// LLMConfig
+// ============================================================================
 
 /// Configuration for LLM test model building
 struct LLMConfig {
@@ -49,46 +354,38 @@ struct LLMConfig {
     size_t num_layers = 2;
 
     bool use_kv_cache = true;
-    bool use_position_ids = true;  ///< Include position_ids parameter and apply RoPE
-
-    FFNType ffn_type = FFNType::SWIGLU;
-    NormType norm_type = NormType::LAYER_NORM;
-    RoPEType rope_type = RoPEType::HALF_ROTATION;
-
-    WeightFormat weight_format = WeightFormat::FP32;   ///< Default weight format for linear layers
-    WeightFormat lm_head_format = WeightFormat::FP32;  ///< LM head weight format (configurable separately)
-
-    bool use_dynamic_shapes = true;
-    size_t batch_size = 1;
-    size_t seq_len = 1;
-    size_t context_len = 128;
 
     ov::element::Type precision = ov::element::f32;
+
+    /// Functor fields (build_llm fills remaining defaults from scalar params)
+    NormFn norm;
+    FFNFn ffn;
+    RoPEFn rope;
+    PositionIdsFn position_ids = Input2DPositionIds{};  ///< Set to {} for no position_ids/RoPE
+    WeightFn weight;
+    WeightFn lm_head_weight;
 
     size_t get_kv_heads() const {
         return num_kv_heads == 0 ? num_heads : num_kv_heads;
     }
-    size_t get_past_len() const {
-        return context_len > seq_len ? context_len - seq_len : 0;
-    }
 };
 
-/// Result from building a decoder layer or attention block
-struct LayerResult {
-    ov::Output<ov::Node> output;
-    std::vector<std::shared_ptr<ov::Node>> sinks;  // Assign nodes for stateful KV cache
-};
+// ============================================================================
+// ModelBuilder
+// ============================================================================
 
 /// Modular model builder for NPUW testing
 ///
 /// Provides composable building blocks for constructing transformer models.
-/// Blocks can be used independently or composed via the builder pattern:
+/// Variant behavior (norm, FFN, RoPE, weights) is controlled via functors
+/// stored in LLMConfig, enabling extension without API changes.
 ///
+/// Example with functor blocks:
 ///   ModelBuilder b;
 ///   auto input = b.parameter(ov::element::f32, {-1, -1, 64}, "input");
-///   auto normed = b.make_norm(input->output(0), 64, "norm", NormType::RMS_NORM);
-///   auto ffn_out = b.make_ffn(normed, 64, 256, "ffn", FFNType::SWIGLU);
-///   b.result(ffn_out, "output");
+///   RMSNorm norm(64);
+///   auto normed = norm(input->output(0), "norm");
+///   b.result(normed, "output");
 ///   auto model = b.build("my_model");
 ///
 /// Or use the convenience method for complete LLMs:
@@ -127,186 +424,11 @@ public:
     /// Build complete LLM model using configuration
     std::shared_ptr<ov::Model> build_llm(const LLMConfig& config = LLMConfig{});
 
-    // ===== Atomic building blocks =====
-
-    /// Linear projection (MatMul with weight + optional bias)
-    /// Supports compressed weight formats via weight_format parameter
-    ov::Output<ov::Node> make_linear(const ov::Output<ov::Node>& input,
-                                     size_t out_features,
-                                     const std::string& name,
-                                     ov::element::Type precision = ov::element::f32,
-                                     bool add_bias = false,
-                                     WeightFormat weight_format = WeightFormat::FP32);
-
-    /// Normalization (LayerNorm or RMSNorm)
-    ov::Output<ov::Node> make_norm(const ov::Output<ov::Node>& input,
-                                   size_t hidden_size,
-                                   const std::string& name,
-                                   NormType type = NormType::LAYER_NORM,
-                                   ov::element::Type precision = ov::element::f32,
-                                   float eps = 1e-5f);
-
-    // ===== Attention components =====
-
-    /// Reshape for multi-head: [batch, seq, hidden] -> [batch, seq, heads, head_dim]
-    ov::Output<ov::Node> make_multihead_reshape(const ov::Output<ov::Node>& input,
-                                                size_t num_heads,
-                                                size_t head_dim,
-                                                const std::string& name);
-
-    /// Transpose for attention: [batch, seq, heads, dim] <-> [batch, heads, seq, dim]
-    /// Note: the order {0,2,1,3} is its own inverse, so the same call works in both directions.
-    ov::Output<ov::Node> make_attention_transpose(const ov::Output<ov::Node>& input,
-                                                  const std::string& name);
-
-    /// Repeat KV heads for GQA: [batch, kv_heads, seq, dim] -> [batch, num_heads, seq, dim]
-    ov::Output<ov::Node> make_repeat_kv(const ov::Output<ov::Node>& kv,
-                                        size_t num_heads,
-                                        size_t num_kv_heads,
-                                        size_t head_dim,
-                                        const std::string& name);
-
-    struct KVCacheResult {
-        ov::Output<ov::Node> concatenated;
-        std::shared_ptr<ov::Node> assign;  // Sink node for stateful model
-    };
-
-    /// Create stateful KV cache pattern (ReadValue -> Gather(beam_idx) -> Concat -> Assign)
-    /// batch_source is used to extract the batch dimension (typically input_ids)
-    /// beam_idx is needed for beam search reordering (required by StatefulToStateless)
-    KVCacheResult make_kv_cache_concat(const ov::Output<ov::Node>& current_kv,
-                                       const ov::Output<ov::Node>& batch_source,
-                                       const ov::Output<ov::Node>& beam_idx,
-                                       size_t num_heads,
-                                       size_t head_dim,
-                                       const std::string& name,
-                                       ov::element::Type precision = ov::element::f32);
-
-    /// Compute scaled dot-product attention using native SDPA v13 op
-    /// Required by SDPAToPagedAttention transformation for CPU/GPU backends
-    ov::Output<ov::Node> make_attention(const ov::Output<ov::Node>& q,
-                                        const ov::Output<ov::Node>& k,
-                                        const ov::Output<ov::Node>& v,
-                                        size_t head_dim,
-                                        const std::string& name,
-                                        ov::element::Type precision = ov::element::f32,
-                                        const ov::Output<ov::Node>& attention_mask = ov::Output<ov::Node>());
-
-    // ===== Positional encoding =====
-
-    /// Apply Rotary Position Embedding (RoPE)
-    /// Input shape: [batch, seq, heads, head_dim] (before attention transpose)
-    /// position_ids shape: [batch, seq]
-    ov::Output<ov::Node> make_rope(const ov::Output<ov::Node>& input,
-                                   const ov::Output<ov::Node>& position_ids,
-                                   size_t head_dim,
-                                   size_t max_position,
-                                   const std::string& name,
-                                   RoPEType type = RoPEType::HALF_ROTATION,
-                                   ov::element::Type precision = ov::element::f32);
-
-    // ===== FFN =====
-
-    /// Feed-forward network (SwiGLU or GELU)
-    ov::Output<ov::Node> make_ffn(const ov::Output<ov::Node>& input,
-                                  size_t hidden_size,
-                                  size_t intermediate_size,
-                                  const std::string& name,
-                                  FFNType type = FFNType::SWIGLU,
-                                  ov::element::Type precision = ov::element::f32,
-                                  WeightFormat weight_format = WeightFormat::FP32);
-
-    // ===== Composite blocks =====
-
-    /// Complete attention block: norm -> Q/K/V proj -> [RoPE] -> transpose -> [KV cache] -> SDPA -> O proj + residual
-    /// attention_mask should be pre-transformed to float [batch, 1, seq_len, total_seq] additive mask.
-    /// Transform once before the layer loop (not per-layer) for proper NPUW repeating block detection.
-    LayerResult make_attention_block(const ov::Output<ov::Node>& input,
-                                     const LLMConfig& config,
-                                     size_t layer_idx,
-                                     const std::string& prefix,
-                                     const ov::Output<ov::Node>& position_ids,
-                                     const ov::Output<ov::Node>& batch_source,
-                                     const ov::Output<ov::Node>& beam_idx,
-                                     const ov::Output<ov::Node>& attention_mask);
-
-    /// FFN block: norm -> FFN + residual
-    ov::Output<ov::Node> make_ffn_block(const ov::Output<ov::Node>& input,
-                                        const LLMConfig& config,
-                                        const std::string& prefix);
-
-    /// Complete decoder layer: attention block + FFN block
-    LayerResult make_decoder_layer(const ov::Output<ov::Node>& input,
-                                   const LLMConfig& config,
-                                   size_t layer_idx,
-                                   const ov::Output<ov::Node>& position_ids,
-                                   const ov::Output<ov::Node>& batch_source,
-                                   const ov::Output<ov::Node>& beam_idx,
-                                   const ov::Output<ov::Node>& attention_mask);
-
-    // ===== Embedding & head =====
-
-    ov::Output<ov::Node> make_embedding(const ov::Output<ov::Node>& input_ids,
-                                        size_t vocab_size,
-                                        size_t hidden_size,
-                                        const std::string& name,
-                                        ov::element::Type precision = ov::element::f32);
-
-    ov::Output<ov::Node> make_lm_head(const ov::Output<ov::Node>& hidden_states,
-                                      size_t hidden_size,
-                                      size_t vocab_size,
-                                      const std::string& name,
-                                      ov::element::Type precision = ov::element::f32,
-                                      WeightFormat weight_format = WeightFormat::FP32);
-
     // ===== State management =====
 
     void clear();
-    void track(const std::shared_ptr<ov::Node>& node);
 
 private:
-    ov::Output<ov::Node> make_layer_norm(const ov::Output<ov::Node>& input,
-                                         size_t hidden_size,
-                                         const std::string& name,
-                                         ov::element::Type precision,
-                                         float eps);
-    ov::Output<ov::Node> make_rms_norm(const ov::Output<ov::Node>& input,
-                                       size_t hidden_size,
-                                       const std::string& name,
-                                       ov::element::Type precision,
-                                       float eps);
-    ov::Output<ov::Node> make_swiglu_ffn(const ov::Output<ov::Node>& input,
-                                         size_t hidden_size,
-                                         size_t intermediate_size,
-                                         const std::string& name,
-                                         ov::element::Type precision,
-                                         WeightFormat weight_format);
-    ov::Output<ov::Node> make_gelu_ffn(const ov::Output<ov::Node>& input,
-                                       size_t hidden_size,
-                                       size_t intermediate_size,
-                                       const std::string& name,
-                                       ov::element::Type precision,
-                                       WeightFormat weight_format);
-    ov::Output<ov::Node> make_half_rotation_rope(const ov::Output<ov::Node>& input,
-                                                 const ov::Output<ov::Node>& position_ids,
-                                                 size_t head_dim,
-                                                 size_t max_position,
-                                                 const std::string& name,
-                                                 ov::element::Type precision);
-    ov::Output<ov::Node> make_interleaved_rope(const ov::Output<ov::Node>& input,
-                                               const ov::Output<ov::Node>& position_ids,
-                                               size_t head_dim,
-                                               size_t max_position,
-                                               const std::string& name,
-                                               ov::element::Type precision);
-
-    /// Create a weight constant with optional compression (Convert + Scale)
-    ov::Output<ov::Node> make_weight(const std::string& name,
-                                     size_t rows,
-                                     size_t cols,
-                                     WeightFormat format,
-                                     ov::element::Type compute_precision);
-
     std::shared_ptr<ov::Node> get_block(const std::shared_ptr<ov::Node>& input);
     void set_name(const std::shared_ptr<ov::Node>& node);
 
