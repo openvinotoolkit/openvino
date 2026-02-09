@@ -259,16 +259,20 @@ public:
      */
     CompiledModel compile_model(const std::string& model_path, const AnyMap& properties = {});
 
-    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
-    auto compile_model(const Path& model_path, const AnyMap& properties = {}) const {
-        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
-            return compile_model(model_path.wstring(), properties);
-        else
-            return compile_model(model_path.string(), properties);
+    CompiledModel compile_model(const std::filesystem::path& model_path, const AnyMap& properties = {});
+
+    template <class Path, std::enable_if_t<std::is_constructible_v<std::string, Path>>* = nullptr>
+    CompiledModel compile_model(const Path& model_path, const AnyMap& properties = {}) {
+        return compile_model(std::string(model_path), properties);
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     CompiledModel compile_model(const std::wstring& model_path, const AnyMap& properties = {});
+
+    template <class Path, std::enable_if_t<std::is_constructible_v<std::wstring, Path>>* = nullptr>
+    CompiledModel compile_model(const Path& model_path, const AnyMap& properties = {}) {
+        return compile_model(std::wstring(model_path), properties);
+    }
 #endif
     /// @}
 
@@ -280,7 +284,7 @@ public:
      * especially for cases when caching is enabled and cached model is available
      *
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
-     * @param model_path path to model with string or wstring
+     * @param model_path path to model
      * @param properties Optional pack of pairs: (property name, property value) relevant only for this
      * load operation
      *
@@ -294,11 +298,9 @@ public:
     }
 
     template <class Path, class... Properties, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
-    auto compile_model(const Path& model_path, Properties&&... properties) {
-        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
-            return compile_model(model_path.wstring(), std::forward<Properties>(properties)...);
-        else
-            return compile_model(model_path.string(), std::forward<Properties>(properties)...);
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const Path& model_path,
+                                                                           Properties&&... properties) {
+        return compile_model(model_path, AnyMap{std::forward<Properties>(properties)...});
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -328,18 +330,24 @@ public:
                                 const std::string& device_name,
                                 const AnyMap& properties = {});
 
-    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
-    auto compile_model(const Path& model_path, const std::string& device_name, const AnyMap& properties = {}) {
-        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
-            return compile_model(model_path.wstring(), device_name, properties);
-        else
-            return compile_model(model_path.string(), device_name, properties);
+    CompiledModel compile_model(const std::filesystem::path& model_path,
+                                const std::string& device_name,
+                                const AnyMap& properties = {});
+
+    template <class Path, std::enable_if_t<std::is_constructible_v<std::string, Path>>* = nullptr>
+    CompiledModel compile_model(const Path& model_path, const std::string& device_name, const AnyMap& properties = {}) {
+        return compile_model(std::string(model_path), device_name, properties);
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     CompiledModel compile_model(const std::wstring& model_path,
                                 const std::string& device_name,
                                 const AnyMap& properties = {});
+
+    template <class Path, std::enable_if_t<std::is_constructible_v<std::wstring, Path>>* = nullptr>
+    CompiledModel compile_model(const Path& model_path, const std::string& device_name, const AnyMap& properties = {}) {
+        return compile_model(std::wstring(model_path), device_name, properties);
+    }
 #endif
     /// @}
 
@@ -366,11 +374,10 @@ public:
     }
 
     template <class Path, class... Properties, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
-    auto compile_model(const Path& model_path, const std::string& device_name, Properties&&... properties) {
-        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
-            return compile_model(model_path.wstring(), device_name, std::forward<Properties>(properties)...);
-        else
-            return compile_model(model_path.string(), device_name, std::forward<Properties>(properties)...);
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const Path& model_path,
+                                                                           const std::string& device_name,
+                                                                           Properties&&... properties) {
+        return compile_model(model_path, device_name, AnyMap{std::forward<Properties>(properties)...});
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
