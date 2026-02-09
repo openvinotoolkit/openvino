@@ -66,7 +66,7 @@ SyncInferRequest::SyncInferRequest(CompiledModelHolder compiled_model)
 }
 
 void SyncInferRequest::create_infer_request() {
-    m_profiling_task = openvino::itt::handle("INTEL_CPU_INFER_" + m_compiled_model.name() + "_" +
+    m_profiling_task = openvino::itt::handle("SyncInferenceCPU::" + m_compiled_model.name() + ":" +
                                              std::to_string(m_compiled_model.id()));
 
     // Alocate memory for each tensor if static shape
@@ -103,8 +103,7 @@ void SyncInferRequest::update_external_tensor_ptrs() {
 }
 
 void SyncInferRequest::infer() {
-    OV_ITT_SCOPED_REGION_BASE(itt::domains::ov_intel_cpu,
-                              std::string("SyncInferenceRequest:") + m_compiled_model.name());
+    OV_ITT_SCOPED_REGION_BASE(itt::domains::ov_intel_cpu, m_profiling_task);
     auto graphLock = m_compiled_model.lock();
     auto&& graph = graphLock._graph;
     auto message = ov::threading::message_manager();
