@@ -21,7 +21,7 @@ public:
      * @param metrics - reference ptr to the metrics object of the parent object (PLUGIN only)
      */
     Properties(const PropertiesType pType,
-               FilteredConfig& config,
+               const FilteredConfig& config,
                const std::shared_ptr<Metrics>& metrics = nullptr,
                const ov::SoPtr<IEngineBackend>& backend = {nullptr});
 
@@ -57,11 +57,32 @@ public:
      */
     bool isPropertyRegistered(const std::string& propertyName) const;
 
+    /**
+     * @brief Marks config as initialized
+     */
+    void markAsInitialized();
+
+    /**
+     * @brief Checks whether config was initialized
+     */
+    bool wasInitialized() const;
+
+    void enable(std::string key, bool enable);
+
+    /**
+     * @brief Get a const reference to the stored config
+     */
+    const FilteredConfig& getConfig() const {
+        return _config;
+    }
+
 private:
     PropertiesType _pType;
-    FilteredConfig& _config;
+    FilteredConfig _config;
     std::shared_ptr<Metrics> _metrics;
     ov::SoPtr<IEngineBackend> _backend;
+
+    bool _initialized = false;  ///< Boolean to check whether properties was filtered with compiler supported properties
 
     // properties map: {name -> [supported, mutable, eval function]}
     std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;

@@ -255,18 +255,18 @@ int get_ir_version(const std::shared_ptr<const ov::Model>& model, const intel_np
 
 namespace intel_npu {
 
-Plugin::Plugin()
-    : _options(std::make_shared<OptionsDesc>()),
-      _globalConfig(_options),
-      _logger("NPUPlugin", Logger::global().level()) {
+Plugin::Plugin() : _options(std::make_shared<OptionsDesc>()), _logger("NPUPlugin", Logger::global().level()) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
     set_device_name("NPU");
 
     // parse env_variables to get LOG_LEVEL if needed
     _options->add<LOG_LEVEL>();
-    _globalConfig.parseEnvVars();
-    Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
-    _logger.setLevel(_globalConfig.get<LOG_LEVEL>());
+
+    FilteredConfig filteredConfig(_options);
+
+    filteredConfig.parseEnvVars();
+    Logger::global().setLevel(filteredConfig.get<LOG_LEVEL>());
+    _logger.setLevel(filteredConfig.get<LOG_LEVEL>());
 
     OV_ITT_TASK_CHAIN(PLUGIN, itt::domains::NPUPlugin, "Plugin::Plugin", "GetBackend");
     // backend registry shall be created after configs are updated
@@ -282,15 +282,15 @@ Plugin::Plugin()
     _metrics = std::make_unique<Metrics>(_backend);
 
     OV_ITT_TASK_NEXT(PLUGIN, "InitOptions");
-    init_options();
+    init_options(filteredConfig);
 
     /// Init and register properties
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
-    _properties = std::make_unique<Properties>(PropertiesType::PLUGIN, _globalConfig, _metrics, _backend);
+    _properties = std::make_unique<Properties>(PropertiesType::PLUGIN, filteredConfig, _metrics, _backend);
     _properties->registerProperties();
 }
 
-void Plugin::init_options() {
+void Plugin::init_options(FilteredConfig& filteredConfig) {
     // Initialize (note: it will reset registered options)
     _options->reset();
 
@@ -299,7 +299,7 @@ void Plugin::init_options() {
         auto dummyopt = details::makeOptionModel<OPT_TYPE>(); \
         std::string o_name = dummyopt.key().data();           \
         _options->add<OPT_TYPE>();                            \
-        _globalConfig.enable(std::move(o_name), false);       \
+        filteredConfig.enable(std::move(o_name), false);      \
     } while (0)
 
     REGISTER_OPTION(LOG_LEVEL);
@@ -362,7 +362,7 @@ void Plugin::init_options() {
     }
 
     // parse again env_variables to update registered configs which have env vars set
-    _globalConfig.parseEnvVars();
+    filteredConfig.parseEnvVars();
 
     // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
     // to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching properties
@@ -431,12 +431,12 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_KOKORO_BLOCK_SIZE);
     REGISTER_OPTION(NPUW_KOKORO_OVERLAP_SIZE);
 
-    _globalConfig.enableRuntimeOptions();
+    filteredConfig.enableRuntimeOptions();
 
     // Special cases
-    _globalConfig.enable(ov::log::level.name(), true);  // needed also by runtime options
+    filteredConfig.enable(ov::log::level.name(), true);  // needed also by runtime options
 
-    if (_globalConfig.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
+    if (filteredConfig.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
         if (_backend && _backend->getDevice()) {
             auto device = _backend->getDevice();
             if (device) {
@@ -445,7 +445,7 @@ void Plugin::init_options() {
                     platformName == ov::intel_npu::Platform::AUTO_DETECT) {
                     std::ostringstream oss;
                     oss << ov::intel_npu::CompilerType::DRIVER;
-                    _globalConfig.update({{ov::intel_npu::compiler_type.name(), oss.str()}});
+                    filteredConfig.update({{ov::intel_npu::compiler_type.name(), oss.str()}});
                     _logger.info("Use %s as default compiler", oss.str().c_str());
                 }
             }
@@ -453,7 +453,7 @@ void Plugin::init_options() {
     }
 }
 
-void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg,
+void Plugin::filter_config_by_compiler_support(const std::unique_ptr<Properties>& properties,
                                                const std::unique_ptr<ICompilerAdapter>& compiler) const {
     bool legacy = false;
     std::vector<std::string> compiler_support_list{};
@@ -475,6 +475,8 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg,
         _logger.debug("    %s ", str.c_str());
     }
     _logger.debug("Legacy registration: %s", legacy ? "true" : "false");
+
+    FilteredConfig cfg = properties->getConfig();
 
     // Parse enables
     cfg.walkEnables([&](const std::string& key) {
@@ -516,7 +518,7 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg,
             _logger.debug("Enabled config option %s", key.c_str());
         }
         // update enable flag
-        cfg.enable(key, isEnabled);
+        properties->enable(key, isEnabled);
     });
 
     // Special case for NPU_TURBO which might not be supported by compiler, but driver will still use it
@@ -524,14 +526,17 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg,
     // if compiler->is_option_suported is false = compiler doesn't support it and gets marked disabled by default logic
     // however, if driver supports it, we still need it (and will skip giving it to compiler) = force-enable
     if (_backend && _backend->isCommandQueueExtSupported()) {
-        cfg.enable(ov::intel_npu::turbo.name(), true);
+        properties->enable(ov::intel_npu::turbo.name(), true);
     }
+
+    // reset properties for the new options
+    properties->registerProperties();
 }
 
 void Plugin::filter_global_config_safe(const std::unique_ptr<Properties>& properties,
-                                       FilteredConfig& cfg,
                                        const ov::AnyMap& arguments) const {
     std::lock_guard<std::mutex> lock(_mutex);
+    FilteredConfig cfg = properties->getConfig();
     auto compilerType = resolveCompilerType(cfg, arguments);
     auto platform = resolvePlatformOption(cfg, arguments);
     auto deviceId = resolveDeviceIdOption(cfg, arguments);
@@ -556,7 +561,7 @@ void Plugin::filter_global_config_safe(const std::unique_ptr<Properties>& proper
         }
     }
 
-    if (!cfg.wasInitialized() || changeCompiler || argumentNotRegistered) {
+    if (!properties->wasInitialized() || changeCompiler || argumentNotRegistered) {
         std::unique_ptr<ICompilerAdapter> compiler = nullptr;
         try {
             // create a compiler to fetch version and supported options
@@ -574,11 +579,9 @@ void Plugin::filter_global_config_safe(const std::unique_ptr<Properties>& proper
         }
 
         // filter out unsupported options
-        filter_config_by_compiler_support(cfg, compiler);
-        // reset properties for the new options
-        properties->registerProperties();
-        // set globalConfig as filtered
-        cfg.markAsInitialized();
+        filter_config_by_compiler_support(properties, compiler);
+        // set config as filtered
+        properties->markAsInitialized();
     }
 }
 
@@ -591,35 +594,29 @@ FilteredConfig Plugin::fork_local_config(const ov::AnyMap& properties,
         _backend->updateInfo(properties);
     }
 
-    // create a copy of the global config
-    std::unique_ptr<FilteredConfig>
-        localConfigPtr;  // no default constructor from FilteredConfig, needed to switch to ptr
-    {
-        std::lock_guard<std::mutex> lock(_mutex);
-        localConfigPtr = std::make_unique<FilteredConfig>(_globalConfig);
-    }
-
     auto local_properties = std::make_unique<Properties>(*_properties);
-    filter_global_config_safe(local_properties, *localConfigPtr, properties);
+    filter_global_config_safe(local_properties, properties);
+
+    FilteredConfig localConfig = local_properties->getConfig();
 
     const std::map<std::string, std::string> rawConfig = any_copy(properties);
 
     std::map<std::string, std::string> cfgs_to_set;
     for (const auto& [key, value] : rawConfig) {
-        if (!localConfigPtr->hasOpt(key)) {
+        if (!localConfig.hasOpt(key)) {
             // not a known config key
             if (!compiler->is_option_supported(key)) {
                 OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
             } else {
-                localConfigPtr->addOrUpdateInternal(key, value);
+                localConfig.addOrUpdateInternal(key, value);
             }
         } else {
             cfgs_to_set.emplace(key, value);
         }
     }
 
-    localConfigPtr->update(cfgs_to_set, mode);
-    return *localConfigPtr;
+    localConfig.update(cfgs_to_set, mode);
+    return localConfig;
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
@@ -628,7 +625,7 @@ void Plugin::set_property(const ov::AnyMap& properties) {
     }
 
     // 1. Filter global config
-    filter_global_config_safe(_properties, _globalConfig, properties);
+    filter_global_config_safe(_properties, properties);
 
     // 2. Set the property via Properties interface
     _properties->set_property(properties);
@@ -636,7 +633,7 @@ void Plugin::set_property(const ov::AnyMap& properties) {
     // 3. Extra hooks
     // Update log level if it was provided
     if (properties.count(ov::log::level.name()) != 0) {
-        Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
+        Logger::global().setLevel(_properties->getConfig().get<LOG_LEVEL>());
     }
     // Init backends if needed
     if (_backend != nullptr) {
@@ -650,22 +647,13 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
 
     if (!npu_plugin_properties.empty()) {
         auto local_properties = std::make_unique<Properties>(*_properties);
-
-        // create a copy of the global config
-        std::unique_ptr<FilteredConfig>
-            localConfigPtr;  // no default constructor from FilteredConfig, needed to switch to ptr
-        {
-            std::lock_guard<std::mutex> lock(_mutex);
-            localConfigPtr = std::make_unique<FilteredConfig>(_globalConfig);
-        }
-
-        filter_global_config_safe(local_properties, *localConfigPtr, npu_plugin_properties);
+        filter_global_config_safe(local_properties, npu_plugin_properties);
 
         return local_properties->get_property(name, npu_plugin_properties);
     }
 
     if ((!_properties->isPropertyRegistered(name) || name == ov::supported_properties.name())) {
-        filter_global_config_safe(_properties, _globalConfig, npu_plugin_properties);
+        filter_global_config_safe(_properties, npu_plugin_properties);
     }
 
     return _properties->get_property(name);
@@ -725,9 +713,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     update_log_level(localProperties);
 
     // create compiler
-    ov::intel_npu::CompilerType compilerType = resolveCompilerType(_globalConfig, localProperties);
+    ov::intel_npu::CompilerType compilerType = resolveCompilerType(_properties->getConfig(), localProperties);
     const bool wasPreferPlugin = (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN);
-    auto deviceId = resolveDeviceIdOption(_globalConfig, localProperties);
+    auto deviceId = resolveDeviceIdOption(_properties->getConfig(), localProperties);
     std::shared_ptr<IDevice> device = nullptr;
     try {
         device = _backend == nullptr ? nullptr : _backend->getDevice(deviceId);
@@ -736,7 +724,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     const auto platform =
-        utils::getCompilationPlatform(resolvePlatformOption(_globalConfig, localProperties),
+        utils::getCompilationPlatform(resolvePlatformOption(_properties->getConfig(), localProperties),
                                       device == nullptr ? deviceId : device->getName(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
@@ -967,11 +955,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         const bool skipCompatibility =
             (npu_plugin_properties.find(DISABLE_VERSION_CHECK::key().data()) != npu_plugin_properties.end())
                 ? npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()].as<bool>()
-                : _globalConfig.get<DISABLE_VERSION_CHECK>();
+                : _properties->getConfig().get<DISABLE_VERSION_CHECK>();
         const bool importRawBlob =
             (npu_plugin_properties.find(IMPORT_RAW_BLOB::key().data()) != npu_plugin_properties.end())
                 ? npu_plugin_properties[IMPORT_RAW_BLOB::key().data()].as<bool>()
-                : _globalConfig.get<IMPORT_RAW_BLOB>();
+                : _properties->getConfig().get<IMPORT_RAW_BLOB>();
         std::unique_ptr<MetadataBase> metadata = nullptr;
         size_t blobSize = MetadataBase::getFileSize(stream);
 
@@ -1013,8 +1001,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
                                                          const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
 
-    std::cout << "Start import" << std::endl;
-
     // Need to create intermediate istream for NPUW
     ov::SharedStreamBuffer buffer{compiled_blob.data(), compiled_blob.get_byte_size()};
     std::istream stream{&buffer};
@@ -1030,11 +1016,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
         const bool skipCompatibility =
             (npu_plugin_properties.find(DISABLE_VERSION_CHECK::key().data()) != npu_plugin_properties.end())
                 ? npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()].as<bool>()
-                : _globalConfig.get<DISABLE_VERSION_CHECK>();
+                : _properties->getConfig().get<DISABLE_VERSION_CHECK>();
         const bool importRawBlob =
             (npu_plugin_properties.find(IMPORT_RAW_BLOB::key().data()) != npu_plugin_properties.end())
                 ? npu_plugin_properties[IMPORT_RAW_BLOB::key().data()].as<bool>()
-                : _globalConfig.get<IMPORT_RAW_BLOB>();
+                : _properties->getConfig().get<IMPORT_RAW_BLOB>();
         std::unique_ptr<MetadataBase> metadata = nullptr;
         size_t blobSize = compiled_blob.get_byte_size();
 
@@ -1097,10 +1083,10 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     exclude_model_ptr_from_map(localProperties);
     update_log_level(localProperties);
 
-    ov::intel_npu::CompilerType compilerType = resolveCompilerType(_globalConfig, localProperties);
+    ov::intel_npu::CompilerType compilerType = resolveCompilerType(_properties->getConfig(), localProperties);
     const bool wasPreferPlugin = (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN);
 
-    auto deviceId = resolveDeviceIdOption(_globalConfig, localProperties);
+    auto deviceId = resolveDeviceIdOption(_properties->getConfig(), localProperties);
     std::shared_ptr<IDevice> device = nullptr;
     try {
         device = _backend == nullptr ? nullptr : _backend->getDevice(deviceId);
@@ -1109,7 +1095,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     }
 
     const auto platform =
-        utils::getCompilationPlatform(resolvePlatformOption(_globalConfig, localProperties),
+        utils::getCompilationPlatform(resolvePlatformOption(_properties->getConfig(), localProperties),
                                       device == nullptr ? deviceId : device->getName(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
@@ -1174,10 +1160,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     update_log_level(localProperties);
 
-    ov::intel_npu::CompilerType compilerType = resolveCompilerType(_globalConfig, localProperties);
+    ov::intel_npu::CompilerType compilerType = resolveCompilerType(_properties->getConfig(), localProperties);
     const bool wasPreferPlugin = (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN);
 
-    auto deviceId = resolveDeviceIdOption(_globalConfig, localProperties);
+    auto deviceId = resolveDeviceIdOption(_properties->getConfig(), localProperties);
     std::shared_ptr<IDevice> device = nullptr;
     try {
         device = _backend == nullptr ? nullptr : _backend->getDevice(deviceId);
@@ -1186,7 +1172,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     }
 
     const auto platform =
-        utils::getCompilationPlatform(resolvePlatformOption(_globalConfig, localProperties),
+        utils::getCompilationPlatform(resolvePlatformOption(_properties->getConfig(), localProperties),
                                       device == nullptr ? deviceId : device->getName(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 

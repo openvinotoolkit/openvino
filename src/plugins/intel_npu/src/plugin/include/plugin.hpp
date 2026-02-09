@@ -65,11 +65,9 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
-    void init_options();
-    void filter_global_config_safe(const std::unique_ptr<Properties>& properties,
-                                   FilteredConfig& cfg,
-                                   const ov::AnyMap& arguments) const;
-    void filter_config_by_compiler_support(FilteredConfig& cfg,
+    void init_options(FilteredConfig& filteredConfig);
+    void filter_global_config_safe(const std::unique_ptr<Properties>& properties, const ov::AnyMap& arguments) const;
+    void filter_config_by_compiler_support(const std::unique_ptr<Properties>& properties,
                                            const std::unique_ptr<ICompilerAdapter>& compiler) const;
     FilteredConfig fork_local_config(const ov::AnyMap& properties,
                                      const std::unique_ptr<ICompilerAdapter>& compiler,
@@ -98,7 +96,6 @@ private:
     ov::SoPtr<IEngineBackend> _backend;
 
     std::shared_ptr<OptionsDesc> _options;
-    mutable FilteredConfig _globalConfig;
     mutable Logger _logger;
     std::shared_ptr<Metrics> _metrics;
     std::unique_ptr<Properties> _properties;

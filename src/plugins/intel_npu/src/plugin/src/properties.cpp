@@ -300,7 +300,7 @@ static int64_t getOptimalNumberOfInferRequestsInParallel(const Config& config) {
 }
 
 Properties::Properties(const PropertiesType pType,
-                       FilteredConfig& config,
+                       const FilteredConfig& config,
                        const std::shared_ptr<Metrics>& metrics,
                        const ov::SoPtr<IEngineBackend>& backend)
     : _pType(pType),
@@ -759,6 +759,18 @@ void Properties::set_property(const ov::AnyMap& properties) {
 
 bool Properties::isPropertyRegistered(const std::string& propertyName) const {
     return _properties.find(propertyName) != _properties.end();
+}
+
+void Properties::markAsInitialized() {
+    _initialized = true;
+}
+
+bool Properties::wasInitialized() const {
+    return _initialized;
+}
+
+void Properties::enable(std::string key, bool enable) {
+    _config.enable(key, enable);
 }
 
 }  // namespace intel_npu
