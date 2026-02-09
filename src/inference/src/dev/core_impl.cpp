@@ -921,7 +921,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::filesystem:
         const auto lock = m_cache_guard.get_hash_lock(cache_content.m_blob_id);
         compiled_model = load_model_from_cache(cache_content, plugin, parsed.m_config, {}, [&]() {
             const auto model =
-                util::read_model(util::make_path(model_path), "", get_extensions_copy(), parsed.m_core_config.get_enable_mmap());
+                util::read_model(model_path, "", get_extensions_copy(), parsed.m_core_config.get_enable_mmap());
             return compile_model_and_cache(plugin, model, parsed.m_config, {}, cache_content);
         });
     } else {
