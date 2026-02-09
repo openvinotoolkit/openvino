@@ -246,8 +246,7 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const MatMulAttrs& attrs,
     // by default fp16 matmul ACL kernels accumulate into fp32
     // the default behaviour is changed by using f16 accumulator to improve performance
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    if (srcDesc->getPrecision() == ov::element::f16 &&
-        weiDesc->getPrecision() == ov::element::f16 &&
+    if (srcDesc->getPrecision() == ov::element::f16 && weiDesc->getPrecision() == ov::element::f16 &&
         dstDesc->getPrecision() == ov::element::f16) {
         primAttrs.attr.set_accumulation_mode(dnnl::accumulation_mode::f16);
     }
