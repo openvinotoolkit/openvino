@@ -49,6 +49,7 @@ DynamicPipeline::DynamicPipeline(const Config& config,
     : Pipeline(config, init_structs, graph, input_tensors, output_tensors, "DynamicPipeline", batch_size) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::DynamicPipeline::DynamicPipeline");
 
+    
     _logger.debug("DynamicPipeline - initialize started, number_of_command_lists %i", _number_of_command_lists);
 
     intel_npu::IDynamicGraph* dynamicGraph = dynamic_cast<intel_npu::IDynamicGraph*>(graph.get());
@@ -73,6 +74,17 @@ DynamicPipeline::DynamicPipeline(const Config& config,
     if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
         _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         _graph->resize_last_submitted_event(_number_of_command_lists);
+    }
+
+    auto reuseCmdList = getenv("ENABLED_HOST_COMPILE_REUSE_CMDLIST");
+    if (reuseCmdList != nullptr) {
+        if (std::string(reuseCmdList) == "1")
+            _reuseCmdListMode = ENABLE_REUSE_WITH_MUTABLE_COMMANDLIST;
+        else if (std::string(reuseCmdList) == "2")
+            _reuseCmdListMode = ENABLE_REUSE_WITHOUT_MUTATING_COMMANDLIST;
+        else {
+            _reuseCmdListMode = DISABLE_EXECUTION_CONTEXT_CREATION;
+        }
     }
 
     OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>() ||
@@ -294,6 +306,7 @@ void DynamicPipeline::push() {
                     );
             isFirst = false;
         } else {
+
             auto& cmdLists = command_lists->_commandListHandles;
             if (_reuseCmdListMode == ENABLE_REUSE_WITH_MUTABLE_COMMANDLIST) {
                 
