@@ -64,23 +64,24 @@ Pipeline::Pipeline(const Config& config,
                     "In-order execution doesn't work in case synchronization of the inferences is done using events");
 
     bool perf_count_enabled = _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>();
-    std::optional<bool> compiled_with_profiling;
+    std::optional<bool> compiled_with_profiling = graph->is_profiling_blob();
 
     if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
         if (perf_count_enabled) {
             _logger.debug("Profiling type == ov::intel_npu::ProfilingType::INFER");
             _npu_profiling =
                 std::make_shared<zeroProfiling::NpuInferProfiling>(_init_structs, _config.get<LOG_LEVEL>());
-        } else {
-            compiled_with_profiling = graph->is_profiling_blob();
             if (compiled_with_profiling.has_value() && compiled_with_profiling.value()) {
-                _logger.warning("Model was compiled with profiling enabled, PERF_COUNT is NOT set and timestamps will "
-                                "not be extracted");
+                _logger.warning(
+                    "Model was compiled with profiling enabled. Statistics and timestamps will be extracted");
                 enable_profiling();
             }
+        } else if (compiled_with_profiling.has_value() && compiled_with_profiling.value()) {
+            _logger.warning("Model was compiled with profiling enabled, PERF_COUNT is NOT set and timestamps will "
+                            "not be extracted");
+            enable_profiling();
         }
     } else {
-        compiled_with_profiling = graph->is_profiling_blob();
         if (compiled_with_profiling.has_value()) {
             if (perf_count_enabled && !compiled_with_profiling.value()) {
                 OPENVINO_THROW("Model was not compiled with profiling enabled");
@@ -93,11 +94,9 @@ Pipeline::Pipeline(const Config& config,
                 }
                 enable_profiling();
             }
-        } else {  // unable to determine if it was compiled with profiling enabled
-            if (perf_count_enabled) {
-                enable_profiling();
-            }  // else appendGraphExecute will fail in case the model was compiled with profiling enabled
-        }
+        } else if (perf_count_enabled) {  // unable to determine if it was compiled with profiling enabled
+            enable_profiling();
+        }  // else appendGraphExecute will fail in case the model was compiled with profiling enabled
     }
 
     if (!_sync_output_with_fences ||
