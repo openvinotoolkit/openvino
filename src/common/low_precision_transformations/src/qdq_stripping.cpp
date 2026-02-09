@@ -16,12 +16,14 @@
 #include "low_precision/network_helper.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
@@ -201,7 +203,7 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
     };
 
     bool model_changed = false;
-    float max_q_scale = 0.0f;
+    float max_y_scale = 0.0f;
 
     QDQ_DEBUG_LOG << "\n[ INFO ] === QDQ Stripping Pass ===" << std::endl;
     QDQ_DEBUG_LOG << "[ INFO ] Total nodes in graph: " << f->get_ops().size() << std::endl;
@@ -238,71 +240,84 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             continue;
         }
 
-        // Compute q_scale for this FQ
-        float input_low_val =
-            ov::as_type_ptr<ov::op::v0::Constant>(fq->input_value(1).get_node_shared_ptr())->cast_vector<float>()[0];
-        float input_high_val =
-            ov::as_type_ptr<ov::op::v0::Constant>(fq->input_value(2).get_node_shared_ptr())->cast_vector<float>()[0];
-        float output_low_val =
-            ov::as_type_ptr<ov::op::v0::Constant>(fq->input_value(3).get_node_shared_ptr())->cast_vector<float>()[0];
-        float output_high_val =
-            ov::as_type_ptr<ov::op::v0::Constant>(fq->input_value(4).get_node_shared_ptr())->cast_vector<float>()[0];
-        float input_range = input_high_val - input_low_val;
-        float output_range = output_high_val - output_low_val;
+        // Compute y_scale (dequantization scale) for this FQ using opset operations:
+        //   From QuantizeLinear -> FakeQuantize conversion (ONNX frontend):
+        //     input_low  = y_scale * (output_low  - zero_point)
+        //     input_high = y_scale * (output_high - zero_point)
+        //   Therefore:
+        //     y_scale (dequant scale) = (input_high - input_low) / (levels - 1)
+        //
+        //   We use (levels - 1) instead of (output_high - output_low) because
+        //   ConvertQuantizeDequantize may fold the Dequantize into the FQ,
+        //   making the output range no longer the integer type range.
+        //   The "levels" attribute always encodes the original integer range.
+        const auto& input_low = fq->input_value(1);
+        const auto& input_high = fq->input_value(2);
 
-        size_t levels = fq->get_levels();
-        float q_scale = (levels - 1) / input_range;
+        auto levels_minus_one_node = ov::op::v0::Constant::create(
+            input_high.get_element_type(), ov::Shape{}, {static_cast<float>(fq->get_levels() - 1)});
+        auto input_range_node =
+            ov::op::util::make_try_fold<ov::op::v1::Subtract>(input_high, input_low);
+        auto y_scale_node =
+            ov::op::util::make_try_fold<ov::op::v1::Divide>(input_range_node, levels_minus_one_node);
 
-        QDQ_DEBUG_LOG << "  [ DEBUG ] Input range: [" << input_low_val << ", " << input_high_val
-                      << "] = " << input_range << std::endl;
-        QDQ_DEBUG_LOG << "  [ DEBUG ] Output range: [" << output_low_val << ", " << output_high_val
-                      << "] = " << output_range << std::endl;
-        QDQ_DEBUG_LOG << "  [ DEBUG ] Q scale: " << q_scale << " (levels=" << levels << ")" << std::endl;
+        // Fold the subgraph to a constant and extract the scalar value
+        auto y_scale_const = ov::as_type_ptr<ov::op::v0::Constant>(y_scale_node);
+        if (!y_scale_const) {
+            QDQ_DEBUG_LOG << "  [ DEBUG ] Skipped: could not fold y_scale to a constant" << std::endl;
+            continue;
+        }
+        float y_scale = y_scale_const->cast_vector<float>()[0];
 
-        // Track max q_scale
-        if (q_scale > max_q_scale) {
-            max_q_scale = q_scale;
+        QDQ_DEBUG_LOG << "  [ DEBUG ] Input range: [" << get_const_float_value(input_low.get_node_shared_ptr()) << ", "
+                      << get_const_float_value(input_high.get_node_shared_ptr()) << "] = "
+                      << (get_const_float_value(input_high.get_node_shared_ptr()) -
+                          get_const_float_value(input_low.get_node_shared_ptr()))
+                      << std::endl;
+        QDQ_DEBUG_LOG << "  [ DEBUG ] Y scale (dequant scale): " << y_scale << " (levels=" << fq->get_levels() << ")" << std::endl;
+
+        if (y_scale > max_y_scale) {
+            max_y_scale = y_scale;
         }
 
-        // Remove the FQ
         QDQ_DEBUG_LOG << "  [ INFO ] Removing FQ: " << fq->get_friendly_name() << std::endl;
         OPENVINO_ASSERT(replace_output_update_name(fq->output(0), fq->input_value(0)), "FQ stripping failed");
         model_changed = true;
         QDQ_DEBUG_LOG << "========================================" << std::endl;
     }
 
-    QDQ_DEBUG_LOG << "  [ INFO ] Max q_scale across model: " << max_q_scale << std::endl;
+    QDQ_DEBUG_LOG << "  [ INFO ] Max y_scale (dequant scale) across model: " << max_y_scale << std::endl;
 
     // Dump model after FQ removal
     VISUALIZE_MODEL(visualize_folder, "02_after_fq_removal", "after FQ removal");
     SERIALIZE_MODEL(serialize_folder, "02_after_fq_removal", "after FQ removal");
 
     const auto threshold = 1.f;
-    if (max_q_scale <= threshold) {
+    if (max_y_scale <= threshold) {
         QDQ_DEBUG_LOG << "  [ INFO ] No scale adjustment needed, skipping" << std::endl;
     }
 
-    if (max_q_scale > threshold && scale_invariant_nodes.empty()) {
+    if (max_y_scale > threshold && scale_invariant_nodes.empty()) {
         QDQ_DEBUG_LOG << "  [ INFO ] Scale adjustment is needed, but no scale-invariant nodes found, so this stage "
                          "is skipped"
                       << std::endl;
     }
 
-    if (max_q_scale > threshold && !scale_invariant_nodes.empty()) {
+    if (max_y_scale > threshold && !scale_invariant_nodes.empty()) {
         QDQ_DEBUG_LOG << "\n======== Applying backward scale adjustment ========" << std::endl;
         std::unordered_set<ov::Node*> visited;
         auto skip_node_predicate = [](ov::Node* n) {
             return false;
         };
 
-        // Allow directly forcing scale_factor via environment variable
-        float scale_factor;
+        // Allow directly forcing scale_divisor via environment variable
+        float scale_divisor;
         auto force_scale_str = ov::util::getenv_string("OV_QDQ_FORCE_SCALE");
         if (!force_scale_str.empty()) {
             try {
-                scale_factor = std::stof(force_scale_str);
-                QDQ_DEBUG_LOG << "  [ INFO ] Using scale_factor directly from env: " << scale_factor
-                              << " (original max_q_scale: " << max_q_scale << ")" << std::endl;
+                scale_divisor = std::stof(force_scale_str);
+                QDQ_DEBUG_LOG << "  [ INFO ] Using scale_divisor directly from env: " << scale_divisor
+                              << " (original max_y_scale: " << max_y_scale << ")" << std::endl;
             } catch (const std::exception& e) {
                 QDQ_DEBUG_LOG << "  [ WARNING ] Invalid OV_QDQ_FORCE_SCALE value: " << force_scale_str
                               << ", falling back to multiplier approach" << std::endl;
@@ -310,25 +325,23 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             }
         }
 
-        // If not directly set, compute from max_q_scale with optional multiplier
-        if (force_scale_str.empty()) {
-            float max_q_scale_multiplier = 1.0f;
+        // If not directly set, compute from max_y_scale with optional multiplier
+        if (force_scale_str.empty()) {  
+            float max_y_scale_multiplier = 1.0f;
             auto multiplier_str = ov::util::getenv_string("OV_QDQ_SCALE_MULTIPLIER");
             if (!multiplier_str.empty()) {
                 try {
-                    max_q_scale_multiplier = std::stof(multiplier_str);
-                    QDQ_DEBUG_LOG << "  [ INFO ] Using max_q_scale multiplier from env: " << max_q_scale_multiplier
+                    max_y_scale_multiplier = std::stof(multiplier_str);
+                    QDQ_DEBUG_LOG << "  [ INFO ] Using max_y_scale multiplier from env: " << max_y_scale_multiplier
                                   << std::endl;
                 } catch (const std::exception& e) {
                     QDQ_DEBUG_LOG << "  [ WARNING ] Invalid OV_QDQ_SCALE_MULTIPLIER value: " << multiplier_str
                                   << ", using default 1.0" << std::endl;
                 }
             }
-            float adjusted_max_q_scale = max_q_scale * max_q_scale_multiplier;
-            scale_factor = 1 / adjusted_max_q_scale;
-            QDQ_DEBUG_LOG << "  [ INFO ] Adjusted max_q_scale: " << adjusted_max_q_scale
-                          << " (original: " << max_q_scale << " * " << max_q_scale_multiplier << ")" << std::endl;
-            QDQ_DEBUG_LOG << "  [ INFO ] Scale factor: " << scale_factor << std::endl;
+            scale_divisor = max_y_scale * max_y_scale_multiplier;
+            QDQ_DEBUG_LOG << "  [ INFO ] Scale divisor: " << scale_divisor
+                          << " (max_y_scale: " << max_y_scale << " * " << max_y_scale_multiplier << ")" << std::endl;
         }
 
         auto apply_scale_to_weight = [&](const ov::pass::pattern::PatternValueMap& pattern_map,
@@ -343,13 +356,13 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
                 return;
             }
 
-            QDQ_DEBUG_LOG << "        [ DEBUG ]     Scaling multiply " << old_multiply->get_friendly_name() << " by "
-                          << scale_factor << std::endl;
+            QDQ_DEBUG_LOG << "        [ DEBUG ]     Dividing multiply " << old_multiply->get_friendly_name() << " by "
+                          << scale_divisor << std::endl;
 
-            // Create new scaled constant
-            auto scale_const =
-                ov::op::v0::Constant::create(original_constant->get_output_element_type(0), {}, {scale_factor});
-            auto new_constant = ov::op::util::make_try_fold<ov::op::v1::Multiply>(original_constant, scale_const);
+            // Create new scaled constant: divide dequantization scale by scale_divisor
+            auto divisor_const =
+                ov::op::v0::Constant::create(original_constant->get_output_element_type(0), {}, {scale_divisor});
+            auto new_constant = ov::op::util::make_try_fold<ov::op::v1::Divide>(original_constant, divisor_const);
 
             // Create new multiply with the scaled constant
             auto new_multiply = old_multiply->clone_with_new_inputs({mul_input, new_constant});
