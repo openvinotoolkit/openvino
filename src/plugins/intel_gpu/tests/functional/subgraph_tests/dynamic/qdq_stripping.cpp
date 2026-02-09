@@ -3,6 +3,7 @@
 //
 
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -19,7 +20,9 @@
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "shared_test_classes/base/utils/ranges.hpp"
 
 namespace {
 using namespace ov::test;
@@ -86,6 +89,24 @@ public:
         }
         result << "Precision=" << input_precision << "_QuantPrecision=" << quantization_precision << "_Pattern=" << pattern_type;
         return result.str();
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        const auto& [input_shape, input_precision, quantization_precision, pattern_type] = GetParam();
+        // In "NeedScaling" cases we generate values which would cause overflow in f16 if quantization scales are not adjusted by FQStripping
+        if (pattern_type == PatternType::NeedScalingMulMatMul || pattern_type == PatternType::NeedScalingResidualBlock) {
+            inputs.clear();
+            auto itTargetShape = targetInputStaticShapes.begin();
+            for (const auto& param : function->get_parameters()) {
+                auto gen_data = ov::test::utils::rangeByType.get_range(quantization_precision);
+                gen_data.range = 65000;
+                auto tensor = ov::test::utils::create_and_fill_tensor(param->get_element_type(), *itTargetShape, gen_data);
+                inputs.insert({param, tensor});
+                itTargetShape++;
+            }
+        } else {
+            SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
+        }
     }
 
 protected:
@@ -195,7 +216,7 @@ protected:
         ov::ParameterVector params{param1, param2};
 
         // Weight DQ pattern: quantized constant -> convert -> subtract (zero point) -> multiply (scale)
-        auto common_constant = build_dq_subgraph(ov::element::i8, {}, 0.001f, 10, std::nullopt, std::vector<int>{100});
+        auto common_constant = build_dq_subgraph(ov::element::i8, {}, 0.1f, 10, std::nullopt, std::vector<int>{100});
 
         // param1 * common_constant
         auto mul1 = std::make_shared<ov::op::v1::Multiply>(param1, common_constant);
@@ -203,25 +224,30 @@ protected:
         // param2 * common_constant
         auto mul2 = std::make_shared<ov::op::v1::Multiply>(param2, common_constant);
 
+        // Add Softmax directly on mul1 as first output to detect overflow before MatMul clamps it
+        // If mul1 contains inf (due to f16 overflow), Softmax will produce NaN
+        auto softmax_mul1 = std::make_shared<ov::op::v8::Softmax>(mul1, -1);
+
         // MatMul
         auto matmul = std::make_shared<ov::op::v0::MatMul>(mul1, mul2, false, true);
 
-        // QDQ pattern
-        static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>> quantization_params{
-            {ov::element::Type_t::u16, {{0.f, 1000.f, 0.f, 65535.f, 0}, {-6244.578838348389f, 6347.373962402344f, 0.f, 65535.f, 32500}}},
-            {ov::element::Type_t::i16, {{-500.f, 500.f, -32768.f, 32767.f, 0}, {-6296.072483062744f, 6295.880317687988f, -32768.f, 32767.f, 0}}},
+        // y_scale = (input_high - input_low) / (levels - 1) ≈ 655350 / 65535 ≈ 10
+        // After DQ: quantized_value * 10 can reach ~655350, far beyond f16 max (65504)
+        // Without scale adjustment: Softmax receives inf -> exp(inf) = inf -> inf/inf = NaN
+        // With scale adjustment: weights are divided by ~10, keeping values in f16 range
+        static const std::unordered_map<ov::element::Type_t, QuantizationParams> quantization_params{
+            {ov::element::Type_t::u16, {0.f, 655350.f, 0.f, 65535.f, 0}},
+            {ov::element::Type_t::i16, {-327675.f, 327675.f, -32768.f, 32767.f, 0}},
         };
 
-        const auto& qp = quantization_params.at(quantization_precision).first;
+        const auto& qp = quantization_params.at(quantization_precision);
         auto fq = qp.build_fq(matmul);
         auto convert1 = std::make_shared<ov::op::v0::Convert>(fq, quantization_precision);
         auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
         auto dq = qp.build_dq(convert2, quantization_precision);
 
-        // Softmax
         auto softmax = std::make_shared<ov::op::v8::Softmax>(dq, -1);
-
-        auto model = std::make_shared<ov::Model>(ov::OutputVector{softmax}, params, "QDQStripping");
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{softmax_mul1, softmax}, params, "QDQStripping");
         return model;
     }
 
@@ -241,13 +267,16 @@ protected:
         auto bias1 = build_dq_subgraph(ov::element::i8, {32}, 0.001f, 0);
         auto conv1_biased = add_bias(conv1, bias1);
 
-        // QDQ pattern after first convolution
-        static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>> quantization_params{
-            {ov::element::Type_t::u16, {{0.f, 1000.f, 0.f, 65535.f, 0}, {-6244.578838348389f, 6347.373962402344f, 0.f, 65535.f, 32500}}},
-            {ov::element::Type_t::i16, {{-500.f, 500.f, -32768.f, 32767.f, 0}, {-6296.072483062744f, 6295.880317687988f, -32768.f, 32767.f, 0}}},
+        // y_scale = (input_high - input_low) / (levels - 1) ≈ 655350 / 65535 ≈ 10
+        // After DQ: quantized_value * 10 can reach ~655350, far beyond f16 max (65504)
+        // Without scale adjustment: Softmax receives inf -> exp(inf) = inf -> inf/inf = NaN
+        // With scale adjustment: weights are divided by ~10, keeping values in f16 range
+        static const std::unordered_map<ov::element::Type_t, QuantizationParams> quantization_params{
+            {ov::element::Type_t::u16, {0.f, 655350.f, 0.f, 65535.f, 0}},
+            {ov::element::Type_t::i16, {-327675.f, 327675.f, -32768.f, 32767.f, 0}},
         };
 
-        const auto& qp = quantization_params.at(quantization_precision).first;
+        const auto& qp = quantization_params.at(quantization_precision);
         auto fq = qp.build_fq(conv1_biased);
         auto convert1 = std::make_shared<ov::op::v0::Convert>(fq, quantization_precision);
         auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
@@ -289,7 +318,7 @@ protected:
         targetDevice = ov::test::utils::DEVICE_GPU;
         const auto& [input_shape, input_precision, quantization_precision, pattern_type] = GetParam();
 
-        // NeedScalingMulMatMul pattern has 2 parameters, SharedDQ has 1
+        // NeedScalingMulMatMul pattern has 2 parameters, others have 1
         if (pattern_type == PatternType::NeedScalingMulMatMul) {
             init_input_shapes({input_shape, input_shape});
         } else {
@@ -297,11 +326,13 @@ protected:
         }
 
         inType = outType = input_precision;
+        abs_threshold = 1;
+
+        // Force f16 inference precision to test FQTransformation scales adjustment (preventing overflow in f16 scenarios).
+        configuration[ov::hint::inference_precision.name()] = ov::element::f16.get_type_name();
 
         OPENVINO_ASSERT(quantization_precision == ov::element::i16 || quantization_precision == ov::element::u16,
                         "Only i16 and u16 quantization precisions are supported in the test");
-        abs_threshold = 1;
-
         switch (pattern_type) {
         case PatternType::SharedDQ:
             function = build_shared_dq_pattern(input_shape.first, quantization_precision);
