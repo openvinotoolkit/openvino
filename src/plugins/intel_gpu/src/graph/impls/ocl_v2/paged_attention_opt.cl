@@ -330,7 +330,7 @@ KERNEL(pa_sdpa_opt)(
             if (spec_num > 0 && token_idx >= past_len && token_idx < seq_len) {
                 const uint spec_offset = token_idx - past_len;
                 if (spec_offset < spec_num) {
-                    const uint qq_bias_base = cumulated_spec_num * spec_num * spec_num + seq_idx * spec_num;
+                    const uint qq_bias_base = cumulated_spec_num * spec_num + (seq_idx - subsequence_begin) * spec_num;
                     const uint qq_bias_offset = qq_bias_base + spec_offset;
                     if (qq_bias[qq_bias_offset] == 0) {
                         qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;

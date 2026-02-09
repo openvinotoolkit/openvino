@@ -627,12 +627,6 @@ public:
             auto sg_scale = get_pa_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS, get_kv_compressed(params));
             wgs.global = {total_tokens, heads_num, head_size * rtp->num_of_partitions * sg_scale};
             wgs.local = {1, 1, head_size * sg_scale};
-
-            /*if (desc->has_qq_bias) {
-                scalars.resize(1);
-                scalars[0].t = ScalarDescriptor::Types::UINT32;
-                scalars[0].v.u32 = static_cast<uint32_t>(rtp->paged_attention_speculative_validation_len);
-            }*/
         }};
     }
 };
@@ -1322,6 +1316,7 @@ public:
         const auto desc = params.typed_desc<paged_attention>();
         const bool has_scores_output = desc->has_scores_output();
         const bool has_rotated_blocks = desc->has_rotated_blocks;
+        const bool has_qq_bias = desc->has_qq_bias;
         const bool has_adaptive_rkv = desc->has_adaptive_rkv;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -1332,7 +1327,7 @@ public:
             add_stage(pa_sdpa_micro_gqa_single_token, params);
         }
 #endif
-        add_stage(kv_cache_reorder, params);
+
         add_stage(kv_cache_update, params);
         add_stage(pa_multi_token, params);
         add_stage(pa_multi_token_finalization, params);
@@ -1340,6 +1335,10 @@ public:
         add_stage(pa_gqa_single_token, params);
         add_stage(pa_single_token_finalization, params);
         add_stage(pa_sdpa_opt, params);
+
+        if (has_qq_bias) {
+            add_stage(kv_cache_reorder, params);
+        }
 
         if (has_rotated_blocks) {
             add_stage(kv_cache_rotate, params);

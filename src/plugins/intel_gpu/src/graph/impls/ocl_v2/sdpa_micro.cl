@@ -191,7 +191,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #if HAS_QQ_BIAS
         int qq_bias_num = qq_bias_begins[gws_mapping + 1] - qq_bias_begins[gws_mapping];
         int cumulated_spec_num = qq_bias_begins[gws_mapping];
-        //printf("qq_bias_num is %d, cumulated_spec_num is %d\n", qq_bias_num, cumulated_spec_num);
     #endif
 #if IS_PREFILL
     const int past_len = 0;
@@ -651,7 +650,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                 const int query_spec = query_base_local + i;
                 if (query_spec < 0 || query_spec >= qq_bias_num)
                     continue;
-                const int qq_off = (int)cumulated_spec_num * qq_bias_num * qq_bias_num + query_spec * qq_bias_num + key_spec;
+                const int qq_off = (int)cumulated_spec_num * qq_bias_num + (query_spec - subsequence_begin) * qq_bias_num + key_spec;
                 if (qq_bias[qq_off] == (QQ_BIAS_DATA_T)0) {
                     tile_access(S_tile, i0, j, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
                                 ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0) = -FLT_MAX;
