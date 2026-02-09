@@ -13,6 +13,7 @@
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
@@ -742,7 +743,13 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         // this keeps PA nodes at 25 inputs for models without it, so the GPU
         // plugin (which requires exactly 25 inputs) is not affected.
         if (optional_model_wide_params.find("token_type_ids") != optional_model_wide_params.end()) {
-            pa_arguments.insert(pa_arguments.begin() + 25, optional_model_wide_params.at("token_type_ids"));
+            auto param = optional_model_wide_params.at("token_type_ids");
+            // GenAI provides token_type_ids as {1, N} i64, but PA expects {B_token} i32.
+            // Insert Reshape (flatten 2D→1D) then Convert (i64→i32).
+            auto reshape_target = v0::Constant::create(element::i64, Shape{1}, {-1});
+            auto reshaped = std::make_shared<v1::Reshape>(param, reshape_target, false);
+            auto converted = std::make_shared<v0::Convert>(reshaped, element::i32);
+            pa_arguments.insert(pa_arguments.begin() + 25, converted);
             OPENVINO_ASSERT(pa_arguments.size() == 26);
         }
 

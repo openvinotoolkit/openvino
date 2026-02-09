@@ -2090,9 +2090,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             output_arkv_similarity.reset(outputs[2]);
         }
 
-        // Read token_type_ids for bidirectional attention within image token groups
+        // Read token_type_ids for bidirectional attention within image token groups.
+        // Reshape+Convert ops in the graph guarantee this arrives as i32 1D.
         if (inputs_size == 26 && !inputs[ID_TOKEN_TYPE_IDS]->getShape().hasZeroDims()) {
-            token_type_ids.reset(inputs[ID_TOKEN_TYPE_IDS]);  // [B_token]
+            token_type_ids.reset(inputs[ID_TOKEN_TYPE_IDS]);  // [B_token], i32
         }
 
         output_emb.reset(outputs[0]);

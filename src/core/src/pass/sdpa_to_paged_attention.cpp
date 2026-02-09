@@ -154,8 +154,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     // Detect token_type_ids in the model for bidirectional attention within image token groups (e.g. Gemma3 VLM).
     // token_type_ids is a standard tokenizer output: 0 = text token (causal), 1 = image token (bidirectional within group).
     if (auto token_type_ids_param = get_parameter(model, "token_type_ids")) {
-        token_type_ids_param->set_partial_shape(PartialShape{-1});
-        token_type_ids_param->set_element_type(element::i32);
+        token_type_ids_param->set_partial_shape(PartialShape{1, -1});
+        token_type_ids_param->set_element_type(element::i64);
         token_type_ids_param->validate_and_infer_types();
         optional_model_wide_params["token_type_ids"] = token_type_ids_param;
     }

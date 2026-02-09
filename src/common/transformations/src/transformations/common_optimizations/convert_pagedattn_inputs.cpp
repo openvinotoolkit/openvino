@@ -13,6 +13,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -52,8 +53,9 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, Upda
     auto adaptive_rkv_evictable_sizes = pattern::any_input(pattern::has_static_rank());
     auto adaptive_rkv_diversity_block_set_indices = pattern::any_input(pattern::has_static_rank());
     auto adaptive_rkv_diversity_block_set_indices_begins = pattern::any_input(pattern::has_static_rank());
+    auto token_type_ids = pattern::any_input(pattern::has_static_rank());
 
-    auto result =
+    auto result_25 =
         pattern::wrap_type<ov::op::PagedAttentionExtension>({Q,
                                                              K,
                                                              V,
@@ -79,6 +81,34 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, Upda
                                                              adaptive_rkv_evictable_sizes,
                                                              adaptive_rkv_diversity_block_set_indices,
                                                              adaptive_rkv_diversity_block_set_indices_begins});
+    auto result_26 =
+        pattern::wrap_type<ov::op::PagedAttentionExtension>({Q,
+                                                             K,
+                                                             V,
+                                                             key_cache_0,
+                                                             value_cache_0,
+                                                             past_lens,
+                                                             subsequence_begins,
+                                                             block_indices,
+                                                             block_indices_begins,
+                                                             scale,
+                                                             sliding_window,
+                                                             alibi_slopes,
+                                                             max_context_len,
+                                                             score_aggregation_window,
+                                                             rotated_block_indices,
+                                                             rotation_deltas,
+                                                             rotation_trig_lut,
+                                                             xattention_threshold,
+                                                             xattention_block_size,
+                                                             xattention_stride,
+                                                             sinks,
+                                                             adaptive_rkv_start_size,
+                                                             adaptive_rkv_evictable_sizes,
+                                                             adaptive_rkv_diversity_block_set_indices,
+                                                             adaptive_rkv_diversity_block_set_indices_begins,
+                                                             token_type_ids});
+    auto result = std::make_shared<pattern::op::Or>(OutputVector{result_25, result_26});
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto pa_op = m.get_match_root();
         auto key_cache = ov::as_type_ptr<v0::Parameter>(pa_op->get_input_node_shared_ptr(3));
