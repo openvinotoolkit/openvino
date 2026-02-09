@@ -1289,8 +1289,6 @@ RoPEFusionLtxVideo::RoPEFusionLtxVideo() {
         auto new_node = std::make_shared<ov::op::internal::RoPE>(new_args, config);
         new_node->set_friendly_name(root->get_friendly_name());
 
-        std::cerr << "[RoPEFusionLtxVideo] Created RoPE node: " << new_node->get_friendly_name() << std::endl;
-
         NodeVector matched_nodes;
         for (const auto& kv : pattern_map) {
             matched_nodes.push_back(kv.second.get_node_shared_ptr());
@@ -1300,7 +1298,6 @@ RoPEFusionLtxVideo::RoPEFusionLtxVideo() {
         ov::replace_node(root, new_node);
         register_new_node(new_node);
 
-        std::cerr << "[RoPEFusionLtxVideo] ✓✓✓ SUCCESS: RoPE fusion completed! ✓✓✓" << std::endl;
         return true;
     };
 
