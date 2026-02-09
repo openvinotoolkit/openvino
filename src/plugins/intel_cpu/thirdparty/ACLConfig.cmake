@@ -133,6 +133,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
 
     set(ARM_COMPUTE_SCONS_JOBS "8" CACHE STRING "Number of parallel threads to build ARM Compute Library")
     set(ARM_COMPUTE_SOURCE_DIR "${intel_cpu_thirdparty_SOURCE_DIR}/ComputeLibrary")
+    set(ARM_COMPUTE_AR "" CACHE STRING "Archiver executable to build ARM Compute Library")
 
     message(STATUS "Configure to build ${ARM_COMPUTE_SOURCE_DIR}")
 
@@ -175,6 +176,12 @@ elseif(NOT TARGET arm_compute::arm_compute)
             ov_arm_compute_add_option("toolchain_prefix" "${ANDROID_TOOLCHAIN_ROOT}/bin/llvm-")
 
             ov_arm_compute_add_option("compiler_prefix" "${ANDROID_TOOLCHAIN_ROOT}/bin/")
+
+            if(NOT ARM_COMPUTE_AR)
+                set(ARM_COMPUTE_AR "${ANDROID_TOOLCHAIN_ROOT}/bin/llvm-ar")
+            endif()
+            set(cmake_build_env
+                AR=${ARM_COMPUTE_AR} PARENT_SCOPE)
 
             set(extra_cc_flags "--target=${ANDROID_LLVM_TRIPLE}" PARENT_SCOPE)
             set(extra_flags "${extra_flags} --gcc-toolchain=${ANDROID_TOOLCHAIN_ROOT}" PARENT_SCOPE)
@@ -454,6 +461,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
         message(STATUS "  ANDROID_NDK=${ANDROID_NDK}")
         message(STATUS "  ANDROID_NDK_HOME=${ANDROID_NDK_HOME}")
         message(STATUS "  ANDROID_TOOLCHAIN_ROOT=${ANDROID_TOOLCHAIN_ROOT}")
+        message(STATUS "  ARM_COMPUTE_AR=${ARM_COMPUTE_AR}")
     endif()
     message(STATUS "  CMAKE_C_COMPILER=${CMAKE_C_COMPILER}")
     message(STATUS "  CMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}")
