@@ -180,8 +180,12 @@ elseif(NOT TARGET arm_compute::arm_compute)
             if(NOT ARM_COMPUTE_AR)
                 set(ARM_COMPUTE_AR "${ANDROID_TOOLCHAIN_ROOT}/bin/llvm-ar")
             endif()
-            set(cmake_build_env
-                AR=${ARM_COMPUTE_AR} PARENT_SCOPE)
+
+            if(ARM_COMPUTE_AR)
+                set(ARM_COMPUTE_AR "${ARM_COMPUTE_AR}" PARENT_SCOPE)
+                set(cmake_build_env
+                    AR=${ARM_COMPUTE_AR} PARENT_SCOPE)
+            endif()
 
             set(extra_cc_flags "--target=${ANDROID_LLVM_TRIPLE}" PARENT_SCOPE)
             set(extra_flags "${extra_flags} --gcc-toolchain=${ANDROID_TOOLCHAIN_ROOT}" PARENT_SCOPE)
