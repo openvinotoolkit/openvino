@@ -110,151 +110,38 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
         std::tie(target_device, configuration) = this->GetParam();
+        auto dynamicShapeModel = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
+        dynamicShapeModel->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
+
+        auto preprocessor = ov::preprocess::PrePostProcessor(dynamicShapeModel);
+        const auto inputs = dynamicShapeModel->inputs();
+        const auto outputs = dynamicShapeModel->outputs();
+
+        for (size_t i = 0; i < inputs.size(); i++) {
+            preprocessor.input(i).tensor().set_element_type(ov::element::f16);
+        }
+        for (size_t i = 0; i < outputs.size(); i++) {
+            preprocessor.output(i).tensor().set_element_type(ov::element::f16);
+        }
+        auto model = preprocessor.build();
+
+        MaxShape = {1, 16, 720, 1280};
+
         APIBaseTest::SetUp();
     }
 
 protected:
     std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
     ov::AnyMap configuration;
+    std::shared_ptr<ov::Model> model;
+    ov::Shape MaxShape;
+    const std::string inputName = "input1";
+    const std::string outputName = "output";
 };
 
-
-// Compile model, infer with min size
-TEST_P(InferWithHostCompileTests, DISABLED_CompileModelAndInferWithMinSize) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    auto model = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    // Reshape with dynamic dimension
-    model->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
-    ov::Shape MaxShape = {1, 16, 720, 1280};
-
-    const std::string inputName = "input1";
-    const std::string outputName = "output";
-
-    // create input tensor match the customized models
-    ov::Shape shape = {1, 16, 10, 1280};
-    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-    ov::CompiledModel execNetDynamic;
-    ov::InferRequest reqDynamic;
-
-    OV_ASSERT_NO_THROW(execNetDynamic = ie->compile_model(model, target_device, configuration));
-    OV_ASSERT_NO_THROW(reqDynamic = execNetDynamic.create_infer_request());
-    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-
-    ASSERT_TRUE(shape == reqDynamic.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic.get_output_tensor().get_shape())
-        << "Output tensor not has same shape with input tensor";
-}
-
-// Compile fail now
-// Compile model, infer with medium size
-TEST_P(InferWithHostCompileTests, DISABLED_CompileModelAndInferWithMediumSize) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    auto model = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    // Reshape with dynamic dimension
-    model->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
-    ov::Shape MaxShape = {1, 16, 720, 1280};
-
-    const std::string inputName = "input1";
-    const std::string outputName = "output";
-
-    // create input tensor match the customized models
-    ov::Shape shape = {1, 16, 600, 1280};
-    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-
-    ov::CompiledModel execNetDynamic;
-    OV_ASSERT_NO_THROW(execNetDynamic = ie->compile_model(model, target_device, configuration));
-    ov::InferRequest reqDynamic;
-    OV_ASSERT_NO_THROW(reqDynamic = execNetDynamic.create_infer_request());
-    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-    ASSERT_TRUE(shape == reqDynamic.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic.get_output_tensor().get_shape())
-        << "Output tensor not has same shape with input tensor";
-}
-
-// Compile fail now
-// Compile model, infer with min size
-TEST_P(InferWithHostCompileTests, DISABLED_CompileModelAndInferWithMaxSize) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    auto model = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    // Reshape with dynamic dimension
-    model->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
-    ov::Shape MaxShape = {1, 16, 720, 1280};
-
-    const std::string inputName = "input1";
-    const std::string outputName = "output";
-
-    // create input tensor match the customized models
-    ov::Shape shape = {1, 16, 720, 1280};
-    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-
-    ov::CompiledModel execNetDynamic;
-    OV_ASSERT_NO_THROW(execNetDynamic = ie->compile_model(model, target_device, configuration));
-    ov::InferRequest reqDynamic;
-    OV_ASSERT_NO_THROW(reqDynamic = execNetDynamic.create_infer_request());
-    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-    ASSERT_TRUE(shape == reqDynamic.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic.get_output_tensor().get_shape())
-        << "Output tensor not has same shape with input tensor";
-}
-
-// Plugin shall fix
-//  Compile model, process to fp16, set size smaller than min size
-TEST_P(InferWithHostCompileTests, CompileModelProcessToFp16WithRangeAndInferWithoutSet) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    auto dynamicShapeModel = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    dynamicShapeModel->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
-
-    // Have to process to fp16, otherwise compilation will fail
-    auto preprocessor = ov::preprocess::PrePostProcessor(dynamicShapeModel);
-    const auto inputs = dynamicShapeModel->inputs();
-    const auto outputs = dynamicShapeModel->outputs();
-
-    for (size_t i = 0; i < inputs.size(); i++) {
-        preprocessor.input(i).tensor().set_element_type(ov::element::f16);
-    }
-    for (size_t i = 0; i < outputs.size(); i++) {
-        preprocessor.output(i).tensor().set_element_type(ov::element::f16);
-    }
-    auto model = preprocessor.build();
-
-    ov::CompiledModel execNetDynamic;
-    OV_ASSERT_NO_THROW(execNetDynamic = ie->compile_model(model, target_device, configuration));
-    ov::InferRequest reqDynamic;
-    OV_ASSERT_NO_THROW(reqDynamic = execNetDynamic.create_infer_request());
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-}
-
-// Plugin need fix
 TEST_P(InferWithHostCompileTests, CompileModelProcessToFp16WithRangeAndInferWithoutSetUpdateShape) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    auto dynamicShapeModel = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    dynamicShapeModel->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
-
-    // Have to process to fp16, otherwise compilation will fail
-    auto preprocessor = ov::preprocess::PrePostProcessor(dynamicShapeModel);
-    const auto inputs = dynamicShapeModel->inputs();
-    const auto outputs = dynamicShapeModel->outputs();
-
-    for (size_t i = 0; i < inputs.size(); i++) {
-        preprocessor.input(i).tensor().set_element_type(ov::element::f16);
-    }
-    for (size_t i = 0; i < outputs.size(); i++) {
-        preprocessor.output(i).tensor().set_element_type(ov::element::f16);
-    }
-    auto model = preprocessor.build();
 
     ov::CompiledModel execNetDynamic;
     OV_ASSERT_NO_THROW(execNetDynamic = ie->compile_model(model, target_device, configuration));
@@ -271,25 +158,8 @@ TEST_P(InferWithHostCompileTests, CompileModelProcessToFp16WithRangeAndSyncInfer
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    auto dynamicShapeModel = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    dynamicShapeModel->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
-
-    // Have to process to fp16, otherwise compilation will fail
-    auto preprocessor = ov::preprocess::PrePostProcessor(dynamicShapeModel);
-    const auto inputs = dynamicShapeModel->inputs();
-    const auto outputs = dynamicShapeModel->outputs();
-
-    for (size_t i = 0; i < inputs.size(); i++) {
-        preprocessor.input(i).tensor().set_element_type(ov::element::f16);
-    }
-    for (size_t i = 0; i < outputs.size(); i++) {
-        preprocessor.output(i).tensor().set_element_type(ov::element::f16);
-    }
-    auto model = preprocessor.build();
-
     ov::CompiledModel execNetDynamic;
     OV_ASSERT_NO_THROW(execNetDynamic = ie->compile_model(model, target_device, configuration));
-
     const int inferReqNumber = 256;
     ov::InferRequest reqDynamic;
     ov::Tensor input_tensor;
@@ -302,144 +172,25 @@ TEST_P(InferWithHostCompileTests, CompileModelProcessToFp16WithRangeAndSyncInfer
     }
 }
 
-// Plugin shall fix
-//  Compile model, process to fp16, set size smaller than min size
-TEST_P(InferWithHostCompileTests, CompileModelProcessToFp16WithRangeAndInferWithIlegalSmallSize) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    auto dynamicShapeModel = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    dynamicShapeModel->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
-
-    // Have to process to fp16, otherwise compilation will fail
-    auto preprocessor = ov::preprocess::PrePostProcessor(dynamicShapeModel);
-    const auto inputs = dynamicShapeModel->inputs();
-    const auto outputs = dynamicShapeModel->outputs();
-
-    for (size_t i = 0; i < inputs.size(); i++) {
-        preprocessor.input(i).tensor().set_element_type(ov::element::f16);
-    }
-    for (size_t i = 0; i < outputs.size(); i++) {
-        preprocessor.output(i).tensor().set_element_type(ov::element::f16);
-    }
-    auto model = preprocessor.build();
-
-    ov::CompiledModel execNetDynamic;
-    OV_ASSERT_NO_THROW(execNetDynamic = ie->compile_model(model, target_device, configuration));
-    ov::InferRequest reqDynamic;
-    OV_ASSERT_NO_THROW(reqDynamic = execNetDynamic.create_infer_request());
-
-    const std::string inputName = "input1";
-    const std::string outputName = "output";
-
-    // create input tensor match the customized models
-    ov::Shape shape = {1, 16, 5, 1280};
-    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-    ASSERT_THROW(reqDynamic.set_tensor(inputName, inTensor), ov::Exception);
-}
-
-// Plugin shall fix
 // Compile model, process to fp16, set size larger than max size
 TEST_P(InferWithHostCompileTests, CompileModelProcessToFp16WithRangeAndInferWithIlegalMaxSize) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    auto dynamicShapeModel = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    dynamicShapeModel->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
-    ov::Shape MaxShape = {1, 16, 720, 1280};
-
-    // Have to process to fp16, otherwise compilation will fail
-    auto preprocessor = ov::preprocess::PrePostProcessor(dynamicShapeModel);
-    const auto inputs = dynamicShapeModel->inputs();
-    const auto outputs = dynamicShapeModel->outputs();
-
-    for (size_t i = 0; i < inputs.size(); i++) {
-        preprocessor.input(i).tensor().set_element_type(ov::element::f16);
-    }
-    for (size_t i = 0; i < outputs.size(); i++) {
-        preprocessor.output(i).tensor().set_element_type(ov::element::f16);
-    }
-    auto model = preprocessor.build();
-
     ov::CompiledModel execNetDynamic;
     OV_ASSERT_NO_THROW(execNetDynamic = ie->compile_model(model, target_device, configuration));
     ov::InferRequest reqDynamic;
     OV_ASSERT_NO_THROW(reqDynamic = execNetDynamic.create_infer_request());
-
-    const std::string inputName = "input1";
-    const std::string outputName = "output";
-
     // create input tensor match the customized models
     ov::Shape shape = {1, 16, 800, 1280};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     ASSERT_THROW(reqDynamic.set_tensor(inputName, inTensor), ov::Exception);
 }
 
-// Inference fail now
-// Compile model, process to fp16, infer with min size
-TEST_P(InferWithHostCompileTests, DISABLED_CompileModelProcessToFp16WithRangeAndInferWithMinSize) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    auto dynamicShapeModel = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    dynamicShapeModel->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
-    ov::Shape MaxShape = {1, 16, 720, 1280};
-
-    // Have to process to fp16, otherwise compilation will fail
-    auto preprocessor = ov::preprocess::PrePostProcessor(dynamicShapeModel);
-    const auto inputs = dynamicShapeModel->inputs();
-    const auto outputs = dynamicShapeModel->outputs();
-
-    for (size_t i = 0; i < inputs.size(); i++) {
-        preprocessor.input(i).tensor().set_element_type(ov::element::f16);
-    }
-    for (size_t i = 0; i < outputs.size(); i++) {
-        preprocessor.output(i).tensor().set_element_type(ov::element::f16);
-    }
-    auto model = preprocessor.build();
-
-    const std::string inputName = "input1";
-    const std::string outputName = "output";
-
-    // create input tensor match the customized models
-    ov::Shape shape = {1, 16, 10, 1280};
-    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-
-    ov::CompiledModel execNetDynamic;
-    OV_ASSERT_NO_THROW(execNetDynamic = ie->compile_model(model, target_device, configuration));
-    ov::InferRequest reqDynamic;
-    OV_ASSERT_NO_THROW(reqDynamic = execNetDynamic.create_infer_request());
-    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-    ASSERT_TRUE(shape == reqDynamic.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic.get_output_tensor().get_shape())
-        << "Output tensor not has same shape with input tensor";
-}
-
 // Compile model, process to fp16, infer with medium size
 TEST_P(InferWithHostCompileTests, CompileModelProcessToFp16WithRangeAndInferWithMediumSize) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    auto dynamicShapeModel = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    dynamicShapeModel->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
-    ov::Shape MaxShape = {1, 16, 720, 1280};
-
-    // Have to process to fp16, otherwise compilation will fail
-    auto preprocessor = ov::preprocess::PrePostProcessor(dynamicShapeModel);
-    const auto inputs = dynamicShapeModel->inputs();
-    const auto outputs = dynamicShapeModel->outputs();
-
-    for (size_t i = 0; i < inputs.size(); i++) {
-        preprocessor.input(i).tensor().set_element_type(ov::element::f16);
-    }
-    for (size_t i = 0; i < outputs.size(); i++) {
-        preprocessor.output(i).tensor().set_element_type(ov::element::f16);
-    }
-    auto model = preprocessor.build();
-
-    const std::string inputName = "input1";
-    const std::string outputName = "output";
 
     // create input tensor match the customized models
     ov::Shape shape = {1, 16, 600, 1280};
@@ -461,26 +212,6 @@ TEST_P(InferWithHostCompileTests, CompileModelProcessToFp16WithRangeAndInferWith
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    auto dynamicShapeModel = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    dynamicShapeModel->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
-    ov::Shape MaxShape = {1, 16, 720, 1280};
-
-    // Have to process to fp16, otherwise compilation will fail
-    auto preprocessor = ov::preprocess::PrePostProcessor(dynamicShapeModel);
-    const auto inputs = dynamicShapeModel->inputs();
-    const auto outputs = dynamicShapeModel->outputs();
-
-    for (size_t i = 0; i < inputs.size(); i++) {
-        preprocessor.input(i).tensor().set_element_type(ov::element::f16);
-    }
-    for (size_t i = 0; i < outputs.size(); i++) {
-        preprocessor.output(i).tensor().set_element_type(ov::element::f16);
-    }
-    auto model = preprocessor.build();
-
-    const std::string inputName = "input1";
-    const std::string outputName = "output";
-
     // create input tensor match the customized models
     ov::Shape shape = {1, 16, 720, 1280};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
@@ -496,91 +227,13 @@ TEST_P(InferWithHostCompileTests, CompileModelProcessToFp16WithRangeAndInferWith
         << "Output tensor not has same shape with input tensor";
 }
 
-// Compile model, process to fp16, infer with size from small to large
-TEST_P(InferWithHostCompileTests, CompileModelProcessToFp16WithRangeAndInferWithIncreasedSize) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    auto dynamicShapeModel = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    dynamicShapeModel->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
-    ov::Shape MaxShape = {1, 16, 720, 1280};
-
-    // Have to process to fp16, otherwise compilation will fail
-    auto preprocessor = ov::preprocess::PrePostProcessor(dynamicShapeModel);
-    const auto inputs = dynamicShapeModel->inputs();
-    const auto outputs = dynamicShapeModel->outputs();
-
-    for (size_t i = 0; i < inputs.size(); i++) {
-        preprocessor.input(i).tensor().set_element_type(ov::element::f16);
-    }
-    for (size_t i = 0; i < outputs.size(); i++) {
-        preprocessor.output(i).tensor().set_element_type(ov::element::f16);
-    }
-    auto model = preprocessor.build();
-
-    ov::CompiledModel execNetDynamic;
-    OV_ASSERT_NO_THROW(execNetDynamic = ie->compile_model(model, target_device, configuration));
-
-    const std::string inputName = "input1";
-    const std::string outputName = "output";
-
-    // create input tensor match the customized models
-    ov::Shape shape = {1, 16, 100, 1280};
-    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-
-    ov::InferRequest reqDynamic;
-    OV_ASSERT_NO_THROW(reqDynamic = execNetDynamic.create_infer_request());
-    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-    ASSERT_TRUE(shape == reqDynamic.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic.get_output_tensor().get_shape())
-        << "Output tensor not has same shape with input tensor";
-
-    // create input tensor match the customized models
-    ov::Shape shape2 = {1, 16, 360, 1280};
-    ov::Tensor inTensor2 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
-    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor2));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-    ASSERT_TRUE(shape2 == reqDynamic.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic.get_output_tensor().get_shape())
-        << "Output tensor of second inferrequest from model does not has same shape with input tensor";
-
-    ov::Shape shape3 = {1, 16, 600, 1280};
-    ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape3, 100, 0);
-    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor3));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-    ASSERT_TRUE(shape3 == reqDynamic.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic.get_output_tensor().get_shape())
-        << "Output tensor of second inferrequest from model does not update output tensor shape with larger shape";
-}
-
 // Compile model, process to fp16, infer with size from large to small
 TEST_P(InferWithHostCompileTests, CompileModelProcessToFp16WithRangeAndInferWithDecreasedSize) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    auto dynamicShapeModel = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    dynamicShapeModel->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
-    ov::Shape MaxShape = {1, 16, 720, 1280};
-
-    // Have to process to fp16, otherwise compilation will fail
-    auto preprocessor = ov::preprocess::PrePostProcessor(dynamicShapeModel);
-    const auto inputs = dynamicShapeModel->inputs();
-    const auto outputs = dynamicShapeModel->outputs();
-
-    for (size_t i = 0; i < inputs.size(); i++) {
-        preprocessor.input(i).tensor().set_element_type(ov::element::f16);
-    }
-    for (size_t i = 0; i < outputs.size(); i++) {
-        preprocessor.output(i).tensor().set_element_type(ov::element::f16);
-    }
-    auto model = preprocessor.build();
-
     ov::CompiledModel execNetDynamic;
     OV_ASSERT_NO_THROW(execNetDynamic = ie->compile_model(model, target_device, configuration));
-
-    const std::string inputName = "input1";
-    const std::string outputName = "output";
 
     // create input tensor match the customized models
     ov::Shape shape = {1, 16, 700, 1280};
@@ -612,307 +265,10 @@ TEST_P(InferWithHostCompileTests, CompileModelProcessToFp16WithRangeAndInferWith
         << "Output tensor of second inferrequest from model does not update output tensor shape with larger shape";
 }
 
-// Compile model, process to fp16, infer with random size
-TEST_P(InferWithHostCompileTests, CompileModelProcessToFp16WithRangeAndInferWithRandomSize) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    auto dynamicShapeModel = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    dynamicShapeModel->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
-    ov::Shape MaxShape = {1, 16, 720, 1280};
-
-    // Have to process to fp16, otherwise compilation will fail
-    auto preprocessor = ov::preprocess::PrePostProcessor(dynamicShapeModel);
-    const auto inputs = dynamicShapeModel->inputs();
-    const auto outputs = dynamicShapeModel->outputs();
-
-    for (size_t i = 0; i < inputs.size(); i++) {
-        preprocessor.input(i).tensor().set_element_type(ov::element::f16);
-    }
-    for (size_t i = 0; i < outputs.size(); i++) {
-        preprocessor.output(i).tensor().set_element_type(ov::element::f16);
-    }
-    auto model = preprocessor.build();
-
-    ov::CompiledModel execNetDynamic;
-    OV_ASSERT_NO_THROW(execNetDynamic = ie->compile_model(model, target_device, configuration));
-
-    const std::string inputName = "input1";
-    const std::string outputName = "output";
-
-    // create input tensor match the customized models
-    ov::Shape shape = {1, 16, 700, 1280};
-    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-
-    ov::InferRequest reqDynamic;
-    OV_ASSERT_NO_THROW(reqDynamic = execNetDynamic.create_infer_request());
-    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-    ASSERT_TRUE(shape == reqDynamic.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic.get_output_tensor().get_shape())
-        << "Output tensor not has same shape with input tensor";
-
-    // create input tensor match the customized models
-    ov::Shape shape2 = {1, 16, 350, 1280};
-    ov::Tensor inTensor2 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
-    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor2));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-    ASSERT_TRUE(shape2 == reqDynamic.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic.get_output_tensor().get_shape())
-        << "Output tensor of second inferrequest from model does not has same shape with input tensor";
-
-    ov::Shape shape3 = {1, 16, 500, 1280};
-    ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape3, 100, 0);
-    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor3));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-    ASSERT_TRUE(shape3 == reqDynamic.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic.get_output_tensor().get_shape())
-        << "Output tensor of second inferrequest from model does not update output tensor shape with larger shape";
-
-    ov::Shape shape4 = {1, 16, 100, 1280};
-    ov::Tensor inTensor4 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape4, 100, 0);
-    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor4));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-    ASSERT_TRUE(shape4 == reqDynamic.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic.get_output_tensor().get_shape())
-        << "Output tensor of second inferrequest from model does not update output tensor shape with larger shape";
-}
-
-// compiler complain about upper bound not set
-//  Compile model, process to fp16, infer with random size
-TEST_P(InferWithHostCompileTests, CompileModelProcessToFp16WithoutRangeAndInferWithRandomSize) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    auto dynamicShapeModel = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    dynamicShapeModel->reshape({{1, 16, ov::Dimension(), 1280}});
-    ov::Shape MaxShape = {1, 16, 720, 1280};
-
-    // Have to process to fp16, otherwise compilation will fail
-    auto preprocessor = ov::preprocess::PrePostProcessor(dynamicShapeModel);
-    const auto inputs = dynamicShapeModel->inputs();
-    const auto outputs = dynamicShapeModel->outputs();
-
-    for (size_t i = 0; i < inputs.size(); i++) {
-        preprocessor.input(i).tensor().set_element_type(ov::element::f16);
-    }
-    for (size_t i = 0; i < outputs.size(); i++) {
-        preprocessor.output(i).tensor().set_element_type(ov::element::f16);
-    }
-    auto model = preprocessor.build();
-
-    ov::CompiledModel execNetDynamic;
-    OV_ASSERT_NO_THROW(execNetDynamic = ie->compile_model(model, target_device, configuration));
-
-    const std::string inputName = "input1";
-    const std::string outputName = "output";
-
-    // create input tensor match the customized models
-    ov::Shape shape = {1, 16, 700, 1280};
-    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-
-    ov::InferRequest reqDynamic;
-    OV_ASSERT_NO_THROW(reqDynamic = execNetDynamic.create_infer_request());
-    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-    ASSERT_TRUE(shape == reqDynamic.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic.get_output_tensor().get_shape())
-        << "Output tensor not has same shape with input tensor";
-
-    // create input tensor match the customized models
-    ov::Shape shape2 = {1, 16, 350, 1280};
-    ov::Tensor inTensor2 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
-    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor2));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-    ASSERT_TRUE(shape2 == reqDynamic.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic.get_output_tensor().get_shape())
-        << "Output tensor of second inferrequest from model does not has same shape with input tensor";
-
-    ov::Shape shape3 = {1, 16, 500, 1280};
-    ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape3, 100, 0);
-    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor3));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-    ASSERT_TRUE(shape3 == reqDynamic.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic.get_output_tensor().get_shape())
-        << "Output tensor of second inferrequest from model does not update output tensor shape with larger shape";
-
-    ov::Shape shape4 = {1, 16, 100, 1280};
-    ov::Tensor inTensor4 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape4, 100, 0);
-    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor4));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-    ASSERT_TRUE(shape4 == reqDynamic.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic.get_output_tensor().get_shape())
-        << "Output tensor of second inferrequest from model does not update output tensor shape with larger shape";
-}
-
-// Compile model, process to fp16, infer with random size
-TEST_P(InferWithHostCompileTests, CompileModelProcessToFp16WithN1AndInferWithRandomSize) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    auto dynamicShapeModel = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    dynamicShapeModel->reshape({{1, 16, -1, 1280}});
-    ov::Shape MaxShape = {1, 16, 720, 1280};
-
-    // Have to process to fp16, otherwise compilation will fail
-    auto preprocessor = ov::preprocess::PrePostProcessor(dynamicShapeModel);
-    const auto inputs = dynamicShapeModel->inputs();
-    const auto outputs = dynamicShapeModel->outputs();
-
-    for (size_t i = 0; i < inputs.size(); i++) {
-        preprocessor.input(i).tensor().set_element_type(ov::element::f16);
-    }
-    for (size_t i = 0; i < outputs.size(); i++) {
-        preprocessor.output(i).tensor().set_element_type(ov::element::f16);
-    }
-    auto model = preprocessor.build();
-
-    ov::CompiledModel execNetDynamic;
-    OV_ASSERT_NO_THROW(execNetDynamic = ie->compile_model(model, target_device, configuration));
-
-    const std::string inputName = "input1";
-    const std::string outputName = "output";
-
-    // create input tensor match the customized models
-    ov::Shape shape = {1, 16, 700, 1280};
-    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-
-    ov::InferRequest reqDynamic;
-    OV_ASSERT_NO_THROW(reqDynamic = execNetDynamic.create_infer_request());
-    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-    ASSERT_TRUE(shape == reqDynamic.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic.get_output_tensor().get_shape())
-        << "Output tensor not has same shape with input tensor";
-
-    // create input tensor match the customized models
-    ov::Shape shape2 = {1, 16, 350, 1280};
-    ov::Tensor inTensor2 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
-    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor2));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-    ASSERT_TRUE(shape2 == reqDynamic.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic.get_output_tensor().get_shape())
-        << "Output tensor of second inferrequest from model does not has same shape with input tensor";
-
-    ov::Shape shape3 = {1, 16, 500, 1280};
-    ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape3, 100, 0);
-    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor3));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-    ASSERT_TRUE(shape3 == reqDynamic.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic.get_output_tensor().get_shape())
-        << "Output tensor of second inferrequest from model does not update output tensor shape with larger shape";
-
-    ov::Shape shape4 = {1, 16, 100, 1280};
-    ov::Tensor inTensor4 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape4, 100, 0);
-    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor4));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-    ASSERT_TRUE(shape4 == reqDynamic.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic.get_output_tensor().get_shape())
-        << "Output tensor of second inferrequest from model does not update output tensor shape with larger shape";
-}
-
-// Compile model, process to fp16, infer with different inferequest
-TEST_P(InferWithHostCompileTests, CompileModelProcessToFp16WithRangeAndInferWithDifferentInferRequest) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    auto dynamicShapeModel = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    dynamicShapeModel->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
-    ov::Shape MaxShape = {1, 16, 720, 1280};
-
-    // Have to process to fp16, otherwise compilation will fail
-    auto preprocessor = ov::preprocess::PrePostProcessor(dynamicShapeModel);
-    const auto inputs = dynamicShapeModel->inputs();
-    const auto outputs = dynamicShapeModel->outputs();
-
-    for (size_t i = 0; i < inputs.size(); i++) {
-        preprocessor.input(i).tensor().set_element_type(ov::element::f16);
-    }
-    for (size_t i = 0; i < outputs.size(); i++) {
-        preprocessor.output(i).tensor().set_element_type(ov::element::f16);
-    }
-    auto model = preprocessor.build();
-
-    ov::CompiledModel execNetDynamic;
-    OV_ASSERT_NO_THROW(execNetDynamic = ie->compile_model(model, target_device, configuration));
-
-    const std::string inputName = "input1";
-    const std::string outputName = "output";
-
-    // Test request 1
-    ov::Shape shape = {1, 16, 100, 1280};
-    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
-    ov::InferRequest reqDynamic;
-    OV_ASSERT_NO_THROW(reqDynamic = execNetDynamic.create_infer_request());
-    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
-    ASSERT_TRUE(shape == reqDynamic.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic.get_output_tensor().get_shape())
-        << "Output tensor not has same shape with input tensor";
-
-    // cTest request 2
-    ov::Shape shape2 = {1, 16, 360, 1280};
-    ov::Tensor inTensor2 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
-    ov::InferRequest reqDynamic2;
-    OV_ASSERT_NO_THROW(reqDynamic2 = execNetDynamic.create_infer_request());
-    OV_ASSERT_NO_THROW(reqDynamic2.set_tensor(inputName, inTensor2));
-    OV_ASSERT_NO_THROW(reqDynamic2.infer());
-    ASSERT_TRUE(shape2 == reqDynamic2.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic2.get_output_tensor().get_shape())
-        << "Output tensor of second inferrequest from model does not has same shape with input tensor";
-
-    ov::Shape shape3 = {1, 16, 720, 1280};
-    ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape3, 100, 0);
-    OV_ASSERT_NO_THROW(reqDynamic2.set_tensor(inputName, inTensor3));
-    OV_ASSERT_NO_THROW(reqDynamic2.infer());
-    ASSERT_TRUE(shape3 == reqDynamic2.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic2.get_output_tensor().get_shape())
-        << "Output tensor of second inferrequest from model does not update output tensor shape with larger shape";
-
-    // Test request 3
-    ov::Shape shape4 = {1, 16, 700, 1280};
-    ov::Tensor inTensor4 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape4, 100, 0);
-    ov::InferRequest reqDynamic3;
-    OV_ASSERT_NO_THROW(reqDynamic3 = execNetDynamic.create_infer_request());
-    OV_ASSERT_NO_THROW(reqDynamic3.set_tensor(inputName, inTensor4));
-    OV_ASSERT_NO_THROW(reqDynamic3.infer());
-    ASSERT_TRUE(shape4 == reqDynamic3.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic3.get_output_tensor().get_shape())
-        << "Output tensor of third inferrequest from model does not has same shape with input tensor";
-
-    ov::Shape shape5 = {1, 16, 360, 1280};
-    ov::Tensor inTensor5 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape5, 100, 0);
-    OV_ASSERT_NO_THROW(reqDynamic3.set_tensor(inputName, inTensor5));
-    OV_ASSERT_NO_THROW(reqDynamic3.infer());
-    ASSERT_TRUE(shape5 == reqDynamic3.get_output_tensor().get_shape() ||
-                MaxShape == reqDynamic3.get_output_tensor().get_shape())
-        << "Output tensor of third inferrequest from model does not update shape to small shape";
-}
-
 // Compile model, process to fp16, infer with medium size
 TEST_P(InferWithHostCompileTests, CompileModelProcessToFp16WithRangeAndInferWithMediumSizeAndHostTensor) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    auto dynamicShapeModel = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    dynamicShapeModel->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
-    ov::Shape MaxShape = {1, 16, 720, 1280};
-
-    // Have to process to fp16, otherwise compilation will fail
-    auto preprocessor = ov::preprocess::PrePostProcessor(dynamicShapeModel);
-    const auto inputs = dynamicShapeModel->inputs();
-    const auto outputs = dynamicShapeModel->outputs();
-
-    for (size_t i = 0; i < inputs.size(); i++) {
-        preprocessor.input(i).tensor().set_element_type(ov::element::f16);
-    }
-    for (size_t i = 0; i < outputs.size(); i++) {
-        preprocessor.output(i).tensor().set_element_type(ov::element::f16);
-    }
-    auto model = preprocessor.build();
-
-    const std::string inputName = "input1";
-    const std::string outputName = "output";
 
     ov::CompiledModel execNetDynamic;
     OV_ASSERT_NO_THROW(execNetDynamic = ie->compile_model(model, target_device, configuration));
@@ -935,26 +291,6 @@ TEST_P(InferWithHostCompileTests, CompileModelProcessToFp16WithRangeAndInferWith
 // Compile model, process to fp16, infer with medium size
 TEST_P(InferWithHostCompileTests, CompileModelProcessToFp16WithRangeAndInferWithMediumSizeAndRemoteTensor) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    auto dynamicShapeModel = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    dynamicShapeModel->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
-    ov::Shape MaxShape = {1, 16, 720, 1280};
-
-    // Have to process to fp16, otherwise compilation will fail
-    auto preprocessor = ov::preprocess::PrePostProcessor(dynamicShapeModel);
-    const auto inputs = dynamicShapeModel->inputs();
-    const auto outputs = dynamicShapeModel->outputs();
-
-    for (size_t i = 0; i < inputs.size(); i++) {
-        preprocessor.input(i).tensor().set_element_type(ov::element::f16);
-    }
-    for (size_t i = 0; i < outputs.size(); i++) {
-        preprocessor.output(i).tensor().set_element_type(ov::element::f16);
-    }
-    auto model = preprocessor.build();
-
-    const std::string inputName = "input1";
-    const std::string outputName = "output";
 
     ov::CompiledModel execNetDynamic;
     OV_ASSERT_NO_THROW(execNetDynamic = ie->compile_model(model, target_device, configuration));
@@ -980,28 +316,8 @@ TEST_P(InferWithHostCompileTests,
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    auto dynamicShapeModel = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    dynamicShapeModel->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
-    ov::Shape MaxShape = {1, 16, 720, 1280};
-
-    // Have to process to fp16, otherwise compilation will fail
-    auto preprocessor = ov::preprocess::PrePostProcessor(dynamicShapeModel);
-    const auto inputs = dynamicShapeModel->inputs();
-    const auto outputs = dynamicShapeModel->outputs();
-
-    for (size_t i = 0; i < inputs.size(); i++) {
-        preprocessor.input(i).tensor().set_element_type(ov::element::f16);
-    }
-    for (size_t i = 0; i < outputs.size(); i++) {
-        preprocessor.output(i).tensor().set_element_type(ov::element::f16);
-    }
-    auto model = preprocessor.build();
-
     ov::CompiledModel execNetDynamic;
     OV_ASSERT_NO_THROW(execNetDynamic = ie->compile_model(model, target_device, configuration));
-
-    const std::string inputName = "input1";
-    const std::string outputName = "output";
 
     // Test request 1
     ov::Shape shape = {1, 16, 100, 1280};
@@ -1036,28 +352,8 @@ TEST_P(InferWithHostCompileTests,
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    auto dynamicShapeModel = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    dynamicShapeModel->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
-    ov::Shape MaxShape = {1, 16, 720, 1280};
-
-    // Have to process to fp16, otherwise compilation will fail
-    auto preprocessor = ov::preprocess::PrePostProcessor(dynamicShapeModel);
-    const auto inputs = dynamicShapeModel->inputs();
-    const auto outputs = dynamicShapeModel->outputs();
-
-    for (size_t i = 0; i < inputs.size(); i++) {
-        preprocessor.input(i).tensor().set_element_type(ov::element::f16);
-    }
-    for (size_t i = 0; i < outputs.size(); i++) {
-        preprocessor.output(i).tensor().set_element_type(ov::element::f16);
-    }
-    auto model = preprocessor.build();
-
     ov::CompiledModel execNetDynamic;
     OV_ASSERT_NO_THROW(execNetDynamic = ie->compile_model(model, target_device, configuration));
-
-    const std::string inputName = "input1";
-    const std::string outputName = "output";
 
     // Test request 1
     ov::Shape shape = {1, 16, 100, 1280};
@@ -1093,28 +389,8 @@ TEST_P(InferWithHostCompileTests,
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    auto dynamicShapeModel = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    dynamicShapeModel->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
-    ov::Shape MaxShape = {1, 16, 720, 1280};
-
-    // Have to process to fp16, otherwise compilation will fail
-    auto preprocessor = ov::preprocess::PrePostProcessor(dynamicShapeModel);
-    const auto inputs = dynamicShapeModel->inputs();
-    const auto outputs = dynamicShapeModel->outputs();
-
-    for (size_t i = 0; i < inputs.size(); i++) {
-        preprocessor.input(i).tensor().set_element_type(ov::element::f16);
-    }
-    for (size_t i = 0; i < outputs.size(); i++) {
-        preprocessor.output(i).tensor().set_element_type(ov::element::f16);
-    }
-    auto model = preprocessor.build();
-
     ov::CompiledModel execNetDynamic;
     OV_ASSERT_NO_THROW(execNetDynamic = ie->compile_model(model, target_device, configuration));
-
-    const std::string inputName = "input1";
-    const std::string outputName = "output";
 
     // Test request 1
     ov::Shape shape = {1, 16, 100, 1280};
