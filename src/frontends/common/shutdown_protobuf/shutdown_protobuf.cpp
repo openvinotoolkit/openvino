@@ -4,7 +4,7 @@
 
 #include <google/protobuf/stubs/common.h>
 
-#include "shutdown.hpp"
+#include "openvino/shutdown.hpp"
 
 static void shutdown_frontend_resources() {
     google::protobuf::ShutdownProtobufLibrary();
