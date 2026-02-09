@@ -148,8 +148,7 @@ std::shared_ptr<ov::Model> read_model(const std::filesystem::path& model_path,
                    model_path,
                    " Please check that model format: ",
                    model_path.extension(),
-                   " is supported and the model is correct.",
-                   " Available frontends: ",
+                   " is supported and the model is correct. Available frontends: ",
                    FEs);
 }
 
