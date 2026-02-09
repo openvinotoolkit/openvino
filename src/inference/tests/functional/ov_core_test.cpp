@@ -240,7 +240,7 @@ TEST_F(CoreBaseTest, compile_model_with_std_fs_path) {
 #endif
 }
 
-TEST_P(UnicodePathTest, core_compile_model) {
+TEST_P(UnicodePathTest, read_compile_model) {
     const std::string model_name = "test-model";
     const auto prefix_dir = utils::generateTestFilePrefix();
     const auto test_dir = std::filesystem::path(prefix_dir) / fs_path_from_variant();
@@ -250,17 +250,19 @@ TEST_P(UnicodePathTest, core_compile_model) {
     ov::test::utils::generate_test_model(model_path, weight_path);
 
     ov::Core core;
-    {
-        const auto model = core.compile_model(model_path);
-        EXPECT_TRUE(model);
-    }
-    {
-        const auto devices = core.get_available_devices();
+    const auto visitor = [&](const auto& param) {
+        using ParamT = std::decay_t<decltype(param)>;
+        auto folder = ov::test::utils::ensure_trailing_slash(ParamT(param));
+        auto model_path = utils::cast_string_to_type<ParamT>(prefix_dir + "/") + folder +
+                  utils::cast_string_to_type<ParamT>(model_name + ".xml");
 
-        const auto model = core.compile_model(model_path, devices.at(0), ov::AnyMap{});
-        EXPECT_TRUE(model);
-    }
+        const auto model = core.read_model(model_path);
+        EXPECT_NE(model, nullptr);
 
+        const auto compiled_model = core.compile_model(model_path);
+        EXPECT_TRUE(compiled_model);
+    };
+    run_test_visitor(visitor);
     std::filesystem::remove_all(prefix_dir);
 }
 
