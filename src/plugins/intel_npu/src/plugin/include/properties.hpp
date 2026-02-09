@@ -67,6 +67,11 @@ public:
      */
     bool wasInitialized() const;
 
+    /**
+     * @brief Enables or disables a specific property.
+     * @param key The key of the property to enable/disable.
+     * @param enable True to enable the property, false to disable it.
+     */
     void enable(std::string key, bool enable);
 
     /**

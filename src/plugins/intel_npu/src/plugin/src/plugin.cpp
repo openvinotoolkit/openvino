@@ -441,8 +441,8 @@ void Plugin::init_options(FilteredConfig& filteredConfig) {
             auto device = _backend->getDevice();
             if (device) {
                 auto platformName = device->getName();
-                if (platformName == ov::intel_npu::Platform::NPU3720 ||
-                    platformName == ov::intel_npu::Platform::AUTO_DETECT) {
+                if (platformName != ov::intel_npu::Platform::NPU4000 &&
+                    platformName != ov::intel_npu::Platform::NPU5010) {
                     std::ostringstream oss;
                     oss << ov::intel_npu::CompilerType::DRIVER;
                     filteredConfig.update({{ov::intel_npu::compiler_type.name(), oss.str()}});
