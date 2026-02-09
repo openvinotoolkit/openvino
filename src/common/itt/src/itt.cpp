@@ -9,7 +9,7 @@
 #include <mutex>
 #include <vector>
 
-#include "shutdown.hpp"
+#include "openvino/shutdown.hpp"
 
 #ifdef ENABLE_PROFILING_ITT
 #    include <ittnotify.h>

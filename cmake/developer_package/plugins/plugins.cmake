@@ -73,7 +73,7 @@ function(ov_add_plugin)
 
         target_compile_definitions(${OV_PLUGIN_NAME} PRIVATE IMPLEMENT_OPENVINO_RUNTIME_PLUGIN)
         if(BUILD_SHARED_LIBS)
-            target_link_libraries(${OV_PLUGIN_NAME} PRIVATE $<TARGET_OBJECTS:openvino_shutdown_dyn>)
+            target_link_libraries(${OV_PLUGIN_NAME} PRIVATE openvino::shutdown)
         else()
             # to distinguish functions creating plugin objects
             target_compile_definitions(${OV_PLUGIN_NAME} PRIVATE
