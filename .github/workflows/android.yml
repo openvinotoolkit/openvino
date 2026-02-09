@@ -186,25 +186,6 @@ jobs:
       # Build
       #
 
-      - name: Dump ACL build context
-        run: |
-          set -euo pipefail
-          echo "ComputeLibrary commit:"
-          git -C ${OPENVINO_REPO}/src/plugins/intel_cpu/thirdparty/ComputeLibrary rev-parse HEAD
-          echo "Toolchain:"
-          ${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --version
-          scons --version
-          cmake --version
-          echo "Environment:"
-          echo "ANDROID_ABI=${ANDROID_ABI_CONFIG}"
-          echo "ANDROID_PLATFORM=${ANDROID_SDK_VERSION}"
-          echo "ANDROID_NDK_HOME=${ANDROID_NDK_HOME}"
-          echo "ANDROID_SDK_VERSION=${ANDROID_SDK_VERSION}"
-          echo "CMAKE_GENERATOR=${CMAKE_GENERATOR}"
-          echo "BUILD_TYPE=${BUILD_TYPE}"
-          echo "CMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}"
-          echo "CMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}"
-
       - name: Clean ccache stats
         run: ${SCCACHE_PATH} --zero-stats
 
