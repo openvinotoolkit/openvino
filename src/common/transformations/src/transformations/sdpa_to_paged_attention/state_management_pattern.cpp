@@ -742,8 +742,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         // this keeps PA nodes at 25 inputs for models without it, so the GPU
         // plugin (which requires exactly 25 inputs) is not affected.
         if (optional_model_wide_params.find("token_type_ids") != optional_model_wide_params.end()) {
-            // DEBUG: Use empty constant instead of parameter to test if the reorder issue is type/shape related
-            pa_arguments.insert(pa_arguments.begin() + 25, v0::Constant::create(element::i32, Shape{0}, {}));
+            pa_arguments.insert(pa_arguments.begin() + 25, optional_model_wide_params.at("token_type_ids"));
             OPENVINO_ASSERT(pa_arguments.size() == 26);
         }
 
