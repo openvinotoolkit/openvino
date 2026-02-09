@@ -301,8 +301,14 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         });
     }
 
+    // FP16 accumulator is only used for non-shape-agnostic static kernels
+    // to avoid compilation issues in shape-agnostic kernels where tensor sizes are dynamic
     bool is_fp16_acc = (params.inputs[0].GetDType() == Datatype::F16) || (params.inputs[1].GetDType() == Datatype::F16);
-    jit.AddConstants({MakeJitConstant("USE_FP16_ACC", is_fp16_acc)});
+    if (is_fp16_acc && !params.is_shape_agnostic) {
+        jit.AddConstants({MakeJitConstant("USE_FP16_ACC", is_fp16_acc)});
+    } else {
+        is_fp16_acc = false;
+    }
 
     if (tuning_data.tile_n_size > tuning_data.simd_size) {
         jit.AddConstants({
@@ -325,14 +331,13 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
     }
 
     // Define type conversion macros
-    jit.AddConstant(MakeJitConstant("TO_ACCUMULATOR_TYPE_VEC(x)", b_vec_size > 1 ? "CAT(convert_, ACCUMULATOR_TYPE_VEC)(x)"
-                                                                                 : "TO_ACCUMULATOR_TYPE(x)"));
-
     if (is_fp16_acc) {
+        jit.AddConstant(MakeJitConstant("TO_ACCUMULATOR_TYPE_VEC(x)", b_vec_size > 1 ? "CAT(convert_, ACCUMULATOR_TYPE_VEC)(x)" : "(x)"));
         jit.AddConstant(MakeJitConstant("ACC_CAST_A(x)", "convert_float(x)"));
         jit.AddConstant(MakeJitConstant("ACC_CAST_B(x)", b_vec_size > 1 ? std::string("CAT(convert_float, B_VEC_SIZE)((CAT(INPUT1_TYPE, B_VEC_SIZE))(x))")
                                                                         : "convert_float(x)"));
     } else {
+        jit.AddConstant(MakeJitConstant("TO_ACCUMULATOR_TYPE_VEC(x)", "(x)"));
         jit.AddConstant(MakeJitConstant("ACC_CAST_A(x)", "(INPUT0_TYPE)(x)"));
         jit.AddConstant(MakeJitConstant("ACC_CAST_B(x)", "(x)"));
     }
