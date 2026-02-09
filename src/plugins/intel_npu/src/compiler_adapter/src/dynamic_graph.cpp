@@ -40,9 +40,13 @@ public:
                       ze_command_queue_handle_t commandQueue,
                       ze_fence_handle_t inferenceFence,
                       ze_event_handle_t event,
-                      ze_graph_profiling_pool_handle_t profiling) override;
+                      ze_graph_profiling_pool_handle_t profiling,
+                      npu_mlir_runtime_execution_context_handle_t executionContext) override;
     void getBinding(DynamicGraph::GraphArguments& binding) override;
 
+    void updateMutableCommandList(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                                  IDynamicGraph::GraphArguments& args,
+                                  const std::vector<uint64_t>& argIndexArray);
     virtual ~DynamicGraphImpl() {
         destroy();
     }
@@ -56,6 +60,9 @@ public:
 
     void predictOutputShape(std::vector<DynamicGraph::MemRefType>& inputDescriptors,
                             std::vector<DynamicGraph::MemRefType>& outputDescriptors) override;
+
+    npu_mlir_runtime_execution_context_handle_t createExecutionContext() override;
+    void destroyExecutionContext(npu_mlir_runtime_execution_context_handle_t) override;
 
 public:
     npu_vm_runtime_handle_t _engine = nullptr;
@@ -305,7 +312,8 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
                                     ze_command_queue_handle_t commandQueue,
                                     ze_fence_handle_t fence,
                                     ze_event_handle_t event,
-                                    ze_graph_profiling_pool_handle_t profiling) {
+                                    ze_graph_profiling_pool_handle_t profiling,
+                                    npu_mlir_runtime_execution_context_handle_t executionContext) {
     std::shared_ptr<DynamicGraph::GraphArgumentsImpl> argsImpl =
         args._impl ? std::static_pointer_cast<DynamicGraph::GraphArgumentsImpl>(args._impl)
                    : std::make_shared<DynamicGraph::GraphArgumentsImpl>();
@@ -349,6 +357,7 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
     params->commandQueue = commandQueue;
     params->inferenceFence = fence;
     params->event = event;
+    params->executionContext = executionContext;
 
     if (npuVMRuntimeExecute(_engine, params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to execute VM runtime engine");
@@ -356,6 +365,20 @@ void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>
 
     if (args._impl == nullptr) {
         args._impl = argsImpl;
+    }
+}
+
+void DynamicGraphImpl::updateMutableCommandList(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                                                IDynamicGraph::GraphArguments& args,
+                                                const std::vector<uint64_t>& argIndexArray) {
+    std::shared_ptr<DynamicGraph::GraphArgumentsImpl> argsImpl =
+        std::static_pointer_cast<DynamicGraph::GraphArgumentsImpl>(args._impl);
+    npu_mlir_runtime_execute_params_t* params = &argsImpl->_executeParams;
+    if (npuMLIRRuntimeUpdateMutableCommandList(_engine,
+                                               params,
+                                               const_cast<uint64_t*>(argIndexArray.data()),
+                                               argIndexArray.size()) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to execute MLIR runtime engine");
     }
 }
 
@@ -401,6 +424,24 @@ void DynamicGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescript
             }
             outImpl->alignWithHandle(out);
         }
+        _logger.debug("Output shape prediction is done successfully.");
+    }
+}
+
+npu_mlir_runtime_execution_context_handle_t DynamicGraphImpl::createExecutionContext() {
+    npu_mlir_runtime_execution_context_handle_t handle = nullptr;
+    if (npuMLIRRuntimeCreateExecutionContext(_engine, &handle) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to create an MLIR execution context");
+    } else {
+        _logger.debug("Output shape prediction is done successfully.");
+    }
+    return handle;
+}
+
+void DynamicGraphImpl::destroyExecutionContext(npu_mlir_runtime_execution_context_handle_t handle) {
+    if (npuMLIRRuntimeDestroyExecutionContext(handle) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to destroy an MLIR execution context");
+    } else {
         _logger.debug("Output shape prediction is done successfully.");
     }
 }
@@ -685,13 +726,32 @@ void DynamicGraph::execute(const std::shared_ptr<ZeroInitStructsHolder>& zeroIni
                            ze_command_queue_handle_t commandQueue,
                            ze_fence_handle_t inferenceFence,
                            ze_event_handle_t event,
-                           ze_graph_profiling_pool_handle_t profiling) {
+                           ze_graph_profiling_pool_handle_t profiling,
+                           execution_context_handle_t executionContext) {
+    auto impl = reinterpret_cast<DynamicGraphImpl*>(_impl.get());
+    auto mlirExecContext = reinterpret_cast<npu_mlir_runtime_execution_context_handle_t>(executionContext);
+    if (impl == nullptr)
+        return;
+
+    impl->executeGraph(zeroInitStruct,
+                       args,
+                       commandLists,
+                       commandQueue,
+                       inferenceFence,
+                       event,
+                       profiling,
+                       mlirExecContext);
+}
+
+void DynamicGraph::update_mutable_commandlist(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                                              GraphArguments& args,
+                                              const std::vector<uint64_t>& argIndexArray) {
     auto impl = reinterpret_cast<DynamicGraphImpl*>(_impl.get());
 
     if (impl == nullptr)
         return;
 
-    impl->executeGraph(zeroInitStruct, args, commandLists, commandQueue, inferenceFence, event, profiling);
+    impl->updateMutableCommandList(zeroInitStruct, args, argIndexArray);
 }
 
 void DynamicGraph::getBinding(GraphArguments& args) {
@@ -720,6 +780,24 @@ void DynamicGraph::predict_output_shape(std::vector<MemRefType>& inputDescriptor
 std::optional<bool> DynamicGraph::is_profiling_blob() const {
     _logger.warning("Profiling is not supported for DynamicGraph");
     return std::nullopt;
+}
+
+DynamicGraph::execution_context_handle_t DynamicGraph::create_execution_context() {
+    auto impl = reinterpret_cast<DynamicGraphImpl*>(_impl.get());
+
+    if (impl == nullptr)
+        return nullptr;
+
+    return impl->createExecutionContext();
+}
+
+void DynamicGraph::destroy_execution_context(execution_context_handle_t handle) {
+    auto impl = reinterpret_cast<DynamicGraphImpl*>(_impl.get());
+    auto context_handle = reinterpret_cast<npu_mlir_runtime_execution_context_handle_t>(handle);
+    if (impl == nullptr)
+        return;
+
+    impl->destroyExecutionContext(context_handle);
 }
 
 }  // namespace intel_npu

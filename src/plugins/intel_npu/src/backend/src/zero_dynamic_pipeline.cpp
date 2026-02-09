@@ -57,6 +57,17 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     intel_npu::IDynamicGraph* dynamicGraph = dynamic_cast<intel_npu::IDynamicGraph*>(graph.get());
     OPENVINO_ASSERT(dynamicGraph != nullptr, "Failed to cast graph to IDynamicGraph");
 
+    auto reuseCmdList = getenv("ENABLED_HOST_COMPILE_REUSE_CMDLIST");
+    if (reuseCmdList != nullptr) {
+        if (std::string(reuseCmdList) == "1")
+            _reuseCmdListMode = ENABLE_REUSE_WITH_MUTABLE_COMMANDLIST;
+        else if (std::string(reuseCmdList) == "2")
+            _reuseCmdListMode = ENABLE_REUSE_WITHOUT_MUTATING_COMMANDLIST;
+        else {
+            _reuseCmdListMode = DISABLE_EXECUTION_CONTEXT_CREATION;
+        }
+    }
+
     if (!_sync_output_with_fences) {
         _event_pool = std::make_shared<EventPool>(_init_structs->getDevice(),
                                                   _init_structs->getContext(),
@@ -74,6 +85,13 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     _command_lists.reserve(_batch_size);
     for (size_t i = 0; i < _batch_size; i++) {
         _command_lists.emplace_back(std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs));
+    }
+
+    _executionContexts.resize(_batch_size, nullptr);
+    if (_reuseCmdListMode != DISABLE_EXECUTION_CONTEXT_CREATION) {
+        for (size_t i = 0; i < _batch_size; i++) {
+            _executionContexts[i] = dynamicGraph->create_execution_context();
+        }
     }
 
     if (_sync_output_with_fences) {
@@ -175,8 +193,19 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     _logger.debug("DynamicPipeline - initialization completed");
 }
 
+DynamicPipeline::~DynamicPipeline() {
+    auto dynamicGraph = dynamic_cast<intel_npu::IDynamicGraph*>(_graph.get());
+    for (auto executionContext : _executionContexts) {
+        if (executionContext) {
+            dynamicGraph->destroy_execution_context(executionContext);
+        }
+    }
+    _executionContexts.clear();
+}
+
 void DynamicPipeline::push() {
-    _logger.debug("push - started");
+    _logger.debug("DynamicPipeline - push() started");
+    static bool isFirst = true;
 
     auto* dynamicGraph = dynamic_cast<IDynamicGraph*>(_graph.get());
     OPENVINO_ASSERT(dynamicGraph != nullptr, "Failed to cast graph to IDynamicGraph");
@@ -216,16 +245,44 @@ void DynamicPipeline::push() {
             }
         }
 
-        // L0 wrapper handle closed command list
-        command_lists->resetCommandList();
+        if (_reuseCmdListMode == ENABLE_EXECUTION_CONTEXT_CREATION ||
+            _reuseCmdListMode == DISABLE_EXECUTION_CONTEXT_CREATION || isFirst) {
+            command_lists->resetCommandList();
+            dynamicGraph->execute(_init_structs,
+                                  command_lists->getBinding(),
+                                  command_lists->getHandles(),
+                                  commandQueueHandle,
+                                  fence,
+                                  event,
+                                  nullptr,
+                                  _executionContexts.at(i));
+            isFirst = false;
+        } else {
+            auto& cmdLists = command_lists->_commandListHandles;
+            if (_reuseCmdListMode == ENABLE_REUSE_WITH_MUTABLE_COMMANDLIST) {
+                uint64_t numArgs = graphArguments._inputs.size() + graphArguments._outputs.size();
 
-        dynamicGraph->execute(_init_structs,
-                              command_lists->getBinding(),
-                              command_lists->getHandles(),
-                              commandQueueHandle,
-                              fence,
-                              event,
-                              nullptr);
+                // tentatively populates all updated arguments.
+                std::vector<uint64_t> argIndexArray(numArgs);
+                for (uint64_t i = 0; i < numArgs; ++i) {
+                    argIndexArray[i] = i;
+                }
+                dynamic_cast<IDynamicGraph*>(_graph.get())
+                    ->update_mutable_commandlist(_init_structs, command_lists->getBinding(), argIndexArray);
+                // according to spec, CloseCommandList should be called after
+                // UpdateMutableCommandList is called.
+                command_lists->closeCommandList();
+            }
+
+            auto cmdQueue = _graph->get_command_queue();
+            auto result = zeCommandQueueExecuteCommandLists(cmdQueue->handle(),
+                                                            static_cast<uint32_t>(cmdLists.size()),
+                                                            cmdLists.data(),
+                                                            fence);
+            if (result != ZE_RESULT_SUCCESS) {
+                OPENVINO_THROW("Failed to submit command lists");
+            }
+        }
     }
 
     _logger.debug("push - completed");

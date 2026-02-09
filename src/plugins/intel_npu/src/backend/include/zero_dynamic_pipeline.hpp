@@ -10,6 +10,13 @@
 namespace intel_npu {
 
 class DynamicPipeline final : public IPipeline {
+    enum ReuseCmdListMode {
+        ENABLE_EXECUTION_CONTEXT_CREATION,
+        ENABLE_REUSE_WITH_MUTABLE_COMMANDLIST,
+        ENABLE_REUSE_WITHOUT_MUTATING_COMMANDLIST,
+        DISABLE_EXECUTION_CONTEXT_CREATION
+    };
+
     struct PipelinedCommandLists {
         mutable IDynamicGraph::GraphArguments _binding;
 
@@ -94,6 +101,12 @@ class DynamicPipeline final : public IPipeline {
                 cmd_list->reset();
             }
         }
+
+        void closeCommandList() {
+            for (auto& cmd_list : _commandLists) {
+                cmd_list->close();
+            }
+        }
     };
 
 public:
@@ -106,7 +119,7 @@ public:
 
     DynamicPipeline(const DynamicPipeline&) = delete;
     DynamicPipeline& operator=(const DynamicPipeline&) = delete;
-    ~DynamicPipeline() override = default;
+    ~DynamicPipeline() override;
 
     void push() override;
     void pull() override;
@@ -121,6 +134,8 @@ public:
 
 private:
     std::vector<std::unique_ptr<PipelinedCommandLists>> _command_lists;
+    std::vector<void*> _executionContexts;
+    ReuseCmdListMode _reuseCmdListMode = ENABLE_EXECUTION_CONTEXT_CREATION;
 };
 
 }  // namespace intel_npu
