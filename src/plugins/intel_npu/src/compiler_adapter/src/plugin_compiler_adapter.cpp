@@ -148,7 +148,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         _compiler);
 }
 
-std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
+std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
                                                          const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compileWS");
     _logger.debug("compile start");
@@ -301,17 +301,16 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         initGraphDescriptors,
         std::move(initNetworkMetadata),
         tensorsInits,
-        model,
+        std::move(model),
         localConfig,
         /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
         _compiler);
 }
 
-std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
-    const ov::Tensor& mainBlob,
-    const FilteredConfig& config,
-    const std::optional<std::vector<ov::Tensor>>& initBlobs,
-    const std::optional<std::shared_ptr<const ov::Model>>& model) const {
+std::shared_ptr<IGraph> PluginCompilerAdapter::parse(const ov::Tensor& mainBlob,
+                                                     const FilteredConfig& config,
+                                                     const std::optional<std::vector<ov::Tensor>>& initBlobs,
+                                                     std::optional<std::shared_ptr<const ov::Model>>&& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
     GraphDescriptor mainGraphDesc;
@@ -372,7 +371,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
                                              initGraphDescriptors,
                                              std::move(initNetworkMetadata),
                                              initBlobs,
-                                             model.value(),
+                                             std::move(model.value()),
                                              config,
                                              blobIsPersistent,
                                              _compiler);

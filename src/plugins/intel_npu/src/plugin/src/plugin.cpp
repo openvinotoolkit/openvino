@@ -828,12 +828,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<intel_npu::IGraph> graph;
 
-    auto compileWithConfig = [&](const auto& modelToCompile, const auto& config) {
+    auto compileWithConfig = [&](auto&& modelToCompile, const auto& config) {
         if (!localConfig.get<WEIGHTLESS_BLOB>()) {
             return compiler->compile(modelToCompile, config);
         } else {
             check_weightless_cache_attribute_occurrence(model);
-            return compiler->compileWS(modelToCompile, config);
+            return compiler->compileWS(std::move(modelToCompile), config);
         }
     };
 
@@ -851,9 +851,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             strStream << ov::hint::PerformanceMode::THROUGHPUT;
             modifiedConfig.update({{ov::hint::performance_mode.name(), strStream.str()}});
 
-            graph = compileWithConfig(modelToCompile, modifiedConfig);
+            graph = compileWithConfig(std::move(modelToCompile), modifiedConfig);
         } else {
-            graph = compileWithConfig(modelToCompile, localConfig);  // No copy
+            graph = compileWithConfig(std::move(modelToCompile), localConfig);  // No copy
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
