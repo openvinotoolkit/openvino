@@ -38,8 +38,8 @@ struct Read;
 template <class T>
 struct Readable {
     template <class U>
-    static auto test(U*) -> decltype(std::declval<Read<U>>()(std::declval<std::istream&>(), std::declval<U&>()),
-                                     std::true_type()) {
+    static auto test(U*)
+        -> decltype(std::declval<Read<U>>()(std::declval<std::istream&>(), std::declval<U&>()), std::true_type()) {
         return {};
     }
     template <typename>
@@ -644,7 +644,9 @@ class OPENVINO_API Any {
 
         bool is_base_type_info(const std::type_info& type_info) const override {
             for (const auto& t : base_type_info_impl<T>()) {
-                if (util::equal(t, type_info)) return true;
+                if (util::equal(t, type_info)) {
+                    return true;
+                }
             }
             return false;
         }
