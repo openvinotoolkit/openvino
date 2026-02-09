@@ -155,9 +155,9 @@ public:
                                                 const std::string& name);
 
     /// Transpose for attention: [batch, seq, heads, dim] <-> [batch, heads, seq, dim]
+    /// Note: the order {0,2,1,3} is its own inverse, so the same call works in both directions.
     ov::Output<ov::Node> make_attention_transpose(const ov::Output<ov::Node>& input,
-                                                  const std::string& name,
-                                                  bool reverse = false);
+                                                  const std::string& name);
 
     /// Repeat KV heads for GQA: [batch, kv_heads, seq, dim] -> [batch, num_heads, seq, dim]
     ov::Output<ov::Node> make_repeat_kv(const ov::Output<ov::Node>& kv,

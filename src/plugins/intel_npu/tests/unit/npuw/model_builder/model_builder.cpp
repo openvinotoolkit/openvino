@@ -671,10 +671,8 @@ ov::Output<ov::Node> ModelBuilder::make_multihead_reshape(const ov::Output<ov::N
 }
 
 ov::Output<ov::Node> ModelBuilder::make_attention_transpose(const ov::Output<ov::Node>& input,
-                                                            const std::string& name,
-                                                            bool reverse) {
-    std::vector<int64_t> order = reverse ? std::vector<int64_t>{0, 2, 1, 3} : std::vector<int64_t>{0, 2, 1, 3};
-    auto order_const = ov::opset11::Constant::create(ov::element::i64, ov::Shape{4}, order);
+                                                            const std::string& name) {
+    auto order_const = ov::opset11::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
     m_nodes.push_back(order_const);
 
     auto transpose = std::make_shared<ov::opset11::Transpose>(input, order_const);
@@ -1245,7 +1243,7 @@ LayerResult ModelBuilder::make_attention_block(const ov::Output<ov::Node>& input
     auto attn_output = make_attention(q_trans, k_expanded, v_expanded, head_dim, prefix + "attn", prec, attention_mask);
 
     // Transpose back and reshape
-    auto attn_trans = make_attention_transpose(attn_output, prefix + "attn_out_transpose", true);
+    auto attn_trans = make_attention_transpose(attn_output, prefix + "attn_out_transpose");
 
     auto reshape_shape = ov::opset11::Constant::create(ov::element::i64,
                                                        ov::Shape{3},
