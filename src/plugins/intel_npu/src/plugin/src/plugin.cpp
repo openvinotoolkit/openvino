@@ -20,6 +20,7 @@
 #include "npuw/llm_compiled_model.hpp"
 #include "npuw/serialization.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
