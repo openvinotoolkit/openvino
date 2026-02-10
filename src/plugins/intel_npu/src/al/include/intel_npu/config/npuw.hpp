@@ -118,6 +118,8 @@ DEFINE_OPT(NPUW_SPATIAL, bool, false, npuw::partitioning::spatial, RunTime);
 DEFINE_OPT(NPUW_F16IC, bool, true, npuw::partitioning::f16_interconnect, RunTime);
 DEFINE_OPT(NPUW_SPATIAL_NWAY, std::size_t, 128, npuw::partitioning::spatial_nway, RunTime);
 DEFINE_OPT(NPUW_SPATIAL_DYN, bool, true, npuw::partitioning::spatial_dyn, RunTime);
+DEFINE_OPT(NPUW_MOE_TOKEN_CHUNK_SIZE, uint64_t, 0, npuw::partitioning::moe_token_chunk_size, RunTime);
+DEFINE_OPT(NPUW_MOE_POOL_SIZE, std::size_t, 8, npuw::partitioning::moe_pool_size, RunTime);
 DEFINE_OPT(NPUW_ATTN, std::string, "STATIC", npuw::partitioning::attn, RunTime);
 DEFINE_OPT(NPUW_ATTN_DYN, bool, true, npuw::partitioning::attn_dyn, RunTime);
 DEFINE_OPT(NPUW_ATTN_NO_COPY, bool, false, npuw::partitioning::attn_no_copy, RunTime);
@@ -136,6 +138,7 @@ DEFINE_OPT(NPUW_ACC_THRESH, double, 0.01, npuw::accuracy::threshold, RunTime);
 DEFINE_OPT(NPUW_ACC_DEVICE, std::string, "", npuw::accuracy::reference_device, RunTime);
 DEFINE_OPT(NPUW_DUMP_FULL, bool, false, npuw::dump::full, RunTime);
 DEFINE_OPT(NPUW_DUMP_SUBS, std::string, "", npuw::dump::subgraphs, RunTime);
+DEFINE_OPT(NPUW_DUMP_SUBS_DIR, std::string, "", npuw::dump::subgraphs_dir, RunTime);
 DEFINE_OPT(NPUW_DUMP_SUBS_ON_FAIL, std::string, "", npuw::dump::subgraphs_on_fail, RunTime);
 DEFINE_OPT(NPUW_DUMP_IO, std::string, "", npuw::dump::inputs_outputs, RunTime);
 DEFINE_OPT(NPUW_DUMP_IO_ITERS, bool, false, npuw::dump::io_iters, RunTime);
@@ -154,6 +157,7 @@ DEFINE_OPT(NPUW_KOKORO, bool, false, npuw::kokoro::enabled, RunTime);
 DEFINE_OPT(NPUW_KOKORO_BLOCK_SIZE, uint64_t, 200, npuw::kokoro::block_size, RunTime);
 DEFINE_OPT(NPUW_KOKORO_OVERLAP_SIZE, uint64_t, 20, npuw::kokoro::overlap_size, RunTime);
 DEFINE_OPT(NPUW_LLM_MAX_LORA_RANK, uint32_t, 32, npuw::llm::max_lora_rank, RunTime);
+DEFINE_OPT(NPUW_LLM_OPTIMIZE_FP8, bool, false, npuw::llm::optimize_fp8, RunTime);
 DEFINE_OPT(NPUW_LLM_ENABLE_PREFIX_CACHING, bool, false, npuw::llm::enable_prefix_caching, RunTime);
 DEFINE_OPT(NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE, uint64_t, 256, npuw::llm::prefix_caching_block_size, RunTime);
 DEFINE_OPT(NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS, uint64_t, 128, npuw::llm::prefix_caching_max_num_blocks, RunTime);
@@ -172,6 +176,7 @@ namespace llm {
 enum class PrefillHint { DYNAMIC, STATIC };
 enum class GenerateHint { FAST_COMPILE, BEST_PERF };
 enum class AttentionHint { DYNAMIC, STATIC, PYRAMID, HFA };
+enum class MoEHint { DENSE, HOST_ROUTED, DEVICE_ROUTED };
 }  // namespace llm
 }  // namespace npuw
 
@@ -276,6 +281,62 @@ struct NPUW_LLM_GENERATE_ATTENTION_HINT final : ATTN_HINT_BASE {
 struct NPUW_LLM_PREFILL_ATTENTION_HINT final : ATTN_HINT_BASE {
     static std::string_view key() {
         return ov::intel_npu::npuw::llm::prefill_attn_hint.name();
+    }
+};
+
+struct MOE_HINT_BASE : OptionBase<MOE_HINT_BASE, ::intel_npu::npuw::llm::MoEHint> {
+    static constexpr std::string_view getTypeName() {
+        return "::intel_npu::npuw::llm::MoEHint";
+    }
+
+    static ::intel_npu::npuw::llm::MoEHint defaultValue() {
+        return ::intel_npu::npuw::llm::MoEHint::HOST_ROUTED;
+    }
+
+    static ::intel_npu::npuw::llm::MoEHint parse(std::string_view val) {
+        if (val == "DENSE") {
+            return ::intel_npu::npuw::llm::MoEHint::DENSE;
+        } else if (val == "HOST_ROUTED") {
+            return ::intel_npu::npuw::llm::MoEHint::HOST_ROUTED;
+        } else if (val == "DEVICE_ROUTED") {
+            return ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED;
+        }
+        OPENVINO_THROW("Unsupported MoE hint provided: ", val);
+        return {};
+    }
+
+    static std::string toString(const ::intel_npu::npuw::llm::MoEHint& val) {
+        switch (val) {
+        case ::intel_npu::npuw::llm::MoEHint::DENSE:
+            return "DENSE";
+        case ::intel_npu::npuw::llm::MoEHint::HOST_ROUTED:
+            return "HOST_ROUTED";
+        case ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED:
+            return "DEVICE_ROUTED";
+        default:
+            OPENVINO_THROW("Can't convert provided MoE hint : ", int(val), " to string.");
+        }
+        return {};
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return false;
+    }
+};
+
+struct NPUW_LLM_PREFILL_MOE_HINT final : MOE_HINT_BASE {
+    static std::string_view key() {
+        return ov::intel_npu::npuw::llm::prefill_moe_hint.name();
+    }
+};
+
+struct NPUW_LLM_GENERATE_MOE_HINT final : MOE_HINT_BASE {
+    static std::string_view key() {
+        return ov::intel_npu::npuw::llm::generate_moe_hint.name();
     }
 };
 

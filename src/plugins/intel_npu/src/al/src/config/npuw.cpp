@@ -33,6 +33,8 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_SPATIAL>();
     desc.add<NPUW_SPATIAL_NWAY>();
     desc.add<NPUW_SPATIAL_DYN>();
+    desc.add<NPUW_MOE_TOKEN_CHUNK_SIZE>();
+    desc.add<NPUW_MOE_POOL_SIZE>();
     desc.add<NPUW_ATTN>();
     desc.add<NPUW_ATTN_DYN>();
     desc.add<NPUW_ATTN_NO_COPY>();
@@ -54,6 +56,7 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
     desc.add<NPUW_DUMP_FULL>();
     desc.add<NPUW_DUMP_SUBS>();
+    desc.add<NPUW_DUMP_SUBS_DIR>();
     desc.add<NPUW_DUMP_SUBS_ON_FAIL>();
     desc.add<NPUW_DUMP_IO>();
     desc.add<NPUW_DUMP_IO_ITERS>();
@@ -68,7 +71,10 @@ void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {
     desc.add<NPUW_LLM_MIN_RESPONSE_LEN>();
     desc.add<NPUW_LLM_MAX_LORA_RANK>();
     desc.add<NPUW_LLM_OPTIMIZE_V_TENSORS>();
+    desc.add<NPUW_LLM_OPTIMIZE_FP8>();
     desc.add<NPUW_LLM_CACHE_ROPE>();
+    desc.add<NPUW_LLM_PREFILL_MOE_HINT>();
+    desc.add<NPUW_LLM_GENERATE_MOE_HINT>();
     desc.add<NPUW_LLM_GENERATE_PYRAMID>();
     desc.add<NPUW_LLM_PREFILL_CHUNK_SIZE>();
     desc.add<NPUW_LLM_ENABLE_PREFIX_CACHING>();
