@@ -116,8 +116,6 @@ def _patch_torch_functions(supported_dtypes):
     similar to how ModuleExtension works for modules. This speeds up tracing and avoids
     loading weights from mmap.
     """
-    global _patched_torch_functions
-
     functions_to_patch = [
         (torch, "bmm", _bmm_extension),
     ]
@@ -134,7 +132,6 @@ def _patch_torch_functions(supported_dtypes):
 
 def _unpatch_torch_functions():
     """Restore original torch functions."""
-    global _patched_torch_functions
     for (module, fn_name), orig_fn in _patched_torch_functions.items():
         setattr(module, fn_name, orig_fn)
         log.debug("Restored torch function: %s.%s", module.__name__, fn_name)
