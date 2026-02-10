@@ -44,8 +44,6 @@ class aten_native_multi_head_attention(torch.nn.Module):
             self.mask = None
             self.mask_type = NO_MASK
 
-        print(self.mask)
-
     def forward(self, query, key, value):
         return torch.ops.aten._native_multi_head_attention(
             query, key, value,

@@ -239,6 +239,5 @@ class TestReflectionPad(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     def test_reflection_padnd(self, pads, dtype, ie_device, precision, ir_version):
         ndim = len(pads) // 2 + 2
-        print(ndim)
         self._test(*self.create_model(pads), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"ndim": ndim, "dtype": dtype})
