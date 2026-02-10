@@ -20,6 +20,8 @@ public:
         int64_t _dimsCount;
         std::shared_ptr<void> _impl;
 
+        MemRefType() : _basePtr(nullptr), _data(nullptr), _offset(0), _sizes(), _strides(), _dimsCount(0) {}
+
         MemRefType(const void* basePtr,
                    const void* data,
                    int64_t offset,
@@ -36,6 +38,7 @@ public:
         void setArg(const void* arg);
         void setSize(const ov::Shape& shape);
         void updateStride();
+        friend std::ostream& operator<<(std::ostream& os, const IDynamicGraph::MemRefType& memRef);
         std::string toString();
     };
 

@@ -17,74 +17,54 @@
 namespace intel_npu {
 class IRGraph final : public IDynamicGraph {
 public:
-    struct MemRefTypeImpl : public MemRefType {
+    struct MemRefTypeImpl {
         npu_mlir_runtime_mem_ref_handle_t _memRef;
 
-        MemRefTypeImpl(const void* basePtr,
-                       const void* data,
-                       int64_t offset,
-                       const std::vector<int64_t>& sizes,
-                       const std::vector<int64_t>& strides,
-                       int64_t dimsCount)
-            : MemRefType(basePtr, data, offset, sizes, strides, dimsCount),
-              _memRef(nullptr) {}
-
-        MemRefTypeImpl(const MemRefTypeImpl& other)
-            : MemRefType(other._basePtr, other._data, other._offset, other._sizes, other._strides, other._dimsCount),
-              _memRef(nullptr) {}
-
-        MemRefTypeImpl(MemRefTypeImpl&& other) noexcept
-            : MemRefType(other._basePtr, other._data, other._offset, other._sizes, other._strides, other._dimsCount),
-              _memRef(nullptr) {}
-
-        MemRefTypeImpl& operator=(const MemRefTypeImpl& other) {
-            if (this != &other) {
-                _basePtr = other._basePtr;
-                _data = other._data;
-                _offset = other._offset;
-                _sizes = other._sizes;
-                _strides = other._strides;
-                _dimsCount = other._dimsCount;
-            }
-            return *this;
-        }
-
-        MemRefTypeImpl& operator=(MemRefTypeImpl&& other) noexcept {
-            if (this != &other) {
-                _basePtr = other._basePtr;
-                _data = other._data;
-                _offset = other._offset;
-                _sizes = std::move(other._sizes);
-                _strides = std::move(other._strides);
-                _dimsCount = other._dimsCount;
-            }
-            return *this;
-        }
+        MemRefTypeImpl() : _memRef(nullptr) {}
 
         ~MemRefTypeImpl() {
             destroyMemRef();
         }
 
-        void UpdateMemRefHandleStatus(GraphArguments& args) {
+        void UpdateMemRefHandleStatus(MemRefType& memref) {
             // Update current MemRef handle to use latest metadata
             if (_memRef == nullptr) {
-                createMemRef();
+                createMemRef(memref._dimsCount);
             }
-            auto result =
-                npuMLIRRuntimeSetMemRef(_memRef, _basePtr, _data, _offset, _sizes.data(), _strides.data(), _dimsCount);
+            auto result = npuMLIRRuntimeSetMemRef(_memRef,
+                                                  memref._basePtr,
+                                                  memref._data,
+                                                  memref._offset,
+                                                  memref._sizes.data(),
+                                                  memref._strides.data(),
+                                                  memref._dimsCount);
             if (result != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
                 throw std::runtime_error("Failed to update MemRef handle");
             }
         }
 
-        void alignWithHandle();
+        void alignWithHandle(MemRefType& memref) {
+            if (_memRef == nullptr) {
+                return;
+            }
+
+            if (npuMLIRRuntimeParseMemRef(_memRef,
+                                          &memref._basePtr,
+                                          &memref._data,
+                                          &memref._offset,
+                                          memref._sizes.data(),
+                                          memref._strides.data(),
+                                          &memref._dimsCount) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+                throw std::runtime_error("Failed to parse MemRef handle");
+            }
+        }
 
     private:
-        void createMemRef() {
+        void createMemRef(int64_t dimsCount) {
             if (_memRef == nullptr) {
-                auto result = npuMLIRRuntimeCreateMemRef(_dimsCount, &_memRef);
+                auto result = npuMLIRRuntimeCreateMemRef(dimsCount, &_memRef);
                 if (result != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
-                    throw std::runtime_error("Failed to create MemRef handle");
+                    OPENVINO_THROW("Failed to create MemRef handle");
                 }
             }
         }
@@ -176,13 +156,14 @@ public:
                  ze_command_queue_handle_t commandQueue,
                  ze_fence_handle_t inferenceFence,
                  ze_event_handle_t event,
-                 ze_graph_profiling_pool_handle_t profiling);
+                 ze_graph_profiling_pool_handle_t profiling) override;
 
-    void getBinding(GraphArguments& args);
+    void getBinding(GraphArguments& args) override;
 
-    uint64_t get_num_subgraphs() const;
+    uint64_t get_num_subgraphs() const override;
 
-    void predict_output_shape(std::vector<MemRefType>& inputDescriptors, std::vector<MemRefType>& outputDescriptors);
+    void predict_output_shape(std::vector<MemRefType>& inputDescriptors,
+                              std::vector<MemRefType>& outputDescriptors) override;
 
 private:
     bool release_blob(const Config& config);

@@ -15,17 +15,6 @@
 
 namespace intel_npu {
 
-void IRGraph::MemRefTypeImpl::alignWithHandle() {
-    if (_memRef == nullptr) {
-        return;
-    }
-
-    if (npuMLIRRuntimeParseMemRef(_memRef, &_basePtr, &_data, &_offset, _sizes.data(), _strides.data(), &_dimsCount) !=
-        NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
-        throw std::runtime_error("Failed to parse MemRef handle");
-    }
-}
-
 class IRGraphImpl : public IRGraph::Impl {
 public:
     using MemRefType = IRGraph::MemRefType;
@@ -323,27 +312,25 @@ void IRGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zer
 
     npu_mlir_runtime_execute_params_t* params = &argsImpl->_executeParams;
 
-    // Only need to store handles in MemRef container once, then update them in following executions
-    bool reuseInputsHandles = argsImpl->_inputMemRefs.size() > 0;
-    bool reuseOutputsHandles = argsImpl->_outputMemRefs.size() > 0;
-
-    for (auto& in : argsImpl->_inputs) {
+    for (auto& in : args._inputs) {
         std::shared_ptr<IRGraph::MemRefTypeImpl> inImpl = std::static_pointer_cast<IRGraph::MemRefTypeImpl>(in._impl);
         if (inImpl == nullptr) {
-            OPENVINO_THROW("MemRefType implementation is not set or has wrong type");
+            inImpl = std::make_shared<IRGraph::MemRefTypeImpl>();
+            in._impl = inImpl;
         }
-        inImpl->UpdateMemRefHandleStatus();
-        if (!reuseInputsHandles) {
+        inImpl->UpdateMemRefHandleStatus(in);
+        if (args._impl == nullptr) {
             argsImpl->_inputMemRefs.push_back(inImpl->_memRef);
         }
     }
-    for (auto& out : argsImpl->_outputs) {
+    for (auto& out : args._outputs) {
         std::shared_ptr<IRGraph::MemRefTypeImpl> outImpl = std::static_pointer_cast<IRGraph::MemRefTypeImpl>(out._impl);
         if (outImpl == nullptr) {
-            OPENVINO_THROW("MemRefType implementation is not set or has wrong type");
+            outImpl = std::make_shared<IRGraph::MemRefTypeImpl>();
+            out._impl = outImpl;
         }
-        outImpl->UpdateMemRefHandleStatus();
-        if (!reuseOutputsHandles) {
+        outImpl->UpdateMemRefHandleStatus(out);
+        if (args._impl == nullptr) {
             argsImpl->_outputMemRefs.push_back(outImpl->_memRef);
         }
     }
@@ -364,6 +351,10 @@ void IRGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zer
     if (npuMLIRRuntimeExecute(_engine, params) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to execute MLIR runtime engine");
     }
+
+    if (args._impl == nullptr) {
+        args._impl = argsImpl;
+    }
 }
 
 void IRGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescriptors,
@@ -372,18 +363,20 @@ void IRGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescriptors,
     for (auto& in : inputDescriptors) {
         std::shared_ptr<IRGraph::MemRefTypeImpl> inImpl = std::static_pointer_cast<IRGraph::MemRefTypeImpl>(in._impl);
         if (inImpl == nullptr) {
-            OPENVINO_THROW("MemRefType implementation is not set or has wrong type");
+            inImpl = std::make_shared<IRGraph::MemRefTypeImpl>();
+            in._impl = inImpl;
         }
-        inImpl->UpdateMemRefHandleStatus();
+        inImpl->UpdateMemRefHandleStatus(in);
         inputs.push_back(inImpl->_memRef);
     }
     std::vector<npu_mlir_runtime_mem_ref_handle_t> outputs;
     for (auto& out : outputDescriptors) {
         std::shared_ptr<IRGraph::MemRefTypeImpl> outImpl = std::static_pointer_cast<IRGraph::MemRefTypeImpl>(out._impl);
         if (outImpl == nullptr) {
-            OPENVINO_THROW("MemRefType implementation is not set or has wrong type");
+            outImpl = std::make_shared<IRGraph::MemRefTypeImpl>();
+            out._impl = outImpl;
         }
-        outImpl->UpdateMemRefHandleStatus();
+        outImpl->UpdateMemRefHandleStatus(out);
         outputs.push_back(outImpl->_memRef);
     }
 
@@ -400,9 +393,9 @@ void IRGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescriptors,
             std::shared_ptr<IRGraph::MemRefTypeImpl> outImpl =
                 std::static_pointer_cast<IRGraph::MemRefTypeImpl>(out._impl);
             if (outImpl == nullptr) {
-                OPENVINO_THROW("MemRefType implementation is not set or has wrong type");
+                OPENVINO_THROW("MemRefType implementation is broken, unkown error happens in shape prediction.");
             }
-            outImpl->alignWithHandle();
+            outImpl->alignWithHandle(out);
         }
         _logger.debug("Output shape prediction is done successfully.");
     }
