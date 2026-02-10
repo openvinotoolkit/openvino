@@ -18,6 +18,7 @@
 #include "openvino/op/constant.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/broadcastmove.hpp"
+#include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
 #include "xbyak_riscv/xbyak_riscv_csr.hpp"
 
