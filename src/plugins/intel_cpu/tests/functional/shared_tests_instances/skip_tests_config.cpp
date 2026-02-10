@@ -476,10 +476,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(smoke_Snippets.*\[.*\?.*\].*)"),
             std::regex(R"(smoke_Snippets(?!_(Eltwise|ThreeInputsEltwise)(/|_)).*)"),
             std::regex(R"(.*_enforceSnippets=1.*)"),
-            std::regex(R"(smoke_Snippets_Eltwise.*/Add.*)"),
-            std::regex(R"(smoke_Snippets_Eltwise/TwoInputsAndOutputs.*)"),
-            std::regex(R"(smoke_Snippets_Eltwise_TwoResults.*)"),
-            std::regex(R"(smoke_Snippets_ThreeInputsEltwise.*)"),
 #endif
 #if !defined(OPENVINO_ARCH_X86_64)
             // very time-consuming test
