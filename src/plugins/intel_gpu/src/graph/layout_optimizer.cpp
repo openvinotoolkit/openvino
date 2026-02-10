@@ -113,7 +113,11 @@ std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder
 }
 
 int64_t cldnn::get_convolution_channel_count(const convolution_node& conv_node, const layout& layout, bool is_input) {
-    auto channel_count = layout.get_partial_shape()[1].is_static() ? layout.get_partial_shape()[1].get_length() : -1;
+    int64_t channel_count = -1;
+    if (layout.get_partial_shape().size() > 1 && layout.get_partial_shape()[1].is_static()) {
+        channel_count = layout.get_partial_shape()[1].get_length();
+    }
+
     if (channel_count == -1) {
         auto weights_layout = conv_node.weights().get_output_layout();
         if (weights_layout.is_static()) {

@@ -76,21 +76,21 @@ class TestWhileLoopFX(PytorchLayerTest):
     def test_while_loop_counter(self, num_iterations, ie_device, precision, ir_version):
         self.input_shape = (2, 4)
         self._test(*self.create_model_simple_counter(num_iterations), ie_device, precision,
-                   ir_version, trace_model=False, use_torch_export=True)
+                   ir_version, trace_model=False, use_torch_export=True, fx_kind="while_loop")
 
     @pytest.mark.nightly
     @pytest.mark.precommit_torch_export
     def test_while_loop_accumulator(self, ie_device, precision, ir_version):
         self.input_shape = (3, 5)
         self._test(*self.create_model_accumulator(), ie_device, precision,
-                   ir_version, trace_model=False, use_torch_export=True)
+                   ir_version, trace_model=False, use_torch_export=True, fx_kind="while_loop")
 
     @pytest.mark.nightly
     @pytest.mark.precommit_torch_export
     def test_while_loop_scalar_only(self, ie_device, precision, ir_version):
         self.input_shape = (2, 3)
         self._test(*self.create_model_scalar_only(), ie_device, precision,
-                   ir_version, trace_model=False, use_torch_export=True)
+                   ir_version, trace_model=False, use_torch_export=True, fx_kind="while_loop")
 
 
 class TestLoopWithAlias(PytorchLayerTest):
