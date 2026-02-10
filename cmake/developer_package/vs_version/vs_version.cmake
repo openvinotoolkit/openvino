@@ -66,6 +66,7 @@ function(ov_add_vs_version_file)
         elseif(VS_VER_${name})
             set(OV_VS_VER_${name}_STR "${VS_VER_${name}}")
         endif()
+        message(" === > OV_VS_VER_${name}_STR = ${OV_VS_VER_${name}_STR}")
     endmacro()
 
     _vs_ver_update_str_variable(COMPANY_NAME)

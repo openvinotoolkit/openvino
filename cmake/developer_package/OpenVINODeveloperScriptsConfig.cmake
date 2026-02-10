@@ -37,6 +37,7 @@ function(ov_set_ci_build_number)
             message(FATAL_ERROR "${var} version component is not defined")
         endif()
         set(${var} "${${var}}" PARENT_SCOPE)
+        message(STATUS "==in ov/OpenVINODeveloperScriptsConfig.cmake==> ${var} = ${${var}}") # print all version components for debug purposes
     endforeach()
 endfunction()
 
