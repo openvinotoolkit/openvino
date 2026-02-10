@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-import torch
 
 from pytorch_layer_test_class import PytorchLayerTest
 
@@ -12,6 +11,8 @@ class TestSqueeze(PytorchLayerTest):
         return (self.random.randn(1, 1, 32),)
 
     def create_model(self, dim):
+        import torch
+
         class aten_squeeze(torch.nn.Module):
             def __init__(self, dim):
                 super().__init__()
@@ -47,6 +48,8 @@ class TestSqueezeCopy(PytorchLayerTest):
         return (self.random.randn(1, 1, 32),)
 
     def create_model(self, dim):
+        import torch
+
         class aten_squeeze_copy(torch.nn.Module):
             def __init__(self, dim):
                 super().__init__()

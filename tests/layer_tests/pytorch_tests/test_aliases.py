@@ -40,8 +40,8 @@ class TestAliases(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     def test_alias(self, ie_device, precision, ir_version):
         self._test(aten_alias(), ["aten::slice",
-                                        "aten::select",
-                                        "aten::copy_"],
+                                  "aten::select",
+                                  "aten::copy_"],
                    ie_device, precision, ir_version,
                    fx_kind=["aten.clone.default", "aten.select.int", "aten.fill_.Tensor"])
 
@@ -50,7 +50,7 @@ class TestAliases(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     def test_alias_tensor(self, ie_device, precision, ir_version):
         self._test(aten_alias_tensor(), ["aten::slice",
-                                               "aten::copy_"],
+                                         "aten::copy_"],
                    ie_device, precision, ir_version, freeze_model=False,
                    fx_kind=["aten.slice.Tensor", "aten.copy_.default"])
 
@@ -59,8 +59,8 @@ class TestAliases(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     def test_loop_alias(self, ie_device, precision, ir_version):
         self._test(aten_loop_alias(), ["aten::slice",
-                                             "aten::select",
-                                             "aten::copy_",
-                                             "prim::Loop"],
+                                       "aten::select",
+                                       "aten::copy_",
+                                       "prim::Loop"],
                    ie_device, precision, ir_version, freeze_model=False,
                    fx_kind=["aten.clone.default", "aten.select.int", "aten.fill_.Tensor"])

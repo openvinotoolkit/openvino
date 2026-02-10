@@ -23,8 +23,7 @@ class TestMatMulOperation(PytorchLayerTest):
         (np.array([[1, 2], [3, 4]]), np.array([5, 6]), torch.float64),
         (np.array([[0, 0], [0, 0]]), np.array([1, 2]), torch.float32),
         (np.array([[1, 2, 3], [4, 5, 6]]), np.array([0, 1, 0]), torch.float64),
-        (np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
-         np.array([2, 3, 4]), torch.float32),
+        (np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]), np.array([2, 3, 4]), torch.float32),
     ])
     def test_matmul_operation(self, matrix, vector, dtype, ie_device, precision, ir_version):
         matrix_input = torch.tensor(matrix, dtype=torch.float32)

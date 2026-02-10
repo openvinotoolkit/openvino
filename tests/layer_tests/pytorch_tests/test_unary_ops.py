@@ -5,7 +5,7 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from pytorch_layer_test_class import PytorchLayerTest, SeededRandom, skip_if_export
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 OPS = {
     "aten::abs": torch.abs,
@@ -138,8 +138,8 @@ class unary_op_complex_net(torch.nn.Module):
 class TestUnaryOp(PytorchLayerTest):
     def _prepare_input(self):
         # random number in range [1, 11)
-        x = self.random.uniform(1, 11, size=(2, 10))
-        return (x.astype(self.np_dtype),)
+        x = self.random.torch_rand(2, 10) * 10 + 1
+        return (x.to(self.dtype).numpy(),)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -183,7 +183,6 @@ class TestUnaryOp(PytorchLayerTest):
                              ])
     def test_unary_op(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
-        self.np_dtype = SeededRandom._to_numpy_dtype(dtype)
         if self.use_torch_export() and op_type == "aten::atanh" and dtype in [torch.int8, torch.int32, torch.int64]:
             pytest.xfail(reason="torch.export after 2.4.0 doesn't support unsigned int types for atanh in some configurations")
         self._test(unary_op_net(OPS[op_type], dtype), op_type,
@@ -231,7 +230,6 @@ class TestUnaryOp(PytorchLayerTest):
                              ])
     def test_unary_op_float(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
-        self.np_dtype = SeededRandom._to_numpy_dtype(dtype)
         if self.use_torch_compile_backend() and op_type == "aten::sigmoid_":
             pytest.xfail(reason="Accuracy issue, one or two values are off sometimes")
         self._test(unary_op_net(OPS[op_type], dtype), op_type,
@@ -274,7 +272,6 @@ class TestUnaryOp(PytorchLayerTest):
                              ])
     def test_unary_op_out(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
-        self.np_dtype = SeededRandom._to_numpy_dtype(dtype)
         self._test(unary_op_out_net(OPS[op_type], dtype), op_type,
                    ie_device, precision, ir_version)
 
@@ -291,7 +288,6 @@ class TestUnaryOp(PytorchLayerTest):
                              ])
     def test_unary_func_op_inplace(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
-        self.np_dtype = SeededRandom._to_numpy_dtype(dtype)
         self._test(unary_func_op_inplace_net(OPS[op_type], dtype), op_type + "_",
                    ie_device, precision, ir_version)
 
@@ -302,7 +298,6 @@ class TestUnaryOp(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64, torch.int8, torch.uint8, torch.int32, torch.int64])
     def test_prim_abs(self, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
-        self.np_dtype = SeededRandom._to_numpy_dtype(dtype)
         self._test(prim_abs_net(dtype), "prim::abs",
                    ie_device, precision, ir_version, fx_kind="aten.abs")
 
@@ -316,6 +311,5 @@ class TestUnaryOp(PytorchLayerTest):
                              ])
     def test_complex_unary_op(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
-        self.np_dtype = SeededRandom._to_numpy_dtype(dtype)
         self._test(unary_op_complex_net(OPS[op_type], dtype), op_type,
                    ie_device, precision, ir_version)
