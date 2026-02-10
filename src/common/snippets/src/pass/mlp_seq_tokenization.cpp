@@ -36,6 +36,8 @@
 
 namespace ov::snippets::pass {
 
+using namespace ov::snippets::utils;
+
 namespace {
 inline bool has_one_consumer(const std::shared_ptr<ov::Node>& node) {
     return node->get_output_target_inputs(0).size() == 1;
@@ -127,7 +129,7 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const Config& config) {
             if (auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(matmul0->get_input_node_shared_ptr(0))) {
                 if (has_one_consumer(fq)) {
                     is_dynamic = is_dynamic || fq->is_dynamic();
-                    io_count += ov::snippets::utils::get_non_scalar_constant_count_for_fq(fq);
+                    io_count += get_non_scalar_constant_count_for_fq(fq);
                     ordered_ops.push_back(fq);
                 }
             }
@@ -158,7 +160,7 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const Config& config) {
                     // or if a previous node between MatMul and this op is not supported by post-op fusion
                     if (!postops_fusion_possible || !config.get_can_be_fused_as_postop()(cur_matmul, interm_op)) {
                         postops_fusion_possible = false;
-                        current_io_count += ov::snippets::utils::get_potential_body_params(interm_op);
+                        current_io_count += get_potential_body_params(interm_op);
                     }
                 } else {
                     // Unsupported op
@@ -207,7 +209,7 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const Config& config) {
                 return false;
             }
 
-            const auto subgraph = ov::snippets::utils::tokenize_ordered_nodes(ordered_ops);
+            const auto subgraph = tokenize_ordered_nodes(ordered_ops);
             // mark the Subgraph as Completed to not allow Snippets to include any nodes into this Subgraph in common
             // Tokenization
             SetSnippetsSubgraphType(subgraph, SnippetsSubgraphType::Completed);
