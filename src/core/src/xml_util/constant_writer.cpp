@@ -82,7 +82,7 @@ ConstantWriter::FilePosition ConstantWriter::write(const char* ptr,
         }
         if (m_write_hash_value) {
             // hash stored with special ostream only
-            m_binary_output.get().write(reinterpret_cast<const char*>(&hash), hash);
+            m_binary_output.get().rdbuf()->sputn(reinterpret_cast<const char*>(&hash), hash);
         } else {
             m_binary_output.get().write(ptr_to_write, new_size);
         }

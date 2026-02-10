@@ -39,6 +39,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/tokenization.hpp"
@@ -62,7 +63,7 @@ auto has_result_child(const std::shared_ptr<const Node>& node) -> bool {
 auto get_num_result_children(const std::shared_ptr<const Node>& node) -> size_t {
     size_t result = 0;
     for (const auto& child : node->get_users()) {
-        if (ov::is_type<ov::opset1::Result>(child)) {
+        if (ov::is_type<ov::op::v0::Result>(child)) {
             result++;
         }
     }
@@ -392,7 +393,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const TokenizationConf
                 if (!input_subgraphs.count(target_node) && target_node != node) {
                     if (first_side_consumer) {
                         auto& input_subgraph_body = clones[subgraph];
-                        body_results.push_back(std::make_shared<ov::op::v0::Result>(
+                        body_results.push_back(std::make_shared<snippets::op::Result>(
                             input_subgraph_body->get_results()[output.get_index()]->input_value(0)));
                         subgraph_result_inputs.emplace_back();
 
@@ -414,7 +415,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const TokenizationConf
     }
 
     for (const auto& output : node->outputs()) {
-        body_results.push_back(std::make_shared<ov::op::v0::Result>(body_node->output(output.get_index())));
+        body_results.push_back(std::make_shared<snippets::op::Result>(body_node->output(output.get_index())));
         subgraph_result_inputs.push_back(output.get_target_inputs());
     }
 
@@ -549,7 +550,7 @@ std::shared_ptr<ov::snippets::op::Subgraph> tokenize_ordered_nodes(const ov::Nod
         // Note: since we need to save only original consumers,
         // subgraph_result_inputs must be taken before result creation
         subgraph_result_inputs.push_back(output.get_target_inputs());
-        body_results.push_back(std::make_shared<ov::opset1::Result>(last_node->output(output.get_index())));
+        body_results.push_back(std::make_shared<snippets::op::Result>(last_node->output(output.get_index())));
     }
 
     auto body = op::create_body(last_node->get_friendly_name(), body_results, body_parameters);
