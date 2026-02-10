@@ -233,14 +233,8 @@ static std::shared_ptr<op_util::ShapeOfBase> get_shape_of_from_gather(const std:
     if (!gather)
         return nullptr;
 
-    auto indices_const = ov::as_type_ptr<v0::Constant>(gather->input_value(1).get_node_shared_ptr());
-    auto axis_const = ov::as_type_ptr<v0::Constant>(gather->input_value(2).get_node_shared_ptr());
-    if (!indices_const || !axis_const)
-        return nullptr;
-
-    auto ind_values = indices_const->cast_vector<int64_t>();
-    auto axis_values = axis_const->cast_vector<int64_t>();
-    if (ind_values.size() != 1 || ind_values[0] != 1 || axis_values.size() != 1 || axis_values[0] != 0)
+    if (!has_constant_value(gather->input_value(1).get_node_shared_ptr(), static_cast<int64_t>(1)) ||
+        !has_constant_value(gather->input_value(2).get_node_shared_ptr(), static_cast<int64_t>(0)))
         return nullptr;
 
     return ov::as_type_ptr<op_util::ShapeOfBase>(gather->input_value(0).get_node_shared_ptr());
@@ -255,27 +249,7 @@ static std::shared_ptr<op_util::ShapeOfBase> get_shape_of_from_strided_slice(con
     if (!ss)
         return nullptr;
 
-    auto begin_const = ov::as_type_ptr<v0::Constant>(ss->input_value(1).get_node_shared_ptr());
-    auto end_const = ov::as_type_ptr<v0::Constant>(ss->input_value(2).get_node_shared_ptr());
-    if (!begin_const || !end_const)
-        return nullptr;
-
-    // Validate strides if present (StridedSlice may have 3 or 4 inputs)
-    if (ss->get_input_size() > 3) {
-        auto stride_const = ov::as_type_ptr<v0::Constant>(ss->input_value(3).get_node_shared_ptr());
-        if (!stride_const)
-            return nullptr;
-        auto stride_values = stride_const->cast_vector<int64_t>();
-        if (stride_values.size() != 1 || stride_values[0] != 1)
-            return nullptr;
-    }
-
-    auto begin_values = begin_const->cast_vector<int64_t>();
-    auto end_values = end_const->cast_vector<int64_t>();
-    if (begin_values.size() != 1 || begin_values[0] != 1 || end_values.size() != 1 || end_values[0] != 2)
-        return nullptr;
-
-    // Validate masks: begin and end values must be used literally (mask bit = 0)
+    // Validate masks first: begin and end values must be used literally (mask bit = 0)
     const auto& begin_mask = ss->get_begin_mask();
     const auto& end_mask = ss->get_end_mask();
     if (!begin_mask.empty() && begin_mask[0] != 0)
@@ -293,6 +267,16 @@ static std::shared_ptr<op_util::ShapeOfBase> get_shape_of_from_strided_slice(con
         return nullptr;
 
     // shrink_axis_mask is acceptable in any state (scalar or 1-element output are both valid)
+
+    // Validate begin=1, end=2 (extracts dimension 1 = seq_len)
+    if (!has_constant_value(ss->input_value(1).get_node_shared_ptr(), static_cast<int64_t>(1)) ||
+        !has_constant_value(ss->input_value(2).get_node_shared_ptr(), static_cast<int64_t>(2)))
+        return nullptr;
+
+    // Validate strides if present (StridedSlice may have 3 or 4 inputs)
+    if (ss->get_input_size() > 3 &&
+        !has_constant_value(ss->input_value(3).get_node_shared_ptr(), static_cast<int64_t>(1)))
+        return nullptr;
 
     return ov::as_type_ptr<op_util::ShapeOfBase>(ss->input_value(0).get_node_shared_ptr());
 }
