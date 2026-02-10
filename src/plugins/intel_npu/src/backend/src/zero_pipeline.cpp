@@ -66,19 +66,20 @@ Pipeline::Pipeline(const Config& config,
     bool perf_count_enabled = _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>();
     std::optional<bool> compiled_with_profiling = graph->is_profiling_blob();
 
-    if (_config.has<PROFILING_TYPE>() && _config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
+    if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
         if (perf_count_enabled) {
             _logger.debug("Profiling type == ov::intel_npu::ProfilingType::INFER");
             _npu_profiling =
                 std::make_shared<zeroProfiling::NpuInferProfiling>(_init_structs, _config.get<LOG_LEVEL>());
-            if (compiled_with_profiling.has_value() && compiled_with_profiling.value()) {
+            if (compiled_with_profiling.value_or(false)) {
                 _logger.warning(
-                    "Model was compiled with profiling enabled. Statistics and timestamps will be extracted");
+                    "Model was compiled with layer profiling enabled, but the current profiling type is 'INFER'");
                 enable_profiling();
             }
-        } else if (compiled_with_profiling.has_value() && compiled_with_profiling.value()) {
-            _logger.warning("Model was compiled with profiling enabled, PERF_COUNT is NOT set and timestamps will "
-                            "not be extracted");
+        } else if (compiled_with_profiling.value_or(false)) {
+            _logger.warning(
+                "Model was compiled with layer profiling enabled, PERF_COUNT is NOT set and timestamps will "
+                "not be extracted");
             enable_profiling();
         }
     } else {
@@ -89,7 +90,7 @@ Pipeline::Pipeline(const Config& config,
 
             if (compiled_with_profiling.value()) {
                 if (!perf_count_enabled) {
-                    _logger.warning("Model was compiled with profiling enabled, PERF_COUNT is NOT set and "
+                    _logger.warning("Model was compiled with layer profiling enabled, PERF_COUNT is NOT set and "
                                     "statistics will not be extracted");
                 }
                 enable_profiling();
