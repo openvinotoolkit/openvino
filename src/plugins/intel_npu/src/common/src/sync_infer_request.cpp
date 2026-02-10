@@ -219,9 +219,7 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
                     OPENVINO_THROW("The tensor shape is not compatible with the model input/output max shape: got ",
                                    tensor->get_shape(),
                                    " expecting max shape ",
-                                   port.get_partial_shape().get_max_shape(),
-                                   ", expecting min shape ",
-                                   port.get_partial_shape().get_min_shape());
+                                   port.get_partial_shape().get_max_shape());
                 }
             }
         }

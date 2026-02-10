@@ -90,9 +90,9 @@ DynamicPipeline::DynamicPipeline(const Config& config,
     }
     _logger.debug("DynamicPipeline - emplace_back _event_pool and _command_queue completed");
 
-    intel_npu::IRGraph* irGraph = dynamic_cast<intel_npu::IRGraph*>(graph.get());
+    intel_npu::IDynamicGraph* dynamicGraph = dynamic_cast<intel_npu::IDynamicGraph*>(graph.get());
 
-    uint64_t num_of_subgraphs = irGraph->get_num_subgraphs();
+    uint64_t num_of_subgraphs = dynamicGraph->get_num_subgraphs();
 
     _command_lists.reserve(_number_of_command_lists);
     for (size_t i = 0; i < _number_of_command_lists; i++) {
@@ -112,7 +112,7 @@ DynamicPipeline::DynamicPipeline(const Config& config,
     for (size_t i = 0; i < _number_of_command_lists; i++) {
         _logger.debug("DynamicPipeline - set args for command list number: %zu", i);
 
-        _command_lists.at(i)->bind(dynamic_cast<intel_npu::IRGraph*>(graph.get()));
+        _command_lists.at(i)->bind(dynamicGraph);
         auto& graphArguments = _command_lists.at(i)->getBinding();
 
         size_t io_index = 0;
@@ -127,9 +127,9 @@ DynamicPipeline::DynamicPipeline(const Config& config,
                 const auto& tensor = input_tensors.at(io_index).at(i);
                 if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() ||
                     tensor->get_strides().empty()) {
-                    irGraph->set_argument_value(desc.indexUsedByDriver, tensor->data());
+                    dynamicGraph->set_argument_value(desc.indexUsedByDriver, tensor->data());
                 } else {
-                    irGraph->set_argument_value_with_strides(
+                    dynamicGraph->set_argument_value_with_strides(
                         desc.indexUsedByDriver,
                         tensor->data(),
                         get_strides(tensor->get_strides(), tensor->get_element_type().size()));
@@ -147,16 +147,16 @@ DynamicPipeline::DynamicPipeline(const Config& config,
             const auto& tensor = input_tensors.at(io_index).at(0);
             size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
             if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
-                irGraph->set_argument_value(desc.indexUsedByDriver,
-                                            static_cast<unsigned char*>(tensor->data()) +
-                                                (i * tensor->get_byte_size()) / _number_of_command_lists);
+                dynamicGraph->set_argument_value(desc.indexUsedByDriver,
+                                                 static_cast<unsigned char*>(tensor->data()) +
+                                                     (i * tensor->get_byte_size()) / _number_of_command_lists);
                 graphArguments.setArgumentProperties(desc.indexUsedByDriver,
                                                      static_cast<unsigned char*>(tensor->data()) +
                                                          (i * tensor->get_byte_size()) / _number_of_command_lists,
                                                      tensor->get_shape(),
                                                      get_strides(tensor->get_strides(), elementSize));
             } else {
-                irGraph->set_argument_value_with_strides(
+                dynamicGraph->set_argument_value_with_strides(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
                     get_strides(tensor->get_strides(), tensor->get_element_type().size()));
@@ -175,16 +175,16 @@ DynamicPipeline::DynamicPipeline(const Config& config,
             const auto& tensor = output_tensors.at(io_index);
             size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
             if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
-                irGraph->set_argument_value(desc.indexUsedByDriver,
-                                            static_cast<unsigned char*>(tensor->data()) +
-                                                (i * tensor->get_byte_size()) / _number_of_command_lists);
+                dynamicGraph->set_argument_value(desc.indexUsedByDriver,
+                                                 static_cast<unsigned char*>(tensor->data()) +
+                                                     (i * tensor->get_byte_size()) / _number_of_command_lists);
                 graphArguments.setArgumentProperties(desc.indexUsedByDriver,
                                                      static_cast<unsigned char*>(tensor->data()) +
                                                          (i * tensor->get_byte_size()) / _number_of_command_lists,
                                                      tensor->get_shape(),
                                                      get_strides(tensor->get_strides(), elementSize));
             } else {
-                irGraph->set_argument_value_with_strides(
+                dynamicGraph->set_argument_value_with_strides(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
                     get_strides(tensor->get_strides(), elementSize));
@@ -198,18 +198,14 @@ DynamicPipeline::DynamicPipeline(const Config& config,
             ++io_index;
         }
 
-        if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-            _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-            if (_graph->get_last_submitted_event(i)) {
-                _command_lists.at(i)->appendWaitOnEvent(_graph->get_last_submitted_event(i));
-            }
-        }
+        // if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
+        //     _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        //     if (_graph->get_last_submitted_event(i)) {
+        //         _command_lists.at(i)->appendWaitOnEvent(_graph->get_last_submitted_event(i));
+        //     }
+        // }
     }
     _logger.debug("DynamicPipeline - initialize completed");
-}
-
-void DynamicPipeline::PipelinedCommandLists::bind(IRGraph* graph) {
-    graph->getBinding(_binding);
 }
 
 void DynamicPipeline::push() {
@@ -256,7 +252,7 @@ void DynamicPipeline::push() {
         // L0 wrapper handle closed command list
         command_lists->resetCommandList();
 
-        dynamic_cast<IRGraph*>(_graph.get())
+        dynamic_cast<IDynamicGraph*>(_graph.get())
             ->execute(_init_structs,
                       command_lists->getBinding(),
                       command_lists->getHandles(),

@@ -183,7 +183,7 @@ void ZeroDynamicInferRequest::infer_async() {
     _logger.debug("infer_async started");
     OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "start");
     // Store the predicted output shapes
-    std::vector<IRGraph::MemRefType> outputPros;
+    std::vector<IDynamicGraph::MemRefType> outputPros;
     {
         std::lock_guard<std::mutex> lock(_graph->get_mutex());
 
@@ -191,15 +191,12 @@ void ZeroDynamicInferRequest::infer_async() {
         // But reshape ZeroTensor can be used to avoid recreate pipeline now
         // bool reCreatePipeline = false;
         // Predict output shapes based on current inputs
-        intel_npu::IRGraph* irGraph = dynamic_cast<intel_npu::IRGraph*>(_graph.get());
-        if (irGraph && _isTensorChanged) {
-            IRGraph::GraphArguments graphArgs;
+        intel_npu::IDynamicGraph* dynamicGraph = dynamic_cast<intel_npu::IDynamicGraph*>(_graph.get());
+        if (dynamicGraph && _isTensorChanged) {
+            IDynamicGraph::GraphArguments graphArgs;
             // Need change to use arguments in pipeline
-            irGraph->getBinding(graphArgs);
-            // Before call execute, shall clear memref containers in graphArguments to avoid dangling ptrs
-            graphArgs._inputMemRefs.clear();
-            graphArgs._outputMemRefs.clear();
-            std::vector<IRGraph::MemRefType> inputPros = graphArgs._inputs;
+            dynamicGraph->getBinding(graphArgs);
+            std::vector<IDynamicGraph::MemRefType> inputPros = graphArgs._inputs;
             outputPros = graphArgs._outputs;
 
             // TODO: Support Batch later
@@ -210,52 +207,51 @@ void ZeroDynamicInferRequest::infer_async() {
                 auto& userTensor = get_user_input(i);
                 if (userTensor != nullptr) {
                     // If userTensor is set, use userTensor to update memref handle
-                    inputPros[i].basePtr = get_tensor_data_ptr(userTensor._ptr);
-                    inputPros[i].data = inputPros[i].basePtr;
-                    inputPros[i].offset = 0;
+                    inputPros[i]._basePtr = get_tensor_data_ptr(userTensor._ptr);
+                    inputPros[i]._data = inputPros[i]._basePtr;
+                    inputPros[i]._offset = 0;
                     auto& shape = userTensor->get_shape();
                     for (size_t j = 0; j < shape.size(); j++) {
-                        inputPros[i].sizes[j] = shape[j];
+                        inputPros[i]._sizes[j] = shape[j];
                     }
                     auto& strides = userTensor->get_strides();
                     size_t elementSize =
                         userTensor->get_element_type().bitwidth() < 8 ? 1 : userTensor->get_element_type().size();
                     for (size_t j = 0; j < strides.size(); j++) {
-                        inputPros[i].strides[j] = strides[j] / elementSize;
+                        inputPros[i]._strides[j] = strides[j] / elementSize;
                     }
-                    inputPros[i].dimsCount = shape.size();
+                    inputPros[i]._dimsCount = shape.size();
 
                 } else if (levelZeroTensor != nullptr) {
                     // If userTensor is not set, use levelZeroTensor to update memref handle
-                    inputPros[i].basePtr = get_tensor_data_ptr(levelZeroTensor);
-                    inputPros[i].data = inputPros[i].basePtr;
-                    inputPros[i].offset = 0;
+                    inputPros[i]._basePtr = get_tensor_data_ptr(levelZeroTensor);
+                    inputPros[i]._data = inputPros[i]._basePtr;
+                    inputPros[i]._offset = 0;
                     auto& shape = levelZeroTensor->get_shape();
                     for (size_t j = 0; j < shape.size(); j++) {
-                        inputPros[i].sizes[j] = shape[j];
+                        inputPros[i]._sizes[j] = shape[j];
                     }
                     auto& strides = levelZeroTensor->get_strides();
                     size_t elementSize = levelZeroTensor->get_element_type().bitwidth() < 8
                                              ? 1
                                              : levelZeroTensor->get_element_type().size();
                     for (size_t j = 0; j < strides.size(); j++) {
-                        inputPros[i].strides[j] = strides[j] / elementSize;
+                        inputPros[i]._strides[j] = strides[j] / elementSize;
                     }
-                    inputPros[i].dimsCount = shape.size();
+                    inputPros[i]._dimsCount = shape.size();
                 } else {
                     // If all tensors are not set, use metadata
-                    inputPros[i].basePtr = nullptr;
-                    inputPros[i].data = nullptr;
-                    inputPros[i].offset = 0;
+                    inputPros[i]._basePtr = nullptr;
+                    inputPros[i]._data = nullptr;
+                    inputPros[i]._offset = 0;
                     // TODO : BatchSize not checked here
                     auto shape = _metadata.inputs.at(i).shapeFromCompiler.get_max_shape();
                     for (size_t j = 0; j < shape.size(); j++) {
-                        inputPros[i].sizes[j] = shape[j];
+                        inputPros[i]._sizes[j] = shape[j];
                     }
-                    inputPros[i].dimsCount = shape.size();
+                    inputPros[i]._dimsCount = shape.size();
                     inputPros[i].updateStride();
                 }
-                inputPros[i].UpdateMemRefHandleStatus();
             }
 
             // Update output Info
@@ -264,68 +260,67 @@ void ZeroDynamicInferRequest::infer_async() {
                 auto& userTensor = _userOutputTensors.at(i);
                 if (userTensor != nullptr) {
                     // If userTensor is set, use userTensor to update memref handle
-                    outputPros[i].basePtr = get_tensor_data_ptr(userTensor._ptr);
-                    outputPros[i].data = outputPros[i].basePtr;
-                    outputPros[i].offset = 0;
+                    outputPros[i]._basePtr = get_tensor_data_ptr(userTensor._ptr);
+                    outputPros[i]._data = outputPros[i]._basePtr;
+                    outputPros[i]._offset = 0;
                     auto& shape = userTensor->get_shape();
                     for (size_t j = 0; j < shape.size(); j++) {
-                        outputPros[i].sizes[j] = shape[j];
+                        outputPros[i]._sizes[j] = shape[j];
                     }
                     auto& strides = userTensor->get_strides();
                     size_t elementSize =
                         userTensor->get_element_type().bitwidth() < 8 ? 1 : userTensor->get_element_type().size();
                     for (size_t j = 0; j < strides.size(); j++) {
-                        outputPros[i].strides[j] = strides[j] / elementSize;
+                        outputPros[i]._strides[j] = strides[j] / elementSize;
                     }
-                    outputPros[i].dimsCount = shape.size();
+                    outputPros[i]._dimsCount = shape.size();
 
                 } else if (levelZeroTensor != nullptr) {
                     // If userTensor is not set, use levelZeroTensor to update memref handle
-                    outputPros[i].basePtr = get_tensor_data_ptr(levelZeroTensor);
-                    outputPros[i].data = outputPros[i].basePtr;
-                    outputPros[i].offset = 0;
+                    outputPros[i]._basePtr = get_tensor_data_ptr(levelZeroTensor);
+                    outputPros[i]._data = outputPros[i]._basePtr;
+                    outputPros[i]._offset = 0;
                     auto& shape = levelZeroTensor->get_shape();
                     for (size_t j = 0; j < shape.size(); j++) {
-                        outputPros[i].sizes[j] = shape[j];
+                        outputPros[i]._sizes[j] = shape[j];
                     }
                     auto& strides = levelZeroTensor->get_strides();
                     size_t elementSize = levelZeroTensor->get_element_type().bitwidth() < 8
                                              ? 1
                                              : levelZeroTensor->get_element_type().size();
                     for (size_t j = 0; j < strides.size(); j++) {
-                        outputPros[i].strides[j] = strides[j] / elementSize;
+                        outputPros[i]._strides[j] = strides[j] / elementSize;
                     }
-                    outputPros[i].dimsCount = shape.size();
+                    outputPros[i]._dimsCount = shape.size();
                 } else {
                     // If all tensors are not set, use metadata
-                    outputPros[i].basePtr = nullptr;
-                    outputPros[i].data = nullptr;
-                    outputPros[i].offset = 0;
+                    outputPros[i]._basePtr = nullptr;
+                    outputPros[i]._data = nullptr;
+                    outputPros[i]._offset = 0;
                     // TODO : BatchSize not checked here
                     auto shape = _metadata.inputs.at(i).shapeFromCompiler.get_max_shape();
                     for (size_t j = 0; j < shape.size(); j++) {
-                        outputPros[i].sizes[j] = shape[j];
+                        outputPros[i]._sizes[j] = shape[j];
                     }
-                    outputPros[i].dimsCount = shape.size();
+                    outputPros[i]._dimsCount = shape.size();
                     outputPros[i].updateStride();
                 }
-                outputPros[i].UpdateMemRefHandleStatus();
             }
 
             auto originalOutputPros = outputPros;
 
-            irGraph->predict_output_shape(inputPros, outputPros);
+            dynamicGraph->predict_output_shape(inputPros, outputPros);
 
             bool shapeChanged = false;
             for (size_t i = 0; i < outputPros.size(); i++) {
-                for (int64_t j = 0; j < outputPros[i].dimsCount; j++) {
-                    if (originalOutputPros[i].sizes[j] != outputPros[i].sizes[j]) {
+                for (int64_t j = 0; j < outputPros[i]._dimsCount; j++) {
+                    if (originalOutputPros[i]._sizes[j] != outputPros[i]._sizes[j]) {
                         _logger.info(
                             "Output tensor %d shape and predicted shape mimsmatch at dim %zu, changed from %zu to %zu",
                             i,
                             j,
-                            originalOutputPros[i].sizes[j],
-                            outputPros[i].sizes[j]);
+                            originalOutputPros[i]._sizes[j],
+                            outputPros[i]._sizes[j]);
                         shapeChanged = true;
                         break;
                     }
@@ -353,8 +348,8 @@ void ZeroDynamicInferRequest::infer_async() {
                 }
 
                 ov::Shape predictedShape;
-                for (int64_t j = 0; j < outputPros[i].dimsCount; j++) {
-                    predictedShape.push_back(outputPros[i].sizes[j]);
+                for (int64_t j = 0; j < outputPros[i]._dimsCount; j++) {
+                    predictedShape.push_back(outputPros[i]._sizes[j]);
                 }
                 if (userTensor != nullptr) {
                     // User set output tensor, need check size and throw exception if not large enough
@@ -496,8 +491,8 @@ void ZeroDynamicInferRequest::infer_async() {
                 continue;
             }
             ov::Shape predictedShape;
-            for (int64_t j = 0; j < outputPros[i].dimsCount; j++) {
-                predictedShape.push_back(outputPros[i].sizes[j]);
+            for (int64_t j = 0; j < outputPros[i]._dimsCount; j++) {
+                predictedShape.push_back(outputPros[i]._sizes[j]);
             }
             if (levelZeroTensor->get_shape() != predictedShape) {
                 _logger.info("Reshape output tensor %d from %s to predicted shape %s",

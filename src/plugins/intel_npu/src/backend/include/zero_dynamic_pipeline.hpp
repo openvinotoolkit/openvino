@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include "irgraph.hpp"
+#include "intel_npu/common/idynamic_graph.hpp"
 #include "zero_pipeline.hpp"
 
 namespace intel_npu {
 
 struct DynamicPipeline : public Pipeline {
     struct PipelinedCommandLists {
-        mutable IRGraph::GraphArguments _binding;
+        mutable IDynamicGraph::GraphArguments _binding;
 
         std::vector<std::unique_ptr<CommandList>> _commandLists;
         // Store command list handles to pass it to ExecutionEngine
@@ -38,22 +38,16 @@ struct DynamicPipeline : public Pipeline {
             return _commandListHandles.data();
         }
 
-        void bind(IRGraph* graph);
+        void bind(IDynamicGraph* graph) {
+            graph->getBinding(_binding);
+        }
 
         std::vector<ze_command_list_handle_t>& getHandles() {
             return _commandListHandles;
         }
 
-        IRGraph::GraphArguments& getBinding() {
+        IDynamicGraph::GraphArguments& getBinding() {
             return _binding;
-        }
-
-        void appendBarrier() const {
-            // TODO
-        }
-
-        void appendNpuTimestamp(uint64_t* timestamp_buff) const {
-            // TODO
         }
 
         void updateMutableCommandList(uint32_t arg_index,
@@ -63,13 +57,13 @@ struct DynamicPipeline : public Pipeline {
             if (arg_index < _binding._inputs.size()) {
                 _binding._inputs[arg_index].setArg(arg_value);
                 // Only store the valid shape dimensions
-                for (int64_t i = 0; i < _binding._inputs[arg_index].dimsCount; i++) {
-                    _binding._inputs[arg_index].sizes[i] = shapes[i];
+                for (int64_t i = 0; i < _binding._inputs[arg_index]._dimsCount; i++) {
+                    _binding._inputs[arg_index]._sizes[i] = shapes[i];
                 }
 
                 if (!strides.empty()) {
-                    for (int64_t i = 0; i < _binding._inputs[arg_index].dimsCount; i++) {
-                        _binding._inputs[arg_index].strides[i] = strides[i];
+                    for (int64_t i = 0; i < _binding._inputs[arg_index]._dimsCount; i++) {
+                        _binding._inputs[arg_index]._strides[i] = strides[i];
                     }
                 } else {
                     // Need stride based on element but not byte, calc from shape
@@ -81,13 +75,13 @@ struct DynamicPipeline : public Pipeline {
                     _binding._outputs[output_index].setArg(arg_value);
 
                     // Only store the valid shape dimensions
-                    for (int64_t i = 0; i < _binding._outputs[output_index].dimsCount; i++) {
-                        _binding._outputs[output_index].sizes[i] = shapes[i];
+                    for (int64_t i = 0; i < _binding._outputs[output_index]._dimsCount; i++) {
+                        _binding._outputs[output_index]._sizes[i] = shapes[i];
                     }
 
                     if (!strides.empty()) {
-                        for (int64_t i = 0; i < _binding._outputs[output_index].dimsCount; i++) {
-                            _binding._outputs[output_index].strides[i] = strides[i];
+                        for (int64_t i = 0; i < _binding._outputs[output_index]._dimsCount; i++) {
+                            _binding._outputs[output_index]._strides[i] = strides[i];
                         }
                     } else {
                         // Need stride based on element but not byte, calc from shape
@@ -97,17 +91,17 @@ struct DynamicPipeline : public Pipeline {
             }
         }
 
-        void appendWaitOnEvent(const std::shared_ptr<Event>& event) {
-            event->AppendWaitOnEvent(**_commandLists.rbegin());
-        }
+        // void appendWaitOnEvent(const std::shared_ptr<Event>& event) {
+        //     event->AppendWaitOnEvent(**_commandLists.rbegin());
+        // }
 
-        void appendReset(const std::shared_ptr<Event>& event) {
-            event->AppendEventReset(**_commandLists.rbegin());
-        }
+        // void appendReset(const std::shared_ptr<Event>& event) {
+        //     event->AppendEventReset(**_commandLists.rbegin());
+        // }
 
-        void appendSignalEvent(std::shared_ptr<Event>& event) {
-            event->AppendSignalEvent(**_commandLists.rbegin());
-        }
+        // void appendSignalEvent(std::shared_ptr<Event>& event) {
+        //     event->AppendSignalEvent(**_commandLists.rbegin());
+        // }
 
         void resetCommandList() {
             for (auto& cmd_list : _commandLists) {

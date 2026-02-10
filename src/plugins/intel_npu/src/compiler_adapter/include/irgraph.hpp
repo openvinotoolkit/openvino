@@ -8,135 +8,81 @@
 
 #include <ze_graph_ext.h>
 
-#include "intel_npu/common/igraph.hpp"
+#include "intel_npu/common/idynamic_graph.hpp"
 #include "intel_npu/icompiler.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "npu_mlir_runtime_api.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
-class IRGraph final : public IGraph {
+class IRGraph final : public IDynamicGraph {
 public:
-    struct MemRefType {
-        npu_mlir_runtime_mem_ref_handle_t memRef;
-        const void* basePtr;
-        const void* data;
-        int64_t offset;
-        std::vector<int64_t> sizes;
-        std::vector<int64_t> strides;
-        int64_t dimsCount;
+    struct MemRefTypeImpl : public MemRefType {
+        npu_mlir_runtime_mem_ref_handle_t _memRef;
 
-        MemRefType()
-            : memRef(nullptr),
-              basePtr(nullptr),
-              data(nullptr),
-              offset(0),
-              sizes({}),
-              strides({}),
-              dimsCount(0) {}
+        MemRefTypeImpl(const void* basePtr,
+                       const void* data,
+                       int64_t offset,
+                       const std::vector<int64_t>& sizes,
+                       const std::vector<int64_t>& strides,
+                       int64_t dimsCount)
+            : MemRefType(basePtr, data, offset, sizes, strides, dimsCount),
+              _memRef(nullptr) {}
 
-        MemRefType(const void* basePtr,
-                   const void* data,
-                   int64_t offset,
-                   const std::vector<int64_t>& sizes,
-                   const std::vector<int64_t>& strides,
-                   int64_t dimsCount)
-            : memRef(nullptr),
-              basePtr(basePtr),
-              data(data),
-              offset(offset),
-              sizes(sizes),
-              strides(strides),
-              dimsCount(dimsCount) {}
+        MemRefTypeImpl(const MemRefTypeImpl& other)
+            : MemRefType(other._basePtr, other._data, other._offset, other._sizes, other._strides, other._dimsCount),
+              _memRef(nullptr) {}
 
-        MemRefType(const MemRefType& other)
-            : memRef(nullptr),
-              basePtr(other.basePtr),
-              data(other.data),
-              offset(other.offset),
-              sizes(other.sizes),
-              strides(other.strides),
-              dimsCount(other.dimsCount) {}
+        MemRefTypeImpl(MemRefTypeImpl&& other) noexcept
+            : MemRefType(other._basePtr, other._data, other._offset, other._sizes, other._strides, other._dimsCount),
+              _memRef(nullptr) {}
 
-        MemRefType(MemRefType&& other) noexcept
-            : memRef(nullptr),
-              basePtr(other.basePtr),
-              data(other.data),
-              offset(other.offset),
-              sizes(std::move(other.sizes)),
-              strides(std::move(other.strides)),
-              dimsCount(other.dimsCount) {}
-
-        MemRefType& operator=(const MemRefType& other) {
+        MemRefTypeImpl& operator=(const MemRefTypeImpl& other) {
             if (this != &other) {
-                basePtr = other.basePtr;
-                data = other.data;
-                offset = other.offset;
-                sizes = other.sizes;
-                strides = other.strides;
-                dimsCount = other.dimsCount;
+                _basePtr = other._basePtr;
+                _data = other._data;
+                _offset = other._offset;
+                _sizes = other._sizes;
+                _strides = other._strides;
+                _dimsCount = other._dimsCount;
             }
             return *this;
         }
 
-        MemRefType& operator=(MemRefType&& other) noexcept {
+        MemRefTypeImpl& operator=(MemRefTypeImpl&& other) noexcept {
             if (this != &other) {
-                basePtr = other.basePtr;
-                data = other.data;
-                offset = other.offset;
-                sizes = std::move(other.sizes);
-                strides = std::move(other.strides);
-                dimsCount = other.dimsCount;
+                _basePtr = other._basePtr;
+                _data = other._data;
+                _offset = other._offset;
+                _sizes = std::move(other._sizes);
+                _strides = std::move(other._strides);
+                _dimsCount = other._dimsCount;
             }
             return *this;
         }
 
-        ~MemRefType() {
+        ~MemRefTypeImpl() {
             destroyMemRef();
         }
 
-        void setArg(const void* arg);
-        void setSize(const intel_npu::IODescriptor& descriptor);
-        void updateStride();
-
-        friend std::ostream& operator<<(std::ostream& os, const MemRefType& memRef) {
-            os << "BasePtr: " << memRef.basePtr << ", Data: " << memRef.data << ", Offset: " << memRef.offset
-               << ", Sizes: [";
-            for (int64_t size : memRef.sizes) {
-                os << size << " ";
-            }
-            os << "], Strides: [";
-            for (int64_t stride : memRef.strides) {
-                os << stride << " ";
-            }
-            os << "]";
-            return os;
-        }
-
-        std::string toString() {
-            std::stringstream stream;
-            stream << *this;
-            return stream.str();
-        }
-
-        void UpdateMemRefHandleStatus() {
+        void UpdateMemRefHandleStatus(GraphArguments& args) {
             // Update current MemRef handle to use latest metadata
-            if (memRef == nullptr) {
+            if (_memRef == nullptr) {
                 createMemRef();
-            } 
+            }
             auto result =
-                npuMLIRRuntimeSetMemRef(memRef, basePtr, data, offset, sizes.data(), strides.data(), dimsCount);
+                npuMLIRRuntimeSetMemRef(_memRef, _basePtr, _data, _offset, _sizes.data(), _strides.data(), _dimsCount);
             if (result != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
                 throw std::runtime_error("Failed to update MemRef handle");
             }
         }
 
-	void alignWithHandle();
+        void alignWithHandle();
 
     private:
         void createMemRef() {
-            if (memRef == nullptr) {
-                auto result = npuMLIRRuntimeCreateMemRef(dimsCount, &memRef);
+            if (_memRef == nullptr) {
+                auto result = npuMLIRRuntimeCreateMemRef(_dimsCount, &_memRef);
                 if (result != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
                     throw std::runtime_error("Failed to create MemRef handle");
                 }
@@ -144,30 +90,21 @@ public:
         }
 
         void destroyMemRef() {
-            if (memRef != nullptr) {
-                npuMLIRRuntimeDestroyMemRef(memRef);
-                memRef = nullptr;
+            if (_memRef != nullptr) {
+                npuMLIRRuntimeDestroyMemRef(_memRef);
+                _memRef = nullptr;
             }
         }
     };
 
-    struct GraphArguments {
-        std::vector<MemRefType> _inputs;
-        std::vector<MemRefType> _outputs;
+    struct GraphArgumentsImpl : public GraphArguments {
         std::vector<npu_mlir_runtime_mem_ref_handle_t> _inputMemRefs;
         std::vector<npu_mlir_runtime_mem_ref_handle_t> _outputMemRefs;
         npu_mlir_runtime_execute_params_t _executeParams = {};
-        Logger _logger = Logger("GraphArguments", Logger::global().level());
-
-        void setArgumentValue(uint32_t argi, const void* argv);
-        void setArgumentProperties(uint32_t argi,
-                                   const void* argv,
-                                   const ov::Shape& shapes,
-                                   const std::vector<size_t>& strides);
     };
 
     class Impl {
-        using MemRefType = IRGraph::MemRefType;
+        using MemRefTypeImpl = IRGraph::MemRefTypeImpl;
 
     public:
         virtual void initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) = 0;
@@ -222,9 +159,9 @@ public:
 
     void set_workload_type(const ov::WorkloadType workloadType) const override;
 
-    void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) override;
-    const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const override;
-    void resize_last_submitted_event(size_t batch) override;
+    // void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) override;
+    // const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const override;
+    // void resize_last_submitted_event(size_t batch) override;
     void set_batch_size(std::size_t batch) override;
 
     const std::optional<std::size_t> get_batch_size() const override;

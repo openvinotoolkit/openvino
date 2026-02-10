@@ -15,81 +15,17 @@
 
 namespace intel_npu {
 
-void IRGraph::MemRefType::setArg(const void* arg) {
-    basePtr = data = arg;
-}
-
-void IRGraph::MemRefType::setSize(const intel_npu::IODescriptor& desc) {
-    // Note: check difference between shape from compiler and shape from IR.
-    const auto& shape = desc.shapeFromCompiler.get_shape();
-    sizes.resize(shape.size());
-    strides.resize(shape.size());
-    dimsCount = static_cast<uint32_t>(shape.size());
-    for (size_t i = 0; i < shape.size(); ++i) {
-        sizes[i] = shape[i];
-        strides[i] = 0;  // Strides are not set yet, will be updated
-    }
-}
-
-void IRGraph::MemRefType::updateStride() {
-    // Note: NCHW layout style
-    uint64_t stride = 1;
-    for (int64_t i = dimsCount - 1; i >= 0; --i) {
-        strides[i] = stride;
-        stride *= sizes[i];
-    }
-}
-
-void IRGraph::MemRefType::alignWithHandle() {
-    if (memRef == nullptr) {
+void IRGraph::MemRefTypeImpl::alignWithHandle() {
+    if (_memRef == nullptr) {
         return;
     }
 
-    if(npuMLIRRuntimeParseMemRef(
-        memRef, &basePtr, &data, &offset, sizes.data(), strides.data(), &dimsCount) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+    if (npuMLIRRuntimeParseMemRef(_memRef, &_basePtr, &_data, &_offset, _sizes.data(), _strides.data(), &_dimsCount) !=
+        NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
         throw std::runtime_error("Failed to parse MemRef handle");
     }
 }
 
-void IRGraph::GraphArguments::setArgumentValue(uint32_t argi, const void* argv) {
-    if (argi < _inputs.size()) {
-        _logger.debug("setArgumentValue for index %d (input %d)", argi, argi);
-        _inputs[argi].basePtr = _inputs[argi].data = const_cast<void*>(argv);
-    } else {
-        auto idx = argi - _inputs.size();
-        _logger.debug("setArgumentValue for index %d (output %d)", argi, idx);
-        if (idx < _outputs.size()) {
-            _outputs[idx].basePtr = _outputs[idx].data = const_cast<void*>(argv);
-        }
-    }
-}
-
-void IRGraph::GraphArguments::setArgumentProperties(uint32_t argi,
-                                                    const void* argv,
-                                                    const ov::Shape& sizes,
-                                                    const std::vector<size_t>& strides) {
-    _logger.debug("setArgumentProperties for index %d", argi);
-    if (argi < _inputs.size()) {
-        _logger.debug("setArgumentProperties for index %d (input %d)", argi, argi);
-        _inputs[argi].basePtr = _inputs[argi].data = const_cast<void*>(argv);
-
-        for (int64_t i = 0; i < _inputs[argi].dimsCount; i++) {
-            _inputs[argi].sizes[i] = sizes[i];
-            _inputs[argi].strides[i] = strides[i];
-        }
-    } else {
-        auto idx = argi - _inputs.size();
-        _logger.debug("setArgumentValueWithStrides for index %d (output %d)", argi, idx);
-        if (idx < _outputs.size()) {
-            _outputs[idx].basePtr = _outputs[idx].data = const_cast<void*>(argv);
-
-            for (int64_t i = 0; i < _outputs[idx].dimsCount; i++) {
-                _outputs[idx].sizes[i] = sizes[i];
-                _outputs[idx].strides[i] = strides[i];
-            }
-        }
-    }
-}
 class IRGraphImpl : public IRGraph::Impl {
 public:
     using MemRefType = IRGraph::MemRefType;
@@ -126,8 +62,8 @@ public:
         }
     }
 
-    void predictOutputShape(std::vector<MemRefType>& inputDescriptors,
-                            std::vector<MemRefType>& outputDescriptors) override;
+    void predictOutputShape(std::vector<IRGraph::MemRefType>& inputDescriptors,
+                            std::vector<IRGraph::MemRefType>& outputDescriptors) override;
 
 public:
     npu_mlir_runtime_handle_t _engine = nullptr;
@@ -332,39 +268,39 @@ void IRGraphImpl::initializeIRGraphExecution(std::optional<ov::Tensor>& blob, Ne
 }
 
 void IRGraphImpl::setArgumentValue(uint32_t argi, const void* argv) {
-    auto inputs = _binding._inputs;
-    if (argi < inputs.size()) {
-        _logger.debug("setArgumentValue for index %d (input %d)", argi, argi);
-        inputs[argi].basePtr = inputs[argi].data = const_cast<void*>(argv);
-    } else {
-        auto outputs = _binding._outputs;
-        auto idx = argi - inputs.size();
-        _logger.debug("setArgumentValue for index %d (output %d)", argi, idx);
-        if (idx < outputs.size()) {
-            outputs[idx].basePtr = outputs[idx].data = const_cast<void*>(argv);
-        }
-    }
-}
-
-void IRGraphImpl::setArgumentValueWithStrides(uint32_t argi, const void* argv, const std::vector<size_t>& strides) {
-    _logger.debug("setArgumentProperty for index %d", argi);
     auto& inputs = _binding._inputs;
     if (argi < inputs.size()) {
-        _logger.debug("setArgumentProperty for index %d (input %d)", argi, argi);
-        inputs[argi].basePtr = inputs[argi].data = const_cast<void*>(argv);
-
-        for (int64_t i = 0; i < inputs[argi].dimsCount; i++) {
-            inputs[argi].strides[i] = strides[i];
-        }
+        _logger.debug("setArgumentValue for index %d (input %d)", argi, argi);
+        inputs[argi].setArg(argv);
     } else {
         auto& outputs = _binding._outputs;
         auto idx = argi - inputs.size();
         _logger.debug("setArgumentValue for index %d (output %d)", argi, idx);
         if (idx < outputs.size()) {
-            outputs[idx].basePtr = outputs[idx].data = const_cast<void*>(argv);
+            outputs[idx].setArg(argv);
+        }
+    }
+}
 
-            for (int64_t i = 0; i < outputs[idx].dimsCount; i++) {
-                outputs[idx].strides[i] = strides[i];
+void IRGraphImpl::setArgumentValueWithStrides(uint32_t argi, const void* argv, const std::vector<size_t>& strides) {
+    _logger.debug("setArgumentValueWithStrides for index %d", argi);
+    auto& inputs = _binding._inputs;
+    if (argi < inputs.size()) {
+        _logger.debug("setArgumentValueWithStrides for index %d (input %d)", argi, argi);
+        inputs[argi].setArg(argv);
+
+        for (int64_t i = 0; i < inputs[argi]._dimsCount; i++) {
+            inputs[argi]._strides[i] = strides[i];
+        }
+    } else {
+        auto& outputs = _binding._outputs;
+        auto idx = argi - inputs.size();
+        _logger.debug("setArgumentValueWithStrides for index %d (output %d)", argi, idx);
+        if (idx < outputs.size()) {
+            outputs[idx].setArg(argv);
+
+            for (int64_t i = 0; i < outputs[idx]._dimsCount; i++) {
+                outputs[idx]._strides[i] = strides[i];
             }
         }
     }
@@ -375,35 +311,47 @@ void IRGraphImpl::initializeGraph(uint64_t ordinal) {
 }
 
 void IRGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                               IRGraph::GraphArguments& args,
+                               IDynamicGraph::GraphArguments& args,
                                std::vector<ze_command_list_handle_t>& commandLists,
                                ze_command_queue_handle_t commandQueue,
                                ze_fence_handle_t fence,
                                ze_event_handle_t event,
                                ze_graph_profiling_pool_handle_t profiling) {
-    npu_mlir_runtime_execute_params_t* params = &args._executeParams;
+    std::shared_ptr<IRGraph::GraphArgumentsImpl> argsImpl =
+        args._impl ? std::static_pointer_cast<IRGraph::GraphArgumentsImpl>(args._impl)
+                   : std::make_shared<IRGraph::GraphArgumentsImpl>();
+
+    npu_mlir_runtime_execute_params_t* params = &argsImpl->_executeParams;
 
     // Only need to store handles in MemRef container once, then update them in following executions
-    bool reuseInputsHandles = args._inputMemRefs.size() > 0;
-    bool reuseOutputsHandles = args._outputMemRefs.size() > 0;
+    bool reuseInputsHandles = argsImpl->_inputMemRefs.size() > 0;
+    bool reuseOutputsHandles = argsImpl->_outputMemRefs.size() > 0;
 
-    for (auto& in : args._inputs) {
-        in.UpdateMemRefHandleStatus();
+    for (auto& in : argsImpl->_inputs) {
+        std::shared_ptr<IRGraph::MemRefTypeImpl> inImpl = std::static_pointer_cast<IRGraph::MemRefTypeImpl>(in._impl);
+        if (inImpl == nullptr) {
+            OPENVINO_THROW("MemRefType implementation is not set or has wrong type");
+        }
+        inImpl->UpdateMemRefHandleStatus();
         if (!reuseInputsHandles) {
-            args._inputMemRefs.push_back(in.memRef);
+            argsImpl->_inputMemRefs.push_back(inImpl->_memRef);
         }
     }
-    for (auto& out : args._outputs) {
-        out.UpdateMemRefHandleStatus();
+    for (auto& out : argsImpl->_outputs) {
+        std::shared_ptr<IRGraph::MemRefTypeImpl> outImpl = std::static_pointer_cast<IRGraph::MemRefTypeImpl>(out._impl);
+        if (outImpl == nullptr) {
+            OPENVINO_THROW("MemRefType implementation is not set or has wrong type");
+        }
+        outImpl->UpdateMemRefHandleStatus();
         if (!reuseOutputsHandles) {
-            args._outputMemRefs.push_back(out.memRef);
+            argsImpl->_outputMemRefs.push_back(outImpl->_memRef);
         }
     }
 
-    params->pInputs = args._inputMemRefs.data();
-    params->numOfInputs = static_cast<uint32_t>(args._inputMemRefs.size());
-    params->pOutputs = args._outputMemRefs.data();
-    params->numOfOutputs = static_cast<uint32_t>(args._outputMemRefs.size());
+    params->pInputs = argsImpl->_inputMemRefs.data();
+    params->numOfInputs = static_cast<uint32_t>(argsImpl->_inputMemRefs.size());
+    params->pOutputs = argsImpl->_outputMemRefs.data();
+    params->numOfOutputs = static_cast<uint32_t>(argsImpl->_outputMemRefs.size());
     params->ctx = zeroInitStruct->getContext();
     params->device = zeroInitStruct->getDevice();
     params->graphDdiTableExt = zeroInitStruct->getGraphDdiTable().getImpl();
@@ -422,13 +370,21 @@ void IRGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescriptors,
                                      std::vector<MemRefType>& outputDescriptors) {
     std::vector<npu_mlir_runtime_mem_ref_handle_t> inputs;
     for (auto& in : inputDescriptors) {
-        in.UpdateMemRefHandleStatus();
-        inputs.push_back(in.memRef);
+        std::shared_ptr<IRGraph::MemRefTypeImpl> inImpl = std::static_pointer_cast<IRGraph::MemRefTypeImpl>(in._impl);
+        if (inImpl == nullptr) {
+            OPENVINO_THROW("MemRefType implementation is not set or has wrong type");
+        }
+        inImpl->UpdateMemRefHandleStatus();
+        inputs.push_back(inImpl->_memRef);
     }
     std::vector<npu_mlir_runtime_mem_ref_handle_t> outputs;
     for (auto& out : outputDescriptors) {
-        out.UpdateMemRefHandleStatus();
-        outputs.push_back(out.memRef);
+        std::shared_ptr<IRGraph::MemRefTypeImpl> outImpl = std::static_pointer_cast<IRGraph::MemRefTypeImpl>(out._impl);
+        if (outImpl == nullptr) {
+            OPENVINO_THROW("MemRefType implementation is not set or has wrong type");
+        }
+        outImpl->UpdateMemRefHandleStatus();
+        outputs.push_back(outImpl->_memRef);
     }
 
     npu_mlir_runtime_predict_output_shape_params_t params;
@@ -441,7 +397,12 @@ void IRGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescriptors,
         OPENVINO_THROW("Failed to execute MLIR runtime engine");
     } else {
         for (auto& out : outputDescriptors) {
-            out.alignWithHandle();
+            std::shared_ptr<IRGraph::MemRefTypeImpl> outImpl =
+                std::static_pointer_cast<IRGraph::MemRefTypeImpl>(out._impl);
+            if (outImpl == nullptr) {
+                OPENVINO_THROW("MemRefType implementation is not set or has wrong type");
+            }
+            outImpl->alignWithHandle();
         }
         _logger.debug("Output shape prediction is done successfully.");
     }
@@ -698,17 +659,17 @@ bool IRGraph::release_blob(const Config& config) {
     return false;
 };
 
-void IRGraph::set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) {
-    _lastSubmittedEvent[indexOfCommandList] = event;
-}
+// void IRGraph::set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) {
+//     _lastSubmittedEvent[indexOfCommandList] = event;
+// }
 
-const std::shared_ptr<Event>& IRGraph::get_last_submitted_event(size_t indexOfCommandList) const {
-    return _lastSubmittedEvent[indexOfCommandList];
-}
+// const std::shared_ptr<Event>& IRGraph::get_last_submitted_event(size_t indexOfCommandList) const {
+//     return _lastSubmittedEvent[indexOfCommandList];
+// }
 
-void IRGraph::resize_last_submitted_event(size_t batch) {
-    _lastSubmittedEvent.resize(batch);
-}
+// void IRGraph::resize_last_submitted_event(size_t batch) {
+//     _lastSubmittedEvent.resize(batch);
+// }
 
 void IRGraph::set_batch_size(std::size_t batch) {
     _batchSize = batch;
