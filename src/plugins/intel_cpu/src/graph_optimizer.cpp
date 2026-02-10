@@ -347,9 +347,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
             continue;
         }
 
-        const auto scalesHandled = initializeDeQuantizedScales(node, scales);
-
-        if (scalesHandled) {
+        if (initializeDeQuantizedScales(node, scales)) {
             DEBUG_LOG("GraphOptimizer##FusingDQ: Node ##",
                       mul->getName(),
                       " optimized as DQ scales of Node ##",
