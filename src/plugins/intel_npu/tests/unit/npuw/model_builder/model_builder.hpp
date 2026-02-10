@@ -76,12 +76,15 @@ struct FP16Weight {
                                     ov::element::Type compute_precision) const;
 };
 
-/// Compressed integer weights -> Convert(f16) -> Multiply(f16 per-channel scale)
+/// Compressed integer weights -> Convert(f16) -> Multiply(f16 scale)
 /// Matches DCOFF SymmNoZP pattern. Parameterized by storage element type (i8, i4, u4, etc.)
+/// When group_size > 0, builds a group quantization pattern:
+///   Constant(storage) -> Convert(f16) -> Reshape[rows, cols/gs, gs] -> Multiply(scale[rows, cols/gs, 1]) -> Reshape[rows, cols]
 struct CompressedWeight {
     ov::element::Type storage_type;
+    size_t group_size;  ///< 0 = per-channel scale, >0 = per-group scale
 
-    explicit CompressedWeight(ov::element::Type st) : storage_type(st) {}
+    explicit CompressedWeight(ov::element::Type st, size_t gs = 0) : storage_type(st), group_size(gs) {}
 
     ov::Output<ov::Node> operator()(const std::string& name,
                                     size_t rows,
@@ -89,14 +92,19 @@ struct CompressedWeight {
                                     ov::element::Type compute_precision) const;
 };
 
-/// i8 compressed weights
+/// i8 compressed weights (per-channel)
 struct INT8Weight : CompressedWeight {
     INT8Weight() : CompressedWeight(ov::element::i8) {}
 };
 
-/// i4 compressed weights
+/// i4 compressed weights (per-channel)
 struct INT4Weight : CompressedWeight {
     INT4Weight() : CompressedWeight(ov::element::i4) {}
+};
+
+/// i4 group-quantized weights
+struct INT4GroupWeight : CompressedWeight {
+    explicit INT4GroupWeight(size_t gs = 128) : CompressedWeight(ov::element::i4, gs) {}
 };
 
 // ============================================================================

@@ -57,18 +57,55 @@ ov::Output<ov::Node> CompressedWeight::operator()(const std::string& name,
     auto convert = std::make_shared<ov::opset11::Convert>(weight, ov::element::f16);
     convert->set_friendly_name(name + "_convert");
 
-    auto scale = ov::opset11::Constant::create(ov::element::f16, ov::Shape{rows, 1}, std::vector<float>(rows, 0.01f));
-    scale->set_friendly_name(name + "_scale");
+    ov::Output<ov::Node> decompressed;
 
-    auto scaled = std::make_shared<ov::opset11::Multiply>(convert, scale);
-    scaled->set_friendly_name(name + "_decompress");
+    if (group_size > 0) {
+        // Group quantization: reshape -> per-group scale -> reshape back
+        const size_t num_groups = cols / group_size;
+
+        auto reshape_shape = ov::opset11::Constant::create(
+            ov::element::i64,
+            ov::Shape{3},
+            std::vector<int64_t>{static_cast<int64_t>(rows), static_cast<int64_t>(num_groups), static_cast<int64_t>(group_size)});
+
+        auto reshaped = std::make_shared<ov::opset11::Reshape>(convert, reshape_shape, false);
+        reshaped->set_friendly_name(name + "_group_reshape");
+
+        auto scale = ov::opset11::Constant::create(ov::element::f16,
+                                                    ov::Shape{rows, num_groups, 1},
+                                                    std::vector<float>(rows * num_groups, 0.01f));
+        scale->set_friendly_name(name + "_scale");
+
+        auto scaled = std::make_shared<ov::opset11::Multiply>(reshaped, scale);
+        scaled->set_friendly_name(name + "_decompress");
+
+        auto out_shape = ov::opset11::Constant::create(
+            ov::element::i64,
+            ov::Shape{2},
+            std::vector<int64_t>{static_cast<int64_t>(rows), static_cast<int64_t>(cols)});
+
+        auto back = std::make_shared<ov::opset11::Reshape>(scaled, out_shape, false);
+        back->set_friendly_name(name + "_group_reshape_back");
+
+        decompressed = back->output(0);
+    } else {
+        // Per-channel scale
+        auto scale =
+            ov::opset11::Constant::create(ov::element::f16, ov::Shape{rows, 1}, std::vector<float>(rows, 0.01f));
+        scale->set_friendly_name(name + "_scale");
+
+        auto scaled = std::make_shared<ov::opset11::Multiply>(convert, scale);
+        scaled->set_friendly_name(name + "_decompress");
+
+        decompressed = scaled->output(0);
+    }
 
     if (compute_precision != ov::element::f16) {
-        auto to_compute = std::make_shared<ov::opset11::Convert>(scaled, compute_precision);
+        auto to_compute = std::make_shared<ov::opset11::Convert>(decompressed, compute_precision);
         to_compute->set_friendly_name(name + "_to_compute");
         return to_compute->output(0);
     }
-    return scaled->output(0);
+    return decompressed;
 }
 
 // ============================================================================
