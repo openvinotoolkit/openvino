@@ -58,7 +58,7 @@ struct PagedAttentionExecutor {
 struct PagedAttnQuantParams {
     size_t key_group_size = 0UL;
     size_t value_group_size = 0UL;
-    bool quant_key_bychannel = false;
+    bool quant_key_bychannel = true;
     bool quant_value_bychannel = false;
     bool is_sage_attn = false;
 };

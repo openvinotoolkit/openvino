@@ -53,6 +53,66 @@ namespace ov::Extensions::Cpu::XARCH {
 using namespace ov;
 using namespace ov::intel_cpu;
 
+static inline void apply_qq_bias_mask(float* score,
+                                      size_t start_idx,
+                                      size_t ncausal,
+                                      size_t past_len,
+                                      size_t q_idx,
+                                      const PlainTensor& qq_bias,
+                                      const PlainTensor& qq_bias_begins,
+                                      size_t batch_in_seq) {
+    if (!qq_bias || !qq_bias_begins || qq_bias.size(0) == 0 || qq_bias_begins.size(0) == 0) {
+        return;
+    }
+
+    if (batch_in_seq + 1 >= qq_bias_begins.size(0)) {
+        std::cout << "apply_qq_bias_mask: invalid batch_in_seq=" << batch_in_seq
+                  << " qq_bias_begins.size(0)=" << qq_bias_begins.size(0)
+                  << std::endl;
+        return;
+    }
+
+    const auto* begins = qq_bias_begins.ptr<int32_t>();
+    const auto spec_num = static_cast<size_t>(begins[batch_in_seq + 1] - begins[batch_in_seq]);
+    if (spec_num == 0) {
+        return;
+    }
+
+    if (begins[batch_in_seq + 1] < begins[batch_in_seq]) {
+        std::cout << "apply_qq_bias_mask: invalid begins range, begin=" << begins[batch_in_seq]
+                  << " end=" << begins[batch_in_seq + 1]
+                  << " batch_in_seq=" << batch_in_seq
+                  << std::endl;
+        return;
+    }
+
+    if (q_idx >= spec_num) {
+        return;
+    }
+
+    const auto cumulated_spec_num = static_cast<size_t>(begins[batch_in_seq]);
+    const auto base = cumulated_spec_num * spec_num + q_idx * spec_num;
+    if (base + spec_num > qq_bias.size(0)) {
+        std::cout << "apply_qq_bias_mask: invalid qq_bias range, base=" << base
+                  << " spec_num=" << spec_num
+                  << " qq_bias.size(0)=" << qq_bias.size(0)
+                  << std::endl;
+        return;
+    }
+
+    const auto* qq_ptr = qq_bias.ptr<uint8_t>();
+    const auto mask_start = std::max(start_idx, past_len);
+    for (size_t token_idx = mask_start; token_idx < ncausal; ++token_idx) {
+        const auto spec_offset = token_idx - past_len;
+        if (spec_offset >= spec_num) {
+            continue;
+        }
+        if (qq_ptr[base + spec_offset] == 0) {
+            score[token_idx] = -FLT_MAX;
+        }
+    }
+}
+
 // currently depends on brgemm which only support x64 or ARM SVE
 #if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE))
 
@@ -708,13 +768,16 @@ struct MHAHelper {
                               const ScoreAggregationInfo* score_info_ptr,
                               const PlainTensor& sinks,
                               size_t batch_in_seq = 0,
-                              const std::vector<PlainTensor>& sparse_attention_mask = {}) {
+                              const std::vector<PlainTensor>& sparse_attention_mask = {},
+                              const PlainTensor& qq_bias = {},
+                              const PlainTensor& qq_bias_begins = {}) {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
         constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == VALUE_PREC;
         auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
+        const size_t past_len = cur_kv_len - (q_blk * _block_size + q_cnt);
         [[maybe_unused]] size_t sparse_scale = 1;
         [[maybe_unused]] std::function<std::pair<size_t, size_t>(size_t, size_t)> map_to_mask_idx =
             [](size_t q_blk_rt, size_t k_blk_rt) {
@@ -809,6 +872,15 @@ struct MHAHelper {
                         new_causal = _sliding_window;
                     }
 
+                    apply_qq_bias_mask(score,
+                                       start_idx,
+                                       ncausal,
+                                       past_len,
+                                       m,
+                                       qq_bias,
+                                       qq_bias_begins,
+                                       batch_in_seq);
+
                     // Handle sparse attention mask for sliding window
                     if (!sparse_attention_mask.empty() && sparse_attention_mask[batch_in_seq].ptr_v() != nullptr &&
                         _use_softmax_sparse_mask) {
@@ -844,6 +916,14 @@ struct MHAHelper {
                         alibi_slope = alibi_slopes.ptr<float>()[h];
                         alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - ncausal;
                     }
+                    apply_qq_bias_mask(score,
+                                       0,
+                                       ncausal,
+                                       past_len,
+                                       m,
+                                       qq_bias,
+                                       qq_bias_begins,
+                                       batch_in_seq);
                     if (!sparse_attention_mask.empty() && sparse_attention_mask[batch_in_seq].ptr_v() != nullptr &&
                         _use_softmax_sparse_mask) {
                         xattn_mask = reinterpret_cast<uint8_t*>(
@@ -956,12 +1036,17 @@ struct MHAHelper {
                                   const PlainTensor& alibi_slopes,
                                   float* score_output,
                                   size_t q_start_idx_score,
-                                  const ScoreAggregationInfo* score_info_ptr) {
+                                  const ScoreAggregationInfo* score_info_ptr,
+                                  [[maybe_unused]] const PlainTensor& sinks,
+                                  [[maybe_unused]] size_t batch_in_seq = 0,
+                                  const PlainTensor& qq_bias = {},
+                                  const PlainTensor& qq_bias_begins = {}) {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
         auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
+        const size_t past_len = cur_kv_len - (q_blk * _block_size + q_cnt);
         auto _score_stride = _weight.stride_bytes(2) / 2;
         PlainTensor bias_wv, bias_qk;
         bias_wv.resize<float16_t>({SV});
@@ -1014,6 +1099,14 @@ struct MHAHelper {
                         start_idx = ncausal - static_cast<size_t>(_sliding_window);
                         new_causal = _sliding_window;
                     }
+                    apply_qq_bias_mask(soft_in,
+                                       start_idx,
+                                       ncausal,
+                                       past_len,
+                                       m,
+                                       qq_bias,
+                                       qq_bias_begins,
+                                       batch_in_seq);
                     attn_softmax_kernel<float>(soft_in + start_idx,
                                                reinterpret_cast<DATA_TYPE*>(score) + start_idx,
                                                _d_scale,
@@ -1036,6 +1129,14 @@ struct MHAHelper {
                         alibi_slope = alibi_slopes.ptr<float>()[h];
                         alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - ncausal;
                     }
+                    apply_qq_bias_mask(soft_in,
+                                       0,
+                                       ncausal,
+                                       past_len,
+                                       m,
+                                       qq_bias,
+                                       qq_bias_begins,
+                                       batch_in_seq);
                     attn_softmax_kernel<float>(soft_in,
                                                reinterpret_cast<DATA_TYPE*>(score),
                                                _d_scale,
@@ -1267,7 +1368,9 @@ struct MHAHelper {
                        const PlainTensor& block_indices_begins,
                        const PlainTensor& alibi_slopes,
                        const PlainTensor& score_aggregation_window,
-                       const PlainTensor& sinks) {
+                       const PlainTensor& sinks,
+                       const PlainTensor& qq_bias,
+                       const PlainTensor& qq_bias_begins) {
         auto B = past_lens.size(0);
         auto q_len = query.size(2);
         auto kv_len_in_blocks = div_up(max_context_len, _block_size);
@@ -1360,6 +1463,7 @@ struct MHAHelper {
         auto loop_softmax = [&](size_t b, size_t h, size_t pq) {
             auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
             auto ncausal = cur_kv_len;
+            const size_t past_len = cur_kv_len - 1;
             // apply attention mask & sofmax
             float* score = _weight_bhl.ptr<float>(b, h, pq);
             OPENVINO_DEBUG_ASSERT(score != nullptr, "PagedAttention: _weight_bhl buffer must be allocated");
@@ -1381,6 +1485,14 @@ struct MHAHelper {
                     start_idx = ncausal - _sliding_window;
                     new_causal = _sliding_window;
                 }
+                apply_qq_bias_mask(score,
+                                   start_idx,
+                                   ncausal,
+                                   past_len,
+                                   pq,
+                                   qq_bias,
+                                   qq_bias_begins,
+                                   b);
                 attn_softmax_kernel<float>(score + start_idx,
                                            score + start_idx,
                                            _d_scale,
@@ -1398,6 +1510,14 @@ struct MHAHelper {
                     memset(score, 0, sizeof(float) * start_idx);
                 }
             } else {
+                apply_qq_bias_mask(score,
+                                   0,
+                                   ncausal,
+                                   past_len,
+                                   pq,
+                                   qq_bias,
+                                   qq_bias_begins,
+                                   b);
                 attn_softmax_kernel<float>(score,
                                            score,
                                            _d_scale,
@@ -1519,7 +1639,9 @@ struct MHA {
                          const PlainTensor& alibi_slopes,
                          const PlainTensor& score_aggregation_window,
                          const PlainTensor& sinks,
-                         const std::vector<PlainTensor>& sparse_attention_mask) {
+                         const std::vector<PlainTensor>& sparse_attention_mask,
+                         const PlainTensor& qq_bias,
+                         const PlainTensor& qq_bias_begins) {
         auto Hk = v_cache.m_dims[1];
 
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
@@ -1733,7 +1855,11 @@ struct MHA {
                         alibi_slopes,
                         score_output,
                         q_start_idx_score,
-                        score_info_ptr);
+                        score_info_ptr,
+                        sinks,
+                        batch_in_seq,
+                        qq_bias,
+                        qq_bias_begins);
                 } else {
                     _helper.exec_kernel_multiple(
                         sub_query,
@@ -1754,7 +1880,11 @@ struct MHA {
                         score_output,
                         q_start_idx_score,
                         score_info_ptr,
-                        PlainTensor());
+                        PlainTensor(),
+                        batch_in_seq,
+                        sparse_attention_mask,
+                        qq_bias,
+                        qq_bias_begins);
                 }
 #    else
                 _helper.exec_kernel_multiple(
@@ -1778,7 +1908,9 @@ struct MHA {
                     score_info_ptr,
                     sinks,
                     batch_in_seq,
-                    sparse_attention_mask);
+                    sparse_attention_mask,
+                    qq_bias,
+                    qq_bias_begins);
 #    endif
             }
         });
@@ -1817,7 +1949,9 @@ struct MHA {
                     const PlainTensor& alibi_slopes,
                     const PlainTensor& score_aggregation_window,
                     const PlainTensor& sinks,
-                    const std::vector<PlainTensor>& sparse_attention_mask) {
+                    const std::vector<PlainTensor>& sparse_attention_mask,
+                    const PlainTensor& qq_bias,
+                    const PlainTensor& qq_bias_begins) {
         _workitems
             .reset(query, past_lens, subsequence_begins, block_indices, block_indices_begins, _helper._block_size);
         if (output_score) {
@@ -1840,7 +1974,9 @@ struct MHA {
                             alibi_slopes,
                             score_aggregation_window,
                             sinks,
-                            sparse_attention_mask);
+                            sparse_attention_mask,
+                            qq_bias,
+                            qq_bias_begins);
         } else {
             // TODO: support second token sparse attention execution
             _helper.exec_loop_bhl(query,
@@ -1855,7 +1991,9 @@ struct MHA {
                                   block_indices_begins,
                                   alibi_slopes,
                                   score_aggregation_window,
-                                  sinks);
+                                  sinks,
+                                  qq_bias,
+                                  qq_bias_begins);
         }
     }
 };
@@ -1967,6 +2105,33 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
             OPENVINO_ASSERT(outputs.size() >= 3);
             output_arkv_similarity.reset(outputs[2]);
+        }
+        qq_bias.reset(inputs[ID_QQ_BIAS]);  // [H * S]
+        qq_bias_begins.reset(inputs[ID_QQ_BIAS_BEGINS]);
+        block_update_indices.reset(inputs[ID_BLOCK_UPDATE_INDICES]);                // [num_blocks]
+        block_update_indices_begins.reset(inputs[ID_BLOCK_UPDATE_INDICES_BEGINS]);
+
+        static bool printed_input_debug = false;
+        if (!printed_input_debug) {
+            std::cout << "PA inputs: qq_bias.size(0)=" << qq_bias.size(0)
+                      << " qq_bias_begins.size(0)=" << qq_bias_begins.size(0)
+                      << " block_update_indices.size(0)=" << block_update_indices.size(0)
+                      << " block_update_indices_begins.size(0)=" << block_update_indices_begins.size(0)
+                      << std::endl;
+            if (qq_bias_begins && qq_bias_begins.size(0) > 1) {
+                const auto* begins = qq_bias_begins.ptr<int32_t>();
+                std::cout << "PA inputs: qq_bias_begins[0]=" << begins[0]
+                          << " qq_bias_begins[last]=" << begins[qq_bias_begins.size(0) - 1]
+                          << std::endl;
+            }
+            if (block_update_indices_begins && block_update_indices_begins.size(0) > 1) {
+                const auto* begins = block_update_indices_begins.ptr<int32_t>();
+                std::cout << "PA inputs: block_update_indices_begins[0]=" << begins[0]
+                          << " block_update_indices_begins[last]="
+                          << begins[block_update_indices_begins.size(0) - 1]
+                          << std::endl;
+            }
+            printed_input_debug = true;
         }
 
         output_emb.reset(outputs[0]);
@@ -2223,6 +2388,243 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
     }
 
+    void kv_cache_reorder(PlainTensor& k_cache,
+                          PlainTensor& v_cache,
+                          const PlainTensor& block_indices,
+                          const PlainTensor& block_indices_begins,
+                          const PlainTensor& subsequence_begins,
+                          const PlainTensor& block_update_indices,
+                          const PlainTensor& block_update_indices_begins) {
+        if (!block_update_indices || !block_update_indices_begins) {
+            return;
+        }
+        if (block_update_indices.size(0) == 0 || block_update_indices_begins.size(0) == 0) {
+            return;
+        }
+
+        const auto B_seq = block_indices_begins.size(0) - 1;
+        const auto block_size = _helper._block_size;
+        const auto Hk = k_cache.size(1);
+        const auto num_blocks = static_cast<int32_t>(k_cache.size(0));
+        const bool key_by_channel = _helper._params.quant_key_bychannel && k_cache.get_precision().is_integral();
+        const bool value_by_channel = _helper._params.quant_value_bychannel && v_cache.get_precision().is_integral();
+
+        const auto* block_idx_ptr = block_indices.ptr<int32_t>();
+        const auto* block_idx_begins_ptr = block_indices_begins.ptr<int32_t>();
+        const auto* subseq_begins_ptr = subsequence_begins.ptr<int32_t>();
+        const auto* update_ptr = block_update_indices.ptr<int32_t>();
+        const auto* update_begins_ptr = block_update_indices_begins.ptr<int32_t>();
+
+        const size_t key_elem_size = k_cache.get_precision().size();
+        const size_t key_sub_byte = get_sub_byte_multiplier(k_cache.get_precision());
+        const size_t key_token_bytes = k_cache.size(3) * key_elem_size / key_sub_byte;
+        const size_t key_stride_bytes = k_cache.stride_bytes(2);
+        const size_t key_hidden = k_cache.size(3);
+        const size_t key_params_offset = 2 * sizeof(float) * key_hidden;
+
+        const size_t value_elem_size = v_cache.get_precision().size();
+        const size_t value_sub_byte = get_sub_byte_multiplier(v_cache.get_precision());
+        const size_t value_token_bytes = v_cache.size(3) * value_elem_size / value_sub_byte;
+        const size_t value_stride_bytes = v_cache.stride_bytes(2);
+        const size_t value_hidden = v_cache.size(3);
+        const size_t value_params_offset = 2 * sizeof(float) * value_hidden;
+
+        std::vector<float> key_block_float;
+        std::vector<float> key_row_float;
+        std::vector<float> value_block_float;
+        std::vector<float> value_row_float;
+        if (key_by_channel) {
+            key_block_float.resize(block_size * key_hidden);
+            key_row_float.resize(key_hidden);
+        }
+        if (value_by_channel) {
+            value_block_float.resize(block_size * value_hidden);
+            value_row_float.resize(value_hidden);
+        }
+
+        for (size_t seq = 0; seq < B_seq; ++seq) {
+            static bool printed = false;
+            if (!printed) {
+                std::cout << "kv_cache_reorder: B_seq: " << B_seq << ", block_size: " << block_size
+                          << ", Hk: " << Hk << ", key_by_channel: " << key_by_channel
+                          << ", value_by_channel: " << value_by_channel << std::endl;
+                std::cout << "key_prec: " << ov::element::Type(KEY_PREC).to_string() << std::endl;
+                std::cout << "key_elem_size" << key_elem_size
+                          << "key_sub_byte" << key_sub_byte
+                          << "key_token_bytes" << key_token_bytes
+                          << "key_stride_bytes" << key_stride_bytes
+                          << "key_hidden" << key_hidden
+                          << "key_params_offsetd" << key_params_offset
+                          << std::endl;
+                printed = true;
+            }
+
+            const int32_t op_begin = update_begins_ptr[seq];
+            const int32_t op_end = update_begins_ptr[seq + 1];
+            if (op_end <= op_begin) {
+                continue;
+            }
+
+            const int32_t subseq_begin = subseq_begins_ptr[seq];
+            const int32_t block_indices_base = block_idx_begins_ptr[seq];
+            const int32_t blocks_in_seq = block_idx_begins_ptr[seq + 1] - block_indices_base;
+            if (blocks_in_seq <= 0) {
+                continue;
+            }
+
+            for (int32_t op = op_begin; op < op_end; ++op) {
+                const int32_t pair_base = op * 2;
+                const int32_t src_i = update_ptr[pair_base + 0];
+                const int32_t dst_i = update_ptr[pair_base + 1];
+                if (src_i < 0 || dst_i < 0) {
+                    continue;
+                }
+
+                if (src_i < subseq_begin || dst_i < subseq_begin) {
+                    continue;
+                }
+
+                const int32_t local_src = src_i - subseq_begin;
+                const int32_t src_block_in_seq = local_src / static_cast<int32_t>(block_size);
+                if (src_block_in_seq >= blocks_in_seq) {
+                    continue;
+                }
+                const int32_t src_slot = local_src - src_block_in_seq * static_cast<int32_t>(block_size);
+                const int32_t src_block = block_idx_ptr[block_indices_base + src_block_in_seq];
+
+                const int32_t local_dst = dst_i - subseq_begin;
+                const int32_t dst_block_in_seq = local_dst / static_cast<int32_t>(block_size);
+                if (dst_block_in_seq >= blocks_in_seq) {
+                    continue;
+                }
+                const int32_t dst_slot = local_dst - dst_block_in_seq * static_cast<int32_t>(block_size);
+                const int32_t dst_block = block_idx_ptr[block_indices_base + dst_block_in_seq];
+
+                if (src_block < 0 || src_block >= num_blocks || dst_block < 0 || dst_block >= num_blocks) {
+                    std::cout << "kv_cache_reorder: invalid block index src_block=" << src_block
+                              << " dst_block=" << dst_block << " num_blocks=" << num_blocks
+                              << " seq=" << seq << " op=" << op
+                              << " local_src=" << local_src << " local_dst=" << local_dst
+                              << std::endl;
+                    continue;
+                }
+
+                for (size_t hk = 0; hk < Hk; ++hk) {
+                    constexpr bool support_dequant_key = any_of(KEY_PREC, ov::element::u8, ov::element::u4);
+                    if (key_by_channel && src_block != dst_block) {
+                        auto* src_base = reinterpret_cast<uint8_t*>(k_cache.ptr_v(src_block, hk, 0, 0));
+                        auto* dst_base = reinterpret_cast<uint8_t*>(k_cache.ptr_v(dst_block, hk, 0, 0));
+                        auto* src_scales = reinterpret_cast<float*>(src_base);
+                        auto* src_zps = src_scales + key_hidden;
+                        auto* dst_scales = reinterpret_cast<float*>(dst_base);
+                        auto* dst_zps = dst_scales + key_hidden;
+                        auto* src_data = src_base + key_params_offset;
+                        auto* dst_data = dst_base + key_params_offset;
+                        if constexpr(support_dequant_key) {
+                            attn_dequant_by_channel_kernel<float, KEY_PREC>(src_data + src_slot * key_stride_bytes,
+                                                                            key_row_float.data(),
+                                                                            1,
+                                                                            key_hidden,
+                                                                            key_stride_bytes,
+                                                                            key_hidden,
+                                                                            src_scales,
+                                                                            src_zps);
+                            attn_dequant_by_channel_kernel<float, KEY_PREC>(dst_data,
+                                                                            key_block_float.data(),
+                                                                            block_size,
+                                                                            key_hidden,
+                                                                            key_stride_bytes,
+                                                                            key_hidden,
+                                                                            dst_scales,
+                                                                            dst_zps);
+                            std::memcpy(key_block_float.data() + dst_slot * key_hidden,
+                                        key_row_float.data(),
+                                        key_hidden * sizeof(float));
+                            quantize_by_channel<float, KEY_PREC>(key_block_float.data(),
+                                                                 dst_data,
+                                                                 block_size,
+                                                                 key_hidden,
+                                                                 key_hidden,
+                                                                 key_stride_bytes,
+                                                                 dst_scales,
+                                                                 dst_zps);
+                        }
+                    } else {
+                        if (key_by_channel) {
+                            auto* src_base = reinterpret_cast<uint8_t*>(k_cache.ptr_v(src_block, hk, 0, 0));
+                            auto* dst_base = reinterpret_cast<uint8_t*>(k_cache.ptr_v(dst_block, hk, 0, 0));
+                            auto* key_src_ptr = src_base + key_params_offset + src_slot * key_stride_bytes;
+                            auto* key_dst_ptr = dst_base + key_params_offset + dst_slot * key_stride_bytes;
+                            std::memcpy(key_dst_ptr, key_src_ptr, key_stride_bytes);
+                        } else {
+                            auto* key_src_ptr =
+                                reinterpret_cast<uint8_t*>(k_cache.ptr_v(src_block, hk, src_slot, 0));
+                            auto* key_dst_ptr =
+                                reinterpret_cast<uint8_t*>(k_cache.ptr_v(dst_block, hk, dst_slot, 0));
+                            std::memcpy(key_dst_ptr, key_src_ptr, key_token_bytes);
+                        }
+                    }
+
+                    constexpr bool support_dequant_value = any_of(VALUE_PREC, ov::element::u8, ov::element::u4);
+                    if (value_by_channel && src_block != dst_block && support_dequant_value) {
+                        auto* src_base = reinterpret_cast<uint8_t*>(v_cache.ptr_v(src_block, hk, 0, 0));
+                        auto* dst_base = reinterpret_cast<uint8_t*>(v_cache.ptr_v(dst_block, hk, 0, 0));
+                        auto* src_scales = reinterpret_cast<float*>(src_base);
+                        auto* src_zps = src_scales + value_hidden;
+                        auto* dst_scales = reinterpret_cast<float*>(dst_base);
+                        auto* dst_zps = dst_scales + value_hidden;
+                        auto* src_data = src_base + value_params_offset;
+                        auto* dst_data = dst_base + value_params_offset;
+
+                        if constexpr(support_dequant_value) {
+                            attn_dequant_by_channel_kernel<float, VALUE_PREC>(src_data + src_slot * value_stride_bytes,
+                                                                              value_row_float.data(),
+                                                                              1,
+                                                                              value_hidden,
+                                                                              value_stride_bytes,
+                                                                              value_hidden,
+                                                                              src_scales,
+                                                                              src_zps);
+                            attn_dequant_by_channel_kernel<float, VALUE_PREC>(dst_data,
+                                                                              value_block_float.data(),
+                                                                              block_size,
+                                                                              value_hidden,
+                                                                              value_stride_bytes,
+                                                                              value_hidden,
+                                                                              dst_scales,
+                                                                              dst_zps);
+                            std::memcpy(value_block_float.data() + dst_slot * value_hidden,
+                                        value_row_float.data(),
+                                        value_hidden * sizeof(float));
+                            quantize_by_channel<float, VALUE_PREC>(value_block_float.data(),
+                                                                   dst_data,
+                                                                   block_size,
+                                                                   value_hidden,
+                                                                   value_hidden,
+                                                                   value_stride_bytes,
+                                                                   dst_scales,
+                                                                   dst_zps);
+                        }
+                    } else {
+                        if (value_by_channel) {
+                            auto* src_base = reinterpret_cast<uint8_t*>(v_cache.ptr_v(src_block, hk, 0, 0));
+                            auto* dst_base = reinterpret_cast<uint8_t*>(v_cache.ptr_v(dst_block, hk, 0, 0));
+                            auto* value_src_ptr = src_base + value_params_offset + src_slot * value_stride_bytes;
+                            auto* value_dst_ptr = dst_base + value_params_offset + dst_slot * value_stride_bytes;
+                            std::memcpy(value_dst_ptr, value_src_ptr, value_stride_bytes);
+                        } else {
+                            auto* value_src_ptr =
+                                reinterpret_cast<uint8_t*>(v_cache.ptr_v(src_block, hk, src_slot, 0));
+                            auto* value_dst_ptr =
+                                reinterpret_cast<uint8_t*>(v_cache.ptr_v(dst_block, hk, dst_slot, 0));
+                            std::memcpy(value_dst_ptr, value_src_ptr, value_token_bytes);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     void execute(const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr> outputs) override {
         PlainTensor q;
         PlainTensor k;
@@ -2312,6 +2714,14 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                                       _helper._block_rotation_coefficient_scratch);
         }
 
+        kv_cache_reorder(k_cache,
+                         v_cache,
+                         block_indices,
+                         block_indices_begins,
+                         subsequence_begins,
+                         block_update_indices,
+                         block_update_indices_begins);
+
         concat_pastkv(k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins);
 
         _kernel(q,
@@ -2327,7 +2737,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 alibi_slopes,
                 score_aggregation_window,
                 sinks,
-                sparse_attention_mask);
+                sparse_attention_mask,
+                qq_bias,
+                qq_bias_begins);
     }
 };
 #endif

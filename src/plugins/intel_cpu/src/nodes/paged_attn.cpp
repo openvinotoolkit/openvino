@@ -7,6 +7,7 @@
 #include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
@@ -244,6 +245,10 @@ bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode,
 #if defined(OPENVINO_ARCH_ARM64)
     byChannel = false;
 #endif
+    const char* ovByToken = std::getenv("OVBYTOKEN");
+    if (ovByToken != nullptr && std::string(ovByToken) == "1") {
+        byChannel = false;
+    }
     return byChannel;
 }
 
