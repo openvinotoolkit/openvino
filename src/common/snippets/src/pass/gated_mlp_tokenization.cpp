@@ -64,8 +64,8 @@ Predicate fc_predicate(bool is_down) {
         [=](const Output<Node>& output) -> bool {
             const auto node = output.get_node_shared_ptr();
             return ov::is_type<ov::op::v0::MatMul>(node) && ((!is_down && consumers_count(1)(output)) || is_down) &&
-                   (ov::snippets::op::Brgemm::get_output_type(node->get_input_element_type(0), node->get_input_element_type(1)) !=
-                    element::dynamic);
+                   (ov::snippets::op::Brgemm::get_output_type(node->get_input_element_type(0),
+                                                              node->get_input_element_type(1)) != element::dynamic);
         },
         "fc_predicate");
 }
