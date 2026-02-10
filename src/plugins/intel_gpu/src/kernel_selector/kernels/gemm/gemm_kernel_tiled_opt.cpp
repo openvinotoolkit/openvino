@@ -301,8 +301,8 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         });
     }
 
-    // FP16 accumulator is only used for non-shape-agnostic static kernels
-    // to avoid compilation issues in shape-agnostic kernels where tensor sizes are dynamic
+    // FP32 accumulator is only used for static shape.
+    // In shape‑agnostic, the use of an FP32 accumulator leads to a 2–3× performance slowdown.
     bool is_fp16_acc = (params.inputs[0].GetDType() == Datatype::F16) || (params.inputs[1].GetDType() == Datatype::F16);
     if (is_fp16_acc && !params.is_shape_agnostic) {
         jit.AddConstants({MakeJitConstant("USE_FP16_ACC", is_fp16_acc)});
