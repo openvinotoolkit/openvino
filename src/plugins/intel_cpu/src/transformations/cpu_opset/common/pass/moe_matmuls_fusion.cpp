@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include "moe_matmuls_fusion.hpp"
 
 #include <initializer_list>
