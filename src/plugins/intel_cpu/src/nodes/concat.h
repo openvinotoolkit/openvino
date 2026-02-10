@@ -14,6 +14,7 @@
 #include "edge.h"
 #include "graph_context.h"
 #include "node.h"
+#include "nodes/executors/concat.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
@@ -70,6 +71,9 @@ private:
     bool doFuseConvert = false;      // whether to perform FP16 to FP32 conversion
     static constexpr size_t MAX_RANK_REF = 6;
     dnnl::primitive prim;
+    bool useACL = false;
+    ConcatAttrs concatAttrs;
+    ConcatExecutorPtr execPtrACL;
 };
 
 }  // namespace ov::intel_cpu::node
