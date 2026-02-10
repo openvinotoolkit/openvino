@@ -243,7 +243,7 @@ TEST_F(CoreBaseTest, compile_model_with_std_fs_path) {
 TEST_P(UnicodePathTest, read_compile_model) {
     const std::string model_name = "test-model";
     const auto prefix_dir = utils::generateTestFilePrefix();
-    const auto test_dir = std::filesystem::path(prefix_dir) / fs_path_from_variant();
+    const auto test_dir = std::filesystem::path(prefix_dir) / utils::to_fs_path(GetParam());
 
     const auto model_path = test_dir / std::filesystem::path(model_name + ".xml");
     const auto weight_path = test_dir / std::filesystem::path(model_name + ".bin");
@@ -254,7 +254,7 @@ TEST_P(UnicodePathTest, read_compile_model) {
         using ParamT = std::decay_t<decltype(param)>;
         auto folder = ov::test::utils::ensure_trailing_slash(ParamT(param));
         auto model_path = utils::cast_string_to_type<ParamT>(prefix_dir + "/") + folder +
-                  utils::cast_string_to_type<ParamT>(model_name + ".xml");
+                          utils::cast_string_to_type<ParamT>(model_name + ".xml");
 
         const auto model = core.read_model(model_path);
         EXPECT_NE(model, nullptr);
