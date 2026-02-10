@@ -26,7 +26,7 @@ ov::Output<ov::Node> get_zero_point(const ov::OutputVector& inputs) {
     if (inputs.size() > 2) {
         return inputs.at(2);
     } else {
-        return std::make_shared<v0::Constant>(ov::element::u8, ov::Shape{1}, std::uint8_t(0));
+        return std::make_shared<v0::Constant>(ov::element::u8, ov::Shape{}, std::uint8_t(0));
     }
 }
 
@@ -65,33 +65,34 @@ std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> get_output_band
     const ov::element::Type& data_type) {
     std::shared_ptr<ov::Node> output_low;
     std::shared_ptr<ov::Node> output_high;
+    const ov::Shape shape{};
 
     // These values could be used in a ConvertQuantizeDequantize transformation and
     // should be aligned
     switch (destination_type) {
     case ov::element::i4:
-        output_low = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, -8);
-        output_high = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 7);
+        output_low = std::make_shared<v0::Constant>(data_type, shape, -8);
+        output_high = std::make_shared<v0::Constant>(data_type, shape, 7);
         break;
     case ov::element::u4:
-        output_low = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 0);
-        output_high = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 15);
+        output_low = std::make_shared<v0::Constant>(data_type, shape, 0);
+        output_high = std::make_shared<v0::Constant>(data_type, shape, 15);
         break;
     case ov::element::i8:
-        output_low = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, -128);
-        output_high = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 127);
+        output_low = std::make_shared<v0::Constant>(data_type, shape, -128);
+        output_high = std::make_shared<v0::Constant>(data_type, shape, 127);
         break;
     case ov::element::u8:
-        output_low = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 0);
-        output_high = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 255);
+        output_low = std::make_shared<v0::Constant>(data_type, shape, 0);
+        output_high = std::make_shared<v0::Constant>(data_type, shape, 255);
         break;
     case ov::element::i16:
-        output_low = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, -32768);
-        output_high = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 32767);
+        output_low = std::make_shared<v0::Constant>(data_type, shape, -32768);
+        output_high = std::make_shared<v0::Constant>(data_type, shape, 32767);
         break;
     case ov::element::u16:
-        output_low = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 0);
-        output_high = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 65535);
+        output_low = std::make_shared<v0::Constant>(data_type, shape, 0);
+        output_high = std::make_shared<v0::Constant>(data_type, shape, 65535);
         break;
     default:
         OPENVINO_THROW("Unsupported element type for QuantizeLinear");
