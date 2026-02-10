@@ -18,7 +18,7 @@ copyright = '2026, Intel®'
 author = 'Intel®'
 
 language = 'en'
-version_name = 'nightly'
+version_name = '2026'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
