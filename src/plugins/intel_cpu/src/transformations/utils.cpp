@@ -33,17 +33,11 @@ namespace ov::intel_cpu {
 template <class T>
 bool match_conv_mul_add_fq(const std::shared_ptr<const ov::Node>& node) {
     auto conv_m = wrap_type<ov::op::v1::Convolution>(
-        {any_input(type_matches_any({ov::element::i8, ov::element::u8})),
-         any_input()});
+        {any_input(type_matches_any({ov::element::i8, ov::element::u8})), any_input()});
     auto mul0_m = wrap_type<ov::op::v1::Multiply>({conv_m, any_input()});
     auto add_m = wrap_type<ov::op::v1::Add>({mul0_m, any_input()});
-    auto fq_m = wrap_type<ov::op::v0::FakeQuantize>(
-        {add_m,
-         any_input(),
-         any_input(),
-         any_input(),
-         any_input()},
-        type_matches_any({ov::element::i8, ov::element::u8}));
+    auto fq_m = wrap_type<ov::op::v0::FakeQuantize>({add_m, any_input(), any_input(), any_input(), any_input()},
+                                                    type_matches_any({ov::element::i8, ov::element::u8}));
     auto final_m = wrap_type<T>({fq_m, any_input()});
 
     auto matcher = std::make_shared<Matcher>(final_m);
@@ -67,20 +61,14 @@ bool match_fq_mul_conv_bias_same_types(const std::shared_ptr<const ov::Node>& no
     auto convMulAdd_conv = wrap_type<ov::op::v1::Convolution>();
     auto convMulAdd_mul = wrap_type<ov::op::v1::Multiply>({convMulAdd_conv, any_input()});
     auto convMulAdd_add = wrap_type<ov::op::v1::Add>({convMulAdd_mul, any_input()});
-    auto convMulAdd_fq = wrap_type<ov::op::v0::FakeQuantize>({convMulAdd_add,
-                                                                                 any_input(),
-                                                                                 any_input(),
-                                                                                 any_input(),
-                                                                                 any_input()});
+    auto convMulAdd_fq =
+        wrap_type<ov::op::v0::FakeQuantize>({convMulAdd_add, any_input(), any_input(), any_input(), any_input()});
     Matcher convMulAdd_matcher(convMulAdd_fq);
     auto convAddMul_conv = wrap_type<ov::op::v1::Convolution>();
     auto convAddMul_add = wrap_type<ov::op::v1::Add>({convAddMul_conv, any_input()});
     auto convAddMul_mul = wrap_type<ov::op::v1::Multiply>({convAddMul_add, any_input()});
-    auto convAddMul_fq = wrap_type<ov::op::v0::FakeQuantize>({convAddMul_mul,
-                                                                                 any_input(),
-                                                                                 any_input(),
-                                                                                 any_input(),
-                                                                                 any_input()});
+    auto convAddMul_fq =
+        wrap_type<ov::op::v0::FakeQuantize>({convAddMul_mul, any_input(), any_input(), any_input(), any_input()});
     Matcher convAddMul_matcher(convAddMul_fq);
     auto matcher = (pattern == FQMulAddPattern::ConvMulAdd) ? convMulAdd_matcher : convAddMul_matcher;
     if (!matcher.match(std::const_pointer_cast<ov::Node>(node))) {
@@ -94,11 +82,7 @@ bool match_fq_mul_conv_bias_same_types(const std::shared_ptr<const ov::Node>& no
 
 bool match_conv_fq_same_types(const std::shared_ptr<const ov::Node>& node) {
     auto conv = wrap_type<ov::op::v1::Convolution>();
-    auto fq = wrap_type<ov::op::v0::FakeQuantize>({conv,
-                                                    any_input(),
-                                                    any_input(),
-                                                    any_input(),
-                                                    any_input()});
+    auto fq = wrap_type<ov::op::v0::FakeQuantize>({conv, any_input(), any_input(), any_input(), any_input()});
     Matcher matcher(fq);
     if (!matcher.match(std::const_pointer_cast<ov::Node>(node))) {
         return false;
@@ -115,11 +99,8 @@ bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
                                    const ov::Shape& kernel_shape,
                                    size_t oc_ic_limit) {
     const auto weights_shape = "OC, IC, " + std::to_string(kernel_shape[0]) + ", " + std::to_string(kernel_shape[1]);
-    const auto weights_m = any_input(has_static_shape() &&
-                                                        shape_matches(weights_shape));
-    const auto conv_m =
-        wrap_type<ov::op::v1::Convolution>({any_input(), weights_m},
-                                                              {{"strides", strides}});
+    const auto weights_m = any_input(has_static_shape() && shape_matches(weights_shape));
+    const auto conv_m = wrap_type<ov::op::v1::Convolution>({any_input(), weights_m}, {{"strides", strides}});
     Matcher matcher(conv_m);
     if (!matcher.match(std::const_pointer_cast<ov::Node>(node))) {
         return false;

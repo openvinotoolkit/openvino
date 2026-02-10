@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "convert_conv_dq_scales.hpp"
-#include "conv_mul_add_fq_block.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -11,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "conv_mul_add_fq_block.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"

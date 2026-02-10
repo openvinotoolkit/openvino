@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "convert_conv_bias.hpp"
-#include "conv_mul_add_fq_block.hpp"
 
 #include <memory>
 
+#include "conv_mul_add_fq_block.hpp"
 #include "low_precision/network_helper.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
@@ -51,7 +51,8 @@ ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
         if (fakeQuantize->get_output_element_type(0) != conv->get_input_element_type(0)) {
             return false;
         }
-        auto new_mul = ov::as_type_ptr<ov::opset1::Multiply>(low_precision::NetworkHelper::swapMultiplyAndAdd(ov::as_type_ptr<ov::opset1::Add>(add), 0));
+        auto new_mul = ov::as_type_ptr<ov::opset1::Multiply>(
+            low_precision::NetworkHelper::swapMultiplyAndAdd(ov::as_type_ptr<ov::opset1::Add>(add), 0));
         if (!new_mul) {
             return false;
         }

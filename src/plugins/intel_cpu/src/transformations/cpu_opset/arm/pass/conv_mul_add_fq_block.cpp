@@ -30,12 +30,10 @@ ov::intel_cpu::pass::pattern::op::ConvMulAddFQBlock::ConvMulAddFQBlock(const boo
     auto conv_u8_activation = ov::pass::pattern::any_input(ov::pass::pattern::type_matches(element::u8));
     auto conv_i8_u8_weights =
         ov::pass::pattern::any_input(ov::pass::pattern::type_matches_any({element::i8, element::u8}));
-    auto conv_u8 =
-        ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({conv_u8_activation, conv_i8_u8_weights});
+    auto conv_u8 = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({conv_u8_activation, conv_i8_u8_weights});
     auto conv = conv_u8 | conv_i8;
 
-    auto multiply =
-        ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({conv, ov::pass::pattern::any_input()});
+    auto multiply = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({conv, ov::pass::pattern::any_input()});
     auto bias_const = ov::pass::pattern::wrap_type<ov::op::v0::Constant>([](const ov::Output<ov::Node>& output) {
         return !ov::pass::pattern::type_matches(ov::element::i32)(output);
     });

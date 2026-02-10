@@ -1004,7 +1004,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
     CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
-        CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
+    CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, MaxPoolTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, MVNTransformation);

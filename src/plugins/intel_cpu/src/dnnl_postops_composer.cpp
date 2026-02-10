@@ -577,8 +577,8 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLa
             if (wei_scale_mask == 0) {
                 wei_scale_values.resize(scale.size(), wei_scale_values[0]);
             } else {
-            OPENVINO_ASSERT(wei_scale_values.size() == OC);
-        }
+                OPENVINO_ASSERT(wei_scale_values.size() == OC);
+            }
 
             for (Dim j = 0; j < OC; j++) {
                 wei_scale_values[j] *= scale[j];

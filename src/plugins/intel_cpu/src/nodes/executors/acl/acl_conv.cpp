@@ -14,8 +14,10 @@
 
 #include <any>
 #include <cmath>
+#include <cstddef>
 #include <limits>
 #include <memory>
+#include <vector>
 
 #include "acl_utils.hpp"
 #include "cpu_shape.h"
@@ -87,8 +89,8 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
                 const bool hasUniformShift = isPerTensorDataWithTolerance(fqInputShift, 0.00005F);
 
                 if (hasValidBaseScale && hasUniformShift) {
-                    std::vector<float> scaleRatios(fqInputScale.size(), 1.0f);
-                    for (size_t i = 0; i < fqInputScale.size(); i++) {
+                    std::vector<float> scaleRatios(fqInputScale.size(), 1.0F);
+                    for (std::size_t i = 0; i < fqInputScale.size(); i++) {
                         scaleRatios[i] = fqInputScale[i] / baseScale;
                     }
 

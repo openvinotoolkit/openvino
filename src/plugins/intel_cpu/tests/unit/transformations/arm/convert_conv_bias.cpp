@@ -22,6 +22,7 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_conv_bias.hpp"
 #include "transformations/init_node_info.hpp"
+#include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
 
@@ -94,7 +95,7 @@ static std::shared_ptr<ov::Model> createInitGraph(ov::element::Type input_type,
     return std::make_shared<ov::Model>(ov::OutputVector{fq}, ov::ParameterVector{input});
 }
 
-// Pattern: Input -> Convolution -> Multiply -> Add(Round(bias)->Convert(i32)) -> FQ -> Result
+// Pattern: Input -> Convolution -> Add(Round(bias)->Convert(i32)) -> Multiply -> FQ -> Result
 static std::shared_ptr<ov::Model> createRefGraph(ov::element::Type input_type,
                                                  ov::element::Type weights_type,
                                                  ov::element::Type bias_type) {
@@ -105,13 +106,13 @@ static std::shared_ptr<ov::Model> createRefGraph(ov::element::Type input_type,
     auto round = std::make_shared<ov::op::v5::Round>(bias, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
     auto convert = std::make_shared<ov::op::v0::Convert>(round, ov::element::i32);
 
+    // The transformation creates a TypeRelaxed Add and then swaps Add/Multiply.
+    auto add = createAdd(conv, convert, true);
     auto dequant_scale = ov::op::v0::Constant::create(ov::element::f32, {1}, {0.5f});
-    auto multiply = std::make_shared<ov::op::v1::Multiply>(conv, dequant_scale);
+    auto multiply = std::make_shared<ov::op::v1::Multiply>(add, dequant_scale);
+    ov::mark_as_dequantization_node(multiply);
 
-    // The transformation creates a TypeRelaxed Add when the original Add is not TypeRelaxed
-    auto add = createAdd(multiply, convert, true);
-
-    auto fq = createFakeQuantize(add, input_type, 256);
+    auto fq = createFakeQuantize(multiply, input_type, 256);
 
     return std::make_shared<ov::Model>(ov::OutputVector{fq}, ov::ParameterVector{input});
 }

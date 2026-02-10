@@ -8,8 +8,8 @@
 #pragma once
 
 #include <algorithm>
-#include <cstddef>
 #include <cmath>
+#include <cstddef>
 #include <functional>
 #include <limits>
 #include <numeric>
@@ -43,7 +43,7 @@ inline void multiplyAndBroadcastScales(std::vector<float>& dstScales,
                     channelCount);
 
     if (dstScales.empty()) {
-        dstScales.assign(srcScales.size() > 1 ? channelCount : static_cast<std::size_t>(1), 1.0f);
+        dstScales.assign(srcScales.size() > 1 ? channelCount : static_cast<std::size_t>(1), 1.0F);
     }
 
     OPENVINO_ASSERT(any_of(dstScales.size(), static_cast<std::size_t>(1), channelCount),
