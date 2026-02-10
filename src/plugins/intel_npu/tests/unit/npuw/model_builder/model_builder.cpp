@@ -5,6 +5,7 @@
 #include "model_builder.hpp"
 
 #include <algorithm>
+#include <set>
 #include <unordered_map>
 
 #include "openvino/op/assign.hpp"
@@ -337,6 +338,9 @@ ov::Output<ov::Node> make_repeat_kv(const ov::Output<ov::Node>& kv,
     if (num_kv_heads == 0 || num_heads == num_kv_heads) {
         return kv;
     }
+
+    OPENVINO_ASSERT(num_heads % num_kv_heads == 0,
+                    "num_heads (", num_heads, ") must be divisible by num_kv_heads (", num_kv_heads, ")");
 
     const size_t n_rep = num_heads / num_kv_heads;
 
@@ -703,6 +707,7 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_with_one_op() {
 }
 
 std::shared_ptr<ov::Model> ModelBuilder::get_model_without_repeated_blocks() {
+    clear();
     std::shared_ptr<ov::op::v0::Parameter> input =
         std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1, 1, 40});
     m_nodes.push_back(input);
@@ -731,6 +736,7 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks() {
 std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_and_results(
     std::size_t repetitions,
     const std::vector<std::size_t>& block_indices) {
+    clear();
     // Generate head
     std::shared_ptr<ov::op::v0::Parameter> input =
         std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1, 1, 40});
@@ -804,6 +810,7 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_and_resu
 std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_and_parameters(
     std::size_t repetitions,
     const std::vector<std::size_t>& block_indices) {
+    clear();
     if (repetitions == 0) {
         repetitions = 1;
     }
@@ -879,6 +886,7 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_and_para
 std::shared_ptr<ov::Model> ModelBuilder::get_model_with_multi_output_repeating_blocks(
     std::size_t repetitions,
     bool last_block_has_direct_result) {
+    clear();
     if (repetitions == 0) {
         repetitions = 1;
     }
