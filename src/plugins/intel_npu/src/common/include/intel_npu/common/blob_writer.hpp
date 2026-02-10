@@ -30,7 +30,12 @@ public:
 
     void append_compatibility_requirement(const std::vector<CRE::Token>& requirement_tokens);
 
+    // TODO: consider using two types of offsets. One within the NPU regions. One within the section payload.
     std::streamoff get_stream_relative_position(std::ostream& stream) const;
+
+    void move_stream_cursor_to_relative_position(std::ostream& stream,
+                                                 const SectionID section_id,
+                                                 const uint64_t offset);
 
 private:
     void write_section(std::ostream& stream, const std::shared_ptr<ISection>& section);

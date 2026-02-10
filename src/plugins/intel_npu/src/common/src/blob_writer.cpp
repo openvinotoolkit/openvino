@@ -54,6 +54,31 @@ std::streamoff BlobWriter::get_stream_relative_position(std::ostream& stream) co
     return stream.tellp() - m_stream_base.value();
 }
 
+void BlobWriter::move_stream_cursor_to_relative_position(std::ostream& stream,
+                                                         const SectionID section_id,
+                                                         const uint64_t offset) {
+    OPENVINO_ASSERT(m_stream_base.has_value());
+    OPENVINO_ASSERT(stream.good());  // TODO maybe the stream should be an attribute
+
+    // Bound checking. Sections should jump only to locations within their payload.
+    const std::optional<uint64_t> section_offset = m_offsets_table.lookup_offset(section_id);
+    OPENVINO_ASSERT(section_offset.has_value(), "Section ID not found within the table of offsets: ", section_id);
+    const std::optional<uint64_t> section_length = m_offsets_table.lookup_length(section_id);
+
+    OPENVINO_ASSERT(offset >= section_offset.value() && offset < section_offset.value() + section_length.value(),
+                    "Section using the Section ID ",
+                    section_id,
+                    " attempted a jump outside the boundaries of its own payload. Jump location: ",
+                    offset,
+                    ". Boundaries: [",
+                    section_offset.value(),
+                    ", ",
+                    section_offset.value() + section_length.value(),
+                    "].");
+
+    stream.seekp(m_stream_base.value() + static_cast<std::streamoff>(offset));
+}
+
 void BlobWriter::write_section(std::ostream& stream, const std::shared_ptr<ISection>& section) {
     const SectionID section_id = section->get_section_id();
 
@@ -91,7 +116,9 @@ void BlobWriter::write(std::ostream& stream) {
 
     // Placeholder until the offsets table is fully populated and written into the blob
     uint64_t offsets_table_location = 0;
+    uint64_t offsets_table_size = 0;
     stream.write(reinterpret_cast<const char*>(&offsets_table_location), sizeof(offsets_table_location));
+    stream.write(reinterpret_cast<const char*>(&offsets_table_size), sizeof(offsets_table_size));
 
     // The region of non-persistent format (list of key-length-payload sections, any order & no restrictions w.r.t. the
     // content of the payload)
@@ -114,12 +141,14 @@ void BlobWriter::write(std::ostream& stream) {
     const auto offsets_table_section = std::make_shared<OffsetsTableSection>(m_offsets_table);
     write_section(stream, offsets_table_section);
 
+    offsets_table_size = get_stream_relative_position(stream) - offsets_table_location;
     npu_region_size = get_stream_relative_position(stream);
 
     // Go back to the beginning and write the size of the whole NPU region & the location of the offsets table
     stream.seekp(will_come_back_to_this_at_the_end);
     stream.write(reinterpret_cast<const char*>(&npu_region_size), sizeof(npu_region_size));
     stream.write(reinterpret_cast<const char*>(&offsets_table_location), sizeof(offsets_table_location));
+    stream.write(reinterpret_cast<const char*>(&offsets_table_size), sizeof(offsets_table_size));
 
     // Restore the attributes
     m_registered_sections = std::move(registered_sections_backup);
