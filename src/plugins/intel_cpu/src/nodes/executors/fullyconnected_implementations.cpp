@@ -147,8 +147,8 @@ static const TypeMapping dnnlMatMulTypeMapping {
     // quantization configuration
     {{_u8 | _i8, _i8, _u8|_i8|_i32|_bf16|_f16|_f32|_dynamic, _u8|_i8|_i32|_bf16|_f16|_f32}, {bypass(), bypass(), bypass(),  bypass()}},
     {{_u8 | _i8, _i8, _any, _any},                            {bypass(), bypass(), just<f32>(), just<f32>()}},
-    // compresses int weights
-    {{_f32 | _bf16 | _f16, _u8 | _i8, _any, _any},            {bypass(), bypass(), use<0>(), use<0>()}},
+    // compresses int weights (@todo, append the nf4 support) 
+    {{_f32 | _bf16 | _f16, _u8 | _i8 | _u4 | _i4, _any, _any},            {bypass(), bypass(), use<0>(), use<0>()}},
     // @todo should we fallback to FPXX instead of _f32?
     {{_any, _any, _any, _any},                                {just<f32>(), just<f32>(), just<f32>(), just<f32>()}},
     // @todo explicitly cover configuration limitations for oneDNN on ARM
@@ -174,6 +174,10 @@ static const TypeMapping dnnlMatMulTypeMapping {
     }
     // i32 can be up converted to f32
     if (any_of(srcType(config), i32) && any_of(weiType(config), i32)) {
+        return true;
+    }
+    // decomp
+    if (any_of(srcType(config), f32) && any_of(weiType(config), u8, i8, u4, i4)) {
         return true;
     }
     // support integer type quantization matmul
