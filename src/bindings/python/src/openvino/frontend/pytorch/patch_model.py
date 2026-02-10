@@ -65,6 +65,9 @@ def patch_model(model, module_extensions, orig_forward_name):
 
 
 def unpatch_model(model, orig_forward_name):
+    # Restore patched torch functions (bmm, baddbmm, etc.)
+    _unpatch_torch_functions()
+
     for _, module in model.named_modules():
         if hasattr(module, orig_forward_name):
             try:
@@ -76,15 +79,82 @@ def unpatch_model(model, orig_forward_name):
                             "Original exception details:\n%s", error)
 
 
+def _create_function_wrapper(extension):
+    """Create a wrapper for a torch function using the same Trampoline pattern as modules."""
+
+    class Trampoline(torch.autograd.Function):
+        target_extension = extension
+
+        @staticmethod
+        @torch.jit.ignore
+        def forward(ctx, *args, **kwargs):
+            return extension.evaluate(None, *args, **kwargs)
+
+    def wrapper(*args, **kwargs):
+        return extension.convert(None, Trampoline.apply, *args, **kwargs)
+
+    return wrapper
+
+
+# Extension for torch.bmm: (b, n, m) @ (b, m, p) -> (b, n, p)
+_bmm_extension = ModuleExtension(
+    None, "ov_ext::bmm",
+    convert=lambda module, target_op, *args, **kwargs: target_op(*args),
+    evaluate=lambda module, *args, **kwargs: torch.full(
+        (args[0].shape[0], args[0].shape[1], args[1].shape[2]), 0.5, dtype=torch.float32)
+)
+
+
+# Global storage for original torch functions to enable proper cleanup
+_patched_torch_functions = {}
+
+
+def _patch_torch_functions(supported_dtypes):
+    """Patch torch functions that don't work well with 16-bit types (e.g., bmm for MoE models).
+
+    These patches skip actual computation and create custom ops in the TorchScript graph,
+    similar to how ModuleExtension works for modules. This speeds up tracing and avoids
+    loading weights from mmap.
+    """
+    global _patched_torch_functions
+
+    functions_to_patch = [
+        (torch, "bmm", _bmm_extension),
+    ]
+
+    for module, fn_name, extension in functions_to_patch:
+        if (module, fn_name) in _patched_torch_functions:
+            # Already patched
+            continue
+        orig_fn = getattr(module, fn_name)
+        _patched_torch_functions[(module, fn_name)] = orig_fn
+        setattr(module, fn_name, _create_function_wrapper(extension))
+        log.debug("Patched torch function: %s.%s", module.__name__, fn_name)
+
+
+def _unpatch_torch_functions():
+    """Restore original torch functions."""
+    global _patched_torch_functions
+    for (module, fn_name), orig_fn in _patched_torch_functions.items():
+        setattr(module, fn_name, orig_fn)
+        log.debug("Restored torch function: %s.%s", module.__name__, fn_name)
+    _patched_torch_functions.clear()
+
+
 def __make_16bit_traceable(model: torch.nn.Module,
                            orig_forward_name: str = "_openvino_module_extension_patch_orig_forward",
                            patch_condition=None):
     """Prepare a 16-bit PyTorch model for tracing with OpenVINO.
 
     - Replace known list of modules with ModuleExtension.
+    - Patch torch functions (bmm, baddbmm, etc.) for MoE and similar models.
     - Convert other modules with weights to FP32.
     """
     supported = {torch.float16, torch.bfloat16, torch.float8_e4m3fn, torch.float8_e5m2}
+
+    # Patch torch functions for operations like bmm used in MoE models
+    _patch_torch_functions(supported)
+
     if patch_condition is None:
         def patch_condition(module):
             dtype_to_patch = {torch.float32, *supported}

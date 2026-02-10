@@ -1034,6 +1034,59 @@ def test_patched_8bit_model_converts_e5m2():
     np.testing.assert_allclose(res_f8_e5m2[1], res_ref[1].numpy(), atol=1e-2)
 
 
+def test_patched_16bit_model_with_bmm():
+    """Test that torch.bmm is patched for MoE-style models."""
+    from openvino.frontend.pytorch import patch_model
+    from openvino import convert_model, compile_model
+    import copy
+
+    class MoEStyleModel(torch.nn.Module):
+        """A simplified MoE-style model that uses bmm for expert routing."""
+        def __init__(self):
+            super().__init__()
+            # Expert weights: 4 experts, each mapping 32 -> 64
+            self.expert_weights = torch.nn.Parameter(torch.randn(4, 32, 64))
+            self.linear = torch.nn.Linear(64, 32)
+
+        def forward(self, x):
+            # x shape: [batch, seq, 32]
+            batch, seq, _ = x.shape
+            # Simulate expert selection - use all experts for simplicity
+            # Reshape for bmm: [4, batch*seq, 32]
+            x_expanded = x.reshape(1, batch * seq, -1).expand(4, -1, -1)
+            # bmm: [4, batch*seq, 32] @ [4, 32, 64] -> [4, batch*seq, 64]
+            expert_out = torch.bmm(x_expanded, self.expert_weights)
+            # Average over experts and reshape back
+            out = expert_out.mean(dim=0).reshape(batch, seq, -1)
+            return self.linear(out)
+
+    # Test MoE-style model with bmm
+    example = (torch.randn(2, 8, 32),)
+    model_ref = MoEStyleModel()
+    with torch.no_grad():
+        res_ref = model_ref(*example)
+
+    # Test fp16
+    model_fp16 = copy.deepcopy(model_ref).half()
+    patch_model.__make_16bit_traceable(model_fp16)
+    with torch.no_grad():
+        converted_model = convert_model(model_fp16, example_input=example)
+    assert converted_model
+    cm_fp16 = compile_model(converted_model, "CPU", default_cfg)
+    res_fp16 = cm_fp16([x.numpy() for x in example])
+    np.testing.assert_allclose(res_fp16[0], res_ref.numpy(), atol=1e-2)
+
+    # Test bf16
+    model_bf16 = copy.deepcopy(model_ref).bfloat16()
+    patch_model.__make_16bit_traceable(model_bf16)
+    with torch.no_grad():
+        converted_model = convert_model(model_bf16, example_input=example)
+    assert converted_model
+    cm_bf16 = compile_model(converted_model, "CPU", default_cfg)
+    res_bf16 = cm_bf16([x.numpy() for x in example])
+    np.testing.assert_allclose(res_bf16[0], res_ref.numpy(), atol=2e-2)
+
+
 @pytest.mark.skipif(sys.platform.lower().startswith("win"), reason="CVS-174725")
 def test_patched_bitnet_model_converts():
     from openvino import convert_model, compile_model
