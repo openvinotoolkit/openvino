@@ -5,8 +5,6 @@
 #include "model_builder.hpp"
 
 #include <algorithm>
-#include <cmath>
-#include <limits>
 #include <unordered_map>
 
 #include "openvino/op/assign.hpp"
@@ -1012,7 +1010,6 @@ std::shared_ptr<ov::op::v0::Parameter> ModelBuilder::parameter(ov::element::Type
     auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
     param->set_friendly_name(name);
     param->output(0).set_names({name});
-    m_nodes.push_back(param);
     m_parameters.push_back(param);
     return param;
 }
@@ -1021,7 +1018,6 @@ std::shared_ptr<ov::op::v0::Result> ModelBuilder::result(const ov::Output<ov::No
     auto res = std::make_shared<ov::op::v0::Result>(output);
     res->set_friendly_name(name);
     res->output(0).set_names({name});
-    m_nodes.push_back(res);
     m_results.push_back(res);
     return res;
 }
