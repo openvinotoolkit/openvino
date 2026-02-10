@@ -880,7 +880,9 @@ Example:
     <skip_config>
         <message>Skip failing tests until next driver update</message>
         <filters>
-            <filter>.*ProfilingBlob.*</filter>
+            <filter>.*ProfilingBlob.ProfilingCompileNoProfilingImport.*</filter>
+            <filter>.*ProfilingBlob.ProfilingCompileProfilingImport.*INFER.*</filter>
+            <filter>.*ProfilingBlob.NoProfilingCompileProfilingImport.*MODEL.*</filter>
         </filters>
     </skip_config>
 
