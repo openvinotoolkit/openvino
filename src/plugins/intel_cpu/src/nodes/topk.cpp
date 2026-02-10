@@ -1818,14 +1818,6 @@ private:
             uni_vpinsrw(xmm_src, xmm_src, op, 0x0);
             uni_vpslld(xmm_src, xmm_src, 16);
             break;
-        case memory::data_type::s8:
-            movsx(reg_tmp_32, op);
-            uni_vmovq(xmm_src, reg_tmp_64);
-            break;
-        case memory::data_type::u8:
-            movzx(reg_tmp_32, op);
-            uni_vmovq(xmm_src, reg_tmp_64);
-            break;
         default:
             assert(!"unknown src_dt");
         }
@@ -1848,18 +1840,6 @@ private:
         case memory::data_type::bf16:
             uni_vpsrld(xmm_dst, xmm_dst, 16);
             uni_vpextrw(op, xmm_dst, 0x0);
-            break;
-        case memory::data_type::s8:
-            uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
-            uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
-            uni_vmovq(reg_tmp_64, xmm_dst);
-            mov(op, reg_tmp_8);
-            break;
-        case memory::data_type::u8:
-            uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
-            uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-            uni_vmovq(reg_tmp_64, xmm_dst);
-            mov(op, reg_tmp_8);
             break;
         default:
             assert(!"unknown dst_dt");
@@ -2024,9 +2004,7 @@ void TopK::initSupportedPrimitiveDescriptors() {
     static const ov::element::Type supportedPrecision[] = {ov::element::f32,
                                                            ov::element::f16,
                                                            ov::element::bf16,
-                                                           ov::element::i32,
-                                                           ov::element::i8,
-                                                           ov::element::u8};
+                                                           ov::element::i32};
 
     ov::element::Type dataPrecision = getOriginalOutputPrecisionAtPort(TOPK_DATA);
     bool precisionSupported = std::find(std::begin(supportedPrecision), std::end(supportedPrecision), dataPrecision) !=
@@ -2076,13 +2054,20 @@ void TopK::preset_params() {
                      ((layout == TopKLayoutType::topk_nspc || layout == TopKLayoutType::topk_blocked) && axis == 1);
 
     if (layout == TopKLayoutType::topk_blocked) {
-        auto srcMemPtr = getSrcMemoryAtPort(TOPK_DATA);
-        if (srcMemPtr && srcMemPtr->isDefined()) {
-            if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp16c)) {
+        auto resolve_blk_size = [&](const MemoryDescPtr& desc) {
+            if (desc && desc->hasLayoutType(LayoutType::nCsp16c)) {
                 blk_size = 16;
-            } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp8c)) {
+            } else if (desc && desc->hasLayoutType(LayoutType::nCsp8c)) {
                 blk_size = 8;
             }
+        };
+
+        auto srcMemPtr = getSrcMemoryAtPort(TOPK_DATA);
+        if (srcMemPtr && srcMemPtr->isDefined()) {
+            resolve_blk_size(srcMemPtr->getDescPtr());
+        }
+        if (blk_size == 0) {
+            resolve_blk_size(selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc());
         }
     }
     if (blk_size == 0) {
@@ -2115,7 +2100,8 @@ void TopK::prepareParams() {
     auto srcMemPtr = getSrcMemoryAtPort(TOPK_DATA);
     CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined destination memory.");
     CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "has undefined input memory.");
-    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor() != nullptr, "has nullable preferable primitive descriptor");
+    auto* selectedPD = getSelectedPrimitiveDescriptor();
+    CPU_NODE_ASSERT(selectedPD != nullptr, "has nullable preferable primitive descriptor");
 
     src_dims = srcMemPtr->getDesc().getShape().getDims();
     dst_dims = dstMemPtr->getDesc().getShape().getDims();
@@ -2179,7 +2165,6 @@ void TopK::prepareParams() {
                 }
             }
         }
-
         prepare_original_idx();
 
         if (algorithm == TopKAlgorithm::topk_bitonic_sort) {
@@ -2371,6 +2356,7 @@ void TopK::topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* out_id
 #endif
         return std::make_pair(prc, prc_idx);
     };
+
 
     // [blocked layout with topk on C]
     if (layout == TopKLayoutType::topk_blocked && topk_innermost) {

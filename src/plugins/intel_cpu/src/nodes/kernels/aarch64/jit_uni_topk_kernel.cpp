@@ -47,18 +47,16 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
         using namespace Xbyak_aarch64;
 
         const bool is_f32 = jcp_.precision == ov::element::f32;
-        const bool is_f16 = jcp_.precision == ov::element::f16;
+        const bool is_bf16 = jcp_.precision == ov::element::bf16;
+        const bool is_f16 = jcp_.precision == ov::element::f16 || (jcp_.data_size == 2 && !is_bf16);
         const bool is_i32 = jcp_.precision == ov::element::i32;
-        const bool is_i8 = jcp_.precision == ov::element::i8;
-        const bool is_u8 = jcp_.precision == ov::element::u8;
         const bool is_fp = is_f32 || is_f16;
         const bool top1 = jcp_.top_k == 1;
         const bool planar_layout = jcp_.layout != TopKLayoutType::topk_blocked;
         const bool blocked_innermost =
             jcp_.layout == TopKLayoutType::topk_blocked && jcp_.topk_innermost;
-        const bool can_use_top1 = top1 && (is_fp || is_i32 || is_i8 || is_u8) && planar_layout;
-        const bool can_use_top1_blocked =
-            top1 && (is_fp || is_i32 || is_u8 || is_i8) && blocked_innermost;
+        const bool can_use_top1 = top1 && (is_fp || is_i32) && planar_layout;
+        const bool can_use_top1_blocked = top1 && (is_fp || is_i32) && blocked_innermost;
 
         using namespace dnnl::impl::cpu::aarch64;
         Label fallback;
@@ -81,8 +79,8 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
             WReg w_end = w18;
             WReg w_idx = w19;
             WReg w_best_idx = w20;
-            WReg w_val_scalar = W_TMP_1;
-            WReg w_best_val = W_TMP_2;
+            WReg w_val_scalar = w4;
+            WReg w_best_val = w5;
 
             VReg4S v_best_val(0);
             VReg4S v_best_idx(1);
@@ -92,8 +90,7 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
             VReg4S v_eq(5);
             VReg4S v_idx_lt(6);
             VReg4S v_idx_step(7);
-            VReg4S v_shift(8);
-            VReg4S v_byte_mask(9);
+            VReg4S v_tmp(8);
 
             auto init_idx_step = [&]() {
                 movi(v_idx_step, 0);
@@ -105,20 +102,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                 ins(VReg4S(v_idx_step.getIdx())[3], W_TMP_0);
             };
 
-            auto init_i8x4 = [&]() {
-                if (is_i8 || is_u8) {
-                    movi(v_shift, 0);
-                    mov(W_TMP_0, -8);
-                    ins(VReg4S(v_shift.getIdx())[1], W_TMP_0);
-                    mov(W_TMP_0, -16);
-                    ins(VReg4S(v_shift.getIdx())[2], W_TMP_0);
-                    mov(W_TMP_0, -24);
-                    ins(VReg4S(v_shift.getIdx())[3], W_TMP_0);
-                    mov(W_TMP_0, 0xFF);
-                    dup(v_byte_mask, W_TMP_0);
-                }
-            };
-
             auto emit_cmp_select = [&](const VReg4S& dst_val,
                                        const VReg4S& dst_idx,
                                        const VReg4S& src_val,
@@ -126,13 +109,21 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                 if (is_fp) {
                     if (jcp_.mode_max) {
                         fcmgt(v_mask, src_val, dst_val);
+                        fcmeq(v_eq, src_val, dst_val);
+                        cmgt(v_idx_lt, dst_idx, src_idx);
+                        and_(VReg16B(v_eq.getIdx()), VReg16B(v_eq.getIdx()), VReg16B(v_idx_lt.getIdx()));
+                        orr(VReg16B(v_mask.getIdx()), VReg16B(v_mask.getIdx()), VReg16B(v_eq.getIdx()));
                     } else {
                         fcmgt(v_mask, dst_val, src_val);
-                        fcmeq(v_eq, dst_val, dst_val);
-                        fcmeq(v_idx_lt, src_val, src_val);
+                        fcmeq(v_eq, src_val, dst_val);
+                        cmgt(v_idx_lt, dst_idx, src_idx);
                         and_(VReg16B(v_eq.getIdx()), VReg16B(v_eq.getIdx()), VReg16B(v_idx_lt.getIdx()));
-                        mvn(VReg16B(v_eq.getIdx()), VReg16B(v_eq.getIdx()));
                         orr(VReg16B(v_mask.getIdx()), VReg16B(v_mask.getIdx()), VReg16B(v_eq.getIdx()));
+                        fcmeq(v_tmp, dst_val, dst_val);
+                        fcmeq(v_idx_lt, src_val, src_val);
+                        and_(VReg16B(v_tmp.getIdx()), VReg16B(v_tmp.getIdx()), VReg16B(v_idx_lt.getIdx()));
+                        mvn(VReg16B(v_tmp.getIdx()), VReg16B(v_tmp.getIdx()));
+                        orr(VReg16B(v_mask.getIdx()), VReg16B(v_mask.getIdx()), VReg16B(v_tmp.getIdx()));
                     }
                 } else {
                     if (jcp_.mode_max) {
@@ -140,6 +131,10 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     } else {
                         cmgt(v_mask, dst_val, src_val);
                     }
+                    cmeq(v_eq, src_val, dst_val);
+                    cmgt(v_idx_lt, dst_idx, src_idx);
+                    and_(VReg16B(v_eq.getIdx()), VReg16B(v_eq.getIdx()), VReg16B(v_idx_lt.getIdx()));
+                    orr(VReg16B(v_mask.getIdx()), VReg16B(v_mask.getIdx()), VReg16B(v_eq.getIdx()));
                 }
 
                 bit(VReg16B(dst_val.getIdx()), VReg16B(src_val.getIdx()), VReg16B(v_mask.getIdx()));
@@ -261,62 +256,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                 L(tail_end);
             };
 
-            auto emit_scalar_tail_i8 = [&](const WReg& w_axis_lim, const XReg& reg_stride, bool is_unsigned) {
-                Label tail_loop;
-                Label tail_end;
-                Label tail_update;
-                Label tail_next;
-
-                mov(w_idx, w_i);
-                L(tail_loop);
-                cmp(w_idx, w_axis_lim);
-                bge(tail_end);
-
-                if (is_unsigned) {
-                    ldrb(w_val_scalar, ptr(reg_ptr));
-                    cmp(w_val_scalar, w_best_val);
-                } else {
-                    ldrsb(w_val_scalar, ptr(reg_ptr));
-                    cmp(w_val_scalar, w_best_val);
-                }
-                if (jcp_.mode_max) {
-                    if (is_unsigned) {
-                        b(HI, tail_update);
-                    } else {
-                        bgt(tail_update);
-                    }
-                } else {
-                    if (is_unsigned) {
-                        b(LO, tail_update);
-                    } else {
-                        blt(tail_update);
-                    }
-                }
-                b(tail_next);
-
-                L(tail_update);
-                mov(w_best_val, w_val_scalar);
-                mov(w_best_idx, w_idx);
-
-                L(tail_next);
-                add(reg_ptr, reg_ptr, reg_stride);
-                add(w_idx, w_idx, 1);
-                b(tail_loop);
-
-                L(tail_end);
-            };
-
-            auto load_i8x4 = [&](const XReg& base, const VReg4S& dst, bool is_unsigned) {
-                ldr(W_TMP_0, ptr(base));
-                dup(dst, W_TMP_0);
-                ushl(dst, dst, v_shift);
-                and_(VReg16B(dst.getIdx()), VReg16B(dst.getIdx()), VReg16B(v_byte_mask.getIdx()));
-                if (!is_unsigned) {
-                    shl(dst, dst, 24);
-                    sshr(dst, dst, 24);
-                }
-            };
-
             ldr(reg_topk_rt, ptr(reg_params, static_cast<int32_t>(GET_OFF(top_k))));
             cmp(reg_topk_rt, 1);
             bne(fallback);
@@ -339,96 +278,12 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
             const int lane_shift = data_size == 1 ? 0 : (data_size == 2 ? 1 : 2);
 
             init_idx_step();
-            init_i8x4();
-
             if constexpr (isa == dnnl::impl::cpu::aarch64::asimd) {
-                if (is_i8 || is_u8) {
-                    WReg w_axis_dim = WReg(reg_axis_dim.getIdx());
-                    WReg w_work_amount = WReg(reg_work_amount.getIdx());
-
-                    Label use_vector;
-                    Label lane_loop;
-                    Label lane_end;
-                    Label axis_loop;
-                    Label axis_end;
-
-                    cmp(w_work_amount, 4);
-                    bge(use_vector);
-
-                    mov(w_lane, 0);
-                    L(lane_loop);
-                    cmp(w_lane, w_work_amount);
-                    bge(lane_end);
-
-                    add(reg_ptr, reg_src, w_lane, UXTW, lane_shift);
-                    if (is_u8) {
-                        ldrb(w_best_val, ptr(reg_ptr));
-                    } else {
-                        ldrsb(w_best_val, ptr(reg_ptr));
-                    }
-                    mov(w_best_idx, 0);
-                    add(reg_ptr, reg_ptr, reg_stride_bytes);
-                    mov(w_i, 1);
-
-                    L(axis_loop);
-                    cmp(w_i, w_axis_dim);
-                    bge(axis_end);
-                    for (int unroll = 0; unroll < 4; ++unroll) {
-                        Label update_u;
-                        Label next_u;
-
-                        if (is_u8) {
-                            ldrb(w_val_scalar, ptr(reg_ptr));
-                            cmp(w_val_scalar, w_best_val);
-                        } else {
-                            ldrsb(w_val_scalar, ptr(reg_ptr));
-                            cmp(w_val_scalar, w_best_val);
-                        }
-                        if (jcp_.mode_max) {
-                            if (is_u8) {
-                                b(HI, update_u);
-                            } else {
-                                bgt(update_u);
-                            }
-                        } else {
-                            if (is_u8) {
-                                b(LO, update_u);
-                            } else {
-                                blt(update_u);
-                            }
-                        }
-                        b(next_u);
-
-                        L(update_u);
-                        mov(w_best_val, w_val_scalar);
-                        mov(w_best_idx, w_i);
-
-                        L(next_u);
-                        add(reg_ptr, reg_ptr, reg_stride_bytes);
-                        add(w_i, w_i, 1);
-                        cmp(w_i, w_axis_dim);
-                        bge(axis_end);
-                    }
-                    b(axis_loop);
-
-                    L(axis_end);
-                    add(reg_ptr, reg_dst, w_lane, UXTW, lane_shift);
-                    strb(w_best_val, ptr(reg_ptr));
-                    add(reg_ptr, reg_dst_idx, w_lane, UXTW, 2);
-                    str(w_best_idx, ptr(reg_ptr));
-
-                    add(w_lane, w_lane, 1);
-                    b(lane_loop);
-                    L(lane_end);
-
-                    b(done);
-
-                    L(use_vector);
-                }
+                // asimd uses the common FP/I32 top1 path below
             }
 
             if constexpr (isa != dnnl::impl::cpu::aarch64::asimd) {
-                if (!jcp_.topk_innermost && (is_fp || is_i32 || is_i8 || is_u8)) {
+                if (!jcp_.topk_innermost && (is_fp || is_i32)) {
                     const bool use_sve2 = sve_utils::with_cpu_sve2();
 
                     XReg x_lane = XReg(w_lane.getIdx());
@@ -438,6 +293,7 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     XReg x_ptr_dst_idx = x25;
                     XReg x_limit = x26;
                     XReg x_tmp = X_TMP_4;
+                    XReg x_tail = X_TMP_1;
 
                     PReg p_g = p1;
                     PReg p_cmp = p2;
@@ -452,8 +308,13 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     ZRegH z_tmp_h(4);
 
                     WReg w_axis_dim = WReg(reg_axis_dim.getIdx());
+                    WReg w_vlen = WReg(x_vlen.getIdx());
+                    WReg w_tail = WReg(x_tail.getIdx());
 
                     cntw(x_vlen);
+                    if (is_f16) {
+                        whilelt(p_g_h.h, wzr, w_vlen);
+                    }
                     subs(x_limit, reg_work_amount, x_vlen);
                     mov(x_tmp, -1);
                     csel(x_limit, x_limit, x_tmp, GE);
@@ -472,16 +333,20 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     Label pred_done;
                     cmp(x_lane, x_limit);
                     ble(full_lane);
-                    whilelt(p_g.s, x_lane, reg_work_amount);
+                    sub(x_tail, reg_work_amount, x_lane);
+                    cmp(x_tail, x_vlen);
+                    csel(x_tail, x_vlen, x_tail, GT);
+                    whilelt(p_g.s, wzr, w_tail);
                     if (is_f16) {
-                        whilelt(p_g_h.h, x_lane, reg_work_amount);
+                        whilelt(p_g_h.h, wzr, w_tail);
                     }
                     b(pred_done);
                     L(full_lane);
                     ptrue(p_g.s);
                     if (is_f16) {
-                        ptrue(p_g_h.h);
+                        whilelt(p_g_h.h, wzr, w_vlen);
                     }
+                    mov(w_tail, w_vlen);
                     L(pred_done);
 
                     // base pointers
@@ -491,11 +356,8 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
 
                     if (is_f16) {
                         ld1h(z_tmp_h, p_g_h / T_z, ptr(x_ptr));
-                        fcvt(z_best, p_g, z_tmp_h);
-                    } else if (is_i8) {
-                        ld1sb(z_best, p_g / T_z, ptr(x_ptr));
-                    } else if (is_u8) {
-                        ld1b(z_best, p_g / T_z, ptr(x_ptr));
+                        zip1(z_tmp_h, z_tmp_h, z_tmp_h);
+                        fcvt(z_best, p_g / T_z, z_tmp_h);
                     } else {
                         ld1w(z_best, p_g / T_z, ptr(x_ptr));
                     }
@@ -505,11 +367,8 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     auto emit_axis_iter = [&]() {
                         if (is_f16) {
                             ld1h(z_tmp_h, p_g_h / T_z, ptr(x_ptr));
-                            fcvt(z_val, p_g, z_tmp_h);
-                        } else if (is_i8) {
-                            ld1sb(z_val, p_g / T_z, ptr(x_ptr));
-                        } else if (is_u8) {
-                            ld1b(z_val, p_g / T_z, ptr(x_ptr));
+                            zip1(z_tmp_h, z_tmp_h, z_tmp_h);
+                            fcvt(z_val, p_g / T_z, z_tmp_h);
                         } else {
                             ld1w(z_val, p_g / T_z, ptr(x_ptr));
                         }
@@ -563,11 +422,8 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     bge(axis_done);
                     if (is_f16) {
                         ld1h(z_tmp_h, p_g_h / T_z, ptr(x_ptr));
-                        fcvt(z_val, p_g, z_tmp_h);
-                    } else if (is_i8) {
-                        ld1sb(z_val, p_g / T_z, ptr(x_ptr));
-                    } else if (is_u8) {
-                        ld1b(z_val, p_g / T_z, ptr(x_ptr));
+                        zip1(z_tmp_h, z_tmp_h, z_tmp_h);
+                        fcvt(z_val, p_g / T_z, z_tmp_h);
                     } else {
                         ld1w(z_val, p_g / T_z, ptr(x_ptr));
                     }
@@ -598,10 +454,12 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     L(axis_done);
 
                     if (is_f16) {
-                        fcvt(z_tmp_h, p_g_h, z_best);
+                        WReg w_tail_h = W_TMP_1;
+                        lsl(w_tail_h, w_tail, 1);
+                        whilelt(p_sel.h, wzr, w_tail_h);
+                        fcvt(z_tmp_h, p_sel / T_z, z_best);
+                        uzp1(z_tmp_h, z_tmp_h, z_tmp_h);
                         st1h(z_tmp_h, p_g_h, ptr(x_ptr_dst));
-                    } else if (is_i8 || is_u8) {
-                        st1b(z_best, p_g, ptr(x_ptr_dst));
                     } else {
                         st1w(z_best, p_g, ptr(x_ptr_dst));
                     }
@@ -616,7 +474,7 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
             }
 
             if constexpr (isa != dnnl::impl::cpu::aarch64::asimd) {
-                if (jcp_.topk_innermost && (is_fp || is_i32 || is_i8 || is_u8)) {
+                if (jcp_.topk_innermost && (is_fp || is_i32)) {
                     const bool use_sve2 = sve_utils::with_cpu_sve2();
 
                     XReg x_lane = XReg(w_lane.getIdx());
@@ -645,14 +503,10 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     WReg w_vlen = WReg(x_vlen.getIdx());
                     WReg w_tail = W_TMP_0;
 
-                    Label sve_innermost_done;
                     Label lane_loop;
                     Label lane_end;
                     Label axis_loop;
                     Label axis_end;
-
-                    cmp(reg_sort_stride, 1);
-                    bne(sve_innermost_done);
 
                     cntw(x_vlen);
                     udiv(w_end, w_axis_dim, w_vlen);
@@ -680,15 +534,12 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     mov(w_i, 0);
                     ptrue(p_g.s);
                     if (is_f16) {
-                        ptrue(p_g_h.h);
+                        whilelt(p_g_h.h, wzr, w_vlen);
                     }
                     if (is_f16) {
                         ld1h(z_tmp_h, p_g_h / T_z, ptr(x_ptr));
-                        fcvt(z_best, p_g, z_tmp_h);
-                    } else if (is_i8) {
-                        ld1sb(z_best, p_g / T_z, ptr(x_ptr));
-                    } else if (is_u8) {
-                        ld1b(z_best, p_g / T_z, ptr(x_ptr));
+                        zip1(z_tmp_h, z_tmp_h, z_tmp_h);
+                        fcvt(z_best, p_g / T_z, z_tmp_h);
                     } else {
                         ld1w(z_best, p_g / T_z, ptr(x_ptr));
                     }
@@ -700,11 +551,8 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     auto emit_axis_iter = [&]() {
                         if (is_f16) {
                             ld1h(z_tmp_h, p_g_h / T_z, ptr(x_ptr));
-                            fcvt(z_val, p_g, z_tmp_h);
-                        } else if (is_i8) {
-                            ld1sb(z_val, p_g / T_z, ptr(x_ptr));
-                        } else if (is_u8) {
-                            ld1b(z_val, p_g / T_z, ptr(x_ptr));
+                            zip1(z_tmp_h, z_tmp_h, z_tmp_h);
+                            fcvt(z_val, p_g / T_z, z_tmp_h);
                         } else {
                             ld1w(z_val, p_g / T_z, ptr(x_ptr));
                         }
@@ -754,8 +602,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
 
                     ptrue(p_all.s);
                     if (is_fp) {
-                        const int stack_size = static_cast<int>(cpu_sveLen * 2);
-                        const int idx_offset = static_cast<int>(cpu_sveLen);
                         XReg x_stack_tmp = X_TMP_1;
                         XReg x_stack_vals = X_TMP_2;
                         XReg x_stack_idx = X_TMP_3;
@@ -766,9 +612,11 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                         Label reduce_update;
                         Label reduce_skip;
 
-                        sub_imm(sp, sp, stack_size, x_stack_tmp);
+                        mov(x_stack_tmp, x_vlen);
+                        lsl(x_stack_tmp, x_stack_tmp, 2);  // bytes per vector (vlen * sizeof(float))
+                        sub(sp, sp, x_stack_tmp, LSL, 1);  // space for vals + idx
                         mov(x_stack_vals, sp);
-                        add_imm(x_stack_idx, x_stack_vals, idx_offset, x_stack_tmp);
+                        add(x_stack_idx, x_stack_vals, x_stack_tmp);
 
                         st1w(z_best, p_all, ptr(x_stack_vals));
                         st1w(z_best_idx, p_all, ptr(x_stack_idx));
@@ -805,18 +653,7 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
 
                         L(reduce_done);
 
-                        add_imm(sp, sp, stack_size, x_stack_tmp);
-                    } else if (is_u8) {
-                        if (jcp_.mode_max) {
-                            umaxv(s_red, p_all, z_best);
-                        } else {
-                            uminv(s_red, p_all, z_best);
-                        }
-                        fmov(w_best_val, s_red);
-                        dup(z_val, w_best_val);
-                        cmpeq(p_eq.s, p_all / T_z, z_best, z_val);
-                        pfirst(p_eq.b, p_eq.b);
-                        lastb(w_best_idx, p_eq, z_best_idx);
+                        add(sp, sp, x_stack_tmp, LSL, 1);
                     } else {
                         if (jcp_.mode_max) {
                             smaxv(s_red, p_all, z_best);
@@ -830,6 +667,8 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                         lastb(w_best_idx, p_eq, z_best_idx);
                     }
 
+                    mov(w_i, w_end);
+
                     cbz(w_tail, store_best);
                     b(scalar_loop);
 
@@ -840,10 +679,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                         fcvt(s_red, HReg(v_val.getIdx()));
                     } else if (is_f32) {
                         ldr(s_red, ptr(x_ptr));
-                    } else if (is_i8) {
-                        ldrsb(w_best_val, ptr(x_ptr));
-                    } else if (is_u8) {
-                        ldrb(w_best_val, ptr(x_ptr));
                     } else {
                         ldr(w_best_val, ptr(x_ptr));
                     }
@@ -871,28 +706,12 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                         }
                         b(scalar_next);
                     } else {
-                        if (is_i8) {
-                            ldrsb(w_val_scalar, ptr(x_ptr));
-                        } else if (is_u8) {
-                            ldrb(w_val_scalar, ptr(x_ptr));
-                        } else {
-                            ldr(w_val_scalar, ptr(x_ptr));
-                        }
+                        ldr(w_val_scalar, ptr(x_ptr));
+                        cmp(w_val_scalar, w_best_val);
                         if (jcp_.mode_max) {
-                            cmp(w_val_scalar, w_best_val);
-                            if (is_u8) {
-                                bhi(scalar_update);
-                            } else {
-                                bgt(scalar_update);
-                            }
+                            bgt(scalar_update);
                         } else {
-                            if (is_u8) {
-                                cmp(w_best_val, w_val_scalar);
-                                bhi(scalar_update);
-                            } else {
-                                cmp(w_val_scalar, w_best_val);
-                                blt(scalar_update);
-                            }
+                            blt(scalar_update);
                         }
                         b(scalar_next);
                     }
@@ -917,8 +736,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     } else if (is_f16) {
                         fcvt(HReg(v_best_val.getIdx()), s_red);
                         str(HReg(v_best_val.getIdx()), ptr(x_ptr_dst));
-                    } else if (is_i8 || is_u8) {
-                        strb(w_best_val, ptr(x_ptr_dst));
                     } else {
                         str(w_best_val, ptr(x_ptr_dst));
                     }
@@ -929,12 +746,11 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     L(lane_end);
 
                     b(done);
-
-                    L(sve_innermost_done);
                 }
             }
 
             if (jcp_.topk_innermost) {
+                mov(reg_stride_bytes, static_cast<uint64_t>(jcp_.data_size));
                 mov(w_lane, 0);
                 Label lane_loop;
                 Label lane_end;
@@ -950,21 +766,14 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
 
                 Label scalar_top1;
                 Label after_store;
-                cmp(reg_sort_stride, 1);
-                bne(scalar_top1);
-                cmp(reg_axis_dim, 4);
+                cmp(w_axis_dim, 4);
                 blt(scalar_top1);
 
                 if (is_f16) {
                     ld1(VReg4H(v_best_val.getIdx()), post_ptr(reg_ptr, vec_bytes));
                     fcvtl(v_best_val, VReg4H(v_best_val.getIdx()));
-                } else if (is_f32 || is_i32) {
-                    ld1(v_best_val, post_ptr(reg_ptr, vec_bytes));
-                } else if (is_i8 || is_u8) {
-                    load_i8x4(reg_ptr, v_best_val, is_u8);
-                    add(reg_ptr, reg_ptr, vec_bytes);
                 } else {
-                    b(scalar_top1);
+                    ld1(v_best_val, post_ptr(reg_ptr, vec_bytes));
                 }
                 orr(VReg16B(v_best_idx.getIdx()), VReg16B(v_idx_step.getIdx()), VReg16B(v_idx_step.getIdx()));
                 mov(w_i, 4);
@@ -979,9 +788,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                 if (is_f16) {
                     ld1(VReg4H(v_val.getIdx()), post_ptr(reg_ptr, vec_bytes));
                     fcvtl(v_val, VReg4H(v_val.getIdx()));
-                } else if (is_i8 || is_u8) {
-                    load_i8x4(reg_ptr, v_val, is_u8);
-                    add(reg_ptr, reg_ptr, vec_bytes);
                 } else {
                     ld1(v_val, post_ptr(reg_ptr, vec_bytes));
                 }
@@ -995,9 +801,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                 if (is_f16) {
                     ld1(VReg4H(v_val.getIdx()), post_ptr(reg_ptr, vec_bytes));
                     fcvtl(v_val, VReg4H(v_val.getIdx()));
-                } else if (is_i8 || is_u8) {
-                    load_i8x4(reg_ptr, v_val, is_u8);
-                    add(reg_ptr, reg_ptr, vec_bytes);
                 } else {
                     ld1(v_val, post_ptr(reg_ptr, vec_bytes));
                 }
@@ -1008,20 +811,12 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                 b(vec_loop);
                 L(vec_end);
 
-                if (is_i32 || is_i8 || is_u8) {
+                if (is_i32) {
                     SReg s_red(v_val.getIdx());
                     if (jcp_.mode_max) {
-                        if (is_u8) {
-                            umaxv(s_red, v_best_val);
-                        } else {
-                            smaxv(s_red, v_best_val);
-                        }
+                        smaxv(s_red, v_best_val);
                     } else {
-                        if (is_u8) {
-                            uminv(s_red, v_best_val);
-                        } else {
-                            sminv(s_red, v_best_val);
-                        }
+                        sminv(s_red, v_best_val);
                     }
                     fmov(w_best_val, s_red);
 
@@ -1047,9 +842,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     emit_scalar_tail_f16(w_axis_dim, reg_stride_bytes);
                     fcvt(HReg(v_best_val.getIdx()), SReg(v_best_val.getIdx()));
                     str(HReg(v_best_val.getIdx()), ptr(reg_dst));
-                } else if (is_i8 || is_u8) {
-                    emit_scalar_tail_i8(w_axis_dim, reg_stride_bytes, is_u8);
-                    strb(w_best_val, ptr(reg_dst));
                 } else {
                     emit_scalar_tail_i32(w_axis_dim, reg_stride_bytes);
                     str(w_best_val, ptr(reg_dst));
@@ -1077,16 +869,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     add(reg_ptr, reg_ptr, reg_stride_bytes);
                     emit_scalar_tail_i32(w_axis_dim, reg_stride_bytes);
                     str(w_best_val, ptr(reg_dst));
-                } else if (is_u8) {
-                    ldrb(w_best_val, ptr(reg_ptr));
-                    add(reg_ptr, reg_ptr, reg_stride_bytes);
-                    emit_scalar_tail_i8(w_axis_dim, reg_stride_bytes, true);
-                    strb(w_best_val, ptr(reg_dst));
-                } else {
-                    ldrsb(w_best_val, ptr(reg_ptr));
-                    add(reg_ptr, reg_ptr, reg_stride_bytes);
-                    emit_scalar_tail_i8(w_axis_dim, reg_stride_bytes, false);
-                    strb(w_best_val, ptr(reg_dst));
                 }
                 str(w_best_idx, ptr(reg_dst_idx));
 
@@ -1121,12 +903,8 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                 if (is_f16) {
                     ld1(VReg4H(v_best_val.getIdx()), ptr(reg_ptr));
                     fcvtl(v_best_val, VReg4H(v_best_val.getIdx()));
-                } else if (is_f32 || is_i32) {
-                    ld1(v_best_val, ptr(reg_ptr));
-                } else if (is_i8 || is_u8) {
-                    load_i8x4(reg_ptr, v_best_val, is_u8);
                 } else {
-                    b(tail_lane_loop);
+                    ld1(v_best_val, ptr(reg_ptr));
                 }
                 mov(W_TMP_0, 0);
                 dup(v_best_idx, W_TMP_0);
@@ -1139,8 +917,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     if (is_f16) {
                         ld1(VReg4H(v_val.getIdx()), ptr(reg_ptr));
                         fcvtl(v_val, VReg4H(v_val.getIdx()));
-                    } else if (is_i8 || is_u8) {
-                        load_i8x4(reg_ptr, v_val, is_u8);
                     } else {
                         ld1(v_val, ptr(reg_ptr));
                     }
@@ -1167,15 +943,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                 if (is_f16) {
                     fcvtn(VReg4H(v_val.getIdx()), v_best_val);
                     st1(VReg4H(v_val.getIdx()), ptr(reg_ptr_dst));
-                } else if (is_i8 || is_u8) {
-                    umov(w_val_scalar, VReg4S(v_best_val.getIdx())[0]);
-                    strb(w_val_scalar, ptr(reg_ptr_dst));
-                    umov(w_val_scalar, VReg4S(v_best_val.getIdx())[1]);
-                    strb(w_val_scalar, ptr(reg_ptr_dst, 1));
-                    umov(w_val_scalar, VReg4S(v_best_val.getIdx())[2]);
-                    strb(w_val_scalar, ptr(reg_ptr_dst, 2));
-                    umov(w_val_scalar, VReg4S(v_best_val.getIdx())[3]);
-                    strb(w_val_scalar, ptr(reg_ptr_dst, 3));
                 } else {
                     st1(v_best_val, ptr(reg_ptr_dst));
                 }
@@ -1205,12 +972,8 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                 } else if (is_f16) {
                     ldr(HReg(v_best_val.getIdx()), ptr(reg_ptr));
                     fcvt(SReg(v_best_val.getIdx()), HReg(v_best_val.getIdx()));
-                } else if (is_i32) {
-                    ldr(w_best_val, ptr(reg_ptr));
-                } else if (is_u8) {
-                    ldrb(w_best_val, ptr(reg_ptr));
                 } else {
-                    ldrsb(w_best_val, ptr(reg_ptr));
+                    ldr(w_best_val, ptr(reg_ptr));
                 }
                 mov(w_best_idx, 0);
                 add(reg_ptr, reg_ptr, reg_stride_bytes);
@@ -1222,15 +985,9 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     emit_scalar_tail_f16(w_axis_dim, reg_stride_bytes);
                     fcvt(HReg(v_best_val.getIdx()), SReg(v_best_val.getIdx()));
                     str(HReg(v_best_val.getIdx()), ptr(reg_ptr_dst));
-                } else if (is_i32) {
+                } else {
                     emit_scalar_tail_i32(w_axis_dim, reg_stride_bytes);
                     str(w_best_val, ptr(reg_ptr_dst));
-                } else if (is_u8) {
-                    emit_scalar_tail_i8(w_axis_dim, reg_stride_bytes, true);
-                    strb(w_best_val, ptr(reg_ptr_dst));
-                } else {
-                    emit_scalar_tail_i8(w_axis_dim, reg_stride_bytes, false);
-                    strb(w_best_val, ptr(reg_ptr_dst));
                 }
                 str(w_best_idx, ptr(reg_ptr_dst_idx));
 
@@ -1282,8 +1039,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
             VReg4S v_tmp_idx(9);
             VReg4S v_blk_best_val(10);
             VReg4S v_blk_best_idx(11);
-            VReg4S v_shift(12);
-            VReg4S v_byte_mask(13);
 
             auto init_idx_step = [&]() {
                 movi(v_idx_step, 0);
@@ -1293,20 +1048,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                 ins(VReg4S(v_idx_step.getIdx())[2], W_TMP_0);
                 mov(W_TMP_0, 3);
                 ins(VReg4S(v_idx_step.getIdx())[3], W_TMP_0);
-            };
-
-            auto init_i8x4 = [&]() {
-                if (is_i8 || is_u8) {
-                    movi(v_shift, 0);
-                    mov(W_TMP_0, -8);
-                    ins(VReg4S(v_shift.getIdx())[1], W_TMP_0);
-                    mov(W_TMP_0, -16);
-                    ins(VReg4S(v_shift.getIdx())[2], W_TMP_0);
-                    mov(W_TMP_0, -24);
-                    ins(VReg4S(v_shift.getIdx())[3], W_TMP_0);
-                    mov(W_TMP_0, 0xFF);
-                    dup(v_byte_mask, W_TMP_0);
-                }
             };
 
             auto emit_cmp_select = [&](const VReg4S& dst_val,
@@ -1346,18 +1087,7 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                 emit_cmp_select(v_vec_val, v_vec_idx, v_tmp_val, v_tmp_idx);
             };
 
-            auto load_i8x4 = [&](const XReg& base, const VReg4S& dst, bool is_unsigned) {
-                ldr(W_TMP_0, ptr(base));
-                dup(dst, W_TMP_0);
-                ushl(dst, dst, v_shift);
-                and_(VReg16B(dst.getIdx()), VReg16B(dst.getIdx()), VReg16B(v_byte_mask.getIdx()));
-                if (!is_unsigned) {
-                    shl(dst, dst, 24);
-                    sshr(dst, dst, 24);
-                }
-            };
-
-            auto emit_scalar_update = [&](bool is_unsigned) {
+            auto emit_scalar_update = [&]() {
                 Label update;
                 Label next;
 
@@ -1369,14 +1099,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     } else {
                         b(VS, update);
                         blt(update);
-                    }
-                    b(next);
-                } else if (is_unsigned) {
-                    cmp(w_val_scalar, w_best_val);
-                    if (jcp_.mode_max) {
-                        b(HI, update);
-                    } else {
-                        b(LO, update);
                     }
                     b(next);
                 } else {
@@ -1423,10 +1145,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                 if (is_f16) {
                     ld1(VReg4H(v_vec_val.getIdx()), ptr(reg_ptr));
                     fcvtl(v_vec_val, VReg4H(v_vec_val.getIdx()));
-                } else if (is_i8) {
-                    load_i8x4(reg_ptr, v_vec_val, false);
-                } else if (is_u8) {
-                    load_i8x4(reg_ptr, v_vec_val, true);
                 } else {
                     ld1(v_vec_val, ptr(reg_ptr));
                 }
@@ -1440,21 +1158,13 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     umov(w_idx, VReg4S(v_vec_idx.getIdx())[0]);
                     umov(w_val_scalar, VReg4S(v_vec_val.getIdx())[0]);
                     fmov(SReg(v_tmp_val.getIdx()), w_val_scalar);
-                    emit_scalar_update(false);
+                    emit_scalar_update();
                 } else {
                     SReg s_red(v_tmp_val.getIdx());
                     if (jcp_.mode_max) {
-                        if (is_u8) {
-                            umaxv(s_red, v_vec_val);
-                        } else {
-                            smaxv(s_red, v_vec_val);
-                        }
+                        smaxv(s_red, v_vec_val);
                     } else {
-                        if (is_u8) {
-                            uminv(s_red, v_vec_val);
-                        } else {
-                            sminv(s_red, v_vec_val);
-                        }
+                        sminv(s_red, v_vec_val);
                     }
                     fmov(w_val_scalar, s_red);
                     dup(v_tmp_val, VReg4S(v_tmp_val.getIdx())[0]);
@@ -1464,7 +1174,7 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     bit(VReg16B(v_tmp_idx.getIdx()), VReg16B(v_vec_idx.getIdx()), VReg16B(v_mask.getIdx()));
                     uminv(s_red, v_tmp_idx);
                     fmov(w_idx, s_red);
-                    emit_scalar_update(is_u8);
+                    emit_scalar_update();
                 }
             };
 
@@ -1473,10 +1183,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                 if (is_f16) {
                     ld1(VReg4H(v_blk_best_val.getIdx()), ptr(reg_ptr));
                     fcvtl(v_blk_best_val, VReg4H(v_blk_best_val.getIdx()));
-                } else if (is_i8) {
-                    load_i8x4(reg_ptr, v_blk_best_val, false);
-                } else if (is_u8) {
-                    load_i8x4(reg_ptr, v_blk_best_val, true);
                 } else {
                     ld1(v_blk_best_val, ptr(reg_ptr));
                 }
@@ -1491,10 +1197,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                 if (is_f16) {
                     ld1(VReg4H(v_vec_val.getIdx()), ptr(reg_ptr));
                     fcvtl(v_vec_val, VReg4H(v_vec_val.getIdx()));
-                } else if (is_i8) {
-                    load_i8x4(reg_ptr, v_vec_val, false);
-                } else if (is_u8) {
-                    load_i8x4(reg_ptr, v_vec_val, true);
                 } else {
                     ld1(v_vec_val, ptr(reg_ptr));
                 }
@@ -1515,21 +1217,13 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     umov(w_idx, VReg4S(v_vec_idx.getIdx())[0]);
                     umov(w_val_scalar, VReg4S(v_vec_val.getIdx())[0]);
                     fmov(SReg(v_tmp_val.getIdx()), w_val_scalar);
-                    emit_scalar_update(false);
+                    emit_scalar_update();
                 } else {
                     SReg s_red(v_tmp_val.getIdx());
                     if (jcp_.mode_max) {
-                        if (is_u8) {
-                            umaxv(s_red, v_vec_val);
-                        } else {
-                            smaxv(s_red, v_vec_val);
-                        }
+                        smaxv(s_red, v_vec_val);
                     } else {
-                        if (is_u8) {
-                            uminv(s_red, v_vec_val);
-                        } else {
-                            sminv(s_red, v_vec_val);
-                        }
+                        sminv(s_red, v_vec_val);
                     }
                     fmov(w_val_scalar, s_red);
                     dup(v_tmp_val, VReg4S(v_tmp_val.getIdx())[0]);
@@ -1539,7 +1233,7 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     bit(VReg16B(v_tmp_idx.getIdx()), VReg16B(v_vec_idx.getIdx()), VReg16B(v_mask.getIdx()));
                     uminv(s_red, v_tmp_idx);
                     fmov(w_idx, s_red);
-                    emit_scalar_update(is_u8);
+                    emit_scalar_update();
                 }
             };
 
@@ -1572,7 +1266,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
             }
 
             init_idx_step();
-            init_i8x4();
 
             if constexpr (isa != dnnl::impl::cpu::aarch64::asimd) {
                 const bool use_sve2 = sve_utils::with_cpu_sve2();
@@ -1612,9 +1305,9 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                 mov(w_val_scalar, 0x7fffffff);
                 dup(z_blk_idx_max, w_val_scalar);
 
-                WReg w_blk_full = w24;
-                WReg w_blk_tail = w25;
-                WReg w_blk_chunks = w26;
+                WReg w_blk_full = w4;
+                WReg w_blk_tail = w5;
+                WReg w_blk_chunks = w7;
                 mov(w_blk_full, jcp_.blk_size);
                 udiv(w_blk_chunks, w_blk_full, w_vlen);
                 msub(w_blk_tail, w_blk_chunks, w_vlen, w_blk_full);
@@ -1651,11 +1344,8 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     add(x_ptr_vec, reg_block_ptr, w_off, UXTW, lane_shift);
                     if (is_f16) {
                         ld1h(z_blk_h, p_blk_h / T_z, ptr(x_ptr_vec));
-                        fcvt(z_blk_best_val, p_blk, z_blk_h);
-                    } else if (is_i8) {
-                        ld1sb(z_blk_best_val, p_blk / T_z, ptr(x_ptr_vec));
-                    } else if (is_u8) {
-                        ld1b(z_blk_best_val, p_blk / T_z, ptr(x_ptr_vec));
+                        zip1(z_blk_h, z_blk_h, z_blk_h);
+                        fcvt(z_blk_best_val, p_blk / T_z, z_blk_h);
                     } else {
                         ld1w(z_blk_best_val, p_blk / T_z, ptr(x_ptr_vec));
                     }
@@ -1674,11 +1364,8 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     add(x_ptr_vec, reg_block_ptr, w_off, UXTW, lane_shift);
                     if (is_f16) {
                         ld1h(z_blk_h, p_blk_h / T_z, ptr(x_ptr_vec));
-                        fcvt(z_blk_val, p_blk, z_blk_h);
-                    } else if (is_i8) {
-                        ld1sb(z_blk_val, p_blk / T_z, ptr(x_ptr_vec));
-                    } else if (is_u8) {
-                        ld1b(z_blk_val, p_blk / T_z, ptr(x_ptr_vec));
+                        zip1(z_blk_h, z_blk_h, z_blk_h);
+                        fcvt(z_blk_val, p_blk / T_z, z_blk_h);
                     } else {
                         ld1w(z_blk_val, p_blk / T_z, ptr(x_ptr_vec));
                     }
@@ -1705,15 +1392,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                         fmov(w_val_scalar, SReg(v_tmp_val.getIdx()));
                         dup(z_blk_scalar, w_val_scalar);
                         fcmeq(p_eq.s, p_blk, z_blk_best_val, z_blk_scalar);
-                    } else if (is_u8) {
-                        if (jcp_.mode_max) {
-                            umaxv(s_red, p_blk, z_blk_best_val);
-                        } else {
-                            uminv(s_red, p_blk, z_blk_best_val);
-                        }
-                        fmov(w_val_scalar, s_red);
-                        dup(z_blk_scalar, w_val_scalar);
-                        cmpeq(p_eq.s, p_blk, z_blk_best_val, z_blk_scalar);
                     } else {
                         if (jcp_.mode_max) {
                             smaxv(s_red, p_blk, z_blk_best_val);
@@ -1730,9 +1408,9 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     fmov(w_idx, s_red);
 
                     if (is_fp) {
-                        emit_scalar_update(false);
+                        emit_scalar_update();
                     } else {
-                        emit_scalar_update(is_u8);
+                        emit_scalar_update();
                     }
                 };
 
@@ -1758,11 +1436,8 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     add(x_ptr_vec, reg_block_ptr, w_off, UXTW, lane_shift);
                     if (is_f16) {
                         ld1h(z_blk_h, p_blk_h / T_z, ptr(x_ptr_vec));
-                        fcvt(z_blk_val, p_blk, z_blk_h);
-                    } else if (is_i8) {
-                        ld1sb(z_blk_val, p_blk / T_z, ptr(x_ptr_vec));
-                    } else if (is_u8) {
-                        ld1b(z_blk_val, p_blk / T_z, ptr(x_ptr_vec));
+                        zip1(z_blk_h, z_blk_h, z_blk_h);
+                        fcvt(z_blk_val, p_blk / T_z, z_blk_h);
                     } else {
                         ld1w(z_blk_val, p_blk / T_z, ptr(x_ptr_vec));
                     }
@@ -1781,15 +1456,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                         fmov(w_val_scalar, SReg(v_tmp_val.getIdx()));
                         dup(z_blk_scalar, w_val_scalar);
                         fcmeq(p_eq.s, p_blk, z_blk_val, z_blk_scalar);
-                    } else if (is_u8) {
-                        if (jcp_.mode_max) {
-                            umaxv(s_red, p_blk, z_blk_val);
-                        } else {
-                            uminv(s_red, p_blk, z_blk_val);
-                        }
-                        fmov(w_val_scalar, s_red);
-                        dup(z_blk_scalar, w_val_scalar);
-                        cmpeq(p_eq.s, p_blk, z_blk_val, z_blk_scalar);
                     } else {
                         if (jcp_.mode_max) {
                             smaxv(s_red, p_blk, z_blk_val);
@@ -1806,9 +1472,9 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     fmov(w_idx, s_red);
 
                     if (is_fp) {
-                        emit_scalar_update(false);
+                        emit_scalar_update();
                     } else {
-                        emit_scalar_update(is_u8);
+                        emit_scalar_update();
                     }
                 };
 
@@ -1826,12 +1492,8 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                 } else if (is_f16) {
                     ldr(HReg(v_best_val.getIdx()), ptr(reg_lane_ptr));
                     fcvt(SReg(v_best_val.getIdx()), HReg(v_best_val.getIdx()));
-                } else if (is_i32) {
-                    ldr(w_best_val, ptr(reg_lane_ptr));
-                } else if (is_u8) {
-                    ldrb(w_best_val, ptr(reg_lane_ptr));
                 } else {
-                    ldrsb(w_best_val, ptr(reg_lane_ptr));
+                    ldr(w_best_val, ptr(reg_lane_ptr));
                 }
                 mov(w_best_idx, 0);
 
@@ -1977,8 +1639,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                 } else if (is_f16) {
                     fcvt(HReg(v_best_val.getIdx()), SReg(v_best_val.getIdx()));
                     str(HReg(v_best_val.getIdx()), ptr(reg_dst_lane));
-                } else if (is_i8 || is_u8) {
-                    strb(w_best_val, ptr(reg_dst_lane));
                 } else {
                     str(w_best_val, ptr(reg_dst_lane));
                 }
@@ -2014,12 +1674,8 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
             } else if (is_f16) {
                 ldr(HReg(v_best_val.getIdx()), ptr(reg_lane_ptr));
                 fcvt(SReg(v_best_val.getIdx()), HReg(v_best_val.getIdx()));
-            } else if (is_i32) {
-                ldr(w_best_val, ptr(reg_lane_ptr));
-            } else if (is_u8) {
-                ldrb(w_best_val, ptr(reg_lane_ptr));
             } else {
-                ldrsb(w_best_val, ptr(reg_lane_ptr));
+                ldr(w_best_val, ptr(reg_lane_ptr));
             }
             mov(w_best_idx, 0);
 
@@ -2077,14 +1733,10 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                 fmov(w_val_scalar, SReg(v_tmp_val.getIdx()));
             } else if (is_i32) {
                 ldr(w_val_scalar, ptr(reg_ptr));
-            } else if (is_u8) {
-                ldrb(w_val_scalar, ptr(reg_ptr));
-            } else {
-                ldrsb(w_val_scalar, ptr(reg_ptr));
             }
 
             add(w_idx, w_block_base, w_offset);
-            emit_scalar_update(is_u8);
+            emit_scalar_update();
 
             add(w_offset, w_offset, 1);
             b(tail_loop);
@@ -2095,8 +1747,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
             } else if (is_f16) {
                 fcvt(HReg(v_best_val.getIdx()), SReg(v_best_val.getIdx()));
                 str(HReg(v_best_val.getIdx()), ptr(reg_dst_lane));
-            } else if (is_i8 || is_u8) {
-                strb(w_best_val, ptr(reg_dst_lane));
             } else {
                 str(w_best_val, ptr(reg_dst_lane));
             }
@@ -2130,11 +1780,11 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
             XReg reg_prc_stride = x20;
             XReg reg_blk_stride = x21;
             XReg reg_aux = x22;
-            XReg reg_aux_idx = x23;
+            XReg reg_aux_idx = x4;
 
-            WReg w_i = w24;
-            WReg w_j = w25;
-            WReg w_cnt = w26;
+            WReg w_i = w5;
+            WReg w_j = w6;
+            WReg w_cnt = w7;
             WReg w_work_amount = WReg(reg_work_amount.getIdx());
             WReg w_axis_dim = WReg(reg_axis_dim.getIdx());
             WReg w_top_k = WReg(reg_top_k.getIdx());
@@ -2179,19 +1829,19 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                             fcmgt(v_mask, v_val_r, v_val_l);
                         } else {
                             fcmgt(v_mask, v_val_l, v_val_r);
-                            fcmeq(v_eq, v_val_l, v_val_l);
-                            fcmeq(v_tmp, v_val_r, v_val_r);
-                            and_(VReg16B(v_eq.getIdx()), VReg16B(v_eq.getIdx()), VReg16B(v_tmp.getIdx()));
-                            mvn(VReg16B(v_eq.getIdx()), VReg16B(v_eq.getIdx()));
-                            orr(VReg16B(v_mask.getIdx()), VReg16B(v_mask.getIdx()), VReg16B(v_eq.getIdx()));
                         }
+                        fcmeq(v_eq, v_val_l, v_val_r);
                     } else {
                         if (jcp_.mode_max) {
                             cmgt(v_mask, v_val_r, v_val_l);
                         } else {
                             cmgt(v_mask, v_val_l, v_val_r);
                         }
+                        cmeq(v_eq, v_val_l, v_val_r);
                     }
+                    cmgt(v_tmp, v_idx_l, v_idx_r);
+                    and_(VReg16B(v_eq.getIdx()), VReg16B(v_eq.getIdx()), VReg16B(v_tmp.getIdx()));
+                    orr(VReg16B(v_mask.getIdx()), VReg16B(v_mask.getIdx()), VReg16B(v_eq.getIdx()));
                 } else {
                     cmgt(v_mask, v_idx_l, v_idx_r);
                 }
@@ -2208,9 +1858,9 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
             if constexpr (isa != dnnl::impl::cpu::aarch64::asimd) {
                 const bool use_sve2 = sve_utils::with_cpu_sve2();
 
-                XReg x_lane = x6;
-                XReg x_vlen = x7;
-                XReg x_src_ptr = x26;
+                XReg x_lane = x3;
+                XReg x_vlen = x4;
+                XReg x_src_ptr = x24;
                 XReg x_dst_ptr = x27;
                 XReg x_dst_idx_ptr = x28;
                 XReg x_prc_ptr = x29;
@@ -2228,6 +1878,12 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                 ZRegS z_idx_r(3);
                 ZRegS z_tmp(4);
                 ZRegH z_tmp_h(5);
+                WReg w_elt_num = WReg(X_TMP_0.getIdx());
+                WReg w_elt_num_h = W_TMP_1;
+                ptrue(p_g.s);
+                if (is_f16) {
+                    ptrue(p_g_h.h);
+                }
 
                 auto emit_cmp_swap_sve = [&](bool cmp_val) {
                     if (cmp_val) {
@@ -2236,18 +1892,19 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                                 fcmgt(p_cmp.s, p_g / T_z, z_val_r, z_val_l);
                             } else {
                                 fcmgt(p_cmp.s, p_g / T_z, z_val_l, z_val_r);
-                                fcmne(p_eq.s, p_g / T_z, z_val_l, z_val_l);
-                                fcmne(p_idx.s, p_g / T_z, z_val_r, z_val_r);
-                                orr(p_eq.b, p_g, p_eq.b, p_idx.b);
-                                orr(p_cmp.b, p_g, p_cmp.b, p_eq.b);
                             }
+                            fcmeq(p_eq.s, p_g / T_z, z_val_l, z_val_r);
                         } else {
                             if (jcp_.mode_max) {
                                 cmpgt(p_cmp.s, p_g / T_z, z_val_r, z_val_l);
                             } else {
                                 cmpgt(p_cmp.s, p_g / T_z, z_val_l, z_val_r);
                             }
+                            cmpeq(p_eq.s, p_g / T_z, z_val_l, z_val_r);
                         }
+                        cmpgt(p_idx.s, p_g / T_z, z_idx_l, z_idx_r);
+                        and_(p_idx.b, p_g, p_eq.b, p_idx.b);
+                        orr(p_cmp.b, p_g, p_cmp.b, p_idx.b);
                     } else {
                         cmpgt(p_cmp.s, p_g / T_z, z_idx_l, z_idx_r);
                     }
@@ -2344,11 +2001,8 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
 
                     if (is_f16) {
                         ld1h(z_tmp_h, p_g_h / T_z, ptr(x_src_ptr));
-                        fcvt(z_val_l, p_g, z_tmp_h);
-                    } else if (is_i8) {
-                        ld1sb(z_val_l, p_g / T_z, ptr(x_src_ptr));
-                    } else if (is_u8) {
-                        ld1b(z_val_l, p_g / T_z, ptr(x_src_ptr));
+                        zip1(z_tmp_h, z_tmp_h, z_tmp_h);
+                        fcvt(z_val_l, p_g / T_z, z_tmp_h);
                     } else {
                         ld1w(z_val_l, p_g / T_z, ptr(x_src_ptr));
                     }
@@ -2369,11 +2023,10 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                         emit_bitonic_sort(false);
                     }
 
-                    mov(x_dst_ptr, x_dst_base);
-                    mov(x_dst_idx_ptr, x_dst_idx_base);
                     add(x_prc_ptr, reg_prc, x_lane, LSL, 2);
                     add(x_prc_idx_ptr, reg_prc_idx, x_lane, LSL, 2);
-
+                    mov(x_dst_ptr, x_dst_base);
+                    mov(x_dst_idx_ptr, x_dst_idx_base);
                     mov(w_i, 0);
                     Label store_loop;
                     Label store_end;
@@ -2385,10 +2038,10 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     ld1w(z_idx_l, p_g / T_z, ptr(x_prc_idx_ptr));
 
                     if (is_f16) {
-                        fcvt(z_tmp_h, p_g_h, z_val_l);
+                        whilelt(p_idx.h, wzr, w_elt_num_h);
+                        fcvt(z_tmp_h, p_idx / T_z, z_val_l);
+                        uzp1(z_tmp_h, z_tmp_h, z_tmp_h);
                         st1h(z_tmp_h, p_g_h, ptr(x_dst_ptr));
-                    } else if (is_i8 || is_u8) {
-                        st1b(z_val_l, p_g, ptr(x_dst_ptr));
                     } else {
                         st1w(z_val_l, p_g, ptr(x_dst_ptr));
                     }
@@ -2411,7 +2064,7 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     const int blk_mask = jcp_.blk_size - 1;
                     const int lane_shift = jcp_.data_size == 1 ? 0 : (jcp_.data_size == 2 ? 1 : 2);
 
-                    XReg x_block = X_TMP_1;
+                    XReg x_block = X_TMP_0;
                     XReg x_offset = X_TMP_2;
                     XReg x_idx = X_TMP_3;
                     WReg w_val_scalar = w1;
@@ -2448,14 +2101,11 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                         fcvt(SReg(z_val_l.getIdx()), HReg(z_tmp_h.getIdx()));
                     } else if (is_i32) {
                         ldr(w_val_scalar, ptr(x_src_ptr));
-                    } else if (is_u8) {
-                        ldrb(w_val_scalar, ptr(x_src_ptr));
-                    } else {
-                        ldrsb(w_val_scalar, ptr(x_src_ptr));
                     }
 
                     mul(x_prc_ptr, XReg(w_i.getIdx()), reg_prc_stride);
                     add(x_prc_ptr, reg_prc, x_prc_ptr);
+                    add(x_prc_ptr, x_prc_ptr, x_lane, LSL, 2);
                     add(x_prc_ptr, x_prc_ptr, XReg(w_j.getIdx()), LSL, 2);
                     if (is_f32 || is_f16) {
                         str(SReg(z_val_l.getIdx()), ptr(x_prc_ptr));
@@ -2465,6 +2115,7 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
 
                     mul(x_prc_idx_ptr, XReg(w_i.getIdx()), reg_prc_stride);
                     add(x_prc_idx_ptr, reg_prc_idx, x_prc_idx_ptr);
+                    add(x_prc_idx_ptr, x_prc_idx_ptr, x_lane, LSL, 2);
                     add(x_prc_idx_ptr, x_prc_idx_ptr, XReg(w_j.getIdx()), LSL, 2);
                     str(w_i, ptr(x_prc_idx_ptr));
 
@@ -2497,6 +2148,7 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
 
                     mul(x_prc_ptr, XReg(w_i.getIdx()), reg_prc_stride);
                     add(x_prc_ptr, reg_prc, x_prc_ptr);
+                    add(x_prc_ptr, x_prc_ptr, x_lane, LSL, 2);
                     add(x_prc_ptr, x_prc_ptr, XReg(w_j.getIdx()), LSL, 2);
                     if (is_f32 || is_f16) {
                         ldr(SReg(z_val_l.getIdx()), ptr(x_prc_ptr));
@@ -2506,6 +2158,7 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
 
                     mul(x_prc_idx_ptr, XReg(w_i.getIdx()), reg_prc_stride);
                     add(x_prc_idx_ptr, reg_prc_idx, x_prc_idx_ptr);
+                    add(x_prc_idx_ptr, x_prc_idx_ptr, x_lane, LSL, 2);
                     add(x_prc_idx_ptr, x_prc_idx_ptr, XReg(w_j.getIdx()), LSL, 2);
                     ldr(w_idx_scalar, ptr(x_prc_idx_ptr));
 
@@ -2522,8 +2175,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     } else if (is_f16) {
                         fcvt(HReg(z_tmp_h.getIdx()), SReg(z_val_l.getIdx()));
                         str(HReg(z_tmp_h.getIdx()), ptr(x_dst_ptr));
-                    } else if (is_i8 || is_u8) {
-                        strb(w_val_scalar, ptr(x_dst_ptr));
                     } else {
                         str(w_val_scalar, ptr(x_dst_ptr));
                     }
@@ -2548,9 +2199,9 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                 bge(lane_end);
 
                 sub(X_TMP_0, reg_work_amount, x_lane);
-                WReg w_elt_num = WReg(X_TMP_0.getIdx());
                 cmp(X_TMP_0, x_vlen);
-                csel(w_elt_num, WReg(x_vlen.getIdx()), w_elt_num, GE);
+                csel(w_elt_num, WReg(x_vlen.getIdx()), WReg(X_TMP_0.getIdx()), GE);
+                lsl(w_elt_num_h, w_elt_num, 1);
                 whilelt(p_g.s, wzr, w_elt_num);
                 if (is_f16) {
                     whilelt(p_g_h.h, wzr, w_elt_num);
@@ -2561,15 +2212,15 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     const int lane_shift = jcp_.data_size == 1 ? 0 : (jcp_.data_size == 2 ? 1 : 2);
                     const int lane_shift_blk = blk_shift + lane_shift;
                     const int idx_shift_blk = blk_shift + 2;
-                    mov(X_TMP_1, x_lane);
-                    lsl(X_TMP_1, X_TMP_1, lane_shift_blk);
-                    add(x_src_ptr, reg_src, X_TMP_1);
-                    mov(X_TMP_1, x_lane);
-                    lsl(X_TMP_1, X_TMP_1, lane_shift_blk);
-                    add(x_dst_ptr, reg_dst, X_TMP_1);
-                    mov(X_TMP_1, x_lane);
-                    lsl(X_TMP_1, X_TMP_1, idx_shift_blk);
-                    add(x_dst_idx_ptr, reg_dst_idx, X_TMP_1);
+                    mov(X_TMP_0, x_lane);
+                    lsl(X_TMP_0, X_TMP_0, lane_shift_blk);
+                    add(x_src_ptr, reg_src, X_TMP_0);
+                    mov(X_TMP_0, x_lane);
+                    lsl(X_TMP_0, X_TMP_0, lane_shift_blk);
+                    add(x_dst_ptr, reg_dst, X_TMP_0);
+                    mov(X_TMP_0, x_lane);
+                    lsl(X_TMP_0, X_TMP_0, idx_shift_blk);
+                    add(x_dst_idx_ptr, reg_dst_idx, X_TMP_0);
 
                     emit_bitonic_blk_on_channel(x_src_ptr, x_dst_ptr, x_dst_idx_ptr, w_elt_num);
                 } else {
@@ -2600,35 +2251,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                 VReg4S v_tmp(5);
                 VReg4H v_tmp_h(6);
                 VReg4S v_eq(7);
-                VReg4S v_shift(8);
-                VReg4S v_byte_mask(9);
-
-                auto init_i8x4 = [&]() {
-                    if (is_i8 || is_u8) {
-                        movi(v_shift, 0);
-                        mov(W_TMP_0, -8);
-                        ins(VReg4S(v_shift.getIdx())[1], W_TMP_0);
-                        mov(W_TMP_0, -16);
-                        ins(VReg4S(v_shift.getIdx())[2], W_TMP_0);
-                        mov(W_TMP_0, -24);
-                        ins(VReg4S(v_shift.getIdx())[3], W_TMP_0);
-                        mov(W_TMP_0, 0xFF);
-                        dup(v_byte_mask, W_TMP_0);
-                    }
-                };
-
-                auto load_i8x4 = [&](const XReg& base, const VReg4S& dst, bool is_unsigned) {
-                    ldr(W_TMP_0, ptr(base));
-                    dup(dst, W_TMP_0);
-                    ushl(dst, dst, v_shift);
-                    and_(VReg16B(dst.getIdx()), VReg16B(dst.getIdx()), VReg16B(v_byte_mask.getIdx()));
-                    if (!is_unsigned) {
-                        shl(dst, dst, 24);
-                        sshr(dst, dst, 24);
-                    }
-                };
-
-                init_i8x4();
 
                 auto emit_bitonic_swap = [&](bool cmp_val) {
                     ldr(w_i, ptr(reg_aux));
@@ -2682,8 +2304,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     if (is_f16) {
                         ld1(v_tmp_h, ptr(x_ptr));
                         fcvtl(v_val_l, v_tmp_h);
-                    } else if (is_i8 || is_u8) {
-                        load_i8x4(x_ptr, v_val_l, is_u8);
                     } else {
                         ld1(v_val_l, ptr(x_ptr));
                     }
@@ -2693,15 +2313,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     if (is_f16) {
                         fcvtn(v_tmp_h, v_val_l);
                         st1(v_tmp_h, ptr(x_ptr));
-                    } else if (is_i8 || is_u8) {
-                        umov(W_TMP_0, VReg4S(v_val_l.getIdx())[0]);
-                        strb(W_TMP_0, ptr(x_ptr));
-                        umov(W_TMP_0, VReg4S(v_val_l.getIdx())[1]);
-                        strb(W_TMP_0, ptr(x_ptr, 1));
-                        umov(W_TMP_0, VReg4S(v_val_l.getIdx())[2]);
-                        strb(W_TMP_0, ptr(x_ptr, 2));
-                        umov(W_TMP_0, VReg4S(v_val_l.getIdx())[3]);
-                        strb(W_TMP_0, ptr(x_ptr, 3));
                     } else {
                         st1(v_val_l, ptr(x_ptr));
                     }
@@ -2812,10 +2423,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                         fcvt(SReg(v_val_l.getIdx()), HReg(v_tmp_h.getIdx()));
                     } else if (is_i32) {
                         ldr(w_val_scalar, ptr(x_ptr));
-                    } else if (is_u8) {
-                        ldrb(w_val_scalar, ptr(x_ptr));
-                    } else {
-                        ldrsb(w_val_scalar, ptr(x_ptr));
                     }
 
                     mul(x_prc_ptr, XReg(w_i.getIdx()), reg_prc_stride);
@@ -2885,8 +2492,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     } else if (is_f16) {
                         fcvt(HReg(v_tmp_h.getIdx()), SReg(v_val_l.getIdx()));
                         str(HReg(v_tmp_h.getIdx()), ptr(x_ptr));
-                    } else if (is_i8 || is_u8) {
-                        strb(w_val_scalar, ptr(x_ptr));
                     } else {
                         str(w_val_scalar, ptr(x_ptr));
                     }
@@ -3061,10 +2666,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                     fcvt(s_val0, h_val0);
                 } else if (is_i32) {
                     ldr(w_val0, ptr(reg_tmp));
-                } else if (is_u8) {
-                    ldrb(w_val0, ptr(reg_tmp));
-                } else {
-                    ldrsb(w_val0, ptr(reg_tmp));
                 }
             };
 
@@ -3075,10 +2676,8 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                 } else if (is_f16) {
                     fcvt(h_val0, s_val0);
                     str(h_val0, ptr(reg_tmp));
-                } else if (is_i32) {
-                    str(w_val0, ptr(reg_tmp));
                 } else {
-                    strb(w_val0, ptr(reg_tmp));
+                    str(w_val0, ptr(reg_tmp));
                 }
             };
 
@@ -3136,24 +2735,18 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
             auto emit_better = [&](Label& l_true, Label& l_false) {
                 if (is_f32 || is_f16) {
                     fcmp(s_val0, s_val1);
+                    b(VS, l_false);
                     if (jcp_.mode_max) {
-                        b(VS, l_false);
                         b(GT, l_true);
-                        b(l_false);
                     } else {
-                        b(VS, l_true);
                         b(LT, l_true);
-                        b(l_false);
                     }
-                } else if (is_u8) {
-                    cmp(w_val0, w_val1);
-                    if (jcp_.mode_max) {
-                        b(HI, l_true);
-                        b(l_false);
-                    } else {
-                        b(LO, l_true);
-                        b(l_false);
-                    }
+                    Label eq_done;
+                    b(NE, eq_done);
+                    cmp(w_idx0, w_idx1);
+                    b(LT, l_true);
+                    L(eq_done);
+                    b(l_false);
                 } else {
                     cmp(w_val0, w_val1);
                     if (jcp_.mode_max) {
@@ -3169,23 +2762,18 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
             auto emit_heap_better = [&](Label& l_true, Label& l_false) {
                 if (is_f32 || is_f16) {
                     fcmp(s_val0, s_val1);
+                    b(VS, l_false);
                     if (jcp_.mode_max) {
-                        b(VS, l_true);
                         b(GT, l_true);
-                        b(l_false);
                     } else {
                         b(LT, l_true);
-                        b(l_false);
                     }
-                } else if (is_u8) {
-                    cmp(w_val0, w_val1);
-                    if (jcp_.mode_max) {
-                        b(HI, l_true);
-                        b(l_false);
-                    } else {
-                        b(LO, l_true);
-                        b(l_false);
-                    }
+                    Label eq_done;
+                    b(NE, eq_done);
+                    cmp(w_idx0, w_idx1);
+                    b(LT, l_true);
+                    L(eq_done);
+                    b(l_false);
                 } else {
                     cmp(w_val0, w_val1);
                     if (jcp_.mode_max) {
@@ -3626,17 +3214,6 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
                                 b(GT, l_true);
                                 b(l_false);
                             }
-                        } else if (is_u8) {
-                            fmov(w_val0, s_val_l);
-                            fmov(w_val1, s_val_r);
-                            cmp(w_val0, w_val1);
-                            if (jcp_.mode_max) {
-                                b(LO, l_true);
-                                b(l_false);
-                            } else {
-                                b(HI, l_true);
-                                b(l_false);
-                            }
                         } else {
                             fmov(w_val0, s_val_l);
                             fmov(w_val1, s_val_r);
@@ -3941,6 +3518,9 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
 };
 
 std::shared_ptr<jit_uni_topk_kernel> create_topk_kernel_aarch64(const jit_topk_config_params& jcp) {
+    if (sve_utils::with_cpu_sve()) {
+        return std::make_shared<jit_uni_topk_kernel_aarch64<dnnl::impl::cpu::aarch64::sve_128>>(jcp);
+    }
     if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::sve_512)) {
         return std::make_shared<jit_uni_topk_kernel_aarch64<dnnl::impl::cpu::aarch64::sve_512>>(jcp);
     }

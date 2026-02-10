@@ -67,7 +67,8 @@ std::vector<CPUSpecificParams> filterCPUInfoForDeviceWithFP16(const std::vector<
 }
 
 std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpecificParams> &paramsVector) {
-    static const std::vector<CPUTestUtils::cpu_memory_format_t> supported_f = {CPUTestUtils::cpu_memory_format_t::nwc,
+    static const std::vector<CPUTestUtils::cpu_memory_format_t> supported_f = {CPUTestUtils::cpu_memory_format_t::x,
+                                                                               CPUTestUtils::cpu_memory_format_t::nwc,
                                                                                CPUTestUtils::cpu_memory_format_t::ncw,
                                                                                CPUTestUtils::cpu_memory_format_t::nchw,
                                                                                CPUTestUtils::cpu_memory_format_t::nhwc,
