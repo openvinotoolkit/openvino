@@ -8,7 +8,7 @@ target_include_directories(${TARGET_NAME} INTERFACE
     $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(${TARGET_NAME} INTERFACE VPUXLoader)
+# target_link_libraries(${TARGET_NAME} INTERFACE VPUXLoader)
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
