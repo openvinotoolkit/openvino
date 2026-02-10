@@ -55,12 +55,11 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
                                ov::inference_num_threads.name(),
                                ". Expected only non negative integer numbers.");
             }
-            if (val_i < 0) {
-                OPENVINO_THROW("Wrong value for property key ",
-                               ov::inference_num_threads.name(),
-                               ". Expected only non negative integer numbers. Got: ",
-                               val_i);
-            }
+            OPENVINO_ASSERT(val_i >= 0,
+                            "Wrong value for property key ",
+                            ov::inference_num_threads.name(),
+                            ". Expected only non negative integer numbers. Got: ",
+                            val_i);
             _threads = val_i;
         } else if (key == ov::internal::threads_per_stream) {
             _threads_per_stream = static_cast<int>(value.as<size_t>());
