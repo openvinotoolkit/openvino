@@ -143,6 +143,7 @@ DEFINE_double(raw_tolerance, 1e-4, "Tolerance for 'raw' mode (absolute diff)");
 DEFINE_double(cosim_threshold, 0.90, "Threshold for 'cosim' mode");
 DEFINE_double(rrmse_loss_threshold, std::numeric_limits<double>::max(), "Threshold for 'rrmse' mode");
 DEFINE_double(nrmse_loss_threshold, 1.0, "Threshold for 'nrmse' mode");
+DEFINE_double(l2norm_threshold, 1.0, "Threshold for 'l2norm' mode");
 DEFINE_double(overlap_threshold, 0.50, "IoU threshold for 'map' mode (detection matching)");
 DEFINE_double(map_threshold, 0.50, "mAP score threshold for 'map' mode validation");
 DEFINE_double(confidence_threshold, 1e-4, "Confidence threshold for Detection mode");
@@ -287,6 +288,8 @@ void parseCommandLine(int argc, char* argv[]) {
             std::cout << "    mAP Threshold:     " << FLAGS_map_threshold << std::endl;
         } else if (strEq(FLAGS_mode, "nrmse")) {
             std::cout << "    Threshold:        " << FLAGS_nrmse_loss_threshold << std::endl;
+        } else if (strEq(FLAGS_mode, "l2norm")) {
+            std::cout << "    Threshold:        " << FLAGS_l2norm_threshold << std::endl;
         }
     }
     std::cout << "    Log level:                        " << FLAGS_log_level << std::endl;
@@ -2178,6 +2181,56 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
     return true;
 }
 
+
+//
+// L2Norm mode
+// using l2norm_threshold flag for validation
+// e.g. '--mode l2norm --l2norm_threshold <value>'
+// Direction of metric’s growth is lower-better. If the inputs are identical, the L2NORM is zero.
+//
+
+bool computeL2Norm(const ov::Tensor& output, const ov::Tensor& reference) {
+    if (output.get_size() != reference.get_size()) {
+        std::cout << "Output and reference tensors have different sizes" << std::endl;
+        return false;
+    }
+
+    auto size = output.get_size();
+    auto result = std::copy_n(output.data<const float>(), size, std::vector<float>(size).begin());
+
+    for (size_t i = 0; i < size; ++i) {
+        result[i] = std::pow(result[i] - reference.data<float>()[i], 2);
+    }
+
+    double l2norm = std::sqrt(std::accumulate(result, result + size, 0.0));
+
+    std::cout << "L2Norm : " << std::fixed << std::setprecision(4) << l2norm
+              << "   L2Norm threshold : " << std::defaultfloat << FLAGS_l2norm_threshold << std::endl;
+
+    return l2norm <= FLAGS_l2norm_threshold;
+}
+
+bool testL2Norm(const TensorMap& outputs, const TensorMap& references, const LayoutMap& outputLayouts) {
+    if (outputs.size() != references.size()) {
+        std::cout << "Actual and reference has different number of output blobs" << std::endl;
+        return false;
+    }
+
+    for (auto& [tensorName, output] : outputs) {
+        auto referencesIterator = references.find(tensorName);
+        OPENVINO_ASSERT(referencesIterator != references.end());
+
+        if (!test_blobs_in_batch(tensorName,
+                                 splitBatchedTensor(output, tensorName, outputLayouts),
+                                 splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
+                                 computeL2Norm)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 //
 // PSNR mode
 // using psnr_reference and psnr_tolerance flags for validation
@@ -3133,6 +3186,7 @@ static int runSingleImageTest() {
                      {"cosim", &testCoSim},
                      {"mean_iou", &testMeanIoU},
                      {"nrmse", &testNRMSE},
+                     {"l2norm", &testL2Norm},
                      {"raw", &testRAW},
                      {"rrmse", &testRRMSE},
                      {"map", &testMAP},
