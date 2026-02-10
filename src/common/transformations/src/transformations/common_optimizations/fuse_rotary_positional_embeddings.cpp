@@ -1218,30 +1218,25 @@ RoPEFusionLtxVideo::RoPEFusionLtxVideo() {
     // 3. Concat(in0=neg_imag, in1=Split.out0, axis=-1) → Reshape → rotated_x
     // 4. Multiply(x, cos) + Multiply(rotated_x, sin) = Add
 
-    auto x = pattern::any_input(pattern::rank_equals(3) && pattern::shape_matches("[?, ?, rotary_ndims]"));
+    auto x = pattern::any_input(pattern::shape_matches("[?, ?, rotary_ndims]"));
     auto cos_freqs = pattern::any_input(pattern::shape_matches("[?, ?, rotary_ndims]"));
     auto sin_freqs = pattern::any_input(pattern::shape_matches("[?, ?, rotary_ndims]"));
 
     // Reshape to [batch, seq_len, half_rotary_ndims, 2]
-    auto reshape_shape = pattern::any_input();
-    auto x_reshape = pattern::wrap_type<v1::Reshape>({x, reshape_shape},
+    auto x_reshape = pattern::wrap_type<v1::Reshape>({x, pattern::any_input()},
                                                      pattern::shape_matches("[?, ?, half_rotary_ndims, 2]"));
 
     // Split along axis=-1 into real (out0) and imag (out1)
-    auto split_axis = pattern::wrap_type<v0::Constant>();
-    auto split = pattern::wrap_type<v1::Split>({x_reshape, split_axis});
+    auto split = pattern::wrap_type<v1::Split>({x_reshape, pattern::wrap_type<v0::Constant>()});
     split->set_output_size(2);
 
     // Negate imaginary: Multiply(-1)
-    auto neg_constant = pattern::wrap_type<v0::Constant>();
-    auto neg_imag_mul = pattern::wrap_type<v1::Multiply>({split->output(1), neg_constant});
+    auto neg_imag_mul = pattern::wrap_type<v1::Multiply>({split->output(1), pattern::wrap_type<v0::Constant>()});
 
     // Squeeze and Unsqueeze are optional (may be optimized away by NopElimination)
-    auto squeeze_axes = pattern::wrap_type<v0::Constant>();
-    auto squeeze_imag = pattern::optional<v0::Squeeze>({neg_imag_mul, squeeze_axes});
+    auto squeeze_imag = pattern::optional<v0::Squeeze>({neg_imag_mul, pattern::wrap_type<v0::Constant>()});
 
-    auto unsqueeze_axes = pattern::wrap_type<v0::Constant>();
-    auto neg_imag_unsqueeze = pattern::optional<v0::Unsqueeze>({squeeze_imag, unsqueeze_axes});
+    auto neg_imag_unsqueeze = pattern::optional<v0::Unsqueeze>({squeeze_imag, pattern::wrap_type<v0::Constant>()});
 
     // Concat [-imag, real] along axis=-1
     auto neg_imag_final = neg_imag_unsqueeze | squeeze_imag | neg_imag_mul;
@@ -1249,8 +1244,7 @@ RoPEFusionLtxVideo::RoPEFusionLtxVideo() {
                                                            pattern::shape_matches("[?, ?, half_rotary_ndims, 2]"));
 
     // Reshape back to [batch, seq_len, rotary_ndims]
-    auto reshape_back_shape = pattern::any_input();
-    auto x_rotated = pattern::wrap_type<v1::Reshape>({x_rotated_concat, reshape_back_shape},
+    auto x_rotated = pattern::wrap_type<v1::Reshape>({x_rotated_concat, pattern::any_input()},
                                                      pattern::shape_matches("[?, ?, rotary_ndims]"));
 
     // RoPE formula: x * cos + rotated_x * sin
