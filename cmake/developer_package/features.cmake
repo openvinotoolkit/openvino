@@ -56,7 +56,22 @@ ov_dependent_option (ENABLE_AVX512F "Enable AVX512 optimizations" ON "X86_64 OR 
 
 ov_dependent_option (ENABLE_NEON_FP16 "Enable ARM FP16 optimizations" ON "AARCH64" OFF)
 
-ov_dependent_option (ENABLE_SVE "Enable SVE optimizations" ON "AARCH64 AND NOT APPLE" OFF)
+# Enable SVE only when the *host* CPU supports it. Compiler support alone is not enough:
+# building baseline binaries with SVE on a non-SVE CPU leads to SIGILL at runtime.
+#
+# For cross-compilation, the target CPU is unknown at configure time, so default is OFF.
+set(_ov_aarch64_host_has_sve OFF)
+if(AARCH64 AND NOT CMAKE_CROSSCOMPILING AND EXISTS "/proc/cpuinfo")
+    file(STRINGS "/proc/cpuinfo" _ov_cpuinfo_lines)
+    foreach(_ov_line IN LISTS _ov_cpuinfo_lines)
+        if(_ov_line MATCHES "^Features[[:space:]]*:[[:space:]]*.*[[:space:]]sve([[:space:]]|$)")
+            set(_ov_aarch64_host_has_sve ON)
+            break()
+        endif()
+    endforeach()
+endif()
+
+ov_dependent_option (ENABLE_SVE "Enable SVE optimizations" ${_ov_aarch64_host_has_sve} "AARCH64 AND NOT APPLE" OFF)
 
 # Type of build, we add this as an explicit option to default it to ON
 get_property(BUILD_SHARED_LIBS_DEFAULT GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS)
