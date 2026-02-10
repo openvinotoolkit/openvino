@@ -773,4 +773,12 @@ void Properties::enable(std::string key, bool enable) {
     _config.enable(key, enable);
 }
 
+void Properties::update(const Config::ConfigMap& options, OptionMode mode) {
+    _config.update(options, mode);
+}
+
+void Properties::addOrUpdateInternal(std::string key, std::string value) {
+    _config.addOrUpdateInternal(key, value);
+}
+
 }  // namespace intel_npu

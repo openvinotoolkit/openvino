@@ -5,6 +5,7 @@
 #pragma once
 
 #include "intel_npu/common/filtered_config.hpp"
+#include "intel_npu/config/config.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
 #include "metrics.hpp"
 
@@ -73,6 +74,20 @@ public:
      * @param enable True to enable the property, false to disable it.
      */
     void enable(std::string key, bool enable);
+
+    /**
+     * @brief Updates the configuration with new options if the key is enabled state
+     * @param options A map of key-value pairs representing the new configuration options.
+     * @param mode Specifies the mode in which the options should be updated (default is `OptionMode::Both`).
+     */
+    void update(const Config::ConfigMap& options, OptionMode mode = OptionMode::Both);
+
+    /**
+     * @brief Adds or updates an internal configuration value for compiler-specific needs.
+     * @param key The key of the internal configuration to add or update.
+     * @param value The value to set for the internal configuration.
+     */
+    void addOrUpdateInternal(std::string key, std::string value);
 
     /**
      * @brief Get a const reference to the stored config

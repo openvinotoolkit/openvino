@@ -476,7 +476,7 @@ void Plugin::filter_config_by_compiler_support(const std::unique_ptr<Properties>
     }
     _logger.debug("Legacy registration: %s", legacy ? "true" : "false");
 
-    FilteredConfig cfg = properties->getConfig();
+    const FilteredConfig& cfg = properties->getConfig();
 
     // Parse enables
     cfg.walkEnables([&](const std::string& key) {
@@ -537,7 +537,7 @@ void Plugin::filter_global_config_safe(const std::unique_ptr<Properties>& proper
                                        const ov::AnyMap& arguments,
                                        const ICompilerAdapter* compiler) const {
     std::lock_guard<std::mutex> lock(_mutex);
-    FilteredConfig cfg = properties->getConfig();
+    const FilteredConfig& cfg = properties->getConfig();
     auto compilerType = resolveCompilerType(cfg, arguments);
     auto platform = resolvePlatformOption(cfg, arguments);
     auto deviceId = resolveDeviceIdOption(cfg, arguments);
@@ -601,10 +601,10 @@ FilteredConfig Plugin::fork_local_config(const ov::AnyMap& properties,
         _backend->updateInfo(properties);
     }
 
-    auto local_properties = std::make_unique<Properties>(*_properties);
-    filter_global_config_safe(local_properties, properties, compiler);
+    auto localProperties = std::make_unique<Properties>(*_properties);
+    filter_global_config_safe(localProperties, properties, compiler);
 
-    FilteredConfig localConfig = local_properties->getConfig();
+    const FilteredConfig& localConfig = localProperties->getConfig();
 
     const std::map<std::string, std::string> rawConfig = any_copy(properties);
 
@@ -615,14 +615,14 @@ FilteredConfig Plugin::fork_local_config(const ov::AnyMap& properties,
             if (!compiler->is_option_supported(key)) {
                 OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
             } else {
-                localConfig.addOrUpdateInternal(key, value);
+                localProperties->addOrUpdateInternal(key, value);
             }
         } else {
             cfgs_to_set.emplace(key, value);
         }
     }
 
-    localConfig.update(cfgs_to_set, mode);
+    localProperties->update(cfgs_to_set, mode);
     return localConfig;
 }
 
@@ -761,7 +761,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::shared_ptr<ov::Model> batchedModel;
 
     bool shouldHandleBatching = false;
-    bool successfullyDebatted = false;
+    bool successfullyDebatched = false;
 
     if (localConfig.isAvailable(ov::intel_npu::batch_mode.name())) {
         // Set default batch mode if not configured
@@ -785,7 +785,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     if (shouldHandleBatching) {
         // Process batching
-        std::tie(batchedModel, successfullyDebatted) =
+        std::tie(batchedModel, successfullyDebatched) =
             intel_npu::batch_helpers::handlePluginBatching(model, localConfig, updateBatchMode, originalBatch, _logger);
     }
 
@@ -795,7 +795,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                 !intel_npu::batch_helpers::checkModelDynamicDims(model),
                 "Dynamic shape tensors are not supported with the dynamic strides feature (ENABLE_STRIDES_FOR).");
 
-            OPENVINO_ASSERT(successfullyDebatted || !localConfig.isAvailable(ov::intel_npu::batch_mode.name()) ||
+            OPENVINO_ASSERT(successfullyDebatched || !localConfig.isAvailable(ov::intel_npu::batch_mode.name()) ||
                                 localConfig.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER,
                             "Dynamic batching is not supported with the dynamic strides feature (ENABLE_STRIDES_FOR).");
         }
@@ -879,9 +879,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         _logger.debug("performing compile");
 
         // Determine which model to use
-        auto modelToCompile = successfullyDebatted ? batchedModel : model->clone();
+        auto modelToCompile = successfullyDebatched ? batchedModel : model->clone();
 
-        if (successfullyDebatted && localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY) {
+        if (successfullyDebatched && localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY) {
             _logger.info("Override performance mode to THROUGHPUT for compilation");
 
             auto modifiedConfig = localConfig;  // Copy only when needed
@@ -901,7 +901,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     std::optional<int64_t> batch = std::nullopt;
-    if (originalBatch.has_value() && successfullyDebatted) {
+    if (originalBatch.has_value() && successfullyDebatched) {
         batch = originalBatch.value().is_static() ? originalBatch.value().get_length() : -1;
         if (batch > 0) {
             // Initial batch setup for static cases
