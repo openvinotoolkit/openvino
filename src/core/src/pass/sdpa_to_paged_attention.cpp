@@ -31,12 +31,12 @@ ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_in
                                                      bool allow_adaptive_rkv)
     : m_use_per_layer_block_indices_inputs(use_per_layer_block_indices_inputs),
       m_use_score_outputs(use_score_outputs),
-      m_allow_score_aggregation(use_score_outputs),
+      m_allow_score_aggregation(allow_score_aggregation),
       m_allow_cache_rotation(allow_cache_rotation),
       m_allow_xattention(allow_xattention),
       m_allow_adaptive_rkv(allow_adaptive_rkv) {}
 
-static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const char* name) {
+static std::shared_ptr<v0::Parameter> named_parameter(std::shared_ptr<v0::Parameter> node, const char* name) {
     // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
     // given single name)
     node->set_friendly_name(name);
@@ -60,39 +60,43 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     std::map<std::string, std::shared_ptr<v0::Parameter>> optional_model_wide_params;
 
-    auto max_context_len = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "max_context_len");
+    auto max_context_len =
+        named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "max_context_len");
     ParameterVector model_wide_params{
-        setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "past_lens"),
-        setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "subsequence_begins"),
-        setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices_begins"),
+        named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "past_lens"),
+        named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "subsequence_begins"),
+        named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices_begins"),
     };
     if (!m_use_per_layer_block_indices_inputs) {
-        auto block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices");
+        auto block_indices =
+            named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices");
         model_wide_params.insert(model_wide_params.begin() + 2, block_indices);
     }
 
     if (m_allow_score_aggregation) {
         optional_model_wide_params["score_aggregation_window"] =
-            setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "score_aggregation_window");
+            named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
+                            "score_aggregation_window");
     }
 
     if (m_allow_cache_rotation) {
         optional_model_wide_params["model_rotation_trig_lut"] =
-            setName(std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1}), "rotation_trig_lut");
+            named_parameter(std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1}), "rotation_trig_lut");
     }
 
     if (m_allow_xattention) {
         optional_model_wide_params["xattention_block_size"] =
-            setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "xattention_block_size");
+            named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "xattention_block_size");
         optional_model_wide_params["xattention_stride"] =
-            setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "xattention_stride");
+            named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "xattention_stride");
     }
 
     if (m_allow_adaptive_rkv) {
         optional_model_wide_params["adaptive_rkv_start_size"] =
-            setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "adaptive_rkv_start_size");
+            named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "adaptive_rkv_start_size");
         optional_model_wide_params["adaptive_rkv_evictable_sizes"] =
-            setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "adaptive_rkv_evictable_sizes");
+            named_parameter(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
+                            "adaptive_rkv_evictable_sizes");
     }
 
     auto get_parameter = [=](const std::shared_ptr<ov::Model>& model,
@@ -136,21 +140,20 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     }
 
     ParameterVector kv_parameters;
-    ParameterVector parameters_to_remove;
-    ResultVector results_to_remove;  // # used, but cannot really track all Results in stateless model
     ParameterVector block_indices_inputs_for_each_layer;
     ParameterVector rotated_block_indices_inputs_for_each_layer;
     ParameterVector rotation_deltas_inputs_for_each_layer;
     ParameterVector xattention_threshold_inputs_for_each_layer;
     ParameterVector adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer;
     ParameterVector adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer;
+    std::unordered_set<std::string> var_ids_to_remove;
 
     ResultVector score_results;
     ResultVector adaptive_rkv_diversity_results;
 
     std::shared_ptr<v0::Parameter> position_ids;
     if (!get_parameter(model, "position_ids")) {
-        position_ids = setName(std::make_shared<v0::Parameter>(element::i64, PartialShape{-1}), "position_ids");
+        position_ids = named_parameter(std::make_shared<v0::Parameter>(element::i64, PartialShape{-1}), "position_ids");
         model->add_parameters({position_ids});
     } else {
         position_ids = ov::as_type_ptr<v0::Parameter>(model->input("position_ids").get_node_shared_ptr());
@@ -170,7 +173,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.set_per_pass_validation(false);
     manager.register_pass<StateManagementPattern>(kv_parameters,
                                                   model_wide_params,
-                                                  parameters_to_remove,
                                                   layer_index,
                                                   max_context_len->output(0),
                                                   block_indices_inputs_for_each_layer,
@@ -187,7 +189,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
                                                   adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
                                                   adaptive_rkv_diversity_results,
-                                                  optional_model_wide_params);
+                                                  optional_model_wide_params,
+                                                  var_ids_to_remove);
     manager.register_pass<PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
     manager.register_pass<TotalSequenceLengthPatternQwen>(max_context_len);
@@ -204,13 +207,11 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         auto sinks = model->get_sinks();
 
         for (auto& sink : sinks) {
-            model->remove_sink(sink);
-        }
-    }
-
-    {
-        for (auto& result : results_to_remove) {
-            model->remove_result(result);
+            if (auto assign = ov::as_type_ptr<ov::op::util::AssignBase>(sink)) {
+                if (var_ids_to_remove.count(assign->get_variable_id())) {
+                    model->remove_sink(sink);
+                }
+            }
         }
     }
 
@@ -233,10 +234,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                 consumers.str());
             }
         }
-    }
-
-    for (auto& parameter : parameters_to_remove) {
-        model->remove_parameter(parameter);
     }
 
     if (m_use_per_layer_block_indices_inputs) {

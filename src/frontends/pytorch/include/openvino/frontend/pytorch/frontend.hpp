@@ -49,7 +49,7 @@ public:
 
     /// \brief Gets name of this FrontEnd. Can be used by clients
     /// if frontend is selected automatically by FrontEndManager::load_by_model
-    /// \return Paddle frontend name.
+    /// \return PyTorch frontend name.
     std::string get_name() const override {
         return "pytorch";
     }

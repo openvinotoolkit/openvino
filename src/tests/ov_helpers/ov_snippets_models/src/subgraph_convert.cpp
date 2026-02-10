@@ -6,6 +6,7 @@
 #include "common_test_utils/data_utils.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include <snippets/op/convert_truncation.hpp>
+#include "snippets/op/result.hpp"
 #include <snippets/op/subgraph.hpp>
 
 namespace ov {
@@ -25,7 +26,11 @@ std::shared_ptr<ov::Model> ConvertFunction::initOriginal() const {
 }
 std::shared_ptr<ov::Model> ConvertFunction::initReference() const {
     auto data0 = std::make_shared<op::v0::Parameter>(inType, input_shapes[0]);
-    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(OutputVector{data0}, getOriginal());
+    auto indata0 = std::make_shared<op::v0::Parameter>(inType, data0->get_shape());
+    auto convert = std::make_shared<op::v0::Convert>(indata0, outType);
+    auto snippets_result = std::make_shared<ov::snippets::op::Result>(convert);
+    auto body = std::make_shared<ov::Model>(OutputVector{snippets_result}, ParameterVector{indata0});
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(OutputVector{data0}, body);
     return std::make_shared<ov::Model>(OutputVector{subgraph}, ParameterVector{data0});
 }
 
@@ -39,7 +44,14 @@ std::shared_ptr<ov::Model> ConvertInputFunction::initOriginal() const {
 std::shared_ptr<ov::Model> ConvertInputFunction::initReference() const {
     auto data0 = std::make_shared<op::v0::Parameter>(inType, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(outType, input_shapes[1]);
-    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(OutputVector{data0, data1}, getOriginal());
+    auto indata0 = std::make_shared<op::v0::Parameter>(inType, data0->get_shape());
+    auto indata1 = std::make_shared<op::v0::Parameter>(outType, data1->get_shape());
+    auto convert = std::make_shared<op::v0::Convert>(indata0, outType);
+    auto add = std::make_shared<op::v1::Add>(convert, indata1);
+    auto snippets_result = std::make_shared<ov::snippets::op::Result>(add);
+    auto body = std::make_shared<ov::Model>(OutputVector{snippets_result}, ParameterVector{indata0, indata1});
+
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(OutputVector{data0, data1}, body);
     return std::make_shared<ov::Model>(OutputVector{subgraph}, ParameterVector{data0, data1});
 }
 
@@ -53,7 +65,13 @@ std::shared_ptr<ov::Model> ConvertOutputFunction::initOriginal() const {
 std::shared_ptr<ov::Model> ConvertOutputFunction::initReference() const {
     auto data0 = std::make_shared<op::v0::Parameter>(inType, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(inType, input_shapes[1]);
-    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(OutputVector{data0, data1}, getOriginal());
+    auto indata0 = std::make_shared<op::v0::Parameter>(inType, data0->get_shape());
+    auto indata1 = std::make_shared<op::v0::Parameter>(inType, data1->get_shape());
+    auto add = std::make_shared<op::v1::Add>(indata0, indata1);
+    auto convert = std::make_shared<op::v0::Convert>(add, outType);
+    auto snippets_result = std::make_shared<ov::snippets::op::Result>(convert);
+    auto body = std::make_shared<ov::Model>(OutputVector{snippets_result}, ParameterVector{indata0, indata1});
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(OutputVector{data0, data1}, body);
     return std::make_shared<ov::Model>(OutputVector{subgraph}, ParameterVector{data0, data1});
 }
 
@@ -68,7 +86,14 @@ std::shared_ptr<ov::Model> ConvertStubFunction::initOriginal() const {
 std::shared_ptr<ov::Model> ConvertStubFunction::initReference() const {
     auto data0 = std::make_shared<op::v0::Parameter>(inType, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(inType, input_shapes[1]);
-    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(OutputVector{data0, data1}, getOriginal());
+    auto indata0 = std::make_shared<op::v0::Parameter>(inType, data0->get_shape());
+    auto indata1 = std::make_shared<op::v0::Parameter>(inType, data1->get_shape());
+    auto add = std::make_shared<op::v1::Add>(indata0, indata1);
+    auto convert = std::make_shared<op::v0::Convert>(add, outType);
+    auto relu = std::make_shared<op::v0::Relu>(convert);
+    auto snippets_result = std::make_shared<ov::snippets::op::Result>(relu);
+    auto body = std::make_shared<ov::Model>(OutputVector{snippets_result}, ParameterVector{indata0, indata1});
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(OutputVector{data0, data1}, body);
     return std::make_shared<ov::Model>(OutputVector{subgraph}, ParameterVector{data0, data1});
 }
 
@@ -98,9 +123,12 @@ std::shared_ptr<ov::Model> ConvertPartialInputsAndResultsFunction::initReference
     auto relu = std::make_shared<op::v0::Relu>(add);
     auto sub = std::make_shared<op::v1::Subtract>(relu, indata2);
     auto convert2 = std::make_shared<op::v0::Convert>(relu, outTypes[1]);
+    auto snippets_result_0 = std::make_shared<ov::snippets::op::Result>(sub);
+    auto snippets_result_1 = std::make_shared<ov::snippets::op::Result>(convert2);
+    auto body = std::make_shared<ov::Model>(OutputVector{snippets_result_0, snippets_result_1}, ParameterVector{indata0, indata1, indata2});
     auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
         OutputVector{data0, data1, data2},
-        std::make_shared<ov::Model>(OutputVector{sub, convert2}, ParameterVector{indata0, indata1, indata2}));
+        body);
     auto stub3 = createRollAsStub(subgraph);
     return std::make_shared<ov::Model>(OutputVector{subgraph->output(1), stub3->output(0)},
                                        ParameterVector{data0, data1, data2});
