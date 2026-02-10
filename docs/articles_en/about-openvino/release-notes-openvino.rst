@@ -53,7 +53,7 @@ OpenVINO™ Runtime
 Common Plugin
 ---------------------------------------------------------------------------------------------
 
-* API methods that accept filesystem paths as input are now standardized to accept 'std::filesystem::path'. This makes path handling more consistent across OpenVINO™ and simplifies integration in modern C++ codebases that already rely on std::filesystem. Existing 'std::string' and 'std::wstring' overloads are still available. 
+* API methods that accept filesystem paths as input are now standardized to accept ``std::filesystem::path``. This makes path handling more consistent across OpenVINO™ and simplifies integration in modern C++ codebases that already rely on ``std::filesystem``. Existing ``std::string`` and ``std::wstring`` overloads are still available. 
 
 CPU Device Plugin
 ---------------------------------------------------------------------------------------------
@@ -76,7 +76,7 @@ GPU Device Plugin
 NPU Device Plugin
 ---------------------------------------------------------------------------------------------
 
-* NPU compiler is now included in the OpenVINO™ distribution package as a separate library. This is a preview feature and can be enabled by setting ov::intel_npu::compiler_type property to “PREFER_PLUGIN” to utilize compiler-in-plugin with fallback to compiler-in-driver in case of compatibility or support issues. By default, the NPU will continue using compiler-in-driver. 
+* NPU compiler is now included in the OpenVINO™ distribution package as a separate library. This is a preview feature and can be enabled by setting ``ov::intel_npu::compiler_type`` property to ``PREFER_PLUGIN`` to utilize compiler-in-plugin with fallback to compiler-in-driver in case of compatibility or support issues. By default, the NPU will continue using compiler-in-driver. 
 * A new model marshaling and serialization mechanism has been implemented to avoid weight copying during compilation, reducing peak memory consumption by up to 1x the original weights size. This mechanism is currently available only when compiler-in-plugin option is enabled.  
 * Added support for importing CPU virtual addresses into level zero memory through Remote Tensor APIs. 
 
@@ -84,7 +84,7 @@ OpenVINO Python API
 ---------------------------------------------------------------------------------------------
 
 * OpenVINO™ now supports u2, u3, and u6 unsigned integer data types, enabling more efficient memory usage for quantized models. The u3 and u6 types include optimized packing that writes values into three INT8 containers using a concurrency-friendly pattern, ensuring safe concurrent read/write operations without data spanning across byte boundaries. 
-* Introduced release_gil_before_calling_cpp_dtor feature in Python bindings, which optimizes Global Interpreter Lock (GIL) handling during C++ destructor calls. This improves both stability and performance in multi-threaded Python applications. 
+* Introduced ``release_gil_before_calling_cpp_dtor`` feature in Python bindings, which optimizes Global Interpreter Lock (GIL) handling during C++ destructor calls. This improves both stability and performance in multi-threaded Python applications. 
 * Improved PyThreadState management in the Python API for increased stability and crash prevention in complex threading scenarios. 
 * OpenVINO Python package now requires only NumPy as a runtime dependency. The other packaging dependencies have been removed, resulting in a lighter installation footprint and fewer potential dependency conflicts. 
 * Added instructions for debugging the Python API on Linux, helping developers troubleshoot and diagnose issues more effectively. 
@@ -97,19 +97,19 @@ OpenVINO Node.js API
   * New parsers have been added to the LLMPipeline to extract structured outputs, reasoning steps, and tool calls from model responses. The parsing layer is fully extensible, enabling developers to plug in their own parsers to tailor how model outputs are interpreted and consumed in downstream applications. 
   * Added support for running Visual-Language Models, enabling richer multimodal applications that combine image, video, and text understanding in a single VLMPipeline. 
   * Introduced a dedicated TextRerankPipeline for re-ranking documents, providing a straightforward way to improve retrieval quality and increase relevance in search and RAG scenarios. 
-  * Removed the legacy behaviour whereby LLMPipeline.generate() could return a string. It now always returns DecodedResults, which provides consistent access to comprehensive information about the generation result, including the output text, scores, performance metrics, and parsed values. 
+  * Removed the legacy behaviour whereby ``LLMPipeline.generate()`` could return a string. It now always returns ``DecodedResults``, which provides consistent access to comprehensive information about the generation result, including the output text, scores, performance metrics, and parsed values. 
 
 PyTorch Framework Support 
 ---------------------------------------------------------------------------------------------
 
-* The axis=None parameter is now supported for mean reduction operations, allowing for more flexible tensor averaging. 
+* The ``axis=None`` parameter is now supported for mean reduction operations, allowing for more flexible tensor averaging. 
 * Enhanced support for complex data types has been implemented to improve compatibility with vision-language models, such as Qwen. 
 
 
 ONNX Framework Support 
 ---------------------------------------------------------------------------------------------
 
-* Major internal refactoring of the graph iteration mechanism has been implemented for improved performance and maintainability. The legacy path can be enabled by setting the ONNX_ITERATOR=0 environment variable. This legacy path is deprecated and will be removed in future releases. 
+* Major internal refactoring of the graph iteration mechanism has been implemented for improved performance and maintainability. The legacy path can be enabled by setting the ``ONNX_ITERATOR=0`` environment variable. This legacy path is deprecated and will be removed in future releases. 
 
 
 
@@ -117,26 +117,32 @@ OpenVINO™ Model Server
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 * Improvements in performance and accuracy for GPT-OSS and Qwen3-MOE models. 
+
   * Improvements in execution performance especially on Intel® Core™ Ultra Series 3 built-in GPUs 
   * Improved chat template examples to fix handling agentic use cases 
   * Improvements in tool parsers to be less restrictive for the generated content and improve response reliability 
   * Better accuracy with INT4 precisions especially with long prompts 
 * Improvements in text2speech endpoint  
+
   * Added voice parameter to choose speaker based on provided embeddings vector 
   * Corrected handling of compilation cache to speed up model loading 
 * Improvements in speech2text endpoint: 
+
   * Added handling for temperature sampling parameter 
   * Support for timestamps in the output 
+  
 * New parameters have been added to VLM pipelines to control domain name restrictions for image URLs in requests, with optional URL redirection support. By default, all URLs are blocked. 
 * NPU execution for text embeddings endpoint (experimental) 
 * Exposed tokenizer endpoint for reranker and LLM pipelines 
-* Added configurable preprocessing for classic models. Deployed models can include extra preprocessing layers added in at runtime. This can simplify client implementations and enable sending encoded images to models, which are accepted as an array of input. Possible options include: 
+* Added configurable preprocessing for classic models. Deployed models can include extra preprocessing layers added in at runtime. This can simplify client implementations and enable sending encoded images to models, which are accepted as an array of input. Possible options include:
+
   * Color format change 
   * Layout change 
   * Scale changes 
   * Mean changes 
 * Added support for tool parser compatible with devstral model - take advantage of unsloth/Devstral-Small-2507 model or similar for coding tasks. 
 * Updated numerous demos 
+
   * Audio endpoints 
   * VLM endpoints usage 
   * Agentic demo 
@@ -282,6 +288,7 @@ Discontinued in 2026.0
 * The deprecated ``openvino.runtime`` namespace has been removed. Please use the ``openvino`` namespace directly. 
 * The deprecated ``openvino.Type.undefined`` has been removed. Please use ``openvino.Type.dynamic`` instead. 
 * The PostponedConstant constructor signature has been updated for improved usability: 
+
   * Old (removed): ``Callable[[Tensor], None]``
   * New: ``Callable[[], Tensor]``
 * The deprecated OpenVINO™ GenAI predefined generation configs were removed. 
