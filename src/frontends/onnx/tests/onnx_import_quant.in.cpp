@@ -1200,8 +1200,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_fake_quantize_import_only) {
     EXPECT_EQ(count_ops_of_type<op::v0::FakeQuantize>(model), 1);
     EXPECT_EQ(count_ops_of_type<op::v0::Constant>(model), 4);
 
-    auto output_node = model->output(0);
-    auto fq = ov::as_type_ptr<op::v0::FakeQuantize>(output_node->get_input_node_shared_ptr(0));
+    auto result = model->get_result();
+    auto fq = ov::as_type_ptr<op::v0::FakeQuantize>(result->get_input_node_shared_ptr(0));
     EXPECT_NE(fq, nullptr);
     // Check that all bound inputs (input_low, input_high, output_low, output_high) are scalars
     for (size_t i = 1; i <= 4; ++i) {
