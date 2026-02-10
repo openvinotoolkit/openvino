@@ -38,8 +38,8 @@ struct Read;
 template <class T>
 struct Readable {
     template <class U>
-    static auto test(U*)
-        -> decltype(std::declval<Read<U>>()(std::declval<std::istream&>(), std::declval<U&>()), std::true_type()) {
+    static auto test(U*) -> decltype(std::declval<Read<U>>()(std::declval<std::istream&>(), std::declval<U&>()),
+                                     std::true_type()) {
         return {};
     }
     template <typename>
@@ -473,9 +473,8 @@ class OPENVINO_API Any {
 
     template <typename... Args>
     struct TupleToTypeIndex<std::tuple<Args...>> {
-        static const std::vector<std::type_index>& get() {
-            static const std::vector<std::type_index> types = {typeid(Args)...};
-            return types;
+        static std::vector<std::type_index> get() {
+            return {typeid(Args)...};
         }
     };
 
@@ -625,15 +624,14 @@ class OPENVINO_API Any {
         }
 
         template <class U>
-        static const std::vector<std::type_index>& base_type_info_impl(
+        static std::vector<std::type_index> base_type_info_impl(
             typename std::enable_if<HasBaseMemberType<U>::value, std::true_type>::type = {}) {
             return TupleToTypeIndex<typename T::Base>::get();
         }
         template <class U>
-        static const std::vector<std::type_index>& base_type_info_impl(
+        static std::vector<std::type_index> base_type_info_impl(
             typename std::enable_if<!HasBaseMemberType<U>::value, std::false_type>::type = {}) {
-            static const std::vector<std::type_index> types = {typeid(T)};
-            return types;
+            return {typeid(T)};
         }
 
         std::vector<std::type_index> base_type_info() const override {
