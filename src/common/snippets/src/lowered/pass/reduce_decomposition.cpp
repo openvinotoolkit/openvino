@@ -9,6 +9,8 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
+#include <set>
 #include <utility>
 #include <vector>
 
@@ -20,6 +22,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/maximum.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
@@ -57,6 +60,39 @@ uint32_t get_fill_value_for_accumulation(const std::shared_ptr<ov::Node>& accumu
     }
     OPENVINO_THROW("InsertTailFill supports only Maximum/Add accumulation but got: ", accumulation->get_type_info());
 }
+
+bool is_fill_from_vector_buffer(const ExpressionPtr& expr) {
+    if (!expr || !ov::is_type<op::Fill>(expr->get_node())) {
+        return false;
+    }
+    const auto& parent_expr = expr->get_input_expr_ptr(0);
+    return parent_expr && ov::is_type<op::VectorBuffer>(parent_expr->get_node());
+}
+
+bool is_supported_accumulation(const ExpressionPtr& accumulation_expr) {
+    return accumulation_expr && ov::is_type_any_of<ov::op::v1::Maximum, ov::op::v1::Add>(accumulation_expr->get_node());
+}
+
+std::optional<size_t> find_data_input_port_idx(const ExpressionPtr& accumulation_expr) {
+    if (!accumulation_expr || accumulation_expr->get_input_count() != 2) {
+        return std::nullopt;
+    }
+    const auto input0_is_initial_fill = is_fill_from_vector_buffer(accumulation_expr->get_input_expr_ptr(0));
+    const auto input1_is_initial_fill = is_fill_from_vector_buffer(accumulation_expr->get_input_expr_ptr(1));
+    if (input0_is_initial_fill == input1_is_initial_fill) {
+        return std::nullopt;
+    }
+    return input0_is_initial_fill ? 1 : 0;
+}
+
+size_t get_data_input_port_idx(const ExpressionPtr& accumulation_expr) {
+    OPENVINO_ASSERT(is_supported_accumulation(accumulation_expr),
+                    "InsertTailFill expected Maximum/Add accumulation expression.");
+    const auto data_input_port_idx = find_data_input_port_idx(accumulation_expr);
+    OPENVINO_ASSERT(data_input_port_idx.has_value(),
+                    "InsertTailFill failed to detect unique Fill(VectorBuffer) accumulation input.");
+    return *data_input_port_idx;
+}
 }  // namespace
 
 class InsertTailFill : public RangedPass {
@@ -72,47 +108,27 @@ public:
         const auto& output_ports = loop_info->get_output_ports();
         const auto accumulation_output_it =
             std::find_if(output_ports.begin(), output_ports.end(), [](const LoopPort& output_loop_port) {
-                const auto& output_expr = output_loop_port.get_expr_port()->get_expr();
-                const auto& output_node = output_expr->get_node();
-                return ov::is_type_any_of<ov::op::v1::Maximum, ov::op::v1::Add>(output_node);
+                const auto& accumulation_expr = output_loop_port.get_expr_port()->get_expr();
+                return is_supported_accumulation(accumulation_expr) &&
+                       find_data_input_port_idx(accumulation_expr).has_value();
             });
         OPENVINO_ASSERT(accumulation_output_it != output_ports.end(),
-                        "InsertTailFill failed to find accumulation output port.");
+                        "InsertTailFill failed to find accumulation output port with Fill(VectorBuffer) input.");
         const auto& accumulation_expr = accumulation_output_it->get_expr_port()->get_expr();
-        OPENVINO_ASSERT(accumulation_expr, "InsertTailFill failed to get accumulation expression.");
-
-        auto recurrent_input_port_idx = utils::get_dynamic_value<size_t>();
-        for (const auto& input_loop_port : loop_info->get_input_ports()) {
-            const auto& input_port = input_loop_port.get_expr_port();
-            if (input_port->get_type() == ExpressionPort::Input && input_port->get_expr() == accumulation_expr) {
-                recurrent_input_port_idx = input_port->get_index();
-                break;
-            }
-        }
-        OPENVINO_ASSERT(!utils::is_dynamic_value(recurrent_input_port_idx),
-                        "InsertTailFill failed to find recurrent accumulation input port.");
-
-        auto data_input_port_idx = utils::get_dynamic_value<size_t>();
-        for (size_t i = 0; i < accumulation_expr->get_input_count(); ++i) {
-            if (i != recurrent_input_port_idx) {
-                data_input_port_idx = i;
-                break;
-            }
-        }
-        OPENVINO_ASSERT(!utils::is_dynamic_value(data_input_port_idx),
-                        "InsertTailFill failed to find data accumulation input port.");
-
+        const auto data_input_port_idx = get_data_input_port_idx(accumulation_expr);
         const auto accumulation_input_port = accumulation_expr->get_input_port(data_input_port_idx);
         const auto accumulation_it = linear_ir.find(begin, end, accumulation_expr);
 
         const auto source = accumulation_expr->get_input_port_connector(data_input_port_idx)->get_source();
         const auto source_output = source.get_expr()->get_node()->output(source.get_index());
         const auto fill_value = get_fill_value_for_accumulation(accumulation_expr->get_node());
-        const auto fill = linear_ir.insert_node<op::Fill>(accumulation_it, source_output, m_offset, fill_value);
-
-        fill.first->get()->set_loop_ids(accumulation_expr->get_loop_ids());
-        replace_input_port_connectors({accumulation_input_port}, fill.first->get()->get_output_port_connector(0));
-        linear_ir.get_loop_manager()->update_loop_ports(*fill.first);
+        const auto fill_node = std::make_shared<op::Fill>(source_output, m_offset, fill_value);
+        linear_ir.insert_node(fill_node,
+                              std::vector<ExpressionPort>{source},
+                              accumulation_expr->get_loop_ids(),
+                              true,
+                              accumulation_it,
+                              std::set<ExpressionPort>{accumulation_input_port});
         accumulation_expr->updateShapes();
 
         return true;
@@ -187,7 +203,7 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
 
         // Float constant values in byte representation
         const auto fill_value = get_initial_value(reduce_type_info);
-        const auto is_single_iteration = !utils::is_dynamic_value(work_amount) && work_amount == increment;
+        const auto is_single_iteration = work_amount == increment;
         const auto tail_size = utils::is_dynamic_value(work_amount) ? 1LU : work_amount % increment;
         const bool insert_fill_in_loop = is_single_iteration && increment < m_vector_size;
         const bool insert_fill_in_last_iter = !is_single_iteration && tail_size != 0;

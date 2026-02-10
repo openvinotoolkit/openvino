@@ -577,8 +577,6 @@ void Subgraph::control_flow_transformations(
     //    3. OptimizeLoopSingleEvaluation must be called after CleanupLoopOffsets
     //       since CleanupLoopOffsets can't handle loops with evaluate_once = true
     gen_pipeline.register_pass<lowered::pass::InsertSpecificIterations>();
-    // Callback to determine if Fill operation is inplace based on actual register capacity
-    // get_lanes() returns the number of float32 (4-byte) elements that fit in a vector register
     gen_pipeline.register_pass<lowered::pass::InitRegisters>(get_generator(), lowered_pass_config);
     gen_pipeline.register_pass<lowered::pass::NormalizeLoopIDs>();
     gen_pipeline.register_pass<lowered::pass::ValidateExpandedLoops>();
