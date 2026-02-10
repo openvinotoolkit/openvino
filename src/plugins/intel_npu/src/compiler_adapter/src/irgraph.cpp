@@ -652,18 +652,6 @@ bool IRGraph::release_blob(const Config& config) {
     return false;
 };
 
-// void IRGraph::set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) {
-//     _lastSubmittedEvent[indexOfCommandList] = event;
-// }
-
-// const std::shared_ptr<Event>& IRGraph::get_last_submitted_event(size_t indexOfCommandList) const {
-//     return _lastSubmittedEvent[indexOfCommandList];
-// }
-
-// void IRGraph::resize_last_submitted_event(size_t batch) {
-//     _lastSubmittedEvent.resize(batch);
-// }
-
 void IRGraph::set_batch_size(std::size_t batch) {
     _batchSize = batch;
 }

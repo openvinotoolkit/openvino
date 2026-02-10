@@ -13,7 +13,6 @@ set(MANDATORY_UNIT_TESTS_LIBS
         "openvino::reference"
         "openvino::npu_al"
         "openvino::npu_logger_utils"
-        "openvino_npu_common"
 )
 
 ov_add_test_target(
@@ -31,7 +30,6 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/utils/include
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/al/include
-            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/common/include
         OBJECT_FILES
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metadata.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_compiled_model_utils.cpp

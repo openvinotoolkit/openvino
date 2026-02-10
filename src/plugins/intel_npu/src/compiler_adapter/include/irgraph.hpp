@@ -139,9 +139,6 @@ public:
 
     void set_workload_type(const ov::WorkloadType workloadType) const override;
 
-    // void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) override;
-    // const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const override;
-    // void resize_last_submitted_event(size_t batch) override;
     void set_batch_size(std::size_t batch) override;
 
     const std::optional<std::size_t> get_batch_size() const override;

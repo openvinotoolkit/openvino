@@ -197,13 +197,6 @@ DynamicPipeline::DynamicPipeline(const Config& config,
             }
             ++io_index;
         }
-
-        // if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-        //     _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        //     if (_graph->get_last_submitted_event(i)) {
-        //         _command_lists.at(i)->appendWaitOnEvent(_graph->get_last_submitted_event(i));
-        //     }
-        // }
     }
     _logger.debug("DynamicPipeline - initialize completed");
 }
@@ -232,8 +225,6 @@ void DynamicPipeline::push() {
         ze_event_handle_t event = nullptr;
         if (_sync_output_with_fences) {
             fence = _fences.at(i)->handle();
-        } else {
-            // TODO
         }
 
         auto& command_lists = _command_lists.at(i);

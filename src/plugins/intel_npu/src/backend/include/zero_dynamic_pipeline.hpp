@@ -91,18 +91,6 @@ struct DynamicPipeline : public Pipeline {
             }
         }
 
-        // void appendWaitOnEvent(const std::shared_ptr<Event>& event) {
-        //     event->AppendWaitOnEvent(**_commandLists.rbegin());
-        // }
-
-        // void appendReset(const std::shared_ptr<Event>& event) {
-        //     event->AppendEventReset(**_commandLists.rbegin());
-        // }
-
-        // void appendSignalEvent(std::shared_ptr<Event>& event) {
-        //     event->AppendSignalEvent(**_commandLists.rbegin());
-        // }
-
         void resetCommandList() {
             for (auto& cmd_list : _commandLists) {
                 cmd_list->reset();
