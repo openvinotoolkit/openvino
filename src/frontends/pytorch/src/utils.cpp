@@ -9,6 +9,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
+#include "openvino/frontend/sequence_insert.hpp"
 #include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -678,6 +679,17 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool uns
     }
 
     while (const auto& fw_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(current_output.get_node_shared_ptr())) {
+        // Handle SequenceInsert (produced by aten::append translator)
+        if (auto seq_insert = ov::as_type_ptr<ov::frontend::SequenceInsert>(fw_node)) {
+            auto elem = seq_insert->get_tensor();
+            if (unsqueeze_for_concat) {
+                elem = std::make_shared<v0::Unsqueeze>(elem, zero);
+            }
+            res.push_front(elem);
+            current_output = seq_insert->get_input_sequence();
+            continue;
+        }
+
         const auto& attrs = fw_node->get_attrs();
         const auto op_type_it = attrs.find(PtFrameworkNode::op_type_key);
         if (op_type_it == attrs.end()) {

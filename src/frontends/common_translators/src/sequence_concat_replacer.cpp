@@ -2,32 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/sequence_concat_replacer.hpp"
+#include "sequence_concat_replacer.hpp"
 
 #include <limits>
 #include <vector>
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/concat_from_sequence.hpp"
 #include "openvino/frontend/sequence_insert.hpp"
 #include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/loop.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "utils/common.hpp"
 
 using namespace ov::op;
 
 namespace ov {
 namespace frontend {
-namespace onnx {
 namespace pass {
 namespace {
 
@@ -38,7 +35,12 @@ int64_t normalize_axis(const ov::Output<ov::Node>& sample, int64_t axis, bool ne
     if (!rank.is_static())
         return axis;
     const auto full_rank = rank.get_length() + (new_axis ? 1 : 0);
-    return ov::frontend::onnx::common::normalize_axis("ConcatFromSequence", axis, ov::Rank{full_rank});
+    OPENVINO_ASSERT(ov::util::is_axis_valid(axis, full_rank),
+                    "ConcatFromSequence: axis ",
+                    axis,
+                    " out of range for rank ",
+                    full_rank);
+    return ov::util::normalize(axis, full_rank);
 }
 
 // Trace through Unsqueeze/SequenceInsert to find the inserted tensor
@@ -65,21 +67,6 @@ int64_t find_sequence_body_result_index(const std::shared_ptr<v5::Loop>& loop, s
     return -1;
 }
 
-// Build permutation to move axis 0 to target position: [N,d0,d1,...] -> [...,N,...]
-std::vector<int64_t> build_move_axis_perm(int64_t output_rank, int64_t target_axis) {
-    std::vector<int64_t> perm;
-    perm.reserve(output_rank);
-    for (int64_t j = 0; j < output_rank; ++j) {
-        if (j < target_axis)
-            perm.push_back(j + 1);
-        else if (j == target_axis)
-            perm.push_back(0);
-        else
-            perm.push_back(j);
-    }
-    return perm;
-}
-
 // Rewrite Loop that builds sequence via SequenceInsert to use ConcatOutputDescription
 bool rewrite_loop_concat(const std::shared_ptr<ov::frontend::ConcatFromSequence>& concat_fw,
                          const ov::Output<ov::Node>& sequence_output,
@@ -104,7 +91,7 @@ bool rewrite_loop_concat(const std::shared_ptr<ov::frontend::ConcatFromSequence>
 
     const auto norm_axis = normalize_axis(data_value, axis, new_axis);
 
-    // Find sequence merged input (for potential removal if unused)
+    // Find sequence merged input (for potential removal)
     size_t seq_param_idx = INVALID_INDEX, seq_input_idx = INVALID_INDEX;
     for (const auto& desc : loop->get_input_descriptions()) {
         if (auto merged = std::dynamic_pointer_cast<v5::Loop::MergedInputDescription>(desc)) {
@@ -116,20 +103,30 @@ bool rewrite_loop_concat(const std::shared_ptr<ov::frontend::ConcatFromSequence>
         }
     }
 
-    // Build new body: replace sequence result with unsqueezed tensor for Loop concatenation
+    // Build new body: replace sequence result with tensor for Loop concatenation
     auto new_results = body_results;
     new_results.erase(new_results.begin() + seq_result_idx);
 
-    auto axis_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
-    auto unsqueezed = std::make_shared<v0::Unsqueeze>(data_value, axis_const);
-    new_results.push_back(std::make_shared<v0::Result>(unsqueezed));
+    // For stack (new_axis): unsqueeze at norm_axis so concat creates a new dimension
+    // For cat (!new_axis): use raw tensor, concat along existing axis
+    ov::Output<ov::Node> body_output;
+    if (new_axis) {
+        auto axis_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {norm_axis});
+        body_output = std::make_shared<v0::Unsqueeze>(data_value, axis_const);
+    } else {
+        body_output = data_value;
+    }
+    new_results.push_back(std::make_shared<v0::Result>(body_output));
     const size_t concat_result_idx = new_results.size() - 1;
 
-    // Remove unused sequence parameter
+    // Remove sequence parameter — its only consumer is the old SequenceInsert chain
+    // that we are replacing with ConcatOutputDescription. The old chain nodes still hold
+    // live edges to the parameter (get_target_inputs() is non-empty) but none of them
+    // appear in new_results, so the new body will not reference this parameter.
     auto body_params = body->get_parameters();
     size_t removed_param_idx = INVALID_INDEX;
     bool remove_seq_input = false;
-    if (seq_param_idx < body_params.size() && body_params[seq_param_idx]->output(0).get_target_inputs().empty()) {
+    if (seq_param_idx != INVALID_INDEX && seq_param_idx < body_params.size()) {
         body_params.erase(body_params.begin() + seq_param_idx);
         removed_param_idx = seq_param_idx;
         remove_seq_input = true;
@@ -149,7 +146,13 @@ bool rewrite_loop_concat(const std::shared_ptr<ov::frontend::ConcatFromSequence>
         if (d->m_body_value_index > static_cast<size_t>(seq_result_idx))
             d->m_body_value_index--;
         if (d->m_output_index == output_index)
-            d = std::make_shared<v5::Loop::ConcatOutputDescription>(concat_result_idx, output_index, 0, 1, 1, -1, 0);
+            d = std::make_shared<v5::Loop::ConcatOutputDescription>(concat_result_idx,
+                                                                    output_index,
+                                                                    0,
+                                                                    1,
+                                                                    1,
+                                                                    -1,
+                                                                    norm_axis);
         out_descs.push_back(d);
     }
 
@@ -197,25 +200,7 @@ bool rewrite_loop_concat(const std::shared_ptr<ov::frontend::ConcatFromSequence>
     // Replace Loop outputs
     for (size_t i = 0; i < loop->get_output_size(); ++i) {
         if (i == output_index) {
-            // Transform concatenated output: Loop produces [N,...], may need transpose or reshape
-            ov::Output<ov::Node> result = new_loop->output(i);
-            const auto rank = data_value.get_partial_shape().rank();
-
-            if (new_axis && norm_axis != 0 && rank.is_static()) {
-                // Move iteration axis from 0 to norm_axis via Transpose
-                auto perm = build_move_axis_perm(rank.get_length() + 1, norm_axis);
-                auto perm_const = v0::Constant::create(ov::element::i64, ov::Shape{perm.size()}, perm);
-                auto transpose = std::make_shared<ov::op::v1::Transpose>(result, perm_const);
-                ov::copy_runtime_info(concat_fw, transpose);
-                result = transpose;
-            } else if (!new_axis && rank.is_static()) {
-                // Flatten: merge iteration dimension with data
-                auto neg_one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
-                auto reshape = std::make_shared<ov::op::v1::Reshape>(result, neg_one, false);
-                ov::copy_runtime_info(concat_fw, reshape);
-                result = reshape;
-            }
-            concat_fw->output(0).replace(result);
+            concat_fw->output(0).replace(new_loop->output(i));
         } else {
             loop->output(i).replace(new_loop->output(i));
         }
@@ -276,11 +261,10 @@ SequenceConcatReplacer::SequenceConcatReplacer() {
         return rewrite_loop_concat(concat_fw, seq_input, axis, new_axis);
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_pattern, "onnx::SequenceConcatReplacer");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_pattern, "ov::frontend::pass::SequenceConcatReplacer");
     register_matcher(m, callback);
 }
 
 }  // namespace pass
-}  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
