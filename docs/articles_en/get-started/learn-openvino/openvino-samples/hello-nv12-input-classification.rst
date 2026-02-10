@@ -209,6 +209,6 @@ Additional Resources
 - :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
 - :doc:`Convert a Model <../../../openvino-workflow/model-preparation/convert-model-to-ir>`
-- `API Reference <https://docs.openvino.ai/2025/api/api_reference.html>`__
+- `API Reference <https://docs.openvino.ai/2026/api/api_reference.html>`__
 - `Hello NV12 Input Classification C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/hello_nv12_input_classification/README.md>`__
 - `Hello NV12 Input Classification C Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/c/hello_nv12_input_classification/README.md>`__

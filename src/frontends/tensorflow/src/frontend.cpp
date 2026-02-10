@@ -470,7 +470,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
                                  "provides conversion extension(s): "
                               << unsupported_ops_from_tokenizers
                               << ". Install OpenVINO Tokenizers, refer to the documentation: "
-                                 "https://docs.openvino.ai/2025/openvino-workflow-generative/ov-tokenizers.html \n";
+                                 "https://docs.openvino.ai/2026/openvino-workflow-generative/ov-tokenizers.html \n";
         }
     }
 

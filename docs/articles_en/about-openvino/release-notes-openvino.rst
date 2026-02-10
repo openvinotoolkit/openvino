@@ -300,7 +300,7 @@ Discontinued in 2026.0
 Deprecated and to be removed in the future
 --------------------------------------------
 * Support for Ubuntu 20.04 has been discontinued due to the end of its standard support. 
-* The openvino-nightly PyPI module will soon be discontinued. End-users should proceed with the Simple PyPI nightly repo instead. Find more information in the `Release policy <https://docs.openvino.ai/2025/about-openvino/release-notes-openvino/release-policy.html>`__. 
+* The openvino-nightly PyPI module will soon be discontinued. End-users should proceed with the Simple PyPI nightly repo instead. Find more information in the `Release policy <https://docs.openvino.ai/2026/about-openvino/release-notes-openvino/release-policy.html>`__. 
 * ``auto shape`` and ``auto batch`` size (reshaping a model in runtime) will be removed in the future. OpenVINO™'s dynamic shape models are recommended instead. 
 * MacOS x86 is no longer recommended for use due to the discontinuation of support. 
 * APT & YUM Repositories Restructure:
@@ -309,8 +309,8 @@ Deprecated and to be removed in the future
   still be available until 2026, when the change will be finalized.
   Detailed instructions are available on the relevant documentation pages:
 
-  * `Installation guide - yum <https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-yum.html>`__
-  * `Installation guide - apt <https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-apt.html>`__
+  * `Installation guide - yum <https://docs.openvino.ai/2026/get-started/install-openvino/install-openvino-yum.html>`__
+  * `Installation guide - apt <https://docs.openvino.ai/2026/get-started/install-openvino/install-openvino-apt.html>`__
 
 * OpenCV binaries will be removed from Docker images in 2026.
 * OpenCV binaries will be removed from Docker images in 2026. 
@@ -324,9 +324,9 @@ Deprecated and to be removed in the future
     Since KServe provides broader capabilities, no loss of functionality is expected. On the contrary, more functionalities will be accessible and migration between other serving solutions and OpenVINO Model Server will be much easier.
   * TensorFlow Serving (TFS) API support is planned for deprecation. With increasing adoption of the KServe API for classic models 
     and the OpenAI API for generative workloads, usage of the TFS API has significantly declined. Dropping date is to be determined based on the feedback, with a tentative target of mid-2026. 
-  * Support for `Stateful models  <https://docs.openvino.ai/2025/model-server/ovms_docs_stateful_models.html>`__  will be deprecated.
+  * Support for `Stateful models  <https://docs.openvino.ai/2026/model-server/ovms_docs_stateful_models.html>`__  will be deprecated.
     These capabilities were originally introduced for Kaldi audio models which is no longer relevant. Current audio models support relies on the OpenAI API, and pipelines implemented via OpenVINO GenAI library. 
-  * `Directed Acyclic Graph Scheduler <https://docs.openvino.ai/2025/model-server/ovms_docs_dag.html>`__ will be deprecated in favor of pipelines managed by MediaPipe scheduler and will be removed in 2026.3. That approach gives more flexibility, includes wider range of calculators and has support for using processing accelerators. 
+  * `Directed Acyclic Graph Scheduler <https://docs.openvino.ai/2026/model-server/ovms_docs_dag.html>`__ will be deprecated in favor of pipelines managed by MediaPipe scheduler and will be removed in 2026.3. That approach gives more flexibility, includes wider range of calculators and has support for using processing accelerators. 
 
 
 Legal Information
