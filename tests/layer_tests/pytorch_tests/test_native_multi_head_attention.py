@@ -31,15 +31,15 @@ class aten_native_multi_head_attention(torch.nn.Module):
         # Currently only int masks are working correctly, they are converted to bool.
         # Float masks raise a warning in PyTorch and are (incorrectly) converted to bool,
         # which later returns NaNs as MHA's output
-        if mask == 0:
+        if mask == ATTN_MASK:
             self.mask = torch.from_numpy(mask_data.astype("bool")) if mask_data is not None else None
-            self.mask_type = 0
-        elif mask == 1:
+            self.mask_type = ATTN_MASK
+        elif mask == KEY_PAD_MASK:
             self.mask = torch.from_numpy(mask_data.astype("bool")) if mask_data is not None else None
-            self.mask_type = 1
-        elif mask == 2:
+            self.mask_type = KEY_PAD_MASK
+        elif mask == MERGED_MASK:
             self.mask = torch.from_numpy(mask_data.astype("bool")) if mask_data is not None else None
-            self.mask_type = 2
+            self.mask_type = MERGED_MASK
         else:
             self.mask = None
             self.mask_type = NO_MASK
@@ -65,11 +65,11 @@ class TestNativeMultiHeadAttention(PytorchLayerTest):
 
     def _get_mask_data(self, mask):
         """Generate mask data based on mask type."""
-        if mask == 0:  # ATTN_MASK
+        if mask == ATTN_MASK:
             return self.random.randint(0, 2, (SEQ_LENGTH, SEQ_LENGTH))
-        elif mask == 1:  # KEY_PAD_MASK
+        elif mask == KEY_PAD_MASK:
             return self.random.randint(0, 2, (BATCH_SIZE, SEQ_LENGTH))
-        elif mask == 2:  # MERGED_MASK
+        elif mask == MERGED_MASK:
             return self.random.randint(0, 2, (BATCH_SIZE, NUM_HEADS, SEQ_LENGTH, SEQ_LENGTH))
         return None
 
