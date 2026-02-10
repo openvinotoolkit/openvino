@@ -79,6 +79,9 @@ NPU Device Plugin
 * NPU compiler is now included in the OpenVINO™ distribution package as a separate library. This is a preview feature and can be enabled by setting ``ov::intel_npu::compiler_type`` property to ``PREFER_PLUGIN`` to utilize compiler-in-plugin with fallback to compiler-in-driver in case of compatibility or support issues. By default, the NPU will continue using compiler-in-driver. 
 * A new model marshaling and serialization mechanism has been implemented to avoid weight copying during compilation, reducing peak memory consumption by up to 1x the original weights size. This mechanism is currently available only when compiler-in-plugin option is enabled.  
 * Added support for importing CPU virtual addresses into level zero memory through Remote Tensor APIs. 
+* Fixed various issues related to sliding window context handling in models like Gemma and Phi, improved compatibility with the recent transformers packages.
+* Introduced new methods to handle attention, ``NPUW_LLM_PREFILL_ATTENTION_HINT`` can be set to ``PYRAMID`` to significantly improve TTFT. The default value is ``STATIC`` (no change to the existing behavior).
+* Reduced KV-cache memory consumption, reaching up to 2.5 GB saving for select models on longer contexts (8..12K).
 
 OpenVINO Python API
 ---------------------------------------------------------------------------------------------
@@ -177,6 +180,7 @@ OpenVINO GenAI
 * Added ChatHistory API support for VLMPipeline with images and video.  
 * Added VLLMParser wrapper. 
 * Added universal video tags ``<ov_genai_video_i>`` for VLM models with video support (Qwen2-VL, Qwen2.5-VL, LLaVa-NeXT-Video) 
+* Introduced NPU support for text embedding pipelines (for Qwen3-Embeddings-0.6B and similar models).
 
 Other Changes and Known Issues
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
