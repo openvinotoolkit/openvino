@@ -166,11 +166,11 @@ Step 1: Download and Install the OpenVINO Core Components
 
       cd /opt/intel
 
-      sudo ln -s openvino_2026.0.0 openvino_2025
+      sudo ln -s openvino_2026.0.0 openvino_2026
 
    .. note::
-      If you have already installed a previous release of OpenVINO 2025, a symbolic link to the ``openvino_2025`` folder may already exist.
-      Unlink the previous link with ``sudo unlink openvino_2025``, and then re-run the command above.
+      If you have already installed a previous release of OpenVINO 2026, a symbolic link to the ``openvino_2026`` folder may already exist.
+      Unlink the previous link with ``sudo unlink openvino_2026``, and then re-run the command above.
 
 
 Congratulations, you have finished the installation! For some use cases you may still
@@ -178,9 +178,9 @@ need to install additional components. Check the description below, as well as t
 :doc:`list of additional configurations <./configurations>`
 to see if your case needs any of them.
 
-The ``/opt/intel/openvino_2025`` folder now contains the core components for OpenVINO.
+The ``/opt/intel/openvino_2026`` folder now contains the core components for OpenVINO.
 If you used a different path in Step 2, for example, ``/home/<USER>/intel/``,
-OpenVINO is now in ``/home/<USER>/intel/openvino_2025``. The path to the ``openvino_2025``
+OpenVINO is now in ``/home/<USER>/intel/openvino_2026``. The path to the ``openvino_2026``
 directory is also referred as ``<INSTALL_DIR>`` throughout the OpenVINO documentation.
 
 
@@ -189,11 +189,11 @@ Step 2: Configure the Environment
 
 You must update several environment variables before you can compile and run OpenVINO applications.
 Open a terminal window and run the ``setupvars.sh`` script as shown below to temporarily set your environment variables.
-If your <INSTALL_DIR> is not ``/opt/intel/openvino_2025``, use the correct one instead.
+If your <INSTALL_DIR> is not ``/opt/intel/openvino_2026``, use the correct one instead.
 
 .. code-block:: sh
 
-   source /opt/intel/openvino_2025/setupvars.sh
+   source /opt/intel/openvino_2026/setupvars.sh
 
 
 If you have more than one OpenVINO version installed on your system, you can easily switch versions by sourcing the `setupvars.sh` of your choice.
@@ -202,7 +202,7 @@ If you have more than one OpenVINO version installed on your system, you can eas
 
    The above command must be re-run every time you start a new terminal session.
    To set up Linux to automatically run the command every time a new terminal is opened,
-   open ``~/.bashrc`` in your favorite editor and add ``source /opt/intel/openvino_2025/setupvars.sh`` after the last line.
+   open ``~/.bashrc`` in your favorite editor and add ``source /opt/intel/openvino_2026/setupvars.sh`` after the last line.
    Next time when you open a terminal, you will see ``[setupvars.sh] OpenVINO™ environment initialized``.
    Changing ``.bashrc`` is not recommended when you have multiple OpenVINO versions on your machine and want to switch among them.
 
@@ -261,7 +261,7 @@ If you have created the symbolic link, remove the link first:
 
 .. code-block:: sh
 
-   sudo rm /opt/intel/openvino_2025
+   sudo rm /opt/intel/openvino_2026
 
 To delete the files:
 

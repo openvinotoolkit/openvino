@@ -72,7 +72,7 @@ omitting training-related parameter.
 
 .. note::
 
-    The sink input is available since 2025.4 OpenVINO release.
+    The sink input is available since 2026.4 OpenVINO release.
 
 **Outputs**
 

@@ -90,13 +90,13 @@ Step 1: Download and Install OpenVINO Core Components
    .. code-block:: sh
 
       cd C:\Program Files (x86)\Intel
-      mklink /D openvino_2025 openvino_2026.0.0
+      mklink /D openvino_2026 openvino_2026.0.0
 
 
    .. note::
 
-      If you have already installed a previous release of OpenVINO 2025, a symbolic link to the
-      ``openvino_2025`` folder may already exist. If you want to override it, navigate to the
+      If you have already installed a previous release of OpenVINO 2026, a symbolic link to the
+      ``openvino_2026`` folder may already exist. If you want to override it, navigate to the
       ``C:\Program Files (x86)\Intel`` folder and delete the existing linked folder before
       running the ``mklink`` command.
 
@@ -106,10 +106,10 @@ need to install additional components. Check the description below, as well as t
 :doc:`list of additional configurations <./configurations>`
 to see if your case needs any of them.
 
-The ``C:\Program Files (x86)\Intel\openvino_2025`` folder now contains the core components
+The ``C:\Program Files (x86)\Intel\openvino_2026`` folder now contains the core components
 for OpenVINO.
-If you used a different path in Step 1, you will find the ``openvino_2025`` folder there.
-The path to the ``openvino_2025`` directory is also referred as ``<INSTALL_DIR>``
+If you used a different path in Step 1, you will find the ``openvino_2026`` folder there.
+The path to the ``openvino_2026`` directory is also referred as ``<INSTALL_DIR>``
 throughout the OpenVINO documentation.
 
 
@@ -139,11 +139,11 @@ applications.
 
       Open the Command Prompt, and run the ``setupvars.bat`` batch file to temporarily set
       your environment variables. If your ``<INSTALL_DIR>`` is not
-      ``C:\Program Files (x86)\Intel\openvino_2025``, use the correct directory instead.
+      ``C:\Program Files (x86)\Intel\openvino_2026``, use the correct directory instead.
 
       .. code-block:: sh
 
-         "C:\Program Files (x86)\Intel\openvino_2025\setupvars.bat"
+         "C:\Program Files (x86)\Intel\openvino_2026\setupvars.bat"
 
       .. important::
 

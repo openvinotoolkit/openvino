@@ -14,7 +14,7 @@ and
 `LLM Instruction-following pipeline <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/llm-question-answering>`__.
 
 OpenVINO GenAI is available for installation via PyPI, NPM and Archive distributions.
-A `detailed guide <https://github.com/openvinotoolkit/openvino.genai/blob/releases/2025/0/src/docs/BUILD.md>`__
+A `detailed guide <https://github.com/openvinotoolkit/openvino.genai/blob/releases/2026/0/src/docs/BUILD.md>`__
 on how to build OpenVINO GenAI is available in the OpenVINO GenAI repository.
 
 PyPI Installation
