@@ -156,7 +156,7 @@ jobs:
           TEST_DEVICE: CPU
 
       - name: MoE Fusion Test
-        if: ${{ inputs.model_scope == 'precommit' && runner.arch != 'ARM64' }}
+        if: ${{ inputs.model_scope == 'precommit' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pip install optimum-intel==1.25.2 transformers==4.53.3 --upgrade
