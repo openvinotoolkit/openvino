@@ -38,11 +38,6 @@ jit_broadcast_move_emitter::jit_broadcast_move_emitter(jit_generator_t* h, cpu_i
     const auto n = expr->get_node();
     OV_CPU_JIT_EMITTER_ASSERT(ov::as_type_ptr<snippets::op::BroadcastMove>(n) != nullptr,
                               "Expects BroadcastMove expression");
-    OV_CPU_JIT_EMITTER_ASSERT(n->get_input_element_type(0) == n->get_output_element_type(0),
-                              "Only supports equal input and output types but gets ",
-                              n->get_input_element_type(0),
-                              " and ",
-                              n->get_output_element_type(0));
     const auto element_type = n->get_input_element_type(0);
     OV_CPU_JIT_EMITTER_ASSERT(any_of(element_type.size(), 1U, 2U, 4U), "Unsupported element type: ", element_type);
     byte_size = element_type.size();
