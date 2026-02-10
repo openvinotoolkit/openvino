@@ -24,25 +24,6 @@
 namespace ov {
 
 /**
- * @brief This class limits the locale env to a special value in sub-scope
- *
- */
-class ScopedLocale {
-public:
-    ScopedLocale(int category, std::string newLocale) : m_category(category) {
-        m_oldLocale = setlocale(category, nullptr);
-        setlocale(m_category, newLocale.c_str());
-    }
-    ~ScopedLocale() {
-        setlocale(m_category, m_oldLocale.c_str());
-    }
-
-private:
-    int m_category;
-    std::string m_oldLocale;
-};
-
-/**
  * @brief File storage-based Implementation of ICacheManager
  *
  * Uses simple file for read/write cached models.
