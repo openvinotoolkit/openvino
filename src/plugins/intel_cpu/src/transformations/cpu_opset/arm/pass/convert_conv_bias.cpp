@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "convert_conv_bias.hpp"
+#include "conv_mul_add_fq_block.hpp"
 
 #include <memory>
 
@@ -31,40 +32,29 @@
 using namespace ov::pass;
 
 ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
-    auto conv_i8_activation = pattern::any_input(pattern::type_matches(element::i8));
-    auto conv_i8_weights = pattern::any_input(pattern::type_matches(element::i8));
-    auto conv_i8 = pattern::wrap_type<ov::op::v1::Convolution>({conv_i8_activation, conv_i8_weights});
-
-    auto conv_u8_activation = pattern::any_input(pattern::type_matches(element::u8));
-    auto conv_i8_u8_weights = pattern::any_input(pattern::type_matches_any({element::i8, element::u8}));
-    auto conv_u8 = pattern::wrap_type<ov::op::v1::Convolution>({conv_u8_activation, conv_i8_u8_weights});
-    auto conv_m = conv_u8 | conv_i8;
-
-    auto multiply_m = pattern::wrap_type<ov::op::v1::Multiply>({conv_m, pattern::any_input()});
-    auto bias_const_m = pattern::wrap_type<ov::op::v0::Constant>([](const ov::Output<ov::Node>& output) {
-        return !pattern::type_matches(ov::element::i32)(output);
-    });
-    auto add_m = pattern::wrap_type<ov::op::v1::Add>({multiply_m, bias_const_m});
-    auto fakeQuantize =
-        pattern::wrap_type<ov::op::v0::FakeQuantize>({add_m,
-                                                      pass::pattern::any_input(),
-                                                      pass::pattern::any_input(),
-                                                      pass::pattern::any_input(),
-                                                      pass::pattern::any_input()},
-                                                     pattern::type_matches_any({element::i8, element::u8}));
+    auto conv_mul_add_fq = std::make_shared<ov::intel_cpu::pass::pattern::op::ConvMulAddFQBlock>(true);
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto fakeQuantize = ov::as_type_ptr<ov::op::v0::FakeQuantize>(m.get_match_root());
-        if (!fakeQuantize) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        const auto conv_out = conv_mul_add_fq->get_anchor("convolution", pattern_map);
+        const auto mul_out = conv_mul_add_fq->get_anchor("multiply", pattern_map);
+        const auto add_out = conv_mul_add_fq->get_anchor("add", pattern_map);
+        const auto fq_out = conv_mul_add_fq->get_anchor("fake_quantize", pattern_map);
+        if (!conv_out || !mul_out || !add_out || !fq_out) {
             return false;
         }
-        const auto& pattern_map = m.get_pattern_value_map();
-        auto mul = pattern_map.at(multiply_m).get_node_shared_ptr();
-        auto conv = pattern_map.at(conv_m).get_node_shared_ptr();
+
+        auto fakeQuantize = ov::as_type_ptr<ov::op::v0::FakeQuantize>(fq_out->get_node_shared_ptr());
+        auto mul = mul_out->get_node_shared_ptr();
+        auto conv = conv_out->get_node_shared_ptr();
+        auto add = add_out->get_node_shared_ptr();
+        if (!fakeQuantize || !mul || !conv || !add) {
+            return false;
+        }
+
         if (fakeQuantize->get_output_element_type(0) != conv->get_input_element_type(0)) {
             return false;
         }
-        auto add = pattern_map.at(add_m).get_node_shared_ptr();
         auto new_mul = ov::as_type_ptr<ov::opset1::Multiply>(low_precision::NetworkHelper::swapMultiplyAndAdd(ov::as_type_ptr<ov::opset1::Add>(add), 0));
         if (!new_mul) {
             return false;
@@ -89,6 +79,6 @@ ov::intel_cpu::ConvertConvolutionBias::ConvertConvolutionBias() {
         return true;
     };
 
-    auto matcher = std::make_shared<pattern::Matcher>(fakeQuantize, "ConvertConvolutionBias");
+    auto matcher = std::make_shared<pattern::Matcher>(conv_mul_add_fq, "ConvertConvolutionBias");
     register_matcher(matcher, callback);
 }
