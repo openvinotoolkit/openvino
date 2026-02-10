@@ -86,10 +86,12 @@ TokenizeGatedMLPSnippets::TokenizeGatedMLPSnippets(const TokenizationConfig& con
     auto m_fc_gate = wrap_type<ov::op::v0::MatMul>({m_input, make_weights()}, fc_predicate(false));
     auto m_fc_up = wrap_type<ov::op::v0::MatMul>({m_input, make_weights()}, fc_predicate(false));
 
-    auto m_act_unary = wrap_type<UnaryElementwiseArithmetic, ov::op::v0::HardSigmoid, ov::op::v4::Swish>({m_fc_gate}, act_predicate());
+    auto m_act_unary =
+        wrap_type<UnaryElementwiseArithmetic, ov::op::v0::HardSigmoid, ov::op::v4::Swish>({m_fc_gate}, act_predicate());
     auto m_act_binary_scalar = wrap_type<ov::op::v0::Constant>(scalar_predicate());
     auto m_act_binary =
-        wrap_type<BinaryElementwiseArithmetic, ov::op::v0::PRelu, ov::op::v4::Swish>({m_fc_gate, m_act_binary_scalar}, act_predicate());
+        wrap_type<BinaryElementwiseArithmetic, ov::op::v0::PRelu, ov::op::v4::Swish>({m_fc_gate, m_act_binary_scalar},
+                                                                                     act_predicate());
     auto m_act = m_act_unary | m_act_binary;
 
     auto m_mul = wrap_type<ov::op::v1::Multiply>({m_act, m_fc_up}, consumers_count(1));
