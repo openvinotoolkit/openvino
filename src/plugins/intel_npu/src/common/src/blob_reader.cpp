@@ -34,19 +34,19 @@ std::shared_ptr<ISection> BlobReader::retrieve_section(const SectionID section_i
 
 void BlobReader::copy_data_from_source(char* destination, const size_t size) {
     m_cursor += size;
-    OPENVINO_ASSERT(m_cursor < m_npu_region_size);
+    OPENVINO_ASSERT(m_cursor <= m_npu_region_size);
     std::memcpy(destination, m_source.get().data<const char>() + m_cursor - size, size);
 }
 
 const void* BlobReader::interpret_data_from_source(const size_t size) {
     m_cursor += size;
-    OPENVINO_ASSERT(m_cursor < m_npu_region_size);
+    OPENVINO_ASSERT(m_cursor <= m_npu_region_size);
     return reinterpret_cast<const void*>(m_source.get().data<char>() + m_cursor - size);
 }
 
 ov::Tensor BlobReader::get_roi_tensor(const size_t size) {
     m_cursor += size;
-    OPENVINO_ASSERT(m_cursor < m_npu_region_size);
+    OPENVINO_ASSERT(m_cursor <= m_npu_region_size);
     return ov::Tensor(m_source, ov::Coordinate{m_cursor - size}, ov::Coordinate{m_cursor});
 }
 
@@ -55,7 +55,7 @@ size_t BlobReader::get_cursor_relative_position() {
 }
 
 void BlobReader::move_cursor_to_relative_position(const size_t offset) {
-    OPENVINO_ASSERT(offset < m_npu_region_size);
+    OPENVINO_ASSERT(offset <= m_npu_region_size);
     m_cursor = offset;
 }
 
@@ -102,6 +102,11 @@ void BlobReader::read(const std::unordered_map<CRE::Token, std::shared_ptr<ICapa
 
     size_t relative_offset;
     while (relative_offset = get_cursor_relative_position(), relative_offset < m_npu_region_size) {
+        if (relative_offset == offsets_table_location) {
+            move_cursor_to_relative_position(relative_offset + offsets_table_size);
+            continue;
+        }
+
         const std::optional<SectionID> section_id = m_offsets_table.lookup_section_id(relative_offset);
         OPENVINO_ASSERT(section_id.has_value(),
                         "Did not find any section corresponding to the relative offset ",
@@ -120,6 +125,8 @@ void BlobReader::read(const std::unordered_map<CRE::Token, std::shared_ptr<ICapa
 }
 
 size_t BlobReader::get_npu_region_size(std::istream& stream) {
+    const auto cursor_before_reading = stream.tellg();
+
     std::string magic_bytes(MAGIC_BYTES.size(), 0);
     stream.read(const_cast<char*>(magic_bytes.c_str()), MAGIC_BYTES.size());
     OPENVINO_ASSERT(magic_bytes == MAGIC_BYTES);
@@ -130,6 +137,7 @@ size_t BlobReader::get_npu_region_size(std::istream& stream) {
 
     uint64_t npu_region_size;
     stream.read(reinterpret_cast<char*>(&npu_region_size), sizeof(m_npu_region_size));
+    stream.seekg(cursor_before_reading);
 
     return npu_region_size;
 }
