@@ -41,6 +41,11 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 
+#if defined(OV_CPU_WITH_ACL)
+#    include "nodes/executors/executor.hpp"
+#    include "nodes/executors/split_list.hpp"
+#endif
+
 using namespace dnnl;
 
 namespace ov::intel_cpu::node {
@@ -95,6 +100,9 @@ Split::Split(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
         CPU_NODE_THROW("has invalid value of axis parameter: ", axis);
     }
     this->axis = axis;
+#if defined(OV_CPU_WITH_ACL)
+    splitAttrs.axis = static_cast<size_t>(axis);
+#endif
 }
 
 void Split::getSupportedDescriptors() {}
@@ -126,6 +134,70 @@ void Split::initSupportedPrimitiveDescriptors() {
 
     ov::element::Type inpPrecision = getOriginalInputPrecisionAtPort(0);
     const auto axisPrecision = ov::element::i32;
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+
+#if defined(OV_CPU_WITH_ACL)
+    if (!isDynamicNode()) {
+        const auto rank = srcShape.getRank();
+        if (rank > 0 && rank <= 4) {
+            auto pushAclDesc = [&](LayoutType layout) {
+                NodeConfig config;
+                config.inConfs.resize(INPUTS_NUM);
+                config.outConfs.resize(outputShapes.size());
+
+                config.inConfs[0].inPlace(-1);
+                config.inConfs[0].constant(false);
+                config.inConfs[0].setMemDesc(
+                    creatorsMap.at(layout)->createSharedDesc(inpPrecision, getInputShapeAtPort(0)));
+
+                config.inConfs[1].inPlace(-1);
+                config.inConfs[1].constant(true);
+                config.inConfs[1].setMemDesc(
+                    std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(VectorDims{1})));
+
+                if (INPUTS_NUM == 3) {
+                    config.inConfs[2].setMemDesc(
+                        std::make_shared<CpuBlockedMemoryDesc>(axisPrecision, Shape(VectorDims{outputShapes.size()})));
+                    config.inConfs[2].constant(constSplitLengths);
+                }
+
+                for (size_t i = 0; i < outputShapes.size(); i++) {
+                    config.outConfs[i].inPlace(-1);
+                    config.outConfs[i].constant(false);
+                    config.outConfs[i].setMemDesc(
+                        creatorsMap.at(layout)->createSharedDesc(inpPrecision, getOutputShapeAtPort(i)));
+                }
+
+                std::vector<MemoryDescPtr> srcMemoryDescs;
+                srcMemoryDescs.reserve(config.inConfs.size());
+                for (const auto& inConf : config.inConfs) {
+                    srcMemoryDescs.push_back(inConf.getMemDesc());
+                }
+                std::vector<MemoryDescPtr> dstMemoryDescs;
+                dstMemoryDescs.reserve(config.outConfs.size());
+                for (const auto& outConf : config.outConfs) {
+                    dstMemoryDescs.push_back(outConf.getMemDesc());
+                }
+
+                auto factory = std::make_shared<SplitExecutorFactory>(
+                    splitAttrs,
+                    srcMemoryDescs,
+                    dstMemoryDescs,
+                    std::make_shared<ExecutorContext>(context, getImplPriority()));
+                if (!factory->isEmpty()) {
+                    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::undef, factory);
+                }
+            };
+
+            pushAclDesc(LayoutType::nspc);
+            pushAclDesc(LayoutType::ncsp);
+            canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
+            if (canUseAclExecutor) {
+                return;
+            }
+        }
+    }
+#endif
 
     // Set plain and tailC formats
     std::vector<LayoutType> tdCreatorTypes{LayoutType::ncsp, LayoutType::nspc};
@@ -154,7 +226,6 @@ void Split::initSupportedPrimitiveDescriptors() {
 
     std::vector<size_t> pdIndexesToReuse;
 
-    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto itrRange =
         BlockedDescCreator::makeFilteredRange(creatorsMap, static_cast<unsigned>(srcShape.getRank()), tdCreatorTypes);
     for (auto itr = itrRange.first; itr != itrRange.second; ++itr) {
@@ -287,6 +358,27 @@ void Split::prepareParams() {
         splitLengths.assign(curSplitLengths, curSplitLengths + curLengthsSize);
     }
 
+#if defined(OV_CPU_WITH_ACL)
+    if (canUseAclExecutor) {
+        std::vector<MemoryDescPtr> srcMemoryDescs;
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            srcMemoryDescs.push_back(getSrcMemoryAtPort(i)->getDescPtr());
+        }
+        std::vector<MemoryDescPtr> dstMemoryDescs;
+        for (size_t i = 0; i < outputShapes.size(); ++i) {
+            dstMemoryDescs.push_back(getDstMemoryAtPort(i)->getDescPtr());
+        }
+
+        auto* selectedPD = getSelectedPrimitiveDescriptor();
+        aclExecPtr = selectedPD->getExecutorFactoryAs<SplitExecutorFactory>()->makeExecutor(splitAttrs,
+                                                                                            srcMemoryDescs,
+                                                                                            dstMemoryDescs,
+                                                                                            {});
+        selectedPD->setImplementationType(aclExecPtr->getImplType());
+        return;
+    }
+#endif
+
     dstMemPtrs.clear();
     std::vector<BlockedMemoryDescCPtr> outDescs;
     for (size_t port = 0; port < outputShapes.size(); ++port) {
@@ -322,6 +414,22 @@ void Split::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (isInPlace()) {
         return;
     }
+
+#if defined(OV_CPU_WITH_ACL)
+    if (aclExecPtr) {
+        std::vector<MemoryCPtr> srcVec;
+        for (size_t i = 0; i < getParentEdges().size(); ++i) {
+            srcVec.push_back(getSrcMemoryAtPort(i));
+        }
+        std::vector<MemoryPtr> dstVec;
+        dstVec.reserve(outputShapes.size());
+        for (size_t i = 0; i < outputShapes.size(); ++i) {
+            dstVec.push_back(getDstMemoryAtPort(i));
+        }
+        aclExecPtr->exec(srcVec, dstVec);
+        return;
+    }
+#endif
 
     CPU_NODE_ASSERT(!dstMemPtrs.empty(), "Output data pointers have not been initialized.");
 

@@ -17,6 +17,10 @@
 #include "node.h"
 #include "openvino/core/node.hpp"
 
+#if defined(OV_CPU_WITH_ACL)
+#    include "nodes/executors/split.hpp"
+#endif
+
 namespace ov::intel_cpu::node {
 
 class Split : public Node {
@@ -76,6 +80,12 @@ private:
     size_t INPUTS_NUM = 2;
     bool constSplitLengths = true;
     std::vector<int> splitLengths;
+
+#if defined(OV_CPU_WITH_ACL)
+    ov::intel_cpu::SplitAttrs splitAttrs;
+    bool canUseAclExecutor = false;
+    ov::intel_cpu::SplitExecutorPtr aclExecPtr = nullptr;
+#endif
 };
 
 }  // namespace ov::intel_cpu::node
