@@ -262,6 +262,24 @@ ov::Output<ov::Node> Input2DPositionIds::operator()() const {
     return param->output(0);
 }
 
+ov::Output<ov::Node> Input3DPositionIds::operator()() const {
+    // Create [3, batch, seq] parameter (Qwen2.5-VL m-rope format)
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{3, -1, -1});
+    param->set_friendly_name("position_ids");
+    param->output(0).set_names({"position_ids"});
+
+    // Extract section 0 -> [1, batch, seq] then squeeze to [batch, seq]
+    auto indices = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto gather = std::make_shared<ov::opset11::Gather>(param, indices, axis);
+
+    auto squeeze_axes = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto squeeze = std::make_shared<ov::opset11::Squeeze>(gather, squeeze_axes);
+    squeeze->set_friendly_name("position_ids_2d");
+
+    return squeeze->output(0);
+}
+
 // ============================================================================
 // Free Building-Block Functions
 // ============================================================================
@@ -1083,28 +1101,51 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     const auto prec = config.precision;
 
     // ===== LLM Inputs =====
-    auto input_ids = parameter(ov::element::i64, ov::PartialShape{-1, -1}, "input_ids");
     auto attention_mask = parameter(ov::element::i64, ov::PartialShape{-1, -1}, "attention_mask");
+
+    ov::Output<ov::Node> hidden_states;
+    ov::Output<ov::Node> seq_source;  // used for causal mask seq_len and KV cache batch dim
+
+    if (config.use_inputs_embeds) {
+        auto inputs_embeds = parameter(prec,
+                                       ov::PartialShape{-1, -1, static_cast<int64_t>(config.hidden_size)},
+                                       "inputs_embeds");
+        hidden_states = inputs_embeds->output(0);
+        seq_source = inputs_embeds->output(0);
+    } else {
+        auto input_ids = parameter(ov::element::i64, ov::PartialShape{-1, -1}, "input_ids");
+        hidden_states =
+            make_embedding(input_ids->output(0), config.vocab_size, config.hidden_size, "model.embed_tokens", prec);
+        seq_source = input_ids->output(0);
+    }
 
     ov::Output<ov::Node> position_ids_output;
     if (config.position_ids) {
         position_ids_output = config.position_ids();
-        // Auto-track if the functor created a Parameter node
-        auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(position_ids_output.get_node_shared_ptr());
-        if (param) {
-            m_parameters.push_back(param);
+        // Auto-track any Parameter nodes in the position_ids subgraph
+        // (may be the output itself, or upstream if the functor adds ops like Squeeze)
+        std::vector<ov::Node*> stack = {position_ids_output.get_node()};
+        std::set<ov::Node*> visited;
+        while (!stack.empty()) {
+            auto* node = stack.back();
+            stack.pop_back();
+            if (!visited.insert(node).second)
+                continue;
+            auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node->shared_from_this());
+            if (param) {
+                m_parameters.push_back(param);
+            }
+            for (size_t i = 0; i < node->get_input_size(); ++i) {
+                stack.push_back(node->get_input_node_ptr(i));
+            }
         }
     }
 
     // beam_idx is required for stateful models used with LLMPipeline
     auto beam_idx = parameter(ov::element::i32, ov::PartialShape{-1}, "beam_idx");
 
-    // ===== HEAD: Token Embedding =====
-    auto hidden_states =
-        make_embedding(input_ids->output(0), config.vocab_size, config.hidden_size, "model.embed_tokens", prec);
-
     // ===== Attention mask =====
-    auto sdpa_mask = make_causal_mask(input_ids->output(0), attention_mask->output(0), prec);
+    auto sdpa_mask = make_causal_mask(seq_source, attention_mask->output(0), prec);
 
     // ===== MIDDLE: Decoder Layers =====
     ov::Output<ov::Node> current = hidden_states;
@@ -1121,7 +1162,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
                           config.rope,
                           config.use_kv_cache,
                           position_ids_output,
-                          input_ids->output(0),
+                          seq_source,
                           beam_idx->output(0),
                           sdpa_mask,
                           layer};

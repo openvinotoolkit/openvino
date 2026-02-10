@@ -194,6 +194,13 @@ struct Input2DPositionIds {
     ov::Output<ov::Node> operator()() const;
 };
 
+/// 3D position_ids as a model input parameter: [3, batch, seq]
+/// Returns a 2D slice [batch, seq] (section 0) for downstream RoPE consumption.
+/// Matches Qwen2.5-VL's multi-rotary position encoding input shape.
+struct Input3DPositionIds {
+    ov::Output<ov::Node> operator()() const;
+};
+
 // ============================================================================
 // FFN functors
 // ============================================================================
@@ -354,6 +361,7 @@ struct LLMConfig {
     size_t num_layers = 2;
 
     bool use_kv_cache = true;
+    bool use_inputs_embeds = false;  ///< true = inputs_embeds parameter, false = input_ids + embedding
 
     ov::element::Type precision = ov::element::f32;
 
