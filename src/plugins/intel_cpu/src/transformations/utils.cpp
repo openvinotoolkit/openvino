@@ -19,7 +19,6 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
-#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
@@ -91,6 +90,24 @@ bool match_fq_mul_conv_bias_same_types(const std::shared_ptr<const ov::Node>& no
     auto conv = pattern_map.at((pattern == FQMulAddPattern::ConvMulAdd) ? convMulAdd_conv : convAddMul_conv);
 
     return conv.get_node_shared_ptr()->get_input_element_type(0) == node->get_output_element_type(0);
+}
+
+bool match_conv_fq_same_types(const std::shared_ptr<const ov::Node>& node) {
+    auto conv = wrap_type<ov::op::v1::Convolution>();
+    auto fq = wrap_type<ov::op::v0::FakeQuantize>({conv,
+                                                    any_input(),
+                                                    any_input(),
+                                                    any_input(),
+                                                    any_input()});
+    Matcher matcher(fq);
+    if (!matcher.match(std::const_pointer_cast<ov::Node>(node))) {
+        return false;
+    }
+
+    const auto& pattern_map = matcher.get_pattern_value_map();
+    const auto conv_node = pattern_map.at(conv).get_node_shared_ptr();
+
+    return conv_node->get_input_element_type(0) == node->get_output_element_type(0);
 }
 
 bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,

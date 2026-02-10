@@ -264,12 +264,6 @@ static OptimizedFormula updateOptimizedFormula(const FakeQuantizePostOp& postOp,
     DEBUG_LOG("\t outputScale=[", printable(outputScale), "]");
     DEBUG_LOG("\t outputShift=[", printable(outputShift), "]");
 
-    auto isPerTensor =
-        [](const std::vector<float>& v, float ref, const float zero_thr = std::numeric_limits<float>::min()) {
-            return std::all_of(v.cbegin(), v.cend(), [&](float val) {
-                return abs(val - ref) < zero_thr;
-            });
-        };
     size_t OC = std::max({inputScale.size(),
                           inputShift.size(),
                           cropLow.size(),
@@ -290,7 +284,7 @@ static OptimizedFormula updateOptimizedFormula(const FakeQuantizePostOp& postOp,
     //     per-channel input shift, this threshold was chosen carefully
     //     to recorver the per-Tensor nature w/o mistaking a real
     //     per-channel FQ.
-    if (isPerTensor(inputShift, inputShift[0], 0.00005F)) {
+    if (isPerTensorDataWithTolerance(inputShift, 0.00005F)) {
         f.ish.resize(OC);
         for (auto& v : f.ish) {
             v = inputShift[0];
@@ -583,8 +577,8 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLa
             if (wei_scale_mask == 0) {
                 wei_scale_values.resize(scale.size(), wei_scale_values[0]);
             } else {
-                OPENVINO_ASSERT(wei_scale_values.size() == OC);
-            }
+            OPENVINO_ASSERT(wei_scale_values.size() == OC);
+        }
 
             for (Dim j = 0; j < OC; j++) {
                 wei_scale_values[j] *= scale[j];

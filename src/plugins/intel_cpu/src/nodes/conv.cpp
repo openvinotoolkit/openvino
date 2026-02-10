@@ -569,10 +569,14 @@ bool Convolution::canFuse(const NodePtr& node) const {
         return false;
     }
 
-    // u8 FakeQuantize should not be fused into convolution with i8 input
-    if (node->getType() == Type::FakeQuantize &&
-        node->getOriginalOutputPrecisionAtPort(0) != getOriginalInputPrecisionAtPort(0)) {
-        return false;
+    // Keep signed/unsigned low-precision domains consistent for already-quantized activations.
+    // For fp32 activation path, allow FQ fusion so ACL int8/u8 convolution can still be selected.
+    if (node->getType() == Type::FakeQuantize) {
+        const auto fqOutPrc = node->getOriginalOutputPrecisionAtPort(0);
+        const auto convInPrc = getOriginalInputPrecisionAtPort(0);
+        if (any_of(convInPrc, ov::element::u8, ov::element::i8) && fqOutPrc != convInPrc) {
+            return false;
+        }
     }
 #endif
     return canFuseSimpleOperation(node);

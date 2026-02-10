@@ -1684,7 +1684,8 @@ void Transformations::PostSnippets() {
                 ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
                 // int8 ACL Convolution executor supports only same activation and output types
                 // if types are different, decompose FQ to avoid reference FQ
-                return match_fq_mul_conv_bias_same_types(node, FQMulAddPattern::ConvAddMul);
+                return match_conv_fq_same_types(node) ||
+                       match_fq_mul_conv_bias_same_types(node, FQMulAddPattern::ConvAddMul);
             }
             return false;
         },

@@ -14,6 +14,7 @@
 
 #include <any>
 #include <cmath>
+#include <limits>
 #include <memory>
 
 #include "acl_utils.hpp"
@@ -21,6 +22,7 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/executors/acl/acl_common_executor.hpp"
+#include "nodes/executors/common/common_utils.hpp"
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/executor.hpp"
@@ -76,6 +78,28 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
             fqInputShift = fq->inputShift();
             fqOutputScale = fq->outputScale();
             fqOutputShift = fq->outputShift();
+
+            // ACL destination quantization supports only per-tensor scale/shift.
+            // For per-channel FQ input scales, move channel-wise ratios to weights scales.
+            if (fqInputScale.size() > 1) {
+                const auto baseScale = fqInputScale.front();
+                const bool hasValidBaseScale = std::fabs(baseScale) > std::numeric_limits<float>::epsilon();
+                const bool hasUniformShift = isPerTensorDataWithTolerance(fqInputShift, 0.00005F);
+
+                if (hasValidBaseScale && hasUniformShift) {
+                    std::vector<float> scaleRatios(fqInputScale.size(), 1.0f);
+                    for (size_t i = 0; i < fqInputScale.size(); i++) {
+                        scaleRatios[i] = fqInputScale[i] / baseScale;
+                    }
+
+                    multiplyAndBroadcastScales(weightScale, scaleRatios, fqInputScale.size());
+                    fqInputScale = {baseScale};
+                    if (fqInputShift.size() > 1) {
+                        fqInputShift = {fqInputShift.front()};
+                    }
+                }
+            }
+
             if (fqOutputScale.size() == 1 && fqOutputScale[0] == 1.0F && fqOutputShift.size() == 1 &&
                 fqOutputShift[0] == std::trunc(fqOutputShift[0])) {
                 for (auto& v : fqInputShift) {

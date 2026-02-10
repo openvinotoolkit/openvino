@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include "openvino/core/model.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/strides.hpp"
@@ -21,9 +23,11 @@ namespace ov::intel_cpu {
 template <class T>
 bool match_conv_mul_add_fq(const std::shared_ptr<const ov::Node>& node);
 
-enum class FQMulAddPattern { ConvMulAdd, ConvAddMul };
+enum class FQMulAddPattern : std::uint8_t { ConvMulAdd, ConvAddMul };
 
 bool match_fq_mul_conv_bias_same_types(const std::shared_ptr<const ov::Node>& node, FQMulAddPattern pattern);
+
+bool match_conv_fq_same_types(const std::shared_ptr<const ov::Node>& node);
 
 bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
                                    const std::vector<int64_t>& strides,
