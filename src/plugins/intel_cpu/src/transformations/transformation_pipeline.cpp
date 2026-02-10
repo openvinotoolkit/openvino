@@ -133,10 +133,12 @@
 #include "utils/ngraph_transformation.hpp"
 
 // LPT transformations
+#include "low_precision/add.hpp"
 #include "low_precision/convert_subtract_constant.hpp"
 #include "low_precision/low_precision.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include "low_precision/network_helper.hpp"
+#include "low_precision/rt_info/bias_attribute.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 // CPU specific transformations
@@ -168,11 +170,6 @@
 
 #if defined(OPENVINO_ARCH_X86)
 #    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
-#endif
-
-#if !defined(OPENVINO_ARCH_RISCV64)
-#    include "low_precision/add.hpp"
-#    include "low_precision/rt_info/bias_attribute.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64)
@@ -983,12 +980,14 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         },
         ConvolutionTransformation);
 
+#if !defined(OPENVINO_ARCH_RISCV64)
     CPU_SET_CALLBACK_COMMON(
         lptManager,
         [](const_node_ptr& node) -> bool {
             return ov::marked_as_bias(node);
         },
         AddTransformation);
+#endif
     CPU_SET_CALLBACK_ARM(
         lptManager,
         [](const_node_ptr& node) -> bool {
