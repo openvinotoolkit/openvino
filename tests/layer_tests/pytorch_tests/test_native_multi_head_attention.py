@@ -42,7 +42,7 @@ class aten_native_multi_head_attention(torch.nn.Module):
             self.mask_type = 2
         else:
             self.mask = None
-            self.mask_type = None
+            self.mask_type = NO_MASK
 
         print(self.mask)
 
