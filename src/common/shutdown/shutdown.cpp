@@ -9,8 +9,10 @@
 namespace ov {
 
 class ShutdownRegistry {
+private:
+    std::vector<std::function<void()>> m_callbacks;
+    ShutdownRegistry() = default;
 public:
-    std::vector<std::function<void()>> _callbacks;
 
     static ShutdownRegistry& get() {
         static ShutdownRegistry instance;
@@ -21,15 +23,15 @@ public:
         if (!func) {
             return false;
         }
-        _callbacks.emplace_back(func);
+        m_callbacks.emplace_back(func);
         return true;
     }
 
     ~ShutdownRegistry() {
-        for (auto& func : _callbacks) {
+        for (auto& func : m_callbacks) {
             func();
         }
-        _callbacks.clear();
+        m_callbacks.clear();
     }
 };
 
