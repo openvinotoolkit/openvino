@@ -190,7 +190,7 @@ void quant_u8(const T* src, uint8_t* dst, size_t n, float& scale, float& zp) {
 #ifdef __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
         // For FP16 in ARM we use FP16 accumulator
         if constexpr (std::is_same_v<T, ov::float16>) {
-            scale = 0.05f;
+            scale = std::max(0.05f, std::abs(min) / 65504.0f);
         }
 #endif
     }
