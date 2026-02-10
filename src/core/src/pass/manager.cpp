@@ -371,7 +371,7 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
 
 // For the current testing, once the run_pass() function changes, we need
 // to change ValidateTestManager::run_pass() in src/core/tests/pass_manager.cpp too.
-// It's dirty, but there's no native way of counting exectued passes.
+// It's dirty, but there's no native way of counting executed passes.
 bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass, const std::shared_ptr<Model>& model) {
     if (m_pass_config->is_disabled(pass->get_type_info())) {
         OPENVINO_DEBUG("Pass ", pass->get_name(), " is disabled.");
