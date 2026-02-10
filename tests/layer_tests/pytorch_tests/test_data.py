@@ -36,14 +36,12 @@ class TestPrimData(PytorchLayerTest):
     def test_data_basic(self, shape, dtype, ie_device, precision, ir_version):
         self.shape = shape
         self.dtype = dtype
-        self.seed = 0
         self._test(Model(), "prim::data", ie_device, precision, ir_version)
 
     @pytest.mark.parametrize("dtype", [torch.float32, torch.int32])
     def test_data_requires_grad(self, dtype, ie_device, precision, ir_version):
         self.shape = (3, 2)
         self.dtype = dtype
-        self.seed = 1
         self._test(ModelGrad(), "prim::data", ie_device, precision, ir_version)
 
     @pytest.mark.parametrize("dtype", [torch.complex64, torch.complex128])
@@ -55,7 +53,6 @@ class TestPrimData(PytorchLayerTest):
     def test_data_complex(self, shape, dtype, ie_device, precision, ir_version):
         self.shape = shape
         self.dtype = dtype
-        self.seed = 2
         self._test(Model(), "prim::data", ie_device, precision, ir_version)
 
     @pytest.mark.parametrize("dtype", [torch.complex64, torch.complex128])
@@ -66,5 +63,4 @@ class TestPrimData(PytorchLayerTest):
     def test_data_complex_requires_grad(self, dtype, ie_device, precision, ir_version):
         self.shape = (2, 3)
         self.dtype = dtype
-        self.seed = 3
         self._test(ModelGrad(), "prim::data", ie_device, precision, ir_version)

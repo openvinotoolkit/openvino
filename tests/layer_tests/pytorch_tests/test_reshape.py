@@ -13,7 +13,7 @@ class TestReshape(PytorchLayerTest):
         shape = (1, 12, 12, 24)
         if complex_type:
             shape += (2,)
-        return (self.random.uniform(0, 50, shape, dtype=np.float32))
+        return (self.random.uniform(0, 50, shape, dtype=np.float32),)
 
     def create_model(self, shape, complex_type):
         import torch
