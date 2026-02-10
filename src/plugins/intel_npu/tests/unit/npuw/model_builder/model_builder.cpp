@@ -161,45 +161,6 @@ RoPEEmbeddings gather_rope_embeddings(size_t head_dim,
     return {cos_unsqueezed->output(0), sin_unsqueezed->output(0)};
 }
 
-ov::Output<ov::Node> HalfRotationRoPE::operator()(const ov::Output<ov::Node>& input,
-                                                  const ov::Output<ov::Node>& position_ids,
-                                                  const std::string& name) const {
-    auto [cos, sin] = gather_rope_embeddings(head_dim, max_position, precision, position_ids, name);
-
-    const int64_t half = static_cast<int64_t>(head_dim / 2);
-    auto zero = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {0});
-    auto half_const = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {half});
-    auto head_dim_const =
-        ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(head_dim)});
-    auto last_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
-    auto step = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1});
-
-    auto x1 = std::make_shared<ov::op::v8::Slice>(input, zero, half_const, step, last_axis);
-    x1->set_friendly_name(name + "_x1");
-
-    auto x2 = std::make_shared<ov::op::v8::Slice>(input, half_const, head_dim_const, step, last_axis);
-    x2->set_friendly_name(name + "_x2");
-
-    auto neg_one = ov::opset11::Constant::create(precision, ov::Shape{}, {-1.0f});
-
-    auto neg_x2 = std::make_shared<ov::opset11::Multiply>(x2, neg_one);
-    neg_x2->set_friendly_name(name + "_neg_x2");
-
-    auto rotated = std::make_shared<ov::opset11::Concat>(ov::OutputVector{neg_x2, x1}, -1);
-    rotated->set_friendly_name(name + "_rotated");
-
-    auto input_cos = std::make_shared<ov::opset11::Multiply>(input, cos);
-    input_cos->set_friendly_name(name + "_input_cos");
-
-    auto rotated_sin = std::make_shared<ov::opset11::Multiply>(rotated, sin);
-    rotated_sin->set_friendly_name(name + "_rotated_sin");
-
-    auto output = std::make_shared<ov::opset11::Add>(input_cos, rotated_sin);
-    output->set_friendly_name(name);
-
-    return output->output(0);
-}
-
 ov::Output<ov::Node> InterleavedRoPE::operator()(const ov::Output<ov::Node>& input,
                                                  const ov::Output<ov::Node>& position_ids,
                                                  const std::string& name) const {
@@ -1094,7 +1055,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     if (!config.norm)
         config.norm = LayerNorm(config.hidden_size, config.precision);
     if (config.position_ids && !config.rope)
-        config.rope = HalfRotationRoPE(config.head_dim, 2048, config.precision);
+        config.rope = InterleavedRoPE(config.head_dim, 2048, config.precision);
     if (!config.ffn)
         config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, config.precision, config.weight);
 

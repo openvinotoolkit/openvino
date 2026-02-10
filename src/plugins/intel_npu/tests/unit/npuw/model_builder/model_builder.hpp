@@ -135,22 +135,6 @@ struct RMSNorm {
 // RoPE functors
 // ============================================================================
 
-/// Half-rotation RoPE: split in half, rotate each half
-struct HalfRotationRoPE {
-    size_t head_dim;
-    size_t max_position;
-    ov::element::Type precision;
-
-    HalfRotationRoPE(size_t hd, size_t mp, ov::element::Type prec = ov::element::f32)
-        : head_dim(hd),
-          max_position(mp),
-          precision(prec) {}
-
-    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input,
-                                    const ov::Output<ov::Node>& position_ids,
-                                    const std::string& name) const;
-};
-
 /// Interleaved RoPE: interleave odd/even elements
 struct InterleavedRoPE {
     size_t head_dim;
@@ -178,7 +162,7 @@ struct RoPEEmbeddings {
 };
 
 /// Create cos/sin embedding tables, gather by position_ids, and unsqueeze for broadcast.
-/// Shared preamble used by both HalfRotationRoPE and InterleavedRoPE.
+/// Shared preamble for RoPE: create cos/sin tables, gather, unsqueeze.
 RoPEEmbeddings gather_rope_embeddings(size_t head_dim,
                                       size_t max_position,
                                       ov::element::Type precision,
