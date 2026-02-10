@@ -69,7 +69,7 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
         std::shared_ptr<ov::Model> model;
 
         if (ov::js::validate<Napi::String, Napi::String>(info, allowed_signatures)) {
-            model = _core.read_model(info[0].ToString(), info[1].ToString());
+            model = _core.read_model(info[0].ToString().Utf8Value(), info[1].ToString().Utf8Value());
         } else if (ov::js::validate<Napi::Buffer<uint8_t>, Napi::Buffer<uint8_t>>(info, allowed_signatures)) {
             std::string model_str = buffer_to_string(info[0]);
 
@@ -87,7 +87,7 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
 
             model = _core.read_model(model_str, weight_tensor);
         } else if (ov::js::validate<Napi::String>(info, allowed_signatures)) {
-            model = _core.read_model(info[0].ToString());
+            model = _core.read_model(info[0].ToString().Utf8Value());
         } else if (ov::js::validate<Napi::String, TensorWrap>(info, allowed_signatures)) {
             model = _core.read_model(info[0].ToString(), cast_to_tensor(info, 1));
         } else {
@@ -97,6 +97,10 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
 
         return cpp_to_js(info.Env(), model);
     } catch (std::runtime_error& err) {
+        reportError(info.Env(), err.what());
+
+        return info.Env().Undefined();
+    } catch (std::exception& err) {
         reportError(info.Env(), err.what());
 
         return info.Env().Undefined();
