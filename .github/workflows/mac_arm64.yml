@@ -1,4 +1,4 @@
-name: macOS ARM64 (mac-14, Python 3.11)
+name: macOS ARM64 (mac-15, Python 3.11)
 on:
   workflow_dispatch:
     inputs:
@@ -76,7 +76,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: 'macos-14-xlarge'
+    runs-on: 'macos-15-xlarge'
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
@@ -380,7 +380,7 @@ jobs:
     if: ${{ github.event_name != 'push' || github.ref_name != 'master' }}
     uses: ./.github/workflows/job_samples_tests.yml
     with:
-      runner: 'macos-14'
+      runner: 'macos-15'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   JS_API:
@@ -389,14 +389,14 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API && (github.event_name != 'push' || github.ref_name != 'master')
     uses: ./.github/workflows/job_openvino_js.yml
     with:
-      runner: 'macos-14'
+      runner: 'macos-15'
 
   Openvino_tokenizers:
     name: OpenVINO tokenizers extension
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_tokenizers.yml
     with:
-      runner: 'macos-14'
+      runner: 'macos-15'
       shell: bash
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
@@ -408,7 +408,7 @@ jobs:
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
-      runner: 'macos-14'
+      runner: 'macos-15'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'mac_13'
 
@@ -418,7 +418,7 @@ jobs:
     if: ${{ github.event_name != 'push' || github.ref_name != 'master' }}
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
-      runner: 'macos-14'
+      runner: 'macos-15'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
@@ -432,7 +432,7 @@ jobs:
       matrix:
         python-version: [ '3.10', '3.11', '3.12', '3.13', '3.14', '3.14t' ]
     with:
-      runner: 'macos-14'
+      runner: 'macos-15'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: ${{ matrix.python-version }}
 
@@ -442,7 +442,7 @@ jobs:
     if: ${{ github.event_name != 'push' || github.ref_name != 'master' }}
     uses: ./.github/workflows/job_tensorflow_layer_tests.yml
     with:
-      runner: 'macos-14'
+      runner: 'macos-15'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
@@ -452,7 +452,7 @@ jobs:
     if: ${{ github.event_name != 'push' || github.ref_name != 'master' }}
     uses: ./.github/workflows/job_pytorch_layer_tests.yml
     with:
-      runner: 'macos-14'
+      runner: 'macos-15'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
@@ -462,7 +462,7 @@ jobs:
     if: ${{ github.event_name != 'push' || github.ref_name != 'master' }}
     uses: ./.github/workflows/job_pytorch_fx_layer_tests.yml
     with:
-      runner: 'macos-14'
+      runner: 'macos-15'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
@@ -472,7 +472,7 @@ jobs:
     if: ${{ github.event_name != 'push' || github.ref_name != 'master' }}
     uses: ./.github/workflows/job_jax_layer_tests.yml
     with:
-      runner: 'macos-14'
+      runner: 'macos-15'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
@@ -482,7 +482,7 @@ jobs:
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
-      runner: 'macos-14'
+      runner: 'macos-15'
       python-version: '3.11'
       scope: ${{ contains(fromJSON('["schedule", "workflow_dispatch"]'), github.event_name)  && 'nightly' || 'smoke' }}
 
