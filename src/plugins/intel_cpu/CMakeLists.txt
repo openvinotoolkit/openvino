@@ -182,15 +182,9 @@ if(NOT X86_64)
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/tpp/x64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/x64/*)
-endif()
-
-if (AARCH64)
-    # this directory is reused on RISCV64
-    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/x64/*)
-else()
-    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/kleidiai/*)
 endif()
 
 if(NOT (AARCH64 OR ARM))
@@ -207,7 +201,8 @@ endif()
 
 if(NOT AARCH64)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/aarch64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/aarch64/*)
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/aarch64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/kleidiai/*)
 endif()
 
 if (NOT RISCV64)
