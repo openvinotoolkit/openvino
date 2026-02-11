@@ -317,7 +317,11 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
 
         // First convolution with weight DQ
-        auto weight1 = build_dq_subgraph(ov::element::i8, ov::Shape{32, 3, 3, 3}, 0.01f, 0, 1);
+        // zp=-128 shifts i8 range to [0, 255] → all-positive DQ weights,
+        // avoiding u16 FQ clamping at input_low=0 which causes large errors with mixed-sign weights.
+        // scale=0.003 produces DQ values up to ~0.765, large enough to cause f16 overflow
+        // after y_scale=10 FQ, validating the scale adjustment logic.
+        auto weight1 = build_dq_subgraph(ov::element::i8, ov::Shape{32, 3, 3, 3}, 0.003f, -128, 1);
         auto conv1 = std::make_shared<ov::op::v1::Convolution>(params[0],
                                                                weight1,
                                                                ov::Strides{1, 1},
@@ -350,7 +354,7 @@ protected:
             // Left branch: MVN -> Conv
             auto mvn = std::make_shared<ov::op::v6::MVN>(input, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
 
-            auto weight = build_dq_subgraph(ov::element::i8, ov::Shape{32, 32, 3, 3}, 0.01f, 0, seed);
+            auto weight = build_dq_subgraph(ov::element::i8, ov::Shape{32, 32, 3, 3}, 0.003f, -128, seed);
             auto conv = std::make_shared<ov::op::v1::Convolution>(mvn,
                                                                   weight,
                                                                   ov::Strides{1, 1},
@@ -390,16 +394,19 @@ protected:
         inType = outType = input_precision;
 
         // abs_threshold rationale:
-        // - NeedScaling* patterns cause f16 overflow without scale adjustment.
-        //   MulMatMul and ResidualBlock use Softmax which is exponentially sensitive to FQ rounding,
+        // - NeedScalingMulMatMul uses Softmax (exponentially sensitive to FQ rounding),
         //   so abs_threshold=1 validates "no NaN" rather than exact f32 match.
-        // - NeedScalingMatMulWithBias uses MVN (linearly sensitive) and y_scale=4 (FQ step=4),
+        // - NeedScalingResidualBlock uses MVN (linearly sensitive) with all-positive
+        //   weights (zp=-128) and y_scale=10 (FQ step=10), giving moderate FQ error.
+        // - NeedScalingMatMulWithBias uses MVN with y_scale=4 (FQ step=4),
         //   so FQ error is small relative to signal (~17000), allowing tight accuracy.
-        // - SharedDQ pattern doesn't cause overflow, so default threshold is fine.
-        abs_threshold = 1;
-
+        // - SharedDQ uses Softmax, so threshold matches MulMatMul.
         if (pattern_type == PatternType::NeedScalingMatMulWithBias) {
             abs_threshold = 0.05;
+        } else if (pattern_type == PatternType::NeedScalingResidualBlock) {
+            abs_threshold = 0.05;
+        } else {
+            abs_threshold = 1;
         }
 
         // Force f16 inference precision to test FQTransformation scales adjustment (preventing overflow in f16 scenarios).
