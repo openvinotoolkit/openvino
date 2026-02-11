@@ -17,68 +17,25 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-// Customize a model with a dynamic shape
-std::string MaxPoolModelXmlString = R"V0G0N(<?xml version="1.0"?>
-        <net name="MaxPool" version="11">
-                <layers>
-                        <layer id="0" name="input1" type="Parameter" version="opset1">
-                                <data shape="1,1,384,1024" element_type="f32" />
-                                <rt_info>
-                                        <attribute name="fused_names" version="0" value="input1" />
-                                </rt_info>
-                                <output>
-                                        <port id="0" precision="FP32" names="input1">
-                                                <dim>1</dim>
-                                                <dim>1</dim>
-                                                <dim>384</dim>
-                                                <dim>1024</dim>
-                                        </port>
-                                </output>
-                        </layer>
-                        <layer id="1" name="MaxPool_2" type="MaxPool" version="opset1">
-                                <data strides="1, 1" pads_begin="0, 0" pads_end="0, 0" kernel="1, 1" rounding_type="floor" auto_pad="explicit" />
-                                <rt_info>
-                                        <attribute name="fused_names" version="0" value="MaxPool_2" />
-                                </rt_info>
-                                <input>
-                                        <port id="0" precision="FP32">
-                                                <dim>1</dim>
-                                                <dim>1</dim>
-                                                <dim>384</dim>
-                                                <dim>1024</dim>
-                                        </port>
-                                </input>
-                                <output>
-                                        <port id="1" precision="FP32">
-                                                <dim>1</dim>
-                                                <dim>1</dim>
-                                                <dim>384</dim>
-                                                <dim>1024</dim>
-                                        </port>
-                                </output>
-                        </layer>
-                        <layer id="2" name="output" type="Result" version="opset1">
-                                <rt_info>
-                                        <attribute name="fused_names" version="0" value="output" />
-                                </rt_info>
-                                <input>
-                                        <port id="0" precision="FP32">
-                                                <dim>1</dim>
-                                                <dim>1</dim>
-                                                <dim>384</dim>
-                                                <dim>1024</dim>
-                                        </port>
-                                </input>
-                        </layer>
-                </layers>
-                <edges>
-                        <edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
-                        <edge from-layer="1" from-port="1" to-layer="2" to-port="0" />
-                </edges>
-                <rt_info />
-        </net>
+inline std::shared_ptr<ov::Model> createMaxPoolModel() {
+    auto input =
+        std::make_shared<ov::op::v0::Parameter>(element::f16, PartialShape{1, 16, ov::Dimension(10, 720), 1280});
+    input->set_friendly_name("input1");
 
-        )V0G0N";
+    auto maxpool = std::make_shared<ov::op::v1::MaxPool>(input,
+                                                         Strides{1, 1},
+                                                         Shape{0, 0},
+                                                         Shape{0, 0},
+                                                         Shape{1, 1},
+                                                         op::RoundingType::FLOOR,
+                                                         op::PadType::EXPLICIT);
+    maxpool->set_friendly_name("MaxPool_2");
+
+    auto result = std::make_shared<ov::op::v0::Result>(maxpool);
+    result->set_friendly_name("output");
+
+    return std::make_shared<Model>(ResultVector{result}, ParameterVector{input}, "MaxPool");
+}
 
 using InferWithHostCompileParams = std::tuple<std::string,  // Device name
                                               ov::AnyMap    // Config
@@ -123,20 +80,7 @@ protected:
 TEST_P(InferWithHostCompileTests, CompileAndImport) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    auto dynamicShapeModel = core->read_model(MaxPoolModelXmlString, ov::Tensor());
-    dynamicShapeModel->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
-
-    auto preprocessor = ov::preprocess::PrePostProcessor(dynamicShapeModel);
-    const auto inputs = dynamicShapeModel->inputs();
-    const auto outputs = dynamicShapeModel->outputs();
-
-    for (size_t i = 0; i < inputs.size(); i++) {
-        preprocessor.input(i).tensor().set_element_type(ov::element::f16);
-    }
-    for (size_t i = 0; i < outputs.size(); i++) {
-        preprocessor.output(i).tensor().set_element_type(ov::element::f16);
-    }
-    auto model = preprocessor.build();
+    auto model = createMaxPoolModel();
 
     ov::CompiledModel compiledModel;
     // Compilation shall pass since load of npu_mlir_runtime is deffered with NPU_CREATE_EXECUTOR=0

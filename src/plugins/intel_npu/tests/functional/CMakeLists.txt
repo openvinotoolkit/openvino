@@ -24,7 +24,7 @@ list(APPEND OPTIONAL_FUNC_TESTS_INCLUDES
 
 if(NOT ENABLE_NPU_DEBUG_CAPS)
     list(APPEND EXCLUDED_FUNC_TESTS_DIR
-        "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/stests/functional/internal/dynamic_host_pipeline"
+        "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/functional/internal/dynamic_host_pipeline"
     )
 endif()
 
