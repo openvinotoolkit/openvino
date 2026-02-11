@@ -70,11 +70,11 @@ bool is_fill_from_vector_buffer(const ExpressionPtr& expr) {
 }
 
 bool is_supported_accumulation(const ExpressionPtr& accumulation_expr) {
-    return accumulation_expr && ov::is_type_any_of<ov::op::v1::Maximum, ov::op::v1::Add>(accumulation_expr->get_node());
+    return ov::is_type_any_of<ov::op::v1::Maximum, ov::op::v1::Add>(accumulation_expr->get_node());
 }
 
 std::optional<size_t> find_data_input_port_idx(const ExpressionPtr& accumulation_expr) {
-    if (!accumulation_expr || accumulation_expr->get_input_count() != 2) {
+    if (accumulation_expr->get_input_count() != 2) {
         return std::nullopt;
     }
     const auto input0_is_initial_fill = is_fill_from_vector_buffer(accumulation_expr->get_input_expr_ptr(0));
@@ -104,20 +104,15 @@ public:
         OPENVINO_ASSERT(begin != end, "InsertTailFill expects non-empty range.");
         const auto& loop_end = ov::as_type_ptr<op::LoopEnd>(end->get()->get_node());
         OPENVINO_ASSERT(loop_end, "InsertTailFill expected LoopEnd node in iterator `end`.");
-        const auto& loop_info = linear_ir.get_loop_manager()->get_loop_info<ExpandedLoopInfo>(loop_end->get_id());
-        const auto& output_ports = loop_info->get_output_ports();
-        const auto accumulation_output_it =
-            std::find_if(output_ports.begin(), output_ports.end(), [](const LoopPort& output_loop_port) {
-                const auto& accumulation_expr = output_loop_port.get_expr_port()->get_expr();
-                return is_supported_accumulation(accumulation_expr) &&
-                       find_data_input_port_idx(accumulation_expr).has_value();
-            });
-        OPENVINO_ASSERT(accumulation_output_it != output_ports.end(),
-                        "InsertTailFill failed to find accumulation output port with Fill(VectorBuffer) input.");
-        const auto& accumulation_expr = accumulation_output_it->get_expr_port()->get_expr();
+        const auto accumulation_it = std::find_if(begin, end, [](const ExpressionPtr& expr) {
+            return is_supported_accumulation(expr) && find_data_input_port_idx(expr).has_value();
+        });
+        OPENVINO_ASSERT(accumulation_it != end,
+                        "InsertTailFill failed to find accumulation expression with Fill(VectorBuffer) input in "
+                        "[begin, end) range.");
+        const auto& accumulation_expr = *accumulation_it;
         const auto data_input_port_idx = get_data_input_port_idx(accumulation_expr);
         const auto accumulation_input_port = accumulation_expr->get_input_port(data_input_port_idx);
-        const auto accumulation_it = linear_ir.find(begin, end, accumulation_expr);
 
         const auto source = accumulation_expr->get_input_port_connector(data_input_port_idx)->get_source();
         const auto source_output = source.get_expr()->get_node()->output(source.get_index());
