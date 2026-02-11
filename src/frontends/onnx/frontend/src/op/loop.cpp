@@ -338,20 +338,22 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
         }
     }
 
-    // Allow mismatch to keep conversion going for sequence-carry patterns; map only the available dependencies.
+    // Sequence-carry patterns may produce more state parameters than carried dependencies;
+    // map only the available pairs.
+    const auto mapped = std::min(state_parameters.size(), loop_carried_dependencies.size());
 
     // Infer loop body inputs' element type based on carried dependencies
-    for (size_t i = 0; i < loop_carried_dependencies.size(); i++) {
+    for (size_t i = 0; i < mapped; i++) {
         state_parameters[i]->set_element_type(loop_carried_dependencies[i].get_element_type());
         state_parameters[i]->set_partial_shape(loop_carried_dependencies[i].get_partial_shape());
     }
 
     CHECK_VALID_NODE(node,
-                     body_outputs.size() >= loop_carried_dependencies.size() + 1,
+                     body_outputs.size() >= state_parameters.size() + 1,
                      "The provided loop body graph outputs size (",
                      body_outputs.size(),
                      ") is not greater than number of outputs. Required at least: ",
-                     loop_carried_dependencies.size() + 1);
+                     state_parameters.size() + 1);
 
     ov::ParameterVector body_params;
     body_params.push_back(iteration_param);
@@ -378,17 +380,14 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
 
     // Set-up loop carried dependencies and final output values
     ov::OutputVector final_values;
-    const auto mapped = std::min(state_parameters.size(), loop_carried_dependencies.size());
     for (size_t i = 0; i < mapped; ++i) {
         loop->set_merged_input(*body_inputs_it++, loop_carried_dependencies[i], *body_outputs_it);
         final_values.push_back(loop->get_iter_value(*body_outputs_it++, -1));
     }
-    // Skip extra state parameters if present
-    if (body_outputs_it != body_outputs.end()) {
-        std::advance(body_outputs_it,
-                     state_parameters.size() > loop_carried_dependencies.size()
-                         ? state_parameters.size() - loop_carried_dependencies.size()
-                         : 0);
+    // Skip body outputs corresponding to extra state parameters (not backed by carried dependencies)
+    if (state_parameters.size() > loop_carried_dependencies.size()) {
+        const auto extra_params = state_parameters.size() - loop_carried_dependencies.size();
+        std::advance(body_outputs_it, extra_params);
     }
 
     for (const auto& [param, value] : invariant_inputs) {

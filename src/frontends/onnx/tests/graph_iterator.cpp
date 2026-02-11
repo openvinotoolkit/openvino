@@ -325,3 +325,65 @@ TEST(FrontEndGraphIteratorTest, topological_sort_loop_with_unsorted_graph) {
     test_case.add_expected_output<float>(ov::Shape{3, 1, 2}, {4.f, 4.f, 8.f, 8.f, 12.f, 12.f});  // a_values
     test_case.run();
 }
+
+// Helper to load and convert an ONNX model via the graph iterator path.
+static std::shared_ptr<ov::Model> load_and_convert(const std::string& rel_model_path) {
+    const auto model_path =
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, rel_model_path});
+    auto frontend = ov::frontend::FrontEndManager().load_by_framework("onnx");
+    auto input_model = frontend->load(model_path);
+    return frontend->convert(input_model);
+}
+
+// --- Topological sort edge-case tests ---
+
+// Linear chain in reverse order — sort must completely reorder.
+TEST(FrontEndGraphIteratorTest, topological_sort_reverse_chain) {
+    if (!ov::frontend::onnx::tests::is_graph_iterator_enabled()) {
+        GTEST_SKIP() << "This test requires GraphIterator (ONNX_ITERATOR=1)";
+    }
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = load_and_convert("topological_sort/reverse_chain.onnx"));
+    ASSERT_NE(model, nullptr);
+
+    // Y = Neg(Abs(Relu(X))). With X=[-2, 3, -1]:
+    //   Relu -> [0, 3, 0], Abs -> [0, 3, 0], Neg -> [0, -3, 0]
+    ov::test::TestCase test_case(model);
+    test_case.add_input<float>({-2.f, 3.f, -1.f});
+    test_case.add_expected_output<float>(ov::Shape{3}, {0.f, -3.f, 0.f});
+    test_case.run();
+}
+
+// Diamond pattern (unsorted) — multiple valid orderings exist.
+TEST(FrontEndGraphIteratorTest, topological_sort_diamond_unsorted) {
+    if (!ov::frontend::onnx::tests::is_graph_iterator_enabled()) {
+        GTEST_SKIP() << "This test requires GraphIterator (ONNX_ITERATOR=1)";
+    }
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = load_and_convert("topological_sort/diamond_unsorted.onnx"));
+    ASSERT_NE(model, nullptr);
+
+    // Y = Relu(X) + Abs(X). With X=[-2, 3, -1]:
+    //   R1=Relu -> [0, 3, 0], R2=Abs -> [2, 3, 1], Y = R1+R2 = [2, 6, 1]
+    ov::test::TestCase test_case(model);
+    test_case.add_input<float>({-2.f, 3.f, -1.f});
+    test_case.add_expected_output<float>(ov::Shape{3}, {2.f, 6.f, 1.f});
+    test_case.run();
+}
+
+// Unsorted node depends on initializer — initializers must be treated as known.
+TEST(FrontEndGraphIteratorTest, topological_sort_initializer_dependency) {
+    if (!ov::frontend::onnx::tests::is_graph_iterator_enabled()) {
+        GTEST_SKIP() << "This test requires GraphIterator (ONNX_ITERATOR=1)";
+    }
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = load_and_convert("topological_sort/initializer_dep_unsorted.onnx"));
+    ASSERT_NE(model, nullptr);
+
+    // Y = Relu(X + init_val). init_val=[1,2,3], X=[-5,0,2]:
+    //   T = X+init = [-4,2,5], Y = Relu(T) = [0,2,5]
+    ov::test::TestCase test_case(model);
+    test_case.add_input<float>({-5.f, 0.f, 2.f});
+    test_case.add_expected_output<float>(ov::Shape{3}, {0.f, 2.f, 5.f});
+    test_case.run();
+}

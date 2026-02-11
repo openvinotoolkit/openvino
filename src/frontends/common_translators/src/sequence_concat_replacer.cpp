@@ -15,8 +15,11 @@
 #include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/loop.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -89,6 +92,11 @@ bool rewrite_loop_concat(const std::shared_ptr<ov::frontend::ConcatFromSequence>
     if (!data_value.get_node())
         return false;
 
+    // For !new_axis we reshape the loop output to flatten the unsqueeze
+    // dimension back, which requires static rank at graph-construction time.
+    if (!new_axis && data_value.get_partial_shape().rank().is_dynamic())
+        return false;
+
     const auto norm_axis = normalize_axis(data_value, axis, new_axis);
 
     // Find sequence merged input (for potential removal)
@@ -107,15 +115,11 @@ bool rewrite_loop_concat(const std::shared_ptr<ov::frontend::ConcatFromSequence>
     auto new_results = body_results;
     new_results.erase(new_results.begin() + seq_result_idx);
 
-    // For stack (new_axis): unsqueeze at norm_axis so concat creates a new dimension
-    // For cat (!new_axis): use raw tensor, concat along existing axis
-    ov::Output<ov::Node> body_output;
-    if (new_axis) {
-        auto axis_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {norm_axis});
-        body_output = std::make_shared<v0::Unsqueeze>(data_value, axis_const);
-    } else {
-        body_output = data_value;
-    }
+    // Always unsqueeze at norm_axis so the concat dimension has size 1 and
+    // ConcatOutputDescription can use stride=1.  For !new_axis the extra
+    // dimension is flattened back with a Reshape after the loop.
+    auto unsqueeze_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {norm_axis});
+    ov::Output<ov::Node> body_output = std::make_shared<v0::Unsqueeze>(data_value, unsqueeze_axis);
     new_results.push_back(std::make_shared<v0::Result>(body_output));
     const size_t concat_result_idx = new_results.size() - 1;
 
@@ -124,22 +128,20 @@ bool rewrite_loop_concat(const std::shared_ptr<ov::frontend::ConcatFromSequence>
     // live edges to the parameter (get_target_inputs() is non-empty) but none of them
     // appear in new_results, so the new body will not reference this parameter.
     auto body_params = body->get_parameters();
-    size_t removed_param_idx = INVALID_INDEX;
-    bool remove_seq_input = false;
-    if (seq_param_idx != INVALID_INDEX && seq_param_idx < body_params.size()) {
+    bool remove_seq_input = seq_param_idx != INVALID_INDEX && seq_param_idx < body_params.size();
+    if (remove_seq_input) {
         body_params.erase(body_params.begin() + seq_param_idx);
-        removed_param_idx = seq_param_idx;
-        remove_seq_input = true;
     }
 
     auto new_body = std::make_shared<ov::Model>(new_results, body_params);
 
     // Adjust current_iteration port if parameter was removed before it
-    if (removed_param_idx != INVALID_INDEX && special_ports.current_iteration_input_idx >= 0 &&
-        static_cast<size_t>(special_ports.current_iteration_input_idx) > removed_param_idx)
+    if (remove_seq_input && special_ports.current_iteration_input_idx >= 0 &&
+        static_cast<size_t>(special_ports.current_iteration_input_idx) > seq_param_idx)
         --special_ports.current_iteration_input_idx;
 
-    // Fix output descriptions: adjust indices and convert sequence output to ConcatOutputDescription
+    // Fix output descriptions: adjust indices and convert sequence output to ConcatOutputDescription.
+    // Body output is always unsqueezed at norm_axis (dim=1), so stride=1, part_size=1.
     std::vector<std::shared_ptr<v5::Loop::OutputDescription>> out_descs;
     for (const auto& desc : loop->get_output_descriptions()) {
         auto d = desc;
@@ -176,10 +178,10 @@ bool rewrite_loop_concat(const std::shared_ptr<ov::frontend::ConcatFromSequence>
         if (auto merged = std::dynamic_pointer_cast<v5::Loop::MergedInputDescription>(desc))
             if (merged->m_body_value_index > static_cast<size_t>(seq_result_idx))
                 merged->m_body_value_index--;
-        if (removed_param_idx != INVALID_INDEX) {
-            if (desc->m_body_parameter_index == removed_param_idx)
+        if (remove_seq_input) {
+            if (desc->m_body_parameter_index == seq_param_idx)
                 continue;
-            if (desc->m_body_parameter_index > removed_param_idx)
+            if (desc->m_body_parameter_index > seq_param_idx)
                 desc->m_body_parameter_index--;
         }
         in_descs.push_back(desc);
@@ -200,7 +202,39 @@ bool rewrite_loop_concat(const std::shared_ptr<ov::frontend::ConcatFromSequence>
     // Replace Loop outputs
     for (size_t i = 0; i < loop->get_output_size(); ++i) {
         if (i == output_index) {
-            concat_fw->output(0).replace(new_loop->output(i));
+            ov::Output<ov::Node> out = new_loop->output(i);
+            if (!new_axis) {
+                // Flatten the unsqueeze dimension: merge dims [norm_axis, norm_axis+1]
+                // into one, recovering the original concatenation semantics.
+                const auto out_rank = data_value.get_partial_shape().rank().get_length() + 1;
+                auto shape = std::make_shared<v3::ShapeOf>(out, ov::element::i64);
+                auto gather_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+                ov::OutputVector parts;
+                if (norm_axis > 0) {
+                    std::vector<int64_t> idx;
+                    for (int64_t j = 0; j < norm_axis; ++j)
+                        idx.push_back(j);
+                    parts.push_back(
+                        std::make_shared<v1::Gather>(shape,
+                                                     v0::Constant::create(ov::element::i64, ov::Shape{idx.size()}, idx),
+                                                     gather_axis));
+                }
+                parts.push_back(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
+                if (norm_axis + 2 < out_rank) {
+                    std::vector<int64_t> idx;
+                    for (int64_t j = norm_axis + 2; j < out_rank; ++j)
+                        idx.push_back(j);
+                    parts.push_back(
+                        std::make_shared<v1::Gather>(shape,
+                                                     v0::Constant::create(ov::element::i64, ov::Shape{idx.size()}, idx),
+                                                     gather_axis));
+                }
+                auto target = parts.size() == 1 ? parts[0] : std::make_shared<v0::Concat>(parts, 0)->output(0);
+                auto reshape = std::make_shared<v1::Reshape>(out, target, false);
+                ov::copy_runtime_info({loop, concat_fw}, reshape);
+                out = reshape;
+            }
+            concat_fw->output(0).replace(out);
         } else {
             loop->output(i).replace(new_loop->output(i));
         }
@@ -224,19 +258,7 @@ SequenceConcatReplacer::SequenceConcatReplacer() {
 
         // Case 1: SequenceMark (known sequence elements)
         if (const auto seq_mark = ov::as_type_ptr<ov::frontend::SequenceMark>(seq_input.get_node_shared_ptr())) {
-            const auto& elems = seq_mark->get_sequence();
-            if (elems.empty())
-                return false;
-
-            // Filter elements: SequenceConstruct uses all, others filter out Parameters
-            ov::OutputVector data;
-            if (seq_mark->get_attrs().get_type_name() == "SequenceConstruct") {
-                data = elems;
-            } else {
-                for (const auto& e : elems)
-                    if (!ov::as_type_ptr<v0::Parameter>(e.get_node_shared_ptr()))
-                        data.push_back(e);
-            }
+            const auto& data = seq_mark->get_sequence();
             if (data.empty())
                 return false;
 

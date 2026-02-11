@@ -755,16 +755,16 @@ void InputModel::InputModelONNXImpl::load_model() {
 
     // Sort outputs using the separately tracked indices (handles duplicate names correctly)
     if (!m_outputs.empty() && m_outputs.size() == output_indices.size()) {
-        std::vector<size_t> sort_order(m_outputs.size());
-        std::iota(sort_order.begin(), sort_order.end(), 0);
-        std::sort(sort_order.begin(), sort_order.end(), [&output_indices](size_t a, size_t b) {
-            return output_indices[a] < output_indices[b];
-        });
-        std::vector<ov::frontend::Place::Ptr> sorted_outputs(m_outputs.size());
-        for (size_t i = 0; i < sort_order.size(); ++i) {
-            sorted_outputs[i] = m_outputs[sort_order[i]];
+        std::vector<std::pair<int64_t, ov::frontend::Place::Ptr>> indexed(m_outputs.size());
+        for (size_t i = 0; i < m_outputs.size(); ++i) {
+            indexed[i] = {output_indices[i], std::move(m_outputs[i])};
         }
-        m_outputs = std::move(sorted_outputs);
+        std::stable_sort(indexed.begin(), indexed.end(), [](const auto& a, const auto& b) {
+            return a.first < b.first;
+        });
+        for (size_t i = 0; i < indexed.size(); ++i) {
+            m_outputs[i] = std::move(indexed[i].second);
+        }
     }
 
     if (m_telemetry) {
