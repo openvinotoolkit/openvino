@@ -352,6 +352,8 @@ struct SDPAttention {
     ov::Output<ov::Node> beam_idx;        // for beam search reordering
     ov::Output<ov::Node> attention_mask;  // pre-transformed 4D float mask
     size_t layer_idx;
+    bool add_bias = false;  // Bias on Q/K/V/O projections (e.g. BERT)
+    NormFn qk_norm;         // Optional QK-norm applied to Q and K after reshape, before RoPE
 
     LayerResult operator()(const ov::Output<ov::Node>& input, const std::string& prefix) const;
 };
@@ -454,6 +456,29 @@ LayerResult make_decoder_layer(const ov::Output<ov::Node>& input,
     return {residual2->output(0), attn_result.sinks};
 }
 
+/// BERT-style post-norm layer: attn -> Add(residual) -> Norm -> FFN -> Add(residual) -> Norm.
+/// Norm is applied AFTER the residual connection (post-norm), unlike make_decoder_layer (pre-norm).
+template <typename Norm, typename Attention, typename FFN>
+LayerResult make_post_norm_layer(const ov::Output<ov::Node>& input,
+                                 const Norm& norm,
+                                 const Attention& attention,
+                                 const FFN& ffn,
+                                 const std::string& prefix) {
+    // Attention + residual + norm
+    auto attn_result = attention(input, prefix);
+    auto residual1 = std::make_shared<ov::opset11::Add>(input, attn_result.output);
+    residual1->set_friendly_name(prefix + "attn_residual");
+    auto normed1 = norm(residual1->output(0), prefix + "attention.output.LayerNorm");
+
+    // FFN + residual + norm
+    auto ffn_out = ffn(normed1, prefix + "output");
+    auto residual2 = std::make_shared<ov::opset11::Add>(normed1, ffn_out);
+    residual2->set_friendly_name(prefix + "ffn_residual");
+    auto normed2 = norm(residual2->output(0), prefix + "output.LayerNorm");
+
+    return {normed2, attn_result.sinks};
+}
+
 // ============================================================================
 // LLMConfig
 // ============================================================================
@@ -470,6 +495,8 @@ struct LLMConfig {
 
     bool use_kv_cache = true;
     bool use_inputs_embeds = false;  ///< true = inputs_embeds parameter, false = input_ids + embedding
+    bool use_lm_head = true;         ///< false = output last_hidden_state (embedding models)
+    bool internal_position_ids = false;  ///< true = arange from input shape (no parameter)
 
     ov::element::Type precision = ov::element::f32;
 
@@ -480,6 +507,7 @@ struct LLMConfig {
     PositionIdsFn position_ids = Input2DPositionIds{};  ///< Set to {} for no position_ids/RoPE
     WeightFn weight;
     WeightFn lm_head_weight;
+    NormFn qk_norm;  ///< Optional QK-norm forwarded to SDPAttention
 
     size_t get_kv_heads() const {
         return num_kv_heads == 0 ? num_heads : num_kv_heads;
@@ -509,6 +537,26 @@ struct WhisperConfig {
     size_t head_dim() const {
         return d_model / decoder_attention_heads;
     }
+};
+
+// ============================================================================
+// BERTConfig
+// ============================================================================
+
+/// Configuration for BERT-style encoder model building (e.g. Contriever)
+struct BERTConfig {
+    size_t hidden_size = 768;
+    size_t num_heads = 12;
+    size_t head_dim = 64;
+    size_t intermediate_size = 3072;
+    size_t vocab_size = 30522;
+    size_t num_layers = 12;
+    size_t max_position_embeddings = 512;
+    size_t type_vocab_size = 2;
+    ov::element::Type precision = ov::element::f32;
+    WeightFn weight;
+    NormFn norm;
+    FFNFn ffn;
 };
 
 // ============================================================================
@@ -570,6 +618,9 @@ public:
 
     /// Build Whisper decoder model
     std::shared_ptr<ov::Model> build_whisper_decoder(const WhisperConfig& config);
+
+    /// Build BERT-style encoder model (e.g. Contriever)
+    std::shared_ptr<ov::Model> build_bert_encoder(const BERTConfig& config);
 
     // ===== State management =====
 

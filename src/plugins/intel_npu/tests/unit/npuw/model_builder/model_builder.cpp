@@ -641,20 +641,28 @@ LayerResult SDPAttention::operator()(const ov::Output<ov::Node>& input, const st
 
     // Q, K, V projections
     auto q =
-        make_linear(input, hidden_size, num_heads * head_dim, prefix + "self_attn.q_proj", precision, false, weight_fn);
+        make_linear(input, hidden_size, num_heads * head_dim, prefix + "self_attn.q_proj", precision, add_bias, weight_fn);
     auto k =
-        make_linear(input, hidden_size, kv_heads * head_dim, prefix + "self_attn.k_proj", precision, false, weight_fn);
+        make_linear(input, hidden_size, kv_heads * head_dim, prefix + "self_attn.k_proj", precision, add_bias, weight_fn);
     auto v =
-        make_linear(input, hidden_size, kv_heads * head_dim, prefix + "self_attn.v_proj", precision, false, weight_fn);
+        make_linear(input, hidden_size, kv_heads * head_dim, prefix + "self_attn.v_proj", precision, add_bias, weight_fn);
 
     // Reshape for multi-head: [batch, seq, heads, head_dim]
     auto q_reshaped = make_multihead_reshape(q, num_heads, head_dim, prefix + "q_reshape");
     auto k_reshaped = make_multihead_reshape(k, kv_heads, head_dim, prefix + "k_reshape");
     auto v_reshaped = make_multihead_reshape(v, kv_heads, head_dim, prefix + "v_reshape");
 
+    // Optional QK-norm: RMSNorm on Q and K after reshape, before RoPE
+    ov::Output<ov::Node> q_normed = q_reshaped;
+    ov::Output<ov::Node> k_normed = k_reshaped;
+    if (qk_norm) {
+        q_normed = qk_norm(q_reshaped, prefix + "self_attn.q_norm");
+        k_normed = qk_norm(k_reshaped, prefix + "self_attn.k_norm");
+    }
+
     // Apply RoPE to Q and K (before transpose, in [batch, seq, heads, head_dim] format)
-    ov::Output<ov::Node> q_for_trans = q_reshaped;
-    ov::Output<ov::Node> k_for_trans = k_reshaped;
+    ov::Output<ov::Node> q_for_trans = q_normed;
+    ov::Output<ov::Node> k_for_trans = k_normed;
     if (position_ids.get_node() != nullptr && rope_fn) {
         q_for_trans = rope_fn(q_reshaped, position_ids, prefix + "q_rope");
         k_for_trans = rope_fn(k_reshaped, position_ids, prefix + "k_rope");
@@ -702,7 +710,7 @@ LayerResult SDPAttention::operator()(const ov::Output<ov::Node>& input, const st
     auto attn_output = make_sdpa(q_trans, k_expanded, v_expanded, prefix + "attn", attention_mask);
 
     auto o_proj = make_attention_output(attn_output, hidden_size,
-                                        prefix + "self_attn.o_proj", precision, false, weight_fn);
+                                        prefix + "self_attn.o_proj", precision, add_bias, weight_fn);
 
     return {o_proj, sinks};
 }
@@ -824,10 +832,9 @@ LayerResult WhisperCrossAttention::operator()(const ov::Output<ov::Node>& input,
 // Causal mask helper (free function)
 // ============================================================================
 
-static ov::Output<ov::Node> make_causal_mask(const ov::Output<ov::Node>& input_ids_output,
-                                             const ov::Output<ov::Node>& attention_mask_output,
-                                             ov::element::Type prec) {
-    // --- Padding mask component: [batch, total_seq] -> [batch, 1, 1, total_seq] ---
+/// Padding-only mask: [batch, seq] -> [batch, 1, 1, seq] float (0.0=attend, -10000.0=pad)
+static ov::Output<ov::Node> make_padding_mask(const ov::Output<ov::Node>& attention_mask_output,
+                                              ov::element::Type prec) {
     auto mask_float = std::make_shared<ov::opset11::Convert>(attention_mask_output, prec);
     mask_float->set_friendly_name("model.mask_convert");
 
@@ -842,6 +849,15 @@ static ov::Output<ov::Node> make_causal_mask(const ov::Output<ov::Node>& input_i
     auto pad_shape = ov::opset11::Constant::create(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 1, 1, -1});
     auto padding_4d = std::make_shared<ov::opset11::Reshape>(padding_mask, pad_shape, true);
     padding_4d->set_friendly_name("model.padding_mask_4d");
+
+    return padding_4d->output(0);
+}
+
+static ov::Output<ov::Node> make_causal_mask(const ov::Output<ov::Node>& input_ids_output,
+                                             const ov::Output<ov::Node>& attention_mask_output,
+                                             ov::element::Type prec) {
+    // --- Padding mask component: [batch, 1, 1, total_seq] ---
+    auto padding_4d = make_padding_mask(attention_mask_output, prec);
 
     // --- Causal mask component: [1, 1, seq_len, total_seq] ---
     auto ids_shape = std::make_shared<ov::opset11::ShapeOf>(input_ids_output, ov::element::i64);
@@ -1309,7 +1325,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
         config.lm_head_weight = FP32Weight{};
     if (!config.norm)
         config.norm = LayerNorm(config.hidden_size, config.precision);
-    if (config.position_ids && !config.rope)
+    if ((config.position_ids || config.internal_position_ids) && !config.rope)
         config.rope = InterleavedRoPE(config.head_dim, 2048, config.precision);
     if (!config.ffn)
         config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, config.precision, config.weight);
@@ -1336,7 +1352,21 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     }
 
     ov::Output<ov::Node> position_ids_output;
-    if (config.position_ids) {
+    if (config.internal_position_ids) {
+        // Generate position_ids internally from input shape: arange(0, seq_len) -> [1, seq]
+        auto shape = std::make_shared<ov::opset11::ShapeOf>(seq_source, ov::element::i64);
+        auto idx1 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {1});
+        auto axis0 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
+        auto seq_len = std::make_shared<ov::opset11::Gather>(shape, idx1, axis0);
+        auto start = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
+        auto step = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {1});
+        auto range = std::make_shared<ov::op::v4::Range>(start, seq_len, step, ov::element::i64);
+        range->set_friendly_name("model.internal_position_ids_range");
+        auto unsqueeze_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+        auto unsqueezed = std::make_shared<ov::opset11::Unsqueeze>(range, unsqueeze_axis);
+        unsqueezed->set_friendly_name("model.internal_position_ids");
+        position_ids_output = unsqueezed->output(0);
+    } else if (config.position_ids) {
         position_ids_output = config.position_ids();
         // Auto-track any Parameter nodes in the position_ids subgraph
         // (may be the output itself, or upstream if the functor adds ops like Squeeze)
@@ -1358,7 +1388,11 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     }
 
     // beam_idx is required for stateful models used with LLMPipeline
-    auto beam_idx = parameter(ov::element::i32, ov::PartialShape{-1}, "beam_idx");
+    ov::Output<ov::Node> beam_idx_output;
+    if (config.use_kv_cache) {
+        auto beam_idx = parameter(ov::element::i32, ov::PartialShape{-1}, "beam_idx");
+        beam_idx_output = beam_idx->output(0);
+    }
 
     // ===== Attention mask =====
     auto sdpa_mask = make_causal_mask(seq_source, attention_mask->output(0), prec);
@@ -1379,9 +1413,11 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
                           config.use_kv_cache,
                           position_ids_output,
                           seq_source,
-                          beam_idx->output(0),
+                          beam_idx_output,
                           sdpa_mask,
-                          layer};
+                          layer,
+                          false,          // add_bias
+                          config.qk_norm};
         auto layer_result = make_decoder_layer(current, config.norm, attn, config.ffn, prefix);
         current = layer_result.output;
 
@@ -1390,14 +1426,18 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
         }
     }
 
-    // ===== TAIL: Final Norm + LM Head =====
+    // ===== TAIL: Final Norm + optional LM Head =====
     auto final_norm = config.norm(current, "model.norm");
-    auto logits =
-        make_lm_head(final_norm, config.hidden_size, config.vocab_size, "lm_head", prec, config.lm_head_weight);
+
+    if (config.use_lm_head) {
+        auto logits =
+            make_lm_head(final_norm, config.hidden_size, config.vocab_size, "lm_head", prec, config.lm_head_weight);
+        result(logits, "logits");
+    } else {
+        result(final_norm, "last_hidden_state");
+    }
 
     // ===== Build Model =====
-    result(logits, "logits");
-
     auto model = std::make_shared<ov::Model>(m_results, all_sinks, m_parameters, "llm_test_model");
     return model;
 }
@@ -1759,6 +1799,89 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperConf
     result(logits_out, "logits");
 
     return std::make_shared<ov::Model>(m_results, all_sinks, m_parameters, "whisper_decoder");
+}
+
+// ============================================================================
+// BERT Encoder Builder
+// ============================================================================
+
+std::shared_ptr<ov::Model> ModelBuilder::build_bert_encoder(const BERTConfig& config_in) {
+    clear();
+
+    BERTConfig config = config_in;
+    if (!config.weight)
+        config.weight = FP32Weight{};
+    if (!config.norm)
+        config.norm = LayerNorm(config.hidden_size, config.precision);
+    if (!config.ffn)
+        config.ffn = GELUFn(config.hidden_size, config.intermediate_size, config.precision, config.weight, true);
+
+    const auto prec = config.precision;
+    const auto hs = config.hidden_size;
+
+    // ===== Inputs =====
+    auto input_ids = parameter(ov::element::i64, ov::PartialShape{-1, -1}, "input_ids");
+    auto attention_mask = parameter(ov::element::i64, ov::PartialShape{-1, -1}, "attention_mask");
+    auto token_type_ids = parameter(ov::element::i64, ov::PartialShape{-1, -1}, "token_type_ids");
+
+    // ===== Embeddings: word + position + token_type =====
+    auto word_embed = make_embedding(input_ids->output(0), config.vocab_size, hs,
+                                     "embeddings.word_embeddings", prec);
+
+    // Position embeddings: arange(0, seq_len) -> Gather from learned table
+    auto ids_shape = std::make_shared<ov::opset11::ShapeOf>(input_ids, ov::element::i64);
+    auto idx1 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {1});
+    auto axis0 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto seq_len = std::make_shared<ov::opset11::Gather>(ids_shape, idx1, axis0);
+    auto start = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto step = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {1});
+    auto pos_ids = std::make_shared<ov::op::v4::Range>(start, seq_len, step, ov::element::i64);
+    pos_ids->set_friendly_name("embeddings.position_ids");
+    auto pos_embed = make_embedding(pos_ids->output(0), config.max_position_embeddings, hs,
+                                    "embeddings.position_embeddings", prec);
+
+    // Token type embeddings
+    auto type_embed = make_embedding(token_type_ids->output(0), config.type_vocab_size, hs,
+                                     "embeddings.token_type_embeddings", prec);
+
+    // Sum embeddings + LayerNorm
+    auto embed_sum1 = std::make_shared<ov::opset11::Add>(word_embed, pos_embed);
+    embed_sum1->set_friendly_name("embeddings.add_pos");
+    auto embed_sum2 = std::make_shared<ov::opset11::Add>(embed_sum1, type_embed);
+    embed_sum2->set_friendly_name("embeddings.add_type");
+    auto embed_normed = config.norm(embed_sum2->output(0), "embeddings.LayerNorm");
+
+    // ===== Attention mask (padding only, no causal) =====
+    auto sdpa_mask = make_padding_mask(attention_mask->output(0), prec);
+
+    // ===== Encoder Layers (post-norm) =====
+    ov::Output<ov::Node> current = embed_normed;
+
+    for (size_t layer = 0; layer < config.num_layers; ++layer) {
+        std::string prefix = "encoder.layer." + std::to_string(layer) + ".";
+        SDPAttention attn{hs,
+                          config.num_heads,
+                          config.num_heads,  // MHA
+                          config.head_dim,
+                          prec,
+                          config.weight,
+                          {},     // no RoPE
+                          false,  // no KV cache
+                          {},     // no position_ids
+                          {},     // no batch_source
+                          {},     // no beam_idx
+                          sdpa_mask,
+                          layer,
+                          true,  // add_bias
+                          {}};   // no qk_norm
+        auto layer_result = make_post_norm_layer(current, config.norm, attn, config.ffn, prefix);
+        current = layer_result.output;
+    }
+
+    // ===== Output =====
+    result(current, "last_hidden_state");
+
+    return std::make_shared<ov::Model>(m_results, ov::SinkVector{}, m_parameters, "bert_encoder");
 }
 
 }  // namespace npuw
