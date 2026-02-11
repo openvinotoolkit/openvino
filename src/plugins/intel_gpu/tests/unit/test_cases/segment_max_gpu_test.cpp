@@ -5,6 +5,8 @@
 // Test cases are based on the SegmentMax-16 specification:
 // https://docs.openvino.ai/nightly/documentation/openvino-ir-format/operation-sets/operation-specs/arithmetic/segment-max-16.html
 
+#include <limits>
+
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
@@ -111,7 +113,7 @@ public:
         auto out_layout = output_mem->get_layout();
         ASSERT_EQ(out_layout.get_partial_shape(), p.expected_output_shape);
 
-        helpers::CompareTypedBuffers<float>(output_mem, p.expected_output, get_test_stream());
+        helpers::CompareTypedBuffers<float>(output_mem, p.expected_output, *stream);
     }
 
 private:
@@ -364,7 +366,7 @@ TEST_F(segment_max_gpu_type_test, i64_segment_ids) {
     ASSERT_EQ(output_mem->get_layout().get_partial_shape(), ov::PartialShape{3});
 
     std::vector<float> expected = {5.0f, 3.0f, 8.0f};
-    helpers::CompareTypedBuffers<float>(output_mem, expected, get_test_stream());
+    helpers::CompareTypedBuffers<float>(output_mem, expected, *stream);
 }
 
 // Test with i32 data type (spec: "any supported numerical data type")
@@ -401,7 +403,7 @@ TEST_F(segment_max_gpu_type_test, i32_data) {
     ASSERT_EQ(output_mem->get_layout().get_partial_shape(), ov::PartialShape{3});
 
     std::vector<int32_t> expected = {50, 30, 80};
-    helpers::CompareTypedBuffers<int32_t>(output_mem, expected, get_test_stream());
+    helpers::CompareTypedBuffers<int32_t>(output_mem, expected, *stream);
 }
 
 // Test with i32 data type and fill_mode = LOWEST (empty segment)
@@ -438,7 +440,7 @@ TEST_F(segment_max_gpu_type_test, i32_data_lowest_fill) {
     ASSERT_EQ(output_mem->get_layout().get_partial_shape(), ov::PartialShape{3});
 
     std::vector<int32_t> expected = {20, std::numeric_limits<int32_t>::lowest(), 40};
-    helpers::CompareTypedBuffers<int32_t>(output_mem, expected, get_test_stream());
+    helpers::CompareTypedBuffers<int32_t>(output_mem, expected, *stream);
 }
 
 }  // namespace

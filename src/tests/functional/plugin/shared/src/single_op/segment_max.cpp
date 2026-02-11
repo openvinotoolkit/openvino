@@ -56,7 +56,7 @@ void SegmentMaxLayerTest::SetUp() {
 
     // segment_ids is always a constant in these tests
     auto segmentIdsConst = std::make_shared<ov::op::v0::Constant>(
-        ov::element::i32, ov::Shape{segmentIdsValues.size()}, segmentIdsValues);
+        ov::element::i64, ov::Shape{segmentIdsValues.size()}, segmentIdsValues);
 
     std::shared_ptr<ov::op::v16::SegmentMax> segmentMax;
     if (numSegments >= 0) {
