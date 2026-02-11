@@ -863,7 +863,9 @@ void Properties::filterPropertiesByCompilerSupport(const ICompilerAdapter* compi
     _initialized = true;
 }
 
-void Properties::filterCompilerPropertiesSafe(const bool registerIfNotInitialized, const ov::AnyMap& arguments, const ICompilerAdapter* compiler) {
+void Properties::filterCompilerPropertiesSafe(const bool registerIfNotInitialized,
+                                              const ov::AnyMap& arguments,
+                                              const ICompilerAdapter* compiler) {
     std::lock_guard<std::mutex> lock(_mutex);
     auto compilerType = utils::resolveCompilerType(_config, arguments);
     auto platform = utils::resolvePlatformOption(_config, arguments);
@@ -889,7 +891,9 @@ void Properties::filterCompilerPropertiesSafe(const bool registerIfNotInitialize
         }
     }
 
-    if ((!_initialized && registerIfNotInitialized) || changeCompiler || argumentNotRegistered) {
+    const bool shouldRegister =
+        argumentNotRegistered || (registerIfNotInitialized && (!_initialized || changeCompiler));
+    if (shouldRegister) {
         const ICompilerAdapter* localCompiler = nullptr;
         std::unique_ptr<ICompilerAdapter> compilerPtr = nullptr;
         if (compiler != nullptr) {
