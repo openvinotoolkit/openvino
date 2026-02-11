@@ -171,7 +171,9 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
                                                   bool reset,
                                                   bool is_dynamic) {
     const auto layout_bytes_count = layout.bytes_count();
+#ifdef ENABLE_ONEDNN_FOR_GPU
     const int f_block_size = get_feature_block_size(layout.format);
+#endif // ENABLE_ONEDNN_FOR_GPU
     auto it = _non_padded_pool.lower_bound(layout_bytes_count);
     while (it != _non_padded_pool.end()) {
         const auto& mem_layout = it->second._memory->get_layout();
@@ -221,7 +223,9 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
                                               uint32_t network_id,
                                               const memory_restricter<uint32_t>& restrictions,
                                               allocation_type type) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
     const int f_block_size = get_feature_block_size(layout.format);
+#endif // ENABLE_ONEDNN_FOR_GPU
     auto first_level_cache = _padded_pool.find(layout);
     if (first_level_cache != _padded_pool.end()) {
         for (auto& rec_list : first_level_cache->second) {
