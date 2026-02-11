@@ -311,8 +311,7 @@ bool is_seq_len_provided(const std::shared_ptr<Node>& X, const std::shared_ptr<N
         // matches X's dimension 1. This covers cases where the graph was transformed
         // and ShapeOf now points to a node that represents the same tensor as X.
         auto other_pshape = shape_of->input_value(0).get_partial_shape();
-        if (other_pshape.rank().is_static() && other_pshape.rank().get_length() > 1 &&
-            other_pshape[1] == max_seq_dim) {
+        if (other_pshape.rank().is_static() && other_pshape.rank().get_length() > 1 && other_pshape[1] == max_seq_dim) {
             return false;
         }
 
