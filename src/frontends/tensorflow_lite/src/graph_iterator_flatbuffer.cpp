@@ -27,8 +27,7 @@ GraphIteratorFlatBuffer::GraphIteratorFlatBuffer(const std::string& path) {
     m_model = tflite::GetModel(m_data.data());
     FRONT_END_GENERAL_CHECK(m_model != nullptr, "Failed to parse TFLite model from file: ", path);
     auto sub_graphs = m_model->subgraphs();
-    FRONT_END_GENERAL_CHECK(sub_graphs && sub_graphs->size() > 0,
-                            "TFLite model has no subgraphs in file: ", path);
+    FRONT_END_GENERAL_CHECK(sub_graphs && sub_graphs->size() > 0, "TFLite model has no subgraphs in file: ", path);
     m_subgraphs = {sub_graphs->begin(), sub_graphs->end()};
     m_graph = m_subgraphs[0];
     const auto operators = m_graph->operators();
@@ -88,13 +87,17 @@ std::shared_ptr<DecoderBase> GraphIteratorFlatBuffer::get_decoder() const {
             if (input == -1)
                 continue;
             FRONT_END_GENERAL_CHECK(input >= 0 && input < tensors_size,
-                                    "Operator input tensor index ", input,
-                                    " is out of range. Number of tensors: ", tensors_size);
+                                    "Operator input tensor index ",
+                                    input,
+                                    " is out of range. Number of tensors: ",
+                                    tensors_size);
             auto tensor = (*tensors)[input];
             FRONT_END_GENERAL_CHECK(tensor != nullptr, "Null tensor at index ", input);
             FRONT_END_GENERAL_CHECK(tensor->buffer() < buffers_size,
-                                    "Tensor buffer index ", tensor->buffer(),
-                                    " is out of range. Number of buffers: ", buffers_size);
+                                    "Tensor buffer index ",
+                                    tensor->buffer(),
+                                    " is out of range. Number of buffers: ",
+                                    buffers_size);
             auto buffer = (*buffers)[tensor->buffer()];
             input_info[i++] = TensorInfo{tensor, buffer};
         }
@@ -103,21 +106,27 @@ std::shared_ptr<DecoderBase> GraphIteratorFlatBuffer::get_decoder() const {
             if (output == -1)
                 continue;
             FRONT_END_GENERAL_CHECK(output >= 0 && output < tensors_size,
-                                    "Operator output tensor index ", output,
-                                    " is out of range. Number of tensors: ", tensors_size);
+                                    "Operator output tensor index ",
+                                    output,
+                                    " is out of range. Number of tensors: ",
+                                    tensors_size);
             auto tensor = (*tensors)[output];
             FRONT_END_GENERAL_CHECK(tensor != nullptr, "Null tensor at index ", output);
             FRONT_END_GENERAL_CHECK(tensor->buffer() < buffers_size,
-                                    "Tensor buffer index ", tensor->buffer(),
-                                    " is out of range. Number of buffers: ", buffers_size);
+                                    "Tensor buffer index ",
+                                    tensor->buffer(),
+                                    " is out of range. Number of buffers: ",
+                                    buffers_size);
             auto buffer = (*buffers)[tensor->buffer()];
             output_info[i++] = TensorInfo{tensor, buffer};
         }
         auto op_codes = m_model->operator_codes();
         FRONT_END_GENERAL_CHECK(op_codes != nullptr, "TFLite model has no operator codes");
         FRONT_END_GENERAL_CHECK(node->opcode_index() < op_codes->size(),
-                                "Operator opcode index ", node->opcode_index(),
-                                " is out of range. Number of operator codes: ", op_codes->size());
+                                "Operator opcode index ",
+                                node->opcode_index(),
+                                " is out of range. Number of operator codes: ",
+                                op_codes->size());
         auto operator_code = (*op_codes)[node->opcode_index()];
         std::string type;
         if (operator_code->deprecated_builtin_code() <
@@ -134,8 +143,10 @@ std::shared_ptr<DecoderBase> GraphIteratorFlatBuffer::get_decoder() const {
     } else {
         auto tensor_id = m_nodes[node_index].as<int32_t>();
         FRONT_END_GENERAL_CHECK(tensor_id >= 0 && tensor_id < tensors_size,
-                                "Graph input/output tensor index ", tensor_id,
-                                " is out of range. Number of tensors: ", tensors_size);
+                                "Graph input/output tensor index ",
+                                tensor_id,
+                                " is out of range. Number of tensors: ",
+                                tensors_size);
         auto tensor = (*tensors)[tensor_id];
         auto info = TensorInfo{tensor, nullptr};
         auto inputs = m_graph->inputs();
