@@ -57,8 +57,9 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
     CHECK_VALID_NODE(node, bits == 2 || bits == 4 || bits == 8, "Unsupported bits value: ", bits);
     CHECK_VALID_NODE(node, accuracy_level >= 0 && accuracy_level <= 4, "Unsupported accuracy level: ", accuracy_level);
 
-    const uint64_t n_blocks_per_col =
-        (static_cast<uint64_t>(K) + static_cast<uint64_t>(block_size) - 1) / static_cast<uint64_t>(block_size);
+    const auto u_K = static_cast<uint64_t>(K);
+    const auto u_block_size = static_cast<uint64_t>(block_size);
+    const uint64_t n_blocks_per_col = (u_K + u_block_size - 1) / u_block_size;
     const auto blob_size = (block_size * bits + 7) / 8;
 
     const uint64_t expected_b_size = N * n_blocks_per_col * blob_size;
