@@ -268,7 +268,15 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
-    if (config.get<COMPILATION_MODE>() == "HostCompile") {
+    const void* data = mainBlob.data();
+    size_t size = mainBlob.get_byte_size();
+    std::string header;
+    if (size >= 20) {
+        header.assign(static_cast<const char*>(data), 20);
+    } else {
+        header.assign(static_cast<const char*>(data), size);
+    }
+    if (header.find("ELF") == std::string::npos) {
         // no _compiler::parse call is required. networkmetadata will be obtained in IRGraph constructor
         _logger.debug("blob is not ELF format, create graph for LLVM IR!");
         return std::make_shared<IRGraph>(_zeroInitStruct, std::move(mainBlob), true, config, _compiler);

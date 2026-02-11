@@ -945,26 +945,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         return compiledModel;
     }
 
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
-    // Check if the blob is LLVM IR
-    {
-        std::streampos pos = stream.tellg();
-        char buffer[21] = {0};
-        stream.read(buffer, 20);
-        std::streamsize count = stream.gcount();
-        stream.seekg(-stream.tellg() + pos, std::ios::cur);
-        std::string header(buffer, count);
-        if (header.find("ELF") == std::string::npos) {
-            _logger.debug("Current blob is LLVM blob");
-            // If blob is LLVMIR, shall use HostCompile mode to use dynamic pipeline
-            npu_plugin_properties[COMPILATION_MODE::key().data()] = "HostCompile";
-            npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()] = true;
-        } else {
-            _logger.debug("Current blob is normal blob");
-        }
-    }
-#endif
-
     try {
         const bool skipCompatibility =
             (npu_plugin_properties.find(DISABLE_VERSION_CHECK::key().data()) != npu_plugin_properties.end())
