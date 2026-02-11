@@ -120,7 +120,7 @@ protected:
         auto multiply_mm = std::make_shared<op::v1::Multiply>(convert_mm, op::v0::Constant::create(inputPrecision, {1, 1}, {0.1}));
         const auto matMul = std::make_shared<ov::op::v0::MatMul>(fq_after, multiply_mm, false, false);
 
-        function = makeNgraphFunction(inputPrecision, input_params, matMul, "ConvFQ");
+        function = create_ov_model(inputPrecision, input_params, matMul, "ConvFQ");
     }
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();

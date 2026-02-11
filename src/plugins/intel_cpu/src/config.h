@@ -66,7 +66,7 @@ struct Config {
 #if defined(OV_CPU_WITH_ACL)
     bool aclFastMath = false;
 #endif
-#if defined(OV_CPU_WITH_ACL) || defined(OV_CPU_WITH_SHL)
+#if defined(OV_CPU_WITH_ACL)
     // TODO: Executor cache may leads to incorrect behavior on oneDNN ACL primitives
     size_t rtCacheCapacity = 0UL;
 #else

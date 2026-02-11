@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-std::vector<std::string> disabledTestPatterns();
+const std::vector<std::regex>& disabled_test_patterns();
 
 namespace ov {
 namespace test {

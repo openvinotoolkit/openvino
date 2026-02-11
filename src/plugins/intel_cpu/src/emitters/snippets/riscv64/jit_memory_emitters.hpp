@@ -38,6 +38,11 @@ protected:
     size_t compiled_byte_offset = 0;
     size_t buffer_cluster_id = 0;
     bool is_offset_runtime = false;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    template <typename MemoryEmitter>
+    friend std::string snippets_common::format_memory_emitter_info(const MemoryEmitter* emitter);
+#endif
 };
 
 class jit_load_memory_emitter : public jit_memory_emitter {
