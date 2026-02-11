@@ -29,7 +29,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/debug_capabilities.h"
@@ -41,6 +40,7 @@
 
 #    include "cpu/x64/jit_generator.hpp"
 #    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#    include "openvino/core/type.hpp"
 #    include "transformations/cpu_opset/x64/op/interaction.hpp"
 #    include "utils/cpu_utils.hpp"
 #endif
@@ -394,7 +394,8 @@ bool Interaction::isExecutable() const {
     return true;
 }
 
-bool Interaction::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool Interaction::isSupportedOperation([[maybe_unused]] const std::shared_ptr<const ov::Node>& op,
+                                       std::string& errorMessage) noexcept {
     try {
 #if defined(OPENVINO_ARCH_X86_64)
         const auto interaction = ov::as_type_ptr<const InteractionNode>(op);
