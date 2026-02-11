@@ -19,6 +19,8 @@ public:
     SharedContext get_shared_context() const override;
 
 private:
+    static constexpr size_t blob_id_size = 24;
+
     bool has_blob_id(const std::string& blob_id) const;
     void populate_cache_index();
     void update_shared_ctx(const SharedContext& new_ctx);

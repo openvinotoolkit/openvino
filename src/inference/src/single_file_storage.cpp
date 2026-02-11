@@ -10,12 +10,9 @@ namespace ov {
 
 using tag_type = uint16_t;
 
-// header = 0x0100,
 static constexpr tag_type shared_context_tag = 0x0101;
 static constexpr tag_type content_index_tag = 0x0102;
-static constexpr tag_type blob_tag = 0x1000;
-static constexpr tag_type blob_id_tag = 0x1001;
-static constexpr tag_type blob_data_tag = 0x1002;
+static constexpr tag_type blob_tag = 0x0103;
 
 struct SharedContextStreamDecoder {
     ov::SharedContext* ctx;
@@ -107,10 +104,10 @@ void SingleFileStorage::populate_cache_index() {
                 break;
             }
             if (tag == blob_tag) {
-                std::string blob_id(24, '\0');
+                std::string blob_id(blob_id_size, '\0');
                 blob_file.read(blob_id.data(), blob_id.size());
                 blob_id.erase(std::find(blob_id.begin(), blob_id.end(), '\0'), blob_id.end());
-                size -= 24;
+                size -= blob_id_size;
                 m_cache_index.emplace_hint(m_cache_index.end(),
                                            blob_id,
                                            std::make_tuple(static_cast<size_t>(blob_file.tellg()), size));
@@ -159,8 +156,8 @@ void SingleFileStorage::write_blob_entry(const std::string& id, StreamWriter& wr
 
     const auto blob_id_offset = stream.tellp();
     auto ids = id;
-    ids.resize(24, '\0');
-    stream.write(ids.data(), 24);
+    ids.resize(blob_id_size, '\0');
+    stream.write(ids.data(), blob_id_size);
 
     const auto blob_offset = stream.tellp();
     writer(stream);
