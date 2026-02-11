@@ -24,7 +24,7 @@ using ShapeInferPtr = IShapeInferSnippetsFactory::ShapeInferPtr;
 namespace detail {
 
 IShapeInferSnippetsFactory::TRegistry make_common_cpu_shape_infer_registry() {
-    IShapeInferSnippetsFactory::TRegistry registry{
+    static IShapeInferSnippetsFactory::TRegistry registry{
         {ov::intel_cpu::FusedMulAdd::get_type_info_static(),
          []([[maybe_unused]] const std::shared_ptr<ov::Node>&) {
              return std::make_shared<NumpyBroadcastShapeInfer>();
