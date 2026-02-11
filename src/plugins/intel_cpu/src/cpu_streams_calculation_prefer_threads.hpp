@@ -54,22 +54,25 @@ constexpr float ISA_THRESHOLD_AMX = 4.0F;    ///< AMX: 4x compute for matrix ope
 /**
  * @brief Memory tolerance thresholds for workload classification
  */
-constexpr float MEM_TOLERANCE_VERY_HIGH = 50.0F;  ///< Very high memory tolerance (compute-bound)
-constexpr float MEM_TOLERANCE_HIGH = 4.5F;        ///< High memory tolerance (compute-bound)
-constexpr float MEM_TOLERANCE_MEDIUM = 2.5F;      ///< Medium memory tolerance
-constexpr float MEM_TOLERANCE_LOW = 0.5F;         ///< Low memory tolerance threshold
-constexpr float MEM_TOLERANCE_VERY_LOW = 0.06F;   ///< Very low memory tolerance threshold
+constexpr float MEM_TOLERANCE_VERY_HIGH = 50.0F;
+constexpr float MEM_TOLERANCE_HIGH = 4.5F;
+constexpr float MEM_TOLERANCE_MEDIUM = 2.5F;
+constexpr float MEM_TOLERANCE_MEDIUM_LOW = 0.5F;
+constexpr float MEM_TOLERANCE_LOW = 0.2F;
+constexpr float MEM_TOLERANCE_SECONDARY_LOW = 0.08F;
+constexpr float MEM_TOLERANCE_VERY_LOW = 0.06F;
 
 /**
  * @brief Convolution ratio thresholds for workload analysis
  */
-constexpr float CONV_RATIO_VERY_HIGH = 0.9F;  ///< 90% of convolutions meet criteria
-constexpr float CONV_RATIO_HIGH = 0.8F;       ///< 80% threshold for memory-limited convs
-constexpr float CONV_RATIO_MEDIUM = 0.6F;     ///< 60% threshold for light convolutions
-constexpr float CONV_RATIO_LOW = 0.46F;       ///< 46% threshold for mixed workloads
-constexpr float CONV_RATIO_MINIMAL = 0.28F;   ///< 28% threshold for memory-limited adds
-constexpr float CONV_RATIO_VERY_LOW = 0.2F;   ///< 20% threshold for mem-limited convs
-constexpr float CONV_RATIO_ULTRA_LOW = 0.1F;  ///< 10% threshold for heavy convolutions
+constexpr float CONV_RATIO_VERY_HIGH = 0.9F;
+constexpr float CONV_RATIO_HIGH = 0.8F;
+constexpr float CONV_RATIO_MEDIUM = 0.6F;
+constexpr float CONV_RATIO_MEDIUM_LOW = 0.5F;
+constexpr float CONV_RATIO_LOW = 0.46F;
+constexpr float CONV_RATIO_MINIMAL = 0.28F;
+constexpr float CONV_RATIO_VERY_LOW = 0.2F;
+constexpr float CONV_RATIO_ULTRA_LOW = 0.1F;
 
 /**
  * @brief GEMM ratio thresholds
@@ -383,9 +386,39 @@ inline bool is_lp_main_core_case_1(const ov::MemBandwidthPressure& tolerance) {
 inline bool is_lp_main_core_case_2(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.total_convs > 0 && tolerance.total_gemms == 1 &&
-           tolerance.max_mem_tolerance<MEM_TOLERANCE_LOW&& static_cast<float>(
+           tolerance.max_mem_tolerance<MEM_TOLERANCE_MEDIUM_LOW&& static_cast<float>(
                tolerance.total_light_convs)> CONV_RATIO_HIGH *
                static_cast<float>(tolerance.total_convs);
+}
+
+inline bool is_lp_auto_case_1(const ov::MemBandwidthPressure& tolerance) {
+    using namespace ThreadPreferenceConstants;
+    return tolerance.total_convs > 52 && tolerance.ratio_compute_convs > 0 && tolerance.ratio_mem_limited_convs > 0 &&
+           tolerance.ratio_mem_limited_convs < CONV_RATIO_VERY_LOW;
+}
+
+inline bool is_lp_auto_case_2(const ov::MemBandwidthPressure& tolerance) {
+    using namespace ThreadPreferenceConstants;
+    return tolerance.max_mem_tolerance < MEM_TOLERANCE_SECONDARY_LOW &&
+           tolerance.ratio_compute_convs < CONV_RATIO_HIGH && tolerance.ratio_mem_limited_convs < CONV_RATIO_MEDIUM_LOW;
+}
+
+inline bool is_lp_auto_case_3(const ov::MemBandwidthPressure& tolerance) {
+    using namespace ThreadPreferenceConstants;
+    return tolerance.ratio_compute_convs > 0 && tolerance.ratio_compute_convs < CONV_RATIO_ULTRA_LOW &&
+           tolerance.ratio_mem_limited_convs >= CONV_RATIO_VERY_LOW;
+}
+
+inline bool is_lp_auto_case_4(const ov::MemBandwidthPressure& tolerance) {
+    using namespace ThreadPreferenceConstants;
+    return tolerance.max_mem_tolerance > MEM_TOLERANCE_LOW && tolerance.ratio_compute_convs > CONV_RATIO_MEDIUM_LOW &&
+           tolerance.ratio_mem_limited_adds > 0 &&
+           tolerance.total_adds < CONV_RATIO_VERY_LOW * static_cast<float>(tolerance.total_nodes);
+}
+
+inline bool is_lp_auto_case_5(const ov::MemBandwidthPressure& tolerance) {
+    using namespace ThreadPreferenceConstants;
+    return tolerance.max_mem_tolerance <= MEM_TOLERANCE_SECONDARY_LOW && tolerance.total_light_convs > 10;
 }
 
 }  // namespace ov::intel_cpu

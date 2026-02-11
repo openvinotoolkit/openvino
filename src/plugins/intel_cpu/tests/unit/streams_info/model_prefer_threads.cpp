@@ -441,7 +441,7 @@ TEST_F(ModelPreferThreadsHelperTest, IsLpMainCoreCase2_TrueAndFalse) {
 
     tolerance.total_convs = 10;
     tolerance.total_gemms = 1;
-    tolerance.max_mem_tolerance = MEM_TOLERANCE_LOW - 0.1f;
+    tolerance.max_mem_tolerance = MEM_TOLERANCE_MEDIUM_LOW - 0.1f;
     tolerance.total_light_convs = 9;
     EXPECT_TRUE(is_lp_main_core_case_2(tolerance));
     tolerance.total_light_convs = 7;
@@ -450,7 +450,7 @@ TEST_F(ModelPreferThreadsHelperTest, IsLpMainCoreCase2_TrueAndFalse) {
     tolerance.total_gemms = 2;
     EXPECT_FALSE(is_lp_main_core_case_2(tolerance));
     tolerance.total_gemms = 1;
-    tolerance.max_mem_tolerance = MEM_TOLERANCE_LOW + 0.1f;
+    tolerance.max_mem_tolerance = MEM_TOLERANCE_MEDIUM_LOW + 0.1f;
     EXPECT_FALSE(is_lp_main_core_case_2(tolerance));
 }
 
@@ -469,7 +469,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, Configure_X86_Hybrid_LP_UsesMainOrMain
     ov::MemBandwidthPressure tol2;
     tol2.total_convs = 10;
     tol2.total_gemms = 1;
-    tol2.max_mem_tolerance = MEM_TOLERANCE_LOW + 0.2f;
+    tol2.max_mem_tolerance = MEM_TOLERANCE_MEDIUM_LOW + 0.2f;
     tol2.total_light_convs = 5;
     configure_x86_hybrid_lp_threads(cfg2, proc_type_table, tol2);
     EXPECT_EQ(cfg2.modelPreferThreadsLatency, 2 + 4);
@@ -591,8 +591,63 @@ TEST_F(ModelPreferThreadsHelperTest, ConstantsAreValid) {
     EXPECT_GT(CONV_RATIO_MINIMAL, CONV_RATIO_VERY_LOW);
     EXPECT_GT(CONV_RATIO_VERY_LOW, CONV_RATIO_ULTRA_LOW);
     EXPECT_GT(MEM_TOLERANCE_HIGH, MEM_TOLERANCE_MEDIUM);
-    EXPECT_GT(MEM_TOLERANCE_MEDIUM, MEM_TOLERANCE_LOW);
-    EXPECT_GT(MEM_TOLERANCE_LOW, MEM_TOLERANCE_VERY_LOW);
+    EXPECT_GT(MEM_TOLERANCE_MEDIUM, MEM_TOLERANCE_MEDIUM_LOW);
+    EXPECT_GT(MEM_TOLERANCE_MEDIUM_LOW, MEM_TOLERANCE_VERY_LOW);
+}
+
+TEST_F(ModelPreferThreadsHelperTest, IsLpAutoCase1_TrueAndFalse) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.total_convs = 60;
+    tolerance.ratio_compute_convs = 0.1f;
+    tolerance.ratio_mem_limited_convs = 0.01f;
+    EXPECT_TRUE(is_lp_auto_case_1(tolerance));
+
+    tolerance.ratio_mem_limited_convs = 0.3f;
+    EXPECT_FALSE(is_lp_auto_case_1(tolerance));
+}
+
+TEST_F(ModelPreferThreadsHelperTest, IsLpAutoCase2_TrueAndFalse) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.max_mem_tolerance = MEM_TOLERANCE_SECONDARY_LOW - 0.01f;
+    tolerance.ratio_compute_convs = 0.4f;
+    tolerance.ratio_mem_limited_convs = 0.1f;
+    EXPECT_TRUE(is_lp_auto_case_2(tolerance));
+
+    tolerance.max_mem_tolerance = MEM_TOLERANCE_SECONDARY_LOW + 1.0f;
+    EXPECT_FALSE(is_lp_auto_case_2(tolerance));
+}
+
+TEST_F(ModelPreferThreadsHelperTest, IsLpAutoCase3_TrueAndFalse) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.ratio_compute_convs = 0.05f;
+    tolerance.ratio_mem_limited_convs = 0.2f;
+    EXPECT_TRUE(is_lp_auto_case_3(tolerance));
+
+    tolerance.ratio_compute_convs = 0.2f;
+    EXPECT_FALSE(is_lp_auto_case_3(tolerance));
+}
+
+TEST_F(ModelPreferThreadsHelperTest, IsLpAutoCase4_TrueAndFalse) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.max_mem_tolerance = MEM_TOLERANCE_LOW + 1.0f;
+    tolerance.ratio_compute_convs = CONV_RATIO_MEDIUM_LOW + 0.1f;
+    tolerance.ratio_mem_limited_adds = 0.5f;
+    tolerance.total_adds = 1;
+    tolerance.total_nodes = 100;
+    EXPECT_TRUE(is_lp_auto_case_4(tolerance));
+
+    tolerance.ratio_compute_convs = 0.1f;
+    EXPECT_FALSE(is_lp_auto_case_4(tolerance));
+}
+
+TEST_F(ModelPreferThreadsHelperTest, IsLpAutoCase5_TrueAndFalse) {
+    ov::MemBandwidthPressure tolerance;
+    tolerance.max_mem_tolerance = MEM_TOLERANCE_SECONDARY_LOW;
+    tolerance.total_light_convs = 11;
+    EXPECT_TRUE(is_lp_auto_case_5(tolerance));
+
+    tolerance.total_light_convs = 5;
+    EXPECT_FALSE(is_lp_auto_case_5(tolerance));
 }
 
 TEST_F(ModelPreferThreadsIntegrationTest, Direct_X86_NonHybrid_ZeroMain) {

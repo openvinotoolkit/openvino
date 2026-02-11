@@ -768,10 +768,19 @@ void configure_x86_hybrid_lp_threads(Config& config,
     const int main_cores = proc_type_table[0][MAIN_CORE_PROC];
     const int lp_efficient_cores = proc_type_table[0][LP_EFFICIENT_CORE_PROC];
 
-    if (is_lp_main_core_case_1(tolerance) || is_lp_main_core_case_2(tolerance)) {
-        config.modelPreferThreadsLatency = main_cores;
+    if (!is_lp_auto_case_1(tolerance) && !is_lp_auto_case_2(tolerance) && !is_lp_auto_case_3(tolerance) &&
+        !is_lp_auto_case_4(tolerance) && !is_lp_auto_case_5(tolerance)) {
+        if (is_lp_main_core_case_1(tolerance) || is_lp_main_core_case_2(tolerance)) {
+            config.modelPreferThreadsLatency = main_cores;
+        } else {
+            config.modelPreferThreadsLatency = main_cores + lp_efficient_cores;
+        }
+        config.tbbPartitioner =
+            config.tbbPartitioner == TbbPartitioner::NONE ? TbbPartitioner::STATIC : config.tbbPartitioner;
     } else {
         config.modelPreferThreadsLatency = main_cores + lp_efficient_cores;
+        config.tbbPartitioner =
+            config.tbbPartitioner == TbbPartitioner::NONE ? TbbPartitioner::AUTO : config.tbbPartitioner;
     }
 }
 
