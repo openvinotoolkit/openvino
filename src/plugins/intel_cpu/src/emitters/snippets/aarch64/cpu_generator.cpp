@@ -196,16 +196,6 @@ static bool is_segfault_detector_emitter(const intel_cpu::aarch64::jit_emitter* 
      }}
 
 class jit_snippet : public dnnl::impl::cpu::aarch64::jit_generator_t {
-#define CREATE_UNDEFINED_EMITTER(supported_precisions)                                                         \
-    {
-        []([[maybe_unused]] const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-            return nullptr;                                                                                       \
-        },                                                                                                        \
-        []([[maybe_unused]] const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
-            return supported_precisions;                                                                          \
-        }
-    }
-
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_snippet)
 
