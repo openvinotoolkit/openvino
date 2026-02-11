@@ -335,62 +335,49 @@ KVCacheResult make_encoder_kv_cache(const ov::Output<ov::Node>& encoder_kv,
                                     ov::element::Type precision = ov::element::f32);
 
 // ============================================================================
-// SDPAttention functor
+// Attention functor
 // ============================================================================
 
-/// Full self-attention mechanism: Q/K/V proj -> reshape -> RoPE -> transpose ->
-/// KV cache -> GQA repeat -> SDPA -> reshape -> O proj.
-/// Does NOT include norm or residual (handled by make_decoder_layer template).
-struct SDPAttention {
+/// Unified attention mechanism: Q/K/V proj -> reshape -> optional QK-norm ->
+/// optional RoPE -> transpose -> optional KV cache -> GQA repeat -> SDPA -> O proj.
+/// Handles self-attention, cross-attention, and all cache modes.
+struct Attention {
+    // Dimensions
     size_t hidden_size, num_heads, num_kv_heads, head_dim;
     ov::element::Type precision;
     WeightFn weight_fn;
-    RoPEFn rope_fn;  // may be empty (no RoPE)
-    bool use_kv_cache;
-    ov::Output<ov::Node> position_ids;    // may be empty
-    ov::Output<ov::Node> batch_source;    // for KV cache init shape
-    ov::Output<ov::Node> beam_idx;        // for beam search reordering
-    ov::Output<ov::Node> attention_mask;  // pre-transformed 4D float mask
-    size_t layer_idx;
-    bool add_bias = false;  // Bias on Q/K/V/O projections (e.g. BERT)
-    NormFn qk_norm;         // Optional QK-norm applied to Q and K after reshape, before RoPE
 
-    LayerResult operator()(const ov::Output<ov::Node>& input, const std::string& prefix) const;
-};
+    // Per-projection options
+    bool add_bias = false;
+    NormFn qk_norm;  // Optional QK-norm applied to Q and K after reshape, before RoPE
 
-// ============================================================================
-// Whisper attention functors
-// ============================================================================
+    // RoPE (both empty = no RoPE)
+    RoPEFn rope_fn;
+    ov::Output<ov::Node> position_ids;
 
-/// Whisper self-attention: supports both encoder (no KV cache, non-causal) and
-/// decoder (KV cache, causal) modes. All projections include bias.
-struct WhisperSelfAttention {
-    size_t hidden_size, num_heads, head_dim;
-    ov::element::Type precision;
-    WeightFn weight_fn;
-    bool use_kv_cache;
-    ov::Output<ov::Node> batch_source;    // for KV cache init shape
-    ov::Output<ov::Node> beam_idx;        // for beam search reordering
-    size_t layer_idx;
-    ov::Output<ov::Node> sdpa_mask;       // pre-computed shared causal mask (Slice→SDPA pattern)
+    // Cross-attention: K/V projected from this instead of input (empty = self-attention)
+    ov::Output<ov::Node> kv_source;
 
-    // Optional pre-built KV cache read state for layer 0's key cache.
-    // When set, operator() reuses these instead of creating a new Variable/ReadValue/beam_gather.
-    // This avoids duplicate Variables with the same variable_id.
+    // KV cache
+    enum class CacheMode { None, ConcatBeam, StoreOnly };
+    CacheMode cache_mode = CacheMode::None;
+    ov::Output<ov::Node> batch_source;  // for KV cache init shape
+    ov::Output<ov::Node> beam_idx;      // for beam search reordering
+    size_t layer_idx = 0;
+    std::string cache_infix = ".";  // "." for LLM, ".decoder." / ".encoder." for whisper
+
+    // Whisper layer-0: reuse pre-built key cache Variable to avoid duplicate variable_ids
     std::shared_ptr<ov::op::util::Variable> prebuilt_k_variable;
     ov::Output<ov::Node> prebuilt_k_beam_gather;
 
-    LayerResult operator()(const ov::Output<ov::Node>& input, const std::string& prefix) const;
-};
+    // Mask
+    ov::Output<ov::Node> sdpa_mask;
 
-/// Whisper cross-attention: Q from decoder, K/V from encoder hidden states.
-/// Uses encoder KV cache (store-only, no concat) for beam search reordering.
-struct WhisperCrossAttention {
-    size_t hidden_size, num_heads, head_dim;
-    ov::element::Type precision;
-    WeightFn weight_fn;
-    ov::Output<ov::Node> encoder_hidden_states;
-    size_t layer_idx;
+    // Projection naming (defaults = LLM-style)
+    std::string q_proj_name = "self_attn.q_proj";
+    std::string k_proj_name = "self_attn.k_proj";
+    std::string v_proj_name = "self_attn.v_proj";
+    std::string o_proj_name = "self_attn.o_proj";
 
     LayerResult operator()(const ov::Output<ov::Node>& input, const std::string& prefix) const;
 };
@@ -507,7 +494,7 @@ struct LLMConfig {
     PositionIdsFn position_ids = Input2DPositionIds{};  ///< Set to {} for no position_ids/RoPE
     WeightFn weight;
     WeightFn lm_head_weight;
-    NormFn qk_norm;  ///< Optional QK-norm forwarded to SDPAttention
+    NormFn qk_norm;  ///< Optional QK-norm forwarded to Attention
 
     size_t get_kv_heads() const {
         return num_kv_heads == 0 ? num_heads : num_kv_heads;

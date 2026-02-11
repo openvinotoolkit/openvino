@@ -633,26 +633,44 @@ ov::Output<ov::Node> GELUFn::operator()(const ov::Output<ov::Node>& input, const
 }
 
 // ============================================================================
-// SDPAttention Functor Implementation
+// KV cache variable ID helper
 // ============================================================================
 
-LayerResult SDPAttention::operator()(const ov::Output<ov::Node>& input, const std::string& prefix) const {
-    const size_t kv_heads = num_kv_heads;
+/// Produces concatenated variable_id for KV cache state variables.
+/// The missing separator (e.g. "keypresent") is intentional — matches
+/// OV's StatefulToStateless pass which concatenates input+output names.
+/// @param layer   Layer index as string (e.g. "0", "1")
+/// @param infix   "." for LLM, ".decoder." or ".encoder." for whisper
+/// @param kv_type "key" or "value"
+static std::string make_kv_var_id(const std::string& layer,
+                                  const std::string& infix,
+                                  const std::string& kv_type) {
+    return "past_key_values." + layer + infix + kv_type
+         + "present." + layer + infix + kv_type;
+}
+
+// ============================================================================
+// Attention Functor Implementation
+// ============================================================================
+
+LayerResult Attention::operator()(const ov::Output<ov::Node>& input, const std::string& prefix) const {
+    // K/V source: self-attention uses input, cross-attention uses kv_source
+    auto kv_input = kv_source.get_node() ? kv_source : input;
 
     // Q, K, V projections
-    auto q =
-        make_linear(input, hidden_size, num_heads * head_dim, prefix + "self_attn.q_proj", precision, add_bias, weight_fn);
-    auto k =
-        make_linear(input, hidden_size, kv_heads * head_dim, prefix + "self_attn.k_proj", precision, add_bias, weight_fn);
-    auto v =
-        make_linear(input, hidden_size, kv_heads * head_dim, prefix + "self_attn.v_proj", precision, add_bias, weight_fn);
+    auto q = make_linear(input, hidden_size, num_heads * head_dim,
+                         prefix + q_proj_name, precision, add_bias, weight_fn);
+    auto k = make_linear(kv_input, hidden_size, num_kv_heads * head_dim,
+                         prefix + k_proj_name, precision, add_bias, weight_fn);
+    auto v = make_linear(kv_input, hidden_size, num_kv_heads * head_dim,
+                         prefix + v_proj_name, precision, add_bias, weight_fn);
 
     // Reshape for multi-head: [batch, seq, heads, head_dim]
     auto q_reshaped = make_multihead_reshape(q, num_heads, head_dim, prefix + "q_reshape");
-    auto k_reshaped = make_multihead_reshape(k, kv_heads, head_dim, prefix + "k_reshape");
-    auto v_reshaped = make_multihead_reshape(v, kv_heads, head_dim, prefix + "v_reshape");
+    auto k_reshaped = make_multihead_reshape(k, num_kv_heads, head_dim, prefix + "k_reshape");
+    auto v_reshaped = make_multihead_reshape(v, num_kv_heads, head_dim, prefix + "v_reshape");
 
-    // Optional QK-norm: RMSNorm on Q and K after reshape, before RoPE
+    // Optional QK-norm: applied to Q and K after reshape, before RoPE
     ov::Output<ov::Node> q_normed = q_reshaped;
     ov::Output<ov::Node> k_normed = k_reshaped;
     if (qk_norm) {
@@ -660,12 +678,12 @@ LayerResult SDPAttention::operator()(const ov::Output<ov::Node>& input, const st
         k_normed = qk_norm(k_reshaped, prefix + "self_attn.k_norm");
     }
 
-    // Apply RoPE to Q and K (before transpose, in [batch, seq, heads, head_dim] format)
+    // Apply RoPE to Q and K (after QK-norm, before transpose)
     ov::Output<ov::Node> q_for_trans = q_normed;
     ov::Output<ov::Node> k_for_trans = k_normed;
     if (position_ids.get_node() != nullptr && rope_fn) {
-        q_for_trans = rope_fn(q_reshaped, position_ids, prefix + "q_rope");
-        k_for_trans = rope_fn(k_reshaped, position_ids, prefix + "k_rope");
+        q_for_trans = rope_fn(q_normed, position_ids, prefix + "q_rope");
+        k_for_trans = rope_fn(k_normed, position_ids, prefix + "k_rope");
     }
 
     // Transpose: [batch, seq, heads, dim] -> [batch, heads, seq, dim]
@@ -673,157 +691,60 @@ LayerResult SDPAttention::operator()(const ov::Output<ov::Node>& input, const st
     auto k_trans = make_attention_transpose(k_for_trans, prefix + "k_transpose");
     auto v_trans = make_attention_transpose(v_reshaped, prefix + "v_transpose");
 
-    // KV cache (if enabled)
+    // KV cache
     std::vector<std::shared_ptr<ov::Node>> sinks;
     ov::Output<ov::Node> k_for_attn = k_trans;
     ov::Output<ov::Node> v_for_attn = v_trans;
 
-    if (use_kv_cache) {
+    if (cache_mode == CacheMode::ConcatBeam) {
         auto layer_str = std::to_string(layer_idx);
-        auto k_cache = make_kv_cache_concat(k_trans,
-                                            batch_source,
-                                            beam_idx,
-                                            kv_heads,
-                                            head_dim,
-                                            "past_key_values." + layer_str + ".key" + "present." + layer_str + ".key",
-                                            precision);
-        auto v_cache =
-            make_kv_cache_concat(v_trans,
-                                 batch_source,
-                                 beam_idx,
-                                 kv_heads,
-                                 head_dim,
-                                 "past_key_values." + layer_str + ".value" + "present." + layer_str + ".value",
-                                 precision);
-
-        sinks.push_back(k_cache.assign);
-        sinks.push_back(v_cache.assign);
-        k_for_attn = k_cache.concatenated;
-        v_for_attn = v_cache.concatenated;
-    }
-
-    // For GQA: repeat K/V heads to match Q head count
-    auto k_expanded = make_repeat_kv(k_for_attn, num_heads, kv_heads, head_dim, prefix + "k_repeat");
-    auto v_expanded = make_repeat_kv(v_for_attn, num_heads, kv_heads, head_dim, prefix + "v_repeat");
-
-    // SDPA
-    auto attn_output = make_sdpa(q_trans, k_expanded, v_expanded, prefix + "attn", attention_mask);
-
-    auto o_proj = make_attention_output(attn_output, hidden_size,
-                                        prefix + "self_attn.o_proj", precision, add_bias, weight_fn);
-
-    return {o_proj, sinks};
-}
-
-// ============================================================================
-// WhisperSelfAttention Functor Implementation
-// ============================================================================
-
-LayerResult WhisperSelfAttention::operator()(const ov::Output<ov::Node>& input, const std::string& prefix) const {
-    // Q, K, V projections (all with bias for Whisper)
-    auto q = make_linear(input, hidden_size, num_heads * head_dim, prefix + "self_attn.q_proj", precision, true, weight_fn);
-    auto k = make_linear(input, hidden_size, num_heads * head_dim, prefix + "self_attn.k_proj", precision, true, weight_fn);
-    auto v = make_linear(input, hidden_size, num_heads * head_dim, prefix + "self_attn.v_proj", precision, true, weight_fn);
-
-    // Reshape for multi-head
-    auto q_reshaped = make_multihead_reshape(q, num_heads, head_dim, prefix + "q_reshape");
-    auto k_reshaped = make_multihead_reshape(k, num_heads, head_dim, prefix + "k_reshape");
-    auto v_reshaped = make_multihead_reshape(v, num_heads, head_dim, prefix + "v_reshape");
-
-    // Transpose: [batch, seq, heads, dim] -> [batch, heads, seq, dim]
-    auto q_trans = make_attention_transpose(q_reshaped, prefix + "q_transpose");
-    auto k_trans = make_attention_transpose(k_reshaped, prefix + "k_transpose");
-    auto v_trans = make_attention_transpose(v_reshaped, prefix + "v_transpose");
-
-    // KV cache (if enabled — decoder self-attention)
-    std::vector<std::shared_ptr<ov::Node>> sinks;
-    ov::Output<ov::Node> k_for_attn = k_trans;
-    ov::Output<ov::Node> v_for_attn = v_trans;
-
-    if (use_kv_cache) {
-        auto layer_str = std::to_string(layer_idx);
-        // Decoder self-attn KV cache uses ".decoder." in variable_id
-        auto k_var_name = "past_key_values." + layer_str + ".decoder.key"
-                          "present." + layer_str + ".decoder.key";
+        auto k_var_id = make_kv_var_id(layer_str, cache_infix, "key");
 
         KVCacheResult k_cache;
         if (prebuilt_k_variable) {
             // Reuse pre-built Variable/ReadValue/beam_gather (layer 0 key cache)
             auto k_concat = std::make_shared<ov::opset11::Concat>(
                 ov::OutputVector{prebuilt_k_beam_gather, k_trans}, 2);
-            k_concat->set_friendly_name(k_var_name + "_concat");
+            k_concat->set_friendly_name(k_var_id + "_concat");
             auto k_assign = std::make_shared<ov::op::v6::Assign>(k_concat, prebuilt_k_variable);
-            k_assign->set_friendly_name(k_var_name + "_assign");
-            k_cache.concatenated = k_concat->output(0);
-            k_cache.beam_gather = prebuilt_k_beam_gather;
-            k_cache.assign = k_assign;
+            k_assign->set_friendly_name(k_var_id + "_assign");
+            k_cache = {k_concat->output(0), prebuilt_k_beam_gather, k_assign};
         } else {
             k_cache = make_kv_cache_concat(
-                k_trans, batch_source, beam_idx, num_heads, head_dim, k_var_name, precision);
+                k_trans, batch_source, beam_idx, num_kv_heads, head_dim, k_var_id, precision);
         }
 
         auto v_cache = make_kv_cache_concat(
-            v_trans, batch_source, beam_idx, num_heads, head_dim,
-            "past_key_values." + layer_str + ".decoder.value" + "present." + layer_str + ".decoder.value",
-            precision);
+            v_trans, batch_source, beam_idx, num_kv_heads, head_dim,
+            make_kv_var_id(layer_str, cache_infix, "value"), precision);
 
         sinks.push_back(k_cache.assign);
         sinks.push_back(v_cache.assign);
         k_for_attn = k_cache.concatenated;
         v_for_attn = v_cache.concatenated;
+    } else if (cache_mode == CacheMode::StoreOnly) {
+        auto layer_str = std::to_string(layer_idx);
+        auto k_cache = make_encoder_kv_cache(
+            k_trans, num_kv_heads, head_dim,
+            make_kv_var_id(layer_str, cache_infix, "key"), precision);
+        auto v_cache = make_encoder_kv_cache(
+            v_trans, num_kv_heads, head_dim,
+            make_kv_var_id(layer_str, cache_infix, "value"), precision);
+
+        sinks = {k_cache.assign, v_cache.assign};
+        k_for_attn = k_cache.concatenated;
+        v_for_attn = v_cache.concatenated;
     }
 
-    // Use pre-computed shared mask (must depend only on input parameters, not per-layer values,
-    // because NPUW's AttentionMaskInput picks one layer's Slice and feeds it to all layers)
-    auto attn_output = make_sdpa(q_trans, k_for_attn, v_for_attn, prefix + "attn", sdpa_mask);
+    // For GQA: repeat K/V heads to match Q head count
+    auto k_expanded = make_repeat_kv(k_for_attn, num_heads, num_kv_heads, head_dim, prefix + "k_repeat");
+    auto v_expanded = make_repeat_kv(v_for_attn, num_heads, num_kv_heads, head_dim, prefix + "v_repeat");
+
+    // SDPA
+    auto attn_output = make_sdpa(q_trans, k_expanded, v_expanded, prefix + "attn", sdpa_mask);
 
     auto o_proj = make_attention_output(attn_output, hidden_size,
-                                        prefix + "self_attn.out_proj", precision, true, weight_fn);
-
-    return {o_proj, sinks};
-}
-
-// ============================================================================
-// WhisperCrossAttention Functor Implementation
-// ============================================================================
-
-LayerResult WhisperCrossAttention::operator()(const ov::Output<ov::Node>& input, const std::string& prefix) const {
-    // Q projection from decoder hidden state (with bias)
-    auto q = make_linear(input, hidden_size, num_heads * head_dim, prefix + "encoder_attn.q_proj", precision, true, weight_fn);
-
-    // K, V projections from encoder_hidden_states (with bias)
-    auto k = make_linear(encoder_hidden_states, hidden_size, num_heads * head_dim,
-                         prefix + "encoder_attn.k_proj", precision, true, weight_fn);
-    auto v = make_linear(encoder_hidden_states, hidden_size, num_heads * head_dim,
-                         prefix + "encoder_attn.v_proj", precision, true, weight_fn);
-
-    // Reshape + transpose all
-    auto q_reshaped = make_multihead_reshape(q, num_heads, head_dim, prefix + "cross_q_reshape");
-    auto k_reshaped = make_multihead_reshape(k, num_heads, head_dim, prefix + "cross_k_reshape");
-    auto v_reshaped = make_multihead_reshape(v, num_heads, head_dim, prefix + "cross_v_reshape");
-
-    auto q_trans = make_attention_transpose(q_reshaped, prefix + "cross_q_transpose");
-    auto k_trans = make_attention_transpose(k_reshaped, prefix + "cross_k_transpose");
-    auto v_trans = make_attention_transpose(v_reshaped, prefix + "cross_v_transpose");
-
-    // Encoder KV cache (store-only, no concat, no beam reorder)
-    auto layer_str = std::to_string(layer_idx);
-    auto k_cache = make_encoder_kv_cache(
-        k_trans, num_heads, head_dim,
-        "past_key_values." + layer_str + ".encoder.key" + "present." + layer_str + ".encoder.key",
-        precision);
-    auto v_cache = make_encoder_kv_cache(
-        v_trans, num_heads, head_dim,
-        "past_key_values." + layer_str + ".encoder.value" + "present." + layer_str + ".encoder.value",
-        precision);
-
-    std::vector<std::shared_ptr<ov::Node>> sinks = {k_cache.assign, v_cache.assign};
-
-    // SDPA (non-causal, no mask)
-    auto attn_output = make_sdpa(q_trans, k_cache.concatenated, v_cache.concatenated, prefix + "cross_attn");
-
-    auto o_proj = make_attention_output(attn_output, hidden_size,
-                                        prefix + "encoder_attn.out_proj", precision, true, weight_fn);
+                                        prefix + o_proj_name, precision, add_bias, weight_fn);
 
     return {o_proj, sinks};
 }
@@ -1403,21 +1324,16 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
 
     for (size_t layer = 0; layer < config.num_layers; ++layer) {
         std::string prefix = "model.layers." + std::to_string(layer) + ".";
-        SDPAttention attn{config.hidden_size,
-                          config.num_heads,
-                          config.get_kv_heads(),
-                          config.head_dim,
-                          config.precision,
-                          config.weight,
-                          config.rope,
-                          config.use_kv_cache,
-                          position_ids_output,
-                          seq_source,
-                          beam_idx_output,
-                          sdpa_mask,
-                          layer,
-                          false,          // add_bias
-                          config.qk_norm};
+        Attention attn{config.hidden_size, config.num_heads, config.get_kv_heads(),
+                       config.head_dim, config.precision, config.weight};
+        attn.qk_norm = config.qk_norm;
+        attn.rope_fn = config.rope;
+        attn.position_ids = position_ids_output;
+        attn.cache_mode = config.use_kv_cache ? Attention::CacheMode::ConcatBeam : Attention::CacheMode::None;
+        attn.batch_source = seq_source;
+        attn.beam_idx = beam_idx_output;
+        attn.layer_idx = layer;
+        attn.sdpa_mask = sdpa_mask;
         auto layer_result = make_decoder_layer(current, config.norm, attn, config.ffn, prefix);
         current = layer_result.output;
 
@@ -1502,11 +1418,10 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_encoder(const WhisperConf
     for (size_t layer = 0; layer < config.encoder_layers; ++layer) {
         std::string prefix = "model.encoder.layers." + std::to_string(layer) + ".";
 
-        WhisperSelfAttention self_attn{d, heads, hd, prec, wf,
-                                       false,    // use_kv_cache
-                                       {},       // batch_source
-                                       {},       // beam_idx
-                                       layer};
+        Attention self_attn{d, heads, heads, hd, prec, wf};
+        self_attn.add_bias = true;
+        self_attn.layer_idx = layer;
+        self_attn.o_proj_name = "self_attn.out_proj";
 
         auto layer_result = make_decoder_layer(current, norm, self_attn, ffn, prefix);
         current = layer_result.output;
@@ -1578,7 +1493,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperConf
     // ================================================================
     auto layer0_k_read = make_kv_cache_read(
         input_ids->output(0), beam_idx->output(0), heads, hd,
-        "past_key_values.0.decoder.key" "present.0.decoder.key", prec);
+        make_kv_var_id("0", ".decoder.", "key"), prec);
 
     // kv_seq_len = ShapeOf(beam_gather)[2]
     // This Gather is the ROOT of the CachePositionInput pattern.
@@ -1759,21 +1674,32 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperConf
     for (size_t layer = 0; layer < config.decoder_layers; ++layer) {
         std::string prefix = "model.decoder.layers." + std::to_string(layer) + ".";
 
-        // Layer 0 passes pre-built KV cache Variable/beam_gather so
-        // WhisperSelfAttention reuses them (avoids duplicate Variable IDs).
-        WhisperSelfAttention self_attn{d, heads, hd, prec, wf,
-                                       true,   // use_kv_cache
-                                       input_ids->output(0),   // batch_source
-                                       beam_idx->output(0),    // beam_idx
-                                       layer,
-                                       shared_mask,
-                                       (layer == 0) ? layer0_k_read.variable : nullptr,
-                                       (layer == 0) ? layer0_k_read.beam_gather : ov::Output<ov::Node>{}};
+        // Self-attention (with KV cache, causal mask)
+        Attention self_attn{d, heads, heads, hd, prec, wf};
+        self_attn.add_bias = true;
+        self_attn.cache_mode = Attention::CacheMode::ConcatBeam;
+        self_attn.cache_infix = ".decoder.";
+        self_attn.batch_source = input_ids->output(0);
+        self_attn.beam_idx = beam_idx->output(0);
+        self_attn.layer_idx = layer;
+        self_attn.sdpa_mask = shared_mask;
+        self_attn.o_proj_name = "self_attn.out_proj";
+        if (layer == 0) {
+            self_attn.prebuilt_k_variable = layer0_k_read.variable;
+            self_attn.prebuilt_k_beam_gather = layer0_k_read.beam_gather;
+        }
 
         // Cross-attention to encoder (uses converted encoder hidden states)
-        WhisperCrossAttention cross_attn{d, heads, hd, prec, wf,
-                                         enc_hs,
-                                         layer};
+        Attention cross_attn{d, heads, heads, hd, prec, wf};
+        cross_attn.add_bias = true;
+        cross_attn.kv_source = enc_hs;
+        cross_attn.cache_mode = Attention::CacheMode::StoreOnly;
+        cross_attn.cache_infix = ".encoder.";
+        cross_attn.layer_idx = layer;
+        cross_attn.q_proj_name = "encoder_attn.q_proj";
+        cross_attn.k_proj_name = "encoder_attn.k_proj";
+        cross_attn.v_proj_name = "encoder_attn.v_proj";
+        cross_attn.o_proj_name = "encoder_attn.out_proj";
 
         auto layer_result = make_whisper_decoder_layer(current, norm, self_attn, cross_attn, ffn, prefix);
         current = layer_result.output;
@@ -1859,21 +1785,10 @@ std::shared_ptr<ov::Model> ModelBuilder::build_bert_encoder(const BERTConfig& co
 
     for (size_t layer = 0; layer < config.num_layers; ++layer) {
         std::string prefix = "encoder.layer." + std::to_string(layer) + ".";
-        SDPAttention attn{hs,
-                          config.num_heads,
-                          config.num_heads,  // MHA
-                          config.head_dim,
-                          prec,
-                          config.weight,
-                          {},     // no RoPE
-                          false,  // no KV cache
-                          {},     // no position_ids
-                          {},     // no batch_source
-                          {},     // no beam_idx
-                          sdpa_mask,
-                          layer,
-                          true,  // add_bias
-                          {}};   // no qk_norm
+        Attention attn{hs, config.num_heads, config.num_heads, config.head_dim, prec, config.weight};
+        attn.add_bias = true;
+        attn.sdpa_mask = sdpa_mask;
+        attn.layer_idx = layer;
         auto layer_result = make_post_norm_layer(current, config.norm, attn, config.ffn, prefix);
         current = layer_result.output;
     }
