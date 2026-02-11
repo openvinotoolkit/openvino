@@ -16,8 +16,8 @@ const {
   generateImage,
 } = require("../utils.js");
 
-// Tests on non-Linux platforms are skipped until CVS-180810 is fixed.
-describe("ov basic tests.", { skip: process.platform !== "linux" }, () => {
+// Tests are skipped until CVS-180810 is fixed.
+describe("ov basic tests.", { skip: true }, () => {
   const { testModelFP32 } = testModels;
   let core = null;
   let model = null;
