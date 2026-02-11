@@ -8,11 +8,13 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using ov::pass::pattern::Matcher;
 
+namespace v0 = ov::op::v0;
 namespace v8 = ov::op::v8;
 ov::pass::ConvertSoftMax8ToSoftMax1::ConvertSoftMax8ToSoftMax1() {
     MATCHER_SCOPE(ConvertSoftMax8ToSoftMax1);
@@ -27,6 +29,18 @@ ov::pass::ConvertSoftMax8ToSoftMax1::ConvertSoftMax8ToSoftMax1() {
 
         auto v8_axis = softmax_v8_node->get_axis();
         auto rank = softmax_v8_node->get_input_partial_shape(0).rank().get_length();
+
+        // Scalar (rank-0) input: softmax of a single value is always 1.
+        // Replace with constant to avoid axis validation issues downstream.
+        if (rank == 0) {
+            auto one_const =
+                v0::Constant::create(softmax_v8_node->get_output_element_type(0), ov::Shape{}, {1});
+            one_const->set_friendly_name(softmax_v8_node->get_friendly_name());
+            copy_runtime_info(softmax_v8_node, one_const);
+            replace_node(softmax_v8_node, one_const);
+            return true;
+        }
+
         auto v1_axis = ov::util::try_normalize_axis(v8_axis, rank, *softmax_v8_node);
 
         auto softmax_v1_node = std::make_shared<ov::op::v1::Softmax>(softmax_v8_node->input_value(0), v1_axis);

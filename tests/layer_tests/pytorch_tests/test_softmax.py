@@ -65,3 +65,29 @@ class TestSoftmax(PytorchLayerTest):
             input_kwargs["second_input_dtype"] = dtype
         self._test(*self.create_model(dim, dtype, use_prim_dtype), ie_device,
                    precision, ir_version, kwargs_to_prepare_input=input_kwargs)
+
+
+class TestSoftmaxScalar(PytorchLayerTest):
+    def _prepare_input(self):
+        import numpy as np
+        return (np.random.randn(1).reshape(()).astype(np.float32),)
+
+    def create_model(self, dim):
+        import torch
+        import torch.nn.functional as F
+
+        class aten_softmax_scalar(torch.nn.Module):
+            def __init__(self, dim):
+                super().__init__()
+                self.dim = dim
+
+            def forward(self, x):
+                return F.softmax(x, self.dim)
+
+        return aten_softmax_scalar(dim), None, "aten::softmax"
+
+    @pytest.mark.parametrize("dim", [-1, 0])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_softmax_scalar(self, dim, ie_device, precision, ir_version):
+        self._test(*self.create_model(dim), ie_device, precision, ir_version)
