@@ -52,7 +52,7 @@ jobs:
     steps:
       # checkout action cleans up the workspace and have to be the first step
       - name: Fetch custom actions
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: |
@@ -87,7 +87,7 @@ jobs:
       # Uncomment only when there's a need
       # to update the models on the shared drive
       # - name: Fetch model_zoo_preprocess script
-      #   uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      #   uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
       #   with:
       #     sparse-checkout: |
       #       src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh

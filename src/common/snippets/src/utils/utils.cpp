@@ -31,7 +31,12 @@
 #include "openvino/op/softmax.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expression_port.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/op/horizon_max.hpp"
+#include "snippets/op/horizon_sum.hpp"
+#include "snippets/op/reshape.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
@@ -496,6 +501,11 @@ std::string tensor2str(const VectorDims& tensor, const std::string& delimiter) {
         ss << v_str << del;
     }
     return ss.str();
+}
+
+bool need_full_connectors(const lowered::ExpressionPtr& expr) {
+    return ov::as_type_ptr<lowered::BufferExpression>(expr) ||
+           ov::is_type_any_of<op::Result, op::HorizonSum, op::HorizonMax, op::Reshape>(expr->get_node());
 }
 
 }  // namespace ov::snippets::utils

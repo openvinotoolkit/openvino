@@ -2510,7 +2510,7 @@ void Interpolate::prepareParams() {
     }
 
     if (canUseAclExecutor) {
-        interpAttrs.dataScales = scales5D;
+        interpAttrs.dataScales = std::move(scales5D);
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
