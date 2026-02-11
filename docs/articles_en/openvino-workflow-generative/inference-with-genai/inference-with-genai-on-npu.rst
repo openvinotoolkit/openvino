@@ -625,6 +625,137 @@ Since OpenVINO 2025.1, this is no longer required. Weights can remain in FP16 or
 
    optimum-cli export openvino --trust-remote-code --model openai/whisper-base whisper-base-int8 --weight-format int8
 
+
+Image Generation on NPU
+###############################################################################################
+
+
+OpenVINO GenAI currently has support for running the following image generation models on NPU:
+
+* `stable-diffusion-v1-5 <https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5>`__
+* `SimianLuo/LCM_Dreamshaper_v7 <https://huggingface.co/SimianLuo/LCM_Dreamshaper_v7>`__
+* `stabilityai/stable-diffusion-xl-base-1.0 <https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0>`__
+* `stabilityai/sdxl-turbo <https://huggingface.co/stabilityai/sdxl-turbo>`__
+* `stabilityai/stable-diffusion-3-medium-diffusers <https://huggingface.co/stabilityai/stable-diffusion-3-medium-diffusers>`__
+* `stabilityai/stable-diffusion-3.5-medium <https://huggingface.co/stabilityai/stable-diffusion-3.5-medium>`__
+
+Export Image Generation Models from Hugging Face
+***********************************************************************************************
+
+Models can be exported as FP16 or INT8 using ``optimum-cli``. When using INT8, use ``--sym`` flag to improve performance on NPU:
+
+.. tab-set::
+
+   .. tab-item:: INT8
+
+      .. code-block:: console
+         :name: int8
+
+         optimum-cli export openvino --model stable-diffusion-v1-5/stable-diffusion-v1-5 --task stable-diffusion --weight-format int8 --sym stable-diffusion-v1-5/int8
+
+   .. tab-item:: FP16
+
+      .. code-block:: console
+         :name: fp16
+
+         optimum-cli export openvino --model stable-diffusion-v1-5/stable-diffusion-v1-5 --task stable-diffusion --weight-format fp16 stable-diffusion-v1-5/fp16
+
+Run image generation
+***********************************************************************************************
+
+Use the following code snippet to perform image generation with OpenVINO GenAI API.
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: python
+
+         import openvino_genai as ov_genai
+         model_path = "stable-diffusion-v1-5/int8"
+         pipe = openvino_genai.Text2ImagePipeline(model_path)
+
+         width = 512
+         height = 512
+         pipe.reshape(1, height, width, pipe.get_generation_config().guidance_scale)
+         pipe.compile("NPU", CACHE_DIR="cache")
+
+         num_inference_steps = 20
+         prompt = "a photo of an astronaut riding a horse on mars"
+         image_tensor = pipe.generate(prompt, num_inference_steps=num_inference_steps)
+
+         from PIL import Image
+         image = Image.fromarray(image_tensor.data[0])
+         image.save("image.bmp")
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. code-block:: cpp
+
+         #include "openvino/genai/image_generation/text2image_pipeline.hpp"
+
+         int main(int argc, char* argv[]) {
+            std::string model_path = "stable-diffusion-v1-5/int8";
+            ov::genai::Text2ImagePipeline pipe(models_path);
+
+            const int width = 512;
+            const int height = 512;
+            pipe.reshape(1, height, width, pipe.get_generation_config().guidance_scale);
+            ov::AnyMap properties = {ov::cache_dir("cache")};
+            pipe.compile("NPU", properties);
+
+            const int num_inference_steps = 20;
+            std::string prompt = "a photo of an astronaut riding a horse on mars";
+            ov::Tensor image = pipe.generate(
+                                   prompt, 
+                                   ov::genai::num_inference_steps(num_inference_steps)
+                               );
+         }
+
+
+**Note**: As per the code snippets shown above, one important difference when using ``Text2ImagePipeline`` with 
+NPU, is the requirement to explicitly reshape the pipeline to a fixed image resolution, and then compile.
+
+**Note**: Even for other OpenVINO devices, such as CPU and GPU, reshaping & compiling ``Text2ImagePipeline`` for a fixed resolution 
+will typically yield better performance. So this is always recommended as long as you don't need to change image resolutions
+at ``generate()`` time.
+
+Running image generation pipelines heterogeneously
+***********************************************************************************************
+
+
+An image generation pipeline, such as ``Text2ImagePipeline``, is typically comprised of 3 inference components:
+
+* Text Encoding
+* Denoising (e.g. UNet, Transformer, etc.)
+* VAE Encoding / Decoding
+
+In some cases, it makes sense to specify different OpenVINO devices for each inference component. This can be done by passing 3 separate device strings 
+into ``pipe.compile``. 
+
+For example, the following code snippet will run **Text Encoder** on **CPU**, **UNet steps** on **NPU**, and **VAE decoder** on **GPU**:
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: python
+
+         # Run Text Encoder on CPU, UNet on NPU, and VAE decoder on GPU
+         pipe.compile("CPU", "NPU", "GPU", CACHE_DIR="cache")
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. code-block:: cpp
+
+         // Run Text Encoder on CPU, UNet on NPU, and VAE decoder on GPU
+         pipe.compile("CPU", "NPU", "GPU", properties);
+
+
 Troubleshooting
 ###############################################################################################
 
