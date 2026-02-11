@@ -1,4 +1,5 @@
 name: Linux Sanitizers (Ubuntu 22.04, Python 3.11)
+# just to run job
 on:
   schedule:
     # run daily at 00:00
