@@ -670,13 +670,18 @@ int main(int argc, char* argv[]) {
 
             // --- App-thread mode: override streams/threads/hint per device ---
             if (FLAGS_app_threads > 0) {
+                // N streams + N total threads => 1 internal thread per stream.
+                // This forces all work to execute in the calling app thread,
+                // not in TBB worker threads.
                 device_config[ov::num_streams.name()] = std::to_string(FLAGS_app_threads);
-                device_config[ov::inference_num_threads.name()] = 0;
+                device_config[ov::inference_num_threads.name()] = static_cast<int>(FLAGS_app_threads);
                 device_config.erase(ov::hint::performance_mode.name());
+                // Disable OV internal pinning — our app threads handle their own affinity.
                 device_config[ov::hint::enable_cpu_pinning.name()] = false;
                 device_nstreams[device] = std::to_string(FLAGS_app_threads);
                 slog::info << "App-thread mode: set " << FLAGS_app_threads << " streams, "
-                           << "CPU pinning disabled (app threads handle pinning)." << slog::endl;
+                           << FLAGS_app_threads << " inference threads (1 per stream), "
+                           << "OV CPU pinning disabled (app threads handle pinning)." << slog::endl;
             }
 
             if (is_virtual_device(device)) {
