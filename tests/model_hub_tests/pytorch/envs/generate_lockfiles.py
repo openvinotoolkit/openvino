@@ -33,7 +33,7 @@ BASE_REQS = TESTS_DIR / "requirements_pytorch.txt"
 # Every lockfile includes the base requirements + the listed overlays.
 GROUPS = {
     "base": {"reqs": [], "overrides": []},
-    "timm_torchvision": {"reqs": ["timm.txt", "edsr.txt"], "overrides": []},
+    "timm_torchvision": {"reqs": ["timm.txt", "edsr.txt", "torchvision.txt"], "overrides": []},
     "hf_models": {"reqs": ["hf_transformers.txt", "easyocr.txt", "gfpgan.txt", "tpsmm.txt"], "overrides": []},
     "compile_gptq": {"reqs": ["hf_transformers.txt"], "overrides": ["compile_gptq.txt"]},
     "moe": {"reqs": ["hf_transformers.txt"], "overrides": ["moe.txt"]},

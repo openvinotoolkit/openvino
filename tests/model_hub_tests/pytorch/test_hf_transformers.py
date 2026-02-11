@@ -4,21 +4,9 @@
 import os
 import platform
 
-from datasets import Audio, load_dataset
-from huggingface_hub import hf_hub_download, model_info, snapshot_download
 from PIL import Image
 import pytest
 import torch
-import transformers
-from transformers import (
-    AutoConfig, AutoFeatureExtractor, AutoImageProcessor, AutoModel,
-    AutoModelForTextToWaveform, AutoProcessor, AutoTokenizer,
-    BlipForConditionalGeneration, BlipProcessor, CLIPFeatureExtractor,
-    FlavaImageModel, LayoutLMv2Processor, Pix2StructForConditionalGeneration,
-    RetriBertTokenizer, SpeechT5ForTextToSpeech, SpeechT5Processor,
-    T5Tokenizer, ViTImageProcessor, VisionEncoderDecoderModel,
-    VivitImageProcessor, XCLIPVisionModel
-)
 
 from models_hub_common.constants import hf_cache_dir, clean_hf_cache_dir
 from models_hub_common.utils import cleanup_dir, get_models_list, retry
@@ -60,6 +48,19 @@ class TestTransformersModel(TestTorchConvertModel):
 
     @retry(10, exceptions=(OSError,), delay=5, exponential_backoff=True, backoff_multiplier=2, max_delay=300)
     def load_model(self, name, type):
+        from datasets import Audio, load_dataset
+        from huggingface_hub import hf_hub_download, model_info, snapshot_download
+        import transformers
+        from transformers import (
+            AutoConfig, AutoFeatureExtractor, AutoImageProcessor, AutoModel,
+            AutoModelForTextToWaveform, AutoProcessor, AutoTokenizer,
+            BlipForConditionalGeneration, BlipProcessor, CLIPFeatureExtractor,
+            FlavaImageModel, LayoutLMv2Processor, Pix2StructForConditionalGeneration,
+            RetriBertTokenizer, SpeechT5ForTextToSpeech, SpeechT5Processor,
+            T5Tokenizer, ViTImageProcessor, VisionEncoderDecoderModel,
+            VivitImageProcessor, XCLIPVisionModel
+        )
+
         name, _, name_suffix = name.partition(':')
 
         model_cached = snapshot_download(name)  # required to avoid HF rate limits
@@ -509,6 +510,10 @@ class TestTransformersModel(TestTorchConvertModel):
 
     @staticmethod
     def load_model_with_default_class(name, **kwargs):
+        import transformers
+        from huggingface_hub import model_info, snapshot_download
+        from transformers import AutoModel
+
         model_cached = snapshot_download(name)  # required to avoid HF rate limits
         try:
             mi = model_info(name)

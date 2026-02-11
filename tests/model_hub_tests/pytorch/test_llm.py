@@ -8,8 +8,6 @@ import numpy as np
 import platform
 import pytest
 import torch
-from huggingface_hub import snapshot_download
-from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
 
 from models_hub_common.utils import retry
 from openvino.frontend.pytorch.patch_model import __make_16bit_traceable as patch
@@ -142,6 +140,9 @@ class TestLLMModel(TestTorchConvertModel):
 
     @retry(3, exceptions=(OSError,), delay=1)
     def load_model(self, name, type):
+        from huggingface_hub import snapshot_download
+        from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
+
         model = None
         example = None
         model_cached = snapshot_download(name)  # required to avoid HF rate limits
