@@ -493,7 +493,7 @@ void BrgemmKernel::execute_without_scale(bool is_M_tail, void* a, void* b, void*
         ctx.current_M_blk = cur_M_blk;
         ctx.zp_b_compensation_buffer_ptr = nullptr;
         ctx.zp_a_compensation_result_ptr = nullptr;
-        ctx.zp_b_neg_value_ptr = nullptr;
+        ctx.zp_b_neg_val_ptr = nullptr;
         ctx.zp_ab_comp_ptr = nullptr;
         ctx.src = pCopyKernelIn;
         ctx.tr_src = pCopyKernelOut;
@@ -554,7 +554,7 @@ void BrgemmKernel::callBrgemm(brgemmCtx& ctx,
     }
     if (doPostops) {
         brgemm_post_ops_data_t post_ops_data;
-        post_ops_data.scales = bScale;
+        post_ops_data.wei_scales = bScale;
         brgemm_batch_element_t addr_batch;
         addr_batch.ptr.A = pin0;
         addr_batch.ptr.B = pin1;
@@ -620,7 +620,7 @@ void BrgemmKernelQuantized::executeGemm(bool is_M_tail,
         ctx.current_M_blk = cur_M_blk;
         ctx.zp_b_compensation_buffer_ptr = nullptr;
         ctx.zp_a_compensation_result_ptr = nullptr;
-        ctx.zp_b_neg_value_ptr = nullptr;
+        ctx.zp_b_neg_val_ptr = nullptr;
         ctx.zp_ab_comp_ptr = nullptr;
         ctx.src = pCopyKernelIn;
         ctx.tr_src = pCopyKernelOut;
