@@ -405,7 +405,7 @@ IRGraph::IRGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                  std::optional<ov::Tensor> blob,
                  bool blobAllocatedByPlugin,
                  const Config& config,
-                 const ov::SoPtr<ICompiler>& compiler)
+                 const ov::SoPtr<VCLCompilerImpl>& compiler)
     : _zeroInitStruct(zeroInitStruct),
       _blob(std::move(blob)),
       _blobAllocatedByPlugin(blobAllocatedByPlugin),

@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Compiler Interface
-
 #pragma once
 
 #include <ze_graph_ext.h>
 
+#include "compiler_impl.hpp"
 #include "intel_npu/common/idynamic_graph.hpp"
-#include "intel_npu/icompiler.hpp"
+#include "intel_npu/network_metadata.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "npu_mlir_runtime_api.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -111,7 +110,7 @@ public:
             std::optional<ov::Tensor> blob,
             bool blobAllocatedByPlugin,
             const Config& config,
-            const ov::SoPtr<ICompiler>& compiler = {nullptr});
+            const ov::SoPtr<VCLCompilerImpl>& compiler = {nullptr});
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
@@ -196,7 +195,7 @@ private:
      */
     std::optional<std::size_t> _batchSize = std::nullopt;
 
-    const ov::SoPtr<ICompiler> _compiler;
+    const ov::SoPtr<VCLCompilerImpl> _compiler;
     Logger _logger;
 
     std::unique_ptr<Impl> _impl;
