@@ -33,8 +33,7 @@ ov::pass::ConvertSoftMax8ToSoftMax1::ConvertSoftMax8ToSoftMax1() {
         // Scalar (rank-0) input: softmax of a single value is always 1.
         // Replace with constant to avoid axis validation issues downstream.
         if (rank == 0) {
-            auto one_const =
-                v0::Constant::create(softmax_v8_node->get_output_element_type(0), ov::Shape{}, {1});
+            auto one_const = v0::Constant::create(softmax_v8_node->get_output_element_type(0), ov::Shape{}, {1});
             one_const->set_friendly_name(softmax_v8_node->get_friendly_name());
             copy_runtime_info(softmax_v8_node, one_const);
             replace_node(softmax_v8_node, one_const);
