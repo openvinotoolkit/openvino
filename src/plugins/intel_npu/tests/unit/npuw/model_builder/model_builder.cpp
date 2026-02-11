@@ -80,6 +80,9 @@ ov::Output<ov::Node> CompressedWeight::operator()(const std::string& name,
 
     if (group_size > 0) {
         // Group quantization: reshape -> per-group scale -> reshape back
+        OPENVINO_ASSERT(cols >= group_size && cols % group_size == 0,
+                        "Group quantization requires cols (", cols, ") >= group_size (", group_size,
+                        ") and evenly divisible");
         const size_t num_groups = cols / group_size;
 
         auto reshape_shape = ov::opset11::Constant::create(
