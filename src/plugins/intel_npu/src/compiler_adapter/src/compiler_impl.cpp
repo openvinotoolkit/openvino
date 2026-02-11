@@ -82,8 +82,9 @@ struct vcl_allocator : vcl_allocator2_t {
         vclAllocator->m_size = intel_npu::utils::align_size_to_standard_page_size(size);
         auto allocatedPtr =
             reinterpret_cast<uint8_t*>(aligned_alloc_util(intel_npu::utils::STANDARD_PAGE_SIZE, vclAllocator->m_size));
+        
         if (allocatedPtr != nullptr) {
-            memset(allocatedPtr, 0, vclAllocator->m_size);
+            memset(allocatedPtr + size, 0, vclAllocator->m_size - size);
         }
         if (allocatedPtr == nullptr) {
             OPENVINO_THROW("Failed to allocate aligned memory for allocator");
@@ -112,7 +113,7 @@ struct vcl_allocator_2 : vcl_allocator2_t {
         auto allocatedPtr =
             reinterpret_cast<uint8_t*>(aligned_alloc_util(intel_npu::utils::STANDARD_PAGE_SIZE, alignedSize));
         if (allocatedPtr != nullptr) {
-            memset(allocatedPtr, 0, alignedSize);
+            memset(allocatedPtr + size, 0, alignedSize - size);
         }
         if (allocatedPtr == nullptr) {
             OPENVINO_THROW("Failed to allocate aligned memory for allocator");
