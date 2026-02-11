@@ -241,20 +241,19 @@ TEST_F(CoreBaseTest, compile_model_with_std_fs_path) {
 }
 
 TEST_P(UnicodePathTest, read_compile_model) {
-    const std::string model_name = "test-model";
+    const std::string model_name = "test-model.xml";
     const auto prefix_dir = utils::generateTestFilePrefix();
-    const auto test_dir = std::filesystem::path(prefix_dir) / utils::to_fs_path(GetParam());
 
-    const auto model_path = test_dir / std::filesystem::path(model_name + ".xml");
-    const auto weight_path = test_dir / std::filesystem::path(model_name + ".bin");
-    ov::test::utils::generate_test_model(model_path, weight_path);
+    const auto model_path =
+        std::filesystem::path(prefix_dir) / utils::to_fs_path(GetParam()) / std::filesystem::path(model_name);
+    ov::test::utils::generate_test_model(model_path, "");
 
     ov::Core core;
     const auto visitor = [&](const auto& param) {
         using ParamT = std::decay_t<decltype(param)>;
-        auto folder = ov::test::utils::ensure_trailing_slash(ParamT(param));
-        auto model_path = utils::cast_string_to_type<ParamT>(prefix_dir + "/") + folder +
-                          utils::cast_string_to_type<ParamT>(model_name + ".xml");
+
+        auto model_path = utils::append_slash(ParamT(prefix_dir.begin(), prefix_dir.end())) +
+                          utils::append_slash(param) + ParamT(model_name.begin(), model_name.end());
 
         const auto model = core.read_model(model_path);
         EXPECT_NE(model, nullptr);
