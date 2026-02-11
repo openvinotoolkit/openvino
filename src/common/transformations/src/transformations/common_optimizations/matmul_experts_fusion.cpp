@@ -203,7 +203,6 @@ FuseVectorizedMOE3GEMM::FuseVectorizedMOE3GEMM() {
         moe->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), moe);
         ov::replace_node(m.get_match_root(), moe);
-
         register_new_node(moe);
         return true;
     };

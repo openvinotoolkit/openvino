@@ -348,6 +348,11 @@ protected:
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         jit.make("SOFTMAX_TOPK_ENABLE", 1);
+        if (desc->_config.top_k_reduce) {
+            jit.make("TOPK_REDUCE", 1);
+        } else {
+            jit.make("TOPK_REDUCE", 0);
+        }
         jit.make("TOP_K", desc->_config.top_k);
         jit.make("VALUE_NUM", desc->_config.num_expert);
         jit.make("MOE_DTYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");

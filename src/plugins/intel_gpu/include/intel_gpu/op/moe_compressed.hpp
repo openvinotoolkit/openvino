@@ -30,6 +30,7 @@ public:
         size_t has_batch_dim = 0;
         bool has_zp = false;
         ov::element::Type out_type = ov::element::dynamic;
+        bool top_k_reduce = true;
         Config() = default;
         Config(const MOE::Config& moe_config) : MOE::Config(moe_config) {}
     };
