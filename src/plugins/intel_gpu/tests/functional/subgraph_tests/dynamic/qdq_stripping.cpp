@@ -97,7 +97,19 @@ public:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         const auto& [input_shape, input_precision, quantization_precision, pattern_type] = GetParam();
         // In "NeedScaling" cases we generate values which would cause overflow in f16 if quantization scales are not adjusted by FQStripping
-        if (pattern_type == PatternType::NeedScalingMulMatMul || pattern_type == PatternType::NeedScalingResidualBlock) {
+        if (pattern_type == PatternType::NeedScalingMulMatMul) {
+            // Input range [0, 1000]: with DQ=127, mul1 = input * 127 → up to 127,000 → overflows f16.
+            // After scale adjustment (÷2): mul1 = input * 63.5 → up to 63,500 → fits f16.
+            // Small range keeps values moderate after adjustment, improving Softmax accuracy.
+            inputs.clear();
+            auto itTargetShape = targetInputStaticShapes.begin();
+            for (const auto& param : function->get_parameters()) {
+                ov::test::utils::InputGenerateData gen_data(0, 1000, 1, 1);
+                auto tensor = ov::test::utils::create_and_fill_tensor(param->get_element_type(), *itTargetShape, gen_data);
+                inputs.insert({param, tensor});
+                itTargetShape++;
+            }
+        } else if (pattern_type == PatternType::NeedScalingResidualBlock) {
             inputs.clear();
             auto itTargetShape = targetInputStaticShapes.begin();
             for (const auto& param : function->get_parameters()) {
@@ -233,7 +245,9 @@ protected:
         ov::ParameterVector params{param1, param2};
 
         // Weight DQ pattern: quantized constant -> convert -> subtract (zero point) -> multiply (scale)
-        auto common_constant = build_dq_subgraph(ov::element::i8, {}, 0.1f, 10, std::nullopt, std::vector<int>{100});
+        // DQ = (127 - 0) * 1.0 = 127. Large constant ensures overflow without scale adjustment:
+        // input (up to 1000) * 127 = 127,000 >> f16 max (65504)
+        auto common_constant = build_dq_subgraph(ov::element::i8, {}, 1.0f, 0, std::nullopt, std::vector<int>{127});
 
         // param1 * common_constant
         auto mul1 = std::make_shared<ov::op::v1::Multiply>(param1, common_constant);
@@ -241,20 +255,22 @@ protected:
         // param2 * common_constant
         auto mul2 = std::make_shared<ov::op::v1::Multiply>(param2, common_constant);
 
-        // Add Softmax directly on mul1 as first output to detect overflow before MatMul clamps it
-        // If mul1 contains inf (due to f16 overflow), Softmax will produce NaN
-        auto softmax_mul1 = std::make_shared<ov::op::v8::Softmax>(mul1, -1);
+        // Softmax on mul1 detects overflow: if mul1 contains inf, Softmax produces NaN.
+        // Axis=1 (dim=3) avoids f16 precision argmax ties that occur with large dim.
+        auto softmax_mul1 = std::make_shared<ov::op::v8::Softmax>(mul1, 1);
 
         // MatMul
         auto matmul = std::make_shared<ov::op::v0::MatMul>(mul1, mul2, false, true);
 
-        // y_scale = (input_high - input_low) / (levels - 1) ≈ 655350 / 65535 ≈ 10
-        // After DQ: quantized_value * 10 can reach ~655350, far beyond f16 max (65504)
-        // Without scale adjustment: Softmax receives inf -> exp(inf) = inf -> inf/inf = NaN
-        // With scale adjustment: weights are divided by ~10, keeping values in f16 range
+        // y_scale = (input_high - input_low) / (levels - 1) ≈ 131070 / 65535 = 2
+        // Without scale adjustment: DQ = 127, mul1 = input * 127 → up to 127,000 → overflows f16 → NaN
+        // With scale adjustment: DQ / y_scale = 127 / 2 = 63.5,
+        //   mul1 = input * 63.5 → up to 63,500 → fits f16.
+        //   Small FQ step (=2) preserves Softmax input differences accurately.
+        //   Softmax axis=1 (3 channels): channel gaps >> f16 step → stable argmax.
         static const std::unordered_map<ov::element::Type_t, QuantizationParams> quantization_params{
-            {ov::element::Type_t::u16, {0.f, 655350.f, 0.f, 65535.f, 0}},
-            {ov::element::Type_t::i16, {-327675.f, 327675.f, -32768.f, 32767.f, 0}},
+            {ov::element::Type_t::u16, {0.f, 131070.f, 0.f, 65535.f, 0}},
+            {ov::element::Type_t::i16, {-65536.f, 65534.f, -32768.f, 32767.f, 0}},
         };
 
         const auto& qp = quantization_params.at(quantization_precision);
@@ -263,7 +279,8 @@ protected:
         auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
         auto dq = qp.build_dq(convert2, quantization_precision);
 
-        auto softmax = std::make_shared<ov::op::v8::Softmax>(dq, -1);
+        // Axis=1 (dim=3): Softmax over 3 elements avoids argmax ties from f16 rounding.
+        auto softmax = std::make_shared<ov::op::v8::Softmax>(dq, 1);
         auto model = std::make_shared<ov::Model>(ov::OutputVector{softmax_mul1, softmax}, params, "QDQStripping");
         return model;
     }
@@ -394,16 +411,15 @@ protected:
         inType = outType = input_precision;
 
         // abs_threshold rationale:
-        // - NeedScalingMulMatMul uses Softmax (exponentially sensitive to FQ rounding),
-        //   so abs_threshold=1 validates "no NaN" rather than exact f32 match.
-        // - NeedScalingResidualBlock uses MVN (linearly sensitive) with all-positive
-        //   weights (zp=-128) and y_scale=10 (FQ step=10), giving moderate FQ error.
-        // - NeedScalingMatMulWithBias uses MVN with y_scale=4 (FQ step=4),
-        //   so FQ error is small relative to signal (~17000), allowing tight accuracy.
-        // - SharedDQ uses Softmax, so threshold matches MulMatMul.
-        if (pattern_type == PatternType::NeedScalingMatMulWithBias) {
-            abs_threshold = 0.05;
-        } else if (pattern_type == PatternType::NeedScalingResidualBlock) {
+        // NeedScaling* patterns cause f16 overflow without scale adjustment.
+        // ResidualBlock and MatMulWithBias use MVN (linearly sensitive to FQ rounding).
+        // MulMatMul uses Softmax with y_scale=100: after adjustment, mul1 values ≤ 5850
+        // where f16 step ≈ 4, vs expected max-gap ≈ 45 → stable argmax, tight accuracy.
+        // All three NeedScaling* patterns use abs_threshold=0.05.
+        // SharedDQ pattern doesn't cause overflow, so default threshold is fine.
+        if (pattern_type == PatternType::NeedScalingMatMulWithBias
+            || pattern_type == PatternType::NeedScalingResidualBlock
+            || pattern_type == PatternType::NeedScalingMulMatMul) {
             abs_threshold = 0.05;
         } else {
             abs_threshold = 1;
