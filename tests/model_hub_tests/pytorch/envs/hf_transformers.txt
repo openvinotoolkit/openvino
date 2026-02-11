@@ -1,0 +1,31 @@
+# Extra dependencies for test_hf_transformers.py and test_llm.py
+# These are common model-hub deps not needed by layer tests
+datasets==3.0.1
+huggingface-hub==0.25.2
+hf_transfer==0.1.9
+sentencepiece==0.2.1
+sacremoses==0.1.1
+soundfile==0.12.1
+pandas==2.2.3
+av==13.0.0
+
+# requirements for specific HF models
+# - hf-tiny-model-private/tiny-random-RoFormerForCausalLM
+rjieba==0.1.11
+# - katuni4ka/tiny-random-qwen
+# - katuni4ka/tiny-random-internlm2
+transformers_stream_generator==0.0.5
+einops==0.8.0
+
+# LLM quantized model deps (autoawq, auto-gptq)
+autoawq==0.2.7; platform_system == "Linux" and platform_machine == "x86_64"
+triton==3.5.1; platform_system == "Linux" and platform_machine == "x86_64"
+auto-gptq==0.7.1; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.12"
+peft==0.17.1; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.12"
+
+# optimum-intel (used by test_llm.py and transformation tests)
+git+https://github.com/huggingface/optimum-intel.git@8ba536cd0a2bf93e9e88408b0048a7695db5be0b; python_version < "3.12"
+
+# librosa/pyctcdecode needed internally by some HF audio models
+librosa==0.10.2; python_version < "3.12"
+pyctcdecode==0.5.0; python_version < "3.12"

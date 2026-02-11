@@ -167,7 +167,7 @@
 - 'src/bindings/python/src/openvino/frontend/pytorch/**/*'
 - 'tests/layer_tests/py_frontend_tests/test_torch_decoder.py'
 - 'tests/layer_tests/py_frontend_tests/test_torch_frontend.py'
-- 'tests/requirements_pytorch'
+- 'tests/requirements_pytorch.txt'
 - any: ['tests/model_hub_tests/**',
         '!tests/model_hub_tests/tensorflow/**/*',
         '!tests/model_hub_tests/jax/**/*']
