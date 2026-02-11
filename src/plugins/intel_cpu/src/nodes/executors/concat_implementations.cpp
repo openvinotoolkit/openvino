@@ -9,7 +9,11 @@
 #include "nodes/executors/implementations.hpp"
 
 #if defined(OV_CPU_WITH_ACL)
+#    include "memory_desc/cpu_memory_desc.h"
+#    include "memory_format_filter.hpp"
 #    include "nodes/executors/acl/acl_concat.hpp"
+#    include "nodes/executors/executor.hpp"
+#    include "nodes/executors/executor_config.hpp"
 #    include "nodes/executors/implementation_utils.hpp"
 #endif
 

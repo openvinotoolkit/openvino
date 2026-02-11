@@ -9,15 +9,16 @@
 #include <arm_compute/core/TensorInfo.h>
 #include <arm_compute/core/Types.h>
 #include <arm_compute/runtime/NEON/functions/NEConcatenateLayer.h>
+#include <arm_compute/runtime/Tensor.h>
 
-#include <algorithm>
 #include <cstddef>
 #include <vector>
 
 #include "acl_utils.hpp"
-#include "cpu_memory.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/concat.hpp"
 #include "nodes/executors/concat_config.hpp"
+#include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -73,12 +74,8 @@ bool isSupportedCommon(const ConcatAttrs& attrs,
         }
     }
 
-    if (dstDesc->getPrecision() != precision || dstDesc->getShape().getRank() != rank ||
-        !dstDesc->hasLayoutType(expectedLayout)) {
-        return false;
-    }
-
-    return true;
+    return dstDesc->getPrecision() == precision && dstDesc->getShape().getRank() == rank &&
+           dstDesc->hasLayoutType(expectedLayout);
 }
 
 }  // namespace
