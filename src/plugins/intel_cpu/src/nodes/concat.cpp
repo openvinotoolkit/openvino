@@ -408,15 +408,14 @@ void Concat::selectOptimalPrimitiveDescriptor() {
     }
 
     for (auto indx : canSelectPrimitive) {
-        if (supportedPrimitiveDescriptors[indx].getImplementationType() == impl_desc_type::ref) {
+        if (supportedPrimitiveDescriptors[indx].getImplementationType() == impl_desc_type::unknown) {
             selectPrimitiveDescriptorByIndex(static_cast<int>(indx));
             return;
         }
     }
 
-    // if there are more than one PD with similar data layouts - select the optimized one
     for (auto indx : canSelectPrimitive) {
-        if (supportedPrimitiveDescriptors[indx].getImplementationType() == impl_desc_type::unknown) {
+        if (supportedPrimitiveDescriptors[indx].getImplementationType() == impl_desc_type::ref) {
             selectPrimitiveDescriptorByIndex(static_cast<int>(indx));
             return;
         }
@@ -449,14 +448,14 @@ void Concat::prepareParams() {
         return;
     }
 
+    auto* selectedPd = getSelectedPrimitiveDescriptor();
+    CPU_NODE_ASSERT(selectedPd, "Preferable primitive descriptor is not set.");
+
     if (useExecutor && m_executor) {
         for (size_t i = 0; i < getParentEdges().size(); ++i) {
             m_memory[ARG_SRC + i] = getSrcMemoryAtPort(i);
         }
         m_memory[ARG_DST] = getDstMemoryAtPort(0);
-
-        auto* selectedPd = getSelectedPrimitiveDescriptor();
-        CPU_NODE_ASSERT(selectedPd, "Preferable primitive descriptor is not set.");
 
         if (m_executor->update(m_memory)) {
             selectedPd->setImplementationType(m_executor->implType());
@@ -466,12 +465,12 @@ void Concat::prepareParams() {
         // Fallback to oneDNN/ref concat when executor update is not applicable for runtime shapes.
         useExecutor = false;
         m_executor.reset();
+        selectedPd->setImplementationType(impl_desc_type::ref);
     }
 
     const auto& dstMemPtr = getDstMemoryAtPort(0);
     CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "Destination memory is undefined.");
     auto dstMemDesc = dstMemPtr->getDescWithType<BlockedMemoryDesc>();
-    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "Preferable primitive descriptor is not set.");
 
     const auto& outputStrides = dstMemDesc->getStrides();
     size_t curConcatOffset = 0;
@@ -585,6 +584,10 @@ void Concat::createPrimitive() {
     auto* selectedPd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selectedPd, "Preferable primitive descriptor is not set.");
 
+    auto fallbackToRefImplType = [&]() {
+        selectedPd->setImplementationType(impl_desc_type::ref);
+    };
+
     if (!isInPlace()) {
         m_memory.clear();
         m_memory.reserve(getParentEdges().size() + 1);
@@ -614,7 +617,11 @@ void Concat::createPrimitive() {
             } catch (...) {
                 useExecutor = false;
                 m_executor.reset();
+                fallbackToRefImplType();
             }
+        } else if (selectedPd->getImplementationType() == impl_desc_type::undef ||
+                   selectedPd->getImplementationType() == impl_desc_type::acl) {
+            fallbackToRefImplType();
         }
     }
 
