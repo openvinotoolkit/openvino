@@ -307,7 +307,7 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         QDQ_DEBUG_LOG << "\n======== Applying backward scale adjustment ========" << std::endl;
         std::unordered_set<ov::Node*> visited;
         auto skip_node_predicate = [](ov::Node* n) {
-            return false;
+            return ov::is_type<op::v0::ShapeOf>(n) || ov::is_type<op::v3::ShapeOf>(n);
         };
 
         // Allow directly forcing scale_divisor via environment variable
@@ -403,6 +403,9 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
                     auto pattern_map = matcher->get_pattern_value_map();
                     apply_scale_to_weight(pattern_map, conv_weights_dq_block);
                     apply_scale_to_weight(pattern_map, bias_dq_block);
+                    for (const auto& in : matcher->get_match_root()->input_values()) {
+                        visited.insert(in.get_node());
+                    }
                     return;
                 }
             }
@@ -417,6 +420,9 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
                     QDQ_DEBUG_LOG << "        [ INFO ]   Matched MatMul with weights pattern" << std::endl;
                     auto pattern_map = matcher->get_pattern_value_map();
                     apply_scale_to_weight(pattern_map, weights_dq_block);
+                    for (const auto& in : matcher->get_match_root()->input_values()) {
+                        visited.insert(in.get_node());
+                    }
                     return;
                 }
             }
@@ -431,6 +437,9 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
                     QDQ_DEBUG_LOG << "        [ INFO ]   Matched Multiply with weights pattern" << std::endl;
                     auto pattern_map = matcher->get_pattern_value_map();
                     apply_scale_to_weight(pattern_map, weights_dq_block);
+                    for (const auto& in : matcher->get_match_root()->input_values()) {
+                        visited.insert(in.get_node());
+                    }
                     return;
                 }
             }
