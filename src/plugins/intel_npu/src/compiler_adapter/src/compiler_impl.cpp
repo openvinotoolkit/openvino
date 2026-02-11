@@ -18,21 +18,6 @@
 #include "ze_graph_ext_wrappers.hpp"
 
 namespace {
-void* aligned_alloc_util(size_t alignment, size_t size) {
-#ifdef _WIN32
-    return _aligned_malloc(size, alignment);
-#else
-    return aligned_alloc(alignment, size);
-#endif
-}
-
-void aligned_free_util(uint8_t* ptr) {
-#ifdef _WIN32
-    _aligned_free(ptr);
-#else
-    free(ptr);
-#endif
-}
 
 struct UsedVersion {
     int Major;
@@ -80,9 +65,8 @@ struct vcl_allocator : vcl_allocator2_t {
     static uint8_t* allocate(vcl_allocator2_t* allocator, size_t size) {
         vcl_allocator* vclAllocator = static_cast<vcl_allocator*>(allocator);
         vclAllocator->m_size = intel_npu::utils::align_size_to_standard_page_size(size);
-        auto allocatedPtr =
-            reinterpret_cast<uint8_t*>(aligned_alloc_util(intel_npu::utils::STANDARD_PAGE_SIZE, vclAllocator->m_size));
-        
+        auto allocatedPtr = reinterpret_cast<uint8_t*>(
+            vclAllocator->m_allocator.allocate(vclAllocator->m_size, intel_npu::utils::STANDARD_PAGE_SIZE));
         if (allocatedPtr != nullptr) {
             memset(allocatedPtr + size, 0, vclAllocator->m_size - size);
         }
@@ -97,9 +81,10 @@ struct vcl_allocator : vcl_allocator2_t {
         if (ptr == nullptr) {
             OPENVINO_THROW("Pointer is nullptr in deallocate!");
         }
-        aligned_free_util(ptr);
+        vcl_allocator* vclAllocator = static_cast<vcl_allocator*>(allocator);
+        vclAllocator->m_allocator.deallocate(ptr, vclAllocator->m_size, intel_npu::utils::STANDARD_PAGE_SIZE);
     }
-
+    ov::Allocator m_allocator;
     uint8_t* m_allocated;
     size_t m_size;
 };
@@ -110,8 +95,8 @@ struct vcl_allocator_2 : vcl_allocator2_t {
     static uint8_t* allocate(vcl_allocator2_t* allocator, size_t size) {
         vcl_allocator_2* vclAllocator = static_cast<vcl_allocator_2*>(allocator);
         size_t alignedSize = intel_npu::utils::align_size_to_standard_page_size(size);
-        auto allocatedPtr =
-            reinterpret_cast<uint8_t*>(aligned_alloc_util(intel_npu::utils::STANDARD_PAGE_SIZE, alignedSize));
+        auto allocatedPtr = reinterpret_cast<uint8_t*>(
+            vclAllocator->m_allocator.allocate(alignedSize, intel_npu::utils::STANDARD_PAGE_SIZE));
         if (allocatedPtr != nullptr) {
             memset(allocatedPtr + size, 0, alignedSize - size);
         }
@@ -126,19 +111,23 @@ struct vcl_allocator_2 : vcl_allocator2_t {
         if (ptr == nullptr) {
             OPENVINO_THROW("Pointer is nullptr in deallocate!");
         }
-        aligned_free_util(ptr);
+        vcl_allocator_2* vclAllocator = static_cast<vcl_allocator_2*>(allocator);
+        // 1 is the placeholder value, as size is not needed in deallocate
+        vclAllocator->m_allocator.deallocate(ptr, 1, intel_npu::utils::STANDARD_PAGE_SIZE);
     }
+    ov::Allocator m_allocator;
     std::vector<std::pair<uint8_t*, size_t>> m_info;
 };
 
 ov::Tensor make_tensor_from_aligned_addr(uint8_t* allocated, size_t size) {
+    ov::Allocator allocator;
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{size}, allocated);
     auto impl = ov::get_tensor_impl(std::move(tensor));
-    std::shared_ptr<void> ptr(allocated, [](uint8_t* p) {
+    std::shared_ptr<void> ptr(allocated, [&allocator, &size](uint8_t* p) {
         if (p == nullptr) {
             OPENVINO_THROW("Pointer is nullptr in memory deallocation of make_tensor_from_aligned_addr!");
         }
-        aligned_free_util(p);
+        allocator.deallocate(p, size, intel_npu::utils::STANDARD_PAGE_SIZE);
     });
     impl._so = ptr;
     return ov::make_tensor(impl);
