@@ -20,6 +20,7 @@ struct TENSORFLOW_LITE_FRONTEND_API TensorMetaInfo {
     ov::PartialShape m_partial_shape;
     ov::element::Type m_element_type;
     const uint8_t* m_tensor_data;
+    size_t m_tensor_data_size = 0;
     std::string m_tensor_name;
 };
 
