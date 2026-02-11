@@ -866,4 +866,15 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- CVS-181003-->
+    <skip_config>
+        <message>Skip test-cases failing on Ubuntu22</message>
+        <enable_rules>
+            <operating_system>linux</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*LLMSmokeAccuracyTestsNPUW.ConfigIsAccurate.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
