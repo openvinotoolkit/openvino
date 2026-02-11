@@ -410,7 +410,28 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
                 }
             }
 
-            // Case 2: MatMul with weights
+            // Case 2: MatMul + Add (bias) - scale both MatMul weights and bias
+            {
+                auto weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
+                auto matmul_pattern = wrap_type<ov::op::v0::MatMul>({any_input(), weights_dq_block});
+
+                auto bias_dq_block = std::make_shared<WeightsDequantizationBlock>();
+                auto add_pattern = wrap_type<ov::op::v1::Add>({matmul_pattern, bias_dq_block});
+                auto matcher = std::make_shared<Matcher>(add_pattern, "MatMulAddPattern");
+
+                if (matcher->match(node_shared)) {
+                    QDQ_DEBUG_LOG << "        [ INFO ]   Matched MatMul+Add(bias) pattern" << std::endl;
+                    auto pattern_map = matcher->get_pattern_value_map();
+                    apply_scale_to_weight(pattern_map, weights_dq_block);
+                    apply_scale_to_weight(pattern_map, bias_dq_block);
+                    for (const auto& in : matcher->get_match_root()->input_values()) {
+                        visited.insert(in.get_node());
+                    }
+                    return;
+                }
+            }
+
+            // Case 3: MatMul with weights (no bias)
             {
                 auto weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
                 auto matmul_pattern = wrap_type<ov::op::v0::MatMul>({any_input(), weights_dq_block});
@@ -427,7 +448,7 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
                 }
             }
 
-            // Case 3: Multiply with weights
+            // Case 4: Multiply with weights
             {
                 auto weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
                 auto multiply_pattern = wrap_type<ov::op::v1::Multiply>({any_input(), weights_dq_block});
