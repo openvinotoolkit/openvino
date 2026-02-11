@@ -63,8 +63,7 @@ static void read_sparse_data(uint8_t* dest,
                                 dest_row_offset,
                                 " exceeds buffer size ",
                                 total_size);
-        FRONT_END_GENERAL_CHECK(*segment >= last_segment,
-                                "Sparse segments must be monotonically non-decreasing");
+        FRONT_END_GENERAL_CHECK(*segment >= last_segment, "Sparse segments must be monotonically non-decreasing");
         size_t element_count = static_cast<size_t>(*segment - last_segment);
         for (size_t i = 0; i < element_count; ++i, ++idx) {
             FRONT_END_GENERAL_CHECK(idx < static_cast<size_t>(indices->size()),
