@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <cstddef>
+#include "nodes/executors/concat.hpp"
+#include "nodes/executors/executor_config.hpp"
 
 namespace ov::intel_cpu {
 
-struct ConcatAttrs {
-    size_t axis = 0;
-};
+using ConcatConfig = executor::Config<ConcatAttrs>;
 
 }  // namespace ov::intel_cpu

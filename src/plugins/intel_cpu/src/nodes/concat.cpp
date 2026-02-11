@@ -34,10 +34,11 @@
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
-#if defined(OV_CPU_WITH_ACL)
-#    include "nodes/executors/concat_list.hpp"
-#    include "nodes/executors/executor.hpp"
-#endif
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/executor_config.hpp"
+#include "nodes/executors/executor_factory.hpp"
+#include "nodes/executors/implementations.hpp"
+#include "nodes/executors/memory_arguments.hpp"
 #include "nodes/node_config.h"
 #include "onednn/dnnl.h"
 #include "openvino/core/except.hpp"
@@ -96,6 +97,7 @@ Concat::Concat(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     }
     CPU_NODE_ASSERT(axis < static_cast<int64_t>(inRank) && axis >= 0, "has invalid value of axis parameter: ", axis);
     this->axis = axis;
+    m_attrs.axis = axis;
 }
 
 void Concat::getSupportedDescriptors() {
@@ -215,7 +217,7 @@ void Concat::initSupportedPrimitiveDescriptors() {
             auto desc = itr->second->createSharedDesc(inputPrecision, getInputShapeAtPort(i));
             config.inConfs[i].setMemDesc(desc);
         }
-        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::undef);
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
         if (itr->first != LayoutType::nspc) {
             pdIndexesToReuse.push_back(supportedPrimitiveDescriptors.size() - 1);
         } else if (canBeInPlace) {
@@ -246,53 +248,52 @@ void Concat::initSupportedPrimitiveDescriptors() {
     // Optimized inplace case
     for (auto refPdIndex : pdIndexesToReuse) {
         auto config = supportedPrimitiveDescriptors[refPdIndex].getConfig();
-        ;
         for (auto& inConf : config.inConfs) {
             inConf.inPlace(0);
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     }
 
-#if defined(OV_CPU_WITH_ACL)
-    // ACL executor (ncsp/nspc, f16/f32, rank<=4)
-    {
+    const auto& concatImplementations = getImplementations<ConcatAttrs>();
+    if (!concatImplementations.empty()) {
         const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-        auto pushAclDesc = [&](LayoutType lt) {
-            NodeConfig config;
-            config.outConfs.resize(1);
-            config.inConfs.resize(getParentEdges().size());
+        auto pushExecutorDesc = [&](LayoutType layoutType) {
+            NodeConfig nodeConfig;
+            nodeConfig.outConfs.resize(1);
+            nodeConfig.inConfs.resize(getParentEdges().size());
 
-            std::vector<MemoryDescPtr> srcMemoryDescs;
+            MemoryDescArgs descs;
+            descs.reserve(getParentEdges().size() + 1);
             for (size_t i = 0; i < getParentEdges().size(); ++i) {
-                auto desc = creatorsMap.at(lt)->createSharedDesc(inputPrecision, getInputShapeAtPort(i));
-                config.inConfs[i].setMemDesc(desc);
-                config.inConfs[i].inPlace(-1);
-                config.inConfs[i].constant(false);
-                srcMemoryDescs.push_back(desc);
+                auto srcDesc = creatorsMap.at(layoutType)->createSharedDesc(inputPrecision, getInputShapeAtPort(i));
+                nodeConfig.inConfs[i].setMemDesc(srcDesc);
+                nodeConfig.inConfs[i].inPlace(-1);
+                nodeConfig.inConfs[i].constant(false);
+                descs[ARG_SRC + i] = srcDesc;
             }
-            auto outDesc = creatorsMap.at(lt)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0));
-            config.outConfs[0].setMemDesc(outDesc);
-            config.outConfs[0].inPlace(-1);
-            config.outConfs[0].constant(false);
 
-            concatAttrs = {axis};
-            auto factory =
-                std::make_shared<ConcatExecutorFactory>(concatAttrs,
-                                                        srcMemoryDescs,
-                                                        std::vector<MemoryDescPtr>{outDesc},
-                                                        std::make_shared<ExecutorContext>(context, getImplPriority()));
-            if (factory->hasSupportedDescs()) {
-                supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::acl, factory);
+            auto dstDesc = creatorsMap.at(layoutType)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0));
+            nodeConfig.outConfs[0].setMemDesc(dstDesc);
+            nodeConfig.outConfs[0].inPlace(-1);
+            nodeConfig.outConfs[0].constant(false);
+            descs[ARG_DST] = dstDesc;
+
+            const executor::Config<ConcatAttrs> config{descs, m_attrs};
+            const bool supported =
+                std::any_of(concatImplementations.begin(), concatImplementations.end(), [&](const auto& impl) {
+                    return impl.supports(config, memoryFormatFilter);
+                });
+            if (supported) {
+                supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::acl);
             }
         };
 
         const auto rank = getInputShapeAtPort(0).getRank();
         if (rank <= 4 && (inputPrecision == ov::element::f16 || inputPrecision == ov::element::f32)) {
-            pushAclDesc(LayoutType::ncsp);
-            pushAclDesc(LayoutType::nspc);
+            pushExecutorDesc(LayoutType::ncsp);
+            pushExecutorDesc(LayoutType::nspc);
         }
     }
-#endif
 }
 
 void Concat::selectOptimalPrimitiveDescriptor() {
@@ -448,34 +449,24 @@ void Concat::prepareParams() {
         return;
     }
 
-#if defined(OV_CPU_WITH_ACL)
-    if (useACL) {
-        auto* selected_pd = getSelectedPrimitiveDescriptor();
-        CPU_NODE_ASSERT(selected_pd, "Preferable primitive descriptor is not set.");
-
-        std::vector<MemoryDescPtr> srcMemoryDescs;
+    if (useExecutor && m_executor) {
         for (size_t i = 0; i < getParentEdges().size(); ++i) {
-            srcMemoryDescs.push_back(getParentEdgeAt(i)->getMemory().getDescPtr());
+            m_memory[ARG_SRC + i] = getSrcMemoryAtPort(i);
         }
-        std::vector<MemoryDescPtr> dstMemoryDescs;
-        dstMemoryDescs.push_back(getChildEdgeAt(0)->getMemory().getDescPtr());
+        m_memory[ARG_DST] = getDstMemoryAtPort(0);
 
-        try {
-            execPtrACL =
-                selected_pd->getExecutorFactoryAs<ConcatExecutorFactory>()->makeExecutor(concatAttrs,
-                                                                                         srcMemoryDescs,
-                                                                                         dstMemoryDescs,
-                                                                                         dnnl::primitive_attr());
-        } catch (...) {
-            execPtrACL.reset();
-        }
-        if (execPtrACL) {
-            selected_pd->setImplementationType(execPtrACL->getImplType());
+        auto* selectedPd = getSelectedPrimitiveDescriptor();
+        CPU_NODE_ASSERT(selectedPd, "Preferable primitive descriptor is not set.");
+
+        if (m_executor->update(m_memory)) {
+            selectedPd->setImplementationType(m_executor->implType());
             return;
         }
-        useACL = false;  // fallback to default path
+
+        // Fallback to oneDNN/ref concat when executor update is not applicable for runtime shapes.
+        useExecutor = false;
+        m_executor.reset();
     }
-#endif
 
     const auto& dstMemPtr = getDstMemoryAtPort(0);
     CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "Destination memory is undefined.");
@@ -590,6 +581,46 @@ size_t Concat::inverseOrder(const VectorDims& order, size_t axis) {
     return -1;
 }
 
+void Concat::createPrimitive() {
+    auto* selectedPd = getSelectedPrimitiveDescriptor();
+    CPU_NODE_ASSERT(selectedPd, "Preferable primitive descriptor is not set.");
+
+    if (!isInPlace()) {
+        m_memory.clear();
+        m_memory.reserve(getParentEdges().size() + 1);
+        for (size_t i = 0; i < getParentEdges().size(); ++i) {
+            m_memory[ARG_SRC + i] = getSrcMemoryAtPort(i);
+        }
+        m_memory[ARG_DST] = getDstMemoryAtPort(0);
+
+        useExecutor = selectedPd->getImplementationType() == impl_desc_type::acl && !canOptimizeNspc;
+        m_executor.reset();
+
+        if (useExecutor) {
+            MemoryDescArgs descs;
+            descs.reserve(m_memory.size());
+            for (const auto& [arg, mem] : m_memory) {
+                descs[arg] = mem->getDescPtr();
+            }
+
+            try {
+                auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority());
+                auto factory = std::make_shared<ExecutorFactory<ConcatAttrs>>(m_attrs,
+                                                                              executionContext,
+                                                                              descs,
+                                                                              memoryFormatFilter);
+                m_executor = factory->make(m_memory);
+                selectedPd->setImplementationType(m_executor->implType());
+            } catch (...) {
+                useExecutor = false;
+                m_executor.reset();
+            }
+        }
+    }
+
+    Node::createPrimitive();
+}
+
 void Concat::initOptimalPrimitiveDescriptor() {
     auto* selected_pd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selected_pd, "Preferable primitive descriptor is not set.");
@@ -613,7 +644,7 @@ void Concat::initOptimalPrimitiveDescriptor() {
         }
     }
 
-    useACL = selected_pd->getImplementationType() == impl_desc_type::acl;
+    useExecutor = selected_pd->getImplementationType() == impl_desc_type::acl;
 
     // block layout may have axis greater than rank, disable ref_concat
     auto* primDesc = getSelectedPrimitiveDescriptor();
@@ -648,22 +679,10 @@ void Concat::execute(const dnnl::stream& strm) {
         return;
     }
 
-#if defined(OV_CPU_WITH_ACL)
-    if (useACL && execPtrACL) {
-        std::vector<MemoryCPtr> srcMemory;
-        srcMemory.reserve(getOriginalInputsNumber());
-        for (size_t i = 0; i < getOriginalInputsNumber(); ++i) {
-            srcMemory.push_back(getSrcMemoryAtPort(i));
-        }
-        std::vector<MemoryPtr> dstMemory;
-        dstMemory.reserve(getOriginalOutputsNumber());
-        for (size_t i = 0; i < getOriginalOutputsNumber(); ++i) {
-            dstMemory.push_back(getDstMemoryAtPort(i));
-        }
-        execPtrACL->exec(srcMemory, dstMemory);
+    if (useExecutor && m_executor) {
+        m_executor->execute(m_memory);
         return;
     }
-#endif
 
     if (canOptimize1DCase) {
         exec1DCase();

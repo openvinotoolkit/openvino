@@ -7,6 +7,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "nodes/executors/concat_config.hpp"
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/eltwise_config.hpp"
 #include "nodes/executors/executor_implementation.hpp"
@@ -36,6 +37,10 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations();
 // Eltwise
 template <>
 const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations();
+
+// Concat
+template <>
+const std::vector<ExecutorImplementation<ConcatAttrs>>& getImplementations();
 
 // MatMul
 template <>
