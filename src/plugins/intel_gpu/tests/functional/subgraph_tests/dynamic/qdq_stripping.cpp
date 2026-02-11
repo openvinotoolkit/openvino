@@ -97,12 +97,26 @@ public:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         const auto& [input_shape, input_precision, quantization_precision, pattern_type] = GetParam();
         // In "NeedScaling" cases we generate values which would cause overflow in f16 if quantization scales are not adjusted by FQStripping
-        if (pattern_type == PatternType::NeedScalingMulMatMul || pattern_type == PatternType::NeedScalingResidualBlock || pattern_type == PatternType::NeedScalingMatMulWithBias) {
+        if (pattern_type == PatternType::NeedScalingMulMatMul || pattern_type == PatternType::NeedScalingResidualBlock) {
             inputs.clear();
             auto itTargetShape = targetInputStaticShapes.begin();
             for (const auto& param : function->get_parameters()) {
                 auto gen_data = ov::test::utils::rangeByType.get_range(quantization_precision);
                 gen_data.range = 65000;
+                auto tensor = ov::test::utils::create_and_fill_tensor(param->get_element_type(), *itTargetShape, gen_data);
+                inputs.insert({param, tensor});
+                itTargetShape++;
+            }
+        } else if (pattern_type == PatternType::NeedScalingMatMulWithBias) {
+            // Input range [0, 100]: with weight_scale=0.02, weight_zp=-128, weights in [0,5.1],
+            // 128-element dot product → MatMul output ~16320 (all positive).
+            // Plus bias [0, 51000] → total up to ~67320 → overflows f16 without scale adj.
+            // With scale adjustment (÷4): total ~16830 → fits f16.
+            // Positive inputs + positive weights → all-positive signal, no u16 FQ clamping.
+            inputs.clear();
+            auto itTargetShape = targetInputStaticShapes.begin();
+            for (const auto& param : function->get_parameters()) {
+                ov::test::utils::InputGenerateData gen_data(0, 100, 1, 1);
                 auto tensor = ov::test::utils::create_and_fill_tensor(param->get_element_type(), *itTargetShape, gen_data);
                 inputs.insert({param, tensor});
                 itTargetShape++;
@@ -122,7 +136,7 @@ protected:
         std::shared_ptr<ov::Node> quantized_const;
 
         if (seed.has_value()) {
-            ov::test::utils::InputGenerateData gen_data;
+            auto gen_data = ov::test::utils::rangeByType.get_range(quantized_type);
             gen_data.seed = seed.value();
             quantized_const = ov::test::utils::make_constant(quantized_type, shape, gen_data);
         } else if (constant_values.has_value()) {
@@ -258,21 +272,29 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
 
         // Weight DQ for MatMul: input last dim = 128 (from input shape [1,3,128,128]), output = 32
-        auto weight = build_dq_subgraph(ov::element::i8, ov::Shape{128, 32}, 0.01f, 0, 1);
+        // Zero-point -128 shifts i8[-128,127] to [0,255]. Scale=0.02 → weights in [0, 5.1].
+        // All-positive weights + all-positive inputs [0,100] → MatMul output always positive.
+        // This avoids u16 FQ clamping (input_low=0) which would cause large f16 rounding errors.
+        // With 128-element dot product: avg output ≈ 50 * 2.55 * 128 ≈ 16320.
+        auto weight = build_dq_subgraph(ov::element::i8, ov::Shape{128, 32}, 0.02f, -128, 1);
 
-        // MatMul: [..., 128] x [128, 32] -> [..., 32]
         auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], weight, false, false);
 
-        // Bias DQ: [32] - added directly via broadcast
-        auto bias = build_dq_subgraph(ov::element::i32, {32}, 10.f, 0, {}, std::vector<int>{60000});
+        // Bias DQ: [32] with zero_point=-128 so DQ values are always non-negative.
+        // DQ = (i8_val + 128) * 200 → [0, 51000], avg ~25500.
+        // Bias is significant relative to MatMul output (~16320) so MVN detects unscaled bias.
+        auto bias = build_dq_subgraph(ov::element::i8, {32}, 200.0f, -128, 2);
         auto matmul_biased = std::make_shared<ov::op::v1::Add>(matmul, bias);
 
-        // y_scale = (655350 - 0) / 65535 ≈ 10, far beyond f16 max
-        // Without scale adjustment: overflow -> NaN
-        // With scale adjustment: weights divided by ~10, values stay in f16 range
+        // y_scale = 262140 / 65535 = 4
+        // All values are positive (positive weights, positive inputs, positive bias).
+        // Total = MatMul(~16320) + bias(max 51000) = max ~67320 → overflows f16 (65504).
+        // With scale adjustment (÷4): MatMul ~4080, bias max ~12750, total ~16830 → fits f16.
+        // Without scale adjustment: total up to ~67320 → overflows f16 → inf → MVN = NaN.
+        // FQ step=4 vs signal ~30000 → 0.01% error → MVN output accurate.
         static const std::unordered_map<ov::element::Type_t, QuantizationParams> quantization_params{
-            {ov::element::Type_t::u16, {0.f, 655350.f, 0.f, 65535.f, 0}},
-            {ov::element::Type_t::i16, {-327675.f, 327675.f, -32768.f, 32767.f, 0}},
+            {ov::element::Type_t::u16, {0.f, 262140.f, 0.f, 65535.f, 0}},
+            {ov::element::Type_t::i16, {-131070.f, 131070.f, -32768.f, 32767.f, 0}},
         };
 
         const auto& qp = quantization_params.at(quantization_precision);
@@ -281,10 +303,13 @@ protected:
         auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
         auto dq = qp.build_dq(convert2, quantization_precision);
 
-        // Softmax triggers scale adjustment via backward traversal
-        auto softmax = std::make_shared<ov::op::v8::Softmax>(dq, -1);
+        // MVN is scale-invariant (normalizes by mean/variance), triggering scale adjustment.
+        // Unlike Softmax (which is exponentially sensitive to input perturbations),
+        // MVN output is linearly affected by quantization error, allowing tight accuracy checks.
+        auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+        auto mvn = std::make_shared<ov::op::v6::MVN>(dq, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
 
-        auto model = std::make_shared<ov::Model>(ov::OutputVector{softmax}, params, "QDQStripping");
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{mvn}, params, "QDQStripping");
         return model;
     }
 
@@ -363,7 +388,19 @@ protected:
         }
 
         inType = outType = input_precision;
+
+        // abs_threshold rationale:
+        // - NeedScaling* patterns cause f16 overflow without scale adjustment.
+        //   MulMatMul and ResidualBlock use Softmax which is exponentially sensitive to FQ rounding,
+        //   so abs_threshold=1 validates "no NaN" rather than exact f32 match.
+        // - NeedScalingMatMulWithBias uses MVN (linearly sensitive) and y_scale=4 (FQ step=4),
+        //   so FQ error is small relative to signal (~17000), allowing tight accuracy.
+        // - SharedDQ pattern doesn't cause overflow, so default threshold is fine.
         abs_threshold = 1;
+
+        if (pattern_type == PatternType::NeedScalingMatMulWithBias) {
+            abs_threshold = 0.05;
+        }
 
         // Force f16 inference precision to test FQTransformation scales adjustment (preventing overflow in f16 scenarios).
         configuration[ov::hint::inference_precision.name()] = ov::element::f16.get_type_name();
