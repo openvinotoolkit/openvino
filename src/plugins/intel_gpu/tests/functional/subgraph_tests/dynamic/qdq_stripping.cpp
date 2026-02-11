@@ -192,8 +192,8 @@ protected:
     std::shared_ptr<ov::Model> build_shared_dq_pattern(const ov::PartialShape& input_shape, const ov::element::Type& quantization_precision) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
         static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>> quantization_params{
-            {ov::element::Type_t::u16, {{0.f, 10.f, 0.f, 65535.f, 0}, {-6244.578838348389f, 6347.373962402344f, 0.f, 65535.f, 32500}}},
-            {ov::element::Type_t::i16, {{-5.f, 5.f, -32768.f, 32767.f, 0}, {-6296.072483062744f, 6295.880317687988f, -32768.f, 32767.f, 0}}},
+            {ov::element::Type_t::u16, {{0.f, 10.f, 0.f, 65535.f, 0}, {-624.4578838348389f, 634.7373962402344f, 0.f, 65535.f, 32500}}},
+            {ov::element::Type_t::i16, {{-5.f, 5.f, -32768.f, 32767.f, 0}, {-629.6072483062744f, 629.5880317687988f, -32768.f, 32767.f, 0}}},
         };
 
         const auto& q_params = quantization_params.at(quantization_precision);
@@ -231,8 +231,8 @@ protected:
             return qp_2.build_dq(act_convert, quantization_precision);
         };
 
-        auto left_branch = create_qdq_branch(1e-3f);
-        auto right_branch = create_qdq_branch(1e-4f);
+        auto left_branch = create_qdq_branch(1e-4f);
+        auto right_branch = create_qdq_branch(1e-5f);
         auto add_branches = std::make_shared<ov::op::v1::Add>(left_branch, right_branch);
 
         auto model = std::make_shared<ov::Model>(ov::OutputVector{add_branches}, params, "QDQStripping");
@@ -411,19 +411,14 @@ protected:
         inType = outType = input_precision;
 
         // abs_threshold rationale:
-        // NeedScaling* patterns cause f16 overflow without scale adjustment.
-        // ResidualBlock and MatMulWithBias use MVN (linearly sensitive to FQ rounding).
-        // MulMatMul uses Softmax with y_scale=100: after adjustment, mul1 values ≤ 5850
-        // where f16 step ≈ 4, vs expected max-gap ≈ 45 → stable argmax, tight accuracy.
-        // All three NeedScaling* patterns use abs_threshold=0.05.
-        // SharedDQ pattern doesn't cause overflow, so default threshold is fine.
-        if (pattern_type == PatternType::NeedScalingMatMulWithBias
-            || pattern_type == PatternType::NeedScalingResidualBlock
-            || pattern_type == PatternType::NeedScalingMulMatMul) {
-            abs_threshold = 0.05;
-        } else {
-            abs_threshold = 1;
-        }
+        // All patterns use abs_threshold=0.05.
+        // NeedScaling* patterns cause f16 overflow without scale adjustment:
+        //   - ResidualBlock and MatMulWithBias use MVN (linearly sensitive to FQ rounding).
+        //   - MulMatMul uses Softmax over axis=1 (3 elements) with y_scale=2 and input range
+        //     [0,1000], so Softmax argmax is stable with tight accuracy.
+        // SharedDQ pattern doesn't cause overflow; small FQ ranges (÷10 vs NeedScaling*)
+        // keep f16 quantization error well below 0.05.
+        abs_threshold = 0.05;
 
         // Force f16 inference precision to test FQTransformation scales adjustment (preventing overflow in f16 scenarios).
         configuration[ov::hint::inference_precision.name()] = ov::element::f16.get_type_name();
