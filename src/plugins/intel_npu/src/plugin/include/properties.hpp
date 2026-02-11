@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "compiler_adapter_factory.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
@@ -26,6 +27,9 @@ public:
                const std::shared_ptr<Metrics>& metrics = nullptr,
                const ov::SoPtr<IEngineBackend>& backend = {nullptr});
 
+    Properties(const Properties& other);
+    Properties& operator=(const Properties& other) = delete;
+
     /**
      * @brief Initialize the properties map and try registering the properties for npu-plugin and compiled-model
      * Can be used for both plugin and compiled-model properties maps, based on the provided pType param to the
@@ -43,7 +47,7 @@ public:
     /**
      * @brief Get the values of a property in a map
      */
-    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments = {}) const;
+    ov::Any getProperty(const std::string& name, const ov::AnyMap& arguments = {}) const;
 
     /**
      * @brief Set the values of a subset of properties, provided as a map
@@ -51,43 +55,14 @@ public:
      * - checks if the property exists, will report if unsupported
      * - checks if the property is Read-only, will report error if so
      */
-    void set_property(const ov::AnyMap& properties);
+    void setProperty(const ov::AnyMap& arguments);
 
     /**
      * @brief Checks whether a property was registered by its name
      */
     bool isPropertyRegistered(const std::string& propertyName) const;
 
-    /**
-     * @brief Marks config as initialized
-     */
-    void markAsInitialized();
-
-    /**
-     * @brief Checks whether config was initialized
-     */
-    bool wasInitialized() const;
-
-    /**
-     * @brief Enables or disables a specific property.
-     * @param key The key of the property to enable/disable.
-     * @param enable True to enable the property, false to disable it.
-     */
-    void enable(std::string key, bool enable);
-
-    /**
-     * @brief Updates the configuration with new options if the key is enabled state
-     * @param options A map of key-value pairs representing the new configuration options.
-     * @param mode Specifies the mode in which the options should be updated (default is `OptionMode::Both`).
-     */
-    void update(const Config::ConfigMap& options, OptionMode mode = OptionMode::Both);
-
-    /**
-     * @brief Adds or updates an internal configuration value for compiler-specific needs.
-     * @param key The key of the internal configuration to add or update.
-     * @param value The value to set for the internal configuration.
-     */
-    void addOrUpdateInternal(std::string key, std::string value);
+    void update(const ov::AnyMap& arguments, const ICompilerAdapter* compiler, OptionMode mode = OptionMode::Both);
 
     /**
      * @brief Get a const reference to the stored config
@@ -96,11 +71,16 @@ public:
         return _config;
     }
 
+    void filterCompilerPropertiesSafe(const bool registerIfNotInitialized,
+                                      const ov::AnyMap& arguments = {},
+                                      const ICompilerAdapter* compiler = nullptr);
+
 private:
     PropertiesType _pType;
     FilteredConfig _config;
     std::shared_ptr<Metrics> _metrics;
     ov::SoPtr<IEngineBackend> _backend;
+    Logger _logger;
 
     bool _initialized = false;  ///< Boolean to check whether properties was filtered with compiler supported properties
 
@@ -111,6 +91,7 @@ private:
     // internal registration functions based on client object
     void registerPluginProperties();
     void registerCompiledModelProperties();
+    void filterPropertiesByCompilerSupport(const ICompilerAdapter* compiler);
 
     const std::vector<ov::PropertyName> _cachingProperties = {
         ov::cache_mode.name(),
@@ -197,6 +178,8 @@ private:
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
                                                                         ov::internal::caching_with_mmap.name(),
                                                                         ov::internal::cache_header_alignment.name()};
+
+    std::mutex _mutex;
 };
 
 }  // namespace intel_npu

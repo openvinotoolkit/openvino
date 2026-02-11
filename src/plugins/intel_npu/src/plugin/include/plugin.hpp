@@ -33,45 +33,43 @@ public:
 
     ~Plugin() = default;
 
-    void set_property(const ov::AnyMap& properties) override;
+    void set_property(const ov::AnyMap& arguments) override;
 
     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                      const ov::AnyMap& properties) const override;
+                                                      const ov::AnyMap& arguments) const override;
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                      const ov::AnyMap& properties,
+                                                      const ov::AnyMap& arguments,
                                                       const ov::SoPtr<ov::IRemoteContext>& context) const override;
 
-    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override;
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remoteArguments) const override;
 
-    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override;
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remoteArguments) const override;
 
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& stream, const ov::AnyMap& properties) const override;
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& stream, const ov::AnyMap& arguments) const override;
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& stream,
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
-                                                     const ov::AnyMap& properties) const override;
+                                                     const ov::AnyMap& arguments) const override;
 
-    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& compiled_blob,
-                                                     const ov::AnyMap& properties) const override;
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& compiledBlob,
+                                                     const ov::AnyMap& arguments) const override;
 
-    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& compiled_blob,
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& compiledBlob,
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
-                                                     const ov::AnyMap& properties) const override;
+                                                     const ov::AnyMap& arguments) const override;
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
-                                    const ov::AnyMap& properties) const override;
+                                    const ov::AnyMap& arguments) const override;
 
 private:
     void init_options(FilteredConfig& filteredConfig);
-    void filter_global_config_safe(const std::unique_ptr<Properties>& properties,
-                                   const ov::AnyMap& arguments,
-                                   const ICompilerAdapter* compiler = nullptr) const;
-    void filter_config_by_compiler_support(const std::unique_ptr<Properties>& properties,
-                                           const ICompilerAdapter* compiler) const;
-    FilteredConfig fork_local_config(const ov::AnyMap& properties,
+    void filter_compiler_properties_safe(const std::unique_ptr<Properties>& properties,
+                                         const ov::AnyMap& arguments,
+                                         const ICompilerAdapter* compiler = nullptr) const;
+    FilteredConfig fork_local_config(const ov::AnyMap& arguments,
                                      const ICompilerAdapter* compiler,
                                      OptionMode mode = OptionMode::Both) const;
 
@@ -84,12 +82,12 @@ private:
      *
      * @param tensorBig Contains the whole binary object.
      * @param metadata Parsed metadata at the end of the blob. Can be nullptr if compatibility checks were disabled.
-     * @param properties Configuration taking the form of an "ov::AnyMap".
+     * @param arguments Configuration taking the form of an "ov::AnyMap".
      * @return A compiled model
      */
     std::shared_ptr<ov::ICompiledModel> parse(const ov::Tensor& tensorBig,
                                               std::unique_ptr<MetadataBase> metadata,
-                                              const ov::AnyMap& properties) const;
+                                              const ov::AnyMap& arguments) const;
 
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 
@@ -103,7 +101,6 @@ private:
     std::unique_ptr<Properties> _properties;
 
     static std::atomic<int> _compiledModelLoadCounter;
-    mutable std::mutex _mutex;
 };
 
 }  // namespace intel_npu
