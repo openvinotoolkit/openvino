@@ -979,15 +979,12 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
             return match_conv_stride_oc_ic_limit(node, {1, 1}, ov::Shape{3, 3}, 512);
         },
         ConvolutionTransformation);
-
-#if !defined(OPENVINO_ARCH_RISCV64)
     CPU_SET_CALLBACK_COMMON(
         lptManager,
         [](const_node_ptr& node) -> bool {
             return ov::marked_as_bias(node);
         },
         AddTransformation);
-#endif
     CPU_SET_CALLBACK_ARM(
         lptManager,
         [](const_node_ptr& node) -> bool {
