@@ -707,9 +707,6 @@ ov::Any Properties::get_property(const std::string& name, const ov::AnyMap& argu
     try {
         return amendedConfig.getInternal(name);
     } catch (...) {
-        if (!_backend) {
-            OPENVINO_THROW("No available backend");
-        }
         OPENVINO_THROW("Unsupported configuration key: ", name);
     }
 }
