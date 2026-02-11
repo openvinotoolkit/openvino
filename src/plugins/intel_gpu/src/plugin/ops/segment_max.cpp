@@ -28,12 +28,15 @@ static void CreateSegmentMaxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
         prim.segment_ids_data = seg_const->cast_vector<int64_t>();
     }
 
-    // Store num_segments constant data for compile-time shape inference
+    // Store num_segments constant data for compile-time shape inference.
+    // Note: The current primitive/kernel only supports num_segments as a compile-time constant.
+    // A non-constant num_segments tensor is not wired as a primitive input.
     if (op->get_input_size() > 2) {
-        if (auto ns_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(
-                op->input_value(2).get_node_shared_ptr())) {
-            prim.num_segments_val = ns_const->cast_vector<int64_t>()[0];
-        }
+        auto ns_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(
+                op->input_value(2).get_node_shared_ptr());
+        OPENVINO_ASSERT(ns_const, "[GPU] SegmentMax: num_segments input must be a Constant. "
+                                  "Non-constant num_segments is not yet supported.");
+        prim.num_segments_val = ns_const->cast_vector<int64_t>()[0];
     }
 
     prim.output_data_types = get_output_data_types(op);

@@ -26,7 +26,7 @@ KERNEL(segment_max_ref)(
 
     // Total number of output elements = num_segments * inner_dim_size
     const int num_segments   = OUTPUT_BATCH_NUM;
-    const int inner_dim_size = OUTPUT_FEATURE_NUM * OUTPUT_SIZE_Y * OUTPUT_SIZE_X;
+    const int inner_dim_size = OUTPUT_FEATURE_NUM * OUTPUT_SIZE_Z * OUTPUT_SIZE_Y * OUTPUT_SIZE_X;
     const int total_output   = num_segments * inner_dim_size;
 
     if (gid >= total_output)
