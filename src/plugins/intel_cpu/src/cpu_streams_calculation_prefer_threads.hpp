@@ -413,7 +413,7 @@ inline bool is_lp_auto_case_4(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.max_mem_tolerance > MEM_TOLERANCE_LOW && tolerance.ratio_compute_convs > CONV_RATIO_MEDIUM_LOW &&
            tolerance.ratio_mem_limited_adds > 0 &&
-           tolerance.total_adds < CONV_RATIO_VERY_LOW * static_cast<float>(tolerance.total_nodes);
+           static_cast<float>(tolerance.total_adds) < CONV_RATIO_VERY_LOW * static_cast<float>(tolerance.total_nodes);
 }
 
 inline bool is_lp_auto_case_5(const ov::MemBandwidthPressure& tolerance) {
