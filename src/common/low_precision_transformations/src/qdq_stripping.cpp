@@ -207,6 +207,12 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
 
     QDQ_DEBUG_LOG << "\n[ INFO ] === QDQ Stripping Pass ===" << std::endl;
     QDQ_DEBUG_LOG << "[ INFO ] Total nodes in graph: " << f->get_ops().size() << std::endl;
+    QDQ_DEBUG_LOG << "\n[ INFO ] === Nodes info dumping started ===" << std::endl;
+    for (const auto& node : f->get_ordered_ops()) {
+        QDQ_DEBUG_LOG << "  [ NODE ] Name: " << node->get_friendly_name() << ", type: " << node->get_type_name()
+                      << ", ptr: " << node << std::endl;
+    }
+    QDQ_DEBUG_LOG << "[ INFO ] === Nodes info dumping completed ===\n" << std::endl;
     QDQ_DEBUG_LOG << "[ INFO ] Levels to strip: ";
     for (auto level : levels_to_strip) {
         QDQ_DEBUG_LOG << level << " ";
@@ -373,7 +379,7 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
 
         auto adjust_weights_scale = [&](ov::Node* node) {
             QDQ_DEBUG_LOG << "    [ INFO ] adjust_weights_scale called for node with type: " << node->get_type_name()
-                          << ", with name: " << node->get_friendly_name() << std::endl;
+                          << ", with name: " << node->get_friendly_name() << ", node: " << node << std::endl;
             using namespace ov::pass::pattern;
             const auto node_shared = node->shared_from_this();
             // Case 1: Convolution + Add (bias) - scale both Add's constant and Conv weights
