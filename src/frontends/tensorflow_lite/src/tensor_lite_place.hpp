@@ -30,7 +30,7 @@ public:
           m_quantization(quantization),
           m_sparsity(sparsity),
           m_data(m_sparsity == nullptr || m_sparsity->is_disabled() ? data : m_sparsity->dense_data()),
-          m_data_size(m_sparsity == nullptr || m_sparsity->is_disabled() ? data_size : 0) {};
+          m_data_size(m_sparsity == nullptr || m_sparsity->is_disabled() ? data_size : 0){};
 
     void translate(ov::Output<ov::Node>& output, bool convert_tensor_attrs_to_nodes = false);
 
