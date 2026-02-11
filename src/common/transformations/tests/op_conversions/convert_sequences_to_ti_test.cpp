@@ -961,20 +961,25 @@ TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenToTensorIterator) {
 }
 
 // Creates: source -> ShapeOf -> StridedSlice(begin_val, end_val, stride=1)
-static std::shared_ptr<ov::Node> create_strided_slice_seq_len(
-    const std::shared_ptr<ov::Node>& source,
-    int64_t begin_val = 1,
-    int64_t end_val = 2,
-    const std::vector<int64_t>& begin_mask = {0},
-    const std::vector<int64_t>& end_mask = {0},
-    const std::vector<int64_t>& new_axis_mask = {},
-    const std::vector<int64_t>& shrink_axis_mask = {}) {
+static std::shared_ptr<ov::Node> create_strided_slice_seq_len(const std::shared_ptr<ov::Node>& source,
+                                                              int64_t begin_val = 1,
+                                                              int64_t end_val = 2,
+                                                              const std::vector<int64_t>& begin_mask = {0},
+                                                              const std::vector<int64_t>& end_mask = {0},
+                                                              const std::vector<int64_t>& new_axis_mask = {},
+                                                              const std::vector<int64_t>& shrink_axis_mask = {}) {
     auto shape_of = std::make_shared<opset5::ShapeOf>(source);
     auto begin = opset5::Constant::create(element::i64, {1}, {begin_val});
     auto end = opset5::Constant::create(element::i64, {1}, {end_val});
     auto stride = opset5::Constant::create(element::i64, {1}, {1});
-    return std::make_shared<ov::op::v1::StridedSlice>(
-        shape_of, begin, end, stride, begin_mask, end_mask, new_axis_mask, shrink_axis_mask);
+    return std::make_shared<ov::op::v1::StridedSlice>(shape_of,
+                                                      begin,
+                                                      end,
+                                                      stride,
+                                                      begin_mask,
+                                                      end_mask,
+                                                      new_axis_mask,
+                                                      shrink_axis_mask);
 }
 
 // Creates: source -> ShapeOf -> Gather(indices=1, axis=0)
@@ -1072,8 +1077,7 @@ TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenStridedSliceToTI) {
         auto unsqueeze_y = std::make_shared<opset5::Unsqueeze>(rnn_cell->output(0), unsqueeze_pattern);
         auto Y_out = std::make_shared<opset5::Result>(unsqueeze_y);
 
-        auto body =
-            std::make_shared<Model>(OutputVector{Y_out, Ho, Co}, ParameterVector{Xi, Yi, Zi, seq_body_param});
+        auto body = std::make_shared<Model>(OutputVector{Y_out, Ho, Co}, ParameterVector{Xi, Yi, Zi, seq_body_param});
 
         auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
         tensor_iterator->set_body(body);
@@ -1213,7 +1217,14 @@ TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenTileToTI) {
     auto R = opset5::Constant::create(element::f32, Shape{1, 512, 128}, r_val);
     auto B = opset5::Constant::create(element::f32, Shape{1, 512}, b_val);
 
-    auto rnn_sequence = std::make_shared<opset5::LSTMSequence>(X, Y, Z, seq_lengths, W, R, B, 128,
+    auto rnn_sequence = std::make_shared<opset5::LSTMSequence>(X,
+                                                               Y,
+                                                               Z,
+                                                               seq_lengths,
+                                                               W,
+                                                               R,
+                                                               B,
+                                                               128,
                                                                op::RecurrentSequenceDirection::FORWARD);
     f = std::make_shared<ov::Model>(rnn_sequence->outputs(), ParameterVector{X, Y, Z});
 
@@ -1242,7 +1253,14 @@ TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenStridedSliceTileToTI) 
     auto R = opset5::Constant::create(element::f32, Shape{1, 512, 128}, r_val);
     auto B = opset5::Constant::create(element::f32, Shape{1, 512}, b_val);
 
-    auto rnn_sequence = std::make_shared<opset5::LSTMSequence>(X, Y, Z, seq_lengths, W, R, B, 128,
+    auto rnn_sequence = std::make_shared<opset5::LSTMSequence>(X,
+                                                               Y,
+                                                               Z,
+                                                               seq_lengths,
+                                                               W,
+                                                               R,
+                                                               B,
+                                                               128,
                                                                op::RecurrentSequenceDirection::FORWARD);
     f = std::make_shared<ov::Model>(rnn_sequence->outputs(), ParameterVector{X, Y, Z});
 
