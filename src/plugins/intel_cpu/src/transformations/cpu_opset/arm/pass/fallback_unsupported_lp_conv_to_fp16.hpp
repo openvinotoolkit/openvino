@@ -7,14 +7,16 @@
 
 /*
  * Description:
- *     ConvertConvolutionDQScales detects quantized Convolution patterns with
+ *     FallbackUnsupportedLPConvToFP16 detects quantized Convolution patterns with
  *     Convolution -> Multiply -> Add -> FakeQuantize, when dequantized
  *     FakeQuantize output precision is different from Convolution activation precision.
- *     Precision check is required to ensure this case can't be handled by ACL executor.
- *
- * Supported patterns:
- *     1. u8 source, u8 or i8 weights
- *     2. i8 source, i8 weights
+ *     This precision-mismatch case is not supported by ACL int8 executor and is
+ *     handled by convolution fp primitive.
+ *     The pass moves DQ scaling from Convolution output path to Convolution weights:
+ *     post-conv DQ Multiply is removed, and equivalent scaling is applied on weights
+ *     before Convolution.
+ *     This avoids fp16 overflow on large post-conv values that would otherwise be scaled
+ *     in the output path.
  *
  * Before:
  *
@@ -80,10 +82,10 @@
 
 namespace ov::intel_cpu {
 
-class ConvertConvolutionDQScales : public ov::pass::MatcherPass {
+class FallbackUnsupportedLPConvToFP16 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ConvertConvolutionDQScales");
-    ConvertConvolutionDQScales();
+    OPENVINO_MATCHER_PASS_RTTI("FallbackUnsupportedLPConvToFP16");
+    FallbackUnsupportedLPConvToFP16();
 };
 
 }  // namespace ov::intel_cpu

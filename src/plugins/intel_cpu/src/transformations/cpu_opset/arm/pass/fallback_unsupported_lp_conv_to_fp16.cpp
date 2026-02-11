@@ -1,7 +1,7 @@
 // Copyright (C) 2020-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "convert_conv_dq_scales.hpp"
+#include "fallback_unsupported_lp_conv_to_fp16.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "conv_mul_add_fq_block.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
@@ -47,8 +48,8 @@ std::pair<ov::Output<ov::Node>, std::shared_ptr<ov::Node>> ensure_fp16(const ov:
 
 }  // namespace
 
-ov::intel_cpu::ConvertConvolutionDQScales::ConvertConvolutionDQScales() {
-    auto conv_mul_add_fq = std::make_shared<ov::intel_cpu::pass::pattern::op::ConvMulAddFQBlock>(false);
+ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16() {
+    auto conv_mul_add_fq = std::make_shared<ov::intel_cpu::ConvMulAddFQBlock>(false);
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -76,9 +77,6 @@ ov::intel_cpu::ConvertConvolutionDQScales::ConvertConvolutionDQScales() {
         const auto rank_value = conv->get_input_shape(1).size();
         auto [activation_f16, activation_convert] =
             ensure_fp16(conv->input_value(0), conv->get_friendly_name() + "/ActivationToFP16", conv);
-        if (activation_convert) {
-            conv->input(0).replace_source_output(activation_f16);
-        }
 
         auto [weights_f16, weights_convert] =
             ensure_fp16(conv->input_value(1), conv->get_friendly_name() + "/WeightsToFP16", conv);
@@ -93,29 +91,32 @@ ov::intel_cpu::ConvertConvolutionDQScales::ConvertConvolutionDQScales() {
 
         auto scales_to_weights = std::make_shared<ov::op::v1::Multiply>(weights_f16, scales_reshape);
         scales_to_weights->set_friendly_name(mul->get_friendly_name() + "/WeightsScaled");
+        auto conv_scaled = conv->clone_with_new_inputs({activation_f16, scales_to_weights->output(0)});
         ov::NodeVector rt_info_sources{conv, mul};
+        if (activation_convert) {
+            rt_info_sources.push_back(activation_convert);
+        }
         if (weights_convert) {
             rt_info_sources.push_back(weights_convert);
         }
         if (scales_convert) {
             rt_info_sources.push_back(scales_convert);
         }
-        ov::copy_runtime_info(rt_info_sources, {reshape_const, scales_reshape, scales_to_weights});
+        ov::copy_runtime_info(rt_info_sources, {reshape_const, scales_reshape, scales_to_weights, conv_scaled});
 
-        conv->input(1).replace_source_output(scales_to_weights->output(0));
-        add->input(0).replace_source_output(conv->output(0));
+        ov::replace_node(mul, conv_scaled);
 
         // Keep this matched Conv->Mul->Add->FQ pattern in FP16 end-to-end for CPU plugin selection.
         if (add->get_output_element_type(0) == ov::element::f16) {
-            if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(conv)) {
+            if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(conv_scaled)) {
                 type_relaxed->set_overridden_output_type(ov::element::f16, 0);
-                conv->validate_and_infer_types();
+                conv_scaled->validate_and_infer_types();
             }
         }
 
         return true;
     };
 
-    auto matcher = std::make_shared<pattern::Matcher>(conv_mul_add_fq, "ConvertConvolutionDQScales");
+    auto matcher = std::make_shared<pattern::Matcher>(conv_mul_add_fq, "FallbackUnsupportedLPConvToFP16");
     register_matcher(matcher, callback);
 }

@@ -273,7 +273,7 @@
 #    include "openvino/opsets/opset1_decl.hpp"
 #    include "snippets/utils/tokenization_utils.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_conv_bias.hpp"
-#    include "transformations/cpu_opset/arm/pass/convert_conv_dq_scales.hpp"
+#    include "transformations/cpu_opset/arm/pass/fallback_unsupported_lp_conv_to_fp16.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
@@ -972,7 +972,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
                              LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
 
     CPU_REGISTER_PASS_ARM(lptManager, ConvertConvolutionBias);
-    CPU_REGISTER_PASS_ARM(lptManager, ConvertConvolutionDQScales);
+    CPU_REGISTER_PASS_ARM(lptManager, FallbackUnsupportedLPConvToFP16);
     CPU_SET_CALLBACK_ARM(
         lptManager,
         [](const_node_ptr& node) -> bool {

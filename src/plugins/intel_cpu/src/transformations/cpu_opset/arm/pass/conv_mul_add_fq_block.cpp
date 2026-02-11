@@ -17,41 +17,33 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/pass/pattern/op/predicate.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using namespace ov::pass;
+using namespace ov::pass::pattern;
+using ov::pass::operator|;
 
-ov::intel_cpu::pass::pattern::op::ConvMulAddFQBlock::ConvMulAddFQBlock(const bool require_int_fq_output)
-    : Block({}, {}, "ConvMulAddFQBlock") {
-    auto conv_i8_activation = ov::pass::pattern::any_input(ov::pass::pattern::type_matches(element::i8));
-    auto conv_i8_weights = ov::pass::pattern::any_input(ov::pass::pattern::type_matches(element::i8));
-    auto conv_i8 = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({conv_i8_activation, conv_i8_weights});
+ov::intel_cpu::ConvMulAddFQBlock::ConvMulAddFQBlock(const bool require_int_fq_output)
+    : ov::pass::pattern::op::Block({}, {}, "ConvMulAddFQBlock") {
+    auto conv_i8_activation = any_input(type_matches(element::i8));
+    auto conv_i8_weights = any_input(type_matches(element::i8));
+    auto conv_i8 = wrap_type<ov::op::v1::Convolution>({conv_i8_activation, conv_i8_weights});
 
-    auto conv_u8_activation = ov::pass::pattern::any_input(ov::pass::pattern::type_matches(element::u8));
-    auto conv_i8_u8_weights =
-        ov::pass::pattern::any_input(ov::pass::pattern::type_matches_any({element::i8, element::u8}));
-    auto conv_u8 = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({conv_u8_activation, conv_i8_u8_weights});
+    auto conv_u8_activation = any_input(type_matches(element::u8));
+    auto conv_i8_u8_weights = any_input(type_matches_any({element::i8, element::u8}));
+    auto conv_u8 = wrap_type<ov::op::v1::Convolution>({conv_u8_activation, conv_i8_u8_weights});
     auto conv = conv_u8 | conv_i8;
 
-    auto multiply = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({conv, ov::pass::pattern::any_input()});
-    auto bias_const = ov::pass::pattern::wrap_type<ov::op::v0::Constant>([](const ov::Output<ov::Node>& output) {
-        return !ov::pass::pattern::type_matches(ov::element::i32)(output);
+    auto multiply = wrap_type<ov::op::v1::Multiply>({conv, any_input()});
+    auto bias_const = wrap_type<ov::op::v0::Constant>([](const ov::Output<ov::Node>& output) {
+        return !type_matches(ov::element::i32)(output);
     });
-    auto add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({multiply, bias_const});
+    auto add = wrap_type<ov::op::v1::Add>({multiply, bias_const});
 
-    const auto fq_inputs = ov::OutputVector{add,
-                                            ov::pass::pattern::any_input(),
-                                            ov::pass::pattern::any_input(),
-                                            ov::pass::pattern::any_input(),
-                                            ov::pass::pattern::any_input()};
-    std::shared_ptr<ov::Node> fake_quantize;
-    if (require_int_fq_output) {
-        fake_quantize = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>(
-            fq_inputs,
-            ov::pass::pattern::type_matches_any({element::i8, element::u8}));
-    } else {
-        fake_quantize = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>(fq_inputs);
-    }
+    ov::pass::pattern::op::Predicate predicate =
+        require_int_fq_output ? type_matches_any({element::i8, element::u8}) : ov::pass::pattern::op::Predicate();
+    auto fake_quantize =
+        wrap_type<ov::op::v0::FakeQuantize>({add, any_input(), any_input(), any_input(), any_input()}, predicate);
 
     m_inputs = ov::OutputVector{conv};
     m_outputs = ov::OutputVector{fake_quantize};

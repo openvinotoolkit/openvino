@@ -5,11 +5,11 @@
 
 #include "openvino/pass/pattern/op/block.hpp"
 
-namespace ov::intel_cpu::pass::pattern::op {
+namespace ov::intel_cpu {
 
 class ConvMulAddFQBlock : public ov::pass::pattern::op::Block {
 public:
     explicit ConvMulAddFQBlock(bool require_int_fq_output);
 };
 
-}  // namespace ov::intel_cpu::pass::pattern::op
+}  // namespace ov::intel_cpu
