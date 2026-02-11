@@ -413,8 +413,9 @@ IRGraph::IRGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
     }
 
     _impl = std::make_unique<IRGraphImpl>();
-
-    // initialize MLIR execution engine, metadata, input&output descriptors
+    // TODO: metadata needs to be parsed even when CREATE_EXECUTOR is 0 or DEFER_WEIGHTS_LOAD is YES, keep here to
+    // support pure compilation without mlir runtime initialize MLIR execution engine, metadata, input&output
+    // descriptors
     _impl->initialize(_blob, _metadata);
 
     _num_of_subgraphs = _impl->getNumSubgraphs();
