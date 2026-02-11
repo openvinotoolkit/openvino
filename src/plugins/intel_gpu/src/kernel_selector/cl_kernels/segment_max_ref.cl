@@ -42,7 +42,7 @@ KERNEL(segment_max_ref)(
     int found = 0;
 
     for (int i = 0; i < num_rows; ++i) {
-        if ((int)segment_ids[i] == seg) {
+        if ((INPUT1_TYPE)segment_ids[i] == (INPUT1_TYPE)seg) {
             INPUT0_TYPE v = data[i * inner_dim_size + j];
             if (!found || v > max_val) {
                 max_val = (OUTPUT_TYPE)v;
