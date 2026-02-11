@@ -1205,10 +1205,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     const std::optional<std::vector<ov::Tensor>> initBlobs =
         weightsSeparationEnabled ? std::make_optional(std::move(tensorsInits)) : std::nullopt;
 
-    auto graph = compiler->parse(tensorMain,
-                                 localConfig,
-                                 initBlobs,
-                                 weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt);
+    auto graph =
+        compiler->parse(tensorMain,
+                        localConfig,
+                        initBlobs,
+                        weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt);
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
     const std::shared_ptr<ov::Model> modelDummy =
