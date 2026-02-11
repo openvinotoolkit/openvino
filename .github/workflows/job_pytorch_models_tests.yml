@@ -101,15 +101,18 @@ jobs:
 
       - name: Install PyTorch tests requirements
         run: |
-          uv pip install -r ${INSTALL_TEST_DIR}/requirements_pytorch.txt
+          uv pip sync ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/locks/base.lock \
+            --extra-index-url https://download.pytorch.org/whl/cpu \
+            --index-strategy unsafe-best-match
         env:
           CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
 
       - name: Install deps for Timm/Torchvision/Edsr tests
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope1' }}
         run: |
-          uv pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/timm.txt \
-                         -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/edsr.txt
+          uv pip sync ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/locks/timm_torchvision.lock \
+            --extra-index-url https://download.pytorch.org/whl/cpu \
+            --index-strategy unsafe-best-match
 
       - name: PyTorch Models Tests Timm and Torchvision
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope1' }}
@@ -124,10 +127,9 @@ jobs:
       - name: Install deps for HF Transformers/LLM and other model tests
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope2' }}
         run: |
-          uv pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/hf_transformers.txt \
-                         -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/easyocr.txt \
-                         -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/gfpgan.txt \
-                         -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/tpsmm.txt
+          uv pip sync ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/locks/hf_models.lock \
+            --extra-index-url https://download.pytorch.org/whl/cpu \
+            --index-strategy unsafe-best-match
 
       - name: PyTorch Models Tests Not Timm or Torchvision
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope2' }}
@@ -142,7 +144,9 @@ jobs:
       - name: Install deps for transformation tests
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
-          uv pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/hf_transformers.txt
+          uv pip sync ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/locks/hf_models.lock \
+            --extra-index-url https://download.pytorch.org/whl/cpu \
+            --index-strategy unsafe-best-match
 
       - name: PagedAttention Test
         if: ${{ inputs.model_scope == 'precommit' }}
@@ -172,7 +176,9 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          uv pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/compile_gptq.txt
+          uv pip sync ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/locks/compile_gptq.lock \
+            --extra-index-url https://download.pytorch.org/whl/cpu \
+            --index-strategy unsafe-best-match
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_gptq_torchfx_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_gptqpattern_tests.html --self-contained-html -v --tb=short
         env:
           TEST_DEVICE: CPU
@@ -181,7 +187,9 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          uv pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/moe.txt
+          uv pip sync ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/locks/moe.lock \
+            --extra-index-url https://download.pytorch.org/whl/cpu \
+            --index-strategy unsafe-best-match
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_moe_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_moe_tests.html --self-contained-html -vvv -s --tb=short -n 2
         env:
           TEST_DEVICE: CPU

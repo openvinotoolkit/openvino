@@ -1,5 +1,7 @@
 # Extra dependencies for test_hf_transformers.py and test_llm.py
 # These are common model-hub deps not needed by layer tests
+# before updating transformers version, make sure no tests (esp. sdpa2pa) are failing
+transformers==4.47.1
 datasets==3.0.1
 huggingface-hub==0.25.2
 hf_transfer==0.1.9
