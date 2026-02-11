@@ -253,6 +253,21 @@ static const char no_warmup_message[] =
     "Optional. Skip warmup inference. Useful for benchmarking purposes in simulated environments.\n"
     "Otherwise, not recommended.";
 
+/// @brief message for app_threads option
+static const char app_threads_message[] =
+    "Optional. Number of application-level threads. Each thread creates its own infer request "
+    "and runs synchronous inference. nstreams is forced to this value and nthreads to 0. Default 0 (disabled).";
+
+/// @brief message for app_thread_cores option
+static const char app_thread_cores_message[] =
+    "Optional. Comma-separated list of CPU core IDs to pin application threads to "
+    "(e.g. 0,1,2,3). Length must equal app_threads when app_thread_pin is enabled.";
+
+/// @brief message for app_thread_pin option
+static const char app_thread_pin_message[] =
+    "Optional. Enable pinning of application threads to cores specified via app_thread_cores. "
+    "Default is false.";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -387,6 +402,15 @@ DEFINE_string(dump_config, "", dump_config_message);
 /// @brief Skips warmup inference and measures only the first inference
 DEFINE_bool(no_warmup, false, no_warmup_message);
 
+/// @brief Number of application threads to drive inference
+DEFINE_uint64(app_threads, 0, app_threads_message);
+
+/// @brief Comma-separated core IDs for pinning application threads
+DEFINE_string(app_thread_cores, "", app_thread_cores_message);
+
+/// @brief Enable application thread pinning
+DEFINE_bool(app_thread_pin, false, app_thread_pin_message);
+
 /**
  * @brief This function show a help message
  */
@@ -445,4 +469,9 @@ static void show_usage() {
     std::cout << "    -exec_graph_path        " << exec_graph_path_message << std::endl;
     std::cout << "    -dump_config            " << dump_config_message << std::endl;
     std::cout << "    -load_config            " << load_config_message << std::endl;
+    std::cout << std::endl;
+    std::cout << "App-thread mode options:" << std::endl;
+    std::cout << "    -app_threads  <integer>       " << app_threads_message << std::endl;
+    std::cout << "    -app_thread_cores <c0,c1,...>  " << app_thread_cores_message << std::endl;
+    std::cout << "    -app_thread_pin               " << app_thread_pin_message << std::endl;
 }

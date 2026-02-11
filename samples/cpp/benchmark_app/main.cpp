@@ -3,9 +3,12 @@
 //
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <map>
 #include <memory>
+#include <mutex>
+#include <numeric>
 #include <string>
 #include <thread>
 #include <utility>
@@ -43,7 +46,9 @@
 #include <sys/resource.h>
 #elif defined(__linux__)
 #include <fstream>
+#include <pthread.h>
 #include <regex>
+#include <sched.h>
 #include <sstream>
 #else
 #error "unsupported OS"
@@ -52,6 +57,47 @@
 // clang-format on
 
 namespace {
+
+// --------------- App-thread helpers ---------------
+
+/// Parse a comma-separated list of core IDs.
+static std::vector<int> parse_core_list(const std::string& cores_str) {
+    std::vector<int> cores;
+    if (cores_str.empty())
+        return cores;
+    std::stringstream ss(cores_str);
+    std::string token;
+    while (std::getline(ss, token, ',')) {
+        if (token.empty())
+            continue;
+        try {
+            cores.push_back(std::stoi(token));
+        } catch (...) {
+            throw std::runtime_error("Failed to parse -app_thread_cores: invalid token '" + token + "'");
+        }
+    }
+    return cores;
+}
+
+#ifdef __linux__
+static void pin_thread_to_core(int core_id) {
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(core_id, &cpuset);
+    int rc = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+    if (rc != 0) {
+        std::cerr << "[WARNING] Failed to pin thread to core " << core_id << " (rc=" << rc << ")" << std::endl;
+    } else {
+        std::cout << "[INFO] Pinned thread " << std::this_thread::get_id() << " to core " << core_id << std::endl;
+    }
+}
+#else
+static void pin_thread_to_core(int) {
+    std::cerr << "[WARNING] Thread pinning is only supported on Linux." << std::endl;
+}
+#endif
+
+// --------------------------------------------------
 
 #if defined(_WIN32)
 
@@ -143,6 +189,26 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     if (FLAGS_api == "") {
         FLAGS_api = FLAGS_hint == "latency" ? "sync" : "async";
     }
+
+    // App-thread mode: override api, hint, nstreams, nthreads before other validation
+    if (FLAGS_app_threads > 0) {
+        FLAGS_api = "sync";
+        FLAGS_hint = "none";
+        FLAGS_nstreams = std::to_string(FLAGS_app_threads);
+        FLAGS_nthreads = 0;
+        slog::info << "App-thread mode enabled: forcing -api sync, -hint none, -nstreams "
+                   << FLAGS_app_threads << ", -nthreads 0" << slog::endl;
+        if (FLAGS_app_thread_pin) {
+            auto cores = parse_core_list(FLAGS_app_thread_cores);
+            if (cores.size() != FLAGS_app_threads) {
+                throw std::logic_error(
+                    "When -app_thread_pin is set, the number of cores in -app_thread_cores (" +
+                    std::to_string(cores.size()) + ") must equal -app_threads (" +
+                    std::to_string(FLAGS_app_threads) + ").");
+            }
+        }
+    }
+
     if (FLAGS_api != "async" && FLAGS_api != "sync") {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
     }
@@ -601,6 +667,17 @@ int main(int argc, char* argv[]) {
 
             set_throughput_streams();
             set_infer_precision();
+
+            // --- App-thread mode: override streams/threads/hint per device ---
+            if (FLAGS_app_threads > 0) {
+                device_config[ov::num_streams.name()] = std::to_string(FLAGS_app_threads);
+                device_config[ov::inference_num_threads.name()] = 0;
+                device_config.erase(ov::hint::performance_mode.name());
+                device_config[ov::hint::enable_cpu_pinning.name()] = false;
+                device_nstreams[device] = std::to_string(FLAGS_app_threads);
+                slog::info << "App-thread mode: set " << FLAGS_app_threads << " streams, "
+                           << "CPU pinning disabled (app threads handle pinning)." << slog::endl;
+            }
 
             if (is_virtual_device(device)) {
                 device_nstreams.erase(device);
@@ -1098,6 +1175,193 @@ int main(int argc, char* argv[]) {
         }
         // ----------------- 10. Measuring performance
         // ------------------------------------------------------------------
+
+        if (FLAGS_app_threads > 0) {
+            // ===================== APP-THREAD MODE =====================
+            // Each app thread creates its own InferRequest and runs sync
+            // inference in a loop. Threads are optionally pinned to cores.
+            const size_t numAppThreads = static_cast<size_t>(FLAGS_app_threads);
+            auto coreList = parse_core_list(FLAGS_app_thread_cores);
+
+            // Time and iteration limits
+            uint64_t duration_seconds_at = 0;
+            if (FLAGS_t != 0) {
+                duration_seconds_at = FLAGS_t;
+            } else if (FLAGS_niter == 0) {
+                duration_seconds_at = device_default_device_duration_in_seconds(device_name);
+            }
+            uint64_t duration_ns_at = get_duration_in_nanoseconds(duration_seconds_at);
+            uint64_t niter_at = FLAGS_niter;
+
+            slog::info << "App-thread mode: " << numAppThreads << " threads, "
+                       << (FLAGS_app_thread_pin ? "pinning ENABLED" : "pinning DISABLED")
+                       << ", duration=" << duration_seconds_at << "s, niter=" << niter_at << slog::endl;
+
+            // Prepare input data (reuse existing logic)
+            bool inputHasName_at = (inputFiles.size() > 0) && (inputFiles.begin()->first != "");
+            bool newInputType_at = isDynamicNetwork || inputHasName_at;
+            std::map<std::string, ov::TensorVector> inputsData_at;
+            if (newInputType_at) {
+                inputsData_at = get_tensors(inputFiles, app_inputs_info);
+            } else {
+                inputsData_at = get_tensors_static_case(
+                    inputFiles.empty() ? std::vector<std::string>{} : inputFiles.begin()->second,
+                    batchSize,
+                    app_inputs_info[0],
+                    numAppThreads);
+            }
+
+            next_step("App-thread mode: " + std::to_string(numAppThreads) + " threads, sync inference");
+
+            // Per-thread results
+            struct ThreadResult {
+                std::vector<double> latencies;
+                size_t iterations = 0;
+                size_t processedFrames = 0;
+            };
+            std::vector<ThreadResult> threadResults(numAppThreads);
+            std::atomic<bool> keepRunning{true};
+
+            // Warmup: one sync infer on main thread
+            if (!FLAGS_no_warmup) {
+                auto warmupReq = compiledModel.create_infer_request();
+                auto inputs0 = app_inputs_info[0];
+                for (auto& item : inputs0) {
+                    auto inputName = item.first;
+                    const auto& data = inputsData_at.at(inputName)[0];
+                    auto reqTensor = warmupReq.get_tensor(inputName);
+                    if (isDynamicNetwork) reqTensor.set_shape(data.get_shape());
+                    copy_tensor_data(reqTensor, data);
+                }
+                warmupReq.infer();
+                slog::info << "Warmup done." << slog::endl;
+            }
+
+            auto globalStart = Time::now();
+
+            // Launch N threads
+            std::vector<std::thread> appThreads;
+            appThreads.reserve(numAppThreads);
+            for (size_t tid = 0; tid < numAppThreads; ++tid) {
+                appThreads.emplace_back([&, tid]() {
+                    // Pin to core if requested
+                    if (FLAGS_app_thread_pin && tid < coreList.size()) {
+                        pin_thread_to_core(coreList[tid]);
+                    }
+
+                    // Create this thread's own InferRequest
+                    auto inferReq = compiledModel.create_infer_request();
+
+                    // Fill input tensors for this thread
+                    auto inputs = app_inputs_info[tid % app_inputs_info.size()];
+                    for (auto& item : inputs) {
+                        auto inputName = item.first;
+                        const auto& data = inputsData_at.at(inputName)[tid % inputsData_at.at(inputName).size()];
+                        auto reqTensor = inferReq.get_tensor(inputName);
+                        if (isDynamicNetwork) reqTensor.set_shape(data.get_shape());
+                        copy_tensor_data(reqTensor, data);
+                    }
+
+                    ThreadResult& result = threadResults[tid];
+                    size_t localIter = 0;
+
+                    while (keepRunning.load(std::memory_order_relaxed)) {
+                        auto t1 = Time::now();
+                        inferReq.infer();
+                        auto t2 = Time::now();
+                        double lat_ms = std::chrono::duration_cast<ns>(t2 - t1).count() * 0.000001;
+                        result.latencies.push_back(lat_ms);
+                        result.processedFrames += batchSize;
+                        ++localIter;
+
+                        // Check iteration limit (per-thread share)
+                        if (niter_at > 0 && localIter >= (niter_at / numAppThreads)) {
+                            break;
+                        }
+                    }
+                    result.iterations = localIter;
+                });
+            }
+
+            // Timer thread to enforce duration limit
+            if (duration_ns_at > 0) {
+                std::this_thread::sleep_for(std::chrono::nanoseconds(duration_ns_at));
+                keepRunning.store(false, std::memory_order_relaxed);
+            }
+
+            // Wait for all threads
+            for (auto& t : appThreads) {
+                t.join();
+            }
+
+            auto globalEnd = Time::now();
+            double totalDuration = std::chrono::duration_cast<ns>(globalEnd - globalStart).count() * 0.000001;
+
+            // Aggregate results
+            std::vector<double> allLatencies;
+            size_t totalIterations = 0;
+            size_t totalFrames = 0;
+            for (size_t tid = 0; tid < numAppThreads; ++tid) {
+                auto& tr = threadResults[tid];
+                totalIterations += tr.iterations;
+                totalFrames += tr.processedFrames;
+                allLatencies.insert(allLatencies.end(), tr.latencies.begin(), tr.latencies.end());
+                slog::info << "Thread " << tid << ": " << tr.iterations << " iterations, "
+                           << tr.processedFrames << " frames" << slog::endl;
+            }
+
+            double fps = 1000.0 * totalFrames / totalDuration;
+            LatencyMetrics generalLatency(allLatencies, "", FLAGS_latency_percentile);
+
+            // Per-thread latency summary
+            for (size_t tid = 0; tid < numAppThreads; ++tid) {
+                auto& lats = threadResults[tid].latencies;
+                if (!lats.empty()) {
+                    double avg = std::accumulate(lats.begin(), lats.end(), 0.0) / lats.size();
+                    auto minmax = std::minmax_element(lats.begin(), lats.end());
+                    slog::info << "Thread " << tid << " latency: avg=" << double_to_string(avg)
+                               << " ms, min=" << double_to_string(*minmax.first)
+                               << " ms, max=" << double_to_string(*minmax.second) << " ms" << slog::endl;
+                }
+            }
+
+            // Report
+            size_t iteration = totalIterations;
+
+            if (statistics) {
+                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                    {StatisticsVariant("total execution time (ms)", "execution_time", totalDuration),
+                     StatisticsVariant("total number of iterations", "iterations_num", iteration)});
+                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                    {StatisticsVariant("throughput", "throughput", fps)});
+            }
+
+            // --- Step 11: Dumping statistics report ---
+            next_step();
+
+            if (!FLAGS_dump_config.empty()) {
+                dump_config(FLAGS_dump_config, config);
+                slog::info << "OpenVINO Runtime configuration settings were dumped to "
+                           << FLAGS_dump_config << slog::endl;
+            }
+
+            if (statistics)
+                statistics->dump();
+
+            try {
+                auto exeDevice = compiledModel.get_property(ov::execution_devices);
+                slog::info << "Execution Devices: " << exeDevice << slog::endl;
+            } catch (const ov::Exception&) {
+            }
+
+            slog::info << "Count:               " << iteration << " iterations" << slog::endl;
+            slog::info << "Duration:            " << double_to_string(totalDuration) << " ms" << slog::endl;
+            slog::info << "Latency:" << slog::endl;
+            generalLatency.write_to_slog();
+            slog::info << "Throughput:          " << double_to_string(fps) << " FPS" << slog::endl;
+
+        } else {
+        // ===================== ORIGINAL MODE =====================
         size_t iteration = 0;
 
         std::stringstream ss;
@@ -1410,6 +1674,8 @@ int main(int argc, char* argv[]) {
         }
 
         slog::info << "Throughput:          " << double_to_string(fps) << " FPS" << slog::endl;
+
+        } // end else (original mode)
 
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;
