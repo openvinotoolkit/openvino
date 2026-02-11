@@ -3518,20 +3518,20 @@ struct jit_uni_topk_kernel_aarch64 : public jit_uni_topk_kernel, public dnnl::im
 };
 
 std::shared_ptr<jit_uni_topk_kernel> create_topk_kernel_aarch64(const jit_topk_config_params& jcp) {
-    if (sve_utils::with_cpu_sve()) {
-        return std::make_shared<jit_uni_topk_kernel_aarch64<dnnl::impl::cpu::aarch64::sve_128>>(jcp);
-    }
-    if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::sve_512)) {
-        return std::make_shared<jit_uni_topk_kernel_aarch64<dnnl::impl::cpu::aarch64::sve_512>>(jcp);
-    }
-    if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::sve_384)) {
-        return std::make_shared<jit_uni_topk_kernel_aarch64<dnnl::impl::cpu::aarch64::sve_384>>(jcp);
-    }
-    if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::sve_256)) {
-        return std::make_shared<jit_uni_topk_kernel_aarch64<dnnl::impl::cpu::aarch64::sve_256>>(jcp);
-    }
-    if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::sve_128)) {
-        return std::make_shared<jit_uni_topk_kernel_aarch64<dnnl::impl::cpu::aarch64::sve_128>>(jcp);
+    const bool has_sve = sve_utils::with_cpu_sve();
+    if (has_sve) {
+        if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::sve_512)) {
+            return std::make_shared<jit_uni_topk_kernel_aarch64<dnnl::impl::cpu::aarch64::sve_512>>(jcp);
+        }
+        if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::sve_384)) {
+            return std::make_shared<jit_uni_topk_kernel_aarch64<dnnl::impl::cpu::aarch64::sve_384>>(jcp);
+        }
+        if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::sve_256)) {
+            return std::make_shared<jit_uni_topk_kernel_aarch64<dnnl::impl::cpu::aarch64::sve_256>>(jcp);
+        }
+        if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::sve_128)) {
+            return std::make_shared<jit_uni_topk_kernel_aarch64<dnnl::impl::cpu::aarch64::sve_128>>(jcp);
+        }
     }
     if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd)) {
         return std::make_shared<jit_uni_topk_kernel_aarch64<dnnl::impl::cpu::aarch64::asimd>>(jcp);
