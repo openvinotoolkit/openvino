@@ -22,7 +22,14 @@ namespace npuw {
 
 struct KVCacheResult {
     ov::Output<ov::Node> concatenated;
+    ov::Output<ov::Node> beam_gather;  // Past KV after beam reorder (before concat)
     std::shared_ptr<ov::Node> assign;  // Sink node for stateful model
+};
+
+/// Read-side state from a KV cache Variable (before concat/assign)
+struct KVCacheReadState {
+    std::shared_ptr<ov::op::util::Variable> variable;
+    ov::Output<ov::Node> beam_gather;  // ReadValue -> Gather(beam_idx)
 };
 
 /// Result from building a decoder layer or attention block
@@ -219,12 +226,14 @@ struct GELUFn {
     size_t intermediate_size;
     ov::element::Type precision;
     WeightFn weight_fn;
+    bool use_bias = false;
 
-    GELUFn(size_t hs, size_t is, ov::element::Type prec, WeightFn wf)
+    GELUFn(size_t hs, size_t is, ov::element::Type prec, WeightFn wf, bool bias = false)
         : hidden_size(hs),
           intermediate_size(is),
           precision(prec),
-          weight_fn(std::move(wf)) {}
+          weight_fn(std::move(wf)),
+          use_bias(bias) {}
 
     ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
 };
@@ -258,6 +267,14 @@ ov::Output<ov::Node> make_repeat_kv(const ov::Output<ov::Node>& kv,
                                     size_t head_dim,
                                     const std::string& name);
 
+/// Create KV cache read state: Variable + init(zeros) + ReadValue + Gather(beam_idx)
+KVCacheReadState make_kv_cache_read(const ov::Output<ov::Node>& batch_source,
+                                    const ov::Output<ov::Node>& beam_idx,
+                                    size_t num_heads,
+                                    size_t head_dim,
+                                    const std::string& name,
+                                    ov::element::Type precision = ov::element::f32);
+
 /// Create stateful KV cache pattern (ReadValue -> Gather(beam_idx) -> Concat -> Assign)
 KVCacheResult make_kv_cache_concat(const ov::Output<ov::Node>& current_kv,
                                    const ov::Output<ov::Node>& batch_source,
@@ -274,6 +291,14 @@ ov::Output<ov::Node> make_sdpa(const ov::Output<ov::Node>& q,
                                const std::string& name,
                                const ov::Output<ov::Node>& attention_mask = ov::Output<ov::Node>());
 
+/// Attention output: transpose back + reshape [batch, seq, hidden] + O projection
+ov::Output<ov::Node> make_attention_output(const ov::Output<ov::Node>& sdpa_output,
+                                           size_t hidden_size,
+                                           const std::string& name,
+                                           ov::element::Type precision,
+                                           bool add_bias,
+                                           const WeightFn& weight_fn);
+
 /// Token embedding lookup
 ov::Output<ov::Node> make_embedding(const ov::Output<ov::Node>& input_ids,
                                     size_t vocab_size,
@@ -288,6 +313,26 @@ ov::Output<ov::Node> make_lm_head(const ov::Output<ov::Node>& hidden_states,
                                   const std::string& name,
                                   ov::element::Type precision = ov::element::f32,
                                   const WeightFn& weight_fn = FP32Weight{});
+
+/// 1D convolution: [batch, in_channels, length] -> [batch, out_channels, out_length]
+/// Uses ov::op::v1::Convolution with bias Add.
+ov::Output<ov::Node> make_conv1d(const ov::Output<ov::Node>& input,
+                                 size_t in_channels,
+                                 size_t out_channels,
+                                 size_t kernel_size,
+                                 size_t stride,
+                                 size_t padding,
+                                 const std::string& name,
+                                 ov::element::Type precision = ov::element::f32);
+
+/// Encoder KV cache (store-only, no concat): ReadValue(init) -> {SDPA, Assign}
+/// For cross-attention where encoder KV is computed once and reused across decode steps.
+/// No Gather(beam_idx) — encoder KV is identical across beams.
+KVCacheResult make_encoder_kv_cache(const ov::Output<ov::Node>& encoder_kv,
+                                    size_t num_heads,
+                                    size_t head_dim,
+                                    const std::string& name,
+                                    ov::element::Type precision = ov::element::f32);
 
 // ============================================================================
 // SDPAttention functor
@@ -312,8 +357,79 @@ struct SDPAttention {
 };
 
 // ============================================================================
+// Whisper attention functors
+// ============================================================================
+
+/// Whisper self-attention: supports both encoder (no KV cache, non-causal) and
+/// decoder (KV cache, causal) modes. All projections include bias.
+struct WhisperSelfAttention {
+    size_t hidden_size, num_heads, head_dim;
+    ov::element::Type precision;
+    WeightFn weight_fn;
+    bool use_kv_cache;
+    ov::Output<ov::Node> batch_source;    // for KV cache init shape
+    ov::Output<ov::Node> beam_idx;        // for beam search reordering
+    size_t layer_idx;
+    ov::Output<ov::Node> sdpa_mask;       // pre-computed shared causal mask (Slice→SDPA pattern)
+
+    // Optional pre-built KV cache read state for layer 0's key cache.
+    // When set, operator() reuses these instead of creating a new Variable/ReadValue/beam_gather.
+    // This avoids duplicate Variables with the same variable_id.
+    std::shared_ptr<ov::op::util::Variable> prebuilt_k_variable;
+    ov::Output<ov::Node> prebuilt_k_beam_gather;
+
+    LayerResult operator()(const ov::Output<ov::Node>& input, const std::string& prefix) const;
+};
+
+/// Whisper cross-attention: Q from decoder, K/V from encoder hidden states.
+/// Uses encoder KV cache (store-only, no concat) for beam search reordering.
+struct WhisperCrossAttention {
+    size_t hidden_size, num_heads, head_dim;
+    ov::element::Type precision;
+    WeightFn weight_fn;
+    ov::Output<ov::Node> encoder_hidden_states;
+    size_t layer_idx;
+
+    LayerResult operator()(const ov::Output<ov::Node>& input, const std::string& prefix) const;
+};
+
+// ============================================================================
 // Template decoder layer composition
 // ============================================================================
+
+/// Whisper decoder layer: 3 sublayers (self-attn, cross-attn, FFN) with norm + residual.
+template <typename Norm, typename SelfAttn, typename CrossAttn, typename FFN>
+LayerResult make_whisper_decoder_layer(const ov::Output<ov::Node>& input,
+                                       const Norm& norm,
+                                       const SelfAttn& self_attn,
+                                       const CrossAttn& cross_attn,
+                                       const FFN& ffn,
+                                       const std::string& prefix) {
+    // Self-attention: norm -> self_attn -> residual
+    auto normed1 = norm(input, prefix + "self_attn_layer_norm");
+    auto self_attn_result = self_attn(normed1, prefix);
+    auto residual1 = std::make_shared<ov::opset11::Add>(input, self_attn_result.output);
+    residual1->set_friendly_name(prefix + "self_attn_residual");
+
+    // Cross-attention: norm -> cross_attn -> residual
+    auto normed2 = norm(residual1->output(0), prefix + "encoder_attn_layer_norm");
+    auto cross_attn_result = cross_attn(normed2, prefix);
+    auto residual2 = std::make_shared<ov::opset11::Add>(residual1, cross_attn_result.output);
+    residual2->set_friendly_name(prefix + "cross_attn_residual");
+
+    // FFN: norm -> ffn -> residual
+    auto normed3 = norm(residual2->output(0), prefix + "final_layer_norm");
+    auto ffn_out = ffn(normed3, prefix + "fc");
+    auto residual3 = std::make_shared<ov::opset11::Add>(residual2, ffn_out);
+    residual3->set_friendly_name(prefix + "ffn_residual");
+
+    // Merge sinks from self-attn and cross-attn
+    std::vector<std::shared_ptr<ov::Node>> sinks;
+    sinks.insert(sinks.end(), self_attn_result.sinks.begin(), self_attn_result.sinks.end());
+    sinks.insert(sinks.end(), cross_attn_result.sinks.begin(), cross_attn_result.sinks.end());
+
+    return {residual3->output(0), sinks};
+}
 
 /// Compose norm + attention + FFN + residual connections into a decoder layer.
 /// Works with concrete types (zero-overhead) or std::function types.
@@ -371,6 +487,31 @@ struct LLMConfig {
 };
 
 // ============================================================================
+// WhisperConfig
+// ============================================================================
+
+/// Configuration for Whisper encoder-decoder model building
+struct WhisperConfig {
+    size_t d_model = 384;
+    size_t encoder_layers = 4;
+    size_t decoder_layers = 4;
+    size_t encoder_attention_heads = 6;
+    size_t decoder_attention_heads = 6;
+    size_t encoder_ffn_dim = 1536;
+    size_t decoder_ffn_dim = 1536;
+    size_t vocab_size = 51865;
+    size_t num_mel_bins = 80;
+    size_t max_source_positions = 1500;
+    size_t max_target_positions = 448;
+    ov::element::Type precision = ov::element::f32;
+    WeightFn weight;
+
+    size_t head_dim() const {
+        return d_model / decoder_attention_heads;
+    }
+};
+
+// ============================================================================
 // ModelBuilder
 // ============================================================================
 
@@ -423,6 +564,12 @@ public:
 
     /// Build complete LLM model using configuration
     std::shared_ptr<ov::Model> build_llm(const LLMConfig& config = LLMConfig{});
+
+    /// Build Whisper encoder model
+    std::shared_ptr<ov::Model> build_whisper_encoder(const WhisperConfig& config);
+
+    /// Build Whisper decoder model
+    std::shared_ptr<ov::Model> build_whisper_decoder(const WhisperConfig& config);
 
     // ===== State management =====
 
