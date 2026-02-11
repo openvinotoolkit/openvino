@@ -81,8 +81,8 @@ TEST(FrontEndConvertModelTest, test_empty_buffer_nonempty_shape) {
     InputModel::Ptr inputModel;
     OV_ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_LITE_FE));
     ASSERT_NE(frontEnd, nullptr);
-    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) +
-                                                             string("bad_buffer_size/empty_buffer_nonempty_shape.tflite"));
+    auto model_filename = FrontEndTestUtils::make_model_path(
+        string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) + string("bad_buffer_size/empty_buffer_nonempty_shape.tflite"));
     ASSERT_THROW(
         {
             inputModel = frontEnd->load(model_filename);
