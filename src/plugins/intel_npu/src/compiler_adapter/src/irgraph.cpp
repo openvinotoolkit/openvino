@@ -27,7 +27,6 @@ public:
     void initializeIRGraphExecution(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata);
     void setArgumentValue(uint32_t argi, const void* argv) override;
     void setArgumentValueWithStrides(uint32_t argi, const void* argv, const std::vector<size_t>& strides) override;
-    void initializeGraph(uint64_t command_queue_group_ordinal) override;
     uint64_t getNumSubgraphs() override {
         return _engineProperties.numOfSubGraphs;
     }
@@ -295,10 +294,6 @@ void IRGraphImpl::setArgumentValueWithStrides(uint32_t argi, const void* argv, c
     }
 }
 
-void IRGraphImpl::initializeGraph(uint64_t ordinal) {
-    // TODO
-}
-
 void IRGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                                IDynamicGraph::GraphArguments& args,
                                std::vector<ze_command_list_handle_t>& commandLists,
@@ -410,7 +405,8 @@ IRGraph::IRGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
       _blob(std::move(blob)),
       _blobAllocatedByPlugin(blobAllocatedByPlugin),
       _compiler(compiler),
-      _logger("Graph", config.get<LOG_LEVEL>()) {
+      _logger("IRGraph", config.get<LOG_LEVEL>()) {
+    _logger.info("Create IRGraph");
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
         _logger.info("Graph initialize is deferred from the \"Graph\" constructor");
         return;
@@ -554,6 +550,13 @@ ze_graph_handle_t IRGraph::get_handle() const {
 void IRGraph::initialize(const Config& config) {
     _logger.debug("Graph initialize start");
 
+    if (!_impl) {
+        _impl = std::make_unique<IRGraphImpl>();
+        // initialize MLIR execution engine, metadata, input&output descriptors
+        _impl->initialize(_blob, _metadata);
+        _num_of_subgraphs = _impl->getNumSubgraphs();
+    }
+
     if(!_zeroInitStruct) {
         _logger.warning("Zero device is not available, skip graph initialize!");
     }
@@ -587,8 +590,6 @@ void IRGraph::initialize(const Config& config) {
         if (config.has<WORKLOAD_TYPE>()) {
             set_workload_type(config.get<WORKLOAD_TYPE>());
         }
-
-        _impl->initializeGraph(_commandQueueGroupOrdinal);
 
         _logger.debug("Graph initialize finish");
 
