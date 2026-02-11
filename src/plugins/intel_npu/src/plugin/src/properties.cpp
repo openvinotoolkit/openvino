@@ -863,24 +863,37 @@ void Properties::filterPropertiesByCompilerSupport(const ICompilerAdapter* compi
     _initialized = true;
 }
 
-void Properties::filterCompilerPropertiesSafe(const bool registerIfNotInitialized,
+void Properties::filterCompilerPropertiesSafe(const bool ensurePropertiesInitialized,
                                               const ov::AnyMap& arguments,
-                                              const ICompilerAdapter* compiler) {
+                                              const ICompilerAdapter* compiler,
+                                              const std::optional<bool> changeCompiler) {
     std::lock_guard<std::mutex> lock(_mutex);
-    auto compilerType = utils::resolveCompilerType(_config, arguments);
-    auto platform = utils::resolvePlatformOption(_config, arguments);
-    auto deviceId = utils::resolveDeviceIdOption(_config, arguments);
+    bool initializeCompilerOptions = false;
+    ov::intel_npu::CompilerType compilerType;
+    std::string platform;
+    std::string deviceId;
     std::string deviceName;
-    try {
-        deviceName = _backend == nullptr ? std::string() : _backend->getDevice(deviceId)->getName();
-    } catch (...) {
-        // do nothing, will be handled later
-    }
 
-    bool changeCompiler = false;
-    if (compilerType != _config.get<COMPILER_TYPE>() || platform != _config.get<PLATFORM>() ||
-        deviceId != _config.get<DEVICE_ID>()) {
-        changeCompiler = true;
+    if (changeCompiler.has_value() && compiler != nullptr) {
+        initializeCompilerOptions = changeCompiler.value();
+    } else {
+        compilerType = utils::resolveCompilerType(_config, arguments);
+        platform = utils::resolvePlatformOption(_config, arguments);
+        deviceId = utils::resolveDeviceIdOption(_config, arguments);
+        try {
+            deviceName = _backend == nullptr ? std::string() : _backend->getDevice(deviceId)->getName();
+        } catch (const std::exception& ex) {
+            if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
+                OPENVINO_THROW(ex.what());
+            } else {
+                _logger.warning("The specified device (\"%s\") was not found.", deviceId.c_str());
+            }
+        }
+
+        if (compilerType != _config.get<COMPILER_TYPE>() || platform != _config.get<PLATFORM>() ||
+            deviceId != _config.get<DEVICE_ID>()) {
+            initializeCompilerOptions = true;
+        }
     }
 
     bool argumentNotRegistered = false;
@@ -892,7 +905,7 @@ void Properties::filterCompilerPropertiesSafe(const bool registerIfNotInitialize
     }
 
     const bool shouldRegister =
-        argumentNotRegistered || (registerIfNotInitialized && (!_initialized || changeCompiler));
+        argumentNotRegistered || (ensurePropertiesInitialized && (!_initialized || initializeCompilerOptions));
     if (shouldRegister) {
         const ICompilerAdapter* localCompiler = nullptr;
         std::unique_ptr<ICompilerAdapter> compilerPtr = nullptr;

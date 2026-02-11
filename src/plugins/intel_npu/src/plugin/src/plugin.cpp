@@ -416,13 +416,14 @@ void Plugin::init_options(FilteredConfig& filteredConfig) {
 
 FilteredConfig Plugin::fork_local_config(const ov::AnyMap& arguments,
                                          const ICompilerAdapter* compiler,
+                                         const std::optional<bool> changeCompiler,
                                          OptionMode mode) const {
     if (_backend != nullptr) {
         _backend->updateInfo(arguments);
     }
 
     auto localProperties = std::make_unique<Properties>(*_properties);
-    localProperties->filterCompilerPropertiesSafe(true, arguments, compiler);
+    localProperties->filterCompilerPropertiesSafe(true, arguments, compiler, changeCompiler);
     localProperties->update(arguments, compiler, mode);
 
     return localProperties->getConfig();
@@ -523,10 +524,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         modelSerializerChosenExplicitly = true;
     }
 
+    const auto& globalConfig = _properties->getConfig();
+
     // create compiler
-    ov::intel_npu::CompilerType compilerType = utils::resolveCompilerType(_properties->getConfig(), localArguments);
+    ov::intel_npu::CompilerType compilerType = utils::resolveCompilerType(globalConfig, localArguments);
     const bool wasPreferPlugin = (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN);
-    auto deviceId = utils::resolveDeviceIdOption(_properties->getConfig(), localArguments);
+    auto deviceId = utils::resolveDeviceIdOption(globalConfig, localArguments);
+    auto propertyPlatform = utils::resolvePlatformOption(globalConfig, localArguments);
+
     std::shared_ptr<IDevice> device = nullptr;
     try {
         device = _backend == nullptr ? nullptr : _backend->getDevice(deviceId);
@@ -538,20 +543,26 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    const auto platform =
-        utils::getCompilationPlatform(utils::resolvePlatformOption(_properties->getConfig(), localArguments),
+    bool changeCompiler = false;
+    if (compilerType != globalConfig.get<COMPILER_TYPE>() || propertyPlatform != globalConfig.get<PLATFORM>() ||
+        deviceId != globalConfig.get<DEVICE_ID>()) {
+        changeCompiler = true;
+    }
+
+    const auto compilationPlatform =
+        utils::getCompilationPlatform(propertyPlatform,
                                       device == nullptr ? deviceId : device->getName(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
     CompilerAdapterFactory factory;
-    auto compiler = factory.getCompiler(_backend, compilerType, platform);
+    auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
-    auto localConfig = fork_local_config(localArguments, compiler.get());
+    auto localConfig = fork_local_config(localArguments, compiler.get(), changeCompiler);
     if (wasPreferPlugin) {
         localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
     }
-    localConfig.update({{ov::intel_npu::platform.name(), platform}});
+    localConfig.update({{ov::intel_npu::platform.name(), compilationPlatform}});
 
     auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
         std::stringstream strStream;
@@ -607,7 +618,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
     // Ignore, if compilation was requested for platform, different from current
-    if (!localConfig.has<STEPPING>() && device != nullptr && device->getName() == platform) {
+    if (!localConfig.has<STEPPING>() && device != nullptr && device->getName() == compilationPlatform) {
         try {
             localConfig.update({{ov::intel_npu::stepping.name(), std::to_string(device->getSubDevId())}});
         } catch (...) {
@@ -617,7 +628,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
     // Update max_tiles w/ information from driver, unless provided by user or we are off-device
     // Ignore, if compilation was requested for platform, different from current
-    if (!localConfig.has<MAX_TILES>() && device != nullptr && device->getName() == platform) {
+    if (!localConfig.has<MAX_TILES>() && device != nullptr && device->getName() == compilationPlatform) {
         try {
             localConfig.update({{ov::intel_npu::max_tiles.name(), std::to_string(device->getMaxNumSlices())}});
         } catch (...) {
@@ -899,10 +910,13 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     }
     exclude_model_ptr_from_map(localArguments);
 
-    ov::intel_npu::CompilerType compilerType = utils::resolveCompilerType(_properties->getConfig(), localArguments);
-    const bool wasPreferPlugin = (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN);
+    const auto& globalConfig = _properties->getConfig();
 
-    auto deviceId = utils::resolveDeviceIdOption(_properties->getConfig(), localArguments);
+    ov::intel_npu::CompilerType compilerType = utils::resolveCompilerType(globalConfig, localArguments);
+    const bool wasPreferPlugin = (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN);
+    auto deviceId = utils::resolveDeviceIdOption(globalConfig, localArguments);
+    auto propertyPlatform = utils::resolvePlatformOption(globalConfig, localArguments);
+
     std::shared_ptr<IDevice> device = nullptr;
     try {
         device = _backend == nullptr ? nullptr : _backend->getDevice(deviceId);
@@ -914,19 +928,25 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
         }
     }
 
-    const auto platform =
-        utils::getCompilationPlatform(utils::resolvePlatformOption(_properties->getConfig(), localArguments),
+    bool changeCompiler = false;
+    if (compilerType != globalConfig.get<COMPILER_TYPE>() || propertyPlatform != globalConfig.get<PLATFORM>() ||
+        deviceId != globalConfig.get<DEVICE_ID>()) {
+        changeCompiler = true;
+    }
+
+    const auto compilationPlatform =
+        utils::getCompilationPlatform(propertyPlatform,
                                       device == nullptr ? deviceId : device->getName(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
     CompilerAdapterFactory factory;
-    auto compiler = factory.getCompiler(_backend, compilerType, platform);
+    auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
-    auto localConfig = fork_local_config(localArguments, compiler.get(), OptionMode::CompileTime);
+    auto localConfig = fork_local_config(localArguments, compiler.get(), changeCompiler, OptionMode::CompileTime);
     if (wasPreferPlugin) {
         localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
     }
-    localConfig.update({{ov::intel_npu::platform.name(), platform}});
+    localConfig.update({{ov::intel_npu::platform.name(), compilationPlatform}});
 
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
 
@@ -978,10 +998,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     // list of properties
     auto originalModel = exclude_model_ptr_from_map(localArguments);
 
-    ov::intel_npu::CompilerType compilerType = utils::resolveCompilerType(_properties->getConfig(), localArguments);
-    const bool wasPreferPlugin = (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN);
+    const auto& globalConfig = _properties->getConfig();
 
-    auto deviceId = utils::resolveDeviceIdOption(_properties->getConfig(), localArguments);
+    ov::intel_npu::CompilerType compilerType = utils::resolveCompilerType(globalConfig, localArguments);
+    const bool wasPreferPlugin = (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN);
+    auto deviceId = utils::resolveDeviceIdOption(globalConfig, localArguments);
+    auto propertyPlatform = utils::resolvePlatformOption(globalConfig, localArguments);
+
     std::shared_ptr<IDevice> device = nullptr;
     try {
         device = _backend == nullptr ? nullptr : _backend->getDevice(deviceId);
@@ -993,20 +1016,26 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         }
     }
 
-    const auto platform =
-        utils::getCompilationPlatform(utils::resolvePlatformOption(_properties->getConfig(), localArguments),
+    bool changeCompiler = false;
+    if (compilerType != globalConfig.get<COMPILER_TYPE>() || propertyPlatform != globalConfig.get<PLATFORM>() ||
+        deviceId != globalConfig.get<DEVICE_ID>()) {
+        changeCompiler = true;
+    }
+
+    const auto compilationPlatform =
+        utils::getCompilationPlatform(propertyPlatform,
                                       device == nullptr ? deviceId : device->getName(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
     CompilerAdapterFactory factory;
-    auto compiler = factory.getCompiler(_backend, compilerType, platform);
+    auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
-    auto localConfig = fork_local_config(localArguments, compiler.get(), OptionMode::RunTime);
+    auto localConfig = fork_local_config(localArguments, compiler.get(), changeCompiler, OptionMode::RunTime);
     if (wasPreferPlugin) {
         localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
     }
-    localConfig.update({{ov::intel_npu::platform.name(), platform}});
+    localConfig.update({{ov::intel_npu::platform.name(), compilationPlatform}});
 
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
 
