@@ -607,25 +607,16 @@ std::vector<std::vector<int>> get_streams_rank_table(const std::vector<std::vect
 
 using namespace ov::intel_cpu::ThreadPreferenceConstants;
 
-// ============================================================================
-// Platform-Specific Configuration Functions
-// ============================================================================
-
 #if defined(OPENVINO_ARCH_ARM64) && defined(__linux__)
-/**
- * @brief Configure thread preferences for ARM64 Linux platforms
- */
 static void configure_arm64_linux_threads(Config& config,
                                           const std::vector<std::vector<int>>& proc_type_table,
                                           bool int8_intensive,
                                           bool is_LLM) {
-    // Set throughput preference based on SVE support
     config.modelPreferThreadsThroughput = ARM64_THREADS_DEFAULT;
     if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::cpu_isa_t::sve_128)) {
         config.modelPreferThreadsThroughput = ARM64_THREADS_SVE;
     }
 
-    // Calculate latency preference
     const int main_cores = proc_type_table[0][MAIN_CORE_PROC];
     const int efficient_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
 
@@ -640,15 +631,11 @@ static void configure_arm64_linux_threads(Config& config,
 #endif
 
 #if defined(OPENVINO_ARCH_ARM) && defined(__linux__)
-/**
- * @brief Configure thread preferences for ARM Linux (32-bit) platforms
- */
 void configure_arm_linux_threads(Config& config,
                                  const std::vector<std::vector<int>>& proc_type_table,
                                  const ov::MemBandwidthPressure& tolerance,
                                  bool int8_intensive,
                                  bool is_LLM) {
-    // Set throughput preference based on network characteristics
     config.modelPreferThreadsThroughput = ARM_THREADS_DEFAULT;
 
     if (tolerance.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
@@ -661,7 +648,6 @@ void configure_arm_linux_threads(Config& config,
         config.modelPreferThreadsThroughput = ARM_THREADS_HIGH;
     }
 
-    // Calculate latency preference
     const int main_cores = proc_type_table[0][MAIN_CORE_PROC];
     const int efficient_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
 
@@ -676,9 +662,6 @@ void configure_arm_linux_threads(Config& config,
 #endif
 
 #if (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
-/**
- * @brief Configure thread preferences for Apple Silicon platforms
- */
 void configure_apple_threads(Config& config,
                              const std::vector<std::vector<int>>& proc_type_table,
                              const ov::MemBandwidthPressure& tolerance,
@@ -688,7 +671,6 @@ void configure_apple_threads(Config& config,
     const int main_cores = proc_type_table[0][MAIN_CORE_PROC];
     const int efficient_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
 
-    // Configure latency threads
     if ((proc_type_table.size() == 1) && (efficient_cores > 0)) {
         config.modelPreferThreadsLatency = main_cores > efficient_cores ? main_cores : proc_type_table[0][ALL_PROC];
     } else {
@@ -701,7 +683,6 @@ void configure_apple_threads(Config& config,
         }
     }
 
-    // Configure throughput threads
     config.modelPreferThreadsThroughput = APPLE_THREADS_MINIMAL;
 
     if (tolerance.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
@@ -723,9 +704,6 @@ void configure_apple_threads(Config& config,
 }
 #endif
 
-/**
- * @brief Configure thread preferences for x86/x64 hybrid architectures
- */
 void configure_x86_hybrid_threads(Config& config,
                                   const std::vector<std::vector<int>>& proc_type_table,
                                   const ov::MemBandwidthPressure& tolerance,
@@ -735,7 +713,6 @@ void configure_x86_hybrid_threads(Config& config,
     const int efficient_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
     const int lp_efficient_cores = proc_type_table[0][LP_EFFICIENT_CORE_PROC];
 
-    // Check if hybrid configuration is applicable
     const bool is_hybrid_applicable = (main_cores < config.threads || config.threads == 0) &&
                                       (ov::get_number_of_blocked_cores() != 0 || lp_efficient_cores > 0) &&
                                       efficient_cores <= 2 * main_cores;
@@ -759,17 +736,18 @@ void configure_x86_hybrid_threads(Config& config,
     }
 }
 
-/**
- * @brief Configure thread preferences for x86/x64 hybrid architectures
- */
 void configure_x86_hybrid_lp_threads(Config& config,
                                      const std::vector<std::vector<int>>& proc_type_table,
                                      const ov::MemBandwidthPressure& tolerance) {
     const int main_cores = proc_type_table[0][MAIN_CORE_PROC];
     const int lp_efficient_cores = proc_type_table[0][LP_EFFICIENT_CORE_PROC];
 
-    if (!is_lp_auto_case_1(tolerance) && !is_lp_auto_case_2(tolerance) && !is_lp_auto_case_3(tolerance) &&
-        !is_lp_auto_case_4(tolerance) && !is_lp_auto_case_5(tolerance)) {
+    if (is_lp_auto_case_1(tolerance) || is_lp_auto_case_2(tolerance) || is_lp_auto_case_3(tolerance) ||
+        is_lp_auto_case_4(tolerance) || is_lp_auto_case_5(tolerance)) {
+        config.modelPreferThreadsLatency = main_cores + lp_efficient_cores;
+        config.tbbPartitioner =
+            config.tbbPartitioner == TbbPartitioner::NONE ? TbbPartitioner::AUTO : config.tbbPartitioner;
+    } else {
         if (is_lp_main_core_case_1(tolerance) || is_lp_main_core_case_2(tolerance)) {
             config.modelPreferThreadsLatency = main_cores;
         } else {
@@ -777,16 +755,9 @@ void configure_x86_hybrid_lp_threads(Config& config,
         }
         config.tbbPartitioner =
             config.tbbPartitioner == TbbPartitioner::NONE ? TbbPartitioner::STATIC : config.tbbPartitioner;
-    } else {
-        config.modelPreferThreadsLatency = main_cores + lp_efficient_cores;
-        config.tbbPartitioner =
-            config.tbbPartitioner == TbbPartitioner::NONE ? TbbPartitioner::AUTO : config.tbbPartitioner;
     }
 }
 
-/**
- * @brief Configure thread preferences for x86/x64 non-hybrid architectures
- */
 void configure_x86_non_hybrid_threads(Config& config, const std::vector<std::vector<int>>& proc_type_table) {
     const int main_cores = proc_type_table[0][MAIN_CORE_PROC];
     const int efficient_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
@@ -794,9 +765,6 @@ void configure_x86_non_hybrid_threads(Config& config, const std::vector<std::vec
     config.modelPreferThreadsLatency = main_cores > 0 ? main_cores : efficient_cores;
 }
 
-/**
- * @brief Configure throughput thread preferences for x86/x64 platforms
- */
 void configure_x86_throughput_threads(Config& config,
                                       const std::vector<std::vector<int>>& proc_type_table,
                                       const ov::MemBandwidthPressure& tolerance,
@@ -820,36 +788,6 @@ void configure_x86_throughput_threads(Config& config,
     }
 }
 
-// ============================================================================
-// Main Function - Refactored Implementation
-// ============================================================================
-
-/**
- * @brief Determine model-preferred thread counts for latency and throughput modes
- *
- * This function analyzes the network characteristics and hardware capabilities
- * to determine optimal thread counts for both latency-sensitive and throughput-
- * optimized execution modes.
- *
- * Key considerations:
- * - CPU architecture (x86, ARM, Apple Silicon)
- * - Core types (Performance/Main cores vs Efficiency cores)
- * - Network memory bandwidth characteristics
- * - Workload type (INT8-intensive, compute-bound, memory-bound)
- * - ISA capabilities (AVX2, AVX512, VNNI, AMX, SVE, etc.)
- *
- * @param[in] num_streams Number of inference streams
- * @param[in] proc_type_table Processor topology table with core counts by type
- * @param[in] model The OpenVINO model being optimized
- * @param[in,out] config Configuration object to be updated with thread preferences
- * @return The preferred number of threads based on stream configuration
- *
- * @note Side effects:
- *       - Sets config.modelPreferThreadsLatency
- *       - Sets config.modelPreferThreadsThroughput
- *       - Sets config.modelPreferThreads
- *       - May set config.tbbPartitioner
- */
 int get_model_prefer_threads(const int num_streams,
                              const std::vector<std::vector<int>>& proc_type_table,
                              const std::shared_ptr<ov::Model>& model,
@@ -862,17 +800,14 @@ int get_model_prefer_threads(const int num_streams,
 
         config.modelPreferThreads = 0;
 
-        // Platform-specific configuration
 #if defined(OPENVINO_ARCH_ARM64) && defined(__linux__)
         configure_arm64_linux_threads(config, proc_type_table, int8_intensive, is_LLM);
 
 #else
-        // Calculate ISA-specific memory threshold
         const float isaSpecificThreshold = get_isa_threshold_multiplier(dnnl::get_effective_cpu_isa());
         const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
         const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
 
-        // Analyze network memory bandwidth pressure
         ov::MemBandwidthPressure networkToleranceForLowCache =
             ov::mem_bandwidth_pressure_tolerance(model,
                                                  L2_cache_size,
@@ -891,7 +826,6 @@ int get_model_prefer_threads(const int num_streams,
                                 is_LLM);
 
 #    else
-        // x86/x64 platforms
         const int main_cores = proc_type_table[0][MAIN_CORE_PROC];
         const int efficient_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
         const int lp_efficient_cores = proc_type_table[0][LP_EFFICIENT_CORE_PROC];
@@ -912,7 +846,6 @@ int get_model_prefer_threads(const int num_streams,
 #endif
     }
 
-    // Determine final thread preference based on stream configuration
     if (num_streams > sockets || num_streams == 0) {
         config.modelPreferThreads = config.modelPreferThreadsThroughput;
     } else {
