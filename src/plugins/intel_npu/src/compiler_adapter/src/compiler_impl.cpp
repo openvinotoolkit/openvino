@@ -85,8 +85,8 @@ struct vcl_allocator : vcl_allocator2_t {
         vclAllocator->m_allocator.deallocate(ptr, vclAllocator->m_size, intel_npu::utils::STANDARD_PAGE_SIZE);
     }
     ov::Allocator m_allocator;
-    uint8_t* m_allocated;
-    size_t m_size;
+    uint8_t* m_allocated = nullptr;
+    size_t m_size = 0;
 };
 
 struct vcl_allocator_2 : vcl_allocator2_t {
