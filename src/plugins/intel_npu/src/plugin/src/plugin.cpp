@@ -649,18 +649,31 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    auto npu_plugin_properties = arguments;
-    exclude_model_ptr_from_map(npu_plugin_properties);
+    auto npuPluginProperties = arguments;
+    exclude_model_ptr_from_map(npuPluginProperties);
 
-    if (!npu_plugin_properties.empty()) {
-        auto local_properties = std::make_unique<Properties>(*_properties);
-        filter_global_config_safe(local_properties, npu_plugin_properties);
+    if (!npuPluginProperties.empty()) {
+        auto localProperties = std::make_unique<Properties>(*_properties);
 
-        return local_properties->get_property(name, npu_plugin_properties);
+        bool argumentNotRegistered = false;
+        for (const auto& arg : npuPluginProperties) {
+            if (!localProperties->isPropertyRegistered(arg.first)) {
+                argumentNotRegistered = true;
+                break;
+            }
+        }
+
+        if ((!localProperties->isPropertyRegistered(name) || name == ov::supported_properties.name() ||
+             argumentNotRegistered)) {
+            filter_global_config_safe(localProperties, npuPluginProperties);
+        }
+
+        return localProperties->get_property(name, npuPluginProperties);
     }
 
+
     if ((!_properties->isPropertyRegistered(name) || name == ov::supported_properties.name())) {
-        filter_global_config_safe(_properties, npu_plugin_properties);
+        filter_global_config_safe(_properties, npuPluginProperties);
     }
 
     return _properties->get_property(name);

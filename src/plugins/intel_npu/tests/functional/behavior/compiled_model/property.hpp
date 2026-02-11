@@ -330,4 +330,35 @@ TEST_P(CheckCompilerTypeProperty, CheckLogAfterSettingExtraConfigToGetProperty) 
     ASSERT_TRUE(compiler_type == ov::intel_npu::CompilerType::PLUGIN);
 }
 
+TEST_P(CheckCompilerTypeProperty, CheckLogAfterGettingPropertyWithExtraConfig) {
+    std::string logs;
+    std::mutex logs_mutex;
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    ov::util::set_log_callback(log_cb);
+    OV_ASSERT_NO_THROW(ie.get_property(deviceName,
+                                       ov::intel_npu::defer_weights_load,
+                                       {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}));
+    ov::util::reset_log_callback();
+
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+
+    logs.clear();
+
+    ov::util::set_log_callback(log_cb);
+    OV_ASSERT_NO_THROW(ie.get_property(
+        deviceName,
+        ov::intel_npu::defer_weights_load,
+        {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER), ov::intel_npu::qdq_optimization(true)}));
+    ov::util::reset_log_callback();
+
+    ASSERT_NE(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+}
+
 }  // namespace
