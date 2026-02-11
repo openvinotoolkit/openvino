@@ -268,6 +268,9 @@ std::vector<std::vector<int>> get_streams_info_table(
                 } else {
                     stream_info[PROC_TYPE] = ALL_PROC;
                     n_threads_per_stream = proc_type_table[0][ALL_PROC] - proc_type_table[0][LP_EFFICIENT_CORE_PROC];
+                    n_threads_per_stream =
+                        model_prefer_threads > n_threads_per_stream ? model_prefer_threads : n_threads_per_stream;
+                    stream_info[THREADS_PER_STREAM] = n_threads_per_stream;
                 }
             } else {
                 n_threads_per_stream = proc_type_table[0][ALL_PROC] - proc_type_table[0][LP_EFFICIENT_CORE_PROC];
