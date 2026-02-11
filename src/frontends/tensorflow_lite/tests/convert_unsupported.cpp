@@ -53,7 +53,7 @@ TEST(FrontEndConvertModelTest, test_wrong_pos) {
     ASSERT_THROW(model = frontEnd->convert(inputModel), std::exception);
 }
 
-// CVS-181019: CWE-787 - sparse tensor with out-of-bounds index value
+// Sparse tensor with out-of-bounds index value
 // Index 999 in a dimension of size 100 would cause heap OOB write without bounds checking
 TEST(FrontEndConvertModelTest, test_sparse_oob_index) {
     FrontEndManager fem;
@@ -73,7 +73,7 @@ TEST(FrontEndConvertModelTest, test_sparse_oob_index) {
         std::exception);
 }
 
-// CVS-181019: sparse tensor with negative index value
+// Sparse tensor with negative index value
 TEST(FrontEndConvertModelTest, test_sparse_negative_index) {
     FrontEndManager fem;
     FrontEnd::Ptr frontEnd;
@@ -92,7 +92,7 @@ TEST(FrontEndConvertModelTest, test_sparse_negative_index) {
         std::exception);
 }
 
-// CVS-181019: sparse tensor with non-monotonic segments
+// Sparse tensor with non-monotonic segments
 TEST(FrontEndConvertModelTest, test_sparse_non_monotonic_segments) {
     FrontEndManager fem;
     FrontEnd::Ptr frontEnd;
