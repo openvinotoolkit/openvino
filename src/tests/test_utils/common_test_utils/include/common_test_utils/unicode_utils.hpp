@@ -162,7 +162,6 @@ extern const std::vector<std::wstring> test_unicode_postfix_vector;
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
-
 template <typename StringT>
 StringT append_slash(StringT value) {
     using CharT = typename StringT::value_type;

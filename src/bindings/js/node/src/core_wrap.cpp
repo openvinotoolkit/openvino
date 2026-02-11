@@ -100,10 +100,6 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
         reportError(info.Env(), err.what());
 
         return info.Env().Undefined();
-    } catch (std::exception& err) {
-        reportError(info.Env(), err.what());
-
-        return info.Env().Undefined();
     }
 }
 
