@@ -11,6 +11,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/opsets/opset8_decl.hpp"
@@ -92,5 +93,23 @@ TEST_F(TransformationTestsF, negative_ConvertSoftMax8ToSoftMax1_dynamic_rank) {
         auto softmax_8 = std::make_shared<opset8::Softmax>(data, axis);
 
         model_ref = std::make_shared<ov::Model>(OutputVector{softmax_8}, ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertSoftMax8ToSoftMax1_scalar) {
+    {
+        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{});
+        int64_t axis = -1;
+        auto softmax_8 = std::make_shared<opset8::Softmax>(data, axis);
+
+        model = std::make_shared<ov::Model>(OutputVector{softmax_8}, ParameterVector{data});
+        manager.register_pass<ov::pass::ConvertSoftMax8ToSoftMax1>();
+    }
+
+    {
+        auto data = std::make_shared<opset1::Parameter>(element::f32, Shape{});
+        auto one_const = ov::op::v0::Constant::create(element::f32, Shape{}, {1});
+
+        model_ref = std::make_shared<ov::Model>(OutputVector{one_const}, ParameterVector{data});
     }
 }
