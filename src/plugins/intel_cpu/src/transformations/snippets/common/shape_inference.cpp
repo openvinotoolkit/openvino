@@ -24,21 +24,22 @@ using ShapeInferPtr = IShapeInferSnippetsFactory::ShapeInferPtr;
 namespace detail {
 
 IShapeInferSnippetsFactory::TRegistry make_common_cpu_shape_infer_registry() {
-    static IShapeInferSnippetsFactory::TRegistry registry{
+    const static IShapeInferSnippetsFactory::TRegistry registry{
         {ov::intel_cpu::FusedMulAdd::get_type_info_static(),
-         []([[maybe_unused]] const std::shared_ptr<ov::Node>&) {
+         [](const std::shared_ptr<ov::Node>&) {
              return std::make_shared<NumpyBroadcastShapeInfer>();
          }},
         {ov::intel_cpu::SwishNode::get_type_info_static(),
-         []([[maybe_unused]] const std::shared_ptr<ov::Node>&) {
+         [](const std::shared_ptr<ov::Node>&) {
              return std::make_shared<PassThroughShapeInfer>();
          }},
-    };
 #ifdef SNIPPETS_LIBXSMM_TPP
-    registry.insert({ov::intel_cpu::tpp::op::BrgemmTPP::get_type_info_static(), [](const std::shared_ptr<ov::Node>& n) {
-                         return std::make_shared<BrgemmShapeInfer>(n);
-                     }});
+        {ov::intel_cpu::tpp::op::BrgemmTPP::get_type_info_static(),
+         [](const std::shared_ptr<ov::Node>& n) {
+             return std::make_shared<BrgemmShapeInfer>(n);
+         }},
 #endif
+    };
     return registry;
 }
 
