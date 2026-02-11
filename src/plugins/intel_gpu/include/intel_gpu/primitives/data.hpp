@@ -4,8 +4,33 @@
 
 #pragma once
 #include <algorithm>
+#include <atomic>
 #include <climits>
 #include <variant>
+#include <chrono>
+#include <iostream>
+#include <iomanip>
+#include <vector>
+#include <mutex>
+#include <future>
+#include <cstring>
+#include <cstdlib>
+
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <fstream>
+#include <malloc.h>
+#else
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fstream>
+#endif
+#include "intel_gpu/runtime/itt.hpp"
 
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
@@ -36,6 +61,7 @@ bool is_alloc_host_accessible(const cldnn::allocation_type& alloc_type) {
 }
 
 void copy_to_dst_mem(cldnn::memory::ptr mem_ptr, const uint8_t* data_ptr) {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "copy_to_dst_mem");
     if (is_alloc_host_accessible(mem_ptr->get_allocation_type())) {
         size_t data_size = mem_ptr->size();
         std::memcpy(reinterpret_cast<uint8_t*>(mem_ptr->buffer_ptr()),
@@ -46,6 +72,233 @@ void copy_to_dst_mem(cldnn::memory::ptr mem_ptr, const uint8_t* data_ptr) {
         mem_ptr->copy_from(strm, data_ptr);
     }
 }
+
+#ifdef __linux__
+class fd_accessor : public std::filebuf {
+public:
+   int get_fd() { return _M_file.fd(); }
+};
+#endif
+
+#ifdef _WIN32
+size_t get_file_size(const std::string& path) {
+    if (path.empty()) return 0;
+    int wlen = MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, NULL, 0);
+    if (wlen <= 0) return 0;
+    std::wstring wpath(wlen, 0);
+    MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, &wpath[0], wlen);
+    if (wlen > 0) wpath.resize(wlen - 1);
+
+    HANDLE hFile = CreateFileW(wpath.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (hFile == INVALID_HANDLE_VALUE) return 0;
+
+    LARGE_INTEGER fileSize;
+    size_t size = 0;
+    if (GetFileSizeEx(hFile, &fileSize)) {
+        size = static_cast<size_t>(fileSize.QuadPart);
+    }
+    CloseHandle(hFile);
+    return size;
+}
+#else
+size_t get_file_size(const std::string& path) {
+     struct stat stat_buf;
+     int rc = stat(path.c_str(), &stat_buf);
+     return rc == 0 ? stat_buf.st_size : 0;
+}
+#endif
+
+bool load_direct(std::istream& stream, void* buffer, size_t size) {
+#ifdef __linux__
+    auto* buf = stream.rdbuf();
+    if (auto* fbuf = dynamic_cast<std::filebuf*>(buf)) {
+         int fd = static_cast<fd_accessor*>(fbuf)->get_fd();
+         if (fd >= 0) {
+             size_t current_pos = stream.tellg();
+             OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "load_weights::load_direct");
+
+             std::string path = "/proc/self/fd/" + std::to_string(fd);
+             int direct_fd = open(path.c_str(), O_RDONLY | O_DIRECT);
+             if (direct_fd != -1) {
+                 uintptr_t addr = reinterpret_cast<uintptr_t>(buffer);
+                 size_t offset = current_pos;
+
+                 bool addr_aligned = (addr % 4096) == 0;
+                 bool offset_aligned = (offset % 4096) == 0;
+                 bool size_aligned = (size % 4096) == 0;
+
+                 if (addr_aligned && offset_aligned && size_aligned) {
+                      ssize_t ret = pread(direct_fd, buffer, size, offset);
+                      close(direct_fd);
+                      if (ret == (ssize_t)size) {
+                          stream.seekg(size, std::ios::cur);
+                          return true;
+                      }
+                 } else {
+                      size_t align_mask = 4095;
+                      size_t file_start = offset & ~align_mask;
+                      size_t file_end = (offset + size + align_mask) & ~align_mask;
+                      size_t read_len = file_end - file_start;
+
+                      void* tmp_buf = nullptr;
+                      if (posix_memalign(&tmp_buf, 4096, read_len) == 0) {
+                          ssize_t ret = pread(direct_fd, tmp_buf, read_len, file_start);
+                          close(direct_fd);
+                          if (ret == (ssize_t)read_len) {
+                              size_t copy_off = offset - file_start;
+                              memcpy(buffer, (char*)tmp_buf + copy_off, size);
+                              free(tmp_buf);
+                              stream.seekg(size, std::ios::cur);
+                              return true;
+                          }
+                          free(tmp_buf);
+                      } else {
+                          close(direct_fd);
+                      }
+                 }
+             }
+         }
+    }
+#elif defined(_WIN32)
+    auto* buf = stream.rdbuf();
+    // On Windows, extracting file handle from std::filebuf is non-trivial and non-standard.
+    // However, if we assume we are reading from the beginning or we know the path, we might re-open it.
+    // But BinaryInputBuffer wraps a generic istream.
+    return false;
+#endif
+    return false;
+}
+
+#ifdef _WIN32
+bool load_parallel(const std::string& path, size_t offset, void* buffer, size_t size) {
+    if (path.empty()) return false;
+
+    // Convert UTF-8 path to Wide String for CreateFileW
+    int wlen = MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, NULL, 0);
+    if (wlen <= 0) return false;
+    std::wstring wpath(wlen, 0);
+    MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, &wpath[0], wlen);
+    // wlen includes the null terminator, resizing to remove it for clean string object
+    if (wlen > 0) wpath.resize(wlen - 1);
+
+    HANDLE hFile = CreateFileW(wpath.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (hFile == INVALID_HANDLE_VALUE) return false;
+
+    // Safety check: File size
+    LARGE_INTEGER fileSize;
+    if (GetFileSizeEx(hFile, &fileSize)) {
+        if (static_cast<unsigned long long>(fileSize.QuadPart) < offset + size) {
+            CloseHandle(hFile);
+            return false;
+        }
+    }
+    CloseHandle(hFile);
+
+    const size_t num_threads = std::min(static_cast<size_t>(std::thread::hardware_concurrency()), size / (1024 * 1024));
+    if (num_threads <= 1) {
+        return false;
+    }
+
+    std::vector<std::future<void>> futures;
+    size_t chunk_size = size / num_threads;
+    chunk_size = (chunk_size + 4095) & ~4095;
+
+    size_t current_offset = 0;
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "load_weights::load_parallel_win");
+
+    std::atomic<bool> overall_status{true};
+
+    for (size_t i = 0; i < num_threads; i++) {
+        size_t read_size = (i == num_threads - 1) ? (size - current_offset) : chunk_size;
+        if (read_size == 0) break;
+
+        void* ptr = static_cast<char*>(buffer) + current_offset;
+        size_t file_offset = offset + current_offset;
+
+        futures.emplace_back(std::async(std::launch::async, [wpath, file_offset, ptr, read_size, &overall_status] {
+            HANDLE t_hFile = CreateFileW(wpath.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+            if (t_hFile == INVALID_HANDLE_VALUE) {
+                overall_status = false;
+                return;
+            }
+            OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "load_parallel_win_chunk");
+
+            size_t remaining_size = read_size;
+            char* current_ptr = static_cast<char*>(ptr);
+            size_t current_file_offset = file_offset;
+
+            // Loop to handle reads larger than DWORD max (4GB)
+            while (remaining_size > 0 && overall_status) {
+                DWORD to_read = static_cast<DWORD>(std::min(remaining_size, static_cast<size_t>(UINT_MAX - 1024)));
+                OVERLAPPED ov = {0};
+                ov.Offset = static_cast<DWORD>(current_file_offset & 0xFFFFFFFF);
+                ov.OffsetHigh = static_cast<DWORD>((current_file_offset >> 32) & 0xFFFFFFFF);
+
+                DWORD bytesRead = 0;
+                if (!ReadFile(t_hFile, current_ptr, to_read, &bytesRead, &ov) || bytesRead != to_read) {
+                    if (GetLastError() != ERROR_IO_PENDING) {
+                        overall_status = false;
+                        break;
+                    }
+                }
+
+                remaining_size -= bytesRead;
+                current_ptr += bytesRead;
+                current_file_offset += bytesRead;
+            }
+            CloseHandle(t_hFile);
+        }));
+
+        current_offset += read_size;
+    }
+
+    for (auto& f : futures) {
+        f.get();
+    }
+    return overall_status;
+}
+#else
+bool load_parallel(const std::string& path, size_t offset, void* buffer, size_t size) {
+    std::ifstream ifs(path, std::ios::binary);
+    if (!ifs.is_open()) return false;
+
+    const size_t num_threads = std::min(static_cast<size_t>(std::thread::hardware_concurrency()), size / (1024 * 1024));
+    if (num_threads <= 1) return false;
+
+    std::vector<std::future<void>> futures;
+    size_t chunk_size = size / num_threads;
+    // Align chunk size to 4KB for better performance
+    chunk_size = (chunk_size + 4095) & ~4095;
+
+    size_t current_offset = 0;
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "load_weights::load_parallel");
+
+    // We open file in each thread to have independent file pointers
+    for (size_t i = 0; i < num_threads; i++) {
+        size_t read_size = (i == num_threads - 1) ? (size - current_offset) : chunk_size;
+        if (read_size == 0) break;
+
+        void* ptr = static_cast<char*>(buffer) + current_offset;
+        size_t file_offset = offset + current_offset;
+
+        futures.emplace_back(std::async(std::launch::async, [path, file_offset, ptr, read_size] {
+            std::ifstream t_ifs(path, std::ios::binary);
+            OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "load_parallel_chunk");
+            if (t_ifs.is_open()) {
+                t_ifs.seekg(file_offset, std::ios::beg);
+                t_ifs.read(static_cast<char*>(ptr), read_size);
+            }
+        }));
+
+        current_offset += read_size;
+    }
+
+    for (auto& f : futures) {
+        f.get();
+    }
+    return true;
+}
+#endif
 
 }  // namespace
 
@@ -244,6 +497,7 @@ private:
                              memory::ptr dst_mem,
                              constant_memory_ptr constant_ptr) {
         std::shared_ptr<ov::op::v0::Constant> transformed_constant = nullptr;
+        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "weightless_cache_manager::run_transformations");
 
         // Note: this works only until the data is copied to dst_mem.
         auto get_intermediate_data = [&]() -> const uint8_t* {
@@ -404,7 +658,8 @@ struct data : public primitive_base<data> {
         primitive_base<data>::load(ib);
     }
 
-    void load_weights(BinaryInputBuffer& ib, std::shared_ptr<WeightsMemory> weights_memory) {
+    void load_weights(BinaryInputBuffer& ib, std::shared_ptr<WeightsMemory> weights_memory, const std::string& weights_path = "") {
+        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "load_weights");
         layout output_layout = layout();
         ib >> output_layout;
 
@@ -419,10 +674,93 @@ struct data : public primitive_base<data> {
         bool is_weightless_caching = cache_info->load(ib, mem, weights_memory);
 
         if (!is_weightless_caching) {
+            const size_t DATA_BLOCK_SIZE = 4 * 1024 * 1024;
+            const size_t DIRECT_IO_THRESHOLD = 4 * 1024 * 1024; // Use DirectIO for >4MB
+
             if (is_alloc_host_accessible(_allocation_type)) {
-                ib >> make_data(mem->buffer_ptr(), data_size);
+                bool used_direct_io = false;
+                if (data_size >= DIRECT_IO_THRESHOLD) {
+                    used_direct_io = load_direct(ib.get_stream(), mem->buffer_ptr(), data_size);
+                    if (!used_direct_io && !weights_path.empty()) {
+                        auto cur_offset = ib.get_stream().tellg();
+
+                        // Auto-detect header offset compensation for path-based loading
+                        // This applies to both Windows and Linux Parallel loaders which open by path
+                        size_t offset_compensation = 0;
+
+                        // Save current position
+                        auto restore_pos = ib.get_stream().tellg();
+                        ib.get_stream().seekg(0, std::ios::end);
+                        auto stream_end = (size_t)ib.get_stream().tellg();
+                        ib.get_stream().seekg(restore_pos, std::ios::beg);
+
+                        size_t physical_size = get_file_size(weights_path);
+                        if (physical_size > stream_end) {
+                            offset_compensation = physical_size - stream_end;
+                        }
+
+                        used_direct_io = load_parallel(weights_path, (size_t)cur_offset + offset_compensation, mem->buffer_ptr(), data_size);
+                        if (used_direct_io) {
+                            ib.get_stream().seekg(data_size, std::ios::cur);
+                        }
+                    }
+                }
+
+                if (!used_direct_io) {
+                    if (data_size < DATA_BLOCK_SIZE) {
+                        ib >> make_data(mem->buffer_ptr(), data_size);
+                    } else {
+                        struct AlignedBuffer {
+                            uint8_t* ptr;
+                            AlignedBuffer(size_t sz) {
+#ifdef _WIN32
+                                ptr = static_cast<uint8_t*>(_aligned_malloc(sz, 4096));
+#else
+                                if (posix_memalign((void**)&ptr, 4096, sz)) ptr = nullptr;
+#endif
+                            }
+                            ~AlignedBuffer() {
+#ifdef _WIN32
+                                _aligned_free(ptr);
+#else
+                                free(ptr);
+#endif
+                            }
+                            uint8_t* get() { return ptr; }
+                        };
+
+                        AlignedBuffer _buf1(DATA_BLOCK_SIZE);
+                        AlignedBuffer _buf2(DATA_BLOCK_SIZE);
+
+                        std::future<void> fut;
+                        bool buf_flag = true;
+                        size_t dst_offset = 0;
+                        uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(mem->buffer_ptr());
+
+                        while (dst_offset < data_size) {
+                            size_t copy_size = std::min(DATA_BLOCK_SIZE, data_size - dst_offset);
+                            if (buf_flag) {
+                                ib >> make_data(_buf1.get(), copy_size);
+                                if (fut.valid()) fut.get();
+                                fut = std::async(std::launch::async, [dst_ptr, dst_offset, &_buf1, copy_size] {
+                                    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "load_weights::cpy_gpu_0");
+                                    std::memcpy(dst_ptr + dst_offset, _buf1.get(), copy_size);
+                                });
+                            } else {
+                                ib >> make_data(_buf2.get(), copy_size);
+                                if (fut.valid()) fut.get();
+                                fut = std::async(std::launch::async, [dst_ptr, dst_offset, &_buf2, copy_size] {
+                                    std::memcpy(dst_ptr + dst_offset, _buf2.get(), copy_size);
+                                    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "load_weights::cpy_gpu_1");
+                                });
+                            }
+                            dst_offset += copy_size;
+                            buf_flag = !buf_flag;
+                        }
+                        if (fut.valid()) fut.get();
+                    }
+                }
             } else {
-                const size_t DATA_BLOCK_SIZE = 2 * 1024 * 1024;
                 auto& strm = ib.get_engine().get_service_stream();
                 if (data_size < DATA_BLOCK_SIZE || output_layout.format.is_image_2d()) {
                     std::vector<uint8_t> _buf(data_size);
