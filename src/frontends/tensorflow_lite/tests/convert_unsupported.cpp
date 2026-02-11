@@ -31,13 +31,13 @@ TEST_P(MalformedModelConvertTest, convert_throws) {
     ASSERT_THROW(model = m_frontEnd->convert(inputModel), std::exception);
 }
 
-INSTANTIATE_TEST_SUITE_P(BadHeader,
+// quantized_dimension=100 on rank-2 tensor: load() succeeds, convert() throws
+// in get_quant_shape() (axis >= rank check)
+INSTANTIATE_TEST_SUITE_P(OobQuantDim,
                          MalformedModelConvertTest,
-                         ::testing::Values("bad_header/zerolen.tflite",
-                                           "bad_header/wrong_len_3.tflite",
-                                           "bad_header/wrong_pos.tflite"));
+                         ::testing::Values("oob_quant_dim/axis_exceeds_rank.tflite"));
 
-// Tests where load() itself throws an exception (malformed indices)
+// Tests where load() itself throws an exception
 class MalformedModelLoadTest : public ::testing::TestWithParam<std::string> {
 protected:
     void SetUp() override {
@@ -53,6 +53,13 @@ TEST_P(MalformedModelLoadTest, load_throws) {
     ASSERT_THROW(m_frontEnd->load(model_filename), std::exception);
 }
 
+// bad_header files are now caught at load() time by VerifyModelBuffer() and null-pointer checks
+INSTANTIATE_TEST_SUITE_P(BadHeader,
+                         MalformedModelLoadTest,
+                         ::testing::Values("bad_header/zerolen.tflite",
+                                           "bad_header/wrong_len_3.tflite",
+                                           "bad_header/wrong_pos.tflite"));
+
 INSTANTIATE_TEST_SUITE_P(OobIndices,
                          MalformedModelLoadTest,
                          ::testing::Values("malformed_indices/oob_output_tensor_index.tflite",
@@ -66,12 +73,6 @@ INSTANTIATE_TEST_SUITE_P(NegativeQuantDim,
                          MalformedModelLoadTest,
                          ::testing::Values("oob_quant_dim/negative_axis.tflite"));
 
-// quantized_dimension=100 on rank-2 tensor: load() succeeds, convert() throws
-// in get_quant_shape() (axis >= rank check)
-INSTANTIATE_TEST_SUITE_P(OobQuantDim,
-                         MalformedModelConvertTest,
-                         ::testing::Values("oob_quant_dim/axis_exceeds_rank.tflite"));
-
 // CVS-181019: sparse tensors with invalid index/segment values or overflow-inducing shapes
 INSTANTIATE_TEST_SUITE_P(SparseOob,
                          MalformedModelLoadTest,
@@ -79,3 +80,9 @@ INSTANTIATE_TEST_SUITE_P(SparseOob,
                                            "sparse_oob/sparse_negative_index.tflite",
                                            "sparse_oob/sparse_non_monotonic_segments.tflite",
                                            "sparse_oob/sparse_overflow_shape.tflite"));
+
+// buffer size smaller than shape requires: load() throws in load_model() buffer size validation
+INSTANTIATE_TEST_SUITE_P(BadBufferSize,
+                         MalformedModelLoadTest,
+                         ::testing::Values("bad_buffer_size/undersized_buffer.tflite",
+                                           "bad_buffer_size/empty_buffer_nonempty_shape.tflite"));
