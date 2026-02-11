@@ -34,7 +34,7 @@ static void enumerate_proposals_cpu(const float* bottom4d,
                                     bool initial_clip,
                                     bool swap_xy,
                                     bool clip_before_nms,
-                                    const CpuParallelPtr& cpu_parallel) {
+                                    const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     const int bottom_area = bottom_H * bottom_W;
 
     const float* p_anchors_wm = anchors + 0 * num_anchors;
@@ -120,7 +120,7 @@ static void unpack_boxes(const float* p_proposals,
                          float* unpacked_boxes,
                          int pre_nms_topn,
                          bool store_prob,
-                         const CpuParallelPtr& cpu_parallel) {
+                         const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     if (store_prob) {
         cpu_parallel->parallel_for(pre_nms_topn, [&](size_t i) {
             unpacked_boxes[0 * pre_nms_topn + i] = p_proposals[5 * i + 0];
@@ -282,7 +282,7 @@ static void retrieve_rois_cpu(const int num_rois,
                               float img_w,
                               bool clip_after_nms,
                               float* probs,
-                              const CpuParallelPtr& cpu_parallel) {
+                              const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     const float* src_x0 = proposals + 0 * num_proposals;
     const float* src_y0 = proposals + 1 * num_proposals;
     const float* src_x1 = proposals + 2 * num_proposals;
@@ -341,7 +341,7 @@ void proposal_exec(const float* input0,
                    float* output0,
                    float* output1,
                    proposal_conf& conf,
-                   const CpuParallelPtr& cpu_parallel) {
+                   const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     // Prepare memory
     const float* p_bottom_item = input0;
     const float* p_d_anchor_item = input1;

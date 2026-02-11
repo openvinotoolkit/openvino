@@ -466,14 +466,14 @@ struct MHAHelper {
         _weight.resize<float>({size_t{1}, size_t{1}, size_t{1}, size_t{1}});
     }
 
-    explicit MHAHelper(const std::shared_ptr<CpuParallel>& cpu_arallel) : _cpu_parallel(cpu_arallel) {
+    explicit MHAHelper(const std::shared_ptr<CpuParallel>& cpu_parallel) : _cpu_parallel(cpu_parallel) {
         _weight.resize<float>({size_t{1}, size_t{1}, size_t{1}, size_t{1}});
     }
 
     explicit MHAHelper(const ov::Extensions::Cpu::PagedAttnQuantParams& params,
-                       const std::shared_ptr<CpuParallel>& cpu_arallel)
+                       const std::shared_ptr<CpuParallel>& cpu_parallel)
         : _params(params),
-          _cpu_parallel(cpu_arallel) {
+          _cpu_parallel(cpu_parallel) {
         _weight.resize<float>({size_t{1}, size_t{1}, size_t{1}, size_t{1}});
     }
 

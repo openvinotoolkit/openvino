@@ -457,6 +457,6 @@ private:
     std::shared_ptr<ThreadPool> m_thread_pool = nullptr;
 };
 
-}  // namespace ov::intel_cpu
-
 using CpuParallelPtr = std::shared_ptr<ov::intel_cpu::CpuParallel>;
+
+}  // namespace ov::intel_cpu

@@ -50,7 +50,7 @@ void attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
                         const ov::intel_cpu::PlainTensor& v_input,
                         const ov::intel_cpu::PlainTensor& past_k_output,
                         const ov::intel_cpu::PlainTensor& past_v_output,
-                        const CpuParallelPtr& cpu_parallel) {
+                        const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     // For compatibility, all input_kvs are permuted to BHLS
     size_t B = k_input.m_dims[0];
     size_t H = k_input.m_dims[1];
@@ -67,7 +67,7 @@ static void attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
                                const ov::intel_cpu::PlainTensor& v_input,
                                const ov::intel_cpu::PlainTensor& past_k_output,
                                const ov::intel_cpu::PlainTensor& past_v_output,
-                               const CpuParallelPtr& cpu_parallel) {
+                               const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     // For compatibility, all input_kvs are permuted to BHLS
     size_t B = k_input.m_dims[0];
     size_t H = k_input.m_dims[1];
@@ -86,7 +86,7 @@ static void paged_attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
                                      const ov::intel_cpu::PlainTensor& past_k_output,
                                      const ov::intel_cpu::PlainTensor& past_v_output,
                                      const ov::intel_cpu::PlainTensor& slot_mapping,
-                                     const CpuParallelPtr& cpu_parallel) {
+                                     const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     size_t B = k_input.m_dims[0];
     size_t H = k_input.m_dims[1];
     size_t L1 = k_input.m_dims[2];
@@ -110,7 +110,7 @@ static void paged_attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
                                      const ov::intel_cpu::PlainTensor& past_k_output,
                                      const ov::intel_cpu::PlainTensor& past_v_output,
                                      const ov::intel_cpu::PlainTensor& slot_mapping,
-                                     const CpuParallelPtr& cpu_parallel) {
+                                     const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     size_t B = k_input.m_dims[0];
     size_t H = k_input.m_dims[1];
     size_t L1 = k_input.m_dims[2];
@@ -137,7 +137,7 @@ void attn_memcpy(const ov::intel_cpu::PlainTensor& k_input,
                  const ov::intel_cpu::PlainTensor& v_input,
                  const ov::intel_cpu::PlainTensor& past_k_output,
                  const ov::intel_cpu::PlainTensor& past_v_output,
-                 const CpuParallelPtr& cpu_parallel) {
+                 const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     if (past_k_output.get_precision() == k_input.get_precision()) {
         attn_memcpy_kernel(k_input, v_input, past_k_output, past_v_output, cpu_parallel);
     } else if (k_input.get_precision() == ov::element::f32 && past_k_output.get_precision() == ov::element::f16) {
@@ -158,7 +158,7 @@ void paged_attn_memcpy(const ov::intel_cpu::PlainTensor& k_input,
                        const ov::intel_cpu::PlainTensor& past_k_output,
                        const ov::intel_cpu::PlainTensor& past_v_output,
                        const ov::intel_cpu::PlainTensor& slot_mapping,
-                       const CpuParallelPtr& cpu_parallel) {
+                       const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     if (past_k_output.get_precision() == k_input.get_precision()) {
         paged_attn_memcpy_kernel(k_input, v_input, past_k_output, past_v_output, slot_mapping, cpu_parallel);
     } else if (k_input.get_precision() == ov::element::f32 && past_k_output.get_precision() == ov::element::f16) {

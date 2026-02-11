@@ -123,7 +123,6 @@ private:
 
     private:
         std::unique_ptr<jit_uni_extract_image_patches_kernel> pKernel;
-        CpuParallelPtr cpuParallel = nullptr;
     };
 
     struct ExtractImagePatchesRefExecutor : public ExtractImagePatchesExecutor {
@@ -147,7 +146,6 @@ private:
 
     private:
         jit_extract_image_patches_params jpp;
-        CpuParallelPtr cpuParallel = nullptr;
     };
 };
 
