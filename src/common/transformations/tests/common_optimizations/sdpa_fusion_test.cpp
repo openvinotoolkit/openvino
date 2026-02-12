@@ -91,6 +91,14 @@ public:
         multiply_k(scale);
     }
 
+    void squeeze(InputType which, const size_t& axis) {
+        auto axes_const = op::v0::Constant::create(element::i64, {}, {axis});
+        nodes[which] = make_shared<op::v0::Squeeze>(nodes[which], axes_const);
+    }
+    void unsqueeze(InputType which, const vector<size_t>& axes) {
+        auto axes_const = op::v0::Constant::create(element::i64, {axes.size()}, axes);
+        nodes[which] = make_shared<op::v0::Unsqueeze>(nodes[which], axes_const);
+    }
     void reshape(InputType which, const Shape& shape) {
         auto shape_const = op::v0::Constant::create(element::i64, {shape.size()}, shape);
         nodes[which] = make_shared<op::v1::Reshape>(nodes[which], shape_const, false);
@@ -112,6 +120,21 @@ public:
     void reshape_sdpa(const Shape& shape) {
         reshape(InputType::SDPA, shape);
     }
+
+    void unsqueeze_q(const vector<size_t>& axes) {
+        unsqueeze(InputType::Q, axes);
+    }
+    void unsqueeze_k(const vector<size_t>& axes) {
+        unsqueeze(InputType::K, axes);
+    }
+    void unsqueeze_v(const vector<size_t>& axes) {
+        unsqueeze(InputType::V, axes);
+    }
+
+    void squeeze_sdpa(const size_t& axis) {
+        squeeze(InputType::SDPA, axis);
+    }
+
     void transpose_q(const vector<size_t>& order) {
         transpose(InputType::Q, order);
     }
@@ -1185,6 +1208,82 @@ TEST_F(TransformationTestsF, SDPAFusionTest_ReshapeOptimizationWithMaskCausal) {
         sdpa_ref.set_mask(mask_shape);
 
         sdpa_ref.create_reference_sdpa(/*causal=*/true);
+
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, SDPAFusionTest_2DInputsStatic) {
+    // Init.
+    const PartialShape query_shape{55, 128};
+    const PartialShape key_shape{55, 128};
+    const PartialShape value_shape{55, 128};
+
+    SDPA sdpa(f16, query_shape, key_shape, value_shape);
+    SDPA sdpa_ref(f16, query_shape, key_shape, value_shape);
+
+    // SDPA model.
+    {
+        sdpa.create_pattern_sdpa(true);
+
+        sdpa.transpose_sdpa({1, 0});
+
+        model = sdpa.build_model();
+
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    // SDPA reference model.
+    {
+        sdpa_ref.unsqueeze_q({0});
+        sdpa_ref.unsqueeze_k({0});
+        sdpa_ref.unsqueeze_v({0});
+
+        sdpa_ref.create_reference_sdpa();
+
+        sdpa_ref.squeeze_sdpa({0});
+        sdpa_ref.transpose_sdpa({1, 0});
+
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, SDPAFusionTest_2DInputsDynamic) {
+    // Init with dynamic shapes
+    const PartialShape query_shape{-1, 128};
+    const PartialShape key_shape{-1, 128};
+    const PartialShape value_shape{-1, 128};
+
+    SDPA sdpa(f16, query_shape, key_shape, value_shape);
+    SDPA sdpa_ref(f16, query_shape, key_shape, value_shape);
+
+    // SDPA model.
+    {
+        sdpa.create_pattern_sdpa(true);
+
+        sdpa.transpose_sdpa({1, 0});
+
+        model = sdpa.build_model();
+
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    // SDPA reference model.
+    {
+        sdpa_ref.unsqueeze_q({0});
+        sdpa_ref.unsqueeze_k({0});
+        sdpa_ref.unsqueeze_v({0});
+
+        sdpa_ref.create_reference_sdpa();
+
+        sdpa_ref.squeeze_sdpa({0});
+        sdpa_ref.transpose_sdpa({1, 0});
 
         model_ref = sdpa_ref.build_model();
     }

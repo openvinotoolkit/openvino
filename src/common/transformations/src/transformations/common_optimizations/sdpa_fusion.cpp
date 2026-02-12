@@ -97,6 +97,28 @@ ov::pass::pattern::op::Predicate check_layout(const std::string& layout) {
             return !order.empty();
         });
 };
+
+std::shared_ptr<ov::Node> try_align_outputs(const std::shared_ptr<ov::Node>& src_output,
+                                            const std::shared_ptr<ov::Node>& dst_output) {
+    auto src_shape = src_output->get_output_partial_shape(0);
+    auto dst_shape = dst_output->get_output_partial_shape(0);
+
+    if (src_shape.compatible(dst_shape)) {
+        return src_output;
+    }
+
+    // if shapes are not compatible, we can try to insert a Squeeze to align them
+    if (src_shape[0].is_static() && src_shape[0] == 1) {
+        auto axes_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+        auto squeeze = std::make_shared<v0::Squeeze>(src_output, axes_const);
+        squeeze->set_friendly_name(src_output->get_friendly_name() + "/Squeeze");
+        ov::copy_runtime_info(src_output, {squeeze, axes_const});
+        return squeeze;
+    }
+
+    return nullptr;
+}
+
 }  // namespace
 
 namespace ov::pass {
@@ -473,7 +495,16 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
             std::make_shared<v13::ScaledDotProductAttention>(qkv[0], qkv[1], qkv[2], mask_input, scale_node, false);
         sdpa->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), sdpa);
+
+        // 2d inputs will be unsqueezed to 3d in get_qkv, so we need to insert a Squeeze after SDPA to align with
+        // original output shape
+        sdpa = try_align_outputs(sdpa, m.get_match_root());
+        if (!sdpa) {
+            return false;
+        }
+
         ov::replace_node(m.get_match_root(), sdpa);
+
         return true;
     };
 
