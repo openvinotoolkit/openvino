@@ -79,6 +79,9 @@ public:
     size_t size() const noexcept override {
         return m_size;
     }
+    uint64_t get_id() const noexcept override {
+        return m_id;
+    }
 
 private:
     void map(const std::filesystem::path& path, HANDLE h) {

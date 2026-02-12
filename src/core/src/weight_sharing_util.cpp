@@ -13,9 +13,9 @@
 #include "openvino/util/variant_visitor.hpp"
 
 namespace {
-class BaseMmapDescriptor final : public ov::IBufferDescriptor {
+class MappedMemoryDescriptor final : public ov::IBufferDescriptor {
 public:
-    BaseMmapDescriptor(std::shared_ptr<ov::MappedMemory> mem)
+    MappedMemoryDescriptor(std::shared_ptr<ov::MappedMemory> mem)
         : m_id(mem ? mem->get_id() : ov::weight_sharing::INVALID_SOURCE_ID),
           m_mem(mem) {}
 
@@ -33,7 +33,7 @@ public:
                 mem->data(),
                 mem->size(),
                 mem,
-                std::make_shared<BaseMmapDescriptor>(mem));
+                std::make_shared<MappedMemoryDescriptor>(mem));
         } else {
             return nullptr;
         }
@@ -44,9 +44,9 @@ private:
     std::weak_ptr<ov::MappedMemory> m_mem;
 };
 
-class BasicDescriptor final : public ov::IBufferDescriptor {
+class SimpleDescriptor final : public ov::IBufferDescriptor {
 public:
-    BasicDescriptor(uint64_t offset, const std::shared_ptr<ov::AlignedBuffer>& buffer)
+    SimpleDescriptor(uint64_t offset, const std::shared_ptr<ov::AlignedBuffer>& buffer)
         : m_id((buffer && buffer->get_descriptor()) ? buffer->get_descriptor()->get_id()
                                                     : ov::weight_sharing::INVALID_SOURCE_ID),
           m_offset(offset),
@@ -61,11 +61,7 @@ public:
     }
 
     std::shared_ptr<ov::AlignedBuffer> get_source_buffer() const override {
-        if (auto buffer = m_buffer.lock()) {
-            return buffer;
-        } else {
-            return nullptr;
-        }
+        return m_buffer.lock();
     }
 
 private:
@@ -79,21 +75,51 @@ const auto get_aligned_buffer =
                                  return buffer;
                              },
                              [](const std::shared_ptr<ov::MappedMemory>& buffer) -> std::shared_ptr<ov::AlignedBuffer> {
-                                 return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
-                                     buffer->data(),
-                                     buffer->size(),
-                                     buffer,
-                                     std::make_shared<BaseMmapDescriptor>(buffer));
+                                 if (buffer) {
+                                     return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
+                                         buffer->data(),
+                                         buffer->size(),
+                                         buffer,
+                                         std::make_shared<MappedMemoryDescriptor>(buffer));
+                                 } else {
+                                     return nullptr;
+                                 }
                              }};
 
 std::shared_ptr<ov::AlignedBuffer> get_shared_buffer(const ov::weight_sharing::WeakWeightBuffer& weak_buffer) {
-    ov::util::VariantVisitor get_shared_buffer{[](const auto& mem) -> std::shared_ptr<ov::AlignedBuffer> {
-        if (auto locked_mem = mem.lock()) {
-            return get_aligned_buffer(locked_mem);
+    return std::visit(ov::util::VariantVisitor{[](const auto& mem) -> std::shared_ptr<ov::AlignedBuffer> {
+                          if (auto locked_mem = mem.lock()) {
+                              return get_aligned_buffer(locked_mem);
+                          }
+                          return nullptr;
+                      }},
+                      weak_buffer);
+}
+
+const ov::wsh::ConstantMetaData* get_constant_meta(const ov::wsh::SourceConstantMap& constants,
+                                                   ov::wsh::DataID src_id,
+                                                   ov::wsh::DataID id) {
+    if (auto found_map = constants.find(src_id); found_map != constants.end()) {
+        if (auto found_desc = found_map->second.find(id); found_desc != found_map->second.end()) {
+            return &found_desc->second;
         }
-        return nullptr;
-    }};
-    return std::visit(get_shared_buffer, weak_buffer);
+    }
+    return nullptr;
+};
+
+const std::shared_ptr<ov::AlignedBuffer> make_const_from_context(const ov::wsh::SourceConstantMap& constants,
+                                                                 const std::shared_ptr<ov::AlignedBuffer>& wt_buffer,
+                                                                 ov::wsh::DataID id) {
+    if (auto desc = wt_buffer->get_descriptor()) {
+        if (const auto& meta = get_constant_meta(constants, desc->get_id(), id)) {
+            return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+                wt_buffer->get_ptr<char>() + meta->m_offset,
+                meta->m_size,
+                wt_buffer,
+                std::make_shared<SimpleDescriptor>(meta->m_offset, wt_buffer));
+        }
+    }
+    return {};
 }
 }  // namespace
 
@@ -113,9 +139,7 @@ WeightSourceMap Extension::make_weight_sources(const Model& model) {
     for (const auto& node : model.get_ops()) {
         if (const auto const_node = ov::as_type<ov::op::v0::Constant>(node.get())) {
             if (const auto desc = const_node->m_data->get_descriptor()) {
-                // naive implementation buffer should provide tag
-
-                src_map.emplace(std::make_pair(desc->get_id(), const_node->m_data));
+                src_map.emplace(desc->get_id(), desc->get_source_buffer());
             }
         }
     }
@@ -132,12 +156,12 @@ SourceConstantMap Extension::make_constant_map(const Model& model) {
     return constant_map;
 }
 
-uint64_t Extension::get_constant_source_id(const ov::op::v0::Constant& constant) {
+DataID Extension::get_constant_source_id(const ov::op::v0::Constant& constant) {
     const auto desc = constant.m_data->get_descriptor();
     return desc ? desc->get_id() : INVALID_SOURCE_ID;
 }
 
-uint64_t Extension::get_constant_id(const ov::op::v0::Constant& constant) {
+DataID Extension::get_constant_id(const ov::op::v0::Constant& constant) {
     const auto desc = constant.m_data->get_descriptor();
     return desc ? static_cast<int64_t>(desc->get_offset()) : INVALID_CONSTANT_ID;
 }
@@ -156,8 +180,9 @@ std::optional<ConstantOriginMetaData> Extension::get_constant_origin(const ov::o
 }
 
 std::shared_ptr<ov::AlignedBuffer> get_source_buffer(const Context& shared_context, const DataID source_id) {
-    if (auto it = shared_context.m_weight_sources.find(source_id); it != shared_context.m_weight_sources.end()) {
-        return get_shared_buffer(it->second);
+    const auto& weights = shared_context.m_weight_sources;
+    if (auto weight_it = weights.find(source_id); weight_it != weights.end()) {
+        return get_shared_buffer(weight_it->second);
     } else {
         return nullptr;
     }
@@ -166,38 +191,20 @@ std::shared_ptr<ov::AlignedBuffer> get_source_buffer(const Context& shared_conte
 std::shared_ptr<ov::AlignedBuffer> get_constant_buffer(const Context& shared_context,
                                                        const DataID source_id,
                                                        const DataID constant_id) {
-    std::shared_ptr<ov::AlignedBuffer> constant_buffer;
-
     if (const auto source_it = shared_context.m_weight_sources.find(source_id);
         source_it != shared_context.m_weight_sources.end()) {
-        if (auto buffer = get_shared_buffer(source_it->second)) {
-            constant_buffer = get_constant_buffer(shared_context, buffer, constant_id);
+        if (auto wt_buffer = get_shared_buffer(source_it->second)) {
+            return make_const_from_context(shared_context.m_constants_meta_data, wt_buffer, constant_id);
         }
     }
-
-    return constant_buffer;
+    return nullptr;
 }
 
 std::shared_ptr<ov::AlignedBuffer> get_constant_buffer(const Context& shared_context,
                                                        const WeightBuffer& weight_buffer,
                                                        const DataID constant_id) {
-    std::shared_ptr<ov::AlignedBuffer> constant_buffer;
-    auto buff = std::visit(get_aligned_buffer, weight_buffer);
-
-    if (auto desc = buff->get_descriptor()) {
-        if (auto const_map_it = shared_context.m_constants_meta_data.find(desc->get_id());
-            const_map_it != shared_context.m_constants_meta_data.end()) {
-            if (auto const_desc = const_map_it->second.find(constant_id); const_desc != const_map_it->second.end()) {
-                const auto& [c_offset, c_size, _] = const_desc->second;
-                constant_buffer = std::make_shared<SharedBuffer<std::shared_ptr<AlignedBuffer>>>(
-                    buff->get_ptr<char>() + c_offset,
-                    c_size,
-                    buff,
-                    std::make_shared<BasicDescriptor>(c_offset, buff));
-            }
-        }
-    }
-    return constant_buffer;
+    const auto buffer = std::visit(get_aligned_buffer, weight_buffer);
+    return buffer ? make_const_from_context(shared_context.m_constants_meta_data, buffer, constant_id) : nullptr;
 }
 
 bool set_constant(Context& shared_context, const ov::op::v0::Constant& constant) {

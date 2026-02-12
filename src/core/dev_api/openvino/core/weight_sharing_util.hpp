@@ -32,9 +32,9 @@ inline constexpr auto INVALID_CONSTANT_ID = INVALID_SOURCE_ID;
 
 /** @brief Metadata for a constant */
 struct ConstantMetaData {
-    size_t offset;
-    size_t size;
-    ov::element::Type type;
+    size_t m_offset;
+    size_t m_size;
+    ov::element::Type m_type;
 };
 
 /** @brief Metadata for the origin of a constant */
