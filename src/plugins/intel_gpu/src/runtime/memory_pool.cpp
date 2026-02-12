@@ -150,6 +150,7 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
 #endif
 }
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
 static int get_feature_block_size(const cldnn::format& fmt) {
     const auto& order = cldnn::format::internal_order(fmt);
     int f_bs = 1;
@@ -161,6 +162,7 @@ static int get_feature_block_size(const cldnn::format& fmt) {
     }
     return f_bs;
 }
+#endif // ENABLE_ONEDNN_FOR_GPU
 
 memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
                                                   const primitive_id& prim_id,
