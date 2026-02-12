@@ -6,6 +6,7 @@
 
 #include <openvino/c/openvino.h>
 #include <stdlib.h>
+#include "ov_dynamic_loader.h"
 
 /**
  * @brief Struct to store infer results
@@ -27,11 +28,12 @@ void infer_result_sort(struct infer_result* results, size_t result_size);
 
 /**
  * @brief Convert output tensor to infer result struct for processing results
+ * @param api Pointer to OpenVINO C API structure
  * @param tensor of output tensor
  * @param result_size of the infer result
  * @return struct infer_result
  */
-struct infer_result* tensor_to_infer_result(ov_tensor_t* tensor, size_t* result_size);
+struct infer_result* tensor_to_infer_result(ov_api_t* api, ov_tensor_t* tensor, size_t* result_size);
 
 /**
  * @brief Print results of infer
