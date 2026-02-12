@@ -1,6 +1,5 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
-//
 
 /**
  * @file cpu_streams_calculation_prefer_threads.hpp
@@ -23,37 +22,16 @@
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 
 namespace ov::intel_cpu {
-
-// ============================================================================
-// Named Constants - Replacing magic numbers for better maintainability
-// ============================================================================
-
 namespace ThreadPreferenceConstants {
 
-/**
- * @brief Core efficiency thresholds for hybrid architectures
- *
- * These thresholds represent the relative efficiency ratio between
- * Performance (Big) cores and Efficiency (Little) cores for different
- * instruction types.
- */
-constexpr int INT8_EFFICIENCY_THRESHOLD = 4;  ///< VNNI-intensive code: Big cores ~4x faster than Little
-constexpr int FP32_EFFICIENCY_THRESHOLD = 2;  ///< AVX2 fp32 code: Big cores ~2x faster than Little
+constexpr int INT8_EFFICIENCY_THRESHOLD = 4;
+constexpr int FP32_EFFICIENCY_THRESHOLD = 2;
 
-/**
- * @brief ISA-specific memory bandwidth thresholds
- *
- * Higher values indicate more compute capability, allowing more aggressive
- * stream configurations before becoming memory-bound.
- */
-constexpr float ISA_THRESHOLD_SSE41 = 0.5F;  ///< SSE4.1: Limited compute capability
-constexpr float ISA_THRESHOLD_AVX2 = 1.0F;   ///< AVX2/AVX512: Baseline compute capability
-constexpr float ISA_THRESHOLD_VNNI = 2.0F;   ///< VNNI: 2x compute for INT8 workloads
-constexpr float ISA_THRESHOLD_AMX = 4.0F;    ///< AMX: 4x compute for matrix operations
+constexpr float ISA_THRESHOLD_SSE41 = 0.5F;
+constexpr float ISA_THRESHOLD_AVX2 = 1.0F;
+constexpr float ISA_THRESHOLD_VNNI = 2.0F;
+constexpr float ISA_THRESHOLD_AMX = 4.0F;
 
-/**
- * @brief Memory tolerance thresholds for workload classification
- */
 constexpr float MEM_TOLERANCE_VERY_HIGH = 50.0F;
 constexpr float MEM_TOLERANCE_HIGH = 4.5F;
 constexpr float MEM_TOLERANCE_MEDIUM = 2.5F;
@@ -62,9 +40,6 @@ constexpr float MEM_TOLERANCE_LOW = 0.2F;
 constexpr float MEM_TOLERANCE_SECONDARY_LOW = 0.08F;
 constexpr float MEM_TOLERANCE_VERY_LOW = 0.06F;
 
-/**
- * @brief Convolution ratio thresholds for workload analysis
- */
 constexpr float CONV_RATIO_VERY_HIGH = 0.9F;
 constexpr float CONV_RATIO_HIGH = 0.8F;
 constexpr float CONV_RATIO_MEDIUM = 0.6F;
@@ -74,37 +49,21 @@ constexpr float CONV_RATIO_MINIMAL = 0.28F;
 constexpr float CONV_RATIO_VERY_LOW = 0.2F;
 constexpr float CONV_RATIO_ULTRA_LOW = 0.1F;
 
-/**
- * @brief GEMM ratio thresholds
- */
-constexpr float GEMM_RATIO_HIGH = 0.14F;  ///< 14% GEMM nodes threshold (with LP E-cores)
-constexpr float GEMM_RATIO_LOW = 0.05F;   ///< 5% GEMM nodes threshold (without LP E-cores)
+constexpr float GEMM_RATIO_HIGH = 0.14F;
+constexpr float GEMM_RATIO_LOW = 0.05F;
 
-/**
- * @brief E-core utilization threshold
- */
-constexpr int ECORE_RATIO_THRESHOLD = 2;  ///< Use E-cores if E-cores > 2 * P-cores
+constexpr int ECORE_RATIO_THRESHOLD = 2;
 
-/**
- * @brief ARM platform thread preferences
- */
-constexpr int ARM64_THREADS_DEFAULT = 8;  ///< Default threads for ARM64 Linux
-constexpr int ARM64_THREADS_SVE = 16;     ///< Threads for ARM64 with SVE support
-constexpr int ARM_THREADS_DEFAULT = 4;    ///< Default threads for ARM Linux
-constexpr int ARM_THREADS_HIGH = 8;       ///< High thread count for ARM Linux
+constexpr int ARM64_THREADS_DEFAULT = 8;
+constexpr int ARM64_THREADS_SVE = 16;
+constexpr int ARM_THREADS_DEFAULT = 4;
+constexpr int ARM_THREADS_HIGH = 8;
 
-/**
- * @brief Apple Silicon thread preferences
- */
-constexpr int APPLE_THREADS_MINIMAL = 1;  ///< Minimal threads for memory-bound workloads
-constexpr int APPLE_THREADS_LOW = 2;      ///< Low thread count
-constexpr int APPLE_THREADS_HIGH = 4;     ///< High thread count for compute-bound workloads
+constexpr int APPLE_THREADS_MINIMAL = 1;
+constexpr int APPLE_THREADS_LOW = 2;
+constexpr int APPLE_THREADS_HIGH = 4;
 
 }  // namespace ThreadPreferenceConstants
-
-// ============================================================================
-// Helper Functions for Thread Preference Calculations
-// ============================================================================
 
 /**
  * @brief Get ISA-specific threshold multiplier for memory bandwidth calculations
@@ -163,10 +122,6 @@ inline bool should_use_ecores_for_llm(int efficient_cores, int main_cores) {
     return efficient_cores > ECORE_RATIO_THRESHOLD * main_cores;
 }
 
-// ============================================================================
-// Main Core Case Detection Functions (for TBB partitioner decisions)
-// ============================================================================
-
 /**
  * @brief Check main core case 1: High ratio of memory-limited convolutions
  *
@@ -213,10 +168,6 @@ inline bool is_main_core_case_4(const ov::MemBandwidthPressure& tolerance) {
     return tolerance.ratio_mem_limited_convs > 0.0F && tolerance.ratio_compute_convs > 0.0F &&
            static_cast<float>(tolerance.total_light_convs) > CONV_RATIO_LOW * static_cast<float>(tolerance.total_convs);
 }
-
-// ============================================================================
-// Static Partitioner Case Detection Functions
-// ============================================================================
 
 /**
  * @brief Check static partitioner case 1: No recognized nodes
@@ -265,7 +216,8 @@ inline bool is_static_partitioner_case_3_without_lp_ecores(const ov::MemBandwidt
                CONV_RATIO_MEDIUM * static_cast<float>(tolerance.total_convs) &&
            tolerance.ratio_compute_convs + tolerance.ratio_mem_limited_convs < CONV_RATIO_VERY_HIGH &&
            tolerance.ratio_mem_limited_convs < CONV_RATIO_VERY_LOW && tolerance.ratio_mem_limited_gemms == 0.0F &&
-           tolerance.ratio_mem_limited_adds < CONV_RATIO_MINIMAL && tolerance.max_mem_tolerance >= MEM_TOLERANCE_VERY_LOW;
+           tolerance.ratio_mem_limited_adds < CONV_RATIO_MINIMAL &&
+           tolerance.max_mem_tolerance >= MEM_TOLERANCE_VERY_LOW;
 }
 
 /**

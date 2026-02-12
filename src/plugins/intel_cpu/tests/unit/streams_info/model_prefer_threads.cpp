@@ -102,56 +102,8 @@ TEST_F(ModelPreferThreadsIntegrationTest, UnknownMemToleranceEdgeCase) {
     EXPECT_EQ(result, config.modelPreferThreadsThroughput);
 }
 
-TEST_F(ModelPreferThreadsIntegrationTest, X86_NonHybrid_MainCoresOnly) {
-    std::vector<std::vector<int>> proc_type_table = {{8, 8, 0, 0, 0, 0, 0}};
-    auto model = make_dummy_model();
-    Config config;
-    config.modelType = Config::ModelType::CNN;
-    config.modelPreferThreads = -1;
-    int num_streams = 1;
-    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
-    EXPECT_EQ(config.modelPreferThreadsLatency, 8);
-    EXPECT_EQ(result, config.modelPreferThreadsLatency);
-}
-
-TEST_F(ModelPreferThreadsIntegrationTest, X86_Hybrid_INT8_UseAllCores) {
-    std::vector<std::vector<int>> proc_type_table = {{12, 4, 8, 0, 0, 0, 0}};
-    auto model = make_dummy_model();
-    Config config;
-    config.modelType = Config::ModelType::CNN;
-    config.modelPreferThreads = -1;
-    int num_streams = 1;
-    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
-    EXPECT_GE(config.modelPreferThreadsLatency, 12);
-    EXPECT_EQ(result, config.modelPreferThreadsLatency);
-}
-
-TEST_F(ModelPreferThreadsIntegrationTest, X86_Hybrid_FP32_MainCoresOnly) {
-    std::vector<std::vector<int>> proc_type_table = {{8, 4, 4, 0, 0, 0, 0}};
-    auto model = make_dummy_model();
-    Config config;
-    config.modelType = Config::ModelType::CNN;
-    config.modelPreferThreads = -1;
-    int num_streams = 1;
-    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
-    EXPECT_EQ(config.modelPreferThreadsLatency, 4);
-    EXPECT_EQ(result, config.modelPreferThreadsLatency);
-}
-
-TEST_F(ModelPreferThreadsIntegrationTest, X86_HT_AdjustThroughput) {
-    std::vector<std::vector<int>> proc_type_table = {{16, 8, 0, 0, 8, 0, 0}};
-    auto model = make_dummy_model();
-    Config config;
-    config.modelType = Config::ModelType::CNN;
-    config.modelPreferThreads = -1;
-    int num_streams = 0;  // throughput path
-    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
-    EXPECT_GE(config.modelPreferThreadsThroughput, 1);
-    EXPECT_EQ(result, config.modelPreferThreadsThroughput);
-}
-
-TEST_F(ModelPreferThreadsIntegrationTest, ARM64_Linux_DefaultThreads) {
 #if defined(OPENVINO_ARCH_ARM64) && defined(__linux__)
+TEST_F(ModelPreferThreadsIntegrationTest, ARM64_Linux_DefaultThreads) {
     std::vector<std::vector<int>> proc_type_table = {{8, 8, 0, 0, 0, 0, 0}};
     auto model = make_dummy_model();
     Config config;
@@ -161,22 +113,8 @@ TEST_F(ModelPreferThreadsIntegrationTest, ARM64_Linux_DefaultThreads) {
     int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
     EXPECT_EQ(config.modelPreferThreadsLatency, 8);
     EXPECT_EQ(result, config.modelPreferThreadsLatency);
-#endif
 }
-
-TEST_F(ModelPreferThreadsIntegrationTest, AppleSilicon_LatencyAndThroughput) {
-#if (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
-    std::vector<std::vector<int>> proc_type_table = {{8, 4, 4, 0, 0, 0, 0}};
-    auto model = make_dummy_model();
-    Config config;
-    config.modelType = Config::ModelType::CNN;
-    config.modelPreferThreads = -1;
-    int num_streams = 1;
-    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
-    EXPECT_GE(config.modelPreferThreadsLatency, 4);
-    EXPECT_EQ(result, config.modelPreferThreadsLatency);
 #endif
-}
 
 TEST_F(ModelPreferThreadsIntegrationTest, NumStreamsVsSocketsBoundary) {
     std::vector<std::vector<int>> proc_type_table = {{8, 8, 0, 0, 0, 0, 0}};
@@ -685,30 +623,6 @@ TEST_F(ModelPreferThreadsIntegrationTest, Direct_X86_Throughput_HT_Adjustment) {
     EXPECT_GE(config.modelPreferThreadsThroughput, 1);
 }
 
-#if defined(OPENVINO_ARCH_ARM) && defined(__linux__)
-TEST_F(ModelPreferThreadsIntegrationTest, Direct_ARM_Linux_ThroughputBranches) {
-    Config config;
-    std::vector<std::vector<int>> proc_type_table = {{8, 4, 4, 0, 0, 0, 0}};
-    ov::MemBandwidthPressure tolerance;
-    // UNKNOWN should allow high throughput when compute-limited
-    tolerance.max_mem_tolerance = ov::MemBandwidthPressure::UNKNOWN;
-    configure_arm_linux_threads(config, proc_type_table, tolerance, false, false);
-    EXPECT_GE(config.modelPreferThreadsThroughput, 1);
-}
-#endif
-
-#if (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
-TEST_F(ModelPreferThreadsIntegrationTest, Direct_Apple_SpecialLatencyAndThroughput) {
-    Config config;
-    std::vector<std::vector<int>> proc_type_table = {{10, 6, 4, 0, 0, 0, 0}};
-    ov::MemBandwidthPressure tolerance;
-    float isaThreshold = 1.0f;
-    configure_apple_threads(config, proc_type_table, tolerance, isaThreshold, false, false);
-    // MAIN > EFFICIENT -> latency equals main
-    EXPECT_EQ(config.modelPreferThreadsLatency, 6);
-}
-#endif
-
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 
 TEST_F(ModelPreferThreadsIntegrationTest, X86_NonHybrid_ZeroMainUsesEfficient) {
@@ -759,6 +673,55 @@ TEST_F(ModelPreferThreadsIntegrationTest, X86_Throughput_HyperThreadingAdjustmen
     EXPECT_GE(config.modelPreferThreadsThroughput, 1);
     EXPECT_EQ(result, config.modelPreferThreadsThroughput);
 }
+
+TEST_F(ModelPreferThreadsIntegrationTest, X86_NonHybrid_MainCoresOnly) {
+    std::vector<std::vector<int>> proc_type_table = {{8, 8, 0, 0, 0, 0, 0}};
+    auto model = make_dummy_model();
+    Config config;
+    config.modelType = Config::ModelType::CNN;
+    config.modelPreferThreads = -1;
+    int num_streams = 1;
+    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
+    EXPECT_EQ(config.modelPreferThreadsLatency, 8);
+    EXPECT_EQ(result, config.modelPreferThreadsLatency);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, X86_Hybrid_INT8_UseAllCores) {
+    std::vector<std::vector<int>> proc_type_table = {{12, 4, 8, 0, 0, 0, 0}};
+    auto model = make_dummy_model();
+    Config config;
+    config.modelType = Config::ModelType::CNN;
+    config.modelPreferThreads = -1;
+    int num_streams = 1;
+    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
+    EXPECT_GE(config.modelPreferThreadsLatency, 12);
+    EXPECT_EQ(result, config.modelPreferThreadsLatency);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, X86_Hybrid_FP32_MainCoresOnly) {
+    std::vector<std::vector<int>> proc_type_table = {{8, 4, 4, 0, 0, 0, 0}};
+    auto model = make_dummy_model();
+    Config config;
+    config.modelType = Config::ModelType::CNN;
+    config.modelPreferThreads = -1;
+    int num_streams = 1;
+    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
+    EXPECT_EQ(config.modelPreferThreadsLatency, 4);
+    EXPECT_EQ(result, config.modelPreferThreadsLatency);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, X86_HT_AdjustThroughput) {
+    std::vector<std::vector<int>> proc_type_table = {{16, 8, 0, 0, 8, 0, 0}};
+    auto model = make_dummy_model();
+    Config config;
+    config.modelType = Config::ModelType::CNN;
+    config.modelPreferThreads = -1;
+    int num_streams = 0;  // throughput path
+    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
+    EXPECT_GE(config.modelPreferThreadsThroughput, 1);
+    EXPECT_EQ(result, config.modelPreferThreadsThroughput);
+}
+
 #endif
 
 #if defined(OPENVINO_ARCH_ARM) && defined(__linux__)
@@ -773,6 +736,16 @@ TEST_F(ModelPreferThreadsIntegrationTest, ARM_Linux_Throughput_UnknownAndMemLimi
     EXPECT_GE(config.modelPreferThreadsThroughput, 1);
     EXPECT_EQ(result, config.modelPreferThreadsThroughput);
 }
+
+TEST_F(ModelPreferThreadsIntegrationTest, Direct_ARM_Linux_ThroughputBranches) {
+    Config config;
+    std::vector<std::vector<int>> proc_type_table = {{8, 4, 4, 0, 0, 0, 0}};
+    ov::MemBandwidthPressure tolerance;
+    // UNKNOWN should allow high throughput when compute-limited
+    tolerance.max_mem_tolerance = ov::MemBandwidthPressure::UNKNOWN;
+    configure_arm_linux_threads(config, proc_type_table, tolerance, false, false);
+    EXPECT_GE(config.modelPreferThreadsThroughput, 1);
+}
 #endif
 
 #if (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
@@ -786,6 +759,29 @@ TEST_F(ModelPreferThreadsIntegrationTest, AppleSilicon_SizeOne_SpecialLatencyCho
     EXPECT_EQ(config.modelPreferThreadsLatency, 6);
     EXPECT_EQ(result, 6);
 }
+
+TEST_F(ModelPreferThreadsIntegrationTest, AppleSilicon_LatencyAndThroughput) {
+    std::vector<std::vector<int>> proc_type_table = {{8, 4, 4, 0, 0, 0, 0}};
+    auto model = make_dummy_model();
+    Config config;
+    config.modelType = Config::ModelType::CNN;
+    config.modelPreferThreads = -1;
+    int num_streams = 1;
+    int result = get_model_prefer_threads(num_streams, proc_type_table, model, config);
+    EXPECT_GE(config.modelPreferThreadsLatency, 4);
+    EXPECT_EQ(result, config.modelPreferThreadsLatency);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, Direct_Apple_SpecialLatencyAndThroughput) {
+    Config config;
+    std::vector<std::vector<int>> proc_type_table = {{10, 6, 4, 0, 0, 0, 0}};
+    ov::MemBandwidthPressure tolerance;
+    float isaThreshold = 1.0f;
+    configure_apple_threads(config, proc_type_table, tolerance, isaThreshold, false, false);
+    // MAIN > EFFICIENT -> latency equals main
+    EXPECT_EQ(config.modelPreferThreadsLatency, 6);
+}
+
 #endif
 
 }  // namespace
