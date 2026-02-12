@@ -13,12 +13,26 @@
 #include "cpu_types.h"
 #include "nodes/common/permute_kernel.h"
 #include "nodes/executors/executor.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
 TransposeExecutor::TransposeExecutor(ExecutorContext::CPtr context) : context(std::move(context)) {}
+
+bool TransposeExecutor::update([[maybe_unused]] const MemoryArgs& memory) {
+    return true;
+}
+
+void TransposeExecutor::execute(const MemoryArgs& memory) {
+    const auto src = memory.at(ARG_SRC);
+    const auto dst = memory.at(ARG_DST);
+    OPENVINO_ASSERT(src, "Transpose source memory is undefined");
+    OPENVINO_ASSERT(dst, "Transpose destination memory is undefined");
+    exec({src}, {dst});
+}
 
 jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& params) {
     jit_permute_config_params jcp = {};

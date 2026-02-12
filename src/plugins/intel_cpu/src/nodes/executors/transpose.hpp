@@ -11,17 +11,16 @@
 #include "executor.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/common/permute_kernel.h"
+#include "transpose_config.hpp"
 
 namespace ov::intel_cpu {
-
-struct TransposeParams {
-    PermuteParams permuteParams;
-};
 
 class TransposeExecutor : public Executor {
 public:
     static jit_permute_config_params prepareParams(const PermuteParams& params);
     explicit TransposeExecutor(ExecutorContext::CPtr context);
+    bool update(const MemoryArgs& memory) override;
+    void execute(const MemoryArgs& memory) override;
     virtual bool init(const TransposeParams& transposeParams,
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,

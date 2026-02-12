@@ -23,8 +23,9 @@
 #include "nodes/common/blocked_desc_creator.h"
 #include "nodes/common/reorder_prim.h"
 #include "nodes/executors/executor.hpp"
-#include "nodes/executors/transpose.hpp"
-#include "nodes/executors/transpose_list.hpp"
+#include "nodes/executors/executor_factory.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "nodes/executors/transpose_config.hpp"
 #include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
@@ -101,24 +102,8 @@ void Transpose::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].constant(false);
     transpose_context = std::make_shared<ExecutorContext>(context, getImplPriority());
 
-    auto supportedPrimitiveDescriptorsBuilder = [this](const NodeConfig& config,
-                                                       const TransposeParams& transposeParams) {
-        std::vector<MemoryDescPtr> srcMemoryDescs;
-        srcMemoryDescs.reserve(config.inConfs.size());
-        for (const auto& inConf : config.inConfs) {
-            srcMemoryDescs.emplace_back(inConf.getMemDesc());
-        }
-        std::vector<MemoryDescPtr> dstMemoryDescs;
-        srcMemoryDescs.reserve(config.outConfs.size());
-        dstMemoryDescs.reserve(config.outConfs.size());
-        for (const auto& outConf : config.outConfs) {
-            dstMemoryDescs.emplace_back(outConf.getMemDesc());
-        }
-        auto factory = std::make_shared<TransposeExecutorFactory>(transposeParams,
-                                                                  srcMemoryDescs,
-                                                                  dstMemoryDescs,
-                                                                  transpose_context);
-        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, factory);
+    auto supportedPrimitiveDescriptorsBuilder = [this](const NodeConfig& config) {
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     };
 
     const auto& inputDataShape = getInputShapeAtPort(INPUT_DATA_IDX);
@@ -126,29 +111,29 @@ void Transpose::initSupportedPrimitiveDescriptors() {
     if (any_of(inputDataShape.getRank(), 4U, 5U)) {
         config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, inputDataShape));
         config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, outputDataShape));
-        supportedPrimitiveDescriptorsBuilder(config, transposeParams);
+        supportedPrimitiveDescriptorsBuilder(config);
 #if defined(OPENVINO_ARCH_X86_64)
         const auto& srcDims = inputDataShape.getDims();
         if (srcDims[1] != Shape::UNDEFINED_DIM && srcDims[1] % 8 == 0) {
             config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::nCsp8c)->createSharedDesc(prec, inputDataShape));
-            supportedPrimitiveDescriptorsBuilder(config, transposeParams);
+            supportedPrimitiveDescriptorsBuilder(config);
         }
 
         if (srcDims[1] != Shape::UNDEFINED_DIM && srcDims[1] % 16 == 0) {
             config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::nCsp16c)->createSharedDesc(prec, inputDataShape));
-            supportedPrimitiveDescriptorsBuilder(config, transposeParams);
+            supportedPrimitiveDescriptorsBuilder(config);
         }
 #endif  // OPENVINO_ARCH_X86_64
         if (any_of(prec, ov::element::f32, ov::element::f16, ov::element::i8, ov::element::u8, ov::element::bf16)) {
             config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, inputDataShape));
             config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, outputDataShape));
-            supportedPrimitiveDescriptorsBuilder(config, transposeParams);
+            supportedPrimitiveDescriptorsBuilder(config);
         }
     } else {
         // general plain case
         config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, inputDataShape));
         config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, outputDataShape));
-        supportedPrimitiveDescriptorsBuilder(config, transposeParams);
+        supportedPrimitiveDescriptorsBuilder(config);
     }
 }
 
@@ -198,29 +183,30 @@ void Transpose::prepareParams() {
     transposeParams.permuteParams.dst_block_dims = dstDesc->getBlockDims();
 
     if (!isInputOrderConst) {
-        const auto* orderPtr = getSrcDataAtPortAs<const int32_t>(0);
-        auto orderLen = getSrcMemoryAtPort(0)->getSize();
+        const auto* orderPtr = getSrcDataAtPortAs<const int32_t>(INPUT_ORDER_IDX);
+        const auto orderLen = getSrcMemoryAtPort(INPUT_ORDER_IDX)->getShape().getElementsCount();
         transposeParams.permuteParams.order.assign(orderPtr, orderPtr + orderLen);
     }
 
-    auto engine = getEngine();
-    auto builder =
-        [&srcDesc, &dstDesc, this]([[maybe_unused]] const PermuteParams& key) -> std::shared_ptr<TransposeExecutor> {
-        dnnl::primitive_attr attr;
-        auto* selectedPD = getSelectedPrimitiveDescriptor();
-        auto executor = selectedPD->getExecutorFactoryAs<TransposeExecutorFactory>()->makeExecutor(transposeParams,
-                                                                                                   {srcDesc},
-                                                                                                   {dstDesc},
-                                                                                                   attr);
-        return executor;
+    m_memory[ARG_SRC] = getSrcMemoryAtPort(INPUT_DATA_IDX);
+    m_memory[ARG_DST] = getDstMemoryAtPort(0);
+
+    auto builder = [this, srcDesc, dstDesc](const PermuteParams& key) -> ExecutorPtr {
+        TransposeAttrs attrs;
+        attrs.params.permuteParams = key;
+        MemoryDescArgs descs{{ARG_SRC, srcDesc}, {ARG_DST, dstDesc}};
+        attrs.descs = descs;
+        auto factory = std::make_shared<ExecutorFactory<TransposeAttrs>>(attrs, transpose_context, descs);
+        return factory->make(m_memory, false);
     };
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(transposeParams.permuteParams, builder);
 
-    CPU_NODE_ASSERT(result.first, "Primitive descriptor was not found.");
+    CPU_NODE_ASSERT(result.first, "Executor was not found.");
 
     execPtr = result.first;
+    CPU_NODE_ASSERT(execPtr->update(m_memory), "Failed to update Transpose executor.");
 }
 
 void Transpose::createPrimitive() {
@@ -273,10 +259,9 @@ void Transpose::execute(const dnnl::stream& strm) {
     if (prim) {
         prim.execute(strm, primArgs);
     } else if (execPtr) {
-        auto dstMemPtr = getDstMemoryAtPort(0);
-        auto srcMemPtr = getSrcMemoryAtPort(INPUT_DATA_IDX);
-
-        execPtr->exec({srcMemPtr}, {dstMemPtr});
+        m_memory[ARG_SRC] = getSrcMemoryAtPort(INPUT_DATA_IDX);
+        m_memory[ARG_DST] = getDstMemoryAtPort(0);
+        execPtr->execute(m_memory);
     } else {
         CPU_NODE_THROW("Primitive was not created.");
     }

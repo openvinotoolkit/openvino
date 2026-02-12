@@ -52,11 +52,12 @@ protected:
     std::shared_ptr<ExecutorContext> transpose_context;
 
 private:
-    TransposeExecutorPtr execPtr = nullptr;
+    ExecutorPtr execPtr = nullptr;
     dnnl::primitive prim;
     VectorDims order;
     ov::element::Type prec;
 
+    MemoryArgs m_memory;
     TransposeParams transposeParams;
 
     bool isInputOrderConst = false;

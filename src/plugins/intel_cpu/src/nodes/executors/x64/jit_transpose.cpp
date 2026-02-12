@@ -13,7 +13,7 @@
 #include "cpu_memory.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/common/permute_kernel.h"
-#include "nodes/executors/transpose.hpp"
+#include "nodes/executors/transpose_config.hpp"
 #include "openvino/core/except.hpp"
 
 using namespace dnnl::impl::cpu;

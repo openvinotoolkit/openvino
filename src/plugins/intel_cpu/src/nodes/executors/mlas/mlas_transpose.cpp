@@ -18,6 +18,7 @@
 #include "mlas.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/transpose.hpp"
+#include "nodes/executors/transpose_config.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 

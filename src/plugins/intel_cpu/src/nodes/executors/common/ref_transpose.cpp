@@ -17,6 +17,7 @@
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/permute_kernel.h"
 #include "nodes/executors/transpose.hpp"
+#include "nodes/executors/transpose_config.hpp"
 #include "openvino/core/parallel.hpp"
 
 namespace ov::intel_cpu {
