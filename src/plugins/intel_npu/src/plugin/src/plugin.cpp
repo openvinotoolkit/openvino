@@ -423,8 +423,7 @@ FilteredConfig Plugin::fork_local_config(const ov::AnyMap& arguments,
     }
 
     auto localProperties = std::make_unique<Properties>(*_properties);
-    localProperties->filterCompilerPropertiesSafe(arguments, compiler, initializeCompilerOptions);
-    localProperties->update(arguments, compiler, mode);
+    localProperties->updateConfigSafe(arguments, compiler, initializeCompilerOptions);
 
     return localProperties->getConfig();
 }
@@ -435,14 +434,8 @@ void Plugin::set_property(const ov::AnyMap& arguments) {
     }
     update_log_level(arguments);
 
-    // 1. Filter global config
-    _properties->filterCompilerPropertiesSafe(false, arguments);
+    _properties->setPropertiesSafe(arguments, false);
 
-    // 2. Set the property via Properties interface
-    _properties->setProperty(arguments);
-
-    // 3. Extra hooks
-    // Init backends if needed
     if (_backend != nullptr) {
         _backend->updateInfo(arguments);
     }
@@ -456,16 +449,16 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         auto localProperties = std::make_unique<Properties>(*_properties);
 
         if ((!localProperties->isPropertyRegistered(name) || name == ov::supported_properties.name())) {
-            localProperties->filterCompilerPropertiesSafe(true, npuPluginArguments);
+            localProperties->setPropertiesSafe(npuPluginArguments, true);
         } else {
-            localProperties->filterCompilerPropertiesSafe(false, npuPluginArguments);
+            localProperties->setPropertiesSafe(npuPluginArguments, false);
         }
 
-        return localProperties->getProperty(name, npuPluginArguments);
+        return localProperties->getProperty(name);
     }
 
     if ((!_properties->isPropertyRegistered(name) || name == ov::supported_properties.name())) {
-        _properties->filterCompilerPropertiesSafe(true);
+        _properties->setPropertiesSafe();
     }
 
     return _properties->getProperty(name);

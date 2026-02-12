@@ -737,26 +737,13 @@ ov::Any Properties::getProperty(const std::string& name, const ov::AnyMap& argum
     }
 }
 
-void Properties::setProperty(const ov::AnyMap& arguments) {
+void Properties::setProperty(const ov::AnyMap& arguments, const ICompilerAdapter* compiler, OptionMode mode) {
     std::map<std::string, std::string> cfgs_to_set;
 
     for (auto&& value : arguments) {
         if (_properties.find(value.first) == _properties.end()) {
             // property doesn't exist
             // checking as internal now
-
-            std::unique_ptr<ICompilerAdapter> compiler = nullptr;
-            if (_pType == PropertiesType::PLUGIN) {
-                try {
-                    // Only accepting unknown config keys in plugin
-                    auto compilerType = _config.get<COMPILER_TYPE>();
-                    CompilerAdapterFactory factory;
-                    compiler = factory.getCompiler(_backend, compilerType, _config.get<PLATFORM>());
-                } catch (...) {
-                    // just throw the exception below in case unknown property check is called
-                }
-            }
-
             if (compiler != nullptr) {
                 if (compiler->is_option_supported(value.first)) {
                     // if compiler reports it supported > registering as internal
@@ -863,7 +850,7 @@ void Properties::filterPropertiesByCompilerSupport(const ICompilerAdapter* compi
     _initialized = true;
 }
 
-void Properties::filterCompilerPropertiesSafe(const bool ensurePropertiesInitialized, const ov::AnyMap& arguments) {
+void Properties::setPropertiesSafe(const ov::AnyMap& arguments, const bool ensurePropertiesInitialized) {
     std::lock_guard<std::mutex> lock(_mutex);
 
     auto compilerType = utils::resolveCompilerType(_config, arguments);
@@ -894,8 +881,8 @@ void Properties::filterCompilerPropertiesSafe(const bool ensurePropertiesInitial
         }
     }
 
+    std::unique_ptr<ICompilerAdapter> compiler = nullptr;
     if (argumentNotRegistered || (ensurePropertiesInitialized && (!_initialized || initializeCompilerOptions))) {
-        std::unique_ptr<ICompilerAdapter> compiler = nullptr;
         try {
             // create a compiler to fetch version and supported options
             CompilerAdapterFactory factory;
@@ -914,11 +901,14 @@ void Properties::filterCompilerPropertiesSafe(const bool ensurePropertiesInitial
         // filter out unsupported options
         filterPropertiesByCompilerSupport(compiler.get());
     }
+
+    setProperty(arguments, compiler.get());
 }
 
-void Properties::filterCompilerPropertiesSafe(const ov::AnyMap& arguments,
-                                              const ICompilerAdapter* compiler,
-                                              const bool initializeCompilerOptions) {
+void Properties::updateConfigSafe(const ov::AnyMap& arguments,
+                                  const ICompilerAdapter* compiler,
+                                  const bool initializeCompilerOptions,
+                                  OptionMode mode) {
     std::lock_guard<std::mutex> lock(_mutex);
 
     bool argumentNotRegistered = false;
@@ -933,11 +923,8 @@ void Properties::filterCompilerPropertiesSafe(const ov::AnyMap& arguments,
         // filter out unsupported options
         filterPropertiesByCompilerSupport(compiler);
     }
-}
 
-void Properties::update(const ov::AnyMap& arguments, const ICompilerAdapter* compiler, OptionMode mode) {
     const std::map<std::string, std::string> rawConfig = any_copy(arguments);
-
     std::map<std::string, std::string> cfgsToSet;
     for (const auto& [key, value] : rawConfig) {
         if (!_config.hasOpt(key)) {

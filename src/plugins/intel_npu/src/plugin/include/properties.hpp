@@ -55,14 +55,14 @@ public:
      * - checks if the property exists, will report if unsupported
      * - checks if the property is Read-only, will report error if so
      */
-    void setProperty(const ov::AnyMap& arguments);
+    void setProperty(const ov::AnyMap& arguments,
+                     const ICompilerAdapter* compiler = nullptr,
+                     OptionMode mode = OptionMode::Both);
 
     /**
      * @brief Checks whether a property was registered by its name
      */
     bool isPropertyRegistered(const std::string& propertyName) const;
-
-    void update(const ov::AnyMap& arguments, const ICompilerAdapter* compiler, OptionMode mode = OptionMode::Both);
 
     /**
      * @brief Get a const reference to the stored config
@@ -71,11 +71,28 @@ public:
         return _config;
     }
 
-    void filterCompilerPropertiesSafe(const bool ensurePropertiesInitialized, const ov::AnyMap& arguments = {});
+    /**
+     * @brief Set the properties map and register properties for the plugin.
+     * @details
+     * - Checks if the compiler has changed; if so, creates a new compiler and re-filters properties.
+     * - Checks whether arguments are already registered; if not, queries compiler support.
+     * - Filters compiler options based on the current compiler.
+     * - Set the config with the provided arguments.
+     */
+    void setPropertiesSafe(const ov::AnyMap& arguments = {}, const bool ensurePropertiesInitialized = true);
 
-    void filterCompilerPropertiesSafe(const ov::AnyMap& arguments,
-                                      const ICompilerAdapter* compiler,
-                                      const bool initializeCompilerOptions);
+    /**
+     * @brief Update the config map and register properties for the plugin.
+     * @details
+     * - Checks if the compiler has changed; if so, re-filters properties.
+     * - Checks whether arguments are already registered; if not, checks if the options are supported.
+     * - Filters compiler options based on the current compiler.
+     * - Updates the config with the provided arguments.
+     */
+    void updateConfigSafe(const ov::AnyMap& arguments,
+                          const ICompilerAdapter* compiler,
+                          const bool initializeCompilerOptions,
+                          OptionMode mode = OptionMode::Both);
 
 private:
     PropertiesType _pType;
