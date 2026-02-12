@@ -13,6 +13,7 @@ OpenVINO™ toolkit is officially supported and validated on the following platf
 | Host                          | NPU device  | PCI Device ID  | OS (64-bit)                              |
 | :---                          | :---        | :---           | :---                                     |
 | Meteor Lake (integrated NPU)  | NPU 3720    | 0x7D1D         | Ubuntu* 22, Ubuntu* 24, MS Windows* 11   |
+| Arrow Lake (integrated NPU)   | NPU 3720    | 0xAD1D         | Ubuntu* 22, Ubuntu* 24, MS Windows* 11   |
 | Lunar Lake (integrated NPU)   | NPU 4000    | 0x643E         | Ubuntu* 22, Ubuntu* 24, MS Windows* 11   |
 | Panther Lake (integrated NPU) | NPU 5010    | 0xB03E         | Ubuntu* 22, Ubuntu* 24, MS Windows* 11   |
 <br>
@@ -242,7 +243,7 @@ The following table shows the default values for the number of Tiles and DMA Eng
 | :---             | :---                | :---                 |
 | THROUGHPUT       | 3720                | 2 (all of them)      |
 | THROUGHPUT       | 4000                | 2 (out of 5/6)       |
-| THROUGHPUT       | 5010                | 1 (out of 3  )       |
+| THROUGHPUT       | 5010                | 1 (out of 3)         |
 | LATENCY          | 3720                | 2 (all of them)      |
 | LATENCY          | 4000                | 4 (out of 5/6)       |
 | LATENCY          | 5010                | 3 (out of 3)         |
@@ -308,18 +309,21 @@ NPU_TURBO usage may cause higher compile time, memory footprint, affect workload
 
 ### ov::intel_npu::compiler_type
 This property allows users to override the default compiler type selected by the plugin.  
-To use `Compiler-In-Plugin` whenever possible, users can set the property to `PREFER_PLUGIN`. This instructs the plugin to use the integrated compiler when all the following conditions are met:  
+To use ``Compiler-In-Plugin`` whenever possible, users can set the property to ``PREFER_PLUGIN``. This instructs the plugin to use the integrated compiler when all the following conditions are met:  
 - The library is present
-- The compiler supports the current platform `or` there is no platform detected (offline compilation)  
-- Compatibility is maintained between the current compiler version and all drivers released for the platform `or` there is no platform detected (offline compilation)  
+- The compiler supports the current platform ``or`` there is no platform detected (offline compilation)  
+- Compatibility is maintained between the current compiler version and all drivers released for the platform ``or`` there is no platform detected (offline compilation)  
+Note: On Meteor Lake (3720), when the property is set to ``PREFER_PLUGIN``, the plugin will fall back to ``Compiler-in-Driver`` because  
+the compiler library integrated in the plugin may not be compatible with driver versions lower than v2565.  
+Users can set ``ov::intel_npu::compiler_type`` to ``PLUGIN`` to force ``Compiler-in-Plugin``, but the blob will fail to execute on incompatible drivers.
 
-If any condition is not met, the plugin automatically falls back to using `Compiler-In-Driver`.  
-The compiler type used to compile a model can be queried from the resulting `CompiledModel` by reading the `ov::intel_npu::compiler_type` property.  
+If any condition is not met, the plugin automatically falls back to using ``Compiler-In-Driver``.  
+The compiler type used to compile a model can be queried from the resulting ``CompiledModel`` by reading the ``ov::intel_npu::compiler_type`` property.  
 Notes regarding on-device vs offline compilation:
-- For on-device compilation with `Compiler-In-Plugin`, the plugin is responsible for querying the platform information from the driver and for passing the mandatory configs to the compiler( platform ID, available number of tiles, stepping information). Such compiled models are compatible with all the drivers released for that platform.
-- For offline compilation, users must explicitly set the `ov::intel_npu::platform` property to one of the supported values (see table above).  
+- For on-device compilation with ``Compiler-In-Plugin``, the plugin is responsible for querying the platform information from the driver and for passing the mandatory configs to the compiler (platform ID, available number of tiles, stepping information). Such compiled models are compatible with all the drivers released for that platform.
+- For offline compilation, users must explicitly set the ``ov::intel_npu::platform`` property to one of the supported values (see table above).  
 Setting extra properties during offline compilation may result in compiled models that cannot be executed on SKUs with fewer resources or on drivers that do not support those features.  
-Example: Setting `performance-hint-override=latency` through `ov::intel_npu::compilation_mode_params` instructs the compiler to use all available resources for the given platform. If `ov::intel_npu::max_tiles` is not provided, the compiler falls back to a fixed lookup table embedded in the library to determine available resources, which might not be representative of all SKUs.
+Example: Setting ``performance-hint-override=latency`` through ``ov::intel_npu::compilation_mode_params`` instructs the compiler to use all available resources for the given platform. If ``ov::intel_npu::max_tiles`` is not provided, the compiler falls back to a fixed lookup table embedded in the library to determine available resources, which might not be representative of all SKUs.
 <br>
 
 ## Stateful models

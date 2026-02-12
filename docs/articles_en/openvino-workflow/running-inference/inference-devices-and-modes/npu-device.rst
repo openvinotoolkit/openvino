@@ -287,11 +287,15 @@ This instructs the plugin to use the integrated compiler when all the following 
 - The library is present
 - The compiler supports the current platform ``or`` there is no platform detected (offline compilation)
 - Compatibility is maintained between the current compiler version and all drivers released for the platform ``or`` there is no platform detected (offline compilation)
+- Note: On Meteor Lake (3720), when the property is set to ``PREFER_PLUGIN``, the plugin will fall back to ``Compiler-in-Driver`` because
+the compiler library integrated in the plugin may not be compatible with driver versions lower than v2565.
+Users can set ``ov::intel_npu::compiler_type`` to ``PLUGIN`` to force ``Compiler-in-Plugin``, but the blob will fail to execute on incompatible drivers.
 
 If any condition is not met, the plugin automatically falls back to using ``Compiler-In-Driver``.
 The compiler type used to compile a model can be queried from the resulting ``CompiledModel`` by reading the ``ov::intel_npu::compiler_type`` property.
 
 .. note::
+
 Notes regarding on-device vs offline compilation:
 - For on-device compilation with ``Compiler-In-Plugin``, the plugin is responsible for querying the platform information
 from the driver and for passing the mandatory configs to the compiler (platform ID, available number of tiles, stepping information).
