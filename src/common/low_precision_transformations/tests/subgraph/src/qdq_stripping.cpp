@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "low_precision/qdq_stripping.hpp"
+
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "low_precision/qdq_stripping.hpp"
 #include "ov_lpt_models/qdq_stripping.hpp"
+#include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 
 using namespace testing;
 using namespace ov::builder::subgraph;
@@ -15,18 +17,20 @@ using namespace ov::builder::subgraph;
 // SharedDQ: two Conv branches sharing quantized input, FQs with y_scale < 1
 // Expected: all FQs stripped, no scale propagation
 // =============================================================================
+class QDQStrippingTest : public TransformationTestsF {
+public:
+    QDQStrippingTest() : TransformationTestsF() {
+        disable_rt_info_check();
+        manager.register_pass<ov::pass::ConvertQuantizeDequantize>();
+        manager.register_pass<ov::pass::low_precision::FQStrippingTransformation>(std::set<size_t>{65536});
+        comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    }
+};
 
-using QDQStrippingSharedDQTest = TransformationTestsF;
-
-TEST_F(QDQStrippingSharedDQTest, CompareWithReference) {
-    disable_rt_info_check();
+TEST_F(QDQStrippingTest, smoke_LPT_SharedDQ) {
     const auto input_shape = ov::PartialShape{1, 3, 8, 8};
-
-    model = QDQStrippingFunction::getOriginalSharedDQ(input_shape);
+    model = QDQStrippingFunction::build_shared_dq_pattern(input_shape, ov::element::u16);
     model_ref = QDQStrippingFunction::getReferenceSharedDQ(input_shape);
-
-    manager.register_pass<ov::pass::low_precision::FQStrippingTransformation>(std::set<size_t>{65536});
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 // =============================================================================
@@ -34,35 +38,20 @@ TEST_F(QDQStrippingSharedDQTest, CompareWithReference) {
 // FQ y_scale = 2 → DQ constant scale divided by 2
 // =============================================================================
 
-using QDQStrippingNeedScalingMulMatMulTest = TransformationTestsF;
-
-TEST_F(QDQStrippingNeedScalingMulMatMulTest, CompareWithReference) {
-    disable_rt_info_check();
+TEST_F(QDQStrippingTest, NeedScalingMulMatMul) {
     const auto input_shape = ov::PartialShape{1, 3, 8, 8};
-
-    model = QDQStrippingFunction::getOriginalNeedScalingMulMatMul(input_shape);
+    model = QDQStrippingFunction::build_need_scaling_mul_matmul_pattern(input_shape, ov::element::u16);
     model_ref = QDQStrippingFunction::getReferenceNeedScalingMulMatMul(input_shape);
-
-    manager.register_pass<ov::pass::low_precision::FQStrippingTransformation>(std::set<size_t>{65536});
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 // =============================================================================
 // NeedScalingMatMulWithBias: MatMul with weights + bias → FQ→DQ → MVN
 // FQ y_scale = 4 → both weight and bias scales divided by 4
 // =============================================================================
-
-using QDQStrippingNeedScalingMatMulWithBiasTest = TransformationTestsF;
-
-TEST_F(QDQStrippingNeedScalingMatMulWithBiasTest, CompareWithReference) {
-    disable_rt_info_check();
+TEST_F(QDQStrippingTest, NeedScalingMatMulWithBias) {
     const auto input_shape = ov::PartialShape{1, 3};
-
-    model = QDQStrippingFunction::getOriginalNeedScalingMatMulWithBias(input_shape);
+    model = QDQStrippingFunction::build_need_scaling_matmul_with_bias_pattern(input_shape, ov::element::u16);
     model_ref = QDQStrippingFunction::getReferenceNeedScalingMatMulWithBias(input_shape);
-
-    manager.register_pass<ov::pass::low_precision::FQStrippingTransformation>(std::set<size_t>{65536});
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 // =============================================================================
@@ -70,16 +59,8 @@ TEST_F(QDQStrippingNeedScalingMatMulWithBiasTest, CompareWithReference) {
 // First FQ y_scale=10 → stripped + backward/forward propagation
 // Forward-path FQ and branch FQs get ranges adjusted then stripped
 // =============================================================================
-
-using QDQStrippingNeedScalingResidualBlockTest = TransformationTestsF;
-
-TEST_F(QDQStrippingNeedScalingResidualBlockTest, CompareWithReference) {
-    disable_rt_info_check();
+TEST_F(QDQStrippingTest, NeedScalingResidualBlock) {
     const auto input_shape = ov::PartialShape{1, 3, 8, 8};
-
-    model = QDQStrippingFunction::getOriginalNeedScalingResidualBlock(input_shape);
+    model = QDQStrippingFunction::build_need_scaling_residual_block_pattern(input_shape, ov::element::u16);
     model_ref = QDQStrippingFunction::getReferenceNeedScalingResidualBlock(input_shape);
-
-    manager.register_pass<ov::pass::low_precision::FQStrippingTransformation>(std::set<size_t>{65536});
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }

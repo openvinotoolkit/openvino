@@ -5,6 +5,9 @@
 #pragma once
 
 #include <memory>
+#include <optional>
+#include <unordered_map>
+#include <vector>
 
 #include "openvino/core/model.hpp"
 
@@ -12,13 +15,34 @@ namespace ov {
 namespace builder {
 namespace subgraph {
 
+// Encapsulates FQ input/output range and zero point for a given quantization precision.
+// Used to build FQ+DQ pairs where output_low/output_high match the precision limits
+// (e.g., [-32768, 32767] for i16, [0, 65535] for u16) and input_low/input_high define
+// the dequantized value range.
+class QuantizationParams {
+public:
+    ov::Output<ov::Node> build_fq(const ov::Output<ov::Node>& input) const;
+    ov::Output<ov::Node> build_dq(const ov::Output<ov::Node>& input, const ov::element::Type& quantization_precision) const;
+
+    float i_l;
+    float i_h;
+    float o_l;
+    float o_h;
+    int zero_point;
+};
+
 class QDQStrippingFunction {
 public:
     // Helper: builds a weight-DQ pattern: Constant(quantized_type) -> Convert(f32) -> Subtract(zp) -> Multiply(scale)
+    // When seed is provided, generates random constant values using make_constant.
+    // When constant_values vector is provided, uses those values directly.
+    // Otherwise uses single constant_value (default 1.f).
     static ov::Output<ov::Node> build_dq_subgraph(ov::element::Type quantized_type,
                                                    const ov::Shape& shape,
                                                    float scale_value,
                                                    int zero_point = 0,
+                                                   std::optional<size_t> seed = std::nullopt,
+                                                   std::optional<std::vector<int>> constant_values = std::nullopt,
                                                    float constant_value = 1.f);
 
     // Helper: builds Conv bias pattern using ShapeOf-based reshape
@@ -62,6 +86,22 @@ public:
     // Forward-path FQ and branch FQs adjusted then stripped.
     static std::shared_ptr<ov::Model> getOriginalNeedScalingResidualBlock(const ov::PartialShape& input_shape);
     static std::shared_ptr<ov::Model> getReferenceNeedScalingResidualBlock(const ov::PartialShape& input_shape);
+
+    // === GPU accuracy test model builders ===
+    // These build full models with per-precision QuantizationParams (i16/u16) for
+    // ConvertQuantizeDequantize fusion compatibility. Used by both LPT unit tests and
+    // GPU functional tests.
+    static std::shared_ptr<ov::Model> build_shared_dq_pattern(const ov::PartialShape& input_shape,
+                                                               const ov::element::Type& quantization_precision);
+
+    static std::shared_ptr<ov::Model> build_need_scaling_mul_matmul_pattern(const ov::PartialShape& input_shape,
+                                                                            const ov::element::Type& quantization_precision);
+
+    static std::shared_ptr<ov::Model> build_need_scaling_matmul_with_bias_pattern(const ov::PartialShape& input_shape,
+                                                                                   const ov::element::Type& quantization_precision);
+
+    static std::shared_ptr<ov::Model> build_need_scaling_residual_block_pattern(const ov::PartialShape& input_shape,
+                                                                                const ov::element::Type& quantization_precision);
 };
 
 }  // namespace subgraph
