@@ -155,6 +155,7 @@ protected:
 };
 
 TEST_P(ConvAndFQ, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 
     const auto& [inputShape, inputPrecision, quantizationParams, withBias, targetName] = this->GetParam();
