@@ -1,33 +1,41 @@
-import os 
+import os
 from fastapi import FastAPI, UploadFile, File
 from openvino.runtime import Core
 import numpy as np
 import cv2
 
-# ---------------- Load ImageNet labels ----------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-LABELS_PATH = os.path.join(BASE_DIR, "imagenet_labels.txt")
-
-with open(LABELS_PATH, "r") as f:
-    IMAGENET_LABELS = [line.strip() for line in f]
-
-
-
 # ---------------- FastAPI app ----------------
 app = FastAPI(title="OpenVINO FastAPI Inference")
 
-# ---------------- Load model once at startup ----------------
+# ---------------- Global variables ----------------
+IMAGENET_LABELS = []
 core = Core()
+compiled_model = None
+input_layer = None
+output_layer = None
 
-model = core.read_model(
-    "public/mobilenet-v2-pytorch/FP16/mobilenet-v2-pytorch.xml"
-)
+# ---------------- Startup event: load labels & model ----------------
+@app.on_event("startup")
+def startup_event():
+    global IMAGENET_LABELS, compiled_model, input_layer, output_layer
 
-compiled_model = core.compile_model(model, "CPU")
-input_layer = compiled_model.input(0)
-output_layer = compiled_model.output(0)
+    # Load ImageNet labels
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    labels_path = os.path.join(base_dir, "imagenet_labels.txt")
+    with open(labels_path, "r") as f:
+        IMAGENET_LABELS = [line.strip() for line in f]
+    print(f"Loaded {len(IMAGENET_LABELS)} ImageNet labels ✅")
+
+    # Load and compile OpenVINO model
+    model_path = "public/mobilenet-v2-pytorch/FP16/mobilenet-v2-pytorch.xml"
+    model = core.read_model(model_path)
+    compiled_model = core.compile_model(model, "CPU")
+    input_layer = compiled_model.input(0)
+    output_layer = compiled_model.output(0)
+    print(f"Model loaded and compiled ✅")
 
 
+# ---------------- Root endpoint ----------------
 @app.get("/")
 def root():
     return {"status": "FastAPI + OpenVINO is running ✅"}
