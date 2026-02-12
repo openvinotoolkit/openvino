@@ -55,6 +55,7 @@
 #include "intel_gpu/primitives/select.hpp"
 #include "intel_gpu/primitives/shuffle_channels.hpp"
 #include "intel_gpu/primitives/slice.hpp"
+#include "intel_gpu/primitives/slice_scatter.hpp"
 #include "intel_gpu/primitives/space_to_batch.hpp"
 #include "intel_gpu/primitives/sparse_fill_empty_rows.hpp"
 #include "intel_gpu/primitives/strided_slice.hpp"
@@ -132,6 +133,7 @@ REGISTER_OCL(roll);
 REGISTER_OCL(select);
 REGISTER_OCL(shuffle_channels);
 REGISTER_OCL(slice);
+REGISTER_OCL(slice_scatter);
 REGISTER_OCL(space_to_batch);
 REGISTER_OCL(space_to_depth);
 REGISTER_OCL(strided_slice);
