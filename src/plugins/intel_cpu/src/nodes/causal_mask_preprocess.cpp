@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -19,7 +20,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -61,6 +61,7 @@ template <typename T>
 struct CausalMaskPreprocess::ExecutorCausalMaskPreprocess : public CausalMaskPreprocess::Executor {
     void execute([[maybe_unused]] const dnnl::stream& strm,
                  intel_cpu::Node* pnode,
+                 const CpuParallelPtr& cpu_parallel,
                  [[maybe_unused]] const intel_cpu::CausalMaskPreprocessNode::Config& config) override {
         ov::intel_cpu::PlainTensor t_attention_mask(pnode->getSrcMemoryAtPort(0));
         ov::intel_cpu::PlainTensor t_batch_size(pnode->getSrcMemoryAtPort(1));
@@ -91,7 +92,7 @@ struct CausalMaskPreprocess::ExecutorCausalMaskPreprocess : public CausalMaskPre
         auto* prow = t_cache_positions.ptr<int32_t>(0);
         T min_dtype = std::numeric_limits<T>::lowest();
 
-        parallel_for2d(batch_size, qLen, [&](size_t n, size_t i) {
+        cpu_parallel->parallel_for2d(batch_size, qLen, [&](size_t n, size_t i) {
             auto* pamask = t_attention_mask.ptr<int32_t>(n, 0);
             auto* pdst = t_dst.ptr<T>(n, 0, i);
             auto row = static_cast<size_t>(prow[i]);
@@ -176,7 +177,7 @@ void CausalMaskPreprocess::initSupportedPrimitiveDescriptors() {
 }
 
 void CausalMaskPreprocess::execute(const dnnl::stream& strm) {
-    m_executor->execute(strm, this, m_config);
+    m_executor->execute(strm, this, context->getCpuParallel(), m_config);
 }
 
 }  // namespace ov::intel_cpu::node

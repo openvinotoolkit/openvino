@@ -172,7 +172,7 @@ protected:
         auto weiData = generateSparseVector(ov::shape_size(inShapeB.get_shape()), weiSparseRate);
         auto matMul = makeMatMulRelaxed(params[0], inShapeB, weiType, transpA, transpB, weiData);
 
-        function = makeNgraphFunction(element::f32, params, matMul, cpuNodeType);
+        function = create_ov_model(element::f32, params, matMul, cpuNodeType);
 
         checkFusingPosition = false;
 

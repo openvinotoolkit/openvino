@@ -88,7 +88,7 @@ protected:
         std::vector<ov::Shape> WRB = {{4 * hiddenSize, inputSize}, {4 * hiddenSize, hiddenSize}, {4 * hiddenSize}};
         auto lstmCellOp = utils::make_lstm(paramsOuts, WRB, hiddenSize, activations, {}, {}, clip);
 
-        function = makeNgraphFunction(netPrecision, params, lstmCellOp, "LSTMCell");
+        function = create_ov_model(netPrecision, params, lstmCellOp, "LSTMCell");
     }
 };
 
