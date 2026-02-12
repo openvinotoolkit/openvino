@@ -365,6 +365,24 @@ protected:
         auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
         auto dq = qp.build_dq(convert2, quantization_precision);
 
+        // Insert a fine-grained FQ (65535 levels, NOT stripped since levels_to_strip={65536})
+        // in the forward propagation path. This tests that forward propagation correctly
+        // adjusts un-stripped FQ ranges.
+        // Using 65535 levels (not 65536) ensures this FQ is NOT stripped.
+        // Range is chosen so y_scale is barely > 1 (minimizing quantization error)
+        // but after forward propagation divides by 10, y_scale drops well below 1.
+        // For u16: DQ output is non-negative, so use range [0, 65600]:
+        //   y_scale = 65600/65534 ≈ 1.001, after /10 ≈ 0.100 < threshold.
+        // For i16: DQ output is symmetric, so use range [-32800, 32800]:
+        //   y_scale = 65600/65534 ≈ 1.001, after /10 ≈ 0.100 < threshold.
+        float fq_lo = (quantization_precision == ov::element::u16) ? 0.f : -32800.f;
+        float fq_hi = (quantization_precision == ov::element::u16) ? 65600.f : 32800.f;
+        auto fq_pass_il = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_lo});
+        auto fq_pass_ih = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_hi});
+        auto fq_pass_ol = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_lo});
+        auto fq_pass_oh = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_hi});
+        auto fq_pass = std::make_shared<ov::op::v0::FakeQuantize>(dq, fq_pass_il, fq_pass_ih, fq_pass_ol, fq_pass_oh, 65535);
+
         // Helper lambda to create a residual block
         auto create_residual_block = [&](const ov::Output<ov::Node>& input, size_t seed) {
             auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {3}, {1, 2, 3});
@@ -386,7 +404,7 @@ protected:
             return std::make_shared<ov::op::v1::Add>(conv_biased, input);
         };
 
-        auto add1 = create_residual_block(dq, 2);
+        auto add1 = create_residual_block(fq_pass, 2);
         auto add2 = create_residual_block(add1, 3);
         auto add3 = create_residual_block(add2, 4);
 
@@ -454,7 +472,10 @@ protected:
                 quantize_count++;
             }
         }
-        const size_t expected_quantize_count = 0;
+        const auto& [input_shape, input_precision, quantization_precision, pattern_type] = GetParam();
+        // NeedScalingResidualBlock has an int8 FQ (256 levels) that is NOT stripped
+        // (only int16 FQs with 65536 levels are stripped). It remains as a Quantize node.
+        const size_t expected_quantize_count = (pattern_type == PatternType::NeedScalingResidualBlock) ? 1 : 0;
         ASSERT_EQ(quantize_count, expected_quantize_count) << "Unexpected Quantize node count.";
     }
 };

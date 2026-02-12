@@ -382,11 +382,24 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         }
     };
 
+    // Forward visited set: tracks nodes reached during forward propagation.
+    // Declared here (outside the loop) so the forward_propagate_callback can capture it.
+    // Cleared before each forward propagation pass.
+    std::unordered_set<ov::Node*> forward_visited;
+
+    // Track FQs that have already been stripped so forward propagation skips them.
+    // After replace_output_update_name, the stripped FQ node is still connected as a consumer
+    // of its input node (only its output consumers were redirected), so forward traversal
+    // would still reach it.
+    std::unordered_set<ov::Node*> stripped_fqs;
+
     // Forward propagation callback: handle Add nodes (backward-propagate into other branch)
     // and FakeQuantize nodes (adjust range constants so scale propagates through)
     auto forward_propagate_callback = [&](ov::Node* node) {
         // Handle un-stripped FakeQuantize: adjust its range constants
         if (ov::is_type<ov::op::v0::FakeQuantize>(node)) {
+            if (stripped_fqs.count(node))
+                return;
             QDQ_DEBUG_LOG << "    [ FORWARD ] Adjusting un-stripped FQ: " << node->get_friendly_name() << std::endl;
             adjust_fq_ranges(node);
             return;
@@ -401,7 +414,9 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         // on branches that haven't been visited yet (the "other" branch of the residual)
         for (size_t i = 0; i < node->get_input_size(); ++i) {
             auto input_node = node->get_input_node_ptr(i);
-            if (visited.count(input_node))
+            // Skip inputs already on the forward path (e.g., skip connections in residual blocks
+            // that already carry scaled values) or already backward-visited
+            if (visited.count(input_node) || forward_visited.count(input_node))
                 continue;
 
             QDQ_DEBUG_LOG << "    [ FORWARD ]   Backward propagating scale=" << current_scale_divisor
@@ -474,6 +489,7 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
 
         QDQ_DEBUG_LOG << "  [ INFO ] Removing FQ: " << fq->get_friendly_name() << std::endl;
         OPENVINO_ASSERT(replace_output_update_name(fq->output(0), fq->input_value(0)), "FQ stripping failed");
+        stripped_fqs.insert(fq.get());
         model_changed = true;
 
         if (y_scale > threshold) {
@@ -492,7 +508,7 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             // that haven't been processed yet — their ranges will be adjusted so their
             // y_scale is recomputed correctly when we reach them in the topological walk).
             QDQ_DEBUG_LOG << "  [ INFO ] --- Forward propagation ---" << std::endl;
-            std::unordered_set<ov::Node*> forward_visited;
+            forward_visited.clear();
             ov::op::util::visit_path_forward(propagation_root.get(), forward_visited,
                                              forward_propagate_callback, forward_skip_predicate);
         }
