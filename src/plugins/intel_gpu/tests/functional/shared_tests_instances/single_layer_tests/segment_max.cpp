@@ -65,6 +65,63 @@ INSTANTIATE_TEST_SUITE_P(smoke_SegmentMax,
                                             targetDevice),
                          SegmentMaxLayerTest::getTestCaseName);
 
+// ---------------------------------------------------------------------------
+// Large-data profiling tests.
+// These are NOT part of smoke tests — run them with --gtest_filter=*perf_SegmentMax*
+// to measure opt vs ref kernel device time on dGPU with meaningful workloads.
+// ---------------------------------------------------------------------------
+
+// Helper: generate sorted segment_ids for N rows spread across S segments.
+static std::vector<int64_t> makeSortedSegIds(int num_rows, int num_segments) {
+    std::vector<int64_t> ids(num_rows);
+    for (int i = 0; i < num_rows; ++i)
+        ids[i] = static_cast<int64_t>(i) * num_segments / num_rows;
+    return ids;
+}
+
+// Custom naming that summarises segment_ids (count+segments) instead of
+// dumping every element — avoids gtest stack overflow on huge vectors.
+static std::string perfTestCaseName(const testing::TestParamInfo<SegmentMaxLayerTestParams>& obj) {
+    const auto& [segmentMaxParams, inputPrecision, targetDevice] = obj.param;
+    const auto& [dataInputShape, segmentIdsValues, numSegments, fillMode] = segmentMaxParams;
+
+    int64_t maxSeg = segmentIdsValues.empty() ? 0 : *std::max_element(segmentIdsValues.begin(), segmentIdsValues.end());
+
+    std::ostringstream result;
+    result << inputPrecision << "_IS=";
+    result << ov::test::utils::partialShape2str({dataInputShape.first}) << "_";
+    result << "TS=(";
+    for (const auto& ts : dataInputShape.second)
+        result << ov::test::utils::vec2str(ts) << "_";
+    result << ")_";
+    result << "rows=" << segmentIdsValues.size() << "_";
+    result << "segs=" << (maxSeg + 1) << "_";
+    result << "numSeg=" << numSegments << "_";
+    result << "fillMode=" << static_cast<int>(fillMode) << "_";
+    result << "dev=" << targetDevice;
+    return result.str();
+}
+
+const std::vector<SegmentMaxSpecificParams> segmentMaxPerfParams = {
+    // 1K rows × 64 inner, 100 segments  →  ref O(1K) per output, opt O(log1K + ~10)
+    {InputShape{{}, {{1024, 64}}}, makeSortedSegIds(1024, 100), -1, ov::op::FillMode::LOWEST},
+    // 10K rows × 128 inner, 500 segments
+    {InputShape{{}, {{10000, 128}}}, makeSortedSegIds(10000, 500), -1, ov::op::FillMode::LOWEST},
+    // 100K rows × 64 inner, 1000 segments  →  ref scans 100K per output (huge)
+    {InputShape{{}, {{100000, 64}}}, makeSortedSegIds(100000, 1000), -1, ov::op::FillMode::LOWEST},
+    // 100K rows × 1 inner (scalar reduction), 2000 segments
+    {InputShape{{}, {{100000}}}, makeSortedSegIds(100000, 2000), -1, ov::op::FillMode::ZERO},
+    // 50K rows × 256 inner, 5000 segments — wide inner dim stresses memory bandwidth
+    {InputShape{{}, {{50000, 256}}}, makeSortedSegIds(50000, 5000), -1, ov::op::FillMode::LOWEST},
+};
+
+INSTANTIATE_TEST_SUITE_P(perf_SegmentMax,
+                         SegmentMaxLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(segmentMaxPerfParams),
+                                            testing::Values(ElementType::f32),
+                                            targetDevice),
+                         perfTestCaseName);
+
 }  // namespace
 }  // namespace test
 }  // namespace ov
