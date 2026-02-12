@@ -79,9 +79,9 @@ void visit_path(ov::Node* node,
 }
 
 void visit_path_forward(ov::Node* node,
-                       std::unordered_set<ov::Node*>& visited,
-                       std::function<void(ov::Node*)> func,
-                       std::function<bool(ov::Node*)> skip_node_predicate) {
+                        std::unordered_set<ov::Node*>& visited,
+                        std::function<void(ov::Node*)> func,
+                        std::function<bool(ov::Node*)> skip_node_predicate) {
     if (!node)
         return;
     visited.insert(node);

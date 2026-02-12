@@ -467,7 +467,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             using namespace ov::element;
             // QDQ stripping pipeline
             // 1. Fuse FQ->Convert->DQ to a single FQ
-            qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16}, TypeVector{f32}, true);
+            qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16},
+                                                                                     TypeVector{f32},
+                                                                                     true);
             // 2. Strip FQ layers with unsupported levels
             qdq_stripping_manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16});
             qdq_stripping_manager.run_passes(model);
