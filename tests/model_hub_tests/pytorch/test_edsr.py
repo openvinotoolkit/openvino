@@ -6,33 +6,11 @@ import os
 import pytest
 import random
 import torch
-from huggingface_hub import snapshot_download
 from models_hub_common.constants import hf_cache_dir, clean_hf_cache_dir
 from models_hub_common.utils import cleanup_dir
 
 from torch_utils import TestTorchConvertModel
-from super_image import ImageLoader, EdsrModel, MsrnModel, A2nModel, PanModel, CarnModel, DrlnModel, MdsrModel, HanModel, AwsrnModel, RnanModel, MasaModel, JiifModel, LiifModel, SmsrModel, RcanModel, DrnModel, PhysicssrModel, DdbpnModel
 from PIL import Image
-import requests
-
-name_to_class = {
-    "a2n": A2nModel,
-    "awsrn-bam": AwsrnModel,
-    "carn": CarnModel,
-    "carn-bam": CarnModel,
-    "drln": DrlnModel,
-    "drln-bam": DrlnModel,
-    "edsr": EdsrModel,
-    "edsr-base": EdsrModel,
-    "msrn": MsrnModel,
-    "mdsr": MdsrModel,
-    "msrn-bam": MsrnModel,
-    "mdsr-bam": MdsrModel,
-    "pan": PanModel,
-    "pan-bam": PanModel,
-    "rcan-bam": RcanModel,
-    "han": HanModel,
-}
 
 # To make tests reproducible we seed the random generator
 torch.manual_seed(0)
@@ -40,14 +18,38 @@ torch.manual_seed(0)
 
 class TestEdsrConvertModel(TestTorchConvertModel):
     def load_model(self, model_name, model_link):
-        # image link from https://github.com/eugenesiow/super-image
-        url = 'https://paperswithcode.com/media/datasets/Set5-0000002728-07a9793f_zA3bDjj.jpg'
-        image = Image.open(requests.get(url, stream=True).raw)
+        import requests
+        from super_image import (ImageLoader, EdsrModel, MsrnModel, A2nModel,
+                                  PanModel, CarnModel, DrlnModel, MdsrModel,
+                                  HanModel, AwsrnModel, RcanModel)
+
+        name_to_class = {
+            "a2n": A2nModel,
+            "awsrn-bam": AwsrnModel,
+            "carn": CarnModel,
+            "carn-bam": CarnModel,
+            "drln": DrlnModel,
+            "drln-bam": DrlnModel,
+            "edsr": EdsrModel,
+            "edsr-base": EdsrModel,
+            "msrn": MsrnModel,
+            "mdsr": MdsrModel,
+            "msrn-bam": MsrnModel,
+            "mdsr-bam": MdsrModel,
+            "pan": PanModel,
+            "pan-bam": PanModel,
+            "rcan-bam": RcanModel,
+            "han": HanModel,
+        }
+
+        url = "http://images.cocodataset.org/val2017/000000039769.jpg"
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+        image = Image.open(response.raw)
         assert model_name in name_to_class, "Unexpected model name"
         print(f"scale: {self.scale}")
-        model_cached = snapshot_download(f'eugenesiow/{model_name}')  # required to avoid HF rate limits
         model = name_to_class[model_name].from_pretrained(
-            model_cached, scale=self.scale)
+            f'eugenesiow/{model_name}', scale=self.scale)
         inputs = ImageLoader.load_image(image)
         self.example = (torch.randn_like(inputs),)
         self.inputs = (inputs,)
@@ -59,7 +61,6 @@ class TestEdsrConvertModel(TestTorchConvertModel):
             cleanup_dir(hf_cache_dir)
         super().teardown_method()
 
-    @pytest.mark.skip(reason="CVS-171175")
     @pytest.mark.parametrize("name", ["edsr"])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, ie_device):
