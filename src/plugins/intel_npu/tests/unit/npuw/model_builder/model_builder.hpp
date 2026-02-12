@@ -265,7 +265,8 @@ ov::Output<ov::Node> make_repeat_kv(const ov::Output<ov::Node>& kv,
                                     size_t num_heads,
                                     size_t num_kv_heads,
                                     size_t head_dim,
-                                    const std::string& name);
+                                    const std::string& name,
+                                    const ov::Output<ov::Node>& shared_broadcast_shape = {});
 
 /// Create KV cache read state: Variable + init(zeros) + ReadValue + Gather(beam_idx)
 KVCacheReadState make_kv_cache_read(const ov::Output<ov::Node>& batch_source,
@@ -285,11 +286,14 @@ KVCacheResult make_kv_cache_concat(const ov::Output<ov::Node>& current_kv,
                                    ov::element::Type precision = ov::element::f32);
 
 /// Compute scaled dot-product attention using native SDPA v13 op
+/// When head_dim_for_scale > 0, creates a 5-input SDPA with explicit scale constant
+/// (required for embedding model ReConstructEmbeddingModel pattern matching)
 ov::Output<ov::Node> make_sdpa(const ov::Output<ov::Node>& q,
                                const ov::Output<ov::Node>& k,
                                const ov::Output<ov::Node>& v,
                                const std::string& name,
-                               const ov::Output<ov::Node>& attention_mask = ov::Output<ov::Node>());
+                               const ov::Output<ov::Node>& attention_mask = ov::Output<ov::Node>(),
+                               size_t head_dim_for_scale = 0);
 
 /// Attention output: transpose back + reshape [batch, seq, hidden] + O projection
 ov::Output<ov::Node> make_attention_output(const ov::Output<ov::Node>& sdpa_output,
@@ -339,7 +343,7 @@ KVCacheResult make_encoder_kv_cache(const ov::Output<ov::Node>& encoder_kv,
 // ============================================================================
 
 /// Unified attention mechanism: Q/K/V proj -> reshape -> optional QK-norm ->
-/// optional RoPE -> transpose -> optional KV cache -> GQA repeat -> SDPA -> O proj.
+/// transpose -> optional RoPE -> optional KV cache -> GQA repeat -> SDPA -> O proj.
 /// Handles self-attention, cross-attention, and all cache modes.
 struct Attention {
     // Dimensions
@@ -372,6 +376,10 @@ struct Attention {
 
     // Mask
     ov::Output<ov::Node> sdpa_mask;
+
+    // Shared GQA broadcast shape (embedding models): when set, always do Unsqueeze→Broadcast→Reshape
+    // even for MHA (n_rep=1), using this shared Concat node so all SDPA nodes reference the same shape.
+    ov::Output<ov::Node> shared_broadcast_shape;
 
     // Projection naming (defaults = LLM-style)
     std::string q_proj_name = "self_attn.q_proj";

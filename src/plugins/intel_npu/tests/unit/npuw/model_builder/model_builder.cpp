@@ -214,7 +214,8 @@ RoPEEmbeddings gather_rope_embeddings(size_t head_dim,
     auto sin_embed = std::make_shared<ov::opset11::Gather>(sin_table, position_ids, gather_axis, 0);
     sin_embed->set_friendly_name(name + "_sin_gather");
 
-    auto unsqueeze_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+    // Axis 1 broadcasts over heads in post-transpose layout [batch, heads, seq, head_dim]
+    auto unsqueeze_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1});
 
     auto cos_unsqueezed = std::make_shared<ov::opset11::Unsqueeze>(cos_embed, unsqueeze_axis);
     cos_unsqueezed->set_friendly_name(name + "_cos_unsqueeze");
@@ -364,39 +365,46 @@ ov::Output<ov::Node> make_repeat_kv(const ov::Output<ov::Node>& kv,
                                     size_t num_heads,
                                     size_t num_kv_heads,
                                     size_t head_dim,
-                                    const std::string& name) {
-    if (num_kv_heads == 0 || num_heads == num_kv_heads) {
+                                    const std::string& name,
+                                    const ov::Output<ov::Node>& shared_broadcast_shape) {
+    const size_t actual_kv_heads = (num_kv_heads == 0) ? num_heads : num_kv_heads;
+    const size_t n_rep = num_heads / actual_kv_heads;
+
+    // Skip expansion only when no shared shape and MHA (n_rep=1)
+    if (!shared_broadcast_shape.get_node() && n_rep == 1) {
         return kv;
     }
 
-    OPENVINO_ASSERT(num_heads % num_kv_heads == 0,
-                    "num_heads (", num_heads, ") must be divisible by num_kv_heads (", num_kv_heads, ")");
+    OPENVINO_ASSERT(num_heads % actual_kv_heads == 0,
+                    "num_heads (", num_heads, ") must be divisible by num_kv_heads (", actual_kv_heads, ")");
 
-    const size_t n_rep = num_heads / num_kv_heads;
-
-    auto shape_of_kv = std::make_shared<ov::opset11::ShapeOf>(kv, ov::element::i64);
-
-    auto gather_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
-
-    auto idx_01 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
-    auto batch_kv_heads = std::make_shared<ov::opset11::Gather>(shape_of_kv, idx_01, gather_axis);
-
-    auto n_rep_const = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(n_rep)});
-
-    auto idx_23 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{2}, {2, 3});
-    auto seq_head_dim = std::make_shared<ov::opset11::Gather>(shape_of_kv, idx_23, gather_axis);
-
-    auto broadcast_shape =
-        std::make_shared<ov::opset11::Concat>(ov::OutputVector{batch_kv_heads, n_rep_const, seq_head_dim}, 0);
-    broadcast_shape->set_friendly_name(name + "_broadcast_shape");
+    // Use shared shape if provided, otherwise compute per-layer
+    ov::Output<ov::Node> broadcast_shape_output;
+    if (shared_broadcast_shape.get_node()) {
+        broadcast_shape_output = shared_broadcast_shape;
+    } else {
+        auto shape_of_kv = std::make_shared<ov::opset11::ShapeOf>(kv, ov::element::i64);
+        auto gather_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
+        auto idx_01 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
+        auto batch_kv_heads = std::make_shared<ov::opset11::Gather>(shape_of_kv, idx_01, gather_axis);
+        auto n_rep_const =
+            ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(n_rep)});
+        auto idx_23 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{2}, {2, 3});
+        auto seq_head_dim = std::make_shared<ov::opset11::Gather>(shape_of_kv, idx_23, gather_axis);
+        auto broadcast_shape =
+            std::make_shared<ov::opset11::Concat>(ov::OutputVector{batch_kv_heads, n_rep_const, seq_head_dim}, 0);
+        broadcast_shape->set_friendly_name(name + "_broadcast_shape");
+        broadcast_shape_output = broadcast_shape->output(0);
+    }
 
     auto unsqueeze_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {2});
 
     auto unsqueezed = std::make_shared<ov::opset11::Unsqueeze>(kv, unsqueeze_axis);
     unsqueezed->set_friendly_name(name + "_unsqueeze");
 
-    auto broadcasted =
-        std::make_shared<ov::op::v3::Broadcast>(unsqueezed, broadcast_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+    auto broadcasted = std::make_shared<ov::op::v3::Broadcast>(unsqueezed,
+                                                                broadcast_shape_output,
+                                                                ov::op::BroadcastType::BIDIRECTIONAL);
     broadcasted->set_friendly_name(name + "_broadcast");
 
     auto new_shape = ov::opset11::Constant::create(
@@ -483,9 +491,16 @@ ov::Output<ov::Node> make_sdpa(const ov::Output<ov::Node>& q,
                                const ov::Output<ov::Node>& k,
                                const ov::Output<ov::Node>& v,
                                const std::string& name,
-                               const ov::Output<ov::Node>& attention_mask) {
+                               const ov::Output<ov::Node>& attention_mask,
+                               size_t head_dim_for_scale) {
     std::shared_ptr<ov::op::v13::ScaledDotProductAttention> sdpa;
-    if (attention_mask.get_node()) {
+    if (head_dim_for_scale > 0 && attention_mask.get_node()) {
+        // 5-input SDPA: Q, K, V, mask, scale (required for embedding model pattern matching)
+        auto scale_val = 1.0f / std::sqrt(static_cast<float>(head_dim_for_scale));
+        auto scale = ov::opset11::Constant::create(ov::element::f32, ov::Shape{}, {scale_val});
+        scale->set_friendly_name(name + ".scale");
+        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, attention_mask, scale, false);
+    } else if (attention_mask.get_node()) {
         sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, attention_mask, false);
     } else {
         sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, false);
@@ -678,22 +693,22 @@ LayerResult Attention::operator()(const ov::Output<ov::Node>& input, const std::
         k_normed = qk_norm(k_reshaped, prefix + "self_attn.k_norm");
     }
 
-    // Apply RoPE to Q and K (after QK-norm, before transpose)
-    ov::Output<ov::Node> q_for_trans = q_normed;
-    ov::Output<ov::Node> k_for_trans = k_normed;
-    if (position_ids.get_node() != nullptr && rope_fn) {
-        q_for_trans = rope_fn(q_normed, position_ids, prefix + "q_rope");
-        k_for_trans = rope_fn(k_normed, position_ids, prefix + "k_rope");
-    }
-
-    // Transpose: [batch, seq, heads, dim] -> [batch, heads, seq, dim]
-    auto q_trans = make_attention_transpose(q_for_trans, prefix + "q_transpose");
-    auto k_trans = make_attention_transpose(k_for_trans, prefix + "k_transpose");
+    // Transpose first: [batch, seq, heads, dim] -> [batch, heads, seq, dim]
+    auto q_trans = make_attention_transpose(q_normed, prefix + "q_transpose");
+    auto k_trans = make_attention_transpose(k_normed, prefix + "k_transpose");
     auto v_trans = make_attention_transpose(v_reshaped, prefix + "v_transpose");
+
+    // Apply RoPE to Q and K (after transpose, on [batch, heads, seq, dim])
+    ov::Output<ov::Node> q_roped = q_trans;
+    ov::Output<ov::Node> k_roped = k_trans;
+    if (position_ids.get_node() != nullptr && rope_fn) {
+        q_roped = rope_fn(q_trans, position_ids, prefix + "q_rope");
+        k_roped = rope_fn(k_trans, position_ids, prefix + "k_rope");
+    }
 
     // KV cache
     std::vector<std::shared_ptr<ov::Node>> sinks;
-    ov::Output<ov::Node> k_for_attn = k_trans;
+    ov::Output<ov::Node> k_for_attn = k_roped;
     ov::Output<ov::Node> v_for_attn = v_trans;
 
     if (cache_mode == CacheMode::ConcatBeam) {
@@ -704,14 +719,14 @@ LayerResult Attention::operator()(const ov::Output<ov::Node>& input, const std::
         if (prebuilt_k_variable) {
             // Reuse pre-built Variable/ReadValue/beam_gather (layer 0 key cache)
             auto k_concat = std::make_shared<ov::opset11::Concat>(
-                ov::OutputVector{prebuilt_k_beam_gather, k_trans}, 2);
+                ov::OutputVector{prebuilt_k_beam_gather, k_roped}, 2);
             k_concat->set_friendly_name(k_var_id + "_concat");
             auto k_assign = std::make_shared<ov::op::v6::Assign>(k_concat, prebuilt_k_variable);
             k_assign->set_friendly_name(k_var_id + "_assign");
             k_cache = {k_concat->output(0), prebuilt_k_beam_gather, k_assign};
         } else {
             k_cache = make_kv_cache_concat(
-                k_trans, batch_source, beam_idx, num_kv_heads, head_dim, k_var_id, precision);
+                k_roped, batch_source, beam_idx, num_kv_heads, head_dim, k_var_id, precision);
         }
 
         auto v_cache = make_kv_cache_concat(
@@ -725,7 +740,7 @@ LayerResult Attention::operator()(const ov::Output<ov::Node>& input, const std::
     } else if (cache_mode == CacheMode::StoreOnly) {
         auto layer_str = std::to_string(layer_idx);
         auto k_cache = make_encoder_kv_cache(
-            k_trans, num_kv_heads, head_dim,
+            k_roped, num_kv_heads, head_dim,
             make_kv_var_id(layer_str, cache_infix, "key"), precision);
         auto v_cache = make_encoder_kv_cache(
             v_trans, num_kv_heads, head_dim,
@@ -737,11 +752,16 @@ LayerResult Attention::operator()(const ov::Output<ov::Node>& input, const std::
     }
 
     // For GQA: repeat K/V heads to match Q head count
-    auto k_expanded = make_repeat_kv(k_for_attn, num_heads, num_kv_heads, head_dim, prefix + "k_repeat");
-    auto v_expanded = make_repeat_kv(v_for_attn, num_heads, num_kv_heads, head_dim, prefix + "v_repeat");
+    auto k_expanded = make_repeat_kv(k_for_attn, num_heads, num_kv_heads, head_dim, prefix + "k_repeat",
+                                     shared_broadcast_shape);
+    auto v_expanded = make_repeat_kv(v_for_attn, num_heads, num_kv_heads, head_dim, prefix + "v_repeat",
+                                     shared_broadcast_shape);
 
     // SDPA
-    auto attn_output = make_sdpa(q_trans, k_expanded, v_expanded, prefix + "attn", sdpa_mask);
+    // Pass head_dim for scale when in embedding mode (shared_broadcast_shape set)
+    // to create 5-input SDPA matching ReConstructEmbeddingModel pattern
+    size_t sdpa_scale_dim = shared_broadcast_shape.get_node() ? head_dim : 0;
+    auto attn_output = make_sdpa(q_roped, k_expanded, v_expanded, prefix + "self_attn.attn", sdpa_mask, sdpa_scale_dim);
 
     auto o_proj = make_attention_output(attn_output, hidden_size,
                                         prefix + o_proj_name, precision, add_bias, weight_fn);
@@ -1287,6 +1307,14 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
         auto unsqueezed = std::make_shared<ov::opset11::Unsqueeze>(range, unsqueeze_axis);
         unsqueezed->set_friendly_name("model.internal_position_ids");
         position_ids_output = unsqueezed->output(0);
+
+        // Add a disconnected position_ids Parameter for NPUW EmbeddingInferRequest compatibility.
+        // The actual RoPE uses the internal Range above; this Parameter is a no-op input that
+        // EmbeddingInferRequest can find and set without affecting computation.
+        auto pos_param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
+        pos_param->set_friendly_name("position_ids");
+        pos_param->output(0).set_names({"position_ids"});
+        m_parameters.push_back(pos_param);
     } else if (config.position_ids) {
         position_ids_output = config.position_ids();
         // Auto-track any Parameter nodes in the position_ids subgraph
@@ -1318,6 +1346,32 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     // ===== Attention mask =====
     auto sdpa_mask = make_causal_mask(seq_source, attention_mask->output(0), prec);
 
+    // ===== Shared GQA broadcast shape for embedding models =====
+    // ReConstructEmbeddingModel requires all SDPA nodes share the same Broadcast shape Concat.
+    // Build it from attention_mask shape (available to all layers) with 5 individual inputs
+    // so update_kv_concat_shape can replace input(3) = seq with mask-based seq_len.
+    ov::Output<ov::Node> shared_broadcast;
+    if (!config.use_kv_cache && !config.use_lm_head) {
+        const size_t kv_heads = config.get_kv_heads();
+        const size_t n_rep = config.num_heads / kv_heads;
+        auto shape_of_mask = std::make_shared<ov::opset11::ShapeOf>(attention_mask->output(0), ov::element::i64);
+        auto axis0 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
+        auto idx0 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+        auto batch_dim = std::make_shared<ov::opset11::Gather>(shape_of_mask, idx0, axis0);
+        auto idx1 = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        auto seq_dim = std::make_shared<ov::opset11::Gather>(shape_of_mask, idx1, axis0);
+        auto kv_heads_const = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1},
+                                                             {static_cast<int64_t>(kv_heads)});
+        auto n_rep_const = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1},
+                                                          {static_cast<int64_t>(n_rep)});
+        auto head_dim_const = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1},
+                                                             {static_cast<int64_t>(config.head_dim)});
+        auto shared_concat = std::make_shared<ov::opset11::Concat>(
+            ov::OutputVector{batch_dim, kv_heads_const, n_rep_const, seq_dim, head_dim_const}, 0);
+        shared_concat->set_friendly_name("model.shared_gqa_broadcast_shape");
+        shared_broadcast = shared_concat->output(0);
+    }
+
     // ===== MIDDLE: Decoder Layers =====
     ov::Output<ov::Node> current = hidden_states;
     ov::SinkVector all_sinks;
@@ -1334,6 +1388,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
         attn.beam_idx = beam_idx_output;
         attn.layer_idx = layer;
         attn.sdpa_mask = sdpa_mask;
+        attn.shared_broadcast_shape = shared_broadcast;
         auto layer_result = make_decoder_layer(current, config.norm, attn, config.ffn, prefix);
         current = layer_result.output;
 
