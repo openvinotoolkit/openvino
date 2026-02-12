@@ -39,8 +39,13 @@ void CompareTypedBuffers(const memory::ptr& output, const std::vector<T>& expect
     mem_lock<T> output_ptr(output, stream);
     ASSERT_EQ(output_ptr.size(), expected.size());
     for (size_t i = 0; i < expected.size(); ++i) {
-        ASSERT_TRUE(are_equal(expected[i], output_ptr[i], REL_EPS, ABS_EPS))
-            << "at index " << i << " expected=" << expected[i] << " actual=" << output_ptr[i];
+        if constexpr (std::is_floating_point_v<T>) {
+            ASSERT_TRUE(are_equal(expected[i], output_ptr[i], REL_EPS, ABS_EPS))
+                << "at index " << i << " expected=" << expected[i] << " actual=" << output_ptr[i];
+        } else {
+            ASSERT_EQ(expected[i], output_ptr[i])
+                << "at index " << i << " expected=" << expected[i] << " actual=" << output_ptr[i];
+        }
     }
 }
 
@@ -61,7 +66,7 @@ struct SegmentMaxTestParams {
     std::string test_name;
 };
 
-class segment_max_gpu_test : public ::testing::TestWithParam<SegmentMaxTestParams> {
+class SegmentMaxGpuTest : public ::testing::TestWithParam<SegmentMaxTestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<SegmentMaxTestParams>& obj) {
         return obj.param.test_name;
@@ -311,29 +316,29 @@ std::vector<SegmentMaxTestParams> generateSegmentMaxTestParams() {
     return params;
 }
 
-TEST_P(segment_max_gpu_test, ref_comp_f32) {
+TEST_P(SegmentMaxGpuTest, ref_comp_f32) {
     const auto& testParams = GetParam();
     Execute(testParams);
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    segment_max_gpu_test_suite,
-    segment_max_gpu_test,
+    SegmentMaxGpuTestSuite,
+    SegmentMaxGpuTest,
     testing::ValuesIn(generateSegmentMaxTestParams()),
-    segment_max_gpu_test::getTestCaseName
+    SegmentMaxGpuTest::getTestCaseName
 );
 
 // ============================================================================
 // Non-parameterized tests for i64 segment_ids and i32 data type
 // ============================================================================
 
-class segment_max_gpu_type_test : public ::testing::Test {
+class SegmentMaxGpuTypeTest : public ::testing::Test {
 protected:
     engine& engine_ = get_test_engine();
 };
 
 // Test with i64 segment_ids (spec allows i32 or i64 for T_IDX1)
-TEST_F(segment_max_gpu_type_test, i64_segment_ids) {
+TEST_F(SegmentMaxGpuTypeTest, i64_segment_ids) {
     auto stream = get_test_stream_ptr(get_test_default_config(engine_));
 
     std::vector<float> data_values = {1.0f, 5.0f, 3.0f, 2.0f, 8.0f, 4.0f};
@@ -370,7 +375,7 @@ TEST_F(segment_max_gpu_type_test, i64_segment_ids) {
 }
 
 // Test with i32 data type (spec: "any supported numerical data type")
-TEST_F(segment_max_gpu_type_test, i32_data) {
+TEST_F(SegmentMaxGpuTypeTest, i32_data) {
     auto stream = get_test_stream_ptr(get_test_default_config(engine_));
 
     std::vector<int32_t> data_values = {10, 50, 30, 20, 80, 40};
@@ -407,7 +412,7 @@ TEST_F(segment_max_gpu_type_test, i32_data) {
 }
 
 // Test with i32 data type and fill_mode = LOWEST (empty segment)
-TEST_F(segment_max_gpu_type_test, i32_data_lowest_fill) {
+TEST_F(SegmentMaxGpuTypeTest, i32_data_lowest_fill) {
     auto stream = get_test_stream_ptr(get_test_default_config(engine_));
 
     std::vector<int32_t> data_values = {10, 20, 30, 40};
