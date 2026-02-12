@@ -16,3 +16,7 @@ ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 ov_developer_package_export_targets(TARGET openvino::shutdown
                                     INSTALL_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/")
+
+if (ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()
