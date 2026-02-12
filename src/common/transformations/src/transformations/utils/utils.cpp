@@ -78,6 +78,33 @@ void visit_path(ov::Node* node,
     }
 }
 
+void visit_path_forward(ov::Node* node,
+                       std::unordered_set<ov::Node*>& visited,
+                       std::function<void(ov::Node*)> func,
+                       std::function<bool(ov::Node*)> skip_node_predicate) {
+    if (!node)
+        return;
+    visited.insert(node);
+    std::deque<ov::Node*> nodes{node};
+    while (!nodes.empty()) {
+        auto curr_node = nodes.front();
+        nodes.pop_front();
+        if (skip_node_predicate(curr_node))
+            continue;
+
+        func(curr_node);
+        for (auto& output : curr_node->outputs()) {
+            for (auto& target_input : output.get_target_inputs()) {
+                auto consumer = target_input.get_node();
+                if (visited.count(consumer))
+                    continue;
+                nodes.push_back(consumer);
+                visited.insert(consumer);
+            }
+        }
+    }
+}
+
 bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float& value, bool check_value_range) {
     switch (const_node->get_element_type()) {
     case element::Type_t::f16:
