@@ -59,14 +59,17 @@ def download(test_data_dir, file_path):
                 if not file_path.exists():
                     if test_data_dir / 'bvlcalexnet-12.onnx' == file_path:
                         response = requests.get("https://media.githubusercontent.com/media/onnx/models/4c46cd00fbdb7cd30b6c1c17ab54f2e1f4f7b177/validated/vision/classification/alexnet/model/bvlcalexnet-12.onnx?download=true")
+                        response.raise_for_status()
                         with file_path.open('wb') as nfnet:
                             nfnet.write(response.content)
                     elif test_data_dir / 'efficientnet-lite4-11-qdq.onnx' == file_path:
                         response = requests.get("https://media.githubusercontent.com/media/onnx/models/4c46cd00fbdb7cd30b6c1c17ab54f2e1f4f7b177/validated/vision/classification/efficientnet-lite4/model/efficientnet-lite4-11-qdq.onnx?download=true")
+                        response.raise_for_status()
                         with file_path.open('wb') as nfnet:
                             nfnet.write(response.content)
                     else:
                         response = requests.get("https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/2021.4/samples_smoke_tests_data_2021.4.zip")
+                        response.raise_for_status()
                         with zipfile.ZipFile(io.BytesIO(response.content)) as zfile:
                             zfile.extractall(test_data_dir)
                         cv2.imwrite(str(test_data_dir / 'dog-224x224.bmp'), cv2.resize(cv2.imread(str(test_data_dir / 'samples_smoke_tests_data_2021.4/validation_set/227x227/dog.bmp')), (224, 224)))
