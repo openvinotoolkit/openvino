@@ -739,7 +739,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         OPENVINO_ASSERT(pa_arguments.size() == 25);
 
         // token_type_ids for bidirectional attention within image token groups (e.g. Gemma3 VLM).
-        // Only add the 26th input when the model actually has token_type_ids
+        // If the model has a token_type_ids parameter, reshape+convert it; otherwise default to all-zeros (text).
         if (optional_model_wide_params.find("token_type_ids") != optional_model_wide_params.end()) {
             auto param = optional_model_wide_params.at("token_type_ids");
             // GenAI provides token_type_ids as {1, N} i64, but PA expects {B_token} i32.
@@ -747,8 +747,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             auto reshaped = std::make_shared<v1::Reshape>(param, reshape_target, false);
             auto converted = std::make_shared<v0::Convert>(reshaped, element::i32);
             pa_arguments.insert(pa_arguments.begin() + 25, converted);
-            OPENVINO_ASSERT(pa_arguments.size() == 26);
+        } else {
+            // Default: all-zero (text) token types — standard causal attention.
+            pa_arguments.insert(pa_arguments.begin() + 25, v0::Constant::create(element::i32, Shape{0}, {}));
         }
+        OPENVINO_ASSERT(pa_arguments.size() == 26);
 
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
         paged_attention->get_rt_info()[NUM_K_HEADS] = num_k_heads;

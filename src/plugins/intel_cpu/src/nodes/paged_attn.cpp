@@ -99,7 +99,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    CPU_NODE_ASSERT(orgInputNumber == 25U || orgInputNumber == 26U, "The input number of PagedAttention should be 25 or 26.");
+    CPU_NODE_ASSERT(orgInputNumber == 26U, "The input number of PagedAttention should be 26.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
     auto past_value_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
@@ -208,12 +208,10 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
                 getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS)));
 
     // token_type_ids, int32, [B_token | 0]
-    if (orgInputNumber == 26U) {
-        config.inConfs[PagedAttentionExecutor::ID_TOKEN_TYPE_IDS].setMemDesc(
-            creatorsMap.at(LayoutType::ncsp)
-                ->createSharedDesc(ov::element::i32,
-                                   getInputShapeAtPort(PagedAttentionExecutor::ID_TOKEN_TYPE_IDS)));
-    }
+    config.inConfs[PagedAttentionExecutor::ID_TOKEN_TYPE_IDS].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32,
+                               getInputShapeAtPort(PagedAttentionExecutor::ID_TOKEN_TYPE_IDS)));
 
     config.outConfs[2].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getOutputShapeAtPort(2)));

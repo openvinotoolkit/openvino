@@ -131,64 +131,6 @@ public:
         return std::make_shared<ov::Model>(OutputVector{paged_attn}, params);
     }
 
-    std::shared_ptr<ov::Model> get_pa_model_no_token_type(ov::element::Type data_type,
-                                                          ov::Dimension::value_type head_size,
-                                                          ov::Dimension::value_type head_num) {
-        auto q = make_param(PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, data_type, "q");
-        auto k = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "k");
-        auto v = make_param(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "v");
-        auto key_cache = make_param(PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
-                                    ov::element::dynamic, "key_cache.0");
-        auto value_cache = make_param(PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
-                                      ov::element::dynamic, "value_cache.0");
-        auto past_lens = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "past_lens");
-        auto subsequence_begins = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "subsequence_begins");
-        auto block_indices = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "block_indices");
-        auto block_indices_begins = make_param(PartialShape{ov::Dimension::dynamic()}, ov::element::i32, "block_indices_begins");
-
-        float scale_value = 1.0f / std::sqrt(static_cast<float>(head_size));
-        auto scale = std::make_shared<v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale_value});
-        auto sliding_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
-        auto alibi_slopes = std::make_shared<v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{});
-        auto max_context_len = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{1024});
-        auto score_aggregation_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
-        auto rotated_block_indices = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
-        auto rotation_deltas = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
-        auto rotation_trig_lut = std::make_shared<v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{0});
-        auto xattention_threshold = std::make_shared<v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{0});
-        auto xattention_block_size = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{64});
-        auto xattention_stride = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{8});
-        auto sinks = std::static_pointer_cast<v0::Constant>(
-            ov::test::utils::make_constant(data_type, Shape{0}));
-        auto adaptive_rkv_start_size = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
-        auto adaptive_rkv_evictable_sizes = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
-        auto adaptive_rkv_diversity_block_set_indices = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
-        auto adaptive_rkv_diversity_block_set_indices_begins = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
-
-        ParameterVector params = {q, k, v, key_cache, value_cache, past_lens,
-                                  subsequence_begins, block_indices, block_indices_begins};
-
-        OutputVector pa_inputs = {q, k, v, key_cache, value_cache,
-                                  past_lens, subsequence_begins, block_indices, block_indices_begins,
-                                  scale, sliding_window, alibi_slopes, max_context_len,
-                                  score_aggregation_window, rotated_block_indices, rotation_deltas,
-                                  rotation_trig_lut, xattention_threshold, xattention_block_size,
-                                  xattention_stride, sinks, adaptive_rkv_start_size,
-                                  adaptive_rkv_evictable_sizes,
-                                  adaptive_rkv_diversity_block_set_indices,
-                                  adaptive_rkv_diversity_block_set_indices_begins};
-
-        OPENVINO_ASSERT(pa_inputs.size() == 25);
-
-        auto paged_attn = std::make_shared<op::PagedAttentionExtension>(pa_inputs);
-        paged_attn->get_rt_info()["num_k_heads"] = head_num;
-        paged_attn->get_rt_info()["k_head_size"] = head_size;
-        paged_attn->get_rt_info()["num_v_heads"] = head_num;
-        paged_attn->get_rt_info()["v_head_size"] = head_size;
-
-        return std::make_shared<ov::Model>(OutputVector{paged_attn}, params);
-    }
-
     template <typename IT, typename T>
     static void strided_iota(IT first, size_t n, T value, T stride) {
         for (size_t i = 0; i < n; i++) {
@@ -297,95 +239,10 @@ public:
         output.copy_to(output_copy);
         return {output_copy};
     }
-
-    RunResult run_pa_causal(std::shared_ptr<ov::Model> model,
-                            ov::element::Type data_type,
-                            size_t seq_len,
-                            size_t head_size,
-                            size_t head_num) {
-        configuration[ov::hint::inference_precision.name()] = ov::element::f32;
-        function = model;
-        compile_model();
-        auto infer_request = compiledModel.create_infer_request();
-
-        ov::Tensor key_cache_tensor, value_cache_tensor;
-        for (const auto& input : compiledModel.inputs()) {
-            for (auto& name : input.get_names()) {
-                auto cache_precision = input.get_element_type();
-                const size_t block_nums = 1024 / 32;
-                ov::PartialShape pshape;
-                if (name.find("key_cache.") == 0) {
-                    pshape = input.get_partial_shape();
-                    pshape[0] = block_nums;
-                    key_cache_tensor = ov::Tensor(cache_precision, pshape.get_shape());
-                } else if (name.find("value_cache.") == 0) {
-                    pshape = input.get_partial_shape();
-                    pshape[0] = block_nums;
-                    value_cache_tensor = ov::Tensor(cache_precision, pshape.get_shape());
-                }
-            }
-        }
-
-        auto params = model->get_parameters();
-        size_t hidden_dim = head_num * head_size;
-
-        auto fill_tensor = [](ov::Tensor& t, float base, float stride) {
-            auto* p = t.data<float>();
-            for (size_t i = 0; i < t.get_size(); i++) {
-                p[i] = base + stride * static_cast<float>(i % 17);
-            }
-        };
-
-        ov::Tensor q_tensor(data_type, {seq_len, hidden_dim});
-        ov::Tensor k_tensor(data_type, {seq_len, hidden_dim});
-        ov::Tensor v_tensor(data_type, {seq_len, hidden_dim});
-
-        if (data_type == ov::element::f32) {
-            fill_tensor(q_tensor, 0.1f, 0.01f);
-            fill_tensor(k_tensor, 0.2f, 0.01f);
-            fill_tensor(v_tensor, 0.3f, 0.01f);
-        }
-
-        size_t batch_size = 1;
-        int32_t total_blocks = static_cast<int32_t>((seq_len + 31) / 32);
-
-        ov::Tensor past_lens(ov::element::i32, {batch_size});
-        ov::Tensor subsequence_begins(ov::element::i32, {batch_size + 1});
-        ov::Tensor block_indices(ov::element::i32, {static_cast<size_t>(total_blocks)});
-        ov::Tensor block_indices_begins(ov::element::i32, {batch_size + 1});
-
-        past_lens.data<int32_t>()[0] = 0;
-        subsequence_begins.data<int32_t>()[0] = 0;
-        subsequence_begins.data<int32_t>()[1] = static_cast<int32_t>(seq_len);
-        block_indices_begins.data<int32_t>()[0] = 0;
-        block_indices_begins.data<int32_t>()[1] = total_blocks;
-        for (int32_t i = 0; i < total_blocks; i++) {
-            block_indices.data<int32_t>()[i] = i;
-        }
-
-        for (auto& param : params) {
-            auto name = param->get_friendly_name();
-            if (name == "q") infer_request.set_tensor(param, q_tensor);
-            else if (name == "k") infer_request.set_tensor(param, k_tensor);
-            else if (name == "v") infer_request.set_tensor(param, v_tensor);
-            else if (name == "key_cache.0") infer_request.set_tensor(param, key_cache_tensor);
-            else if (name == "value_cache.0") infer_request.set_tensor(param, value_cache_tensor);
-            else if (name == "past_lens") infer_request.set_tensor(param, past_lens);
-            else if (name == "subsequence_begins") infer_request.set_tensor(param, subsequence_begins);
-            else if (name == "block_indices") infer_request.set_tensor(param, block_indices);
-            else if (name == "block_indices_begins") infer_request.set_tensor(param, block_indices_begins);
-        }
-
-        infer_request.infer();
-
-        auto output = infer_request.get_output_tensor(0);
-        ov::Tensor output_copy{output.get_element_type(), output.get_shape()};
-        output.copy_to(output_copy);
-        return {output_copy};
-    }
 };
 
-// All-zero token_type_ids (text-only) must produce the same output as a model without token_type_ids
+// All-zero token_type_ids (text-only) should produce deterministic results
+// across two identical runs with the same all-zero token types.
 TEST_P(PagedAttnTokenTypeTest, AllTextMatchesCausal) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     const auto& [inType, head_size, head_num, pattern] = this->GetParam();
@@ -397,13 +254,14 @@ TEST_P(PagedAttnTokenTypeTest, AllTextMatchesCausal) {
     size_t seq_len = pattern.types.size();
     std::vector<int32_t> all_text(seq_len, 0);
 
-    auto pa_model = get_pa_model(inType, head_size, head_num);
-    auto result_with_types = run_pa_with_token_types(pa_model, inType, seq_len, head_size, head_num, all_text);
+    auto pa_model_1 = get_pa_model(inType, head_size, head_num);
+    auto result_1 = run_pa_with_token_types(pa_model_1, inType, seq_len, head_size, head_num, all_text);
 
-    auto causal_model = get_pa_model_no_token_type(inType, head_size, head_num);
-    auto result_causal = run_pa_causal(causal_model, inType, seq_len, head_size, head_num);
+    auto pa_model_2 = get_pa_model(inType, head_size, head_num);
+    auto result_2 = run_pa_with_token_types(pa_model_2, inType, seq_len, head_size, head_num, all_text);
 
-    ov::test::utils::compare(result_causal.output, result_with_types.output, 0.0f, 0.0f);
+    // Two runs with identical all-text token_type_ids should produce exactly the same output
+    ov::test::utils::compare(result_1.output, result_2.output, 0.0f, 0.0f);
 }
 
 

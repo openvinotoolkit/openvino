@@ -2092,7 +2092,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
         // Read token_type_ids for bidirectional attention within image token groups.
         // Reshape+Convert ops in the graph guarantee this arrives as i32 1D.
-        if (inputs_size == 26 && !inputs[ID_TOKEN_TYPE_IDS]->getShape().hasZeroDims()) {
+        // When the model doesn't use token_type_ids, this is a zero-dim constant (all text, causal).
+        if (!inputs[ID_TOKEN_TYPE_IDS]->getShape().hasZeroDims()) {
             token_type_ids.reset(inputs[ID_TOKEN_TYPE_IDS]);  // [B_token], i32
         }
 
