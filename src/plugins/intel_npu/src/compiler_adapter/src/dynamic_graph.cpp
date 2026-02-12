@@ -89,7 +89,6 @@ void DynamicGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetada
     }
 
     auto& inputs = _binding._inputs;
-    inputs.resize(inputs.size());
     for (size_t i = 0; i < inputs.size(); ++i) {
         // Use size as placeholder of stride
         const auto& shape = metadata.inputs[i].shapeFromCompiler.get_shape();

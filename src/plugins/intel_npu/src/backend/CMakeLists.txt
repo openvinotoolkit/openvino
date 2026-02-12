@@ -6,15 +6,6 @@ set(TARGET_NAME "openvino_npu_level_zero_backend")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
-if(NOT ENABLE_NPU_DEBUG_CAPS)
-    list(REMOVE_ITEM SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_dynamic_infer_request.hpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_dynamic_pipeline.hpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_dynamic_infer_request.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_dynamic_pipeline.cpp
-    )
-endif()
-
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})

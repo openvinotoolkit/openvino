@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "dynamic_graph.hpp"
 #include "graph.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
@@ -16,11 +17,6 @@
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
-
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
-#    include "dynamic_graph.hpp"
-#endif
-
 #include "mem_usage.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -74,13 +70,11 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     ov::Tensor tensor;
     tensor = std::move(networkDesc.compiledNetworkTensor);
 
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
     if (config.get<COMPILATION_MODE>() == "HostCompile") {
         // no _compiler::parse call is required. networkmetadata will be obtained in DynamicGraph constructor
         _logger.debug("blob is not ELF format, create graph for LLVM IR!");
         return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), true, config, _compiler);
     }
-#endif
 
     GraphDescriptor graphDesc;
     NetworkMetadata networkMeta;
@@ -267,7 +261,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
     const void* data = mainBlob.data();
     size_t size = mainBlob.get_byte_size();
     std::string header;
@@ -283,7 +276,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     } else {
         _logger.debug("blob is ELF format, create graph for elf blob!");
     }
-#endif
 
     GraphDescriptor mainGraphDesc;
     NetworkMetadata mainNetworkMetadata;
