@@ -89,17 +89,17 @@ public:
      * - Filters compiler options based on the current compiler.
      * - Updates the config with the provided arguments.
      */
-    void updateConfigSafe(const ov::AnyMap& arguments,
-                          const ICompilerAdapter* compiler,
-                          const bool initializeCompilerOptions,
-                          OptionMode mode = OptionMode::Both);
+    void updateConfig(const ov::AnyMap& arguments,
+                      const ICompilerAdapter* compiler,
+                      const bool initializeCompilerOptions,
+                      OptionMode mode = OptionMode::Both);
 
     /**
      * @brief Update the config map.
      * @details
      * - Updates the config with the provided arguments.
      */
-    void updateConfigSafe(const ov::AnyMap& arguments, OptionMode mode = OptionMode::Both);
+    void updateConfig(const ov::AnyMap& arguments, OptionMode mode = OptionMode::Both);
 
 private:
     PropertiesType _pType;

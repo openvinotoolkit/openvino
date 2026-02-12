@@ -905,12 +905,10 @@ void Properties::setPropertiesSafe(const ov::AnyMap& arguments, const bool ensur
     setProperty(arguments, compiler.get());
 }
 
-void Properties::updateConfigSafe(const ov::AnyMap& arguments,
-                                  const ICompilerAdapter* compiler,
-                                  const bool initializeCompilerOptions,
-                                  OptionMode mode) {
-    std::lock_guard<std::mutex> lock(_mutex);
-
+void Properties::updateConfig(const ov::AnyMap& arguments,
+                              const ICompilerAdapter* compiler,
+                              const bool initializeCompilerOptions,
+                              OptionMode mode) {
     bool argumentNotRegistered = false;
     for (const auto& arg : arguments) {
         if (!isPropertyRegistered(arg.first)) {
@@ -942,8 +940,7 @@ void Properties::updateConfigSafe(const ov::AnyMap& arguments,
     _config.update(cfgsToSet, mode);
 }
 
-void Properties::updateConfigSafe(const ov::AnyMap& arguments, OptionMode mode) {
-    std::lock_guard<std::mutex> lock(_mutex);
+void Properties::updateConfig(const ov::AnyMap& arguments, OptionMode mode) {
     const std::map<std::string, std::string> rawConfig = any_copy(arguments);
     std::map<std::string, std::string> cfgsToSet;
     for (const auto& [key, value] : rawConfig) {

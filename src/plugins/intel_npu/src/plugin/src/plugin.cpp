@@ -542,7 +542,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     auto localProperties = std::make_unique<Properties>(*_properties);
-    localProperties->updateConfigSafe(localArguments, compiler.get(), initializeCompilerOptions);
+    localProperties->updateConfig(localArguments, compiler.get(), initializeCompilerOptions);
     FilteredConfig localConfig = localProperties->getConfig();
     localProperties.reset();
 
@@ -942,10 +942,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
     auto localProperties = std::make_unique<Properties>(*_properties);
-    localProperties->updateConfigSafe(localArguments,
-                                      compiler.get(),
-                                      initializeCompilerOptions,
-                                      OptionMode::CompileTime);
+    localProperties->updateConfig(localArguments, compiler.get(), initializeCompilerOptions, OptionMode::CompileTime);
     FilteredConfig localConfig = localProperties->getConfig();
     localProperties.reset();
 
@@ -1032,7 +1029,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
     auto localProperties = std::make_unique<Properties>(*_properties);
-    localProperties->updateConfigSafe(localArguments, OptionMode::RunTime);
+    localProperties->updateConfig(localArguments, OptionMode::RunTime);
     FilteredConfig localConfig = localProperties->getConfig();
     localProperties.reset();
 
