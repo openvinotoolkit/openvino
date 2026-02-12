@@ -193,7 +193,8 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
         static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>> quantization_params{
             {ov::element::Type_t::u16, {{0.f, 10.f, 0.f, 65535.f, 0}, {-624.4578838348389f, 634.7373962402344f, 0.f, 65535.f, 32500}}},
-            {ov::element::Type_t::i16, {{-5.0000762939453125f, 4.9999237060546875f, -32768.f, 32767.f, 0}, {-630.0096435546875f, 629.9904174804688f, -32768.f, 32767.f, 0}}},
+            {ov::element::Type_t::i16,
+             {{-5.0000762939453125f, 4.9999237060546875f, -32768.f, 32767.f, 0}, {-630.0096435546875f, 629.9904174804688f, -32768.f, 32767.f, 0}}},
         };
 
         const auto& q_params = quantization_params.at(quantization_precision);
@@ -285,7 +286,8 @@ protected:
         return model;
     }
 
-    std::shared_ptr<ov::Model> build_need_scaling_matmul_with_bias_pattern(const ov::PartialShape& input_shape, const ov::element::Type& quantization_precision) {
+    std::shared_ptr<ov::Model> build_need_scaling_matmul_with_bias_pattern(const ov::PartialShape& input_shape,
+                                                                           const ov::element::Type& quantization_precision) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
 
         // Weight DQ for MatMul: input last dim = 128 (from input shape [1,3,128,128]), output = 32
@@ -500,7 +502,10 @@ TEST_P(QDQStrippingTest, Inference) {
 const std::vector<ov::test::InputShape> input_shapes = {{{-1, -1, -1, -1}, {{1, 3, 128, 128}}}};
 const std::vector<ov::element::Type> input_precisions = {ov::element::f32};
 const std::vector<ov::element::Type> quantization_precisions = {ov::element::u16, ov::element::i16};
-const std::vector<PatternType> pattern_types = {PatternType::SharedDQ, PatternType::NeedScalingMulMatMul, PatternType::NeedScalingResidualBlock, PatternType::NeedScalingMatMulWithBias};
+const std::vector<PatternType> pattern_types = {PatternType::SharedDQ,
+                                                PatternType::NeedScalingMulMatMul,
+                                                PatternType::NeedScalingResidualBlock,
+                                                PatternType::NeedScalingMatMulWithBias};
 
 INSTANTIATE_TEST_SUITE_P(smoke_QDQStripping,
                          QDQStrippingTest,
