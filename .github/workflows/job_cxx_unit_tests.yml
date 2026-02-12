@@ -122,6 +122,12 @@ jobs:
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_conditional_compilation_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ConditionalCompilation.xml
 
+      - name: OpenVINO Shutdown tests
+        if: fromJSON(inputs.affected-components).Core.test
+        run: |
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_shutdown_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Shutdown.xml
+
       - name: IR frontend tests
         if: fromJSON(inputs.affected-components).IR_FE.test
         run: |

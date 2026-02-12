@@ -289,6 +289,8 @@ jobs:
           if [ -d "${INSTALL_TEST_DIR}/tests" ]; then
             echo "Moving tests from ${INSTALL_TEST_DIR}/tests/ to ${INSTALL_TEST_DIR}/bin/intel64/Release/"
             find ${INSTALL_TEST_DIR}/tests -name "*cpu*test*" -type f -exec cp {} ${INSTALL_TEST_DIR}/bin/intel64/Release/ \;
+            find ${INSTALL_TEST_DIR}/tests -name "ov_shutdown_tests" -type f -exec cp {} ${INSTALL_TEST_DIR}/bin/intel64/Release/ \;
+            find ${INSTALL_TEST_DIR}/tests -name "libshutdown_test_lib*.so*" -type f -exec cp {} ${INSTALL_TEST_DIR}/bin/intel64/Release/ \;
             # Copy Template plugin library from tests installation into runtime package so tests can load it
             find ${INSTALL_TEST_DIR}/tests -name "libopenvino_template_plugin*.so*" -type f -exec cp {} ${INSTALL_DIR}/runtime/lib/intel64/ \; 2>/dev/null || true
           fi
@@ -388,7 +390,7 @@ jobs:
             ~/.android/adb*
           key: avd-${{ env.ANDROID_API_LEVEL }}-${{ env.ANDROID_TARGET }}-${{ env.ANDROID_ARCH }}
 
-      - name: Run CPU unit tests on emulator
+      - name: Run unit tests on emulator
         id: unit-tests
         uses: reactivecircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b # v2.35.0
         with:
@@ -403,26 +405,58 @@ jobs:
             set -e
             adb wait-for-device
 
-            [ -f "${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_unit_tests" ] || { echo "Error: ov_cpu_unit_tests binary not found"; exit 1; }
-            chmod +x ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_unit_tests
+            # Setup test directory
             adb shell "rm -rf /data/local/tmp/ov_test && mkdir -p /data/local/tmp/ov_test/intel64/Release"
-            echo "Pushing unit test binary and libraries to device..."
-            adb push ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_unit_tests /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests
+            
+            # Push all test binaries
+            [ -f "${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_unit_tests" ] || { echo "Error: ov_cpu_unit_tests binary not found"; exit 1; }
+            [ -f "${INSTALL_TEST_DIR}/bin/intel64/Release/ov_shutdown_tests" ] || { echo "Warning: ov_shutdown_tests binary not found"; }
+            
+            chmod +x ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_unit_tests
+            chmod +x ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_shutdown_tests 2>/dev/null || true
+            
+            echo "Pushing test binaries and libraries to device..."
+            adb push ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_unit_tests /data/local/tmp/ov_test/intel64/Release/
+            adb push ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_shutdown_tests /data/local/tmp/ov_test/intel64/Release/ 2>/dev/null || echo "Skipping ov_shutdown_tests"
+            adb push ${INSTALL_TEST_DIR}/bin/intel64/Release/libshutdown_test_lib*.so /data/local/tmp/ov_test/intel64/Release/ 2>/dev/null || echo "Skipping shutdown_test_lib"
+            
             # Push OpenVINO libraries from runtime package
             for lib in ${INSTALL_DIR}/runtime/lib/intel64/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
             for lib in ${INSTALL_DIR}/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
-            adb shell "chmod 755 /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests"
+            
+            adb shell "chmod 755 /data/local/tmp/ov_test/intel64/Release/*"
+            
+            # Run CPU unit tests
             echo "Running CPU unit tests..."
-            adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:$LD_LIBRARY_PATH && timeout 1800 ./intel64/Release/ov_cpu_unit_tests --gtest_output=xml:/data/local/tmp/ov_test/unit_test_results.xml" || { echo "Unit test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
-            echo "Pulling unit test results..."
-            adb pull /data/local/tmp/ov_test/unit_test_results.xml ./unit_test_results.xml || { echo "Warning: Could not pull unit test results"; adb shell "ls -la /data/local/tmp/ov_test/"; adb shell "cat /data/local/tmp/ov_test/unit_test_results.xml" || echo "No unit test results file"; }
+            adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:/data/local/tmp/ov_test/intel64/Release:$LD_LIBRARY_PATH && timeout 1800 ./intel64/Release/ov_cpu_unit_tests --gtest_output=xml:/data/local/tmp/ov_test/cpu_unit_test_results.xml" || { echo "CPU unit test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
+            
+            # Run shutdown tests
+            if adb shell "[ -f /data/local/tmp/ov_test/intel64/Release/ov_shutdown_tests ]"; then
+              echo "Running shutdown tests..."
+              adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:/data/local/tmp/ov_test/intel64/Release:$LD_LIBRARY_PATH && timeout 300 ./intel64/Release/ov_shutdown_tests --gtest_output=xml:/data/local/tmp/ov_test/shutdown_test_results.xml" || echo "Shutdown tests failed (non-critical)"
+            else
+              echo "Skipping shutdown tests (binary not found)"
+            fi
+            
+            # Pull all test results
+            echo "Pulling test results..."
+            adb pull /data/local/tmp/ov_test/cpu_unit_test_results.xml ./cpu_unit_test_results.xml || echo "Warning: Could not pull CPU unit test results"
+            adb pull /data/local/tmp/ov_test/shutdown_test_results.xml ./shutdown_test_results.xml || echo "Warning: Could not pull shutdown test results"
 
-      - name: Upload unit test results
+      - name: Upload CPU unit test results
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()
         with:
           name: cpu_unit_tests_results_android_x64
-          path: ./unit_test_results.xml
+          path: ./cpu_unit_test_results.xml
+          if-no-files-found: 'ignore'
+
+      - name: Upload shutdown test results
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: shutdown_tests_results_android_x64
+          path: ./shutdown_test_results.xml
           if-no-files-found: 'ignore'
 
   CXX_Func_Tests:
