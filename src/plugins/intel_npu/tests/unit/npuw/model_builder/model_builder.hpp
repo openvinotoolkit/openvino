@@ -43,8 +43,8 @@ struct LayerResult {
 // ============================================================================
 
 /// Weight functor: construction captures format-specific params;
-/// call takes (name, rows, cols, compute_precision) -> output
-using WeightFn = std::function<ov::Output<ov::Node>(const std::string&, size_t, size_t, ov::element::Type)>;
+/// call takes (name, shape, compute_precision) -> output
+using WeightFn = std::function<ov::Output<ov::Node>(const std::string&, const ov::Shape&, ov::element::Type)>;
 
 /// Norm functor: construction captures hidden_size, precision, eps;
 /// call takes (input, name) -> output
@@ -70,16 +70,14 @@ using PositionIdsFn = std::function<ov::Output<ov::Node>()>;
 /// f32 weights (no compression)
 struct FP32Weight {
     ov::Output<ov::Node> operator()(const std::string& name,
-                                    size_t rows,
-                                    size_t cols,
+                                    const ov::Shape& shape,
                                     ov::element::Type compute_precision) const;
 };
 
 /// f16 weights with Convert to compute precision
 struct FP16Weight {
     ov::Output<ov::Node> operator()(const std::string& name,
-                                    size_t rows,
-                                    size_t cols,
+                                    const ov::Shape& shape,
                                     ov::element::Type compute_precision) const;
 };
 
@@ -94,8 +92,7 @@ struct CompressedWeight {
     explicit CompressedWeight(ov::element::Type st, size_t gs = 0) : storage_type(st), group_size(gs) {}
 
     ov::Output<ov::Node> operator()(const std::string& name,
-                                    size_t rows,
-                                    size_t cols,
+                                    const ov::Shape& shape,
                                     ov::element::Type compute_precision) const;
 };
 

@@ -25,27 +25,25 @@ namespace npuw {
 // ============================================================================
 
 ov::Output<ov::Node> FP32Weight::operator()(const std::string& name,
-                                            size_t rows,
-                                            size_t cols,
+                                            const ov::Shape& shape,
                                             ov::element::Type compute_precision) const {
     // Use unique fill values per constant to prevent CSE from merging
     // different projections (e.g. Q/K/V) that happen to share dimensions.
     static size_t counter = 0;
     float fill_val = 0.01f + static_cast<float>(++counter) * 1e-7f;
     auto weight =
-        ov::opset11::Constant::create(compute_precision, ov::Shape{rows, cols}, std::vector<float>(rows * cols, fill_val));
+        ov::opset11::Constant::create(compute_precision, shape, std::vector<float>(ov::shape_size(shape), fill_val));
     weight->set_friendly_name(name);
     return weight->output(0);
 }
 
 ov::Output<ov::Node> FP16Weight::operator()(const std::string& name,
-                                            size_t rows,
-                                            size_t cols,
+                                            const ov::Shape& shape,
                                             ov::element::Type compute_precision) const {
     static size_t counter = 0;
     float fill_val = 0.01f + static_cast<float>(++counter) * 1e-7f;
     auto weight =
-        ov::opset11::Constant::create(ov::element::f16, ov::Shape{rows, cols}, std::vector<float>(rows * cols, fill_val));
+        ov::opset11::Constant::create(ov::element::f16, shape, std::vector<float>(ov::shape_size(shape), fill_val));
     weight->set_friendly_name(name);
 
     auto convert = std::make_shared<ov::opset11::Convert>(weight, compute_precision);
@@ -54,9 +52,12 @@ ov::Output<ov::Node> FP16Weight::operator()(const std::string& name,
 }
 
 ov::Output<ov::Node> CompressedWeight::operator()(const std::string& name,
-                                                  size_t rows,
-                                                  size_t cols,
+                                                  const ov::Shape& shape,
                                                   ov::element::Type compute_precision) const {
+    OPENVINO_ASSERT(shape.size() == 2, "CompressedWeight expects 2D shape, got ", shape.size(), "D");
+    const size_t rows = shape[0];
+    const size_t cols = shape[1];
+
     // Use unique fill values to prevent CSE from merging same-shape projections.
     // i4 range is [-8, 7], u4 is [0, 15], so clamp accordingly.
     static size_t counter = 0;
@@ -70,7 +71,7 @@ ov::Output<ov::Node> CompressedWeight::operator()(const std::string& name,
         fill_val = static_cast<int8_t>(1 + (counter % 100));
     }
     auto weight =
-        ov::opset11::Constant::create(storage_type, ov::Shape{rows, cols}, std::vector<int8_t>(rows * cols, fill_val));
+        ov::opset11::Constant::create(storage_type, shape, std::vector<int8_t>(rows * cols, fill_val));
     weight->set_friendly_name(name);
 
     auto convert = std::make_shared<ov::opset11::Convert>(weight, ov::element::f16);
@@ -317,7 +318,7 @@ ov::Output<ov::Node> make_linear(const ov::Output<ov::Node>& input,
                                  ov::element::Type precision,
                                  bool add_bias,
                                  const WeightFn& weight_fn) {
-    auto weight_output = weight_fn(name + ".weight", out_features, in_features, precision);
+    auto weight_output = weight_fn(name + ".weight", ov::Shape{out_features, in_features}, precision);
 
     auto matmul = std::make_shared<ov::opset11::MatMul>(input, weight_output, false, true);
     matmul->set_friendly_name(name);
