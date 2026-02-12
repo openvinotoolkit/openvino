@@ -223,9 +223,9 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     GPU_DEBUG_TRACE_DETAIL << "\t weight group size: " << group_size << "\n";
 
     micro::GEMMProblem problem_moe;
-    micro::GEMMProtocol::Options opts_moe;
+    micro::GEMMOptions opts_moe;
     opts_moe.slmPtr = true;
-    opts_moe.kParallelLocal = !is_prefill;
+    // opts_moe.kParallelLocal = !is_prefill;
     enum class MICRO_DIMENSIONALITY { NONE = -1, SCALAR = 0, VECTOR = 1, MATRIX = 2 };
 
     const bool is_weight_quantized = true;
