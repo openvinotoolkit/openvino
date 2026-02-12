@@ -97,7 +97,8 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
         auto input_size = in_layouts[0].get_shape()[2];
         auto hidden_size = in_layouts[3].get_shape()[1] / num_gates;
         auto num_dir = in_layouts[3].get_shape()[0];
-        return hidden_size == 128 && batch_size == 1 && num_dir == 2 && (input_size == 64 || input_size == 256);
+        return (hidden_size == 128 || hidden_size == 256) && batch_size == 1 
+            && (num_dir == 2 || num_dir == 1) && (input_size == 64 || input_size == 256);
     }
 };
 
