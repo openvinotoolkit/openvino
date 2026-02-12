@@ -10,6 +10,18 @@
 #include "openvino/core/core_visibility.hpp"
 
 namespace ov {
+
+class AlignedBuffer;
+
+/// \brief Interface for describing the source of a weight buffer.
+class OPENVINO_API IBufferDescriptor {
+public:
+    virtual ~IBufferDescriptor();
+    virtual uint64_t get_id() const = 0;
+    virtual size_t get_offset() const = 0;
+    virtual std::shared_ptr<AlignedBuffer> get_source_buffer() const = 0;
+};
+
 /// \brief Allocates a block of memory on the specified alignment. The actual size of the
 /// allocated memory is larger than the requested size by the alignment, so allocating 1
 /// byte
@@ -52,6 +64,8 @@ public:
     explicit operator T*() {
         return get_ptr<T>();
     }
+
+    virtual std::shared_ptr<IBufferDescriptor> get_descriptor() const;
 
     AlignedBuffer(const AlignedBuffer&) = delete;
     AlignedBuffer& operator=(const AlignedBuffer&) = delete;
