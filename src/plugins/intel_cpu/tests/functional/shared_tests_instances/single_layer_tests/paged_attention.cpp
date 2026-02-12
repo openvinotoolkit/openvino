@@ -29,6 +29,7 @@ const std::vector<InputShapes> input_shapes_ref = {  // greedy search
    // L1, B, H, S
     {{-1, 8, 8, 64}, {{10, 8, 8, 64}, {1, 8, 8, 64}}},
     // B, L0, H, S
+    {{-1, 8, 8, 64}, {{0, 8, 8, 64}, {10, 8, 8, 64}}},
 }};
 
 const std::vector<ov::AnyMap> additional_configs_ref = {{
