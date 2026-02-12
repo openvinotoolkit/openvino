@@ -41,20 +41,20 @@ Step 1: Download and Install OpenVINO Core Components
       ``C:\Program Files (x86)\Intel`` is the recommended folder. You may also use a different path if desired or if you don't have administrator privileges on your computer.
 
 
-2. Download the `OpenVINO Runtime archive file for Windows <https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.0/windows/>`__ to your local ``Downloads`` folder.
+2. Download the `OpenVINO Runtime archive file for Windows <https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.3/windows/>`__ to your local ``Downloads`` folder.
 
    If you prefer using command-lines, run the following commands in the command prompt window you opened:
 
    .. code-block:: sh
 
       cd <user_home>/Downloads
-      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.0/windows/openvino_toolkit_windows_2026.0.0.19807.44526285f24_x86_64.zip --output openvino_2026.0.0.zip
+      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.3/windows/openvino_toolkit_windows_2025.3.0.19807.44526285f24_x86_64.zip --output openvino_2025.3.0.zip
 
    .. note::
 
       A ``.sha256`` file is provided together with the archive file to validate your download
       process. To do that, download the ``.sha256`` file from the same repository and run
-      ``CertUtil -hashfile openvino_2026.0.0.zip SHA256``. Compare the returned value in the
+      ``CertUtil -hashfile openvino_2025.3.0.zip SHA256``. Compare the returned value in the
       output with what's in the ``.sha256`` file: if the values are the same, you have
       downloaded the correct file successfully; if not, create a Support ticket
       `here <https://www.intel.com/content/www/us/en/support/contact-intel.html>`__.
@@ -66,9 +66,9 @@ Step 1: Download and Install OpenVINO Core Components
 
    .. code-block:: sh
 
-      tar -xf openvino_2026.0.0.zip
-      ren openvino_toolkit_windows_2026.0.0.19807.44526285f24_x86_64 openvino_2026.0.0
-      move openvino_2026.0.0 "C:\Program Files (x86)\Intel"
+      tar -xf openvino_2025.3.0.zip
+      ren openvino_toolkit_windows_2025.3.0.19807.44526285f24_x86_64 openvino_2025.3.0
+      move openvino_2025.3.0 "C:\Program Files (x86)\Intel"
 
 
 4. (Optional) Install *numpy* Python Library:
@@ -77,11 +77,11 @@ Step 1: Download and Install OpenVINO Core Components
 
       This step is required only when you decide to use Python API.
 
-   You can use the ``requirements.txt`` file from the ``C:\Program Files (x86)\Intel\openvino_2026.0.0\python`` folder:
+   You can use the ``requirements.txt`` file from the ``C:\Program Files (x86)\Intel\openvino_2025.3.0\python`` folder:
 
    .. code-block:: sh
 
-      cd "C:\Program Files (x86)\Intel\openvino_2026.0.0"
+      cd "C:\Program Files (x86)\Intel\openvino_2025.3.0"
       python -m pip install -r .\python\requirements.txt
 
 
@@ -90,13 +90,13 @@ Step 1: Download and Install OpenVINO Core Components
    .. code-block:: sh
 
       cd C:\Program Files (x86)\Intel
-      mklink /D openvino_2026 openvino_2026.0.0
+      mklink /D openvino_2025 openvino_2025.3.0
 
 
    .. note::
 
       If you have already installed a previous release of OpenVINO 2026, a symbolic link to the
-      ``openvino_2026`` folder may already exist. If you want to override it, navigate to the
+      ``openvino_2025`` folder may already exist. If you want to override it, navigate to the
       ``C:\Program Files (x86)\Intel`` folder and delete the existing linked folder before
       running the ``mklink`` command.
 
@@ -106,10 +106,10 @@ need to install additional components. Check the description below, as well as t
 :doc:`list of additional configurations <./configurations>`
 to see if your case needs any of them.
 
-The ``C:\Program Files (x86)\Intel\openvino_2026`` folder now contains the core components
+The ``C:\Program Files (x86)\Intel\openvino_2025`` folder now contains the core components
 for OpenVINO.
-If you used a different path in Step 1, you will find the ``openvino_2026`` folder there.
-The path to the ``openvino_2026`` directory is also referred as ``<INSTALL_DIR>``
+If you used a different path in Step 1, you will find the ``openvino_2025`` folder there.
+The path to the ``openvino_2025`` directory is also referred as ``<INSTALL_DIR>``
 throughout the OpenVINO documentation.
 
 
@@ -139,11 +139,11 @@ applications.
 
       Open the Command Prompt, and run the ``setupvars.bat`` batch file to temporarily set
       your environment variables. If your ``<INSTALL_DIR>`` is not
-      ``C:\Program Files (x86)\Intel\openvino_2026``, use the correct directory instead.
+      ``C:\Program Files (x86)\Intel\openvino_2025``, use the correct directory instead.
 
       .. code-block:: sh
 
-         "C:\Program Files (x86)\Intel\openvino_2026\setupvars.bat"
+         "C:\Program Files (x86)\Intel\openvino_2025\setupvars.bat"
 
       .. important::
 
