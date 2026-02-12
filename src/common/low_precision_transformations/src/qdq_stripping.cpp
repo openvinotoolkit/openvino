@@ -254,6 +254,32 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         visited.insert(new_multiply.get());
     };
 
+    // Helper to adjust FQ range constants (input_low, input_high, output_low, output_high)
+    // by dividing them by current_scale_divisor. This is needed when scale propagation passes
+    // through an un-stripped FQ — the quantization grid must shift to match the new value range.
+    auto adjust_fq_ranges = [&](ov::Node* node) {
+        auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node->shared_from_this());
+        if (!fq)
+            return;
+
+        if (visited.count(node))
+            return;
+
+        QDQ_DEBUG_LOG << "        [ DEBUG ] Adjusting FQ ranges for: " << fq->get_friendly_name()
+                      << " by dividing by " << current_scale_divisor << std::endl;
+
+        auto divisor_const = ov::op::v0::Constant::create(ov::element::f32, {}, {current_scale_divisor});
+
+        // Adjust all 4 range constants: input_low(1), input_high(2), output_low(3), output_high(4)
+        for (size_t idx = 1; idx <= 4; ++idx) {
+            auto original_const = fq->get_input_node_shared_ptr(idx);
+            auto new_const = ov::op::util::make_try_fold<ov::op::v1::Divide>(original_const, divisor_const);
+            fq->input(idx).replace_source_output(new_const);
+        }
+
+        visited.insert(node);
+    };
+
     auto adjust_weights_scale = [&](ov::Node* node) {
         QDQ_DEBUG_LOG << "    [ INFO ] adjust_weights_scale called for node with type: " << node->get_type_name()
                       << ", with name: " << node->get_friendly_name() << ", node: " << node << std::endl;
@@ -347,10 +373,25 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
                 return;
             }
         }
+
+        // Case 5: FakeQuantize (un-stripped) — adjust its range constants so scale propagates through
+        if (ov::is_type<ov::op::v0::FakeQuantize>(node)) {
+            QDQ_DEBUG_LOG << "        [ INFO ]   Matched un-stripped FQ in backward path" << std::endl;
+            adjust_fq_ranges(node);
+            return;
+        }
     };
 
-    // Forward propagation callback: at Add nodes, backward-propagate scale into the other branch
+    // Forward propagation callback: handle Add nodes (backward-propagate into other branch)
+    // and FakeQuantize nodes (adjust range constants so scale propagates through)
     auto forward_propagate_callback = [&](ov::Node* node) {
+        // Handle un-stripped FakeQuantize: adjust its range constants
+        if (ov::is_type<ov::op::v0::FakeQuantize>(node)) {
+            QDQ_DEBUG_LOG << "    [ FORWARD ] Adjusting un-stripped FQ: " << node->get_friendly_name() << std::endl;
+            adjust_fq_ranges(node);
+            return;
+        }
+
         if (!ov::is_type<ov::op::v1::Add>(node))
             return;
 
@@ -375,15 +416,11 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
                                   ov::op::v1::Softmax, ov::op::v8::Softmax>(n->shared_from_this());
     };
 
-    // Collect FQs that need scale adjustment in first pass, then process in second pass
-    // because stripping FQs modifies the graph and we need stable node references
-    struct FqScaleInfo {
-        std::shared_ptr<ov::op::v0::FakeQuantize> fq;
-        float y_scale;
-    };
-    std::vector<FqScaleInfo> fqs_to_scale;
-
-    // Pass 1: Strip all FQs and collect those needing scale adjustment
+    // Single-pass: strip each FQ and immediately propagate scale before processing the next FQ.
+    // This ensures that forward propagation from FQ_A adjusts downstream FQ_B's ranges,
+    // so when FQ_B is processed its y_scale is recomputed from the adjusted (smaller) ranges.
+    // Without this, cascaded FQs would each independently compute y_scale from original ranges,
+    // potentially double-scaling weights.
     for (const auto& node : f->get_ordered_ops()) {
         auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node);
         if (!fq || transformation_callback(node)) {
@@ -405,6 +442,8 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
 
         // Compute y_scale (dequantization scale) for this FQ:
         //   y_scale = (input_high - input_low) / (levels - 1)
+        // Note: these ranges may have been adjusted by forward propagation from a preceding FQ,
+        // so y_scale reflects the current (post-adjustment) scale rather than the original.
         const auto& input_low = fq->input_value(1);
         const auto& input_high = fq->input_value(2);
 
@@ -431,45 +470,32 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         QDQ_DEBUG_LOG << "  [ DEBUG ] Y scale (dequant scale): " << y_scale << " (levels=" << fq->get_levels() << ")" << std::endl;
 
         // Remember the FQ's input node before stripping (this is the node that feeds into the FQ)
-        auto fq_input_node = fq->get_input_node_shared_ptr(0);
+        auto propagation_root = fq->get_input_node_shared_ptr(0);
 
         QDQ_DEBUG_LOG << "  [ INFO ] Removing FQ: " << fq->get_friendly_name() << std::endl;
         OPENVINO_ASSERT(replace_output_update_name(fq->output(0), fq->input_value(0)), "FQ stripping failed");
         model_changed = true;
 
         if (y_scale > threshold) {
-            // After stripping, the FQ's input node now directly connects to the FQ's consumers.
-            // We need to record this node for forward propagation.
-            fqs_to_scale.push_back({fq, y_scale});
+            current_scale_divisor = y_scale * ratio;
+
             QDQ_DEBUG_LOG << "  [ INFO ] y_scale=" << y_scale << " > threshold=" << threshold
-                          << ", will run scale propagation from: " << fq_input_node->get_friendly_name() << std::endl;
+                          << ", running scale propagation (scale_divisor=" << current_scale_divisor
+                          << ") from: " << propagation_root->get_friendly_name() << std::endl;
+
+            // Step 1: Backward propagation from FQ position to scale weights feeding into it
+            QDQ_DEBUG_LOG << "  [ INFO ] --- Backward propagation ---" << std::endl;
+            ov::op::util::visit_path(propagation_root.get(), visited, adjust_weights_scale, backward_skip_predicate);
+
+            // Step 2: Forward propagation from FQ position to balance Add branches
+            // and adjust downstream un-stripped FQ ranges (including other int16 FQs
+            // that haven't been processed yet — their ranges will be adjusted so their
+            // y_scale is recomputed correctly when we reach them in the topological walk).
+            QDQ_DEBUG_LOG << "  [ INFO ] --- Forward propagation ---" << std::endl;
+            std::unordered_set<ov::Node*> forward_visited;
+            ov::op::util::visit_path_forward(propagation_root.get(), forward_visited,
+                                             forward_propagate_callback, forward_skip_predicate);
         }
-        QDQ_DEBUG_LOG << "========================================" << std::endl;
-    }
-
-    // Pass 2: For each FQ with large y_scale, backward-propagate into the feeding weights,
-    // then forward-propagate through the graph to balance Add (residual) branches.
-    for (auto& info : fqs_to_scale) {
-        current_scale_divisor = info.y_scale * ratio;
-        // The FQ was stripped, so its input(0) source node now directly drives the FQ's former consumers.
-        // We need to find that node. Since the FQ was replaced, input_value(0) source is what we need.
-        auto propagation_root = info.fq->get_input_node_shared_ptr(0);
-
-        QDQ_DEBUG_LOG << "\n======== Scale propagation for stripped FQ (y_scale=" << info.y_scale
-                      << ", scale_divisor=" << current_scale_divisor << ") ========" << std::endl;
-        QDQ_DEBUG_LOG << "  [ INFO ] Propagation root: " << propagation_root->get_friendly_name() << std::endl;
-
-        // Step 1: Backward propagation from FQ position to scale weights feeding into it
-        QDQ_DEBUG_LOG << "  [ INFO ] --- Backward propagation ---" << std::endl;
-        ov::op::util::visit_path(propagation_root.get(), visited, adjust_weights_scale, backward_skip_predicate);
-
-        // Step 2: Forward propagation from FQ position to balance Add branches
-        // The propagation_root's consumers are now the former FQ consumers.
-        QDQ_DEBUG_LOG << "  [ INFO ] --- Forward propagation ---" << std::endl;
-        std::unordered_set<ov::Node*> forward_visited;
-        ov::op::util::visit_path_forward(propagation_root.get(), forward_visited,
-                                         forward_propagate_callback, forward_skip_predicate);
-
         QDQ_DEBUG_LOG << "========================================" << std::endl;
     }
 
