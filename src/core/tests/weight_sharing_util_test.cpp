@@ -210,6 +210,12 @@ TEST_F(WeightShareExtensionTest, set_null_aligned_weight_buffer) {
     ASSERT_FALSE(weight_sharing::set_weight_source(shared_ctx, buffer));
 }
 
+TEST_F(WeightShareExtensionTest, set_null_aligned_weight_buffer) {
+    weight_sharing::Context shared_ctx;
+    std::shared_ptr<ov::AlignedBuffer> buffer = nullptr;
+    ASSERT_FALSE(weight_sharing::set_weight_source(shared_ctx, buffer));
+}
+
 TEST_F(WeightShareExtensionTest, set_aligned_weight_buffer_no_tag) {
     weight_sharing::Context shared_ctx;
     auto buffer = std::make_shared<ov::AlignedBuffer>(4000);
