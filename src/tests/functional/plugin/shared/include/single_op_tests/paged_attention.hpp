@@ -23,20 +23,29 @@ TEST_P(PagedAttentionLayerTest, Inference) {
     // TEMPLATE config
     ov::AnyMap tmpl_cfg;
     tmpl_cfg[ov::hint::inference_precision.name()] = ov::element::f32;
+    // Run CPU with fresh caches (do NOT reuse key_cache_init_ directly; the plugin mutates it).
+    ov::Tensor key_cache_cpu(key_cache_init_.get_element_type(), key_cache_init_.get_shape());
+    ov::Tensor value_cache_cpu(value_cache_init_.get_element_type(), value_cache_init_.get_shape());
+    key_cache_init_.copy_to(key_cache_cpu);
+    value_cache_init_.copy_to(value_cache_cpu);
 
-    // Run CPU with fresh caches
     auto steps_cpu = steps_;
     for (auto& s : steps_cpu) {
-        s.tensors[pa_model_->get_parameters()[3]] = key_cache_init_;
-        s.tensors[pa_model_->get_parameters()[4]] = value_cache_init_;
+        s.tensors[pa_model_->get_parameters()[3]] = key_cache_cpu;
+        s.tensors[pa_model_->get_parameters()[4]] = value_cache_cpu;
     }
     auto cpu_out = run_device(pa_model_, ov::test::utils::DEVICE_CPU, cpu_cfg, extendBlockIndices, steps_cpu);
 
-    // Run TEMPLATE with fresh caches (same initial state)
+    // Run TEMPLATE with an independent fresh cache copy
+    ov::Tensor key_cache_tmpl(key_cache_init_.get_element_type(), key_cache_init_.get_shape());
+    ov::Tensor value_cache_tmpl(value_cache_init_.get_element_type(), value_cache_init_.get_shape());
+    key_cache_init_.copy_to(key_cache_tmpl);
+    value_cache_init_.copy_to(value_cache_tmpl);
+
     auto steps_tmpl = steps_;
     for (auto& s : steps_tmpl) {
-        s.tensors[pa_model_->get_parameters()[3]] = key_cache_init_;
-        s.tensors[pa_model_->get_parameters()[4]] = value_cache_init_;
+        s.tensors[pa_model_->get_parameters()[3]] = key_cache_tmpl;
+        s.tensors[pa_model_->get_parameters()[4]] = value_cache_tmpl;
     }
     auto tmpl_out = run_device(pa_model_, ov::test::utils::DEVICE_TEMPLATE, tmpl_cfg, extendBlockIndices, steps_tmpl);
 

@@ -159,32 +159,32 @@ private:
     static T* key_block_base(OperatorState& st, std::int32_t block_id, std::size_t kv_head) {
         auto* base = static_cast<T*>(st.key_cache.get_ptr());
         const std::size_t block_stride = st.num_kv_heads * st.block_size * st.key_head_size;
-        const std::size_t head_stride = st.block_size * st.key_head_size;
-        return base + static_cast<std::size_t>(block_id) * block_stride + kv_head * head_stride;
+        const std::size_t kv_stride = st.block_size * st.key_head_size;
+        return base + static_cast<std::size_t>(block_id) * block_stride + kv_head * kv_stride;
     }
 
     template <typename T>
     static T* value_block_base(OperatorState& st, std::int32_t block_id, std::size_t kv_head) {
         auto* base = static_cast<T*>(st.value_cache.get_ptr());
         const std::size_t block_stride = st.num_kv_heads * st.block_size * st.value_head_size;
-        const std::size_t head_stride = st.block_size * st.value_head_size;
-        return base + static_cast<std::size_t>(block_id) * block_stride + kv_head * head_stride;
+        const std::size_t kv_stride = st.block_size * st.value_head_size;
+        return base + static_cast<std::size_t>(block_id) * block_stride + kv_head * kv_stride;
     }
 
     template <typename T>
     static const T* key_block_base(const OperatorState& st, std::int32_t block_id, std::size_t kv_head) {
         auto* base = static_cast<const T*>(st.key_cache.get_ptr());
         const std::size_t block_stride = st.num_kv_heads * st.block_size * st.key_head_size;
-        const std::size_t head_stride = st.block_size * st.key_head_size;
-        return base + static_cast<std::size_t>(block_id) * block_stride + kv_head * head_stride;
+        const std::size_t kv_stride = st.block_size * st.key_head_size;
+        return base + static_cast<std::size_t>(block_id) * block_stride + kv_head * kv_stride;
     }
 
     template <typename T>
     static const T* value_block_base(const OperatorState& st, std::int32_t block_id, std::size_t kv_head) {
         auto* base = static_cast<const T*>(st.value_cache.get_ptr());
         const std::size_t block_stride = st.num_kv_heads * st.block_size * st.value_head_size;
-        const std::size_t head_stride = st.block_size * st.value_head_size;
-        return base + static_cast<std::size_t>(block_id) * block_stride + kv_head * head_stride;
+        const std::size_t kv_stride = st.block_size * st.value_head_size;
+        return base + static_cast<std::size_t>(block_id) * block_stride + kv_head * kv_stride;
     }
 
 private:

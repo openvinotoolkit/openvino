@@ -86,7 +86,7 @@ private:
         auto v = make_param({ov::Dimension::dynamic(), head_num * head_size}, data_type, "v");
 
         // IMPORTANT: cache should match PA expectation (use rank-4 here)
-        // [num_blocks, num_kv_heads, block_size, head_size]
+        // [num_blocks, num_kv_heads, block_size, head_size] (matches CPU plugin expectations)
         auto key_cache   = make_param({ov::Dimension::dynamic(), head_num, 32, head_size}, data_type, "key_cache.0");
         auto value_cache = make_param({ov::Dimension::dynamic(), head_num, 32, head_size}, data_type, "value_cache.0");
 
@@ -98,7 +98,7 @@ private:
         const float scale_value = 1.0f / std::sqrt(static_cast<float>(head_size));
         auto scale = ov::op::v0::Constant::create(ov::element::f32, {}, {scale_value});
         auto sliding_windows = ov::op::v0::Constant::create(ov::element::i32, {}, {sliding_window});
-        auto alibi_slopes = ov::op::v0::Constant::create(ov::element::f32, {0}, {});
+        auto alibi_slopes = ov::op::v0::Constant::create(ov::element::f32, {1}, {0.0f});
         auto max_context_len = ov::op::v0::Constant::create(ov::element::i32, {}, {1024});
         auto score_aggregation_window = ov::op::v0::Constant::create(ov::element::i32, {}, {0});
 
@@ -108,11 +108,11 @@ private:
 
         auto xattention_threshold = enable_xattn
             ? ov::op::v0::Constant::create(ov::element::f32, {1}, {0.9f})
-            : ov::op::v0::Constant::create(ov::element::f32, {0}, {});
+            : ov::op::v0::Constant::create(ov::element::f32, {1}, {0.0f});
         auto xattention_block_size = ov::op::v0::Constant::create(ov::element::i32, {}, {64});
         auto xattention_stride     = ov::op::v0::Constant::create(ov::element::i32, {}, {8});
 
-        auto sinks = ov::op::v0::Constant::create(data_type, {0}, {});
+        auto sinks = ov::op::v0::Constant::create(data_type, {1, static_cast<size_t>(head_num), 1, 1}, {0.0f});
 
         // adaptive_rkv inputs (ignored)
         auto adaptive_rkv_start_size = ov::op::v0::Constant::create(ov::element::i32, {}, {0});
@@ -130,6 +130,16 @@ private:
                                       adaptive_rkv_diversity_block_set_indices,adaptive_rkv_diversity_block_set_indices_begins};
 
         auto pa = std::make_shared<ov::op::PagedAttentionExtension>(pa_inputs);
+        // Ensure a cache manager is always available for TEMPLATE (reference) evaluation and any plugin paths
+        // that rely on shared cache state.
+        pa->set_cache_manager(ov::op::make_paged_cache_handle(data_type));
+
+        // Provide head metadata expected by some plugin implementations via rt_info.
+        // Keys follow the common PagedAttention conventions used in OpenVINO examples.
+        pa->get_rt_info()["num_k_heads"] = head_num;
+        pa->get_rt_info()["k_head_size"] = head_size;
+        pa->get_rt_info()["num_v_heads"] = head_num;
+        pa->get_rt_info()["v_head_size"] = head_size;
         return std::make_shared<ov::Model>(ov::OutputVector{pa->output(0)}, params, "pa_vsref");
     }
 
@@ -193,7 +203,9 @@ private:
         ov::Tensor past_lens(ov::element::i32, {batch_seq});
         ov::Tensor subseq(ov::element::i32, {batch_seq + 1});
         ov::Tensor bi_begins(ov::element::i32, {batch_seq + 1});
-        ov::Tensor bi(ov::element::i32, {static_cast<size_t>(std::max<int32_t>(1, total_blocks))});
+        const int32_t used_blocks = std::max<int32_t>(1, total_blocks);
+        const int32_t bi_count_i = extendBlockIndices ? std::max<int32_t>(2, used_blocks) : used_blocks;
+        ov::Tensor bi(ov::element::i32, {static_cast<size_t>(bi_count_i)});
 
         auto* pl = past_lens.data<int32_t>();
         auto* sb = subseq.data<int32_t>();
@@ -205,15 +217,16 @@ private:
             sb[0] = 0;
             sb[1] = static_cast<int32_t>(L);
             bb[0] = 0;
-            bb[1] = extendBlockIndices ? 2 : total_blocks; // vLLM-style over-allocation
-            for (int32_t i = 0; i < total_blocks; i++) b[i] = i;
+            bb[1] = bi_count_i; // optional vLLM-style over-allocation
+            for (int32_t i = 0; i < bi_count_i; i++) b[i] = (i < used_blocks) ? i : -1;
         } else {
             pl[0] = past_len_count;
             sb[0] = 0;
             sb[1] = static_cast<int32_t>(L);
             bb[0] = 0;
-            bb[1] = total_blocks;
-            for (int32_t i = 0; i < total_blocks; i++) b[i] = i;
+            bb[1] = used_blocks;
+            for (int32_t i = 0; i < used_blocks; i++) b[i] = i;
+            for (int32_t i = used_blocks; i < bi_count_i; i++) b[i] = -1;
         }
 
         out.tensors[params[5]] = past_lens;
@@ -316,9 +329,9 @@ for (const ov::PropertyName& p : props) {
         ps_k[0] = static_cast<int64_t>(block_nums);
         ps_v[0] = static_cast<int64_t>(block_nums);
 
-        // Set explicitly to u8 to mattch CPU & PA precision transformation
-        key_cache_init_ = ov::Tensor(ov::element::f32, ps_k.get_shape());
-        value_cache_init_ = ov::Tensor(ov::element::f32, ps_v.get_shape());
+        // Allocate caches using the same element type as PA expects.
+        key_cache_init_ = ov::Tensor(inType, ps_k.get_shape());
+        value_cache_init_ = ov::Tensor(inType, ps_v.get_shape());
         std::memset(key_cache_init_.data(), 0, key_cache_init_.get_byte_size());
         std::memset(value_cache_init_.data(), 0, value_cache_init_.get_byte_size());
     }
