@@ -3,6 +3,7 @@
 //
 
 #include <limits>
+#include <string>
 
 #include "default_opset.hpp"
 #include "op_utils.hpp"
@@ -32,6 +33,15 @@ void normalize(std::vector<int64_t>& vec, const Output<Node> input, const std::v
             vec[i] = vec[i] + x_dim;
         }
     }
+}
+
+void check_vec_size(const NodeContext& node,
+                    const std::vector<int64_t>& vec,
+                    const std::vector<int64_t>& axes_vec,
+                    const std::string& attr_name) {
+    PADDLE_OP_CHECK(node,
+                    (vec.size() >= axes_vec.size()),
+                    "The size of '" + attr_name + "' must be >= the size of 'axes'.");
 }
 
 NamedOutputs set_value(const NodeContext& node) {
@@ -167,6 +177,7 @@ NamedOutputs set_value(const NodeContext& node) {
         starts = get_tensor_list(starts_list);
     } else if (node.has_attribute("starts")) {
         auto start_vec = node.get_attribute<std::vector<int64_t>>("starts");
+        check_vec_size(node, start_vec, axes, "starts");
         normalize(start_vec, input_node, axes);
         starts = handle_minus_index(start_vec, spec_dim_node);
     } else
@@ -177,6 +188,7 @@ NamedOutputs set_value(const NodeContext& node) {
         ends = get_tensor_list(ends_list);
     } else if (node.has_attribute("ends")) {
         auto ends_vec = node.get_attribute<std::vector<int64_t>>("ends");
+        check_vec_size(node, ends_vec, axes, "ends");
         normalize(ends_vec, input_node, axes);
         ends = handle_minus_index(ends_vec, spec_dim_node);
     } else
@@ -187,6 +199,7 @@ NamedOutputs set_value(const NodeContext& node) {
         steps = get_tensor_list(steps_list);
     } else if (node.has_attribute("steps")) {
         auto step_vec = node.get_attribute<std::vector<int64_t>>("steps");
+        check_vec_size(node, step_vec, axes, "steps");
         normalize(step_vec, input_node, axes);
         steps = handle_minus_index(step_vec, spec_dim_node);
     } else
