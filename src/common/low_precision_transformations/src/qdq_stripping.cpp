@@ -203,7 +203,7 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
     };
 
     bool model_changed = false;
-    const float ratio = 1.0f;
+    const float ratio = 10.0f;
     const float threshold = 1.0f;
 
     QDQ_DEBUG_LOG << "\n[ INFO ] === QDQ Stripping Pass ===" << std::endl;
