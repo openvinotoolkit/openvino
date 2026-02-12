@@ -942,4 +942,21 @@ void Properties::updateConfigSafe(const ov::AnyMap& arguments,
     _config.update(cfgsToSet, mode);
 }
 
+void Properties::updateConfigSafe(const ov::AnyMap& arguments, OptionMode mode) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    const std::map<std::string, std::string> rawConfig = any_copy(arguments);
+    std::map<std::string, std::string> cfgsToSet;
+    for (const auto& [key, value] : rawConfig) {
+        if (!_config.hasOpt(key)) {
+            _logger.info(
+                "Config key '%s' is not recognized as a known option, will not be used for current configuration.",
+                key.c_str());
+        } else {
+            cfgsToSet.emplace(key, value);
+        }
+    }
+
+    _config.update(cfgsToSet, mode);
+}
+
 }  // namespace intel_npu

@@ -94,6 +94,13 @@ public:
                           const bool initializeCompilerOptions,
                           OptionMode mode = OptionMode::Both);
 
+    /**
+     * @brief Update the config map.
+     * @details
+     * - Updates the config with the provided arguments.
+     */
+    void updateConfigSafe(const ov::AnyMap& arguments, OptionMode mode = OptionMode::Both);
+
 private:
     PropertiesType _pType;
     FilteredConfig _config;

@@ -66,13 +66,6 @@ public:
 
 private:
     void init_options(FilteredConfig& filteredConfig);
-    void filter_compiler_properties_safe(const std::unique_ptr<Properties>& properties,
-                                         const ov::AnyMap& arguments,
-                                         const ICompilerAdapter* compiler = nullptr) const;
-    FilteredConfig fork_local_config(const ov::AnyMap& arguments,
-                                     const ICompilerAdapter* compiler,
-                                     const bool initializeCompilerOptions,
-                                     OptionMode mode = OptionMode::Both) const;
 
     /**
      * @brief Parses the compiled model found within the stream and tensor and returns a wrapper over the L0 handle that

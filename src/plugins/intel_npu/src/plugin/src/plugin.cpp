@@ -414,20 +414,6 @@ void Plugin::init_options(FilteredConfig& filteredConfig) {
     }
 }
 
-FilteredConfig Plugin::fork_local_config(const ov::AnyMap& arguments,
-                                         const ICompilerAdapter* compiler,
-                                         const bool initializeCompilerOptions,
-                                         OptionMode mode) const {
-    if (_backend != nullptr) {
-        _backend->updateInfo(arguments);
-    }
-
-    auto localProperties = std::make_unique<Properties>(*_properties);
-    localProperties->updateConfigSafe(arguments, compiler, initializeCompilerOptions);
-
-    return localProperties->getConfig();
-}
-
 void Plugin::set_property(const ov::AnyMap& arguments) {
     if (arguments.empty()) {
         return;
@@ -517,6 +503,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         modelSerializerChosenExplicitly = true;
     }
 
+    if (_backend != nullptr) {
+        _backend->updateInfo(localArguments);
+    }
+
     const auto& globalConfig = _properties->getConfig();
 
     // create compiler
@@ -551,7 +541,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
-    auto localConfig = fork_local_config(localArguments, compiler.get(), initializeCompilerOptions);
+    auto localProperties = std::make_unique<Properties>(*_properties);
+    localProperties->updateConfigSafe(localArguments, compiler.get(), initializeCompilerOptions);
+    FilteredConfig localConfig = localProperties->getConfig();
+    localProperties.reset();
+
     if (wasPreferPlugin) {
         localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
     }
@@ -771,6 +765,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         return compiledModel;
     }
 
+    if (_backend != nullptr) {
+        _backend->updateInfo(npuPluginArguments);
+    }
+
     try {
         const bool skipCompatibility =
             (npuPluginArguments.find(DISABLE_VERSION_CHECK::key().data()) != npuPluginArguments.end())
@@ -830,6 +828,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     auto compiledModel = import_model_npuw(stream, npuPluginArguments, shared_from_this());
     if (compiledModel) {
         return compiledModel;
+    }
+
+    if (_backend != nullptr) {
+        _backend->updateInfo(npuPluginArguments);
     }
 
     try {
@@ -903,6 +905,10 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     }
     exclude_model_ptr_from_map(localArguments);
 
+    if (_backend != nullptr) {
+        _backend->updateInfo(localArguments);
+    }
+
     const auto& globalConfig = _properties->getConfig();
 
     ov::intel_npu::CompilerType compilerType = utils::resolveCompilerType(globalConfig, localArguments);
@@ -935,8 +941,14 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     CompilerAdapterFactory factory;
     auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
-    auto localConfig =
-        fork_local_config(localArguments, compiler.get(), initializeCompilerOptions, OptionMode::CompileTime);
+    auto localProperties = std::make_unique<Properties>(*_properties);
+    localProperties->updateConfigSafe(localArguments,
+                                      compiler.get(),
+                                      initializeCompilerOptions,
+                                      OptionMode::CompileTime);
+    FilteredConfig localConfig = localProperties->getConfig();
+    localProperties.reset();
+
     if (wasPreferPlugin) {
         localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
     }
@@ -1010,12 +1022,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         }
     }
 
-    bool initializeCompilerOptions = false;
-    if (compilerType != globalConfig.get<COMPILER_TYPE>() || propertyPlatform != globalConfig.get<PLATFORM>() ||
-        deviceId != globalConfig.get<DEVICE_ID>()) {
-        initializeCompilerOptions = true;
-    }
-
     const auto compilationPlatform =
         utils::getCompilationPlatform(propertyPlatform,
                                       device == nullptr ? deviceId : device->getName(),
@@ -1025,8 +1031,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
-    auto localConfig =
-        fork_local_config(localArguments, compiler.get(), initializeCompilerOptions, OptionMode::RunTime);
+    auto localProperties = std::make_unique<Properties>(*_properties);
+    localProperties->updateConfigSafe(localArguments, OptionMode::RunTime);
+    FilteredConfig localConfig = localProperties->getConfig();
+    localProperties.reset();
+
     if (wasPreferPlugin) {
         localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
     }
