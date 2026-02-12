@@ -60,7 +60,8 @@ class TestFakeQuantizePerTensorAffine(PytorchLayerTest):
             ie_device,
             precision,
             ir_version,
-            freeze_model=False
+            freeze_model=False,
+            fx_kind="aten.fake_quantize_per_tensor_affine"
         )
 
 
@@ -115,7 +116,8 @@ class TestFakeQuantizePerTensorAffineCacheMaskTensorQParams(PytorchLayerTest):
             ie_device,
             precision,
             ir_version,
-            freeze_model=False
+            freeze_model=False,
+            fx_kind="aten._fake_quantize_per_tensor_affine_cachemask_tensor_qparams"
         )
 
 
@@ -169,5 +171,6 @@ class TestFakeQuantizePerChannelAffine(PytorchLayerTest):
             ie_device,
             precision,
             ir_version,
-            freeze_model=False
+            freeze_model=False,
+            fx_kind="aten.fake_quantize_per_channel_affine"
         )
