@@ -834,10 +834,6 @@ void GraphOptimizer::MergeConvertAndEltwise(Graph& graph) {
 }
 
 void GraphOptimizer::FuseConvDeconvFCAndConvertOnWeights(Graph& graph) {
-#if defined(OV_CPU_WITH_SHL)
-    return;
-#endif
-
     // This optimization fuses Convert (fp16 -> bf16/fp32) on weights directly to FC input to allow precision conversion
     // handling based on internal logic (e.g. fuse conversion with weights reordering)
 
@@ -892,10 +888,6 @@ void GraphOptimizer::FuseConvDeconvFCAndConvertOnWeights(Graph& graph) {
 }
 
 void GraphOptimizer::FuseFCAndTransposeOnWeights(Graph& graph) {
-#if defined(OV_CPU_WITH_SHL)
-    return;
-#endif
-
     // This optimization allows us to avoid transposing the weights in Transpose node and do it directly along with
     // reordering in FC node
     const auto& graphNodes = graph.GetNodes();
