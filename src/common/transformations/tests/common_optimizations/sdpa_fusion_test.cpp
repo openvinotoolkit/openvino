@@ -1216,21 +1216,19 @@ TEST_F(TransformationTestsF, SDPAFusionTest_ReshapeOptimizationWithMaskCausal) {
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
-TEST_F(TransformationTestsF, SDPAFusionTest_2DInputsStatic) {
-    // Init.
-    const PartialShape query_shape{55, 128};
-    const PartialShape key_shape{55, 128};
-    const PartialShape value_shape{55, 128};
+class SDPA2DInputs : public TransformationTestsF, public ::testing::WithParamInterface<PartialShape> {};
 
-    SDPA sdpa(f16, query_shape, key_shape, value_shape);
-    SDPA sdpa_ref(f16, query_shape, key_shape, value_shape);
+TEST_P(SDPA2DInputs, SDPAFusionTest_2DInputs) {
+    // Parametrization
+    const auto& shape = GetParam();
+
+    SDPA sdpa(f16, shape, shape, shape);
+    SDPA sdpa_ref(f16, shape, shape, shape);
 
     // SDPA model.
     {
         sdpa.create_pattern_sdpa(true);
-
         sdpa.transpose_sdpa({1, 0});
-
         model = sdpa.build_model();
 
         manager.register_pass<ov::pass::SDPAFusion>();
@@ -1241,12 +1239,9 @@ TEST_F(TransformationTestsF, SDPAFusionTest_2DInputsStatic) {
         sdpa_ref.unsqueeze_q({0});
         sdpa_ref.unsqueeze_k({0});
         sdpa_ref.unsqueeze_v({0});
-
         sdpa_ref.create_reference_sdpa();
-
         sdpa_ref.squeeze_sdpa({0});
         sdpa_ref.transpose_sdpa({1, 0});
-
         model_ref = sdpa_ref.build_model();
     }
 
@@ -1254,43 +1249,12 @@ TEST_F(TransformationTestsF, SDPAFusionTest_2DInputsStatic) {
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
-TEST_F(TransformationTestsF, SDPAFusionTest_2DInputsDynamic) {
-    // Init with dynamic shapes
-    const PartialShape query_shape{-1, 128};
-    const PartialShape key_shape{-1, 128};
-    const PartialShape value_shape{-1, 128};
-
-    SDPA sdpa(f16, query_shape, key_shape, value_shape);
-    SDPA sdpa_ref(f16, query_shape, key_shape, value_shape);
-
-    // SDPA model.
-    {
-        sdpa.create_pattern_sdpa(true);
-
-        sdpa.transpose_sdpa({1, 0});
-
-        model = sdpa.build_model();
-
-        manager.register_pass<ov::pass::SDPAFusion>();
-    }
-
-    // SDPA reference model.
-    {
-        sdpa_ref.unsqueeze_q({0});
-        sdpa_ref.unsqueeze_k({0});
-        sdpa_ref.unsqueeze_v({0});
-
-        sdpa_ref.create_reference_sdpa();
-
-        sdpa_ref.squeeze_sdpa({0});
-        sdpa_ref.transpose_sdpa({1, 0});
-
-        model_ref = sdpa_ref.build_model();
-    }
-
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-}
+INSTANTIATE_TEST_SUITE_P(SDPAFusion,
+                         SDPA2DInputs,
+                         Values(PartialShape{55, 128},   // Static 2D
+                                PartialShape{-1, 128},   // Dynamic batch
+                                PartialShape{55, -1},    // Dynamic embedding
+                                PartialShape{-1, -1}));  // Fully dynamic
 
 TEST_F(TransformationTestsF, SDPAFusionTest_4dAttentionMaskWithBatch2) {
     // Init.
