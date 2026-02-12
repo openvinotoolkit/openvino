@@ -739,13 +739,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         OPENVINO_ASSERT(pa_arguments.size() == 25);
 
         // token_type_ids for bidirectional attention within image token groups (e.g. Gemma3 VLM).
-        // Only add the 26th input when the model actually has token_type_ids —
-        // this keeps PA nodes at 25 inputs for models without it, so the GPU
-        // plugin (which requires exactly 25 inputs) is not affected.
+        // Only add the 26th input when the model actually has token_type_ids
         if (optional_model_wide_params.find("token_type_ids") != optional_model_wide_params.end()) {
             auto param = optional_model_wide_params.at("token_type_ids");
             // GenAI provides token_type_ids as {1, N} i64, but PA expects {B_token} i32.
-            // Insert Reshape (flatten 2D→1D) then Convert (i64→i32).
             auto reshape_target = v0::Constant::create(element::i64, Shape{1}, {-1});
             auto reshaped = std::make_shared<v1::Reshape>(param, reshape_target, false);
             auto converted = std::make_shared<v0::Convert>(reshaped, element::i32);
