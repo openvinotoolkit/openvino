@@ -783,6 +783,10 @@ LayerResult Attention::operator()(const ov::Output<ov::Node>& input, const std::
     // K/V source: self-attention uses input, cross-attention uses kv_source
     auto kv_input = kv_source.get_node() ? kv_source : input;
 
+    // Derive attention-type prefix from k_proj_name for unique intermediate node names.
+    // e.g. "self_attn.k_proj" -> "self_attn.", "encoder_attn.k_proj" -> "encoder_attn."
+    auto attn_prefix = k_proj_name.substr(0, k_proj_name.rfind('.') + 1);
+
     // Q, K, V projections
     auto q = make_linear(input, hidden_size, num_heads * head_dim,
                          prefix + q_proj_name, precision, add_bias, weight_fn);
@@ -792,22 +796,22 @@ LayerResult Attention::operator()(const ov::Output<ov::Node>& input, const std::
                          prefix + v_proj_name, precision, add_bias, weight_fn);
 
     // Reshape for multi-head: [batch, seq, heads, head_dim]
-    auto q_reshaped = make_multihead_reshape(q, num_heads, head_dim, prefix + "q_reshape");
-    auto k_reshaped = make_multihead_reshape(k, num_kv_heads, head_dim, prefix + "k_reshape");
-    auto v_reshaped = make_multihead_reshape(v, num_kv_heads, head_dim, prefix + "v_reshape");
+    auto q_reshaped = make_multihead_reshape(q, num_heads, head_dim, prefix + attn_prefix + "q_reshape");
+    auto k_reshaped = make_multihead_reshape(k, num_kv_heads, head_dim, prefix + attn_prefix + "k_reshape");
+    auto v_reshaped = make_multihead_reshape(v, num_kv_heads, head_dim, prefix + attn_prefix + "v_reshape");
 
     // Optional QK-norm: applied to Q and K after reshape, before RoPE
     ov::Output<ov::Node> q_normed = q_reshaped;
     ov::Output<ov::Node> k_normed = k_reshaped;
     if (qk_norm) {
-        q_normed = qk_norm(q_reshaped, prefix + "self_attn.q_norm");
-        k_normed = qk_norm(k_reshaped, prefix + "self_attn.k_norm");
+        q_normed = qk_norm(q_reshaped, prefix + attn_prefix + "q_norm");
+        k_normed = qk_norm(k_reshaped, prefix + attn_prefix + "k_norm");
     }
 
     // Transpose first: [batch, seq, heads, dim] -> [batch, heads, seq, dim]
-    auto q_trans = make_attention_transpose(q_normed, prefix + "q_transpose");
-    auto k_trans = make_attention_transpose(k_normed, prefix + "k_transpose");
-    auto v_trans = make_attention_transpose(v_reshaped, prefix + "v_transpose");
+    auto q_trans = make_attention_transpose(q_normed, prefix + attn_prefix + "q_transpose");
+    auto k_trans = make_attention_transpose(k_normed, prefix + attn_prefix + "k_transpose");
+    auto v_trans = make_attention_transpose(v_reshaped, prefix + attn_prefix + "v_transpose");
 
     // Apply RoPE to Q and K (after transpose, on [batch, heads, seq, dim])
     ov::Output<ov::Node> q_roped = q_trans;
