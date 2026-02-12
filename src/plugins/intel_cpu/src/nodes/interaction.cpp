@@ -29,10 +29,8 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "transformations/cpu_opset/x64/op/interaction.hpp"
 #include "utils/debug_capabilities.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
@@ -42,6 +40,8 @@
 
 #    include "cpu/x64/jit_generator.hpp"
 #    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#    include "openvino/core/type.hpp"
+#    include "transformations/cpu_opset/x64/op/interaction.hpp"
 #    include "utils/cpu_utils.hpp"
 #endif
 
@@ -209,12 +209,16 @@ Interaction::Interaction(const std::shared_ptr<ov::Node>& op, const GraphContext
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
+#if defined(OPENVINO_ARCH_X86_64)
     const auto interaction = ov::as_type_ptr<const InteractionNode>(op);
     const std::vector<float>& scales = interaction->get_output_scales();
     if (!scales.empty()) {
         fqScales = scales;
         outputDataType = interaction->get_output_element_type(0);
     }
+#else
+    OPENVINO_THROW_NOT_IMPLEMENTED("Interaction operation is supported only on X86_64");
+#endif
 }
 
 void Interaction::initSupportedPrimitiveDescriptors() {
@@ -390,13 +394,19 @@ bool Interaction::isExecutable() const {
     return true;
 }
 
-bool Interaction::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool Interaction::isSupportedOperation([[maybe_unused]] const std::shared_ptr<const ov::Node>& op,
+                                       std::string& errorMessage) noexcept {
     try {
+#if defined(OPENVINO_ARCH_X86_64)
         const auto interaction = ov::as_type_ptr<const InteractionNode>(op);
         if (!interaction) {
             errorMessage = "Only Interaction operation is supported";
             return false;
         }
+#else
+        errorMessage = "Interaction operation is supported only on X86_64";
+        return false;
+#endif
     } catch (...) {
         return false;
     }
