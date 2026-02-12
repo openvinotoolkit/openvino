@@ -430,13 +430,9 @@ jobs:
             echo "Running CPU unit tests..."
             adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:/data/local/tmp/ov_test/intel64/Release:$LD_LIBRARY_PATH && timeout 1800 ./intel64/Release/ov_cpu_unit_tests --gtest_output=xml:/data/local/tmp/ov_test/cpu_unit_test_results.xml" || { echo "CPU unit test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
             
-            # Run shutdown tests
-            if adb shell "[ -f /data/local/tmp/ov_test/intel64/Release/ov_shutdown_tests ]"; then
-              echo "Running shutdown tests..."
-              adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:/data/local/tmp/ov_test/intel64/Release:$LD_LIBRARY_PATH && timeout 300 ./intel64/Release/ov_shutdown_tests --gtest_output=xml:/data/local/tmp/ov_test/shutdown_test_results.xml" || echo "Shutdown tests failed (non-critical)"
-            else
-              echo "Skipping shutdown tests (binary not found)"
-            fi
+            # Run shutdown tests (non-critical)
+            echo "Running shutdown tests..."
+            adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:/data/local/tmp/ov_test/intel64/Release:\$LD_LIBRARY_PATH && timeout 300 ./intel64/Release/ov_shutdown_tests --gtest_output=xml:/data/local/tmp/ov_test/shutdown_test_results.xml" || echo "Shutdown tests failed or not found (non-critical)"
             
             # Pull all test results
             echo "Pulling test results..."
