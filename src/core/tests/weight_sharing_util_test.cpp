@@ -338,18 +338,14 @@ TEST_F(WeightShareExtensionTest, rebuild_constant_from_shared_context) {
                                c2->cast_vector<float>());
     }();
 
-    // plugin build constant from shared context weight buffer exists
+    // plugin build constant from shared context, weight buffer exists in memory
     {
         // the constant meta data read from blob (source ID, constant ID, shape)
         const auto const_src_id_from_blob = source_id_a;
         const auto const_id_from_blob = 200;
         const auto shape_from_blob = Shape{5, 1};
 
-        // get constant source buffer
-        auto weight_buffer = weight_sharing::get_source_buffer(shared_ctx, const_src_id_from_blob);
-        ASSERT_TRUE(weight_buffer);
-
-        // recreated constant buffer from shared context
+        // re-create constant buffer from shared context by IDs
         auto constant_buffer =
             weight_sharing::get_constant_buffer(shared_ctx, const_src_id_from_blob, const_id_from_blob);
         ASSERT_TRUE(constant_buffer);
@@ -369,23 +365,16 @@ TEST_F(WeightShareExtensionTest, rebuild_constant_from_shared_context) {
         const auto const_id_from_blob = 200;
         const auto shape_from_blob = Shape{5, 1};
 
-        // get constant source buffer
+        // get constant source buffer fail as not exists in memory
         auto weight_buffer = ov::wsh::get_source_buffer(shared_ctx, const_src_id_from_blob);
         ASSERT_FALSE(weight_buffer);
         auto constant_buffer = ov::wsh::get_constant_buffer(shared_ctx, const_src_id_from_blob, const_id_from_blob);
         ASSERT_FALSE(constant_buffer);
 
-        // constant can not be rebuild from shared context restore manually
-        const auto& [c_offset, c_size, c_type] =
-            shared_ctx.m_constants_meta_data[const_src_id_from_blob][const_id_from_blob];
-        // load weight container as buffer has been released
+        // constant can not be rebuild from shared context by IDs, restore manually
+        const auto& c_type = shared_ctx.m_constants_meta_data[const_src_id_from_blob][const_id_from_blob].type;
+        // restore weight buffer from file
         auto w_buffer = load_mmap_object(weights_path);
-        weight_buffer = std::make_shared<SharedBuffer<std::shared_ptr<MappedMemory>>>(
-            w_buffer->data(),
-            c_size,
-            w_buffer,
-            std::make_shared<MappedMemDescriptor>(w_buffer, c_offset));
-
         // recreate constant buffer with weight_buffer as hint
         constant_buffer = weight_sharing::get_constant_buffer(shared_ctx, weight_buffer, const_id_from_blob);
         ASSERT_TRUE(constant_buffer);
