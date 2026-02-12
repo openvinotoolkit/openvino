@@ -286,7 +286,7 @@ KERNEL(pa_sdpa_opt)(
                     uint index = key_block_offset + (qk_idx/PACK_SIZE) * hidden_stride * KEY_VEC_SIZE + i * hidden_stride;
 
                     char packed_cache = BLOCK_READN(INPUT1_TYPE, 1, key_cache, index);
-                    MAKE_VECTOR_TYPE(char, PACK_SIZE) buff = unpack_to_char(*(int4x2_t *)&packed_cache);
+                    MAKE_VECTOR_TYPE(char, PACK_SIZE) buff = unpack_to_char(*(uint4x2_t *)&packed_cache);
 
                     char key_orig = buff.s0;
                     #ifdef IS_KEY_BY_CHANNEL
@@ -300,10 +300,10 @@ KERNEL(pa_sdpa_opt)(
                             k_vals[qk_idx+1][i] = ((INPUT0_TYPE)key_orig - temp_zp) * temp_scale;
                         }
                     #else
-                        k_vals[qk_idx][i] = (key_orig - comp_zp) * comp_scale;
+                        k_vals[qk_idx][i] = ((INPUT0_TYPE)key_orig - comp_zp) * comp_scale;
                         if (qk_idx + 1 < (K_HEAD_SIZE / KEY_VEC_SIZE)) {
                             key_orig = buff.s1;
-                            k_vals[qk_idx+1][i] = (key_orig - comp_zp) * comp_scale;
+                            k_vals[qk_idx+1][i] = ((INPUT0_TYPE)key_orig - comp_zp) * comp_scale;
                         }
                     #endif
                 }
@@ -656,7 +656,7 @@ KERNEL(pa_sdpa_opt)(
             unroll_for (uint i = 0; i < VALUE_VEC_SIZE; i++) {
                 uint index = packed_value_offset + i * v_head_size;
                 char packed_value = BLOCK_READN(INPUT2_TYPE, 1, value_cache, index);
-                MAKE_VECTOR_TYPE(char, PACK_SIZE) buff = unpack_to_char(*(int4x2_t *)&packed_value);
+                MAKE_VECTOR_TYPE(char, PACK_SIZE) buff = unpack_to_char(*(uint4x2_t *)&packed_value);
 
                 if (idx_packed == 0) {
                     v_vals_packed[i] = buff.s0;
@@ -729,7 +729,7 @@ KERNEL(pa_sdpa_opt)(
                 INPUT2_TYPE value_packed = 0;
                 uint index = packed_value_offset + i * v_head_size;
                 char packed_value = BLOCK_READN(INPUT2_TYPE, 1, value_cache, index);
-                MAKE_VECTOR_TYPE(char, PACK_SIZE) buff = unpack_to_char(*(int4x2_t *)&packed_value);
+                MAKE_VECTOR_TYPE(char, PACK_SIZE) buff = unpack_to_char(*(uint4x2_t *)&packed_value);
 
                 // v_vals_packed[i]=as_char(_sub_group_block_read_uc((const __global uchar*)(value_cache)+(value_offset + i * 80)));
                 if (idx_packed == 0) {
