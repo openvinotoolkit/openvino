@@ -94,8 +94,8 @@ DEFINE_string(
 DEFINE_string(data_shape, "",
     "Required for models with dynamic shapes. Set shape for input blobs. Only one shape can be set."
     "In case of one input size: \"[1,3,224,224]\"");
-DEFINE_string(skip_output_layers, "" , "Skip output layers from the network. Currently only applicable for"
-        "RRMSE and NRMSE mode. Accept ';' separated list of output layers");
+DEFINE_string(skip_output_layers, "" , "Skip output layers from the network."
+        " Accept ';' separated list of output layers");
 DEFINE_bool(clamp_u8_outputs, false, "Apply clamping when converting FP to U8");
 
 // for using input image mean and scale
@@ -2195,14 +2195,17 @@ bool computeL2Norm(const ov::Tensor& output, const ov::Tensor& reference) {
         return false;
     }
 
-    auto size = output.get_size();
-    auto result = std::copy_n(output.data<const float>(), size, std::vector<float>(size).begin());
+    const auto size = output.get_size();
+    const auto* outputData = output.data<const float>();
+    const auto* referenceData = reference.data<const float>();
 
+    double sumSquares = 0.0;
     for (size_t i = 0; i < size; ++i) {
-        result[i] = std::pow(result[i] - reference.data<float>()[i], 2);
+        const double diff = static_cast<double>(outputData[i]) - static_cast<double>(referenceData[i]);
+        sumSquares += diff * diff;
     }
 
-    double l2norm = std::sqrt(std::accumulate(result, result + size, 0.0));
+    const double l2norm = std::sqrt(sumSquares);
 
     std::cout << "L2Norm : " << std::fixed << std::setprecision(4) << l2norm
               << "   L2Norm threshold : " << std::defaultfloat << FLAGS_l2norm_threshold << std::endl;
