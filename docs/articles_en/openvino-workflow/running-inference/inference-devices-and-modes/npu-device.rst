@@ -16,7 +16,7 @@ NPU Device
 
 The Neural Processing Unit is a low-power hardware solution, introduced with the
 Intel® Core™ Ultra generation of CPUs (formerly known as Meteor Lake). It enables
-you to offload certain neural network computation tasks from other devices,
+you to offload certain neural network computation tasks
 for more streamlined resource management.
 
 NPU Plugin is now available through all relevant OpenVINO distribution channels.
@@ -26,17 +26,21 @@ NPU Plugin is now available through all relevant OpenVINO distribution channels.
 |   NPU device: NPU 3720
 |   OS: Ubuntu* 22.04 64-bit (with Linux kernel 6.6+), MS Windows* 11 64-bit (22H2, 23H2)
 
-NPU Plugin needs an NPU Driver to be installed on the system for both compiling and executing a model.
+NPU Plugin needs an NPU Driver to be installed on the system to execute a model.
 Follow the instructions below to install the latest NPU drivers:
 
 * `Windows driver <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__
 * `Linux driver <https://github.com/intel/linux-npu-driver/releases>`__
 
+Starting with the 2026.0 release, the compiler library is available in the OpenVINO package as a preview feature (``Compiler-In-Plugin``).
+The default compiler type remains ``Compiler-In-Driver`` (the compiler library included in the driver package).
+Users can override the default compiler selection by setting ``ov::intel_npu::compiler_type``.
 
-The plugin uses the graph extension API exposed by the driver to convert the OpenVINO specific
-representation of the model into a proprietary format. The compiler included in the user mode
-driver (UMD) performs platform specific optimizations in order to efficiently schedule the
-execution of network layers and memory transactions on various NPU hardware submodules.
+The plugin uses either the NPU compiler library included in the driver or
+the compiler library included in the OpenVINO package to convert the OpenVINO specific
+representation of the model into a proprietary format. The compiler performs platform specific
+optimizations in order to efficiently schedule the execution of layers and memory transactions
+on various NPU hardware submodules.
 
 To use NPU for inference, pass the device name to the ``ov::Core::compile_model()`` method:
 
@@ -118,9 +122,6 @@ Supported Features and properties
 
 The NPU device is currently supported by AUTO inference modes
 (HETERO execution is partially supported, for certain models).
-
-The NPU support in OpenVINO is still under active development and may
-offer a limited set of supported OpenVINO features.
 
 **Supported Properties:**
 
@@ -241,7 +242,7 @@ Usage example:
 
    compile_model(model, config);
 
-**npu_turbo**
+**ov::intel_npu::turbo**
 
 The turbo mode, where available, provides a hint to the system to maintain the
 maximum NPU frequency and memory throughput within the platform TDP limits.
@@ -265,19 +266,42 @@ or
 
 **ov::intel_npu::max_tiles and ov::intel_npu::tiles**
 
-the ``max_tiles`` property is read-write to enable compiling models off-device.
-When on NPU, ``max_tiles`` will return the number of tiles the device has.
-Setting the number of tiles to compile for (via ``intel_npu::tiles``), when on device,
-must be preceded by reading ``intel_npu::max_tiles`` first, to make sure that
-``ov::intel_npu::tiles`` <= ``ov::intel_npu::max_tiles``
-to avoid exceptions from the compiler.
+For on-device compilation, the plugin queries the driver for the available number of tiles and sets ``ov::intel_npu::max_tiles``.
+``ov::intel_npu::max_tiles`` is a read-write property to allow users to set it during offline compilation.
+Note that ``ov::intel_npu::max_tiles`` represents the maximum number of tiles available,
+but the compiler may target a lower number of tiles depending on other properties.
+Users can set ``ov::intel_npu::tiles`` to override the number of tiles selected by the compiler based on other properties.
 
 .. note::
 
-   ``ov::intel_npu::tiles`` overrides the default number of tiles selected by the compiler based on performance hints
-   (``ov::hint::performance_mode``).
-   Any tile number other than 1 may be a problem for cross platform compatibility,
-   if not tested explicitly versus the max_tiles value.
+   When setting ``ov::intel_npu::tiles``, users must ensure that the value does not
+   exceed ``ov::intel_npu::max_tiles``. Any tile count other than 1 may impact
+   cross-device compatibility if it is not explicitly validated against the target
+   devices's `ov::intel_npu::max_tiles` value.
+
+**ov::intel_npu::compiler_type**
+
+This property allows users to override the default compiler type selected by the plugin.
+To use ``Compiler-In-Plugin`` whenever possible, users can set the property to ``PREFER_PLUGIN``.
+This instructs the plugin to use the integrated compiler when all the following conditions are met:
+- The library is present
+- The compiler supports the current platform ``or`` there is no platform detected (offline compilation)
+- Compatibility is maintained between the current compiler version and all drivers released for the platform ``or`` there is no platform detected (offline compilation)
+
+If any condition is not met, the plugin automatically falls back to using ``Compiler-In-Driver``.
+The compiler type used to compile a model can be queried from the resulting ``CompiledModel`` by reading the ``ov::intel_npu::compiler_type`` property.
+
+.. note::
+Notes regarding on-device vs offline compilation:
+- For on-device compilation with ``Compiler-In-Plugin``, the plugin is responsible for querying the platform information
+from the driver and for passing the mandatory configs to the compiler (platform ID, available number of tiles, stepping information).
+Such compiled models are compatible with all the drivers released for that platform.
+- For offline compilation, users must explicitly set the ``ov::intel_npu::platform`` property to one of the supported values (see table above).
+Setting extra properties during offline compilation may result in compiled models that cannot be executed
+on SKUs with fewer resources or on drivers that do not support those features.
+Example: Setting ``performance-hint-override=latency`` through ``ov::intel_npu::compilation_mode_params`` instructs the compiler
+to use all available resources for the given platform. If ``ov::intel_npu::max_tiles`` is not provided,
+the compiler falls back to a fixed lookup table embedded in the library to determine available resources, which might not be representative of all SKUs.
 
 Limitations
 #############################
@@ -288,8 +312,7 @@ Limitations
 
 Offline compilation and blob import is supported only for development purposes.
 Pre-compiled models (blobs) are not recommended to be used in production.
-Blob compatibility across different OpenVINO / NPU Driver versions is not
-guaranteed.
+Blob compatibility across different OpenVINO versions is not guaranteed.
 
 Additional Resources
 #############################
