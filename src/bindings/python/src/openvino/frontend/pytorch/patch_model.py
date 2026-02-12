@@ -96,12 +96,17 @@ def _create_function_wrapper(extension):
     return wrapper
 
 
+def _fp32_tensor(*shape, device=None):
+    """Create a placeholder FP32 tensor with the given shape and device."""
+    return torch.full(shape, 0.5, dtype=torch.float32, device=device)
+
+
 # Extension for torch.bmm: (b, n, m) @ (b, m, p) -> (b, n, p)
 _bmm_extension = ModuleExtension(
     None, "ov_ext::bmm",
     convert=lambda module, target_op, *args, **kwargs: target_op(*args),
-    evaluate=lambda module, *args, **kwargs: torch.full(
-        (args[0].shape[0], args[0].shape[1], args[1].shape[2]), 0.5, dtype=torch.float32)
+    evaluate=lambda module, *args, **kwargs: _fp32_tensor(
+        args[0].shape[0], args[0].shape[1], args[1].shape[2], device=args[0].device)
 )
 
 
@@ -109,7 +114,7 @@ _bmm_extension = ModuleExtension(
 _patched_torch_functions = {}
 
 
-def _patch_torch_functions(supported_dtypes):
+def _patch_torch_functions():
     """Patch torch functions that don't work well with 16-bit types (e.g., bmm for MoE models).
 
     These patches skip actual computation and create custom ops in the TorchScript graph,
@@ -150,7 +155,7 @@ def __make_16bit_traceable(model: torch.nn.Module,
     supported = {torch.float16, torch.bfloat16, torch.float8_e4m3fn, torch.float8_e5m2}
 
     # Patch torch functions for operations like bmm used in MoE models
-    _patch_torch_functions(supported)
+    _patch_torch_functions()
 
     if patch_condition is None:
         def patch_condition(module):
@@ -158,16 +163,14 @@ def __make_16bit_traceable(model: torch.nn.Module,
             weight = getattr(module, "weight", None)
             return weight is not None and weight.dtype in dtype_to_patch
 
-    def fp32_tensor(*shape):
-        return torch.full(shape, 0.5, dtype=torch.float32)
-
     extensions = {
         torch.nn.Linear: ModuleExtension(
             torch.nn.Linear, "ov_ext::linear",
             convert=lambda module, target_op, *args, **kwargs: target_op(args[0],
                                                                          module.weight,
                                                                          module.bias),
-            evaluate=lambda module, *args, **kwargs: fp32_tensor(*args[0].shape[:-1], module.out_features),
+            evaluate=lambda module, *args, **kwargs: _fp32_tensor(
+                *args[0].shape[:-1], module.out_features, device=args[0].device),
             condition=patch_condition),
         torch.nn.Embedding: ModuleExtension(
             torch.nn.Embedding, "ov_ext::embedding",
@@ -176,7 +179,8 @@ def __make_16bit_traceable(model: torch.nn.Module,
                                                                          module.padding_idx,
                                                                          module.scale_grad_by_freq,
                                                                          module.sparse),
-            evaluate=lambda module, *args, **kwargs: fp32_tensor(*args[1].shape, module.embedding_dim),
+            evaluate=lambda module, *args, **kwargs: _fp32_tensor(
+                *args[1].shape, module.embedding_dim, device=args[1].device),
             condition=patch_condition),
     }
     try:
@@ -186,7 +190,8 @@ def __make_16bit_traceable(model: torch.nn.Module,
             convert=lambda module, target_op, *args, **kwargs: target_op(args[0],
                                                                          module.weight,
                                                                          module.bias),
-            evaluate=lambda module, *args, **kwargs: fp32_tensor(*args[0].shape[:-1], module.nf),
+            evaluate=lambda module, *args, **kwargs: _fp32_tensor(
+                *args[0].shape[:-1], module.nf, device=args[0].device),
             condition=patch_condition)
     except ImportError:
         pass

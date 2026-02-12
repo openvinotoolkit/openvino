@@ -91,7 +91,7 @@ if(OV_GENERATOR_MULTI_CONFIG)
 endif()
 
 # Collect all Python source files for dependency tracking
-file(GLOB_RECURSE OPENVINO_PYTHON_SOURCE_FILES ${OpenVINOPython_SOURCE_DIR}/src/openvino/*.py)
+file(GLOB_RECURSE OPENVINO_PYTHON_SOURCE_FILES CONFIGURE_DEPENDS ${OpenVINOPython_SOURCE_DIR}/src/openvino/*.py)
 
 # Create a stamp file to track when copy was last performed
 set(PYTHON_COPY_STAMP_FILE ${CMAKE_CURRENT_BINARY_DIR}/python_copy.stamp)
@@ -102,7 +102,7 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${OpenVINOPython_SOURCE_DIR}/src/openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
     COMMAND ${CMAKE_COMMAND} -E copy ${OpenVINOPython_SOURCE_DIR}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../requirements.txt
     COMMAND ${CMAKE_COMMAND} -E touch ${PYTHON_COPY_STAMP_FILE}
-    DEPENDS ${OPENVINO_PYTHON_SOURCE_FILES}
+    DEPENDS ${OPENVINO_PYTHON_SOURCE_FILES} ${OpenVINOPython_SOURCE_DIR}/requirements.txt
     COMMENT "Copying Python source files to build directory"
 )
 

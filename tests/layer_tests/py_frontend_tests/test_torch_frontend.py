@@ -1066,25 +1066,29 @@ def test_patched_16bit_model_with_bmm():
     with torch.no_grad():
         res_ref = model_ref(*example)
 
-    # Test fp16
-    model_fp16 = copy.deepcopy(model_ref).half()
-    patch_model.__make_16bit_traceable(model_fp16)
-    with torch.no_grad():
-        converted_model = convert_model(model_fp16, example_input=example)
-    assert converted_model
-    cm_fp16 = compile_model(converted_model, "CPU", default_cfg)
-    res_fp16 = cm_fp16([x.numpy() for x in example])
-    np.testing.assert_allclose(res_fp16[0], res_ref.numpy(), atol=1e-2)
+    try:
+        # Test fp16
+        model_fp16 = copy.deepcopy(model_ref).half()
+        patch_model.__make_16bit_traceable(model_fp16)
+        with torch.no_grad():
+            converted_model = convert_model(model_fp16, example_input=example)
+        assert converted_model
+        cm_fp16 = compile_model(converted_model, "CPU", default_cfg)
+        res_fp16 = cm_fp16([x.numpy() for x in example])
+        np.testing.assert_allclose(res_fp16[0], res_ref.numpy(), atol=1e-2)
 
-    # Test bf16
-    model_bf16 = copy.deepcopy(model_ref).bfloat16()
-    patch_model.__make_16bit_traceable(model_bf16)
-    with torch.no_grad():
-        converted_model = convert_model(model_bf16, example_input=example)
-    assert converted_model
-    cm_bf16 = compile_model(converted_model, "CPU", default_cfg)
-    res_bf16 = cm_bf16([x.numpy() for x in example])
-    np.testing.assert_allclose(res_bf16[0], res_ref.numpy(), atol=2e-2)
+        # Test bf16
+        model_bf16 = copy.deepcopy(model_ref).bfloat16()
+        patch_model.__make_16bit_traceable(model_bf16)
+        with torch.no_grad():
+            converted_model = convert_model(model_bf16, example_input=example)
+        assert converted_model
+        cm_bf16 = compile_model(converted_model, "CPU", default_cfg)
+        res_bf16 = cm_bf16([x.numpy() for x in example])
+        np.testing.assert_allclose(res_bf16[0], res_ref.numpy(), atol=2e-2)
+    finally:
+        # Restore torch.bmm to avoid leaking global state to other tests
+        patch_model._unpatch_torch_functions()
 
 
 @pytest.mark.skipif(sys.platform.lower().startswith("win"), reason="CVS-174725")
