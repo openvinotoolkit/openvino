@@ -7,7 +7,6 @@
 #include <iostream>
 
 #include "openvino/shutdown.hpp"
-#include  "openvino/core/core_visibility.hpp"
 
 namespace {
     int* counter = nullptr;
@@ -23,8 +22,7 @@ static void test_lib_shutdown() {
 OV_REGISTER_SHUTDOWN_CALLBACK(test_lib_shutdown)
 
 extern "C" {
-    OPENVINO_API
-    void set_callback_counter(int* c) {
+    OPENVINO_API void set_callback_counter(int* c) {
         counter = c;
     }
 }

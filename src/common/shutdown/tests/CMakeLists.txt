@@ -4,12 +4,9 @@
 
 set(TARGET_NAME shutdown_test_lib)
 
-# Build as SHARED library so tests can dlopen/dlclose it
-add_library(${TARGET_NAME} SHARED test_lib.cpp)
+# Build as MODULE library so tests can dlopen/dlclose it (like plugins)
+add_library(${TARGET_NAME} MODULE test_lib.cpp)
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::shutdown)
-
-set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/test_lib.cpp
-        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>)
 
 set_target_properties(${TARGET_NAME} PROPERTIES
     EXPORT_NAME shutdown_test_lib
@@ -35,3 +32,6 @@ ov_add_test_target(
     LABELS
         OV UNIT TRANSFORMATIONS
 )
+
+set_source_files_properties(test_lib.cpp shutdown_test.cpp
+        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>)

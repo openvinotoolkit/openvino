@@ -4,8 +4,8 @@
 
 #pragma once
 
+#include "openvino/core/core_visibility.hpp"
 
 extern "C" {
-    void set_callback_counter(int* c);
+    OPENVINO_API void set_callback_counter(int* c);
 }
-
