@@ -863,37 +863,27 @@ void Properties::filterPropertiesByCompilerSupport(const ICompilerAdapter* compi
     _initialized = true;
 }
 
-void Properties::filterCompilerPropertiesSafe(const bool ensurePropertiesInitialized,
-                                              const ov::AnyMap& arguments,
-                                              const ICompilerAdapter* compiler,
-                                              const std::optional<bool> changeCompiler) {
+void Properties::filterCompilerPropertiesSafe(const bool ensurePropertiesInitialized, const ov::AnyMap& arguments) {
     std::lock_guard<std::mutex> lock(_mutex);
-    bool initializeCompilerOptions = false;
-    ov::intel_npu::CompilerType compilerType;
-    std::string platform;
-    std::string deviceId;
+
+    auto compilerType = utils::resolveCompilerType(_config, arguments);
+    auto platform = utils::resolvePlatformOption(_config, arguments);
+    auto deviceId = utils::resolveDeviceIdOption(_config, arguments);
     std::string deviceName;
-
-    if (changeCompiler.has_value() && compiler != nullptr) {
-        initializeCompilerOptions = changeCompiler.value();
-    } else {
-        compilerType = utils::resolveCompilerType(_config, arguments);
-        platform = utils::resolvePlatformOption(_config, arguments);
-        deviceId = utils::resolveDeviceIdOption(_config, arguments);
-        try {
-            deviceName = _backend == nullptr ? std::string() : _backend->getDevice(deviceId)->getName();
-        } catch (const std::exception& ex) {
-            if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
-                OPENVINO_THROW(ex.what());
-            } else {
-                _logger.warning("The specified device (\"%s\") was not found.", deviceId.c_str());
-            }
+    try {
+        deviceName = _backend == nullptr ? std::string() : _backend->getDevice(deviceId)->getName();
+    } catch (const std::exception& ex) {
+        if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
+            OPENVINO_THROW(ex.what());
+        } else {
+            _logger.warning("The specified device (\"%s\") was not found.", deviceId.c_str());
         }
+    }
 
-        if (compilerType != _config.get<COMPILER_TYPE>() || platform != _config.get<PLATFORM>() ||
-            deviceId != _config.get<DEVICE_ID>()) {
-            initializeCompilerOptions = true;
-        }
+    bool initializeCompilerOptions = false;
+    if (compilerType != _config.get<COMPILER_TYPE>() || platform != _config.get<PLATFORM>() ||
+        deviceId != _config.get<DEVICE_ID>()) {
+        initializeCompilerOptions = true;
     }
 
     bool argumentNotRegistered = false;
@@ -904,33 +894,44 @@ void Properties::filterCompilerPropertiesSafe(const bool ensurePropertiesInitial
         }
     }
 
-    const bool shouldRegister =
-        argumentNotRegistered || (ensurePropertiesInitialized && (!_initialized || initializeCompilerOptions));
-    if (shouldRegister) {
-        const ICompilerAdapter* localCompiler = nullptr;
-        std::unique_ptr<ICompilerAdapter> compilerPtr = nullptr;
-        if (compiler != nullptr) {
-            localCompiler = compiler;
-        } else {
-            try {
-                // create a compiler to fetch version and supported options
-                CompilerAdapterFactory factory;
-                compilerPtr = factory.getCompiler(
-                    _backend,
-                    compilerType,
-                    utils::getCompilationPlatform(
-                        platform,
-                        deviceName.empty() ? deviceId : deviceName,
-                        _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames()));
-                localCompiler = compilerPtr.get();
-            } catch (...) {
-                // assuming getCompiler failed, meaning we are offline
-                _logger.warning("No available compiler. Enabling only runtime options ");
-            }
+    if (argumentNotRegistered || (ensurePropertiesInitialized && (!_initialized || initializeCompilerOptions))) {
+        std::unique_ptr<ICompilerAdapter> compiler = nullptr;
+        try {
+            // create a compiler to fetch version and supported options
+            CompilerAdapterFactory factory;
+            compiler =
+                factory.getCompiler(_backend,
+                                    compilerType,
+                                    utils::getCompilationPlatform(
+                                        platform,
+                                        deviceName.empty() ? deviceId : deviceName,
+                                        _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames()));
+        } catch (...) {
+            // assuming getCompiler failed, meaning we are offline
+            _logger.warning("No available compiler. Enabling only runtime options ");
         }
 
         // filter out unsupported options
-        filterPropertiesByCompilerSupport(localCompiler);
+        filterPropertiesByCompilerSupport(compiler.get());
+    }
+}
+
+void Properties::filterCompilerPropertiesSafe(const ov::AnyMap& arguments,
+                                              const ICompilerAdapter* compiler,
+                                              const bool initializeCompilerOptions) {
+    std::lock_guard<std::mutex> lock(_mutex);
+
+    bool argumentNotRegistered = false;
+    for (const auto& arg : arguments) {
+        if (!isPropertyRegistered(arg.first)) {
+            argumentNotRegistered = true;
+            break;
+        }
+    }
+
+    if (!_initialized || argumentNotRegistered || initializeCompilerOptions) {
+        // filter out unsupported options
+        filterPropertiesByCompilerSupport(compiler);
     }
 }
 

@@ -71,10 +71,11 @@ public:
         return _config;
     }
 
-    void filterCompilerPropertiesSafe(const bool ensurePropertiesInitialized,
-                                      const ov::AnyMap& arguments = {},
-                                      const ICompilerAdapter* compiler = nullptr,
-                                      const std::optional<bool> changeCompiler = std::nullopt);
+    void filterCompilerPropertiesSafe(const bool ensurePropertiesInitialized, const ov::AnyMap& arguments = {});
+
+    void filterCompilerPropertiesSafe(const ov::AnyMap& arguments,
+                                      const ICompilerAdapter* compiler,
+                                      const bool initializeCompilerOptions);
 
 private:
     PropertiesType _pType;

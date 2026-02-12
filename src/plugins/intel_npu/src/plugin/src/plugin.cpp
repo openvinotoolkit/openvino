@@ -416,14 +416,14 @@ void Plugin::init_options(FilteredConfig& filteredConfig) {
 
 FilteredConfig Plugin::fork_local_config(const ov::AnyMap& arguments,
                                          const ICompilerAdapter* compiler,
-                                         const std::optional<bool> changeCompiler,
+                                         const bool initializeCompilerOptions,
                                          OptionMode mode) const {
     if (_backend != nullptr) {
         _backend->updateInfo(arguments);
     }
 
     auto localProperties = std::make_unique<Properties>(*_properties);
-    localProperties->filterCompilerPropertiesSafe(true, arguments, compiler, changeCompiler);
+    localProperties->filterCompilerPropertiesSafe(arguments, compiler, initializeCompilerOptions);
     localProperties->update(arguments, compiler, mode);
 
     return localProperties->getConfig();
@@ -543,10 +543,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    bool changeCompiler = false;
+    bool initializeCompilerOptions = false;
     if (compilerType != globalConfig.get<COMPILER_TYPE>() || propertyPlatform != globalConfig.get<PLATFORM>() ||
         deviceId != globalConfig.get<DEVICE_ID>()) {
-        changeCompiler = true;
+        initializeCompilerOptions = true;
     }
 
     const auto compilationPlatform =
@@ -558,7 +558,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
-    auto localConfig = fork_local_config(localArguments, compiler.get(), changeCompiler);
+    auto localConfig = fork_local_config(localArguments, compiler.get(), initializeCompilerOptions);
     if (wasPreferPlugin) {
         localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
     }
@@ -928,10 +928,10 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
         }
     }
 
-    bool changeCompiler = false;
+    bool initializeCompilerOptions = false;
     if (compilerType != globalConfig.get<COMPILER_TYPE>() || propertyPlatform != globalConfig.get<PLATFORM>() ||
         deviceId != globalConfig.get<DEVICE_ID>()) {
-        changeCompiler = true;
+        initializeCompilerOptions = true;
     }
 
     const auto compilationPlatform =
@@ -942,7 +942,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     CompilerAdapterFactory factory;
     auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
-    auto localConfig = fork_local_config(localArguments, compiler.get(), changeCompiler, OptionMode::CompileTime);
+    auto localConfig =
+        fork_local_config(localArguments, compiler.get(), initializeCompilerOptions, OptionMode::CompileTime);
     if (wasPreferPlugin) {
         localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
     }
@@ -1016,10 +1017,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         }
     }
 
-    bool changeCompiler = false;
+    bool initializeCompilerOptions = false;
     if (compilerType != globalConfig.get<COMPILER_TYPE>() || propertyPlatform != globalConfig.get<PLATFORM>() ||
         deviceId != globalConfig.get<DEVICE_ID>()) {
-        changeCompiler = true;
+        initializeCompilerOptions = true;
     }
 
     const auto compilationPlatform =
@@ -1031,7 +1032,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
-    auto localConfig = fork_local_config(localArguments, compiler.get(), changeCompiler, OptionMode::RunTime);
+    auto localConfig =
+        fork_local_config(localArguments, compiler.get(), initializeCompilerOptions, OptionMode::RunTime);
     if (wasPreferPlugin) {
         localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
     }

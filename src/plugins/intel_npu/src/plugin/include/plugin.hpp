@@ -71,7 +71,7 @@ private:
                                          const ICompilerAdapter* compiler = nullptr) const;
     FilteredConfig fork_local_config(const ov::AnyMap& arguments,
                                      const ICompilerAdapter* compiler,
-                                     const std::optional<bool> changeCompiler = std::nullopt,
+                                     const bool initializeCompilerOptions,
                                      OptionMode mode = OptionMode::Both) const;
 
     /**
