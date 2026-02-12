@@ -37,14 +37,15 @@ TEST(FrontEndConvertModelTest, unsupported_version) {
     ASSERT_THROW(inputModel = frontEnd->load(model_filename), GeneralFailure);
 }
 
-TEST(FrontEndConvertModelTest, set_value_invalid_axes) {
+TEST(FrontEndConvertModelTest, set_value_invalid_attr_sizes) {
     FrontEndManager fem;
     FrontEnd::Ptr frontEnd;
     InputModel::Ptr inputModel;
     OV_ASSERT_NO_THROW(frontEnd = fem.load_by_framework(PADDLE_FE));
     ASSERT_NE(frontEnd, nullptr);
     auto model_filename = FrontEndTestUtils::make_model_path(
-        std::string(TEST_PADDLE_MODELS_DIRNAME) + std::string("set_value_invalid_axes/set_value_invalid_axes.pdmodel"));
+        std::string(TEST_PADDLE_MODELS_DIRNAME) +
+        std::string("set_value_invalid_attr_sizes/set_value_invalid_attr_sizes.pdmodel"));
     OV_ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
     ASSERT_NE(inputModel, nullptr);
     try {

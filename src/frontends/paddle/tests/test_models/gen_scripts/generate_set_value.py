@@ -59,7 +59,8 @@ def _update_set_value_attrs(model_path):
             starts_ok = _set_attr_ints(op, "starts", [0], framework_pb2)
             ends_ok = _set_attr_ints(op, "ends", [1], framework_pb2)
             steps_ok = _set_attr_ints(op, "steps", [1], framework_pb2)
-            updated = axes_ok and starts_ok and ends_ok and steps_ok
+            updated = updated or (axes_ok and starts_ok and ends_ok
+                                  and steps_ok)
 
     if not updated:
         raise RuntimeError("set_value op not found when mutating pdmodel")
@@ -319,7 +320,7 @@ def main():
                        fetch_list=[node_out])
 
         saveModel(
-            "set_value_invalid_axes",
+            "set_value_invalid_attr_sizes",
             exe,
             feed_vars=[node_x, node_v],
             fetchlist=[node_out],
@@ -328,8 +329,9 @@ def main():
             target_dir=sys.argv[1],
         )
 
-    model_dir = os.path.join(sys.argv[1], "set_value_invalid_axes")
-    model_path = os.path.join(model_dir, "set_value_invalid_axes.pdmodel")
+    model_dir = os.path.join(sys.argv[1], "set_value_invalid_attr_sizes")
+    model_path = os.path.join(model_dir,
+                              "set_value_invalid_attr_sizes.pdmodel")
     _update_set_value_attrs(model_path)
 
 
