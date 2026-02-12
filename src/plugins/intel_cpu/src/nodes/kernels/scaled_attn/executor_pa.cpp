@@ -477,40 +477,10 @@ struct MHAHelper {
         auto total_tokens = static_cast<int32_t>(token_type.m_dims[0]);
         _image_group_end.resize(total_tokens);
 
-        bool debug = std::getenv("OV_PA_DEBUG") != nullptr;
-
         auto seq_count = static_cast<int32_t>(past_lens.m_dims[0]);
-        if (debug) {
-            std::cout << "[PA_DEBUG] set_token_type: total_tokens=" << total_tokens
-                      << " seq_count=" << seq_count << std::endl;
-        }
         for (int32_t seq = 0; seq < seq_count; seq++) {
             auto seq_begin = subsequence_begins.ptr<int32_t>()[seq];
             auto seq_end = subsequence_begins.ptr<int32_t>()[seq + 1];
-            auto q_len = seq_end - seq_begin;
-            auto kv_len = past_lens.ptr<int32_t>()[seq] + q_len;
-            (void)kv_len;
-
-            if (debug) {
-                std::cout << "[PA_DEBUG]   seq=" << seq
-                          << " seq_begin=" << seq_begin << " seq_end=" << seq_end
-                          << " q_len=" << q_len << " past_len=" << past_lens.ptr<int32_t>()[seq]
-                          << " kv_len=" << kv_len << std::endl;
-                // Print token_type_ids for this subsequence (compact)
-                std::cout << "[PA_DEBUG]   token_types[" << seq_begin << ".." << seq_end << "]: ";
-                int run_val = -1, run_start = 0;
-                for (int32_t i = seq_begin; i <= seq_end; i++) {
-                    int cur = (i < seq_end) ? token_type.ptr<int32_t>()[i] : -999;
-                    if (cur != run_val) {
-                        if (run_val >= 0) {
-                            std::cout << run_val << "x" << (i - run_start) << " ";
-                        }
-                        run_val = cur;
-                        run_start = i;
-                    }
-                }
-                std::cout << std::endl;
-            }
 
             // Backward scan within this subsequence to find group ends
             for (int32_t i = seq_end - 1; i >= seq_begin; i--) {
@@ -524,21 +494,6 @@ struct MHAHelper {
                     _image_group_end[i] = -1;
                 }
             }
-
-            if (debug) {
-                // Print image groups found
-                int32_t group_start = -1;
-                for (int32_t i = seq_begin; i <= seq_end; i++) {
-                    bool is_img = (i < seq_end) && (token_type.ptr<int32_t>()[i] == 1);
-                    if (is_img && group_start < 0) group_start = i;
-                    if (!is_img && group_start >= 0) {
-                        std::cout << "[PA_DEBUG]   IMAGE GROUP: tokens [" << group_start
-                                  << ".." << i << ") len=" << (i - group_start)
-                                  << " group_end=" << _image_group_end[group_start] << std::endl;
-                        group_start = -1;
-                    }
-                }
-            }
         }
     }
 
@@ -549,26 +504,13 @@ struct MHAHelper {
     //   q_global_idx: global index of the query token in token_type_ids
     //   default_ncausal: the standard causal ncausal value
     //   cur_kv_len: total KV length for the current sequence
-    mutable std::atomic<int> _debug_ncausal_count{0};
-
     size_t get_ncausal(size_t q_global_idx, size_t default_ncausal, size_t cur_kv_len) const {
         if (!_token_type || q_global_idx >= _image_group_end.size()) {
             return default_ncausal;
         }
         if (_token_type.ptr<int32_t>()[q_global_idx] == 1) {
             // Image token: extend ncausal to the end of the image group, capped by cur_kv_len
-            auto adjusted = std::min(static_cast<size_t>(_image_group_end[q_global_idx]), cur_kv_len);
-            if (std::getenv("OV_PA_DEBUG")) {
-                int cnt = _debug_ncausal_count.fetch_add(1);
-                if (cnt < 10 || cnt % 500 == 0) {
-                    std::cout << "[PA_DEBUG] get_ncausal: q_idx=" << q_global_idx
-                              << " type=IMAGE default_ncausal=" << default_ncausal
-                              << " group_end=" << _image_group_end[q_global_idx]
-                              << " cur_kv_len=" << cur_kv_len
-                              << " ADJUSTED=" << adjusted << std::endl;
-                }
-            }
-            return adjusted;
+            return std::min(static_cast<size_t>(_image_group_end[q_global_idx]), cur_kv_len);
         }
         return default_ncausal;
     }
@@ -2432,99 +2374,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
         // Precompute image group boundaries for bidirectional attention
         if (token_type_ids) {
-            if (std::getenv("OV_PA_DEBUG")) {
-                std::cout << "[PA_DEBUG] execute(): token_type_ids ACTIVE, shape=[" << token_type_ids.m_dims[0] << "]" << std::endl;
-            }
             _helper.set_token_type(token_type_ids, subsequence_begins, past_lens);
-
-            // Print the effective attention mask for verification (first invocation only)
-            if (std::getenv("OV_PA_DEBUG")) {
-                static bool mask_printed = false;
-                if (!mask_printed) {
-                    mask_printed = true;
-                    auto total = token_type_ids.m_dims[0];
-                    auto* types = token_type_ids.ptr<int32_t>();
-                    // Find the text→image boundary
-                    size_t img_start = total, img_end = 0;
-                    for (size_t i = 0; i < total; i++) {
-                        if (types[i] == 1) {
-                            if (i < img_start) img_start = i;
-                            img_end = i + 1;
-                        }
-                    }
-                    // Print mask for interesting rows: last 2 text tokens, first 5 image, last 5 image, first 2 post-image
-                    std::vector<size_t> rows;
-                    if (img_start >= 2) { rows.push_back(img_start - 2); rows.push_back(img_start - 1); }
-                    else { for (size_t i = 0; i < img_start; i++) rows.push_back(i); }
-                    for (size_t i = img_start; i < std::min(img_start + 5, total); i++) rows.push_back(i);
-                    if (img_end > 5 && img_end > img_start + 5) {
-                        rows.push_back(size_t(-1)); // separator
-                        for (size_t i = img_end - 5; i < img_end; i++) rows.push_back(i);
-                    }
-                    if (img_end < total) {
-                        for (size_t i = img_end; i < std::min(img_end + 2, total); i++) rows.push_back(i);
-                    }
-                    std::cout << "[PA_DEBUG] === EFFECTIVE ATTENTION MASK (1=attend, 0=masked) ===" << std::endl;
-                    std::cout << "[PA_DEBUG] img_start=" << img_start << " img_end=" << img_end << " total=" << total << std::endl;
-                    // Column header: print column indices for key ranges
-                    // For each query row, show which KV positions it attends to
-                    for (auto row : rows) {
-                        if (row == size_t(-1)) {
-                            std::cout << "[PA_DEBUG]   ..." << std::endl;
-                            continue;
-                        }
-                        size_t ncausal = _helper.get_ncausal(row, row + 1, total);
-                        // The mask: attend to positions [0..ncausal), masked for [ncausal..total)
-                        std::string label = (types[row] == 1) ? "IMG" : "TXT";
-                        std::cout << "[PA_DEBUG]   q[" << row << "](" << label << "): ncausal=" << ncausal
-                                  << " -> attends to KV[0.." << ncausal << ")";
-                        if (types[row] == 1) {
-                            std::cout << "  (bidirectional: sees all " << (img_end - img_start) << " image tokens + " << img_start << " prefix text)";
-                        } else {
-                            std::cout << "  (causal: sees only past+self)";
-                        }
-                        std::cout << std::endl;
-                    }
-                    // Print a mini visual grid for first 20 KV columns around the boundary
-                    size_t col_start = (img_start >= 3) ? img_start - 3 : 0;
-                    size_t col_end = std::min(img_start + 15, total);
-                    std::cout << "[PA_DEBUG]   Mini mask grid (cols " << col_start << ".." << col_end << "):" << std::endl;
-                    std::cout << "[PA_DEBUG]          ";
-                    for (size_t c = col_start; c < col_end; c++) {
-                        std::cout << (c % 10);
-                    }
-                    std::cout << "  (col indices mod 10)" << std::endl;
-                    std::cout << "[PA_DEBUG]          ";
-                    for (size_t c = col_start; c < col_end; c++) {
-                        std::cout << (types[c] == 1 ? "I" : "T");
-                    }
-                    std::cout << "  (T=text, I=image)" << std::endl;
-                    for (auto row : rows) {
-                        if (row == size_t(-1)) {
-                            std::cout << "[PA_DEBUG]   ..." << std::endl;
-                            continue;
-                        }
-                        size_t ncausal = _helper.get_ncausal(row, row + 1, total);
-                        std::string label = (types[row] == 1) ? "I" : "T";
-                        char buf[16];
-                        snprintf(buf, sizeof(buf), "q[%3zu]%s ", row, label.c_str());
-                        std::cout << "[PA_DEBUG]   " << buf;
-                        for (size_t c = col_start; c < col_end; c++) {
-                            std::cout << ((c < ncausal) ? "1" : ".");
-                        }
-                        std::cout << std::endl;
-                    }
-                    std::cout << "[PA_DEBUG] === END MASK ===" << std::endl;
-                }
-            }
-        } else {
-            if (std::getenv("OV_PA_DEBUG")) {
-                static bool once = false;
-                if (!once) {
-                    std::cout << "[PA_DEBUG] execute(): token_type_ids NOT present (inputs=" << inputs.size() << ")" << std::endl;
-                    once = true;
-                }
-            }
         }
 
         if (rotated_block_indices) {
