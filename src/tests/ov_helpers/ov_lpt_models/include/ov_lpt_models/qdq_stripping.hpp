@@ -65,27 +65,23 @@ public:
     // === SharedDQ pattern ===
     // Two Conv branches sharing a quantized input (FQ → Convert → Convert → DQ → Conv + FQ → DQ)
     // FQs have y_scale < 1, so they are just stripped without scale propagation.
-    static std::shared_ptr<ov::Model> getOriginalSharedDQ(const ov::PartialShape& input_shape);
-    static std::shared_ptr<ov::Model> getReferenceSharedDQ(const ov::PartialShape& input_shape);
+    static std::shared_ptr<ov::Model> build_shared_dq_pattern_ref(const ov::PartialShape& input_shape);
 
     // === NeedScalingMulMatMul pattern ===
     // Two params each multiplied by a shared DQ constant, then MatMul, then FQ→DQ→Softmax.
-    // FQ y_scale = 2, so weights must be divided by 2.
-    static std::shared_ptr<ov::Model> getOriginalNeedScalingMulMatMul(const ov::PartialShape& input_shape);
-    static std::shared_ptr<ov::Model> getReferenceNeedScalingMulMatMul(const ov::PartialShape& input_shape);
+    // FQ y_scale = 2, so weights must be divided by y_scale * ratio.
+    static std::shared_ptr<ov::Model> build_need_scaling_mul_matmul_pattern_ref(const ov::PartialShape& input_shape);
 
     // === NeedScalingMatMulWithBias pattern ===
     // MatMul with DQ weights + DQ bias + Add, then FQ→DQ→MVN.
-    // FQ y_scale = 4, so weights and bias must be divided by 4.
-    static std::shared_ptr<ov::Model> getOriginalNeedScalingMatMulWithBias(const ov::PartialShape& input_shape);
-    static std::shared_ptr<ov::Model> getReferenceNeedScalingMatMulWithBias(const ov::PartialShape& input_shape);
+    // FQ y_scale = 4, so weights and bias must be divided by y_scale * ratio.
+    static std::shared_ptr<ov::Model> build_need_scaling_matmul_with_bias_pattern_ref(const ov::PartialShape& input_shape);
 
     // === NeedScalingResidualBlock pattern ===
     // Conv→bias→FQ→DQ→FQ(fwd)→residual_blocks(MVN→Conv→bias→FQ(branch)→Add)→MVN
     // First FQ y_scale=10 → stripped + scale propagation.
     // Forward-path FQ and branch FQs adjusted then stripped.
-    static std::shared_ptr<ov::Model> getOriginalNeedScalingResidualBlock(const ov::PartialShape& input_shape);
-    static std::shared_ptr<ov::Model> getReferenceNeedScalingResidualBlock(const ov::PartialShape& input_shape);
+    static std::shared_ptr<ov::Model> build_need_scaling_residual_block_pattern_ref(const ov::PartialShape& input_shape);
 
     // === GPU accuracy test model builders ===
     // These build full models with per-precision QuantizationParams (i16/u16) for

@@ -30,7 +30,7 @@ public:
 TEST_F(QDQStrippingTest, smoke_LPT_SharedDQ) {
     const auto input_shape = ov::PartialShape{1, 3, 8, 8};
     model = QDQStrippingFunction::build_shared_dq_pattern(input_shape, ov::element::u16);
-    model_ref = QDQStrippingFunction::getReferenceSharedDQ(input_shape);
+    model_ref = QDQStrippingFunction::build_shared_dq_pattern_ref(input_shape);
 }
 
 // =============================================================================
@@ -41,7 +41,7 @@ TEST_F(QDQStrippingTest, smoke_LPT_SharedDQ) {
 TEST_F(QDQStrippingTest, NeedScalingMulMatMul) {
     const auto input_shape = ov::PartialShape{1, 3, 8, 8};
     model = QDQStrippingFunction::build_need_scaling_mul_matmul_pattern(input_shape, ov::element::u16);
-    model_ref = QDQStrippingFunction::getReferenceNeedScalingMulMatMul(input_shape);
+    model_ref = QDQStrippingFunction::build_need_scaling_mul_matmul_pattern_ref(input_shape);
 }
 
 // =============================================================================
@@ -49,9 +49,9 @@ TEST_F(QDQStrippingTest, NeedScalingMulMatMul) {
 // FQ y_scale = 4 → both weight and bias scales divided by 4
 // =============================================================================
 TEST_F(QDQStrippingTest, NeedScalingMatMulWithBias) {
-    const auto input_shape = ov::PartialShape{1, 3};
+    const auto input_shape = ov::PartialShape{1, 128};
     model = QDQStrippingFunction::build_need_scaling_matmul_with_bias_pattern(input_shape, ov::element::u16);
-    model_ref = QDQStrippingFunction::getReferenceNeedScalingMatMulWithBias(input_shape);
+    model_ref = QDQStrippingFunction::build_need_scaling_matmul_with_bias_pattern_ref(input_shape);
 }
 
 // =============================================================================
@@ -62,5 +62,5 @@ TEST_F(QDQStrippingTest, NeedScalingMatMulWithBias) {
 TEST_F(QDQStrippingTest, NeedScalingResidualBlock) {
     const auto input_shape = ov::PartialShape{1, 3, 8, 8};
     model = QDQStrippingFunction::build_need_scaling_residual_block_pattern(input_shape, ov::element::u16);
-    model_ref = QDQStrippingFunction::getReferenceNeedScalingResidualBlock(input_shape);
+    model_ref = QDQStrippingFunction::build_need_scaling_residual_block_pattern_ref(input_shape);
 }
