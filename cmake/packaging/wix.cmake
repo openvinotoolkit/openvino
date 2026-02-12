@@ -75,7 +75,7 @@ macro(ov_cpack_settings)
     # CPACK_WIX_PRODUCT_GUID should be unique per version
 
     # override package file name
-    set(CPACK_PACKAGE_FILE_NAME "w_openvino_toolkit_p_${OpenVINO_VERSION}.${OpenVINO_VERSION_BUILD}_installer")
+    set(CPACK_PACKAGE_FILE_NAME "openvino_toolkit_${OpenVINO_VERSION}.${OpenVINO_VERSION_BUILD}_installer")
 
     # Set additional WIX properties for Programs and Features
     if(NOT DEFINED CPACK_WIX_PROPERTY_ARPCOMMENTS)
@@ -96,18 +96,4 @@ macro(ov_cpack_settings)
             set(CPACK_WIX_LICENSE_RTF "${CPACK_RESOURCE_FILE_LICENSE}")
         endif()
     endif()
-
-    # Product icon
-    # if(EXISTS "${OpenVINO_SOURCE_DIR}/docs/images/openvino-icon.ico")
-    #     set(CPACK_WIX_PRODUCT_ICON "${OpenVINO_SOURCE_DIR}/docs/images/openvino-icon.ico")
-    # endif()
-
-    # Optional: Enable CMake package registry
-    # set(CPACK_WIX_CMAKE_PACKAGE_REGISTRY "${CPACK_PACKAGE_NAME}")
-
-    # Optional: Custom WIX patch files
-    # set(CPACK_WIX_PATCH_FILE "${OpenVINO_SOURCE_DIR}/cmake/packaging/wix_patches.xml")
-
-    # Optional: Extra WIX extensions
-    # set(CPACK_WIX_EXTENSIONS "WixUtilExtension")
 endmacro()
