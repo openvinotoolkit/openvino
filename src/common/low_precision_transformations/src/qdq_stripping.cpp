@@ -180,7 +180,7 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
     VISUALIZE_MODEL(visualize_folder, "01_initial", "initial");
     SERIALIZE_MODEL(serialize_folder, "01_initial", "initial");
 
-    auto check_fq_constants = [&](const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) -> bool {
+    auto fq_ranges_are_the_same = [&](const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) -> bool {
         auto is_scalar_const = [](const std::shared_ptr<Node>& node) -> bool {
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
             if (!constant) {
@@ -194,12 +194,12 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             return false;
         }
 
-        // Check if ranges are valid (not degenerate)
+        // Check if input and output ranges are the same — only such FQs should be stripped
         float input_low = get_const_float_value(fq->get_input_node_shared_ptr(1));
         float input_high = get_const_float_value(fq->get_input_node_shared_ptr(2));
         float output_low = get_const_float_value(fq->get_input_node_shared_ptr(3));
         float output_high = get_const_float_value(fq->get_input_node_shared_ptr(4));
-        return std::abs(input_high - input_low) > 1e-6f && std::abs(output_high - output_low) > 1e-6f;
+        return std::abs(input_low - output_low) <= 1e-6f && std::abs(input_high - output_high) <= 1e-6f;
     };
 
     bool model_changed = false;
@@ -453,9 +453,9 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         QDQ_DEBUG_LOG << "\n======== Processing FQ: " << fq->get_friendly_name() << " (levels=" << fq->get_levels()
                       << ") ========" << std::endl;
 
-        // Check if FQ has valid constants
-        if (!check_fq_constants(fq)) {
-            QDQ_DEBUG_LOG << "  [ DEBUG ] Skipped: invalid or degenerate FQ constants" << std::endl;
+        // Skip FQs with non-scalar constants or different input/output ranges
+        if (!fq_ranges_are_the_same(fq)) {
+            QDQ_DEBUG_LOG << "  [ DEBUG ] Skipped: non-scalar constants or input/output ranges differ" << std::endl;
             continue;
         }
 
