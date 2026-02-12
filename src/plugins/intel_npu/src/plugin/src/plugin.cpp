@@ -1036,7 +1036,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     if (wasPreferPlugin) {
         localConfig.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
     }
-    localConfig.update({{ov::intel_npu::platform.name(), compilationPlatform}});
 
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
 
