@@ -97,7 +97,8 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::getOriginalSharedDQ(const ov::P
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
 
     // FQ with y_scale = 10/65535 ≈ 0.00015 < 1 → no scale propagation
-    auto input_fq = build_fq(params[0], 0.f, 10.f, 0.f, 65535.f);
+    // After FQ+DQ fusion, input and output ranges are the same
+    auto input_fq = build_fq(params[0], 0.f, 10.f, 0.f, 10.f);
     auto input_convert1 = std::make_shared<ov::op::v0::Convert>(input_fq, ov::element::u16);
     auto input_convert2 = std::make_shared<ov::op::v0::Convert>(input_convert1, ov::element::f32);
 
@@ -114,7 +115,8 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::getOriginalSharedDQ(const ov::P
                                                                ov::Strides{1, 1});
 
         // Second FQ with y_scale < 1 → also stripped without propagation
-        auto fq2 = build_fq(conv, -5.f, 5.f, -32768.f, 32767.f);
+        // After FQ+DQ fusion, input and output ranges are the same
+        auto fq2 = build_fq(conv, -5.f, 5.f, -5.f, 5.f);
         auto conv_convert1 = std::make_shared<ov::op::v0::Convert>(fq2, ov::element::i16);
         auto conv_convert2 = std::make_shared<ov::op::v0::Convert>(conv_convert1, ov::element::f32);
         return build_dq(conv_convert2, ov::element::i16, -5.f, 5.f, -32768.f, 32767.f, 0);
@@ -178,7 +180,8 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::getOriginalNeedScalingMulMatMul
     auto matmul = std::make_shared<ov::op::v0::MatMul>(mul1, mul2, false, true);
 
     // FQ: y_scale = (input_high - input_low) / (levels - 1) = 131070 / 65535 = 2
-    auto fq = build_fq(matmul, 0.f, 131070.f, 0.f, 65535.f);
+    // After FQ+DQ fusion, input and output ranges are the same
+    auto fq = build_fq(matmul, 0.f, 131070.f, 0.f, 131070.f);
     auto convert1 = std::make_shared<ov::op::v0::Convert>(fq, ov::element::u16);
     auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
     auto dq = build_dq(convert2, ov::element::u16, 0.f, 131070.f, 0.f, 65535.f, 0);
@@ -233,7 +236,8 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::getOriginalNeedScalingMatMulWit
     auto matmul_biased = std::make_shared<ov::op::v1::Add>(matmul, bias);
 
     // FQ: y_scale = 262140 / 65535 = 4
-    auto fq = build_fq(matmul_biased, 0.f, 262140.f, 0.f, 65535.f);
+    // After FQ+DQ fusion, input and output ranges are the same
+    auto fq = build_fq(matmul_biased, 0.f, 262140.f, 0.f, 262140.f);
     auto convert1 = std::make_shared<ov::op::v0::Convert>(fq, ov::element::u16);
     auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
     auto dq = build_dq(convert2, ov::element::u16, 0.f, 262140.f, 0.f, 65535.f, 0);
@@ -321,7 +325,8 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::getOriginalNeedScalingResidualB
     auto conv1_biased = add_bias(conv1, bias1);
 
     // First FQ: y_scale = (0 - (-655350)) / 65535 = 655350/65535 = 10
-    auto fq = build_fq(conv1_biased, -655350.f, 0.f, -65535.f, 0.f);
+    // After FQ+DQ fusion, input and output ranges are the same
+    auto fq = build_fq(conv1_biased, -655350.f, 0.f, -655350.f, 0.f);
     auto convert1 = std::make_shared<ov::op::v0::Convert>(fq, ov::element::i16);
     auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
     auto dq = build_dq(convert2, ov::element::i16, -655350.f, 0.f, -65535.f, 0.f, 0);

@@ -193,7 +193,7 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
         static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>> quantization_params{
             {ov::element::Type_t::u16, {{0.f, 10.f, 0.f, 65535.f, 0}, {-624.4578838348389f, 634.7373962402344f, 0.f, 65535.f, 32500}}},
-            {ov::element::Type_t::i16, {{-5.f, 5.f, -32768.f, 32767.f, 0}, {-629.6072483062744f, 629.5880317687988f, -32768.f, 32767.f, 0}}},
+            {ov::element::Type_t::i16, {{-5.0000762939453125f, 4.9999237060546875f, -32768.f, 32767.f, 0}, {-630.0096435546875f, 629.9904174804688f, -32768.f, 32767.f, 0}}},
         };
 
         const auto& q_params = quantization_params.at(quantization_precision);
@@ -311,7 +311,7 @@ protected:
         // FQ step=4 vs signal ~30000 → 0.01% error → MVN output accurate.
         static const std::unordered_map<ov::element::Type_t, QuantizationParams> quantization_params{
             {ov::element::Type_t::u16, {0.f, 262140.f, 0.f, 65535.f, 0}},
-            {ov::element::Type_t::i16, {-131070.f, 131070.f, -32768.f, 32767.f, 0}},
+            {ov::element::Type_t::i16, {-131072.f, 131068.f, -32768.f, 32767.f, 0}},
         };
 
         const auto& qp = quantization_params.at(quantization_precision);
@@ -356,7 +356,7 @@ protected:
         // With scale adjustment: weights are divided by ~10, keeping values in f16 range
         static const std::unordered_map<ov::element::Type_t, QuantizationParams> quantization_params{
             {ov::element::Type_t::u16, {0.f, 655350.f, 0.f, 65535.f, 0}},
-            {ov::element::Type_t::i16, {-327675.f, 327675.f, -32768.f, 32767.f, 0}},
+            {ov::element::Type_t::i16, {-327680.f, 327670.f, -32768.f, 32767.f, 0}},
         };
 
         const auto& qp = quantization_params.at(quantization_precision);
@@ -376,8 +376,8 @@ protected:
         // reference model. y_scale = range/65535 ≈ 10, after /10 ≈ 1.0 ≤ threshold.
         // Branch FQ range is [0, 65600] / [-32800, 32800] (y_scale ≈ 1.001 > 1),
         // covering the Conv output range (~150) without clamping. After /10 → y_scale ≈ 0.1.
-        float fwd_fq_lo = (quantization_precision == ov::element::u16) ? 0.f : -327675.f;
-        float fwd_fq_hi = (quantization_precision == ov::element::u16) ? 655350.f : 327675.f;
+        float fwd_fq_lo = (quantization_precision == ov::element::u16) ? 0.f : -327680.f;
+        float fwd_fq_hi = (quantization_precision == ov::element::u16) ? 655350.f : 327670.f;
         auto fq_pass_il = ov::op::v0::Constant::create(ov::element::f32, {}, {fwd_fq_lo});
         auto fq_pass_ih = ov::op::v0::Constant::create(ov::element::f32, {}, {fwd_fq_hi});
         auto fq_pass_ol = ov::op::v0::Constant::create(ov::element::f32, {}, {fwd_fq_lo});
