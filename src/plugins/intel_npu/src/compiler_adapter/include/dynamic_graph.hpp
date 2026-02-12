@@ -14,7 +14,7 @@
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
-class IRGraph final : public IDynamicGraph {
+class DynamicGraph final : public IDynamicGraph {
 public:
     struct MemRefTypeImpl {
         npu_mlir_runtime_mem_ref_handle_t _memRef;
@@ -83,7 +83,7 @@ public:
     };
 
     class Impl {
-        using MemRefTypeImpl = IRGraph::MemRefTypeImpl;
+        using MemRefTypeImpl = DynamicGraph::MemRefTypeImpl;
 
     public:
         virtual void initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) = 0;
@@ -102,14 +102,14 @@ public:
                                   ze_graph_profiling_pool_handle_t profiling) = 0;
         virtual void predictOutputShape(std::vector<MemRefType>& inputDescriptors,
                                         std::vector<MemRefType>& outputDescriptors) = 0;
-        virtual ~Impl() {};
+        virtual ~Impl(){};
     };
 
-    IRGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-            std::optional<ov::Tensor> blob,
-            bool blobAllocatedByPlugin,
-            const Config& config,
-            const ov::SoPtr<VCLCompilerImpl>& compiler = {nullptr});
+    DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                 std::optional<ov::Tensor> blob,
+                 bool blobAllocatedByPlugin,
+                 const Config& config,
+                 const ov::SoPtr<VCLCompilerImpl>& compiler = {nullptr});
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
@@ -126,7 +126,7 @@ public:
 
     void initialize(const Config& config) override;
 
-    ~IRGraph() override;
+    ~DynamicGraph() override;
 
     const NetworkMetadata& get_metadata() const override;
 

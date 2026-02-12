@@ -18,7 +18,7 @@
 #include "intel_npu/utils/zero/zero_result.hpp"
 
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
-#    include "irgraph.hpp"
+#    include "dynamic_graph.hpp"
 #endif
 
 #include "mem_usage.hpp"
@@ -76,9 +76,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
     if (config.get<COMPILATION_MODE>() == "HostCompile") {
-        // no _compiler::parse call is required. networkmetadata will be obtained in IRGraph constructor
+        // no _compiler::parse call is required. networkmetadata will be obtained in DynamicGraph constructor
         _logger.debug("blob is not ELF format, create graph for LLVM IR!");
-        return std::make_shared<IRGraph>(_zeroInitStruct, std::move(tensor), true, config, _compiler);
+        return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), true, config, _compiler);
     }
 #endif
 
@@ -277,9 +277,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
         header.assign(static_cast<const char*>(data), size);
     }
     if (header.find("ELF") == std::string::npos) {
-        // no _compiler::parse call is required. networkmetadata will be obtained in IRGraph constructor
+        // no _compiler::parse call is required. networkmetadata will be obtained in DynamicGraph constructor
         _logger.debug("blob is not ELF format, create graph for LLVM IR!");
-        return std::make_shared<IRGraph>(_zeroInitStruct, std::move(mainBlob), true, config, _compiler);
+        return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(mainBlob), true, config, _compiler);
     } else {
         _logger.debug("blob is ELF format, create graph for elf blob!");
     }

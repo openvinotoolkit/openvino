@@ -207,49 +207,16 @@ void ZeroDynamicInferRequest::infer_async() {
                 auto& userTensor = get_user_input(i);
                 if (userTensor != nullptr) {
                     // If userTensor is set, use userTensor to update memref handle
-                    inputPros[i]._basePtr = get_tensor_data_ptr(userTensor._ptr);
-                    inputPros[i]._data = inputPros[i]._basePtr;
-                    inputPros[i]._offset = 0;
-                    auto& shape = userTensor->get_shape();
-                    for (size_t j = 0; j < shape.size(); j++) {
-                        inputPros[i]._sizes[j] = shape[j];
-                    }
-                    auto& strides = userTensor->get_strides();
-                    size_t elementSize =
-                        userTensor->get_element_type().bitwidth() < 8 ? 1 : userTensor->get_element_type().size();
-                    for (size_t j = 0; j < strides.size(); j++) {
-                        inputPros[i]._strides[j] = strides[j] / elementSize;
-                    }
-                    inputPros[i]._dimsCount = shape.size();
-
+                    inputPros[i].set(get_tensor_data_ptr(userTensor._ptr), 0, userTensor._ptr);
                 } else if (levelZeroTensor != nullptr) {
                     // If userTensor is not set, use levelZeroTensor to update memref handle
-                    inputPros[i]._basePtr = get_tensor_data_ptr(levelZeroTensor);
-                    inputPros[i]._data = inputPros[i]._basePtr;
-                    inputPros[i]._offset = 0;
-                    auto& shape = levelZeroTensor->get_shape();
-                    for (size_t j = 0; j < shape.size(); j++) {
-                        inputPros[i]._sizes[j] = shape[j];
-                    }
-                    auto& strides = levelZeroTensor->get_strides();
-                    size_t elementSize = levelZeroTensor->get_element_type().bitwidth() < 8
-                                             ? 1
-                                             : levelZeroTensor->get_element_type().size();
-                    for (size_t j = 0; j < strides.size(); j++) {
-                        inputPros[i]._strides[j] = strides[j] / elementSize;
-                    }
-                    inputPros[i]._dimsCount = shape.size();
+                    inputPros[i].set(get_tensor_data_ptr(levelZeroTensor), 0, levelZeroTensor);
                 } else {
                     // If all tensors are not set, use metadata
-                    inputPros[i]._basePtr = nullptr;
-                    inputPros[i]._data = nullptr;
+                    inputPros[i].setArg(nullptr);
                     inputPros[i]._offset = 0;
                     // TODO : BatchSize not checked here
-                    auto shape = _metadata.inputs.at(i).shapeFromCompiler.get_max_shape();
-                    for (size_t j = 0; j < shape.size(); j++) {
-                        inputPros[i]._sizes[j] = shape[j];
-                    }
-                    inputPros[i]._dimsCount = shape.size();
+                    inputPros[i].setSize(_metadata.inputs.at(i).shapeFromCompiler.get_max_shape());
                     inputPros[i].updateStride();
                 }
             }
@@ -260,49 +227,16 @@ void ZeroDynamicInferRequest::infer_async() {
                 auto& userTensor = _userOutputTensors.at(i);
                 if (userTensor != nullptr) {
                     // If userTensor is set, use userTensor to update memref handle
-                    outputPros[i]._basePtr = get_tensor_data_ptr(userTensor._ptr);
-                    outputPros[i]._data = outputPros[i]._basePtr;
-                    outputPros[i]._offset = 0;
-                    auto& shape = userTensor->get_shape();
-                    for (size_t j = 0; j < shape.size(); j++) {
-                        outputPros[i]._sizes[j] = shape[j];
-                    }
-                    auto& strides = userTensor->get_strides();
-                    size_t elementSize =
-                        userTensor->get_element_type().bitwidth() < 8 ? 1 : userTensor->get_element_type().size();
-                    for (size_t j = 0; j < strides.size(); j++) {
-                        outputPros[i]._strides[j] = strides[j] / elementSize;
-                    }
-                    outputPros[i]._dimsCount = shape.size();
-
+                    outputPros[i].set(get_tensor_data_ptr(userTensor._ptr), 0, userTensor._ptr);
                 } else if (levelZeroTensor != nullptr) {
                     // If userTensor is not set, use levelZeroTensor to update memref handle
-                    outputPros[i]._basePtr = get_tensor_data_ptr(levelZeroTensor);
-                    outputPros[i]._data = outputPros[i]._basePtr;
-                    outputPros[i]._offset = 0;
-                    auto& shape = levelZeroTensor->get_shape();
-                    for (size_t j = 0; j < shape.size(); j++) {
-                        outputPros[i]._sizes[j] = shape[j];
-                    }
-                    auto& strides = levelZeroTensor->get_strides();
-                    size_t elementSize = levelZeroTensor->get_element_type().bitwidth() < 8
-                                             ? 1
-                                             : levelZeroTensor->get_element_type().size();
-                    for (size_t j = 0; j < strides.size(); j++) {
-                        outputPros[i]._strides[j] = strides[j] / elementSize;
-                    }
-                    outputPros[i]._dimsCount = shape.size();
+                    outputPros[i].set(get_tensor_data_ptr(levelZeroTensor), 0, levelZeroTensor);
                 } else {
                     // If all tensors are not set, use metadata
-                    outputPros[i]._basePtr = nullptr;
-                    outputPros[i]._data = nullptr;
+                    outputPros[i].setArg(nullptr);
                     outputPros[i]._offset = 0;
                     // TODO : BatchSize not checked here
-                    auto shape = _metadata.inputs.at(i).shapeFromCompiler.get_max_shape();
-                    for (size_t j = 0; j < shape.size(); j++) {
-                        outputPros[i]._sizes[j] = shape[j];
-                    }
-                    outputPros[i]._dimsCount = shape.size();
+                    outputPros[i].setSize(_metadata.outputs.at(i).shapeFromCompiler.get_max_shape());
                     outputPros[i].updateStride();
                 }
             }

@@ -8,9 +8,9 @@ file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
 if(NOT ENABLE_NPU_DEBUG_CAPS)
     list(REMOVE_ITEM SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/include/irgraph.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/dynamic_graph.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/include/npu_mlir_runtime_api.hpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/irgraph.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dynamic_graph.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/npu_mlir_runtime_api.cpp
     )
 endif()

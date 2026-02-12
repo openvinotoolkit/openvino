@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "irgraph.hpp"
+#include "dynamic_graph.hpp"
 
 #include <iostream>
 #include <iterator>
@@ -15,31 +15,31 @@
 
 namespace intel_npu {
 
-class IRGraphImpl : public IRGraph::Impl {
+class DynamicGraphImpl : public DynamicGraph::Impl {
 public:
-    using MemRefType = IRGraph::MemRefType;
+    using MemRefType = DynamicGraph::MemRefType;
 
 public:
-    IRGraphImpl() : _logger("IRGraphImpl", Logger::global().level()) {}
+    DynamicGraphImpl() : _logger("DynamicGraphImpl", Logger::global().level()) {}
     void initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) override;
     void createExecutionEngine(std::optional<ov::Tensor>& blob);
     void prepareMetadata(NetworkMetadata& metadata);
-    void initializeIRGraphExecution(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata);
+    void initializeDynamicGraphExecution(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata);
     void setArgumentValue(uint32_t argi, const void* argv) override;
     void setArgumentValueWithStrides(uint32_t argi, const void* argv, const std::vector<size_t>& strides) override;
     uint64_t getNumSubgraphs() override {
         return _engineProperties.numOfSubGraphs;
     }
     void executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                      IRGraph::GraphArguments& args,
+                      DynamicGraph::GraphArguments& args,
                       std::vector<ze_command_list_handle_t>& commandLists,
                       ze_command_queue_handle_t commandQueue,
                       ze_fence_handle_t inferenceFence,
                       ze_event_handle_t event,
                       ze_graph_profiling_pool_handle_t profiling) override;
-    void getBinding(IRGraph::GraphArguments& binding) override;
+    void getBinding(DynamicGraph::GraphArguments& binding) override;
 
-    virtual ~IRGraphImpl() {
+    virtual ~DynamicGraphImpl() {
         destroy();
     }
 
@@ -50,20 +50,20 @@ public:
         }
     }
 
-    void predictOutputShape(std::vector<IRGraph::MemRefType>& inputDescriptors,
-                            std::vector<IRGraph::MemRefType>& outputDescriptors) override;
+    void predictOutputShape(std::vector<DynamicGraph::MemRefType>& inputDescriptors,
+                            std::vector<DynamicGraph::MemRefType>& outputDescriptors) override;
 
 public:
     npu_mlir_runtime_handle_t _engine = nullptr;
     npu_mlir_runtime_properties_t _engineProperties;
-    IRGraph::GraphArguments _binding;
+    DynamicGraph::GraphArguments _binding;
     bool _initializedMLIR = false;
     Logger _logger;
 };
 
-void IRGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) {
+void DynamicGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) {
     if (!_initializedMLIR) {
-        initializeIRGraphExecution(blob, metadata);
+        initializeDynamicGraphExecution(blob, metadata);
         _initializedMLIR = true;
     }
 
@@ -109,7 +109,7 @@ void IRGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& m
     }
 }
 
-void IRGraphImpl::createExecutionEngine(std::optional<ov::Tensor>& blob) {
+void DynamicGraphImpl::createExecutionEngine(std::optional<ov::Tensor>& blob) {
     _npu_mlir_runtime_blob_desc_t blobDesc;
     blobDesc.pInput = reinterpret_cast<const uint8_t*>(blob.value().data());
     blobDesc.inputSize = blob.value().get_byte_size();
@@ -209,7 +209,7 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
             metadata.has_value() ? std::optional(shapeFromIRModel) : std::nullopt};
 }
 
-void IRGraphImpl::prepareMetadata(NetworkMetadata& metadata) {
+void DynamicGraphImpl::prepareMetadata(NetworkMetadata& metadata) {
     metadata.inputs.clear();
     metadata.outputs.clear();
     for (uint32_t i = 0; i < _engineProperties.numOfGraphArgs; ++i) {
@@ -241,11 +241,11 @@ void IRGraphImpl::prepareMetadata(NetworkMetadata& metadata) {
     metadata.bindRelatedDescriptors();
 }
 
-void IRGraphImpl::getBinding(IRGraph::GraphArguments& binding) {
+void DynamicGraphImpl::getBinding(DynamicGraph::GraphArguments& binding) {
     binding = _binding;
 }
 
-void IRGraphImpl::initializeIRGraphExecution(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) {
+void DynamicGraphImpl::initializeDynamicGraphExecution(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata) {
     createExecutionEngine(blob);
     prepareMetadata(metadata);
 
@@ -255,7 +255,7 @@ void IRGraphImpl::initializeIRGraphExecution(std::optional<ov::Tensor>& blob, Ne
                   metadata.outputs.size());
 }
 
-void IRGraphImpl::setArgumentValue(uint32_t argi, const void* argv) {
+void DynamicGraphImpl::setArgumentValue(uint32_t argi, const void* argv) {
     auto& inputs = _binding._inputs;
     if (argi < inputs.size()) {
         _logger.debug("setArgumentValue for index %d (input %d)", argi, argi);
@@ -270,7 +270,9 @@ void IRGraphImpl::setArgumentValue(uint32_t argi, const void* argv) {
     }
 }
 
-void IRGraphImpl::setArgumentValueWithStrides(uint32_t argi, const void* argv, const std::vector<size_t>& strides) {
+void DynamicGraphImpl::setArgumentValueWithStrides(uint32_t argi,
+                                                   const void* argv,
+                                                   const std::vector<size_t>& strides) {
     _logger.debug("setArgumentValueWithStrides for index %d", argi);
     auto& inputs = _binding._inputs;
     if (argi < inputs.size()) {
@@ -294,23 +296,24 @@ void IRGraphImpl::setArgumentValueWithStrides(uint32_t argi, const void* argv, c
     }
 }
 
-void IRGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                               IDynamicGraph::GraphArguments& args,
-                               std::vector<ze_command_list_handle_t>& commandLists,
-                               ze_command_queue_handle_t commandQueue,
-                               ze_fence_handle_t fence,
-                               ze_event_handle_t event,
-                               ze_graph_profiling_pool_handle_t profiling) {
-    std::shared_ptr<IRGraph::GraphArgumentsImpl> argsImpl =
-        args._impl ? std::static_pointer_cast<IRGraph::GraphArgumentsImpl>(args._impl)
-                   : std::make_shared<IRGraph::GraphArgumentsImpl>();
+void DynamicGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                                    IDynamicGraph::GraphArguments& args,
+                                    std::vector<ze_command_list_handle_t>& commandLists,
+                                    ze_command_queue_handle_t commandQueue,
+                                    ze_fence_handle_t fence,
+                                    ze_event_handle_t event,
+                                    ze_graph_profiling_pool_handle_t profiling) {
+    std::shared_ptr<DynamicGraph::GraphArgumentsImpl> argsImpl =
+        args._impl ? std::static_pointer_cast<DynamicGraph::GraphArgumentsImpl>(args._impl)
+                   : std::make_shared<DynamicGraph::GraphArgumentsImpl>();
 
     npu_mlir_runtime_execute_params_t* params = &argsImpl->_executeParams;
 
     for (auto& in : args._inputs) {
-        std::shared_ptr<IRGraph::MemRefTypeImpl> inImpl = std::static_pointer_cast<IRGraph::MemRefTypeImpl>(in._impl);
+        std::shared_ptr<DynamicGraph::MemRefTypeImpl> inImpl =
+            std::static_pointer_cast<DynamicGraph::MemRefTypeImpl>(in._impl);
         if (inImpl == nullptr) {
-            inImpl = std::make_shared<IRGraph::MemRefTypeImpl>();
+            inImpl = std::make_shared<DynamicGraph::MemRefTypeImpl>();
             in._impl = inImpl;
         }
         inImpl->UpdateMemRefHandleStatus(in);
@@ -319,9 +322,10 @@ void IRGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zer
         }
     }
     for (auto& out : args._outputs) {
-        std::shared_ptr<IRGraph::MemRefTypeImpl> outImpl = std::static_pointer_cast<IRGraph::MemRefTypeImpl>(out._impl);
+        std::shared_ptr<DynamicGraph::MemRefTypeImpl> outImpl =
+            std::static_pointer_cast<DynamicGraph::MemRefTypeImpl>(out._impl);
         if (outImpl == nullptr) {
-            outImpl = std::make_shared<IRGraph::MemRefTypeImpl>();
+            outImpl = std::make_shared<DynamicGraph::MemRefTypeImpl>();
             out._impl = outImpl;
         }
         outImpl->UpdateMemRefHandleStatus(out);
@@ -352,13 +356,14 @@ void IRGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zer
     }
 }
 
-void IRGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescriptors,
-                                     std::vector<MemRefType>& outputDescriptors) {
+void DynamicGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescriptors,
+                                          std::vector<MemRefType>& outputDescriptors) {
     std::vector<npu_mlir_runtime_mem_ref_handle_t> inputs;
     for (auto& in : inputDescriptors) {
-        std::shared_ptr<IRGraph::MemRefTypeImpl> inImpl = std::static_pointer_cast<IRGraph::MemRefTypeImpl>(in._impl);
+        std::shared_ptr<DynamicGraph::MemRefTypeImpl> inImpl =
+            std::static_pointer_cast<DynamicGraph::MemRefTypeImpl>(in._impl);
         if (inImpl == nullptr) {
-            inImpl = std::make_shared<IRGraph::MemRefTypeImpl>();
+            inImpl = std::make_shared<DynamicGraph::MemRefTypeImpl>();
             in._impl = inImpl;
         }
         inImpl->UpdateMemRefHandleStatus(in);
@@ -366,9 +371,10 @@ void IRGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescriptors,
     }
     std::vector<npu_mlir_runtime_mem_ref_handle_t> outputs;
     for (auto& out : outputDescriptors) {
-        std::shared_ptr<IRGraph::MemRefTypeImpl> outImpl = std::static_pointer_cast<IRGraph::MemRefTypeImpl>(out._impl);
+        std::shared_ptr<DynamicGraph::MemRefTypeImpl> outImpl =
+            std::static_pointer_cast<DynamicGraph::MemRefTypeImpl>(out._impl);
         if (outImpl == nullptr) {
-            outImpl = std::make_shared<IRGraph::MemRefTypeImpl>();
+            outImpl = std::make_shared<DynamicGraph::MemRefTypeImpl>();
             out._impl = outImpl;
         }
         outImpl->UpdateMemRefHandleStatus(out);
@@ -385,8 +391,8 @@ void IRGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescriptors,
         OPENVINO_THROW("Failed to execute MLIR runtime engine");
     } else {
         for (auto& out : outputDescriptors) {
-            std::shared_ptr<IRGraph::MemRefTypeImpl> outImpl =
-                std::static_pointer_cast<IRGraph::MemRefTypeImpl>(out._impl);
+            std::shared_ptr<DynamicGraph::MemRefTypeImpl> outImpl =
+                std::static_pointer_cast<DynamicGraph::MemRefTypeImpl>(out._impl);
             if (outImpl == nullptr) {
                 OPENVINO_THROW("MemRefType implementation is broken, unkown error happens in shape prediction.");
             }
@@ -396,23 +402,23 @@ void IRGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescriptors,
     }
 }
 
-IRGraph::IRGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                 std::optional<ov::Tensor> blob,
-                 bool blobAllocatedByPlugin,
-                 const Config& config,
-                 const ov::SoPtr<VCLCompilerImpl>& compiler)
+DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                           std::optional<ov::Tensor> blob,
+                           bool blobAllocatedByPlugin,
+                           const Config& config,
+                           const ov::SoPtr<VCLCompilerImpl>& compiler)
     : _zeroInitStruct(zeroInitStruct),
       _blob(std::move(blob)),
       _blobAllocatedByPlugin(blobAllocatedByPlugin),
       _compiler(compiler),
-      _logger("IRGraph", config.get<LOG_LEVEL>()) {
-    _logger.info("Create IRGraph");
+      _logger("DynamicGraph", config.get<LOG_LEVEL>()) {
+    _logger.info("Create DynamicGraph");
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
         _logger.info("Graph initialize is deferred from the \"Graph\" constructor");
         return;
     }
 
-    _impl = std::make_unique<IRGraphImpl>();
+    _impl = std::make_unique<DynamicGraphImpl>();
     // TODO: metadata needs to be parsed even when CREATE_EXECUTOR is 0 or DEFER_WEIGHTS_LOAD is YES, keep here to
     // support pure compilation without mlir runtime initialize MLIR execution engine, metadata, input&output
     // descriptors
@@ -423,7 +429,7 @@ IRGraph::IRGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
     initialize(config);
 }
 
-std::pair<uint64_t, std::optional<std::vector<uint64_t>>> IRGraph::export_blob(std::ostream& stream) const {
+std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_blob(std::ostream& stream) const {
     const uint8_t* blobPtr = nullptr;
     size_t blobSize = 0;
 
@@ -477,23 +483,23 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> IRGraph::export_blob(s
     return std::make_pair(size, std::nullopt);
 }
 
-const NetworkMetadata& IRGraph::get_metadata() const {
+const NetworkMetadata& DynamicGraph::get_metadata() const {
     return _metadata;
 }
 
-void IRGraph::update_network_name(std::string_view name) {
+void DynamicGraph::update_network_name(std::string_view name) {
     _metadata.name = name;
 }
 
-const std::shared_ptr<CommandQueue>& IRGraph::get_command_queue() const {
+const std::shared_ptr<CommandQueue>& DynamicGraph::get_command_queue() const {
     return _commandQueue;
 }
 
-uint32_t IRGraph::get_command_queue_group_ordinal() const {
+uint32_t DynamicGraph::get_command_queue_group_ordinal() const {
     return _commandQueueGroupOrdinal;
 }
 
-void IRGraph::set_workload_type(const ov::WorkloadType workloadType) const {
+void DynamicGraph::set_workload_type(const ov::WorkloadType workloadType) const {
     if (_commandQueue == nullptr) {
         return;
     }
@@ -513,8 +519,8 @@ void IRGraph::set_workload_type(const ov::WorkloadType workloadType) const {
     _commandQueue->setWorkloadType(zeWorkloadType);
 }
 
-std::vector<ov::ProfilingInfo> IRGraph::process_profiling_output(const std::vector<uint8_t>& profData,
-                                                                 const Config& config) const {
+std::vector<ov::ProfilingInfo> DynamicGraph::process_profiling_output(const std::vector<uint8_t>& profData,
+                                                                      const Config& config) const {
     if (_compiler == nullptr) {
         OPENVINO_THROW("Profiling post-processing is not supported.");
     }
@@ -525,7 +531,7 @@ std::vector<ov::ProfilingInfo> IRGraph::process_profiling_output(const std::vect
     return _compiler->process_profiling_output(profData, blob, config);
 }
 
-void IRGraph::set_argument_value(uint32_t argi, const void* argv) const {
+void DynamicGraph::set_argument_value(uint32_t argi, const void* argv) const {
     if (_impl == nullptr) {
         _logger.warning("Graph handle is null, dynamic pipeline to handle set_argument_value");
         return;
@@ -534,7 +540,9 @@ void IRGraph::set_argument_value(uint32_t argi, const void* argv) const {
     _impl->setArgumentValue(argi, argv);
 }
 
-void IRGraph::set_argument_value_with_strides(uint32_t id, const void* data, const std::vector<size_t>& strides) const {
+void DynamicGraph::set_argument_value_with_strides(uint32_t id,
+                                                   const void* data,
+                                                   const std::vector<size_t>& strides) const {
     if (_impl == nullptr) {
         _logger.warning("Graph handle is null, dynamic pipeline to handle set_argument_value");
         return;
@@ -543,22 +551,22 @@ void IRGraph::set_argument_value_with_strides(uint32_t id, const void* data, con
     _impl->setArgumentValueWithStrides(id, data, strides);
 }
 
-ze_graph_handle_t IRGraph::get_handle() const {
-    _logger.warning("IRGraph does not support get_handle() method.");
+ze_graph_handle_t DynamicGraph::get_handle() const {
+    _logger.warning("DynamicGraph does not support get_handle() method.");
     return nullptr;
 }
 
-void IRGraph::initialize(const Config& config) {
+void DynamicGraph::initialize(const Config& config) {
     _logger.debug("Graph initialize start");
 
     if (!_impl) {
-        _impl = std::make_unique<IRGraphImpl>();
+        _impl = std::make_unique<DynamicGraphImpl>();
         // initialize MLIR execution engine, metadata, input&output descriptors
         _impl->initialize(_blob, _metadata);
         _num_of_subgraphs = _impl->getNumSubgraphs();
     }
 
-    if(!_zeroInitStruct) {
+    if (!_zeroInitStruct) {
         _logger.warning("Zero device is not available, skip graph initialize!");
     }
 
@@ -649,28 +657,28 @@ void IRGraph::initialize(const Config& config) {
     _init_completed = true;
 }
 
-bool IRGraph::release_blob(const Config& config) {
-    _logger.warning("Release blob is skipped, no handle for IRGraph");
+bool DynamicGraph::release_blob(const Config& config) {
+    _logger.warning("Release blob is skipped, no handle for DynamicGraph");
     return false;
 };
 
-void IRGraph::set_batch_size(std::size_t batch) {
+void DynamicGraph::set_batch_size(std::size_t batch) {
     _batchSize = batch;
 }
 
-uint32_t IRGraph::get_unique_id() {
+uint32_t DynamicGraph::get_unique_id() {
     return _uniqueId++;
 }
 
-void IRGraph::set_last_submitted_id(uint32_t id_index) {
+void DynamicGraph::set_last_submitted_id(uint32_t id_index) {
     _lastSubmittedId = id_index;
 }
 
-uint32_t IRGraph::get_last_submitted_id() const {
+uint32_t DynamicGraph::get_last_submitted_id() const {
     return _lastSubmittedId;
 }
 
-std::optional<size_t> IRGraph::determine_batch_size() {
+std::optional<size_t> DynamicGraph::determine_batch_size() {
     if (!_metadata.outputs.at(0).shapeFromIRModel.has_value()) {
         _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
         return std::nullopt;
@@ -722,11 +730,11 @@ std::optional<size_t> IRGraph::determine_batch_size() {
     return candidateBatchSize;
 }
 
-const std::optional<std::size_t> IRGraph::get_batch_size() const {
+const std::optional<std::size_t> DynamicGraph::get_batch_size() const {
     return _batchSize;
 }
 
-IRGraph::~IRGraph() {
+DynamicGraph::~DynamicGraph() {
     if (!_lastSubmittedEvent.empty()) {
         _lastSubmittedEvent.clear();
     }
@@ -736,14 +744,14 @@ IRGraph::~IRGraph() {
     }
 }
 
-void IRGraph::execute(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                      IRGraph::GraphArguments& args,
-                      std::vector<ze_command_list_handle_t>& commandLists,
-                      ze_command_queue_handle_t commandQueue,
-                      ze_fence_handle_t inferenceFence,
-                      ze_event_handle_t event,
-                      ze_graph_profiling_pool_handle_t profiling) {
-    auto impl = reinterpret_cast<IRGraphImpl*>(_impl.get());
+void DynamicGraph::execute(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                           DynamicGraph::GraphArguments& args,
+                           std::vector<ze_command_list_handle_t>& commandLists,
+                           ze_command_queue_handle_t commandQueue,
+                           ze_fence_handle_t inferenceFence,
+                           ze_event_handle_t event,
+                           ze_graph_profiling_pool_handle_t profiling) {
+    auto impl = reinterpret_cast<DynamicGraphImpl*>(_impl.get());
 
     if (impl == nullptr)
         return;
@@ -751,8 +759,8 @@ void IRGraph::execute(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStru
     impl->executeGraph(zeroInitStruct, args, commandLists, commandQueue, inferenceFence, event, profiling);
 }
 
-void IRGraph::getBinding(GraphArguments& args) {
-    auto impl = reinterpret_cast<IRGraphImpl*>(_impl.get());
+void DynamicGraph::getBinding(GraphArguments& args) {
+    auto impl = reinterpret_cast<DynamicGraphImpl*>(_impl.get());
 
     if (impl == nullptr)
         return;
@@ -760,13 +768,13 @@ void IRGraph::getBinding(GraphArguments& args) {
     impl->getBinding(args);
 }
 
-uint64_t IRGraph::get_num_subgraphs() const {
+uint64_t DynamicGraph::get_num_subgraphs() const {
     return _num_of_subgraphs;
 }
 
-void IRGraph::predict_output_shape(std::vector<MemRefType>& inputDescriptors,
-                                   std::vector<MemRefType>& outputDescriptors) {
-    auto impl = reinterpret_cast<IRGraphImpl*>(_impl.get());
+void DynamicGraph::predict_output_shape(std::vector<MemRefType>& inputDescriptors,
+                                        std::vector<MemRefType>& outputDescriptors) {
+    auto impl = reinterpret_cast<DynamicGraphImpl*>(_impl.get());
 
     if (impl == nullptr)
         return;

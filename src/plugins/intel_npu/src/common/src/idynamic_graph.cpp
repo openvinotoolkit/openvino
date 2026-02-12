@@ -33,6 +33,21 @@ void IDynamicGraph::MemRefType::updateStride() {
     }
 }
 
+void IDynamicGraph::MemRefType::set(const void* arg, int64_t offset, std::shared_ptr<ov::ITensor> tensor) {
+    _basePtr = _data = arg;
+    _offset = offset;
+    auto& shape = tensor->get_shape();
+    for (size_t j = 0; j < shape.size(); j++) {
+        _sizes[j] = shape[j];
+    }
+    auto& strides = tensor->get_strides();
+    size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
+    for (size_t j = 0; j < strides.size(); j++) {
+        _strides[j] = strides[j] / elementSize;
+    }
+    _dimsCount = shape.size();
+}
+
 std::ostream& operator<<(std::ostream& os, const IDynamicGraph::MemRefType& memRef) {
     os << "BasePtr: " << memRef._basePtr << ", Data: " << memRef._data << ", Offset: " << memRef._offset
        << ", Sizes: [";

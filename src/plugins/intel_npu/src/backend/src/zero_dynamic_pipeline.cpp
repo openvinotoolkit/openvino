@@ -51,6 +51,11 @@ DynamicPipeline::DynamicPipeline(const Config& config,
 
     _logger.debug("DynamicPipeline - initialize started, number_of_command_lists %i", _number_of_command_lists);
 
+    intel_npu::IDynamicGraph* dynamicGraph = dynamic_cast<intel_npu::IDynamicGraph*>(graph.get());
+    if (!dynamicGraph) {
+        OPENVINO_THROW("Failed to cast graph to IDynamicGraph");
+    }
+
     if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
         _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         _graph->resize_last_submitted_event(_number_of_command_lists);
@@ -89,8 +94,6 @@ DynamicPipeline::DynamicPipeline(const Config& config,
         }
     }
     _logger.debug("DynamicPipeline - emplace_back _event_pool and _command_queue completed");
-
-    intel_npu::IDynamicGraph* dynamicGraph = dynamic_cast<intel_npu::IDynamicGraph*>(graph.get());
 
     uint64_t num_of_subgraphs = dynamicGraph->get_num_subgraphs();
 
@@ -230,11 +233,11 @@ void DynamicPipeline::push() {
         auto& command_lists = _command_lists.at(i);
         auto& graphArguments = command_lists->getBinding();
         if (_logger.level() >= ov::log::Level::DEBUG) {
-            _logger.debug("Inputs info for IRGraph:");
+            _logger.debug("Inputs info for dynamic graph:");
             for (auto& memType : graphArguments._inputs) {
                 _logger.debug("input: %s", memType.toString().c_str());
             }
-            _logger.debug("Outputs info for IRGraph:");
+            _logger.debug("Outputs info for dynamic graph:");
             for (auto& memType : graphArguments._outputs) {
                 _logger.debug("output: %s", memType.toString().c_str());
             }
