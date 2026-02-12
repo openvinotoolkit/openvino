@@ -181,8 +181,6 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
     INPUT0_TYPE orig_zp[PACK_SIZE] = {0, };
     OUTPUT_TYPE orig_cache[ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE] = {0, };
 
-    INPUT0_TYPE max_value[PACK_SIZE];
-    INPUT0_TYPE min_value[PACK_SIZE];
     INPUT0_TYPE scale[PACK_SIZE];
     INPUT0_TYPE zp[PACK_SIZE];
     OUTPUT_TYPE buffer[ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE] = {0, };
@@ -202,13 +200,13 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
         // Read original scale and zp
         if (order_in_packed == 0) {
             INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*) (&out_data[packed_out_offset_per_wi + COMP_K_OFFSET]);
-            orig_scale[order_in_packed] = comp_ptr[0];
-            orig_zp[order_in_packed] = comp_ptr[1];
+            orig_scale[0] = comp_ptr[0];
+            orig_zp[0] = comp_ptr[1];
             orig_scale[1] = comp_ptr[2];
             orig_zp[1] = comp_ptr[3];
         }
-        max_value[order_in_packed] = INPUT0_VAL_MIN;
-        min_value[order_in_packed] = INPUT0_VAL_MAX;
+        INPUT0_TYPE max_value = INPUT0_VAL_MIN;
+        INPUT0_TYPE min_value = INPUT0_VAL_MAX;
 
         // Read new input
         #define READ_SIZE 16
@@ -221,11 +219,10 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
 
             cache_data_vec_decompressed[order_in_packed][token_pos_in_block + j] = new_token;
 
-            max_value[order_in_packed] = fmax(max_value[order_in_packed], new_token);
-            min_value[order_in_packed] = fmin(min_value[order_in_packed], new_token);
+            max_value = fmax(max_value, new_token);
+            min_value = fmin(min_value, new_token);
         }
 
-        // Get values from cache
         {
             // Read a hidden dim of the previously quantized cache => decompress
             // TODO : current block size is 16 (same as PA block size),
@@ -252,24 +249,23 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
                         }
                     }
                 }
-                max_value[order_in_packed] = fmax(max_value[order_in_packed], cache_data_vec_decompressed[order_in_packed][j]);
-                min_value[order_in_packed] = fmin(min_value[order_in_packed], cache_data_vec_decompressed[order_in_packed][j]);
+                max_value = fmax(max_value, cache_data_vec_decompressed[order_in_packed][j]);
+                min_value = fmin(min_value, cache_data_vec_decompressed[order_in_packed][j]);
             }
         }
 
         // requantize and store
         {
             #define ACCUMULATOR_TYPE float
-            ACCUMULATOR_TYPE range = max_value[order_in_packed] - min_value[order_in_packed];
-            range = (max_value[order_in_packed] == min_value[order_in_packed]) ? 0.001 : range;
-            const ACCUMULATOR_TYPE min_range = fabs(max_value[order_in_packed] * 0.1f);
+            ACCUMULATOR_TYPE range = max_value - min_value;
+            const ACCUMULATOR_TYPE min_range = fabs(max_value * 0.1f);
             if (range <= min_range) {
                 // When the range is very small, expand the range to avoid zp overflow
                 range += fmax(1.0f, min_range);
             }
 
             ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((INT4_RANGE) / range);
-            ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value[order_in_packed] * scale_tmp) + INT4_MIN;
+            ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + INT4_MIN;
             scale[order_in_packed] = (INPUT1_TYPE)(scale_tmp);
             zp[order_in_packed] = (INPUT1_TYPE)(zp_tmp);
             #undef ACCUMULATOR_TYPE
