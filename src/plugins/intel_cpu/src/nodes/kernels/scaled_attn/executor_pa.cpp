@@ -2091,10 +2091,15 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 
         // Read token_type_ids for bidirectional attention within image token groups.
-        // Reshape+Convert ops in the graph guarantee this arrives as i32 1D.
+        // The graph Convert guarantees i32; shape may be 1D {N} or 2D {1,N} (GenAI format).
         // When the model doesn't use token_type_ids, this is a zero-dim constant (all text, causal).
         if (!inputs[ID_TOKEN_TYPE_IDS]->getShape().hasZeroDims()) {
-            token_type_ids.reset(inputs[ID_TOKEN_TYPE_IDS]);  // [B_token], i32
+            token_type_ids.reset(inputs[ID_TOKEN_TYPE_IDS]);
+            // Flatten 2D {1, N} → 1D {N} so set_token_type always sees a flat array.
+            if (token_type_ids.m_rank == 2) {
+                auto total = token_type_ids.m_dims[0] * token_type_ids.m_dims[1];
+                token_type_ids = token_type_ids.reshape({total});
+            }
         }
 
         output_emb.reset(outputs[0]);

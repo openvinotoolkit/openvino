@@ -109,7 +109,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 22, "adaptive_rkv_evictable_sizes", {1}, {element::i32});
     input_check(this, 23, "adaptive_rkv_diversity_block_set_indices", {1}, {element::i32});
     input_check(this, 24, "adaptive_rkv_diversity_block_set_indices_begins", {1}, {element::i32});
-    input_check(this, 25, "token_type_ids", {1}, {element::i32});
+    input_check(this, 25, "token_type_ids", {1, 2}, {element::i32});
 
     // value head_size may be not same with key
     auto out_ps = get_input_partial_shape(0);

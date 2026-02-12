@@ -207,7 +207,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
                 ov::element::i32,
                 getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS)));
 
-    // token_type_ids, int32, [B_token | 0]
+    // token_type_ids, i32, [B_token | 0] or [1, B_token]
     config.inConfs[PagedAttentionExecutor::ID_TOKEN_TYPE_IDS].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(ov::element::i32,
