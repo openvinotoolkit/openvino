@@ -2128,7 +2128,8 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                            key_group_size,
                                                                            value_group_size,
                                                                            quant_key_by_channel,
-                                                                           sink_input);
+                                                                           sink_input,
+                                                                           cpu_parallel);
         } else if (present_key.get_precision() == ov::element::u8 && !quant_key_by_channel) {
             mha_single_token_kernel<ov::float16, uint8_t, ov::float16>(query,
                                                                        present_key,
@@ -2148,7 +2149,8 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                                                                        key_group_size,
                                                                        value_group_size,
                                                                        quant_key_by_channel,
-                                                                       sink_input);
+                                                                       sink_input,
+                                                                       cpu_parallel);
 
         } else {
             OPENVINO_THROW("Unsupported precision: ", present_key.get_precision());
