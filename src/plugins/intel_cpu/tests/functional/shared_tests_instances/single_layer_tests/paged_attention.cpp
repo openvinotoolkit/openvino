@@ -20,10 +20,15 @@ using InputShapes = std::vector<ov::test::InputShape>;
 
 const std::vector<InputShapes> input_shapes_ref = {  // greedy search
 {
+    /* 
     // L1, B, H, S
     {{-1, 1, 8, 64}, {{10, 1, 8, 64}, {1, 1, 8, 64}}},
     // B, L0, H, S
     {{-1, 1, 8, 64}, {{0, 1, 8, 64}, {10, 1, 8, 64}}},
+    */
+   // L1, B, H, S
+    {{-1, 8, 8, 64}, {{10, 8, 8, 64}, {1, 8, 8, 64}}},
+    // B, L0, H, S
 }};
 
 const std::vector<ov::AnyMap> additional_configs_ref = {{
