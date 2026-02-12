@@ -52,6 +52,10 @@ AlignedBuffer& AlignedBuffer::operator=(AlignedBuffer&& other) {
     return *this;
 }
 
+std::shared_ptr<IBufferDescriptor> AlignedBuffer::get_descriptor() const {
+    return nullptr;
+}
+
 AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>::AttributeAdapter(std::shared_ptr<ov::AlignedBuffer>& value)
     : DirectValueAccessor<std::shared_ptr<ov::AlignedBuffer>>(value) {}
 
