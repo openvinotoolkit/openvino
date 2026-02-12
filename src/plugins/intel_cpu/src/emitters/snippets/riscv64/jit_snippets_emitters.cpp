@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,8 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "snippets/lowered/expression.hpp"
+#include "snippets/op/broadcastmove.hpp"
+#include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
 #include "xbyak_riscv/xbyak_riscv_csr.hpp"
 
@@ -29,6 +31,47 @@ using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 jit_nop_emitter::jit_nop_emitter(jit_generator_t* h, cpu_isa_t isa, [[maybe_unused]] const ExpressionPtr& expr)
     : riscv64::jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
+}
+
+jit_broadcast_move_emitter::jit_broadcast_move_emitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
+    : jit_emitter(h, isa) {
+    const auto n = expr->get_node();
+    OV_CPU_JIT_EMITTER_ASSERT(ov::as_type_ptr<snippets::op::BroadcastMove>(n) != nullptr,
+                              "Expects BroadcastMove expression");
+    const auto element_type = n->get_input_element_type(0);
+    OV_CPU_JIT_EMITTER_ASSERT(any_of(element_type.size(), 1U, 2U, 4U), "Unsupported element type: ", element_type);
+    byte_size = element_type.size();
+}
+
+void jit_broadcast_move_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::gv) {
+        emit_isa<ov::intel_cpu::riscv64::gv>(in, out);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Doesn't support isa ", host_isa_);
+    }
+}
+
+template <cpu_isa_t isa>
+void jit_broadcast_move_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+    auto src_vreg = Xbyak_riscv::VReg(in[0]);
+    auto dst_vreg = Xbyak_riscv::VReg(out[0]);
+
+    switch (byte_size) {
+    case 1:
+        h->vsetivli(Xbyak_riscv::zero, 4, Xbyak_riscv::SEW::e8, Xbyak_riscv::LMUL::m1);
+        break;
+    case 2:
+        h->vsetivli(Xbyak_riscv::zero, 4, Xbyak_riscv::SEW::e16, Xbyak_riscv::LMUL::m1);
+        break;
+    case 4:
+        h->vsetivli(Xbyak_riscv::zero, 4, Xbyak_riscv::SEW::e32, Xbyak_riscv::LMUL::m1);
+        break;
+    default:
+        OV_CPU_JIT_EMITTER_THROW("Unsupported data size ", byte_size);
+    }
+
+    // Broadcast the first element of src to all dst lanes.
+    h->vrgather_vi(dst_vreg, src_vreg, 0);
 }
 
 jit_scalar_emitter::jit_scalar_emitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)

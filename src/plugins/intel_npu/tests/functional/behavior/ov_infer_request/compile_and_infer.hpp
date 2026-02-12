@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -102,7 +102,7 @@ public:
     }
     void SetUp() override {
         std::tie(function, target_device, configuration) = this->GetParam();
-        // Skip test according to plugin specific disabledTestPatterns() (if any)
+        // Skip test according to plugin specific disabled_test_patterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
     }

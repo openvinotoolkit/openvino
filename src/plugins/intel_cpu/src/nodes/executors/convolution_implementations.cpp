@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -132,7 +132,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp},
                                                  memoryFormatFilter, dnnlConvolutionMappingNotation), MEMORY_FORMAT_MISMATCH);
-                
+
                 // fork kernel with dw conv post ops supports only src: (ncsp | nCsp8c), dst: nCsp8c
                 VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(!hasPostOp<DepthwiseConvolutionPostOp>(config.attrs.postOps), UNSUPPORTED_POST_OPS);

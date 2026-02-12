@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -466,6 +466,8 @@ protected:
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
     void update_impl(bool use_async_compilation);
     void realloc_if_needed(bool prev_execution_skipped = false);
+    void realloc_outputs(bool prev_execution_skipped = false);
+    void realloc_intermediates();
 
     cldnn::network::ptr get_unfused_subgraph();
 

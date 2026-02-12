@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,7 +59,7 @@ public:
 
         auto fq_after =
             std::make_shared<ov::op::v0::FakeQuantize>(conv, shared_il, shared_ih, shared_ol, shared_oh, 256);
-        function = makeNgraphFunction(precision, input_params, fq_after, "ConvFQWithSharedContants");
+        function = create_ov_model(precision, input_params, fq_after, "ConvFQWithSharedContants");
     }
 };
 

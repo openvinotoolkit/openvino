@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -126,8 +126,6 @@ public:
 
     void set_kernels_reuse(bool reuse_kernels) { _reuse_kernels = reuse_kernels; }
     bool get_kernels_reuse() const { return _reuse_kernels; }
-
-    bool validate_simple_kernel_execution(kernel::ptr kernel);
 
     // forces compilation of all pending kernels/programs
     void build_all();

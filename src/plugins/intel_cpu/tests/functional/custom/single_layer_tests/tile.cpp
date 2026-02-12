@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,7 +90,7 @@ protected:
         } else {
             tileNode = std::make_shared<ov::op::v0::Tile>(functionParams[0], functionParams[1]);
         }
-        function = makeNgraphFunction(netPrecision, functionParams, tileNode, "CPUTile");
+        function = create_ov_model(netPrecision, functionParams, tileNode, "CPUTile");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {

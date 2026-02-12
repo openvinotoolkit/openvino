@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -136,7 +136,8 @@ class TestAsStridedListConstruct(PytorchLayerTest):
             precision,
             ir_version,
             kwargs_to_prepare_input=inp_kwargs,
-            trace_model=True
+            trace_model=True,
+            fx_kind="aten.as_strided.default",
         )
 
 

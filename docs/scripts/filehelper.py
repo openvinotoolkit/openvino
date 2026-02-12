@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -19,7 +19,7 @@ DEFAULT_EXCLUDES = {
     'rst': r'^.*(thirdparty|bin|tests|temp|docs/ops/internal).*$',
     'md': r'$-'  # to not match anything
 }
-                    
+
 
 class FileHelper:
     def __init__(self, filetype, file, label, input_dir, output_dir, file_to_label_mapping):
@@ -156,7 +156,7 @@ def get_file_to_label_mapping(md_files):
     Get a dictionary containing path as keys and
     doxygen labels as values
     :param md_files: A list of md files
-    :return: A dictionary containing a file to label mapping 
+    :return: A dictionary containing a file to label mapping
     """
     return dict(filter(lambda x: x[1], map(lambda f: (Path(f).resolve(), get_label(f)), md_files)))
 

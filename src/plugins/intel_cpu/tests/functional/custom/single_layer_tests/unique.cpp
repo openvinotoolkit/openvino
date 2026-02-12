@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -99,7 +99,7 @@ protected:
                 sorted);
         }
 
-        function = makeNgraphFunction(modelPrecision, params, uniqueNode, "UniqueCPU");
+        function = create_ov_model(modelPrecision, params, uniqueNode, "UniqueCPU");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
