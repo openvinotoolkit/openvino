@@ -22,6 +22,7 @@ JitConstants RMSKernelBase::GetJitConstants(const rms_params& params, RMSKernelB
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     jit.AddConstant(MakeJitConstant("EPSILON", params.epsilon));
+    jit.AddConstant(MakeJitConstant("ELEMENTWISE_AFFINE", params.elementwise_affine));
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
     return jit;
@@ -66,6 +67,7 @@ KernelsData RMSKernelBase::GetCommonKernelsData(const Params& params) const {
     GetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
+    auto inputs_count = orgParams.elementwise_affine ? 2 : 1;
     FillCLKernelData(kernel,
                      dispatchData,
                      params.engineInfo,
@@ -75,7 +77,7 @@ KernelsData RMSKernelBase::GetCommonKernelsData(const Params& params) const {
                      EXE_MODE_DEFAULT,
                      false,
                      false,
-                     2,
+                     inputs_count,
                      GetFusedPrimitiveInputsCount(params),
                      1,
                      orgParams.is_shape_agnostic);
