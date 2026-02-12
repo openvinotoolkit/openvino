@@ -102,7 +102,7 @@ public:
                                   ze_graph_profiling_pool_handle_t profiling) = 0;
         virtual void predictOutputShape(std::vector<MemRefType>& inputDescriptors,
                                         std::vector<MemRefType>& outputDescriptors) = 0;
-        virtual ~Impl(){};
+        virtual ~Impl() {};
     };
 
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,

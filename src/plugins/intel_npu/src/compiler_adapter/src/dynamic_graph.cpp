@@ -569,7 +569,7 @@ void DynamicGraph::initialize(const Config& config) {
         _logger.warning("Zero device is not available, skip graph initialize!");
     }
 
-    if (_commandQueue = nullptr) {
+    if (_commandQueue == nullptr) {
         _logger.debug("Graph initialize without graph handle");
 
         _commandQueueGroupOrdinal =
