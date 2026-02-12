@@ -109,7 +109,7 @@ void ReduceCPULayerTest::SetUp() {
         }
     }
 
-    function = makeNgraphFunction(netPrecision, params, reduce, "Reduce");
+    function = create_ov_model(netPrecision, params, reduce, "Reduce");
 
     if (netPrecision == ov::element::f32 && configuration.count(ov::hint::inference_precision.name()) &&
         configuration.at(ov::hint::inference_precision.name()) == ov::element::f16) {

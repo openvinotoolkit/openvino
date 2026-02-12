@@ -26,6 +26,7 @@ PipelinedExecutor::Output PipelinedExecutor::runLoop(cv::GRunArgs&& inputs, Call
     const auto start_tick = clock_t::now();
     m_compiled.start();
     while (criterion->check()) {
+        criterion->checkWorkloadTrigger();
         if (!callback(m_compiled)) {
             break;
         }
@@ -52,6 +53,7 @@ SyncExecutor::Output SyncExecutor::runLoop(Callback callback, ITermCriterion::Pt
     const auto start_tick = clock_t::now();
     criterion->init();
     while (criterion->check()) {
+        criterion->checkWorkloadTrigger();
         if (!callback(m_compiled)) {
             break;
         }
