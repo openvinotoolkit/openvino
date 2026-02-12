@@ -35,10 +35,10 @@ void normalize(std::vector<int64_t>& vec, const Output<Node> input, const std::v
     }
 }
 
-void check_vec_size(const NodeContext& node,
-                    const std::vector<int64_t>& vec,
-                    const std::vector<int64_t>& axes_vec,
-                    const std::string& attr_name) {
+static void check_vec_size(const NodeContext& node,
+                           const std::vector<int64_t>& vec,
+                           const std::vector<int64_t>& axes_vec,
+                           const std::string& attr_name) {
     PADDLE_OP_CHECK(node,
                     (vec.size() >= axes_vec.size()),
                     "The size of '" + attr_name + "' must be >= the size of 'axes'.");

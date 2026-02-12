@@ -38,19 +38,20 @@ TEST(FrontEndConvertModelTest, unsupported_version) {
     ASSERT_THROW(inputModel = frontEnd->load(model_filename), GeneralFailure);
 }
 
-TEST(FrontEndConvertModelTest, set_value_axes_mismatch) {
+// TODO: will upload pdmodel, then enable the test case.
+TEST(FrontEndConvertModelTest, DISABLED_set_value_axes_mismatch) {
     FrontEndManager fem;
     FrontEnd::Ptr frontEnd;
     InputModel::Ptr inputModel;
     OV_ASSERT_NO_THROW(frontEnd = fem.load_by_framework(PADDLE_FE));
     ASSERT_NE(frontEnd, nullptr);
-    auto model_filename = FrontEndTestUtils::make_model_path(
-        std::string(TEST_PADDLE_MODELS_DIRNAME) + std::string("set_value_axes_mismatch/set_value_axes_mismatch.pdmodel"));
+    auto model_filename =
+        FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) +
+                                           std::string("set_value_axes_mismatch/set_value_axes_mismatch.pdmodel"));
     OV_ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
     ASSERT_NE(inputModel, nullptr);
-    std::shared_ptr<ov::Model> model;
     try {
-        model = frontEnd->convert(inputModel);
+        frontEnd->convert(inputModel);
         FAIL() << "Expected conversion to fail due to axes/starts/ends/steps size mismatch.";
     } catch (const ov::AssertFailure& ex) {
         const std::string message = ex.what();
