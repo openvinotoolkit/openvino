@@ -40,7 +40,7 @@ inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_dat
 
     #if IS_INT4_COMPRESSED
     ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((INT4_RANGE) / diff_value);
-    ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + INT4_MIN;
+    ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp);
     #else
     ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / diff_value);
     ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + CHAR_MIN;
@@ -56,7 +56,6 @@ inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_dat
         unroll_for (uint i = 0; i < num_groups; i+=PACK_SIZE) {
             res_vec.s0 = convert_char_rte(input_data[i] * scale + zp);
             res_vec.s1 = (i+1 < num_groups) ? convert_char_rte(input_data[i+1] * scale + zp) : 0;
-
             uint packed_output_offset = out_data_offset + ((i / PACK_SIZE) * SUBGROUP_SIZE + sglid) * out_data_pitch;
             out_data[packed_output_offset] = cvt_int8x2_to_uint4x2(res_vec);
         }
@@ -238,7 +237,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
                     if (order_in_packed == 0) {
                         // Generate cache_data_vec_decompressed[0~token_pos_in_block] from key-cache
                         char temp = prev_cache_data_vec[j];
-                        MAKE_VECTOR_TYPE(char, PACK_SIZE) buff = unpack_to_char(*(int4x2_t *)&temp);
+                        MAKE_VECTOR_TYPE(char, PACK_SIZE) buff = unpack_to_char(*(uint4x2_t *)&temp);
 
                         if (h_sub + 1 >= num_head_size_groups) {
                             cache_data_vec_decompressed[0][j] = ((INPUT0_TYPE)buff.s0 - orig_zp[0]) * orig_scale[0];
@@ -257,7 +256,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
         // requantize and store
         {
             #define ACCUMULATOR_TYPE float
-            ACCUMULATOR_TYPE range = max_value - min_value;
+            ACCUMULATOR_TYPE range = (max_value == min_value) ? (0.001) : (max_value - min_value);
             const ACCUMULATOR_TYPE min_range = fabs(max_value * 0.1f);
             if (range <= min_range) {
                 // When the range is very small, expand the range to avoid zp overflow
@@ -265,7 +264,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
             }
 
             ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((INT4_RANGE) / range);
-            ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + INT4_MIN;
+            ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp);
             scale[order_in_packed] = (INPUT1_TYPE)(scale_tmp);
             zp[order_in_packed] = (INPUT1_TYPE)(zp_tmp);
             #undef ACCUMULATOR_TYPE
@@ -328,7 +327,7 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
             key_in_offset_tmp += in_data_pitch;
         }
         #define ACCUMULATOR_TYPE float
-        ACCUMULATOR_TYPE range = max_value - min_value;
+        ACCUMULATOR_TYPE range = (max_value == min_value) ? (0.001) : (max_value - min_value);
         const ACCUMULATOR_TYPE min_range = fabs(max_value * 0.1f);
         if (range <= min_range) {
             // When the range is very small, expand the range to avoid zp overflow
@@ -337,7 +336,7 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
 
         #if IS_INT4_COMPRESSED
             ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((INT4_MAX - INT4_MIN) / range);
-            ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + INT4_MIN;
+            ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp);
         #else
             ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / range);
             ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + CHAR_MIN;
