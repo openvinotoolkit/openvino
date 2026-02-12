@@ -241,9 +241,10 @@ public:
     }
 };
 
-// All-zero token_type_ids (text-only) should produce deterministic results
-// across two identical runs with the same all-zero token types.
-TEST_P(PagedAttnTokenTypeTest, AllTextMatchesCausal) {
+// With all-zero token_type_ids (text-only), causal masking must hold:
+// output at position i depends only on tokens 0..i, so a shorter prefix
+// should produce identical outputs for the shared positions.
+TEST_P(PagedAttnTokenTypeTest, AllTextIsCausal) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     const auto& [inType, head_size, head_num, pattern] = this->GetParam();
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
@@ -251,17 +252,33 @@ TEST_P(PagedAttnTokenTypeTest, AllTextMatchesCausal) {
 
     targetDevice = ov::test::utils::DEVICE_CPU;
 
-    size_t seq_len = pattern.types.size();
-    std::vector<int32_t> all_text(seq_len, 0);
+    size_t full_len = pattern.types.size();
+    size_t prefix_len = full_len / 2;  // e.g. 5 out of 10
+    OPENVINO_ASSERT(prefix_len > 0);
 
-    auto pa_model_1 = get_pa_model(inType, head_size, head_num);
-    auto result_1 = run_pa_with_token_types(pa_model_1, inType, seq_len, head_size, head_num, all_text);
+    std::vector<int32_t> all_text_full(full_len, 0);
+    std::vector<int32_t> all_text_prefix(prefix_len, 0);
 
-    auto pa_model_2 = get_pa_model(inType, head_size, head_num);
-    auto result_2 = run_pa_with_token_types(pa_model_2, inType, seq_len, head_size, head_num, all_text);
+    auto model_full = get_pa_model(inType, head_size, head_num);
+    auto result_full = run_pa_with_token_types(model_full, inType, full_len, head_size, head_num, all_text_full);
 
-    // Two runs with identical all-text token_type_ids should produce exactly the same output
-    ov::test::utils::compare(result_1.output, result_2.output, 0.0f, 0.0f);
+    auto model_prefix = get_pa_model(inType, head_size, head_num);
+    auto result_prefix = run_pa_with_token_types(model_prefix, inType, prefix_len, head_size, head_num, all_text_prefix);
+
+    // First prefix_len positions of the full run should match the prefix run exactly
+    size_t hidden_dim = head_num * head_size;
+    auto* full_data = result_full.output.data<float>();
+    auto* prefix_data = result_prefix.output.data<float>();
+
+    for (size_t pos = 0; pos < prefix_len; pos++) {
+        for (size_t d = 0; d < hidden_dim; d++) {
+            float diff = std::abs(full_data[pos * hidden_dim + d] - prefix_data[pos * hidden_dim + d]);
+            EXPECT_LT(diff, 1e-5f)
+                << "Causal masking violated: position " << pos << " dim " << d
+                << " differs between seq_len=" << full_len << " and seq_len=" << prefix_len
+                << ", diff=" << diff;
+        }
+    }
 }
 
 
