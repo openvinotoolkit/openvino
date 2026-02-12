@@ -365,25 +365,27 @@ protected:
         auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
         auto dq = qp.build_dq(convert2, quantization_precision);
 
-        // Insert a fine-grained FQ (65535 levels, NOT stripped since levels_to_strip={65536})
-        // in the forward propagation path. This tests that forward propagation correctly
-        // adjusts un-stripped FQ ranges.
-        // Using 65535 levels (not 65536) ensures this FQ is NOT stripped.
-        // Range is chosen so y_scale is barely > 1 (minimizing quantization error)
-        // but after forward propagation divides by 10, y_scale drops well below 1.
-        // For u16: DQ output is non-negative, so use range [0, 65600]:
-        //   y_scale = 65600/65534 ≈ 1.001, after /10 ≈ 0.100 < threshold.
-        // For i16: DQ output is symmetric, so use range [-32770, 32770]:
-        //   y_scale = 65540/65534 ≈ 1.0001, after /10 ≈ 0.0001 < threshold.
-        //   Tight range minimizes quantization error when FQs are stacked
-        //   on both forward and backward branches of 3 residual blocks.
-        float fq_lo = (quantization_precision == ov::element::u16) ? 0.f : -32770.f;
-        float fq_hi = (quantization_precision == ov::element::u16) ? 65600.f : 32770.f;
-        auto fq_pass_il = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_lo});
-        auto fq_pass_ih = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_hi});
-        auto fq_pass_ol = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_lo});
-        auto fq_pass_oh = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_hi});
-        auto fq_pass = std::make_shared<ov::op::v0::FakeQuantize>(dq, fq_pass_il, fq_pass_ih, fq_pass_ol, fq_pass_oh, 65535);
+        // Insert FQs with 65536 levels (same as levels_to_strip) on both the forward
+        // propagation path and the Conv+bias branches of each residual block.
+        // These FQs test the full adjust+strip pipeline:
+        //   1. First FQ (y_scale=10) is stripped → forward propagation adjusts downstream FQ ranges by /10
+        //   2. Forward propagation also triggers backward propagation at each Add, adjusting branch FQ ranges
+        //   3. When the topological walk reaches each adjusted FQ, y_scale ≤ 1 → stripped without propagation
+        //
+        // Forward-path FQ range matches the DQ output range so it doesn't clamp in the
+        // reference model. y_scale = range/65535 ≈ 10, after /10 ≈ 1.0 ≤ threshold.
+        // Branch FQ range is [0, 65600] / [-32800, 32800] (y_scale ≈ 1.001 > 1),
+        // covering the Conv output range (~150) without clamping. After /10 → y_scale ≈ 0.1.
+        float fwd_fq_lo = (quantization_precision == ov::element::u16) ? 0.f : -327675.f;
+        float fwd_fq_hi = (quantization_precision == ov::element::u16) ? 655350.f : 327675.f;
+        auto fq_pass_il = ov::op::v0::Constant::create(ov::element::f32, {}, {fwd_fq_lo});
+        auto fq_pass_ih = ov::op::v0::Constant::create(ov::element::f32, {}, {fwd_fq_hi});
+        auto fq_pass_ol = ov::op::v0::Constant::create(ov::element::f32, {}, {fwd_fq_lo});
+        auto fq_pass_oh = ov::op::v0::Constant::create(ov::element::f32, {}, {fwd_fq_hi});
+        auto fq_pass = std::make_shared<ov::op::v0::FakeQuantize>(dq, fq_pass_il, fq_pass_ih, fq_pass_ol, fq_pass_oh, 65536);
+
+        float branch_fq_lo = (quantization_precision == ov::element::u16) ? 0.f : -32800.f;
+        float branch_fq_hi = (quantization_precision == ov::element::u16) ? 65600.f : 32800.f;
 
         // Helper lambda to create a residual block
         auto create_residual_block = [&](const ov::Output<ov::Node>& input, size_t seed) {
@@ -403,16 +405,14 @@ protected:
             auto bias = build_dq_subgraph(ov::element::i8, {32}, 0.001f, 0);
             auto conv_biased = add_bias(conv, bias);
 
-            // Insert un-stripped FQ (65535 levels) on the Conv+bias branch.
-            // This tests that backward propagation triggered from forward propagation
-            // (when forward prop reaches the Add and backward-propagates into this branch)
-            // correctly adjusts FQ range constants on the "other" branch.
-            // Same range as the forward-path FQ: y_scale ≈ 1.001, after /10 ≈ 0.1 < threshold.
-            auto branch_fq_il = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_lo});
-            auto branch_fq_ih = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_hi});
-            auto branch_fq_ol = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_lo});
-            auto branch_fq_oh = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_hi});
-            auto branch_fq = std::make_shared<ov::op::v0::FakeQuantize>(conv_biased, branch_fq_il, branch_fq_ih, branch_fq_ol, branch_fq_oh, 65535);
+            // Insert FQ (65536 levels) on the Conv+bias branch.
+            // Backward propagation triggered from forward propagation adjusts this FQ's
+            // range constants by /10, then the topological walk strips it (y_scale < 1).
+            auto bfq_il = ov::op::v0::Constant::create(ov::element::f32, {}, {branch_fq_lo});
+            auto bfq_ih = ov::op::v0::Constant::create(ov::element::f32, {}, {branch_fq_hi});
+            auto bfq_ol = ov::op::v0::Constant::create(ov::element::f32, {}, {branch_fq_lo});
+            auto bfq_oh = ov::op::v0::Constant::create(ov::element::f32, {}, {branch_fq_hi});
+            auto branch_fq = std::make_shared<ov::op::v0::FakeQuantize>(conv_biased, bfq_il, bfq_ih, bfq_ol, bfq_oh, 65536);
 
             return std::make_shared<ov::op::v1::Add>(branch_fq, input);
         };
@@ -485,14 +485,11 @@ protected:
                 quantize_count++;
             }
         }
-        const auto& [input_shape, input_precision, quantization_precision, pattern_type] = GetParam();
-        // NeedScalingResidualBlock has an int8 FQ (256 levels) that is NOT stripped
-        // (only int16 FQs with 65536 levels are stripped). It remains as a Quantize node.
-        // NeedScalingResidualBlock has 4 un-stripped FQs (65535 levels):
-        //   1 on the forward propagation path (after DQ)
-        //   3 on the Conv+bias branches inside each residual block (backward propagation from forward)
-        const size_t expected_quantize_count = (pattern_type == PatternType::NeedScalingResidualBlock) ? 4 : 0;
-        ASSERT_EQ(quantize_count, expected_quantize_count) << "Unexpected Quantize node count.";
+        // All FQs use 65536 levels (in levels_to_strip), so all should be stripped.
+        // NeedScalingResidualBlock has 4 additional FQs (1 forward-path + 3 branch),
+        // but their ranges are adjusted by propagation so y_scale drops below threshold,
+        // and the topological walk strips them without further propagation.
+        ASSERT_EQ(quantize_count, 0u) << "Unexpected Quantize node count.";
     }
 };
 
