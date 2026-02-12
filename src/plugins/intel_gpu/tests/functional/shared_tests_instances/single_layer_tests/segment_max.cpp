@@ -5,6 +5,9 @@
 #include "single_op_tests/segment_max.hpp"
 #include "openvino/runtime/properties.hpp"
 
+#include <algorithm>
+#include <sstream>
+
 namespace ov {
 namespace test {
 namespace {
