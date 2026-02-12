@@ -115,11 +115,11 @@ void SingleFileStorage::populate_cache_index() {
             blob_file.seekg(size, std::ios::cur);
         }
     }
-    std::cout << "Populating cache index end" << std::endl;
-    for (const auto& [id, info] : m_cache_index) {
-        std::cout << "Cache index - id: " << id << " offset: " << std::get<0>(info) << " size: " << std::get<1>(info)
-                  << "\n";
-    }
+    // std::cout << "Populating cache index end" << std::endl;
+    // for (const auto& [id, info] : m_cache_index) {
+    //     std::cout << "Cache index - id: " << id << " offset: " << std::get<0>(info) << " size: " << std::get<1>(info)
+    //               << "\n";
+    // }
 }
 
 void SingleFileStorage::update_shared_ctx(const SharedContext& new_ctx) {
@@ -151,22 +151,22 @@ void SingleFileStorage::write_blob_entry(const std::string& id, StreamWriter& wr
     OPENVINO_ASSERT(!has_blob_id(id), "Blob with id ", id, " already exists in cache.");
     size_t blob_size = 0;
     stream.write(reinterpret_cast<const char*>(&blob_tag), sizeof(blob_tag));
-    const auto tag_size_offset = stream.tellp();
+    const auto blob_size_pos = stream.tellp();
     stream.write(reinterpret_cast<const char*>(&blob_size), sizeof(blob_size));
 
-    const auto blob_id_offset = stream.tellp();
+    const auto blob_id_pos = stream.tellp();
     auto ids = id;
     ids.resize(blob_id_size, '\0');
     stream.write(ids.data(), blob_id_size);
 
-    const auto blob_offset = stream.tellp();
+    const auto blob_pos = stream.tellp();
     writer(stream);
     const auto end = stream.tellp();
-    blob_size = end - blob_id_offset;
-    stream.seekp(tag_size_offset);
+    blob_size = end - blob_id_pos;
+    stream.seekp(blob_size_pos);
     stream.write(reinterpret_cast<const char*>(&blob_size), sizeof(blob_size));
     stream.seekp(end);
-    m_cache_index[id] = std::make_tuple(blob_offset, blob_size - ids.size());  // Update with actual offset and size
+    m_cache_index[id] = std::make_tuple(blob_pos, blob_size - ids.size());  // Update with actual offset and size
 }
 
 void SingleFileStorage::write_cache_entry(const std::string& id, StreamWriter writer) {
