@@ -61,7 +61,6 @@
 #include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
-#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/lora_subgraph_fusion.hpp"
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
@@ -231,6 +230,7 @@
 #    include "snippets/pass/common_optimizations.hpp"
 #    include "snippets/pass/split_dimension_m.hpp"
 #    include "snippets/utils/tokenization_utils.hpp"
+#    include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #    include "transformations/common_optimizations/rms_fusion.hpp"
 #    include "transformations/cpu_opset/common/op/sdpa.hpp"
 #    include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
@@ -284,6 +284,7 @@
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64)
+#    include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #    include "transformations/op_conversions/hard_sigmoid_decomposition.hpp"
 #    include "transformations/op_conversions/hsigmoid_decomposition.hpp"
 #endif
@@ -1079,7 +1080,6 @@ void Transformations::PostLpt() {
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion, true);
     CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::pass::RoPEFusion, true);
-    CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionFlux);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
 #if defined(OPENVINO_ARCH_X86_64)
