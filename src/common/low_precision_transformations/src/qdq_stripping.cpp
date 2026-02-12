@@ -257,12 +257,16 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
     // Helper to adjust FQ range constants (input_low, input_high, output_low, output_high)
     // by dividing them by current_scale_divisor. This is needed when scale propagation passes
     // through an un-stripped FQ — the quantization grid must shift to match the new value range.
+    // Uses a separate tracking set (adjusted_fqs) instead of `visited` because visit_path adds
+    // nodes to `visited` before calling the callback, which would cause the adjustment to be
+    // skipped when reached via backward propagation.
+    std::unordered_set<ov::Node*> adjusted_fqs;
     auto adjust_fq_ranges = [&](ov::Node* node) {
         auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node->shared_from_this());
         if (!fq)
             return;
 
-        if (visited.count(node))
+        if (adjusted_fqs.count(node))
             return;
 
         QDQ_DEBUG_LOG << "        [ DEBUG ] Adjusting FQ ranges for: " << fq->get_friendly_name()
@@ -277,7 +281,7 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             fq->input(idx).replace_source_output(new_const);
         }
 
-        visited.insert(node);
+        adjusted_fqs.insert(node);
     };
 
     auto adjust_weights_scale = [&](ov::Node* node) {

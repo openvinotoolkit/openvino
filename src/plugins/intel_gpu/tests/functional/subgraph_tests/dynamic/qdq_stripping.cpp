@@ -373,10 +373,12 @@ protected:
         // but after forward propagation divides by 10, y_scale drops well below 1.
         // For u16: DQ output is non-negative, so use range [0, 65600]:
         //   y_scale = 65600/65534 ≈ 1.001, after /10 ≈ 0.100 < threshold.
-        // For i16: DQ output is symmetric, so use range [-32800, 32800]:
-        //   y_scale = 65600/65534 ≈ 1.001, after /10 ≈ 0.100 < threshold.
-        float fq_lo = (quantization_precision == ov::element::u16) ? 0.f : -32800.f;
-        float fq_hi = (quantization_precision == ov::element::u16) ? 65600.f : 32800.f;
+        // For i16: DQ output is symmetric, so use range [-32770, 32770]:
+        //   y_scale = 65540/65534 ≈ 1.0001, after /10 ≈ 0.0001 < threshold.
+        //   Tight range minimizes quantization error when FQs are stacked
+        //   on both forward and backward branches of 3 residual blocks.
+        float fq_lo = (quantization_precision == ov::element::u16) ? 0.f : -32770.f;
+        float fq_hi = (quantization_precision == ov::element::u16) ? 65600.f : 32770.f;
         auto fq_pass_il = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_lo});
         auto fq_pass_ih = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_hi});
         auto fq_pass_ol = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_lo});
@@ -401,7 +403,18 @@ protected:
             auto bias = build_dq_subgraph(ov::element::i8, {32}, 0.001f, 0);
             auto conv_biased = add_bias(conv, bias);
 
-            return std::make_shared<ov::op::v1::Add>(conv_biased, input);
+            // Insert un-stripped FQ (65535 levels) on the Conv+bias branch.
+            // This tests that backward propagation triggered from forward propagation
+            // (when forward prop reaches the Add and backward-propagates into this branch)
+            // correctly adjusts FQ range constants on the "other" branch.
+            // Same range as the forward-path FQ: y_scale ≈ 1.001, after /10 ≈ 0.1 < threshold.
+            auto branch_fq_il = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_lo});
+            auto branch_fq_ih = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_hi});
+            auto branch_fq_ol = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_lo});
+            auto branch_fq_oh = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_hi});
+            auto branch_fq = std::make_shared<ov::op::v0::FakeQuantize>(conv_biased, branch_fq_il, branch_fq_ih, branch_fq_ol, branch_fq_oh, 65535);
+
+            return std::make_shared<ov::op::v1::Add>(branch_fq, input);
         };
 
         auto add1 = create_residual_block(fq_pass, 2);
@@ -475,7 +488,10 @@ protected:
         const auto& [input_shape, input_precision, quantization_precision, pattern_type] = GetParam();
         // NeedScalingResidualBlock has an int8 FQ (256 levels) that is NOT stripped
         // (only int16 FQs with 65536 levels are stripped). It remains as a Quantize node.
-        const size_t expected_quantize_count = (pattern_type == PatternType::NeedScalingResidualBlock) ? 1 : 0;
+        // NeedScalingResidualBlock has 4 un-stripped FQs (65535 levels):
+        //   1 on the forward propagation path (after DQ)
+        //   3 on the Conv+bias branches inside each residual block (backward propagation from forward)
+        const size_t expected_quantize_count = (pattern_type == PatternType::NeedScalingResidualBlock) ? 4 : 0;
         ASSERT_EQ(quantize_count, expected_quantize_count) << "Unexpected Quantize node count.";
     }
 };
