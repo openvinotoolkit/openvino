@@ -1240,7 +1240,7 @@ TEST_P(SDPA2DInputs, SDPAFusionTest_2DInputs) {
         sdpa_ref.unsqueeze_k({0});
         sdpa_ref.unsqueeze_v({0});
         sdpa_ref.create_reference_sdpa();
-        sdpa_ref.squeeze_sdpa({0});
+        sdpa_ref.squeeze_sdpa(0);
         sdpa_ref.transpose_sdpa({1, 0});
         model_ref = sdpa_ref.build_model();
     }
