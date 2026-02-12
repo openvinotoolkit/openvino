@@ -183,7 +183,7 @@ public:
         }
         
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
-        
+
         if (rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) {
             if (!bypass_xattn(params)) {
                 if (rt_params->xattn_block_size == 128) {
