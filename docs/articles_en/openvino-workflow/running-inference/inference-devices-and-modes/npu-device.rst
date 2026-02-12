@@ -32,9 +32,11 @@ Follow the instructions below to install the latest NPU drivers:
 * `Windows driver <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__
 * `Linux driver <https://github.com/intel/linux-npu-driver/releases>`__
 
-Starting with the 2026.0 release, the compiler library is available in the OpenVINO package as a preview feature (``Compiler-In-Plugin``).
-The default compiler type remains ``Compiler-In-Driver`` (the compiler library included in the driver package).
-Users can override the default compiler selection by setting ``ov::intel_npu::compiler_type``.
+.. note::
+
+   Starting with the 2026.0 release, the compiler library is available in the OpenVINO package as a preview feature (``Compiler-In-Plugin``).
+   The default compiler type remains ``Compiler-In-Driver`` (the compiler library included in the driver package).
+   Users can override the default compiler selection by setting ``ov::intel_npu::compiler_type``.
 
 The plugin uses either the NPU compiler library included in the driver or
 the compiler library included in the OpenVINO package to convert the OpenVINO specific
@@ -267,7 +269,9 @@ or
 **ov::intel_npu::max_tiles and ov::intel_npu::tiles**
 
 For on-device compilation, the plugin queries the driver for the available number of tiles and sets ``ov::intel_npu::max_tiles``.
+
 ``ov::intel_npu::max_tiles`` is a read-write property to allow users to set it during offline compilation.
+
 Note that ``ov::intel_npu::max_tiles`` represents the maximum number of tiles available,
 but the compiler may target a lower number of tiles depending on other properties.
 Users can set ``ov::intel_npu::tiles`` to override the number of tiles selected by the compiler based on other properties.
@@ -277,17 +281,20 @@ Users can set ``ov::intel_npu::tiles`` to override the number of tiles selected 
    When setting ``ov::intel_npu::tiles``, users must ensure that the value does not
    exceed ``ov::intel_npu::max_tiles``. Any tile count other than 1 may impact
    cross-device compatibility if it is not explicitly validated against the target
-   devices's `ov::intel_npu::max_tiles` value.
+   devices's ``ov::intel_npu::max_tiles`` value.
 
 **ov::intel_npu::compiler_type**
 
 This property allows users to override the default compiler type selected by the plugin.
+
 To use ``Compiler-In-Plugin`` whenever possible, users can set the property to ``PREFER_PLUGIN``.
 This instructs the plugin to use the integrated compiler when all the following conditions are met:
+
 - The library is present
 - The compiler supports the current platform ``or`` there is no platform detected (offline compilation)
 - Compatibility is maintained between the current compiler version and all drivers released for the platform ``or`` there is no platform detected (offline compilation)
-- Note: On Meteor Lake (3720), when the property is set to ``PREFER_PLUGIN``, the plugin will fall back to ``Compiler-in-Driver`` because
+
+Note: On Meteor Lake (3720), when the property is set to ``PREFER_PLUGIN``, the plugin will fall back to ``Compiler-in-Driver`` because
 the compiler library integrated in the plugin may not be compatible with driver versions lower than v2565.
 Users can set ``ov::intel_npu::compiler_type`` to ``PLUGIN`` to force ``Compiler-in-Plugin``, but the blob will fail to execute on incompatible drivers.
 
@@ -296,13 +303,13 @@ The compiler type used to compile a model can be queried from the resulting ``Co
 
 .. note::
 
-Notes regarding on-device vs offline compilation:
-- For on-device compilation with ``Compiler-In-Plugin``, the plugin is responsible for querying the platform information
-from the driver and for passing the mandatory configs to the compiler (platform ID, available number of tiles, stepping information).
-Such compiled models are compatible with all the drivers released for that platform.
-- For offline compilation, users must explicitly set the ``ov::intel_npu::platform`` property to one of the supported values (see table above).
-Setting extra properties during offline compilation may result in compiled models that cannot be executed
-on SKUs with fewer resources or on drivers that do not support those features.
+  For on-device compilation with ``Compiler-In-Plugin``, the plugin is responsible for querying the platform information
+  from the driver and for passing the mandatory configs to the compiler (platform ID, available number of tiles, stepping information).
+  Such compiled models are compatible with all the drivers released for that platform.
+
+  For offline compilation, users must explicitly set the ``ov::intel_npu::platform`` property to one of the supported values (see table above).
+  Setting extra properties during offline compilation may result in compiled models that cannot be executed on SKUs with fewer resources or on drivers that do not support those features.
+
 Example: Setting ``performance-hint-override=latency`` through ``ov::intel_npu::compilation_mode_params`` instructs the compiler
 to use all available resources for the given platform. If ``ov::intel_npu::max_tiles`` is not provided,
 the compiler falls back to a fixed lookup table embedded in the library to determine available resources, which might not be representative of all SKUs.
