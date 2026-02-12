@@ -189,50 +189,160 @@ ov::Output<ov::Node> RMSNorm::operator()(const ov::Output<ov::Node>& input, cons
 }
 
 // ============================================================================
+// RoPE frequency builder (matches NPUW AddPositionIdsNode pattern)
+// ============================================================================
+
+/// Build frequency-based cos/sin via Sin/Cos nodes.
+/// Chain: position_ids -> Unsqueeze -> Convert(f32) -> MatMul(inv_freq, .) ->
+///        Transpose -> Concat(self,self) -> Sin/Cos -> Unsqueeze (broadcast over heads).
+///
+/// For embedding models (where position_ids comes from Range->Unsqueeze), this produces:
+///   Range -> Unsqueeze -> Unsqueeze -> Convert -> MatMul -> Transpose -> Concat -> Sin/Cos
+/// which matches NPUW's AddPositionIdsNode pattern exactly.
+struct RoPEFrequencies {
+    ov::Output<ov::Node> cos, sin;
+};
+
+static RoPEFrequencies build_rope_frequencies(size_t head_dim,
+                                               ov::element::Type precision,
+                                               const ov::Output<ov::Node>& position_ids,
+                                               const std::string& prefix = "model.rope") {
+    const size_t half_dim = head_dim / 2;
+
+    // inv_freq = 1 / (10000 ^ (2i / head_dim)) for i = 0..half_dim-1
+    // Shape: [1, half_dim, 1] for MatMul broadcasting
+    std::vector<float> inv_freq_data(half_dim);
+    for (size_t i = 0; i < half_dim; ++i) {
+        inv_freq_data[i] = 1.0f / std::pow(10000.0f, static_cast<float>(2 * i) / static_cast<float>(head_dim));
+    }
+    auto inv_freq = ov::opset11::Constant::create(ov::element::f32,
+                                                   ov::Shape{1, half_dim, 1},
+                                                   inv_freq_data);
+    inv_freq->set_friendly_name(prefix + ".inv_freq");
+
+    // position_ids [batch, seq] or [1, seq]
+    //   -> Unsqueeze(axis=1) -> [batch, 1, seq] or [1, 1, seq]
+    auto unsq_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto unsqueezed = std::make_shared<ov::opset11::Unsqueeze>(position_ids, unsq_axis);
+    unsqueezed->set_friendly_name(prefix + ".pos_unsqueeze");
+
+    //   -> Convert(f32)
+    auto converted = std::make_shared<ov::opset11::Convert>(unsqueezed, ov::element::f32);
+    converted->set_friendly_name(prefix + ".pos_convert");
+
+    //   -> MatMul(inv_freq [1, half_dim, 1], convert [batch, 1, seq]) = [batch, half_dim, seq]
+    auto matmul = std::make_shared<ov::opset11::MatMul>(inv_freq, converted, false, false);
+    matmul->set_friendly_name(prefix + ".freq_matmul");
+
+    //   -> Transpose({0, 2, 1}) -> [batch, seq, half_dim]
+    auto perm = ov::opset11::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{0, 2, 1});
+    auto transposed = std::make_shared<ov::opset11::Transpose>(matmul, perm);
+    transposed->set_friendly_name(prefix + ".freq_transpose");
+
+    //   -> Concat(self, self, axis=-1) -> [batch, seq, head_dim]
+    auto concat = std::make_shared<ov::opset11::Concat>(
+        ov::OutputVector{transposed->output(0), transposed->output(0)}, -1);
+    concat->set_friendly_name(prefix + ".freq_concat");
+
+    //   -> Sin / Cos
+    auto sin_node = std::make_shared<ov::op::v0::Sin>(concat);
+    sin_node->set_friendly_name(prefix + ".sin");
+    auto cos_node = std::make_shared<ov::op::v0::Cos>(concat);
+    cos_node->set_friendly_name(prefix + ".cos");
+
+    //   -> Unsqueeze(axis=1) for broadcast over heads: [batch, 1, seq, head_dim]
+    auto head_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+
+    auto cos_unsq = std::make_shared<ov::opset11::Unsqueeze>(cos_node, head_axis);
+    cos_unsq->set_friendly_name(prefix + ".cos_unsqueeze");
+
+    auto sin_unsq = std::make_shared<ov::opset11::Unsqueeze>(sin_node, head_axis);
+    sin_unsq->set_friendly_name(prefix + ".sin_unsqueeze");
+
+    // Convert to target precision if needed
+    ov::Output<ov::Node> cos_out = cos_unsq->output(0);
+    ov::Output<ov::Node> sin_out = sin_unsq->output(0);
+    if (precision != ov::element::f32) {
+        auto cos_cvt = std::make_shared<ov::opset11::Convert>(cos_unsq, precision);
+        cos_cvt->set_friendly_name(prefix + ".cos_convert");
+        cos_out = cos_cvt->output(0);
+
+        auto sin_cvt = std::make_shared<ov::opset11::Convert>(sin_unsq, precision);
+        sin_cvt->set_friendly_name(prefix + ".sin_convert");
+        sin_out = sin_cvt->output(0);
+    }
+
+    return {cos_out, sin_out};
+}
+
+// ============================================================================
 // RoPE Functor Implementations
 // ============================================================================
 
-RoPEEmbeddings gather_rope_embeddings(size_t head_dim,
-                                      size_t max_position,
-                                      ov::element::Type precision,
-                                      const ov::Output<ov::Node>& position_ids,
-                                      const std::string& name) {
-    auto cos_table = ov::opset11::Constant::create(precision,
-                                                   ov::Shape{max_position, head_dim},
-                                                   std::vector<float>(max_position * head_dim, 0.5f));
-    cos_table->set_friendly_name(name + ".cos_table");
+HalfRotationRoPE::HalfRotationRoPE(size_t hd,
+                                     ov::element::Type precision,
+                                     const ov::Output<ov::Node>& position_ids)
+    : head_dim(hd) {
+    auto freq = build_rope_frequencies(hd, precision, position_ids);
+    cos_freq = freq.cos;
+    sin_freq = freq.sin;
+}
 
-    auto sin_table = ov::opset11::Constant::create(precision,
-                                                   ov::Shape{max_position, head_dim},
-                                                   std::vector<float>(max_position * head_dim, 0.3f));
-    sin_table->set_friendly_name(name + ".sin_table");
+ov::Output<ov::Node> HalfRotationRoPE::operator()(const ov::Output<ov::Node>& input,
+                                                    const std::string& name) const {
 
-    auto gather_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    // Split into first_half and second_half along last dim
+    const int64_t half = static_cast<int64_t>(head_dim / 2);
 
-    auto cos_embed = std::make_shared<ov::opset11::Gather>(cos_table, position_ids, gather_axis, 0);
-    cos_embed->set_friendly_name(name + "_cos_gather");
+    auto zero = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto half_const = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {half});
+    auto full_const = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(head_dim)});
+    auto step = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto last_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
 
-    auto sin_embed = std::make_shared<ov::opset11::Gather>(sin_table, position_ids, gather_axis, 0);
-    sin_embed->set_friendly_name(name + "_sin_gather");
+    auto first_half = std::make_shared<ov::op::v8::Slice>(input, zero, half_const, step, last_axis);
+    first_half->set_friendly_name(name + "_first_half");
 
-    // Axis 1 broadcasts over heads in post-transpose layout [batch, heads, seq, head_dim]
-    auto unsqueeze_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto second_half = std::make_shared<ov::op::v8::Slice>(input, half_const, full_const, step, last_axis);
+    second_half->set_friendly_name(name + "_second_half");
 
-    auto cos_unsqueezed = std::make_shared<ov::opset11::Unsqueeze>(cos_embed, unsqueeze_axis);
-    cos_unsqueezed->set_friendly_name(name + "_cos_unsqueeze");
+    // rotated = Concat(-second_half, first_half)
+    auto neg_one = ov::opset11::Constant::create(
+        input.get_element_type(), ov::Shape{}, {-1.0f});
+    auto neg_second = std::make_shared<ov::opset11::Multiply>(second_half, neg_one);
+    neg_second->set_friendly_name(name + "_neg_second");
 
-    auto sin_unsqueezed = std::make_shared<ov::opset11::Unsqueeze>(sin_embed, unsqueeze_axis);
-    sin_unsqueezed->set_friendly_name(name + "_sin_unsqueeze");
+    auto rotated = std::make_shared<ov::opset11::Concat>(
+        ov::OutputVector{neg_second->output(0), first_half->output(0)}, -1);
+    rotated->set_friendly_name(name + "_rotated");
 
-    return {cos_unsqueezed->output(0), sin_unsqueezed->output(0)};
+    // output = input * cos + rotated * sin
+    auto input_cos = std::make_shared<ov::opset11::Multiply>(input, cos_freq);
+    input_cos->set_friendly_name(name + "_input_cos");
+
+    auto rotated_sin = std::make_shared<ov::opset11::Multiply>(rotated, sin_freq);
+    rotated_sin->set_friendly_name(name + "_rotated_sin");
+
+    auto output = std::make_shared<ov::opset11::Add>(input_cos, rotated_sin);
+    output->set_friendly_name(name);
+
+    return output->output(0);
+}
+
+InterleavedRoPE::InterleavedRoPE(size_t hd,
+                                   ov::element::Type precision,
+                                   const ov::Output<ov::Node>& position_ids)
+    : head_dim(hd) {
+    auto freq = build_rope_frequencies(hd, precision, position_ids);
+    cos_freq = freq.cos;
+    sin_freq = freq.sin;
 }
 
 ov::Output<ov::Node> InterleavedRoPE::operator()(const ov::Output<ov::Node>& input,
-                                                 const ov::Output<ov::Node>& position_ids,
-                                                 const std::string& name) const {
-    auto [cos, sin] = gather_rope_embeddings(head_dim, max_position, precision, position_ids, name);
+                                                  const std::string& name) const {
 
     const int64_t half_dim = static_cast<int64_t>(head_dim / 2);
+
     auto reshape_5d =
         ov::opset11::Constant::create(ov::element::i64, ov::Shape{5}, std::vector<int64_t>{0, 0, 0, half_dim, 2});
 
@@ -251,7 +361,7 @@ ov::Output<ov::Node> InterleavedRoPE::operator()(const ov::Output<ov::Node>& inp
     auto x_odd = std::make_shared<ov::op::v8::Slice>(reshaped, one, two, step, last_axis);
     x_odd->set_friendly_name(name + "_x_odd");
 
-    auto neg_one = ov::opset11::Constant::create(precision, ov::Shape{}, {-1.0f});
+    auto neg_one = ov::opset11::Constant::create(input.get_element_type(), ov::Shape{}, {-1.0f});
 
     auto neg_x_odd = std::make_shared<ov::opset11::Multiply>(x_odd, neg_one);
     neg_x_odd->set_friendly_name(name + "_neg_x_odd");
@@ -266,10 +376,10 @@ ov::Output<ov::Node> InterleavedRoPE::operator()(const ov::Output<ov::Node>& inp
     auto rotated = std::make_shared<ov::opset11::Reshape>(rotated_pairs, reshape_4d, true);
     rotated->set_friendly_name(name + "_rotated");
 
-    auto input_cos = std::make_shared<ov::opset11::Multiply>(input, cos);
+    auto input_cos = std::make_shared<ov::opset11::Multiply>(input, cos_freq);
     input_cos->set_friendly_name(name + "_input_cos");
 
-    auto rotated_sin = std::make_shared<ov::opset11::Multiply>(rotated, sin);
+    auto rotated_sin = std::make_shared<ov::opset11::Multiply>(rotated, sin_freq);
     rotated_sin->set_friendly_name(name + "_rotated_sin");
 
     auto output = std::make_shared<ov::opset11::Add>(input_cos, rotated_sin);
@@ -279,17 +389,17 @@ ov::Output<ov::Node> InterleavedRoPE::operator()(const ov::Output<ov::Node>& inp
 }
 
 // ============================================================================
-// PositionIds Functor Implementations
+// Position IDs helpers
 // ============================================================================
 
-ov::Output<ov::Node> Input2DPositionIds::operator()() const {
+ov::Output<ov::Node> make_position_ids_2d() {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
     param->set_friendly_name("position_ids");
     param->output(0).set_names({"position_ids"});
     return param->output(0);
 }
 
-ov::Output<ov::Node> Input3DPositionIds::operator()() const {
+ov::Output<ov::Node> make_position_ids_3d() {
     // Create [3, batch, seq] parameter (Qwen2.5-VL m-rope format)
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{3, -1, -1});
     param->set_friendly_name("position_ids");
@@ -702,9 +812,9 @@ LayerResult Attention::operator()(const ov::Output<ov::Node>& input, const std::
     // Apply RoPE to Q and K (after transpose, on [batch, heads, seq, dim])
     ov::Output<ov::Node> q_roped = q_trans;
     ov::Output<ov::Node> k_roped = k_trans;
-    if (position_ids.get_node() != nullptr && rope_fn) {
-        q_roped = rope_fn(q_trans, position_ids, prefix + "q_rope");
-        k_roped = rope_fn(k_trans, position_ids, prefix + "k_rope");
+    if (rope_fn) {
+        q_roped = rope_fn(q_trans, prefix + "q_rope");
+        k_roped = rope_fn(k_trans, prefix + "k_rope");
     }
 
     // KV cache
@@ -1267,8 +1377,6 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
         config.lm_head_weight = FP32Weight{};
     if (!config.norm)
         config.norm = LayerNorm(config.hidden_size, config.precision);
-    if ((config.position_ids || config.internal_position_ids) && !config.rope)
-        config.rope = InterleavedRoPE(config.head_dim, 2048, config.precision);
     if (!config.ffn)
         config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, config.precision, config.weight);
 
@@ -1293,6 +1401,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
         seq_source = input_ids->output(0);
     }
 
+    // ===== Position IDs =====
     ov::Output<ov::Node> position_ids_output;
     if (config.internal_position_ids) {
         // Generate position_ids internally from input shape: arange(0, seq_len) -> [1, seq]
@@ -1308,18 +1417,13 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
         auto unsqueezed = std::make_shared<ov::opset11::Unsqueeze>(range, unsqueeze_axis);
         unsqueezed->set_friendly_name("model.internal_position_ids");
         position_ids_output = unsqueezed->output(0);
-
-        // Add a disconnected position_ids Parameter for NPUW EmbeddingInferRequest compatibility.
-        // The actual RoPE uses the internal Range above; this Parameter is a no-op input that
-        // EmbeddingInferRequest can find and set without affecting computation.
-        auto pos_param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
-        pos_param->set_friendly_name("position_ids");
-        pos_param->output(0).set_names({"position_ids"});
-        m_parameters.push_back(pos_param);
-    } else if (config.position_ids) {
-        position_ids_output = config.position_ids();
+        // No disconnected position_ids Parameter needed: the frequency-based RoPE chain
+        // (Range -> Unsqueeze -> Unsqueeze -> Convert -> MatMul -> ... -> Sin/Cos) matches
+        // NPUW's AddPositionIdsNode pattern, which creates a connected position_ids Parameter.
+    } else if (config.position_ids.get_node()) {
+        // User provided custom position_ids (3D, Range subgraph, etc.)
+        position_ids_output = config.position_ids;
         // Auto-track any Parameter nodes in the position_ids subgraph
-        // (may be the output itself, or upstream if the functor adds ops like Squeeze)
         std::vector<ov::Node*> stack = {position_ids_output.get_node()};
         std::set<ov::Node*> visited;
         while (!stack.empty()) {
@@ -1335,6 +1439,22 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
                 stack.push_back(node->get_input_node_ptr(i));
             }
         }
+    } else if (!config.rope) {
+        // No explicit position_ids and no explicit rope: auto-create 2D Parameter
+        // (default LLM behavior — standard position_ids input)
+        position_ids_output = make_position_ids_2d();
+        // Track the auto-created Parameter
+        auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(
+            position_ids_output.get_node_shared_ptr());
+        if (param) {
+            m_parameters.push_back(param);
+        }
+    }
+    // else: config.rope is set but no position_ids — RoPE was pre-built with position_ids baked in
+
+    // Build default RoPE if position_ids are available but rope is not yet set
+    if (position_ids_output.get_node() && !config.rope) {
+        config.rope = HalfRotationRoPE(config.head_dim, config.precision, position_ids_output);
     }
 
     // beam_idx is required for stateful models used with LLMPipeline
@@ -1383,7 +1503,6 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
                        config.head_dim, config.precision, config.weight};
         attn.qk_norm = config.qk_norm;
         attn.rope_fn = config.rope;
-        attn.position_ids = position_ids_output;
         attn.cache_mode = config.use_kv_cache ? Attention::CacheMode::ConcatBeam : Attention::CacheMode::None;
         attn.batch_source = seq_source;
         attn.beam_idx = beam_idx_output;

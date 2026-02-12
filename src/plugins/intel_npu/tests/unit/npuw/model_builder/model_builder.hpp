@@ -54,14 +54,9 @@ using NormFn = std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&, c
 /// call takes (input, name) -> output
 using FFNFn = std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&, const std::string&)>;
 
-/// RoPE functor: construction captures head_dim, max_position, precision;
-/// call takes (input, position_ids, name) -> output
-using RoPEFn =
-    std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&, const ov::Output<ov::Node>&, const std::string&)>;
-
-/// PositionIds functor: creates the position_ids tensor (as input parameter or subgraph).
-/// For input-based variants, creates a Parameter node (auto-tracked by build_llm).
-using PositionIdsFn = std::function<ov::Output<ov::Node>()>;
+/// RoPE functor: construction captures head_dim, precision, and position_ids;
+/// call takes (input, name) -> output.  Position IDs are baked in at construction.
+using RoPEFn = std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&, const std::string&)>;
 
 // ============================================================================
 // Weight functors
@@ -147,55 +142,50 @@ struct RMSNorm {
 // RoPE functors
 // ============================================================================
 
-/// Interleaved RoPE: interleave odd/even elements
-struct InterleavedRoPE {
+/// Half-rotation RoPE: split into first/second half, negate+swap, apply cos/sin.
+/// Uses frequency-based Sin/Cos nodes. Position IDs are baked in at construction;
+/// cos/sin are computed once and shared across all layers (like real models).
+/// operator() only applies the rotation.
+struct HalfRotationRoPE {
     size_t head_dim;
-    size_t max_position;
-    ov::element::Type precision;
+    ov::Output<ov::Node> cos_freq, sin_freq;  // pre-built from constructor
 
-    InterleavedRoPE(size_t hd, size_t mp, ov::element::Type prec = ov::element::f32)
-        : head_dim(hd),
-          max_position(mp),
-          precision(prec) {}
+    HalfRotationRoPE(size_t head_dim,
+                     ov::element::Type precision,
+                     const ov::Output<ov::Node>& position_ids);
 
     ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input,
-                                    const ov::Output<ov::Node>& position_ids,
+                                    const std::string& name) const;
+};
+
+/// Interleaved RoPE: interleave odd/even elements.
+/// Uses frequency-based Sin/Cos nodes. Position IDs are baked in at construction;
+/// cos/sin are computed once and shared across all layers (like real models).
+/// operator() only applies the rotation.
+struct InterleavedRoPE {
+    size_t head_dim;
+    ov::Output<ov::Node> cos_freq, sin_freq;  // pre-built from constructor
+
+    InterleavedRoPE(size_t head_dim,
+                    ov::element::Type precision,
+                    const ov::Output<ov::Node>& position_ids);
+
+    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input,
                                     const std::string& name) const;
 };
 
 // ============================================================================
-// RoPE embedding helper
+// Position IDs helpers
 // ============================================================================
 
-/// Gathered cos/sin embeddings for RoPE, unsqueezed for broadcasting
-struct RoPEEmbeddings {
-    ov::Output<ov::Node> cos;
-    ov::Output<ov::Node> sin;
-};
+/// Create 2D position_ids Parameter [batch, seq].
+/// The returned output IS the Parameter node (auto-tracked by build_llm's graph traversal).
+ov::Output<ov::Node> make_position_ids_2d();
 
-/// Create cos/sin embedding tables, gather by position_ids, and unsqueeze for broadcast.
-/// Shared preamble for RoPE: create cos/sin tables, gather, unsqueeze.
-RoPEEmbeddings gather_rope_embeddings(size_t head_dim,
-                                      size_t max_position,
-                                      ov::element::Type precision,
-                                      const ov::Output<ov::Node>& position_ids,
-                                      const std::string& name);
-
-// ============================================================================
-// PositionIds functors
-// ============================================================================
-
-/// 2D position_ids as a model input parameter: [batch, seq]
-struct Input2DPositionIds {
-    ov::Output<ov::Node> operator()() const;
-};
-
-/// 3D position_ids as a model input parameter: [3, batch, seq]
-/// Returns a 2D slice [batch, seq] (section 0) for downstream RoPE consumption.
-/// Matches Qwen2.5-VL's multi-rotary position encoding input shape.
-struct Input3DPositionIds {
-    ov::Output<ov::Node> operator()() const;
-};
+/// Create 3D position_ids Parameter [3, batch, seq] for m-rope (Qwen2.5-VL).
+/// Returns a 2D [batch, seq] slice (section 0) for downstream RoPE consumption.
+/// The 3D Parameter is auto-tracked by build_llm's graph traversal.
+ov::Output<ov::Node> make_position_ids_3d();
 
 // ============================================================================
 // FFN functors
@@ -352,9 +342,8 @@ struct Attention {
     bool add_bias = false;
     NormFn qk_norm;  // Optional QK-norm applied to Q and K after reshape, before RoPE
 
-    // RoPE (both empty = no RoPE)
+    // RoPE (empty = no RoPE).  Position IDs are baked into the functor at construction.
     RoPEFn rope_fn;
-    ov::Output<ov::Node> position_ids;
 
     // Cross-attention: K/V projected from this instead of input (empty = self-attention)
     ov::Output<ov::Node> kv_source;
@@ -495,8 +484,13 @@ struct LLMConfig {
     /// Functor fields (build_llm fills remaining defaults from scalar params)
     NormFn norm;
     FFNFn ffn;
-    RoPEFn rope;
-    PositionIdsFn position_ids = Input2DPositionIds{};  ///< Set to {} for no position_ids/RoPE
+    RoPEFn rope;  ///< 2-arg: (input, name). Empty = auto HalfRotationRoPE. Set identity lambda to disable.
+
+    /// Position IDs for RoPE. Empty = build_llm auto-creates [batch, seq] Parameter + HalfRotationRoPE.
+    /// Provide a custom node (e.g. make_position_ids_3d(), Range subgraph) for non-standard cases.
+    /// When pre-building rope, also set this so build_llm tracks the Parameter.
+    ov::Output<ov::Node> position_ids;
+
     WeightFn weight;
     WeightFn lm_head_weight;
     NormFn qk_norm;  ///< Optional QK-norm forwarded to Attention
