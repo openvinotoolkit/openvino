@@ -21,10 +21,15 @@ public:
 
     void read(const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities);
 
-    void register_reader(const SectionID section_id,
+    void register_reader(const SectionType type,
                          std::function<std::shared_ptr<ISection>(BlobReader*, const size_t)> reader);
 
-    std::shared_ptr<ISection> retrieve_section(const SectionID section_id);
+    std::shared_ptr<ISection> retrieve_section(const SectionID& id);
+
+    std::shared_ptr<ISection> retrieve_first_section(const SectionType section_type);
+
+    std::optional<std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>> retrieve_sections_same_type(
+        const SectionType type);
 
     void copy_data_from_source(char* destination, const size_t size);
 
@@ -46,8 +51,9 @@ private:
     std::reference_wrapper<const ov::Tensor> m_source;
     size_t m_npu_region_size;
     OffsetsTable m_offsets_table;
-    std::unordered_map<SectionID, std::shared_ptr<ISection>> m_parsed_sections;
-    std::unordered_map<SectionID, std::function<std::shared_ptr<ISection>(BlobReader*, const size_t)>> m_readers;
+    std::unordered_map<SectionType, std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>
+        m_parsed_sections;
+    std::unordered_map<SectionType, std::function<std::shared_ptr<ISection>(BlobReader*, const size_t)>> m_readers;
 
     size_t m_cursor;
 };

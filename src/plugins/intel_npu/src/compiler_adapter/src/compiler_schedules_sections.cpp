@@ -13,11 +13,11 @@
 namespace intel_npu {
 
 ELFMainScheduleSection::ELFMainScheduleSection(const std::shared_ptr<Graph>& graph)
-    : ISection(PredefinedSectionID::ELF_MAIN_SCHEDULE),
+    : ISection(PredefinedSectionType::ELF_MAIN_SCHEDULE),
       m_graph(graph) {}
 
 ELFMainScheduleSection::ELFMainScheduleSection(ov::Tensor main_schedule)
-    : ISection(PredefinedSectionID::ELF_MAIN_SCHEDULE),
+    : ISection(PredefinedSectionType::ELF_MAIN_SCHEDULE),
       m_main_schedule(main_schedule) {}
 
 void ELFMainScheduleSection::write(std::ostream& stream, BlobWriter* writer) {
@@ -55,11 +55,11 @@ std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReader* blob_reader, 
 }
 
 ELFInitSchedulesSection::ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph)
-    : ISection(PredefinedSectionID::ELF_INIT_SCHEDULES),
+    : ISection(PredefinedSectionType::ELF_INIT_SCHEDULES),
       m_weightless_graph(weightless_graph) {}
 
 ELFInitSchedulesSection::ELFInitSchedulesSection(std::vector<ov::Tensor>& init_schedules)
-    : ISection(PredefinedSectionID::ELF_INIT_SCHEDULES),
+    : ISection(PredefinedSectionType::ELF_INIT_SCHEDULES),
       m_init_schedules(std::move(init_schedules)) {}
 
 void ELFInitSchedulesSection::write(std::ostream& stream, BlobWriter* writer) {

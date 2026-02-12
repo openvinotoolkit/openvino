@@ -22,7 +22,7 @@ public:
 
     BlobWriter(const std::shared_ptr<BlobReader>& blob_reader);
 
-    void register_section(const std::shared_ptr<ISection>& section);
+    SectionTypeInstance register_section(const std::shared_ptr<ISection>& section);
 
     void write(std::ostream& stream);
 
@@ -38,9 +38,11 @@ public:
                                                  const uint64_t offset);
 
 private:
+    void register_section_from_blob_reader(const std::shared_ptr<ISection>& section);
+
     void write_section(std::ostream& stream, const std::shared_ptr<ISection>& section);
 
-    std::unordered_set<SectionID> m_registered_sections_ids;
+    std::unordered_map<SectionType, SectionTypeInstance> m_next_type_instance_id;
     std::queue<std::shared_ptr<ISection>> m_registered_sections;
     CRE m_cre;
     OffsetsTable m_offsets_table;

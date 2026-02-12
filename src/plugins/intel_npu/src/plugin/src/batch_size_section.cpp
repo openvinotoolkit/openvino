@@ -10,7 +10,7 @@
 namespace intel_npu {
 
 BatchSizeSection::BatchSizeSection(const int64_t batch_size)
-    : ISection(PredefinedSectionID::BATCH_SIZE),
+    : ISection(PredefinedSectionType::BATCH_SIZE),
       m_batch_size(batch_size) {}
 
 void BatchSizeSection::write(std::ostream& stream, BlobWriter* writer) {

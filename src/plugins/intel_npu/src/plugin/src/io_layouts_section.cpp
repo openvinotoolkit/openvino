@@ -11,7 +11,7 @@ namespace intel_npu {
 
 IOLayoutsSection::IOLayoutsSection(const std::vector<ov::Layout>& input_layouts,
                                    const std::vector<ov::Layout>& output_layouts)
-    : ISection(PredefinedSectionID::IO_LAYOUTS),
+    : ISection(PredefinedSectionType::IO_LAYOUTS),
       m_input_layouts(std::move(input_layouts)),
       m_output_layouts(std::move(output_layouts)) {}
 

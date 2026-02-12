@@ -235,10 +235,10 @@ std::shared_ptr<const ov::Model> exclude_model_ptr_from_map(ov::AnyMap& properti
  * sections are a core part of the format.
  */
 void register_known_sections(const std::shared_ptr<BlobReader>& blobReader) {
-    blobReader->register_reader(PredefinedSectionID::ELF_MAIN_SCHEDULE, ELFMainScheduleSection::read);
-    blobReader->register_reader(PredefinedSectionID::ELF_INIT_SCHEDULES, ELFInitSchedulesSection::read);
-    blobReader->register_reader(PredefinedSectionID::BATCH_SIZE, BatchSizeSection::read);
-    blobReader->register_reader(PredefinedSectionID::IO_LAYOUTS, IOLayoutsSection::read);
+    blobReader->register_reader(PredefinedSectionType::ELF_MAIN_SCHEDULE, ELFMainScheduleSection::read);
+    blobReader->register_reader(PredefinedSectionType::ELF_INIT_SCHEDULES, ELFInitSchedulesSection::read);
+    blobReader->register_reader(PredefinedSectionType::BATCH_SIZE, BatchSizeSection::read);
+    blobReader->register_reader(PredefinedSectionType::IO_LAYOUTS, IOLayoutsSection::read);
 }
 
 }  // namespace
@@ -1138,13 +1138,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig, c
 
     blobReader->read(_capabilities);
     auto mainScheduleSection = std::dynamic_pointer_cast<ELFMainScheduleSection>(
-        blobReader->retrieve_section(PredefinedSectionID::ELF_MAIN_SCHEDULE));
+        blobReader->retrieve_first_section(PredefinedSectionType::ELF_MAIN_SCHEDULE));
     auto initSchedulesSection = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
-        blobReader->retrieve_section(PredefinedSectionID::ELF_INIT_SCHEDULES));
-    auto batchSizeSection =
-        std::dynamic_pointer_cast<BatchSizeSection>(blobReader->retrieve_section(PredefinedSectionID::BATCH_SIZE));
-    auto ioLayoutsSection =
-        std::dynamic_pointer_cast<IOLayoutsSection>(blobReader->retrieve_section(PredefinedSectionID::IO_LAYOUTS));
+        blobReader->retrieve_first_section(PredefinedSectionType::ELF_INIT_SCHEDULES));
+    auto batchSizeSection = std::dynamic_pointer_cast<BatchSizeSection>(
+        blobReader->retrieve_first_section(PredefinedSectionType::BATCH_SIZE));
+    auto ioLayoutsSection = std::dynamic_pointer_cast<IOLayoutsSection>(
+        blobReader->retrieve_first_section(PredefinedSectionType::IO_LAYOUTS));
 
     const std::optional<int64_t> batchSize =
         batchSizeSection != nullptr ? std::make_optional<int64_t>(batchSizeSection->get_batch_size()) : std::nullopt;

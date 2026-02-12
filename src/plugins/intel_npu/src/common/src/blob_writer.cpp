@@ -11,6 +11,8 @@ namespace {
 constexpr std::string_view MAGIC_BYTES = "OVNPU";
 constexpr uint32_t FORMAT_VERSION = 0x30000;  // 3.0;
 
+constexpr intel_npu::SectionTypeInstance FIRST_INSTANCE_ID = 0;
+
 }  // namespace
 
 namespace intel_npu {
@@ -20,24 +22,55 @@ BlobWriter::BlobWriter() : m_logger("BlobWriter", Logger::global().level()) {
 }
 
 BlobWriter::BlobWriter(const std::shared_ptr<BlobReader>& blob_reader)
-    : m_cre(std::dynamic_pointer_cast<CRESection>(blob_reader->retrieve_section(PredefinedSectionID::CRE))->get_cre()),
-      m_offsets_table(blob_reader->m_offsets_table),
+    : m_offsets_table(blob_reader->m_offsets_table),
       m_logger("BlobWriter", Logger::global().level()) {
     // TODO review the class const qualifiers
-    std::unordered_map<SectionID, std::shared_ptr<ISection>> m_parsed_sections;
-    for (const auto& [section_id, section] : m_parsed_sections) {
+    // TODO constant for this section ID & offsets table inside isection.hpp
+    const auto cre_section = blob_reader->retrieve_section(SectionID(PredefinedSectionType::CRE, FIRST_INSTANCE_ID));
+    OPENVINO_ASSERT(cre_section != nullptr, "The CRE section was not found within the BlobReader");
+
+    m_cre = std::dynamic_pointer_cast<CRESection>(cre_section)->get_cre();
+
+    for (const auto& [section_type_id, sections] : blob_reader->m_parsed_sections) {
         // The offsets table section is added by the write() method after writing all registered sections (jic the
         // registered sections will alter the table). Therefore, this section should be omitted here.
-        if (section_id != PredefinedSectionID::OFFSETS_TABLE) {
-            register_section(section);
+        if (section_type_id != PredefinedSectionType::OFFSETS_TABLE) {
+            // Recall that each section type can have multiple instances
+            for (const auto& [instance_id, section] : sections) {
+                register_section_from_blob_reader(section);
+            }
         }
     }
 }
 
-void BlobWriter::register_section(const std::shared_ptr<ISection>& section) {
+SectionTypeInstance BlobWriter::register_section(const std::shared_ptr<ISection>& section) {
+    const SectionType section_type = section->get_section_type();
+    if (!m_next_type_instance_id.count(section_type)) {
+        m_next_type_instance_id[section_type] = FIRST_INSTANCE_ID;
+    }
+
+    const SectionTypeInstance type_instance_id = m_next_type_instance_id[section_type]++;
+    section->set_section_type_instance(type_instance_id);
     m_registered_sections.push(section);
-    OPENVINO_ASSERT(!m_registered_sections_ids.count(section->get_section_id()));
-    m_registered_sections_ids.insert(section->get_section_id());
+
+    return type_instance_id;
+}
+
+void BlobWriter::register_section_from_blob_reader(const std::shared_ptr<ISection>& section) {
+    const SectionType section_type = section->get_section_type();
+    if (!m_next_type_instance_id.count(section_type)) {
+        m_next_type_instance_id[section_type] = FIRST_INSTANCE_ID;
+    }
+
+    // Update the next instance ID to be used.
+    // Note: not sure if we really need to do this, since supposedly there won't be any other sections registered by the
+    // plugin in this case. A blob that was imported should already contain all the sections it needs.
+    OPENVINO_ASSERT(section->get_section_type_instance().has_value());
+    const SectionTypeInstance candidate = section->get_section_type_instance().value() + 1;
+    m_next_type_instance_id[section_type] =
+        candidate > m_next_type_instance_id[section_type] ? candidate : m_next_type_instance_id[section_type];
+
+    m_registered_sections.push(section);
 }
 
 void BlobWriter::append_compatibility_requirement(const CRE::Token requirement_token) {
@@ -80,8 +113,6 @@ void BlobWriter::move_stream_cursor_to_relative_position(std::ostream& stream,
 }
 
 void BlobWriter::write_section(std::ostream& stream, const std::shared_ptr<ISection>& section) {
-    const SectionID section_id = section->get_section_id();
-
     stream.seekp(0, std::ios_base::end);
     const uint64_t offset = get_stream_relative_position(stream);
     auto position_before_write = stream.tellp();
@@ -92,7 +123,10 @@ void BlobWriter::write_section(std::ostream& stream, const std::shared_ptr<ISect
     const uint64_t length = static_cast<uint64_t>(stream.tellp() - position_before_write);
 
     // All sections registered within the BlobWriter are automatically added to the table of offsets
-    m_offsets_table.add_entry(section_id, offset, length);
+    const std::optional<SectionID> section_id = section->get_section_id();
+    // The instance ID should have been added by the writer. Therefore, the section ID should exist.
+    OPENVINO_ASSERT(section_id.has_value(), "Missing section ID while writing the section");
+    m_offsets_table.add_entry(section_id.value(), offset, length);
 }
 
 void BlobWriter::write(std::ostream& stream) {
@@ -133,12 +167,14 @@ void BlobWriter::write(std::ostream& stream) {
     // Note: this was left near the end jic some writers had to register some more capability IDs for some reason
     // TODO: in that case, read then write would fill a bit of junk
     const auto cre_section = std::make_shared<CRESection>(m_cre);
+    cre_section->set_section_type_instance(FIRST_INSTANCE_ID);
     write_section(stream, cre_section);
 
     // Write the table of offsets
     offsets_table_location = get_stream_relative_position(stream);
 
     const auto offsets_table_section = std::make_shared<OffsetsTableSection>(m_offsets_table);
+    offsets_table_section->set_section_type_instance(FIRST_INSTANCE_ID);
     write_section(stream, offsets_table_section);
 
     offsets_table_size = get_stream_relative_position(stream) - offsets_table_location;

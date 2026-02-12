@@ -141,7 +141,7 @@ bool CRE::check_compatibility(const std::unordered_map<CRE::Token, std::shared_p
     return evaluate(expression_iterator, plugin_capabilities, Delimiter::SIZE);
 }
 
-CRESection::CRESection(const CRE& cre) : ISection(PredefinedSectionID::CRE), m_cre(cre) {}
+CRESection::CRESection(const CRE& cre) : ISection(PredefinedSectionType::CRE), m_cre(cre) {}
 
 void CRESection::write(std::ostream& stream, BlobWriter* writer) {
     stream.write(reinterpret_cast<const char*>(m_cre.get_expression().data()),

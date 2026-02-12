@@ -9,27 +9,45 @@ namespace {
 constexpr std::string_view MAGIC_BYTES = "OVNPU";
 constexpr uint32_t FORMAT_VERSION = 0x30000;  // 3.0;
 
+constexpr intel_npu::SectionTypeInstance FIRST_INSTANCE_ID = 0;
+
 }  // namespace
 
 namespace intel_npu {
 
 BlobReader::BlobReader(const ov::Tensor& source) : m_source(source), m_cursor(0) {
     // Register the core sections
-    register_reader(PredefinedSectionID::CRE, CRESection::read);
-    register_reader(PredefinedSectionID::OFFSETS_TABLE, OffsetsTableSection::read);
+    register_reader(PredefinedSectionType::CRE, CRESection::read);
+    register_reader(PredefinedSectionType::OFFSETS_TABLE, OffsetsTableSection::read);
 }
 
-void BlobReader::register_reader(const SectionID section_id,
+void BlobReader::register_reader(const SectionType type,
                                  std::function<std::shared_ptr<ISection>(BlobReader*, const size_t)> reader) {
-    m_readers[section_id] = reader;
+    m_readers[type] = reader;
 }
 
-std::shared_ptr<ISection> BlobReader::retrieve_section(const SectionID section_id) {
-    auto search_result = m_parsed_sections.find(section_id);
-    if (search_result != m_parsed_sections.end()) {
-        return search_result->second;
+std::shared_ptr<ISection> BlobReader::retrieve_section(const SectionID& id) {
+    auto type_search_result = m_parsed_sections.find(id.type);
+    if (type_search_result != m_parsed_sections.end()) {
+        auto instance_search_result = type_search_result->second.find(id.type_instance);
+        if (instance_search_result != type_search_result->second.end()) {
+            return instance_search_result->second;
+        }
     }
     return nullptr;
+}
+
+std::shared_ptr<ISection> BlobReader::retrieve_first_section(const SectionType section_type) {
+    return retrieve_section(SectionID(section_type, FIRST_INSTANCE_ID));
+}
+
+std::optional<std::unordered_map<SectionTypeInstance, std::shared_ptr<ISection>>>
+BlobReader::retrieve_sections_same_type(const SectionType type) {
+    auto type_search_result = m_parsed_sections.find(type);
+    if (type_search_result != m_parsed_sections.end()) {
+        return type_search_result->second;
+    }
+    return std::nullopt;
 }
 
 void BlobReader::copy_data_from_source(char* destination, const size_t size) {
@@ -81,19 +99,24 @@ void BlobReader::read(const std::unordered_map<CRE::Token, std::shared_ptr<ICapa
 
     move_cursor_to_relative_position(offsets_table_location);
 
-    m_parsed_sections[PredefinedSectionID::OFFSETS_TABLE] = OffsetsTableSection::read(this, offsets_table_size);
-    m_offsets_table =
-        std::dynamic_pointer_cast<OffsetsTableSection>(m_parsed_sections.at(PredefinedSectionID::OFFSETS_TABLE))
-            ->get_table();
+    m_parsed_sections[PredefinedSectionType::OFFSETS_TABLE][FIRST_INSTANCE_ID] =
+        OffsetsTableSection::read(this, offsets_table_size);  // TODO this might not work
+    m_parsed_sections[PredefinedSectionType::OFFSETS_TABLE][FIRST_INSTANCE_ID]->set_section_type_instance(
+        FIRST_INSTANCE_ID);
+    m_offsets_table = std::dynamic_pointer_cast<OffsetsTableSection>(
+                          m_parsed_sections.at(PredefinedSectionType::OFFSETS_TABLE).at(FIRST_INSTANCE_ID))
+                          ->get_table();
 
     // Step 2: Look for the CRE and evaluate it
-    std::optional<uint64_t> offset = m_offsets_table.lookup_offset(PredefinedSectionID::CRE);
-    std::optional<uint64_t> section_length = m_offsets_table.lookup_length(PredefinedSectionID::CRE);
+    const SectionID cre_section_id(PredefinedSectionType::CRE, FIRST_INSTANCE_ID);
+    std::optional<uint64_t> offset = m_offsets_table.lookup_offset(cre_section_id);
+    std::optional<uint64_t> section_length = m_offsets_table.lookup_length(cre_section_id);
     OPENVINO_ASSERT(offset.has_value(), "The CRE was not found within the table of offsets");
     move_cursor_to_relative_position(offset.value());
 
-    m_parsed_sections[PredefinedSectionID::CRE] = CRESection::read(this, section_length.value());
-    std::dynamic_pointer_cast<CRESection>(m_parsed_sections.at(PredefinedSectionID::CRE))
+    m_parsed_sections[PredefinedSectionType::CRE][FIRST_INSTANCE_ID] = CRESection::read(this, section_length.value());
+    m_parsed_sections[PredefinedSectionType::CRE][FIRST_INSTANCE_ID]->set_section_type_instance(FIRST_INSTANCE_ID);
+    std::dynamic_pointer_cast<CRESection>(m_parsed_sections.at(PredefinedSectionType::CRE).at(FIRST_INSTANCE_ID))
         ->get_cre()
         .check_compatibility(plugin_capabilities);
 
@@ -116,8 +139,11 @@ void BlobReader::read(const std::unordered_map<CRE::Token, std::shared_ptr<ICapa
         const size_t next_section_location = relative_offset + section_length.value();
 
         // Read the section if we have a reader for it. Otherwise, skip it.
-        if (m_readers.count(section_id.value())) {
-            m_parsed_sections[section_id.value()] = m_readers.at(section_id.value())(this, section_length.value());
+        if (m_readers.count(section_id.value().type)) {
+            m_parsed_sections[section_id.value().type][section_id.value().type_instance] =
+                m_readers.at(section_id.value().type)(this, section_length.value());
+            m_parsed_sections[section_id.value().type][section_id.value().type_instance]->set_section_type_instance(
+                section_id.value().type_instance);
         }
 
         move_cursor_to_relative_position(next_section_location);
