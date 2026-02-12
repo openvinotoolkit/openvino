@@ -129,10 +129,10 @@ struct slice_scatter_impl : typed_primitive_impl_ocl<slice_scatter> {
 
         // Transform compile time axes:
         for (size_t axis = 0; axis < params.compile_time_axes.size(); ++axis) {
-            const int64_t transformed_axe = params.compile_time_axes[axis] < 0
-                                             ? input_rank + params.compile_time_axes[axis]
-                                             : params.compile_time_axes[axis];
-            params.compile_time_axes[axis] = transformed_axe;
+            const int64_t transformed_axis = params.compile_time_axes[axis] < 0
+                                              ? input_rank + params.compile_time_axes[axis]
+                                              : params.compile_time_axes[axis];
+            params.compile_time_axes[axis] = transformed_axis;
         }
 
         params.set_dynamic_shape_offsets();
