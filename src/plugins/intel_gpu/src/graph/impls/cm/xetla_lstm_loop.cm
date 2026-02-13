@@ -25,10 +25,6 @@ namespace KERNEL_NAME {
 #define dtype_c fp16
 #define dtype_acc float
 
-//#define INPUT_SIZE 64 // or 256
-//#define HIDDEN_SIZE 128
-//#define DIRECTIONS 2
-
 #define mem_layout_x mem_layout::row_major
 #define mem_layout_r mem_layout::col_major
 #define mem_layout_out mem_layout::row_major
