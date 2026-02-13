@@ -85,14 +85,13 @@ static void read_sparse_data(uint8_t* dest,
                                     sparse_dim_size);
             auto row_offset = static_cast<size_t>(index_value) * element_size;
             auto value_offset = idx * element_size;
-            FRONT_END_GENERAL_CHECK(row_offset <= total_size - dest_row_offset &&
-                                        element_size <= total_size - dest_row_offset - row_offset,
-                                    "Sparse write at offset ",
-                                    dest_row_offset + row_offset,
-                                    " would exceed dense buffer of size ",
-                                    total_size);
-            FRONT_END_GENERAL_CHECK(values_size == 0 ||
-                                        (value_offset <= values_size - element_size),
+            FRONT_END_GENERAL_CHECK(
+                row_offset <= total_size - dest_row_offset && element_size <= total_size - dest_row_offset - row_offset,
+                "Sparse write at offset ",
+                dest_row_offset + row_offset,
+                " would exceed dense buffer of size ",
+                total_size);
+            FRONT_END_GENERAL_CHECK(values_size == 0 || (value_offset <= values_size - element_size),
                                     "Sparse read at offset ",
                                     value_offset,
                                     " would exceed values buffer of size ",
