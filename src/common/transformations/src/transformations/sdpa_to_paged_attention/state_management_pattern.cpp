@@ -738,15 +738,13 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         }
         OPENVINO_ASSERT(pa_arguments.size() == 25);
 
-        // token_type_ids for bidirectional attention within image token groups (e.g. Gemma3 VLM).
-        // GenAI provides this as {1, N} i64; Convert to i32 in the graph, but keep the {1, N}
-        // shape as-is — the CPU executor flattens it at runtime to avoid a Reshape op.
+        // bidirectional attention within image token groups (e.g. Gemma3 VLM)
         if (optional_model_wide_params.find("token_type_ids") != optional_model_wide_params.end()) {
             auto param = optional_model_wide_params.at("token_type_ids");
             auto converted = std::make_shared<v0::Convert>(param, element::i32);
             pa_arguments.insert(pa_arguments.begin() + 25, converted);
         } else {
-            // Default: zero-dim constant — standard causal attention (no image tokens).
+            // zero-dim constant - standard causal attention
             pa_arguments.insert(pa_arguments.begin() + 25, v0::Constant::create(element::i32, Shape{0}, {}));
         }
         OPENVINO_ASSERT(pa_arguments.size() == 26);

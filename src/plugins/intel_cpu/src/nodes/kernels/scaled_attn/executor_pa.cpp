@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <algorithm>
-#include <atomic>
 #include <cfloat>
 #include <cmath>
 #include <cpu/platform.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstdint>
 #include <cstring>
-#include <iostream>
 #include <memory>
 #include <type_traits>
 #include <vector>
@@ -464,12 +462,11 @@ struct MHAHelper {
 
     // Bidirectional attention for image token groups (e.g. Gemma3 VLM)
     PlainTensor _token_type;                // [total_batched_tokens], int32 — 0=text, 1=image
-    std::vector<int32_t> _image_group_end;  // Precomputed: for image token i, the exclusive end of its group
+    std::vector<int32_t> _image_group_end;  // for image token i, the exclusive end of its group
 
     // Precompute image group boundaries from token_type_ids.
     // For each image token, _image_group_end[i] = index past the last contiguous image token in the same group.
     // For text tokens, _image_group_end[i] = -1.
-    // subsequence_begins and past_lens are used to map per-sequence token positions to global indices.
     void set_token_type(const PlainTensor& token_type,
                         const PlainTensor& subsequence_begins,
                         const PlainTensor& past_lens) {
@@ -497,19 +494,14 @@ struct MHAHelper {
         }
     }
 
-    // Given a query token's global index and the default causal ncausal value,
-    // return the adjusted ncausal that extends to the image group end for image tokens.
+    // Return the adjusted ncausal that extends to the image group end for image tokens.
     // For text tokens, returns the original ncausal unchanged.
-    // Parameters:
-    //   q_global_idx: global index of the query token in token_type_ids
-    //   default_ncausal: the standard causal ncausal value
-    //   cur_kv_len: total KV length for the current sequence
     size_t get_ncausal(size_t q_global_idx, size_t default_ncausal, size_t cur_kv_len) const {
         if (!_token_type || q_global_idx >= _image_group_end.size()) {
             return default_ncausal;
         }
         if (_token_type.ptr<int32_t>()[q_global_idx] == 1) {
-            // Image token: extend ncausal to the end of the image group, capped by cur_kv_len
+            // extend ncausal to the end of the image group, capped by cur_kv_len
             return std::min(static_cast<size_t>(_image_group_end[q_global_idx]), cur_kv_len);
         }
         return default_ncausal;
@@ -1994,7 +1986,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 
         size_t inputs_size = inputs.size();
-        OPENVINO_ASSERT(inputs_size == 25 || inputs_size == 26);
+        OPENVINO_ASSERT(inputs_size == 26);
         if (!inputs[ID_ROTATED_BLOCK_INDICES]->getShape().hasZeroDims()) {
             rotated_block_indices.reset(inputs[ID_ROTATED_BLOCK_INDICES]);  // [num_blocks]
         }
@@ -2032,12 +2024,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             output_arkv_similarity.reset(outputs[2]);
         }
 
-        // Read token_type_ids for bidirectional attention within image token groups.
-        // The graph Convert guarantees i32; shape may be 1D {N} or 2D {1,N} (GenAI format).
-        // When the model doesn't use token_type_ids, this is a zero-dim constant (all text, causal).
         if (!inputs[ID_TOKEN_TYPE_IDS]->getShape().hasZeroDims()) {
             token_type_ids.reset(inputs[ID_TOKEN_TYPE_IDS]);
-            // Flatten 2D {1, N} → 1D {N} so set_token_type always sees a flat array.
             if (token_type_ids.m_rank == 2) {
                 auto total = token_type_ids.m_dims[0] * token_type_ids.m_dims[1];
                 token_type_ids = token_type_ids.reshape({total});
@@ -2372,7 +2360,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              output_arkv_similarity,
              token_type_ids);
 
-        // Precompute image group boundaries for bidirectional attention
         if (token_type_ids) {
             _helper.set_token_type(token_type_ids, subsequence_begins, past_lens);
         }
