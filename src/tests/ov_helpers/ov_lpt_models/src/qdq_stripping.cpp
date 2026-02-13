@@ -206,12 +206,17 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_mul_matmul_pattern_ref(co
     auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
     ov::ParameterVector params{param1, param2};
 
+    // Preceding Multiply: NOT scaled (backward propagation must stop at the main Multiply).
+    auto preceding_constant = build_dq_subgraph(ov::element::i8, {}, 1.0f, 0, std::nullopt, std::vector<int>{1});
+    auto preceding_mul1 = std::make_shared<ov::op::v1::Multiply>(param1, preceding_constant);
+    auto preceding_mul2 = std::make_shared<ov::op::v1::Multiply>(param2, preceding_constant);
+
     // Original scale=1.0. With weights adjustment: divided by scale_divisor=20 → 0.05
     const float common_scale = need_weights_adjustment ? 1.0f / 20.0f : 1.0f;
     auto common_constant = build_dq_subgraph(ov::element::i8, {}, common_scale, 0, std::nullopt, std::vector<int>{127});
 
-    auto mul1 = std::make_shared<ov::op::v1::Multiply>(param1, common_constant);
-    auto mul2 = std::make_shared<ov::op::v1::Multiply>(param2, common_constant);
+    auto mul1 = std::make_shared<ov::op::v1::Multiply>(preceding_mul1, common_constant);
+    auto mul2 = std::make_shared<ov::op::v1::Multiply>(preceding_mul2, common_constant);
 
     auto softmax_mul1 = std::make_shared<ov::op::v8::Softmax>(mul1, 1);
 
@@ -233,8 +238,15 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_matmul_with_bias_pattern_
 
     // Original weight_scale=0.02. With weights adjustment: divided by scale_divisor=40 → 0.0005
     const float scale_divisor = need_weights_adjustment ? 40.f : 1.f;
+
+    // Preceding MatMul+bias: NOT scaled (backward propagation must stop at the main MatMul+bias).
+    auto preceding_weight = build_dq_subgraph(ov::element::i8, ov::Shape{128, 128}, 1.0f / 128.0f, 0, std::nullopt, std::vector<int>{1});
+    auto preceding_matmul = std::make_shared<ov::op::v0::MatMul>(params[0], preceding_weight, false, false);
+    auto preceding_bias = build_dq_subgraph(ov::element::i8, {128}, 1.0f, 0, std::nullopt, std::vector<int>{1});
+    auto preceding_matmul_biased = std::make_shared<ov::op::v1::Add>(preceding_matmul, preceding_bias);
+
     auto weight = build_dq_subgraph(ov::element::i8, ov::Shape{128, 32}, 0.02f / scale_divisor, -128, 1);
-    auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], weight, false, false);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(preceding_matmul_biased, weight, false, false);
 
     // Original bias_scale=200. With weights adjustment: divided by 40 → 5
     auto bias = build_dq_subgraph(ov::element::i8, {32}, 200.0f / scale_divisor, -128, 2);
@@ -264,9 +276,20 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern_re
     // consumer, so the transformation skips weight adjustment regardless of need_weights_adjustment.
     const float scale_divisor = (need_weights_adjustment && !skip_final_mvn) ? 100.f : 1.f;
 
+    // Preceding Conv+bias: NOT scaled (backward propagation must stop at Conv1+bias).
+    auto preceding_weight = build_dq_subgraph(ov::element::i8, ov::Shape{3, 3, 3, 3}, 1.0f / 27.0f, 0, std::nullopt, std::vector<int>{1});
+    auto preceding_conv = std::make_shared<ov::op::v1::Convolution>(params[0],
+                                                                     preceding_weight,
+                                                                     ov::Strides{1, 1},
+                                                                     ov::CoordinateDiff{1, 1},
+                                                                     ov::CoordinateDiff{1, 1},
+                                                                     ov::Strides{1, 1});
+    auto preceding_bias = build_dq_subgraph(ov::element::i8, {3}, 1.0f, 0, std::nullopt, std::vector<int>{1});
+    auto preceding_conv_biased = add_bias(preceding_conv, preceding_bias);
+
     // Conv1 weight scale: 0.003/100 = 3e-05
     auto weight1 = build_dq_subgraph(ov::element::i8, ov::Shape{32, 3, 3, 3}, 0.003f / scale_divisor, -128, 1);
-    auto conv1 = std::make_shared<ov::op::v1::Convolution>(params[0],
+    auto conv1 = std::make_shared<ov::op::v1::Convolution>(preceding_conv_biased,
                                                            weight1,
                                                            ov::Strides{1, 1},
                                                            ov::CoordinateDiff{1, 1},
@@ -379,16 +402,21 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_mul_matmul_pattern(const 
     auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
     ov::ParameterVector params{param1, param2};
 
+    // Preceding Multiply with DQ weights that backward propagation must NOT scale.
+    auto preceding_constant = build_dq_subgraph(ov::element::i8, {}, 1.0f, 0, std::nullopt, std::vector<int>{1});
+    auto preceding_mul1 = std::make_shared<ov::op::v1::Multiply>(param1, preceding_constant);
+    auto preceding_mul2 = std::make_shared<ov::op::v1::Multiply>(param2, preceding_constant);
+
     // Weight DQ pattern: quantized constant -> convert -> subtract (zero point) -> multiply (scale)
     // DQ = (127 - 0) * 1.0 = 127. Large constant ensures overflow without scale adjustment:
     // input (up to 1000) * 127 = 127,000 >> f16 max (65504)
     auto common_constant = build_dq_subgraph(ov::element::i8, {}, 1.0f, 0, std::nullopt, std::vector<int>{127});
 
     // param1 * common_constant
-    auto mul1 = std::make_shared<ov::op::v1::Multiply>(param1, common_constant);
+    auto mul1 = std::make_shared<ov::op::v1::Multiply>(preceding_mul1, common_constant);
 
     // param2 * common_constant
-    auto mul2 = std::make_shared<ov::op::v1::Multiply>(param2, common_constant);
+    auto mul2 = std::make_shared<ov::op::v1::Multiply>(preceding_mul2, common_constant);
 
     // Softmax on mul1 detects overflow: if mul1 contains inf, Softmax produces NaN.
     // Axis=1 (dim=3) avoids f16 precision argmax ties that occur with large dim.
@@ -423,6 +451,12 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_matmul_with_bias_pattern(
                                                                                               const ov::element::Type& quantization_precision) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
 
+    // Preceding MatMul+bias that backward propagation must NOT scale.
+    auto preceding_weight = build_dq_subgraph(ov::element::i8, ov::Shape{128, 128}, 1.0f / 128.0f, 0, std::nullopt, std::vector<int>{1});
+    auto preceding_matmul = std::make_shared<ov::op::v0::MatMul>(params[0], preceding_weight, false, false);
+    auto preceding_bias = build_dq_subgraph(ov::element::i8, {128}, 1.0f, 0, std::nullopt, std::vector<int>{1});
+    auto preceding_matmul_biased = std::make_shared<ov::op::v1::Add>(preceding_matmul, preceding_bias);
+
     // Weight DQ for MatMul: input last dim = 128 (from input shape [1,3,128,128]), output = 32
     // Zero-point -128 shifts i8[-128,127] to [0,255]. Scale=0.02 → weights in [0, 5.1].
     // All-positive weights + all-positive inputs [0,100] → MatMul output always positive.
@@ -430,7 +464,7 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_matmul_with_bias_pattern(
     // With 128-element dot product: avg output ≈ 50 * 2.55 * 128 ≈ 16320.
     auto weight = build_dq_subgraph(ov::element::i8, ov::Shape{128, 32}, 0.02f, -128, 1);
 
-    auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], weight, false, false);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(preceding_matmul_biased, weight, false, false);
 
     // Bias DQ: [32] with zero_point=-128 so DQ values are always non-negative.
     // DQ = (i8_val + 128) * 200 → [0, 51000], avg ~25500.
@@ -469,13 +503,27 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern(co
                                                                                             bool skip_final_mvn) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
 
+    // Preceding Conv+bias that backward propagation must NOT scale.
+    // It sits before the FQ being stripped, separated by Conv1+bias. If backward
+    // propagation incorrectly continues past Conv1+bias, it would reach this Conv
+    // and erroneously divide its weights by scale_divisor.
+    auto preceding_weight = build_dq_subgraph(ov::element::i8, ov::Shape{3, 3, 3, 3}, 1.0f / 27.0f, 0, std::nullopt, std::vector<int>{1});
+    auto preceding_conv = std::make_shared<ov::op::v1::Convolution>(params[0],
+                                                                     preceding_weight,
+                                                                     ov::Strides{1, 1},
+                                                                     ov::CoordinateDiff{1, 1},
+                                                                     ov::CoordinateDiff{1, 1},
+                                                                     ov::Strides{1, 1});
+    auto preceding_bias = build_dq_subgraph(ov::element::i8, {3}, 1.0f, 0, std::nullopt, std::vector<int>{1});
+    auto preceding_conv_biased = add_bias(preceding_conv, preceding_bias);
+
     // First convolution with weight DQ
     // zp=-128 shifts i8 range to [0, 255] → all-positive DQ weights,
     // avoiding u16 FQ clamping at input_low=0 which causes large errors with mixed-sign weights.
     // scale=0.003 produces DQ values up to ~0.765, large enough to cause f16 overflow
     // after y_scale=10 FQ, validating the scale adjustment logic.
     auto weight1 = build_dq_subgraph(ov::element::i8, ov::Shape{32, 3, 3, 3}, 0.003f, -128, 1);
-    auto conv1 = std::make_shared<ov::op::v1::Convolution>(params[0],
+    auto conv1 = std::make_shared<ov::op::v1::Convolution>(preceding_conv_biased,
                                                            weight1,
                                                            ov::Strides{1, 1},
                                                            ov::CoordinateDiff{1, 1},
@@ -577,9 +625,13 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_per_channel_fq_pattern(co
                                                                                const ov::element::Type& quantization_precision) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
 
+    // Preceding MatMul that backward propagation must NOT scale.
+    auto preceding_weight = build_dq_subgraph(ov::element::i8, ov::Shape{128, 128}, 1.0f / 128.0f, 0, std::nullopt, std::vector<int>{1});
+    auto preceding_matmul = std::make_shared<ov::op::v0::MatMul>(params[0], preceding_weight, false, false);
+
     // Weight DQ for MatMul: input last dim = 128, output = 2 channels
     auto weight = build_dq_subgraph(ov::element::i8, ov::Shape{128, 2}, 0.02f, -128, 1);
-    auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], weight, false, false);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(preceding_matmul, weight, false, false);
 
     // Per-channel FQ ranges with il==ol and ih==oh (required by fq_ranges_are_the_same).
     // output shape from MatMul: [1, 2] → FQ ranges shape: [1, 2]
@@ -626,8 +678,13 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_per_channel_fq_pattern_re
     // Original weight_scale=0.02. With weights adjustment: divided by scale_divisor=40 → 0.0005
     // max y_scale = 4, ratio = 10 → scale_divisor = 40
     const float scale_divisor = need_weights_adjustment ? 40.f : 1.f;
+
+    // Preceding MatMul: NOT scaled (backward propagation must stop at the main MatMul).
+    auto preceding_weight = build_dq_subgraph(ov::element::i8, ov::Shape{128, 128}, 1.0f / 128.0f, 0, std::nullopt, std::vector<int>{1});
+    auto preceding_matmul = std::make_shared<ov::op::v0::MatMul>(params[0], preceding_weight, false, false);
+
     auto weight = build_dq_subgraph(ov::element::i8, ov::Shape{128, 2}, 0.02f / scale_divisor, -128, 1);
-    auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], weight, false, false);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(preceding_matmul, weight, false, false);
 
     // FQ stripped but per-channel DQ (Convert+Subtract+Multiply) remains.
     auto convert1 = std::make_shared<ov::op::v0::Convert>(matmul, quantization_precision);

@@ -124,6 +124,11 @@ private:
 
         auto collect_weights_scale = [&](ov::Node* node) {
             const auto node_shared = node->shared_from_this();
+            auto stop_propagation = [&](Matcher& m) {
+                for (const auto& in : m.get_match_root()->input_values()) {
+                    m_visited.insert(in.get_node());
+                }
+            };
 
             // Case 1: Convolution + Add (bias) — scale both Conv weights and bias
             {
@@ -147,6 +152,7 @@ private:
                     auto& pm = matcher->get_pattern_value_map();
                     m_pending_weight_scales.insert(conv_weights_dq_block->get_multiply(pm));
                     m_pending_weight_scales.insert(bias_dq_block->get_multiply(pm));
+                    stop_propagation(*matcher);
                     return;
                 }
             }
@@ -167,6 +173,7 @@ private:
                     if (pm.count(add_pattern)) {
                         m_pending_weight_scales.insert(bias_dq_block->get_multiply(pm));
                     }
+                    stop_propagation(*matcher);
                     return;
                 }
             }
@@ -179,6 +186,7 @@ private:
 
                 if (matcher->match(node_shared)) {
                     m_pending_weight_scales.insert(weights_dq_block->get_multiply(matcher->get_pattern_value_map()));
+                    stop_propagation(*matcher);
                     return;
                 }
             }
