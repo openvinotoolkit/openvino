@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,7 +66,7 @@ protected:
         auto normAxes = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{axes.size()}, axes);
         auto normalize = std::make_shared<ov::op::v0::NormalizeL2>(params[0], normAxes, eps, epsMode);
 
-        function = makeNgraphFunction(inType, params, normalize, "Normalize");
+        function = create_ov_model(inType, params, normalize, "Normalize");
 
         if (inType == ov::element::bf16) {
             abs_threshold = 1e-1f;

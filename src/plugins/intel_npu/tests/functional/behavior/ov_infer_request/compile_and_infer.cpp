@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                          OVCompileAndInferRequestSerializers,
-                         ::testing::Combine(::testing::Values(getConstantGraph(ov::element::f32)),
+                         ::testing::Combine(::testing::Values(createModelContainingSubgraph()),
                                             ::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(std::vector<ov::AnyMap>{
                                                 {ov::intel_npu::use_base_model_serializer(true)},

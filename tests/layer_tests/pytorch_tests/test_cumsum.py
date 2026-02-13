@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -10,11 +10,10 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestCumSum(PytorchLayerTest):
     def _prepare_input(self, out=False, out_dtype=None):
-        import numpy as np
-        x = np.random.randn(1, 3, 224, 224).astype(np.float32)
+        x = self.random.randn(1, 3, 224, 224)
         if not out:
             return (x, )
-        y =  np.random.randn(1, 3, 224, 224).astype(np.float32)
+        y =  self.random.randn(1, 3, 224, 224)
         if out_dtype is not None:
             y = y.astype(out_dtype)
         return (x, y)
@@ -36,7 +35,7 @@ class TestCumSum(PytorchLayerTest):
 
         class aten_cumsum(torch.nn.Module):
             def __init__(self, axis, dtype, out=False, dtype_from_input=False):
-                super(aten_cumsum, self).__init__()
+                super().__init__()
                 self.axis = axis
                 self.dtype = dtype
                 if dtype_from_input:
@@ -44,15 +43,15 @@ class TestCumSum(PytorchLayerTest):
                 if out:
                     self.forward =  self.forward_out
                 if self.dtype is not None:
-                    if not dtype_from_input: 
+                    if not dtype_from_input:
                         self.forward = self.forward_dtype if not out else self.forward_out_dtype
 
             def forward(self, x):
                 return torch.cumsum(x, self.axis)
-            
+
             def forward_dtype(self, x):
                 return torch.cumsum(x, self.axis, dtype=self.dtype)
-            
+
             def forward_out(self, x, y):
                 return y, torch.cumsum(x, self.axis, out=y)
 
@@ -62,9 +61,8 @@ class TestCumSum(PytorchLayerTest):
             def forward_out_prim_dtype(self, x, y):
                 return y, torch.cumsum(x, self.axis, dtype=y.dtype, out=y)
 
-        ref_net = None
 
-        return aten_cumsum(axis, dtype, out, dtype_from_input), ref_net, "aten::cumsum"
+        return aten_cumsum(axis, dtype, out, dtype_from_input), "aten::cumsum"
 
     @pytest.mark.parametrize("axis", [0, 1, 2, 3, -1, -2, -3, -4])
     @pytest.mark.parametrize("dtype", [None, "float32", "float64", "int32", "int64", "int8"])

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -24,7 +24,7 @@ class TestSortedRandperm(PytorchLayerTest):
                 elif self.num_inputs == 2:
                     p = torch.randperm(self.n, dtype=self.dtype)
                 elif self.num_inputs == 5:
-                    p = torch.randperm(self.n, dtype=self.dtype, layout=torch.strided, 
+                    p = torch.randperm(self.n, dtype=self.dtype, layout=torch.strided,
                                          device=x.device, pin_memory=False)
                 else:
                     raise ValueError("Invalid num_inputs")
@@ -33,7 +33,7 @@ class TestSortedRandperm(PytorchLayerTest):
                 sorted_tensor, _ = torch.sort(x_permuted)
                 return sorted_tensor
 
-        return AtenSortedRandperm(n, num_inputs, dtype_value), None, "aten::randperm"
+        return AtenSortedRandperm(n, num_inputs, dtype_value), "aten::randperm"
 
     @pytest.mark.parametrize(("n", "num_inputs", "dtype_value"), [
         (0, 1, None),

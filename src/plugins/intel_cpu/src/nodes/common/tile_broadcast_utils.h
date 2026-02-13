@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "cpu_memory.h"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 
 namespace ov::intel_cpu {
@@ -20,7 +21,7 @@ protected:
     std::vector<NodeDesc> getSupportedConfigs(const Node* node, size_t outSize);
     bool prepareOptimizedParams(const Node* node, VectorDims& srcBlockedDims, VectorDims& dstBlockedDims);
 
-    void optimizedExecute(const MemoryPtr& srcMemory, const MemoryPtr& dstMemory);
+    void optimizedExecute(const MemoryPtr& srcMemory, const MemoryPtr& dstMemory, const CpuParallelPtr& cpuParallel);
 
     VectorDims repeats;
     bool optimizedCase = false;

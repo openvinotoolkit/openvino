@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -113,7 +113,11 @@ std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder
 }
 
 int64_t cldnn::get_convolution_channel_count(const convolution_node& conv_node, const layout& layout, bool is_input) {
-    auto channel_count = layout.get_partial_shape()[1].is_static() ? layout.get_partial_shape()[1].get_length() : -1;
+    int64_t channel_count = -1;
+    if (layout.get_partial_shape().size() > 1 && layout.get_partial_shape()[1].is_static()) {
+        channel_count = layout.get_partial_shape()[1].get_length();
+    }
+
     if (channel_count == -1) {
         auto weights_layout = conv_node.weights().get_output_layout();
         if (weights_layout.is_static()) {
@@ -239,12 +243,14 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
           prev_output_layout.spatial(1) == 1)) && is_input_reorder(prev, next))
         return true;
 
-    if (next.is_type<quantize>() && (fmt_prev == format::bfyx || fmt_prev == format::bfzyx)) {
-        if (prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
-            return true;
-        if (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 ||
-            fmt_next == format::bs_fs_yx_bsv16_fsv16 || fmt_next == format::b_fs_yx_fsv4)
-            return true;
+    if (next.is_type<quantize>()) {
+        if ((fmt_prev == format::bfyx || fmt_prev == format::bfzyx)) {
+            if (prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
+                return true;
+            if (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 ||
+                fmt_next == format::bs_fs_yx_bsv16_fsv16 || fmt_next == format::b_fs_yx_fsv4)
+                return true;
+        }
         if (use_onednn_impls && prev.get_users().size() == 1)
             return true;
     }
@@ -1028,12 +1034,30 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
         node.set_preferred_input_fmt(0, get_fsv16_format(rank));
         node.set_preferred_output_fmt(0, get_fsv16_format(rank));
 
-        // Override with default format for small channels (≤ 4)
-        if (input_channels > 0 && input_channels <= 4) {
+        // Override input for small channels (≤ 16)
+        // fsv16 format uses 16-element blocks. channels ≤ 16 waste block padding
+        // e.g. 8ch uses only 8/16 elements per block (50% waste), planar format is more efficient
+        if (input_channels > 0 && input_channels <= 16) {
             node.set_preferred_input_fmt(0, format::get_default_format(rank));
         }
 
-        if (output_channels > 0 && output_channels <= 4) {
+        // Override output for small channels (≤ 16)
+        // same as input - avoid fsv16 block padding overhead for small channel counts
+        if (output_channels > 0 && output_channels <= 16) {
+            node.set_preferred_output_fmt(0, format::get_default_format(rank));
+        }
+
+        // Override output for channel expansion operations (small input → large output)
+        // when expanding from small input channels (≤16) to large output channels (≥32),
+        // planar output format enables OneDNN to select optimized JIT kernel instead of reference kernel
+        // Thresholds explained:
+        //   - input ≤ 16: matches fsv16 block size, input side uses planar format (set above)
+        //   - output ≥ 32: 2 or more fsv16 blocks (32/16=2), where blocked write overhead exceeds
+        //                  sequential write benefits. planar format provides better cache locality
+        //                  and memory access patterns for large channel generation
+        // e.g. 3ch → 1024ch would create 64 fsv16 blocks with scattered writes,
+        //      but planar format allows efficient sequential writes
+        if (input_channels > 0 && input_channels <= 16 && output_channels >= 32) {
             node.set_preferred_output_fmt(0, format::get_default_format(rank));
         }
     }

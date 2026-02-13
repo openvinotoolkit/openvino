@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,7 +76,7 @@ protected:
         }
         auto concat = std::make_shared<ov::op::v0::Concat>(paramsOuts, axis);
 
-        function = makeNgraphFunction(netPrecision, params, concat, "ConcatCPU");
+        function = create_ov_model(netPrecision, params, concat, "ConcatCPU");
     }
 };
 

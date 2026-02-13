@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/sink.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
 
@@ -114,5 +115,34 @@ TEST_F(TransformationTestsF, KVCacheFusionTest3) {
         auto result = std::make_shared<ov::op::v0::Result>(kv_cache);
 
         model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{parameter, beam_idx});
+    }
+}
+
+TEST_F(TransformationTestsF, KVCacheFusionTest4) {
+    {
+        auto variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{{1, 32, -1, 80}, ov::element::f16, "v0"});
+        auto past = std::make_shared<ov::op::v6::ReadValue>(variable);
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 32, -1, 80});
+        auto past_seq_len = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1});
+        auto start = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+        auto step = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        auto slice_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+        auto slice = std::make_shared<ov::op::v8::Slice>(past, start, past_seq_len, step, slice_axis);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{slice, parameter}, 2);
+        auto present = std::make_shared<ov::op::v6::Assign>(concat, variable);
+        auto result = std::make_shared<ov::op::v0::Result>(concat);
+
+        model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::SinkVector{present}, ov::ParameterVector{parameter, past_seq_len});
+        manager.register_pass<KVCacheFusion>();
+    }
+    {
+        auto variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{{1, 32, -1, 80}, ov::element::f16, "v0"});
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 32, -1, 80});
+        auto past_seq_len = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1});
+        auto past = std::make_shared<ov::intel_gpu::op::ReadValue>(variable);
+        auto kv_cache = std::make_shared<ov::intel_gpu::op::KVCache>(past, parameter, past_seq_len, variable, 2, ov::element::f16);
+        auto result = std::make_shared<ov::op::v0::Result>(kv_cache);
+
+        model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{parameter, past_seq_len});
     }
 }

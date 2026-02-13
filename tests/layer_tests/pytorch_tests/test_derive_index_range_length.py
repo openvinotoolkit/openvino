@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -43,9 +43,8 @@ class TestDeriveIndexRangeLength(PytorchLayerTest):
                     accumulator += idx
                 return accumulator
 
-        ref_net = None
 
-        return prim_derive_index_range_length(), ref_net, ["aten::__range_length", "aten::__derive_index"]
+        return prim_derive_index_range_length(), ["aten::__range_length", "aten::__derive_index"]
 
     @pytest.mark.nightly
     @pytest.mark.precommit

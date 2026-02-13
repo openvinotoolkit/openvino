@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -16,14 +16,13 @@ class TestEq(PytorchLayerTest):
 
         class aten_eq(torch.nn.Module):
             def __init__(self):
-                super(aten_eq, self).__init__()
+                super().__init__()
 
             def forward(self, input_tensor, other_tensor):
                 return torch.eq(input_tensor, other_tensor)
 
-        ref_net = None
 
-        return aten_eq(), ref_net, "aten::eq"
+        return aten_eq(), "aten::eq"
 
     @pytest.mark.parametrize(("input_array", "other_array"), [
         [np.array([[1, 2], [3, 4]]), np.array([[1, 1], [4, 4]])],
@@ -42,7 +41,7 @@ class TestEq(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     def test_eq_pt_spec(self, input_array, other_array, types, ie_device, precision, ir_version):
-        self.input_array = input_array 
+        self.input_array = input_array
         self.input_type = types[0]
         self.other_array = other_array
         self.other_type = types[1]

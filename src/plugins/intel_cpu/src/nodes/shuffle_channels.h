@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,7 +53,7 @@ private:
 
     struct ShuffleChannelsExecutor final {
         explicit ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs);
-        void exec(const uint8_t* srcData, uint8_t* dstData, int MB);
+        void exec(const uint8_t* srcData, uint8_t* dstData, int MB, const CpuParallelPtr& cpuParallel);
         ~ShuffleChannelsExecutor() = default;
 
     private:

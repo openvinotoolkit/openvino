@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -33,9 +33,8 @@ class TestAminMax(PytorchLayerTest):
 
         model_class = aten_aminmax(dtype, dim, keepdim)
 
-        ref_net = None
 
-        return model_class, ref_net, "aten::aminmax"
+        return model_class, "aten::aminmax"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

@@ -40,7 +40,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
@@ -80,7 +80,7 @@ jobs:
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
@@ -93,7 +93,7 @@ jobs:
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
-  
+
   Docker_arm64:
     needs: Smart_CI
     runs-on: aks-linux-4-cores-8gb-arm-docker-build
@@ -111,7 +111,7 @@ jobs:
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
@@ -175,6 +175,7 @@ jobs:
     needs: [ Build, Smart_CI, Docker_arm64 ]
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
+      # Left on older runner for reasons described in CVS-158878
       runner: 'aks-linux-16-cores-arm'
       image: ${{ fromJSON(needs.docker_arm64.outputs.images).ov_test.ubuntu_22_04_arm64 }}
       python-version: '3.11'

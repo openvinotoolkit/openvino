@@ -15,6 +15,10 @@ inputs:
     description: 'If the runner is self-hosted'
     required: false
     default: 'true'
+  allow-prereleases:
+    description: 'If pre-release versions of Python are allowed'
+    required: false
+    default: 'false'
 runs:
   using: 'composite'
   steps:
@@ -40,9 +44,10 @@ runs:
 
     - if: ${{ runner.os == 'macOS' || runner.os == 'Windows' || (runner.os == 'Linux' && steps.check_python.outputs.installed == 'false') }}
       name: Setup Python ${{ inputs.version }}
-      uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+      uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
       with:
         python-version: ${{ inputs.version }}
+        allow-prereleases: ${{ inputs.allow-prereleases }}
 
     - if: ${{ inputs.should-setup-pip-paths == 'true' && runner.os != 'Windows' }}
       name: Setup pip variables (cache and install path)

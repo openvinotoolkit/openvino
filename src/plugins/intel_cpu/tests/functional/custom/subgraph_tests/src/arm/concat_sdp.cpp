@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/pass/manager.hpp"
@@ -43,7 +43,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest,
         ConcatSDPTest,
         ::testing::Combine(::testing::Values(ElementType::f16),
                            ::testing::ValuesIn(inputShapes),
-                           ::testing::Values(false),
+                           ::testing::Values(true, false),
                            ::testing::Values(true, false),
                            ::testing::Values(true, false)),
         ConcatSDPTest::getTestCaseName);

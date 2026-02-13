@@ -112,7 +112,7 @@
         "ticket": 159547
     },
     {
-        "error_text": "Failed to connect to github.com port 443: Connection refused",
+        "error_text": "Failed to connect to github.com port 443",
         "ticket": 156593
     },
     {
@@ -150,5 +150,17 @@
     {
         "error_text": "Connection reset by peer - SSL_connect",
         "ticket": 173970
+    },
+    {
+        "error_text": "Error in the HTTP2 framing layer",
+        "ticket": 177549
+    },
+    {
+        "error_text": "CERT_TRUST_REVOCATION_STATUS_UNKNOWN",
+        "ticket": 177273
+    },
+    {
+        "error_text": "urllib3.exceptions.IncompleteRead",
+        "ticket": 173184
     }
 ]

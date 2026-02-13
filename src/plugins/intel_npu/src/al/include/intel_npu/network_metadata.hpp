@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/profiling_info.hpp"
 
 namespace intel_npu {
 
@@ -126,6 +127,14 @@ struct IODescriptor {
      * outputs are assigned in the same vector and could have different indexing.
      */
     uint32_t indexUsedByDriver;
+
+    /**
+     * @brief Indicates whether strided memory layout is supported for this tensor.
+     * @details When set to true, this tensor can use non-contiguous memory layout with custom strides,
+     * allowing for more flexible memory access patterns. Strided tensors enable efficient representation of sliced or
+     * transposed data without copying.
+     */
+    bool supportsStridedLayout = false;
 };
 
 struct NetworkMetadata final {
@@ -147,7 +156,28 @@ struct NetworkMetadata final {
      * to the index of the entry which bears the same name.
      */
     void bindRelatedDescriptors();
+};
 
-};  // namespace intel_npu
+/**
+ * @struct NetworkDescription
+ * @brief The object returned by the compiler
+ * to provide such information about a network as description of inputs and outputs,
+ * name and compiled network in a format executable by device
+ */
+struct NetworkDescription final {
+    NetworkDescription(ov::Tensor&& compiledNetWorkTensor, NetworkMetadata&& metadata)
+        : metadata(std::move(metadata)),
+          compiledNetworkTensor(std::move(compiledNetWorkTensor)) {}
+    // Force move semantics to prevent blob copies
+    NetworkDescription(const NetworkDescription&) = delete;
+    NetworkDescription(NetworkDescription&&) = default;
+    NetworkDescription& operator=(const NetworkDescription&) = delete;
+    NetworkDescription& operator=(NetworkDescription&&) = default;
+    ~NetworkDescription() = default;
+
+    NetworkMetadata metadata;
+
+    ov::Tensor compiledNetworkTensor;
+};
 
 }  // namespace intel_npu

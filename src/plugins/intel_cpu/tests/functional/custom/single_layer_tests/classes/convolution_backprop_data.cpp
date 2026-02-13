@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -155,7 +155,7 @@ std::shared_ptr<ov::Model> DeconvolutionLayerCPUTest::createGraph(const std::vec
                                                                  outPadding);
     }
 
-    return makeNgraphFunction(prec, params, deconv, "DeconvCPU");
+    return create_ov_model(prec, params, deconv, "DeconvCPU");
 }
 
 void DeconvolutionLayerCPUTest::SetUp() {

@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2022-2024 Intel Corporation.
+// Copyright (C) 2018-2026 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -69,8 +69,8 @@ DEFINE_string(compiled_blob, "", "Output compiled network file (compiled result 
 DEFINE_uint32(override_model_batch_size, 1, "Enforce a model to be compiled for batch size");
 DEFINE_string(device, "", "Device to use");
 DEFINE_string(config, "", "Path to the configuration file (optional)");
-DEFINE_string(ip, "", "Input precision (default: U8, available: FP32, FP16, I32, I64, U8)");
-DEFINE_string(op, "", "Output precision (default: FP32, available: FP32, FP16, I32, I64, U8)");
+DEFINE_string(ip, "", "Input precision (default: U8, available: FP32, FP16, I32, I64, U8, U16, I16, U4, I4, U2, BF8, HF8)");
+DEFINE_string(op, "", "Output precision (default: FP32, available: FP32, FP16, I32, I64, U8, U16, I16, U4, I4, U2, BF8, HF8)");
 DEFINE_string(
         il, "",
         "Input layout for all inputs, or ';' separated list of pairs <input>:<layout>. Regex in <input> is supported");
@@ -701,6 +701,7 @@ std::vector<std::vector<float>> parseMeanOrScale(const std::string& mean_scale,
 
 using RegexPtr = std::unique_ptr<std::regex>;
 std::map<RegexPtr, ov::Layout> parseLayoutRegex(std::string layouts) {
+    const std::string original_layouts = layouts;  // Keep copy for error message
     std::map<std::string, std::string> input_output_layouts = parseArgMap(std::move(layouts));
 
     std::map<RegexPtr, ov::Layout> out;
@@ -708,7 +709,7 @@ std::map<RegexPtr, ov::Layout> parseLayoutRegex(std::string layouts) {
         auto [name, value] = input_output_layout;
         if (value.empty()) {
             if (name.empty()) {
-                throw std::runtime_error("Can't parse layouts string \"" + layouts +
+                throw std::runtime_error("Can't parse layouts string \"" + original_layouts +
                                          "\" into valid \"input:layout;input:layout\" pairs");
             }
             // there is no value only name, thus we consider input/output name as "any" and
@@ -1627,7 +1628,7 @@ bool computeRRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
     double rrmseLoss = sqrt(error / sum);
 
     std::cout << "RRMSE loss : " << std::fixed << std::setprecision(4) << rrmseLoss
-              << "   RRMSE threshold : " << FLAGS_rrmse_loss_threshold << std::endl;
+              << "   RRMSE threshold : " << std::defaultfloat << FLAGS_rrmse_loss_threshold << std::endl;
     return rrmseLoss <= FLAGS_rrmse_loss_threshold;
 }
 
@@ -1637,15 +1638,7 @@ bool testRRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
         return false;
     }
 
-    std::vector<std::string> skipped_layers;
-    skipped_layers = splitStringList(FLAGS_skip_output_layers, ';');
-
     for (const auto& [tensorName, output] : outputs) {
-        if (std::find(skipped_layers.begin(), skipped_layers.end(), tensorName) != skipped_layers.end()) {
-            std::cout << "Skip RRMSE test for layers: " << tensorName << std::endl;
-            continue;
-        }
-
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
 
@@ -1700,7 +1693,7 @@ bool computeNRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
             sqrt(error / size) / std::max(0.001f, std::max(maxOutput - minOutput, maxReference - minReference));
 
     std::cout << "NRMSE loss : " << std::fixed << std::setprecision(4) << nrmseLoss
-              << "   NRMSE threshold : " << FLAGS_nrmse_loss_threshold << std::endl;
+              << "   NRMSE threshold : " << std::defaultfloat << FLAGS_nrmse_loss_threshold << std::endl;
     return nrmseLoss <= FLAGS_nrmse_loss_threshold;
 }
 
@@ -1881,13 +1874,13 @@ MatchResult matchDetectionsForClass(
 
     for (const auto& pred : predictions) {
         if (pred.class_id == class_id) {
-            class_predictions.push_back(pred);
+            class_predictions.emplace_back(pred);
         }
     }
 
     for (const auto& gt : ground_truth) {
         if (gt.class_id == class_id) {
-            class_gt.push_back(gt);
+            class_gt.emplace_back(gt);
         }
     }
 
@@ -1956,8 +1949,8 @@ double calculateAveragePrecision(const std::vector<float>& precision, const std:
     precision_with_sentinel.push_back(0.0);
 
     for (size_t i = 0; i < recall.size(); ++i) {
-        recall_with_sentinel.push_back(recall[i]);
-        precision_with_sentinel.push_back(precision[i]);
+        recall_with_sentinel.emplace_back(recall[i]);
+        precision_with_sentinel.emplace_back(precision[i]);
     }
 
     recall_with_sentinel.push_back(1.0);
@@ -2086,7 +2079,7 @@ bool computeMAP(const TensorMap& outputs, const TensorMap& references) {
 
     std::cout << "\n=== Mean Average Precision (mAP) ===" << std::endl;
     std::cout << "  mAP@" << FLAGS_overlap_threshold << " = " << std::fixed << std::setprecision(4)
-              << (mean_ap * 100.0) << "%" << std::endl;
+              << (mean_ap * 100.0) << "%" << std::defaultfloat << std::endl;
     std::cout << "  Number of classes: " << class_ids.size() << std::endl;
     std::cout << "  mAP threshold: " << (FLAGS_map_threshold * 100.0) << "%" << std::endl;
 
@@ -2099,27 +2092,15 @@ bool testMAP(const TensorMap& outputs, const TensorMap& references, const Layout
         return false;
     }
 
-    std::vector<std::string> skipped_layers;
-    skipped_layers = splitStringList(FLAGS_skip_output_layers, ';');
-
-    TensorMap remainingOutput;
-
     // For single-image detection models with pred_boxes and logits outputs,
     // compute mAP directly from all outputs rather than per-layer
     std::cout << "Computing mAP for single-image detection model" << std::endl;
     std::cout << "Output layers:" << std::endl;
     for (const auto& [tensorName, tensor] : outputs) {
-        if (std::find(skipped_layers.begin(), skipped_layers.end(), tensorName) != skipped_layers.end()) {
-            std::cout << "Skip layer: " << tensorName << std::endl;
-            continue;
-        }
-
-        remainingOutput[tensorName] = tensor;
-
         std::cout << " - " << tensorName << " : " << tensor.get_shape() << std::endl;
     }
 
-    return computeMAP(remainingOutput, references);
+    return computeMAP(outputs, references);
 }
 
 std::vector<float> softmax(std::vector<float>& tensor) {
@@ -2134,6 +2115,11 @@ std::vector<float> softmax(std::vector<float>& tensor) {
     for (size_t i = 0; i < tensor.size(); ++i) {
         probabilities[i] = exp(tensor[i] - max_value);  // exp(tensor_value - max_value) for stability
         sum_exp += probabilities[i];
+    }
+
+    // Protect against division by zero
+    if (sum_exp == 0.0) {
+        sum_exp = std::numeric_limits<double>::epsilon();
     }
 
     // Normalize the probabilities by dividing by the sum of exponentials
@@ -2153,15 +2139,7 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
         return false;
     }
 
-    std::vector<std::string> skipped_layers;
-    skipped_layers = splitStringList(FLAGS_skip_output_layers, ';');
-
     for (auto& [tensorName, output] : outputs) {
-        if (std::find(skipped_layers.begin(), skipped_layers.end(), tensorName) != skipped_layers.end()) {
-            std::cout << "Skip NRMSE test for layers: " << tensorName << std::endl;
-            continue;
-        }
-
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
         bool applySoftMax = FLAGS_apply_soft_max;
@@ -2178,8 +2156,8 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
                             referenceTensor.get_size(),
                             std::back_insert_iterator(refOutput));
 
-                auto actSoftMax = softmax(actOutput);
-                auto refSoftMax = softmax(refOutput);
+                const auto actSoftMax = softmax(actOutput);
+                const auto refSoftMax = softmax(refOutput);
 
                 std::copy_n(actSoftMax.begin(), outputTensor.get_size(), outputTensor.data<float>());
                 // Why reference data is not updated?
@@ -2237,7 +2215,7 @@ static void printPerformanceCountsAndLatency(size_t numberOfTestCase, const Prof
         printPerformanceCounts(profilingData, std::cout, FLAGS_device, false);
     }
 
-    std::cout << "Latency: " << std::fixed << std::setprecision(2) << durationMs.count() << " ms" << std::endl;
+    std::cout << "Latency: " << std::fixed << std::setprecision(2) << durationMs.count() << " ms" << std::defaultfloat << std::endl;
 }
 
 bool compare_mean_IoU(std::vector<std::pair<bool, float>> iou, float semSegThreshold, uint32_t classes) {
@@ -2255,10 +2233,10 @@ bool compare_mean_IoU(std::vector<std::pair<bool, float>> iou, float semSegThres
             numberOfLabeledClasses++;
             if (FLAGS_dataset == "camVid12") {
                 std::cout << "mean_iou@" << camVid12[i].c_str() << ": " << std::fixed << std::setprecision(2)
-                          << iou[i].second << "%" << std::endl;
+                          << iou[i].second << "%" << std::defaultfloat << std::endl;
             } else {
                 std::cout << "mean_iou@class" << i << ": " << std::fixed << std::setprecision(2) << iou[i].second << "%"
-                          << std::endl;
+                          << std::defaultfloat << std::endl;
             }
             if (iou[i].second < threshold) {
                 std::cout << "Threshold smaller than " << threshold << "%" << std::endl;
@@ -2271,8 +2249,8 @@ bool compare_mean_IoU(std::vector<std::pair<bool, float>> iou, float semSegThres
     }
 
     if (numberOfLabeledClasses > 0) {
-        std::cout << "mean_iou@:mean " << std::fixed << std::setprecision(2) << (ma / numberOfLabeledClasses) << "%"
-                  << std::endl;
+        std::cout << "mean_iou@:mean " << std::fixed << std::setprecision(2) << (ma / static_cast<float>(numberOfLabeledClasses)) << "%"
+                  << std::defaultfloat << std::endl;
     } else {
         std::cout << "WARNING: Number of labeled classes is zero!" << std::endl;
     }
@@ -2374,9 +2352,13 @@ bool testSSDDetection(const TensorMap& outputs, const TensorMap& references,
     BlobTestMethod blobComparator = [imgWidth, imgHeight, confThresh, probTolerance, boxTolerance](
                                         const ov::Tensor& outputTensor,
                                         const ov::Tensor& referenceTensor) {
-        auto parsedOutput = utils::parseSSDOutput(outputTensor, imgWidth, imgHeight, static_cast<float>(confThresh));
-        auto parsedReference =
-            utils::parseSSDOutput(referenceTensor, imgWidth, imgHeight, static_cast<float>(confThresh));
+
+        auto parsedOutput = utils::parseSSDOutput(outputTensor, imgWidth,
+                                            imgHeight, static_cast<float>(confThresh));
+
+        auto parsedReference = utils::parseSSDOutput(referenceTensor, imgWidth,
+                                            imgHeight, static_cast<float>(confThresh));
+
         return checkBBoxOutputs(parsedOutput,
                                 parsedReference,
                                 imgWidth,
@@ -2553,9 +2535,9 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
     std::vector<std::pair<bool, float>> iou(classes, {false, 0.0f});
 
     const auto& [tensorName, output] = *outputs.begin();
-    auto referencesIterator = references.find(tensorName);
+    const auto referencesIterator = references.find(tensorName);
     OPENVINO_ASSERT(referencesIterator != references.end());
-    auto outputLayoutIterator = outputLayouts.find(tensorName);
+    const auto outputLayoutIterator = outputLayouts.find(tensorName);
     OPENVINO_ASSERT(outputLayoutIterator != outputLayouts.end());
 
     BlobTestMethod blobComparator = [skipArgMax, outputLayoutIterator, classes, semSegThreshold, &iou](
@@ -2652,15 +2634,16 @@ static int runSingleImageTest() {
         // 9. (For loadable networks) Compile model
         // 10. Store compile model (if given)
         // 11. Run inference / tests
-        const std::unordered_set<std::string> allowedPrecision = {"U8", "I32", "I64", "FP16", "FP32"};
+        const std::unordered_set<std::string> allowedPrecision = {"U8", "I32", "I64", "FP16", "FP32",
+                            "U16", "I16", "U4", "I4", "U2", "BF8", "HF8"};
         if (!FLAGS_ip.empty()) {
-            // input precision is U8, I32, I64, FP16 or FP32 only
+            // input precision: U8, U16, I16, I32, I64, FP16, FP32, U4, I4, U2, BF8, HF8
             std::transform(FLAGS_ip.begin(), FLAGS_ip.end(), FLAGS_ip.begin(), ::toupper);
             if (allowedPrecision.count(FLAGS_ip) == 0)
                 throw std::logic_error("Parameter -ip " + FLAGS_ip + " is not supported");
         }
         if (!FLAGS_op.empty()) {
-            // output precision is U8, I32, I64, FP16 or FP32 only
+            // output precision: U8, U16, I16, I32, I64, FP16, FP32, U4, I4, U2, BF8, HF8
             std::transform(FLAGS_op.begin(), FLAGS_op.end(), FLAGS_op.begin(), ::toupper);
             if (allowedPrecision.count(FLAGS_op) == 0)
                 throw std::logic_error("Parameter -op " + FLAGS_op + " is not supported");
@@ -2703,6 +2686,20 @@ static int runSingleImageTest() {
                     prc_in = ov::element::i32;
                 else if (FLAGS_ip == "I64")
                     prc_in = ov::element::i64;
+                else if (FLAGS_ip == "U16")
+                    prc_in = ov::element::u16;
+                else if (FLAGS_ip == "I16")
+                    prc_in = ov::element::i16;
+                else if (FLAGS_ip == "U4")
+                    prc_in = ov::element::u4;
+                else if (FLAGS_ip == "I4")
+                    prc_in = ov::element::i4;
+                else if (FLAGS_ip == "U2")
+                    prc_in = ov::element::u2;
+                else if (FLAGS_ip == "BF8")
+                    prc_in = ov::element::f8e5m2;
+                else if (FLAGS_ip == "HF8")
+                    prc_in = ov::element::f8e4m3;
                 else
                     prc_in = ov::element::u8;
 
@@ -2764,6 +2761,20 @@ static int runSingleImageTest() {
                     prc_out = ov::element::i32;
                 else if (FLAGS_op == "I64")
                     prc_out = ov::element::i64;
+                else if (FLAGS_op == "U16")
+                    prc_out = ov::element::u16;
+                else if (FLAGS_op == "I16")
+                    prc_out = ov::element::i16;
+                else if (FLAGS_op == "U4")
+                    prc_out = ov::element::u4;
+                else if (FLAGS_op == "I4")
+                    prc_out = ov::element::i4;
+                else if (FLAGS_op == "U2")
+                    prc_out = ov::element::u2;
+                else if (FLAGS_op == "BF8")
+                    prc_out = ov::element::f8e5m2;
+                else if (FLAGS_op == "HF8")
+                    prc_out = ov::element::f8e4m3;
                 else
                     prc_out = ov::element::u8;
 
@@ -2902,10 +2913,24 @@ static int runSingleImageTest() {
                         inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::i64;
                     } else if (strEq(precision, "U8")) {
                         inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::u8;
+                    } else if (strEq(precision, "U16")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::u16;
+                    } else if (strEq(precision, "I16")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::i16;
+                    } else if (strEq(precision, "U4")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::u4;
+                    } else if (strEq(precision, "I4")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::i4;
+                    } else if (strEq(precision, "U2")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::u2;
+                    } else if (strEq(precision, "BF8")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::f8e5m2;
+                    } else if (strEq(precision, "HF8")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::f8e4m3;
                     } else {
                         std::cout << "WARNING: Unhandled precision '" << precision
-                                << "'! Only FP32, FP16, I32, I64 and U8 can be currently converted to the network's"
-                                << "input tensor precision.";
+                                << "'! Only FP32, FP16, I32, I64, U8, U16, I16, U4, I4, U2, BF8 and HF8 "
+                                << "can be currently converted to the network's input tensor precision.";
                     }
                     ++precisionIdx;
                 }
@@ -3068,6 +3093,33 @@ static int runSingleImageTest() {
                     ++outputInd;
                 }
 
+                // Filter out skipped layers before passing to test methods
+                TensorMap filteredOutputTensors;
+                TensorMap filteredReferenceTensors;
+                LayoutMap filteredOutputLayouts;
+
+                std::vector<std::string> skipped_layers = splitStringList(FLAGS_skip_output_layers, ';');
+                for (const auto& [tensorName, tensor] : outputTensors) {
+                    if (std::find(skipped_layers.begin(), skipped_layers.end(), tensorName) != skipped_layers.end()) {
+                        std::cout << "Skip test for layer: " << tensorName << std::endl;
+                        continue;
+                    }
+
+                    auto refIt = referenceTensors.find(tensorName);
+                    if (refIt == referenceTensors.end()) {
+                        std::cerr << "Reference tensor not found for output layer: " << tensorName << std::endl;
+                        continue;
+                    }
+
+                    filteredOutputTensors[tensorName] = tensor;
+                    filteredReferenceTensors[tensorName] = refIt->second;
+
+                    auto layoutIt = outputLayouts.find(tensorName);
+                    if (layoutIt != outputLayouts.end()) {
+                        filteredOutputLayouts.emplace(tensorName, layoutIt->second);
+                    }
+                }
+
                 using ResultStatus = std::tuple<std::string, int>;
                 std::array<ResultStatus, 2> resultStatuses{{{"FAILED", EXIT_FAILURE}, {"PASSED", EXIT_SUCCESS}}};
 
@@ -3130,7 +3182,7 @@ static int runSingleImageTest() {
                 }
 
                 auto testFunc = testMethodsIt->second;
-                auto [message, exitCode] = resultStatuses[testFunc(outputTensors, referenceTensors, outputLayouts)];
+                auto [message, exitCode] = resultStatuses[testFunc(filteredOutputTensors, filteredReferenceTensors, filteredOutputLayouts)];
                 std::cout << message << std::endl;
                 return exitCode;
             } else {

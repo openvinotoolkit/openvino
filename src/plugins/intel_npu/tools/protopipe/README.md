@@ -265,7 +265,16 @@ Every stream has the following execution parameters:
 - `target_fps` - **Optional**. Execution frequency of the stream. `target_fps = 1000 / frames_interval_in_ms`. `target_fps` and `frames_interval_in_ms` are mutually exclusive and cannot be provided together.
 - `target_latency_in_ms` - **Optional**. When iteration isn't finished within specified interval, the next frame will be dropped from execution. (**Default**: Disabled)
 - `op_desc`/`conections` or `network` - **Required**. Execution graph structure. Follow [Graph structure](#graph-structure) for the details.
+- `workload_type` - **Optional**. Configure workload type updates at runtime. `workload_type` has the following parameters:
+  - `initial_value` - **Required**. Initial value for workload type. This value will be used when starting the simulation.
+  - `change_to` - **Required**. A list containing the values used to update the workload type during runtime.
+  - `change_interval` - **Required**. A value that represents the number of seconds or iterations depending on stream configuration (iteration_count or exec_time_in_secs is set). The workload type will be updated according to this interval value.
+  - `repeat` - **Optional**. If this value is set to true and all the values in the `change_to` list were used, the values will be reiterated. If set to false or not set at all, workload type updates will stop after the last value in `change_to` list.
 
+  Example:
+    ```
+    workload_type : {initial_value: Default, change_to: [Efficient, Default], change_interval: 5, repeat: true}
+    ```
 ### Config example
 Consider the following scenario that consists of two parallel streams specified on `config.yaml`:  
 ```
@@ -327,7 +336,9 @@ Protopipe has the following `CLI` options to configure the execution behaviour:
 `--pipeline` - **Optional**. Enables pipelined execution for all scenarios/streams.                      
 `--niter <value>` - **Optional**. Number of iterations. If specified overwrites termination criterion specified in configuration file for all scenarios/streams.             
 `-t <value>` - **Optional**. Time in seconds. If specified overwrites termination criterion specified in configuration file for all scenarios/streams.  
-`--mode <value>` - **Optional**. Execution mode: *performance*, *reference*, *validation* (**Default**: *performance*)  
+`--mode <value>` - **Optional**. Execution mode: *performance*, *reference*, *validation*, *accuracy* (**Default**: *performance*)
+`--reference_device <value>` - **Optional**. Reference device for accuracy mode comparison. (**Default**: *CPU*)
+`--target_device <value>` - **Optional**. Target device for accuracy mode comparison. (**Default**: *NPU*)
 `--exec_filter <value>` - **Optional**. Run only the scenarios that match provided string pattern.  
 `--inference_only` - **Optional**. Run only inference execution for every model excluding i/o data transfer (**Default**: true)  
 
@@ -496,6 +507,7 @@ multi_inference:
     - { name: B.xml, ip: FP16, input_data: B-inputs/, output_data: B-outputs/, metric: { name: norm, tolerance: 0.0 }
 ```
 
+#### Two-step validation (reference + validation modes)
 Use `reference` mode to generate the input random data for every model and calculate reference outputs
 **Note**: If reference device is different, it can be changed in config file (`device_name`) accordingly
 ```
@@ -511,7 +523,25 @@ stream 0: Validation has passed for <number> iteration(s)
 ```
 In case of accuracy issues the output will be the following:
 ```
-stream 0: Accuraccy check failed on <number> iteration(s) (first 10):
+stream 0: Accuracy check failed on <number> iteration(s) (first 10):
+Iteration <number>:
+  Model: A, Layer: <name>, Metric: Norm{tolerance: 0.01}, Reason: <number> > 0.01;
+```
+
+#### One-step validation (accuracy mode)
+Use `accuracy` mode to run inference on both reference and target devices in parallel and compare outputs directly:
+```
+./protopipe --cfg config.yaml --mode accuracy --reference_device CPU --target_device NPU -niter 10
+```
+**Note**: When `output_data` is specified, outputs will be dumped to `<path>_REFERENCE` and `<path>_TARGET` directories.
+
+Example of successful validation:
+```
+stream 0: Accuracy validation passed - Ref: <number> iteration(s), Tgt: <number> iteration(s)
+```
+In case of accuracy issues the output will be the following:
+```
+stream 0: Accuracy check failed on <number> iteration(s) (first 10):
 Iteration <number>:
   Model: A, Layer: <name>, Metric: Norm{tolerance: 0.01}, Reason: <number> > 0.01;
 ```

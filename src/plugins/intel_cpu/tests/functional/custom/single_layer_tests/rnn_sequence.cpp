@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -116,7 +116,7 @@ protected:
                                         {batchSize}};
         auto rnn_sequence =
             utils::make_rnn(paramsOuts, WRB, hiddenSize, activations, {}, {}, clip, true, direction, seqMode);
-        function = makeNgraphFunction(netPrecision, params, rnn_sequence, "rnnSequence");
+        function = create_ov_model(netPrecision, params, rnn_sequence, "rnnSequence");
 
         if (seqMode != ov::test::utils::SequenceTestsMode::PURE_SEQ) {
             ov::pass::Manager manager;
