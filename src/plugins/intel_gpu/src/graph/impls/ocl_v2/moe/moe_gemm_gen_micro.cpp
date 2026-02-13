@@ -1,7 +1,9 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
+#ifndef ENABLE_ONEDNN_FOR_GPU
+    #define ENABLE_ONEDNN_FOR_GPU 1
+#endif
 #ifdef ENABLE_ONEDNN_FOR_GPU
 // clang-format off
 // Put this file at first to avoid incorrect header files includes order.
@@ -151,7 +153,7 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params, 
     micro::GEMMProblem problem_moe;
     micro::GEMMOptions opts_moe;
     opts_moe.slmPtr = true;
-    // opts_moe.kParallelLocal = !is_prefill;
+    opts_moe.kParallelLocal = !is_prefill;
     enum class MICRO_DIMENSIONALITY { NONE = -1, SCALAR = 0, VECTOR = 1, MATRIX = 2 };
 
     if (moe_cfg.is_weight_quantized) {

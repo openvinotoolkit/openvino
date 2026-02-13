@@ -21,6 +21,7 @@
 #include <sstream>
 
 #include "gemm_inst.h"
+#include "moe_gemm_inst.h"
 #include "deconvolution_inst.h"
 #include "fully_connected_inst.h"
 #include "gru_seq_inst.h"
@@ -1547,6 +1548,7 @@ void layout_optimizer::add_all_onednn_impls_optimization_attribute() {
     enable_onednn_for<pooling>();
     enable_onednn_for<reduce>();
     enable_onednn_for<reorder>();
+    enable_onednn_for<moe_gemm>();
 }
 
 bool layout_optimizer::has_all_enabled_onednn_impls_optimization_attribute() {
