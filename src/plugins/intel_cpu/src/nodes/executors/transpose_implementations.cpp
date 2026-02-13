@@ -2,11 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-#include <oneapi/dnnl/dnnl.hpp>
 #include <vector>
 
-#include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/common/ref_opt_transpose.hpp"
 #include "nodes/executors/common/ref_transpose.hpp"
 #include "nodes/executors/executor.hpp"
@@ -33,32 +30,11 @@ namespace ov::intel_cpu {
 
 namespace {
 
-std::vector<MemoryDescPtr> srcDescs(const MemoryDescArgs& descs) {
-    return {descs.at(ARG_SRC)};
-}
-
-std::vector<MemoryDescPtr> dstDescs(const MemoryDescArgs& descs) {
-    return {descs.at(ARG_DST)};
-}
-
-template <typename Builder>
-bool isSupportedByBuilder(const TransposeConfig& config) {
-    Builder builder;
-    return builder.isSupported(config.attrs.params, srcDescs(config.descs), dstDescs(config.descs));
-}
-
 template <typename ExecutorT>
 ExecutorPtr createTransposeExecutor(const TransposeAttrs& attrs,
                                     const MemoryArgs& memory,
                                     const ExecutorContext::CPtr& context) {
-    const auto& descs = attrs.descs.empty() ? memoryDescsFromMemory(memory) : attrs.descs;
-
-    auto executor = std::make_shared<ExecutorT>(context);
-    dnnl::primitive_attr attr;
-    if (!executor->init(attrs.params, {descs.at(ARG_SRC)}, {descs.at(ARG_DST)}, attr)) {
-        return nullptr;
-    }
-    return executor;
+    return ExecutorT::create(attrs, memory, context);
 }
 
 const auto acceptsAnyShape = []([[maybe_unused]] const TransposeAttrs& attrs, [[maybe_unused]] const MemoryArgs& mem) {
@@ -77,7 +53,7 @@ const std::vector<ExecutorImplementation<TransposeAttrs>>& getImplementations() 
             ExecutorType::Common,
             OperationType::Transpose,
             [](const TransposeConfig& config) -> bool {
-                return isSupportedByBuilder<RefOptimizedTransposeExecutorBuilder>(config);
+                return RefOptimizedTransposeExecutor::supports(config);
             },
             HasNoOptimalConfig<TransposeAttrs>{},
             acceptsAnyShape,
@@ -88,7 +64,7 @@ const std::vector<ExecutorImplementation<TransposeAttrs>>& getImplementations() 
             ExecutorType::Acl,
             OperationType::Transpose,
             [](const TransposeConfig& config) -> bool {
-                return isSupportedByBuilder<ACLTransposeExecutorBuilder>(config);
+                return ACLTransposeExecutor::supports(config);
             },
             HasNoOptimalConfig<TransposeAttrs>{},
             acceptsAnyShape,
@@ -99,7 +75,7 @@ const std::vector<ExecutorImplementation<TransposeAttrs>>& getImplementations() 
             ExecutorType::Mlas,
             OperationType::Transpose,
             [](const TransposeConfig& config) -> bool {
-                return isSupportedByBuilder<MlasTransposeExecutorBuilder>(config);
+                return MlasTransposeExecutor::supports(config);
             },
             HasNoOptimalConfig<TransposeAttrs>{},
             acceptsAnyShape,
@@ -110,7 +86,7 @@ const std::vector<ExecutorImplementation<TransposeAttrs>>& getImplementations() 
             ExecutorType::Jit,
             OperationType::Transpose,
             [](const TransposeConfig& config) -> bool {
-                return isSupportedByBuilder<JitTransposeExecutorBuilder>(config);
+                return JitTransposeExecutor::supports(config);
             },
             HasNoOptimalConfig<TransposeAttrs>{},
             acceptsAnyShape,
@@ -121,7 +97,7 @@ const std::vector<ExecutorImplementation<TransposeAttrs>>& getImplementations() 
             ExecutorType::Common,
             OperationType::Transpose,
             [](const TransposeConfig& config) -> bool {
-                return isSupportedByBuilder<RefTransposeExecutorBuilder>(config);
+                return RefTransposeExecutor::supports(config);
             },
             HasNoOptimalConfig<TransposeAttrs>{},
             acceptsAnyShape,

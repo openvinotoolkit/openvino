@@ -21,10 +21,6 @@ public:
     explicit TransposeExecutor(ExecutorContext::CPtr context);
     bool update(const MemoryArgs& memory) override;
     void execute(const MemoryArgs& memory) override;
-    virtual bool init(const TransposeParams& transposeParams,
-                      const std::vector<MemoryDescPtr>& srcDescs,
-                      const std::vector<MemoryDescPtr>& dstDescs,
-                      const dnnl::primitive_attr& attr) = 0;
     ~TransposeExecutor() override = default;
 
 protected:
@@ -33,17 +29,5 @@ protected:
 };
 using TransposeExecutorPtr = std::shared_ptr<TransposeExecutor>;
 using TransposeExecutorCPtr = std::shared_ptr<const TransposeExecutor>;
-
-class TransposeExecutorBuilder {
-public:
-    virtual ~TransposeExecutorBuilder() = default;
-    [[nodiscard]] virtual bool isSupported(const TransposeParams& transposeParams,
-                                           const std::vector<MemoryDescPtr>& srcDescs,
-                                           const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    [[nodiscard]] virtual TransposeExecutorPtr makeExecutor(ExecutorContext::CPtr context) const = 0;
-};
-
-using TransposeExecutorBuilderPtr = std::shared_ptr<TransposeExecutorBuilder>;
-using TransposeExecutorBuilderCPtr = std::shared_ptr<const TransposeExecutorBuilder>;
 
 }  // namespace ov::intel_cpu
