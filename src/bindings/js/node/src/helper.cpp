@@ -153,7 +153,7 @@ ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(const
 
 template <>
 std::filesystem::path js_to_cpp<std::filesystem::path>(const Napi::CallbackInfo& info, const size_t idx) {
-    const auto path = info[idx];
+    const auto& path = info[idx];
     OPENVINO_ASSERT(path.IsString(), "Passed argument must be of type String.");
     return std::filesystem::path(path.ToString().Utf8Value());
 }
