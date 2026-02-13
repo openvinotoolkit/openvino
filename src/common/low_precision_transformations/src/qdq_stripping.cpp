@@ -150,13 +150,15 @@ private:
                 auto target_shape = wrap_type<ov::op::v0::Concat>({any_input(), c_dim, tail});
                 auto reshape_pattern = wrap_type<ov::op::v1::Reshape>({bias_dq_block, target_shape});
 
-                auto add_pattern = wrap_type<ov::op::v1::Add>({conv_pattern, reshape_pattern});
+                auto add_pattern = optional<ov::op::v1::Add>({conv_pattern, reshape_pattern});
                 auto matcher = std::make_shared<Matcher>(add_pattern, "ConvAddPattern");
 
                 if (matcher->match(node_shared)) {
                     auto& pm = matcher->get_pattern_value_map();
                     m_pending_weight_scales.insert(conv_weights_dq_block->get_multiply(pm));
-                    m_pending_weight_scales.insert(bias_dq_block->get_multiply(pm));
+                    if (pm.count(add_pattern)) {
+                        m_pending_weight_scales.insert(bias_dq_block->get_multiply(pm));
+                    }
                     stop_propagation(*matcher);
                     return;
                 }
@@ -199,6 +201,14 @@ private:
             // Case 4: FakeQuantize (un-stripped) — collect for range adjustment
             if (auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node->shared_from_this())) {
                 m_pending_fq_adjustments.insert(fq);
+                return;
+            }
+
+            // For Multiply/MatMul without a constant DQ subgraph (none of the above matched),
+            // continue backward propagation only through input 0.
+            if (ov::is_type<ov::op::v1::Multiply>(node) || ov::is_type<ov::op::v0::MatMul>(node)) {
+                m_visited.insert(node->get_input_node_ptr(1));
+                return;
             }
         };
 
@@ -263,7 +273,6 @@ private:
                 ov::op::v0::Constant::create(original_constant.get_element_type(), {}, {m_scale_divisor});
             auto new_constant = ov::op::util::make_try_fold<ov::op::v1::Divide>(original_constant, divisor_const);
             auto new_multiply = old_multiply->clone_with_new_inputs({mul_input, new_constant});
-
             ov::replace_node(old_multiply, new_multiply);
         }
 
