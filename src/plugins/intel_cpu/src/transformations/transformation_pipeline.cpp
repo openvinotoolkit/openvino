@@ -171,7 +171,6 @@
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
 #    include "openvino/op/add.hpp"
-#    include "openvino/op/mish.hpp"
 #    include "openvino/op/swish.hpp"
 #    include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
 #else
@@ -277,6 +276,7 @@
 #    include "openvino/op/is_finite.hpp"
 #    include "openvino/op/is_inf.hpp"
 #    include "openvino/op/is_nan.hpp"
+#    include "openvino/op/mish.hpp"
 #    include "openvino/op/negative.hpp"
 #    include "openvino/op/relu.hpp"
 #    include "openvino/op/sigmoid.hpp"
