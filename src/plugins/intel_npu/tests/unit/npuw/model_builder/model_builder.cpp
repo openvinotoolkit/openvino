@@ -24,28 +24,20 @@ namespace npuw {
 // Weight Functor Implementations
 // ============================================================================
 
-ov::Output<ov::Node> FP32Weight::operator()(const std::string& name,
-                                            const ov::Shape& shape,
-                                            ov::element::Type compute_precision) const {
+ov::Output<ov::Node> FloatWeight::operator()(const std::string& name,
+                                             const ov::Shape& shape,
+                                             ov::element::Type compute_precision) const {
     // Use unique fill values per constant to prevent CSE from merging
     // different projections (e.g. Q/K/V) that happen to share dimensions.
     static size_t counter = 0;
     float fill_val = 0.01f + static_cast<float>(++counter) * 1e-7f;
     auto weight =
-        ov::opset11::Constant::create(compute_precision, shape, std::vector<float>(ov::shape_size(shape), fill_val));
-    weight->set_friendly_name(name);
-    return weight->output(0);
-}
-
-ov::Output<ov::Node> FP16Weight::operator()(const std::string& name,
-                                            const ov::Shape& shape,
-                                            ov::element::Type compute_precision) const {
-    static size_t counter = 0;
-    float fill_val = 0.01f + static_cast<float>(++counter) * 1e-7f;
-    auto weight =
-        ov::opset11::Constant::create(ov::element::f16, shape, std::vector<float>(ov::shape_size(shape), fill_val));
+        ov::opset11::Constant::create(storage_type, shape, std::vector<float>(ov::shape_size(shape), fill_val));
     weight->set_friendly_name(name);
 
+    if (storage_type == compute_precision) {
+        return weight->output(0);
+    }
     auto convert = std::make_shared<ov::opset11::Convert>(weight, compute_precision);
     convert->set_friendly_name(name + "_convert");
     return convert->output(0);

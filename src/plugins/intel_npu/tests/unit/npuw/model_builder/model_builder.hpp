@@ -62,18 +62,21 @@ using RoPEFn = std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&, c
 // Weight functors
 // ============================================================================
 
-/// f32 weights (no compression)
-struct FP32Weight {
+/// Float weights (f32 or f16 storage) with Convert to compute precision when types differ
+struct FloatWeight {
+    ov::element::Type storage_type;
+
+    FloatWeight(ov::element::Type st = ov::element::f32) : storage_type(st) {}
+
     ov::Output<ov::Node> operator()(const std::string& name,
                                     const ov::Shape& shape,
                                     ov::element::Type compute_precision) const;
 };
 
-/// f16 weights with Convert to compute precision
-struct FP16Weight {
-    ov::Output<ov::Node> operator()(const std::string& name,
-                                    const ov::Shape& shape,
-                                    ov::element::Type compute_precision) const;
+/// Convenience aliases
+using FP32Weight = FloatWeight;
+struct FP16Weight : FloatWeight {
+    FP16Weight() : FloatWeight(ov::element::f16) {}
 };
 
 /// Compressed integer weights -> Convert(f16) -> Multiply(f16 scale)
