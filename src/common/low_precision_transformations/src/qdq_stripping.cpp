@@ -106,18 +106,23 @@ public:
         propagate_backward(m_fq);
         propagate_forward(m_fq);
 
-        if (!m_result_reachable)
+        if (scale_adjustment_possible()) {
             apply_collected_adjustments();
+        }
     }
 
 private:
     float m_scale_divisor;
     ov::Node* m_fq;
-    bool m_result_reachable = false;
+    bool m_scale_adjustment_possible = false;
 
     std::unordered_set<ov::Node*> m_visited;
     std::unordered_set<std::shared_ptr<ov::Node>> m_pending_weight_scales;
     std::unordered_set<std::shared_ptr<ov::op::v0::FakeQuantize>> m_pending_fq_adjustments;
+
+    bool scale_adjustment_possible() const {
+        return !m_scale_adjustment_possible;
+    }
 
     void propagate_backward(ov::Node* root) {
         using namespace ov::pass::pattern;
@@ -197,25 +202,33 @@ private:
             }
         };
 
-        auto skip_predicate = [](ov::Node* n) {
-            return ov::is_type<ov::op::v0::ShapeOf>(n) || ov::is_type<ov::op::v3::ShapeOf>(n);
+        auto skip_predicate = [&](ov::Node* n) {
+            // Scale adjustment shouldn't be propagated via ShapeOf subgraphs
+            const bool shapeof_subgraph = ov::is_type<ov::op::v0::ShapeOf>(n) || ov::is_type<ov::op::v3::ShapeOf>(n);
+            return scale_adjustment_possible() && shapeof_subgraph;
         };
 
         ov::op::util::visit_path(root, m_visited, collect_weights_scale, skip_predicate);
     }
 
     void propagate_forward(ov::Node* root) {
-        auto skip_predicate = [](ov::Node* n) {
-            return ov::is_type_any_of<ov::op::v0::MVN, ov::op::v6::MVN, ov::op::v1::Softmax, ov::op::v8::Softmax>(
-                n->shared_from_this());
+        auto skip_predicate = [&](ov::Node* n) {
+            // Propagation stops at scale-invariant nodes
+            const bool scale_invariant_nodes =
+                ov::is_type_any_of<ov::op::v0::MVN, ov::op::v6::MVN, ov::op::v1::Softmax, ov::op::v8::Softmax>(
+                    n->shared_from_this());
+            return scale_adjustment_possible() && scale_invariant_nodes;
         };
 
         ov::op::util::visit_path_forward(
             root,
             m_visited,
             [&](ov::Node* node) {
+                // Note: if Result is reached, it means there are no scale-invariant nodes,
+                // which would allow to perform scale adjustment, keeping mathematicall equvivalence.
+                // In this case, all collected adjustments must be discarded
                 if (ov::is_type<ov::op::v0::Result>(node)) {
-                    m_result_reachable = true;
+                    m_scale_adjustment_possible = true;
                     return;
                 }
 
@@ -225,14 +238,13 @@ private:
                     return;
                 }
 
-                if (!ov::is_type<ov::op::v1::Add>(node))
-                    return;
-
-                for (size_t i = 0; i < node->get_input_size(); ++i) {
-                    auto input_node = node->get_input_node_ptr(i);
-                    if (m_visited.count(input_node))
-                        continue;
-                    propagate_backward(input_node);
+                if (ov::is_type<ov::op::v1::Add>(node)) {
+                    for (size_t i = 0; i < node->get_input_size(); ++i) {
+                        auto input_node = node->get_input_node_ptr(i);
+                        if (m_visited.count(input_node))
+                            continue;
+                        propagate_backward(input_node);
+                    }
                 }
             },
             skip_predicate);
