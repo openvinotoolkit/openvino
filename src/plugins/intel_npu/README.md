@@ -10,32 +10,54 @@ This is the OpenVINO Plugin for Intel&reg; Neural Processing Unit (NPU) devices.
 
 OpenVINO™ toolkit is officially supported and validated on the following platforms:
 
-| Host                         | NPU device  | OS (64-bit)                          |
-| :---                         | :---        | :---                                 |
-| Meteor Lake (integrated NPU)   | NPU 3720    | Ubuntu* 22, MS Windows* 11           |
-| Lunar Lake (integrated NPU)    | NPU 4000    | Ubuntu* 22, MS Windows* 11           |
+| Host                          | NPU device  | PCI Device ID  | OS (64-bit)                              |
+| :---                          | :---        | :---           | :---                                     |
+| Meteor Lake (integrated NPU)  | NPU 3720    | 0x7D1D         | Ubuntu* 22, Ubuntu* 24, MS Windows* 11   |
+| Arrow Lake (integrated NPU)   | NPU 3720    | 0xAD1D         | Ubuntu* 22, Ubuntu* 24, MS Windows* 11   |
+| Lunar Lake (integrated NPU)   | NPU 4000    | 0x643E         | Ubuntu* 22, Ubuntu* 24, MS Windows* 11   |
+| Panther Lake (integrated NPU) | NPU 5010    | 0xB03E         | Ubuntu* 22, Ubuntu* 24, MS Windows* 11   |
 <br>
 
 ## High Level Design
 
-![High Level Design](./docs/img/high_level_design.png)
+Starting with the 2026.0 release, the compiler library is available in the OpenVINO package as a preview feature (`Compiler-In-Plugin`).  
+The default compiler type remains `Compiler-In-Driver` (the compiler library included in the driver package).  
+Users can override the default compiler selection by setting `ov::intel_npu::compiler_type`. For more details, see [ov::intel_npu::compiler_type](#ovintel_npucompiler_type).
+
+```mermaid
+graph TD
+    OpenVINO --> NPU-Plugin
+
+    NPU-Plugin --> CompilerAdapter
+    NPU-Plugin --> InferRequest
+    NPU-Plugin --> CompiledModel
+
+    CompilerAdapter --> |NPU_COMPILER_TYPE=PLUGIN|Compiler-In-Plugin
+    CompilerAdapter --> |NPU_COMPILER_TYPE=DRIVER|Driver
+
+    CompiledModel --> Driver
+    InferRequest --> Driver
+
+    Driver --> Compiler-In-Driver
+    Driver --> NPU-HW
+
+```
 <br>
 
 ## Description
 
 NPU Plugin is a software library that:
 * Implements the unified OpenVINO Plugin API used to compile and execute neural networks on NPU devices.
-* Uses the graph extension API exposed by the driver to convert the OpenVINO specific representation of the model into a proprietary format. The compiler performs platform specific optimizations in order to efficiently schedule the execution of layers and memory transactions on various NPU hardware submodules.
-* Uses the Level Zero API implemented by the NPU user mode driver (UMD) to execute the model on the device.
+* Uses either the graph extension API exposed by the driver or the NPU Compiler included in the package to convert an 'ov::Model' into a proprietary neural network format. The compiler performs platform specific optimizations in order to efficiently schedule the execution of layers and memory transactions on various NPU hardware submodules.
+* Uses the Level Zero API implemented by the NPU user mode driver (UMD) to execute inferences on the device.
 
-The plugin library is included inside the OpenVINO package while the compiler is packaged inside UMD and released separately.
-
+The plugin library is included inside the OpenVINO package while the compiler library can be packaged either inside UMD (and released separately) or inside the OpenVINO package.  
 Note: Aligning with the platform and OpenVINO documentation, neural networks will be referred to with the more generic term of models in the rest of this document.
 <br>
 
 ## Model Compilation
 
-NPU plugin implements the OpenVINO Core "compile_model" API that converts the model representation into a proprietary format that can be executed on the NPU device:
+NPU plugin implements the OpenVINO `IPlugin::compile_model(...)` API that converts the model representation into a proprietary format that can be executed on the NPU device:
 
 ```
     ov::CompiledModel compiled_model = core.compile_model(model, "NPU" [, config]);
@@ -45,26 +67,21 @@ NPU plugin implements the OpenVINO Core "compile_model" API that converts the mo
 
 There are two important compilation related metrics when executing models on NPU devices:
 * First Ever Inference Latency (FEIL): Measures all steps required to compile and execute a model on the device for the first time. It includes model compilation time, the time required to load and initialize the model on the device and the first inference execution.
-* First Inference Latency (FIL): Measures the time required to load and initialize the pre-compiled model on the device and the first inference execution.
+* First Inference Latency (FIL): Measures the time required to load and initialize the pre-compiled model on the device and the first inference execution.  
+
+Two different model caching mechanisms are available for the plugin to use to improve FIL:
 
 
 #### UMD dynamic model caching
 
 UMD model caching is enabled by default in the current NPU driver to improve time to first inference (FIL). The model is stored in the cache after the compilation (included in FEIL) based on a hash key. The UMD generates the key from the input IR model and build arguments and then requests the DirectX Shader cache session to store the model with the computed key. Any subsequent request to compile the same IR model with the same arguments would cause the pre-compiled model to be read from the cache instead of being recompiled.
+Note: UMD model caching is bypassed when the model is compiled using the compiler library present in the OpenVINO package.
 
 #### OpenVINO model caching
 
 It is enabled when `ov::cache_dir` property is set and it is a common mechanism for all OpenVINO plugins. UMD model caching will be automatically bypassed by the NPU plugin when `ov::cache_dir` is set so the model will only be stored in the OpenVINO cache after the compilation. When a cache hit occurs for subsequent compilation requests, plugin will import the model instead of recompiling it.
 
 More details about OpenVINO model caching can be found here: [Model Caching Overview](https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Model_caching_overview.html).
-
-### Compiler adapters
-
-Two additional layers are required to support the compiler from driver:
-* Compiler Adapter - It serializes the OpenVINO internal representation of the model (ov::model) into an in-memory IR that will be provided to the NPU driver  
-* VCL - It deserializes the in-memory IR given by the NPU driver and prepares it for the compiler
-
-The interface between plugin and driver is based on an in-memory IR to facilitate backward and forward compatibility between two software packages (OpenVINO and NPU driver) that inherently have a different release cadence.
 <br>
 
 ## Model Execution
@@ -130,9 +147,9 @@ Properties can be used to query and adjust the behavior of the NPU plugin itself
 Starting from Openvino 2025.2 the list of supported properties is constructed dynamically in NPU plugin, based on current system configuration. Properties can be included or excluded from supported properties list based on whether there is full compiler and/or driver support for them. If the compiler from the currently installed driver does not support a property, that property will be disabled and not advertised in supported properties list.
 
 Properties will get registered and advertised based on the following logic:
-- Does the driver/compiler report supported properties? (older drivers do not)
+- Does the compiler report supported properties? (older compilers from driver do not)
     - Yes:
-        - check if property is supported by driver
+        - check if property is supported by compiler
             - if supported: **Enable** and advertise in supported_properties
             - if NOT supported: **Disable** and don't advertise in supported properties
     - No (fallback to legacy mode):
@@ -196,7 +213,7 @@ The following properties are supported (may differ based on current system confi
 | `ov::intel_npu::device_alloc_mem_size`/</br>`NPU_DEVICE_ALLOC_MEM_SIZE` | RO | Size of already allocated NPU DDR memory | `N/A` | `N/A` |
 | `ov::intel_npu::device_total_mem_size`/</br>`NPU_DEVICE_TOTAL_MEM_SIZE` | RO | Size of available NPU DDR memory | `N/A` | `N/A` |
 | `ov::intel_npu::driver_version`/</br>`NPU_DRIVER_VERSION` | RO | NPU driver version. | `N/A` | `N/A` |
-| `ov::intel_npu::compiler_type`/</br>`NPU_COMPILER_TYPE` | RW | Selects the compiler type to be used | `PLUGIN`</br>`DRIVER`</br>`PREFER_PLUGIN` | Depends on the platform. `PREFER_PLUGIN` for 4000 and 5010, `DRIVER` otherwise |
+| `ov::intel_npu::compiler_type`/</br>`NPU_COMPILER_TYPE` | RW | Selects the compiler type to be used | `PREFER_PLUGIN`</br> `PLUGIN`</br>`DRIVER`| `DRIVER` |
 | `ov::intel_npu::compiler_version`/</br>`NPU_COMPILER_VERSION` | RO | NPU compiler version. MSB 16 bits are Major version, LSB 16 bits are Minor version | `N/A` | `N/A` |
 | `ov::intel_npu::compilation_mode_params`/</br>`NPU_COMPILATION_MODE_PARAMS` | RW | Set various parameters supported by the NPU compiler. (See bellow) | `<std::string>`| `N/A` |
 | `ov::intel_npu::compiler_dynamic_quantization`/</br>`NPU_COMPILER_DYNAMIC_QUANTIZATION` | RW | Enable/Disable dynamic quantization by NPU compiler | `YES` / `NO` | `N/A` |
@@ -222,12 +239,14 @@ In practice, this means that the list of properties published by compiled_model 
 
 The following table shows the default values for the number of Tiles and DMA Engines selected by the plugin based on the performance mode (THROUGHPUT/LATENCY) and based on the platform:
 
-| Performance hint | NPU Platform        | Number of Tiles      | Number of DMA Engines           |
-| :---             | :---                | :---                 | :---                            |
-| THROUGHPUT       | 3720                | 2 (all of them)      | 2 (all of them)                 |
-| THROUGHPUT       | 4000                | 2 (out of 5/6)       | 2 (all of them)                 |
-| LATENCY          | 3720                | 2 (all of them)      | 2 (all of them)                 |
-| LATENCY          | 4000                | 4 (out of 5/6)       | 2 (all of them)                 |
+| Performance hint | NPU Platform        | Number of Tiles      |
+| :---             | :---                | :---                 |
+| THROUGHPUT       | 3720                | 2 (all of them)      |
+| THROUGHPUT       | 4000                | 2 (out of 5/6)       |
+| THROUGHPUT       | 5010                | 1 (out of 3)         |
+| LATENCY          | 3720                | 2 (all of them)      |
+| LATENCY          | 4000                | 4 (out of 5/6)       |
+| LATENCY          | 5010                | 3 (out of 3)         |
 <br>
 
 ### Performance Hint: Optimal Number of Inference Requests
@@ -238,6 +257,7 @@ The following table shows the optimal number of inference requests returned by t
 | :---                | :---                                        | :---                                    |
 | 3720                | 4                                           | 1                                       |
 | 4000                | 8                                           | 1                                       |
+| 5010                | 8                                           | 1                                       |
 <br>
 
 ### Compilation mode parameters
@@ -275,21 +295,35 @@ Supported values:
 
 ### ov::intel_npu::max_tiles and ov::intel_npu::tiles
 
-The max_tiles property is read-write to enable compiling models off-device.  
-When on NPU, max_tiles will return the number of tiles the device has.  
-Setting the number of tiles to compile for (via intel_npu::tiles), when on device,
-must be preceded by reading intel_npu::max_tiles first, to make sure that  
-``ov::intel_npu::tiles`` <= ``ov::intel_npu::max_tiles``  
-to avoid exceptions from the compiler.
+For on-device compilation, the plugin queries the driver for the available number of tiles and sets `ov::intel_npu::max_tiles`.  
+`ov::intel_npu::max_tiles` is a read-write property to allow users to set it during offline compilation.  
+Note that `ov::intel_npu::max_tiles` represents the maximum number of tiles available, but the compiler may target a lower number of tiles depending on other properties. Users can set ``ov::intel_npu::tiles`` to override the number of tiles selected by the compiler based on other properties.  
 
-   Note that ``ov::intel_npu::tiles`` overrides the default number of tiles selected by the compiler based on performance hints
-   (``ov::hint::performance_mode``).
-   Any tile number other than 1 may be a problem for cross platform compatibility,
-   if not tested explicitly versus the max_tiles value.
-<br>
+When setting ``ov::intel_npu::tiles``, users must ensure that the value does not exceed ``ov::intel_npu::max_tiles``.  
+Any tile count other than 1 may impact cross-device compatibility if it is not explicitly validated against the target devices's `ov::intel_npu::max_tiles` value.
+<br>  
 
 ### ov::intel_npu::turbo notes
 NPU_TURBO usage may cause higher compile time, memory footprint, affect workload latency and compatibility issues with older NPU drivers
+<br>
+
+### ov::intel_npu::compiler_type
+This property allows users to override the default compiler type selected by the plugin.  
+To use ``Compiler-In-Plugin`` whenever possible, users can set the property to ``PREFER_PLUGIN``. This instructs the plugin to use the integrated compiler when all the following conditions are met:  
+- The library is present
+- The compiler supports the current platform ``or`` there is no platform detected (offline compilation)  
+- Compatibility is maintained between the current compiler version and all drivers released for the platform ``or`` there is no platform detected (offline compilation)  
+Note: On Meteor Lake (3720), when the property is set to ``PREFER_PLUGIN``, the plugin will fall back to ``Compiler-in-Driver`` because  
+the compiler library integrated in the plugin may not be compatible with driver versions lower than v2565.  
+Users can set ``ov::intel_npu::compiler_type`` to ``PLUGIN`` to force ``Compiler-in-Plugin``, but the blob will fail to execute on incompatible drivers.
+
+If any condition is not met, the plugin automatically falls back to using ``Compiler-In-Driver``.  
+The compiler type used to compile a model can be queried from the resulting ``CompiledModel`` by reading the ``ov::intel_npu::compiler_type`` property.  
+Notes regarding on-device vs offline compilation:
+- For on-device compilation with ``Compiler-In-Plugin``, the plugin is responsible for querying the platform information from the driver and for passing the mandatory configs to the compiler (platform ID, available number of tiles, stepping information). Such compiled models are compatible with all the drivers released for that platform.
+- For offline compilation, users must explicitly set the ``ov::intel_npu::platform`` property to one of the supported values (see table above).  
+Setting extra properties during offline compilation may result in compiled models that cannot be executed on SKUs with fewer resources or on drivers that do not support those features.  
+Example: Setting ``performance-hint-override=latency`` through ``ov::intel_npu::compilation_mode_params`` instructs the compiler to use all available resources for the given platform. If ``ov::intel_npu::max_tiles`` is not provided, the compiler falls back to a fixed lookup table embedded in the library to determine available resources, which might not be representative of all SKUs.
 <br>
 
 ## Stateful models
