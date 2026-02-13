@@ -48,12 +48,19 @@ static void read_sparse_data(uint8_t* dest,
                              const size_t row_size,
                              const size_t element_size,
                              const size_t sparse_dim_size,
+                             const size_t num_dense_rows,
                              const ::flatbuffers::Vector<T>* indices,
                              const ::flatbuffers::Vector<U>* segments) {
     FRONT_END_GENERAL_CHECK(segments && segments->size() >= 2,
                             "Sparse segments vector must have at least 2 elements, got ",
                             (segments ? segments->size() : 0));
     FRONT_END_GENERAL_CHECK(indices, "Sparse indices vector is null");
+    FRONT_END_GENERAL_CHECK(static_cast<size_t>(segments->size()) == num_dense_rows + 1,
+                            "Sparse segments vector size ",
+                            segments->size(),
+                            " does not match expected number of dense rows + 1 (",
+                            num_dense_rows + 1,
+                            ")");
 
     U last_segment = *segments->begin();
     FRONT_END_GENERAL_CHECK(static_cast<int64_t>(last_segment) >= 0, "Sparse segment value must be non-negative");
@@ -83,8 +90,8 @@ static void read_sparse_data(uint8_t* dest,
                                     static_cast<int64_t>(index_value),
                                     " is out of bounds for dimension size ",
                                     sparse_dim_size);
-            auto row_offset = static_cast<size_t>(index_value) * element_size;
-            auto value_offset = idx * element_size;
+            auto row_offset = safe_multiply(static_cast<size_t>(index_value), element_size);
+            auto value_offset = safe_multiply(idx, element_size);
             FRONT_END_GENERAL_CHECK(
                 row_offset <= total_size - dest_row_offset && element_size <= total_size - dest_row_offset - row_offset,
                 "Sparse write at offset ",
@@ -98,6 +105,8 @@ static void read_sparse_data(uint8_t* dest,
                                     values_size);
             memcpy(dest + dest_row_offset + row_offset, values + value_offset, element_size);
         }
+        FRONT_END_GENERAL_CHECK(dest_row_offset <= std::numeric_limits<size_t>::max() - row_size,
+                                "Overflow in dense row offset accumulation");
         dest_row_offset += row_size;
     }
 }
@@ -135,6 +144,7 @@ void* ov::frontend::tensorflow_lite::SparsityInfo::densify() {
     }
     FRONT_END_GENERAL_CHECK(total_size > 0, "Wrong sparse segment size found");
     FRONT_END_GENERAL_CHECK(sparse_dim_size > 0, "Sparse dimension size must be positive");
+    const size_t num_dense_rows = total_size / row_size;
 
     m_data.resize(total_size);
     memset(m_data.data(), 0, total_size);
@@ -149,6 +159,7 @@ void* ov::frontend::tensorflow_lite::SparsityInfo::densify() {
                              row_size,
                              m_target_type.size(),
                              sparse_dim_size,
+                             num_dense_rows,
                              static_cast<const ::tflite::Uint8Vector*>(m_data_desc[sparse_idx].indices)->values(),
                              static_cast<const ::tflite::Uint8Vector*>(m_data_desc[sparse_idx].segments)->values());
             break;
@@ -160,6 +171,7 @@ void* ov::frontend::tensorflow_lite::SparsityInfo::densify() {
                              row_size,
                              m_target_type.size(),
                              sparse_dim_size,
+                             num_dense_rows,
                              static_cast<const ::tflite::Uint8Vector*>(m_data_desc[sparse_idx].indices)->values(),
                              static_cast<const ::tflite::Uint16Vector*>(m_data_desc[sparse_idx].segments)->values());
             break;
@@ -171,6 +183,7 @@ void* ov::frontend::tensorflow_lite::SparsityInfo::densify() {
                              row_size,
                              m_target_type.size(),
                              sparse_dim_size,
+                             num_dense_rows,
                              static_cast<const ::tflite::Uint8Vector*>(m_data_desc[sparse_idx].indices)->values(),
                              static_cast<const ::tflite::Int32Vector*>(m_data_desc[sparse_idx].segments)->values());
             break;
@@ -189,6 +202,7 @@ void* ov::frontend::tensorflow_lite::SparsityInfo::densify() {
                              row_size,
                              m_target_type.size(),
                              sparse_dim_size,
+                             num_dense_rows,
                              static_cast<const ::tflite::Uint16Vector*>(m_data_desc[sparse_idx].indices)->values(),
                              static_cast<const ::tflite::Uint8Vector*>(m_data_desc[sparse_idx].segments)->values());
             break;
@@ -200,6 +214,7 @@ void* ov::frontend::tensorflow_lite::SparsityInfo::densify() {
                              row_size,
                              m_target_type.size(),
                              sparse_dim_size,
+                             num_dense_rows,
                              static_cast<const ::tflite::Uint16Vector*>(m_data_desc[sparse_idx].indices)->values(),
                              static_cast<const ::tflite::Uint16Vector*>(m_data_desc[sparse_idx].segments)->values());
             break;
@@ -211,6 +226,7 @@ void* ov::frontend::tensorflow_lite::SparsityInfo::densify() {
                              row_size,
                              m_target_type.size(),
                              sparse_dim_size,
+                             num_dense_rows,
                              static_cast<const ::tflite::Uint16Vector*>(m_data_desc[sparse_idx].indices)->values(),
                              static_cast<const ::tflite::Int32Vector*>(m_data_desc[sparse_idx].segments)->values());
             break;
@@ -229,6 +245,7 @@ void* ov::frontend::tensorflow_lite::SparsityInfo::densify() {
                              row_size,
                              m_target_type.size(),
                              sparse_dim_size,
+                             num_dense_rows,
                              static_cast<const ::tflite::Int32Vector*>(m_data_desc[sparse_idx].indices)->values(),
                              static_cast<const ::tflite::Uint8Vector*>(m_data_desc[sparse_idx].segments)->values());
             break;
@@ -240,6 +257,7 @@ void* ov::frontend::tensorflow_lite::SparsityInfo::densify() {
                              row_size,
                              m_target_type.size(),
                              sparse_dim_size,
+                             num_dense_rows,
                              static_cast<const ::tflite::Int32Vector*>(m_data_desc[sparse_idx].indices)->values(),
                              static_cast<const ::tflite::Uint16Vector*>(m_data_desc[sparse_idx].segments)->values());
             break;
@@ -251,6 +269,7 @@ void* ov::frontend::tensorflow_lite::SparsityInfo::densify() {
                              row_size,
                              m_target_type.size(),
                              sparse_dim_size,
+                             num_dense_rows,
                              static_cast<const ::tflite::Int32Vector*>(m_data_desc[sparse_idx].indices)->values(),
                              static_cast<const ::tflite::Int32Vector*>(m_data_desc[sparse_idx].segments)->values());
             break;
