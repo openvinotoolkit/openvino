@@ -80,7 +80,7 @@ class TestMatcherPassTrue : public ov::pass::MatcherPass {
 public:
     TestMatcherPassTrue() : MatcherPass() {
         auto any_input = ov::pass::pattern::any_input();
-        ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher&) {
             return true;
         };
 
@@ -93,7 +93,7 @@ class TestMatcherPassFalse : public ov::pass::MatcherPass {
 public:
     TestMatcherPassFalse() : MatcherPass() {
         auto any_input = ov::pass::pattern::any_input();
-        ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher&) {
             return false;
         };
 
@@ -104,14 +104,14 @@ public:
 
 class TestModelPassTrue : public pass::ModelPass {
 public:
-    bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
+    bool run_on_model(const std::shared_ptr<ov::Model>&) override {
         return true;
     }
 };
 
 class TestModelPassFalse : public pass::ModelPass {
 public:
-    bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
+    bool run_on_model(const std::shared_ptr<ov::Model>&) override {
         return false;
     }
 };
@@ -134,12 +134,6 @@ class ValidateTestManager : public pass::Manager {
     // to count the number of executed Validate passes. Overloading and abstracting don't help.
     bool run_pass(const std::shared_ptr<ov::pass::PassBase>& pass, const std::shared_ptr<Model>& model) override {
         using namespace ov::pass;
-        if (m_pass_config->is_disabled(pass->get_type_info()))
-            return false;
-
-        if (pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && model->is_dynamic())
-            return false;
-
         if (auto matcher_pass = ov::as_type_ptr<MatcherPass>(pass)) {
             return GraphRewrite(matcher_pass).run_on_model(model);
         } else if (auto model_pass = ov::as_type_ptr<ModelPass>(pass)) {
