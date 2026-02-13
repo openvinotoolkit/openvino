@@ -73,7 +73,7 @@ std::shared_ptr<DecoderBase> GraphIteratorFlatBuffer::get_decoder() const {
     FRONT_END_GENERAL_CHECK(is_op || any_item.is<int32_t>());
     auto tensors = m_graph->tensors();
     FRONT_END_GENERAL_CHECK(tensors != nullptr, "TFLite subgraph has no tensors");
-    const auto tensors_size = static_cast<int32_t>(tensors->size());
+    const auto tensors_size = tensors->size();
 
     if (is_op) {
         auto node = m_nodes[node_index].as<const tflite::Operator*>();
@@ -83,10 +83,11 @@ std::shared_ptr<DecoderBase> GraphIteratorFlatBuffer::get_decoder() const {
 
         std::map<size_t, TensorInfo> input_info = {}, output_info = {};
         size_t i = 0;
+        FRONT_END_GENERAL_CHECK(node->inputs() != nullptr, "Operator has no inputs");
         for (auto input : *node->inputs()) {
             if (input == -1)
                 continue;
-            FRONT_END_GENERAL_CHECK(input >= 0 && input < tensors_size,
+            FRONT_END_GENERAL_CHECK(input >= 0 && static_cast<size_t>(input) < tensors_size,
                                     "Operator input tensor index ",
                                     input,
                                     " is out of range. Number of tensors: ",
@@ -102,10 +103,11 @@ std::shared_ptr<DecoderBase> GraphIteratorFlatBuffer::get_decoder() const {
             input_info[i++] = TensorInfo{tensor, buffer};
         }
         i = 0;
+        FRONT_END_GENERAL_CHECK(node->outputs() != nullptr, "Operator has no outputs");
         for (auto output : *node->outputs()) {
             if (output == -1)
                 continue;
-            FRONT_END_GENERAL_CHECK(output >= 0 && output < tensors_size,
+            FRONT_END_GENERAL_CHECK(output >= 0 && static_cast<size_t>(output) < tensors_size,
                                     "Operator output tensor index ",
                                     output,
                                     " is out of range. Number of tensors: ",
@@ -142,12 +144,13 @@ std::shared_ptr<DecoderBase> GraphIteratorFlatBuffer::get_decoder() const {
         return std::make_shared<DecoderFlatBuffer>(node, type, name, input_info, output_info);
     } else {
         auto tensor_id = m_nodes[node_index].as<int32_t>();
-        FRONT_END_GENERAL_CHECK(tensor_id >= 0 && tensor_id < tensors_size,
+        FRONT_END_GENERAL_CHECK(tensor_id >= 0 && static_cast<size_t>(tensor_id) < tensors_size,
                                 "Graph input/output tensor index ",
                                 tensor_id,
                                 " is out of range. Number of tensors: ",
                                 tensors_size);
         auto tensor = (*tensors)[tensor_id];
+        FRONT_END_GENERAL_CHECK(tensor != nullptr, "Null tensor at index ", tensor_id);
         auto info = TensorInfo{tensor, nullptr};
         auto inputs = m_graph->inputs();
         auto outputs = m_graph->outputs();

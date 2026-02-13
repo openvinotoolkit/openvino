@@ -165,35 +165,40 @@ def build_minimal_tflite(output_tensor_indices=None,
     return bytes(builder.Output())
 
 
-path_to_model_dir = os.path.join(sys.argv[1], "malformed_indices")
-os.makedirs(path_to_model_dir, exist_ok=True)
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print(f"Usage: {sys.argv[0]} <output_directory>")
+        sys.exit(1)
 
-# 1. Operator output tensor index out of bounds
-# 2 tensors defined, operator output references index 9999
-model = build_minimal_tflite(output_tensor_indices=[9999])
-with open(os.path.join(path_to_model_dir, 'oob_output_tensor_index.tflite'), 'wb') as f:
-    f.write(model)
+    path_to_model_dir = os.path.join(sys.argv[1], "malformed_indices")
+    os.makedirs(path_to_model_dir, exist_ok=True)
 
-# 2. Operator input tensor index out of bounds
-# 2 tensors defined, operator input references index 9999
-model = build_minimal_tflite(input_tensor_indices=[9999])
-with open(os.path.join(path_to_model_dir, 'oob_input_tensor_index.tflite'), 'wb') as f:
-    f.write(model)
+    # 1. Operator output tensor index out of bounds
+    # 2 tensors defined, operator output references index 9999
+    model = build_minimal_tflite(output_tensor_indices=[9999])
+    with open(os.path.join(path_to_model_dir, 'oob_output_tensor_index.tflite'), 'wb') as f:
+        f.write(model)
 
-# 3. Operator opcode index out of bounds
-# 1 opcode defined, operator references opcode index 99
-model = build_minimal_tflite(opcode_index=99)
-with open(os.path.join(path_to_model_dir, 'oob_opcode_index.tflite'), 'wb') as f:
-    f.write(model)
+    # 2. Operator input tensor index out of bounds
+    # 2 tensors defined, operator input references index 9999
+    model = build_minimal_tflite(input_tensor_indices=[9999])
+    with open(os.path.join(path_to_model_dir, 'oob_input_tensor_index.tflite'), 'wb') as f:
+        f.write(model)
 
-# 4. Graph input/output tensor index out of bounds
-# 2 tensors defined, graph inputs/outputs reference index 9999
-model = build_minimal_tflite(graph_input_ids=[9999], graph_output_ids=[9999])
-with open(os.path.join(path_to_model_dir, 'oob_graph_io_tensor_index.tflite'), 'wb') as f:
-    f.write(model)
+    # 3. Operator opcode index out of bounds
+    # 1 opcode defined, operator references opcode index 99
+    model = build_minimal_tflite(opcode_index=99)
+    with open(os.path.join(path_to_model_dir, 'oob_opcode_index.tflite'), 'wb') as f:
+        f.write(model)
 
-# 5. Tensor buffer index out of bounds
-# 3 buffers defined, tensor 1 references buffer index 9999
-model = build_minimal_tflite(tensor_buffer_indices=[1, 9999])
-with open(os.path.join(path_to_model_dir, 'oob_buffer_index.tflite'), 'wb') as f:
-    f.write(model)
+    # 4. Graph input/output tensor index out of bounds
+    # 2 tensors defined, graph inputs/outputs reference index 9999
+    model = build_minimal_tflite(graph_input_ids=[9999], graph_output_ids=[9999])
+    with open(os.path.join(path_to_model_dir, 'oob_graph_io_tensor_index.tflite'), 'wb') as f:
+        f.write(model)
+
+    # 5. Tensor buffer index out of bounds
+    # 3 buffers defined, tensor 1 references buffer index 9999
+    model = build_minimal_tflite(tensor_buffer_indices=[1, 9999])
+    with open(os.path.join(path_to_model_dir, 'oob_buffer_index.tflite'), 'wb') as f:
+        f.write(model)
