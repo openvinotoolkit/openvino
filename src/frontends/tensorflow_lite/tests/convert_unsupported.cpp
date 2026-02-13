@@ -23,8 +23,7 @@ protected:
 };
 
 TEST_P(MalformedModelConvertTest, convert_throws) {
-    auto model_filename =
-        FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) + GetParam());
+    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) + GetParam());
     InputModel::Ptr inputModel;
     OV_ASSERT_NO_THROW(inputModel = m_frontEnd->load(model_filename));
     ASSERT_NE(inputModel, nullptr);
@@ -50,8 +49,7 @@ protected:
 };
 
 TEST_P(MalformedModelLoadTest, load_throws) {
-    auto model_filename =
-        FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) + GetParam());
+    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) + GetParam());
     ASSERT_THROW(m_frontEnd->load(model_filename), std::exception);
 }
 
