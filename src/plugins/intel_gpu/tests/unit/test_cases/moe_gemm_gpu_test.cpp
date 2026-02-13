@@ -375,6 +375,7 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
         create_weight_data_and_topology(p, topo, experts_data_f16, experts_data_q4, scales_data, zp_data, is_weight_compressed);
         auto config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
         network network(engine, topo, config);
 
         auto get_input_data = [] (size_t M, size_t K, random_generator& rg) {
@@ -405,38 +406,40 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
         auto experts_ids_mem = engine.allocate_memory(experts_ids_data_layout);
         set_values(experts_ids_mem, experts_ids_data);
 
-        std::vector<int32_t> input_offset_per_expert_data(p.num_actually_used_experts);
+        std::vector<int32_t> input_offset_per_expert_data_ref(p.num_actually_used_experts);
+        std::vector<int32_t> input_offset_per_expert_data(p.num_total_experts);
         std::vector<int32_t> input_tokens_lens(p.num_actually_used_experts);
         const auto avg_len = (M / p.num_actually_used_experts);
         for (size_t e = 0; e < p.num_actually_used_experts; e++) {
             size_t len = (e == p.num_actually_used_experts -1) ? M - (avg_len * e) : avg_len;
             input_tokens_lens[e] = static_cast<int32_t>(len);
-            input_offset_per_expert_data[e] = static_cast<int32_t>(e * avg_len);
+            input_offset_per_expert_data_ref[e] = static_cast<int32_t>(e * avg_len);
+        }
+        std::vector<int32_t> tokens_per_expert(p.num_total_experts, 0);
+        for (size_t i = 0; i < p.num_actually_used_experts; i++) {
+            tokens_per_expert[experts_ids_data[i]] = input_tokens_lens[i];
+        }
+        input_offset_per_expert_data[0] = tokens_per_expert[0];
+        for (size_t e = 1; e < p.num_total_experts; e++) {
+            input_offset_per_expert_data[e] = input_offset_per_expert_data[e - 1] + tokens_per_expert[e];
         }
         auto input_tokens_lens_data_shape = ov::PartialShape{ov::Dimension(static_cast<int64_t>(p.num_actually_used_experts))};
         auto input_tokens_lens_data_layout = layout{input_tokens_lens_data_shape, data_types::i32, format::bfyx};
         auto input_tokens_lens_mem = engine.allocate_memory(input_tokens_lens_data_layout);
         set_values(input_tokens_lens_mem, input_tokens_lens);
 
-        auto input_offset_per_expert_data_shape = ov::PartialShape{ov::Dimension(static_cast<int64_t>(p.num_actually_used_experts))};
+        auto input_offset_per_expert_data_shape = ov::PartialShape{ov::Dimension(static_cast<int64_t>(p.num_total_experts))};
         auto input_offset_per_expert_data_layout = layout{input_offset_per_expert_data_shape, data_types::i32, format::bfyx};
         auto input_offset_per_expert_mem = engine.allocate_memory(input_offset_per_expert_data_layout);
         set_values(input_offset_per_expert_mem, input_offset_per_expert_data);
 
-        network.set_input_data("input", input_mem);
-        network.set_input_data("experts_ids", experts_ids_mem);
-        network.set_input_data("input_offset_per_expert", input_offset_per_expert_mem);
-        network.set_input_data("input_tokens_lens", input_tokens_lens_mem);
-        auto outputs = network.execute();
-        auto output = outputs.at("moe_gemm").get_memory();
-        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
         std::vector<ov::float16> output_ref(M * p.out_N, 0.0f);
         if (is_weight_compressed) {
             get_reference<uint8_t>(input_data,
                                    experts_data_q4,
                                    output_ref,
                                    experts_ids_data,
-                                   input_offset_per_expert_data,
+                                   input_offset_per_expert_data_ref,
                                    input_tokens_lens,
                                    static_cast<int32_t>(p.out_N),
                                    static_cast<int32_t>(p.hidden_size),
@@ -452,7 +455,7 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
                                    experts_data_f16,
                                    output_ref,
                                    experts_ids_data,
-                                   input_offset_per_expert_data,
+                                   input_offset_per_expert_data_ref,
                                    input_tokens_lens,
                                    static_cast<int32_t>(p.out_N),
                                    static_cast<int32_t>(p.hidden_size),
@@ -465,8 +468,17 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
                                    {});
         }
 
+        network.set_input_data("input", input_mem);
+        network.set_input_data("experts_ids", experts_ids_mem);
+        network.set_input_data("input_offset_per_expert", input_offset_per_expert_mem);
+        network.set_input_data("input_tokens_lens", input_tokens_lens_mem);
+        auto outputs = network.execute();
+        auto output = outputs.at("moe_gemm").get_memory();
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
+
         for (size_t i = 0; i < M * p.out_N; i++) {
             auto tolerance = std::max(std::abs(output_ref[i] * 0.01f), 0.1f);
+            // std::cout << "[" << i << "] " << output_ref[i] << " : " << output_ptr[i] << std::endl;
             ASSERT_NEAR(output_ptr[i], output_ref[i], tolerance);
         }
     }
