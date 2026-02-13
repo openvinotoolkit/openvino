@@ -15,11 +15,11 @@
 #include "gtest/gtest.h"
 #include "openvino/util/file_util.hpp"
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+
 namespace ov {
 namespace test {
 namespace utils {
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 inline void fixSlashes(std::string& str) {
     std::replace(str.begin(), str.end(), '/', '\\');
@@ -160,20 +160,10 @@ inline int removeDir(std::wstring path) {
 
 extern const std::vector<std::wstring> test_unicode_postfix_vector;
 
-#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
-template <typename StringT>
-StringT append_slash(StringT value) {
-    using CharT = typename StringT::value_type;
-    if (value.empty() || value.back() != static_cast<CharT>('/')) {
-        value.push_back(static_cast<CharT>('/'));
-    }
-    return value;
-}
-
 }  // namespace utils
 }  // namespace test
 }  // namespace ov
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 namespace ov::test {
 class UnicodePathTest : public testing::Test, public ::testing::WithParamInterface<utils::StringPathVariant> {
@@ -184,4 +174,15 @@ protected:
         return std::visit(func, GetParam());
     }
 };
+
+namespace utils {
+template <typename StringT>
+StringT append_slash(StringT value) {
+    using CharT = typename StringT::value_type;
+    if (value.empty() || value.back() != static_cast<CharT>('/')) {
+        value.push_back(static_cast<CharT>('/'));
+    }
+    return value;
+}
+}  // namespace utils
 }  // namespace ov::test

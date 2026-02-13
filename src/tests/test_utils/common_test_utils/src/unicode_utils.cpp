@@ -4,10 +4,11 @@
 
 #include "common_test_utils/unicode_utils.hpp"
 
-namespace ov::test {
-
-namespace utils {
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+
+namespace ov {
+namespace test {
+namespace utils {
 
 const std::vector<std::wstring> test_unicode_postfix_vector = {L"unicode_Яㅎあ",
                                                                L"ひらがな日本語",
@@ -18,9 +19,13 @@ const std::vector<std::wstring> test_unicode_postfix_vector = {L"unicode_Яㅎ�
                                                                L"АБВГДЕЁЖЗИЙ",
                                                                L"СТУФХЦЧШЩЬЮЯ"};
 
+}  // namespace utils
+}  // namespace test
+}  // namespace ov
+
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
-}  // namespace utils
+namespace ov::test {
 
 std::filesystem::path UnicodePathTest::get_path_param() const {
     return std::visit(
@@ -31,7 +36,7 @@ std::filesystem::path UnicodePathTest::get_path_param() const {
         GetParam());
 }
 
-INSTANTIATE_TEST_SUITE_P(string_paths, UnicodePathTest, testing::Values("test_encoder/test_encoder.encrypted/"));
+INSTANTIATE_TEST_SUITE_P(string_paths, UnicodePathTest, testing::Values("test_encoder/test_encoder.encrypted"));
 
 INSTANTIATE_TEST_SUITE_P(u16_paths, UnicodePathTest, testing::Values(u"test_encoder/dot.folder"));
 
