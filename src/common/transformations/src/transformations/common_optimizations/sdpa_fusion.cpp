@@ -521,8 +521,8 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
         sdpa->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), sdpa);
 
-        // 2d inputs will be unsqueezed to 3d in get_qkv, so we need to insert a Squeeze after SDPA to align with
-        // original output shape
+        // Align output shapes by inserting Squeeze/Unsqueeze nodes as needed when the fused SDPA output rank
+        // differs from the original output rank.
 
         sdpa = try_align_outputs(sdpa, m.get_match_root());
         if (!sdpa) {
