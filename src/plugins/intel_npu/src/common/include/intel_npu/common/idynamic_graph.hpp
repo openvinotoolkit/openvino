@@ -39,6 +39,7 @@ public:
         void setSize(const ov::Shape& shape);
         void set(const void* basePtr, int64_t offset, std::shared_ptr<ov::ITensor> tensor);
         void updateStride();
+        bool compare(const MemRefType& memref);
         friend std::ostream& operator<<(std::ostream& os, const IDynamicGraph::MemRefType& memRef);
         std::string toString();
     };

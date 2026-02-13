@@ -245,26 +245,11 @@ void ZeroDynamicInferRequest::infer_async() {
 
             dynamicGraph->predict_output_shape(inputPros, outputPros);
 
-            bool shapeChanged = false;
             for (size_t i = 0; i < outputPros.size(); i++) {
-                for (int64_t j = 0; j < outputPros[i]._dimsCount; j++) {
-                    if (originalOutputPros[i]._sizes[j] != outputPros[i]._sizes[j]) {
-                        _logger.info(
-                            "Output tensor %d shape and predicted shape mimsmatch at dim %zu, changed from %zu to %zu",
-                            i,
-                            j,
-                            originalOutputPros[i]._sizes[j],
-                            outputPros[i]._sizes[j]);
-                        shapeChanged = true;
-                        break;
-                    }
-                }
-                if (shapeChanged) {
+                if (originalOutputPros[i].compare(outputPros[i])) {
+                    _logger.debug("Output shape change detected");
                     break;
                 }
-            }
-            if (!shapeChanged) {
-                _logger.debug("No output shape changed detected");
             }
 
             // check_tensor in set_tensor already checked the input tensor and output tensor with metadata

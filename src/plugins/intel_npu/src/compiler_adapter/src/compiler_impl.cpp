@@ -333,15 +333,18 @@ VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerIm
 
     vcl_compiler_desc_t compilerDesc;
     compilerDesc.version = _vclVersion;
-    compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(Logger::global().level()) - 1);
+    compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(Logger::global().level()) + 1);
+    std::cout << "xin log level" << compilerDesc.debugLevel << std::endl;
 
     // This information cannot be determined during the initialization phase; set device desc default value, the related
     // info will be processed in compile phase if passed by user.
     _logger.info("Device description is not provided, using default values");
-    vcl_device_desc_t device_desc = {sizeof(vcl_device_desc_t),
-                                     0x00,
-                                     static_cast<uint16_t>(-1),
-                                     static_cast<uint32_t>(-1)};
+    uint32_t defaultTileCount = static_cast<uint32_t>(-1);
+    if (_vclVersion.major <= 7 && _vclVersion.minor < 6) {
+        // For vcl <= 7.5, need to use smaller value to pass check
+        defaultTileCount = static_cast<uint16_t>(-1);
+    }
+    vcl_device_desc_t device_desc = {sizeof(vcl_device_desc_t), 0x00, static_cast<uint16_t>(-1), defaultTileCount};
     THROW_ON_FAIL_FOR_VCL("vclCompilerCreate",
                           vclCompilerCreate(&compilerDesc, &device_desc, &_compilerHandle, &_logHandle),
                           nullptr);

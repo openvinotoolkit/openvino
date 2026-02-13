@@ -24,15 +24,6 @@ void IDynamicGraph::MemRefType::setSize(const ov::Shape& shape) {
     }
 }
 
-void IDynamicGraph::MemRefType::updateStride() {
-    // Note: NCHW layout style
-    uint64_t stride = 1;
-    for (int64_t i = _dimsCount - 1; i >= 0; --i) {
-        _strides[i] = stride;
-        stride *= _sizes[i];
-    }
-}
-
 void IDynamicGraph::MemRefType::set(const void* arg, int64_t offset, std::shared_ptr<ov::ITensor> tensor) {
     _basePtr = _data = arg;
     _offset = offset;
@@ -46,6 +37,31 @@ void IDynamicGraph::MemRefType::set(const void* arg, int64_t offset, std::shared
         _strides[j] = strides[j] / elementSize;
     }
     _dimsCount = shape.size();
+}
+
+void IDynamicGraph::MemRefType::updateStride() {
+    // Note: NCHW layout style
+    uint64_t stride = 1;
+    for (int64_t i = _dimsCount - 1; i >= 0; --i) {
+        _strides[i] = stride;
+        stride *= _sizes[i];
+    }
+}
+
+// The comparision only checks shape and strides now
+bool IDynamicGraph::MemRefType::compare(const IDynamicGraph::MemRefType& memref) {
+    if (memref._dimsCount != _dimsCount || _sizes.size() != memref._sizes.size() ||
+        _strides.size() != memref._strides.size())
+        return false;
+    size_t dimsCount = static_cast<size_t>(_dimsCount);
+    if (memref._sizes.size() != dimsCount || memref._strides.size() != dimsCount)
+        return false;
+    for (size_t i = 0; i < dimsCount; i++) {
+        if (_sizes[i] != memref._sizes[i] || _strides[i] != memref._strides[i]) {
+            return false;
+        }
+    }
+    return true;
 }
 
 std::ostream& operator<<(std::ostream& os, const IDynamicGraph::MemRefType& memRef) {
