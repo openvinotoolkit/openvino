@@ -41,7 +41,6 @@ OP_CONVERTER(translate_amin);
 OP_CONVERTER(translate_and);
 OP_CONVERTER(translate_arange);
 OP_CONVERTER(translate_append);
-OP_CONVERTER(translate_argmax);
 OP_CONVERTER(translate_argsort);
 OP_CONVERTER(translate_argmax);
 OP_CONVERTER(translate_argmin);
