@@ -496,8 +496,8 @@ struct LLMConfig {
     /// When pre-building rope, also set this so build_llm tracks the Parameter.
     ov::Output<ov::Node> position_ids;
 
-    WeightFn weight;
-    WeightFn lm_head_weight;
+    WeightFn weight = FP32Weight{};
+    WeightFn lm_head_weight = FP32Weight{};
     NormFn qk_norm;  ///< Optional QK-norm forwarded to Attention
 
     size_t get_kv_heads() const {
@@ -545,7 +545,7 @@ struct BERTConfig {
     size_t max_position_embeddings = 512;
     size_t type_vocab_size = 2;
     ov::element::Type precision = ov::element::f32;
-    WeightFn weight;
+    WeightFn weight = FP32Weight{};
     NormFn norm;
     FFNFn ffn;
 };

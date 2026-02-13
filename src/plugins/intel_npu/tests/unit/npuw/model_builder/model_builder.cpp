@@ -1366,12 +1366,8 @@ void ModelBuilder::clear() {
 std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     clear();
 
-    // Fill default functors from scalar config values
+    // Fill dimension-dependent defaults that can't be set in struct definition
     LLMConfig config = config_in;
-    if (!config.weight)
-        config.weight = FP32Weight{};
-    if (!config.lm_head_weight)
-        config.lm_head_weight = FP32Weight{};
     if (!config.norm)
         config.norm = LayerNorm(config.hidden_size, config.precision);
     if (!config.ffn)
@@ -1910,8 +1906,6 @@ std::shared_ptr<ov::Model> ModelBuilder::build_bert_encoder(const BERTConfig& co
     clear();
 
     BERTConfig config = config_in;
-    if (!config.weight)
-        config.weight = FP32Weight{};
     if (!config.norm)
         config.norm = LayerNorm(config.hidden_size, config.precision);
     FloatWeight bias_wf(config.precision);  // biases are never compressed — always float
