@@ -2195,9 +2195,12 @@ bool computeL2Norm(const ov::Tensor& output, const ov::Tensor& reference) {
         return false;
     }
 
-    const auto size = output.get_size();
-    const auto* outputData = output.data<const float>();
-    const auto* referenceData = reference.data<const float>();
+    const ov::Tensor outputFP32 = npu::utils::toFP32(output);
+    const ov::Tensor referenceFP32 = npu::utils::toFP32(reference);
+
+    const auto size = outputFP32.get_size();
+    const auto* outputData = outputFP32.data<const float>();
+    const auto* referenceData = referenceFP32.data<const float>();
 
     double sumSquares = 0.0;
     for (size_t i = 0; i < size; ++i) {
@@ -2929,7 +2932,17 @@ static int runSingleImageTest() {
                 std::vector<std::string> inputBinPrecisionsStrThisInfer = splitStringList(precisions, ',');
                 std::size_t precisionIdx = 0;
                 for (const auto& precision : inputBinPrecisionsStrThisInfer) {
-                    inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::Type(precision);
+                    std::string precision_str = precision;
+                    std::transform(precision_str.begin(), precision_str.end(), precision_str.begin(), ::toupper);
+
+                    for (const auto& [alias, real] : precisionNameAliases) {
+                        if (precision_str == alias) {
+                            precision_str = real;
+                            break;
+                        }
+                    }
+
+                    inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::Type(precision_str);
                     ++precisionIdx;
                 }
                 ++inferIdx;
