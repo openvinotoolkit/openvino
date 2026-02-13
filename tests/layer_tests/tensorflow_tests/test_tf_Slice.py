@@ -11,7 +11,7 @@ class TestSlice(CommonTFLayerTest):
     def create_slice_net(self, input_shape, input_type, begin_value, size_value):
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
-            input_x = tf.compat.v1.placeholder(input_type, input_shape, 'input_x')
+            input_x = tf.compat.v1.placeholder(input_type, input_shape, "input_x")
             begin = tf.constant(begin_value, tf.int32)
             size = tf.constant(size_value, tf.int32)
             tf.raw_ops.Slice(input=input_x, begin=begin, size=size)
@@ -38,20 +38,20 @@ class TestSlice(CommonTFLayerTest):
 class TestComplexSlice(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         rng = np.random.default_rng()
-        assert 'param_real:0' in inputs_info
-        assert 'param_imag:0' in inputs_info
-        param_real_shape = inputs_info['param_real:0']
-        param_imag_shape = inputs_info['param_imag:0']
+        assert "param_real:0" in inputs_info
+        assert "param_imag:0" in inputs_info
+        param_real_shape = inputs_info["param_real:0"]
+        param_imag_shape = inputs_info["param_imag:0"]
         inputs_data = {}
-        inputs_data['param_real:0'] = 4 * rng.random(param_real_shape).astype(np.float32) - 2
-        inputs_data['param_imag:0'] = 4 * rng.random(param_imag_shape).astype(np.float32) - 2
+        inputs_data["param_real:0"] = 4 * rng.random(param_real_shape).astype(np.float32) - 2
+        inputs_data["param_imag:0"] = 4 * rng.random(param_imag_shape).astype(np.float32) - 2
         return inputs_data
 
     def create_complex_slice_net(self, input_shape, begin, size, index_type):
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
-            param_real = tf.compat.v1.placeholder(np.float32, input_shape, 'param_real')
-            param_imag = tf.compat.v1.placeholder(np.float32, input_shape, 'param_imag')
+            param_real = tf.compat.v1.placeholder(np.float32, input_shape, "param_real")
+            param_imag = tf.compat.v1.placeholder(np.float32, input_shape, "param_imag")
             complex = tf.raw_ops.Complex(real=param_real, imag=param_imag)
             begin = tf.constant(begin, dtype=index_type)
             size = tf.constant(size, dtype=index_type)
@@ -68,7 +68,7 @@ class TestComplexSlice(CommonTFLayerTest):
     test_data = [
         # (input_shape, begin, size)
         # Case of basic
-        dict(input_shape=[], begin=[],size=[]),
+        dict(input_shape=[], begin=[], size=[]),
 
         # Case of edge
     ]
