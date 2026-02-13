@@ -48,28 +48,41 @@ TEST_P(QDQStrippingTest, smoke_LPT_SharedDQ) {
 TEST_P(QDQStrippingTest, NeedScalingMulMatMul) {
     const auto& [need_weights_adjustment, quantization_precision] = GetParam();
     const auto input_shape = ov::PartialShape{1, 3, 8, 8};
-    model = QDQStrippingFunction::build_need_scaling_mul_matmul_pattern(input_shape, quantization_precision);
-    model_ref = QDQStrippingFunction::build_need_scaling_mul_matmul_pattern_ref(input_shape,
-                                                                                quantization_precision,
-                                                                                need_weights_adjustment);
+    model = QDQStrippingFunction::build_mul_matmul_pattern(input_shape, quantization_precision);
+    model_ref = QDQStrippingFunction::build_mul_matmul_pattern_ref(input_shape,
+                                                                   quantization_precision,
+                                                                   need_weights_adjustment);
 }
 
 TEST_P(QDQStrippingTest, NeedScalingMatMulWithBias) {
     const auto& [need_weights_adjustment, quantization_precision] = GetParam();
     const auto input_shape = ov::PartialShape{1, 128};
-    model = QDQStrippingFunction::build_need_scaling_matmul_with_bias_pattern(input_shape, quantization_precision);
-    model_ref = QDQStrippingFunction::build_need_scaling_matmul_with_bias_pattern_ref(input_shape,
-                                                                                      quantization_precision,
-                                                                                      need_weights_adjustment);
+    model = QDQStrippingFunction::build_matmul_with_bias_pattern(input_shape, quantization_precision);
+    model_ref = QDQStrippingFunction::build_matmul_with_bias_pattern_ref(input_shape,
+                                                                         quantization_precision,
+                                                                         need_weights_adjustment);
 }
 
 TEST_P(QDQStrippingTest, NeedScalingResidualBlock) {
     const auto& [need_weights_adjustment, quantization_precision] = GetParam();
     const auto input_shape = ov::PartialShape{1, 3, 8, 8};
-    model = QDQStrippingFunction::build_need_scaling_residual_block_pattern(input_shape, quantization_precision);
-    model_ref = QDQStrippingFunction::build_need_scaling_residual_block_pattern_ref(input_shape,
-                                                                                    quantization_precision,
-                                                                                    need_weights_adjustment);
+    model = QDQStrippingFunction::build_residual_block_pattern(input_shape, quantization_precision);
+    model_ref = QDQStrippingFunction::build_residual_block_pattern_ref(input_shape,
+                                                                       quantization_precision,
+                                                                       need_weights_adjustment);
+}
+
+// When skip_final_mvn=true, the model output goes directly to Result without a scale-invariant
+// consumer. Forward propagation detects Result and skips weight adjustment, so the reference
+// uses unscaled weights regardless of need_weights_adjustment.
+TEST_P(QDQStrippingTest, NeedScalingResidualBlockNoFinalMVN) {
+    const auto& [need_weights_adjustment, quantization_precision] = GetParam();
+    const auto input_shape = ov::PartialShape{1, 3, 8, 8};
+    model = QDQStrippingFunction::build_residual_block_pattern(input_shape, quantization_precision, /*skip_final_mvn=*/true);
+    model_ref = QDQStrippingFunction::build_residual_block_pattern_ref(input_shape,
+                                                                       quantization_precision,
+                                                                       need_weights_adjustment,
+                                                                       /*skip_final_mvn=*/true);
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,

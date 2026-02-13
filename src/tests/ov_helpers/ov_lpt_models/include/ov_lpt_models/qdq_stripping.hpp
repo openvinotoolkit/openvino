@@ -73,7 +73,7 @@ public:
     // Two params each multiplied by a shared DQ constant, then MatMul, then FQ→DQ→Softmax.
     // When need_weights_adjustment=true: FQ y_scale=2, weights divided by y_scale*ratio.
     // When need_weights_adjustment=false: FQ stripped, weights unchanged.
-    static std::shared_ptr<ov::Model> build_need_scaling_mul_matmul_pattern_ref(const ov::PartialShape& input_shape,
+    static std::shared_ptr<ov::Model> build_mul_matmul_pattern_ref(const ov::PartialShape& input_shape,
                                                                                 const ov::element::Type& quantization_precision,
                                                                                 bool need_weights_adjustment = true);
 
@@ -81,7 +81,7 @@ public:
     // MatMul with DQ weights + DQ bias + Add, then FQ→DQ→MVN.
     // When need_weights_adjustment=true: FQ y_scale=4, weights/bias divided by y_scale*ratio.
     // When need_weights_adjustment=false: FQ stripped, weights/bias unchanged.
-    static std::shared_ptr<ov::Model> build_need_scaling_matmul_with_bias_pattern_ref(const ov::PartialShape& input_shape,
+    static std::shared_ptr<ov::Model> build_matmul_with_bias_pattern_ref(const ov::PartialShape& input_shape,
                                                                                       const ov::element::Type& quantization_precision,
                                                                                       bool need_weights_adjustment = true);
 
@@ -89,9 +89,12 @@ public:
     // Conv→bias→FQ→DQ→FQ(fwd)→residual_blocks(MVN→Conv→bias→FQ(branch)→Add)→MVN
     // When need_weights_adjustment=true: first FQ y_scale=10, scale propagation adjusts weights/FQs.
     // When need_weights_adjustment=false: all FQs stripped, weights unchanged.
-    static std::shared_ptr<ov::Model> build_need_scaling_residual_block_pattern_ref(const ov::PartialShape& input_shape,
+    // When skip_final_mvn=true: final MVN is omitted (output goes to Result directly),
+    // which causes forward propagation to hit Result and skip scale adjustment.
+    static std::shared_ptr<ov::Model> build_residual_block_pattern_ref(const ov::PartialShape& input_shape,
                                                                                     const ov::element::Type& quantization_precision,
-                                                                                    bool need_weights_adjustment = true);
+                                                                                    bool need_weights_adjustment = true,
+                                                                                    bool skip_final_mvn = false);
 
     // === GPU accuracy test model builders ===
     // These build full models with per-precision QuantizationParams (i16/u16) for
@@ -100,14 +103,15 @@ public:
     static std::shared_ptr<ov::Model> build_shared_dq_pattern(const ov::PartialShape& input_shape,
                                                                const ov::element::Type& quantization_precision);
 
-    static std::shared_ptr<ov::Model> build_need_scaling_mul_matmul_pattern(const ov::PartialShape& input_shape,
+    static std::shared_ptr<ov::Model> build_mul_matmul_pattern(const ov::PartialShape& input_shape,
                                                                             const ov::element::Type& quantization_precision);
 
-    static std::shared_ptr<ov::Model> build_need_scaling_matmul_with_bias_pattern(const ov::PartialShape& input_shape,
+    static std::shared_ptr<ov::Model> build_matmul_with_bias_pattern(const ov::PartialShape& input_shape,
                                                                                    const ov::element::Type& quantization_precision);
 
-    static std::shared_ptr<ov::Model> build_need_scaling_residual_block_pattern(const ov::PartialShape& input_shape,
-                                                                                const ov::element::Type& quantization_precision);
+    static std::shared_ptr<ov::Model> build_residual_block_pattern(const ov::PartialShape& input_shape,
+                                                                                const ov::element::Type& quantization_precision,
+                                                                                bool skip_final_mvn = false);
 };
 
 }  // namespace subgraph
