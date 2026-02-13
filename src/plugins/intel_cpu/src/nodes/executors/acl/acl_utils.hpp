@@ -10,6 +10,22 @@
 namespace ov::intel_cpu {
 
 /**
+ * @brief Convert ACL DataType to quantized variant for U8/S8 tensors.
+ * @param dataType original ACL data type
+ * @return quantized data type for U8/S8, unchanged otherwise
+ */
+inline arm_compute::DataType convertToQuantizedType(arm_compute::DataType dataType) {
+    switch (dataType) {
+    case arm_compute::DataType::S8:
+        return arm_compute::DataType::QASYMM8_SIGNED;
+    case arm_compute::DataType::U8:
+        return arm_compute::DataType::QASYMM8;
+    default:
+        return dataType;
+    }
+}
+
+/**
  * @brief ACL supports arm_compute::MAX_DIMS maximum. The method squashes the last
  * dimensions in order to comply with this limitation
  * @param dims vector of dimensions to squash

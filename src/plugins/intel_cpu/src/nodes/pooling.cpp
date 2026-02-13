@@ -337,11 +337,14 @@ void Pooling::getSupportedDescriptors() {
     arm_compute::DataLayout dataLayout =
         (inShape.getDims().size() == 5) ? arm_compute::DataLayout::NDHWC : arm_compute::DataLayout::NCHW;
     arm_compute::TensorInfo srcTensorInfo =
-        arm_compute::TensorInfo(shapeCast(inShape.getDims()), 1, precisionToAclDataType(inputPrecision), dataLayout);
+        arm_compute::TensorInfo(shapeCast(inShape.getDims()),
+                                1,
+                                convertToQuantizedType(precisionToAclDataType(inputPrecision)),
+                                dataLayout);
     arm_compute::TensorInfo dstTensorInfo = arm_compute::TensorInfo(
         shapeCast(isDynamicNode() ? MemoryDescUtils::makeDummyShape(childShape).getDims() : childShape.getDims()),
         1,
-        precisionToAclDataType(outputPrecision),
+        convertToQuantizedType(precisionToAclDataType(outputPrecision)),
         dataLayout);
     arm_compute::Pooling3dLayerInfo pool3d_info;
     arm_compute::PoolingLayerInfo pool_info;

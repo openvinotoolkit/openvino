@@ -9,6 +9,14 @@
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/max_pool.hpp"
 
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+#    include "openvino/op/convert.hpp"
+#    include "openvino/op/fake_quantize.hpp"
+#    include "openvino/op/matmul.hpp"
+#    include "openvino/op/multiply.hpp"
+#    include "openvino/op/transpose.hpp"
+#endif
+
 using namespace CPUTestUtils;
 
 namespace ov {
@@ -89,6 +97,26 @@ void PoolingLayerCPUTest::SetUp() {
     } else {
         pooling = std::make_shared<ov::op::v1::AvgPool>(poolInput, stride, padBegin, padEnd, kernel, excludePad, roundingType, padType);
     }
+    pooling->get_rt_info() = getCPUInfo();
+
+// On ARM architectures, attach a dummy MatMul after pooling to keep pooling output in low precision,
+// since there is no native support for fp output
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+    if (isInt8) {
+        const auto channels = targetStaticShapes.front().front().at(1);
+        const auto transpose_order = ov::op::v0::Constant::create(ov::element::i32, {4}, {0, 2, 3, 1});
+        auto pooling_nhwc = std::make_shared<ov::op::v1::Transpose>(pooling, transpose_order);
+        auto matmul_const = ov::test::utils::make_constant(ov::element::i8, {channels, 32});
+        auto convert_mm = std::make_shared<ov::op::v0::Convert>(matmul_const, inPrc);
+        auto multiply_mm = std::make_shared<ov::op::v1::Multiply>(
+            convert_mm,
+            ov::op::v0::Constant::create(inPrc, {}, {0.1f}));
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(pooling_nhwc, multiply_mm, false, false);
+        auto fq_after = ov::test::utils::make_fake_quantize(matmul, inPrc, 256, {});
+        function = create_ov_model(inPrc, params, fq_after, "PoolingCPU");
+        return;
+    }
+#endif
 
     function = create_ov_model(inPrc, params, pooling, "PoolingCPU");
 }
@@ -664,6 +692,39 @@ const std::vector<InputShape>& inputShapes4D_Large() {
             },
     };
     return inputShapes4D_Large;
+}
+
+const std::vector<InputShape>& inputShapes4D_int8() {
+    static const std::vector<InputShape> inputShapes4D_int8 = {
+        { {}, {{3, 4, 64, 64}} },
+        { {}, {{2, 8, 8, 12}} },
+        { {}, {{1, 16, 16, 12}} },
+        { {}, {{1, 21, 8, 4}} },
+        { {}, {{1, 32, 8, 8}} },
+        {
+            // dynamic
+            {-1, 32, -1, -1},
+            // target
+            {
+                {1, 32, 8, 8},
+                {1, 32, 8, 4},
+                {2, 32, 8, 12},
+                {1, 32, 8, 8}
+            }
+        },
+        {
+            // dynamic
+            {{1, 5}, 16, {1, 64}, {1, 64}},
+            // target
+            {
+                {3, 16, 32, 32},
+                {1, 16, 16, 12},
+                {1, 16, 8, 8},
+                {3, 16, 32, 32},
+            }
+        }
+    };
+    return inputShapes4D_int8;
 }
 
 const CPUSpecificParams& expectedCpuConfigAnyLayout() {
