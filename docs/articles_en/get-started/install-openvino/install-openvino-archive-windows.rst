@@ -95,7 +95,7 @@ Step 1: Download and Install OpenVINO Core Components
 
    .. note::
 
-      If you have already installed a previous release of OpenVINO 2025, a symbolic link to the
+      If you have already installed a previous release of OpenVINO 2026, a symbolic link to the
       ``openvino_2025`` folder may already exist. If you want to override it, navigate to the
       ``C:\Program Files (x86)\Intel`` folder and delete the existing linked folder before
       running the ``mklink`` command.

@@ -169,7 +169,7 @@ Step 1: Download and Install the OpenVINO Core Components
       sudo ln -s openvino_2025.3.0 openvino_2025
 
    .. note::
-      If you have already installed a previous release of OpenVINO 2025, a symbolic link to the ``openvino_2025`` folder may already exist.
+      If you have already installed a previous release of OpenVINO 2026, a symbolic link to the ``openvino_2025`` folder may already exist.
       Unlink the previous link with ``sudo unlink openvino_2025``, and then re-run the command above.
 
 

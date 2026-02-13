@@ -1,5 +1,5 @@
 ============================
-OpenVINO 2025.3
+OpenVINO 2026.0
 ============================
 
 .. container::
@@ -15,7 +15,7 @@ OpenVINO 2025.3
                <li id="ov-homepage-slide2" class="splide__slide">
                   <p class="ov-homepage-slide-title">OpenVINO GenAI</p>
                   <p class="ov-homepage-slide-subtitle">Simplify GenAI model deployment!</p>
-                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2025/openvino-workflow-generative/inference-with-genai.html">Check out our guide</a>
+                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2026/openvino-workflow-generative/inference-with-genai.html">Check out our guide</a>
                   </li>
                   <li id="ov-homepage-slide1" class="splide__slide">
                   <p class="ov-homepage-slide-title">OpenVINO models on Hugging Face!</p>
@@ -30,7 +30,7 @@ OpenVINO 2025.3
                   <li id="ov-homepage-slide4" class="splide__slide">
                   <p class="ov-homepage-slide-title">OpenVINO via PyTorch 2.0 torch.compile()</p>
                   <p class="ov-homepage-slide-subtitle">Use OpenVINO directly in PyTorch-native applications!</p>
-                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2025/openvino-workflow/torch-compile.html">Learn more</a>
+                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2026/openvino-workflow/torch-compile.html">Learn more</a>
                   </li>
             </ul>
            </div>
@@ -64,9 +64,9 @@ There are three main tools in OpenVINO to meet all your deployment needs:
 
 |
 | For a quick ramp-up, check out the
-  `OpenVINO Toolkit Cheat Sheet [PDF] <https://docs.openvino.ai/2025/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
+  `OpenVINO Toolkit Cheat Sheet [PDF] <https://docs.openvino.ai/2026/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
   and the
-  `OpenVINO GenAI Quick-start Guide [PDF] <https://docs.openvino.ai/2025/_static/download/GenAI_Quick_Start_Guide.pdf>`__
+  `OpenVINO GenAI Quick-start Guide [PDF] <https://docs.openvino.ai/2026/_static/download/GenAI_Quick_Start_Guide.pdf>`__
 |
 
 .. image:: ./assets/images/openvino-overview-diagram.jpg

@@ -1210,7 +1210,7 @@ The use case described here regards the following OpenVINO GenAI API classes:
 * streamer_base - an abstract base class for creating streamers.
 * tokenizer - the tokenizer class for text encoding and decoding.
 
-Learn more from the `GenAI API reference <https://docs.openvino.ai/2025/api/genai_api/api.html>`__.
+Learn more from the `GenAI API reference <https://docs.openvino.ai/2026/api/genai_api/api.html>`__.
 
 Additional Resources
 ####################

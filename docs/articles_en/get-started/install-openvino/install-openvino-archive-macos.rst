@@ -96,7 +96,7 @@ Step 1: Install OpenVINO Core Components
 
    .. note::
 
-      If you have already installed a previous release of OpenVINO 2025, a symbolic link to the ``openvino_2025`` folder may already exist. Unlink the previous link with ``sudo unlink openvino_2025``, and then re-run the command above.
+      If you have already installed a previous release of OpenVINO 2026, a symbolic link to the ``openvino_2025`` folder may already exist. Unlink the previous link with ``sudo unlink openvino_2025``, and then re-run the command above.
 
 
 Congratulations, you have finished the installation! For some use cases you may still

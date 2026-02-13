@@ -258,7 +258,7 @@ Additional Resources
 - :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
 - :doc:`Convert a Model <../../../openvino-workflow/model-preparation/convert-model-to-ir>`
-- `OpenVINO Runtime C API <https://docs.openvino.ai/2025/api/c_cpp_api/group__ov__c__api.html>`__
+- `OpenVINO Runtime C API <https://docs.openvino.ai/2026/api/c_cpp_api/group__ov__c__api.html>`__
 - `Hello Classification Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/hello_classification/README.md>`__
 - `Hello Classification C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/hello_classification/README.md>`__
 - `Hello Classification C Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/c/hello_classification/README.md>`__
