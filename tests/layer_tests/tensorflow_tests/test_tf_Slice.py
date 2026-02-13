@@ -52,13 +52,13 @@ class TestComplexSlice(CommonTFLayerTest):
         with tf.compat.v1.Session() as sess:
             param_real = tf.compat.v1.placeholder(np.float32, input_shape, "param_real")
             param_imag = tf.compat.v1.placeholder(np.float32, input_shape, "param_imag")
-            complex = tf.raw_ops.Complex(real=param_real, imag=param_imag)
+            complex_tensor = tf.raw_ops.Complex(real=param_real, imag=param_imag)
             begin = tf.constant(begin, dtype=index_type)
             size = tf.constant(size, dtype=index_type)
 
-            slice_value = tf.raw_ops.Slice(input=complex, begin=begin, size=size)
-            real = tf.raw_ops.Real(input=slice_value)
-            imag = tf.raw_ops.Imag(input=slice_value)
+            slice_tensor = tf.raw_ops.Slice(input=complex_tensor, begin=begin, size=size)
+            real = tf.raw_ops.Real(input=slice_tensor)
+            imag = tf.raw_ops.Imag(input=slice_tensor)
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
