@@ -348,15 +348,8 @@ struct Attention {
     // RoPE (empty = no RoPE).  Position IDs are baked into the functor at construction.
     RoPEFn rope_fn;
 
-    // Cross-attention: K/V projected from this instead of input (empty = self-attention)
-    ov::Output<ov::Node> kv_source;
-
-    // KV cache
+    // KV cache config (architecture-level, not per-call)
     enum class CacheMode { None, ConcatBeam, StoreOnly };
-    CacheMode cache_mode = CacheMode::None;
-    ov::Output<ov::Node> batch_source;  // for KV cache init shape
-    ov::Output<ov::Node> beam_idx;      // for beam search reordering
-    size_t layer_idx = 0;
     std::string cache_infix = ".";  // "." for LLM, ".decoder." / ".encoder." for whisper
 
     // Whisper layer-0: reuse pre-built key cache Variable to avoid duplicate variable_ids
@@ -376,7 +369,13 @@ struct Attention {
     std::string v_proj_name = "self_attn.v_proj";
     std::string o_proj_name = "self_attn.o_proj";
 
-    LayerResult operator()(const ov::Output<ov::Node>& input, const std::string& prefix) const;
+    LayerResult operator()(const ov::Output<ov::Node>& input,
+                           const std::string& prefix,
+                           size_t layer_idx = 0,
+                           CacheMode cache_mode = CacheMode::None,
+                           const ov::Output<ov::Node>& kv_source = {},
+                           const ov::Output<ov::Node>& batch_source = {},
+                           const ov::Output<ov::Node>& beam_idx = {}) const;
 };
 
 // ============================================================================
@@ -418,16 +417,17 @@ LayerResult make_whisper_decoder_layer(const ov::Output<ov::Node>& input,
 }
 
 /// Compose norm + attention + FFN + residual connections into a decoder layer.
-/// Works with concrete types (zero-overhead) or std::function types.
-template <typename Norm, typename Attention, typename FFN>
+/// Extra args are forwarded to the attention functor.
+template <typename Norm, typename Attn, typename FFN, typename... Args>
 LayerResult make_decoder_layer(const ov::Output<ov::Node>& input,
                                const Norm& norm,
-                               const Attention& attention,
+                               const Attn& attention,
                                const FFN& ffn,
-                               const std::string& prefix) {
+                               const std::string& prefix,
+                               Args&&... args) {
     // Pre-attention norm + attention + residual
     auto normed1 = norm(input, prefix + "input_layernorm");
-    auto attn_result = attention(normed1, prefix);
+    auto attn_result = attention(normed1, prefix, std::forward<Args>(args)...);
     auto residual1 = std::make_shared<ov::opset11::Add>(input, attn_result.output);
     residual1->set_friendly_name(prefix + "attn_residual");
 
@@ -442,14 +442,15 @@ LayerResult make_decoder_layer(const ov::Output<ov::Node>& input,
 
 /// BERT-style post-norm layer: attn -> Add(residual) -> Norm -> FFN -> Add(residual) -> Norm.
 /// Norm is applied AFTER the residual connection (post-norm), unlike make_decoder_layer (pre-norm).
-template <typename Norm, typename Attention, typename FFN>
+template <typename Norm, typename Attn, typename FFN, typename... Args>
 LayerResult make_post_norm_layer(const ov::Output<ov::Node>& input,
                                  const Norm& norm,
-                                 const Attention& attention,
+                                 const Attn& attention,
                                  const FFN& ffn,
-                                 const std::string& prefix) {
+                                 const std::string& prefix,
+                                 Args&&... args) {
     // Attention + residual + norm
-    auto attn_result = attention(input, prefix);
+    auto attn_result = attention(input, prefix, std::forward<Args>(args)...);
     auto residual1 = std::make_shared<ov::opset11::Add>(input, attn_result.output);
     residual1->set_friendly_name(prefix + "attn_residual");
     auto normed1 = norm(residual1->output(0), prefix + "attention.output.LayerNorm");

@@ -771,7 +771,13 @@ static std::string make_kv_var_id(const std::string& layer,
 // Attention Functor Implementation
 // ============================================================================
 
-LayerResult Attention::operator()(const ov::Output<ov::Node>& input, const std::string& prefix) const {
+LayerResult Attention::operator()(const ov::Output<ov::Node>& input,
+                                  const std::string& prefix,
+                                  size_t layer_idx,
+                                  CacheMode cache_mode,
+                                  const ov::Output<ov::Node>& kv_source,
+                                  const ov::Output<ov::Node>& batch_source,
+                                  const ov::Output<ov::Node>& beam_idx) const {
     // K/V source: self-attention uses input, cross-attention uses kv_source
     auto kv_input = kv_source.get_node() ? kv_source : input;
 
@@ -1493,19 +1499,19 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     ov::Output<ov::Node> current = hidden_states;
     ov::SinkVector all_sinks;
 
+    Attention attn{config.hidden_size, config.num_heads, config.get_kv_heads(),
+                   config.head_dim, config.precision, config.weight};
+    attn.qk_norm = config.qk_norm;
+    attn.rope_fn = config.rope;
+    attn.sdpa_mask = sdpa_mask;
+    attn.shared_broadcast_shape = shared_broadcast;
+    auto cache_mode = config.use_kv_cache ? Attention::CacheMode::ConcatBeam : Attention::CacheMode::None;
+
     for (size_t layer = 0; layer < config.num_layers; ++layer) {
         std::string prefix = "model.layers." + std::to_string(layer) + ".";
-        Attention attn{config.hidden_size, config.num_heads, config.get_kv_heads(),
-                       config.head_dim, config.precision, config.weight};
-        attn.qk_norm = config.qk_norm;
-        attn.rope_fn = config.rope;
-        attn.cache_mode = config.use_kv_cache ? Attention::CacheMode::ConcatBeam : Attention::CacheMode::None;
-        attn.batch_source = seq_source;
-        attn.beam_idx = beam_idx_output;
-        attn.layer_idx = layer;
-        attn.sdpa_mask = sdpa_mask;
-        attn.shared_broadcast_shape = shared_broadcast;
-        auto layer_result = make_decoder_layer(current, config.norm, attn, config.ffn, prefix);
+        auto layer_result = make_decoder_layer(current, config.norm, attn, config.ffn, prefix,
+                                               layer, cache_mode, ov::Output<ov::Node>{},
+                                               seq_source, beam_idx_output);
         current = layer_result.output;
 
         for (auto& sink : layer_result.sinks) {
@@ -1586,15 +1592,13 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_encoder(const WhisperConf
 
     ov::Output<ov::Node> current = embedded->output(0);
 
+    Attention enc_attn{d, heads, heads, hd, prec, wf};
+    enc_attn.add_bias = true;
+    enc_attn.o_proj_name = "self_attn.out_proj";
+
     for (size_t layer = 0; layer < config.encoder_layers; ++layer) {
         std::string prefix = "model.encoder.layers." + std::to_string(layer) + ".";
-
-        Attention self_attn{d, heads, heads, hd, prec, wf};
-        self_attn.add_bias = true;
-        self_attn.layer_idx = layer;
-        self_attn.o_proj_name = "self_attn.out_proj";
-
-        auto layer_result = make_decoder_layer(current, norm, self_attn, ffn, prefix);
+        auto layer_result = make_decoder_layer(current, norm, enc_attn, ffn, prefix);
         current = layer_result.output;
     }
 
@@ -1842,37 +1846,40 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperConf
     ov::Output<ov::Node> current = hidden_states->output(0);
     ov::SinkVector all_sinks;
 
+    Attention self_attn{d, heads, heads, hd, prec, wf};
+    self_attn.add_bias = true;
+    self_attn.cache_infix = ".decoder.";
+    self_attn.sdpa_mask = shared_mask;
+    self_attn.o_proj_name = "self_attn.out_proj";
+
+    Attention cross_attn{d, heads, heads, hd, prec, wf};
+    cross_attn.add_bias = true;
+    cross_attn.cache_infix = ".encoder.";
+    cross_attn.q_proj_name = "encoder_attn.q_proj";
+    cross_attn.k_proj_name = "encoder_attn.k_proj";
+    cross_attn.v_proj_name = "encoder_attn.v_proj";
+    cross_attn.o_proj_name = "encoder_attn.out_proj";
+
     for (size_t layer = 0; layer < config.decoder_layers; ++layer) {
         std::string prefix = "model.decoder.layers." + std::to_string(layer) + ".";
 
-        // Self-attention (with KV cache, causal mask)
-        Attention self_attn{d, heads, heads, hd, prec, wf};
-        self_attn.add_bias = true;
-        self_attn.cache_mode = Attention::CacheMode::ConcatBeam;
-        self_attn.cache_infix = ".decoder.";
-        self_attn.batch_source = input_ids->output(0);
-        self_attn.beam_idx = beam_idx->output(0);
-        self_attn.layer_idx = layer;
-        self_attn.sdpa_mask = shared_mask;
-        self_attn.o_proj_name = "self_attn.out_proj";
         if (layer == 0) {
             self_attn.prebuilt_k_variable = layer0_k_read.variable;
             self_attn.prebuilt_k_beam_gather = layer0_k_read.beam_gather;
+        } else {
+            self_attn.prebuilt_k_variable = nullptr;
+            self_attn.prebuilt_k_beam_gather = {};
         }
 
-        // Cross-attention to encoder (uses converted encoder hidden states)
-        Attention cross_attn{d, heads, heads, hd, prec, wf};
-        cross_attn.add_bias = true;
-        cross_attn.kv_source = enc_hs;
-        cross_attn.cache_mode = Attention::CacheMode::StoreOnly;
-        cross_attn.cache_infix = ".encoder.";
-        cross_attn.layer_idx = layer;
-        cross_attn.q_proj_name = "encoder_attn.q_proj";
-        cross_attn.k_proj_name = "encoder_attn.k_proj";
-        cross_attn.v_proj_name = "encoder_attn.v_proj";
-        cross_attn.o_proj_name = "encoder_attn.out_proj";
+        auto call_self = [&](const ov::Output<ov::Node>& inp, const std::string& pfx) {
+            return self_attn(inp, pfx, layer, Attention::CacheMode::ConcatBeam,
+                             {}, input_ids->output(0), beam_idx->output(0));
+        };
+        auto call_cross = [&](const ov::Output<ov::Node>& inp, const std::string& pfx) {
+            return cross_attn(inp, pfx, layer, Attention::CacheMode::StoreOnly, enc_hs);
+        };
 
-        auto layer_result = make_whisper_decoder_layer(current, norm, self_attn, cross_attn, ffn, prefix);
+        auto layer_result = make_whisper_decoder_layer(current, norm, call_self, call_cross, ffn, prefix);
         current = layer_result.output;
 
         for (auto& sink : layer_result.sinks) {
@@ -1954,13 +1961,13 @@ std::shared_ptr<ov::Model> ModelBuilder::build_bert_encoder(const BERTConfig& co
     // ===== Encoder Layers (post-norm) =====
     ov::Output<ov::Node> current = embed_normed;
 
+    Attention bert_attn{hs, config.num_heads, config.num_heads, config.head_dim, prec, config.weight};
+    bert_attn.add_bias = true;
+    bert_attn.sdpa_mask = sdpa_mask;
+
     for (size_t layer = 0; layer < config.num_layers; ++layer) {
         std::string prefix = "encoder.layer." + std::to_string(layer) + ".";
-        Attention attn{hs, config.num_heads, config.num_heads, config.head_dim, prec, config.weight};
-        attn.add_bias = true;
-        attn.sdpa_mask = sdpa_mask;
-        attn.layer_idx = layer;
-        auto layer_result = make_post_norm_layer(current, config.norm, attn, config.ffn, prefix);
+        auto layer_result = make_post_norm_layer(current, config.norm, bert_attn, config.ffn, prefix);
         current = layer_result.output;
     }
 
