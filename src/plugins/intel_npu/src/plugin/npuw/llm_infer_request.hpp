@@ -13,6 +13,7 @@
 #include "llm_lora_states.hpp"
 #include "llm_prefix_caching.hpp"
 #include "openvino/core/descriptor/output.hpp"
+#include "perf.hpp"
 
 namespace ov {
 namespace npuw {
@@ -126,6 +127,10 @@ protected:
 
     // Support prefix caching
     std::unique_ptr<PrefixCachingHelper> m_prefix_caching_helper;
+
+    // LLM-level profiling for 1st token generation analysis
+    using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
+    ov::npuw::perf::Profile<MS> m_llm_profile;
 
     // Friend declarations for PrefixCachingHelper to access protected members
     friend class PrefixCachingHelper;

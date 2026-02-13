@@ -204,6 +204,9 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     }
 
     m_generate_initialized = false;
+
+    m_llm_profile.report_on_die = ov::npuw::profiling_enabled();
+    m_llm_profile.area = "LLM/execution";
 }
 
 std::string ov::npuw::LLMInferRequest::init_pre_alloc_device() {
@@ -447,28 +450,38 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
 
 void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_length) {
     namespace uu = ov::npuw::util;
-    uu::fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name)), 0u);
-    if (auto type_ids_port = m_prefill_in_ports.find(layer_names::token_type_ids);
-        type_ids_port != m_prefill_in_ports.end()) {
-        uu::fill_tensor_bytes(m_prefill_request->get_tensor(type_ids_port->second), 0u);
-    }
-    uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask)), 0);
-    uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids)), 0);
+    namespace pp = ov::npuw::perf;
 
-    // Clear all past_key_values tensors - use cached ports for efficiency
-    for (const auto& port : m_prefill_past_kv_ports) {
-        uu::fill_tensor_bytes(m_prefill_request->get_tensor(port), 0u);
-    }
+    m_llm_profile["1/prefill:fill_inputs"] += pp::ms_to_run([&]() {
+        uu::fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name)), 0u);
+        if (auto type_ids_port = m_prefill_in_ports.find(layer_names::token_type_ids);
+            type_ids_port != m_prefill_in_ports.end()) {
+            uu::fill_tensor_bytes(m_prefill_request->get_tensor(type_ids_port->second), 0u);
+        }
+        uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask)), 0);
+        uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids)), 0);
+    });
+
+    m_llm_profile["1/prefill:clear_kvcache"] += pp::ms_to_run([&]() {
+        // Clear all past_key_values tensors - use cached ports for efficiency
+        for (const auto& port : m_prefill_past_kv_ports) {
+            uu::fill_tensor_bytes(m_prefill_request->get_tensor(port), 0u);
+        }
+    });
 
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
 
-    // Select the appropriate generate inference request variant based on prompt length
-    // The function internally calculates expected total tokens (prompt + min_response_len)
-    m_kvcache_request = select_generate_request(prompt_length);
-    m_kvcache_in_ports = m_generate_variant_in_ports.at(m_kvcache_request);
-    m_kvcache_out_ports = m_generate_variant_out_ports.at(m_kvcache_request);
+    m_llm_profile["1/prefill:select_gen_req"] += pp::ms_to_run([&]() {
+        // Select the appropriate generate inference request variant based on prompt length
+        // The function internally calculates expected total tokens (prompt + min_response_len)
+        m_kvcache_request = select_generate_request(prompt_length);
+        m_kvcache_in_ports = m_generate_variant_in_ports.at(m_kvcache_request);
+        m_kvcache_out_ports = m_generate_variant_out_ports.at(m_kvcache_request);
+    });
 
-    apply_lora();
+    m_llm_profile["1/prefill:apply_lora"] += pp::ms_to_run([&]() {
+        apply_lora();
+    });
 }
 
 void ov::npuw::LLMInferRequest::copy_kvcache() {
@@ -774,7 +787,9 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
         m_eagle3_ext.prepare_inputs(m_prefill_request, m_prefill_in_ports);
     }
 
-    m_prefill_request->infer();
+    m_llm_profile["1/prefill:npu_infer"] += ov::npuw::perf::ms_to_run([&]() {
+        m_prefill_request->infer();
+    });
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     kvcache_desc.num_stored_tokens += static_cast<uint32_t>(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]);
 
@@ -797,25 +812,33 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        "\"NPUW_LLM_MAX_PROMPT_LEN\" or shorten the prompt.");
     }
 
-    prepare_for_new_conversation(prompt_length);
+    namespace pp = ov::npuw::perf;
 
-    const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
-    if (use_chunk_prefill) {
-        OPENVINO_ASSERT(!token_type_ids,
-                        "Chunking is not implemented for Gemma model family yet. "
-                        "Please set NPUW_LLM_PREFILL_HINT to 'STATIC'");
-        infer_chunked_prefill(input_ids, attention_mask, position_ids);
-    } else {
-        infer_whole_prefill(input_ids, attention_mask, position_ids, token_type_ids);
-    }
+    m_llm_profile["1/prefill:prepare"] += pp::ms_to_run([&]() {
+        prepare_for_new_conversation(prompt_length);
+    });
 
-    if (m_lm_head_request) {
-        LOG_DEBUG("Calling inference for LM head model.");
-        m_lm_head_request->infer();
-        m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
-    } else {
-        m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at(layer_names::logits));
-    }
+    m_llm_profile["1/prefill:infer"] += pp::ms_to_run([&]() {
+        const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
+        if (use_chunk_prefill) {
+            OPENVINO_ASSERT(!token_type_ids,
+                            "Chunking is not implemented for Gemma model family yet. "
+                            "Please set NPUW_LLM_PREFILL_HINT to 'STATIC'");
+            infer_chunked_prefill(input_ids, attention_mask, position_ids);
+        } else {
+            infer_whole_prefill(input_ids, attention_mask, position_ids, token_type_ids);
+        }
+    });
+
+    m_llm_profile["1/prefill:lm_head"] += pp::ms_to_run([&]() {
+        if (m_lm_head_request) {
+            LOG_DEBUG("Calling inference for LM head model.");
+            m_lm_head_request->infer();
+            m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
+        } else {
+            m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at(layer_names::logits));
+        }
+    });
 
     if (m_eagle3_ext.is_eagle3_model()) {
         m_eagle3_ext.update_last_hidden_state(m_prefill_request, m_prefill_out_ports);
@@ -844,20 +867,29 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     // prepare_for_new_conversation()
 
     if (!m_generate_initialized) {
-        LOG_DEBUG("Copy kv-cache from prefill to generate model.");
-        if (kvcache_desc.num_stored_tokens > 0) {
-            copy_kvcache();
-        }
+        namespace pp = ov::npuw::perf;
 
-        LOG_DEBUG("Prepare inputs.");
-        namespace uu = ov::npuw::util;
-        uu::fill_tensor_bytes(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name)), 0u);
-        uu::fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask)), 0);
-        uu::fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids)), 0);
-        if (token_type_ids) {
-            uu::fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::token_type_ids)),
+        m_llm_profile["N/generate:copy_kvcache"] += pp::ms_to_run([&]() {
+            LOG_DEBUG("Copy kv-cache from prefill to generate model.");
+            if (kvcache_desc.num_stored_tokens > 0) {
+                copy_kvcache();
+            }
+        });
+
+        m_llm_profile["N/generate:init_inputs"] += pp::ms_to_run([&]() {
+            LOG_DEBUG("Prepare inputs.");
+            namespace uu = ov::npuw::util;
+            uu::fill_tensor_bytes(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name)), 0u);
+            uu::fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask)),
                                      0);
-        }
+            uu::fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids)), 0);
+            if (token_type_ids) {
+                uu::fill_tensor<int64_t>(
+                    m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::token_type_ids)),
+                    0);
+            }
+        });
+
         m_generate_initialized = true;
     }
 
@@ -866,77 +898,87 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         OPENVINO_THROW("KV-Cache is full.");
     }
 
-    // FIXME: these tensors should be shared between the parent & child models
-    // NB: input_ids can be either fp32(VLM) or i64(LLM)
-    auto kv_input_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name));
-    // NOTE: As `input_tokens_len` can be less than the value of `max_generation_token_len`, which
-    //       input layers of generation model are resized to, then we need to put
-    //       `input_tokens_len` prompt to the right of `max_generation_token_len`-sized tensors.
-    //       Attention mask should rule out all left unusable space.
-    std::copy_n(
-        reinterpret_cast<uint8_t*>(input_ids->data()),
-        input_ids->get_byte_size(),
-        reinterpret_cast<uint8_t*>(kv_input_ids->data()) + kv_input_ids->get_byte_size() - input_ids->get_byte_size());
+    namespace pp = ov::npuw::perf;
 
-    if (token_type_ids) {
-        auto kv_token_type_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::token_type_ids));
-        util::copy_to_right(token_type_ids, kv_token_type_ids);
-    }
+    m_llm_profile["N/generate:prepare"] += pp::ms_to_run([&]() {
+        // FIXME: these tensors should be shared between the parent & child models
+        // NB: input_ids can be either fp32(VLM) or i64(LLM)
+        auto kv_input_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name));
+        // NOTE: As `input_tokens_len` can be less than the value of `max_generation_token_len`, which
+        //       input layers of generation model are resized to, then we need to put
+        //       `input_tokens_len` prompt to the right of `max_generation_token_len`-sized tensors.
+        //       Attention mask should rule out all left unusable space.
+        std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()),
+                    input_ids->get_byte_size(),
+                    reinterpret_cast<uint8_t*>(kv_input_ids->data()) + kv_input_ids->get_byte_size() -
+                        input_ids->get_byte_size());
 
-    // NOTE: Attention mask pattern for generate model requires the set of "1"
-    //       units of length of the current prompt on the right (for present
-    //       kv layers) and the set of "1" units of number of previously calculated
-    //       tokens on the left (for past kv layers).
-    auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask));
-    std::copy_n(attention_mask->data<int64_t>(),
-                attention_mask->get_size() - input_tokens_len,
-                kv_attn_mask->data<int64_t>());
-    if (input_tokens_len < kvcache_desc.max_generation_token_len) {
-        std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - kvcache_desc.max_generation_token_len,
-                    kvcache_desc.max_generation_token_len - input_tokens_len,
-                    0);
-    }
-    std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - input_tokens_len, input_tokens_len, 1);
+        if (token_type_ids) {
+            auto kv_token_type_ids =
+                m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::token_type_ids));
+            util::copy_to_right(token_type_ids, kv_token_type_ids);
+        }
 
-    auto kv_pos_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids));
-    ov::npuw::util::pad_position_ids(kv_pos_ids, position_ids);
+        // NOTE: Attention mask pattern for generate model requires the set of "1"
+        //       units of length of the current prompt on the right (for present
+        //       kv layers) and the set of "1" units of number of previously calculated
+        //       tokens on the left (for past kv layers).
+        auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask));
+        std::copy_n(attention_mask->data<int64_t>(),
+                    attention_mask->get_size() - input_tokens_len,
+                    kv_attn_mask->data<int64_t>());
+        if (input_tokens_len < kvcache_desc.max_generation_token_len) {
+            std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() -
+                            kvcache_desc.max_generation_token_len,
+                        kvcache_desc.max_generation_token_len - input_tokens_len,
+                        0);
+        }
+        std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - input_tokens_len, input_tokens_len, 1);
 
-    if (m_eagle3_ext.is_eagle3_model()) {
-        m_eagle3_ext.prepare_inputs(m_kvcache_request, m_kvcache_in_ports);
-    }
+        auto kv_pos_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids));
+        ov::npuw::util::pad_position_ids(kv_pos_ids, position_ids);
 
-    m_kvcache_request->infer();
+        if (m_eagle3_ext.is_eagle3_model()) {
+            m_eagle3_ext.prepare_inputs(m_kvcache_request, m_kvcache_in_ports);
+        }
+    });
+
+    m_llm_profile["N/generate:infer"] += pp::ms_to_run([&]() {
+        m_kvcache_request->infer();
+    });
     kvcache_desc.num_stored_tokens += input_tokens_len;
 
-    if (m_lm_head_request) {
-        LOG_DEBUG("Calling inference for LM head model asynchronously");
-        m_lm_head_request->start_async();
-        if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
-            update_kvcache_for(m_kvcache_request,
-                               m_kvcache_in_ports,
-                               m_kvcache_out_ports,
-                               input_tokens_len,
-                               kvcache_desc.v_tensors_transposed_gen);
+    m_llm_profile["N/generate:post"] += pp::ms_to_run([&]() {
+        if (m_lm_head_request) {
+            LOG_DEBUG("Calling inference for LM head model asynchronously");
+            m_lm_head_request->start_async();
+            if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
+                update_kvcache_for(m_kvcache_request,
+                                   m_kvcache_in_ports,
+                                   m_kvcache_out_ports,
+                                   input_tokens_len,
+                                   kvcache_desc.v_tensors_transposed_gen);
+            }
+            m_lm_head_request->wait();
+            LOG_DEBUG("Calling inference for LM head model -- done.");
+
+            m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
+        } else {
+            if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
+                update_kvcache_for(m_kvcache_request,
+                                   m_kvcache_in_ports,
+                                   m_kvcache_out_ports,
+                                   input_tokens_len,
+                                   kvcache_desc.v_tensors_transposed_gen);
+            }
+
+            m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(layer_names::logits));
         }
-        m_lm_head_request->wait();
-        LOG_DEBUG("Calling inference for LM head model -- done.");
 
-        m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
-    } else {
-        if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
-            update_kvcache_for(m_kvcache_request,
-                               m_kvcache_in_ports,
-                               m_kvcache_out_ports,
-                               input_tokens_len,
-                               kvcache_desc.v_tensors_transposed_gen);
+        if (m_eagle3_ext.is_eagle3_model()) {
+            m_eagle3_ext.update_last_hidden_state(m_kvcache_request, m_kvcache_out_ports);
         }
-
-        m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(layer_names::logits));
-    }
-
-    if (m_eagle3_ext.is_eagle3_model()) {
-        m_eagle3_ext.update_last_hidden_state(m_kvcache_request, m_kvcache_out_ports);
-    }
+    });
 
     LOG_DEBUG("Done");
 }
