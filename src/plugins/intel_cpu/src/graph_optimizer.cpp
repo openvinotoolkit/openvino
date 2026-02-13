@@ -95,6 +95,18 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     FuseConvolutionAndZeroPoints(graph);
     graph.RemoveDroppedNodes();
 
+// The order of applying scales and shifts is different for ARM to get specific postops order:
+// postops order on ARM: bias, scale, fq
+// postops order on x86: scale, bias, fq
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndBias");
+    FuseConvolutionMatMulDeconvAndBias(graph);
+    graph.RemoveDroppedNodes();
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvMatmulFCDeconvAndDQScales");
+    FuseConvMatmulFCDeconvAndDQScales(graph);
+    graph.RemoveDroppedNodes();
+#else
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvMatmulFCDeconvAndDQScales");
     FuseConvMatmulFCDeconvAndDQScales(graph);
     graph.RemoveDroppedNodes();
@@ -102,7 +114,7 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndBias");
     FuseConvolutionMatMulDeconvAndBias(graph);
     graph.RemoveDroppedNodes();
-
+#endif
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseMultiplyAndAdd");
     FuseMultiplyAndAdd(graph);
     graph.RemoveDroppedNodes();
@@ -264,7 +276,12 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
         if (!parentNode->canBeExecutedInInt8()) {
             return false;
         }
+// The order of applying scales and shifts is different for ARM, so bias could be already fused here for ARM
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+        return any_of(parentNode->getParentEdges().size(), 2U, 3U);
+#else
         return (parentNode->getParentEdges().size() == 2);
+#endif
     };
 
     auto scaleDimsCheck = [](const NodePtr& node, const NodePtr& scales) {
