@@ -154,6 +154,28 @@ CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
             return false;
 
         auto c_type = const_node->get_element_type();
+
+        // For scalar constants, check if FP16 rounding introduces significant relative error.
+        // Scalar constants often serve as mathematical scale factors (e.g., log(16) in attention
+        // bucketing). FP16 rounding error in such scalars cascades through every computation
+        // that uses them. Non-scalar constants have errors averaged across many elements.
+        {
+            auto size = ov::shape_size(const_node->get_shape());
+            if (size == 1 && (c_type == ov::element::f32 || c_type == ov::element::f64)) {
+                double src_val = (c_type == ov::element::f32)
+                                     ? static_cast<double>(*const_node->get_data_ptr<float>())
+                                     : *const_node->get_data_ptr<double>();
+                if (std::isfinite(src_val) && src_val != 0.0) {
+                    auto f16_val = static_cast<ov::float16>(static_cast<float>(src_val));
+                    double roundtripped = static_cast<double>(static_cast<float>(f16_val));
+                    double rel_error = std::abs(src_val - roundtripped) / std::abs(src_val);
+                    constexpr double max_scalar_f16_relative_error = 1e-4;
+                    if (rel_error > max_scalar_f16_relative_error)
+                        return false;
+                }
+            }
+        }
+
         std::shared_ptr<ov::Node> new_const;
 
 #if !defined(OPENVINO_ARCH_X86) && !defined(OPENVINO_ARCH_X86_64)
