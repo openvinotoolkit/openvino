@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "memory_desc/blocked_memory_desc.h"
@@ -26,7 +27,6 @@
 #include "openvino/core/enum_names.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/extractimagepatches.hpp"
 #include "openvino/op/util/attr_types.hpp"
@@ -494,7 +494,7 @@ void ExtractImagePatches::execute([[maybe_unused]] const dnnl::stream& strm) {
         auto* dst = getDstDataAtPort(0);
         const auto inStrides = getParentEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto outStrides = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
-        execPtr->exec(src, dst, inStrides, outStrides);
+        execPtr->exec(src, dst, inStrides, outStrides, context->getCpuParallel());
     } else {
         CPU_NODE_THROW("Primitive wasn't created");
     }
@@ -507,7 +507,8 @@ void ExtractImagePatches::executeDynamicImpl(const dnnl::stream& strm) {
 void ExtractImagePatches::ExtractImagePatchesRefExecutor::executeReference(void* src,
                                                                            void* dst,
                                                                            const VectorDims& istrides,
-                                                                           const VectorDims& ostrides) const {
+                                                                           const VectorDims& ostrides,
+                                                                           const CpuParallelPtr& cpu_parallel) const {
     const auto* src_data = reinterpret_cast<const char*>(src);
     auto* dst_data = reinterpret_cast<char*>(dst);
 
@@ -516,69 +517,76 @@ void ExtractImagePatches::ExtractImagePatchesRefExecutor::executeReference(void*
                                                   IC * ostrides[1],
                                                   ostrides[1]};
 
-    parallel_for4d(OB, jpp.KH, jpp.KW, IC, [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
-        const int64_t iw_start = static_cast<int64_t>(kw * RW) - PL;
-        const int64_t ih_start = static_cast<int64_t>(kh * RH) - PT;
-        const size_t ih_lpad =
-            ih_start >= 0
-                ? 0
-                : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(ih_start) / static_cast<float>(jpp.SH)));
-        const size_t iw_lpad =
-            iw_start >= 0
-                ? 0
-                : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(iw_start) / static_cast<float>(jpp.SW)));
+    cpu_parallel->parallel_for4d(
+        OB,
+        jpp.KH,
+        jpp.KW,
+        IC,
+        [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
+            const int64_t iw_start = static_cast<int64_t>(kw * RW) - PL;
+            const int64_t ih_start = static_cast<int64_t>(kh * RH) - PT;
+            const size_t ih_lpad =
+                ih_start >= 0
+                    ? 0
+                    : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(ih_start) / static_cast<float>(jpp.SH)));
+            const size_t iw_lpad =
+                iw_start >= 0
+                    ? 0
+                    : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(iw_start) / static_cast<float>(jpp.SW)));
 
-        const size_t ih_hpad =
-            static_cast<size_t>(std::ceil((static_cast<float>(IH) - 1.F * static_cast<float>(ih_start)) /
-                                          static_cast<float>(jpp.SH))) > jpp.OH
-                ? jpp.OH
-                : static_cast<size_t>(std::ceil((static_cast<float>(IH) + -1.F * static_cast<float>(ih_start)) /
-                                                static_cast<float>(jpp.SH)));
-        const size_t iw_hpad =
-            static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
-                                          static_cast<float>(jpp.SW))) > jpp.OW
-                ? jpp.OW
-                : static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
-                                                static_cast<float>(jpp.SW)));
+            const size_t ih_hpad =
+                static_cast<size_t>(std::ceil((static_cast<float>(IH) - 1.F * static_cast<float>(ih_start)) /
+                                              static_cast<float>(jpp.SH))) > jpp.OH
+                    ? jpp.OH
+                    : static_cast<size_t>(std::ceil((static_cast<float>(IH) + -1.F * static_cast<float>(ih_start)) /
+                                                    static_cast<float>(jpp.SH)));
+            const size_t iw_hpad =
+                static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
+                                              static_cast<float>(jpp.SW))) > jpp.OW
+                    ? jpp.OW
+                    : static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
+                                                    static_cast<float>(jpp.SW)));
 
-        char* my_dst_ptr = dst_data + (ob * ostrides_partial[0] + kh * ostrides_partial[1] + kw * ostrides_partial[2] +
-                                       ic * ostrides_partial[3]) *
-                                          jpp.dtype_size;
-        const char* my_src_ptr =
-            src_data + (ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start) * jpp.dtype_size;
+            char* my_dst_ptr = dst_data + (ob * ostrides_partial[0] + kh * ostrides_partial[1] +
+                                           kw * ostrides_partial[2] + ic * ostrides_partial[3]) *
+                                              jpp.dtype_size;
+            const char* my_src_ptr =
+                src_data + (ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start) * jpp.dtype_size;
 
-        size_t num_bytes_to_set = ih_lpad * jpp.OW * jpp.dtype_size;
-        memset(my_dst_ptr, 0, num_bytes_to_set);
-        my_dst_ptr += num_bytes_to_set;
-
-        const char* src_ptr_h_stop = my_src_ptr + ih_hpad * jpp.SH * jpp.IW * jpp.dtype_size;
-        for (const char* src_h_ptr = my_src_ptr + ih_lpad * jpp.SH * jpp.IW * jpp.dtype_size;
-             src_h_ptr < src_ptr_h_stop;
-             src_h_ptr += jpp.SH * jpp.IW * jpp.dtype_size) {
-            num_bytes_to_set = iw_lpad * jpp.dtype_size;
+            size_t num_bytes_to_set = ih_lpad * jpp.OW * jpp.dtype_size;
             memset(my_dst_ptr, 0, num_bytes_to_set);
             my_dst_ptr += num_bytes_to_set;
 
-            const char* src_ptr_w_stop = src_h_ptr + iw_hpad * jpp.SW * jpp.dtype_size;
-            for (const char* src_w_ptr = src_h_ptr + iw_lpad * jpp.SW * jpp.dtype_size; src_w_ptr < src_ptr_w_stop;
-                 src_w_ptr += jpp.SW * jpp.dtype_size) {
-                num_bytes_to_set = jpp.dtype_size;
-                memcpy(my_dst_ptr, src_w_ptr, num_bytes_to_set);
+            const char* src_ptr_h_stop = my_src_ptr + ih_hpad * jpp.SH * jpp.IW * jpp.dtype_size;
+            for (const char* src_h_ptr = my_src_ptr + ih_lpad * jpp.SH * jpp.IW * jpp.dtype_size;
+                 src_h_ptr < src_ptr_h_stop;
+                 src_h_ptr += jpp.SH * jpp.IW * jpp.dtype_size) {
+                num_bytes_to_set = iw_lpad * jpp.dtype_size;
+                memset(my_dst_ptr, 0, num_bytes_to_set);
+                my_dst_ptr += num_bytes_to_set;
+
+                const char* src_ptr_w_stop = src_h_ptr + iw_hpad * jpp.SW * jpp.dtype_size;
+                for (const char* src_w_ptr = src_h_ptr + iw_lpad * jpp.SW * jpp.dtype_size; src_w_ptr < src_ptr_w_stop;
+                     src_w_ptr += jpp.SW * jpp.dtype_size) {
+                    num_bytes_to_set = jpp.dtype_size;
+                    memcpy(my_dst_ptr, src_w_ptr, num_bytes_to_set);
+                    my_dst_ptr += num_bytes_to_set;
+                }
+                num_bytes_to_set = (jpp.OW - iw_hpad) * jpp.dtype_size;
+                memset(my_dst_ptr, 0, num_bytes_to_set);
                 my_dst_ptr += num_bytes_to_set;
             }
-            num_bytes_to_set = (jpp.OW - iw_hpad) * jpp.dtype_size;
+            num_bytes_to_set = (jpp.OH - ih_hpad) * jpp.OW * jpp.dtype_size;
             memset(my_dst_ptr, 0, num_bytes_to_set);
-            my_dst_ptr += num_bytes_to_set;
-        }
-        num_bytes_to_set = (jpp.OH - ih_hpad) * jpp.OW * jpp.dtype_size;
-        memset(my_dst_ptr, 0, num_bytes_to_set);
-    });
+        });
 }
 
-void ExtractImagePatches::ExtractImagePatchesJitExecutor::executeOptimizedGeneric(void* src,
-                                                                                  void* dst,
-                                                                                  const VectorDims& istrides,
-                                                                                  const VectorDims& ostrides) const {
+void ExtractImagePatches::ExtractImagePatchesJitExecutor::executeOptimizedGeneric(
+    void* src,
+    void* dst,
+    const VectorDims& istrides,
+    const VectorDims& ostrides,
+    const CpuParallelPtr& cpu_parallel) const {
 #if defined(OPENVINO_ARCH_X86_64)
     const auto* src_data = reinterpret_cast<const char*>(src);
     auto* dst_data = reinterpret_cast<char*>(dst);
@@ -589,44 +597,49 @@ void ExtractImagePatches::ExtractImagePatchesJitExecutor::executeOptimizedGeneri
                                                   IC * ostrides[1],
                                                   ostrides[1]};
 
-    parallel_for4d(OB, jpp.KH, jpp.KW, IC, [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
-        const int64_t ih_start = kh * RH - PT;
-        const int64_t iw_start = kw * RW - PL;
-        const size_t ih_lpad =
-            ih_start >= 0
-                ? 0
-                : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(ih_start) / static_cast<float>(jpp.SH)));
-        const size_t iw_lpad =
-            iw_start >= 0
-                ? 0
-                : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(iw_start) / static_cast<float>(jpp.SW)));
-        const size_t ih_hpad =
-            static_cast<size_t>(std::ceil((static_cast<float>(IH) - 1.F * static_cast<float>(ih_start)) /
-                                          static_cast<float>(jpp.SH))) > jpp.OH
-                ? jpp.OH
-                : static_cast<size_t>(std::ceil((static_cast<float>(IH) - 1.F * static_cast<float>(ih_start)) /
-                                                static_cast<float>(jpp.SH)));
-        const size_t iw_hpad =
-            static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
-                                          static_cast<float>(jpp.SW))) > jpp.OW
-                ? jpp.OW
-                : static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
-                                                static_cast<float>(jpp.SW)));
+    cpu_parallel->parallel_for4d(
+        OB,
+        jpp.KH,
+        jpp.KW,
+        IC,
+        [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
+            const int64_t ih_start = kh * RH - PT;
+            const int64_t iw_start = kw * RW - PL;
+            const size_t ih_lpad =
+                ih_start >= 0
+                    ? 0
+                    : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(ih_start) / static_cast<float>(jpp.SH)));
+            const size_t iw_lpad =
+                iw_start >= 0
+                    ? 0
+                    : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(iw_start) / static_cast<float>(jpp.SW)));
+            const size_t ih_hpad =
+                static_cast<size_t>(std::ceil((static_cast<float>(IH) - 1.F * static_cast<float>(ih_start)) /
+                                              static_cast<float>(jpp.SH))) > jpp.OH
+                    ? jpp.OH
+                    : static_cast<size_t>(std::ceil((static_cast<float>(IH) - 1.F * static_cast<float>(ih_start)) /
+                                                    static_cast<float>(jpp.SH)));
+            const size_t iw_hpad =
+                static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
+                                              static_cast<float>(jpp.SW))) > jpp.OW
+                    ? jpp.OW
+                    : static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
+                                                    static_cast<float>(jpp.SW)));
 
-        size_t dst_offset =
-            ob * ostrides_partial[0] + kh * ostrides_partial[1] + kw * ostrides_partial[2] + ic * ostrides_partial[3];
-        size_t src_offset =
-            ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start + ih_lpad * jpp.SH * jpp.IW;
+            size_t dst_offset = ob * ostrides_partial[0] + kh * ostrides_partial[1] + kw * ostrides_partial[2] +
+                                ic * ostrides_partial[3];
+            size_t src_offset =
+                ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start + ih_lpad * jpp.SH * jpp.IW;
 
-        auto args = jit_extract_image_patches_args();
-        args.src = src_data + src_offset * jpp.dtype_size;
-        args.dst = dst_data + dst_offset * jpp.dtype_size;
-        args.h_lo_pad = ih_lpad;
-        args.h_hi_pad = ih_hpad;
-        args.w_lo_pad = iw_lpad;
-        args.w_hi_pad = iw_hpad;
-        (*pKernel)(&args);
-    });
+            auto args = jit_extract_image_patches_args();
+            args.src = src_data + src_offset * jpp.dtype_size;
+            args.dst = dst_data + dst_offset * jpp.dtype_size;
+            args.h_lo_pad = ih_lpad;
+            args.h_hi_pad = ih_hpad;
+            args.w_lo_pad = iw_lpad;
+            args.w_hi_pad = iw_hpad;
+            (*pKernel)(&args);
+        });
 #endif  // OPENVINO_ARCH_X86_64
 }
 
@@ -733,9 +746,10 @@ ExtractImagePatches::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecu
 void ExtractImagePatches::ExtractImagePatchesJitExecutor::exec(void* src,
                                                                void* dst,
                                                                const VectorDims& istrides,
-                                                               const VectorDims& ostrides) {
+                                                               const VectorDims& ostrides,
+                                                               const CpuParallelPtr& cpu_parallel) {
     OPENVINO_ASSERT(pKernel, "Can't execute, kernel for extract image patches node is not compiled");
-    executeOptimizedGeneric(src, dst, istrides, ostrides);
+    executeOptimizedGeneric(src, dst, istrides, ostrides, cpu_parallel);
 }
 
 ExtractImagePatches::ExtractImagePatchesRefExecutor::ExtractImagePatchesRefExecutor(const VectorDims& inDims,
@@ -750,8 +764,9 @@ ExtractImagePatches::ExtractImagePatchesRefExecutor::ExtractImagePatchesRefExecu
 void ExtractImagePatches::ExtractImagePatchesRefExecutor::exec(void* src,
                                                                void* dst,
                                                                const VectorDims& istrides,
-                                                               const VectorDims& ostrides) {
-    executeReference(src, dst, istrides, ostrides);
+                                                               const VectorDims& ostrides,
+                                                               const CpuParallelPtr& cpu_parallel) {
+    executeReference(src, dst, istrides, ostrides, cpu_parallel);
 }
 
 const std::set<size_t> ExtractImagePatches::_supported_precisions_sizes = {1, 2, 4};
