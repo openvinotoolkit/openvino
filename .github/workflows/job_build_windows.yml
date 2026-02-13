@@ -37,8 +37,8 @@ jobs:
     runs-on: ${{ inputs.runner }}
     env:
       CMAKE_BUILD_TYPE: ${{ inputs.build-type }}
-      CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
-      CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
+      CMAKE_CXX_COMPILER_LAUNCHER: 'ccache'
+      CMAKE_C_COMPILER_LAUNCHER: 'ccache'
       CCACHE_REMOTE_DIR: C:\\mount\\caches\\ccache\\staging\\windows2022_x86_64_${{ inputs.build-type }}\\${{ inputs.target-branch }}
       CCACHE_DIR: ${{ github.workspace }}\\ccache
       CCACHE_MAXSIZE: 50G
