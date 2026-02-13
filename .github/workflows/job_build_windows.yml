@@ -152,6 +152,7 @@ jobs:
           $cmakeOptions = "$env:CMAKE_OPTIONS"
           $splitCmakeOptions = $cmakeOptions.Split(" ")
           $cmakeCommand = "cmake $splitCmakeOptions -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}"
+          Write-Host $cmakeCommand
           Invoke-Expression $cmakeCommand
 
       - name: Clean ccache stats
