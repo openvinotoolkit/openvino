@@ -46,7 +46,8 @@ private:
                   const MemoryPtr& parentIdxMemPtr,
                   const MemoryPtr& maxSeqLenMemPtr,
                   const MemoryPtr& endTokenMemPtr,
-                  const MemoryPtr& dstMemPtr);
+                  const MemoryPtr& dstMemPtr,
+                  const std::shared_ptr<CpuParallel>& cpuParallel);
 
     private:
         const int32_t maxTime;
