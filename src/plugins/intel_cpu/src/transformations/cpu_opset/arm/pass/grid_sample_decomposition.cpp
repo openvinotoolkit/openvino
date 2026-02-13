@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel
+// Copyright (C) 2018-2026 Intel
 // SPDX-License-Identifier: Apache-2.0
 //
 // GridSample decomposition implemented with a single unified builder.

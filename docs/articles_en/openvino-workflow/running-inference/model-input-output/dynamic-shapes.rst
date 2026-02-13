@@ -177,7 +177,7 @@ The lower and/or upper bounds of a dynamic dimension can also be specified. They
     .. tab-item:: C
         :sync: c
 
-        The dimension bounds can be coded as arguments for `ov_dimension <https://docs.openvino.ai/2025/api/c_cpp_api/structov__dimension.html>`__, as shown in these examples:
+        The dimension bounds can be coded as arguments for `ov_dimension <https://docs.openvino.ai/2026/api/c_cpp_api/structov__dimension.html>`__, as shown in these examples:
 
         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_dynamic_shapes.c
            :language: cpp

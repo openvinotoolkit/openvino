@@ -14,11 +14,11 @@ from json import JSONDecodeError
 from sphinx.ext.autodoc import ClassDocumenter
 
 project = 'OpenVINO™'
-copyright = '2025, Intel®'
+copyright = '2026, Intel®'
 author = 'Intel®'
 
 language = 'en'
-version_name = 'nightly'
+version_name = '2026'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -66,7 +66,7 @@ source_suffix = {
 }
 
 
-# html_baseurl = 'https://docs.openvino.ai/2025/'
+# html_baseurl = 'https://docs.openvino.ai/2026/'
 
 
 # -- Sitemap configuration ---------------------------------------------------
