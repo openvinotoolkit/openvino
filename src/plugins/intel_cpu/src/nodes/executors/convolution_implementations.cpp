@@ -20,6 +20,10 @@
 #include "utils/arch_macros.h"
 #include "utils/general_utils.h"
 
+#if defined(OPENVINO_ARCH_ARM64)
+#    include "nodes/executors/aarch64/jit_int8_conv.hpp"
+#endif
+
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "post_ops.hpp"
@@ -77,6 +81,12 @@ static const TypeMapping aclLowpConvTypeMapping {
     {{_u8, _u8 | _i8, _i32 | _dynamic, _u8},                      {bypass(), bypass(), bypass(), bypass()}},
     {{_i8, _i8, _i32 | _dynamic, _i8},                            {bypass(), bypass(), bypass(), bypass()}},
 };
+
+static const TypeMapping jitInt8ConvTypeMapping {
+    {{_u8 | _i8, _i8, _i32 | _dynamic, _i32 | _dynamic}, {bypass(), bypass(), bypass(), bypass()}},
+    {{_u8 | _i8, _i8, _i32 | _dynamic, _u8 | _i8},       {bypass(), bypass(), bypass(), bypass()}},
+    {{_u8 | _i8, _i8, _f16 | _f32, _u8 | _i8},            {bypass(), bypass(), bypass(), bypass()}},
+};
 // clang-format on
 struct CreateOptimalConfigDefault {
     std::optional<ConvConfig> operator()(const ConvConfig& config) const {
@@ -89,6 +99,14 @@ struct CreateOptimalConfigDefault {
 struct CreateOptimalConfigAclLowp {
     std::optional<ConvConfig> operator()(const ConvConfig& config) const {
         return createOptimalConfigCommon(config, aclLowpConvTypeMapping, layoutConfig, dnnlConvolutionMappingNotation);
+    }
+
+    LayoutConfig layoutConfig;
+};
+
+struct CreateOptimalConfigJitInt8 {
+    std::optional<ConvConfig> operator()(const ConvConfig& config) const {
+        return createOptimalConfigCommon(config, jitInt8ConvTypeMapping, layoutConfig, dnnlConvolutionMappingNotation);
     }
 
     LayoutConfig layoutConfig;
@@ -247,6 +265,17 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             CreateOptimalConfigDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
             AcceptsAnyShape<ConvAttrs>,
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
+            )
+        OV_CPU_INSTANCE_ARM64(
+            "convolution_jit_int8_brgemm_nspc", ExecutorType::Jit, OperationType::Convolution,
+            // supports
+            [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(aarch64::BrgemmInt8ConvExecutor::supports(config, memoryFormatFilter), UNSUPPORTED_BY_EXECUTOR);
+                return true;
+            },
+            CreateOptimalConfigJitInt8{{LayoutType::nspc, LayoutType::ncsp, LayoutType::ncsp, LayoutType::nspc}},
+            AcceptsAnyShape<ConvAttrs>,
+            CreateDefault<aarch64::BrgemmInt8ConvExecutor, ConvAttrs>{}
             )
         OV_CPU_INSTANCE_ACL(
             "convolution_acl_lowp", ExecutorType::Acl, OperationType::Convolution,

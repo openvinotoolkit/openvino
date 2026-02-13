@@ -432,3 +432,7 @@ endif()
 if(ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
+
+if(AARCH64 AND BUILD_SHARED_LIBS)
+    add_subdirectory(tools/int8_microbench)
+endif()
