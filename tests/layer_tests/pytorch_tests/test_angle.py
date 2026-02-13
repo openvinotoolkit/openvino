@@ -12,7 +12,7 @@ class TestAngle(PytorchLayerTest):
         shape = (5, 6, 7)
         if complex_type:
             shape += (2,)
-        return [np.random.uniform(-10, 10, shape).astype(np.float32)]
+        return [self.random.uniform(-10, 10, shape, dtype=np.float32)]
 
     def create_model(self, complex_type):
         import torch
@@ -28,7 +28,7 @@ class TestAngle(PytorchLayerTest):
                 res = torch.angle(x)
                 return res
 
-        return aten_angle(complex_type), None, "aten::angle"
+        return aten_angle(complex_type), "aten::angle"
 
     @pytest.mark.parametrize("complex_type", [True, False])
     @pytest.mark.nightly
