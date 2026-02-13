@@ -452,7 +452,7 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_leng
     namespace uu = ov::npuw::util;
     namespace pp = ov::npuw::perf;
 
-    m_llm_profile["1/prefill:fill_inputs"] += pp::ms_to_run([&]() {
+    m_llm_profile["1/prefill:1a.fill_inputs"] += pp::ms_to_run([&]() {
         uu::fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name)), 0u);
         if (auto type_ids_port = m_prefill_in_ports.find(layer_names::token_type_ids);
             type_ids_port != m_prefill_in_ports.end()) {
@@ -462,7 +462,7 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_leng
         uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids)), 0);
     });
 
-    m_llm_profile["1/prefill:clear_kvcache"] += pp::ms_to_run([&]() {
+    m_llm_profile["1/prefill:1b.clear_kvcache"] += pp::ms_to_run([&]() {
         // Clear all past_key_values tensors - use cached ports for efficiency
         for (const auto& port : m_prefill_past_kv_ports) {
             uu::fill_tensor_bytes(m_prefill_request->get_tensor(port), 0u);
@@ -471,7 +471,7 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_leng
 
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
 
-    m_llm_profile["1/prefill:select_gen_req"] += pp::ms_to_run([&]() {
+    m_llm_profile["1/prefill:1c.select_gen_req"] += pp::ms_to_run([&]() {
         // Select the appropriate generate inference request variant based on prompt length
         // The function internally calculates expected total tokens (prompt + min_response_len)
         m_kvcache_request = select_generate_request(prompt_length);
@@ -479,7 +479,7 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_leng
         m_kvcache_out_ports = m_generate_variant_out_ports.at(m_kvcache_request);
     });
 
-    m_llm_profile["1/prefill:apply_lora"] += pp::ms_to_run([&]() {
+    m_llm_profile["1/prefill:1d.apply_lora"] += pp::ms_to_run([&]() {
         apply_lora();
     });
 }
@@ -787,7 +787,7 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
         m_eagle3_ext.prepare_inputs(m_prefill_request, m_prefill_in_ports);
     }
 
-    m_llm_profile["1/prefill:npu_infer"] += ov::npuw::perf::ms_to_run([&]() {
+    m_llm_profile["1/prefill:2a.npu_infer"] += ov::npuw::perf::ms_to_run([&]() {
         m_prefill_request->infer();
     });
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
@@ -814,11 +814,11 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
     namespace pp = ov::npuw::perf;
 
-    m_llm_profile["1/prefill:prepare"] += pp::ms_to_run([&]() {
+    m_llm_profile["1/prefill:1.prepare"] += pp::ms_to_run([&]() {
         prepare_for_new_conversation(prompt_length);
     });
 
-    m_llm_profile["1/prefill:infer"] += pp::ms_to_run([&]() {
+    m_llm_profile["1/prefill:2.infer"] += pp::ms_to_run([&]() {
         const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
         if (use_chunk_prefill) {
             OPENVINO_ASSERT(!token_type_ids,
@@ -830,7 +830,7 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
         }
     });
 
-    m_llm_profile["1/prefill:lm_head"] += pp::ms_to_run([&]() {
+    m_llm_profile["1/prefill:3.lm_head"] += pp::ms_to_run([&]() {
         if (m_lm_head_request) {
             LOG_DEBUG("Calling inference for LM head model.");
             m_lm_head_request->infer();
@@ -869,14 +869,14 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     if (!m_generate_initialized) {
         namespace pp = ov::npuw::perf;
 
-        m_llm_profile["N/generate:copy_kvcache"] += pp::ms_to_run([&]() {
+        m_llm_profile["N/generate:1.copy_kvcache"] += pp::ms_to_run([&]() {
             LOG_DEBUG("Copy kv-cache from prefill to generate model.");
             if (kvcache_desc.num_stored_tokens > 0) {
                 copy_kvcache();
             }
         });
 
-        m_llm_profile["N/generate:init_inputs"] += pp::ms_to_run([&]() {
+        m_llm_profile["N/generate:2.init_inputs"] += pp::ms_to_run([&]() {
             LOG_DEBUG("Prepare inputs.");
             namespace uu = ov::npuw::util;
             uu::fill_tensor_bytes(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name)), 0u);
@@ -900,7 +900,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
     namespace pp = ov::npuw::perf;
 
-    m_llm_profile["N/generate:prepare"] += pp::ms_to_run([&]() {
+    m_llm_profile["N/generate:3.prepare"] += pp::ms_to_run([&]() {
         // FIXME: these tensors should be shared between the parent & child models
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         auto kv_input_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name));
@@ -943,12 +943,12 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         }
     });
 
-    m_llm_profile["N/generate:infer"] += pp::ms_to_run([&]() {
+    m_llm_profile["N/generate:4.infer"] += pp::ms_to_run([&]() {
         m_kvcache_request->infer();
     });
     kvcache_desc.num_stored_tokens += input_tokens_len;
 
-    m_llm_profile["N/generate:post"] += pp::ms_to_run([&]() {
+    m_llm_profile["N/generate:5.post"] += pp::ms_to_run([&]() {
         if (m_lm_head_request) {
             LOG_DEBUG("Calling inference for LM head model asynchronously");
             m_lm_head_request->start_async();
