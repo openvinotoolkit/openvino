@@ -203,7 +203,6 @@ public:
         auto transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
 
         auto concat = opp::wrap_type<ov::op::v0::Concat>({transpose, transpose});
-        auto sin = opp::wrap_type<ov::op::v0::Sin>(concat);
         auto cos = opp::wrap_type<ov::op::v0::Cos>(concat);
 
         ov::matcher_pass_callback callback = [=, &node_pair, &new_params](ov::pass::pattern::Matcher& m) {
