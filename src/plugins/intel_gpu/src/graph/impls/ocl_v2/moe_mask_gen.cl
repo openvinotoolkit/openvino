@@ -40,6 +40,8 @@ KERNEL(moe_mask_gen)(
         num_actual_used_experts[0] = experts_id_iter + is_used;
     }
 
+    experts_info_start_idx[expert_id] = tokens_per_expert_iter + num_tokens_per_curr_expert;
+
     if (num_tokens_per_curr_expert == 0) {
         return;
     }

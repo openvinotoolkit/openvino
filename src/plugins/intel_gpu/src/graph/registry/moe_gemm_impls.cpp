@@ -10,6 +10,10 @@
     #include "impls/ocl_v2/moe/moe_gemm.hpp"
 #endif
 
+#if OV_GPU_WITH_ONEDNN
+    #include "impls/onednn/moe_gemm_onednn.hpp"
+#endif
+
 
 namespace ov::intel_gpu {
 
@@ -17,8 +21,9 @@ using namespace cldnn;
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<moe_gemm>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
-        OV_GPU_CREATE_INSTANCE_OCL(ocl::MoEGemm, shape_types::static_shape)
-        OV_GPU_CREATE_INSTANCE_OCL(ocl::MoEGemm, shape_types::dynamic_shape)
+        OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::MoEGemmImplementationManager, shape_types::static_shape)
+        // OV_GPU_CREATE_INSTANCE_OCL(ocl::MoEGemm, shape_types::static_shape)
+        // OV_GPU_CREATE_INSTANCE_OCL(ocl::MoEGemm, shape_types::dynamic_shape)
     };
 
     return impls;
