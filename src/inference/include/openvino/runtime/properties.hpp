@@ -1367,4 +1367,26 @@ static constexpr Property<uint64_t, PropertyMutability::RW> key_cache_group_size
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<uint64_t, PropertyMutability::RW> value_cache_group_size{"VALUE_CACHE_GROUP_SIZE"};
+
+/**
+ * @brief The runtime requirements for the model
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * The property can be used to read or pass the runtime requirements for the model. It allow to check if compiled model
+ * can be imported before start loading it.
+ *
+ * The property value is a string containing a comma-separated list of runtime requirements required to execute the compiled model.
+ *
+ * The following code provides runtime requirements for compiled model
+ * @code
+ * compiled_model.get_property(ov::runtime_requirements.name()); // get requirements for compiled model
+ * @endcode
+ *
+ * The following code validates if compiled model can be imported on device before loading it
+ *
+ * @code
+ * core.get_property("NPU", ov::runtime_requirements.name(), "Req1,Req2"); // get true/false
+ * @endcode
+ */
+inline constexpr Property<std::string, PropertyMutability::RW> runtime_requirements{"RUNTIME_REQUIREMENTS"};
 }  // namespace ov
