@@ -45,7 +45,7 @@
 namespace ov {
 namespace pass {
 namespace low_precision {
-
+namespace {
 class WeightsDequantizationBlock : public ov::pass::pattern::op::Block {
 public:
     WeightsDequantizationBlock() : Block({}, {}, "WeightsDequantizationBlock") {
@@ -68,8 +68,245 @@ public:
     }
 };
 
-namespace {
+bool fq_ranges_are_the_same(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) {
+    auto equal_with_threshold = [](const ov::Output<ov::Node>& val1, const ov::Output<ov::Node>& val2) {
+        auto diff = std::make_shared<ov::op::v1::Subtract>(val1, val2);
+        auto abs_diff = std::make_shared<ov::op::v0::Abs>(diff);
+        auto eps = ov::op::v0::Constant::create(val1.get_element_type(), {}, {1e-6f});
+        auto is_less = ov::util::get_constant_from_source(std::make_shared<ov::op::v1::Less>(abs_diff, eps));
 
+        auto all_true = [](const std::shared_ptr<ov::op::v0::Constant>& c) {
+            auto v = c->get_vector<bool>();
+            return std::all_of(v.begin(), v.end(), [](bool b) {
+                return b;
+            });
+        };
+        return is_less && all_true(is_less);
+    };
+
+    return equal_with_threshold(fq->input_value(1), fq->input_value(3)) &&
+           equal_with_threshold(fq->input_value(2), fq->input_value(4));
+}
+
+// Adjusts weight DQ scales and FQ range constants to compensate for FQ stripping.
+// Walks backward from the FQ to find weight DQ blocks, then forward to find
+// downstream FQs and detect Result nodes. If forward propagation reaches a Result
+// (model output without a scale-invariant consumer), all adjustments are discarded.
+class ScaleAdjuster {
+public:
+    ScaleAdjuster(float scale_divisor, const std::shared_ptr<ov::Node>& fq)
+        : m_scale_divisor(scale_divisor),
+          m_fq(fq.get()) {}
+
+    void adjust() {
+        propagate_backward(m_fq);
+        propagate_forward(m_fq);
+
+        if (!m_result_reachable)
+            apply_collected_adjustments();
+    }
+
+private:
+    struct PendingWeightScale {
+        std::shared_ptr<ov::Node> old_multiply;
+        std::shared_ptr<ov::Node> original_constant;
+        std::shared_ptr<ov::Node> mul_input;
+        std::vector<ov::Node*> extra_visited;
+    };
+
+    float m_scale_divisor;
+    ov::Node* m_fq;
+    bool m_result_reachable = false;
+
+    std::unordered_set<ov::Node*> m_visited;
+    std::unordered_set<ov::Node*> m_forward_visited;
+    std::unordered_set<ov::Node*> m_adjusted_fqs;
+
+    std::vector<PendingWeightScale> m_pending_weight_scales;
+    std::vector<ov::Node*> m_pending_fq_adjustments;
+
+    void collect_fq_adjustment(ov::Node* node) {
+        if (!ov::is_type<ov::op::v0::FakeQuantize>(node) || m_adjusted_fqs.count(node))
+            return;
+        m_pending_fq_adjustments.push_back(node);
+        m_adjusted_fqs.insert(node);
+    }
+
+    void propagate_backward(ov::Node* root) {
+        using namespace ov::pass::pattern;
+
+        auto collect_scale_to_weight = [&](const PatternValueMap& pattern_map,
+                                           const std::shared_ptr<WeightsDequantizationBlock>& dq_block,
+                                           const std::vector<ov::Node*>& extra_visited_nodes) {
+            auto original_constant = dq_block->get_anchor("mul_const", pattern_map).value().get_node_shared_ptr();
+            auto old_multiply = dq_block->get_anchor("multiply", pattern_map).value().get_node_shared_ptr();
+            auto mul_input = dq_block->get_anchor("mul_input", pattern_map).value().get_node_shared_ptr();
+
+            if (m_visited.count(old_multiply.get()))
+                return;
+
+            m_pending_weight_scales.push_back({old_multiply, original_constant, mul_input, extra_visited_nodes});
+        };
+
+        auto collect_weights_scale = [&](ov::Node* node) {
+            const auto node_shared = node->shared_from_this();
+
+            // Case 1: Convolution + Add (bias) — scale both Conv weights and bias
+            {
+                auto conv_weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
+                auto conv_pattern = wrap_type<ov::op::v1::Convolution>({any_input(), conv_weights_dq_block});
+
+                auto conv_shape = wrap_type<ov::op::v3::ShapeOf>({conv_pattern});
+                auto conv_rank = wrap_type<ov::op::v3::ShapeOf>({conv_shape});
+                auto rank_minus_2 = wrap_type<ov::op::v1::Subtract>({conv_rank, any_input()});
+                auto tail = wrap_type<ov::op::v3::Broadcast>({any_input(), rank_minus_2});
+
+                auto bias_dq_block = std::make_shared<WeightsDequantizationBlock>();
+                auto c_dim = wrap_type<ov::op::v3::ShapeOf>({bias_dq_block});
+                auto target_shape = wrap_type<ov::op::v0::Concat>({any_input(), c_dim, tail});
+                auto reshape_pattern = wrap_type<ov::op::v1::Reshape>({bias_dq_block, target_shape});
+
+                auto add_pattern = wrap_type<ov::op::v1::Add>({conv_pattern, reshape_pattern});
+                auto matcher = std::make_shared<Matcher>(add_pattern, "ConvAddPattern");
+
+                if (matcher->match(node_shared)) {
+                    auto pattern_map = matcher->get_pattern_value_map();
+                    std::vector<ov::Node*> extra;
+                    for (const auto& in : matcher->get_match_root()->input_values()) {
+                        extra.push_back(in.get_node());
+                    }
+                    collect_scale_to_weight(pattern_map, conv_weights_dq_block, extra);
+                    collect_scale_to_weight(pattern_map, bias_dq_block, {});
+                    return;
+                }
+            }
+
+            // Case 2: MatMul + Add (bias) — scale both MatMul weights and bias
+            {
+                auto weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
+                auto matmul_pattern = wrap_type<ov::op::v0::MatMul>({any_input(), weights_dq_block});
+
+                auto bias_dq_block = std::make_shared<WeightsDequantizationBlock>();
+                auto add_pattern = wrap_type<ov::op::v1::Add>({matmul_pattern, bias_dq_block});
+                auto matcher = std::make_shared<Matcher>(add_pattern, "MatMulAddPattern");
+
+                if (matcher->match(node_shared)) {
+                    auto pattern_map = matcher->get_pattern_value_map();
+                    std::vector<ov::Node*> extra;
+                    for (const auto& in : matcher->get_match_root()->input_values()) {
+                        extra.push_back(in.get_node());
+                    }
+                    collect_scale_to_weight(pattern_map, weights_dq_block, extra);
+                    collect_scale_to_weight(pattern_map, bias_dq_block, {});
+                    return;
+                }
+            }
+
+            // Case 3: MatMul with weights (no bias)
+            {
+                auto weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
+                auto matmul_pattern = wrap_type<ov::op::v0::MatMul>({any_input(), weights_dq_block});
+                auto matcher = std::make_shared<Matcher>(matmul_pattern, "MatMulPattern");
+
+                if (matcher->match(node_shared)) {
+                    auto pattern_map = matcher->get_pattern_value_map();
+                    std::vector<ov::Node*> extra;
+                    for (const auto& in : matcher->get_match_root()->input_values()) {
+                        extra.push_back(in.get_node());
+                    }
+                    collect_scale_to_weight(pattern_map, weights_dq_block, extra);
+                    return;
+                }
+            }
+
+            // Case 4: Multiply with weights
+            {
+                auto weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
+                auto multiply_pattern = wrap_type<ov::op::v1::Multiply>({any_input(), weights_dq_block});
+                auto matcher = std::make_shared<Matcher>(multiply_pattern, "MultiplyPattern");
+
+                if (matcher->match(node_shared)) {
+                    auto pattern_map = matcher->get_pattern_value_map();
+                    std::vector<ov::Node*> extra;
+                    for (const auto& in : matcher->get_match_root()->input_values()) {
+                        extra.push_back(in.get_node());
+                    }
+                    collect_scale_to_weight(pattern_map, weights_dq_block, extra);
+                    return;
+                }
+            }
+
+            // Case 5: FakeQuantize (un-stripped) — collect for range adjustment
+            if (ov::is_type<ov::op::v0::FakeQuantize>(node)) {
+                collect_fq_adjustment(node);
+            }
+        };
+
+        auto skip_predicate = [](ov::Node* n) {
+            return ov::is_type<ov::op::v0::ShapeOf>(n) || ov::is_type<ov::op::v3::ShapeOf>(n);
+        };
+
+        ov::op::util::visit_path(root, m_visited, collect_weights_scale, skip_predicate);
+    }
+
+    void propagate_forward(ov::Node* root) {
+        auto skip_predicate = [](ov::Node* n) {
+            return ov::is_type_any_of<ov::op::v0::MVN, ov::op::v6::MVN, ov::op::v1::Softmax, ov::op::v8::Softmax>(
+                n->shared_from_this());
+        };
+
+        ov::op::util::visit_path_forward(root, m_forward_visited, [&](ov::Node* node) {
+            if (ov::is_type<ov::op::v0::Result>(node)) {
+                m_result_reachable = true;
+                return;
+            }
+
+            if (ov::is_type<ov::op::v0::FakeQuantize>(node) && node != m_fq && !node->get_users().empty()) {
+                collect_fq_adjustment(node);
+                return;
+            }
+
+            if (!ov::is_type<ov::op::v1::Add>(node))
+                return;
+
+            for (size_t i = 0; i < node->get_input_size(); ++i) {
+                auto input_node = node->get_input_node_ptr(i);
+                if (m_visited.count(input_node) || m_forward_visited.count(input_node))
+                    continue;
+                propagate_backward(input_node);
+            }
+        }, skip_predicate);
+    }
+
+    void apply_collected_adjustments() {
+        for (const auto& pending : m_pending_weight_scales) {
+            auto divisor_const = ov::op::v0::Constant::create(
+                pending.original_constant->get_output_element_type(0), {}, {m_scale_divisor});
+            auto new_constant =
+                ov::op::util::make_try_fold<ov::op::v1::Divide>(pending.original_constant, divisor_const);
+            auto new_multiply = pending.old_multiply->clone_with_new_inputs({pending.mul_input, new_constant});
+
+            ov::replace_node(pending.old_multiply, new_multiply);
+            m_visited.insert(new_multiply.get());
+            for (auto* n : pending.extra_visited) {
+                m_visited.insert(n);
+            }
+        }
+
+        for (auto* node : m_pending_fq_adjustments) {
+            auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node->shared_from_this());
+            if (!fq)
+                continue;
+
+            auto divisor_const = ov::op::v0::Constant::create(ov::element::f32, {}, {m_scale_divisor});
+            for (size_t idx = 1; idx <= 4; ++idx) {
+                auto original_const = fq->get_input_node_shared_ptr(idx);
+                auto new_const = ov::op::util::make_try_fold<ov::op::v1::Divide>(original_const, divisor_const);
+                fq->input(idx).replace_source_output(new_const);
+            }
+        }
+    }
+};
 }  // namespace
 
 FQStrippingTransformation::FQStrippingTransformation(const std::set<size_t>& levels_to_strip,
@@ -83,365 +320,42 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         return false;
     }
 
-    auto fq_ranges_are_the_same = [&](const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) -> bool {
-        auto equal_with_threshold = [&](const ov::Output<ov::Node>& val1, const ov::Output<ov::Node>& val2) {
-            auto diff = std::make_shared<ov::op::v1::Subtract>(val1, val2);
-            auto abs_diff = std::make_shared<ov::op::v0::Abs>(diff);
-            auto eps = ov::op::v0::Constant::create(val1.get_element_type(), {}, {1e-6f});
-            auto is_less = std::make_shared<ov::op::v1::Less>(abs_diff, eps);
-            auto is_less_const = ov::util::get_constant_from_source(is_less);
-
-            auto all_true = [](const std::shared_ptr<ov::op::v0::Constant>& c) {
-                auto v = c->get_vector<bool>();
-                return std::all_of(v.begin(), v.end(), [](bool b) {
-                    return b;
-                });
-            };
-            return is_less_const && all_true(is_less_const);
-        };
-
-        return equal_with_threshold(fq->input_value(1), fq->input_value(3)) &&
-               equal_with_threshold(fq->input_value(2), fq->input_value(4));
-    };
-
     bool model_changed = false;
-    const float ratio = 10.0f;
-    const float threshold = 1.0f;
 
-    // Scale adjustment infrastructure
-    std::unordered_set<ov::Node*> visited;
-    float current_scale_divisor = 1.0f;
-    auto backward_skip_predicate = [](ov::Node* n) {
-        return ov::is_type<op::v0::ShapeOf>(n) || ov::is_type<op::v3::ShapeOf>(n);
-    };
-
-    // Deferred adjustment storage: during forward propagation we collect adjustments
-    // instead of applying them immediately. After the forward pass, if no Result node
-    // was encountered, we apply all collected adjustments. If Result was reached, the
-    // FQ output feeds directly into a model output without a scale-invariant consumer,
-    // so weight scaling would change the model's numerical output — we skip adjustments.
-
-    // Pending weight scale adjustment: stores {old_multiply, original_constant, mul_input}
-    struct PendingWeightScale {
-        std::shared_ptr<ov::Node> old_multiply;
-        std::shared_ptr<ov::Node> original_constant;
-        std::shared_ptr<ov::Node> mul_input;
-        std::vector<ov::Node*> extra_visited;  // match root inputs to mark visited
-    };
-    std::vector<PendingWeightScale> pending_weight_scales;
-
-    // Pending FQ range adjustment: stores the FQ node pointer
-    std::vector<ov::Node*> pending_fq_adjustments;
-
-    auto collect_scale_to_weight = [&](const ov::pass::pattern::PatternValueMap& pattern_map,
-                                       const std::shared_ptr<WeightsDequantizationBlock>& dq_block,
-                                       const std::vector<ov::Node*>& extra_visited_nodes) {
-        auto original_constant = dq_block->get_anchor("mul_const", pattern_map).value().get_node_shared_ptr();
-        auto old_multiply = dq_block->get_anchor("multiply", pattern_map).value().get_node_shared_ptr();
-        auto mul_input = dq_block->get_anchor("mul_input", pattern_map).value().get_node_shared_ptr();
-
-        if (visited.find(old_multiply.get()) != visited.end()) {
-            return;
-        }
-
-        pending_weight_scales.push_back({old_multiply, original_constant, mul_input, extra_visited_nodes});
-    };
-
-    auto apply_pending_weight_scale = [&](const PendingWeightScale& pending) {
-        auto divisor_const = ov::op::v0::Constant::create(
-            pending.original_constant->get_output_element_type(0), {}, {current_scale_divisor});
-        auto new_constant = ov::op::util::make_try_fold<ov::op::v1::Divide>(pending.original_constant, divisor_const);
-        auto new_multiply = pending.old_multiply->clone_with_new_inputs({pending.mul_input, new_constant});
-
-        ov::replace_node(pending.old_multiply, new_multiply);
-        visited.insert(new_multiply.get());
-        for (auto* n : pending.extra_visited) {
-            visited.insert(n);
-        }
-    };
-
-    // Helper to adjust FQ range constants (input_low, input_high, output_low, output_high)
-    // by dividing them by current_scale_divisor. This is needed when scale propagation passes
-    // through an un-stripped FQ — the quantization grid must shift to match the new value range.
-    // Uses a separate tracking set (adjusted_fqs) instead of `visited` because visit_path adds
-    // nodes to `visited` before calling the callback, which would cause the adjustment to be
-    // skipped when reached via backward propagation.
-    std::unordered_set<ov::Node*> adjusted_fqs;
-    auto collect_fq_adjustment = [&](ov::Node* node) {
-        auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node->shared_from_this());
-        if (!fq)
-            return;
-
-        if (adjusted_fqs.count(node))
-            return;
-
-        pending_fq_adjustments.push_back(node);
-        adjusted_fqs.insert(node);
-    };
-
-    auto apply_fq_adjustment = [&](ov::Node* node) {
-        auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node->shared_from_this());
-        if (!fq)
-            return;
-
-        auto divisor_const = ov::op::v0::Constant::create(ov::element::f32, {}, {current_scale_divisor});
-
-        // Adjust all 4 range constants: input_low(1), input_high(2), output_low(3), output_high(4)
-        for (size_t idx = 1; idx <= 4; ++idx) {
-            auto original_const = fq->get_input_node_shared_ptr(idx);
-            auto new_const = ov::op::util::make_try_fold<ov::op::v1::Divide>(original_const, divisor_const);
-            fq->input(idx).replace_source_output(new_const);
-        }
-    };
-
-    auto collect_weights_scale = [&](ov::Node* node) {
-        using namespace ov::pass::pattern;
-        const auto node_shared = node->shared_from_this();
-        // Case 1: Convolution + Add (bias) - scale both Add's constant and Conv weights
-        // The bias pattern came from ONNX FE
-        {
-            // Conv with weights DQ
-            auto conv_weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
-            auto conv_pattern = wrap_type<ov::op::v1::Convolution>({any_input(), conv_weights_dq_block});
-
-            // Bias DQ and reshape with shape computation
-            // Shape computation: ShapeOf(conv) -> ShapeOf -> Subtract -> Broadcast, ShapeOf(bias) -> Concat
-            auto conv_shape = wrap_type<ov::op::v3::ShapeOf>({conv_pattern});
-            auto conv_rank = wrap_type<ov::op::v3::ShapeOf>({conv_shape});
-            auto rank_minus_2 = wrap_type<ov::op::v1::Subtract>({conv_rank, any_input()});
-            auto tail = wrap_type<ov::op::v3::Broadcast>({any_input(), rank_minus_2});
-
-            auto bias_dq_block = std::make_shared<WeightsDequantizationBlock>();
-            auto c_dim = wrap_type<ov::op::v3::ShapeOf>({bias_dq_block});
-            auto target_shape = wrap_type<ov::op::v0::Concat>({any_input(), c_dim, tail});
-            auto reshape_pattern = wrap_type<ov::op::v1::Reshape>({bias_dq_block, target_shape});
-
-            auto add_pattern = wrap_type<ov::op::v1::Add>({conv_pattern, reshape_pattern});
-            auto matcher = std::make_shared<Matcher>(add_pattern, "ConvAddPattern");
-
-            if (matcher->match(node_shared)) {
-                auto pattern_map = matcher->get_pattern_value_map();
-                std::vector<ov::Node*> extra;
-                for (const auto& in : matcher->get_match_root()->input_values()) {
-                    extra.push_back(in.get_node());
-                }
-                collect_scale_to_weight(pattern_map, conv_weights_dq_block, extra);
-                collect_scale_to_weight(pattern_map, bias_dq_block, {});
-                return;
-            }
-        }
-
-        // Case 2: MatMul + Add (bias) - scale both MatMul weights and bias
-        {
-            auto weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
-            auto matmul_pattern = wrap_type<ov::op::v0::MatMul>({any_input(), weights_dq_block});
-
-            auto bias_dq_block = std::make_shared<WeightsDequantizationBlock>();
-            auto add_pattern = wrap_type<ov::op::v1::Add>({matmul_pattern, bias_dq_block});
-            auto matcher = std::make_shared<Matcher>(add_pattern, "MatMulAddPattern");
-
-            if (matcher->match(node_shared)) {
-                auto pattern_map = matcher->get_pattern_value_map();
-                std::vector<ov::Node*> extra;
-                for (const auto& in : matcher->get_match_root()->input_values()) {
-                    extra.push_back(in.get_node());
-                }
-                collect_scale_to_weight(pattern_map, weights_dq_block, extra);
-                collect_scale_to_weight(pattern_map, bias_dq_block, {});
-                return;
-            }
-        }
-
-        // Case 3: MatMul with weights (no bias)
-        {
-            auto weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
-            auto matmul_pattern = wrap_type<ov::op::v0::MatMul>({any_input(), weights_dq_block});
-            auto matcher = std::make_shared<Matcher>(matmul_pattern, "MatMulPattern");
-
-            if (matcher->match(node_shared)) {
-                auto pattern_map = matcher->get_pattern_value_map();
-                std::vector<ov::Node*> extra;
-                for (const auto& in : matcher->get_match_root()->input_values()) {
-                    extra.push_back(in.get_node());
-                }
-                collect_scale_to_weight(pattern_map, weights_dq_block, extra);
-                return;
-            }
-        }
-
-        // Case 4: Multiply with weights
-        {
-            auto weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
-            auto multiply_pattern = wrap_type<ov::op::v1::Multiply>({any_input(), weights_dq_block});
-            auto matcher = std::make_shared<Matcher>(multiply_pattern, "MultiplyPattern");
-
-            if (matcher->match(node_shared)) {
-                auto pattern_map = matcher->get_pattern_value_map();
-                std::vector<ov::Node*> extra;
-                for (const auto& in : matcher->get_match_root()->input_values()) {
-                    extra.push_back(in.get_node());
-                }
-                collect_scale_to_weight(pattern_map, weights_dq_block, extra);
-                return;
-            }
-        }
-
-        // Case 5: FakeQuantize (un-stripped) — collect its range constants for adjustment
-        if (ov::is_type<ov::op::v0::FakeQuantize>(node)) {
-            collect_fq_adjustment(node);
-            return;
-        }
-    };
-
-    // Forward visited set: tracks nodes reached during forward propagation.
-    // Declared here (outside the loop) so the forward_propagate_callback can capture it.
-    // Cleared before each forward propagation pass.
-    std::unordered_set<ov::Node*> forward_visited;
-
-    // Track FQs that have already been stripped so forward propagation skips them.
-    // After replace_output_update_name, the stripped FQ node is still connected as a consumer
-    // of its input node (only its output consumers were redirected), so forward traversal
-    // would still reach it.
-    std::unordered_set<ov::Node*> stripped_fqs;
-
-    // Set to true if forward propagation reaches a Result node, meaning the FQ output
-    // feeds directly into a model output without a scale-invariant consumer.
-    bool result_reachable = false;
-
-    // Forward propagation callback: collect FQ adjustments, run backward propagation
-    // from Add branches, and detect Result nodes. Weight scale and FQ adjustments are
-    // collected (not applied) until the forward pass completes — they are applied only
-    // if no Result was encountered.
-    auto forward_propagate_callback = [&](ov::Node* node) {
-        // Detect Result node: forward path reaches model output without scale-invariant consumer
-        if (ov::is_type<ov::op::v0::Result>(node)) {
-            result_reachable = true;
-            return;
-        }
-
-        // Handle un-stripped FakeQuantize: collect its range constants for adjustment
-        if (ov::is_type<ov::op::v0::FakeQuantize>(node)) {
-            if (stripped_fqs.count(node))
-                return;
-            collect_fq_adjustment(node);
-            return;
-        }
-
-        if (!ov::is_type<ov::op::v1::Add>(node))
-            return;
-
-        // For each input of the Add, run backward propagation for weight adjustment
-        // on branches that haven't been visited yet (the "other" branch of the residual).
-        // This collects weight scales immediately (into pending_weight_scales) rather than
-        // deferring the backward pass itself.
-        for (size_t i = 0; i < node->get_input_size(); ++i) {
-            auto input_node = node->get_input_node_ptr(i);
-            // Skip inputs already on the forward path (e.g., skip connections in residual blocks
-            // that already carry scaled values) or already backward-visited
-            if (visited.count(input_node) || forward_visited.count(input_node))
-                continue;
-
-            ov::op::util::visit_path(input_node, visited, collect_weights_scale, backward_skip_predicate);
-        }
-    };
-
-    // Forward propagation skip predicate: stop at scale-invariant nodes (MVN, Softmax)
-    auto forward_skip_predicate = [](ov::Node* n) {
-        return ov::is_type_any_of<ov::op::v0::MVN, ov::op::v6::MVN, ov::op::v1::Softmax, ov::op::v8::Softmax>(
-            n->shared_from_this());
-    };
-
-    // Single-pass: strip each FQ and immediately propagate scale before processing the next FQ.
-    // This ensures that forward propagation from FQ_A adjusts downstream FQ_B's ranges,
-    // so when FQ_B is processed its y_scale is recomputed from the adjusted (smaller) ranges.
-    // Without this, cascaded FQs would each independently compute y_scale from original ranges,
-    // potentially double-scaling weights.
     for (const auto& node : f->get_ordered_ops()) {
         auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node);
         if (!fq || transformation_callback(node)) {
             continue;
         }
 
-        if (!levels_to_strip.count(fq->get_levels())) {
+        if (!levels_to_strip.count(fq->get_levels()) || !fq_ranges_are_the_same(fq)) {
             continue;
         }
 
-        // Skip FQs with non-scalar constants or different input/output ranges
-        if (!fq_ranges_are_the_same(fq)) {
-            continue;
-        }
-
-        // Compute y_scale (dequantization scale) for this FQ:
-        //   y_scale = max((input_high - input_low) / (levels - 1))
-        // For per-channel FQs, y_scale is the maximum across all channels.
-        // For scalar FQs, this degenerates to a single value.
-        // Note: these ranges may have been adjusted by forward propagation from a preceding FQ,
-        // so y_scale reflects the current (post-adjustment) scale rather than the original.
+        // Compute dq_scale = |input_high - input_low| / (levels - 1)
         auto levels_minus_one_node = ov::op::v0::Constant::create(fq->input_value(2).get_element_type(),
-                                                                  ov::Shape{},
-                                                                  {static_cast<float>(fq->get_levels() - 1)});
+                                      ov::Shape{},
+                                      {static_cast<float>(fq->get_levels() - 1)});
         auto input_range_node = std::make_shared<ov::op::v1::Subtract>(fq->input_value(2), fq->input_value(1));
-        auto y_scale_per_elem = std::make_shared<ov::op::v1::Divide>(input_range_node, levels_minus_one_node);
-
-        auto y_scale_per_elem_const = ov::util::get_constant_from_source(y_scale_per_elem);
-        if (!y_scale_per_elem_const) {
+        auto abs_input_range = std::make_shared<ov::op::v0::Abs>(input_range_node);
+        auto dq_scale_per_elem = ov::util::get_constant_from_source(
+            std::make_shared<ov::op::v1::Divide>(abs_input_range, levels_minus_one_node));
+        if (!dq_scale_per_elem) {
             continue;
         }
-        auto y_scale_values = y_scale_per_elem_const->cast_vector<float>();
-        float y_scale = *std::max_element(y_scale_values.begin(), y_scale_values.end());
 
-        // Remember the FQ's input node before stripping (this is the node that feeds into the FQ)
-        auto propagation_root = fq->get_input_node_shared_ptr(0);
+        const auto dq_scale_values = dq_scale_per_elem->cast_vector<float>();
+        const auto max_dq_scale = *std::max_element(dq_scale_values.begin(), dq_scale_values.end());
+        constexpr auto threshold = 1.0f;
+
+        if (need_weights_adjustment && max_dq_scale > threshold) {
+            constexpr auto ratio = 10.0f;
+            ScaleAdjuster adjuster(max_dq_scale * ratio, fq);
+            adjuster.adjust();
+        }
 
         OPENVINO_ASSERT(replace_output_update_name(fq->output(0), fq->input_value(0)), "FQ stripping failed");
-        stripped_fqs.insert(fq.get());
         model_changed = true;
-
-        if (need_weights_adjustment && y_scale > threshold) {
-            current_scale_divisor = y_scale * ratio;
-
-            // Clear deferred collections for this FQ's propagation pass
-            pending_weight_scales.clear();
-            pending_fq_adjustments.clear();
-            result_reachable = false;
-            // Clear adjusted_fqs so the same FQ can be re-collected for a new propagation
-            // (each propagation pass is independent)
-            adjusted_fqs.clear();
-
-            // Step 1: Backward propagation from FQ position — collect weight adjustments
-            ov::op::util::visit_path(propagation_root.get(),
-                                     visited,
-                                     collect_weights_scale,
-                                     backward_skip_predicate);
-
-            // Step 2: Forward propagation from FQ position — collect FQ adjustments,
-            // backward propagation roots from Add branches, and detect Result nodes.
-            forward_visited.clear();
-            ov::op::util::visit_path_forward(propagation_root.get(),
-                                             forward_visited,
-                                             forward_propagate_callback,
-                                             forward_skip_predicate);
-
-            // Step 3: Apply all collected adjustments only if Result was NOT reached.
-            // If forward propagation reached a Result node, the FQ output feeds into a
-            // model output without a scale-invariant consumer — weight scaling would
-            // change the model's numerical output, so we skip all adjustments.
-            if (result_reachable) {
-                // Undo adjusted_fqs tracking since we didn't actually modify anything
-                adjusted_fqs.clear();
-            } else {
-                // Apply all collected weight scale adjustments (from initial backward
-                // propagation and backward propagation triggered from Add branches)
-                for (const auto& pending : pending_weight_scales) {
-                    apply_pending_weight_scale(pending);
-                }
-
-                // Apply collected FQ range adjustments
-                for (auto* fq_node : pending_fq_adjustments) {
-                    apply_fq_adjustment(fq_node);
-                }
-            }
-        }
     }
 
     return model_changed;
