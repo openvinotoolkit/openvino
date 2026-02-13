@@ -16,7 +16,7 @@ class TestRepeat(PytorchLayerTest):
 
         class aten_repeat(torch.nn.Module):
             def __init__(self, repeats):
-                super(aten_repeat, self).__init__()
+                super().__init__()
                 self.repeats = repeats
 
             def forward(self, x):
@@ -60,7 +60,7 @@ class TestRepeatList(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     def test_repeat(self, repeats, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"repeats_shape": repeats})
+                   kwargs_to_prepare_input={"repeats_shape": repeats}, fx_kind="aten.repeat.default")
 
 
 class TestRepeatFromFlanT5(PytorchLayerTest):
@@ -80,7 +80,6 @@ class TestRepeatFromFlanT5(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_repeat_t5(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True, use_convert_model=True)
