@@ -19,7 +19,7 @@ namespace behavior {
 
 inline std::shared_ptr<ov::Model> createMaxPoolModel() {
     auto input =
-        std::make_shared<ov::op::v0::Parameter>(element::f16, PartialShape{1, 16, ov::Dimension(10, 720), 1280});
+        std::make_shared<ov::op::v0::Parameter>(element::f16, PartialShape{1, 16, 720, ov::Dimension(10, 1280)});
     input->set_friendly_name("input1");
 
     auto maxpool = std::make_shared<ov::op::v1::MaxPool>(input,
