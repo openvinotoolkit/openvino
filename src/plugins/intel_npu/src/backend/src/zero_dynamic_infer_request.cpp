@@ -246,7 +246,7 @@ void ZeroDynamicInferRequest::infer_async() {
             dynamicGraph->predict_output_shape(inputPros, outputPros);
 
             for (size_t i = 0; i < outputPros.size(); i++) {
-                if (originalOutputPros[i].compare(outputPros[i])) {
+                if (!originalOutputPros[i].compare(outputPros[i])) {
                     _logger.debug("Output shape change detected");
                     break;
                 }

@@ -565,8 +565,9 @@ void DynamicGraph::initialize(const Config& config) {
         _num_of_subgraphs = _impl->getNumSubgraphs();
     }
 
-    if (!_zeroInitStruct) {
+    if (!_zeroInitStruct || _init_completed) {
         _logger.warning("Zero device is not available, skip graph initialize!");
+        return;
     }
 
     if (_commandQueue == nullptr) {
@@ -609,47 +610,6 @@ void DynamicGraph::initialize(const Config& config) {
 
             _lastSubmittedEvent.resize(numberOfCommandLists);
         }
-        return;
-    }
-
-    _commandQueueGroupOrdinal = zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
-                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
-
-    uint32_t commandQueueOptions = 0;
-
-    if (config.has<TURBO>() && config.get<TURBO>()) {
-        if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
-            _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in command queue options");
-            commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
-        }
-    }
-
-    if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1) &&
-        config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
-        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
-    }
-
-    _commandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                   zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                   _commandQueueGroupOrdinal,
-                                                   commandQueueOptions);
-
-    if (config.has<WORKLOAD_TYPE>()) {
-        set_workload_type(config.get<WORKLOAD_TYPE>());
-    }
-
-    _logger.debug("Graph initialize finish");
-
-    _blobIsReleased = release_blob(config);
-
-    _batchSize = determine_batch_size();
-
-    if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-        config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        auto numberOfCommandLists = _batchSize.has_value() ? *_batchSize : 1;
-
-        _lastSubmittedEvent.resize(numberOfCommandLists);
     }
 
     // To ensure that the initialization of the graph does not exit prematurely due to nullptrs
