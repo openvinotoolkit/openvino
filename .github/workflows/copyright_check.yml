@@ -1,0 +1,65 @@
+name: Copyright Check
+
+on:
+  pull_request:
+    branches:
+      - master
+      - 'releases/**'
+
+permissions:
+  contents: read
+
+jobs:
+  check-copyright:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+
+      - name: Get changed files
+        id: changed-files
+        run: |
+          # Download the PR diff directly from GitHub
+          curl -L "${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.pull_request.number }}.diff" -o pr.diff
+          
+          # Extract changed file names from the diff
+          # Lines starting with +++ indicate new/modified files (skip /dev/null for deleted files)
+          grep '^+++' pr.diff | sed 's|^+++ b/||' | grep -v '/dev/null' > changed_files.txt
+
+      - name: Check copyright headers
+        id: check
+        run: |
+          python .github/scripts/check_copyright.py changed_files.txt
+        continue-on-error: true
+
+      - name: Upload diff artifact
+        if: steps.check.outcome == 'failure'
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        with:
+          name: copyright-fixes
+          path: copyright_fixes.diff
+          retention-days: 7
+
+      - name: Fail if copyright issues found
+        if: steps.check.outcome == 'failure'
+        run: |
+          echo "## ⚠️ Copyright Header Issues Found"
+          echo ""
+          echo "Found issues in the following files:"
+          cat copyright_issues.txt
+          echo ""
+          echo "### How to fix:"
+          echo ""
+          echo "**Option 1: Download and apply the patch**"
+          echo "1. Go to the 'Summary' page of this workflow run"
+          echo "2. Scroll down to the 'Artifacts' section"
+          echo "3. Download the 'copyright-fixes' artifact"
+          echo "4. Extract copyright_fixes.diff from the zip"
+          echo "5. Apply it: patch -p1 < copyright_fixes.diff"
+          echo "6. Commit and push the changes"
+          echo ""
+          echo "**Option 2: Review the diff below and apply manually**"
+          echo ""
+          cat copyright_fixes.diff
+          echo ""
+          exit 1
