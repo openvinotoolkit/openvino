@@ -55,7 +55,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-16gb-docker-build
+    runs-on: aks-linux-4-cores-16gb-docker-build-st
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -92,7 +92,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-16-cores-32gb-st
     strategy:
       fail-fast: false
       matrix:
@@ -335,7 +335,7 @@ jobs:
   CXX_Unit_Tests:
     needs: [Smart_CI, Docker, Build]
     timeout-minutes: 120
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-4-cores-16gb-st
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_android }}
       volumes:
@@ -428,7 +428,7 @@ jobs:
   CXX_Func_Tests:
     needs: [Smart_CI, Docker, Build]
     timeout-minutes: 20
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-4-cores-16gb-st
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_android }}
       volumes:
