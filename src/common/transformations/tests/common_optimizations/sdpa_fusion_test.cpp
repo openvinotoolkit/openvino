@@ -1228,9 +1228,9 @@ TEST_F(TransformationTestsF, SDPAFusionTest_ReshapeOptimizationWithMaskCausal) {
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
-class SDPA2DInputs : public TransformationTestsF, public ::testing::WithParamInterface<PartialShape> {};
+class SDPASquieezeOutput : public TransformationTestsF, public ::testing::WithParamInterface<PartialShape> {};
 
-TEST_P(SDPA2DInputs, SDPAFusionTest_2DInputs) {
+TEST_P(SDPASquieezeOutput, SDPAFusionTest_SquieezeOutput) {
     // Parametrization
     const auto& shape = GetParam();
 
@@ -1262,11 +1262,50 @@ TEST_P(SDPA2DInputs, SDPAFusionTest_2DInputs) {
 }
 
 INSTANTIATE_TEST_SUITE_P(SDPAFusion,
-                         SDPA2DInputs,
+                         SDPASquieezeOutput,
                          Values(PartialShape{55, 128},   // Static 2D
                                 PartialShape{-1, 128},   // Dynamic batch
                                 PartialShape{55, -1},    // Dynamic embedding
                                 PartialShape{-1, -1}));  // Fully dynamic
+
+class SDPAUnsquieezeOutput : public TransformationTestsF, public ::testing::WithParamInterface<PartialShape> {};
+
+TEST_P(SDPAUnsquieezeOutput, SDPAFusionTest_UnsquieezeOutput) {
+    // Parametrization
+    const auto& shape = GetParam();
+
+    SDPA sdpa(f16, shape, shape, shape);
+    SDPA sdpa_ref(f16, shape, shape, shape);
+
+    // SDPA model.
+    {
+        sdpa.set_mask({1, 1, shape[1], shape[1]});
+        sdpa.create_pattern_sdpa(true);
+        sdpa.transpose_sdpa({0, 1, 3, 2});
+        model = sdpa.build_model();
+
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    // SDPA reference model.
+    {
+        sdpa_ref.set_mask({1, 1, shape[1], shape[1]});
+        sdpa_ref.create_reference_sdpa();
+        sdpa_ref.unsqueeze_sdpa({0});
+        sdpa_ref.transpose_sdpa({0, 1, 3, 2});
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+INSTANTIATE_TEST_SUITE_P(SDPAFusion,
+                         SDPAUnsquieezeOutput,
+                         Values(PartialShape{1, 55, 128},   // Static
+                                PartialShape{1, -1, 128},   // Dynamic batch
+                                PartialShape{1, 55, -1},    // Dynamic embedding
+                                PartialShape{1, -1, -1}));  // Fully dynamic
 
 TEST_F(TransformationTestsF, SDPAFusionTest_4dAttentionMaskWithBatch2) {
     // Init.
