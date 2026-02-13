@@ -17,7 +17,7 @@ const {
 } = require("../utils.js");
 
 // Tests are skipped until CVS-180810 is fixed.
-describe("ov basic tests.", { skip: true }, () => {
+describe("ov basic tests.", () => {
   const { testModelFP32 } = testModels;
   let core = null;
   let model = null;
