@@ -65,23 +65,33 @@ public:
     // === SharedDQ pattern ===
     // Two Conv branches sharing a quantized input (FQ → Convert → Convert → DQ → Conv + FQ → DQ)
     // FQs have y_scale < 1, so they are just stripped without scale propagation.
-    static std::shared_ptr<ov::Model> build_shared_dq_pattern_ref(const ov::PartialShape& input_shape);
+    static std::shared_ptr<ov::Model> build_shared_dq_pattern_ref(const ov::PartialShape& input_shape,
+                                                                   const ov::element::Type& quantization_precision,
+                                                                   bool need_weights_adjustment = true);
 
     // === NeedScalingMulMatMul pattern ===
     // Two params each multiplied by a shared DQ constant, then MatMul, then FQ→DQ→Softmax.
-    // FQ y_scale = 2, so weights must be divided by y_scale * ratio.
-    static std::shared_ptr<ov::Model> build_need_scaling_mul_matmul_pattern_ref(const ov::PartialShape& input_shape);
+    // When need_weights_adjustment=true: FQ y_scale=2, weights divided by y_scale*ratio.
+    // When need_weights_adjustment=false: FQ stripped, weights unchanged.
+    static std::shared_ptr<ov::Model> build_need_scaling_mul_matmul_pattern_ref(const ov::PartialShape& input_shape,
+                                                                                const ov::element::Type& quantization_precision,
+                                                                                bool need_weights_adjustment = true);
 
     // === NeedScalingMatMulWithBias pattern ===
     // MatMul with DQ weights + DQ bias + Add, then FQ→DQ→MVN.
-    // FQ y_scale = 4, so weights and bias must be divided by y_scale * ratio.
-    static std::shared_ptr<ov::Model> build_need_scaling_matmul_with_bias_pattern_ref(const ov::PartialShape& input_shape);
+    // When need_weights_adjustment=true: FQ y_scale=4, weights/bias divided by y_scale*ratio.
+    // When need_weights_adjustment=false: FQ stripped, weights/bias unchanged.
+    static std::shared_ptr<ov::Model> build_need_scaling_matmul_with_bias_pattern_ref(const ov::PartialShape& input_shape,
+                                                                                      const ov::element::Type& quantization_precision,
+                                                                                      bool need_weights_adjustment = true);
 
     // === NeedScalingResidualBlock pattern ===
     // Conv→bias→FQ→DQ→FQ(fwd)→residual_blocks(MVN→Conv→bias→FQ(branch)→Add)→MVN
-    // First FQ y_scale=10 → stripped + scale propagation.
-    // Forward-path FQ and branch FQs adjusted then stripped.
-    static std::shared_ptr<ov::Model> build_need_scaling_residual_block_pattern_ref(const ov::PartialShape& input_shape);
+    // When need_weights_adjustment=true: first FQ y_scale=10, scale propagation adjusts weights/FQs.
+    // When need_weights_adjustment=false: all FQs stripped, weights unchanged.
+    static std::shared_ptr<ov::Model> build_need_scaling_residual_block_pattern_ref(const ov::PartialShape& input_shape,
+                                                                                    const ov::element::Type& quantization_precision,
+                                                                                    bool need_weights_adjustment = true);
 
     // === GPU accuracy test model builders ===
     // These build full models with per-precision QuantizationParams (i16/u16) for

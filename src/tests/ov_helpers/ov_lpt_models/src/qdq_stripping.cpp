@@ -144,20 +144,27 @@ ov::Output<ov::Node> QDQStrippingFunction::build_dq(const ov::Output<ov::Node>& 
 // --- SharedDQ reference ---
 // Input FQ(0,10,0,65535) stays (Convert(f32) has 2 consumers → CQDQ can't fuse it).
 // Per-branch FQs (qp_2) fused by CQDQ → y_scale < 1 → stripped by FQStripping.
-std::shared_ptr<ov::Model> QDQStrippingFunction::build_shared_dq_pattern_ref(const ov::PartialShape& input_shape) {
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_shared_dq_pattern_ref(const ov::PartialShape& input_shape,
+                                                                              const ov::element::Type& quantization_precision,
+                                                                              bool need_weights_adjustment) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
 
-    // Input FQ stays unchanged (CQDQ can't match due to multiple consumers)
-    auto input_fq = build_fq(params[0], 0.f, 10.f, 0.f, 65535.f);
-    auto input_convert1 = std::make_shared<ov::op::v0::Convert>(input_fq, ov::element::u16);
-    auto input_convert2 = std::make_shared<ov::op::v0::Convert>(input_convert1, ov::element::f32);
+    // Input FQ stays unchanged (CQDQ can't match due to multiple consumers).
+    // Use same per-precision QuantizationParams as the original builder.
+    static const std::unordered_map<ov::element::Type_t, QuantizationParams> quantization_params{
+        {ov::element::Type_t::u16, {0.f, 10.f, 0.f, 65535.f, 0}},
+        {ov::element::Type_t::i16, {-5.0000762939453125f, 4.9999237060546875f, -32768.f, 32767.f, 0}},
+    };
+    const auto& qp_1 = quantization_params.at(quantization_precision);
 
-    static const QuantizationParams qp_1{0.f, 10.f, 0.f, 65535.f, 0};
+    auto input_fq = qp_1.build_fq(params[0]);
+    auto input_convert1 = std::make_shared<ov::op::v0::Convert>(input_fq, quantization_precision);
+    auto input_convert2 = std::make_shared<ov::op::v0::Convert>(input_convert1, ov::element::f32);
 
     size_t seed = 1;
     auto create_branch = [&](float weight_scale_value) {
         // DQ for input (same as original — not touched by either pass)
-        auto input_dequantized = qp_1.build_dq(input_convert2, ov::element::u16);
+        auto input_dequantized = qp_1.build_dq(input_convert2, quantization_precision);
 
         ov::test::utils::InputGenerateData weights_gen_data;
         weights_gen_data.seed = seed;
@@ -192,14 +199,16 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_shared_dq_pattern_ref(con
 // FQ(0,131070,0,65535) fused by CQDQ → y_scale = 131070/65535 = 2 > 1
 // scale_divisor = 2 * 10 = 20. Common constant scale divided: 1.0/20 = 0.05
 // FQ stripped, Convert+DQ after it removed by CQDQ fusion.
-std::shared_ptr<ov::Model> QDQStrippingFunction::build_need_scaling_mul_matmul_pattern_ref(const ov::PartialShape& input_shape) {
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_need_scaling_mul_matmul_pattern_ref(const ov::PartialShape& input_shape,
+                                                                                            const ov::element::Type& /*quantization_precision*/,
+                                                                                            bool need_weights_adjustment) {
     auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
     auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
     ov::ParameterVector params{param1, param2};
 
-    // Common constant with scale divided by scale_divisor=20: 1.0/20 = 0.05
-    // make_try_fold folds Divide(Constant, Constant) → Constant
-    auto common_constant = build_dq_subgraph(ov::element::i8, {}, 0.05f, 0, std::nullopt, std::vector<int>{127});
+    // Original scale=1.0. With weights adjustment: divided by scale_divisor=20 → 0.05
+    const float common_scale = need_weights_adjustment ? 1.0f / 20.0f : 1.0f;
+    auto common_constant = build_dq_subgraph(ov::element::i8, {}, common_scale, 0, std::nullopt, std::vector<int>{127});
 
     auto mul1 = std::make_shared<ov::op::v1::Multiply>(param1, common_constant);
     auto mul2 = std::make_shared<ov::op::v1::Multiply>(param2, common_constant);
@@ -217,15 +226,18 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_need_scaling_mul_matmul_p
 // FQ(0,262140,0,65535) fused by CQDQ → y_scale = 262140/65535 = 4 > 1
 // scale_divisor = 4 * 10 = 40. Weight scale: 0.02/40 = 0.0005, bias scale: 200/40 = 5
 // FQ stripped, Convert+DQ removed by CQDQ fusion.
-std::shared_ptr<ov::Model> QDQStrippingFunction::build_need_scaling_matmul_with_bias_pattern_ref(const ov::PartialShape& input_shape) {
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_need_scaling_matmul_with_bias_pattern_ref(const ov::PartialShape& input_shape,
+                                                                                                  const ov::element::Type& /*quantization_precision*/,
+                                                                                                  bool need_weights_adjustment) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
 
-    // Weight scale divided by 40: 0.02/40 = 0.0005
-    auto weight = build_dq_subgraph(ov::element::i8, ov::Shape{128, 32}, 0.0005f, -128, 1);
+    // Original weight_scale=0.02. With weights adjustment: divided by scale_divisor=40 → 0.0005
+    const float scale_divisor = need_weights_adjustment ? 40.f : 1.f;
+    auto weight = build_dq_subgraph(ov::element::i8, ov::Shape{128, 32}, 0.02f / scale_divisor, -128, 1);
     auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], weight, false, false);
 
-    // Bias scale divided by 40: 200/40 = 5
-    auto bias = build_dq_subgraph(ov::element::i8, {32}, 5.0f, -128, 2);
+    // Original bias_scale=200. With weights adjustment: divided by 40 → 5
+    auto bias = build_dq_subgraph(ov::element::i8, {32}, 200.0f / scale_divisor, -128, 2);
     auto matmul_biased = std::make_shared<ov::op::v1::Add>(matmul, bias);
 
     // FQ stripped, CQDQ removed Convert+DQ → Add output goes directly to MVN
@@ -241,10 +253,13 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_need_scaling_matmul_with_
 // Forward propagation adjusts forward-path FQ and branch FQs by /100,
 // making their y_scale < 1, so they are stripped too.
 // CQDQ also fuses the first FQ's Convert+DQ chain.
-std::shared_ptr<ov::Model> QDQStrippingFunction::build_need_scaling_residual_block_pattern_ref(const ov::PartialShape& input_shape) {
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_need_scaling_residual_block_pattern_ref(const ov::PartialShape& input_shape,
+                                                                                                const ov::element::Type& /*quantization_precision*/,
+                                                                                                bool need_weights_adjustment) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
 
-    const float scale_divisor = 100.f;  // y_scale(10) * ratio(10)
+    // y_scale(10) * ratio(10) = 100. When need_weights_adjustment=false, no division.
+    const float scale_divisor = need_weights_adjustment ? 100.f : 1.f;
 
     // Conv1 weight scale: 0.003/100 = 3e-05
     auto weight1 = build_dq_subgraph(ov::element::i8, ov::Shape{32, 3, 3, 3}, 0.003f / scale_divisor, -128, 1);
