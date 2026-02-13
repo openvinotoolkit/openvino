@@ -4,6 +4,7 @@
 
 import os.path
 import sys
+import pandas
 import errno
 import subprocess  # nosec
 import platform
