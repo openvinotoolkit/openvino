@@ -10,7 +10,9 @@
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "data_inst.h"
+#include "mutable_data_inst.h"
 #include "intel_gpu/runtime/itt.hpp"
+#include "registry/implementation_manager.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "reorder_inst.h"
 #include "graph/impls/onednn/utils.hpp"
@@ -109,8 +111,56 @@ void propagate_constants::run(program& p) {
                                              curr_node.users.end(),
                                              [](program_node* node) { return node->is_constant(); }),
                               curr_node.users.end());
+        bool was_dynamic = curr_node.get_output_layout().is_dynamic();
         p.replace(curr_node, new_node);
-        new_node.recalc_output_layout(false);
+        new_node.recalc_output_layout(was_dynamic);
+    }
+
+    // propagate_constants is executed after compile_graph pass.
+    // If some users become static due to propagated constants, they can end up without selected_impl.
+    // Re-select implementation for such static nodes to avoid runtime _impl-nullptr validation failure.
+    for (auto& node : p.get_processing_order()) {
+        bool can_select_impl = !node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty());
+        if (!can_select_impl)
+            continue;
+
+        auto selected_impl = node->get_selected_impl();
+        bool has_selected_impl = selected_impl != nullptr;
+        bool need_new_impl_selection = !has_selected_impl;
+
+        if (has_selected_impl && !node->is_valid_output_layout()) {
+            bool is_node_dynamic = node->get_output_layout(false).is_dynamic();
+            bool is_impl_dynamic = selected_impl->is_dynamic();
+            need_new_impl_selection = (is_node_dynamic != is_impl_dynamic);
+        }
+
+        if (!need_new_impl_selection)
+            continue;
+
+        auto params = node->get_kernel_impl_params();
+        auto shape_type = ImplementationManager::get_shape_type(*params);
+        if (shape_type == shape_types::dynamic_shape)
+            continue;
+
+        auto selected_impl_manager = node->type()->choose_impl(*node, shape_type);
+        std::string fail_reason;
+        try {
+            if (selected_impl_manager)
+                node->set_selected_impl(selected_impl_manager->create(*node, *params));
+        } catch (std::exception& e) {
+            fail_reason = e.what();
+        }
+
+        OPENVINO_ASSERT(node->get_selected_impl() != nullptr,
+                        "[GPU] Failed to select implementation after propagate_constants"
+                        "\nname:",
+                        node->id(),
+                        "\ntype: ",
+                        node->get_primitive()->type_string(),
+                        "\noriginal_type: ",
+                        node->get_primitive()->origin_op_type_name,
+                        " ",
+                        fail_reason);
     }
 }
 
