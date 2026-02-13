@@ -151,36 +151,27 @@ private:
                 }
             }
 
-            // Case 2: MatMul + Add (bias) — scale both MatMul weights and bias
+            // Case 2: MatMul with optional Add (bias)
             {
                 auto weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
                 auto matmul_pattern = wrap_type<ov::op::v0::MatMul>({any_input(), weights_dq_block});
 
                 auto bias_dq_block = std::make_shared<WeightsDequantizationBlock>();
-                auto add_pattern = wrap_type<ov::op::v1::Add>({matmul_pattern, bias_dq_block});
-                auto matcher = std::make_shared<Matcher>(add_pattern, "MatMulAddPattern");
+                auto add_pattern = optional<ov::op::v1::Add>({matmul_pattern, bias_dq_block});
+
+                auto matcher = std::make_shared<Matcher>(add_pattern, "MatMulOptionalAddPattern");
 
                 if (matcher->match(node_shared)) {
                     auto& pm = matcher->get_pattern_value_map();
                     m_pending_weight_scales.insert(weights_dq_block->get_multiply(pm));
-                    m_pending_weight_scales.insert(bias_dq_block->get_multiply(pm));
+                    if (pm.count(add_pattern)) {
+                        m_pending_weight_scales.insert(bias_dq_block->get_multiply(pm));
+                    }
                     return;
                 }
             }
 
-            // Case 3: MatMul with weights (no bias)
-            {
-                auto weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
-                auto matmul_pattern = wrap_type<ov::op::v0::MatMul>({any_input(), weights_dq_block});
-                auto matcher = std::make_shared<Matcher>(matmul_pattern, "MatMulPattern");
-
-                if (matcher->match(node_shared)) {
-                    m_pending_weight_scales.insert(weights_dq_block->get_multiply(matcher->get_pattern_value_map()));
-                    return;
-                }
-            }
-
-            // Case 4: Multiply with weights
+            // Case 3: Multiply with weights
             {
                 auto weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
                 auto multiply_pattern = wrap_type<ov::op::v1::Multiply>({any_input(), weights_dq_block});
@@ -192,7 +183,7 @@ private:
                 }
             }
 
-            // Case 5: FakeQuantize (un-stripped) — collect for range adjustment
+            // Case 4: FakeQuantize (un-stripped) — collect for range adjustment
             if (auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node->shared_from_this())) {
                 m_pending_fq_adjustments.insert(fq);
             }
