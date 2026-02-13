@@ -22,7 +22,7 @@ public:
     QDQStrippingTest() : TransformationTestsF() {
         disable_rt_info_check();
         manager.register_pass<ov::pass::ConvertQuantizeDequantize>();
-        manager.register_pass<ov::pass::low_precision::FQStrippingTransformation>(std::set<size_t>{65536});
+        manager.register_pass<ov::pass::low_precision::FQStrippingTransformation>(std::set<size_t>{65536}, true);
         comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     }
 };

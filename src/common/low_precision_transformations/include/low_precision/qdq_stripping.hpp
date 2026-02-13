@@ -23,11 +23,12 @@ namespace low_precision {
 class LP_TRANSFORMATIONS_API FQStrippingTransformation : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("low_precision::FQStrippingTransformation");
-    FQStrippingTransformation(const std::set<size_t>& levels_to_strip);
+    FQStrippingTransformation(const std::set<size_t>& levels_to_strip, bool need_weights_adjustment = false);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
     const std::set<size_t> levels_to_strip;
+    const bool need_weights_adjustment;
 };
 
 } // namespace low_precision

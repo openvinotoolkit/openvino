@@ -156,8 +156,10 @@ private:
 
 }  // namespace
 
-FQStrippingTransformation::FQStrippingTransformation(const std::set<size_t>& levels_to_strip)
-    : levels_to_strip(levels_to_strip) {}
+FQStrippingTransformation::FQStrippingTransformation(const std::set<size_t>& levels_to_strip,
+                                                     bool need_weights_adjustment)
+    : levels_to_strip(levels_to_strip),
+      need_weights_adjustment(need_weights_adjustment) {}
 
 bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(FQStrippingTransformation);
@@ -269,8 +271,8 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         if (adjusted_fqs.count(node))
             return;
 
-        QDQ_DEBUG_LOG << "        [ DEBUG ] Adjusting FQ ranges for: " << fq->get_friendly_name()
-                      << " by dividing by " << current_scale_divisor << std::endl;
+        QDQ_DEBUG_LOG << "        [ DEBUG ] Adjusting FQ ranges for: " << fq->get_friendly_name() << " by dividing by "
+                      << current_scale_divisor << std::endl;
 
         auto divisor_const = ov::op::v0::Constant::create(ov::element::f32, {}, {current_scale_divisor});
 
@@ -431,8 +433,8 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
 
     // Forward propagation skip predicate: stop at scale-invariant nodes (MVN, Softmax)
     auto forward_skip_predicate = [](ov::Node* n) {
-        return ov::is_type_any_of<ov::op::v0::MVN, ov::op::v6::MVN,
-                                  ov::op::v1::Softmax, ov::op::v8::Softmax>(n->shared_from_this());
+        return ov::is_type_any_of<ov::op::v0::MVN, ov::op::v6::MVN, ov::op::v1::Softmax, ov::op::v8::Softmax>(
+            n->shared_from_this());
     };
 
     // Single-pass: strip each FQ and immediately propagate scale before processing the next FQ.
@@ -466,12 +468,11 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         const auto& input_low = fq->input_value(1);
         const auto& input_high = fq->input_value(2);
 
-        auto levels_minus_one_node = ov::op::v0::Constant::create(
-            input_high.get_element_type(), ov::Shape{}, {static_cast<float>(fq->get_levels() - 1)});
-        auto input_range_node =
-            ov::op::util::make_try_fold<ov::op::v1::Subtract>(input_high, input_low);
-        auto y_scale_node =
-            ov::op::util::make_try_fold<ov::op::v1::Divide>(input_range_node, levels_minus_one_node);
+        auto levels_minus_one_node = ov::op::v0::Constant::create(input_high.get_element_type(),
+                                                                  ov::Shape{},
+                                                                  {static_cast<float>(fq->get_levels() - 1)});
+        auto input_range_node = ov::op::util::make_try_fold<ov::op::v1::Subtract>(input_high, input_low);
+        auto y_scale_node = ov::op::util::make_try_fold<ov::op::v1::Divide>(input_range_node, levels_minus_one_node);
 
         // Fold the subgraph to a constant and extract the scalar value
         auto y_scale_const = ov::as_type_ptr<ov::op::v0::Constant>(y_scale_node);
@@ -486,7 +487,8 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
                       << (get_const_float_value(input_high.get_node_shared_ptr()) -
                           get_const_float_value(input_low.get_node_shared_ptr()))
                       << std::endl;
-        QDQ_DEBUG_LOG << "  [ DEBUG ] Y scale (dequant scale): " << y_scale << " (levels=" << fq->get_levels() << ")" << std::endl;
+        QDQ_DEBUG_LOG << "  [ DEBUG ] Y scale (dequant scale): " << y_scale << " (levels=" << fq->get_levels() << ")"
+                      << std::endl;
 
         // Remember the FQ's input node before stripping (this is the node that feeds into the FQ)
         auto propagation_root = fq->get_input_node_shared_ptr(0);
@@ -496,7 +498,7 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         stripped_fqs.insert(fq.get());
         model_changed = true;
 
-        if (y_scale > threshold) {
+        if (need_weights_adjustment && y_scale > threshold) {
             current_scale_divisor = y_scale * ratio;
 
             QDQ_DEBUG_LOG << "  [ INFO ] y_scale=" << y_scale << " > threshold=" << threshold
@@ -513,8 +515,10 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             // y_scale is recomputed correctly when we reach them in the topological walk).
             QDQ_DEBUG_LOG << "  [ INFO ] --- Forward propagation ---" << std::endl;
             forward_visited.clear();
-            ov::op::util::visit_path_forward(propagation_root.get(), forward_visited,
-                                             forward_propagate_callback, forward_skip_predicate);
+            ov::op::util::visit_path_forward(propagation_root.get(),
+                                             forward_visited,
+                                             forward_propagate_callback,
+                                             forward_skip_predicate);
         }
         QDQ_DEBUG_LOG << "========================================" << std::endl;
     }

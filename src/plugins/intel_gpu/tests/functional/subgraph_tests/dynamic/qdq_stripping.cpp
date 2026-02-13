@@ -37,24 +37,25 @@ inline std::ostream& operator<<(std::ostream& os, PatternType pattern_type) {
     return os;
 }
 
-using QDQStrippingParams = std::tuple<ov::test::InputShape, ov::element::Type, ov::element::Type, PatternType>;
+using QDQStrippingParams = std::tuple<ov::test::InputShape, ov::element::Type, ov::element::Type, ov::element::Type, PatternType>;
 
 class QDQStrippingTest : public testing::WithParamInterface<QDQStrippingParams>, virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<QDQStrippingParams>& obj) {
-        const auto& [input_shape, input_precision, quantization_precision, pattern_type] = obj.param;
+        const auto& [input_shape, input_precision, quantization_precision, inference_precision, pattern_type] = obj.param;
         std::ostringstream result;
         result << "IS=(" << ov::test::utils::partialShape2str({input_shape.first}) << ")_"
                << "TS=";
         for (const auto& ts : input_shape.second) {
             result << "(" << ov::test::utils::vec2str(ts) << ")_";
         }
-        result << "Precision=" << input_precision << "_QuantPrecision=" << quantization_precision << "_Pattern=" << pattern_type;
+        result << "Precision=" << input_precision << "_QuantPrecision=" << quantization_precision << "_InferPrecision=" << inference_precision
+               << "_Pattern=" << pattern_type;
         return result.str();
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
-        const auto& [input_shape, input_precision, quantization_precision, pattern_type] = GetParam();
+        const auto& [input_shape, input_precision, quantization_precision, inference_precision, pattern_type] = GetParam();
         // In "NeedScaling" cases we generate values which would cause overflow in f16 if quantization scales are not adjusted by FQStripping
         if (pattern_type == PatternType::NeedScalingMulMatMul) {
             // Input range [0, 1000]: with DQ=127, mul1 = input * 127 → up to 127,000 → overflows f16.
@@ -100,7 +101,7 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
-        const auto& [input_shape, input_precision, quantization_precision, pattern_type] = GetParam();
+        const auto& [input_shape, input_precision, quantization_precision, inference_precision, pattern_type] = GetParam();
 
         // NeedScalingMulMatMul pattern has 2 parameters, others have 1
         if (pattern_type == PatternType::NeedScalingMulMatMul) {
@@ -121,8 +122,7 @@ protected:
         // keep f16 quantization error well below 0.05.
         abs_threshold = 0.05;
 
-        // Force f16 inference precision to test FQTransformation scales adjustment (preventing overflow in f16 scenarios).
-        configuration[ov::hint::inference_precision.name()] = ov::element::f16.get_type_name();
+        configuration[ov::hint::inference_precision.name()] = inference_precision.get_type_name();
 
         OPENVINO_ASSERT(quantization_precision == ov::element::i16 || quantization_precision == ov::element::u16,
                         "Only i16 and u16 quantization precisions are supported in the test");
@@ -170,16 +170,29 @@ TEST_P(QDQStrippingTest, Inference) {
 const std::vector<ov::test::InputShape> input_shapes = {{{-1, -1, -1, -1}, {{1, 3, 128, 128}}}};
 const std::vector<ov::element::Type> input_precisions = {ov::element::f32};
 const std::vector<ov::element::Type> quantization_precisions = {ov::element::u16, ov::element::i16};
-const std::vector<PatternType> pattern_types = {PatternType::SharedDQ,
-                                                PatternType::NeedScalingMulMatMul,
-                                                PatternType::NeedScalingResidualBlock,
-                                                PatternType::NeedScalingMatMulWithBias};
 
-INSTANTIATE_TEST_SUITE_P(smoke_QDQStripping,
+// MulMatMul is an artificial model designed to test f16 overflow handling via weight scaling.
+// For f16, weight scaling divides weights by scale_divisor, reducing MatMul output to fit
+// within the FQ range — so stripping the FQ is safe (no clamping effect lost).
+// For f32, weight scaling is unnecessary (no overflow risk), so MatMul output remains large
+// and exceeds the FQ range — stripping the FQ removes clamping and breaks Softmax accuracy.
+INSTANTIATE_TEST_SUITE_P(smoke_QDQStripping_f16Only,
                          QDQStrippingTest,
                          ::testing::Combine(::testing::ValuesIn(input_shapes),
                                             ::testing::ValuesIn(input_precisions),
                                             ::testing::ValuesIn(quantization_precisions),
-                                            ::testing::ValuesIn(pattern_types)),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(PatternType::NeedScalingMulMatMul)),
+                         QDQStrippingTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_QDQStripping_BothPrecisions,
+                         QDQStrippingTest,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes),
+                                            ::testing::ValuesIn(input_precisions),
+                                            ::testing::ValuesIn(quantization_precisions),
+                                            ::testing::Values(ov::element::f16, ov::element::f32),
+                                            ::testing::Values(PatternType::SharedDQ,
+                                                              PatternType::NeedScalingResidualBlock,
+                                                              PatternType::NeedScalingMatMulWithBias)),
                          QDQStrippingTest::getTestCaseName);
 }  // namespace
