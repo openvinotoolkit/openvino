@@ -663,7 +663,9 @@ TEST_F(TransformationTestsF, CompressConstants_compress_non_scalar_with_high_err
     // Non-scalar (numel=4) with high per-element error -> still compressed.
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 4});
-        auto scale = v0::Constant::create(ov::element::f32, ov::Shape{4}, {2.7725887f, 2.7725887f, 2.7725887f, 2.7725887f});
+        auto scale = v0::Constant::create(ov::element::f32,
+                                           ov::Shape{4},
+                                           {2.7725887f, 2.7725887f, 2.7725887f, 2.7725887f});
         auto mul = std::make_shared<ov::opset8::Multiply>(input, scale);
         model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
 
@@ -674,7 +676,9 @@ TEST_F(TransformationTestsF, CompressConstants_compress_non_scalar_with_high_err
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 4});
         // Non-scalar constant compressed to FP16 + Convert (error check is scalar-only)
-        auto scale = v0::Constant::create(ov::element::f16, ov::Shape{4}, {2.7725887f, 2.7725887f, 2.7725887f, 2.7725887f});
+        auto scale = v0::Constant::create(ov::element::f16,
+                                           ov::Shape{4},
+                                           {2.7725887f, 2.7725887f, 2.7725887f, 2.7725887f});
         auto convert = std::make_shared<v0::Convert>(scale, ov::element::f32);
         auto mul = std::make_shared<ov::opset8::Multiply>(input, convert);
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});

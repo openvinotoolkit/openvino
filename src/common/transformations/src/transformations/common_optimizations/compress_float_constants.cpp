@@ -160,18 +160,28 @@ CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
         // bucketing). FP16 rounding error in such scalars cascades through every computation
         // that uses them. Non-scalar constants have errors averaged across many elements.
         {
+            constexpr double max_scalar_f16_relative_error = 1e-4;
             auto size = ov::shape_size(const_node->get_shape());
             if (size == 1 && (c_type == ov::element::f32 || c_type == ov::element::f64)) {
-                double src_val = (c_type == ov::element::f32)
-                                     ? static_cast<double>(*const_node->get_data_ptr<float>())
-                                     : *const_node->get_data_ptr<double>();
-                if (std::isfinite(src_val) && src_val != 0.0) {
-                    auto f16_val = static_cast<ov::float16>(static_cast<float>(src_val));
-                    double roundtripped = static_cast<double>(static_cast<float>(f16_val));
-                    double rel_error = std::abs(src_val - roundtripped) / std::abs(src_val);
-                    constexpr double max_scalar_f16_relative_error = 1e-4;
-                    if (rel_error > max_scalar_f16_relative_error)
-                        return false;
+                if (c_type == ov::element::f32) {
+                    const float src_f32 = *const_node->get_data_ptr<float>();
+                    const double src_val = static_cast<double>(src_f32);
+                    if (std::isfinite(src_f32) && src_f32 != 0.0f) {
+                        const ov::float16 f16_val = static_cast<ov::float16>(src_f32);
+                        const double roundtripped = static_cast<double>(static_cast<float>(f16_val));
+                        const double rel_error = std::abs(src_val - roundtripped) / std::abs(src_val);
+                        if (rel_error > max_scalar_f16_relative_error)
+                            return false;
+                    }
+                } else {  // c_type == ov::element::f64
+                    const double src_val = *const_node->get_data_ptr<double>();
+                    if (std::isfinite(src_val) && src_val != 0.0) {
+                        const ov::float16 f16_val = static_cast<ov::float16>(src_val);
+                        const double roundtripped = static_cast<double>(f16_val);
+                        const double rel_error = std::abs(src_val - roundtripped) / std::abs(src_val);
+                        if (rel_error > max_scalar_f16_relative_error)
+                            return false;
+                    }
                 }
             }
         }
