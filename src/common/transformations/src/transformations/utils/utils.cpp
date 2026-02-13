@@ -93,14 +93,12 @@ void visit_path_forward(ov::Node* node,
             continue;
 
         func(curr_node);
-        for (auto& output : curr_node->outputs()) {
-            for (auto& target_input : output.get_target_inputs()) {
-                auto consumer = target_input.get_node();
-                if (visited.count(consumer))
-                    continue;
-                nodes.push_back(consumer);
-                visited.insert(consumer);
-            }
+        for (auto& user : curr_node->get_users()) {
+            auto consumer = user.get();
+            if (visited.count(consumer))
+                continue;
+            nodes.push_back(consumer);
+            visited.insert(consumer);
         }
     }
 }
