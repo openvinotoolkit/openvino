@@ -12,7 +12,6 @@
 
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
-#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
