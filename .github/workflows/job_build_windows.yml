@@ -45,9 +45,9 @@ jobs:
       CMAKE_BUILD_TYPE: ${{ inputs.build-type }}
       CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
       CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
-      CCACHE_REMOTE_DIR: C:\\mount\\caches\\ccache\\windows2022_x86_64_${{ inputs.build-type }}\\${{ inputs.target-branch }}
+      CCACHE_REMOTE_DIR: C:\\mount\\caches\\ccache\\staging\\windows2022_x86_64_${{ inputs.build-type }}\\${{ inputs.target-branch }}
       CCACHE_DIR: ${{ github.workspace }}\\ccache
-      CCACHE_MAXSIZE: 3G
+      CCACHE_MAXSIZE: 50G
       CCACHE_SLOPPINESS: pch_defines,time_macros
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
@@ -142,10 +142,9 @@ jobs:
 
       - name: Setup ccache
         uses: ./openvino/.github/actions/cache
-        if: ${{ inputs.build-type != 'Debug' }}
         with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          save-always: 'true'
+          cleanup-always: 'true'
           cache-path: ${{ env.CCACHE_REMOTE_DIR }}
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
@@ -170,14 +169,12 @@ jobs:
           Invoke-Expression $cmakeCommand
 
       - name: Clean ccache stats
-        if: ${{ inputs.build-type != 'Debug' }}
         run: '& ccache --zero-stats'
 
       - name: Cmake build - OpenVINO
         run: cmake --build ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --parallel $ENV:NUMBER_OF_PROCESSORS --verbose
 
       - name: Show ccache stats
-        if: ${{ inputs.build-type != 'Debug' }}
         run: '& ccache --show-stats'
 
       - name: Cmake install - OpenVINO
