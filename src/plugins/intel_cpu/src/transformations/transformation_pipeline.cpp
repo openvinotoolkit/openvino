@@ -1374,8 +1374,11 @@ void Transformations::MainSnippets() {
         // and CPU Plugin does not support Mish for x64
         auto is_unsupported = [](const std::shared_ptr<const ov::Node>& n) {
             return (ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
-                    !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1))) ||
-                   ov::is_type<const ov::op::v4::Mish>(n);
+                    !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1)))
+#    if defined(OPENVINO_ARCH_X86_64)
+                   || ov::is_type<const ov::op::v4::Mish>(n)
+#    endif
+                ;
         };
         // todo: general tokenization flow is not currently supported for these operations.
         // they can be tokenized only as a part of complex patterns
