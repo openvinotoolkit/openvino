@@ -4,8 +4,6 @@
 
 #include "low_precision/qdq_stripping.hpp"
 
-#include <cstdlib>
-#include <filesystem>
 #include <memory>
 #include <queue>
 #include <unordered_set>
@@ -39,41 +37,7 @@
 #include "openvino/pass/pattern/op/block.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/serialize.hpp"
-#include "openvino/pass/visualize_tree.hpp"
-#include "openvino/util/env_util.hpp"
-#include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
-
-// Macro for conditional debug logging based on OV_QDQ_DEBUG_LOG environment variable
-#define QDQ_DEBUG_LOG                                                               \
-    if (static const bool debug = ov::util::getenv_bool("OV_QDQ_DEBUG_LOG"); debug) \
-    std::cout
-
-// Macro for model visualization dumping
-#define VISUALIZE_MODEL(folder, filename, stage_desc)                                                                 \
-    if (!folder.empty()) {                                                                                            \
-        try {                                                                                                         \
-            auto dump_path = (std::filesystem::path(folder) / filename).string();                                     \
-            ov::pass::VisualizeTree(dump_path).run_on_model(f);                                                       \
-            QDQ_DEBUG_LOG << "[ INFO ] Model visualized to: " << dump_path << std::endl;                              \
-        } catch (const std::exception& e) {                                                                           \
-            QDQ_DEBUG_LOG << "[ WARNING ] Failed to visualize " << stage_desc << " model: " << e.what() << std::endl; \
-        }                                                                                                             \
-    }
-
-// Macro for model serialization
-#define SERIALIZE_MODEL(folder, filename, stage_desc)                                                                 \
-    if (!folder.empty()) {                                                                                            \
-        try {                                                                                                         \
-            auto xml_path = (std::filesystem::path(folder) / (std::string(filename) + ".xml")).string();              \
-            auto bin_path = (std::filesystem::path(folder) / (std::string(filename) + ".bin")).string();              \
-            ov::pass::Serialize(xml_path, bin_path).run_on_model(f);                                                  \
-            QDQ_DEBUG_LOG << "[ INFO ] Model serialized to: " << xml_path << std::endl;                               \
-        } catch (const std::exception& e) {                                                                           \
-            QDQ_DEBUG_LOG << "[ WARNING ] Failed to serialize " << stage_desc << " model: " << e.what() << std::endl; \
-        }                                                                                                             \
-    }
 
 namespace ov {
 namespace pass {
@@ -111,50 +75,6 @@ float get_const_float_value(const std::shared_ptr<Node>& node) {
     return constant->cast_vector<float>()[0];
 }
 
-// RAII helper to temporarily set environment variables and restore them on destruction
-class EnvVarGuard {
-public:
-    EnvVarGuard(const std::vector<std::pair<std::string, std::string>>& vars_to_set) {
-        for (const auto& [name, value] : vars_to_set) {
-            // Save original value
-            const char* original = std::getenv(name.c_str());
-            m_original_values[name] = original ? std::optional<std::string>(original) : std::nullopt;
-
-            // Set new value
-#ifdef _WIN32
-            _putenv_s(name.c_str(), value.c_str());
-#else
-            setenv(name.c_str(), value.c_str(), 1);
-#endif
-        }
-    }
-
-    ~EnvVarGuard() {
-        // Restore original values
-        for (const auto& [name, original_value] : m_original_values) {
-            if (original_value.has_value()) {
-#ifdef _WIN32
-                _putenv_s(name.c_str(), original_value->c_str());
-#else
-                setenv(name.c_str(), original_value->c_str(), 1);
-#endif
-            } else {
-#ifdef _WIN32
-                _putenv_s(name.c_str(), "");
-#else
-                unsetenv(name.c_str());
-#endif
-            }
-        }
-    }
-
-    EnvVarGuard(const EnvVarGuard&) = delete;
-    EnvVarGuard& operator=(const EnvVarGuard&) = delete;
-
-private:
-    std::unordered_map<std::string, std::optional<std::string>> m_original_values;
-};
-
 }  // namespace
 
 FQStrippingTransformation::FQStrippingTransformation(const std::set<size_t>& levels_to_strip,
@@ -167,21 +87,6 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
     if (levels_to_strip.empty()) {
         return false;
     }
-
-    // Check if model visualization is enabled
-    auto visualize_folder = ov::util::getenv_string("OV_QDQ_VISUALIZE_MODEL_DIR");
-    auto serialize_folder = ov::util::getenv_string("OV_QDQ_SERIALIZE_MODEL_DIR");
-
-    // Set visualization env variables for the duration of model dumping
-    std::unique_ptr<EnvVarGuard> vis_env_guard;
-    if (!visualize_folder.empty()) {
-        vis_env_guard = std::make_unique<EnvVarGuard>(
-            std::vector<std::pair<std::string, std::string>>{{"OV_VISUALIZE_TREE_OUTPUT_SHAPES", "1"},
-                                                             {"OV_VISUALIZE_TREE_OUTPUT_TYPES", "1"},
-                                                             {"OV_VISUALIZE_TREE_IO", "1"}});
-    }
-    VISUALIZE_MODEL(visualize_folder, "01_initial", "initial");
-    SERIALIZE_MODEL(serialize_folder, "01_initial", "initial");
 
     auto fq_ranges_are_the_same = [&](const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) -> bool {
         auto is_scalar_const = [](const std::shared_ptr<Node>& node) -> bool {
@@ -208,20 +113,6 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
     bool model_changed = false;
     const float ratio = 10.0f;
     const float threshold = 1.0f;
-
-    QDQ_DEBUG_LOG << "\n[ INFO ] === QDQ Stripping Pass ===" << std::endl;
-    QDQ_DEBUG_LOG << "[ INFO ] Total nodes in graph: " << f->get_ops().size() << std::endl;
-    QDQ_DEBUG_LOG << "\n[ INFO ] === Nodes info dumping started ===" << std::endl;
-    for (const auto& node : f->get_ordered_ops()) {
-        QDQ_DEBUG_LOG << "  [ NODE ] Name: " << node->get_friendly_name() << ", type: " << node->get_type_name()
-                      << ", ptr: " << node << std::endl;
-    }
-    QDQ_DEBUG_LOG << "[ INFO ] === Nodes info dumping completed ===\n" << std::endl;
-    QDQ_DEBUG_LOG << "[ INFO ] Levels to strip: ";
-    for (auto level : levels_to_strip) {
-        QDQ_DEBUG_LOG << level << " ";
-    }
-    QDQ_DEBUG_LOG << std::endl;
 
     // Scale adjustment infrastructure
     std::unordered_set<ov::Node*> visited;
@@ -256,21 +147,13 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         auto mul_input = dq_block->get_anchor("mul_input", pattern_map).value().get_node_shared_ptr();
 
         if (visited.find(old_multiply.get()) != visited.end()) {
-            QDQ_DEBUG_LOG << "        [ DEBUG ]   Node " << old_multiply->get_friendly_name()
-                          << " already visited, skipping scale adjustment" << std::endl;
             return;
         }
-
-        QDQ_DEBUG_LOG << "        [ DEBUG ]     Collecting multiply " << old_multiply->get_friendly_name()
-                      << " for division by " << current_scale_divisor << std::endl;
 
         pending_weight_scales.push_back({old_multiply, original_constant, mul_input, extra_visited_nodes});
     };
 
     auto apply_pending_weight_scale = [&](const PendingWeightScale& pending) {
-        QDQ_DEBUG_LOG << "        [ DEBUG ]     Applying deferred division of multiply "
-                      << pending.old_multiply->get_friendly_name() << " by " << current_scale_divisor << std::endl;
-
         auto divisor_const = ov::op::v0::Constant::create(
             pending.original_constant->get_output_element_type(0), {}, {current_scale_divisor});
         auto new_constant = ov::op::util::make_try_fold<ov::op::v1::Divide>(pending.original_constant, divisor_const);
@@ -298,9 +181,6 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         if (adjusted_fqs.count(node))
             return;
 
-        QDQ_DEBUG_LOG << "        [ DEBUG ] Collecting FQ range adjustment for: " << fq->get_friendly_name()
-                      << " (will divide by " << current_scale_divisor << ")" << std::endl;
-
         pending_fq_adjustments.push_back(node);
         adjusted_fqs.insert(node);
     };
@@ -309,9 +189,6 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node->shared_from_this());
         if (!fq)
             return;
-
-        QDQ_DEBUG_LOG << "        [ DEBUG ] Applying deferred FQ range adjustment for: " << fq->get_friendly_name()
-                      << " by dividing by " << current_scale_divisor << std::endl;
 
         auto divisor_const = ov::op::v0::Constant::create(ov::element::f32, {}, {current_scale_divisor});
 
@@ -324,8 +201,6 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
     };
 
     auto collect_weights_scale = [&](ov::Node* node) {
-        QDQ_DEBUG_LOG << "    [ INFO ] collect_weights_scale called for node with type: " << node->get_type_name()
-                      << ", with name: " << node->get_friendly_name() << ", node: " << node << std::endl;
         using namespace ov::pass::pattern;
         const auto node_shared = node->shared_from_this();
         // Case 1: Convolution + Add (bias) - scale both Add's constant and Conv weights
@@ -351,7 +226,6 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             auto matcher = std::make_shared<Matcher>(add_pattern, "ConvAddPattern");
 
             if (matcher->match(node_shared)) {
-                QDQ_DEBUG_LOG << "        [ INFO ]   Matched Conv+Add(bias) pattern" << std::endl;
                 auto pattern_map = matcher->get_pattern_value_map();
                 std::vector<ov::Node*> extra;
                 for (const auto& in : matcher->get_match_root()->input_values()) {
@@ -373,7 +247,6 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             auto matcher = std::make_shared<Matcher>(add_pattern, "MatMulAddPattern");
 
             if (matcher->match(node_shared)) {
-                QDQ_DEBUG_LOG << "        [ INFO ]   Matched MatMul+Add(bias) pattern" << std::endl;
                 auto pattern_map = matcher->get_pattern_value_map();
                 std::vector<ov::Node*> extra;
                 for (const auto& in : matcher->get_match_root()->input_values()) {
@@ -392,7 +265,6 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             auto matcher = std::make_shared<Matcher>(matmul_pattern, "MatMulPattern");
 
             if (matcher->match(node_shared)) {
-                QDQ_DEBUG_LOG << "        [ INFO ]   Matched MatMul with weights pattern" << std::endl;
                 auto pattern_map = matcher->get_pattern_value_map();
                 std::vector<ov::Node*> extra;
                 for (const auto& in : matcher->get_match_root()->input_values()) {
@@ -410,7 +282,6 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             auto matcher = std::make_shared<Matcher>(multiply_pattern, "MultiplyPattern");
 
             if (matcher->match(node_shared)) {
-                QDQ_DEBUG_LOG << "        [ INFO ]   Matched Multiply with weights pattern" << std::endl;
                 auto pattern_map = matcher->get_pattern_value_map();
                 std::vector<ov::Node*> extra;
                 for (const auto& in : matcher->get_match_root()->input_values()) {
@@ -423,7 +294,6 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
 
         // Case 5: FakeQuantize (un-stripped) — collect its range constants for adjustment
         if (ov::is_type<ov::op::v0::FakeQuantize>(node)) {
-            QDQ_DEBUG_LOG << "        [ INFO ]   Matched un-stripped FQ in backward path" << std::endl;
             collect_fq_adjustment(node);
             return;
         }
@@ -451,8 +321,6 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
     auto forward_propagate_callback = [&](ov::Node* node) {
         // Detect Result node: forward path reaches model output without scale-invariant consumer
         if (ov::is_type<ov::op::v0::Result>(node)) {
-            QDQ_DEBUG_LOG << "    [ FORWARD ] Reached Result: " << node->get_friendly_name()
-                          << " — will skip all adjustments" << std::endl;
             result_reachable = true;
             return;
         }
@@ -461,16 +329,12 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         if (ov::is_type<ov::op::v0::FakeQuantize>(node)) {
             if (stripped_fqs.count(node))
                 return;
-            QDQ_DEBUG_LOG << "    [ FORWARD ] Collecting un-stripped FQ for adjustment: "
-                          << node->get_friendly_name() << std::endl;
             collect_fq_adjustment(node);
             return;
         }
 
         if (!ov::is_type<ov::op::v1::Add>(node))
             return;
-
-        QDQ_DEBUG_LOG << "    [ FORWARD ] Reached Add: " << node->get_friendly_name() << std::endl;
 
         // For each input of the Add, run backward propagation for weight adjustment
         // on branches that haven't been visited yet (the "other" branch of the residual).
@@ -483,8 +347,6 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             if (visited.count(input_node) || forward_visited.count(input_node))
                 continue;
 
-            QDQ_DEBUG_LOG << "    [ FORWARD ]   Backward propagating scale=" << current_scale_divisor
-                          << " from Add input " << i << ": " << input_node->get_friendly_name() << std::endl;
             ov::op::util::visit_path(input_node, visited, collect_weights_scale, backward_skip_predicate);
         }
     };
@@ -510,12 +372,8 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             continue;
         }
 
-        QDQ_DEBUG_LOG << "\n======== Processing FQ: " << fq->get_friendly_name() << " (levels=" << fq->get_levels()
-                      << ") ========" << std::endl;
-
         // Skip FQs with non-scalar constants or different input/output ranges
         if (!fq_ranges_are_the_same(fq)) {
-            QDQ_DEBUG_LOG << "  [ DEBUG ] Skipped: non-scalar constants or input/output ranges differ" << std::endl;
             continue;
         }
 
@@ -535,33 +393,19 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         // Fold the subgraph to a constant and extract the scalar value
         auto y_scale_const = ov::as_type_ptr<ov::op::v0::Constant>(y_scale_node);
         if (!y_scale_const) {
-            QDQ_DEBUG_LOG << "  [ DEBUG ] Skipped: could not fold y_scale to a constant" << std::endl;
             continue;
         }
         float y_scale = y_scale_const->cast_vector<float>()[0];
 
-        QDQ_DEBUG_LOG << "  [ DEBUG ] Input range: [" << get_const_float_value(input_low.get_node_shared_ptr()) << ", "
-                      << get_const_float_value(input_high.get_node_shared_ptr()) << "] = "
-                      << (get_const_float_value(input_high.get_node_shared_ptr()) -
-                          get_const_float_value(input_low.get_node_shared_ptr()))
-                      << std::endl;
-        QDQ_DEBUG_LOG << "  [ DEBUG ] Y scale (dequant scale): " << y_scale << " (levels=" << fq->get_levels() << ")"
-                      << std::endl;
-
         // Remember the FQ's input node before stripping (this is the node that feeds into the FQ)
         auto propagation_root = fq->get_input_node_shared_ptr(0);
 
-        QDQ_DEBUG_LOG << "  [ INFO ] Removing FQ: " << fq->get_friendly_name() << std::endl;
         OPENVINO_ASSERT(replace_output_update_name(fq->output(0), fq->input_value(0)), "FQ stripping failed");
         stripped_fqs.insert(fq.get());
         model_changed = true;
 
         if (need_weights_adjustment && y_scale > threshold) {
             current_scale_divisor = y_scale * ratio;
-
-            QDQ_DEBUG_LOG << "  [ INFO ] y_scale=" << y_scale << " > threshold=" << threshold
-                          << ", running scale propagation (scale_divisor=" << current_scale_divisor
-                          << ") from: " << propagation_root->get_friendly_name() << std::endl;
 
             // Clear deferred collections for this FQ's propagation pass
             pending_weight_scales.clear();
@@ -572,7 +416,6 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             adjusted_fqs.clear();
 
             // Step 1: Backward propagation from FQ position — collect weight adjustments
-            QDQ_DEBUG_LOG << "  [ INFO ] --- Backward propagation (collecting) ---" << std::endl;
             ov::op::util::visit_path(propagation_root.get(),
                                      visited,
                                      collect_weights_scale,
@@ -580,7 +423,6 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
 
             // Step 2: Forward propagation from FQ position — collect FQ adjustments,
             // backward propagation roots from Add branches, and detect Result nodes.
-            QDQ_DEBUG_LOG << "  [ INFO ] --- Forward propagation (collecting) ---" << std::endl;
             forward_visited.clear();
             ov::op::util::visit_path_forward(propagation_root.get(),
                                              forward_visited,
@@ -592,13 +434,9 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             // model output without a scale-invariant consumer — weight scaling would
             // change the model's numerical output, so we skip all adjustments.
             if (result_reachable) {
-                QDQ_DEBUG_LOG << "  [ INFO ] Result node reachable — discarding all collected adjustments"
-                              << std::endl;
                 // Undo adjusted_fqs tracking since we didn't actually modify anything
                 adjusted_fqs.clear();
             } else {
-                QDQ_DEBUG_LOG << "  [ INFO ] --- Applying deferred adjustments ---" << std::endl;
-
                 // Apply all collected weight scale adjustments (from initial backward
                 // propagation and backward propagation triggered from Add branches)
                 for (const auto& pending : pending_weight_scales) {
@@ -611,18 +449,7 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
                 }
             }
         }
-        QDQ_DEBUG_LOG << "========================================" << std::endl;
     }
-
-    // Dump model after FQ removal and scale adjustment
-    VISUALIZE_MODEL(visualize_folder, "02_after_fq_removal", "after FQ removal");
-    SERIALIZE_MODEL(serialize_folder, "02_after_fq_removal", "after FQ removal");
-
-    QDQ_DEBUG_LOG << "\n[ INFO ] === QDQ Stripping Pass Completed ===" << std::endl;
-
-    // Dump final model
-    VISUALIZE_MODEL(visualize_folder, "03_final", "final");
-    SERIALIZE_MODEL(serialize_folder, "03_final", "final");
 
     return model_changed;
 }
