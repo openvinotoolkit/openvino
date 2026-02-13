@@ -82,6 +82,8 @@ public:
         return get_property(property.name(), arguments).template as<T>();
     }
     bool supports_model_caching(const AnyMap& arguments = {}) const;
+
+    bool is_property_supported(const std::string& name, const ov::AnyMap& arguments = {}) const;
 };
 
 }  // namespace ov

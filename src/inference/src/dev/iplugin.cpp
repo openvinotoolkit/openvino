@@ -9,6 +9,9 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "openvino/util/common_util.hpp"
 #include "transformations/common_optimizations/fused_names_cleanup.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 
@@ -86,6 +89,16 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::string
         CoreConfig::remove_core(local_properties);
     }
     return compile_model(model, local_properties);
+}
+
+bool ov::IPlugin::is_property_supported(const std::string& name, const ov::AnyMap& arguments) const {
+    if (auto properties = get_property(ov::supported_properties.name(), arguments);
+        util::contains(properties.as<std::vector<ov::PropertyName>>(), name)) {
+        return true;
+    } else {
+        properties = get_property(ov::internal::supported_properties.name(), arguments);
+        return util::contains(properties.as<std::vector<ov::PropertyName>>(), name);
+    }
 }
 
 std::unordered_set<std::string> ov::get_supported_nodes(

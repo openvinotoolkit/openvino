@@ -213,9 +213,6 @@ private:
 
     bool device_supports_model_caching(const ov::Plugin& plugin, const ov::AnyMap& orig_config = {}) const;
 
-    bool device_supports_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
-    bool device_supports_internal_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
-
     ov::AnyMap create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& orig_config) const;
     ov::AnyMap create_compile_config(const std::string& device_name, const ov::AnyMap& orig_config) const override {
         return create_compile_config(get_plugin(device_name), orig_config);
