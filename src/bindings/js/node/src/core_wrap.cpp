@@ -342,7 +342,7 @@ Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
             return CompiledModelWrap::wrap(info.Env(), _core.import_model(stream, device, config));
 
         } else {
-            OPENVINO_THROW("'importModelSync'", ov::js::get_parameters_error_msg(info, allowed_signatures));
+            OPENVINO_THROW("'importModelSync' ", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
 
     } catch (std::exception& e) {
@@ -364,7 +364,7 @@ void importModelThread(ImportModelContext* context, std::mutex& mutex) {
         context->_compiled_model =
             std::visit(ov::util::VariantVisitor{
                            [](std::monostate&) -> ov::CompiledModel {
-                               OPENVINO_ASSERT(false, "ImportModelContext source not initialized");
+                               OPENVINO_THROW("ImportModelContext source not initialized");
                            },
                            [&](auto& src) -> ov::CompiledModel {
                                return src.import(context->_core, context->_device, context->_config);
