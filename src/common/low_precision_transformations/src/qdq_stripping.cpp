@@ -66,6 +66,10 @@ public:
         m_outputs = ov::OutputVector{multiply};
         REGISTER_ANCHORS(this, weights, convert, sub_const, subtract, mul_input, mul_const, multiply);
     }
+
+    std::shared_ptr<ov::Node> get_multiply(const ov::pass::pattern::PatternValueMap& pm) const {
+        return get_anchor("multiply", pm).value().get_node_shared_ptr();
+    }
 };
 
 bool fq_ranges_are_the_same(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) {
@@ -107,46 +111,16 @@ public:
     }
 
 private:
-    struct PendingWeightScale {
-        std::shared_ptr<ov::Node> old_multiply;
-        std::shared_ptr<ov::Node> original_constant;
-        std::shared_ptr<ov::Node> mul_input;
-        std::vector<ov::Node*> extra_visited;
-    };
-
     float m_scale_divisor;
     ov::Node* m_fq;
     bool m_result_reachable = false;
 
     std::unordered_set<ov::Node*> m_visited;
-    std::unordered_set<ov::Node*> m_forward_visited;
-    std::unordered_set<ov::Node*> m_adjusted_fqs;
-
-    std::vector<PendingWeightScale> m_pending_weight_scales;
-    std::vector<ov::Node*> m_pending_fq_adjustments;
-
-    void collect_fq_adjustment(ov::Node* node) {
-        if (!ov::is_type<ov::op::v0::FakeQuantize>(node) || m_adjusted_fqs.count(node))
-            return;
-        m_pending_fq_adjustments.push_back(node);
-        m_adjusted_fqs.insert(node);
-    }
+    std::unordered_set<std::shared_ptr<ov::Node>> m_pending_weight_scales;
+    std::unordered_set<std::shared_ptr<ov::op::v0::FakeQuantize>> m_pending_fq_adjustments;
 
     void propagate_backward(ov::Node* root) {
         using namespace ov::pass::pattern;
-
-        auto collect_scale_to_weight = [&](const PatternValueMap& pattern_map,
-                                           const std::shared_ptr<WeightsDequantizationBlock>& dq_block,
-                                           const std::vector<ov::Node*>& extra_visited_nodes) {
-            auto original_constant = dq_block->get_anchor("mul_const", pattern_map).value().get_node_shared_ptr();
-            auto old_multiply = dq_block->get_anchor("multiply", pattern_map).value().get_node_shared_ptr();
-            auto mul_input = dq_block->get_anchor("mul_input", pattern_map).value().get_node_shared_ptr();
-
-            if (m_visited.count(old_multiply.get()))
-                return;
-
-            m_pending_weight_scales.push_back({old_multiply, original_constant, mul_input, extra_visited_nodes});
-        };
 
         auto collect_weights_scale = [&](ov::Node* node) {
             const auto node_shared = node->shared_from_this();
@@ -170,13 +144,9 @@ private:
                 auto matcher = std::make_shared<Matcher>(add_pattern, "ConvAddPattern");
 
                 if (matcher->match(node_shared)) {
-                    auto pattern_map = matcher->get_pattern_value_map();
-                    std::vector<ov::Node*> extra;
-                    for (const auto& in : matcher->get_match_root()->input_values()) {
-                        extra.push_back(in.get_node());
-                    }
-                    collect_scale_to_weight(pattern_map, conv_weights_dq_block, extra);
-                    collect_scale_to_weight(pattern_map, bias_dq_block, {});
+                    auto& pm = matcher->get_pattern_value_map();
+                    m_pending_weight_scales.insert(conv_weights_dq_block->get_multiply(pm));
+                    m_pending_weight_scales.insert(bias_dq_block->get_multiply(pm));
                     return;
                 }
             }
@@ -191,13 +161,9 @@ private:
                 auto matcher = std::make_shared<Matcher>(add_pattern, "MatMulAddPattern");
 
                 if (matcher->match(node_shared)) {
-                    auto pattern_map = matcher->get_pattern_value_map();
-                    std::vector<ov::Node*> extra;
-                    for (const auto& in : matcher->get_match_root()->input_values()) {
-                        extra.push_back(in.get_node());
-                    }
-                    collect_scale_to_weight(pattern_map, weights_dq_block, extra);
-                    collect_scale_to_weight(pattern_map, bias_dq_block, {});
+                    auto& pm = matcher->get_pattern_value_map();
+                    m_pending_weight_scales.insert(weights_dq_block->get_multiply(pm));
+                    m_pending_weight_scales.insert(bias_dq_block->get_multiply(pm));
                     return;
                 }
             }
@@ -209,12 +175,7 @@ private:
                 auto matcher = std::make_shared<Matcher>(matmul_pattern, "MatMulPattern");
 
                 if (matcher->match(node_shared)) {
-                    auto pattern_map = matcher->get_pattern_value_map();
-                    std::vector<ov::Node*> extra;
-                    for (const auto& in : matcher->get_match_root()->input_values()) {
-                        extra.push_back(in.get_node());
-                    }
-                    collect_scale_to_weight(pattern_map, weights_dq_block, extra);
+                    m_pending_weight_scales.insert(weights_dq_block->get_multiply(matcher->get_pattern_value_map()));
                     return;
                 }
             }
@@ -226,19 +187,14 @@ private:
                 auto matcher = std::make_shared<Matcher>(multiply_pattern, "MultiplyPattern");
 
                 if (matcher->match(node_shared)) {
-                    auto pattern_map = matcher->get_pattern_value_map();
-                    std::vector<ov::Node*> extra;
-                    for (const auto& in : matcher->get_match_root()->input_values()) {
-                        extra.push_back(in.get_node());
-                    }
-                    collect_scale_to_weight(pattern_map, weights_dq_block, extra);
+                    m_pending_weight_scales.insert(weights_dq_block->get_multiply(matcher->get_pattern_value_map()));
                     return;
                 }
             }
 
             // Case 5: FakeQuantize (un-stripped) — collect for range adjustment
-            if (ov::is_type<ov::op::v0::FakeQuantize>(node)) {
-                collect_fq_adjustment(node);
+            if (auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node->shared_from_this())) {
+                m_pending_fq_adjustments.insert(fq);
             }
         };
 
@@ -255,54 +211,56 @@ private:
                 n->shared_from_this());
         };
 
-        ov::op::util::visit_path_forward(root, m_forward_visited, [&](ov::Node* node) {
-            if (ov::is_type<ov::op::v0::Result>(node)) {
-                m_result_reachable = true;
-                return;
-            }
+        ov::op::util::visit_path_forward(
+            root,
+            m_visited,
+            [&](ov::Node* node) {
+                if (ov::is_type<ov::op::v0::Result>(node)) {
+                    m_result_reachable = true;
+                    return;
+                }
 
-            if (ov::is_type<ov::op::v0::FakeQuantize>(node) && node != m_fq && !node->get_users().empty()) {
-                collect_fq_adjustment(node);
-                return;
-            }
+                auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node->shared_from_this());
+                if (fq && node != m_fq && !node->get_users().empty()) {
+                    m_pending_fq_adjustments.insert(fq);
+                    return;
+                }
 
-            if (!ov::is_type<ov::op::v1::Add>(node))
-                return;
+                if (!ov::is_type<ov::op::v1::Add>(node))
+                    return;
 
-            for (size_t i = 0; i < node->get_input_size(); ++i) {
-                auto input_node = node->get_input_node_ptr(i);
-                if (m_visited.count(input_node) || m_forward_visited.count(input_node))
-                    continue;
-                propagate_backward(input_node);
-            }
-        }, skip_predicate);
+                for (size_t i = 0; i < node->get_input_size(); ++i) {
+                    auto input_node = node->get_input_node_ptr(i);
+                    if (m_visited.count(input_node))
+                        continue;
+                    propagate_backward(input_node);
+                }
+            },
+            skip_predicate);
     }
 
     void apply_collected_adjustments() {
-        for (const auto& pending : m_pending_weight_scales) {
-            auto divisor_const = ov::op::v0::Constant::create(
-                pending.original_constant->get_output_element_type(0), {}, {m_scale_divisor});
-            auto new_constant =
-                ov::op::util::make_try_fold<ov::op::v1::Divide>(pending.original_constant, divisor_const);
-            auto new_multiply = pending.old_multiply->clone_with_new_inputs({pending.mul_input, new_constant});
+        for (const auto& old_multiply : m_pending_weight_scales) {
+            // Identify which input is the scale constant and which is the DQ chain
+            auto in0 = old_multiply->input_value(0);
+            auto in1 = old_multiply->input_value(1);
+            bool const_is_in1 = ov::is_type<ov::op::v0::Constant>(in1.get_node());
+            auto original_constant = const_is_in1 ? in1 : in0;
+            auto mul_input = const_is_in1 ? in0 : in1;
 
-            ov::replace_node(pending.old_multiply, new_multiply);
-            m_visited.insert(new_multiply.get());
-            for (auto* n : pending.extra_visited) {
-                m_visited.insert(n);
-            }
+            auto divisor_const =
+                ov::op::v0::Constant::create(original_constant.get_element_type(), {}, {m_scale_divisor});
+            auto new_constant = ov::op::util::make_try_fold<ov::op::v1::Divide>(original_constant, divisor_const);
+            auto new_multiply = old_multiply->clone_with_new_inputs({mul_input, new_constant});
+
+            ov::replace_node(old_multiply, new_multiply);
         }
 
-        for (auto* node : m_pending_fq_adjustments) {
-            auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node->shared_from_this());
-            if (!fq)
-                continue;
-
+        for (const auto& fq : m_pending_fq_adjustments) {
             auto divisor_const = ov::op::v0::Constant::create(ov::element::f32, {}, {m_scale_divisor});
-            for (size_t idx = 1; idx <= 4; ++idx) {
-                auto original_const = fq->get_input_node_shared_ptr(idx);
-                auto new_const = ov::op::util::make_try_fold<ov::op::v1::Divide>(original_const, divisor_const);
-                fq->input(idx).replace_source_output(new_const);
+            for (size_t i = 1; i < fq->get_input_size(); ++i) {
+                auto new_const = ov::op::util::make_try_fold<ov::op::v1::Divide>(fq->input_value(i), divisor_const);
+                fq->input(i).replace_source_output(new_const);
             }
         }
     }
@@ -334,8 +292,8 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
 
         // Compute dq_scale = |input_high - input_low| / (levels - 1)
         auto levels_minus_one_node = ov::op::v0::Constant::create(fq->input_value(2).get_element_type(),
-                                      ov::Shape{},
-                                      {static_cast<float>(fq->get_levels() - 1)});
+                                                                  ov::Shape{},
+                                                                  {static_cast<float>(fq->get_levels() - 1)});
         auto input_range_node = std::make_shared<ov::op::v1::Subtract>(fq->input_value(2), fq->input_value(1));
         auto abs_input_range = std::make_shared<ov::op::v0::Abs>(input_range_node);
         auto dq_scale_per_elem = ov::util::get_constant_from_source(
