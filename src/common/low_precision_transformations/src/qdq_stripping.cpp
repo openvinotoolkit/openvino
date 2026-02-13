@@ -4,6 +4,7 @@
 
 #include "low_precision/qdq_stripping.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <queue>
 #include <unordered_set>
@@ -15,6 +16,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/clamp.hpp"
@@ -25,6 +27,7 @@
 #include "openvino/op/equal.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
@@ -67,14 +70,6 @@ public:
 
 namespace {
 
-// Helper to get scalar float value from a constant node
-float get_const_float_value(const std::shared_ptr<Node>& node) {
-    auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
-    if (!constant || ov::shape_size(constant->get_shape()) != 1)
-        return 0.0f;
-    return constant->cast_vector<float>()[0];
-}
-
 }  // namespace
 
 FQStrippingTransformation::FQStrippingTransformation(const std::set<size_t>& levels_to_strip,
@@ -89,25 +84,24 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
     }
 
     auto fq_ranges_are_the_same = [&](const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) -> bool {
-        auto is_scalar_const = [](const std::shared_ptr<Node>& node) -> bool {
-            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
-            if (!constant) {
-                return false;
-            }
-            return ov::shape_size(constant->get_shape()) == 1;
+        auto equal_with_threshold = [&](const ov::Output<ov::Node>& val1, const ov::Output<ov::Node>& val2) {
+            auto diff = std::make_shared<ov::op::v1::Subtract>(val1, val2);
+            auto abs_diff = std::make_shared<ov::op::v0::Abs>(diff);
+            auto eps = ov::op::v0::Constant::create(val1.get_element_type(), {}, {1e-6f});
+            auto is_less = std::make_shared<ov::op::v1::Less>(abs_diff, eps);
+            auto is_less_const = ov::util::get_constant_from_source(is_less);
+
+            auto all_true = [](const std::shared_ptr<ov::op::v0::Constant>& c) {
+                auto v = c->get_vector<bool>();
+                return std::all_of(v.begin(), v.end(), [](bool b) {
+                    return b;
+                });
+            };
+            return is_less_const && all_true(is_less_const);
         };
 
-        if (!is_scalar_const(fq->get_input_node_shared_ptr(1)) || !is_scalar_const(fq->get_input_node_shared_ptr(2)) ||
-            !is_scalar_const(fq->get_input_node_shared_ptr(3)) || !is_scalar_const(fq->get_input_node_shared_ptr(4))) {
-            return false;
-        }
-
-        // Check if input and output ranges are the same — only such FQs should be stripped
-        float input_low = get_const_float_value(fq->get_input_node_shared_ptr(1));
-        float input_high = get_const_float_value(fq->get_input_node_shared_ptr(2));
-        float output_low = get_const_float_value(fq->get_input_node_shared_ptr(3));
-        float output_high = get_const_float_value(fq->get_input_node_shared_ptr(4));
-        return std::abs(input_low - output_low) <= 1e-6f && std::abs(input_high - output_high) <= 1e-6f;
+        return equal_with_threshold(fq->input_value(1), fq->input_value(3)) &&
+               equal_with_threshold(fq->input_value(2), fq->input_value(4));
     };
 
     bool model_changed = false;
@@ -378,24 +372,23 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         }
 
         // Compute y_scale (dequantization scale) for this FQ:
-        //   y_scale = (input_high - input_low) / (levels - 1)
+        //   y_scale = max((input_high - input_low) / (levels - 1))
+        // For per-channel FQs, y_scale is the maximum across all channels.
+        // For scalar FQs, this degenerates to a single value.
         // Note: these ranges may have been adjusted by forward propagation from a preceding FQ,
         // so y_scale reflects the current (post-adjustment) scale rather than the original.
-        const auto& input_low = fq->input_value(1);
-        const auto& input_high = fq->input_value(2);
-
-        auto levels_minus_one_node = ov::op::v0::Constant::create(input_high.get_element_type(),
+        auto levels_minus_one_node = ov::op::v0::Constant::create(fq->input_value(2).get_element_type(),
                                                                   ov::Shape{},
                                                                   {static_cast<float>(fq->get_levels() - 1)});
-        auto input_range_node = ov::op::util::make_try_fold<ov::op::v1::Subtract>(input_high, input_low);
-        auto y_scale_node = ov::op::util::make_try_fold<ov::op::v1::Divide>(input_range_node, levels_minus_one_node);
+        auto input_range_node = std::make_shared<ov::op::v1::Subtract>(fq->input_value(2), fq->input_value(1));
+        auto y_scale_per_elem = std::make_shared<ov::op::v1::Divide>(input_range_node, levels_minus_one_node);
 
-        // Fold the subgraph to a constant and extract the scalar value
-        auto y_scale_const = ov::as_type_ptr<ov::op::v0::Constant>(y_scale_node);
-        if (!y_scale_const) {
+        auto y_scale_per_elem_const = ov::util::get_constant_from_source(y_scale_per_elem);
+        if (!y_scale_per_elem_const) {
             continue;
         }
-        float y_scale = y_scale_const->cast_vector<float>()[0];
+        auto y_scale_values = y_scale_per_elem_const->cast_vector<float>();
+        float y_scale = *std::max_element(y_scale_values.begin(), y_scale_values.end());
 
         // Remember the FQ's input node before stripping (this is the node that feeds into the FQ)
         auto propagation_root = fq->get_input_node_shared_ptr(0);

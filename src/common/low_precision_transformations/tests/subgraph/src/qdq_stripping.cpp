@@ -85,6 +85,18 @@ TEST_P(QDQStrippingTest, NeedScalingResidualBlockNoFinalMVN) {
                                                                        /*skip_final_mvn=*/true);
 }
 
+// Per-channel FQ: non-scalar range constants with different y_scale per channel.
+// max(y_scale) is used as the scale divisor basis. Tests that FQStripping correctly
+// handles non-scalar FQ ranges via computational subgraph folding.
+TEST_P(QDQStrippingTest, NeedScalingPerChannelFQ) {
+    const auto& [need_weights_adjustment, quantization_precision] = GetParam();
+    const auto input_shape = ov::PartialShape{1, 128};
+    model = QDQStrippingFunction::build_per_channel_fq_pattern(input_shape, quantization_precision);
+    model_ref = QDQStrippingFunction::build_per_channel_fq_pattern_ref(input_shape,
+                                                                       quantization_precision,
+                                                                       need_weights_adjustment);
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                          QDQStrippingTest,
                          Combine(Bool(), Values(ov::element::u16, ov::element::i16)),

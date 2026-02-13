@@ -567,6 +567,84 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern(co
     return std::make_shared<ov::Model>(ov::OutputVector{final_mvn}, params, "QDQStripping");
 }
 
+// --- PerChannelFQ pattern ---
+// MatMul with DQ weights → per-channel FQ (65536 levels, il==ol, ih==oh) → DQ → MVN.
+// The FQ has per-channel range constants along the last axis (output features).
+// Channel 0: range 131070 → y_scale = 131070/65535 = 2
+// Channel 1: range 262140 → y_scale = 262140/65535 = 4 (maximum)
+// So max y_scale = 4 > threshold, and scale_divisor = 4 * 10 = 40.
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_per_channel_fq_pattern(const ov::PartialShape& input_shape,
+                                                                               const ov::element::Type& quantization_precision) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
+
+    // Weight DQ for MatMul: input last dim = 128, output = 2 channels
+    auto weight = build_dq_subgraph(ov::element::i8, ov::Shape{128, 2}, 0.02f, -128, 1);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], weight, false, false);
+
+    // Per-channel FQ ranges with il==ol and ih==oh (required by fq_ranges_are_the_same).
+    // output shape from MatMul: [1, 2] → FQ ranges shape: [1, 2]
+    // Channel 0: y_scale = (hi0 - lo0) / 65535 = 2
+    // Channel 1: y_scale = (hi1 - lo1) / 65535 = 4
+    std::vector<float> lo_values, hi_values;
+    if (quantization_precision == ov::element::u16) {
+        lo_values = {0.f, 0.f};
+        hi_values = {131070.f, 262140.f};
+    } else {
+        lo_values = {-65535.f, -131070.f};
+        hi_values = {65535.f, 131070.f};
+    }
+
+    auto fq_lo = ov::op::v0::Constant::create(ov::element::f32, {1, 2}, lo_values);
+    auto fq_hi = ov::op::v0::Constant::create(ov::element::f32, {1, 2}, hi_values);
+    auto fq = std::make_shared<ov::op::v0::FakeQuantize>(matmul, fq_lo, fq_hi, fq_lo, fq_hi, 65536);
+
+    auto convert1 = std::make_shared<ov::op::v0::Convert>(fq, quantization_precision);
+    auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
+
+    // DQ uses per-channel scale = y_scale per channel
+    auto zp_const = ov::op::v0::Constant::create(quantization_precision, {}, {0});
+    auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp_const, ov::element::f32);
+    auto act_subtract = std::make_shared<ov::op::v1::Subtract>(convert2, zp_convert);
+    auto act_scale = ov::op::v0::Constant::create(ov::element::f32, {1, 2}, {2.0f, 4.0f});
+    auto dq = std::make_shared<ov::op::v1::Multiply>(act_subtract, act_scale);
+
+    auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+    auto mvn = std::make_shared<ov::op::v6::MVN>(dq, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{mvn}, params, "QDQStripping");
+}
+
+// --- PerChannelFQ reference ---
+// CQDQ does not fuse per-channel DQ, so after FQ stripping the model is:
+// MatMul → Convert(quant) → Convert(f32) → Subtract(zp) → Multiply(scale) → MVN
+// With weight adjustment: max y_scale = 4, scale_divisor = 40, weight scale = 0.02 / 40 = 0.0005.
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_per_channel_fq_pattern_ref(const ov::PartialShape& input_shape,
+                                                                                   const ov::element::Type& quantization_precision,
+                                                                                   bool need_weights_adjustment) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
+
+    // Original weight_scale=0.02. With weights adjustment: divided by scale_divisor=40 → 0.0005
+    // max y_scale = 4, ratio = 10 → scale_divisor = 40
+    const float scale_divisor = need_weights_adjustment ? 40.f : 1.f;
+    auto weight = build_dq_subgraph(ov::element::i8, ov::Shape{128, 2}, 0.02f / scale_divisor, -128, 1);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(params[0], weight, false, false);
+
+    // FQ stripped but per-channel DQ (Convert+Subtract+Multiply) remains.
+    auto convert1 = std::make_shared<ov::op::v0::Convert>(matmul, quantization_precision);
+    auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
+
+    auto zp_const = ov::op::v0::Constant::create(quantization_precision, {}, {0});
+    auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp_const, ov::element::f32);
+    auto act_subtract = std::make_shared<ov::op::v1::Subtract>(convert2, zp_convert);
+    auto act_scale = ov::op::v0::Constant::create(ov::element::f32, {1, 2}, {2.0f, 4.0f});
+    auto dq = std::make_shared<ov::op::v1::Multiply>(act_subtract, act_scale);
+
+    auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+    auto mvn = std::make_shared<ov::op::v6::MVN>(dq, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{mvn}, params, "QDQStripping");
+}
+
 }  // namespace subgraph
 }  // namespace builder
 }  // namespace ov
