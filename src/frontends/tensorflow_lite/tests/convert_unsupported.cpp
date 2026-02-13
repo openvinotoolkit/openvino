@@ -31,6 +31,12 @@ TEST_P(MalformedModelConvertTest, convert_throws) {
     ASSERT_THROW(model = m_frontEnd->convert(inputModel), std::exception);
 }
 
+INSTANTIATE_TEST_SUITE_P(BadHeader,
+                         MalformedModelConvertTest,
+                         ::testing::Values("bad_header/zerolen.tflite",
+                                           "bad_header/wrong_len_3.tflite",
+                                           "bad_header/wrong_pos.tflite"));
+
 // quantized_dimension=100 on rank-2 tensor: load() succeeds, convert() throws
 // in get_quant_shape() (axis >= rank check)
 INSTANTIATE_TEST_SUITE_P(OobQuantDim,
@@ -52,13 +58,6 @@ TEST_P(MalformedModelLoadTest, load_throws) {
     auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) + GetParam());
     ASSERT_THROW(m_frontEnd->load(model_filename), std::exception);
 }
-
-// bad_header files are now caught at load() time by VerifyModelBuffer() and null-pointer checks
-INSTANTIATE_TEST_SUITE_P(BadHeader,
-                         MalformedModelLoadTest,
-                         ::testing::Values("bad_header/zerolen.tflite",
-                                           "bad_header/wrong_len_3.tflite",
-                                           "bad_header/wrong_pos.tflite"));
 
 INSTANTIATE_TEST_SUITE_P(OobIndices,
                          MalformedModelLoadTest,
