@@ -309,36 +309,56 @@ def build_sparse_model(indices, segments, shape=(2, 100), num_values=3):
     return b.output()
 
 
-path_to_model_dir = os.path.join(sys.argv[1], "sparse_oob")
-os.makedirs(path_to_model_dir, exist_ok=True)
+def main():
+    if len(sys.argv) != 2:
+        print(f"Usage: {sys.argv[0]} <output_dir>", file=sys.stderr)
+        sys.exit(1)
 
-# 1. OOB index value: index 999 in dimension of size 100 (valid range 0-99)
-#    Without fix this causes heap OOB write: row_offset = 999 * 4 = 3996, buffer = 800 bytes
-data = build_sparse_model(
-    indices=[5, 999, 1],       # 999 is out of bounds
-    segments=[0, 2, 3],        # row 0: 2 elements, row 1: 1 element
-    shape=(2, 100),
-    num_values=3
-)
-with open(os.path.join(path_to_model_dir, 'sparse_oob_index.tflite'), 'wb') as f:
-    f.write(data)
+    path_to_model_dir = os.path.join(sys.argv[1], "sparse_oob")
+    os.makedirs(path_to_model_dir, exist_ok=True)
 
-# 2. Negative index value: index -1 (invalid for unsigned column offset)
-data = build_sparse_model(
-    indices=[5, -1, 1],        # -1 is a negative index
-    segments=[0, 2, 3],
-    shape=(2, 100),
-    num_values=3
-)
-with open(os.path.join(path_to_model_dir, 'sparse_negative_index.tflite'), 'wb') as f:
-    f.write(data)
+    # 1. OOB index value: index 999 in dimension of size 100 (valid range 0-99)
+    #    Without fix this causes heap OOB write: row_offset = 999 * 4 = 3996, buffer = 800 bytes
+    data = build_sparse_model(
+        indices=[5, 999, 1],       # 999 is out of bounds
+        segments=[0, 2, 3],        # row 0: 2 elements, row 1: 1 element
+        shape=(2, 100),
+        num_values=3
+    )
+    with open(os.path.join(path_to_model_dir, 'sparse_oob_index.tflite'), 'wb') as f:
+        f.write(data)
 
-# 3. Non-monotonic segments: segments go 0, 3, 2 (decreasing)
-data = build_sparse_model(
-    indices=[5, 1, 2],
-    segments=[0, 3, 2],        # non-monotonic: 3 > 2
-    shape=(2, 100),
-    num_values=3
-)
-with open(os.path.join(path_to_model_dir, 'sparse_non_monotonic_segments.tflite'), 'wb') as f:
-    f.write(data)
+    # 2. Negative index value: index -1 (invalid for unsigned column offset)
+    data = build_sparse_model(
+        indices=[5, -1, 1],        # -1 is a negative index
+        segments=[0, 2, 3],
+        shape=(2, 100),
+        num_values=3
+    )
+    with open(os.path.join(path_to_model_dir, 'sparse_negative_index.tflite'), 'wb') as f:
+        f.write(data)
+
+    # 3. Non-monotonic segments: segments go 0, 3, 2 (decreasing)
+    data = build_sparse_model(
+        indices=[5, 1, 2],
+        segments=[0, 3, 2],        # non-monotonic: 3 > 2
+        shape=(2, 100),
+        num_values=3
+    )
+    with open(os.path.join(path_to_model_dir, 'sparse_non_monotonic_segments.tflite'), 'wb') as f:
+        f.write(data)
+
+    # 4. Overflow shape: dimensions that cause size_t overflow in total_size computation
+    #    Shape [2147483647, 2147483647] with FLOAT32 (4 bytes) -> total_size overflows
+    data = build_sparse_model(
+        indices=[1],
+        segments=[0, 1],
+        shape=(2147483647, 2147483647),
+        num_values=1
+    )
+    with open(os.path.join(path_to_model_dir, 'sparse_overflow_shape.tflite'), 'wb') as f:
+        f.write(data)
+
+
+if __name__ == "__main__":
+    main()

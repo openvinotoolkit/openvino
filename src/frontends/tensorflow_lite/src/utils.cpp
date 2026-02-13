@@ -32,14 +32,15 @@ std::shared_ptr<ov::frontend::tensorflow_lite::SparsityInfo> ov::frontend::tenso
     const flatbuffers::Vector<int32_t>* tf_shape,
     const tflite::SparsityParameters* tf_sparsity,
     const ov::element::Type target_type,
-    const uint8_t* buffer) {
+    const uint8_t* buffer,
+    size_t buffer_size) {
     if (tf_shape == nullptr)
         return {};
     if (tf_sparsity == nullptr)
         return {};
     auto sparsity = std::make_shared<ov::frontend::tensorflow_lite::SparsityInfo>();
     sparsity->set_shape({tf_shape->begin(), tf_shape->end()});
-    sparsity->set_values(buffer);
+    sparsity->set_values(buffer, buffer_size);
     sparsity->set_target_type(target_type);
     if (tf_sparsity->traversal_order() != nullptr)
         sparsity->set_traversal_order({tf_sparsity->traversal_order()->begin(), tf_sparsity->traversal_order()->end()});

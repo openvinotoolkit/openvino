@@ -44,6 +44,7 @@ template <typename T, typename U>
 static void read_sparse_data(uint8_t* dest,
                              const size_t total_size,
                              const uint8_t* values,
+                             const size_t values_size,
                              const size_t row_size,
                              const size_t element_size,
                              const size_t sparse_dim_size,
@@ -55,6 +56,7 @@ static void read_sparse_data(uint8_t* dest,
     FRONT_END_GENERAL_CHECK(indices, "Sparse indices vector is null");
 
     U last_segment = *segments->begin();
+    FRONT_END_GENERAL_CHECK(static_cast<int64_t>(last_segment) >= 0, "Sparse segment value must be non-negative");
     size_t idx = 0;
     size_t dest_row_offset = 0;
     for (auto segment = segments->begin() + 1; segment != segments->end(); last_segment = *segment, ++segment) {
@@ -63,6 +65,7 @@ static void read_sparse_data(uint8_t* dest,
                                 dest_row_offset,
                                 " exceeds buffer size ",
                                 total_size);
+        FRONT_END_GENERAL_CHECK(static_cast<int64_t>(*segment) >= 0, "Sparse segment value must be non-negative");
         FRONT_END_GENERAL_CHECK(*segment >= last_segment, "Sparse segments must be monotonically non-decreasing");
         size_t element_count = static_cast<size_t>(*segment - last_segment);
         for (size_t i = 0; i < element_count; ++i, ++idx) {
@@ -82,11 +85,18 @@ static void read_sparse_data(uint8_t* dest,
                                     sparse_dim_size);
             auto row_offset = static_cast<size_t>(index_value) * element_size;
             auto value_offset = idx * element_size;
-            FRONT_END_GENERAL_CHECK(dest_row_offset + row_offset + element_size <= total_size,
+            FRONT_END_GENERAL_CHECK(row_offset <= total_size - dest_row_offset &&
+                                        element_size <= total_size - dest_row_offset - row_offset,
                                     "Sparse write at offset ",
                                     dest_row_offset + row_offset,
                                     " would exceed dense buffer of size ",
                                     total_size);
+            FRONT_END_GENERAL_CHECK(values_size == 0 ||
+                                        (value_offset <= values_size - element_size),
+                                    "Sparse read at offset ",
+                                    value_offset,
+                                    " would exceed values buffer of size ",
+                                    values_size);
             memcpy(dest + dest_row_offset + row_offset, values + value_offset, element_size);
         }
         dest_row_offset += row_size;
@@ -136,6 +146,7 @@ void* ov::frontend::tensorflow_lite::SparsityInfo::densify() {
             read_sparse_data(m_data.data(),
                              total_size,
                              m_values,
+                             m_values_size,
                              row_size,
                              m_target_type.size(),
                              sparse_dim_size,
@@ -146,6 +157,7 @@ void* ov::frontend::tensorflow_lite::SparsityInfo::densify() {
             read_sparse_data(m_data.data(),
                              total_size,
                              m_values,
+                             m_values_size,
                              row_size,
                              m_target_type.size(),
                              sparse_dim_size,
@@ -156,6 +168,7 @@ void* ov::frontend::tensorflow_lite::SparsityInfo::densify() {
             read_sparse_data(m_data.data(),
                              total_size,
                              m_values,
+                             m_values_size,
                              row_size,
                              m_target_type.size(),
                              sparse_dim_size,
@@ -173,6 +186,7 @@ void* ov::frontend::tensorflow_lite::SparsityInfo::densify() {
             read_sparse_data(m_data.data(),
                              total_size,
                              m_values,
+                             m_values_size,
                              row_size,
                              m_target_type.size(),
                              sparse_dim_size,
@@ -183,6 +197,7 @@ void* ov::frontend::tensorflow_lite::SparsityInfo::densify() {
             read_sparse_data(m_data.data(),
                              total_size,
                              m_values,
+                             m_values_size,
                              row_size,
                              m_target_type.size(),
                              sparse_dim_size,
@@ -193,6 +208,7 @@ void* ov::frontend::tensorflow_lite::SparsityInfo::densify() {
             read_sparse_data(m_data.data(),
                              total_size,
                              m_values,
+                             m_values_size,
                              row_size,
                              m_target_type.size(),
                              sparse_dim_size,
@@ -210,6 +226,7 @@ void* ov::frontend::tensorflow_lite::SparsityInfo::densify() {
             read_sparse_data(m_data.data(),
                              total_size,
                              m_values,
+                             m_values_size,
                              row_size,
                              m_target_type.size(),
                              sparse_dim_size,
@@ -220,6 +237,7 @@ void* ov::frontend::tensorflow_lite::SparsityInfo::densify() {
             read_sparse_data(m_data.data(),
                              total_size,
                              m_values,
+                             m_values_size,
                              row_size,
                              m_target_type.size(),
                              sparse_dim_size,
@@ -230,6 +248,7 @@ void* ov::frontend::tensorflow_lite::SparsityInfo::densify() {
             read_sparse_data(m_data.data(),
                              total_size,
                              m_values,
+                             m_values_size,
                              row_size,
                              m_target_type.size(),
                              sparse_dim_size,

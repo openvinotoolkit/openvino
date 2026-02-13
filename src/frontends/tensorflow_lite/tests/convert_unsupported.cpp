@@ -110,3 +110,22 @@ TEST(FrontEndConvertModelTest, test_sparse_non_monotonic_segments) {
         },
         std::exception);
 }
+
+// Sparse tensor with shape dimensions that cause integer overflow in size computation
+TEST(FrontEndConvertModelTest, test_sparse_overflow_shape) {
+    FrontEndManager fem;
+    FrontEnd::Ptr frontEnd;
+    InputModel::Ptr inputModel;
+    OV_ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_LITE_FE));
+    ASSERT_NE(frontEnd, nullptr);
+    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) +
+                                                             string("sparse_oob/sparse_overflow_shape.tflite"));
+    ASSERT_THROW(
+        {
+            inputModel = frontEnd->load(model_filename);
+            if (inputModel) {
+                auto model = frontEnd->convert(inputModel);
+            }
+        },
+        std::exception);
+}
