@@ -91,8 +91,8 @@ public:
         multiply_k(scale);
     }
 
-    void squeeze(InputType which, const size_t& axis) {
-        auto axes_const = op::v0::Constant::create(element::i64, {}, {axis});
+    void squeeze(InputType which, const vector<size_t>& axes) {
+        auto axes_const = op::v0::Constant::create(element::i64, {axes.size()}, axes);
         nodes[which] = make_shared<op::v0::Squeeze>(nodes[which], axes_const);
     }
     void unsqueeze(InputType which, const vector<size_t>& axes) {
@@ -130,9 +130,21 @@ public:
     void unsqueeze_v(const vector<size_t>& axes) {
         unsqueeze(InputType::V, axes);
     }
+    void unsqueeze_sdpa(const vector<size_t>& axes) {
+        unsqueeze(InputType::SDPA, axes);
+    }
 
-    void squeeze_sdpa(const size_t& axis) {
-        squeeze(InputType::SDPA, axis);
+    void squeeze_q(const vector<size_t>& axes) {
+        squeeze(InputType::Q, axes);
+    }
+    void squeeze_k(const vector<size_t>& axes) {
+        squeeze(InputType::K, axes);
+    }
+    void squeeze_v(const vector<size_t>& axes) {
+        squeeze(InputType::V, axes);
+    }
+    void squeeze_sdpa(const vector<size_t>& axes) {
+        squeeze(InputType::SDPA, axes);
     }
 
     void transpose_q(const vector<size_t>& order) {
@@ -1240,7 +1252,7 @@ TEST_P(SDPA2DInputs, SDPAFusionTest_2DInputs) {
         sdpa_ref.unsqueeze_k({0});
         sdpa_ref.unsqueeze_v({0});
         sdpa_ref.create_reference_sdpa();
-        sdpa_ref.squeeze_sdpa(0);
+        sdpa_ref.squeeze_sdpa({0});
         sdpa_ref.transpose_sdpa({1, 0});
         model_ref = sdpa_ref.build_model();
     }

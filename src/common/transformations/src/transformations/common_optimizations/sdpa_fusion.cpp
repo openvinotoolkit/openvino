@@ -98,25 +98,50 @@ ov::pass::pattern::op::Predicate check_layout(const std::string& layout) {
         });
 };
 
-std::shared_ptr<ov::Node> try_align_outputs(const std::shared_ptr<ov::Node>& src_output,
-                                            const std::shared_ptr<ov::Node>& dst_output) {
-    auto src_shape = src_output->get_output_partial_shape(0);
-    auto dst_shape = dst_output->get_output_partial_shape(0);
+std::shared_ptr<ov::Node> try_align_outputs(const std::shared_ptr<ov::Node>& src,
+                                            const std::shared_ptr<ov::Node>& dst) {
+    // skip alignment if node connected to Reshape node
+    auto dst_inputs = dst->get_output_target_inputs(0);
+    if (dst_inputs.size() == 1 && ov::is_type<v1::Reshape>(dst_inputs.begin()->get_node())) {
+        return src;
+    }
 
+    auto src_shape = src->get_output_partial_shape(0);
+    auto dst_shape = dst->get_output_partial_shape(0);
     if (src_shape.compatible(dst_shape)) {
-        return src_output;
+        return src;
     }
 
-    // if shapes are not compatible, we can try to insert a Squeeze to align them
-    if (src_shape[0].is_static() && src_shape[0] == 1) {
-        auto axes_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
-        auto squeeze = std::make_shared<v0::Squeeze>(src_output, axes_const);
-        squeeze->set_friendly_name(src_output->get_friendly_name() + "/Squeeze");
-        ov::copy_runtime_info(src_output, {squeeze, axes_const});
-        return squeeze;
+    // if shapes are not compatible, we can try to insert an Unsqueeze/Squeeze to align them
+    std::shared_ptr<ov::Node> reshape = nullptr;
+    auto src_rank = src_shape.rank();
+    auto dst_rank = dst_shape.rank();
+
+    int64_t rank_diff = dst_rank.get_length() - src_rank.get_length();
+    std::vector<int64_t> axes(std::abs(rank_diff));
+    std::iota(axes.begin(), axes.end(), 0);
+
+    if (rank_diff > 0) {
+        auto axes_const = v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
+        reshape = std::make_shared<v0::Unsqueeze>(src, axes_const);
+    } else if (rank_diff < 0) {
+        for (auto axis : axes) {
+            if (src_shape[axis].is_dynamic() || src_shape[axis] != 1) {
+                return nullptr;
+            }
+        }
+        auto axes_const = v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
+        reshape = std::make_shared<v0::Squeeze>(src, axes_const);
     }
 
-    return nullptr;
+    if (!reshape) {
+        return nullptr;
+    }
+
+    reshape->set_friendly_name(src->get_friendly_name() + "/Reshape");
+    ov::copy_runtime_info(src, {reshape});
+
+    return reshape;
 }
 
 }  // namespace
@@ -498,6 +523,7 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
 
         // 2d inputs will be unsqueezed to 3d in get_qkv, so we need to insert a Squeeze after SDPA to align with
         // original output shape
+
         sdpa = try_align_outputs(sdpa, m.get_match_root());
         if (!sdpa) {
             return false;
