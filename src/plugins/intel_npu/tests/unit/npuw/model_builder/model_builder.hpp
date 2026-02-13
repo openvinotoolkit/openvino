@@ -216,14 +216,14 @@ struct GELUFn {
     size_t intermediate_size;
     ov::element::Type precision;
     WeightFn weight_fn;
-    bool use_bias = false;
+    WeightFn bias_fn;
 
-    GELUFn(size_t hs, size_t is, ov::element::Type prec, WeightFn wf, bool bias = false)
+    GELUFn(size_t hs, size_t is, ov::element::Type prec, WeightFn wf, WeightFn bf = {})
         : hidden_size(hs),
           intermediate_size(is),
           precision(prec),
           weight_fn(std::move(wf)),
-          use_bias(bias) {}
+          bias_fn(std::move(bf)) {}
 
     ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
 };
@@ -232,14 +232,15 @@ struct GELUFn {
 // Free building-block functions
 // ============================================================================
 
-/// Linear projection (MatMul with weight + optional bias)
+/// Linear projection (MatMul with weight + optional bias).
+/// When bias_fn is provided, bias is created through it (matching weight compression pattern).
 ov::Output<ov::Node> make_linear(const ov::Output<ov::Node>& input,
                                  size_t in_features,
                                  size_t out_features,
                                  const std::string& name,
                                  ov::element::Type precision = ov::element::f32,
-                                 bool add_bias = false,
-                                 const WeightFn& weight_fn = FP32Weight{});
+                                 const WeightFn& weight_fn = FP32Weight{},
+                                 const WeightFn& bias_fn = {});
 
 /// Reshape for multi-head: [batch, seq, hidden] -> [batch, seq, heads, head_dim]
 ov::Output<ov::Node> make_multihead_reshape(const ov::Output<ov::Node>& input,
@@ -290,8 +291,8 @@ ov::Output<ov::Node> make_attention_output(const ov::Output<ov::Node>& sdpa_outp
                                            size_t hidden_size,
                                            const std::string& name,
                                            ov::element::Type precision,
-                                           bool add_bias,
-                                           const WeightFn& weight_fn);
+                                           const WeightFn& weight_fn,
+                                           const WeightFn& bias_fn = {});
 
 /// Token embedding lookup
 ov::Output<ov::Node> make_embedding(const ov::Output<ov::Node>& input_ids,
@@ -342,8 +343,8 @@ struct Attention {
     WeightFn weight_fn;
 
     // Per-projection options
-    bool add_bias = false;
-    NormFn qk_norm;  // Optional QK-norm applied to Q and K after reshape, before RoPE
+    WeightFn bias_fn;  // Optional bias functor for Q/K/V/O projections (empty = no bias)
+    NormFn qk_norm;    // Optional QK-norm applied to Q and K after reshape, before RoPE
 
     // RoPE (empty = no RoPE).  Position IDs are baked into the functor at construction.
     RoPEFn rope_fn;

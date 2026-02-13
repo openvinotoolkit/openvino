@@ -418,20 +418,15 @@ ov::Output<ov::Node> make_linear(const ov::Output<ov::Node>& input,
                                  size_t out_features,
                                  const std::string& name,
                                  ov::element::Type precision,
-                                 bool add_bias,
-                                 const WeightFn& weight_fn) {
+                                 const WeightFn& weight_fn,
+                                 const WeightFn& bias_fn) {
     auto weight_output = weight_fn(name + ".weight", ov::Shape{out_features, in_features}, precision);
 
     auto matmul = std::make_shared<ov::opset11::MatMul>(input, weight_output, false, true);
     matmul->set_friendly_name(name);
 
-    if (add_bias) {
-        static size_t bias_counter = 0;
-        float bias_val = static_cast<float>(++bias_counter) * 1e-8f;
-        auto bias =
-            ov::opset11::Constant::create(precision, ov::Shape{out_features}, std::vector<float>(out_features, bias_val));
-        bias->set_friendly_name(name + ".bias");
-
+    if (bias_fn) {
+        auto bias = bias_fn(name + ".bias", ov::Shape{out_features}, precision);
         auto add = std::make_shared<ov::opset11::Add>(matmul, bias);
         add->set_friendly_name(name + "_bias_add");
         return add->output(0);
@@ -617,8 +612,8 @@ ov::Output<ov::Node> make_attention_output(const ov::Output<ov::Node>& sdpa_outp
                                            size_t hidden_size,
                                            const std::string& name,
                                            ov::element::Type precision,
-                                           bool add_bias,
-                                           const WeightFn& weight_fn) {
+                                           const WeightFn& weight_fn,
+                                           const WeightFn& bias_fn) {
     auto attn_trans = make_attention_transpose(sdpa_output, name + "_transpose");
 
     auto reshape_shape = ov::opset11::Constant::create(
@@ -627,7 +622,7 @@ ov::Output<ov::Node> make_attention_output(const ov::Output<ov::Node>& sdpa_outp
     auto attn_reshaped = std::make_shared<ov::opset11::Reshape>(attn_trans, reshape_shape, true);
     attn_reshaped->set_friendly_name(name + "_reshape");
 
-    return make_linear(attn_reshaped->output(0), hidden_size, hidden_size, name, precision, add_bias, weight_fn);
+    return make_linear(attn_reshaped->output(0), hidden_size, hidden_size, name, precision, weight_fn, bias_fn);
 }
 
 ov::Output<ov::Node> make_embedding(const ov::Output<ov::Node>& input_ids,
@@ -656,7 +651,7 @@ ov::Output<ov::Node> make_lm_head(const ov::Output<ov::Node>& hidden_states,
                                   const std::string& name,
                                   ov::element::Type precision,
                                   const WeightFn& weight_fn) {
-    return make_linear(hidden_states, hidden_size, vocab_size, name, precision, false, weight_fn);
+    return make_linear(hidden_states, hidden_size, vocab_size, name, precision, weight_fn);
 }
 
 ov::Output<ov::Node> make_conv1d(const ov::Output<ov::Node>& input,
@@ -723,8 +718,8 @@ KVCacheResult make_encoder_kv_cache(const ov::Output<ov::Node>& encoder_kv,
 // ============================================================================
 
 ov::Output<ov::Node> SwiGLU::operator()(const ov::Output<ov::Node>& input, const std::string& name) const {
-    auto gate = make_linear(input, hidden_size, intermediate_size, name + ".gate_proj", precision, false, weight_fn);
-    auto up = make_linear(input, hidden_size, intermediate_size, name + ".up_proj", precision, false, weight_fn);
+    auto gate = make_linear(input, hidden_size, intermediate_size, name + ".gate_proj", precision, weight_fn);
+    auto up = make_linear(input, hidden_size, intermediate_size, name + ".up_proj", precision, weight_fn);
 
     auto sigmoid = std::make_shared<ov::opset11::Sigmoid>(gate);
 
@@ -734,18 +729,18 @@ ov::Output<ov::Node> SwiGLU::operator()(const ov::Output<ov::Node>& input, const
     auto gate_up = std::make_shared<ov::opset11::Multiply>(silu, up);
     gate_up->set_friendly_name(name + "_gate_up");
 
-    auto down = make_linear(gate_up, intermediate_size, hidden_size, name + ".down_proj", precision, false, weight_fn);
+    auto down = make_linear(gate_up, intermediate_size, hidden_size, name + ".down_proj", precision, weight_fn);
 
     return down;
 }
 
 ov::Output<ov::Node> GELUFn::operator()(const ov::Output<ov::Node>& input, const std::string& name) const {
-    auto up = make_linear(input, hidden_size, intermediate_size, name + ".up_proj", precision, use_bias, weight_fn);
+    auto up = make_linear(input, hidden_size, intermediate_size, name + ".up_proj", precision, weight_fn, bias_fn);
 
     auto gelu = std::make_shared<ov::opset11::Gelu>(up);
     gelu->set_friendly_name(name + "_gelu");
 
-    auto down = make_linear(gelu, intermediate_size, hidden_size, name + ".down_proj", precision, use_bias, weight_fn);
+    auto down = make_linear(gelu, intermediate_size, hidden_size, name + ".down_proj", precision, weight_fn, bias_fn);
 
     return down;
 }
@@ -787,11 +782,11 @@ LayerResult Attention::operator()(const ov::Output<ov::Node>& input,
 
     // Q, K, V projections
     auto q = make_linear(input, hidden_size, num_heads * head_dim,
-                         prefix + q_proj_name, precision, add_bias, weight_fn);
+                         prefix + q_proj_name, precision, weight_fn, bias_fn);
     auto k = make_linear(kv_input, hidden_size, num_kv_heads * head_dim,
-                         prefix + k_proj_name, precision, add_bias, weight_fn);
+                         prefix + k_proj_name, precision, weight_fn, bias_fn);
     auto v = make_linear(kv_input, hidden_size, num_kv_heads * head_dim,
-                         prefix + v_proj_name, precision, add_bias, weight_fn);
+                         prefix + v_proj_name, precision, weight_fn, bias_fn);
 
     // Reshape for multi-head: [batch, seq, heads, head_dim]
     auto q_reshaped = make_multihead_reshape(q, num_heads, head_dim, prefix + attn_prefix + "q_reshape");
@@ -877,7 +872,7 @@ LayerResult Attention::operator()(const ov::Output<ov::Node>& input,
     auto attn_output = make_sdpa(q_roped, k_expanded, v_expanded, prefix + "self_attn.attn", sdpa_mask, sdpa_scale_dim);
 
     auto o_proj = make_attention_output(attn_output, hidden_size,
-                                        prefix + o_proj_name, precision, add_bias, weight_fn);
+                                        prefix + o_proj_name, precision, weight_fn, bias_fn);
 
     return {o_proj, sinks};
 }
@@ -1588,12 +1583,13 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_encoder(const WhisperConf
 
     // Encoder layers: same 2-sublayer structure as LLM (norm -> self_attn -> residual -> norm -> FFN -> residual)
     LayerNorm norm(d, prec);
-    GELUFn ffn(d, config.encoder_ffn_dim, prec, wf, true);  // bias=true
+    FloatWeight bias_wf(prec);  // biases are never compressed — always float
+    GELUFn ffn(d, config.encoder_ffn_dim, prec, wf, bias_wf);
 
     ov::Output<ov::Node> current = embedded->output(0);
 
     Attention enc_attn{d, heads, heads, hd, prec, wf};
-    enc_attn.add_bias = true;
+    enc_attn.bias_fn = bias_wf;
     enc_attn.o_proj_name = "self_attn.out_proj";
 
     for (size_t layer = 0; layer < config.encoder_layers; ++layer) {
@@ -1841,19 +1837,20 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperConf
 
     // Decoder layers
     LayerNorm norm(d, prec);
-    GELUFn ffn(d, config.decoder_ffn_dim, prec, wf, true);  // bias=true
+    FloatWeight bias_wf(prec);  // biases are never compressed — always float
+    GELUFn ffn(d, config.decoder_ffn_dim, prec, wf, bias_wf);
 
     ov::Output<ov::Node> current = hidden_states->output(0);
     ov::SinkVector all_sinks;
 
     Attention self_attn{d, heads, heads, hd, prec, wf};
-    self_attn.add_bias = true;
+    self_attn.bias_fn = bias_wf;
     self_attn.cache_infix = ".decoder.";
     self_attn.sdpa_mask = shared_mask;
     self_attn.o_proj_name = "self_attn.out_proj";
 
     Attention cross_attn{d, heads, heads, hd, prec, wf};
-    cross_attn.add_bias = true;
+    cross_attn.bias_fn = bias_wf;
     cross_attn.cache_infix = ".encoder.";
     cross_attn.q_proj_name = "encoder_attn.q_proj";
     cross_attn.k_proj_name = "encoder_attn.k_proj";
@@ -1917,8 +1914,9 @@ std::shared_ptr<ov::Model> ModelBuilder::build_bert_encoder(const BERTConfig& co
         config.weight = FP32Weight{};
     if (!config.norm)
         config.norm = LayerNorm(config.hidden_size, config.precision);
+    FloatWeight bias_wf(config.precision);  // biases are never compressed — always float
     if (!config.ffn)
-        config.ffn = GELUFn(config.hidden_size, config.intermediate_size, config.precision, config.weight, true);
+        config.ffn = GELUFn(config.hidden_size, config.intermediate_size, config.precision, config.weight, bias_wf);
 
     const auto prec = config.precision;
     const auto hs = config.hidden_size;
@@ -1962,7 +1960,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_bert_encoder(const BERTConfig& co
     ov::Output<ov::Node> current = embed_normed;
 
     Attention bert_attn{hs, config.num_heads, config.num_heads, config.head_dim, prec, config.weight};
-    bert_attn.add_bias = true;
+    bert_attn.bias_fn = bias_wf;
     bert_attn.sdpa_mask = sdpa_mask;
 
     for (size_t layer = 0; layer < config.num_layers; ++layer) {
