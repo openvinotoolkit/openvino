@@ -47,16 +47,16 @@ class TestComplexSlice(CommonTFLayerTest):
         inputs_data["param_imag:0"] = 4 * rng.random(param_imag_shape).astype(np.float32) - 2
         return inputs_data
 
-    def create_complex_slice_net(self, input_shape, begin, size, index_type):
+    def create_complex_slice_net(self, input_shape, begin, size, index_type, name=None):
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
-            param_real = tf.compat.v1.placeholder(np.float32, input_shape, "param_real")
-            param_imag = tf.compat.v1.placeholder(np.float32, input_shape, "param_imag")
+            param_real = tf.compat.v1.placeholder(tf.float32, input_shape, "param_real")
+            param_imag = tf.compat.v1.placeholder(tf.float32, input_shape, "param_imag")
             complex_tensor = tf.raw_ops.Complex(real=param_real, imag=param_imag)
             begin = tf.constant(begin, dtype=index_type)
             size = tf.constant(size, dtype=index_type)
 
-            slice_tensor = tf.raw_ops.Slice(input=complex_tensor, begin=begin, size=size)
+            slice_tensor = tf.raw_ops.Slice(input=complex_tensor, begin=begin, size=size, name=name)
             real = tf.raw_ops.Real(input=slice_tensor)
             imag = tf.raw_ops.Imag(input=slice_tensor)
 
@@ -66,19 +66,26 @@ class TestComplexSlice(CommonTFLayerTest):
         return tf_net, None
 
     test_data = [
-        # (input_shape, begin, size)
-        # Case of basic
-        dict(input_shape=[], begin=[], size=[]),
+        # (input_shape, begin, size, name)
+        # Case of Basic
+        dict(input_shape=[6], begin=[2], size=[2]),
+        dict(input_shape=[2, 5, 3], begin=[0, 1, 0], size=[-1, 1, -1]),
+        dict(input_shape=[10, 5, 1, 5], begin=[5, 1, 0, 3], size=[2, 4, -1, -1]),
 
-        # Case of edge
+        # Case of Edge
+        ## Case 1: When use tensorflow's name (optional)
+        dict(input_shape=[6], begin=[2], size=[2], name="tensorflow_slice_test"),
+        ## Case 2: When use tensorflow's empty tensor (size == 0)
+        dict(input_shape=[6], begin=[2], size=[0])
     ]
 
     @pytest.mark.parametrize("params", test_data)
-    @pytest.mark.parametrize("index_type", [np.int32, np.int64])
+    @pytest.mark.parametrize("index_type", [tf.int32, tf.int64])
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_complex_slice(self, params, index_type, ie_device, precision, ir_version, temp_dir):
-        params['index_type'] = index_type
+        params_copy = params.copy()
+        params_copy['index_type'] = index_type
         self._test(
-            *self.create_complex_slice_net(**params),
+            *self.create_complex_slice_net(**params_copy),
             ie_device, precision, ir_version, temp_dir=temp_dir)
