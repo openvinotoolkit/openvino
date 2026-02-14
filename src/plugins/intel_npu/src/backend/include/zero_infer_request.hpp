@@ -78,6 +78,8 @@ protected:
                                                  const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
                                                  std::optional<size_t> batchSizeCandidate = std::nullopt);
 
+    virtual void prepare_inputs();
+
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
     const std::shared_ptr<IGraph> _graph;
     const Config _config;

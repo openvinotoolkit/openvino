@@ -682,7 +682,14 @@ void ZeroInferRequest::infer() {
 void ZeroInferRequest::infer_async() {
     _logger.debug("InferRequest::infer_async started");
     OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "start");
+    prepare_inputs();
 
+    OV_ITT_TASK_NEXT(ZERO_INFER, "push");
+    _pipeline->push();
+}
+
+void ZeroInferRequest::prepare_inputs() {
+    OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "prepare_inputs");
     {
         std::lock_guard<std::mutex> lock(_graph->get_mutex());
 
@@ -788,9 +795,6 @@ void ZeroInferRequest::infer_async() {
 
         ++inputIndex;
     }
-
-    OV_ITT_TASK_NEXT(ZERO_INFER, "push");
-    _pipeline->push();
 }
 
 void ZeroInferRequest::get_result() {
