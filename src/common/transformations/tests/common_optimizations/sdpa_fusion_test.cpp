@@ -1228,9 +1228,9 @@ TEST_F(TransformationTestsF, SDPAFusionTest_ReshapeOptimizationWithMaskCausal) {
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
-class SDPASquieezeOutput : public TransformationTestsF, public ::testing::WithParamInterface<PartialShape> {};
+class SDPASqueezeOutput : public TransformationTestsF, public ::testing::WithParamInterface<PartialShape> {};
 
-TEST_P(SDPASquieezeOutput, SDPAFusionTest_SquieezeOutput) {
+TEST_P(SDPASqueezeOutput, SDPAFusionTest_SqueezeOutput) {
     // Parametrization
     const auto& shape = GetParam();
 
@@ -1262,15 +1262,15 @@ TEST_P(SDPASquieezeOutput, SDPAFusionTest_SquieezeOutput) {
 }
 
 INSTANTIATE_TEST_SUITE_P(SDPAFusion,
-                         SDPASquieezeOutput,
+                         SDPASqueezeOutput,
                          Values(PartialShape{55, 128},   // Static 2D
                                 PartialShape{-1, 128},   // Dynamic batch
                                 PartialShape{55, -1},    // Dynamic embedding
                                 PartialShape{-1, -1}));  // Fully dynamic
 
-class SDPAUnsquieezeOutput : public TransformationTestsF, public ::testing::WithParamInterface<PartialShape> {};
+class SDPAUnsqueezeOutput : public TransformationTestsF, public ::testing::WithParamInterface<PartialShape> {};
 
-TEST_P(SDPAUnsquieezeOutput, SDPAFusionTest_UnsquieezeOutput) {
+TEST_P(SDPAUnsqueezeOutput, SDPAFusionTest_UnsqueezeOutput) {
     // Parametrization
     const auto& shape = GetParam();
 
@@ -1301,7 +1301,7 @@ TEST_P(SDPAUnsquieezeOutput, SDPAFusionTest_UnsquieezeOutput) {
 }
 
 INSTANTIATE_TEST_SUITE_P(SDPAFusion,
-                         SDPAUnsquieezeOutput,
+                         SDPAUnsqueezeOutput,
                          Values(PartialShape{1, 55, 128},   // Static
                                 PartialShape{1, -1, 128},   // Dynamic batch
                                 PartialShape{1, 55, -1},    // Dynamic embedding
