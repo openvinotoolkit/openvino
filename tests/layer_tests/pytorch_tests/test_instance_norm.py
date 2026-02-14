@@ -10,37 +10,35 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestInstanceNorm(PytorchLayerTest):
     def _prepare_input(self, ndim=4):
-        import numpy as np
         shape5d = [3, 6, 10, 5, 2]
         shape = shape5d[:ndim]
-        return (np.random.randn(*shape).astype(np.float32),)
+        return (self.random.randn(*shape),)
 
     def create_model(self, weights=False, bias=False, mean_var=False, eps=1e-05):
         import torch
 
         class aten_instance_norm(torch.nn.Module):
-            def __init__(self, weights=False, bias=False, mean_var=False, eps=1e-05):
-                super(aten_instance_norm, self).__init__()
+            def __init__(self, rng, weights=False, bias=False, mean_var=False, eps=1e-05):
+                super().__init__()
                 weights_shape = (6, )
-                self.weight = torch.randn(weights_shape) if weights else None
+                self.weight = rng.torch_randn(*weights_shape) if weights else None
                 self.bias = None
                 self.use_input_stats = not mean_var
                 if bias:
-                    self.bias = torch.randn(weights_shape)
+                    self.bias = rng.torch_randn(*weights_shape)
                 self.mean = None
                 self.var = None
                 if mean_var:
-                    self.mean = torch.randn(weights_shape)
-                    self.var = torch.randn(weights_shape)
+                    self.mean = rng.torch_randn(*weights_shape)
+                    self.var = rng.torch_randn(*weights_shape)
 
                 self.eps = eps
 
             def forward(self, x):
                 return torch.instance_norm(x, self.weight, self.bias, self.mean, self.var,  self.use_input_stats, 0.1, self.eps, False)
 
-        ref_net = None
 
-        return aten_instance_norm(weights, bias, mean_var, eps), ref_net, "aten::instance_norm"
+        return aten_instance_norm(self.random, weights, bias, mean_var, eps), "aten::instance_norm"
 
     @pytest.mark.parametrize("params",
                              [
