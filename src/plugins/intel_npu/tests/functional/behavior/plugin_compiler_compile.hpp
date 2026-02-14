@@ -14,8 +14,8 @@
 
 namespace {
 
-class TestOfflineCompilationNPU : public ov::test::behavior::OVPluginTestBase,
-                                  public testing::WithParamInterface<std::tuple<std::string, ov::AnyMap>> {
+class TestPluginCompilerCompilationNPU : public ov::test::behavior::OVPluginTestBase,
+                                         public testing::WithParamInterface<std::tuple<std::string, ov::AnyMap>> {
 public:
     void SetUp() override {
         std::tie(target_device, configuration) = GetParam();
@@ -45,7 +45,7 @@ protected:
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
 };
 
-TEST_P(TestOfflineCompilationNPU, compileWithDefaultCompilerConfig) {
+TEST_P(TestPluginCompilerCompilationNPU, compileWithDefaultCompilerConfig) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED() {
         const auto& model = buildSingleLayerSoftMaxNetwork();
         ov::CompiledModel compiledModel;

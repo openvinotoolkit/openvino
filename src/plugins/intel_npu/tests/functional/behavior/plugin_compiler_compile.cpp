@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/work_without_devices.hpp"
+#include "behavior/plugin_compiler_compile.hpp"
 
 #include "common/utils.hpp"
 #include "intel_npu/config/options.hpp"
@@ -15,9 +15,9 @@ const std::vector<ov::AnyMap> configs = {
     {{"NPU_COMPILER_TYPE", "PLUGIN"}, {"NPU_PLATFORM", "NPU5010"}, {"NPU_CREATE_EXECUTOR", "0"}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
-                         TestOfflineCompilationNPU,
+                         TestPluginCompilerCompilationNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
-                         TestOfflineCompilationNPU::getTestCaseName);
+                         TestPluginCompilerCompilationNPU::getTestCaseName);
 
 }  // namespace
