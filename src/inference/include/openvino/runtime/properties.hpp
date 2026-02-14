@@ -154,8 +154,8 @@ class Property : public util::BaseProperty<T, mutability_> {
             using UType = std::decay_t<U>;
             using VType = std::decay_t<V>;
 
-            if constexpr (std::is_integral_v<UType> && std::is_unsigned_v<UType> &&
-                          std::is_integral_v<VType> && std::is_signed_v<VType>) {
+            if constexpr (std::is_integral_v<UType> && std::is_unsigned_v<UType> && std::is_integral_v<VType> &&
+                          std::is_signed_v<VType>) {
                 if (value < 0) {
                     OPENVINO_THROW("Cannot assign negative value ", value, " to unsigned property");
                 }
