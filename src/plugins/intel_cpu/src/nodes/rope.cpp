@@ -111,7 +111,6 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
         jcp.dst_prc = precision_of<T>::value;
         jcp.rotary_ndims = config.rotary_ndims;
         jcp.interleave = false;
-        jcp.cos_sin_ndims = config.cos_sin_ndims;
         m_rotaryKernel = createJitKernel(jcp);
     }
 
@@ -154,12 +153,11 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
             t_sin = t_sin.reshape({1, t_sin.size(0), t_sin.size(1), t_sin.size(2)});
         }
 
-        const auto batch_size = t_src.size(0);
-        const auto head_cnt = t_src.size(1);
-        const auto seq_len = t_src.size(2);
-        const auto feature_size = t_src.size(3);
-        const auto half_rotary_dims = rotary_dims / 2;
-        const size_t cos_sin_offset = (m_config.cos_sin_ndims == half_rotary_dims) ? 0 : half_rotary_dims;
+        auto batch_size = t_src.size(0);
+        auto head_cnt = t_src.size(1);
+        auto seq_len = t_src.size(2);
+        auto feature_size = t_src.size(3);
+
         parallel_for3d(batch_size, head_cnt, seq_len, [&](size_t b, size_t h, size_t p) {
             auto cos_pos = p;
             if (gather) {
@@ -177,12 +175,13 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
             if (m_rotaryKernel) {
                 execJitKernel(m_rotaryKernel, src, dst, cos, sin);
             } else {
+                auto half_rotary_dims = rotary_dims / 2;
                 size_t i = 0;
                 for (; i < half_rotary_dims; i++) {
                     auto src0 = src[i];
                     auto src1 = src[i + half_rotary_dims];
                     dst[i] = cos[i] * src0 - sin[i] * src1;
-                    dst[i + half_rotary_dims] = cos[i + cos_sin_offset] * src1 + sin[i + cos_sin_offset] * src0;
+                    dst[i + half_rotary_dims] = cos[i + half_rotary_dims] * src1 + sin[i + half_rotary_dims] * src0;
                 }
             }
             if (!can_inplace) {

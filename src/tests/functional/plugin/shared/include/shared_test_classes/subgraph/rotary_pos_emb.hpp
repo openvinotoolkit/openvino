@@ -200,19 +200,5 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<rope_params_chatglm>& obj);
 };
 
-class RoPETestGPTOSS : public SubgraphBaseTest, public testing::WithParamInterface<rope_params> {
-private:
-    std::shared_ptr<ov::Model> buildROPE_GPTOSS(int num_head,
-                                              int rotary_dims,
-                                              ov::element::Type element_type);
-
-protected:
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
-    void SetUp() override;
-
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<rope_params>& obj);
-};
-
 }  // namespace test
 }  // namespace ov
