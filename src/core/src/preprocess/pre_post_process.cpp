@@ -471,6 +471,13 @@ PreProcessSteps& PreProcessSteps::resize(ResizeAlgorithm alg) {
     return *this;
 }
 
+// [ADDED NEW FEATURE]
+PreProcessSteps& PreProcessSteps::flip(FlipMode mode) {
+    m_impl->add_flip_impl(mode);
+    return *this;
+}
+// [END NEW FEATURE]
+
 PreProcessSteps& PreProcessSteps::crop(const std::vector<int>& begin, const std::vector<int>& end) {
     m_impl->add_crop_impl(begin, end);
     return *this;
