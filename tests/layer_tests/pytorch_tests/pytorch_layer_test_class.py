@@ -19,6 +19,121 @@ import openvino.properties.hint as hints
 logging.basicConfig(level=logging.DEBUG)
 
 
+class SeededRandom:
+    """
+    A seeded random number generator for reproducible test data generation.
+    
+    Each test gets a deterministic seed based on its class name, allowing
+    tests to be run in any order or in parallel while maintaining reproducibility.
+    """
+    
+    def __init__(self, seed: int = 0):
+        """Initialize with a seed value."""
+        self._seed = seed
+        self._rng = np.random.RandomState(seed)
+
+    @staticmethod
+    def _to_numpy_dtype(dtype):
+        if dtype is None:
+            return None
+        if isinstance(dtype, torch.dtype):
+            dtype_map = {
+                torch.float32: np.float32,
+                torch.float64: np.float64,
+                torch.float16: np.float16,
+                torch.int8: np.int8,
+                torch.int16: np.int16,
+                torch.int32: np.int32,
+                torch.int64: np.int64,
+                torch.uint8: np.uint8,
+                torch.bool: np.bool_,
+            }
+            return dtype_map.get(dtype, np.float32)
+        return dtype
+    
+    def randn(self, *shape, dtype=None) -> np.ndarray:
+        """Generate random samples from standard normal distribution."""
+        np_dtype = self._to_numpy_dtype(dtype) if dtype is not None else np.float32
+        return np.asarray(self._rng.randn(*shape)).astype(np_dtype)
+    
+    def rand(self, *shape, dtype=None) -> np.ndarray:
+        """Generate random samples from uniform distribution [0, 1)."""
+        np_dtype = self._to_numpy_dtype(dtype) if dtype is not None else np.float32
+        return np.asarray(self._rng.rand(*shape)).astype(np_dtype)
+    
+    def randint(self, low, high=None, size=None, dtype=np.int64):
+        """Generate random integers from low (inclusive) to high (exclusive).
+        
+        Returns a scalar if size is None, otherwise returns an array.
+        """
+        result = self._rng.randint(low, high, size=size)
+        np_dtype = self._to_numpy_dtype(dtype)
+        if size is None:
+            # Return scalar with appropriate type
+            return np_dtype(result) if np_dtype is not None else result
+        return result.astype(np_dtype) if np_dtype is not None else result
+    
+    def uniform(self, low=0.0, high=1.0, size=None, dtype=np.float32):
+        """Generate random samples from uniform distribution [low, high).
+        
+        Returns a scalar if size is None, otherwise returns an array.
+        """
+        result = self._rng.uniform(low, high, size=size)
+        np_dtype = self._to_numpy_dtype(dtype)
+        if size is None:
+            return np_dtype(result) if np_dtype is not None else result
+        return result.astype(np_dtype) if np_dtype is not None else result
+    
+    def choice(self, a, size=None, replace=True, p=None):
+        """Generate a random sample from a given 1-D array."""
+        return self._rng.choice(a, size=size, replace=replace, p=p)
+    
+    def random_bool(self, *shape) -> np.ndarray:
+        """Generate random boolean array."""
+        return self._rng.randint(0, 2, size=shape).astype(bool)
+    
+    def shuffle(self, x):
+        """Shuffle array in place."""
+        self._rng.shuffle(x)
+    
+    def torch_randn(self, *shape, dtype=torch.float32):
+        """Generate random normal samples as a torch tensor."""
+        if len(shape) == 1 and isinstance(shape[0], (list, tuple)):
+            shape = tuple(shape[0])
+        np_result = self.randn(*shape, dtype=np.float32)
+        t = torch.from_numpy(np_result)
+        if dtype != torch.float32:
+            t = t.to(dtype)
+        return t
+
+    def torch_rand(self, *shape, dtype=torch.float32):
+        """Generate random uniform [0, 1) samples as a torch tensor."""
+        if len(shape) == 1 and isinstance(shape[0], (list, tuple)):
+            shape = tuple(shape[0])
+        np_result = self.rand(*shape, dtype=np.float32)
+        t = torch.from_numpy(np_result)
+        if dtype != torch.float32:
+            t = t.to(dtype)
+        return t
+
+    def torch_randint(self, low, high, size, dtype=torch.int64):
+        """Generate random integers as a torch tensor."""
+        np_result = self._rng.randint(low, high, size=size).astype(np.int64)
+        t = torch.from_numpy(np_result)
+        if dtype != torch.int64:
+            t = t.to(dtype)
+        return t
+
+    @property
+    def rng(self) -> np.random.RandomState:
+        """Access the underlying random state for advanced operations."""
+        return self._rng
+    
+    def reset(self):
+        """Reset the random state to the initial seed."""
+        self._rng = np.random.RandomState(self._seed)
+
+
 def skip_check(*param, reason="Unsupported"):
     return skip_if_export(*param, reason=reason) if PytorchLayerTest.use_torch_export() else skip_if_fx(*param, reason=reason)
 
@@ -43,6 +158,37 @@ class PytorchLayerTest:
         "uint8": Type.u8,
         "float16": Type.f16
     }
+    
+    # Class-level cache for SeededRandom instances
+    _random_instances = {}
+
+    @property
+    def random(self) -> SeededRandom:
+        """
+        Get a seeded random number generator for this test class.
+        
+        The seed is derived from the test class name, ensuring reproducibility
+        regardless of test execution order or parallelization.
+        
+        Note: The random state is reset at the start of each _test() call,
+        not on every access. This ensures that within a test, multiple calls
+        to self.random.randn() produce different values, while the same test
+        always produces the same sequence.
+        
+        Usage in _prepare_input():
+            return (self.random.randn(2, 3, 4),)
+        """
+        class_name = self.__class__.__name__
+        if class_name not in PytorchLayerTest._random_instances:
+            self._reset_random_state()
+        return PytorchLayerTest._random_instances[class_name]
+    
+    def _reset_random_state(self):
+        """Reset the random state for this test class. Called at the start of each test."""
+        class_name = self.__class__.__name__
+        if class_name not in PytorchLayerTest._random_instances:
+            PytorchLayerTest._random_instances[class_name] = SeededRandom(42)
+        PytorchLayerTest._random_instances[class_name].reset()
 
     @staticmethod
     def _check_kind_exist(graph, kind):
@@ -53,6 +199,57 @@ class PytorchLayerTest:
                 if PytorchLayerTest._check_kind_exist(b, kind):
                     return True
         return False
+
+    @staticmethod
+    def _check_fx_op_exist(exported_program, op_name):
+        """Check if an operation exists in the FX graph of an ExportedProgram.
+        
+        Args:
+            exported_program: torch.export.ExportedProgram
+            op_name: str - operation name like "aten.add.Tensor" or just "aten.add"
+        
+        Returns:
+            bool - True if operation exists in the graph
+        """
+        for node in exported_program.graph.nodes:
+            if node.op == "call_function":
+                target_str = str(node.target)
+                # Support both full name (aten.add.Tensor) and partial match (aten.add)
+                if target_str == op_name or target_str.startswith(op_name + "."):
+                    return True
+        return False
+
+    @staticmethod
+    def _derive_fx_kind_from_kind(kind):
+        """Derive FX graph operation name from TorchScript kind.
+        
+        Converts TorchScript operation names like "aten::add" to FX names like "aten.add".
+        
+        Args:
+            kind: str or tuple of str - TorchScript operation name(s)
+        
+        Returns:
+            list of str - FX operation names, or None if conversion not possible
+        """
+        if kind is None:
+            return None
+        
+        if isinstance(kind, str):
+            kinds = [kind]
+        else:
+            kinds = list(kind)
+        
+        fx_kinds = []
+        for k in kinds:
+            # Convert "aten::op_name" to "aten.op_name"
+            if "::" in k:
+                fx_kind = k.replace("::", ".")
+                fx_kinds.append(fx_kind)
+            else:
+                # Cannot auto-derive, return None to require explicit fx_kind
+                return None
+        
+        return fx_kinds if fx_kinds else None
 
     @staticmethod
     def use_torch_compile_backend():
@@ -69,14 +266,17 @@ class PytorchLayerTest:
         return False
 
 
-    def _test(self, model, ref_net, kind, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True,
+    def _test(self, model, kind, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True,
               **kwargs):
+        # Reset random state at the start of each test for reproducibility
+        self._reset_random_state()
+        
         retries = 0
         max_retries = 3
         last_e = None
         while retries < max_retries:
             try:
-                return self._test_impl(model, ref_net, kind, ie_device, precision, ir_version, infer_timeout, dynamic_shapes, **kwargs)
+                return self._test_impl(model, kind, ie_device, precision, ir_version, infer_timeout, dynamic_shapes, **kwargs)
             except RuntimeError as e:
                 # This is a potentially sporadic issue
                 print(f"An error occurred: {e}. Retrying...")
@@ -86,7 +286,7 @@ class PytorchLayerTest:
             raise RuntimeError("Max retries reached. Function execution failed.") from last_e
 
 
-    def _test_impl(self, model, ref_net, kind, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True,
+    def _test_impl(self, model, kind, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True,
                    **kwargs):
         """
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
@@ -126,6 +326,18 @@ class PytorchLayerTest:
                 dynamic_shapes = kwargs.get('dynamic_shapes_for_export', {})
 
                 em = export(model, tuple(torch_inputs), dynamic_shapes=dynamic_shapes)
+
+                # Verify FX graph operations exist
+                # Use explicit fx_kind if provided, otherwise auto-derive from TorchScript kind
+                fx_kind = kwargs.get('fx_kind', None)
+                if fx_kind is None:
+                    fx_kind = self._derive_fx_kind_from_kind(kind)
+                
+                assert fx_kind is not None, f"fx_kind must be provided explicitly or derivable from kind. Graph:\n{em.graph}"
+                if not isinstance(fx_kind, (tuple, list)):
+                    fx_kind = [fx_kind]
+                for op in fx_kind:
+                    assert self._check_fx_op_exist(em, op), f"Operation {op} doesn't exist in FX graph. Graph:\n{em.graph}"
 
                 converted_model = convert_model(
                     em, example_input=torch_inputs, verbose=True)

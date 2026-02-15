@@ -75,7 +75,6 @@
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
-#include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
@@ -91,11 +90,8 @@
 #include "transformations/op_conversions/convert_gather_upgrade.hpp"
 #include "transformations/op_conversions/convert_gelu.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
-#include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
 #include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
-#include "transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp"
-#include "transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp"
 #include "transformations/op_conversions/convert_previous_nms_to_nms_9.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 #include "transformations/op_conversions/convert_roi_align_v3_to_v9.hpp"
@@ -255,7 +251,11 @@
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    include "low_precision/avg_pool.hpp"
+#    include "low_precision/convolution.hpp"
+#    include "low_precision/convolution_backprop_data.hpp"
 #    include "low_precision/fake_quantize.hpp"
+#    include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+#    include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #    include "low_precision/group_convolution.hpp"
 #    include "low_precision/interpolate.hpp"
 #    include "low_precision/mat_mul.hpp"
@@ -269,14 +269,17 @@
 #    include "low_precision/reduce_sum.hpp"
 #    include "openvino/opsets/opset1_decl.hpp"
 #    include "snippets/utils/tokenization_utils.hpp"
+#    include "transformations/cpu_opset/arm/pass/convert_conv_bias.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_no_keep_dims.hpp"
 #    include "transformations/cpu_opset/arm/pass/deconv_1d_decomposition.hpp"
+#    include "transformations/cpu_opset/arm/pass/fallback_unsupported_lp_conv_to_fp16.hpp"
 #    include "transformations/cpu_opset/arm/pass/grid_sample_decomposition.hpp"
 #    include "transformations/cpu_opset/common/op/sdpa.hpp"
 #    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
+#    include "transformations/utils.hpp"
 #else
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "openvino/op/gru_sequence.hpp"
@@ -294,6 +297,14 @@
 
 #if defined(OPENVINO_ARCH_ARM)
 #    include "transformations/cpu_opset/arm/pass/mish_decomposition.hpp"
+#endif
+
+#if defined(OPENVINO_ARCH_RISCV64)
+#    include "openvino/op/hsigmoid.hpp"
+#    include "openvino/op/is_finite.hpp"
+#    include "openvino/op/is_inf.hpp"
+#    include "openvino/op/is_nan.hpp"
+#    include "openvino/op/softsign.hpp"
 #endif
 
 #if defined(SNIPPETS_LIBXSMM_TPP)
@@ -627,11 +638,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS3ToNMS9);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS4ToNMS9);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS5ToNMS9);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertNMS9ToNMSIEInternal);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertMulticlassNmsToMulticlassNmsIE);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertMatrixNmsToMatrixNmsIE);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeMatMul);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
@@ -824,18 +830,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         },
         ov::pass::SoftmaxDecomposition);
 
-    // NMS-alike nodes are always transformed to NMSIEInternal node in case of legacy api, for compatibility.
-    // And on the other hand in case of api 2.0, keep them internal dynamic for better performance and functionality.
-    auto nmsCallback = []([[maybe_unused]] const_node_ptr& node) -> bool {
-        // TODO: remove nmsCallback at all
-        const bool isLegacyApi = false;
-        return !isLegacyApi;
-    };
-
-    CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertNMS9ToNMSIEInternal);
-    CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMulticlassNmsToMulticlassNmsIE);
-    CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMatrixNmsToMatrixNmsIE);
-
     // List of enabled/disabled transformations
 
     // Allow FP16 Converts to be folded and FP16 constants to be upgraded to FP32 data type
@@ -964,15 +958,39 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
                              supportedPrecisions,
                              quantizationRestrictions,
                              LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
+
+    CPU_REGISTER_PASS_ARM(lptManager, ConvertConvolutionBias);
+    CPU_REGISTER_PASS_ARM(lptManager, FallbackUnsupportedLPConvToFP16);
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [](const_node_ptr& node) -> bool {
+            return match_conv_stride_oc_ic_limit(node, {1, 1}, ov::Shape{3, 3}, 512);
+        },
+        ConvolutionTransformation);
     CPU_SET_CALLBACK_COMMON(
         lptManager,
         [](const_node_ptr& node) -> bool {
             return ov::marked_as_bias(node);
         },
         AddTransformation);
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [](const_node_ptr& node) -> bool {
+            return match_conv_mul_add_fq<ov::op::v1::Subtract>(node);
+        },
+        FuseSubtractToFakeQuantizeTransformation);
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [](const_node_ptr& node) -> bool {
+            return match_conv_mul_add_fq<ov::op::v1::Multiply>(node);
+        },
+        FuseMultiplyToFakeQuantizeTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
     CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
+    // ConvolutionTransformation is disabled temporary until ACL issues are fixed: #1252, #1253
+    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
+    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionBackpropDataTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, MaxPoolTransformation);
@@ -1001,8 +1019,13 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         lptManager,
         [&](const_node_ptr& node) -> bool {
             auto eltwise = node->get_input_node_shared_ptr(0);
-            if (ov::is_type<ov::op::v1::Multiply>(eltwise) && FakeQuantizeTransformation::checkElementwise(eltwise)) {
-                return ov::is_type<ov::op::v1::Convolution>(eltwise->get_input_node_shared_ptr(0));
+            if ((ov::is_type<ov::op::v1::Multiply>(eltwise) || ov::is_type<ov::op::v1::Add>(eltwise)) &&
+                FakeQuantizeTransformation::checkElementwise(eltwise)) {
+                // avoid convolution dequantization fusion to FQ node to keep
+                // Conv->DQ_scale->Bias->Requantization pattern
+                // Mul-Add pattern will be swapped later to Add-Mul by ConvertConvolutionBias
+                // to get subgraph Conv-Add-Mul supported by the ACL
+                return match_fq_mul_conv_bias_same_types(node, FQMulAddPattern::ConvMulAdd);
             }
             return false;
         },
@@ -1063,15 +1086,7 @@ void Transformations::PostLpt() {
     ov::pass::Manager postLPTPassManager("CPU:PostLPT");
     postLPTPassManager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ConvertBroadcast3);
-    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::UnrollTensorIterator);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ReshapePRelu);
-    CPU_SET_CALLBACK_COMMON(
-        postLPTPassManager,
-        [](const_node_ptr& node) -> bool {
-            // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
-            return node->get_rt_info().count("UNROLL_TI") == 0;
-        },
-        ov::pass::UnrollTensorIterator);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MoveEltwiseUpThroughDataMov);
     CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::MoveEltwiseUpThroughDataMovPerChannel);
     CPU_SET_CALLBACK_COMMON(
@@ -1441,8 +1456,28 @@ void Transformations::MainSnippets() {
         };
         return is_supported(n) || is_supported_with_scalar_inputs(n);
 #elif defined(OPENVINO_ARCH_RISCV64)
-        // Snippets on RISC-V arch are enabled only in tests for now
-        return false;
+        auto is_supported = [](const std::shared_ptr<const ov::Node>& n) {
+            return (ov::is_type_any_of<ov::op::v0::Abs,
+                                       ov::op::v0::Clamp,
+                                       ov::op::v0::Elu,
+                                       ov::op::v0::Erf,
+                                       ov::op::v0::Exp,
+                                       ov::op::v0::Floor,
+                                       ov::op::v0::Gelu,
+                                       ov::op::v5::HSigmoid,
+                                       ov::op::v4::HSwish,
+                                       ov::op::v10::IsFinite,
+                                       ov::op::v10::IsInf,
+                                       ov::op::v10::IsNaN,
+                                       ov::op::v4::Mish,
+                                       ov::op::v0::Negative,
+                                       ov::op::v0::Relu,
+                                       ov::op::v0::Sigmoid,
+                                       ov::op::v9::SoftSign,
+                                       ov::op::v0::Sqrt,
+                                       ov::op::v0::Tanh>(n));
+        };
+        return is_supported(n);
 #else
         // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
         // and CPU Plugin does not support Mish for x64
@@ -1646,11 +1681,10 @@ void Transformations::PostSnippets() {
         [](const_node_ptr& node) -> bool {
             if (ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
                 ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
-                auto parent = node->get_input_node_shared_ptr(0);
-                if (ov::is_type<const ov::op::v1::Multiply>(parent) && !parent->inputs().empty() &&
-                    ov::is_type<const ov::op::v1::Convolution>(parent->get_input_node_shared_ptr(0))) {
-                    return true;
-                }
+                // int8 ACL Convolution executor supports only same activation and output types
+                // if types are different, decompose FQ to avoid reference FQ
+                return match_conv_fq_same_types(node) ||
+                       match_fq_mul_conv_bias_same_types(node, FQMulAddPattern::ConvAddMul);
             }
             return false;
         },

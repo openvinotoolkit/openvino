@@ -155,7 +155,7 @@ std::shared_ptr<ov::Model> DeconvolutionLayerCPUTest::createGraph(const std::vec
                                                                  outPadding);
     }
 
-    return makeNgraphFunction(prec, params, deconv, "DeconvCPU");
+    return create_ov_model(prec, params, deconv, "DeconvCPU");
 }
 
 void DeconvolutionLayerCPUTest::SetUp() {
