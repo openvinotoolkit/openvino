@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -626,10 +626,6 @@ public:
         return m_stream_cache;
     }
 
-    std::filesystem::path get_model_dir() const {
-        return m_model_dir;
-    }
-
 private:
     void load_model();
     void clean_up();
@@ -649,9 +645,8 @@ private:
 
     // This is used for keeping MMAP cache handles
     detail::MappedMemoryHandles m_mmap_cache;
-    // This is used for keeping external data read without MMAP
+    // This is used for keeping a readed external data without MMAP
     detail::LocalStreamHandles m_stream_cache;
-    std::filesystem::path m_model_dir;
 
     std::shared_ptr<TensorONNXPlace> register_tensor_place(const std::shared_ptr<TensorONNXPlace>& tensor_place);
     std::shared_ptr<TensorONNXPlace> find_tensor_place(const TensorMetaInfo& tensor_meta_info) const;
@@ -696,14 +691,14 @@ void InputModel::InputModelONNXImpl::load_model() {
             if (tensor_place->get_data() != nullptr)
                 continue;
 
-            auto tensor_place_registered = register_tensor_place(tensor_place);
-            if (!tensor_place_registered)
+            tensor_place = register_tensor_place(tensor_place);
+            if (!tensor_place)
                 continue;
 
-            if (tensor_place_registered->is_input())
-                m_inputs.push_back(tensor_place_registered);
-            if (tensor_place_registered->is_output())
-                m_outputs.push_back(tensor_place_registered);
+            if (tensor_place->is_input())
+                m_inputs.push_back(tensor_place);
+            if (tensor_place->is_output())
+                m_outputs.push_back(tensor_place);
         } else {
             auto op_place = std::make_shared<OpPlace>(m_input_model, decoder);
             m_op_places.push_back(op_place);
@@ -842,9 +837,6 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
       m_telemetry(telemetry),
       m_enable_mmap(enable_mmap) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
-    if (const auto graph_iterator = std::dynamic_pointer_cast<GraphIterator>(m_graph_iterator)) {
-        m_model_dir = graph_iterator->get_model_dir();
-    }
     if (m_enable_mmap) {
         m_mmap_cache = std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>();
         m_stream_cache = nullptr;
@@ -865,11 +857,6 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
       m_mmap_cache(parent_model->_impl->m_mmap_cache),
       m_stream_cache(parent_model->_impl->m_stream_cache) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
-    if (const auto graph_iterator = std::dynamic_pointer_cast<GraphIterator>(m_graph_iterator)) {
-        m_model_dir = graph_iterator->get_model_dir();
-    } else {
-        m_model_dir = parent_model->_impl->m_model_dir;
-    }
     load_model();
 }
 
@@ -1064,10 +1051,6 @@ detail::MappedMemoryHandles InputModel::get_mmap_cache() const {
 
 detail::LocalStreamHandles InputModel::get_stream_cache() const {
     return _impl->get_stream_cache();
-}
-
-std::filesystem::path InputModel::get_model_dir() const {
-    return _impl->get_model_dir();
 }
 
 }  // namespace unify

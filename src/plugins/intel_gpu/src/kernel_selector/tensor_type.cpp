@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -443,7 +443,14 @@ DataTensor DataTensor::FlattenFeatureAndSpatials() const {
 
         case Tensor::fyxb:
             targetLayout = Tensor::fb;
-            [[fallthrough]];
+
+            // TODO: [FUTURE] Use C++17 [[fallthrough]] instead of code duplication to get portable warning avoidance.
+            if (f.pitch == y.v * x.v * x.pitch) {  // no padding in X/Y axis
+                l = targetLayout;
+                break;
+            }
+            throw std::runtime_error("Unsupported - cannot flatten with padding");
+
         case Tensor::bfyx:
             if (f.pitch == y.v * x.v * x.pitch) {  // no padding in X/Y axis
                 l = targetLayout;
@@ -465,7 +472,16 @@ DataTensor DataTensor::FlattenFeatureAndSpatials() const {
             throw std::runtime_error("Unsupported - cannot flatten with padding");
         case Tensor::yxfb:
             targetLayout = Tensor::fb;
-            [[fallthrough]];
+
+            // TODO: [FUTURE] Use C++17 [[fallthrough]] instead of code duplication to get portable warning avoidance.
+            if ((x.pitch == f.pitch && y.pitch == x.v * x.pitch) ||                                // YX - no Features (val/pitch)
+                (y.v == 1 && x.v == 1 && x.pitch == f.pitch && y.pitch == f.pitch) ||              // Feature only
+                (f.v * f.pitch == x.pitch && f.v * f.pitch == y.pitch && y.v == 1 && x.v == 1)) {  // Feature only
+                l = targetLayout;
+                break;
+            }
+            throw std::runtime_error("Unsupported - cannot flatten yxf to f if f/yx != 1");
+
         case Tensor::byxf:
             if ((x.pitch == f.pitch && y.pitch == x.v * x.pitch) ||                               // YX - no Features (val/pitch)
                 (y.v == 1 && x.v == 1 && x.pitch == f.pitch && y.pitch == f.pitch) ||             // Feature only

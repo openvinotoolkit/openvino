@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -12,7 +12,7 @@ class TestISTFT(PytorchLayerTest):
         import numpy as np
 
         if rand_data:
-            signal = self.random.randn(*signal_shape, dtype=out_dtype)
+            signal = np.random.randn(*signal_shape).astype(out_dtype)
         else:
             num_samples = signal_shape[-1]
             half_idx = num_samples // 2
@@ -59,7 +59,7 @@ class TestISTFT(PytorchLayerTest):
         class aten_istft(torch.nn.Module):
 
             def __init__(self, n_fft, hop_length, win_length, normalized, center):
-                super().__init__()
+                super(aten_istft, self).__init__()
                 self.n_fft = n_fft
                 self.hop_length = hop_length
                 self.win_length = win_length
@@ -81,15 +81,16 @@ class TestISTFT(PytorchLayerTest):
                     length = None
                 )
 
+        ref_net = None
 
-        return aten_istft(n_fft, hop_length, win_length, normalized, center), "aten::istft"
+        return aten_istft(n_fft, hop_length, win_length, normalized, center), ref_net, "aten::istft"
 
     def create_model_with_sig_len(self, n_fft, hop_length, win_length, normalized, center):
 
         class aten_istft(torch.nn.Module):
 
             def __init__(self, n_fft, hop_length, win_length, normalized, center):
-                super().__init__()
+                super(aten_istft, self).__init__()
                 self.n_fft = n_fft
                 self.hop_length = hop_length
                 self.win_length = win_length
@@ -111,8 +112,9 @@ class TestISTFT(PytorchLayerTest):
                     length = sig_length.item()
                 )
 
+        ref_net = None
 
-        return aten_istft(n_fft, hop_length, win_length, normalized, center), "aten::istft"
+        return aten_istft(n_fft, hop_length, win_length, normalized, center), ref_net, "aten::istft"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -174,7 +176,7 @@ class TestISTFTDefaultParams(PytorchLayerTest):
     def _prepare_input(self, n_fft, hop_length, win_length, center, normalized, signal_shape, out_dtype="float32"):
         import numpy as np
 
-        signal = self.random.randn(*signal_shape, dtype=out_dtype)
+        signal = np.random.randn(*signal_shape).astype(out_dtype)
         signal = torch.from_numpy(signal)
 
         stft_kwargs = {
@@ -203,7 +205,7 @@ class TestISTFTDefaultParams(PytorchLayerTest):
         class aten_istft(torch.nn.Module):
 
             def __init__(self, n_fft, hop_length, win_length, normalized, center):
-                super().__init__()
+                super(aten_istft, self).__init__()
                 self.n_fft = n_fft
                 self.hop_length = hop_length
                 self.win_length = win_length
@@ -228,8 +230,9 @@ class TestISTFTDefaultParams(PytorchLayerTest):
 
                 return torch.istft(torch.view_as_complex(x), **istft_kwargs)
 
+        ref_net = None
 
-        return aten_istft(n_fft, hop_length, win_length, normalized, center), "aten::istft"
+        return aten_istft(n_fft, hop_length, win_length, normalized, center), ref_net, "aten::istft"
 
 
     @pytest.mark.nightly

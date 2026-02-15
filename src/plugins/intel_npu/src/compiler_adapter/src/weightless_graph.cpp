@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -158,7 +158,7 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
                                  const std::shared_ptr<const ov::Model>& model,
                                  const Config& config,
                                  const bool blobIsPersistent,
-                                 const ov::SoPtr<VCLCompilerImpl>& compiler)
+                                 const ov::SoPtr<ICompiler>& compiler)
     : Graph(zeGraphExt,
             zeroInitStruct,
             mainGraphDesc,
@@ -198,7 +198,6 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
         std::vector<uint8_t> blob;
 
         if (blobTensor == std::nullopt) {
-            OPENVINO_ASSERT(_zeGraphExt != nullptr, "Zero compiler adapter wasn't initialized");
             // when compiling the model using Compiler in Driver, the blob is handled by the driver
             _zeGraphExt->getGraphBinary(_graphDesc, blob, blobRawPtr, blobSize);
         } else {

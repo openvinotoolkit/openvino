@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -146,7 +146,7 @@ protected:
         }
 
         ov::ParameterVector params{ float_params[0], float_params[1], int_param };
-        function = create_ov_model(inputPrecision, params, roialign, "ROIAlign");
+        function = makeNgraphFunction(inputPrecision, params, roialign, "ROIAlign");
     }
 };
 

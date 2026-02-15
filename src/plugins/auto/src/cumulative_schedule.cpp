@@ -6,7 +6,6 @@
 #include "cumulative_schedule.hpp"
 #include "async_infer_request.hpp"
 #include "plugin.hpp"
-#include "openvino/util/file_util.hpp"
 
 // ------------------------------CumuSchedule----------------------------
 namespace ov {
@@ -83,6 +82,16 @@ void CumuSchedule::init() {
     if (m_context->m_log_tag == "MULTI") {
         // MULTI's performance hint always is tput
         m_context->m_performance_hint = ov::hint::PerformanceMode::THROUGHPUT;
+    }
+
+    if (!m_context->m_model && m_context->m_model_path.empty()) {
+        for (auto&& device : m_context->m_device_priorities) {
+            // initialize containers before run async task, if not initialized, it will hang during infer
+            m_idle_worker_requests[device.device_name];
+            m_worker_requests[device.device_name];
+            m_infer_pipeline_tasks_device_specific[device.device_name] = nullptr;
+        }
+        return;
     }
 
     auto load_device_task = [&](AutoCompileContext* context_ptr,
@@ -193,9 +202,7 @@ void CumuSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     }
     try {
         if (!(m_context->m_model_path.empty())) {
-            context.m_compiled_model = m_context->m_ov_core->compile_model(ov::util::make_path(m_context->m_model_path),
-                                                                           device,
-                                                                           device_config);
+            context.m_compiled_model = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
         } else {
             context.m_compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
         }

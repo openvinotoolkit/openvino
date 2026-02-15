@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ using CompareMap = std::map<ov::NodeTypeInfo, std::function<void(
         double topk_threshold,
         double mvn_threshold)>>;
 
-const CompareMap& getCompareMap();
+CompareMap getCompareMap();
 
 } // namespace utils
 } // namespace test

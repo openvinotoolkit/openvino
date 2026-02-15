@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ public:
 using read_value_node = typed_program_node<read_value>;
 
 template<>
-class typed_primitive_inst<read_value> : public typed_primitive_inst_base<read_value>, public memory_state::releasable_variable {
+class typed_primitive_inst<read_value> : public typed_primitive_inst_base<read_value>, public memory_state::variable {
     using parent = typed_primitive_inst_base<read_value>;
 
 public:
@@ -48,10 +48,9 @@ public:
     static std::string to_string(const read_value_node& node);
 
     typed_primitive_inst(network& network, const read_value_node& desc);
-    typed_primitive_inst(network& network) : parent(network), memory_state::releasable_variable("") {}
+    typed_primitive_inst(network& network) : parent(network), memory_state::variable("") {}
 
     void update_output_memory() override;
-    void release_variable() override;
 
 protected:
     void on_execute() override;

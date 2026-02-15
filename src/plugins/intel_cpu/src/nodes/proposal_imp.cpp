@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,8 +33,7 @@ static void enumerate_proposals_cpu(const float* bottom4d,
                                     float coordinates_offset,
                                     bool initial_clip,
                                     bool swap_xy,
-                                    bool clip_before_nms,
-                                    const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
+                                    bool clip_before_nms) {
     const int bottom_area = bottom_H * bottom_W;
 
     const float* p_anchors_wm = anchors + 0 * num_anchors;
@@ -42,7 +41,7 @@ static void enumerate_proposals_cpu(const float* bottom4d,
     const float* p_anchors_wp = anchors + 2 * num_anchors;
     const float* p_anchors_hp = anchors + 3 * num_anchors;
 
-    cpu_parallel->parallel_for2d(bottom_H, bottom_W, [&](size_t h, size_t w) {
+    parallel_for2d(bottom_H, bottom_W, [&](size_t h, size_t w) {
         const auto x = static_cast<float>((swap_xy ? h : w) * feat_stride);
         const auto y = static_cast<float>((swap_xy ? w : h) * feat_stride);
 
@@ -116,13 +115,9 @@ static void enumerate_proposals_cpu(const float* bottom4d,
     });
 }
 
-static void unpack_boxes(const float* p_proposals,
-                         float* unpacked_boxes,
-                         int pre_nms_topn,
-                         bool store_prob,
-                         const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
+static void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int pre_nms_topn, bool store_prob) {
     if (store_prob) {
-        cpu_parallel->parallel_for(pre_nms_topn, [&](size_t i) {
+        parallel_for(pre_nms_topn, [&](size_t i) {
             unpacked_boxes[0 * pre_nms_topn + i] = p_proposals[5 * i + 0];
             unpacked_boxes[1 * pre_nms_topn + i] = p_proposals[5 * i + 1];
             unpacked_boxes[2 * pre_nms_topn + i] = p_proposals[5 * i + 2];
@@ -130,7 +125,7 @@ static void unpack_boxes(const float* p_proposals,
             unpacked_boxes[4 * pre_nms_topn + i] = p_proposals[5 * i + 4];
         });
     } else {
-        cpu_parallel->parallel_for(pre_nms_topn, [&](size_t i) {
+        parallel_for(pre_nms_topn, [&](size_t i) {
             unpacked_boxes[0 * pre_nms_topn + i] = p_proposals[5 * i + 0];
             unpacked_boxes[1 * pre_nms_topn + i] = p_proposals[5 * i + 1];
             unpacked_boxes[2 * pre_nms_topn + i] = p_proposals[5 * i + 2];
@@ -281,15 +276,14 @@ static void retrieve_rois_cpu(const int num_rois,
                               float img_h,
                               float img_w,
                               bool clip_after_nms,
-                              float* probs,
-                              const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
+                              float* probs) {
     const float* src_x0 = proposals + 0 * num_proposals;
     const float* src_y0 = proposals + 1 * num_proposals;
     const float* src_x1 = proposals + 2 * num_proposals;
     const float* src_y1 = proposals + 3 * num_proposals;
     const float* src_probs = proposals + 4 * num_proposals;
 
-    cpu_parallel->parallel_for(num_rois, [&](size_t roi) {
+    parallel_for(num_rois, [&](size_t roi) {
         int index = roi_indices[roi];
 
         float x0 = src_x0[index];
@@ -340,8 +334,7 @@ void proposal_exec(const float* input0,
                    int* roi_indices,
                    float* output0,
                    float* output1,
-                   proposal_conf& conf,
-                   const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
+                   proposal_conf& conf) {
     // Prepare memory
     const float* p_bottom_item = input0;
     const float* p_d_anchor_item = input1;
@@ -411,8 +404,7 @@ void proposal_exec(const float* input0,
                                 conf.coordinates_offset,
                                 conf.initial_clip,
                                 conf.swap_xy,
-                                conf.clip_before_nms,
-                                cpu_parallel);
+                                conf.clip_before_nms);
         std::partial_sort(proposals_.begin(),
                           proposals_.begin() + pre_nms_topn,
                           proposals_.end(),
@@ -420,11 +412,7 @@ void proposal_exec(const float* input0,
                               return (struct1.score > struct2.score);
                           });
 
-        unpack_boxes(reinterpret_cast<float*>(proposals_.data()),
-                     unpacked_boxes.data(),
-                     pre_nms_topn,
-                     store_prob,
-                     cpu_parallel);
+        unpack_boxes(reinterpret_cast<float*>(proposals_.data()), unpacked_boxes.data(), pre_nms_topn, store_prob);
         nms_cpu(pre_nms_topn,
                 is_dead.data(),
                 unpacked_boxes.data(),
@@ -447,8 +435,7 @@ void proposal_exec(const float* input0,
                           img_H,
                           img_W,
                           conf.clip_after_nms,
-                          p_probs,
-                          cpu_parallel);
+                          p_probs);
     }
 }
 

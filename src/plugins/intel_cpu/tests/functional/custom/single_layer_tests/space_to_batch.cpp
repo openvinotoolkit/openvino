@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -123,7 +123,7 @@ protected:
         params.push_back(padsEndParam);
 
         auto s2b = std::make_shared<ov::op::v1::SpaceToBatch>(params[0], in2, in3, in4);
-        function = create_ov_model(inType, params, s2b, "SpaceToBatchCPU");
+        function = makeNgraphFunction(inType, params, s2b, "SpaceToBatchCPU");
     }
 };
 

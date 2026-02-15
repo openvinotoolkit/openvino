@@ -247,7 +247,7 @@ class if_op(openvino._pyopenvino.Node):
         
                     :param index: sub-graph's index in op.
                     :type index: int
-        
+
                     :return: Model with sub-graph.
                     :rtype: openvino.Model
         """

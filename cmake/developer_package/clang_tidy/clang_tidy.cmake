@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -51,7 +51,7 @@ function(ov_apply_clang_tidy)
         list(APPEND clang_tidy_options "--fix")
     endif()
     if(RISCV64)
-        list(APPEND clang_tidy_options "--extra-arg-before=-march=rv64gcv")
+        list(APPEND clang_tidy_options "--extra-arg-before=-march=rv64gcv1p0_zfh")
         list(APPEND clang_tidy_options "--extra-arg-before=-mabi=lp64d")
         list(APPEND clang_tidy_options "--extra-arg-before=-D__fp16=_Float16")
     endif()

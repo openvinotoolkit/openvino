@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,15 +46,11 @@ inline float get_value(const AttributeProto& attribute) {
 
 template <>
 inline std::vector<float> get_value(const AttributeProto& attribute) {
-#if defined(_MSC_VER)
-#    pragma warning(push)
-#    pragma warning(disable : 4244)
-#endif
     switch (attribute.type()) {
     case AttributeProto_AttributeType::AttributeProto_AttributeType_INT:
         return {static_cast<float>(attribute.i())};
     case AttributeProto_AttributeType::AttributeProto_AttributeType_INTS:
-        return {std::begin(attribute.ints()), std::end(attribute.ints())};
+        return {std::begin(attribute.floats()), std::end(attribute.floats())};
     case AttributeProto_AttributeType::AttributeProto_AttributeType_FLOAT:
         return {attribute.f()};
     case AttributeProto_AttributeType::AttributeProto_AttributeType_FLOATS:
@@ -62,9 +58,6 @@ inline std::vector<float> get_value(const AttributeProto& attribute) {
     default:
         ONNX_INVALID_ATTR(attribute.type(), "INT, INTS, FLOAT, FLOATS");
     }
-#if defined(_MSC_VER)
-#    pragma warning(pop)
-#endif
 }
 
 template <>

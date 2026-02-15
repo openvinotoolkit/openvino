@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -51,16 +51,12 @@ target_include_directories(${TARGET_NAME} INTERFACE
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE openvino::reference
-    openvino::shape_inference
-    openvino::pugixml
-    ${CMAKE_DL_LIBS}
-    Threads::Threads
+            openvino::shape_inference
+            openvino::pugixml
+            ${CMAKE_DL_LIBS}
+            Threads::Threads
     PUBLIC $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.1>>:stdc++fs>
-    $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:c++fs>)
-
-if(BUILD_SHARED_LIBS)
-    target_link_libraries(${TARGET_NAME} PRIVATE openvino::shutdown)
-endif()
+           $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:c++fs>)
 
 if (TBBBIND_2_5_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,10 @@
 
 #include "input_model.hpp"
 #include "op_table.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/pytorch/extension/conversion.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
 #include "place.hpp"
@@ -42,16 +44,15 @@
 #include "transforms/tuple_unpack_replacer.hpp"
 #include "transforms/u4_block_repack.hpp"
 #include "translate_session.hpp"
-#include "unconverted_ops_report.hpp"
 
 namespace ov {
 namespace frontend {
 namespace pytorch {
 
 namespace {
-
-ov::frontend::FrameworkNodeExtractor make_pytorch_extractor() {
-    return [](const std::shared_ptr<ov::Node>& node) -> std::optional<std::pair<std::string, std::string>> {
+std::map<std::string, std::string> get_unconverted_types_from_model(const std::shared_ptr<Model>& model) {
+    std::map<std::string, std::string> unconverted_ops_types;
+    ov::traverse_nodes(model, [&](const std::shared_ptr<Node>& node) {
         if (const auto& fw_node = ov::as_type_ptr<PtFrameworkNode>(node)) {
             const auto& attrs = fw_node->get_attrs();
             auto op_type_it = attrs.find(PtFrameworkNode::op_type_key);
@@ -62,20 +63,66 @@ ov::frontend::FrameworkNodeExtractor make_pytorch_extractor() {
             if (exception_it != attrs.end()) {
                 exception_msg = exception_it->second;
             }
-            return std::make_pair(op_type_it->second, std::move(exception_msg));
+            if (!unconverted_ops_types.count(op_type_it->second)) {
+                unconverted_ops_types.emplace(op_type_it->second, std::move(exception_msg));
+            }
         } else if (const auto& fw_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(node)) {
             auto op_type = std::string(fw_node->get_type_name());
-            std::stringstream consumer;
-            if (fw_node->get_output_size() > 0) {
-                auto inputs = fw_node->output(0).get_target_inputs();
-                if (inputs.size() > 0) {
-                    consumer << " Consumer: " << *(inputs.begin()->get_node());
+            if (!unconverted_ops_types.count(op_type)) {
+                std::stringstream consumer;
+                if (fw_node->get_output_size() > 0) {
+                    auto inputs = fw_node->output(0).get_target_inputs();
+                    if (inputs.size() > 0) {
+                        consumer << " Consumer: " << *(inputs.begin()->get_node());
+                    }
                 }
+                unconverted_ops_types.emplace(op_type, "This is OpenVINO internal type." + consumer.str());
             }
-            return std::make_pair(op_type, "This is OpenVINO internal type." + consumer.str());
         }
-        return std::nullopt;
-    };
+        if (const auto& fw_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
+            for (size_t i = 0; i < fw_node->get_internal_subgraphs_size(); ++i) {
+                const auto& internal_types = get_unconverted_types_from_model(fw_node->get_function(i));
+                unconverted_ops_types.insert(internal_types.begin(), internal_types.end());
+            }
+        }
+    });
+    return unconverted_ops_types;
+}
+
+std::string pack_detailed_failure_report(const std::map<std::string, std::string>& unconverted_ops,
+                                         const std::string& additional_error = "") {
+    std::stringstream error_msg;
+    std::stringstream unconverted_ops_msg;
+    std::stringstream failed_ops_msg;
+    std::stringstream failed_ops_short;
+    error_msg << "Model wasn't fully converted.";
+    unconverted_ops_msg << "-- No conversion rule found for operations: ";
+    failed_ops_msg << " Failed operations detailed log:";
+    failed_ops_short << "-- Conversion is failed for: ";
+    bool at_least_one = false;
+    bool at_least_one_except = false;
+    for (auto&& op : unconverted_ops) {
+        if (op.second.empty()) {
+            if (at_least_one)
+                unconverted_ops_msg << ", ";
+            unconverted_ops_msg << op.first;
+            at_least_one = true;
+        } else {
+            if (at_least_one_except)
+                failed_ops_short << ", ";
+            failed_ops_short << op.first;
+            failed_ops_msg << "\n-- " << op.first << " with a message:\n" << op.second;
+            at_least_one_except = true;
+        }
+    }
+    if (at_least_one_except)
+        error_msg << failed_ops_msg.str();
+    error_msg << "\nSummary:" << additional_error;
+    if (at_least_one)
+        error_msg << '\n' << unconverted_ops_msg.str();
+    if (at_least_one_except)
+        error_msg << '\n' << failed_ops_short.str();
+    return error_msg.str();
 }
 
 void update_parameter_info(std::shared_ptr<ov::op::v0::Parameter>& param,
@@ -119,8 +166,18 @@ std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& mo
         norm_err = "\n-- normalize step failed with: " + std::string(e.what());
     }
 
-    const auto report = ov::frontend::collect_unconverted_ops(converted_model, make_pytorch_extractor());
-    ov::frontend::check_unconverted_ops(report, m_telemetry, "pytorch", get_pytorch_prefix(), norm_err);
+    const auto& unconverted_ops = get_unconverted_types_from_model(converted_model);
+    for (auto&& op : unconverted_ops) {
+        if (m_telemetry) {
+            m_telemetry->send_event("error_cause", "pytorch_" + op.first);
+            auto cropped_message = ov::util::filter_lines_by_prefix(op.second, get_pytorch_prefix());
+            if (cropped_message.size()) {
+                m_telemetry->send_event("error_info", cropped_message);
+            }
+        }
+    }
+    bool is_conversion_successful = unconverted_ops.size() == 0 && norm_err.empty();
+    FRONT_END_OP_CONVERSION_CHECK(is_conversion_successful, pack_detailed_failure_report(unconverted_ops, norm_err));
 
     if (pt_model->m_requested_places.size() != 0) {
         // Fake tensors mean that types were set to non-existent before conversion inputs.
@@ -223,7 +280,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
 
         // Mark low precision compressed constants to prevent CF for them,
-        // so that no extra memory is used for intermediate decompressed constants.
+        // so that not extra memory is used for intermediate decompressed constants.
         manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
 
         manager.register_pass<ov::pass::ConvertConvertPromoteTypes>();
@@ -244,9 +301,6 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::frontend::pytorch::pass::ReversepropResolver>();
         manager.register_pass<ov::frontend::pytorch::pass::MovePackThroughLstm>();
         manager.register_pass<ov::frontend::pytorch::pass::RemovePackingOps>();
-        // PrimListUnpackReplacer must run before validation to handle chunk+ListUnpack patterns
-        // that may exist alongside operations with shape inference issues
-        manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
         bool is_changed = manager.run_passes(model);
 
         // make validation after previously non-validated passes
@@ -256,6 +310,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 
     ov::pass::Manager manager("Frontend:Pytorch:normalize");
     manager.register_pass<ov::pass::UnrollIf>();
+    manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenGetItemReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::ListConstructReplacer>();
     // TODO: remove AtenIndexToSelect when problem with  dynamic input rank is gone.

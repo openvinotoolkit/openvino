@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -20,8 +20,9 @@ class TestXor(PytorchLayerTest):
             def forward(self, tensor_a, tensor_b):
                 return tensor_a ^ tensor_b
 
+        ref_net = None
 
-        return aten_xor_tensor(), "aten::__xor__"
+        return aten_xor_tensor(), ref_net, "aten::__xor__"
 
     def create_model_bool_input(self):
         class aten_xor_bool(torch.nn.Module):
@@ -31,8 +32,9 @@ class TestXor(PytorchLayerTest):
             def forward(self, bool_a: bool, bool_b: bool):
                 return bool_a ^ bool_b
 
+        ref_net = None
 
-        return aten_xor_bool(), "aten::__xor__"
+        return aten_xor_bool(), ref_net, "aten::__xor__"
 
     def create_model_int_input(self):
         class aten_xor_int(torch.nn.Module):
@@ -42,8 +44,9 @@ class TestXor(PytorchLayerTest):
             def forward(self, int_a: int, int_b: int):
                 return int_a ^ int_b
 
+        ref_net = None
 
-        return aten_xor_int(), "aten::__xor__"
+        return aten_xor_int(), ref_net, "aten::__xor__"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

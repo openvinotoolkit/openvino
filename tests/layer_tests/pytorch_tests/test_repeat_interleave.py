@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -17,7 +17,7 @@ import torch
 class TestRepeatInterleaveConstRepeats(PytorchLayerTest):
 
     def _prepare_input(self):
-        return (self.random.randn(2, 2, 3, 3),)
+        return (np.random.randn(2, 2, 3, 3),)
 
     def create_model_const_repeat(self, repeats, dim):
         class aten_repeat_interleave_const_repeat(torch.nn.Module):
@@ -30,8 +30,9 @@ class TestRepeatInterleaveConstRepeats(PytorchLayerTest):
             def forward(self, input_tensor):
                 return input_tensor.repeat_interleave(self.repeats, self.dim)
 
+        ref_net = None
 
-        return aten_repeat_interleave_const_repeat(), "aten::repeat_interleave"
+        return aten_repeat_interleave_const_repeat(), ref_net, "aten::repeat_interleave"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -52,7 +53,7 @@ class TestRepeatInterleaveConstRepeats(PytorchLayerTest):
 class TestRepeatInterleaveNonConstRepeats(PytorchLayerTest):
 
     def _prepare_input(self):
-        return (self.random.randn(2, 2, 3, 3), self.repeats)
+        return (np.random.randn(2, 2, 3, 3), self.repeats)
 
     def create_model_non_const_repeat(self, dim):
         class aten_repeat_interleave_non_const_repeat(torch.nn.Module):
@@ -64,8 +65,9 @@ class TestRepeatInterleaveNonConstRepeats(PytorchLayerTest):
             def forward(self, input_tensor, repeats):
                 return input_tensor.repeat_interleave(repeats, self.dim)
 
+        ref_net = None
 
-        return aten_repeat_interleave_non_const_repeat(), "aten::repeat_interleave"
+        return aten_repeat_interleave_non_const_repeat(), ref_net, "aten::repeat_interleave"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -78,7 +80,7 @@ class TestRepeatInterleaveNonConstRepeats(PytorchLayerTest):
 
 class TestRepeatInterleaveTensorRepeats(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(10), self.repeats)
+        return (np.random.randn(10), self.repeats)
 
     def create_model_non_const_repeat(self, dim):
         class aten_repeat_interleave_non_const_repeat(torch.nn.Module):
@@ -90,7 +92,7 @@ class TestRepeatInterleaveTensorRepeats(PytorchLayerTest):
             def forward(self, input_tensor, repeats):
                 return input_tensor.repeat_interleave(repeats, self.dim)
 
-        return aten_repeat_interleave_non_const_repeat(), "aten::repeat_interleave"
+        return aten_repeat_interleave_non_const_repeat(), None, "aten::repeat_interleave"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -118,7 +120,7 @@ class TestRepeatInterleaveWithOutputSize(PytorchLayerTest):
             def forward(self, input_tensor):
                 return input_tensor.repeat_interleave(self.repeats, self.dim, output_size=self.output_size)
 
-        return aten_repeat_interleave_output_size(dim, repeats, output_size), "aten::repeat_interleave"
+        return aten_repeat_interleave_output_size(dim, repeats, output_size), None, "aten::repeat_interleave"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

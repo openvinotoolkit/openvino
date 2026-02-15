@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,13 +15,9 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace v0 = ov::op::v0;
-
-namespace ov::pass {
-
-RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
+ov::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
     MATCHER_SCOPE(RemoveConcatZeroDimInput);
-    auto concat_pattern = pattern::wrap_type<v0::Concat>();
+    auto concat_pattern = pattern::wrap_type<ov::op::v0::Concat>();
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto concat = m.get_match_root();
         const auto& rt_info = concat->get_rt_info();
@@ -55,9 +51,10 @@ RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
                     return false;
                 if (concat->get_output_partial_shape(0).is_dynamic())
                     return false;
-                const auto& empty_constant = v0::Constant::create(concat->get_output_element_type(0),
-                                                                  concat->get_output_partial_shape(0).to_shape(),
-                                                                  {});
+                const auto& empty_constant =
+                    ov::op::v0::Constant::create(concat->get_output_element_type(0),
+                                                 concat->get_output_partial_shape(0).to_shape(),
+                                                 {});
                 copy_runtime_info(concat, empty_constant);
                 concat->output(0).replace(empty_constant);
                 empty_constant->set_friendly_name(concat->get_friendly_name());
@@ -71,17 +68,15 @@ RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
     this->register_matcher(m, callback);
 }
 
-void disable_remove_concat_zerodim_input(const std::shared_ptr<Node>& node) {
+void ov::pass::disable_remove_concat_zerodim_input(const std::shared_ptr<Node>& node) {
     node->get_rt_info().emplace(DisableRemoveConcatZeroDimInput::get_type_info_static(),
                                 DisableRemoveConcatZeroDimInput{});
 }
 
-void enable_remove_concat_zerodim_input(const std::shared_ptr<Node>& node) {
+void ov::pass::enable_remove_concat_zerodim_input(const std::shared_ptr<Node>& node) {
     node->get_rt_info().erase(DisableRemoveConcatZeroDimInput::get_type_info_static());
 }
 
-bool remove_concat_zerodim_input_is_disabled(const std::shared_ptr<Node>& node) {
+bool ov::pass::remove_concat_zerodim_input_is_disabled(const std::shared_ptr<Node>& node) {
     return node->get_rt_info().count(DisableRemoveConcatZeroDimInput::get_type_info_static());
 }
-
-}  // namespace ov::pass

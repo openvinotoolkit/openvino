@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "compiler_impl.hpp"
 #include "graph.hpp"
 #include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "openvino/op/constant.hpp"
@@ -33,7 +32,7 @@ public:
                     const std::shared_ptr<const ov::Model>& model,
                     const Config& config,
                     const bool blobIsPersistent = false,
-                    const ov::SoPtr<VCLCompilerImpl>& compiler = {nullptr});
+                    const ov::SoPtr<ICompiler>& compiler = {nullptr});
 
     /**
      * @brief The main schedule along with the weights initialization ones are exported.

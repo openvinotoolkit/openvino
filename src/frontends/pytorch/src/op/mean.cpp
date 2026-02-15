@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ OutputVector translate_mean(const NodeContext& context) {
         // Tensor(a!)
 
         if (!context.input_is_none(1)) {
-            axes = get_input_concat_if_list(context, 1);
+            axes = context.get_input(1);
         }
         if (!context.input_is_none(2)) {
             keep_dims = context.const_input<bool>(2);
@@ -58,10 +58,10 @@ OutputVector translate_mean_fx(const NodeContext& context) {
     }
     Output<Node> axes = get_node_axes_range(context, x);
     if (!context.input_is_none(1)) {
-        axes = get_input_concat_if_list(context, 1);
+        axes = context.get_input(1);
     }
     if (num_inputs > 2) {
-        axes = get_input_concat_if_list(context, 1);
+        axes = context.get_input(1);
         if (!context.input_is_none(2)) {
             keep_dims = context.const_input<bool>(2);
         }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,6 @@
 
 #include "common/permute_kernel.h"
 #include "cpu_memory.h"
-#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -53,7 +52,7 @@ private:
     DepthToSpaceAttrs attrs;
     struct DepthToSpaceExecutor {
         explicit DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs);
-        void exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, int MB, const CpuParallelPtr& cpuParallel);
+        void exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, int MB);
         ~DepthToSpaceExecutor() = default;
 
     private:

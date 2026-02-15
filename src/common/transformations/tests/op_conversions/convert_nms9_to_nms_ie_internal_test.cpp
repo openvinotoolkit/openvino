@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,14 +24,13 @@
 using namespace testing;
 using namespace ov;
 
-namespace v0 = ov::op::v0;
 TEST_F(TransformationTestsF, ConvertPreviousNMSToNMSIEInternal) {
     {
-        auto boxes = std::make_shared<v0::Parameter>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<v0::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto max_output_boxes_per_class = v0::Constant::create(element::i64, Shape{}, {10});
-        auto iou_threshold = v0::Constant::create(element::f32, Shape{}, {0.75});
-        auto score_threshold = v0::Constant::create(element::f32, Shape{}, {0.7});
+        auto boxes = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1000, 4});
+        auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1000});
+        auto max_output_boxes_per_class = ov::op::v0::Constant::create(element::i64, Shape{}, {10});
+        auto iou_threshold = ov::op::v0::Constant::create(element::f32, Shape{}, {0.75});
+        auto score_threshold = ov::op::v0::Constant::create(element::f32, Shape{}, {0.7});
         auto nms = std::make_shared<ov::op::v1::NonMaxSuppression>(boxes,
                                                                    scores,
                                                                    max_output_boxes_per_class,
@@ -53,11 +52,11 @@ TEST_F(TransformationTestsF, ConvertPreviousNMSToNMSIEInternal) {
     }
 
     {
-        auto boxes = std::make_shared<v0::Parameter>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<v0::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto max_output_boxes_per_class = v0::Constant::create(element::i64, Shape{1}, {10});
-        auto iou_threshold = v0::Constant::create(element::f32, Shape{1}, {0.75});
-        auto score_threshold = v0::Constant::create(element::f32, Shape{1}, {0.7});
+        auto boxes = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1000, 4});
+        auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1000});
+        auto max_output_boxes_per_class = ov::op::v0::Constant::create(element::i64, Shape{1}, {10});
+        auto iou_threshold = ov::op::v0::Constant::create(element::f32, Shape{1}, {0.75});
+        auto score_threshold = ov::op::v0::Constant::create(element::f32, Shape{1}, {0.7});
         auto nms = std::make_shared<ov::op::internal::NonMaxSuppressionIEInternal>(boxes,
                                                                                    scores,
                                                                                    max_output_boxes_per_class,
@@ -66,7 +65,7 @@ TEST_F(TransformationTestsF, ConvertPreviousNMSToNMSIEInternal) {
                                                                                    0,
                                                                                    true,
                                                                                    element::i32);
-        auto convert = std::make_shared<v0::Convert>(nms->output(0), element::i64);
+        auto convert = std::make_shared<ov::op::v0::Convert>(nms->output(0), element::i64);
         convert->set_friendly_name("nms:0");
 
         model_ref = std::make_shared<Model>(OutputVector{convert}, ParameterVector{boxes, scores});
@@ -75,12 +74,12 @@ TEST_F(TransformationTestsF, ConvertPreviousNMSToNMSIEInternal) {
 
 TEST_F(TransformationTestsF, ConvertNMS9ToNMSIEInternal) {
     {
-        auto boxes = std::make_shared<v0::Parameter>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<v0::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto max_output_boxes_per_class = v0::Constant::create(element::i32, Shape{}, {10});
-        auto iou_threshold = v0::Constant::create(element::f32, Shape{}, {0.75});
-        auto score_threshold = v0::Constant::create(element::f32, Shape{}, {0.7});
-        auto soft_nms_sigma = v0::Constant::create(element::f32, Shape{}, {0.5});
+        auto boxes = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1000, 4});
+        auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1000});
+        auto max_output_boxes_per_class = ov::op::v0::Constant::create(element::i32, Shape{}, {10});
+        auto iou_threshold = ov::op::v0::Constant::create(element::f32, Shape{}, {0.75});
+        auto score_threshold = ov::op::v0::Constant::create(element::f32, Shape{}, {0.7});
+        auto soft_nms_sigma = ov::op::v0::Constant::create(element::f32, Shape{}, {0.5});
         auto nms = std::make_shared<opset9::NonMaxSuppression>(boxes,
                                                                scores,
                                                                max_output_boxes_per_class,
@@ -98,12 +97,12 @@ TEST_F(TransformationTestsF, ConvertNMS9ToNMSIEInternal) {
     }
 
     {
-        auto boxes = std::make_shared<v0::Parameter>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<v0::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto max_output_boxes_per_class = v0::Constant::create(element::i32, Shape{1}, {10});
-        auto iou_threshold = v0::Constant::create(element::f32, Shape{1}, {0.75});
-        auto score_threshold = v0::Constant::create(element::f32, Shape{1}, {0.7});
-        auto soft_nms_sigma = v0::Constant::create(element::f32, Shape{1}, {0.5});
+        auto boxes = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1000, 4});
+        auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1000});
+        auto max_output_boxes_per_class = ov::op::v0::Constant::create(element::i32, Shape{1}, {10});
+        auto iou_threshold = ov::op::v0::Constant::create(element::f32, Shape{1}, {0.75});
+        auto score_threshold = ov::op::v0::Constant::create(element::f32, Shape{1}, {0.7});
+        auto soft_nms_sigma = ov::op::v0::Constant::create(element::f32, Shape{1}, {0.5});
         auto nms = std::make_shared<ov::op::internal::NonMaxSuppressionIEInternal>(boxes,
                                                                                    scores,
                                                                                    max_output_boxes_per_class,

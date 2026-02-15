@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import random
@@ -9,14 +9,15 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestExpand(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(1, 3),)
+        import numpy as np
+        return (np.random.randn(1, 3).astype(np.float32),)
 
     def create_model(self, dim, op_type="expand"):
         import torch
 
         class aten_expand(torch.nn.Module):
             def __init__(self, dims, op_type="expand"):
-                super().__init__()
+                super(aten_expand, self).__init__()
                 self.dims = dims
                 if op_type == "broadcast_to":
                     self.forward = self.forward_broadcast
@@ -27,8 +28,9 @@ class TestExpand(PytorchLayerTest):
             def forward_broadcast(self, x):
                 return x.broadcast_to(self.dims)
 
+        ref_net = None
 
-        return aten_expand(dim, op_type), f"aten::{op_type}"
+        return aten_expand(dim, op_type), ref_net, f"aten::{op_type}"
 
     @pytest.mark.parametrize("dims", [(4, 3), (-1, -1), (1, 2, 3), (1, 2, 2, 3)])
     @pytest.mark.parametrize("op_type", ["expand", "broadcast_to"])
@@ -42,21 +44,23 @@ class TestExpand(PytorchLayerTest):
 
 class TestExpandCopy(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(1, 3),)
+        import numpy as np
+        return (np.random.randn(1, 3).astype(np.float32),)
 
     def create_model(self, dim):
         import torch
 
         class aten_expand_copy(torch.nn.Module):
             def __init__(self, dims):
-                super().__init__()
+                super(aten_expand_copy, self).__init__()
                 self.dims = dims
 
             def forward(self, x):
                 return torch.expand_copy(x, self.dims)
 
+        ref_net = None
 
-        return aten_expand_copy(dim), f"aten::expand_copy"
+        return aten_expand_copy(dim), ref_net, f"aten::expand_copy"
 
     @pytest.mark.parametrize("dims", [(4, 3), (-1, -1), (1, 2, 3), (1, 2, 2, 3)])
     @pytest.mark.precommit_fx_backend
@@ -66,14 +70,15 @@ class TestExpandCopy(PytorchLayerTest):
 
 class TestExpandList(PytorchLayerTest):
     def _prepare_input(self, broadcast_shape):
-        return (self.random.randn(1, 3), self.random.randn(*broadcast_shape))
+        import numpy as np
+        return (np.random.randn(1, 3).astype(np.float32), np.random.randn(*broadcast_shape).astype(np.float32))
 
     def create_model(self, op_type="expand"):
         import torch
 
         class aten_expand(torch.nn.Module):
             def __init__(self, op_type="expand"):
-                super().__init__()
+                super(aten_expand, self).__init__()
                 if op_type == "broadcast_to":
                     self.forward = self.forward_broadcast
 
@@ -85,8 +90,9 @@ class TestExpandList(PytorchLayerTest):
                 y_shape = y.shape
                 return x.broadcast_to([y_shape[0], y_shape[1]])
 
+        ref_net = None
 
-        return aten_expand(op_type), [f"aten::{op_type}", "prim::ListConstruct"]
+        return aten_expand(op_type), ref_net, [f"aten::{op_type}", "prim::ListConstruct"]
 
     @pytest.mark.parametrize("dims", [(3, 3), (2, 3), (1, 3), [4, 3]])
     @pytest.mark.parametrize("op_type", ["expand", "broadcast_to"])
@@ -95,26 +101,27 @@ class TestExpandList(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_expand(self, dims, op_type, ie_device, precision, ir_version):
-        self._test(*self.create_model(op_type), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"broadcast_shape": dims}, fx_kind=f"aten.{op_type}")
+        self._test(*self.create_model(op_type), ie_device, precision, ir_version, kwargs_to_prepare_input={"broadcast_shape": dims})
 
 
 class TestExpandAs(PytorchLayerTest):
     def _prepare_input(self, input_shape, broadcast_shape):
-        return (self.random.randn(*input_shape), self.random.randn(*broadcast_shape),)
+        import numpy as np
+        return (np.random.randn(*input_shape).astype(np.float32), np.random.randn(*broadcast_shape).astype(np.float32),)
 
     def create_model(self):
         import torch
 
         class aten_expand_as(torch.nn.Module):
             def __init__(self):
-                super().__init__()
+                super(aten_expand_as, self).__init__()
 
             def forward(self, x, y):
                 return x.expand_as(y)
 
+        ref_net = None
 
-        return aten_expand_as(), "aten::expand_as"
+        return aten_expand_as(), ref_net, "aten::expand_as"
 
     @pytest.mark.parametrize("kwargs_to_prepare_input", [
         {'input_shape': [1, 2], "broadcast_shape": [1, 2]},
@@ -137,23 +144,25 @@ class TestExpandAs(PytorchLayerTest):
 
 class TestDynamicExpand(PytorchLayerTest):
     def _prepare_input(self):
+        import numpy as np
         last_dym = random.randint(2,8)
-        return (self.random.randn(1, 3, 1), last_dym)
+        return (np.random.randn(1, 3, 1).astype(np.float32), last_dym)
 
     def create_model(self, dim):
         import torch
 
         class aten_expand(torch.nn.Module):
             def __init__(self, dims):
-                super().__init__()
+                super(aten_expand, self).__init__()
                 self.dims = dims
 
             # TODO: Remove the add op after fixing the issue with expand being the last node
             def forward(self, x, dym):
                 return torch.add(x.expand((self.dims+(dym,))), 0)
 
+        ref_net = None
 
-        return aten_expand(dim), f"aten::expand"
+        return aten_expand(dim), ref_net, f"aten::expand"
 
     @pytest.mark.parametrize("dims", [(4, 3), (-1, -1)])
     @pytest.mark.precommit_fx_backend
@@ -163,7 +172,8 @@ class TestDynamicExpand(PytorchLayerTest):
 
 class TestComplexExpand(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(1, 3, 2),)
+        import numpy as np
+        return (np.random.randn(1, 3, 2).astype(np.float32),)
 
     def create_model(self, dim):
         import torch
@@ -178,7 +188,7 @@ class TestComplexExpand(PytorchLayerTest):
                 x = x.expand(self.dims)
                 return torch.view_as_real(x)
 
-        return aten_expand(dim), "aten::expand"
+        return aten_expand(dim), None, "aten::expand"
 
     @pytest.mark.parametrize("dims", [(4, 3),
                                       (-1, -1),

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -157,7 +157,7 @@ void InputModel::override_all_outputs(const std::vector<Place::Ptr>& outputs) {
         return p->is_output();
     });
     FRONT_END_GENERAL_CHECK(all_outputs, "Only initial outputs are supported by override_all_inputs.");
-    // Number of outputs can be lower than in original model
+    // Number of outputs can be lower then in original model
     m_outputs = outputs;
 }
 

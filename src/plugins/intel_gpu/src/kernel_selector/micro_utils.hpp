@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+﻿// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,6 @@
 #endif
 
 #include "gpu/intel/microkernels/package.hpp"
-#include "gpu/intel/gemm/jit/include/gemmstone/kernel_selector.hpp"
 #include "gpu/intel/gemm/jit/include/gemmstone/microkernel_provider.hpp"
 #include "gpu/intel/microkernels/shim.hpp"
 #include "common/utils.hpp"
@@ -74,12 +73,8 @@ struct MicroKernelPackage {
 
 inline Package select_gemm_microkernel(GEMMProtocol protocol, HWInformation hw_info, SizeParams sizes, const GEMMProblem &problem,
                                         const std::vector<StrategyRequirement> &reqs = std::vector<StrategyRequirement>(),
-                                        void (*strategyAdjuster)(GEMMStrategy &strategy) = nullptr, gemmstone::SelectionObserver *observer = nullptr) {
-    return gemmstone::selectGEMMMicrokernel(protocol, hw_info, sizes, problem, reqs, strategyAdjuster, observer);
-}
-inline Package select_gemm_microkernel(GEMMProtocol protocol, HWInformation hw_info, SizeParams sizes, const GEMMProblem &problem,
-        gemmstone::SelectionObserver *observer) {
-    return gemmstone::selectGEMMMicrokernel(protocol, hw_info, sizes, problem, {}, nullptr, observer);
+                                        void (*strategyAdjuster)(GEMMStrategy &strategy) = nullptr) {
+    return gemmstone::selectGEMMMicrokernel(protocol, hw_info, sizes, problem, reqs, strategyAdjuster);
 }
 
 static inline int alignment_for_ld(int ld) {

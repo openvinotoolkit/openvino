@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
 
 #include <cstddef>
 
-#include "cpu_parallel.hpp"
 #include "utils/plain_tensor.hpp"
 
 namespace ov::Extensions::Cpu::XARCH {
@@ -36,7 +35,6 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                       size_t key_group_size,
                       size_t value_group_size,
                       bool quant_key_by_channel,
-                      const ov::intel_cpu::PlainTensor& sink_input,
-                      const ov::intel_cpu::CpuParallelPtr& cpu_parallel);
+                      const ov::intel_cpu::PlainTensor& sink_input);
 
 }  // namespace ov::Extensions::Cpu::XARCH

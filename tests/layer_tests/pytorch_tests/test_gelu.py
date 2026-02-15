@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -8,7 +8,8 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestGelu(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(2, 3),)
+        import numpy as np
+        return (np.random.randn(2, 3).astype(np.float32),)
 
     def create_model(self, approximate):
         import torch
@@ -16,14 +17,15 @@ class TestGelu(PytorchLayerTest):
 
         class aten_gelu(torch.nn.Module):
             def __init__(self, approximate='none'):
-                super().__init__()
+                super(aten_gelu, self).__init__()
                 self.approximate = approximate
 
             def forward(self, x):
                 return F.gelu(x, approximate=self.approximate)
 
+        ref_net = None
 
-        return aten_gelu(approximate), "aten::gelu"
+        return aten_gelu(approximate), ref_net, "aten::gelu"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

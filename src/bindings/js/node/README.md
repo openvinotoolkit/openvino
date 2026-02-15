@@ -73,4 +73,4 @@ to learn how you can get involved.
 
 [License](https://github.com/openvinotoolkit/openvino/blob/master/LICENSE)
 
-Copyright © 2018-2026 Intel Corporation
+Copyright © 2018-2025 Intel Corporation

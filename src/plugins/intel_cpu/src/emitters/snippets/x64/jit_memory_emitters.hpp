@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2020-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,8 +44,7 @@ protected:
     bool is_offset_runtime = false;
 
 #ifdef SNIPPETS_DEBUG_CAPS
-    template <typename MemoryEmitter>
-    friend std::string snippets_common::format_memory_emitter_info(const MemoryEmitter* emitter);
+    friend std::string init_info_jit_memory_emitter(const jit_memory_emitter* emitter);
 #endif
 };
 

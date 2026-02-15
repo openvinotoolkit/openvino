@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,7 @@
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::pass {
+using namespace lowered;
 
 SoftmaxDecomposition::SoftmaxDecomposition() {
     MATCHER_SCOPE(SoftmaxDecomposition);
@@ -65,8 +66,8 @@ SoftmaxDecomposition::SoftmaxDecomposition() {
             subtensor[i] = utils::get_full_dim_value();
         }
 
-        lowered::PortDescriptorUtils::set_port_descriptor(power->input(0), subtensor);
-        lowered::PortDescriptorUtils::set_port_descriptor(power->output(0), std::move(subtensor));
+        PortDescriptorUtils::set_port_descriptor(power->input(0), subtensor);
+        PortDescriptorUtils::set_port_descriptor(power->output(0), std::move(subtensor));
 
         copy_runtime_info(softmax, {reduce_max, subtract, exp, reduce_sum, power, multiply});
         return ov::replace_node_update_name(softmax, multiply);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <limits>  // std::numeric_limits
@@ -37,7 +37,7 @@ NamedOutputs yolo_box(const NodeContext& node_context) {
     auto const_class_num = Constant::create<int64_t>(i64, {1}, {class_num});
 
     // Paddle anchors attribute is of type int32. Convert to float for computing
-    // convenient.
+    // convinient.
     auto _anchors = node_context.get_attribute<std::vector<int32_t>>("anchors");
 
     std::vector<float> anchors(_anchors.size());

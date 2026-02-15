@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -14,11 +14,12 @@ class aten_softplus(torch.nn.Module):
 
 class TestSoftplus(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(2, 4, 224, 224),)
+        import numpy as np
+        return (np.random.randn(2, 4, 224, 224).astype(np.float32),)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     def test_softplus(self, ie_device, precision, ir_version):
-        self._test(aten_softplus(), "aten::softplus",
+        self._test(aten_softplus(), None, "aten::softplus",
                    ie_device, precision, ir_version)

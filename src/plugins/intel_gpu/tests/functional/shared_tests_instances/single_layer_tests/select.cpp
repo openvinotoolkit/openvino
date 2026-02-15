@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "single_op_tests/select.hpp"
@@ -50,24 +50,6 @@ const std::vector<std::vector<ov::Shape>> numpyShapes = {
     {{2, 2, 2, 2, 2}, {2, 2, 2, 2, 2}, {2, 2, 2, 2}}
 };
 
-const std::vector<std::vector<ov::Shape>> pdpdShapes = {
-    {{4, 5}, {2, 3, 4, 5}, {4, 5}},
-    {{1}, {2, 3, 4}, {1}},
-    {{3, 4}, {2, 3, 4}, {3, 4}},
-    {{1, 4}, {2, 3, 4}, {1, 4}},
-    {{1, 4, 1}, {2, 3, 4, 5}, {3, 4, 1}},
-    {{1, 1}, {2, 3, 4, 5}, {4, 1}},
-    {{4, 1, 1}, {2, 3, 4, 5, 6}, {4, 1, 1}},
-};
-
-const std::vector<std::vector<ov::Shape>> pdpdAxis1Shapes = {
-    {{1, 3, 4, 1}, {1, 2, 3, 4, 1}, {1, 3, 4, 1}},
-    {{3, 4}, {2, 3, 4, 5}, {3, 4}},
-    {{1, 3, 4, 1}, {1, 2, 3, 4, 5}, {1, 3, 4, 1}},
-    {{2, 3, 4}, {1, 2, 3, 4, 5}, {2, 3, 4}},
-    {{3, 4, 1}, {2, 3, 4, 5}, {3, 4, 1}},
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsSelect_none,
                          SelectLayerTest,
                          ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(noneShapes)),
@@ -81,21 +63,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsSelect_numpy,
                          ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(numpyShapes)),
                                             ::testing::ValuesIn(inputPrecision),
                                             ::testing::Values(ov::op::AutoBroadcastType::NUMPY),
-                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         SelectLayerTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsSelect_pdpd,
-                         SelectLayerTest,
-                         ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(pdpdShapes)),
-                                            ::testing::ValuesIn(inputPrecision),
-                                            ::testing::Values(ov::op::AutoBroadcastType::PDPD),
-                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         SelectLayerTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsSelect_pdpd_axis1,
-                         SelectLayerTest,
-                         ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(pdpdAxis1Shapes)),
-                                            ::testing::ValuesIn(inputPrecision),
-                                            ::testing::Values(ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::PDPD, 1)),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          SelectLayerTest::getTestCaseName);

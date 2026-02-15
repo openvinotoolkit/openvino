@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 #include <cstdint>
 #include <memory>
 
-#include "cpu_parallel.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 
@@ -46,18 +45,11 @@ class SoftmaxGeneric {
 public:
     SoftmaxGeneric(ov::element::Type inpPrc, ov::element::Type outPrc);
 
-    void
-    execute(const uint8_t* src_data, uint8_t* dst_data, int B, int C, int H, int W, const CpuParallelPtr& cpu_parallel);
+    void execute(const uint8_t* src_data, uint8_t* dst_data, int B, int C, int H, int W);
 
 private:
     template <typename in_data_t, typename out_data_t>
-    void calculate(const in_data_t* src_data,
-                   out_data_t* dst_data,
-                   int B,
-                   int C,
-                   int H,
-                   int W,
-                   const CpuParallelPtr& cpu_parallel);
+    void calculate(const in_data_t* src_data, out_data_t* dst_data, int B, int C, int H, int W);
 
     int block_size;
     ov::element::Type input_prec, output_prec;

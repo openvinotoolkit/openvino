@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -8,7 +8,8 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestNumel(PytorchLayerTest):
     def _prepare_input(self, input_shape=(2)):
-        return (self.random.randn(*input_shape),)
+        import numpy as np
+        return (np.random.randn(*input_shape).astype(np.float32),)
 
     def create_model(self):
         import torch
@@ -17,8 +18,9 @@ class TestNumel(PytorchLayerTest):
             def forward(self, x):
                 return torch.numel(x)
 
+        ref_net = None
 
-        return aten_numel(), 'aten::numel'
+        return aten_numel(), ref_net, 'aten::numel'
 
     @pytest.mark.parametrize("kwargs_to_prepare_input", [
         {'input_shape': (1,)},

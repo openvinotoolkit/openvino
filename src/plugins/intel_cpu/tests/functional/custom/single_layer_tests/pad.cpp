@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -127,7 +127,7 @@ protected:
 
             pad = std::make_shared<ov::op::v12::Pad>(params[0], padsBeginNode, padsEndNode, argPadValueNode, padMode);
         }
-        function = create_ov_model(inType, params, pad, "Pad");
+        function = makeNgraphFunction(inType, params, pad, "Pad");
     }
     std::vector<int64_t> padsBegin;  // padsBegin
     std::vector<int64_t> padsEnd;    // padsEnd

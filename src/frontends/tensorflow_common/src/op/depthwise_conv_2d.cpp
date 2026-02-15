@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
     auto input = node.get_input(0);
     auto filter = node.get_input(1);
 
-    // retrieve mandatory attributes for DepthwiseConv2dNative
+    // retrive mandatory attributes for DepthwiseConv2dNative
     auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");
     auto tf_padding_type = node.get_attribute<std::string>("padding");
     ov::op::PadType auto_pad = convert_tf_padding(node, tf_padding_type);

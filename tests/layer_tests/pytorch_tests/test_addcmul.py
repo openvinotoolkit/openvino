@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -9,16 +9,16 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestAddCMul(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.uniform(0, 50, 3, dtype=self.input_type),
-                self.random.uniform(0, 50, 3, dtype=self.input_type),
-                self.random.uniform(0, 50, 3, dtype=self.input_type))
+        return (np.random.uniform(0, 50, 3).astype(self.input_type),
+                np.random.uniform(0, 50, 3).astype(self.input_type),
+                np.random.uniform(0, 50, 3).astype(self.input_type))
 
     def create_model(self, value=None):
         import torch
 
         class aten_addcmul(torch.nn.Module):
             def __init__(self, value=None):
-                super().__init__()
+                super(aten_addcmul, self).__init__()
                 self.value = value
 
             def forward(self, x, y, z):
@@ -26,8 +26,9 @@ class TestAddCMul(PytorchLayerTest):
                     return torch.addcmul(x, y, z, value=self.value)
                 return torch.addcmul(x, y, z)
 
+        ref_net = None
 
-        return aten_addcmul(value), "aten::addcmul"
+        return aten_addcmul(value), ref_net, "aten::addcmul"
 
     @pytest.mark.parametrize(("input_type", "value"), [
         [np.int32, None],

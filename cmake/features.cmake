@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -43,7 +43,7 @@ endif()
 
 ov_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)
 
-ov_dependent_option (ENABLE_INTEL_NPU "NPU plugin for OpenVINO runtime" ON "X86_64;WIN32 OR LINUX OR ANDROID" OFF)
+ov_dependent_option (ENABLE_INTEL_NPU "NPU plugin for OpenVINO runtime" ON "X86_64;WIN32 OR LINUX" OFF)
 ov_dependent_option (ENABLE_INTEL_NPU_INTERNAL "NPU plugin internal components for OpenVINO runtime" ON "ENABLE_INTEL_NPU" OFF)
 
 ov_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
@@ -58,7 +58,12 @@ ov_dependent_option (ENABLE_SNIPPETS_LIBXSMM_TPP "allow Snippets to use LIBXSMM 
 # OFF  - no ITT backend linked; macros are no-ops
 # BASE - link ITT backend; only top-level API scopes are active (default)
 # FULL - link ITT backend; preserve full instrumentation (default prior behavior)
-ov_option_enum(ENABLE_PROFILING_ITT "ITT tracing mode: OFF | BASE | FULL" BASE
+if(X86_64)
+    set(ENABLE_PROFILING_ITT_DEFAULT BASE)
+else()
+    set(ENABLE_PROFILING_ITT_DEFAULT OFF)
+endif()
+ov_option_enum(ENABLE_PROFILING_ITT "ITT tracing mode: OFF | BASE | FULL" ${ENABLE_PROFILING_ITT_DEFAULT}
                ALLOWED_VALUES OFF BASE FULL)
 
 ov_option_enum(ENABLE_PROFILING_FILTER "Enable or disable ITT counter groups.\

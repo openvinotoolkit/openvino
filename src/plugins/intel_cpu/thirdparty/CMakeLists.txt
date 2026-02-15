@@ -178,13 +178,33 @@ if (ENABLE_SNIPPETS_LIBXSMM_TPP)
     # This flag is to suppress "warning as error" in libxsmm compilation, such as
     # "generator_common_aarch64.c:60:6: error: no previous declaration for ‘libxsmm_generator_vcvt_f32i8_aarch64_sve’ [-Werror=missing-declarations]"
     ov_add_compiler_flags(-Wno-missing-declarations)
-    add_subdirectory(libxsmm EXCLUDE_FROM_ALL)
+    add_subdirectory(libxsmm)
     ov_install_static_lib(libxsmm ${OV_CPACK_COMP_CORE})
 endif()
 
 if(ENABLE_MLAS_FOR_CPU)
-    add_subdirectory(mlas EXCLUDE_FROM_ALL)
+    add_subdirectory(mlas)
     ov_install_static_lib(mlas ${OV_CPACK_COMP_CORE})
+endif()
+
+if(ENABLE_SHL_FOR_CPU)
+    function(ov_build_shl_static)
+        ov_add_compiler_flags(-Wno-missing-declarations)
+        ov_add_compiler_flags(-Wno-unused-variable)
+        ov_add_compiler_flags(-Wno-unused-but-set-variable)
+        ov_add_compiler_flags(-Wno-strict-aliasing)
+        ov_add_compiler_flags(-Wno-return-type)
+        ov_add_compiler_flags(-Wno-unknown-pragmas)
+        ov_add_compiler_flags(-Wno-parentheses)
+        ov_add_compiler_flags(-Wno-maybe-uninitialized)
+        ov_add_compiler_flags(-Wno-unused-function)
+        ov_add_compiler_flags(-Wno-suggest-parentheses)
+        add_subdirectory(shl)
+    endfunction()
+
+    # Suppress warnings detected in SHL library build to clean up RISC-V build log.
+    ov_build_shl_static()
+    ov_install_static_lib(shl ${OV_CPACK_COMP_CORE})
 endif()
 
 if(ENABLE_KLEIDIAI_FOR_CPU)
@@ -194,7 +214,7 @@ endif()
 
 if(RISCV64)
     set(XBYAK_RISCV_V ON)
-    add_subdirectory(xbyak_riscv EXCLUDE_FROM_ALL)
+    add_subdirectory(xbyak_riscv)
     ov_install_static_lib(xbyak_riscv ${OV_CPACK_COMP_CORE})
 endif()
 

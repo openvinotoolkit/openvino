@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -144,7 +144,7 @@ void SparseFillEmptyRowsLayerCPUTest::SetUp() {
         sparseFillEmptyRows = std::make_shared<ov::op::v16::SparseFillEmptyRows>(
             valuesParameter, denseShapeParameter, indicesParameter, defaultValueParameter);
     }
-    function = create_ov_model(valuesPrecision, params, sparseFillEmptyRows, "SparseFillEmptyRows");
+    function = makeNgraphFunction(valuesPrecision, params, sparseFillEmptyRows, "SparseFillEmptyRows");
 }
 
 TEST_P(SparseFillEmptyRowsLayerCPUTest, CompareWithRefs) {

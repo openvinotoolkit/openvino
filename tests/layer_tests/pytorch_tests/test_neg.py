@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -14,16 +14,15 @@ class neg_model(torch.nn.Module):
 
 class TestNeg(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(2, 4, 224, 224),)
+        import numpy as np
+        return (np.random.randn(2, 4, 224, 224).astype(np.float32),)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     def test_neg(self, ie_device, precision, ir_version):
-        # Note: This test uses Python's built-in neg on shape dimension, not torch.neg on tensor
-        self._test(neg_model(), "aten::neg",
+        self._test(neg_model(), None, "aten::neg",
                    ie_device, precision, ir_version,
                    dynamic_shapes_for_export={
                        "x": {3: torch.export.Dim("width")}
-                   },
-                   fx_kind="<built-in function neg>")
+        })

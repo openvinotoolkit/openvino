@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import importlib
 import shutil
 import os
 import sys
-import subprocess  # nosec B404
+import subprocess
 from enum import Enum
 import re
 import json

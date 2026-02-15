@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,6 +82,9 @@ std::string ExtremumLayerCPUTest::getPrimitiveType() {
     if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
         return "jit";
     }
+#if defined(OV_CPU_WITH_SHL)
+    return "shl";
+#endif
 #endif
     return CPUTestsBase::getPrimitiveType();
 }

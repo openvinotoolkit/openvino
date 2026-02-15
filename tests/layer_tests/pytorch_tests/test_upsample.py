@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from sys import platform
@@ -10,7 +10,8 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestUpsample1D(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(1, 3, 224),)
+        import numpy as np
+        return (np.random.randn(1, 3, 224).astype(np.float32),)
 
     def create_model(self, size, scale, mode):
         import torch
@@ -26,8 +27,9 @@ class TestUpsample1D(PytorchLayerTest):
             def forward(self, x):
                 return F.interpolate(x, self.size, scale_factor=self.scale, mode=self.mode)
 
+        ref_net = None
 
-        return aten_upsample(size, scale, mode), F"aten::upsample_{mode}1d"
+        return aten_upsample(size, scale, mode), ref_net, F"aten::upsample_{mode}1d"
 
     @pytest.mark.parametrize("mode,size,scale", [
         ('nearest', 300, None),
@@ -52,7 +54,8 @@ class TestUpsample1D(PytorchLayerTest):
 
 class TestUpsample2D(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(1, 3, 200, 200),)
+        import numpy as np
+        return (np.random.randn(1, 3, 200, 200).astype(np.float32),)
 
     def create_model(self, size, scale, mode):
         import torch
@@ -68,8 +71,9 @@ class TestUpsample2D(PytorchLayerTest):
             def forward(self, x):
                 return F.interpolate(x, self.size, scale_factor=self.scale, mode=self.mode)
 
+        ref_net = None
 
-        return aten_upsample(size, scale, mode), F"aten::upsample_{mode}2d"
+        return aten_upsample(size, scale, mode), ref_net, F"aten::upsample_{mode}2d"
 
     @pytest.mark.parametrize("mode,size,scale", [
         ('nearest', 300, None),
@@ -101,7 +105,8 @@ class TestUpsample2D(PytorchLayerTest):
 
 class TestUpsample2DAntialias(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(1, 3, 200, 200),)
+        import numpy as np
+        return (np.random.randn(1, 3, 200, 200).astype(np.float32),)
 
     def create_model(self, size, scale, mode):
         import torch
@@ -117,8 +122,9 @@ class TestUpsample2DAntialias(PytorchLayerTest):
             def forward(self, x):
                 return F.interpolate(x, self.size, scale_factor=self.scale, mode=self.mode, antialias=True)
 
+        ref_net = None
 
-        return aten_upsample(size, scale, mode), F"aten::_upsample_{mode}2d_aa"
+        return aten_upsample(size, scale, mode), ref_net, F"aten::_upsample_{mode}2d_aa"
 
     @pytest.mark.parametrize("mode,size,scale", [
         ('bilinear', 300, None),
@@ -143,7 +149,8 @@ class TestUpsample2DAntialias(PytorchLayerTest):
 
 class TestUpsample3D(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(1, 3, 100, 100, 100),)
+        import numpy as np
+        return (np.random.randn(1, 3, 100, 100, 100).astype(np.float32),)
 
     def create_model(self, size, scale, mode):
         import torch
@@ -159,8 +166,9 @@ class TestUpsample3D(PytorchLayerTest):
             def forward(self, x):
                 return F.interpolate(x, self.size, scale_factor=self.scale, mode=self.mode)
 
+        ref_net = None
 
-        return aten_upsample(size, scale, mode), F"aten::upsample_{mode}3d"
+        return aten_upsample(size, scale, mode), ref_net, F"aten::upsample_{mode}3d"
 
     @pytest.mark.parametrize("mode,size,scale", [
         ('nearest', 200, None),
@@ -187,7 +195,8 @@ class TestUpsample3D(PytorchLayerTest):
 
 class TestUpsample2DListSizes(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(1, 3, 200, 200),)
+        import numpy as np
+        return (np.random.randn(1, 3, 200, 200).astype(np.float32),)
 
     def create_model(self, mode):
         import torch
@@ -201,8 +210,9 @@ class TestUpsample2DListSizes(PytorchLayerTest):
             def forward(self, x):
                 return F.interpolate(x, size=x.shape[-2:], mode=self.mode)
 
+        ref_net = None
 
-        return aten_upsample(mode), F"aten::upsample_{mode}2d"
+        return aten_upsample(mode), ref_net, F"aten::upsample_{mode}2d"
 
     @pytest.mark.parametrize("mode", ['nearest', 'bilinear', 'bicubic'])
     @pytest.mark.nightly
@@ -215,7 +225,8 @@ class TestUpsample2DListSizes(PytorchLayerTest):
 
 class TestUpsampleScripted(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(1, 3, 200, 200),)
+        import numpy as np
+        return (np.random.randn(1, 3, 200, 200).astype(np.float32),)
 
     def create_model(self):
         import torch.nn as nn
@@ -236,7 +247,7 @@ class TestUpsampleScripted(PytorchLayerTest):
                 x3 = self.up(x2)
                 return x3
 
-        return TestModel(1, 3), ["prim::If", "aten::upsample_nearest1d", "aten::upsample_nearest2d", "aten::upsample_nearest3d"]
+        return TestModel(1, 3), None, ["prim::If", "aten::upsample_nearest1d", "aten::upsample_nearest2d", "aten::upsample_nearest3d"]
 
     @pytest.mark.nightly
     @pytest.mark.precommit

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -757,21 +757,17 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (bcast_node.get_outputs_count() != 1)
                 return false;
 
-            const auto& consumer = bcast_node.get_users().front();
-            if (consumer->is_type<quantize>()) {
-                return true;
+            bool out_eltw = bcast_node.get_users().front()->is_type<eltwise>();
+            if (!out_eltw)
+                return false;
+
+            auto input_layout = bcast_node.get_output_layout();
+            auto output_layout = bcast_node.get_users().front()->get_output_layout();
+            if (input_layout.data_type != output_layout.data_type) {
+                return false;
             }
 
-            if (consumer->is_type<eltwise>()) {
-                const auto& input_layout = bcast_node.get_output_layout();
-                const auto& output_layout = consumer->get_output_layout();
-                if (input_layout.data_type != output_layout.data_type) {
-                    return false;
-                }
-                return true;
-            }
-
-            return false;
+            return true;
         };
 
         auto fuse_activation_f = [&](activation_node& activation_node) {
@@ -1010,7 +1006,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                            input_data.as<softmax>().get_primitive()->dimension == 1 &&
                            per_tensor_values;
 
-            should_fuse |= input_data.is_type<broadcast>() && broadcast_supports_fusings(input_data.as<broadcast>());
 
             if (!should_fuse)
                 return;

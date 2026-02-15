@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -315,7 +315,7 @@ void regclass_Tensor(py::module m) {
 
             Returns numpy array with corresponding shape and dtype.
 
-            For tensors with OpenVINO specific element type, such as u1, u2, u3, u4, u6 or i4
+            For tensors with OpenVINO specific element type, such as u1, u2, u4 or i4
             it returns linear array, with uint8 / int8 numpy dtype.
 
             For tensors with string element type, returns a numpy array of bytes

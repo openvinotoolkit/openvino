@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,9 +37,7 @@ public:
 
 private:
     struct Executor {
-        virtual void execute(const std::vector<MemoryPtr>& inputs,
-                             MemoryPtr output,
-                             const CpuParallelPtr& cpu_parallel) = 0;
+        virtual void execute(const std::vector<MemoryPtr>& inputs, MemoryPtr output) = 0;
         virtual ~Executor() = default;
     };
 

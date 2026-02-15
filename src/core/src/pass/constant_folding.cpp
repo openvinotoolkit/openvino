@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -106,11 +106,7 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
 
     bool rewritten = pre_calculated_values_folding(model);
 
-    // Creating a local vector and moving each element to reduce memory peak.
-    // Elements of 'nodes' vector are nullptr after the std::move in the loop.
-    auto nodes = model->get_ordered_ops();
-    for (size_t n = 0; n < nodes.size(); ++n) {
-        auto original_node = std::move(nodes[n]);
+    for (const auto& original_node : model->get_ordered_ops()) {
         auto node = original_node;
         if (!original_node->can_constant_fold(original_node->input_values())) {
             if (auto sub_graph_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {

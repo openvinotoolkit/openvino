@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,7 +94,7 @@ protected:
         auto augruCellOp =
             ov::test::utils::make_augru(paramsOuts, WRB, hiddenSize /*, activations, {}, {}, clip, linearBeforeReset*/);
 
-        function = create_ov_model(netPrecision, params, augruCellOp, "AUGRUCell");
+        function = makeNgraphFunction(netPrecision, params, augruCellOp, "AUGRUCell");
     }
 };
 

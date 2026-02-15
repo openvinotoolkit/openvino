@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -128,6 +128,13 @@ else()
 endif()
 ov_option(ENABLE_MLAS_FOR_CPU "Enable MLAS for OpenVINO CPU Plugin" ${ENABLE_MLAS_FOR_CPU_DEFAULT})
 
+if(RISCV64_XUANTIE)
+    set(ENABLE_SHL_FOR_CPU_DEFAULT ON)
+else()
+    set(ENABLE_SHL_FOR_CPU_DEFAULT OFF)
+endif()
+ov_dependent_option(ENABLE_SHL_FOR_CPU "Enable SHL for OpenVINO CPU Plugin" ${ENABLE_SHL_FOR_CPU_DEFAULT} "RISCV64" OFF)
+
 if(AARCH64)
     set(ENABLE_KLEIDIAI_FOR_CPU_DEFAULT ON)
 else()
@@ -165,6 +172,11 @@ if(ENABLE_KLEIDIAI_FOR_CPU)
     set(OV_CPU_WITH_KLEIDIAI ON)
 endif()
 
+if (ENABLE_SHL_FOR_CPU)
+    add_definitions(-DOV_CPU_WITH_SHL)
+    set(OV_CPU_WITH_SHL ON)
+endif()
+
 file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
                           ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
@@ -174,7 +186,9 @@ if(NOT OV_CPU_WITH_ACL)
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/acl/*)
 endif()
 
-list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/shl/*)
+if(NOT OV_CPU_WITH_SHL)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/shl/*)
+endif()
 
 if(NOT X86_64)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/x64/*
@@ -182,9 +196,15 @@ if(NOT X86_64)
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/tpp/x64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/x64/*)
+endif()
+
+if (AARCH64)
+    # this directory is reused on RISCV64
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/x64/*)
+else()
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/kleidiai/*)
 endif()
 
 if(NOT (AARCH64 OR ARM))
@@ -201,8 +221,7 @@ endif()
 
 if(NOT AARCH64)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/aarch64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/aarch64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/kleidiai/*)
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/aarch64/*)
 endif()
 
 if (NOT RISCV64)
@@ -261,6 +280,9 @@ if (ENABLE_SNIPPETS_LIBXSMM_TPP)
     target_link_libraries(${TARGET_NAME} PRIVATE xsmm)
     target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:xsmm,INCLUDE_DIRECTORIES>)
 endif ()
+if(ENABLE_SHL_FOR_CPU)
+    target_link_libraries(${TARGET_NAME} PRIVATE shl)
+endif()
 if(ENABLE_KLEIDIAI_FOR_CPU)
     target_link_libraries(${TARGET_NAME} PRIVATE kleidiai)
 endif()
@@ -320,7 +342,7 @@ cross_compiled_file(${TARGET_NAME}
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
-        ARCH AVX512F AVX2 SVE NEON_FP16 ANY
+        ARCH AVX512F AVX2 SVE ANY
                     src/nodes/kernels/scaled_attn/attn_quant.cpp
         API         src/nodes/kernels/scaled_attn/attn_quant.hpp
         NAME        attn_quantkv paged_attn_quantkv attn_quant_u8 attn_dequant_u8 attn_quant_by_channel_u8 attn_dequant_by_channel_u8
@@ -354,10 +376,6 @@ set(PCH_EXCLUDE_FILES
     src/emitters/snippets/x64/jit_perf_count_rdtsc_emitters.cpp
     src/emitters/snippets/x64/jit_segfault_detector_emitter.cpp
     src/emitters/snippets/x64/verbose.cpp
-    src/emitters/snippets/aarch64/jit_debug_emitter.cpp
-    src/emitters/snippets/aarch64/jit_debug_emitter.cpp
-    src/emitters/snippets/aarch64/jit_segfault_detector_emitter.cpp
-    src/emitters/snippets/aarch64/verbose.cpp
     src/transformations/snippets/x64/op/perf_count_rdtsc.cpp)
 
 ov_build_target_faster(${TARGET_NAME} PCH PCH_EXCLUDE ${PCH_EXCLUDE_FILES})
@@ -398,6 +416,10 @@ if(BUILD_SHARED_LIBS)
     target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
     if(ENABLE_MLAS_FOR_CPU)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:mlas,INCLUDE_DIRECTORIES>)
+    endif()
+
+    if(ENABLE_SHL_FOR_CPU)
+        target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:shl,INTERFACE_INCLUDE_DIRECTORIES>)
     endif()
 
     if(ENABLE_KLEIDIAI_FOR_CPU)

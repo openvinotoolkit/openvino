@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -108,7 +108,7 @@ void SegmentMaxLayerCPUTest::SetUp() {
                 segmentMax = std::make_shared<ov::op::v16::SegmentMax>(dataParameter, segmentIdsParameter, fillMode);
             }
         }
-        function = create_ov_model(inputPrecision, params, segmentMax, "SegmentMax");
+        function = makeNgraphFunction(inputPrecision, params, segmentMax, "SegmentMax");
 }
 
 TEST_P(SegmentMaxLayerCPUTest, CompareWithRefs) {

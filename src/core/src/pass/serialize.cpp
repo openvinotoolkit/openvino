@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,7 +90,7 @@ void serialize_func(std::ostream& xml_file,
                     ov::pass::Serialize::Version ver,
                     bool deterministic = false) {
     ov::util::ConstantWriter constant_write_handler(bin_file);
-    serialize_func(xml_file, bin_file, std::move(model), ver, deterministic, constant_write_handler);
+    serialize_func(xml_file, bin_file, model, ver, deterministic, constant_write_handler);
 }
 }  // namespace
 

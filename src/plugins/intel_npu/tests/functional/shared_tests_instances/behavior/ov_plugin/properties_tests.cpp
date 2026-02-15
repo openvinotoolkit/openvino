@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,9 +39,6 @@ ov::log::Level getTestsLogLevelFromEnvironmentOr(ov::log::Level instead) {
 const std::vector<ov::AnyMap> compat_CorrectPluginMutableProperties = {
     // OV
     {{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT}},
-    {{ov::intel_npu::platform.name(),
-      removeDeviceNameOnlyID(
-          ov::test::utils::getTestsDeviceNameFromEnvironmentOr(std::string(ov::intel_npu::Platform::AUTO_DETECT)))}},
     {{ov::hint::num_requests.name(), 2u}},
     {{ov::log::level.name(), ov::log::Level::ERR}},
     {{ov::device::id.name(), removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3720"))}},

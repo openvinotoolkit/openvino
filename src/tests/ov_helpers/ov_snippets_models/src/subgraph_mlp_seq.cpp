@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,6 @@
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
-#include "snippets/op/result.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/op/convert_saturation.hpp"
 
@@ -226,10 +225,10 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
         current, ov::element::f32, onData.inputLowValues[0], onData.inputHighValues[0], 0.00346764503f);
     current = std::make_shared<ov::op::v1::Subtract>(current, ov::op::v0::Constant::create(ov::element::f32, {1, 1}, {0}));
     current = std::make_shared<ov::op::v5::Round>(current, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
-    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(current);
+    auto result_subgraph = std::make_shared<ov::op::v0::Result>(current);
     auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
         subgraph_nodes,
-        std::make_shared<ov::Model>(ov::ResultVector{snippets_result}, subgraph_params));
+        std::make_shared<ov::Model>(ov::ResultVector{result_subgraph}, subgraph_params));
     auto result = std::make_shared<ov::op::v0::Result>(subgraph);
 
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{A_param});

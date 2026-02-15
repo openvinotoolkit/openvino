@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -8,7 +8,8 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestGlu(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(2, 4, 224, 224),)
+        import numpy as np
+        return (np.random.randn(2, 4, 224, 224).astype(np.float32),)
 
     def create_model(self, dim):
         import torch
@@ -16,14 +17,15 @@ class TestGlu(PytorchLayerTest):
 
         class aten_glu(torch.nn.Module):
             def __init__(self, dim):
-                super().__init__()
+                super(aten_glu, self).__init__()
                 self.dim = dim
 
             def forward(self, x):
                 return F.glu(x, self.dim)
 
+        ref_net = None
 
-        return aten_glu(dim), "aten::glu"
+        return aten_glu(dim), ref_net, "aten::glu"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

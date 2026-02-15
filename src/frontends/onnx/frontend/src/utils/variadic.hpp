@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace variadic {
 /// \brief Create an OpenVINO version of an ONNX variadic operation.
 ///        This creates a subgraph with a series of binary operations.
 ///
-/// \param node Incoming ONNX operation.
+/// \param node Incoming ONNX opearation.
 ///
 /// \tparam T   Class of an OpenVINO binary operation (e.g. Add, Minimum, Maximum)
 ///

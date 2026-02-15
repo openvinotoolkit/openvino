@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -7,7 +7,7 @@ import numpy as np
 import paddle
 
 #print numpy array like C structure
-def print_alike(arr, separator_begin='{', separator_end='}', verbose=False):
+def print_alike(arr, seperator_begin='{', seperator_end='}', verbose=False):
     shape = arr.shape
     rank = len(shape)
 
@@ -20,16 +20,16 @@ def print_alike(arr, separator_begin='{', separator_end='}', verbose=False):
         shape = arr.shape
         rank = len(arr.shape)
         if rank > 1:
-            line = separator_begin
+            line = seperator_begin
             for i in range(arr.shape[0]):
                 line += print_array(
                     arr[i, :],
-                    end=separator_end +
-                    ",\n" if i < arr.shape[0] - 1 else separator_end)
+                    end=seperator_end +
+                    ",\n" if i < arr.shape[0] - 1 else seperator_end)
             line += end
             return line
         else:
-            line = separator_begin
+            line = seperator_begin
             for i in range(arr.shape[0]):
                 line += "{:.2f}".format(arr[i])  # str(arr[i])
                 line += ", " if i < shape[0] - 1 else ' '
@@ -38,7 +38,7 @@ def print_alike(arr, separator_begin='{', separator_end='}', verbose=False):
             return line
 
     if verbose:
-        print(print_array(arr, separator_end))
+        print(print_array(arr, seperator_end))
 
 def saveModel(name, exe, feed_vars:list, fetchlist:list, inputs:list, outputs:list, target_dir:str):
     model_dir = os.path.join(target_dir, name)

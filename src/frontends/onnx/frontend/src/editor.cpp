@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -229,17 +229,11 @@ void graph_topological_sort(GraphProto* graph) {
             return nullptr;
         };
         for (const auto& output : graph->output()) {
-            if (const auto* node = get_node_by_out_name(output.name())) {
-                nodes_to_process.push(node);
-            }
+            nodes_to_process.push(get_node_by_out_name(output.name()));
         }
 
         while (nodes_to_process.size() > 0) {
             auto* node = nodes_to_process.top();
-            if (node == nullptr) {
-                nodes_to_process.pop();
-                continue;
-            }
             bool can_add = true;
             for (const auto& in_name : node->input()) {
                 if (in_name.empty()) {

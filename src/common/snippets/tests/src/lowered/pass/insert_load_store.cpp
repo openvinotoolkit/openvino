@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 #include "openvino/opsets/opset10.hpp"
 #include "snippets/lowered/pass/insert_load_store.hpp"
 #include "snippets/op/load.hpp"
-#include "snippets/op/result.hpp"
 #include "snippets/op/store.hpp"
 
 namespace ov {
@@ -25,7 +24,7 @@ TEST_F(LoweredPassTestsF, InsertLoadStore) {
     {
         auto param = linear_ir->push_node<ov::opset10::Parameter>(input_precision, input_shape);
         auto convert = linear_ir->push_node<ov::opset10::Convert>(param.second, convert_precision);
-        auto result = linear_ir->push_node<ov::snippets::op::Result>(convert.second);
+        auto result = linear_ir->push_node<ov::opset10::Result>(convert.second);
     }
     pipeline.register_pass<InsertLoadStore>(vector_size);
     {
@@ -33,7 +32,7 @@ TEST_F(LoweredPassTestsF, InsertLoadStore) {
         auto load = linear_ir_ref->push_node<ov::snippets::op::Load>(param.second, vector_size);
         auto convert = linear_ir_ref->push_node<ov::opset10::Convert>(load.second, convert_precision);
         auto store = linear_ir_ref->push_node<ov::snippets::op::Store>(convert.second, vector_size);
-        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(store.second);
+        auto result = linear_ir_ref->push_node<ov::opset10::Result>(store.second);
     }
 }
 }  // namespace snippets

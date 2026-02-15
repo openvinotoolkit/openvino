@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@
 #include <utility>
 #include <vector>
 
-#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
@@ -27,6 +26,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/roi_pooling.hpp"
@@ -524,7 +524,7 @@ void ROIPooling::execute([[maybe_unused]] const dnnl::stream& strm) {
         const auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
         const auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
         const auto& dstMemory = getChildEdgeAt(0)->getMemory();
-        execPtr->exec(srcMemory0, srcMemory1, dstMemory, context->getCpuParallel());
+        execPtr->exec(srcMemory0, srcMemory1, dstMemory);
     } else {
         CPU_NODE_THROW("Primitive wasn't created");
     }
@@ -584,10 +584,7 @@ public:
 #endif
     }
 
-    void exec(const IMemory& srcData,
-              const IMemory& srcRoi,
-              const IMemory& dst,
-              const CpuParallelPtr& cpuParallel) override {
+    void exec(const IMemory& srcData, const IMemory& srcRoi, const IMemory& dst) override {
         OPENVINO_ASSERT(roi_pooling_kernel, "Could not execute. Kernel for RoiPooling node was not compiled.");
         auto src_strides = srcData.getDescWithType<BlockedMemoryDesc>()->getStrides();
         auto src_roi_step = srcRoi.getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
@@ -595,7 +592,7 @@ public:
         const auto* src_ptr = srcData.getDataAs<const T>();
         const auto* roi_ptr = srcRoi.getDataAs<const T>();
         auto* dst_ptr = dst.getDataAs<T>();
-        executeOptimizedGeneric(src_ptr, roi_ptr, dst_ptr, src_strides, dst_strides, src_roi_step, cpuParallel);
+        executeOptimizedGeneric(src_ptr, roi_ptr, dst_ptr, src_strides, dst_strides, src_roi_step);
     }
 
 private:
@@ -604,8 +601,7 @@ private:
                                  T* dst,
                                  const VectorDims& src_strides,
                                  const VectorDims& dst_strides,
-                                 const size_t src_roi_step,
-                                 const CpuParallelPtr& cpuParallel) {
+                                 const size_t src_roi_step) {
         const auto& jpp = roi_pooling_kernel->jpp_;
         int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
         int MB = jpp.mb;
@@ -621,7 +617,7 @@ private:
             }
         }
 
-        cpuParallel->parallel_for4d(MB, cb_work, jpp.oh, jpp.ow, [&](int n, int cbb, int oh, int ow) {
+        parallel_for4d(MB, cb_work, jpp.oh, jpp.ow, [&](int n, int cbb, int oh, int ow) {
             auto arg = jit_roi_pooling_call_args();
             int cb = cbb * jpp.nb_c_blocking;
             int cb_num = jpp.nb_c_blocking;
@@ -719,24 +715,20 @@ private:
     }
 
     std::shared_ptr<jit_uni_roi_pooling_kernel> roi_pooling_kernel;
-    std::shared_ptr<CpuParallel> cpuParallel;
 };
 
 template <typename T>
 class ROIPooling::ROIPoolingRefExecutor : public ROIPooling::ROIPoolingExecutor {
 public:
     explicit ROIPoolingRefExecutor(const jit_roi_pooling_params& _jpp) : jpp(_jpp) {}
-    void exec(const IMemory& srcData,
-              const IMemory& srcRoi,
-              const IMemory& dst,
-              const CpuParallelPtr& cpuParallel) override {
+    void exec(const IMemory& srcData, const IMemory& srcRoi, const IMemory& dst) override {
         auto src_strides = srcData.getDescWithType<BlockedMemoryDesc>()->getStrides();
         auto src_roi_step = srcRoi.getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
         auto dst_strides = dst.getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto* src_ptr = srcData.getDataAs<const T>();
         const auto* roi_ptr = srcRoi.getDataAs<const T>();
         auto* dst_ptr = dst.getDataAs<T>();
-        executeReference(src_ptr, roi_ptr, dst_ptr, src_strides, dst_strides, src_roi_step, cpuParallel);
+        executeReference(src_ptr, roi_ptr, dst_ptr, src_strides, dst_strides, src_roi_step);
     }
 
     void executeReference(const T* src_data,
@@ -744,8 +736,7 @@ public:
                           T* dst,
                           const VectorDims& src_strides,
                           const VectorDims& dst_strides,
-                          const size_t src_roi_step,
-                          const CpuParallelPtr& cpuParallel) {
+                          const size_t src_roi_step) {
         int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
         int MB = jpp.mb;
 
@@ -760,7 +751,7 @@ public:
             }
         }
 
-        cpuParallel->parallel_for4d(MB, cb_work, jpp.oh, jpp.ow, [&](int n, int cbb, int oh, int ow) {
+        parallel_for4d(MB, cb_work, jpp.oh, jpp.ow, [&](int n, int cbb, int oh, int ow) {
             int cb_num = jpp.nb_c_blocking;
             int c_block = jpp.c_block;
 

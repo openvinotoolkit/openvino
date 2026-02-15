@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2023-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,6 @@ PipelinedExecutor::Output PipelinedExecutor::runLoop(cv::GRunArgs&& inputs, Call
     const auto start_tick = clock_t::now();
     m_compiled.start();
     while (criterion->check()) {
-        criterion->checkWorkloadTrigger();
         if (!callback(m_compiled)) {
             break;
         }
@@ -53,7 +52,6 @@ SyncExecutor::Output SyncExecutor::runLoop(Callback callback, ITermCriterion::Pt
     const auto start_tick = clock_t::now();
     criterion->init();
     while (criterion->check()) {
-        criterion->checkWorkloadTrigger();
         if (!callback(m_compiled)) {
             break;
         }
