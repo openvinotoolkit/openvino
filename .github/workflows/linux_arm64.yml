@@ -198,7 +198,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_python_api_tests.yml
     with:
-      runner: 'aks-linux-16-cores-arm'
+      runner: 'aks-linux-8-cores-16gb-arm'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
@@ -249,8 +249,7 @@ jobs:
     needs: [ Build, Docker, Smart_CI ]
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
-      # Additional investigation needed why CPU functional tests are failing on v6 VM size's version,
-      # so leave it as it is for now
+      # Left on older runner for reasons described in CVS-158878
       runner: 'aks-linux-16-cores-arm'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_arm64 }}
       python-version: '3.11'
@@ -258,9 +257,8 @@ jobs:
 
   TensorFlow_Models_Tests:
     name: TensorFlow Models tests
-    if: ${{ 'false' }} # TODO: Enable once the dependencies are ready for arm (no tensorflow-text available for arm from PyPI)
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
-    #     fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
+    if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
+        fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
     needs: [ Build, Docker, Smart_CI, Openvino_tokenizers]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
@@ -270,9 +268,8 @@ jobs:
 
   PyTorch_Models_Tests:
     name: PyTorch Models tests
-    if: ${{ 'false' }} # TODO: Enable once the dependencies are ready for arm (no tensorflow-text available for arm from PyPI)
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
-    needs: [ Build, Docker, Smart_CI ]
+    if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
+    needs: [ Build, Docker, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
       runner: 'aks-linux-16-cores-32gb-arm'

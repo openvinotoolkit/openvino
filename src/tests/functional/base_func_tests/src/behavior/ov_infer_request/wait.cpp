@@ -10,7 +10,7 @@ namespace test {
 namespace behavior {
 void OVInferRequestWaitTests::SetUp() {
     OVInferRequestTests::SetUp();
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     req = execNet.create_infer_request();
     input = execNet.input();
