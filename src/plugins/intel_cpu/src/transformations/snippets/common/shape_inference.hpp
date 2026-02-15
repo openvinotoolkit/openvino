@@ -12,6 +12,10 @@
 
 namespace ov::snippets {
 
+namespace detail {
+IShapeInferSnippetsFactory::TRegistry make_common_cpu_shape_infer_registry();
+}  // namespace detail
+
 /**
  * \brief Shape infer factory that can create shape-infer instances for cpu-specific operations
  */
