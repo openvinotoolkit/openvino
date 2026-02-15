@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -185,7 +185,7 @@ void InterpolateLayerCPUTest::SetUp() {
         interp = std::make_shared<ov::op::v11::Interpolate>(params[0], sizesInput, axesInput, interpAttr);
     }
 
-    function = create_ov_model(ngPrc, params, interp, "InterpolateCPU");
+    function = makeNgraphFunction(ngPrc, params, interp, "InterpolateCPU");
 
     ov::pass::Manager m;
     m.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -10,7 +10,7 @@ class TestIndexSelect(PytorchLayerTest):
     def _prepare_input(self, index, out=False, dim=0):
         import numpy as np
         index = np.array(index).astype(np.int32)
-        input_data = self.random.randn(2, 3, 10, 10)
+        input_data = np.random.randn(2, 3, 10, 10).astype(np.float32)
         if not out:
             return (input_data, index)
         out = np.zeros_like(np.take(input_data, axis=dim, indices=index))
@@ -21,7 +21,7 @@ class TestIndexSelect(PytorchLayerTest):
 
         class aten_index_select(torch.nn.Module):
             def __init__(self, dim, out=False):
-                super().__init__()
+                super(aten_index_select, self).__init__()
                 self.dim = dim
                 if out:
                     self.forward = self.forward_out
@@ -32,8 +32,9 @@ class TestIndexSelect(PytorchLayerTest):
             def forward_out(self, x, indices, out):
                 return out, torch.index_select(x, self.dim, indices, out=out)
 
+        ref_net = None
 
-        return aten_index_select(dim, out), "aten::index_select"
+        return aten_index_select(dim, out), ref_net, "aten::index_select"
 
     @pytest.mark.parametrize("dim", [0, 1, 2, 3, -1, -2, -3])
     @pytest.mark.parametrize("indices", [[0, 1], [0], [1, 0]])

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -109,7 +109,7 @@ protected:
 
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{matMul, split->output(1)}, 0);
 
-        function = CPUTestsBase::create_ov_model(ElementType::f32, params, concat, "FullyConnected");
+        function = CPUTestsBase::makeNgraphFunction(ElementType::f32, params, concat, "FullyConnected");
     }
 };
 

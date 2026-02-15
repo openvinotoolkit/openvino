@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -389,31 +389,22 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::use_base_model_serializer, USE_BASE_MODEL_SERIALIZER);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::model_serializer_version, MODEL_SERIALIZER_VERSION);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::enable_strides_for, ENABLE_STRIDES_FOR);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::disable_idle_memory_prunning, DISABLE_IDLE_MEMORY_PRUNING);
 
     TRY_REGISTER_CUSTOMFUNC_PROPERTY(ov::intel_npu::stepping, STEPPING, [&](const Config& config) {
         if (!config.has<STEPPING>()) {
-            try {
-                const auto specifiedDeviceName = get_specified_device_name(config);
-                return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
-            } catch (...) {
-                Logger("Properties", ov::log::Level::WARNING)
-                    .warning("Metrics GetSteppingNumber failed to get value from device.");
-            }
+            const auto specifiedDeviceName = get_specified_device_name(config);
+            return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
+        } else {
+            return config.get<STEPPING>();
         }
-        return config.get<STEPPING>();
     });
     TRY_REGISTER_CUSTOMFUNC_PROPERTY(ov::intel_npu::max_tiles, MAX_TILES, [&](const Config& config) {
         if (!config.has<MAX_TILES>()) {
-            try {
-                const auto specifiedDeviceName = get_specified_device_name(config);
-                return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
-            } catch (...) {
-                Logger("Properties", ov::log::Level::WARNING)
-                    .warning("Metrics GetMaxTiles failed to get value from device.");
-            }
+            const auto specifiedDeviceName = get_specified_device_name(config);
+            return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
+        } else {
+            return config.get<MAX_TILES>();
         }
-        return config.get<MAX_TILES>();
     });
 
     TRY_REGISTER_VARPUB_PROPERTY(ov::intel_npu::run_inferences_sequentially, RUN_INFERENCES_SEQUENTIALLY, [&] {
@@ -474,10 +465,7 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::max_generation_token_len, NPUW_LLM_MAX_GENERATION_TOKEN_LEN);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::optimize_fp8, NPUW_LLM_OPTIMIZE_FP8);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::prefill_moe_hint, NPUW_LLM_PREFILL_MOE_HINT);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::generate_moe_hint, NPUW_LLM_GENERATE_MOE_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::generate_pyramid, NPUW_LLM_GENERATE_PYRAMID);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::prefill_chunk_size, NPUW_LLM_PREFILL_CHUNK_SIZE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD);
@@ -502,10 +490,6 @@ void Properties::registerPluginProperties() {
                                  NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::whisper::enabled, NPUW_WHISPER);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::eagle::enabled, NPUW_EAGLE);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::text_embed::enabled, NPUW_TEXT_EMBED);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::kokoro::enabled, NPUW_KOKORO);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::kokoro::block_size, NPUW_KOKORO_BLOCK_SIZE);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::kokoro::overlap_size, NPUW_KOKORO_OVERLAP_SIZE);
 
     // 2. Metrics (static device and enviroment properties)
     // ========
@@ -570,8 +554,8 @@ void Properties::registerPluginProperties() {
         });
         REGISTER_CUSTOM_METRIC(ov::intel_npu::compiler_version, true, [&](const Config& config) {
             /// create dummy compiler
-            auto compilerType = config.get<COMPILER_TYPE>();
-            auto dummyCompiler = CompilerAdapterFactory::getInstance().getCompiler(_backend, compilerType);
+            CompilerAdapterFactory compilerAdapterFactory;
+            auto dummyCompiler = compilerAdapterFactory.getCompiler(_backend, config.get<COMPILER_TYPE>());
             return dummyCompiler->get_version();
         });
         REGISTER_CUSTOM_METRIC(ov::internal::caching_properties, false, [&](const Config& config) {
@@ -616,7 +600,6 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::compilation_num_threads, COMPILATION_NUM_THREADS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::inference_precision, INFERENCE_PRECISION_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::cache_mode, CACHE_MODE);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::compiler_type, COMPILER_TYPE);
 
     // Properties we shall only enable if they were set prior-to-compilation
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::weights_path, WEIGHTS_PATH);
@@ -628,6 +611,7 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::dma_engines, DMA_ENGINES);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::tiles, TILES);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compilation_mode, COMPILATION_MODE);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compiler_type, COMPILER_TYPE);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::platform, PLATFORM);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::dynamic_shape_to_static, DYNAMIC_SHAPE_TO_STATIC);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::backend_compilation_params, BACKEND_COMPILATION_PARAMS);
@@ -723,8 +707,8 @@ void Properties::set_property(const ov::AnyMap& properties) {
             if (_pType == PropertiesType::PLUGIN) {
                 try {
                     // Only accepting unknown config keys in plugin
-                    auto compilerType = _config.get<COMPILER_TYPE>();
-                    compiler = CompilerAdapterFactory::getInstance().getCompiler(_backend, compilerType);
+                    CompilerAdapterFactory compilerAdapterFactory;
+                    compiler = compilerAdapterFactory.getCompiler(_backend, _config.get<COMPILER_TYPE>());
                 } catch (...) {
                     // just throw the exception below in case unknown property check is called
                 }

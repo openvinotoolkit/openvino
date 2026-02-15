@@ -239,14 +239,7 @@ includes **Dynamic quantization** of activations of 4/8-bit quantized MatMuls an
   insignificant deviation in generation accuracy.  Quantization is performed in a group-wise
   manner, with configurable group size. It means that values in a group share quantization
   parameters. Larger group sizes lead to faster inference but lower accuracy. Recommended
-  group size values are ``0``, ``32``, ``64``, ``128`` or ``-1``(per-token).
-
-  .. note::
-
-   The dynamic quantization group size is treated as a guideline rather than a strict requirement.
-   The actual policy may vary depending on functional capabilities or performance and accuracy considerations.
-   The plugin may choose to disable dynamic quantization entirely or use a smaller group size than the one
-   specified by the user.
+  group size values are ``0``, ``32``, ``64``, or ``128``.
 
   On Intel CPU and Intel GPU, dynamic quantization is enabled **by default**.
 

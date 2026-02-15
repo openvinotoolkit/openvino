@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,6 @@
 
 #include "common/cpu_memcpy.h"
 #include "cpu_memory.h"
-#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
@@ -29,6 +28,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
@@ -142,24 +142,21 @@ void Roll::execute([[maybe_unused]] const dnnl::stream& strm) {
         execPtr->exec<element_type_traits<ov::element::i8>::value_type>(getSrcMemoryAtPort(DATA_INDEX),
                                                                         getSrcMemoryAtPort(SHIFT_INDEX),
                                                                         getSrcMemoryAtPort(AXES_INDEX),
-                                                                        getDstMemoryAtPort(0),
-                                                                        context->getCpuParallel());
+                                                                        getDstMemoryAtPort(0));
         break;
     }
     case sizeof(element_type_traits<ov::element::i16>::value_type): {
         execPtr->exec<element_type_traits<ov::element::i16>::value_type>(getSrcMemoryAtPort(DATA_INDEX),
                                                                          getSrcMemoryAtPort(SHIFT_INDEX),
                                                                          getSrcMemoryAtPort(AXES_INDEX),
-                                                                         getDstMemoryAtPort(0),
-                                                                         context->getCpuParallel());
+                                                                         getDstMemoryAtPort(0));
         break;
     }
     case sizeof(element_type_traits<ov::element::i32>::value_type): {
         execPtr->exec<element_type_traits<ov::element::i32>::value_type>(getSrcMemoryAtPort(DATA_INDEX),
                                                                          getSrcMemoryAtPort(SHIFT_INDEX),
                                                                          getSrcMemoryAtPort(AXES_INDEX),
-                                                                         getDstMemoryAtPort(0),
-                                                                         context->getCpuParallel());
+                                                                         getDstMemoryAtPort(0));
         break;
     }
     default:
@@ -186,8 +183,7 @@ template <typename T>
 void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr,
                               const MemoryPtr& shiftMemPtr,
                               const MemoryPtr& axesMemPtr,
-                              const MemoryPtr& dstMemPtr,
-                              const CpuParallelPtr& cpuParallel) {
+                              const MemoryPtr& dstMemPtr) {
     const auto* data = dataMemPtr->getDataAs<const T>();
     const auto* shift = shiftMemPtr->getDataAs<const int32_t>();
     const auto* axes = axesMemPtr->getDataAs<const int32_t>();
@@ -215,7 +211,7 @@ void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr,
         return dataOffset + shift * segmentSize;
     };
 
-    cpuParallel->parallel_for(numOfIterations, [&, this](size_t iter) {
+    parallel_for(numOfIterations, [&, this](size_t iter) {
         size_t start = iter * blockSize;
         size_t leftBlockStartOffset = start;
         size_t rightBlockStartOffset = start + leftBlockSize;

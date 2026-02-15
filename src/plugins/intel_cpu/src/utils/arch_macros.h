@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -97,6 +97,14 @@
 #else
 #    define OV_CPU_INSTANCE_MLAS_X64(...)
 #    define OV_CPU_MLAS_X64(...)
+#endif
+
+#if defined(OV_CPU_WITH_SHL)
+#    define OV_CPU_INSTANCE_SHL(...) {__VA_ARGS__},
+#    define OV_CPU_SHL(...)          __VA_ARGS__
+#else
+#    define OV_CPU_INSTANCE_SHL(...)
+#    define OV_CPU_SHL(...)
 #endif
 
 #if defined(OPENVINO_ARCH_RISCV64)

@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "subgraph_matmul.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "openvino/opsets/opset1.hpp"
-#include "snippets/op/result.hpp"
 #include <snippets/op/subgraph.hpp>
 #include "common_test_utils/node_builders/constant.hpp"
 #include "ov_ops/type_relaxed.hpp"
@@ -120,10 +119,9 @@ std::shared_ptr<ov::Model> MatMulFunction::initReference() const {
     } else {
         matmul = std::make_shared<op::v0::MatMul>(indata0, indata1, false, transpose_b);
     }
-    auto snippets_result = std::make_shared<ov::snippets::op::Result>(matmul);
     const auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
         OutputVector{data0, data1},
-        std::make_shared<ov::Model>(OutputVector{snippets_result}, ParameterVector{indata0, indata1}));
+        std::make_shared<ov::Model>(OutputVector{matmul}, ParameterVector{indata0, indata1}));
     return std::make_shared<ov::Model>(OutputVector{subgraph}, params);
 }
 std::shared_ptr<ov::Model> FQMatMulFunction::initOriginal() const {

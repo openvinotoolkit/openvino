@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,6 +38,7 @@ enum class ExecutorType : uint8_t {
     Dnnl,
     Acl,
     Mlas,
+    Shl,
     Kleidiai,
 };
 
@@ -90,10 +91,6 @@ public:
 
     [[nodiscard]] WeightsSharing::Ptr getWeightsCache() const {
         return weightsCache;
-    }
-
-    [[nodiscard]] std::shared_ptr<CpuParallel> getCpuParallel() const {
-        return cpuParallel;
     }
 
     [[nodiscard]] std::shared_ptr<ThreadPool> getThreadPool() const {

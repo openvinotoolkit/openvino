@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              std::optional<ov::Tensor> blob,
              const Config& config,
              const bool blobIsPersistent,
-             const ov::SoPtr<VCLCompilerImpl>& compiler,
+             const ov::SoPtr<ICompiler>& compiler,
              const bool calledFromWeightlessGraph)
     : IGraph(),
       _zeGraphExt(zeGraphExt),
@@ -91,9 +91,8 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
         OPENVINO_THROW("Model was imported and released after initialization. Model export is not allowed anymore.");
     }
 
-    if (_blob == std::nullopt) {
-        OPENVINO_ASSERT(_zeGraphExt != nullptr, "Zero compiler adapter wasn't initialized");
-        // when compiling the model using Compiler in Driver, the blob is handled by the driver
+    if (_blob ==
+        std::nullopt) {  // when compiling the model using Compiler in Driver, the blob is handled by the driver
         _zeGraphExt->getGraphBinary(_graphDesc, blobVec, blobPtr, blobSize);
     } else {  // in all other cases, the blob is handled by the plugin
         blobPtr = static_cast<const uint8_t*>(_blob->data());

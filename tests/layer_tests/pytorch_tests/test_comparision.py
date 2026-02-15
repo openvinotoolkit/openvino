@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -9,7 +9,8 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestComp(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(1, 3, 24, 24), self.random.randn(1, 3, 24, 24))
+        import numpy as np
+        return (np.random.randn(1, 3, 24, 24).astype(np.float32), np.random.randn(1, 3, 24, 24).astype(np.float32))
 
     def create_model(self, op_type):
         class aten_eq(torch.nn.Module):
@@ -46,8 +47,9 @@ class TestComp(PytorchLayerTest):
         }
         model_cls = ops[op_type]
 
+        ref_net = None
 
-        return model_cls(), f"aten::{op_type}"
+        return model_cls(), ref_net, f"aten::{op_type}"
 
     @pytest.mark.parametrize("op", ["eq", "ne", "lt", "gt", "le", "ge"])
     @pytest.mark.nightly
@@ -62,11 +64,11 @@ class TestCompMixedTypes(PytorchLayerTest):
 
     def _prepare_input(self):
         if len(self.lhs_shape) == 0:
-            return (self.random.randint(0, 3, size=self.rhs_shape, dtype=self.rhs_type),)
+            return (torch.randint(0, 3, self.rhs_shape).to(self.rhs_type).numpy(),)
         elif len(self.rhs_shape) == 0:
-            return (self.random.randint(0, 3, size=self.lhs_shape, dtype=self.lhs_type),)
-        return (self.random.randint(0, 3, size=self.lhs_shape, dtype=self.lhs_type),
-                self.random.randint(0, 3, size=self.rhs_shape, dtype=self.rhs_type))
+            return (torch.randint(0, 3, self.lhs_shape).to(self.lhs_type).numpy(),)
+        return (torch.randint(0, 3, self.lhs_shape).to(self.lhs_type).numpy(),
+                torch.randint(0, 3, self.rhs_shape).to(self.rhs_type).numpy())
 
     def create_model(self, lhs_type, lhs_shape, rhs_type, rhs_shape, op):
 
@@ -103,8 +105,9 @@ class TestCompMixedTypes(PytorchLayerTest):
             def forward3(self, lhs, rhs):
                 return self.op_fn(lhs.to(self.lhs_type), rhs.to(self.rhs_type))
 
+        ref_net = None
 
-        return aten_comp(lhs_type, lhs_shape, rhs_type, rhs_shape, op_fn), f"aten::{op}"
+        return aten_comp(lhs_type, lhs_shape, rhs_type, rhs_shape, op_fn), ref_net, f"aten::{op}"
 
     @pytest.mark.parametrize(("lhs_type", "rhs_type"),
                              [[torch.int32, torch.int64],

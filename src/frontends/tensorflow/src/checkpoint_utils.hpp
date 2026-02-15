@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ static T smUnpack(char*& ptr, const char* ptr_end) {
     return 0;
 }
 
-/// \brief Structure is for storing information about block in Variables Index file.
+/// \brief Structure is for storing information about block in Varaibles Index file.
 /// It defines only offset and block size, no information about exact content.
 struct VIBlock {
     uint64_t m_size;

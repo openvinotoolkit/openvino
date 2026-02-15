@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include <cmath>
 #include <memory>
-#include <optional>
 #include <string>
 #include <vector>
 #include <unordered_set>
@@ -139,8 +138,6 @@ public:
         const bool inPlace = false);
 
     static FakeQuantizeDequantization getDequantizationBelow(const std::shared_ptr<Node>& node, const bool convertIsMandatory = false);
-
-    static std::optional<size_t> getDQConstBranchIndex(const std::shared_ptr<ov::Node>& eltwise);
 
     static FakeQuantizeDequantization normalizeDequantization(FakeQuantizeDequantization dequantization);
 

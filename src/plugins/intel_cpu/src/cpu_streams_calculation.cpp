@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -609,7 +609,7 @@ int get_model_prefer_threads(const int num_streams,
                              const std::shared_ptr<ov::Model>& model,
                              Config& config) {
     bool int8_intensive = ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model);
-    bool is_LLM = config.modelType != Config::ModelType::CNN;
+    bool is_LLM = config.modelType == Config::ModelType::LLM;
 
     auto default_prefer_threads_latency = [&]() {
         const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
@@ -618,8 +618,7 @@ int get_model_prefer_threads(const int num_streams,
         bool use_all_cores = proc_type_table[0][MAIN_CORE_PROC] <= (proc_type_table[0][EFFICIENT_CORE_PROC] /
                                                                     (int8_intensive ? int8_threshold : fp32_threshold));
 
-        if (use_all_cores &&
-            (!is_LLM || proc_type_table[0][EFFICIENT_CORE_PROC] > 2 * proc_type_table[0][MAIN_CORE_PROC])) {
+        if (use_all_cores && !is_LLM) {
             config.modelPreferThreadsLatency =
                 proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
         } else {

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -7,9 +7,6 @@
 
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR riscv64)
-
-set(CMAKE_C_COMPILER_TARGET riscv64-linux-gnu)
-set(CMAKE_CXX_COMPILER_TARGET riscv64-linux-gnu)
 
 set(CMAKE_C_COMPILER riscv64-linux-gnu-gcc)
 set(CMAKE_CXX_COMPILER riscv64-linux-gnu-g++)

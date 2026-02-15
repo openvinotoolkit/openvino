@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -85,7 +85,7 @@ OutputVector translate_gru_block_cell_op(const ov::frontend::tensorflow::NodeCon
         hidden_size.is_static(),
         "[TensorFlow Frontend] internal error: GRUBlockCell is supported only for static hidden size");
 
-    // retrieve input_size and hidden_size
+    // retrive input_size and hidden_size
     auto x_shape = std::make_shared<v3::ShapeOf>(x, element::i64);
     auto ss_start = std::make_shared<v0::Constant>(element::i64, Shape{1}, 1);
     auto ss_end = std::make_shared<v0::Constant>(element::i64, Shape{1}, 2);

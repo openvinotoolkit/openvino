@@ -1,6 +1,7 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
 import pytest
 import torch
 
@@ -19,7 +20,7 @@ class aten_logsumexp(torch.nn.Module):
 
 class TestLogsumexp(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(2, 5, 9, 7),)
+        return (np.random.randn(2, 5, 9, 7),)
 
     @pytest.mark.parametrize("dim", [
         0, 1, 2, 3, -1, -2, -3, -4
@@ -30,5 +31,5 @@ class TestLogsumexp(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_logsumexp(self, dim, keepdim, ie_device, precision, ir_version):
-        self._test(aten_logsumexp(dim, keepdim), "aten::logsumexp",
-                   ie_device, precision, ir_version, fx_kind="aten.logsumexp.default")
+        self._test(aten_logsumexp(dim, keepdim), None, "aten::logsumexp",
+                   ie_device, precision, ir_version)

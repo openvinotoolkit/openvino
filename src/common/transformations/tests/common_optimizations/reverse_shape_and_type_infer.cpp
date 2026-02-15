@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,6 @@
 using namespace testing;
 using namespace ov;
 
-namespace v12 = ov::op::v12;
 TEST_F(TransformationTestsF, ConvolutionReverseInfer) {
     {
         auto data = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
@@ -245,7 +244,7 @@ TEST_F(TransformationTestsF, NegativePad12ReverseInfer) {
         auto pads_begin = opset10::Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
         auto pads_end = opset10::Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
         auto value = opset10::Constant::create(element::f32, Shape{}, {0});
-        auto pad = std::make_shared<v12::Pad>(data, pads_begin, pads_end, value, op::PadMode::CONSTANT);
+        auto pad = std::make_shared<ov::op::v12::Pad>(data, pads_begin, pads_end, value, op::PadMode::CONSTANT);
         auto result = std::make_shared<opset10::Result>(pad);
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
@@ -255,7 +254,7 @@ TEST_F(TransformationTestsF, NegativePad12ReverseInfer) {
         auto pads_begin = opset10::Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
         auto pads_end = opset10::Constant::create(element::i64, Shape{4}, {0, 0, 0, -1});
         auto value = opset10::Constant::create(element::f32, Shape{}, {0});
-        auto pad = std::make_shared<v12::Pad>(data, pads_begin, pads_end, value, op::PadMode::CONSTANT);
+        auto pad = std::make_shared<ov::op::v12::Pad>(data, pads_begin, pads_end, value, op::PadMode::CONSTANT);
         auto result = std::make_shared<opset10::Result>(pad);
         model_ref = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,7 +76,7 @@ void ComparisonLayerCPUTest::SetUp() {
     }
     const auto comparison_node = ov::test::utils::make_comparison(params[0], secondInput, comparisonType);
 
-    function = create_ov_model(currModelPrc, params, comparison_node, "Comparison");
+    function = makeNgraphFunction(currModelPrc, params, comparison_node, "Comparison");
 }
 
 std::string ComparisonLayerCPUTest::getPrimitiveType(const utils::ComparisonTypes& type, ov::element::Type modelType) const {

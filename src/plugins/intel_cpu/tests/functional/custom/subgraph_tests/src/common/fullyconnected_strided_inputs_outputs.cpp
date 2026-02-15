@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,7 +67,7 @@ protected:
         const auto fcConcatAxis = rank == 3 ? 1 : 0;
         const auto concatMatMuls = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{fc1, fc2}, fcConcatAxis);
 
-        function = create_ov_model(netPrecision, params, concatMatMuls, "FullyConnectedStridedInputsOutputs");
+        function = makeNgraphFunction(netPrecision, params, concatMatMuls, "FullyConnectedStridedInputsOutputs");
     }
 };
 

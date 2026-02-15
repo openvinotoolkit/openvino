@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,8 +81,7 @@ ConstantWriter::FilePosition ConstantWriter::write(const char* ptr,
             m_hash_to_file_positions.insert({hash, {offset, static_cast<const void*>(ptr)}});
         }
         if (m_write_hash_value) {
-            // hash stored with special ostream only
-            m_binary_output.get().rdbuf()->sputn(reinterpret_cast<const char*>(&hash), hash);
+            m_binary_output.get().write(reinterpret_cast<const char*>(&hash), sizeof(uint64_t));
         } else {
             m_binary_output.get().write(ptr_to_write, new_size);
         }

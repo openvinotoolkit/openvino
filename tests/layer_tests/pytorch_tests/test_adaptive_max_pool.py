@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
 
+import numpy as np
 import pytest
 import torch
 import torch.nn.functional as F
@@ -29,8 +30,9 @@ class TestAdaptiveMaxPool3D(PytorchLayerTest):
                     return output, indices
                 return F.adaptive_max_pool3d(input_tensor, self.output_size, False), input_tensor.to(torch.int64)
 
+        ref_net = None
 
-        return aten_adaptive_max_pool3d(output_size, return_indices), "aten::adaptive_max_pool3d"
+        return aten_adaptive_max_pool3d(output_size, return_indices), ref_net, "aten::adaptive_max_pool3d"
 
     @pytest.mark.parametrize('input_shape', [[2, 1, 1, 4, 4],
                                              [4, 1, 3, 32, 32],
@@ -52,7 +54,7 @@ class TestAdaptiveMaxPool3D(PytorchLayerTest):
     def test_adaptive_max_pool3d(self, ie_device, precision, ir_version, input_shape, output_size, return_indices):
         if ie_device == "GPU" and len(input_shape) < 5:
             pytest.xfail(reason="Unsupported shape for adaptive pool on GPU")
-        self.input_tensor = self.random.randn(*input_shape)
+        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
         self._test(*self.create_model(output_size, return_indices), ie_device, precision, ir_version)
 
 
@@ -75,8 +77,9 @@ class TestAdaptiveMaxPool2D(PytorchLayerTest):
                     return output, indices
                 return F.adaptive_max_pool2d(input_tensor, self.output_size, False), input_tensor.to(torch.int64)
 
+        ref_net = None
 
-        return aten_adaptive_max_pool2d(output_size, return_indices), "aten::adaptive_max_pool2d"
+        return aten_adaptive_max_pool2d(output_size, return_indices), ref_net, "aten::adaptive_max_pool2d"
 
     @pytest.mark.parametrize('input_shape', [[2, 1, 4, 4],
                                              [1, 3, 32, 32],
@@ -96,7 +99,7 @@ class TestAdaptiveMaxPool2D(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_adaptive_max_pool2d(self, ie_device, precision, ir_version, input_shape, output_size, return_indices):
-        self.input_tensor = self.random.randn(*input_shape)
+        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
         self._test(*self.create_model(output_size, return_indices), ie_device, precision, ir_version)
 
 
@@ -119,8 +122,9 @@ class TestAdaptiveMaxPool1D(PytorchLayerTest):
                     return output, indices
                 return F.adaptive_max_pool1d(input_tensor, self.output_size, False), input_tensor.to(torch.int64)
 
+        ref_net = None
 
-        return aten_adaptive_max_pool1d(output_size, return_indices), "aten::adaptive_max_pool1d"
+        return aten_adaptive_max_pool1d(output_size, return_indices), ref_net, "aten::adaptive_max_pool1d"
 
     @pytest.mark.parametrize('input_shape', [
         [1, 4, 4],
@@ -142,5 +146,5 @@ class TestAdaptiveMaxPool1D(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_adaptive_max_pool1d(self, ie_device, precision, ir_version, input_shape, output_size, return_indices):
-        self.input_tensor = self.random.randn(*input_shape)
+        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
         self._test(*self.create_model(output_size, return_indices), ie_device, precision, ir_version)

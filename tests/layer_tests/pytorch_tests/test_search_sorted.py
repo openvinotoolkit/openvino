@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -16,14 +16,15 @@ class TestSearchSorted(PytorchLayerTest):
 
         class aten_searchsorted(torch.nn.Module):
             def __init__(self, right_mode):
-                super().__init__()
+                super(aten_searchsorted, self).__init__()
                 self.right_mode = right_mode
 
             def forward(self, sorted, values):
                 return torch.searchsorted(sorted, values, right=self.right_mode)
 
+        ref_net = None
 
-        return aten_searchsorted(right_mode), "aten::searchsorted"
+        return aten_searchsorted(right_mode), ref_net, "aten::searchsorted"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

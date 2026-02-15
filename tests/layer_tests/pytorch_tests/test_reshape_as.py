@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -26,8 +26,9 @@ class TestReshapeAs(PytorchLayerTest):
             def forward_view(self, input_tensor, shape_tensor):
                 return input_tensor.view_as(shape_tensor)
 
+        ref_net = None
 
-        return aten_reshape_as(op), f"aten::{op}"
+        return aten_reshape_as(op), ref_net, f"aten::{op}"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

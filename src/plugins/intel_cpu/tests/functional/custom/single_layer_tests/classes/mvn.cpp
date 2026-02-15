@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,7 +88,7 @@ void MvnLayerCPUTest::SetUp() {
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
     updateSelectedType(getPrimitiveType(), netPrecision, configuration);
 
-    function = create_ov_model(netPrecision, params, mvn, "mvn");
+    function = makeNgraphFunction(netPrecision, params, mvn, "mvn");
 }
 
 TEST_P(MvnLayerCPUTest, CompareWithRefs) {

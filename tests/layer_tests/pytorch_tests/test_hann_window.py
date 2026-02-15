@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -27,7 +27,7 @@ class TestHannWindow(PytorchLayerTest):
 
         class aten_hann_window(torch.nn.Module):
             def __init__(self, periodic, dtype, out):
-                super().__init__()
+                super(aten_hann_window, self).__init__()
                 self.periodic = periodic
                 self.dtype = dtype
 
@@ -56,8 +56,9 @@ class TestHannWindow(PytorchLayerTest):
             def forward_periodic(self, x):
                 return torch.hann_window(x, periodic=self.periodic)
 
+        ref_net = None
 
-        return aten_hann_window(periodic, torch_dtype, out), "aten::hann_window"
+        return aten_hann_window(periodic, torch_dtype, out), ref_net, "aten::hann_window"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

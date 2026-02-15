@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/add.hpp"
@@ -32,13 +31,13 @@ ov::OutputVector matmulintegertofloat(const ov::frontend::onnx::Node& node) {
     const auto& b_scale = inputs[3];
 
     ov::Output<ov::Node> a_zero_point =
-        common::is_input_valid(node, 4)
+        (inputs.size() > 4)
             ? inputs[4]
             : std::make_shared<ov::op::v0::Constant>(a_int.get_element_type(), ov::Shape{}, std::vector<int8_t>{0});
     ov::Output<ov::Node> b_zero_point =
-        common::is_input_valid(node, 5)
+        (inputs.size() > 5)
             ? inputs[5]
-            : std::make_shared<ov::op::v0::Constant>(b_int.get_element_type(), ov::Shape{}, std::vector<int8_t>{0});
+            : std::make_shared<ov::op::v0::Constant>(a_int.get_element_type(), ov::Shape{}, std::vector<int8_t>{0});
 
     CHECK_VALID_NODE(node,
                      a_int.get_element_type() == ov::element::i8 || a_int.get_element_type() == ov::element::u8,
@@ -63,26 +62,21 @@ ov::OutputVector matmulintegertofloat(const ov::frontend::onnx::Node& node) {
 
     const auto matmul_result = std::make_shared<ov::op::v0::MatMul>(a_scaled, b_scaled);
 
-    if (common::is_input_valid(node, 6)) {
+    if (inputs.size() > 6) {
         auto& bias = inputs[6];
-        const auto bias_shape = bias.get_partial_shape();
         CHECK_VALID_NODE(node,
-                         bias_shape.rank().is_static() && bias_shape.rank().get_length() == 1,
+                         bias.get_partial_shape().rank().get_length() == 1,
                          "Bias tensor must be 1D. Got shape: ",
-                         bias_shape);
+                         bias.get_partial_shape());
 
-        const auto b_shape = b_int.get_partial_shape();
+        const auto b_last_dim = b_int.get_partial_shape().get_shape().back();
+        const auto bias_dim = bias.get_partial_shape()[0].get_length();
         CHECK_VALID_NODE(node,
-                         b_shape.rank().is_static() && b_shape.rank().get_length() >= 2,
-                         "Input B must have static rank >= 2 to validate bias shape, got: ",
-                         b_shape);
-        const auto last_dim_idx = b_shape.rank().get_length() - 1;
-        CHECK_VALID_NODE(node,
-                         bias_shape[0].compatible(b_shape[last_dim_idx]),
+                         static_cast<long int>(b_int.get_partial_shape().get_shape().back()) == bias_dim,
                          "Bias dimension must match the last dimension of B. Expected: ",
-                         b_shape[last_dim_idx],
+                         b_last_dim,
                          ", but got: ",
-                         bias_shape[0]);
+                         bias_dim);
 
         return {std::make_shared<ov::op::v1::Add>(matmul_result, bias)};
     }

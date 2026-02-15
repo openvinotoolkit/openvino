@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -250,7 +250,7 @@ void PagedAttention::createPrimitive() {
                                     quantKeybyChannel,
                                     quantValuebyChannel,
                                     cpuConfig.enableSageAttn};
-        return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision, params, context->getCpuParallel());
+        return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision, params);
 #else
         return nullptr;
 #endif

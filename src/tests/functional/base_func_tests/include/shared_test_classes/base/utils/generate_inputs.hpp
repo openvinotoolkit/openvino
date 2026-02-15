@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ using InputsMap = std::map<ov::NodeTypeInfo, std::function<ov::Tensor(
         const ov::Shape& targetShape,
         std::shared_ptr<InputGenerateData> inGenRangeData)>>;
 
-const InputsMap& getInputMap();
+InputsMap getInputMap();
 
 } // namespace utils
 } // namespace test

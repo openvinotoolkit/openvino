@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,7 +63,7 @@ protected:
             std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, -3.40282e+38f);
         const auto add = std::make_shared<ov::op::v1::Add>(concat, const_large_negative);
 
-        function = create_ov_model(ElementType::f32, parameters, add, "PowerStaticBF16Saturation");
+        function = makeNgraphFunction(ElementType::f32, parameters, add, "PowerStaticBF16Saturation");
         configuration.insert({ov::hint::inference_precision(ov::element::bf16)});
         configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::DISABLE));
     }
@@ -148,7 +148,7 @@ protected:
         auto subtract_step = std::make_shared<ov::op::v1::Subtract>(const_one, multiply_step);
         auto final_multiply = std::make_shared<ov::op::v1::Multiply>(subtract_step, const_large_negative);
 
-        function = create_ov_model(ElementType::f32, parameters, final_multiply, "PowerStaticBetaBF16Saturation");
+        function = makeNgraphFunction(ElementType::f32, parameters, final_multiply, "PowerStaticBetaBF16Saturation");
         configuration.insert({ov::hint::inference_precision(ov::element::bf16)});
         configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::DISABLE));
     }

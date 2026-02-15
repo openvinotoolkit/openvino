@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
-#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/w_dirent.h"
 #include "openvino/runtime/internal_properties.hpp"
@@ -29,69 +28,9 @@
 #    include <unistd.h>
 #endif  // _WIN32
 
-namespace ov::test::utils {
-
-/// OS specific file traits
-template <class C>
-struct FileTraits;
-
-template <>
-struct FileTraits<char> {
-    static constexpr const auto file_separator =
-#ifdef _WIN32
-        '\\';
-#else
-        '/';
-#endif
-    static constexpr const auto dot_symbol = '.';
-    static std::string library_ext() {
-#ifdef _WIN32
-        return {"dll"};
-#else
-        return {"so"};
-#endif
-    }
-    static std::string library_prefix() {
-#ifdef _WIN32
-#    if defined(__MINGW32__) || defined(__MINGW64__)
-        return {"lib"};
-#    else
-        return {""};
-#    endif
-#else
-        return {"lib"};
-#endif
-    }
-};
-
-template <>
-struct FileTraits<wchar_t> {
-    static constexpr const auto file_separator =
-#ifdef _WIN32
-        L'\\';
-#else
-        L'/';
-#endif
-    static constexpr const auto dot_symbol = L'.';
-    static std::wstring library_ext() {
-#ifdef _WIN32
-        return {L"dll"};
-#else
-        return {L"so"};
-#endif
-    }
-    static std::wstring library_prefix() {
-#ifdef _WIN32
-#    if defined(__MINGW32__) || defined(__MINGW64__)
-        return {L"lib"};
-#    else
-        return {L""};
-#    endif
-#else
-        return {L"lib"};
-#endif
-    }
-};
+namespace ov {
+namespace test {
+namespace utils {
 
 template <class T>
 inline std::string to_string_c_locale(T value) {
@@ -101,9 +40,10 @@ inline std::string to_string_c_locale(T value) {
     return val_stream.str();
 }
 
-template <class C, std::enable_if_t<(std::is_same_v<C, char> || std::is_same_v<C, wchar_t>)>* = nullptr>
-inline std::basic_string<C> makePath(const std::basic_string<C>& folder, const std::basic_string<C>& file) {
-    return folder.empty() ? file : folder + FileTraits<C>::file_separator + file;
+inline std::string makePath(const std::string& folder, const std::string& file) {
+    if (folder.empty())
+        return file;
+    return folder + FileSeparator + file;
 }
 
 inline long long fileSize(const char* fileName) {
@@ -137,11 +77,11 @@ inline void removeFile(const std::string& path) {
 
 inline void removeIRFiles(const std::string& xmlFilePath, const std::string& binFileName) {
     if (fileExists(xmlFilePath)) {
-        std::filesystem::remove(ov::util::make_path(xmlFilePath));
+        std::remove(xmlFilePath.c_str());
     }
 
     if (fileExists(binFileName)) {
-        std::filesystem::remove(ov::util::make_path(binFileName));
+        std::remove(binFileName.c_str());
     }
 }
 
@@ -241,9 +181,9 @@ std::string getCurrentWorkingDir();
 std::string getRelativePath(const std::string& from, const std::string& to);
 
 namespace {
-inline std::filesystem::path get_mock_engine_path() {
+inline std::string get_mock_engine_path() {
     std::string mockEngineName("mock_engine");
-    return ov::util::make_plugin_library_name(ov::util::make_path(ov::test::utils::getExecutableDirectory()),
+    return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                               mockEngineName + OV_BUILD_POSTFIX);
 }
 
@@ -330,4 +270,6 @@ using StringPathVariant = std::variant<std::string, std::u16string, std::u32stri
 
 std::filesystem::path to_fs_path(const StringPathVariant& param);
 
-}  // namespace ov::test::utils
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

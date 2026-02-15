@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -14,10 +14,10 @@ class Testwhere(PytorchLayerTest):
         if mask_fill == 'ones':
             mask = np.ones(input_shape).astype(mask_dtype)
         if mask_fill == 'random':
-            idx = self.random.choice(10, 5)
+            idx = np.random.choice(10, 5)
             mask[:, idx] = 1
-        x = self.random.randn(*input_shape, dtype=x_dtype)
-        y = self.random.randn(*input_shape, dtype=y_dtype or x_dtype)
+        x = np.random.randn(*input_shape).astype(x_dtype)
+        y = np.random.randn(*input_shape).astype(y_dtype or x_dtype)
         return (mask,) if not return_x_y else (mask, x, y)
 
     def create_model(self, as_non_zero, dtypes=None):
@@ -46,10 +46,11 @@ class Testwhere(PytorchLayerTest):
             def forward(self, cond):
                 return torch.where(cond)
 
+        ref_net = None
 
         if as_non_zero:
-            return aten_where_as_nonzero(), "aten::where"
-        return aten_where(torch_dtypes), "aten::where"
+            return aten_where_as_nonzero(), ref_net, "aten::where"
+        return aten_where(torch_dtypes), ref_net, "aten::where"
 
     @pytest.mark.parametrize(
         "mask_fill", ['zeros', 'ones', 'random'])

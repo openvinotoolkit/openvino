@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -9,14 +9,14 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestRoll(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.uniform(0, 50, (2, 3, 4), dtype=np.float32),)
+        return (np.random.uniform(0, 50, (2, 3, 4)).astype(np.float32),)
 
     def create_model(self, shifts, dim):
         import torch
 
         class aten_roll(torch.nn.Module):
             def __init__(self, shifts, dim=None):
-                super().__init__()
+                super(aten_roll, self).__init__()
                 self.dim = dim
                 self.shifts = shifts
 
@@ -25,8 +25,9 @@ class TestRoll(PytorchLayerTest):
                     return torch.roll(x, self.shifts, self.dim)
                 return torch.roll(x, self.shifts)
 
+        ref_net = None
 
-        return aten_roll(shifts, dim), "aten::roll"
+        return aten_roll(shifts, dim), ref_net, "aten::roll"
 
     @pytest.mark.parametrize(("shifts", "dim"), [
         [(2, 1), (0, 1)],

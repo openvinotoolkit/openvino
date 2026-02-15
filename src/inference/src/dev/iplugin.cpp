@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,11 +40,7 @@ bool is_graph_input_node(const std::shared_ptr<ov::Node>& node) {
 
 }  // namespace
 
-ov::IPlugin::IPlugin()
-    : m_plugin_name(),
-      m_core(),
-      m_executor_manager(ov::threading::executor_manager()),
-      m_version() {}
+ov::IPlugin::IPlugin() : m_executor_manager(ov::threading::executor_manager()) {}
 
 void ov::IPlugin::set_version(const ov::Version& version) {
     m_version = version;
@@ -483,7 +479,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
     // and operation names from original model
     for (auto&& name : supported) {
         if (original_ops.count(name)) {
-            res.insert(std::move(name));
+            res.insert(name);
         }
     }
     // Remove parameters (or parameter/constant + convert) which has no supported consumers

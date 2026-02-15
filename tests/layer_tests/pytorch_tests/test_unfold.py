@@ -1,6 +1,7 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
 import pytest
 import torch
 
@@ -31,15 +32,16 @@ class TestUnfold(PytorchLayerTest):
             def forward(self, input_tensor):
                 return input_tensor.unfold(dimension=self.dimension, size=self.size, step=self.step)
 
+        ref_net = None
 
-        return aten_unfold(dimension, size, step), "aten::unfold"
+        return aten_unfold(dimension, size, step), ref_net, "aten::unfold"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_unfold(self, ie_device, precision, ir_version, dimension, size, step, input_shape):
-        self.input_tensor = self.random.randn(*input_shape)
+        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
         dyn_shape = True
         if ie_device == "GPU" and size == 1 and step == 1:
             dyn_shape = False

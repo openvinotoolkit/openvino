@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -11,7 +11,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestMaskedScatter(PytorchLayerTest):
     def _prepare_input(self, shape, x_dtype="float32", mask_dtype="bool", out=False):
         import numpy as np
-        x = self.random.randn(*shape, dtype=x_dtype)
+        x = np.random.randn(*shape).astype(x_dtype)
         mask = (x > 0.5).astype(mask_dtype)
         source = np.arange(np.size(x)).reshape(shape).astype(x_dtype)
         if not out:
@@ -24,7 +24,7 @@ class TestMaskedScatter(PytorchLayerTest):
 
         class aten_masked_scatter(torch.nn.Module):
             def __init__(self, out, inplace):
-                super().__init__()
+                super(aten_masked_scatter, self).__init__()
                 if inplace:
                     self.forward = self.forward_inplace
                 if out:
@@ -39,8 +39,9 @@ class TestMaskedScatter(PytorchLayerTest):
             def forward_inplace(self, x, mask, source):
                 return x.masked_scatter_(mask, source), x
 
+        ref_net = None
 
-        return aten_masked_scatter(out, inplace), "aten::masked_scatter" if not inplace else "aten::masked_scatter_"
+        return aten_masked_scatter(out, inplace), ref_net, "aten::masked_scatter" if not inplace else "aten::masked_scatter_"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

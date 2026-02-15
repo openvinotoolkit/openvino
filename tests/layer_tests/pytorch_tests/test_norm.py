@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -14,7 +14,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestNorm(PytorchLayerTest):
 
     def _prepare_input(self):
-        return (self.random.randn(1, 2, 3),)
+        return (np.random.randn(1, 2, 3).astype(np.float32),)
 
     def create_model(self, p, dim, keepdim):
         class aten_norm(torch.nn.Module):
@@ -28,8 +28,9 @@ class TestNorm(PytorchLayerTest):
             def forward(self, input_data):
                 return torch._VF.norm(input_data, self.p, self.dim, self.keepdim)
 
+        ref_net = None
 
-        return aten_norm(p, dim, keepdim), "aten::norm"
+        return aten_norm(p, dim, keepdim), ref_net, "aten::norm"
 
     def create_model_tensor_norm(self, p, dim, keepdim):
         class aten_norm(torch.nn.Module):
@@ -50,8 +51,9 @@ class TestNorm(PytorchLayerTest):
             def forward2(self, input_data):
                 return input_data.norm(self.p)
 
+        ref_net = None
 
-        return aten_norm(p, dim, keepdim), "aten::norm"
+        return aten_norm(p, dim, keepdim), ref_net, "aten::norm"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -74,13 +76,13 @@ class TestNorm(PytorchLayerTest):
 class TestWeightNorm(PytorchLayerTest):
 
     def _prepare_input(self):
-        return (self.random.randn(1, 60, 20),)
+        return (np.random.randn(1, 60, 20).astype(np.float32),)
 
     def create_model(self):
         from torch import nn
         from torch.nn.utils import weight_norm
 
-        return weight_norm(nn.Linear(20, 40), name='weight'), "aten::_weight_norm"
+        return weight_norm(nn.Linear(20, 40), name='weight'), None, "aten::_weight_norm"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -90,7 +92,7 @@ class TestWeightNorm(PytorchLayerTest):
 
 class TestFrobeniusNorm(PytorchLayerTest):
     def _prepare_input(self, out=False, dtype="float32"):
-        x = self.random.randn(10, 12, 14, dtype=dtype)
+        x = np.random.randn(10, 12, 14).astype(dtype)
         if not out:
             return (x,)
         y = np.zeros_like(x)
@@ -112,8 +114,9 @@ class TestFrobeniusNorm(PytorchLayerTest):
             def forward_out(self, input_data, out):
                 return torch._VF.frobenius_norm(input_data, self.dim, self.keepdim, out=out), out
 
+        ref_net = None
 
-        return aten_frobenius_norm(dim, keepdim, out), "aten::frobenius_norm"
+        return aten_frobenius_norm(dim, keepdim, out), ref_net, "aten::frobenius_norm"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -131,9 +134,9 @@ class TestLinalgVectorNorm(PytorchLayerTest):
 
     def _prepare_input(self, out=False, out_dtype=None):
         if not out:
-            return (self.random.randn(1, 2, 3),)
-        x = self.random.randn(1, 2, 3)
-        y = self.random.randn(1, 2, 3, dtype=
+            return (np.random.randn(1, 2, 3).astype(np.float32),)
+        x = np.random.randn(1, 2, 3).astype(np.float32)
+        y = np.random.randn(1, 2, 3).astype(
             out_dtype if out_dtype is not None else np.float32)
         return (x, y)
 
@@ -179,8 +182,9 @@ class TestLinalgVectorNorm(PytorchLayerTest):
                     x, ord=self.ord, dim=self.dim, keepdim=self.keepdim, out=y
                 )
 
+        ref_net = None
 
-        return aten_linalg_vector_norm(p, dim, keepdim, dtype, out, out_as_dtype), "aten::linalg_vector_norm"
+        return aten_linalg_vector_norm(p, dim, keepdim, dtype, out, out_as_dtype), ref_net, "aten::linalg_vector_norm"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -200,9 +204,9 @@ class TestLinalgMatrixNorm(PytorchLayerTest):
 
     def _prepare_input(self, out=False, out_dtype=None):
         if not out:
-            return (self.random.randn(3, 3),)
-        x = self.random.randn(1, 3, 3)
-        y = self.random.randn(1, 3, 3, dtype=
+            return (np.random.randn(3, 3).astype(np.float32),)
+        x = np.random.randn(1, 3, 3).astype(np.float32)
+        y = np.random.randn(1, 3, 3).astype(
             out_dtype if out_dtype is not None else np.float32)
         return (x, y)
 
@@ -248,8 +252,9 @@ class TestLinalgMatrixNorm(PytorchLayerTest):
                     x, ord=self.ord, dim=self.dim, keepdim=self.keepdim, out=y
                 )
 
+        ref_net = None
 
-        return aten_linalg_matrix_norm(p, dim, keepdim, dtype, out, out_as_dtype), "aten::linalg_matrix_norm"
+        return aten_linalg_matrix_norm(p, dim, keepdim, dtype, out, out_as_dtype), ref_net, "aten::linalg_matrix_norm"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -273,9 +278,9 @@ class TestLinalgNorm(PytorchLayerTest):
 
     def _prepare_input(self, out=False, out_dtype=None, input_shape=(3, 3)):
         if not out:
-            return (self.random.randn(*input_shape),)
-        x = self.random.randn(*input_shape)
-        y = self.random.randn(*input_shape, dtype=
+            return (np.random.randn(*input_shape).astype(np.float32),)
+        x = np.random.randn(*input_shape).astype(np.float32)
+        y = np.random.randn(*input_shape).astype(
             out_dtype if out_dtype is not None else np.float32)
         return (x, y)
 
@@ -321,8 +326,9 @@ class TestLinalgNorm(PytorchLayerTest):
                     x, ord=self.ord, dim=self.dim, keepdim=self.keepdim, out=y
                 )
 
+        ref_net = None
 
-        return aten_linalg_matrix_norm(p, dim, keepdim, dtype, out, out_as_dtype), "aten::linalg_norm"
+        return aten_linalg_matrix_norm(p, dim, keepdim, dtype, out, out_as_dtype), ref_net, "aten::linalg_norm"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -349,14 +355,14 @@ class TestLinalgNorm(PytorchLayerTest):
 class TestTrickyNorm(PytorchLayerTest):
 
     def _prepare_input(self, input_shape=(3, 3)):
-        return (self.random.randn(*input_shape),)
+        return (np.random.randn(*input_shape).astype(np.float32),)
 
     def create_model(self):
         class aten_norm(torch.nn.Module):
             def forward(self, x):
                 return torch.nn.functional.normalize(x, eps=2)
 
-        return aten_norm(), ["aten::linalg_vector_norm", "aten::clamp_min"]
+        return aten_norm(), None, ["aten::linalg_vector_norm", "aten::clamp_min"]
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -368,7 +374,7 @@ class TestTrickyNorm(PytorchLayerTest):
 
 class TestRMSNorm(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(2, 5, 10, 10),)
+        return (np.random.randn(2, 5, 10, 10).astype(np.float32),)
 
     def create_model(self, normalized_shape, eps, gamma):
         class aten_rms_norm(torch.nn.Module):
@@ -381,7 +387,7 @@ class TestRMSNorm(PytorchLayerTest):
             def forward(self, input_data):
                 return self.rms(input_data)
 
-        return aten_rms_norm(normalized_shape, eps, gamma), "aten::rms_norm"
+        return aten_rms_norm(normalized_shape, eps, gamma), None, "aten::rms_norm"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

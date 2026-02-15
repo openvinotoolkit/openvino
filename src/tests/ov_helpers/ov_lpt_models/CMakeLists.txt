@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -25,6 +25,7 @@ ov_build_target_faster(${TARGET_NAME}
     UNITY
     PCH_HEADER "src/precomp.hpp"
 )
+
 # install & export
 
 ov_developer_package_export_targets(TARGET ${TARGET_NAME}

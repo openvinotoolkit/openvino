@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,6 @@
 #include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
 #include "gtest/gtest.h"
-#include "onnx_editor_test_utils.hpp"
 #include "onnx_utils.hpp"
 #include "openvino/op/constant.hpp"
 
@@ -86,7 +85,6 @@ OPENVINO_TEST(onnx_editor, types__all_inputs_type_substitution) {
 }
 
 OPENVINO_TEST(onnx_editor, types__missing_type_in_input_descriptor) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     auto input_model = load_model("model_editor/invalid_input_no_type.onnx");
 
     // input A doesn't have the "type" field in the model and so the data type cannot be modified
@@ -95,7 +93,6 @@ OPENVINO_TEST(onnx_editor, types__missing_type_in_input_descriptor) {
 }
 
 OPENVINO_TEST(onnx_editor, types__missing_tensor_type_in_input_descriptor) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     auto input_model = load_model("model_editor/invalid_input_no_tensor_type.onnx");
 
     // input A doesn't have the "tensor_type" field in the model
@@ -104,7 +101,6 @@ OPENVINO_TEST(onnx_editor, types__missing_tensor_type_in_input_descriptor) {
 }
 
 OPENVINO_TEST(onnx_editor, types__unsupported_data_type_passed) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     auto input_model = load_model("model_editor/add_abc.onnx");
 
     EXPECT_THROW(input_model->set_element_type(input_model->get_place_by_tensor_name("A"), ov::element::dynamic),
@@ -255,7 +251,6 @@ OPENVINO_TEST(onnx_editor, shapes__static_to_dynamic_rank_substitution) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__linear_model_head_cut) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph__inception_head.onnx", &front_end);
 
@@ -271,7 +266,6 @@ OPENVINO_TEST(onnx_editor, subgraph__linear_model_head_cut) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__linear_model_head_cut_ins_and_outs) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph__inception_head.onnx", &front_end);
 
@@ -287,7 +281,6 @@ OPENVINO_TEST(onnx_editor, subgraph__linear_model_head_cut_ins_and_outs) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__linear_model_deeper_head_cut) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph__inception_head.onnx", &front_end);
 
@@ -303,7 +296,6 @@ OPENVINO_TEST(onnx_editor, subgraph__linear_model_deeper_head_cut) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__linear_model_tail_cut) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph__inception_head.onnx", &front_end);
 
@@ -319,7 +311,6 @@ OPENVINO_TEST(onnx_editor, subgraph__linear_model_tail_cut) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__linear_model_tail_cut_ins_and_outs) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph__inception_head.onnx", &front_end);
 
@@ -335,7 +326,6 @@ OPENVINO_TEST(onnx_editor, subgraph__linear_model_tail_cut_ins_and_outs) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__linear_model_with_initializer_tail_cut) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph__inception_head_with_initializer.onnx", &front_end);
 
@@ -351,7 +341,6 @@ OPENVINO_TEST(onnx_editor, subgraph__linear_model_with_initializer_tail_cut) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__initializer_without_matching_input_tail_cut) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph__initializer_without_matching_input.onnx", &front_end);
 
@@ -367,7 +356,6 @@ OPENVINO_TEST(onnx_editor, subgraph__initializer_without_matching_input_tail_cut
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__linear_model_deeper_tail_cut) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph__inception_head.onnx", &front_end);
 
@@ -383,7 +371,6 @@ OPENVINO_TEST(onnx_editor, subgraph__linear_model_deeper_tail_cut) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__no_input_params) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph__inception_head.onnx", &front_end);
 
@@ -399,7 +386,6 @@ OPENVINO_TEST(onnx_editor, subgraph__no_input_params) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__initializer_to_input_replacement) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph__inception_head_with_initializer.onnx", &front_end);
 
@@ -416,7 +402,6 @@ OPENVINO_TEST(onnx_editor, subgraph__initializer_to_input_replacement) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__initializer_to_input_replacement_2) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph__initializer_without_matching_input.onnx", &front_end);
 
@@ -433,7 +418,6 @@ OPENVINO_TEST(onnx_editor, subgraph__initializer_to_input_replacement_2) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__multiout_op_output_edge) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx", &front_end);
 
@@ -449,7 +433,6 @@ OPENVINO_TEST(onnx_editor, subgraph__multiout_op_output_edge) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__existing_inputs_and_outputs_based_extraction) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx", &front_end);
 
@@ -468,7 +451,6 @@ OPENVINO_TEST(onnx_editor, subgraph__existing_inputs_and_outputs_based_extractio
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__twice_input_edge_from_tensor_with_single_consumer) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/add_ab.onnx", &front_end);
 
@@ -491,7 +473,6 @@ OPENVINO_TEST(onnx_editor, subgraph__twice_input_edge_from_tensor_with_single_co
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx", &front_end);
 
@@ -519,7 +500,6 @@ OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consum
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers_2) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx", &front_end);
 
@@ -545,7 +525,6 @@ OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consum
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers_3) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx", &front_end);
 
@@ -572,7 +551,6 @@ OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consum
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers_4) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx", &front_end);
 
@@ -597,7 +575,6 @@ OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consum
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers_5) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx", &front_end);
 
@@ -623,7 +600,6 @@ OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consum
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers_custom_names) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx", &front_end);
 
@@ -657,7 +633,6 @@ OPENVINO_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consum
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_input_relu2) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph_extraction_tests_2.onnx", &front_end);
 
@@ -675,7 +650,6 @@ OPENVINO_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_input_relu2) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph_extraction_tests_2.onnx", &front_end);
 
@@ -693,7 +667,6 @@ OPENVINO_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer_2) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph_extraction_tests_2.onnx", &front_end);
 
@@ -713,7 +686,6 @@ OPENVINO_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer_2) 
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer_relu2_and_init) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph_extraction_tests_2.onnx", &front_end);
 
@@ -741,7 +713,6 @@ OPENVINO_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer_rel
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__inputs_getter) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph__inception_head.onnx", &front_end);
 
@@ -761,7 +732,6 @@ OPENVINO_TEST(onnx_editor, subgraph__inputs_getter) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__custom_input_name_already_exist) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph__inception_head.onnx", &front_end);
     try {
@@ -773,7 +743,6 @@ OPENVINO_TEST(onnx_editor, subgraph__custom_input_name_already_exist) {
 }
 
 OPENVINO_TEST(onnx_editor, values__append_one_initializer) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/add_1D.onnx", &front_end);
 
@@ -811,7 +780,6 @@ OPENVINO_TEST(onnx_editor, values__append_two_initializers_to_invalid) {
 */
 
 OPENVINO_TEST(onnx_editor, values__modify_one_initializer) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/add_1D_with_initializers.onnx", &front_end);
 
@@ -825,7 +793,6 @@ OPENVINO_TEST(onnx_editor, values__modify_one_initializer) {
 }
 
 OPENVINO_TEST(onnx_editor, values__modify_two_initializers) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/add_1D_with_initializers.onnx", &front_end);
 
@@ -862,7 +829,6 @@ OPENVINO_TEST(onnx_editor, values__no_inputs_modify_two_initializers) {
 */
 
 OPENVINO_TEST(onnx_editor, values__append_two_initializers_change_shape_type) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/add_1D.onnx", &front_end);
 
@@ -883,7 +849,6 @@ OPENVINO_TEST(onnx_editor, values__append_two_initializers_change_shape_type) {
 }
 
 OPENVINO_TEST(onnx_editor, values__append_two_initializers_mixed_types) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("gather_elements_float_3D_axis_2.onnx", &front_end);
     auto place = input_model->get_place_by_tensor_name("data");
@@ -903,7 +868,6 @@ OPENVINO_TEST(onnx_editor, values__append_two_initializers_mixed_types) {
 }
 
 OPENVINO_TEST(onnx_editor, combined__cut_and_replace_shape) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/subgraph__inception_head.onnx", &front_end);
 
@@ -925,7 +889,6 @@ OPENVINO_TEST(onnx_editor, combined__cut_and_replace_shape) {
 }
 
 OPENVINO_TEST(onnx_editor, cut_operator_with_no_schema) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/unknown_input_value_info.onnx", &front_end);
     input_model->extract_subgraph({input_model->get_place_by_tensor_name("X")}, {});
@@ -998,7 +961,6 @@ OPENVINO_TEST(onnx_editor, model_output) {
 }
 
 OPENVINO_TEST(onnx_editor, get_tensor_shape) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx");
     EXPECT_EQ(input_model->get_partial_shape(input_model->get_place_by_tensor_name("mul2")),
               (PartialShape{1, 1, 2, 2}));
@@ -1017,7 +979,6 @@ OPENVINO_TEST(onnx_editor, get_tensor_shape) {
 }
 
 OPENVINO_TEST(onnx_editor, get_tensor_shape_after_modification) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx");
     EXPECT_EQ(input_model->get_partial_shape(input_model->get_place_by_tensor_name("in3")), (PartialShape{1, 1, 2, 2}));
     EXPECT_EQ(input_model->get_partial_shape(input_model->get_place_by_tensor_name("conv1")),
@@ -1047,7 +1008,6 @@ OPENVINO_TEST(onnx_editor, is_correct_tensor_name) {
 }
 
 OPENVINO_TEST(onnx_editor, get_input_ports) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx");
     const auto ports_1 = input_model->get_place_by_operation_name("relu1_name");
     ASSERT_TRUE(ports_1 != nullptr) << "get_place_by_operation_name(\"relu1_name\") returned nullptr";
@@ -1067,7 +1027,6 @@ OPENVINO_TEST(onnx_editor, get_input_ports) {
 }
 
 OPENVINO_TEST(onnx_editor, get_output_ports) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx");
     const auto ports_1 = input_model->get_place_by_operation_name("relu1_name");
     ASSERT_TRUE(ports_1 != nullptr) << "get_place_by_operation_name(\"relu1_name\") returned nullptr";
@@ -1107,7 +1066,6 @@ OPENVINO_TEST(onnx_editor, get_output_ports) {
 }
 
 OPENVINO_TEST(onnx_editor, add_output) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     auto input_model = load_model("model_editor/add_abc.onnx");
 
     auto add_node1_place = input_model->get_place_by_operation_name("add_node1");
@@ -1129,7 +1087,6 @@ OPENVINO_TEST(onnx_editor, get_tensor_element_type) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__duplicated_output) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/add_ab_duplicated_output.onnx", &front_end);
     const auto y_out = input_model->get_place_by_tensor_name("Y");
@@ -1147,7 +1104,6 @@ OPENVINO_TEST(onnx_editor, subgraph__duplicated_output) {
 }
 
 OPENVINO_TEST(onnx_editor, subgraph__duplicated_output_2) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/add_ab_duplicated_output.onnx", &front_end);
     const auto y_out_1 = input_model->get_place_by_tensor_name("Y");
@@ -1167,7 +1123,6 @@ OPENVINO_TEST(onnx_editor, subgraph__duplicated_output_2) {
 }
 
 OPENVINO_TEST(onnx_editor, onnx_shape_infer_exception) {
-    SKIP_ONNX_EDITOR_IF_GRAPH_ITERATOR_ENABLED();
     auto input_model = load_model("model_editor/onnx_shape_infer_exception.onnx");
 
     EXPECT_NO_THROW(input_model->extract_subgraph({input_model->get_place_by_operation_name("input_ReduceMin")}, {}));

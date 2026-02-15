@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -129,7 +129,6 @@ OP_CONVERTER(translate_hann_window);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_hstack);
 OP_CONVERTER(translate_if);
-OP_CONVERTER(translate_cond_fx);
 OP_CONVERTER(translate_im2col);
 OP_CONVERTER(translate_index);
 OP_CONVERTER(translate_index_add);
@@ -162,7 +161,6 @@ OP_CONVERTER(translate_log2);
 OP_CONVERTER(translate_log10);
 OP_CONVERTER(translate_logsumexp);
 OP_CONVERTER(translate_loop);
-OP_CONVERTER(translate_while_loop_fx);
 OP_CONVERTER(translate_lstm);
 OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_masked_scatter);
@@ -266,9 +264,7 @@ OP_CONVERTER(translate_topk);
 OP_CONVERTER(translate_transpose);
 OP_CONVERTER(translate_tril);
 OP_CONVERTER(translate_triu);
-OP_CONVERTER(translate_type_as);
 OP_CONVERTER(translate_tuple_index);
-OP_CONVERTER(translate_tuple_unpack);
 OP_CONVERTER(translate_unflatten);
 OP_CONVERTER(translate_unfold);
 OP_CONVERTER(translate_unique2);
@@ -756,7 +752,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::transpose", op::quantizable_op<op::translate_transpose>},
         {"aten::tril", op::translate_tril},
         {"aten::triu", op::translate_triu},
-        {"aten::type_as", op::translate_type_as},
+        {"aten::type_as",
+         op::translate_1to1_match_2_inputs<opset10::ConvertLike>},  // TODO: overflow semantics is different
         // aten::unbind - Supported in limited set of patterns
         {"aten::unflatten", op::translate_unflatten},
         {"aten::unfold", op::translate_unfold},
@@ -802,9 +799,9 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"prim::NumToTensor", op::skip_node},  // In openvino we already store number as tensor with shape []
         {"prim::PythonOp", op::translate_pythonop},
         {"prim::requires_grad", op::return_false_scalar},
-        {"prim::TupleConstruct", op::translate_list_construct},
+        // prim::TupleConstruct - Supported in limited set of patterns
         {"prim::TupleIndex", op::translate_tuple_index},
-        {"prim::TupleUnpack", op::translate_tuple_unpack},
+        // prim::TupleUnpack - Supported in limited set of patterns
         {"prim::type", op::skip_node},  // Used with prim::device, pass PtFrameworkNode.
         {"prim::data", op::skip_node},
         {"quantized::add", op::translate_quantized_add},
@@ -1117,11 +1114,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"quantized_decomposed.quantize_per_channel.default", op::translate_quantize_per_channel_fx},
         {"quantized_decomposed.dequantize_per_tensor.default", op::skip_node},
         {"quantized_decomposed.dequantize_per_channel.default", op::skip_node},
-        {"inlined.constant.default", op::translate_constant},    // this is a custom ov type
-        {"inlined.list.default", op::translate_list_construct},  // this is a custom list type
-        // Higher-order operations from torch.export (torch.cond, torch.while_loop, etc.)
-        {"cond", op::translate_cond_fx},
-        {"while_loop", op::translate_while_loop_fx},
+        {"inlined.constant.default", op::translate_constant},  // this is a custom ov type
     };
 };
 

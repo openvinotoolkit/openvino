@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -324,14 +324,14 @@ KERNEL(broadcast_gpu_ref)(
             y_nums += remained_y;
 
         #if HAS_FUSED_OPS
-            INPUT0_TYPE res = 0;
+            OUTPUT_TYPE res = 0;
         #endif
         if (OUTPUT_SIZE_X < VEC_SIZE) {
             uint output_idx = out_pos;
             unroll_for(uint i = 0; i < y_nums; i++) {
                 unroll_for(uint offset = 0; offset < x_stride; offset++) {
                     #if HAS_FUSED_OPS
-                        res = input[idx_pos + offset];
+                        res = TO_OUTPUT_TYPE(input[idx_pos + offset]);
                         FUSED_OPS
                         output[output_idx + offset] = FUSED_OPS_RESULT;
                     #else
@@ -347,7 +347,7 @@ KERNEL(broadcast_gpu_ref)(
                 OUTPUT_VTYPE out_v;
                 for (int offset = 0; offset < VEC_SIZE; ++offset) {
                     #if HAS_FUSED_OPS
-                        res = input_vec[offset];
+                        res = TO_OUTPUT_TYPE(input_vec[offset]);
                         FUSED_OPS
                         out_v[offset] = FUSED_OPS_RESULT;
                     #else
@@ -361,7 +361,7 @@ KERNEL(broadcast_gpu_ref)(
             if (gdim0 < x_leftovers) {
                 INPUT0_TYPE input_val = input[idx_pos + x_stride];
                 #if HAS_FUSED_OPS
-                    res = input_val;
+                    res = TO_OUTPUT_TYPE(input_val);
                 #endif
 
                 uint offset = x_stride;
@@ -409,9 +409,8 @@ KERNEL(broadcast_gpu_ref)(
         const uint idx_pos = FUNC_CALL(get_idx_pos)(OPTIONAL_SHAPE_INFO_TENSOR out_b, out_f, out_y, out_x);
 #endif
         #if HAS_FUSED_OPS
-            const uint offset = 0;
-            const uint i = 0;
-            INPUT0_TYPE res = input[idx_pos];
+            uint offset = 0;
+            OUTPUT_TYPE res = TO_OUTPUT_TYPE(input[idx_pos]);
             FUSED_OPS
             output[out_pos] = FUSED_OPS_RESULT;
         #else

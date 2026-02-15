@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,10 +23,6 @@
 namespace ov::intel_cpu::itt::domains {
 OV_ITT_DOMAIN(ov_intel_cpu, "ov::intel_cpu");
 OV_ITT_DOMAIN(ov_intel_cpu_LT, "ov::intel_cpu::lt");
-// Domain namespace to define CPU Inference phase tasks
-OV_ITT_DOMAIN(ov_cpu_inference, "ov::phases::cpu::inference");
-OV_ITT_DOMAIN(ov_op_cpu_exec, "ov::op::cpu::exec");
-OV_ITT_DOMAIN(ov_op_cpu_details, "ov::op::cpu::details");
 }  // namespace ov::intel_cpu::itt::domains
 
 #if defined(SELECTIVE_BUILD_ANALYZER)

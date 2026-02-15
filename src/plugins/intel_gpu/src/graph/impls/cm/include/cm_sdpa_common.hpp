@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018-2026 Intel Corporation
+ * Copyright (c) 2022-2025 Intel Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -681,7 +681,6 @@ void sdpa_kernel(
                 Transpose2DMatrix(QmatI32, rQ[num_full_blocks].format<uint, REG_K/2, q_step>());
                 rQ[num_full_blocks].format<half>() = cm_mul<half>(rQ[num_full_blocks].format<half>(), (half)scale_factor);
             }
-        }
     }
 
     constexpr int num_P_tiles = REG_N / REG_M;
@@ -696,8 +695,6 @@ void sdpa_kernel(
         //if (kv_pos < 1024000) return;
         int kv_tokens = kv_stop - kv_pos;
         if (kv_tokens <= 0) return;
-        // Calculate valid rows for this block (used to zero out garbage data)
-        int kv_valid_rows = (kv_tokens >= kv_step) ? kv_step : kv_tokens;
         uint slm_offset = (slm_buff_id_write & 3) * slm_buff_size;
         slm_buff_id_write ++;
 
@@ -711,10 +708,6 @@ void sdpa_kernel(
             for (; i < num_full_blocks; i += local_size / 2) {
                 int k = i * REG_K;
                 cm_load_2d(temp, key, k_off + k * sizeof(half), kv_pitch);
-                // Zero out unused K rows to prevent NaN from garbage data in KV cache
-                // (Similar approach as PA kernel: cm_pa_common.hpp)
-                for (int r = kv_valid_rows; r < kv_step; r++)
-                    temp.row(r) = 0;
                 cm_slm_block_write(slm_K,
                     slm_offset + k * 2 * REG_M * sizeof(half),
                     temp.format<half>());
@@ -724,9 +717,6 @@ void sdpa_kernel(
             if constexpr (head_size % REG_K > 0) {
                 int k = num_full_blocks * REG_K;
                 cm_load_2d_with_tail<2*REG_M, REG_K, head_size % REG_K>(temp, key, k_off + k * sizeof(half), kv_pitch);
-                // Zero out unused K rows
-                for (int r = kv_valid_rows; r < kv_step; r++)
-                    temp.row(r) = 0;
                 cm_slm_block_write(slm_K,
                     slm_offset + k * 2 * REG_M * sizeof(half),
                     temp.format<half>());
@@ -746,10 +736,6 @@ void sdpa_kernel(
             for (; i < num_full_blocks; i += local_size / 2) {
                 int k = i * VK_STEP;
                 cm_load_2d(temp2, value, v_off + k * sizeof(half), kv_pitch);
-                // Zero out unused V rows to prevent NaN from garbage data in KV cache
-                // (Similar approach as PA kernel: cm_pa_common.hpp)
-                for (int r = kv_valid_rows; r < kv_step; r++)
-                    temp2.row(r) = 0;
                 #pragma unroll
                 for (int p = 0; p < VK_STEP / REG_N; p++) {
                     temp_vnni.select<REG_K / 2, 1, REG_N, 2>(0, 0) = temp2.select<REG_K / 2, 2, REG_N, 1>(0, p * REG_N);
@@ -763,9 +749,6 @@ void sdpa_kernel(
             if constexpr (head_size % VK_STEP > 0) {
                 int k = num_full_blocks * VK_STEP;
                 cm_load_2d_with_tail<REG_K, VK_STEP, head_size % VK_STEP>(temp2, value, v_off + k * sizeof(half), kv_pitch);
-                // Zero out unused V rows
-                for (int r = kv_valid_rows; r < kv_step; r++)
-                    temp2.row(r) = 0;
                 #pragma unroll
                 for (int p = 0; p < VK_STEP / REG_N; p++) {
                     temp_vnni.select<REG_K / 2, 1, REG_N, 2>(0, 0) = temp2.select<REG_K / 2, 2, REG_N, 1>(0, p * REG_N);

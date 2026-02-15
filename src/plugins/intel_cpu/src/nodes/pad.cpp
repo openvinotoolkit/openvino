@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -235,7 +235,6 @@ bool Pad::isExecutable() const {
 
 void Pad::prepareParams() {
     updateLastInputDims();
-    attrs.cpuParallel = context->getCpuParallel();
     execPtr = std::make_shared<PadExecutor>(attrs, srcMemory, dstMemory);
 }
 
@@ -480,7 +479,7 @@ void Pad::PadExecutor::padConstantCommon(const MemoryPtr& srcMemPtr, const Memor
     const T value = static_cast<T>(params.attrs.padValue);
     if (zeroInputDimsCase) {
         const auto workAmount = dstMemPtr->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-        params.attrs.cpuParallel->parallel_for(workAmount, [&](size_t i) {
+        parallel_for(workAmount, [&](size_t i) {
             dstData[i] = value;
         });
 

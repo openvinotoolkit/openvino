@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -8,7 +8,8 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestTriuTril(PytorchLayerTest):
     def _prepare_input(self, shape, dtype):
-        return (self.random.randn(*shape, dtype=dtype),)
+        import numpy as np
+        return (np.random.randn(*shape).astype(dtype),)
 
     def create_model(self, op, diagonal):
 
@@ -23,15 +24,16 @@ class TestTriuTril(PytorchLayerTest):
 
         class aten_trilu(torch.nn.Module):
             def __init__(self, op, diagonal):
-                super().__init__()
+                super(aten_trilu, self).__init__()
                 self.op = op
                 self.diagonal = diagonal
 
             def forward(self, x):
                 return self.op(x, self.diagonal)
 
+        ref_net = None
 
-        return aten_trilu(pt_op, diagonal), f"aten::{op}"
+        return aten_trilu(pt_op, diagonal), ref_net, f"aten::{op}"
 
     @pytest.mark.parametrize("dtype", ["float32", "float64", "int32", "int64", "int8", "uint8", "bool"])
     @pytest.mark.parametrize("diagonal", [0, 1, 2, -1, -2])
@@ -46,7 +48,8 @@ class TestTriuTril(PytorchLayerTest):
 
 class TestTriuTrilTensor(PytorchLayerTest):
     def _prepare_input(self, shape, dtype):
-        return (self.random.randn(*shape, dtype=dtype),)
+        import numpy as np
+        return (np.random.randn(*shape).astype(dtype),)
 
     def create_model(self, op, diagonal):
 
@@ -54,7 +57,7 @@ class TestTriuTrilTensor(PytorchLayerTest):
 
         class aten_trilu(torch.nn.Module):
             def __init__(self, op, diagonal):
-                super().__init__()
+                super(aten_trilu, self).__init__()
                 op_map = {
                     "tril": self.tril,
                     "tril_": self.tril_,
@@ -76,8 +79,9 @@ class TestTriuTrilTensor(PytorchLayerTest):
             def triu_(self, x):
                 return x.triu_(self.diagonal), x
 
+        ref_net = None
 
-        return aten_trilu(op, diagonal), f"aten::{op}"
+        return aten_trilu(op, diagonal), ref_net, f"aten::{op}"
 
     @pytest.mark.parametrize("dtype", ["float32", "float64", "int32", "int64", "int8", "uint8", "bool"])
     @pytest.mark.parametrize("diagonal", [0, 1, 2, -1, -2])

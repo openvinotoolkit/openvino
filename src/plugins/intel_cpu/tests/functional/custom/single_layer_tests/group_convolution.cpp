@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -184,7 +184,7 @@ protected:
                                                                  padType,
                                                                  convOutChannels,
                                                                  numGroups);
-        function = create_ov_model(netType, params, groupConv, "groupConvolution");
+        function = makeNgraphFunction(netType, params, groupConv, "groupConvolution");
     }
 };
 

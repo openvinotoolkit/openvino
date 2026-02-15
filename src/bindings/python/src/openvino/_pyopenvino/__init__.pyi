@@ -546,7 +546,7 @@ class CoordinateDiff:
         ...
 class Core:
     """
-    openvino.Core class represents OpenVINO runtime Core entity. User applications can create several Core class instances. In that case the device plugins will still share underlying resources (such as OCL context) in per-device singleton.
+    openvino.Core class represents OpenVINO runtime Core entity. User applications can create several Core class instances, but in this case, the underlying plugins are created multiple times and not shared between several Core instances. The recommended way is to have a single Core instance per application.
     """
     def __init__(self, xml_config_file: typing.Any = '') -> None:
         ...
@@ -1173,7 +1173,7 @@ class Dimension:
         """
                         Return this dimension as integer.
                         This dimension must be static and non-negative.
-        
+
                         :return: Value of the dimension.
                         :rtype: int
         """
@@ -1933,7 +1933,7 @@ class InferRequest:
     def input_tensors(self) -> list:
         """
                     Gets all input tensors of this InferRequest.
-        
+
                     :rtype: list[openvino.Tensor]
         """
     @property
@@ -1961,7 +1961,7 @@ class InferRequest:
     def output_tensors(self) -> list:
         """
                     Gets all output tensors of this InferRequest.
-        
+
                     :rtype: list[openvino.Tensor]
         """
     @property
@@ -1971,7 +1971,7 @@ class InferRequest:
                     Not all plugins provide meaningful data!
         
                     GIL is released while running this function.
-        
+
                     :return: Inference time.
                     :rtype: list[openvino.ProfilingInfo]
         """
@@ -2709,7 +2709,7 @@ class Model:
     def get_parameters(self) -> list[op.Parameter]:
         """
                             Return the model parameters.
-        
+
                             :return: a list of model's parameters.
                             :rtype: list[op.Parameter]
         """
@@ -2848,7 +2848,7 @@ class Model:
     def get_variables(self) -> list[op.util.Variable]:
         """
                             Return a list of model's variables.
-        
+
                             :return: a list of model's variables.
                             :rtype: list[op.util.Variable]
         """
@@ -3213,7 +3213,7 @@ class Model:
     def parameters(self) -> list[op.Parameter]:
         """
                                                 Return the model parameters.
-        
+
                                                 :return: a list of model's parameters.
                                                 :rtype: list[op.Parameter]
         """
@@ -3248,7 +3248,7 @@ class Model:
     def variables(self) -> list[op.util.Variable]:
         """
                                             Return a list of model's variables.
-        
+
                                             :return: a list of model's variables.
                                             :rtype: list[op.util.Variable]
         """
@@ -3313,7 +3313,7 @@ class Node:
     def evaluate(self, output_values: TensorVector, input_values: TensorVector, evaluationContext: RTMap = ...) -> bool:
         """
                         Evaluate the node on inputs, putting results in outputs
-        
+
                         :param output_tensors: Tensors for the outputs to compute. One for each result.
                         :type output_tensors: openvino.TensorVector
                         :param input_tensors: Tensors for the inputs. One for each inputs.
@@ -3327,7 +3327,7 @@ class Node:
     def evaluate(self, output_values: list, input_values: list, evaluationContext: RTMap = ...) -> bool:
         """
                         Evaluate the node on inputs, putting results in outputs
-        
+
                         :param output_tensors: Tensors for the outputs to compute. One for each result.
                         :type output_tensors: openvino.TensorVector
                         :param input_tensors: Tensors for the inputs. One for each inputs.
@@ -3570,7 +3570,7 @@ class Node:
         """
                 Verifies that attributes and inputs are consistent and computes output shapes and element types.
                 Must be implemented by concrete child classes so that it can be run any number of times.
-        
+
                 Throws if the node is invalid.
         """
     def visit_attributes(self, arg0: AttributeVisitor) -> bool:
@@ -4856,7 +4856,7 @@ class Tensor:
         
                     Returns numpy array with corresponding shape and dtype.
         
-                    For tensors with OpenVINO specific element type, such as u1, u2, u3, u4, u6 or i4
+                    For tensors with OpenVINO specific element type, such as u1, u2, u4 or i4
                     it returns linear array, with uint8 / int8 numpy dtype.
         
                     For tensors with string element type, returns a numpy array of bytes
@@ -5013,10 +5013,8 @@ class Type:
     u1: typing.ClassVar[Type]  # value = <Type: 'uint1_t'>
     u16: typing.ClassVar[Type]  # value = <Type: 'uint16_t'>
     u2: typing.ClassVar[Type]  # value = <Type: 'uint2_t'>
-    u3: typing.ClassVar[Type]  # value = <Type: 'uint3_t'>
     u32: typing.ClassVar[Type]  # value = <Type: 'uint32_t'>
     u4: typing.ClassVar[Type]  # value = <Type: 'uint4_t'>
-    u6: typing.ClassVar[Type]  # value = <Type: 'uint6_t'>
     u64: typing.ClassVar[Type]  # value = <Type: 'uint64_t'>
     u8: typing.ClassVar[Type]  # value = <Type: 'uint8_t'>
     def __eq__(self, arg0: Type) -> bool:

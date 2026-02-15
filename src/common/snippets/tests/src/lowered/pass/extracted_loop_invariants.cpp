@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,6 @@
 #include "snippets/op/horizon_sum.hpp"
 #include "snippets/op/load.hpp"
 #include "snippets/op/powerstatic.hpp"
-#include "snippets/op/result.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/op/vector_buffer.hpp"
@@ -68,7 +67,7 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsWithParams) {
         auto broadcastmove = linear_ir->push_node<ov::snippets::op::BroadcastMove>(multiply.second, 512);
         auto sub = linear_ir->push_node<ov::opset10::Subtract>(param1.second, broadcastmove.second);
         init_expr_descriptors(*sub.first, sub_subtensor, layout_1d);
-        auto result = linear_ir->push_node<ov::snippets::op::Result>(sub.second);
+        auto result = linear_ir->push_node<ov::opset10::Result>(sub.second);
         auto begin = multiply.first;
         auto end = result.first;
         linear_ir->get_loop_manager()->mark_loop(begin, end, 512, vector_size,
@@ -87,7 +86,7 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsWithParams) {
         auto broadcastmove = linear_ir_ref->push_node<ov::snippets::op::BroadcastMove>(multiply.second, 512);
         auto sub = linear_ir_ref->push_node<ov::opset10::Subtract>(param1.second, broadcastmove.second);
         init_expr_descriptors(*sub.first, sub_subtensor, layout_1d);
-        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(sub.second);
+        auto result = linear_ir_ref->push_node<ov::opset10::Result>(sub.second);
         auto begin = sub.first;
         auto end = result.first;
         linear_ir_ref->get_loop_manager()->mark_loop(begin, end, 512, vector_size,
@@ -126,7 +125,7 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsWithScalar) {
         auto broadcastmove = linear_ir->push_node<ov::snippets::op::BroadcastMove>(multiply.second, 512);
         auto sub = linear_ir->push_node<ov::opset10::Subtract>(param1.second, broadcastmove.second);
         init_expr_descriptors(*sub.first, sub_subtensor, layout_1d);
-        auto result = linear_ir->push_node<ov::snippets::op::Result>(sub.second);
+        auto result = linear_ir->push_node<ov::opset10::Result>(sub.second);
         auto begin = scalar.first;
         auto end = result.first;
         linear_ir->get_loop_manager()->mark_loop(begin, end, 512, vector_size,
@@ -144,7 +143,7 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsWithScalar) {
         auto broadcastmove = linear_ir_ref->push_node<ov::snippets::op::BroadcastMove>(multiply.second, 512);
         auto sub = linear_ir_ref->push_node<ov::opset10::Subtract>(param1.second, broadcastmove.second);
         init_expr_descriptors(*sub.first, sub_subtensor, layout_1d);
-        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(sub.second);
+        auto result = linear_ir_ref->push_node<ov::opset10::Result>(sub.second);
         auto begin = sub.first;
         auto end = result.first;
         linear_ir_ref->get_loop_manager()->mark_loop(begin, end, 512, vector_size,
@@ -188,8 +187,8 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsOutputLoopUpdateNotNeed
         auto add = linear_ir->push_node<ov::opset10::Add>(param2.second, broadcastmove.second);
         init_expr_descriptors(*add.first, subtensor_add, layout);
         auto sub = linear_ir->push_node<ov::opset10::Subtract>(param3.second, add.second);
-        auto result0 = linear_ir->push_node<ov::snippets::op::Result>(add.second);
-        auto result1 = linear_ir->push_node<ov::snippets::op::Result>(sub.second);
+        auto result0 = linear_ir->push_node<ov::opset10::Result>(add.second);
+        auto result1 = linear_ir->push_node<ov::opset10::Result>(sub.second);
         auto begin = multiply.first;
         auto end = result1.first;
         linear_ir->get_loop_manager()->mark_loop(begin, end, 16, vector_size,
@@ -219,8 +218,8 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsOutputLoopUpdateNotNeed
         auto add = linear_ir_ref->push_node<ov::opset10::Add>(param2.second, broadcastmove.second);
         init_expr_descriptors(*add.first, subtensor_add, layout);
         auto sub = linear_ir_ref->push_node<ov::opset10::Subtract>(param3.second, add.second);
-        auto result0 = linear_ir_ref->push_node<ov::snippets::op::Result>(add.second);
-        auto result1 = linear_ir_ref->push_node<ov::snippets::op::Result>(sub.second);
+        auto result0 = linear_ir_ref->push_node<ov::opset10::Result>(add.second);
+        auto result1 = linear_ir_ref->push_node<ov::opset10::Result>(sub.second);
         auto begin_inner = add.first;
         auto end_inner = result1.first;
         {
@@ -271,7 +270,7 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsFromInnermostToLoopOuts
         init_expr_descriptors(*broadcastmove.first, {{1, 1}, subtensor}, {layout, layout});
         auto add = linear_ir->push_node<ov::opset10::Add>(param_0.second, broadcastmove.second);
         init_expr_descriptors(*add.first, {subtensor, subtensor, subtensor}, {layout, layout, layout});
-        auto result = linear_ir->push_node<ov::snippets::op::Result>(add.second);
+        auto result = linear_ir->push_node<ov::opset10::Result>(add.second);
 
         {
             const auto entry_ports =  std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*broadcastmove.first)->get_input_port(0), 0),
@@ -295,7 +294,7 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsFromInnermostToLoopOuts
         init_expr_descriptors(*broadcastmove.first, {{1, 1}, subtensor}, {layout, layout});
         auto add = linear_ir_ref->push_node<ov::opset10::Add>(param_0.second, broadcastmove.second);
         init_expr_descriptors(*add.first, {subtensor, subtensor, subtensor}, {layout, layout, layout});
-        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(add.second);
+        auto result = linear_ir_ref->push_node<ov::opset10::Result>(add.second);
 
         {
             const auto entry_ports =  std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0), 0),
@@ -335,7 +334,7 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsImpossible) {
         auto store = linear_ir->push_node<ov::snippets::op::Store>(load_reshape.second, 1, 0);
         init_expr_descriptors(*load_reshape.first, {subtensor, subtensor}, {order, layout});
         init_expr_descriptors(*store.first, {subtensor, subtensor}, {layout, layout});
-        auto result = linear_ir->push_node<ov::snippets::op::Result>(store.second);
+        auto result = linear_ir->push_node<ov::opset10::Result>(store.second);
 
         {
             const auto entry_ports = std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*load_reshape.first)->get_input_port(0), 0)};
@@ -379,7 +378,7 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsSplitLoops) {
         init_expr_descriptors(*broadcastmove.first, {{1, 1}, subtensor}, {layout, layout});
         const auto add = linear_ir->push_node<ov::opset10::Add>(matmul.second, broadcastmove.second);
         init_expr_descriptors(*add.first, {subtensor, subtensor, subtensor}, {layout, layout, layout});
-        const auto result = linear_ir->push_node<ov::snippets::op::Result>(add.second);
+        const auto result = linear_ir->push_node<ov::opset10::Result>(add.second);
         const auto& loop_manager = linear_ir->get_loop_manager();
         loop_manager->mark_loop(matmul.first, broadcastmove.first, 128, block_size,
                                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*matmul.first)->get_input_port(0), 1),
@@ -404,7 +403,7 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsSplitLoops) {
         const auto matmul = linear_ir_ref->push_node<ov::snippets::op::Brgemm>(param0.second, param1.second);
         const auto add = linear_ir_ref->push_node<ov::opset10::Add>(matmul.second, broadcastmove.second);
         init_expr_descriptors(*add.first, {subtensor, subtensor, subtensor}, {layout, layout, layout});
-        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(add.second);
+        auto result = linear_ir_ref->push_node<ov::opset10::Result>(add.second);
         const auto& loop_manager = linear_ir_ref->get_loop_manager();
         loop_manager->mark_loop(matmul.first, add.first, 128, block_size,
                                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*matmul.first)->get_input_port(0), 1),
@@ -484,7 +483,7 @@ TEST_F(ExtractLoopInvariantsRemoveLoopsTest, ExtractedLoopInvariantsAllExprsInLo
         init_expr_descriptors(*power_static.first, {subtensor, subtensor}, {layout, layout});
         auto multiply = linear_ir->push_node<ov::opset10::Multiply>(exp.second, power_static.second);
         init_expr_descriptors(*multiply.first, {subtensor, subtensor, subtensor}, {layout, layout, layout});
-        auto result = linear_ir->push_node<ov::snippets::op::Result>(multiply.second);
+        auto result = linear_ir->push_node<ov::opset10::Result>(multiply.second);
         // 3 inner loop
         linear_ir->get_loop_manager()->mark_loop(max.first, hmax.first, 1, vector_size,
                                                  std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*max.first)->get_input_port(0), 0),
@@ -532,7 +531,7 @@ TEST_F(ExtractLoopInvariantsRemoveLoopsTest, ExtractedLoopInvariantsAllExprsInLo
         init_expr_descriptors(*power_static.first, {subtensor, subtensor}, {layout, layout});
         auto multiply = linear_ir_ref->push_node<ov::opset10::Multiply>(exp.second, power_static.second);
         init_expr_descriptors(*multiply.first, {subtensor, subtensor, subtensor}, {layout, layout, layout});
-        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(multiply.second);
+        auto result = linear_ir_ref->push_node<ov::opset10::Result>(multiply.second);
         // outer loop
         const auto loop_begin = std::make_shared<ov::snippets::op::LoopBegin>(false);
         auto loop_begin_expr = linear_ir_ref->insert_node(loop_begin, std::vector<PortConnectorPtr>{}, {}, false, max.first);

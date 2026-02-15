@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -51,10 +51,6 @@ if(NOT ENABLE_PROFILING_ITT STREQUAL "OFF")
         endif()
     else()
         add_subdirectory(thirdparty/ittapi)
-        ov_developer_package_export_targets(
-            TARGET ittapi::ittnotify
-            INSTALL_INCLUDE_DIRECTORIES
-                $<TARGET_PROPERTY:ittapi::ittnotify,INTERFACE_INCLUDE_DIRECTORIES>/)
     endif()
     add_subdirectory(thirdparty/itt_collector)
 endif()
@@ -453,16 +449,12 @@ if(ENABLE_OV_TF_LITE_FRONTEND OR ENABLE_INTEL_NPU)
         add_subdirectory(thirdparty/flatbuffers EXCLUDE_FROM_ALL)
         if(ENABLE_INTEL_NPU)
             # NPU plugin requires flatbuffers to be built always
-            add_custom_target(npu_compiler_flatbuffers ALL DEPENDS flatbuffers ${flatbuffers_DEPENDENCY})
+            add_custom_target(npu_compiler_flatbuffers ALL DEPENDS flatbuffers flatc)
             set(flatbuffers_root "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/flatbuffers/flatbuffers")
             ov_developer_package_export_targets(TARGET flatbuffers
                     INSTALL_INCLUDE_DIRECTORIES "${flatbuffers_root}/include/")
             ov_developer_package_export_targets(TARGET ProjectConfig)
-            install(FILES ${flatbuffers_COMPILER} DESTINATION "developer_package/bin" COMPONENT developer_package EXCLUDE_FROM_ALL)
-            if (CMAKE_CROSSCOMPILING)
-                # NPU compiler requires flatbuffers and flatc defined as target
-                add_executable(flatc ALIAS flatbuffers::flatc)
-            endif()
+            install(TARGETS flatc DESTINATION "developer_package/bin" COMPONENT developer_package EXCLUDE_FROM_ALL)
         endif()
     endif()
 

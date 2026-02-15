@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,7 @@
 #include "snippets/lowered/expression.hpp"
 #include "snippets/runtime_configurator.hpp"
 
-namespace ov::snippets {
-
+using namespace ov::snippets;
 std::function<std::shared_ptr<Emitter>(const lowered::ExpressionPtr&)> TargetMachine::get(
     const ov::DiscreteTypeInfo& type) const {
     auto jitter = jitters.find(type);
@@ -43,5 +42,3 @@ const std::shared_ptr<RuntimeConfigurator>& TargetMachine::get_runtime_configura
     OPENVINO_ASSERT(configurator, "RuntimeConfigurator has not been inited!");
     return configurator;
 }
-
-}  // namespace ov::snippets

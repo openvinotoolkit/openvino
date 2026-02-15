@@ -112,7 +112,7 @@
         "ticket": 159547
     },
     {
-        "error_text": "Failed to connect to github.com port 443",
+        "error_text": "Failed to connect to github.com port 443: Connection refused",
         "ticket": 156593
     },
     {
@@ -158,9 +158,5 @@
     {
         "error_text": "CERT_TRUST_REVOCATION_STATUS_UNKNOWN",
         "ticket": 177273
-    },
-    {
-        "error_text": "urllib3.exceptions.IncompleteRead",
-        "ticket": 173184
     }
 ]

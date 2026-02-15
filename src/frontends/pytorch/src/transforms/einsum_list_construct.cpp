@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/einsum.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -39,10 +38,15 @@ AtenEinsumListConstructReplacer::AtenEinsumListConstructReplacer() {
             add_exception_to_fw_node(einsum_op, "aten::einsum: equation should be string constant.");
             return false;
         }
-        // Check if SequenceMark is an input
-        if (auto seq_mark = ov::as_type_ptr<SequenceMark>(tensor_list)) {
-            const auto& list_inputs = seq_mark->input_values();
-            OutputVector node_vector(list_inputs.begin(), list_inputs.end());
+        // Check if ListConstruct is an input
+        if (auto list_construct_node = cast_fw_node(tensor_list, "prim::ListConstruct")) {
+            const auto& list_inputs = list_construct_node->input_values();
+            OutputVector node_vector;
+            // Iterate over values in ListConstruct
+            for (const auto& list_input : list_inputs) {
+                node_vector.push_back(list_input);
+            }
+
             auto einsum = std::make_shared<v7::Einsum>(node_vector, equation);
             copy_runtime_info_and_name(einsum_op, {einsum}, {equation_input, tensor_list});
             replace_node(einsum_op, einsum);

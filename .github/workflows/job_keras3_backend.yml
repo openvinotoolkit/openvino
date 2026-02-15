@@ -45,7 +45,7 @@ jobs:
     steps:
       # checkout action cleans up the workspace and have to be the first step
       - name: Fetch custom actions
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
           sparse-checkout: |
@@ -54,7 +54,7 @@ jobs:
           submodules: 'false'
 
       - name: Clone Keras 3 repository
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
           repository: 'keras-team/keras'
@@ -113,7 +113,7 @@ jobs:
           pytest keras --ignore keras/src/applications $IGNORE_ARGS --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-keras3_pytest.xml
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: ${{ !cancelled() }}
         with:
           name: test-results-keras3-backend

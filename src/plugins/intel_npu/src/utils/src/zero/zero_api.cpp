@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,13 +11,18 @@
 
 namespace intel_npu {
 ZeroApi::ZeroApi() {
-    const std::filesystem::path baseName = "ze_loader";
+    const std::string baseName = "ze_loader";
     try {
         auto libpath = ov::util::make_plugin_library_name({}, baseName);
 #if !defined(_WIN32) && !defined(ANDROID)
-        libpath += LIB_ZE_LOADER_SUFFIX;
+        libpath = libpath + LIB_ZE_LOADER_SUFFIX;
 #endif
-        this->lib = ov::util::load_shared_object(libpath);
+
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        this->lib = ov::util::load_shared_object(ov::util::string_to_wstring(libpath).c_str());
+#else
+        this->lib = ov::util::load_shared_object(libpath.c_str());
+#endif
     } catch (const std::runtime_error& error) {
         OPENVINO_THROW(error.what());
     }

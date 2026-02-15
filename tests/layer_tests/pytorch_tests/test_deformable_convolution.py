@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
 
+import numpy as np
 import pytest
 import torch
 from pytorch_layer_test_class import PytorchLayerTest
@@ -113,7 +114,7 @@ params = [
 
 class TestDeformableConvolution(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.rand(1, 64, 64, 64),)
+        return (np.random.rand(1, 64, 64, 64).astype(np.float32),)
 
     def create_model(
         self,
@@ -128,17 +129,17 @@ class TestDeformableConvolution(PytorchLayerTest):
         bias_shape=None,
     ):
         class aten_deform_convolution(torch.nn.Module):
-            def __init__(self, rng):
-                super().__init__()
-                self.weight = rng.torch_rand(*weights_shape)
-                self.offset = rng.torch_rand(*offset_shape)
+            def __init__(self):
+                super(aten_deform_convolution, self).__init__()
+                self.weight = torch.rand(weights_shape)
+                self.offset = torch.rand(offset_shape)
                 if mask_shape is None:
                     self.mask_shape = deepcopy(offset_shape)
                     self.mask_shape[1] = self.mask_shape[1] // 2
                 else:
                     self.mask_shape = mask_shape
                 if mask:
-                    self.mask = rng.torch_rand(*self.mask_shape)
+                    self.mask = torch.rand(self.mask_shape)
                 else:
                     self.mask = None
                 self.stride = stride
@@ -147,7 +148,7 @@ class TestDeformableConvolution(PytorchLayerTest):
                 self.bias_shape = bias_shape
                 if self.bias_shape is None:
                     self.bias_shape = weights_shape[0]
-                self.bias = rng.torch_rand(self.bias_shape) if bias else None
+                self.bias = torch.rand(self.bias_shape) if bias else None
 
             def forward(self, x):
                 return deform_conv2d(
@@ -161,7 +162,8 @@ class TestDeformableConvolution(PytorchLayerTest):
                     padding=self.padding,
                 )
 
-        return aten_deform_convolution(self.random), "torchvision::deform_conv2d"
+        ref_net = None
+        return aten_deform_convolution(), ref_net, "torchvision::deform_conv2d"
 
     @pytest.mark.parametrize("params", params)
     @pytest.mark.parametrize("bias", [True, False])

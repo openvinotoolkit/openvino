@@ -52,7 +52,7 @@ jobs:
     steps:
       # checkout action cleans up the workspace and have to be the first step
       - name: Fetch custom actions
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
           sparse-checkout: |
@@ -87,7 +87,7 @@ jobs:
       # Uncomment only when there's a need
       # to update the models on the shared drive
       # - name: Fetch model_zoo_preprocess script
-      #   uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+      #   uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       #   with:
       #     sparse-checkout: |
       #       src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh
@@ -124,7 +124,7 @@ jobs:
           python3 -m pytest --backend="CPU" --model_zoo_dir="${MODELS_SHARE_PATH}" ${INSTALL_TEST_DIR}/onnx/tests/tests_python/test_zoo_models.py -v -n auto --forked -k 'not _cuda' --model_zoo_xfail
 
       - name: Upload logs from pytest
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: always()
         with:
           name: onnx_models_tests_logs

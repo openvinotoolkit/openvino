@@ -1,14 +1,12 @@
 @echo off
 
-:: Copyright (C) 2018-2026 Intel Corporation
+:: Copyright (C) 2018-2025 Intel Corporation
 :: SPDX-License-Identifier: Apache-2.0
 
 @setlocal
 SETLOCAL EnableDelayedExpansion
-@REM %~dp0 ends with a backslash which escapes
-@REM the closing quote in "%SAMPLES_SOURCE_DIR%". Append a dot to prevent this.
-set "SAMPLES_SOURCE_DIR=%~dp0."
-FOR %%i IN ("%SAMPLES_SOURCE_DIR%") DO set SAMPLES_TYPE=%%~nxi
+set "SAMPLES_SOURCE_DIR=%~dp0"
+FOR %%i IN ("%SAMPLES_SOURCE_DIR%\.") DO set SAMPLES_TYPE=%%~nxi
 
 set "SAMPLES_BUILD_DIR=%USERPROFILE%\Documents\Intel\OpenVINO\openvino_%SAMPLES_TYPE%_samples_build"
 set SAMPLES_INSTALL_DIR=

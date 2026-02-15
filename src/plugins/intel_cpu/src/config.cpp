@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -554,6 +554,13 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         streams = 1;
         streamsChanged = true;
     }
+
+#if defined(OV_CPU_WITH_SHL)
+    // TODO: multi-stream execution is unsafe when SHL is used:
+    //       The library uses global static variables as flags and counters.
+    streams = 1;
+    streamsChanged = true;
+#endif
 
     this->modelType = modelType;
 

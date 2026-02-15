@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -81,10 +81,10 @@ class TestAll(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     def test_all_noparams(self, input_shape, d_type, out, ie_device, precision, ir_version):
         if type(input_shape) is list:
-            self.input_tensor = self.random.randint(0, 2, input_shape, dtype=d_type)
+            self.input_tensor = np.random.randint(0, 2, input_shape, dtype=d_type)
         else:
             self.input_tensor = input_shape
-        self._test(aten_all_noparam() if not out else aten_all_noparam_out(), "aten::all",
+        self._test(aten_all_noparam() if not out else aten_all_noparam_out(), None, "aten::all",
                 ie_device, precision, ir_version, trace_model=True, freeze_model=False, kwargs_to_prepare_input={"out": out})
 
     @pytest.mark.parametrize("input_shape, d_type", [
@@ -114,9 +114,9 @@ class TestAll(PytorchLayerTest):
                        reason='Ticket - 122715')
     def test_all(self, input_shape, d_type, keepdim, out, ie_device, precision, ir_version):
         if type(input_shape) is list:
-            self.input_tensor = self.random.randint(0, 2, input_shape, dtype=d_type)
+            self.input_tensor = np.random.randint(0, 2, input_shape, dtype=d_type)
         else:
             self.input_tensor = input_shape
         for dim in range(len(self.input_tensor.shape)):
-            self._test(aten_all(dim, keepdim) if not out else aten_all_out(dim, keepdim), "aten::all",
+            self._test(aten_all(dim, keepdim) if not out else aten_all_out(dim, keepdim), None, "aten::all",
                     ie_device, precision, ir_version, trace_model=True, freeze_model=False, kwargs_to_prepare_input={"out": out})

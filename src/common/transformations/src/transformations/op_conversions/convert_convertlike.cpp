@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,17 +16,13 @@
 
 using namespace ov;
 
-namespace v1 = ov::op::v1;
-
-namespace ov::pass {
-
-ConvertConvertLike::ConvertConvertLike() {
+ov::pass::ConvertConvertLike::ConvertConvertLike() {
     MATCHER_SCOPE(ConvertConvertLike);
 
-    auto convertlike = pattern::wrap_type<v1::ConvertLike>();
+    auto convertlike = pattern::wrap_type<ov::op::v1::ConvertLike>();
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto cvtlike = ov::as_type_ptr<v1::ConvertLike>(m.get_match_root());
+        auto cvtlike = ov::as_type_ptr<ov::op::v1::ConvertLike>(m.get_match_root());
         if (!cvtlike) {
             return false;
         }
@@ -47,5 +43,3 @@ ConvertConvertLike::ConvertConvertLike() {
     auto m = std::make_shared<pattern::Matcher>(convertlike, matcher_name);
     this->register_matcher(m, callback);
 }
-
-}  // namespace ov::pass

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -109,7 +109,7 @@ void ReduceCPULayerTest::SetUp() {
         }
     }
 
-    function = create_ov_model(netPrecision, params, reduce, "Reduce");
+    function = makeNgraphFunction(netPrecision, params, reduce, "Reduce");
 
     if (netPrecision == ov::element::f32 && configuration.count(ov::hint::inference_precision.name()) &&
         configuration.at(ov::hint::inference_precision.name()) == ov::element::f16) {

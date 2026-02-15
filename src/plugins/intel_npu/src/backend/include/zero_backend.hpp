@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,11 +28,10 @@ public:
 
     bool isCommandQueueExtSupported() const override;
     bool isLUIDExtSupported() const override;
-    bool isContextExtSupported() const override;
 
     void* getContext() const override;
 
-    void updateInfo(const ov::AnyMap& properties) override;
+    void updateInfo(const Config& config) override;
 
     const std::shared_ptr<ZeroInitStructsHolder> getInitStructs() const override;
 

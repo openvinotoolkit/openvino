@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,6 +38,21 @@ JitConstants RandomUniformKernelRef::GetJitConstants(const random_uniform_params
         jit.AddConstant(MakeJitConstant("GLOBAL_SEED", std::random_device {}()));
     } else {
         jit.AddConstant(MakeJitConstant("GLOBAL_SEED", params.global_seed));
+    }
+
+    const auto& output = params.outputs[0];
+    if (output.is_dynamic()) {
+        DimensionAccessHelperJit dims(output);
+        jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", toVectorMulString({dims.x(),
+                                                                                              dims.y(),
+                                                                                              dims.z(),
+                                                                                              dims.w(),
+                                                                                              dims.u(),
+                                                                                              dims.v(),
+                                                                                              dims.f(),
+                                                                                              dims.b()})));
+    } else {
+        jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", params.outputs[0].LogicalSize()));
     }
 
     jit.AddConstant(MakeJitConstant("OP_SEED", params.op_seed));

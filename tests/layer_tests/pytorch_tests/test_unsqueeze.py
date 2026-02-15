@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -8,14 +8,15 @@ from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 class TestUnsqueeze(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(5, 10),)
+        import numpy as np
+        return (np.random.randn(5, 10).astype(np.float32),)
 
     def create_model(self, inplace=False, dim=0):
         import torch
 
         class aten_unsqueeze(torch.nn.Module):
             def __init__(self, dim):
-                super().__init__()
+                super(aten_unsqueeze, self).__init__()
                 self.op = torch.unsqueeze
                 self.dim = dim
 
@@ -24,15 +25,16 @@ class TestUnsqueeze(PytorchLayerTest):
 
         class aten_unsqueeze_(torch.nn.Module):
             def __init__(self, dim):
-                super().__init__()
+                super(aten_unsqueeze_, self).__init__()
                 self.dim = dim
 
             def forward(self, x):
                 return x, x.unsqueeze_(self.dim)
 
+        ref_net = None
         model_class, op = (aten_unsqueeze, "aten::unsqueeze") if not inplace else (aten_unsqueeze_, "aten::unsqueeze_")
 
-        return model_class(dim), op
+        return model_class(dim), ref_net, op
 
     @pytest.mark.parametrize("inplace", [False, skip_if_export(True)])
     @pytest.mark.parametrize("dim", [0, 1, -1])
@@ -45,23 +47,25 @@ class TestUnsqueeze(PytorchLayerTest):
 
 class TestUnsqueezeCopy(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(5, 10),)
+        import numpy as np
+        return (np.random.randn(5, 10).astype(np.float32),)
 
     def create_model(self, dim=0):
         import torch
 
         class aten_unsqueeze_copy(torch.nn.Module):
             def __init__(self, dim):
-                super().__init__()
+                super(aten_unsqueeze_copy, self).__init__()
                 self.op = torch.unsqueeze_copy
                 self.dim = dim
 
             def forward(self, x):
                 return x, self.op(x, self.dim)
 
+        ref_net = None
         model_class, op = (aten_unsqueeze_copy, "aten::unsqueeze_copy")
 
-        return model_class(dim), op
+        return model_class(dim), ref_net, op
 
     @pytest.mark.parametrize("dim", [0, 1, -1])
     @pytest.mark.precommit_fx_backend
@@ -70,14 +74,15 @@ class TestUnsqueezeCopy(PytorchLayerTest):
 
 class TestUnsqueezeWithComplex(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(2, 3, 2),)
+        import numpy as np
+        return (np.random.randn(2, 3, 2).astype(np.float32),)
 
     def create_model(self, inplace=False, dim=0):
         import torch
 
         class aten_unsqueeze(torch.nn.Module):
             def __init__(self, dim):
-                super().__init__()
+                super(aten_unsqueeze, self).__init__()
                 self.op = torch.unsqueeze
                 self.dim = dim
 
@@ -87,16 +92,17 @@ class TestUnsqueezeWithComplex(PytorchLayerTest):
 
         class aten_unsqueeze_(torch.nn.Module):
             def __init__(self, dim):
-                super().__init__()
+                super(aten_unsqueeze_, self).__init__()
                 self.dim = dim
 
             def forward(self, x):
                 x = torch.view_as_complex(x)
                 return torch.view_as_real(x.unsqueeze_(self.dim))
 
+        ref_net = None
         model_class, op = (aten_unsqueeze, "aten::unsqueeze") if not inplace else (aten_unsqueeze_, "aten::unsqueeze_")
 
-        return model_class(dim), op
+        return model_class(dim), ref_net, op
 
     @pytest.mark.parametrize("inplace", [False, skip_if_export(True)])
     @pytest.mark.parametrize("dim", [0, 1, -1, -2])
