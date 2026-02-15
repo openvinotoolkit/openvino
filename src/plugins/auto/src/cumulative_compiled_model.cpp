@@ -162,35 +162,34 @@ void AutoCumuCompiledModel::export_model(std::ostream& model_stream) const {
 
     auto devicesNode = multiNode.append_child("devices");
 
-    std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
-
-    for (size_t i = 0; i < m_scheduler->m_n_ctput_devicenums; i++) {
-        if (m_scheduler->m_p_ctput_loadcontext[i].m_is_already) {
-            auto deviceNode = devicesNode.append_child("device");
-            deviceNode.append_attribute("name").set_value(m_scheduler->m_p_ctput_loadcontext[i].m_device_info.device_name.c_str());
-
-            auto configNode = deviceNode.append_child("config");
-            for (const auto& cfg : m_scheduler->m_p_ctput_loadcontext[i].m_device_info.config) {
-                auto entry = configNode.append_child("key");
-                entry.append_attribute("name").set_value(cfg.first.c_str());
-                entry.append_attribute("value").set_value(cfg.second.as<std::string>().c_str());
+    std::vector<size_t> ready_device_indices;
+    {
+        std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
+        for (size_t i = 0; i < m_scheduler->m_n_ctput_devicenums; i++) {
+            if (m_scheduler->m_p_ctput_loadcontext[i].m_is_already) {
+                ready_device_indices.push_back(i);
             }
         }
     }
 
-    doc.save(model_stream, nullptr, pugi::format_raw);
+    for (const auto& i : ready_device_indices) {
+        auto deviceNode = devicesNode.append_child("device");
+        deviceNode.append_attribute("name").set_value(m_scheduler->m_p_ctput_loadcontext[i].m_device_info.device_name.c_str());
+
+        auto configNode = deviceNode.append_child("config");
+        for (const auto& cfg : m_scheduler->m_p_ctput_loadcontext[i].m_device_info.config) {
+            auto entry = configNode.append_child("key");
+            entry.append_attribute("name").set_value(cfg.first.c_str());
+            entry.append_attribute("value").set_value(cfg.second.as<std::string>().c_str());
+        }
+    }
+
+    doc.save(model_stream, nullptr, pugi::format_raw | pugi::format_no_declaration);
     doc.reset();
     model_stream << std::endl;
 
-    for (size_t i = 0; i < m_scheduler->m_n_ctput_devicenums; i++) {
-        if (m_scheduler->m_p_ctput_loadcontext[i].m_is_already) {
-            try {
-                m_scheduler->m_p_ctput_loadcontext[i].m_compiled_model->export_model(model_stream);
-            } catch (const ov::NotImplemented&) {
-                 ov::pass::StreamSerialize(model_stream, std::function<void(std::ostream&)>())
-                    .run_on_model(std::const_pointer_cast<ov::Model>(m_context->m_model));
-            }
-        }
+    for (const auto& i : ready_device_indices) {
+        m_scheduler->m_p_ctput_loadcontext[i].m_compiled_model->export_model(model_stream);
     }
 }
 } // namespace auto_plugin

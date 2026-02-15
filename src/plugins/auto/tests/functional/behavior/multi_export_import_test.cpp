@@ -7,7 +7,9 @@
 using namespace ov::auto_plugin::tests;
 
 TEST_F(AutoFuncTests, CanExportImportMultiModel) {
-    auto compiled_model = core.compile_model(model_can_batch, "MULTI:MOCK_GPU,MOCK_CPU");
+    // Disable auto-batching to ensure we test MULTI export directly and not AutoBatch wrapper
+    auto compiled_model = core.compile_model(model_can_batch, "MULTI:MOCK_GPU,MOCK_CPU",
+                                             {ov::hint::allow_auto_batching(false)});
 
     std::stringstream stream;
     compiled_model.export_model(stream);
