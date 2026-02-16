@@ -47,52 +47,6 @@ namespace ov {
 namespace pass {
 namespace low_precision {
 namespace {
-class WeightsDequantizationBlock : public ov::pass::pattern::op::Block {
-public:
-    WeightsDequantizationBlock() : Block({}, {}, "WeightsDequantizationBlock") {
-        using namespace ov::pass::pattern;
-
-        auto weights = wrap_type<ov::op::v0::Constant>();
-        auto convert = wrap_type<ov::op::v0::Convert>({weights});
-
-        auto sub_const = wrap_type<ov::op::v0::Constant>();
-        auto sub_const_convert = optional<ov::op::v0::Convert>({sub_const});
-        auto subtract = wrap_type<ov::op::v1::Subtract>({convert, sub_const_convert});
-
-        auto mul_input = subtract | convert;
-        auto mul_const = wrap_type<ov::op::v0::Constant>();
-        auto multiply = wrap_type<ov::op::v1::Multiply>({mul_input, mul_const});
-
-        m_inputs = ov::OutputVector{weights};
-        m_outputs = ov::OutputVector{multiply};
-        REGISTER_ANCHORS(this, weights, convert, sub_const, subtract, mul_input, mul_const, multiply);
-    }
-
-    std::shared_ptr<ov::Node> get_multiply(const ov::pass::pattern::PatternValueMap& pm) const {
-        return get_anchor("multiply", pm).value().get_node_shared_ptr();
-    }
-};
-
-bool fq_ranges_are_the_same(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) {
-    auto equal_with_threshold = [](const ov::Output<ov::Node>& val1, const ov::Output<ov::Node>& val2) {
-        auto diff = std::make_shared<ov::op::v1::Subtract>(val1, val2);
-        auto abs_diff = std::make_shared<ov::op::v0::Abs>(diff);
-        auto eps = ov::op::v0::Constant::create(val1.get_element_type(), {}, {1e-6f});
-        auto is_less = ov::util::get_constant_from_source(std::make_shared<ov::op::v1::Less>(abs_diff, eps));
-
-        auto all_true = [](const std::shared_ptr<ov::op::v0::Constant>& c) {
-            auto v = c->get_vector<bool>();
-            return std::all_of(v.begin(), v.end(), [](bool b) {
-                return b;
-            });
-        };
-        return is_less && all_true(is_less);
-    };
-
-    return equal_with_threshold(fq->input_value(1), fq->input_value(3)) &&
-           equal_with_threshold(fq->input_value(2), fq->input_value(4));
-}
-
 // Adjusts weight DQ scales and FQ range constants to compensate for FQ stripping.
 // Walks backward from the FQ to find weight DQ blocks, then forward to find
 // downstream FQs and detect Result nodes. If forward propagation reaches a Result
@@ -132,43 +86,58 @@ private:
         return m_scale_adjustment_possible;
     }
 
-    static bool is_allowed_node(ov::Node* n) {
-        return ov::is_type_any_of<ov::op::v1::Add,
-                                  ov::op::v0::Constant,
-                                  ov::op::v0::Convert,
-                                  ov::op::v1::Convolution,
-                                  ov::op::v0::FakeQuantize,
-                                  ov::op::v0::MatMul,
-                                  ov::op::v1::Multiply,
-                                  ov::op::v1::Reshape,
-                                  ov::op::v1::Transpose,
-                                  ov::op::v0::MVN,
-                                  ov::op::v6::MVN,
-                                  ov::op::v1::Softmax,
-                                  ov::op::v8::Softmax>(n);
+    static bool is_scale_invariant(ov::Node* n) {
+        return ov::is_type_any_of<ov::op::v0::MVN, ov::op::v6::MVN, ov::op::v1::Softmax, ov::op::v8::Softmax>(n);
     }
 
-    void collect_dq_multiply(const std::shared_ptr<ov::Node>& multiply) {
-        bool const_is_in1 = ov::is_type<ov::op::v0::Constant>(multiply->input_value(1).get_node());
-        m_pending_adjustments.push_back(multiply->input(const_is_in1 ? 1 : 0));
-    }
-
-    void collect_fq_ranges(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) {
-        for (size_t i = 1; i < fq->get_input_size(); ++i) {
-            m_pending_adjustments.push_back(fq->input(i));
+    void validate_activations_flow_node(ov::Node* n, bool is_forward) {
+        if (is_forward && is_scale_invariant(n)) {
+            return;
+        }
+        if (!ov::is_type_any_of<ov::op::v1::Add,
+                                ov::op::v0::Constant,
+                                ov::op::v0::Convert,
+                                ov::op::v1::Convolution,
+                                ov::op::v0::FakeQuantize,
+                                ov::op::v0::MatMul,
+                                ov::op::v1::Multiply,
+                                ov::op::v1::Reshape,
+                                ov::op::v1::Transpose>(n)) {
+            m_scale_adjustment_possible = false;
         }
     }
 
-    void propagate_backward(ov::Node* root) {
-        using namespace ov::pass::pattern;
+    auto make_skip_predicate(bool is_forward) {
+        return [this, is_forward](ov::Node* n) {
+            const auto& out_precision = n->get_output_element_type(0);
+            const bool shapeof_subgraph = ov::is_type<ov::op::v0::ShapeOf>(n) || ov::is_type<ov::op::v3::ShapeOf>(n) ||
+                                          out_precision == ov::element::i32 || out_precision == ov::element::i64;
+            // Both forward/backward propagation should not visit shape related paths
+            if (shapeof_subgraph) {
+                return true;
+            }
 
+            validate_activations_flow_node(n, is_forward);
+            return !scale_adjustment_possible() || (is_forward && is_scale_invariant(n));
+        };
+    }
+
+    void propagate_backward(ov::Node* root) {
         auto collect_nodes_to_scale = [&](ov::Node* node) {
-            const auto node_shared = node->shared_from_this();
+            using namespace ov::pass::pattern;
+            auto convert = wrap_type<ov::op::v0::Convert>({wrap_const()});
+            auto sub_const_convert = optional<ov::op::v0::Convert>({wrap_const()});
+            auto subtract = optional<ov::op::v1::Subtract>({convert, sub_const_convert});
+            auto multiply = wrap_type<ov::op::v1::Multiply>({subtract, wrap_const()});
+            auto matcher = std::make_shared<Matcher>(multiply, "WeightsDQPattern");
+
             // Case 1: DQ block on constant path — collect for scale adjustment
-            auto weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
-            auto matcher = std::make_shared<Matcher>(weights_dq_block, "WeightsDQPattern");
-            if (matcher->match(node_shared)) {
-                collect_dq_multiply(weights_dq_block->get_multiply(matcher->get_pattern_value_map()));
+            if (matcher->match(node->shared_from_this())) {
+                const auto mul = matcher->get_pattern_value_map().at(multiply).get_node_shared_ptr();
+                const bool const_is_in1 = ov::is_type<ov::op::v0::Constant>(mul->get_input_node_shared_ptr(1));
+
+                m_pending_adjustments.push_back(mul->input(const_is_in1 ? 1 : 0));
+                // Stop backward propagation since adjustement is done for this branch
                 for (const auto& in : matcher->get_match_root()->input_values()) {
                     m_visited.insert(in.get_node());
                 }
@@ -176,48 +145,34 @@ private:
             }
 
             // Case 2: FakeQuantize (un-stripped) — collect for ranges adjustment
-            if (auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node_shared)) {
-                collect_fq_ranges(fq);
-                for (size_t i = 1; i < fq->get_input_size(); ++i) {
-                    m_visited.insert(fq->input_value(i).get_node());
+            if (ov::is_type<ov::op::v0::FakeQuantize>(node)) {
+                for (size_t i = 1; i < node->get_input_size(); ++i) {
+                    m_pending_adjustments.push_back(node->input(i));
+                    m_visited.insert(node->get_input_node_ptr(i));
                 }
                 return;
             }
 
-            // Case 3: Layers with weights: Backward propagation goes only by 2nd input
+            // Case 3: Layers with weights: backward propagation goes only by 2nd input
             if (ov::is_type_any_of<ov::op::v0::MatMul, ov::op::v1::Multiply, ov::op::v1::Convolution>(node)) {
                 m_visited.insert(node->get_input_node_ptr(0));
                 return;
             }
         };
-
-        auto skip_predicate = [&](ov::Node* n) {
-            if (!is_allowed_node(n)) {
-                m_scale_adjustment_possible = false;
-            }
-
-            const auto& out_precision = n->get_output_element_type(0);
-            // Scale adjustment shouldn't be propagated via ShapeOf subgraphs
-            const bool shapeof_subgraph = ov::is_type<ov::op::v0::ShapeOf>(n) || ov::is_type<ov::op::v3::ShapeOf>(n) ||
-                                          out_precision == ov::element::i32 || out_precision == ov::element::i64;
-            return !scale_adjustment_possible() || shapeof_subgraph;
-        };
-
-        ov::op::util::visit_path(root, m_visited, collect_nodes_to_scale, skip_predicate);
+        ov::op::util::visit_path(root, m_visited, collect_nodes_to_scale, make_skip_predicate(false));
     }
 
     void propagate_forward(ov::Node* root) {
-        using namespace ov::pass::pattern;
-
         auto collect_nodes_to_scale = [&](ov::Node* node) {
-            const auto node_shared = node->shared_from_this();
-
-            auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node_shared);
-            if (fq && node != m_fq && !node->get_users().empty()) {
-                collect_fq_ranges(fq);
+            // Case 1: FakeQuantize (un-stripped) — collect for ranges adjustment
+            if (ov::is_type<ov::op::v0::FakeQuantize>(node) && node != m_fq && !node->get_users().empty()) {
+                for (size_t i = 1; i < node->get_input_size(); ++i) {
+                    m_pending_adjustments.push_back(node->input(i));
+                }
                 return;
             }
 
+            // Case 2: Commutative ops: backward propagation should be called for all non visited inputs
             if (ov::is_type<ov::op::v1::Add>(node)) {
                 for (size_t i = 0; i < node->get_input_size(); ++i) {
                     auto input_node = node->get_input_node_ptr(i);
@@ -227,24 +182,7 @@ private:
                 }
             }
         };
-
-        auto skip_predicate = [&](ov::Node* n) {
-            if (!is_allowed_node(n)) {
-                m_scale_adjustment_possible = false;
-            }
-
-            // Propagation stops at scale-invariant nodes
-            const bool scale_invariant_nodes =
-                ov::is_type_any_of<ov::op::v0::MVN, ov::op::v6::MVN, ov::op::v1::Softmax, ov::op::v8::Softmax>(
-                    n->shared_from_this());
-            const auto& out_precision = n->get_output_element_type(0);
-            // Scale adjustment shouldn't be propagated via ShapeOf subgraphs
-            const bool shapeof_subgraph = ov::is_type<ov::op::v0::ShapeOf>(n) || ov::is_type<ov::op::v3::ShapeOf>(n) ||
-                                          out_precision == ov::element::i32 || out_precision == ov::element::i64;
-            return !scale_adjustment_possible() || scale_invariant_nodes || shapeof_subgraph;
-        };
-
-        ov::op::util::visit_path_forward(root, m_visited, collect_nodes_to_scale, skip_predicate);
+        ov::op::util::visit_path_forward(root, m_visited, collect_nodes_to_scale, make_skip_predicate(true));
     }
 };
 }  // namespace
@@ -260,8 +198,27 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
         return false;
     }
 
-    bool model_changed = false;
+    auto fq_ranges_are_the_same = [](const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) {
+        auto equal_with_threshold = [](const ov::Output<ov::Node>& val1, const ov::Output<ov::Node>& val2) {
+            auto diff = std::make_shared<ov::op::v1::Subtract>(val1, val2);
+            auto abs_diff = std::make_shared<ov::op::v0::Abs>(diff);
+            auto eps = ov::op::v0::Constant::create(val1.get_element_type(), {}, {1e-6f});
+            auto is_less = ov::util::get_constant_from_source(std::make_shared<ov::op::v1::Less>(abs_diff, eps));
 
+            auto all_true = [](const std::shared_ptr<ov::op::v0::Constant>& c) {
+                auto v = c->get_vector<bool>();
+                return std::all_of(v.begin(), v.end(), [](bool b) {
+                    return b;
+                });
+            };
+            return is_less && all_true(is_less);
+        };
+
+        return equal_with_threshold(fq->input_value(1), fq->input_value(3)) &&
+               equal_with_threshold(fq->input_value(2), fq->input_value(4));
+    };
+
+    bool model_changed = false;
     for (const auto& node : f->get_ordered_ops()) {
         auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node);
         if (!fq || transformation_callback(node)) {

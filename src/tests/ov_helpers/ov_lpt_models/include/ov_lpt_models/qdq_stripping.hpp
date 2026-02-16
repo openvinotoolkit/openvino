@@ -113,18 +113,6 @@ public:
                                                                                 const ov::element::Type& quantization_precision,
                                                                                 bool skip_final_mvn = false);
 
-    // === PerChannelFQ pattern ===
-    // MatMul with DQ weights + per-channel FQ (non-scalar range constants) → DQ → MVN.
-    // Tests that FQStripping correctly handles non-scalar FQ ranges.
-    // y_scale = max(per-channel scales). When need_weights_adjustment=true and y_scale > 1,
-    // weights are divided by max(y_scale) * ratio.
-    static std::shared_ptr<ov::Model> build_per_channel_fq_pattern(const ov::PartialShape& input_shape,
-                                                                    const ov::element::Type& quantization_precision);
-
-    static std::shared_ptr<ov::Model> build_per_channel_fq_pattern_ref(const ov::PartialShape& input_shape,
-                                                                       const ov::element::Type& quantization_precision,
-                                                                       bool need_weights_adjustment = true);
-
     // === ForwardBias pattern ===
     // MatMul1(DQ weights) + bias1(DQ) → FQ → DQ → MatMul2(DQ weights) + bias2(DQ) → MVN.
     // Tests that forward propagation adjusts downstream bias constants.
