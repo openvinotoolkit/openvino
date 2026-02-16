@@ -27,24 +27,23 @@ What's new
 
 * More Gen AI coverage and frameworks integrations to minimize code changes
 
-  * New models supported on CPUs & GPUs: GPT-OSS-20B, MiniCPM-V-4_5-8B, and MiniCPM-o-2.6  
-  * New models supported on NPUs: MiniCPM-o-2.6  
-  * OpenVINO™ GenAI adds support for video generation pipeline based on LTX-Video model on CPU and GPUs.  
-  * OpenVINO™ GenAI now adds word-level timestamp functionality to the Whisper Pipeline on CPUs, GPUs, and NPUs, enabling more accurate transcriptions and subtitling in line with OpenAI and FasterWhisper implementations.  
-  * Phi-3-mini FastDraft model is now available on Hugging Face to accelerate LLM inference on NPUs. FastDraft optimizes speculative decoding for LLMs. 
+  * New models supported on CPUs & GPUs: GPT-OSS-20B, MiniCPM-V-4_5-8B,  and MiniCPM-o-2.6​
+  * New models supported on NPUs: MiniCPM-o-2.6. In addition, NPU support is now available on Qwen2.5-1B-Instruct, Qwen3-Embedding-0.6B, Qwen-2.5-coder-0.5B.​
+  * OpenVINO™ GenAI now adds word-level timestamp functionality to the Whisper Pipeline on CPUs, GPUs, and NPUs, enabling more accurate transcriptions and subtitling in line with OpenAI and FasterWhisper implementations.​
+  * Phi-3-mini FastDraft model is now available on Hugging Face to accelerate LLM inference on NPUs. FastDraft optimizes speculative decoding for LLMs.
  
 * Broader LLM model support and more model compression techniques
 
-  * OpenVINO™ GenAI and OpenVINO™ Model Server introduces EAGLE-3 speculative decoding to accelerate LLM inference using smarter token prediction on Intel CPUs and GPUs. Validated on Qwen3-8B model   
-  * With the new int4 data-aware weight compression for 3D MatMuls, the Neural Network Compression Framework enables MoE LLMs to run with reduced memory, bandwidth, and improved accuracy compared to data-free schemes-delivering faster, more efficient deployment on resource-constrained devices.  
-  * The Neural Network Compression Framework now supports per-layer and per-group Look-Up Tables (LUT) for FP8-4BLUT quantization. This enables fine-grained, codebook-based compression that reduces model size and bandwidth while improving inference speed and accuracy for LLMs and transformer workloads. 
+
+  * With the new int4 data-aware weight compression for 3D MatMuls, the Neural Network Compression Framework enables MoE LLMs to run with reduced memory, bandwidth, and improved accuracy compared to data-free schemes-delivering faster, more efficient deployment on resource-constrained devices.​
+  * The Neural Network Compression Framework now supports per-layer and per-group Look-Up Tables (LUT) for FP8-4BLUT quantization. This enables fine-grained, codebook-based compression that reduces model size and bandwidth while improving inference speed and accuracy for LLMs and transformer workloads.
 
 * More portability and performance to run AI at the edge, in the cloud or locally
 
-  * OpenVINO™ GenAI adds VLM pipeline support to enhance Agentic AI framework integration.  
-  * OpenVINO GenAI now supports speculative decoding for NPUs, delivering improved performance and efficient text generation through a small draft model that is periodically validated by the full-size model.  
-  * Preview: NPU compiler integration with the NPU plugin enables ahead-of-time and on-device compilation without relying on OEM driver updates. Developers can enable this feature for a single, ready-to-ship package that reduces integration friction and accelerates time-to-value.  
-  * OpenVINO™ Model Server adds enhanced support for audio endpoint plus agentic continuous batching and concurrent runs for improved LLM performance in agentic workflows on Intel CPUs and GPUs. 
+  * OpenVINO™ GenAI adds VLM pipeline support to enhance Agentic AI framework integration.​
+  * OpenVINO GenAI now supports speculative decoding for NPUs, delivering improved performance and efficient text generation through a small draft model that is periodically validated by the full-size model.​
+  * Preview: NPU compiler integration with the NPU plugin enables ahead-of-time and on-device compilation without relying on OEM driver updates. Developers can enable this feature for a single, ready-to-ship package that reduces integration friction and accelerates time-to-value.​
+  * OpenVINO™ Model Server adds enhanced support for audio endpoint plus agentic continuous batching and concurrent runs for improved LLM performance in agentic workflows on Intel CPUs and GPUs.
 
 OpenVINO™ Runtime
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -68,7 +67,6 @@ CPU Device Plugin
 GPU Device Plugin
 ---------------------------------------------------------------------------------------------
 
-* Improved TTFT for Qwen3-30B-A3B model for INT8 and INT4. 
 * Preview support for XAttention on Intel's Xe2/Xe3 architecture to improve TTFT performance. 
 * 2nd token latency has been improved for GPT-OSS-20B INT4 model on Intel® Core™ Ultra Series 2, Intel® Core™ Ultra Series 3, and Intel® Arc™ B-Series Graphics. 
 * TTFT has been improved for vision language models including Phi-3.5-vision, Phi-4-multimodal, and LLaVa-NeXT-Video. 
@@ -156,7 +154,7 @@ OpenVINO™ Model Server
 Neural Network Compression Framework
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* Extended 4-bit compression data-aware methods (AWQ, Scale Estimation, GPTQ) to support 3D matmuls for more accurate compression of such models as GPT-OSS-20B and Qwen3-30B-A3B. 
+* Extended 4-bit compression data-aware methods (AWQ, Scale Estimation, GPTQ) to support 3D matmuls for more accurate compression of such models as GPT-OSS-20B. 
 * Preview support for per-layer and per-block codebooks has been introduced for 4-bit weight compression using the CB4 data type, which helps reduce quantization errors. 
 * Added NNCF Profiler for layer-by-layer profiling of OpenVINO™ model activations. This is useful for debugging quantization and compression issues, comparing model variants, and understanding activation distributions. See more details in `Readme <https://github.com/openvinotoolkit/nncf/blob/develop/tools/activation_profiler/README.md>`__ and `Jupyter notebook <https://github.com/openvinotoolkit/nncf/blob/develop/tools/activation_profiler/nncf_profiler_example.ipynb>`__. 
 * Added new API method, ``nncf.prune()``, for unstructured pruning of PyTorch models previously supported with the deprecated and removed ``nncf.create_compressed_model()`` method.   
@@ -172,9 +170,7 @@ OpenVINO Tokenizers
 
 OpenVINO GenAI
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-* Added video generation support via Text2Video pipeline with LTX-Video model. 
-* Support for `EAGLE3 <https://arxiv.org/abs/2503.01840t>`__ speculative decoding pipeline to boost TPS with an additional EAGLE3 draft model. Support is also enabled on Intel NPU. 
+ 
 * `Conditional Diversity Visual Token Pruning <https://arxiv.org/pdf/2506.10967t>`__ to minimize TTFT of Qwen2/2.5 VL models, this feature is disabled by default and must be turned on. 
 * Added word-level timestamp generation for detailed transcriptions with WhisperPipeline. 
 * Added ChatHistory API support for VLMPipeline with images and video.  
@@ -192,7 +188,6 @@ Jupyter Notebooks
 New models and use cases: 
 
 * `LFM2  <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-chatbot/llm-chatbot.ipynb>`__
-* `Qwen3-30B-A3B <https://openvinotoolkit.github.io/openvino_notebooks/?search=chatbot>`__
 * `Visual-language assistant with Qwen3-VL and OpenVINO <https://openvinotoolkit.github.io/openvino_notebooks/?search=Visual-language+assistant+with+Qwen3-VL>`__
 * `Text-to-image generation with Qwen-Image and OpenVINO <https://openvinotoolkit.github.io/openvino_notebooks/?search=qwen-image>`__ (experimental) 
 * `Multi-speaker dialogue generation with FireRedTTS-2 and OpenVINO <https://openvinotoolkit.github.io/openvino_notebooks/?search=Fireredtts>`__ (experimental) 
