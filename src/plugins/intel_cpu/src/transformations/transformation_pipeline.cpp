@@ -171,41 +171,7 @@
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
 #    include "openvino/op/add.hpp"
-#    include "openvino/op/divide.hpp"
-#    include "openvino/op/elu.hpp"
-#    include "openvino/op/equal.hpp"
-#    include "openvino/op/erf.hpp"
-#    include "openvino/op/exp.hpp"
-#    include "openvino/op/floor.hpp"
-#    include "openvino/op/floor_mod.hpp"
-#    include "openvino/op/gelu.hpp"
-#    include "openvino/op/greater.hpp"
-#    include "openvino/op/greater_eq.hpp"
-#    include "openvino/op/hswish.hpp"
-#    include "openvino/op/less.hpp"
-#    include "openvino/op/less_eq.hpp"
-#    include "openvino/op/logical_and.hpp"
-#    include "openvino/op/logical_not.hpp"
-#    include "openvino/op/logical_or.hpp"
-#    include "openvino/op/logical_xor.hpp"
-#    include "openvino/op/maximum.hpp"
-#    include "openvino/op/minimum.hpp"
-#    include "openvino/op/mish.hpp"
-#    include "openvino/op/mod.hpp"
-#    include "openvino/op/negative.hpp"
-#    include "openvino/op/not_equal.hpp"
-#    include "openvino/op/power.hpp"
-#    include "openvino/op/prelu.hpp"
-#    include "openvino/op/relu.hpp"
-#    include "openvino/op/round.hpp"
-#    include "openvino/op/select.hpp"
-#    include "openvino/op/sigmoid.hpp"
-#    include "openvino/op/sqrt.hpp"
-#    include "openvino/op/squared_difference.hpp"
 #    include "openvino/op/swish.hpp"
-#    include "openvino/op/tanh.hpp"
-#    include "openvino/op/xor.hpp"
-#    include "snippets/utils/utils.hpp"
 #    include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
 #else
 #    include "openvino/op/convolution.hpp"
@@ -300,11 +266,23 @@
 #endif
 
 #if defined(OPENVINO_ARCH_RISCV64)
+#    include "openvino/op/elu.hpp"
+#    include "openvino/op/erf.hpp"
+#    include "openvino/op/exp.hpp"
+#    include "openvino/op/floor.hpp"
+#    include "openvino/op/gelu.hpp"
 #    include "openvino/op/hsigmoid.hpp"
+#    include "openvino/op/hswish.hpp"
 #    include "openvino/op/is_finite.hpp"
 #    include "openvino/op/is_inf.hpp"
 #    include "openvino/op/is_nan.hpp"
+#    include "openvino/op/mish.hpp"
+#    include "openvino/op/negative.hpp"
+#    include "openvino/op/relu.hpp"
+#    include "openvino/op/sigmoid.hpp"
 #    include "openvino/op/softsign.hpp"
+#    include "openvino/op/sqrt.hpp"
+#    include "openvino/op/tanh.hpp"
 #endif
 
 #if defined(SNIPPETS_LIBXSMM_TPP)
@@ -1404,58 +1382,7 @@ void Transformations::MainSnippets() {
 #endif  // OPENVINO_ARCH_X86_64
 
     auto is_supported_op = []([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
-#if defined(OPENVINO_ARCH_ARM64)
-        // Power on ARM64 only supports power and swish with scalar second inputs
-        auto is_supported_with_scalar_inputs = [](const std::shared_ptr<const ov::Node>& n) {
-            return (ov::is_type_any_of<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
-                    ov::snippets::utils::is_scalar_constant(n->get_input_node_shared_ptr(1)));
-        };
-        auto is_supported = [](const std::shared_ptr<const ov::Node>& n) {
-            return (ov::is_type_any_of<ov::op::v0::Abs,
-                                       ov::op::v1::Add,
-                                       ov::op::v0::Clamp,
-                                       ov::op::v0::Ceiling,
-                                       ov::op::v0::Convert,
-                                       ov::op::v1::Divide,
-                                       ov::op::v0::Elu,
-                                       ov::op::v0::Erf,
-                                       ov::op::v0::Exp,
-                                       ov::op::v1::Equal,
-                                       ov::op::v0::FakeQuantize,
-                                       ov::op::v0::Floor,
-                                       ov::op::v1::FloorMod,
-                                       ov::op::v0::Gelu,
-                                       ov::op::v7::Gelu,
-                                       ov::op::v1::Greater,
-                                       ov::op::v1::GreaterEqual,
-                                       ov::op::v4::HSwish,
-                                       ov::op::v1::Less,
-                                       ov::op::v1::LessEqual,
-                                       ov::op::v1::Maximum,
-                                       ov::op::v1::Minimum,
-                                       ov::op::v4::Mish,
-                                       ov::op::v1::Mod,
-                                       ov::op::v1::Multiply,
-                                       ov::op::v0::Negative,
-                                       ov::op::v1::NotEqual,
-                                       ov::op::v0::PRelu,
-                                       ov::op::v1::Power,
-                                       ov::op::v0::Relu,
-                                       ov::op::v5::Round,
-                                       ov::op::v1::Select,
-                                       ov::op::v0::Sigmoid,
-                                       ov::op::v0::Sqrt,
-                                       ov::op::v0::SquaredDifference,
-                                       ov::op::v1::Subtract,
-                                       ov::op::v0::Tanh,
-                                       ov::op::v1::LogicalAnd,
-                                       ov::op::v1::LogicalOr,
-                                       ov::op::v1::LogicalXor,
-                                       ov::op::v1::LogicalNot,
-                                       ov::op::v0::Xor>(n));
-        };
-        return is_supported(n) || is_supported_with_scalar_inputs(n);
-#elif defined(OPENVINO_ARCH_RISCV64)
+#if defined(OPENVINO_ARCH_RISCV64)
         auto is_supported = [](const std::shared_ptr<const ov::Node>& n) {
             return (ov::is_type_any_of<ov::op::v0::Abs,
                                        ov::op::v0::Clamp,
@@ -1483,8 +1410,11 @@ void Transformations::MainSnippets() {
         // and CPU Plugin does not support Mish for x64
         auto is_unsupported = [](const std::shared_ptr<const ov::Node>& n) {
             return (ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
-                    !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1))) ||
-                   ov::is_type<const ov::op::v4::Mish>(n);
+                    !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1)))
+#    if defined(OPENVINO_ARCH_X86_64)
+                   || ov::is_type<const ov::op::v4::Mish>(n)
+#    endif
+                ;
         };
         // todo: general tokenization flow is not currently supported for these operations.
         // they can be tokenized only as a part of complex patterns
