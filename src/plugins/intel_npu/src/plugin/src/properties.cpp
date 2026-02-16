@@ -599,8 +599,16 @@ void Properties::registerPluginProperties() {
         REGISTER_CUSTOM_METRIC(ov::intel_npu::compiler_version, true, [&](const Config& config) {
             /// create dummy compiler
             auto compilerType = config.get<COMPILER_TYPE>();
+            auto deviceId = config.get<DEVICE_ID>();
+            std::string deviceName = getDeviceName(deviceId, compilerType);
+
+            auto compilationPlatform = utils::getCompilationPlatform(
+                config.get<PLATFORM>(),
+                deviceName.empty() ? deviceId : deviceName,
+                _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+
             CompilerAdapterFactory factory;
-            auto dummyCompiler = factory.getCompiler(_backend, compilerType, config.get<PLATFORM>());
+            auto dummyCompiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
             return dummyCompiler->get_version();
         });
         REGISTER_CUSTOM_METRIC(ov::internal::caching_properties, false, [&](const Config& config) {

@@ -443,4 +443,49 @@ TEST_P(CheckCompilerTypeProperty, SetCompilerPropertyForDifferentCompiler) {
     ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
 }
 
+TEST_P(CheckCompilerTypeProperty, GetCompilerVersion) {
+    std::string logs;
+    std::mutex logs_mutex;
+    ov::Core core;
+
+    core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    OV_ASSERT_NO_THROW(
+        core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)));
+    ov::util::set_log_callback(log_cb);
+    OV_ASSERT_NO_THROW(core.get_property(deviceName, ov::intel_npu::compiler_version));
+    ov::util::reset_log_callback();
+    ASSERT_NE(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+
+    logs.clear();
+
+    OV_ASSERT_NO_THROW(
+        core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)));
+    ov::util::set_log_callback(log_cb);
+    OV_ASSERT_NO_THROW(core.get_property(deviceName, ov::intel_npu::compiler_version));
+    ov::util::reset_log_callback();
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+
+    logs.clear();
+
+    ov::util::set_log_callback(log_cb);
+    OV_ASSERT_NO_THROW(core.get_property(deviceName,
+                                         ov::intel_npu::compiler_version,
+                                         {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}));
+    ov::util::reset_log_callback();
+    ASSERT_NE(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+
+    logs.clear();
+}
+
 }  // namespace
