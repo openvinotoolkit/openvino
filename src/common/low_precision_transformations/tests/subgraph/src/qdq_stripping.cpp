@@ -97,6 +97,17 @@ TEST_P(QDQStrippingTest, NeedScalingPerChannelFQ) {
                                                                        need_weights_adjustment);
 }
 
+// Forward bias adjustment: forward propagation through MatMul+bias must adjust
+// only the bias constant, not the MatMul weights.
+TEST_P(QDQStrippingTest, NeedScalingForwardBias) {
+    const auto& [need_weights_adjustment, quantization_precision] = GetParam();
+    const auto input_shape = ov::PartialShape{1, 128};
+    model = QDQStrippingFunction::build_forward_bias_pattern(input_shape, quantization_precision);
+    model_ref = QDQStrippingFunction::build_forward_bias_pattern_ref(input_shape,
+                                                                     quantization_precision,
+                                                                     need_weights_adjustment);
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                          QDQStrippingTest,
                          Combine(Bool(), Values(ov::element::u16, ov::element::i16)),

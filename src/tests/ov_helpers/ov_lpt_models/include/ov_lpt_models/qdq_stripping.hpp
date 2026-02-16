@@ -124,6 +124,17 @@ public:
     static std::shared_ptr<ov::Model> build_per_channel_fq_pattern_ref(const ov::PartialShape& input_shape,
                                                                        const ov::element::Type& quantization_precision,
                                                                        bool need_weights_adjustment = true);
+
+    // === ForwardBias pattern ===
+    // MatMul1(DQ weights) + bias1(DQ) → FQ → DQ → MatMul2(DQ weights) + bias2(DQ) → MVN.
+    // Tests that forward propagation adjusts downstream bias constants.
+    // When need_weights_adjustment=true: backward adjusts w1,bias1; forward adjusts bias2.
+    static std::shared_ptr<ov::Model> build_forward_bias_pattern(const ov::PartialShape& input_shape,
+                                                                  const ov::element::Type& quantization_precision);
+
+    static std::shared_ptr<ov::Model> build_forward_bias_pattern_ref(const ov::PartialShape& input_shape,
+                                                                      const ov::element::Type& quantization_precision,
+                                                                      bool need_weights_adjustment = true);
 };
 
 }  // namespace subgraph

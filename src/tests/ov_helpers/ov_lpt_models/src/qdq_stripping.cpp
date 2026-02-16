@@ -702,6 +702,82 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_per_channel_fq_pattern_re
     return std::make_shared<ov::Model>(ov::OutputVector{mvn}, params, "QDQStripping");
 }
 
+// --- ForwardBias pattern ---
+// MatMul1(DQ w1) + bias1(DQ) → FQ(y_scale=4) → DQ → MatMul2(DQ w2) + bias2(DQ) → MVN.
+// Backward: adjusts w1 and bias1 by scale_divisor.
+// Forward: walks past MatMul2+bias2, must adjust bias2 (but NOT w2) by scale_divisor.
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_forward_bias_pattern(const ov::PartialShape& input_shape,
+                                                                             const ov::element::Type& quantization_precision) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
+
+    // MatMul1 with DQ weights (backward propagation will adjust these)
+    auto weight1 = build_dq_subgraph(ov::element::i8, ov::Shape{128, 32}, 0.02f, -128, 1);
+    auto matmul1 = std::make_shared<ov::op::v0::MatMul>(params[0], weight1, false, false);
+
+    auto bias1 = build_dq_subgraph(ov::element::i8, {32}, 200.0f, -128, 2);
+    auto matmul1_biased = std::make_shared<ov::op::v1::Add>(matmul1, bias1);
+
+    // FQ with y_scale = 4 (same as MatMulWithBias pattern)
+    static const std::unordered_map<ov::element::Type_t, QuantizationParams> quantization_params{
+        {ov::element::Type_t::u16, {0.f, 262140.f, 0.f, 65535.f, 0}},
+        {ov::element::Type_t::i16, {-131072.f, 131068.f, -32768.f, 32767.f, 0}},
+    };
+
+    const auto& qp = quantization_params.at(quantization_precision);
+    auto fq = qp.build_fq(matmul1_biased);
+    auto convert1 = std::make_shared<ov::op::v0::Convert>(fq, quantization_precision);
+    auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
+    auto dq = qp.build_dq(convert2, quantization_precision);
+
+    // MatMul2 with DQ weights (forward propagation must NOT adjust these weights,
+    // but MUST adjust bias2).
+    // w2_scale=0.001 keeps MatMul2 output moderate after scale adjustment:
+    //   adjusted signal (~1500) × 0.128 × 32 ≈ 6000 → fits f16.
+    // bias2_scale=100 is significant relative to MatMul2 output, so MVN detects
+    //   unscaled bias2 if forward propagation doesn't adjust it.
+    auto weight2 = build_dq_subgraph(ov::element::i8, ov::Shape{32, 32}, 0.001f, -128, 3);
+    auto matmul2 = std::make_shared<ov::op::v0::MatMul>(dq, weight2, false, false);
+
+    auto bias2 = build_dq_subgraph(ov::element::i8, {32}, 100.0f, -128, 4);
+    auto matmul2_biased = std::make_shared<ov::op::v1::Add>(matmul2, bias2);
+
+    auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+    auto mvn = std::make_shared<ov::op::v6::MVN>(matmul2_biased, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{mvn}, params, "QDQStripping");
+}
+
+// --- ForwardBias reference ---
+// CQDQ fuses FQ→DQ. FQStripping strips FQ (y_scale=4, scale_divisor=40).
+// Backward: w1 and bias1 divided by 40.
+// Forward: bias2 divided by 40 (w2 unchanged).
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_forward_bias_pattern_ref(const ov::PartialShape& input_shape,
+                                                                                 const ov::element::Type& /*quantization_precision*/,
+                                                                                 bool need_weights_adjustment) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
+
+    const float scale_divisor = need_weights_adjustment ? 40.f : 1.f;
+
+    // MatMul1: weight and bias adjusted by backward propagation
+    auto weight1 = build_dq_subgraph(ov::element::i8, ov::Shape{128, 32}, 0.02f / scale_divisor, -128, 1);
+    auto matmul1 = std::make_shared<ov::op::v0::MatMul>(params[0], weight1, false, false);
+
+    auto bias1 = build_dq_subgraph(ov::element::i8, {32}, 200.0f / scale_divisor, -128, 2);
+    auto matmul1_biased = std::make_shared<ov::op::v1::Add>(matmul1, bias1);
+
+    // MatMul2: weight NOT adjusted, bias2 adjusted by forward propagation
+    auto weight2 = build_dq_subgraph(ov::element::i8, ov::Shape{32, 32}, 0.001f, -128, 3);
+    auto matmul2 = std::make_shared<ov::op::v0::MatMul>(matmul1_biased, weight2, false, false);
+
+    auto bias2 = build_dq_subgraph(ov::element::i8, {32}, 100.0f / scale_divisor, -128, 4);
+    auto matmul2_biased = std::make_shared<ov::op::v1::Add>(matmul2, bias2);
+
+    auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+    auto mvn = std::make_shared<ov::op::v6::MVN>(matmul2_biased, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{mvn}, params, "QDQStripping");
+}
+
 }  // namespace subgraph
 }  // namespace builder
 }  // namespace ov

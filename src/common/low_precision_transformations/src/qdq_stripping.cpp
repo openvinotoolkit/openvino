@@ -234,11 +234,30 @@ private:
     }
 
     void propagate_forward(ov::Node* root) {
+        using namespace ov::pass::pattern;
+
         auto collect_nodes_to_scale = [&](ov::Node* node) {
-            auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node->shared_from_this());
+            const auto node_shared = node->shared_from_this();
+
+            auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node_shared);
             if (fq && node != m_fq && !node->get_users().empty()) {
                 m_pending_fq_adjustments.insert(fq);
                 return;
+            }
+
+            // If forward propagation encounters Convolution+bias or MatMul+bias,
+            // the bias must be adjusted: signal*w + bias → (signal/S)*w + bias/S.
+            // Conv/MatMul weights are NOT adjusted (the scale cancels through linearity).
+            {
+                auto bias_dq_block = std::make_shared<WeightsDequantizationBlock>();
+                auto add_pattern = wrap_type<ov::op::v1::Add>({any_input(), bias_dq_block});
+                auto matcher = std::make_shared<Matcher>(add_pattern, "ForwardBiasPattern");
+
+                if (matcher->match(node_shared)) {
+                    auto& pm = matcher->get_pattern_value_map();
+                    m_pending_weight_scales.insert(bias_dq_block->get_multiply(pm));
+                    return;
+                }
             }
 
             if (ov::is_type<ov::op::v1::Add>(node)) {

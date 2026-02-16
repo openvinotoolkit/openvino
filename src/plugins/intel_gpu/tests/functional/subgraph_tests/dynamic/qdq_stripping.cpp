@@ -15,7 +15,7 @@ using namespace ov::test;
 using ov::builder::subgraph::QDQStrippingFunction;
 using ov::test::InputShape;
 
-enum class PatternType { SharedDQ, NeedScalingMulMatMul, NeedScalingResidualBlock, NeedScalingMatMulWithBias };
+enum class PatternType { SharedDQ, NeedScalingMulMatMul, NeedScalingResidualBlock, NeedScalingMatMulWithBias, NeedScalingForwardBias };
 
 inline std::ostream& operator<<(std::ostream& os, PatternType pattern_type) {
     switch (pattern_type) {
@@ -30,6 +30,9 @@ inline std::ostream& operator<<(std::ostream& os, PatternType pattern_type) {
         break;
     case PatternType::NeedScalingMatMulWithBias:
         os << "NeedScalingMatMulWithBias";
+        break;
+    case PatternType::NeedScalingForwardBias:
+        os << "NeedScalingForwardBias";
         break;
     default:
         OPENVINO_THROW("Unknown PatternType");
@@ -79,7 +82,8 @@ public:
                 inputs.insert({param, tensor});
                 itTargetShape++;
             }
-        } else if (pattern_type == PatternType::NeedScalingMatMulWithBias) {
+        } else if (pattern_type == PatternType::NeedScalingMatMulWithBias ||
+                   pattern_type == PatternType::NeedScalingForwardBias) {
             // Input range [0, 100]: with weight_scale=0.02, weight_zp=-128, weights in [0,5.1],
             // 128-element dot product → MatMul output ~16320 (all positive).
             // Plus bias [0, 51000] → total up to ~67320 → overflows f16 without scale adj.
@@ -139,6 +143,9 @@ protected:
         case PatternType::NeedScalingMatMulWithBias:
             function = QDQStrippingFunction::build_matmul_with_bias_pattern(input_shape.first, quantization_precision);
             break;
+        case PatternType::NeedScalingForwardBias:
+            function = QDQStrippingFunction::build_forward_bias_pattern(input_shape.first, quantization_precision);
+            break;
         default:
             OPENVINO_THROW("Unknown PatternType");
         }
@@ -185,13 +192,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_QDQStripping_f16Only,
                                             ::testing::Values(PatternType::NeedScalingMulMatMul)),
                          QDQStrippingTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_QDQStripping_BothPrecisions,
-    QDQStrippingTest,
-    ::testing::Combine(::testing::ValuesIn(input_shapes),
-                       ::testing::ValuesIn(input_precisions),
-                       ::testing::ValuesIn(quantization_precisions),
-                       ::testing::Values(ov::element::f16, ov::element::f32),
-                       ::testing::Values(PatternType::SharedDQ, PatternType::NeedScalingResidualBlock, PatternType::NeedScalingMatMulWithBias)),
-    QDQStrippingTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_QDQStripping_BothPrecisions,
+                         QDQStrippingTest,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes),
+                                            ::testing::ValuesIn(input_precisions),
+                                            ::testing::ValuesIn(quantization_precisions),
+                                            ::testing::Values(ov::element::f16, ov::element::f32),
+                                            ::testing::Values(PatternType::SharedDQ,
+                                                              PatternType::NeedScalingResidualBlock,
+                                                              PatternType::NeedScalingMatMulWithBias,
+                                                              PatternType::NeedScalingForwardBias)),
+                         QDQStrippingTest::getTestCaseName);
 }  // namespace
