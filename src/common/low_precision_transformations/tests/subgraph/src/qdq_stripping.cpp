@@ -24,7 +24,6 @@ public:
     }
 
     QDQStrippingTest() : TransformationTestsF() {
-        disable_rt_info_check();
         comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     }
 
@@ -72,21 +71,14 @@ TEST_P(QDQStrippingTest, NeedScalingResidualBlock) {
                                                                        need_weights_adjustment);
 }
 
-// When skip_final_mvn=true, the model output goes directly to Result without a scale-invariant
-// consumer. Forward propagation detects Result and skips weight adjustment, so the reference
-// uses unscaled weights regardless of need_weights_adjustment.
 TEST_P(QDQStrippingTest, NeedScalingResidualBlockNoFinalMVN) {
     const auto& [need_weights_adjustment, quantization_precision] = GetParam();
     const auto input_shape = ov::PartialShape{1, 3, 8, 8};
     model = QDQStrippingFunction::build_residual_block_pattern(input_shape, quantization_precision, /*skip_final_mvn=*/true);
-    model_ref = QDQStrippingFunction::build_residual_block_pattern_ref(input_shape,
-                                                                       quantization_precision,
-                                                                       need_weights_adjustment,
-                                                                       /*skip_final_mvn=*/true);
+    model_ref =
+        QDQStrippingFunction::build_residual_block_pattern_ref(input_shape, quantization_precision, false, true);
 }
 
-// Forward bias adjustment: forward propagation through MatMul+bias must adjust
-// only the bias constant, not the MatMul weights.
 TEST_P(QDQStrippingTest, NeedScalingForwardBias) {
     const auto& [need_weights_adjustment, quantization_precision] = GetParam();
     const auto input_shape = ov::PartialShape{1, 128};

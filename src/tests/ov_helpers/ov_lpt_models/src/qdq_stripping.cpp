@@ -26,35 +26,34 @@
 namespace ov {
 namespace builder {
 namespace subgraph {
-
-// QuantizationParams implementation
-ov::Output<ov::Node> QuantizationParams::build_fq(const ov::Output<ov::Node>& input) const {
-    auto input_low = ov::op::v0::Constant::create(ov::element::f32, {}, {i_l});
-    auto input_high = ov::op::v0::Constant::create(ov::element::f32, {}, {i_h});
-    auto output_low = ov::op::v0::Constant::create(ov::element::f32, {}, {o_l});
-    auto output_high = ov::op::v0::Constant::create(ov::element::f32, {}, {o_h});
-    return std::make_shared<ov::op::v0::FakeQuantize>(input, input_low, input_high, output_low, output_high, 65536);
+ov::Output<ov::Node> QDQStrippingFunction::build_fq(const ov::Output<ov::Node>& input,
+                                                    const QuantizationParams& qp,
+                                                    size_t levels) {
+    auto il = ov::op::v0::Constant::create(ov::element::f32, {}, {qp.i_l});
+    auto ih = ov::op::v0::Constant::create(ov::element::f32, {}, {qp.i_h});
+    auto ol = ov::op::v0::Constant::create(ov::element::f32, {}, {qp.o_l});
+    auto oh = ov::op::v0::Constant::create(ov::element::f32, {}, {qp.o_h});
+    return std::make_shared<ov::op::v0::FakeQuantize>(input, il, ih, ol, oh, levels);
 }
 
-ov::Output<ov::Node> QuantizationParams::build_dq(const ov::Output<ov::Node>& input,
-                                                   const ov::element::Type& quantization_precision) const {
-    auto act_zero_point = ov::op::v0::Constant::create(quantization_precision, {}, {zero_point});
+ov::Output<ov::Node> QDQStrippingFunction::build_dq(const ov::Output<ov::Node>& input,
+                                                    const ov::element::Type& quantization_precision,
+                                                    const QuantizationParams& qp) {
+    auto act_zero_point = ov::op::v0::Constant::create(quantization_precision, {}, {qp.zero_point});
     auto act_zp_convert = std::make_shared<ov::op::v0::Convert>(act_zero_point, ov::element::f32);
-
     auto act_subtract = std::make_shared<ov::op::v1::Subtract>(input, act_zp_convert);
-    float scale_value = (i_h - i_l) / (o_h - o_l);
+    float scale_value = (qp.i_h - qp.i_l) / (qp.o_h - qp.o_l);
     auto act_scale = ov::op::v0::Constant::create(ov::element::f32, {}, {scale_value});
-
     return std::make_shared<ov::op::v1::Multiply>(act_subtract, act_scale);
 }
 
-ov::Output<ov::Node> QDQStrippingFunction::build_dq_subgraph(ov::element::Type quantized_type,
-                                                              const ov::Shape& shape,
-                                                              float scale_value,
-                                                              int zero_point,
-                                                              std::optional<size_t> seed,
-                                                              std::optional<std::vector<int>> constant_values,
-                                                              float constant_value) {
+ov::Output<ov::Node> QDQStrippingFunction::build_weights_dq(ov::element::Type quantized_type,
+                                                            const ov::Shape& shape,
+                                                            float scale_value,
+                                                            int zero_point,
+                                                            std::optional<size_t> seed,
+                                                            std::optional<std::vector<int>> constant_values,
+                                                            float constant_value) {
     std::shared_ptr<ov::Node> quantized_const;
 
     if (seed.has_value()) {
@@ -83,7 +82,7 @@ ov::Output<ov::Node> QDQStrippingFunction::build_dq_subgraph(ov::element::Type q
 }
 
 ov::Output<ov::Node> QDQStrippingFunction::add_bias(const ov::Output<ov::Node>& conv,
-                                                     const ov::Output<ov::Node>& bias) {
+                                                    const ov::Output<ov::Node>& bias) {
     const auto conv_shape = std::make_shared<ov::op::v3::ShapeOf>(conv);
     const auto conv_rank = std::make_shared<ov::op::v3::ShapeOf>(conv_shape);
 
@@ -99,54 +98,67 @@ ov::Output<ov::Node> QDQStrippingFunction::add_bias(const ov::Output<ov::Node>& 
     return std::make_shared<ov::op::v1::Add>(conv, reshaped_bias);
 }
 
-ov::Output<ov::Node> QDQStrippingFunction::build_fq(const ov::Output<ov::Node>& input,
-                                                     float input_low, float input_high,
-                                                     float output_low, float output_high,
-                                                     size_t levels) {
-    auto il = ov::op::v0::Constant::create(ov::element::f32, {}, {input_low});
-    auto ih = ov::op::v0::Constant::create(ov::element::f32, {}, {input_high});
-    auto ol = ov::op::v0::Constant::create(ov::element::f32, {}, {output_low});
-    auto oh = ov::op::v0::Constant::create(ov::element::f32, {}, {output_high});
-    return std::make_shared<ov::op::v0::FakeQuantize>(input, il, ih, ol, oh, levels);
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_shared_dq_pattern(
+    const ov::PartialShape& input_shape,
+    const ov::element::Type& quantization_precision) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
+    static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>>
+        quantization_params{
+            {ov::element::Type_t::u16,
+             {{0.f, 10.f, 0.f, 65535.f, 0}, {-624.4578838348389f, 634.7373962402344f, 0.f, 65535.f, 32500}}},
+            {ov::element::Type_t::i16,
+             {{-5.0000762939453125f, 4.9999237060546875f, -32768.f, 32767.f, 0},
+              {-630.0096435546875f, 629.9904174804688f, -32768.f, 32767.f, 0}}},
+        };
+
+    const auto& q_params = quantization_params.at(quantization_precision);
+    const auto& qp_1 = q_params.first;
+    auto input_fq = build_fq(params[0], qp_1);
+
+    auto input_convert1 = std::make_shared<ov::op::v0::Convert>(input_fq, quantization_precision);
+    auto input_convert2 = std::make_shared<ov::op::v0::Convert>(input_convert1, ov::element::f32);
+
+    size_t seed = 1;
+    auto create_qdq_branch = [&](float weight_scale_value) {
+        auto input_dequantized = build_dq(input_convert2, quantization_precision, qp_1);
+        ov::test::utils::InputGenerateData weights_gen_data;
+        weights_gen_data.seed = seed;
+        auto weight_quantized =
+            ov::test::utils::make_constant(ov::element::i8, ov::Shape{32, 3, 3, 3}, weights_gen_data);
+        auto weight_convert = std::make_shared<ov::op::v0::Convert>(weight_quantized, ov::element::f32);
+        auto weight_scale =
+            ov::test::utils::make_constant(ov::element::f32, {}, std::vector<float>{weight_scale_value});
+        auto weight_dequantized = std::make_shared<ov::op::v1::Multiply>(weight_convert, weight_scale);
+
+        auto conv = std::make_shared<ov::op::v1::Convolution>(input_dequantized,
+                                                              weight_dequantized,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{1, 1},
+                                                              ov::CoordinateDiff{1, 1},
+                                                              ov::Strides{1, 1});
+
+        ov::test::utils::InputGenerateData bias_gen_data(-2.0, 4, 100, seed++);
+        auto bias_const = ov::test::utils::make_constant(ov::element::f32, ov::Shape{1, 32, 1, 1}, bias_gen_data);
+        auto conv_biased = std::make_shared<ov::op::v1::Add>(conv, bias_const);
+
+        const auto& qp_2 = q_params.second;
+        auto fake_quantize = build_fq(conv_biased, qp_2);
+        auto act_quantized = std::make_shared<ov::op::v0::Convert>(fake_quantize, quantization_precision);
+        auto act_convert = std::make_shared<ov::op::v0::Convert>(act_quantized, ov::element::f32);
+        return build_dq(act_convert, quantization_precision, qp_2);
+    };
+
+    auto left_branch = create_qdq_branch(1e-4f);
+    auto right_branch = create_qdq_branch(1e-5f);
+    auto add_branches = std::make_shared<ov::op::v1::Add>(left_branch, right_branch);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{add_branches}, params, "QDQStripping");
 }
 
-ov::Output<ov::Node> QDQStrippingFunction::build_dq(const ov::Output<ov::Node>& input,
-                                                     const ov::element::Type& quantization_precision,
-                                                     float input_low, float input_high,
-                                                     float output_low, float output_high,
-                                                     int zero_point) {
-    auto act_zero_point = ov::op::v0::Constant::create(quantization_precision, {}, {zero_point});
-    auto act_zp_convert = std::make_shared<ov::op::v0::Convert>(act_zero_point, ov::element::f32);
-    auto act_subtract = std::make_shared<ov::op::v1::Subtract>(input, act_zp_convert);
-
-    float scale_value = (input_high - input_low) / (output_high - output_low);
-    auto act_scale = ov::op::v0::Constant::create(ov::element::f32, {}, {scale_value});
-    return std::make_shared<ov::op::v1::Multiply>(act_subtract, act_scale);
-}
-
-// ==============================================================================
-// Reference model builders for LPT unit tests.
-// Each builds the expected graph after ConvertQuantizeDequantize + FQStrippingTransformation.
-//
-// ConvertQuantizeDequantize fuses FQ→Convert→Convert→Subtract→Multiply into a single FQ
-// with new_ol = (ol-zp)*scale, new_oh = (oh-zp)*scale. This produces FQs with il==ol, ih==oh.
-//
-// FQStrippingTransformation then strips those FQs:
-//   y_scale = (ih - il) / (levels - 1)
-//   if y_scale <= 1: just remove FQ
-//   if y_scale > 1:  remove FQ, backward-propagate scale (divide weights by y_scale * ratio)
-//                    and forward-propagate (adjust downstream FQs and backward-propagate into branches)
-//
-// Note: ConvertQuantizeDequantize requires consumers_count(1) on Convert nodes,
-// so FQ chains where Convert(f32) has multiple consumers are NOT fused (they stay as-is).
-// ==============================================================================
-
-// --- SharedDQ reference ---
-// Input FQ(0,10,0,65535) stays (Convert(f32) has 2 consumers → CQDQ can't fuse it).
-// Per-branch FQs (qp_2) fused by CQDQ → y_scale < 1 → stripped by FQStripping.
-std::shared_ptr<ov::Model> QDQStrippingFunction::build_shared_dq_pattern_ref(const ov::PartialShape& input_shape,
-                                                                              const ov::element::Type& quantization_precision,
-                                                                              bool need_weights_adjustment) {
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_shared_dq_pattern_ref(
+    const ov::PartialShape& input_shape,
+    const ov::element::Type& quantization_precision,
+    bool need_weights_adjustment) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
 
     // Input FQ stays unchanged (CQDQ can't match due to multiple consumers).
@@ -157,20 +169,22 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_shared_dq_pattern_ref(con
     };
     const auto& qp_1 = quantization_params.at(quantization_precision);
 
-    auto input_fq = qp_1.build_fq(params[0]);
+    auto input_fq = build_fq(params[0], qp_1);
     auto input_convert1 = std::make_shared<ov::op::v0::Convert>(input_fq, quantization_precision);
     auto input_convert2 = std::make_shared<ov::op::v0::Convert>(input_convert1, ov::element::f32);
 
     size_t seed = 1;
     auto create_branch = [&](float weight_scale_value) {
         // DQ for input (same as original — not touched by either pass)
-        auto input_dequantized = qp_1.build_dq(input_convert2, quantization_precision);
+        auto input_dequantized = build_dq(input_convert2, quantization_precision, qp_1);
 
         ov::test::utils::InputGenerateData weights_gen_data;
         weights_gen_data.seed = seed;
-        auto weight_quantized = ov::test::utils::make_constant(ov::element::i8, ov::Shape{32, 3, 3, 3}, weights_gen_data);
+        auto weight_quantized =
+            ov::test::utils::make_constant(ov::element::i8, ov::Shape{32, 3, 3, 3}, weights_gen_data);
         auto weight_convert = std::make_shared<ov::op::v0::Convert>(weight_quantized, ov::element::f32);
-        auto weight_scale = ov::test::utils::make_constant(ov::element::f32, {}, std::vector<float>{weight_scale_value});
+        auto weight_scale =
+            ov::test::utils::make_constant(ov::element::f32, {}, std::vector<float>{weight_scale_value});
         auto weight_dequantized = std::make_shared<ov::op::v1::Multiply>(weight_convert, weight_scale);
 
         auto conv = std::make_shared<ov::op::v1::Convolution>(input_dequantized,
@@ -194,235 +208,28 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_shared_dq_pattern_ref(con
 
     return std::make_shared<ov::Model>(ov::OutputVector{add_branches}, params, "QDQStripping");
 }
-
-// --- NeedScalingMulMatMul reference ---
-// FQ(0,131070,0,65535) fused by CQDQ → y_scale = 131070/65535 = 2 > 1
-// scale_divisor = 2 * 10 = 20. Common constant scale divided: 1.0/20 = 0.05
-// FQ stripped, Convert+DQ after it removed by CQDQ fusion.
-std::shared_ptr<ov::Model> QDQStrippingFunction::build_mul_matmul_pattern_ref(const ov::PartialShape& input_shape,
-                                                                                            const ov::element::Type& /*quantization_precision*/,
-                                                                                            bool need_weights_adjustment) {
-    auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
-    auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
-    ov::ParameterVector params{param1, param2};
-
-    // Preceding Multiply: NOT scaled (backward propagation must stop at the main Multiply).
-    auto preceding_constant = build_dq_subgraph(ov::element::i8, {}, 1.0f, 0, std::nullopt, std::vector<int>{1});
-    auto preceding_mul1 = std::make_shared<ov::op::v1::Multiply>(param1, preceding_constant);
-    auto preceding_mul2 = std::make_shared<ov::op::v1::Multiply>(param2, preceding_constant);
-
-    // Original scale=1.0. With weights adjustment: divided by scale_divisor=20 → 0.05
-    const float common_scale = need_weights_adjustment ? 1.0f / 20.0f : 1.0f;
-    auto common_constant = build_dq_subgraph(ov::element::i8, {}, common_scale, 0, std::nullopt, std::vector<int>{127});
-
-    auto mul1 = std::make_shared<ov::op::v1::Multiply>(preceding_mul1, common_constant);
-    auto mul2 = std::make_shared<ov::op::v1::Multiply>(preceding_mul2, common_constant);
-
-    auto softmax_mul1 = std::make_shared<ov::op::v8::Softmax>(mul1, 1);
-
-    // FQ stripped, CQDQ removed Convert+DQ → MatMul output goes directly to Softmax
-    auto matmul = std::make_shared<ov::op::v0::MatMul>(mul1, mul2, false, true);
-    auto softmax = std::make_shared<ov::op::v8::Softmax>(matmul, 1);
-
-    return std::make_shared<ov::Model>(ov::OutputVector{softmax_mul1, softmax}, params, "QDQStripping");
-}
-
-// --- NeedScalingMatMulWithBias reference ---
-// FQ(0,262140,0,65535) fused by CQDQ → y_scale = 262140/65535 = 4 > 1
-// scale_divisor = 4 * 10 = 40. Weight scale: 0.02/40 = 0.0005, bias scale: 200/40 = 5
-// FQ stripped, Convert+DQ removed by CQDQ fusion.
-std::shared_ptr<ov::Model> QDQStrippingFunction::build_matmul_with_bias_pattern_ref(const ov::PartialShape& input_shape,
-                                                                                                  const ov::element::Type& /*quantization_precision*/,
-                                                                                                  bool need_weights_adjustment) {
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
-
-    // Original weight_scale=0.02. With weights adjustment: divided by scale_divisor=40 → 0.0005
-    const float scale_divisor = need_weights_adjustment ? 40.f : 1.f;
-
-    // Preceding MatMul+bias: NOT scaled (backward propagation must stop at the main MatMul+bias).
-    auto preceding_weight = build_dq_subgraph(ov::element::i8, ov::Shape{128, 128}, 1.0f / 128.0f, 0, std::nullopt, std::vector<int>{1});
-    auto preceding_matmul = std::make_shared<ov::op::v0::MatMul>(params[0], preceding_weight, false, false);
-    auto preceding_bias = build_dq_subgraph(ov::element::i8, {128}, 1.0f, 0, std::nullopt, std::vector<int>{1});
-    auto preceding_matmul_biased = std::make_shared<ov::op::v1::Add>(preceding_matmul, preceding_bias);
-
-    auto weight = build_dq_subgraph(ov::element::i8, ov::Shape{128, 32}, 0.02f / scale_divisor, -128, 1);
-    auto matmul = std::make_shared<ov::op::v0::MatMul>(preceding_matmul_biased, weight, false, false);
-
-    // Original bias_scale=200. With weights adjustment: divided by 40 → 5
-    auto bias = build_dq_subgraph(ov::element::i8, {32}, 200.0f / scale_divisor, -128, 2);
-    auto matmul_biased = std::make_shared<ov::op::v1::Add>(matmul, bias);
-
-    // FQ stripped, CQDQ removed Convert+DQ → Add output goes directly to MVN
-    auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
-    auto mvn = std::make_shared<ov::op::v6::MVN>(matmul_biased, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
-
-    return std::make_shared<ov::Model>(ov::OutputVector{mvn}, params, "QDQStripping");
-}
-
-// --- NeedScalingResidualBlock reference ---
-// First FQ(0,655350,0,65535) fused by CQDQ → y_scale = 655350/65535 = 10 > 1
-// scale_divisor = 10 * 10 = 100. All weight scales /100, all bias scales /100.
-// Forward propagation adjusts forward-path FQ and branch FQs by /100,
-// making their y_scale < 1, so they are stripped too.
-// CQDQ also fuses the first FQ's Convert+DQ chain.
-std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern_ref(const ov::PartialShape& input_shape,
-                                                                                                const ov::element::Type& /*quantization_precision*/,
-                                                                                                bool need_weights_adjustment,
-                                                                                                bool skip_final_mvn) {
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
-
-    // y_scale(10) * ratio(10) = 100. When need_weights_adjustment=false, no division.
-    // When skip_final_mvn=true, forward propagation hits Result before any scale-invariant
-    // consumer, so the transformation skips weight adjustment regardless of need_weights_adjustment.
-    const float scale_divisor = (need_weights_adjustment && !skip_final_mvn) ? 100.f : 1.f;
-
-    // Preceding Conv+bias: NOT scaled (backward propagation must stop at Conv1+bias).
-    auto preceding_weight = build_dq_subgraph(ov::element::i8, ov::Shape{3, 3, 3, 3}, 1.0f / 27.0f, 0, std::nullopt, std::vector<int>{1});
-    auto preceding_conv = std::make_shared<ov::op::v1::Convolution>(params[0],
-                                                                     preceding_weight,
-                                                                     ov::Strides{1, 1},
-                                                                     ov::CoordinateDiff{1, 1},
-                                                                     ov::CoordinateDiff{1, 1},
-                                                                     ov::Strides{1, 1});
-    auto preceding_bias = build_dq_subgraph(ov::element::i8, {3}, 1.0f, 0, std::nullopt, std::vector<int>{1});
-    auto preceding_conv_biased = add_bias(preceding_conv, preceding_bias);
-
-    // Conv1 weight scale: 0.003/100 = 3e-05
-    auto weight1 = build_dq_subgraph(ov::element::i8, ov::Shape{32, 3, 3, 3}, 0.003f / scale_divisor, -128, 1);
-    auto conv1 = std::make_shared<ov::op::v1::Convolution>(preceding_conv_biased,
-                                                           weight1,
-                                                           ov::Strides{1, 1},
-                                                           ov::CoordinateDiff{1, 1},
-                                                           ov::CoordinateDiff{1, 1},
-                                                           ov::Strides{1, 1});
-
-    // Bias1 scale: 0.001/100 = 1e-05
-    auto bias1 = build_dq_subgraph(ov::element::i8, {32}, 0.001f / scale_divisor, 0);
-    auto conv1_biased = add_bias(conv1, bias1);
-
-    // First FQ stripped, CQDQ removed Convert+DQ
-    // Forward-path FQ stripped (ranges adjusted by /100 → y_scale < 1)
-
-    // Residual blocks: all branch FQs stripped, all weight/bias scales divided by 100
-    auto create_residual_block = [&](const ov::Output<ov::Node>& input, size_t seed) {
-        auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {3}, {1, 2, 3});
-        auto mvn = std::make_shared<ov::op::v6::MVN>(input, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
-
-        // Weight scale: 0.003/100 = 3e-05
-        auto weight = build_dq_subgraph(ov::element::i8, ov::Shape{32, 32, 3, 3}, 0.003f / scale_divisor, -128, seed);
-        auto conv = std::make_shared<ov::op::v1::Convolution>(mvn,
-                                                              weight,
-                                                              ov::Strides{1, 1},
-                                                              ov::CoordinateDiff{1, 1},
-                                                              ov::CoordinateDiff{1, 1},
-                                                              ov::Strides{1, 1});
-
-        // Bias scale: 0.001/100 = 1e-05
-        auto bias = build_dq_subgraph(ov::element::i8, {32}, 0.001f / scale_divisor, 0);
-        auto conv_biased = add_bias(conv, bias);
-
-        // Branch FQ stripped
-        return std::make_shared<ov::op::v1::Add>(conv_biased, input);
-    };
-
-    auto add1 = create_residual_block(conv1_biased, 2);
-    auto add2 = create_residual_block(add1, 3);
-    auto add3 = create_residual_block(add2, 4);
-
-    if (skip_final_mvn) {
-        return std::make_shared<ov::Model>(ov::OutputVector{add3}, params, "QDQStripping");
-    }
-
-    auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {3}, {1, 2, 3});
-    auto final_mvn = std::make_shared<ov::op::v6::MVN>(add3, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
-
-    return std::make_shared<ov::Model>(ov::OutputVector{final_mvn}, params, "QDQStripping");
-}
-
-// ==============================================================================
-// GPU accuracy test model builders (shared between LPT unit tests and GPU func tests)
-// These use per-precision QuantizationParams maps with i16 ranges chosen for exact
-// float32 arithmetic in ConvertQuantizeDequantize fusion (il = -32768*K, ih = 32767*K).
-// ==============================================================================
-
-std::shared_ptr<ov::Model> QDQStrippingFunction::build_shared_dq_pattern(const ov::PartialShape& input_shape,
-                                                                          const ov::element::Type& quantization_precision) {
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
-    static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>> quantization_params{
-        {ov::element::Type_t::u16, {{0.f, 10.f, 0.f, 65535.f, 0}, {-624.4578838348389f, 634.7373962402344f, 0.f, 65535.f, 32500}}},
-        {ov::element::Type_t::i16,
-         {{-5.0000762939453125f, 4.9999237060546875f, -32768.f, 32767.f, 0}, {-630.0096435546875f, 629.9904174804688f, -32768.f, 32767.f, 0}}},
-    };
-
-    const auto& q_params = quantization_params.at(quantization_precision);
-    const auto& qp_1 = q_params.first;
-    auto input_fq = qp_1.build_fq(params[0]);
-
-    auto input_convert1 = std::make_shared<ov::op::v0::Convert>(input_fq, quantization_precision);
-    auto input_convert2 = std::make_shared<ov::op::v0::Convert>(input_convert1, ov::element::f32);
-
-    size_t seed = 1;
-    auto create_qdq_branch = [&](float weight_scale_value) {
-        auto input_dequantized = qp_1.build_dq(input_convert2, quantization_precision);
-        ov::test::utils::InputGenerateData weights_gen_data;
-        weights_gen_data.seed = seed;
-        auto weight_quantized = ov::test::utils::make_constant(ov::element::i8, ov::Shape{32, 3, 3, 3}, weights_gen_data);
-        auto weight_convert = std::make_shared<ov::op::v0::Convert>(weight_quantized, ov::element::f32);
-        auto weight_scale = ov::test::utils::make_constant(ov::element::f32, {}, std::vector<float>{weight_scale_value});
-        auto weight_dequantized = std::make_shared<ov::op::v1::Multiply>(weight_convert, weight_scale);
-
-        auto conv = std::make_shared<ov::op::v1::Convolution>(input_dequantized,
-                                                              weight_dequantized,
-                                                              ov::Strides{1, 1},
-                                                              ov::CoordinateDiff{1, 1},
-                                                              ov::CoordinateDiff{1, 1},
-                                                              ov::Strides{1, 1});
-
-        ov::test::utils::InputGenerateData bias_gen_data(-2.0, 4, 100, seed++);
-        auto bias_const = ov::test::utils::make_constant(ov::element::f32, ov::Shape{1, 32, 1, 1}, bias_gen_data);
-        auto conv_biased = std::make_shared<ov::op::v1::Add>(conv, bias_const);
-
-        const auto& qp_2 = q_params.second;
-        auto fake_quantize = qp_2.build_fq(conv_biased);
-        auto act_quantized = std::make_shared<ov::op::v0::Convert>(fake_quantize, quantization_precision);
-        auto act_convert = std::make_shared<ov::op::v0::Convert>(act_quantized, ov::element::f32);
-        return qp_2.build_dq(act_convert, quantization_precision);
-    };
-
-    auto left_branch = create_qdq_branch(1e-4f);
-    auto right_branch = create_qdq_branch(1e-5f);
-    auto add_branches = std::make_shared<ov::op::v1::Add>(left_branch, right_branch);
-
-    return std::make_shared<ov::Model>(ov::OutputVector{add_branches}, params, "QDQStripping");
-}
-
-std::shared_ptr<ov::Model> QDQStrippingFunction::build_mul_matmul_pattern(const ov::PartialShape& input_shape,
-                                                                                        const ov::element::Type& quantization_precision) {
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_mul_matmul_pattern(
+    const ov::PartialShape& input_shape,
+    const ov::element::Type& quantization_precision) {
     auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
     auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
     ov::ParameterVector params{param1, param2};
 
     // Preceding Multiply with DQ weights that backward propagation must NOT scale.
-    auto preceding_constant = build_dq_subgraph(ov::element::i8, {}, 1.0f, 0, std::nullopt, std::vector<int>{1});
+    auto preceding_constant = build_weights_dq(ov::element::i8, {}, 1.0f, 0, std::nullopt, std::vector<int>{1});
     auto preceding_mul1 = std::make_shared<ov::op::v1::Multiply>(param1, preceding_constant);
     auto preceding_mul2 = std::make_shared<ov::op::v1::Multiply>(param2, preceding_constant);
 
     // Weight DQ pattern: quantized constant -> convert -> subtract (zero point) -> multiply (scale)
     // DQ = (127 - 0) * 1.0 = 127. Large constant ensures overflow without scale adjustment:
     // input (up to 1000) * 127 = 127,000 >> f16 max (65504)
-    auto common_constant = build_dq_subgraph(ov::element::i8, {}, 1.0f, 0, std::nullopt, std::vector<int>{127});
+    auto common_constant = build_weights_dq(ov::element::i8, {}, 1.0f, 0, std::nullopt, std::vector<int>{127});
 
-    // param1 * common_constant
     auto mul1 = std::make_shared<ov::op::v1::Multiply>(preceding_mul1, common_constant);
-
-    // param2 * common_constant
     auto mul2 = std::make_shared<ov::op::v1::Multiply>(preceding_mul2, common_constant);
 
     // Softmax on mul1 detects overflow: if mul1 contains inf, Softmax produces NaN.
-    // Axis=1 (dim=3) avoids f16 precision argmax ties that occur with large dim.
     auto softmax_mul1 = std::make_shared<ov::op::v8::Softmax>(mul1, 1);
-
-    // MatMul
     auto matmul = std::make_shared<ov::op::v0::MatMul>(mul1, mul2, false, true);
 
     // y_scale = (input_high - input_low) / (levels - 1) ≈ 131070 / 65535 = 2
@@ -437,24 +244,51 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_mul_matmul_pattern(const 
     };
 
     const auto& qp = quantization_params.at(quantization_precision);
-    auto fq = qp.build_fq(matmul);
+    auto fq = build_fq(matmul, qp);
     auto convert1 = std::make_shared<ov::op::v0::Convert>(fq, quantization_precision);
     auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
-    auto dq = qp.build_dq(convert2, quantization_precision);
+    auto dq = build_dq(convert2, quantization_precision, qp);
 
-    // Axis=1 (dim=3): Softmax over 3 elements avoids argmax ties from f16 rounding.
     auto softmax = std::make_shared<ov::op::v8::Softmax>(dq, 1);
     return std::make_shared<ov::Model>(ov::OutputVector{softmax_mul1, softmax}, params, "QDQStripping");
 }
 
-std::shared_ptr<ov::Model> QDQStrippingFunction::build_matmul_with_bias_pattern(const ov::PartialShape& input_shape,
-                                                                                              const ov::element::Type& quantization_precision) {
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_mul_matmul_pattern_ref(
+    const ov::PartialShape& input_shape,
+    const ov::element::Type& /*quantization_precision*/,
+    bool need_weights_adjustment) {
+    auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+    auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+    ov::ParameterVector params{param1, param2};
+
+    // Preceding Multiply: NOT scaled (backward propagation must stop at the main Multiply).
+    auto preceding_constant = build_weights_dq(ov::element::i8, {}, 1.0f, 0, std::nullopt, std::vector<int>{1});
+    auto preceding_mul1 = std::make_shared<ov::op::v1::Multiply>(param1, preceding_constant);
+    auto preceding_mul2 = std::make_shared<ov::op::v1::Multiply>(param2, preceding_constant);
+
+    // Original scale=1.0. With weights adjustment: divided by scale_divisor=20 → 0.05
+    const float common_scale = need_weights_adjustment ? 1.0f / 20.0f : 1.0f;
+    auto common_constant = build_weights_dq(ov::element::i8, {}, common_scale, 0, std::nullopt, std::vector<int>{127});
+
+    auto mul1 = std::make_shared<ov::op::v1::Multiply>(preceding_mul1, common_constant);
+    auto mul2 = std::make_shared<ov::op::v1::Multiply>(preceding_mul2, common_constant);
+
+    auto softmax_mul1 = std::make_shared<ov::op::v8::Softmax>(mul1, 1);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(mul1, mul2, false, true);
+    auto softmax = std::make_shared<ov::op::v8::Softmax>(matmul, 1);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{softmax_mul1, softmax}, params, "QDQStripping");
+}
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_matmul_with_bias_pattern(
+    const ov::PartialShape& input_shape,
+    const ov::element::Type& quantization_precision) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
 
     // Preceding MatMul+bias that backward propagation must NOT scale.
-    auto preceding_weight = build_dq_subgraph(ov::element::i8, ov::Shape{128, 128}, 1.0f / 128.0f, 0, std::nullopt, std::vector<int>{1});
+    auto preceding_weight =
+        build_weights_dq(ov::element::i8, ov::Shape{128, 128}, 1.0f / 128.0f, 0, std::nullopt, std::vector<int>{1});
     auto preceding_matmul = std::make_shared<ov::op::v0::MatMul>(params[0], preceding_weight, false, false);
-    auto preceding_bias = build_dq_subgraph(ov::element::i8, {128}, 1.0f, 0, std::nullopt, std::vector<int>{1});
+    auto preceding_bias = build_weights_dq(ov::element::i8, {128}, 1.0f, 0, std::nullopt, std::vector<int>{1});
     auto preceding_matmul_biased = std::make_shared<ov::op::v1::Add>(preceding_matmul, preceding_bias);
 
     // Weight DQ for MatMul: input last dim = 128 (from input shape [1,3,128,128]), output = 32
@@ -462,14 +296,14 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_matmul_with_bias_pattern(
     // All-positive weights + all-positive inputs [0,100] → MatMul output always positive.
     // This avoids u16 FQ clamping (input_low=0) which would cause large f16 rounding errors.
     // With 128-element dot product: avg output ≈ 50 * 2.55 * 128 ≈ 16320.
-    auto weight = build_dq_subgraph(ov::element::i8, ov::Shape{128, 32}, 0.02f, -128, 1);
+    auto weight = build_weights_dq(ov::element::i8, ov::Shape{128, 32}, 0.02f, -128, 1);
 
     auto matmul = std::make_shared<ov::op::v0::MatMul>(preceding_matmul_biased, weight, false, false);
 
     // Bias DQ: [32] with zero_point=-128 so DQ values are always non-negative.
     // DQ = (i8_val + 128) * 200 → [0, 51000], avg ~25500.
     // Bias is significant relative to MatMul output (~16320) so MVN detects unscaled bias.
-    auto bias = build_dq_subgraph(ov::element::i8, {32}, 200.0f, -128, 2);
+    auto bias = build_weights_dq(ov::element::i8, {32}, 200.0f, -128, 2);
     auto matmul_biased = std::make_shared<ov::op::v1::Add>(matmul, bias);
 
     // y_scale = 262140 / 65535 = 4
@@ -484,37 +318,66 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_matmul_with_bias_pattern(
     };
 
     const auto& qp = quantization_params.at(quantization_precision);
-    auto fq = qp.build_fq(matmul_biased);
+    auto fq = build_fq(matmul_biased, qp);
     auto convert1 = std::make_shared<ov::op::v0::Convert>(fq, quantization_precision);
     auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
-    auto dq = qp.build_dq(convert2, quantization_precision);
+    auto dq = build_dq(convert2, quantization_precision, qp);
 
     // MVN is scale-invariant (normalizes by mean/variance), triggering scale adjustment.
-    // Unlike Softmax (which is exponentially sensitive to input perturbations),
-    // MVN output is linearly affected by quantization error, allowing tight accuracy checks.
     auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
     auto mvn = std::make_shared<ov::op::v6::MVN>(dq, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
-
     return std::make_shared<ov::Model>(ov::OutputVector{mvn}, params, "QDQStripping");
 }
 
-std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern(const ov::PartialShape& input_shape,
-                                                                                            const ov::element::Type& quantization_precision,
-                                                                                            bool skip_final_mvn) {
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_matmul_with_bias_pattern_ref(
+    const ov::PartialShape& input_shape,
+    const ov::element::Type& /*quantization_precision*/,
+    bool need_weights_adjustment) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
+
+    // Original weight_scale=0.02. With weights adjustment: divided by scale_divisor=40 → 0.0005
+    const float scale_divisor = need_weights_adjustment ? 40.f : 1.f;
+
+    // Preceding MatMul+bias: NOT scaled (backward propagation must stop at the main MatMul+bias).
+    auto preceding_weight =
+        build_weights_dq(ov::element::i8, ov::Shape{128, 128}, 1.0f / 128.0f, 0, std::nullopt, std::vector<int>{1});
+    auto preceding_matmul = std::make_shared<ov::op::v0::MatMul>(params[0], preceding_weight, false, false);
+    auto preceding_bias = build_weights_dq(ov::element::i8, {128}, 1.0f, 0, std::nullopt, std::vector<int>{1});
+    auto preceding_matmul_biased = std::make_shared<ov::op::v1::Add>(preceding_matmul, preceding_bias);
+
+    auto weight = build_weights_dq(ov::element::i8, ov::Shape{128, 32}, 0.02f / scale_divisor, -128, 1);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(preceding_matmul_biased, weight, false, false);
+
+    // Original bias_scale=200. With weights adjustment: divided by 40 → 5
+    auto bias = build_weights_dq(ov::element::i8, {32}, 200.0f / scale_divisor, -128, 2);
+    auto matmul_biased = std::make_shared<ov::op::v1::Add>(matmul, bias);
+
+    // FQ stripped, CQDQ removed Convert+DQ → Add output goes directly to MVN
+    auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+    auto mvn =
+        std::make_shared<ov::op::v6::MVN>(matmul_biased, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{mvn}, params, "QDQStripping");
+}
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern(
+    const ov::PartialShape& input_shape,
+    const ov::element::Type& quantization_precision,
+    bool skip_final_mvn) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
 
     // Preceding Conv+bias that backward propagation must NOT scale.
     // It sits before the FQ being stripped, separated by Conv1+bias. If backward
     // propagation incorrectly continues past Conv1+bias, it would reach this Conv
     // and erroneously divide its weights by scale_divisor.
-    auto preceding_weight = build_dq_subgraph(ov::element::i8, ov::Shape{3, 3, 3, 3}, 1.0f / 27.0f, 0, std::nullopt, std::vector<int>{1});
+    auto preceding_weight =
+        build_weights_dq(ov::element::i8, ov::Shape{3, 3, 3, 3}, 1.0f / 27.0f, 0, std::nullopt, std::vector<int>{1});
     auto preceding_conv = std::make_shared<ov::op::v1::Convolution>(params[0],
-                                                                     preceding_weight,
-                                                                     ov::Strides{1, 1},
-                                                                     ov::CoordinateDiff{1, 1},
-                                                                     ov::CoordinateDiff{1, 1},
-                                                                     ov::Strides{1, 1});
-    auto preceding_bias = build_dq_subgraph(ov::element::i8, {3}, 1.0f, 0, std::nullopt, std::vector<int>{1});
+                                                                    preceding_weight,
+                                                                    ov::Strides{1, 1},
+                                                                    ov::CoordinateDiff{1, 1},
+                                                                    ov::CoordinateDiff{1, 1},
+                                                                    ov::Strides{1, 1});
+    auto preceding_bias = build_weights_dq(ov::element::i8, {3}, 1.0f, 0, std::nullopt, std::vector<int>{1});
     auto preceding_conv_biased = add_bias(preceding_conv, preceding_bias);
 
     // First convolution with weight DQ
@@ -522,7 +385,7 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern(co
     // avoiding u16 FQ clamping at input_low=0 which causes large errors with mixed-sign weights.
     // scale=0.003 produces DQ values up to ~0.765, large enough to cause f16 overflow
     // after y_scale=10 FQ, validating the scale adjustment logic.
-    auto weight1 = build_dq_subgraph(ov::element::i8, ov::Shape{32, 3, 3, 3}, 0.003f, -128, 1);
+    auto weight1 = build_weights_dq(ov::element::i8, ov::Shape{32, 3, 3, 3}, 0.003f, -128, 1);
     auto conv1 = std::make_shared<ov::op::v1::Convolution>(preceding_conv_biased,
                                                            weight1,
                                                            ov::Strides{1, 1},
@@ -530,8 +393,7 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern(co
                                                            ov::CoordinateDiff{1, 1},
                                                            ov::Strides{1, 1});
 
-    // Bias with DQ for first convolution (1D bias: [32])
-    auto bias1 = build_dq_subgraph(ov::element::i8, {32}, 0.001f, 0);
+    auto bias1 = build_weights_dq(ov::element::i8, {32}, 0.001f, 0);
     auto conv1_biased = add_bias(conv1, bias1);
 
     // y_scale = (input_high - input_low) / (levels - 1) ≈ 655350 / 65535 ≈ 10
@@ -544,10 +406,10 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern(co
     };
 
     const auto& qp = quantization_params.at(quantization_precision);
-    auto fq = qp.build_fq(conv1_biased);
+    auto fq = build_fq(conv1_biased, qp);
     auto convert1 = std::make_shared<ov::op::v0::Convert>(fq, quantization_precision);
     auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
-    auto dq = qp.build_dq(convert2, quantization_precision);
+    auto dq = build_dq(convert2, quantization_precision, qp);
 
     // Insert FQs with 65536 levels (same as levels_to_strip) on both the forward
     // propagation path and the Conv+bias branches of each residual block.
@@ -566,7 +428,8 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern(co
     auto fq_pass_ih = ov::op::v0::Constant::create(ov::element::f32, {}, {fwd_fq_hi});
     auto fq_pass_ol = ov::op::v0::Constant::create(ov::element::f32, {}, {fwd_fq_lo});
     auto fq_pass_oh = ov::op::v0::Constant::create(ov::element::f32, {}, {fwd_fq_hi});
-    auto fq_pass = std::make_shared<ov::op::v0::FakeQuantize>(dq, fq_pass_il, fq_pass_ih, fq_pass_ol, fq_pass_oh, 65536);
+    auto fq_pass =
+        std::make_shared<ov::op::v0::FakeQuantize>(dq, fq_pass_il, fq_pass_ih, fq_pass_ol, fq_pass_oh, 65536);
 
     float branch_fq_lo = (quantization_precision == ov::element::u16) ? 0.f : -32800.f;
     float branch_fq_hi = (quantization_precision == ov::element::u16) ? 65600.f : 32800.f;
@@ -575,9 +438,10 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern(co
     auto create_residual_block = [&](const ov::Output<ov::Node>& input, size_t seed) {
         auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {3}, {1, 2, 3});
         // Left branch: MVN -> Conv
-        auto mvn = std::make_shared<ov::op::v6::MVN>(input, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
+        auto mvn =
+            std::make_shared<ov::op::v6::MVN>(input, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
 
-        auto weight = build_dq_subgraph(ov::element::i8, ov::Shape{32, 32, 3, 3}, 0.003f, -128, seed);
+        auto weight = build_weights_dq(ov::element::i8, ov::Shape{32, 32, 3, 3}, 0.003f, -128, seed);
         auto conv = std::make_shared<ov::op::v1::Convolution>(mvn,
                                                               weight,
                                                               ov::Strides{1, 1},
@@ -586,7 +450,7 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern(co
                                                               ov::Strides{1, 1});
 
         // Bias with DQ (1D bias: [32])
-        auto bias = build_dq_subgraph(ov::element::i8, {32}, 0.001f, 0);
+        auto bias = build_weights_dq(ov::element::i8, {32}, 0.001f, 0);
         auto conv_biased = add_bias(conv, bias);
 
         // Insert FQ (65536 levels) on the Conv+bias branch.
@@ -610,24 +474,95 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern(co
     }
 
     auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {3}, {1, 2, 3});
-    auto final_mvn = std::make_shared<ov::op::v6::MVN>(add3, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
+    auto final_mvn =
+        std::make_shared<ov::op::v6::MVN>(add3, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
 
     return std::make_shared<ov::Model>(ov::OutputVector{final_mvn}, params, "QDQStripping");
 }
 
-// --- ForwardBias pattern ---
-// MatMul1(DQ w1) + bias1(DQ) → FQ(y_scale=4) → DQ → MatMul2(DQ w2) + bias2(DQ) → MVN.
-// Backward: adjusts w1 and bias1 by scale_divisor.
-// Forward: walks past MatMul2+bias2, must adjust bias2 (but NOT w2) by scale_divisor.
-std::shared_ptr<ov::Model> QDQStrippingFunction::build_forward_bias_pattern(const ov::PartialShape& input_shape,
-                                                                             const ov::element::Type& quantization_precision) {
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern_ref(
+    const ov::PartialShape& input_shape,
+    const ov::element::Type& /*quantization_precision*/,
+    bool need_weights_adjustment,
+    bool skip_final_mvn) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
+
+    // y_scale(10) * ratio(10) = 100. When need_weights_adjustment=false, no division.
+    const float scale_divisor = need_weights_adjustment ? 100.f : 1.f;
+
+    // Preceding Conv+bias: NOT scaled (backward propagation must stop at Conv1+bias).
+    auto preceding_weight =
+        build_weights_dq(ov::element::i8, ov::Shape{3, 3, 3, 3}, 1.0f / 27.0f, 0, std::nullopt, std::vector<int>{1});
+    auto preceding_conv = std::make_shared<ov::op::v1::Convolution>(params[0],
+                                                                    preceding_weight,
+                                                                    ov::Strides{1, 1},
+                                                                    ov::CoordinateDiff{1, 1},
+                                                                    ov::CoordinateDiff{1, 1},
+                                                                    ov::Strides{1, 1});
+    auto preceding_bias = build_weights_dq(ov::element::i8, {3}, 1.0f, 0, std::nullopt, std::vector<int>{1});
+    auto preceding_conv_biased = add_bias(preceding_conv, preceding_bias);
+
+    // Conv1 weight scale: 0.003/100 = 3e-05
+    auto weight1 = build_weights_dq(ov::element::i8, ov::Shape{32, 3, 3, 3}, 0.003f / scale_divisor, -128, 1);
+    auto conv1 = std::make_shared<ov::op::v1::Convolution>(preceding_conv_biased,
+                                                           weight1,
+                                                           ov::Strides{1, 1},
+                                                           ov::CoordinateDiff{1, 1},
+                                                           ov::CoordinateDiff{1, 1},
+                                                           ov::Strides{1, 1});
+
+    // Bias1 scale: 0.001/100 = 1e-05
+    auto bias1 = build_weights_dq(ov::element::i8, {32}, 0.001f / scale_divisor, 0);
+    auto conv1_biased = add_bias(conv1, bias1);
+
+    // Residual blocks: all branch FQs stripped, all weight/bias scales divided by 100
+    auto create_residual_block = [&](const ov::Output<ov::Node>& input, size_t seed) {
+        auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {3}, {1, 2, 3});
+        auto mvn =
+            std::make_shared<ov::op::v6::MVN>(input, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
+
+        // Weight scale: 0.003/100 = 3e-05
+        auto weight = build_weights_dq(ov::element::i8, ov::Shape{32, 32, 3, 3}, 0.003f / scale_divisor, -128, seed);
+        auto conv = std::make_shared<ov::op::v1::Convolution>(mvn,
+                                                              weight,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{1, 1},
+                                                              ov::CoordinateDiff{1, 1},
+                                                              ov::Strides{1, 1});
+
+        // Bias scale: 0.001/100 = 1e-05
+        auto bias = build_weights_dq(ov::element::i8, {32}, 0.001f / scale_divisor, 0);
+        auto conv_biased = add_bias(conv, bias);
+
+        // Branch FQ stripped
+        return std::make_shared<ov::op::v1::Add>(conv_biased, input);
+    };
+
+    auto add1 = create_residual_block(conv1_biased, 2);
+    auto add2 = create_residual_block(add1, 3);
+    auto add3 = create_residual_block(add2, 4);
+
+    if (skip_final_mvn) {
+        return std::make_shared<ov::Model>(ov::OutputVector{add3}, params, "QDQStripping");
+    }
+
+    auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {3}, {1, 2, 3});
+    auto final_mvn =
+        std::make_shared<ov::op::v6::MVN>(add3, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{final_mvn}, params, "QDQStripping");
+}
+
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_forward_bias_pattern(
+    const ov::PartialShape& input_shape,
+    const ov::element::Type& quantization_precision) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
 
     // MatMul1 with DQ weights (backward propagation will adjust these)
-    auto weight1 = build_dq_subgraph(ov::element::i8, ov::Shape{128, 32}, 0.02f, -128, 1);
+    auto weight1 = build_weights_dq(ov::element::i8, ov::Shape{128, 32}, 0.02f, -128, 1);
     auto matmul1 = std::make_shared<ov::op::v0::MatMul>(params[0], weight1, false, false);
 
-    auto bias1 = build_dq_subgraph(ov::element::i8, {32}, 200.0f, -128, 2);
+    auto bias1 = build_weights_dq(ov::element::i8, {32}, 200.0f, -128, 2);
     auto matmul1_biased = std::make_shared<ov::op::v1::Add>(matmul1, bias1);
 
     // FQ with y_scale = 4 (same as MatMulWithBias pattern)
@@ -637,10 +572,10 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_forward_bias_pattern(cons
     };
 
     const auto& qp = quantization_params.at(quantization_precision);
-    auto fq = qp.build_fq(matmul1_biased);
+    auto fq = build_fq(matmul1_biased, qp);
     auto convert1 = std::make_shared<ov::op::v0::Convert>(fq, quantization_precision);
     auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
-    auto dq = qp.build_dq(convert2, quantization_precision);
+    auto dq = build_dq(convert2, quantization_precision, qp);
 
     // MatMul2 with DQ weights (forward propagation must NOT adjust these weights,
     // but MUST adjust bias2).
@@ -648,49 +583,46 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_forward_bias_pattern(cons
     //   adjusted signal (~1500) × 0.128 × 32 ≈ 6000 → fits f16.
     // bias2_scale=100 is significant relative to MatMul2 output, so MVN detects
     //   unscaled bias2 if forward propagation doesn't adjust it.
-    auto weight2 = build_dq_subgraph(ov::element::i8, ov::Shape{32, 32}, 0.001f, -128, 3);
+    auto weight2 = build_weights_dq(ov::element::i8, ov::Shape{32, 32}, 0.001f, -128, 3);
     auto matmul2 = std::make_shared<ov::op::v0::MatMul>(dq, weight2, false, false);
 
-    auto bias2 = build_dq_subgraph(ov::element::i8, {32}, 100.0f, -128, 4);
+    auto bias2 = build_weights_dq(ov::element::i8, {32}, 100.0f, -128, 4);
     auto matmul2_biased = std::make_shared<ov::op::v1::Add>(matmul2, bias2);
 
     auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
-    auto mvn = std::make_shared<ov::op::v6::MVN>(matmul2_biased, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
+    auto mvn =
+        std::make_shared<ov::op::v6::MVN>(matmul2_biased, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
 
     return std::make_shared<ov::Model>(ov::OutputVector{mvn}, params, "QDQStripping");
 }
 
-// --- ForwardBias reference ---
-// CQDQ fuses FQ→DQ. FQStripping strips FQ (y_scale=4, scale_divisor=40).
-// Backward: w1 and bias1 divided by 40.
-// Forward: bias2 divided by 40 (w2 unchanged).
-std::shared_ptr<ov::Model> QDQStrippingFunction::build_forward_bias_pattern_ref(const ov::PartialShape& input_shape,
-                                                                                 const ov::element::Type& /*quantization_precision*/,
-                                                                                 bool need_weights_adjustment) {
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_forward_bias_pattern_ref(
+    const ov::PartialShape& input_shape,
+    const ov::element::Type& /*quantization_precision*/,
+    bool need_weights_adjustment) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
 
     const float scale_divisor = need_weights_adjustment ? 40.f : 1.f;
 
     // MatMul1: weight and bias adjusted by backward propagation
-    auto weight1 = build_dq_subgraph(ov::element::i8, ov::Shape{128, 32}, 0.02f / scale_divisor, -128, 1);
+    auto weight1 = build_weights_dq(ov::element::i8, ov::Shape{128, 32}, 0.02f / scale_divisor, -128, 1);
     auto matmul1 = std::make_shared<ov::op::v0::MatMul>(params[0], weight1, false, false);
 
-    auto bias1 = build_dq_subgraph(ov::element::i8, {32}, 200.0f / scale_divisor, -128, 2);
+    auto bias1 = build_weights_dq(ov::element::i8, {32}, 200.0f / scale_divisor, -128, 2);
     auto matmul1_biased = std::make_shared<ov::op::v1::Add>(matmul1, bias1);
 
     // MatMul2: weight NOT adjusted, bias2 adjusted by forward propagation
-    auto weight2 = build_dq_subgraph(ov::element::i8, ov::Shape{32, 32}, 0.001f, -128, 3);
+    auto weight2 = build_weights_dq(ov::element::i8, ov::Shape{32, 32}, 0.001f, -128, 3);
     auto matmul2 = std::make_shared<ov::op::v0::MatMul>(matmul1_biased, weight2, false, false);
 
-    auto bias2 = build_dq_subgraph(ov::element::i8, {32}, 100.0f / scale_divisor, -128, 4);
+    auto bias2 = build_weights_dq(ov::element::i8, {32}, 100.0f / scale_divisor, -128, 4);
     auto matmul2_biased = std::make_shared<ov::op::v1::Add>(matmul2, bias2);
 
     auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
-    auto mvn = std::make_shared<ov::op::v6::MVN>(matmul2_biased, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
-
+    auto mvn =
+        std::make_shared<ov::op::v6::MVN>(matmul2_biased, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
     return std::make_shared<ov::Model>(ov::OutputVector{mvn}, params, "QDQStripping");
 }
-
 }  // namespace subgraph
 }  // namespace builder
 }  // namespace ov

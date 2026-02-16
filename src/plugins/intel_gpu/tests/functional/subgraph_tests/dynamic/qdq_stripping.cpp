@@ -11,10 +11,6 @@
 #include "shared_test_classes/base/utils/ranges.hpp"
 
 namespace {
-using namespace ov::test;
-using ov::builder::subgraph::QDQStrippingFunction;
-using ov::test::InputShape;
-
 enum class PatternType { SharedDQ, NeedScalingMulMatMul, NeedScalingResidualBlock, NeedScalingMatMulWithBias, NeedScalingForwardBias };
 
 inline std::ostream& operator<<(std::ostream& os, PatternType pattern_type) {
@@ -45,14 +41,12 @@ using QDQStrippingParams = std::tuple<ov::test::InputShape, ov::element::Type, o
 class QDQStrippingTest : public testing::WithParamInterface<QDQStrippingParams>, virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<QDQStrippingParams>& obj) {
+        using ov::test::operator<<;
+
         const auto& [input_shape, input_precision, quantization_precision, inference_precision, pattern_type] = obj.param;
         std::ostringstream result;
-        result << "IS=(" << ov::test::utils::partialShape2str({input_shape.first}) << ")_"
-               << "TS=";
-        for (const auto& ts : input_shape.second) {
-            result << "(" << ov::test::utils::vec2str(ts) << ")_";
-        }
-        result << "Precision=" << input_precision << "_QuantPrecision=" << quantization_precision << "_InferPrecision=" << inference_precision
+        result << "IS=" << input_shape
+               << "_Precision=" << input_precision << "_QuantPrecision=" << quantization_precision << "_InferPrecision=" << inference_precision
                << "_Pattern=" << pattern_type;
         return result.str();
     }
@@ -61,9 +55,6 @@ public:
         const auto& [input_shape, input_precision, quantization_precision, inference_precision, pattern_type] = GetParam();
         // In "NeedScaling" cases we generate values which would cause overflow in f16 if quantization scales are not adjusted by FQStripping
         if (pattern_type == PatternType::NeedScalingMulMatMul) {
-            // Input range [0, 1000]: with DQ=127, mul1 = input * 127 → up to 127,000 → overflows f16.
-            // After scale adjustment (÷2): mul1 = input * 63.5 → up to 63,500 → fits f16.
-            // Small range keeps values moderate after adjustment, improving Softmax accuracy.
             inputs.clear();
             auto itTargetShape = targetInputStaticShapes.begin();
             for (const auto& param : function->get_parameters()) {
@@ -84,11 +75,6 @@ public:
             }
         } else if (pattern_type == PatternType::NeedScalingMatMulWithBias ||
                    pattern_type == PatternType::NeedScalingForwardBias) {
-            // Input range [0, 100]: with weight_scale=0.02, weight_zp=-128, weights in [0,5.1],
-            // 128-element dot product → MatMul output ~16320 (all positive).
-            // Plus bias [0, 51000] → total up to ~67320 → overflows f16 without scale adj.
-            // With scale adjustment (÷4): total ~16830 → fits f16.
-            // Positive inputs + positive weights → all-positive signal, no u16 FQ clamping.
             inputs.clear();
             auto itTargetShape = targetInputStaticShapes.begin();
             for (const auto& param : function->get_parameters()) {
@@ -107,7 +93,6 @@ protected:
         targetDevice = ov::test::utils::DEVICE_GPU;
         const auto& [input_shape, input_precision, quantization_precision, inference_precision, pattern_type] = GetParam();
 
-        // NeedScalingMulMatMul pattern has 2 parameters, others have 1
         if (pattern_type == PatternType::NeedScalingMulMatMul) {
             init_input_shapes({input_shape, input_shape});
         } else {
@@ -115,15 +100,6 @@ protected:
         }
 
         inType = outType = input_precision;
-
-        // abs_threshold rationale:
-        // All patterns use abs_threshold=0.05.
-        // NeedScaling* patterns cause f16 overflow without scale adjustment:
-        //   - ResidualBlock and MatMulWithBias use MVN (linearly sensitive to FQ rounding).
-        //   - MulMatMul uses Softmax over axis=1 (3 elements) with y_scale=2 and input range
-        //     [0,1000], so Softmax argmax is stable with tight accuracy.
-        // SharedDQ pattern doesn't cause overflow; small FQ ranges (÷10 vs NeedScaling*)
-        // keep f16 quantization error well below 0.05.
         abs_threshold = 0.05;
 
         configuration[ov::hint::inference_precision.name()] = inference_precision.get_type_name();
@@ -131,6 +107,7 @@ protected:
         OPENVINO_ASSERT(quantization_precision == ov::element::i16 || quantization_precision == ov::element::u16,
                         "Only i16 and u16 quantization precisions are supported in the test");
         switch (pattern_type) {
+            using ov::builder::subgraph::QDQStrippingFunction;
         case PatternType::SharedDQ:
             function = QDQStrippingFunction::build_shared_dq_pattern(input_shape.first, quantization_precision);
             break;
@@ -162,10 +139,6 @@ protected:
                 quantize_count++;
             }
         }
-        // All FQs use 65536 levels (in levels_to_strip), so all should be stripped.
-        // NeedScalingResidualBlock has 4 additional FQs (1 forward-path + 3 branch),
-        // but their ranges are adjusted by propagation so y_scale drops below threshold,
-        // and the topological walk strips them without further propagation.
         ASSERT_EQ(quantize_count, 0u) << "Unexpected Quantize node count.";
     }
 };
@@ -178,7 +151,7 @@ const std::vector<ov::test::InputShape> input_shapes = {{{-1, -1, -1, -1}, {{1, 
 const std::vector<ov::element::Type> input_precisions = {ov::element::f32};
 const std::vector<ov::element::Type> quantization_precisions = {ov::element::u16, ov::element::i16};
 
-// MulMatMul is an artificial model designed to test f16 overflow handling via weight scaling.
+// NeedScalingMulMatMul is an artificial model designed to test f16 overflow handling via weight scaling.
 // For f16, weight scaling divides weights by scale_divisor, reducing MatMul output to fit
 // within the FQ range — so stripping the FQ is safe (no clamping effect lost).
 // For f32, weight scaling is unnecessary (no overflow risk), so MatMul output remains large
