@@ -13,6 +13,10 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 
+namespace ov::wsh{
+    struct Context;
+}
+
 namespace ov {
 
 namespace internal {
@@ -169,5 +173,10 @@ static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quan
  */
 
 static constexpr Property<CacheQuantMode, PropertyMutability::RW> value_cache_quant_mode{"VALUE_CACHE_QUANT_MODE"};
+
+/**
+ * @brief Define shared context for share data between models like weights
+ */
+static constexpr Property<wsh::Context, PropertyMutability::RW> model_sharing_context{"MODEL_SHARING_CONTEXT"};
 }  // namespace internal
 }  // namespace ov

@@ -613,6 +613,14 @@ static constexpr Property<float, PropertyMutability::RW> activations_scale_facto
  *
  * The property is used pass compiled blob as ov::Tensor.
  * The blob can be regular or weightless model. The `weights_path` property is hint where to look for weights.
+ *
+ * The property can be used to read blob from cache when using cache file e.g.:
+ *
+ * @code
+ * // try gets blobs ID "746352" from cache file "cache_file.bin"
+ * ie.get_property("", ov::hint::compiled_blob.name(), ov::AnyMap{ov::cache_blob_id("746352"),
+ * ov::cache_dir("cache_file.bin")});
+ * @endcode
  */
 inline constexpr Property<Tensor, PropertyMutability::RW> compiled_blob{"COMPILED_BLOB"};
 }  // namespace hint
@@ -722,6 +730,37 @@ static constexpr Property<Level> level{"LOG_LEVEL"};
 static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
 
 /**
+ * @brief This property defines the path which will be used to store any data cached by plugins.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * The underlying cache structure is not defined and might differ between OpenVINO releases
+ * Cached data might be platform / device specific and might be invalid after OpenVINO version change
+ *
+ * The path can be directory then it has the same effect as `cache_dir` property. Regular cacheing is used in this case.
+ * The path can be file then single file caching mode is enabled which supports sharing data between model.
+ * This mode has limitation, only appending new models to the cache is possible, and there is no recompilation of cache
+ * model.
+ *
+ * If this property is not specified or value is empty string, then caching is disabled.
+ * The property might enable caching for the plugin using the following code:
+ *
+ * @code
+ * ie.set_property("GPU", ov::cache_path("cache/")); // enables cache for GPU plugin
+ * @endcode
+ *
+ * The following code enables caching of compiled network blobs for devices where import/export is supported
+ *
+ * @code
+ * ie.set_property(ov::cache_dir("cache/")); // enables models cache
+ * @endcode
+ *
+ * @code
+ * ie.set_property(ov::cache_path("NPU", "cache_file.bin")); // enables models cache as single file for NPU plugin
+ * @endcode
+ */
+inline constexpr Property<std::filesystem::path> cache_path{"CACHE_PATH"};
+
+/**
  * @brief Read-only property to notify user that compiled model was loaded from the cache
  * @ingroup ov_runtime_cpp_prop_api
  */
@@ -735,6 +774,45 @@ static constexpr Property<bool, PropertyMutability::RO> loaded_from_cache{"LOADE
  * cache feature is enabled.
  */
 static inline constexpr Property<std::filesystem::path, PropertyMutability::WO> cache_model_path{"CACHE_MODEL_PATH"};
+
+/**
+ * @brief The list of compiled blobs available in cache as ID and Name pairs.
+ */
+using CompiledBlobs = std::vector<std::pair<std::string, std::string>>;
+
+/**
+ * @brief
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * The property allows get blobs IDs list with optional model name from cache path.
+ * The blobs IDs can be used to import compiled model from cache by using CACHE_BLOB_ID property.
+ *
+ * @code
+ * // gets blobs IDs with from cache file "cache/file.bin"
+ * core.get_property({}, ov::cache_blobs.name(), ov::cache_dir("cache/file.bin"));
+ * @endcode
+ *
+ */
+inline constexpr Property<CompiledBlobs, PropertyMutability::RO> cache_blobs{"CACHE_BLOBS"};
+
+/**
+ * @brief The property allows to import compiled model or get compiled blob as ov::Tensor from cache.
+ *
+ * The following code allow import model from cache if origin model not available.
+ * @code
+ * // gets blobs IDs with from cache file "cache/file.bin"
+ * core.compile_model(empty_model, "NPU", ov::AnyMap{ov::cache_blob_id("746352"), ov::cache_dir("cache_file.bin")});
+ * @endcode
+ *
+ * The following code allow get compiled blob as ov::Tensor from cache.
+ *
+ * @code
+ * ie.get_property("", ov::hint::compiled_blob.name(), ov::AnyMap{ov::cache_blob_id("746352"),
+ * ov::cache_dir("cache_file.bin")});
+ * @endcode
+ *
+ */
+inline constexpr Property<std::string, PropertyMutability::RW> cache_blob_id{"CACHE_BLOB_ID"};
 
 /**
  * @brief Enum to define possible workload types
