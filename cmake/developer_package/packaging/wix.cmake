@@ -2,11 +2,21 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+include(packaging/license_utils)
+
 macro(ov_wix_specific_settings)
     # installation directory
     set(CPACK_PACKAGE_INSTALL_DIRECTORY "Intel")
+    
     # License to be embedded in the installer
-    set(CPACK_RESOURCE_FILE_LICENSE "${OpenVINO_SOURCE_DIR}/LICENSE")
+    # WiX requires RTF format, so convert plain LICENSE to RTF on-the-fly
+    set(_license_source "${OpenVINO_SOURCE_DIR}/LICENSE")
+    set(_license_rtf "${CMAKE_BINARY_DIR}/LICENSE.rtf")
+    ov_generate_rtf_license("${_license_source}" "${_license_rtf}")
+    
+    if(EXISTS "${_license_rtf}")
+        set(CPACK_RESOURCE_FILE_LICENSE "${_license_rtf}")
+    endif()
 
     # WIX version (3 for WiX Toolset v3, 4 for WiX .NET Tools)
     if(NOT DEFINED CPACK_WIX_VERSION)
@@ -58,17 +68,6 @@ macro(ov_wix_specific_settings)
     if(NOT DEFINED CPACK_WIX_PROPERTY_ARPURLINFOABOUT)
         set(CPACK_WIX_PROPERTY_ARPURLINFOABOUT "https://www.intel.com/openvino")
     endif()
-
-    # Product icon
-    # if(EXISTS "${OpenVINO_SOURCE_DIR}/docs/images/openvino-icon.ico")
-    #     set(CPACK_WIX_PRODUCT_ICON "${OpenVINO_SOURCE_DIR}/docs/images/openvino-icon.ico")
-    # endif()
-
-    # Optional: Custom WIX patch files
-    # set(CPACK_WIX_PATCH_FILE "${OpenVINO_SOURCE_DIR}/cmake/packaging/wix_patches.xml")
-
-    # Optional: Extra WIX extensions
-    # set(CPACK_WIX_EXTENSIONS "WixUtilExtension")
 endmacro()
 
 ov_wix_specific_settings()

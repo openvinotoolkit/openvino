@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+include(${CMAKE_CURRENT_LIST_DIR}/../developer_package/packaging/license_utils.cmake)
+
 # Components
 
 macro(ov_cpack_settings)
@@ -90,7 +92,18 @@ macro(ov_cpack_settings)
         set(CPACK_WIX_PROPERTY_ARPURLINFOABOUT "https://www.intel.com/openvino")
     endif()
 
-    # License file
+    # License file - generate RTF from plain text LICENSE
+    if(NOT DEFINED CPACK_RESOURCE_FILE_LICENSE)
+        set(_license_source "${OpenVINO_SOURCE_DIR}/LICENSE")
+        set(_license_rtf "${CMAKE_BINARY_DIR}/LICENSE.rtf")
+        ov_generate_rtf_license("${_license_source}" "${_license_rtf}")
+        
+        if(EXISTS "${_license_rtf}")
+            set(CPACK_RESOURCE_FILE_LICENSE "${_license_rtf}")
+        endif()
+    endif()
+    
+    # Set WIX license RTF if license is provided
     if(DEFINED CPACK_RESOURCE_FILE_LICENSE)
         if(CPACK_RESOURCE_FILE_LICENSE MATCHES "\\.rtf$")
             set(CPACK_WIX_LICENSE_RTF "${CPACK_RESOURCE_FILE_LICENSE}")
