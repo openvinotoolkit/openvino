@@ -882,7 +882,8 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             uu::fill_tensor_bytes(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name)), 0u);
             uu::fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask)),
                                      0);
-            uu::fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids)), 0);
+            uu::fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids)),
+                                     0);
             if (token_type_ids) {
                 uu::fill_tensor<int64_t>(
                     m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::token_type_ids)),
@@ -914,8 +915,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                         input_ids->get_byte_size());
 
         if (token_type_ids) {
-            auto kv_token_type_ids =
-                m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::token_type_ids));
+            auto kv_token_type_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::token_type_ids));
             util::copy_to_right(token_type_ids, kv_token_type_ids);
         }
 
@@ -928,10 +928,10 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                     attention_mask->get_size() - input_tokens_len,
                     kv_attn_mask->data<int64_t>());
         if (input_tokens_len < kvcache_desc.max_generation_token_len) {
-            std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() -
-                            kvcache_desc.max_generation_token_len,
-                        kvcache_desc.max_generation_token_len - input_tokens_len,
-                        0);
+            std::fill_n(
+                kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - kvcache_desc.max_generation_token_len,
+                kvcache_desc.max_generation_token_len - input_tokens_len,
+                0);
         }
         std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - input_tokens_len, input_tokens_len, 1);
 
