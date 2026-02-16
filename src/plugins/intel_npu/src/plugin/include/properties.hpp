@@ -67,7 +67,7 @@ private:
     std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
     std::vector<ov::PropertyName> _supportedProperties;
 
-    // internal registration functions basd on client object
+    // internal registration functions based on client object
     void registerPluginProperties();
     void registerCompiledModelProperties();
 
@@ -89,6 +89,7 @@ private:
         ov::intel_npu::dynamic_shape_to_static.name(),
         ov::intel_npu::enable_strides_for.name(),
         ov::intel_npu::max_tiles.name(),
+        ov::intel_npu::stepping.name(),
         ov::intel_npu::tiles.name(),
         ov::intel_npu::turbo.name(),
         ov::intel_npu::qdq_optimization.name(),
@@ -149,6 +150,7 @@ private:
         ov::intel_npu::npuw::llm::generate_attn_hint.name(),
         ov::intel_npu::npuw::llm::shared_lm_head_config.name(),
         ov::intel_npu::npuw::llm::additional_shared_lm_head_config.name(),
+        ov::intel_npu::npuw::llm::optimize_fp8.name(),
         ov::intel_npu::npuw::eagle::enabled.name()};
 
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),

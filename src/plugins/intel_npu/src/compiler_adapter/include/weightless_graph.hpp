@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "compiler_impl.hpp"
 #include "graph.hpp"
 #include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "openvino/op/constant.hpp"
@@ -29,10 +30,10 @@ public:
                     const std::vector<GraphDescriptor>& initGraphDesc,
                     std::vector<NetworkMetadata> initMetadata,
                     std::optional<std::vector<ov::Tensor>> initBlobs,
-                    const std::shared_ptr<const ov::Model>& model,
+                    std::shared_ptr<const ov::Model>&& model,
                     const Config& config,
                     const bool blobIsPersistent = false,
-                    const ov::SoPtr<ICompiler>& compiler = {nullptr});
+                    const ov::SoPtr<VCLCompilerImpl>& compiler = {nullptr});
 
     /**
      * @brief The main schedule along with the weights initialization ones are exported.
@@ -68,7 +69,7 @@ private:
      * @return The allocated L0 tensor along with view tensors corresponding to the init inputs.
      */
     InputData allocate_inputs(const size_t initIndex,
-                              const std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>& constants);
+                              std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>& constants);
 
     /**
      * @brief Allocates the outputs of the init schedule using a single L0 buffer.

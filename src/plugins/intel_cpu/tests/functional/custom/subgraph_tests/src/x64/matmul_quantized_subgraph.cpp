@@ -97,7 +97,7 @@ protected:
         // only matmul avx2 support s8*s8 input
         auto matMul2 = std::make_shared<ov::op::v0::MatMul>(nodeBeforeConv, fq3, false, false);
 
-        function = makeNgraphFunction(ngPrec, inputParams, matMul2, "MatmulBrgemmInt8");
+        function = create_ov_model(ngPrec, inputParams, matMul2, "MatmulBrgemmInt8");
     }
 
     void check_node(std::shared_ptr<const ov::Model> function, const std::string& nodeName) {

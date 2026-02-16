@@ -17,6 +17,7 @@
 
 #include "common/blocked_desc_creator.h"
 #include "common/primitive_hashing_utils.hpp"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
@@ -311,9 +312,12 @@ SpaceToDepth::SpaceToDepthExecutor::SpaceToDepthExecutor(const SpaceToDepthAttrs
     permuteKernel = std::make_unique<PermuteKernel>(params);
 }
 
-void SpaceToDepth::SpaceToDepthExecutor::exec(const uint8_t* srcData, uint8_t* dstData, const int MB) {
+void SpaceToDepth::SpaceToDepthExecutor::exec(const uint8_t* srcData,
+                                              uint8_t* dstData,
+                                              const int MB,
+                                              const CpuParallelPtr& cpuParallel) {
     OPENVINO_ASSERT(permuteKernel, "Could not execute. Kernel for Transpose node was not compiled.");
-    permuteKernel->execute(srcData, dstData, MB);
+    permuteKernel->execute(srcData, dstData, MB, cpuParallel);
 }
 
 void SpaceToDepth::execute([[maybe_unused]] const dnnl::stream& strm) {
@@ -321,7 +325,7 @@ void SpaceToDepth::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto* srcData = getSrcDataAtPortAs<const uint8_t>(0);
     auto* dstData = getDstDataAtPortAs<uint8_t>(0);
     const int MB = getSrcMemoryAtPort(0)->getStaticDims()[0];
-    execPtr->exec(srcData, dstData, MB);
+    execPtr->exec(srcData, dstData, MB, context->getCpuParallel());
 }
 
 void SpaceToDepth::executeDynamicImpl(const dnnl::stream& strm) {

@@ -28,7 +28,7 @@ public:
      * "icompiler.hpp".
      * @return A "WeightlessGraph" type of object.
      */
-    virtual std::shared_ptr<IGraph> compileWS(const std::shared_ptr<ov::Model>& model,
+    virtual std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model,
                                               const FilteredConfig& config) const = 0;
 
     /**
@@ -48,7 +48,7 @@ public:
         const ov::Tensor& mainBlob,
         const FilteredConfig& config,
         const std::optional<std::vector<ov::Tensor>>& initBlobs = std::nullopt,
-        const std::optional<std::shared_ptr<const ov::Model>>& model = std::nullopt) const = 0;
+        std::optional<std::shared_ptr<const ov::Model>>&& model = std::nullopt) const = 0;
 
     virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
                                       const FilteredConfig& config) const = 0;

@@ -45,7 +45,6 @@ public:
     void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
 };
 
-// Dynamic specialized executor is not used on RISCV64 yet, but keep the class for symmetry
 class SubgraphDynamicSpecializedExecutor : public SubgraphExecutor, public SubgraphDynamicSpecializedBaseExecutor {
 public:
     template <typename... Args>
