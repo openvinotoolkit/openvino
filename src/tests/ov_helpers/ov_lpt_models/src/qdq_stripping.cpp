@@ -394,26 +394,15 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern(
     auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
     auto dq = build_dq(convert2, quantization_precision, qp);
 
-    // Insert FQs with 65536 levels (same as levels_to_strip) on both the forward
-    // propagation path and the Conv+bias branches of each residual block.
-    // These FQs test the full adjust+strip pipeline:
-    //   1. First FQ (y_scale=10) is stripped → forward propagation adjusts downstream FQ ranges by /10
-    //   2. Forward propagation also triggers backward propagation at each Add, adjusting branch FQ ranges
-    //   3. When the topological walk reaches each adjusted FQ, y_scale ≤ 1 → stripped without propagation
-    //
-    // Forward-path FQ range matches the DQ output range so it doesn't clamp in the
-    // reference model. y_scale = range/65535 ≈ 10, after /10 ≈ 1.0 ≤ threshold.
+    // Forward-path FQ→DQ chain: uses same qp so y_scale=10
+    // After stripping, forward propagation adjusts downstream FQ ranges by scale_divisor.
+    auto fq_pass = build_fq(dq, qp);
+    auto fq_pass_convert1 = std::make_shared<ov::op::v0::Convert>(fq_pass, quantization_precision);
+    auto fq_pass_convert2 = std::make_shared<ov::op::v0::Convert>(fq_pass_convert1, ov::element::f32);
+    auto fq_pass_dq = build_dq(fq_pass_convert2, quantization_precision, qp);
+
     // Branch FQ range is [0, 65600] / [-32800, 32800] (y_scale ≈ 1.001 > 1),
     // covering the Conv output range (~150) without clamping. After /10 → y_scale ≈ 0.1.
-    float fwd_fq_lo = (quantization_precision == ov::element::u16) ? 0.f : -327680.f;
-    float fwd_fq_hi = (quantization_precision == ov::element::u16) ? 655350.f : 327670.f;
-    auto fq_pass_il = ov::op::v0::Constant::create(ov::element::f32, {}, {fwd_fq_lo});
-    auto fq_pass_ih = ov::op::v0::Constant::create(ov::element::f32, {}, {fwd_fq_hi});
-    auto fq_pass_ol = ov::op::v0::Constant::create(ov::element::f32, {}, {fwd_fq_lo});
-    auto fq_pass_oh = ov::op::v0::Constant::create(ov::element::f32, {}, {fwd_fq_hi});
-    auto fq_pass =
-        std::make_shared<ov::op::v0::FakeQuantize>(dq, fq_pass_il, fq_pass_ih, fq_pass_ol, fq_pass_oh, 65536);
-
     float branch_fq_lo = (quantization_precision == ov::element::u16) ? 0.f : -32800.f;
     float branch_fq_hi = (quantization_precision == ov::element::u16) ? 65600.f : 32800.f;
 
@@ -448,7 +437,7 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern(
         return std::make_shared<ov::op::v1::Add>(branch_fq, input);
     };
 
-    auto add1 = create_residual_block(fq_pass, 2);
+    auto add1 = create_residual_block(fq_pass_dq, 2);
     auto add2 = create_residual_block(add1, 3);
     auto add3 = create_residual_block(add2, 4);
 
