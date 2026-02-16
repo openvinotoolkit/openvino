@@ -171,41 +171,7 @@
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
 #    include "openvino/op/add.hpp"
-#    include "openvino/op/divide.hpp"
-#    include "openvino/op/elu.hpp"
-#    include "openvino/op/equal.hpp"
-#    include "openvino/op/erf.hpp"
-#    include "openvino/op/exp.hpp"
-#    include "openvino/op/floor.hpp"
-#    include "openvino/op/floor_mod.hpp"
-#    include "openvino/op/gelu.hpp"
-#    include "openvino/op/greater.hpp"
-#    include "openvino/op/greater_eq.hpp"
-#    include "openvino/op/hswish.hpp"
-#    include "openvino/op/less.hpp"
-#    include "openvino/op/less_eq.hpp"
-#    include "openvino/op/logical_and.hpp"
-#    include "openvino/op/logical_not.hpp"
-#    include "openvino/op/logical_or.hpp"
-#    include "openvino/op/logical_xor.hpp"
-#    include "openvino/op/maximum.hpp"
-#    include "openvino/op/minimum.hpp"
-#    include "openvino/op/mish.hpp"
-#    include "openvino/op/mod.hpp"
-#    include "openvino/op/negative.hpp"
-#    include "openvino/op/not_equal.hpp"
-#    include "openvino/op/power.hpp"
-#    include "openvino/op/prelu.hpp"
-#    include "openvino/op/relu.hpp"
-#    include "openvino/op/round.hpp"
-#    include "openvino/op/select.hpp"
-#    include "openvino/op/sigmoid.hpp"
-#    include "openvino/op/sqrt.hpp"
-#    include "openvino/op/squared_difference.hpp"
 #    include "openvino/op/swish.hpp"
-#    include "openvino/op/tanh.hpp"
-#    include "openvino/op/xor.hpp"
-#    include "snippets/utils/utils.hpp"
 #    include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
 #else
 #    include "openvino/op/convolution.hpp"
@@ -251,7 +217,11 @@
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    include "low_precision/avg_pool.hpp"
+#    include "low_precision/convolution.hpp"
+#    include "low_precision/convolution_backprop_data.hpp"
 #    include "low_precision/fake_quantize.hpp"
+#    include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+#    include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #    include "low_precision/group_convolution.hpp"
 #    include "low_precision/interpolate.hpp"
 #    include "low_precision/mat_mul.hpp"
@@ -265,14 +235,17 @@
 #    include "low_precision/reduce_sum.hpp"
 #    include "openvino/opsets/opset1_decl.hpp"
 #    include "snippets/utils/tokenization_utils.hpp"
+#    include "transformations/cpu_opset/arm/pass/convert_conv_bias.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_no_keep_dims.hpp"
 #    include "transformations/cpu_opset/arm/pass/deconv_1d_decomposition.hpp"
+#    include "transformations/cpu_opset/arm/pass/fallback_unsupported_lp_conv_to_fp16.hpp"
 #    include "transformations/cpu_opset/arm/pass/grid_sample_decomposition.hpp"
 #    include "transformations/cpu_opset/common/op/sdpa.hpp"
 #    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
+#    include "transformations/utils.hpp"
 #else
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "openvino/op/gru_sequence.hpp"
@@ -293,11 +266,23 @@
 #endif
 
 #if defined(OPENVINO_ARCH_RISCV64)
+#    include "openvino/op/elu.hpp"
+#    include "openvino/op/erf.hpp"
+#    include "openvino/op/exp.hpp"
+#    include "openvino/op/floor.hpp"
+#    include "openvino/op/gelu.hpp"
 #    include "openvino/op/hsigmoid.hpp"
+#    include "openvino/op/hswish.hpp"
 #    include "openvino/op/is_finite.hpp"
 #    include "openvino/op/is_inf.hpp"
 #    include "openvino/op/is_nan.hpp"
+#    include "openvino/op/mish.hpp"
+#    include "openvino/op/negative.hpp"
+#    include "openvino/op/relu.hpp"
+#    include "openvino/op/sigmoid.hpp"
 #    include "openvino/op/softsign.hpp"
+#    include "openvino/op/sqrt.hpp"
+#    include "openvino/op/tanh.hpp"
 #endif
 
 #if defined(SNIPPETS_LIBXSMM_TPP)
@@ -951,15 +936,39 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
                              supportedPrecisions,
                              quantizationRestrictions,
                              LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
+
+    CPU_REGISTER_PASS_ARM(lptManager, ConvertConvolutionBias);
+    CPU_REGISTER_PASS_ARM(lptManager, FallbackUnsupportedLPConvToFP16);
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [](const_node_ptr& node) -> bool {
+            return match_conv_stride_oc_ic_limit(node, {1, 1}, ov::Shape{3, 3}, 512);
+        },
+        ConvolutionTransformation);
     CPU_SET_CALLBACK_COMMON(
         lptManager,
         [](const_node_ptr& node) -> bool {
             return ov::marked_as_bias(node);
         },
         AddTransformation);
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [](const_node_ptr& node) -> bool {
+            return match_conv_mul_add_fq<ov::op::v1::Subtract>(node);
+        },
+        FuseSubtractToFakeQuantizeTransformation);
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [](const_node_ptr& node) -> bool {
+            return match_conv_mul_add_fq<ov::op::v1::Multiply>(node);
+        },
+        FuseMultiplyToFakeQuantizeTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
     CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
+    // ConvolutionTransformation is disabled temporary until ACL issues are fixed: #1252, #1253
+    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
+    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionBackpropDataTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, MaxPoolTransformation);
@@ -988,8 +997,13 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         lptManager,
         [&](const_node_ptr& node) -> bool {
             auto eltwise = node->get_input_node_shared_ptr(0);
-            if (ov::is_type<ov::op::v1::Multiply>(eltwise) && FakeQuantizeTransformation::checkElementwise(eltwise)) {
-                return ov::is_type<ov::op::v1::Convolution>(eltwise->get_input_node_shared_ptr(0));
+            if ((ov::is_type<ov::op::v1::Multiply>(eltwise) || ov::is_type<ov::op::v1::Add>(eltwise)) &&
+                FakeQuantizeTransformation::checkElementwise(eltwise)) {
+                // avoid convolution dequantization fusion to FQ node to keep
+                // Conv->DQ_scale->Bias->Requantization pattern
+                // Mul-Add pattern will be swapped later to Add-Mul by ConvertConvolutionBias
+                // to get subgraph Conv-Add-Mul supported by the ACL
+                return match_fq_mul_conv_bias_same_types(node, FQMulAddPattern::ConvMulAdd);
             }
             return false;
         },
@@ -1368,58 +1382,7 @@ void Transformations::MainSnippets() {
 #endif  // OPENVINO_ARCH_X86_64
 
     auto is_supported_op = []([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
-#if defined(OPENVINO_ARCH_ARM64)
-        // Power on ARM64 only supports power and swish with scalar second inputs
-        auto is_supported_with_scalar_inputs = [](const std::shared_ptr<const ov::Node>& n) {
-            return (ov::is_type_any_of<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
-                    ov::snippets::utils::is_scalar_constant(n->get_input_node_shared_ptr(1)));
-        };
-        auto is_supported = [](const std::shared_ptr<const ov::Node>& n) {
-            return (ov::is_type_any_of<ov::op::v0::Abs,
-                                       ov::op::v1::Add,
-                                       ov::op::v0::Clamp,
-                                       ov::op::v0::Ceiling,
-                                       ov::op::v0::Convert,
-                                       ov::op::v1::Divide,
-                                       ov::op::v0::Elu,
-                                       ov::op::v0::Erf,
-                                       ov::op::v0::Exp,
-                                       ov::op::v1::Equal,
-                                       ov::op::v0::FakeQuantize,
-                                       ov::op::v0::Floor,
-                                       ov::op::v1::FloorMod,
-                                       ov::op::v0::Gelu,
-                                       ov::op::v7::Gelu,
-                                       ov::op::v1::Greater,
-                                       ov::op::v1::GreaterEqual,
-                                       ov::op::v4::HSwish,
-                                       ov::op::v1::Less,
-                                       ov::op::v1::LessEqual,
-                                       ov::op::v1::Maximum,
-                                       ov::op::v1::Minimum,
-                                       ov::op::v4::Mish,
-                                       ov::op::v1::Mod,
-                                       ov::op::v1::Multiply,
-                                       ov::op::v0::Negative,
-                                       ov::op::v1::NotEqual,
-                                       ov::op::v0::PRelu,
-                                       ov::op::v1::Power,
-                                       ov::op::v0::Relu,
-                                       ov::op::v5::Round,
-                                       ov::op::v1::Select,
-                                       ov::op::v0::Sigmoid,
-                                       ov::op::v0::Sqrt,
-                                       ov::op::v0::SquaredDifference,
-                                       ov::op::v1::Subtract,
-                                       ov::op::v0::Tanh,
-                                       ov::op::v1::LogicalAnd,
-                                       ov::op::v1::LogicalOr,
-                                       ov::op::v1::LogicalXor,
-                                       ov::op::v1::LogicalNot,
-                                       ov::op::v0::Xor>(n));
-        };
-        return is_supported(n) || is_supported_with_scalar_inputs(n);
-#elif defined(OPENVINO_ARCH_RISCV64)
+#if defined(OPENVINO_ARCH_RISCV64)
         auto is_supported = [](const std::shared_ptr<const ov::Node>& n) {
             return (ov::is_type_any_of<ov::op::v0::Abs,
                                        ov::op::v0::Clamp,
@@ -1447,8 +1410,11 @@ void Transformations::MainSnippets() {
         // and CPU Plugin does not support Mish for x64
         auto is_unsupported = [](const std::shared_ptr<const ov::Node>& n) {
             return (ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
-                    !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1))) ||
-                   ov::is_type<const ov::op::v4::Mish>(n);
+                    !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1)))
+#    if defined(OPENVINO_ARCH_X86_64)
+                   || ov::is_type<const ov::op::v4::Mish>(n)
+#    endif
+                ;
         };
         // todo: general tokenization flow is not currently supported for these operations.
         // they can be tokenized only as a part of complex patterns
@@ -1645,11 +1611,10 @@ void Transformations::PostSnippets() {
         [](const_node_ptr& node) -> bool {
             if (ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
                 ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
-                auto parent = node->get_input_node_shared_ptr(0);
-                if (ov::is_type<const ov::op::v1::Multiply>(parent) && !parent->inputs().empty() &&
-                    ov::is_type<const ov::op::v1::Convolution>(parent->get_input_node_shared_ptr(0))) {
-                    return true;
-                }
+                // int8 ACL Convolution executor supports only same activation and output types
+                // if types are different, decompose FQ to avoid reference FQ
+                return match_conv_fq_same_types(node) ||
+                       match_fq_mul_conv_bias_same_types(node, FQMulAddPattern::ConvAddMul);
             }
             return false;
         },
