@@ -161,23 +161,8 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_shared_dq_pattern_ref(
     bool need_weights_adjustment) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
 
-    // Input FQ stays unchanged (CQDQ can't match due to multiple consumers).
-    // Use same per-precision QuantizationParams as the original builder.
-    static const std::unordered_map<ov::element::Type_t, QuantizationParams> quantization_params{
-        {ov::element::Type_t::u16, {0.f, 10.f, 0.f, 65535.f, 0}},
-        {ov::element::Type_t::i16, {-5.0000762939453125f, 4.9999237060546875f, -32768.f, 32767.f, 0}},
-    };
-    const auto& qp_1 = quantization_params.at(quantization_precision);
-
-    auto input_fq = build_fq(params[0], qp_1);
-    auto input_convert1 = std::make_shared<ov::op::v0::Convert>(input_fq, quantization_precision);
-    auto input_convert2 = std::make_shared<ov::op::v0::Convert>(input_convert1, ov::element::f32);
-
     size_t seed = 1;
     auto create_branch = [&](float weight_scale_value) {
-        // DQ for input (same as original — not touched by either pass)
-        auto input_dequantized = build_dq(input_convert2, quantization_precision, qp_1);
-
         ov::test::utils::InputGenerateData weights_gen_data;
         weights_gen_data.seed = seed;
         auto weight_quantized =
@@ -187,7 +172,7 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_shared_dq_pattern_ref(
             ov::test::utils::make_constant(ov::element::f32, {}, std::vector<float>{weight_scale_value});
         auto weight_dequantized = std::make_shared<ov::op::v1::Multiply>(weight_convert, weight_scale);
 
-        auto conv = std::make_shared<ov::op::v1::Convolution>(input_dequantized,
+        auto conv = std::make_shared<ov::op::v1::Convolution>(params[0],
                                                               weight_dequantized,
                                                               ov::Strides{1, 1},
                                                               ov::CoordinateDiff{1, 1},
@@ -197,8 +182,6 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_shared_dq_pattern_ref(
         ov::test::utils::InputGenerateData bias_gen_data(-2.0, 4, 100, seed++);
         auto bias_const = ov::test::utils::make_constant(ov::element::f32, ov::Shape{1, 32, 1, 1}, bias_gen_data);
         auto conv_biased = std::make_shared<ov::op::v1::Add>(conv, bias_const);
-
-        // Per-branch FQ stripped (CQDQ fused it, then FQStripping removed it)
         return conv_biased;
     };
 

@@ -28,9 +28,10 @@ public:
     }
 
     void SetUp() override {
+        using namespace ov::element;
         TransformationTestsF::SetUp();
         const auto& [need_weights_adjustment, quantization_precision] = GetParam();
-        manager.register_pass<ov::pass::ConvertQuantizeDequantize>();
+        manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16}, TypeVector{f32}, true);
         manager.register_pass<ov::pass::low_precision::FQStrippingTransformation>(std::set<size_t>{65536},
                                                                                   need_weights_adjustment);
     }
