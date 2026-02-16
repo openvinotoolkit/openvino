@@ -48,8 +48,12 @@ ov::CompiledModel& CompiledModelWrap::get_compiled_model() {
 }
 
 Napi::Value CompiledModelWrap::create_infer_request(const Napi::CallbackInfo& info) {
-    ov::InferRequest infer_request = _compiled_model.create_infer_request();
-    return InferRequestWrap::wrap(info.Env(), infer_request);
+    try {
+        return InferRequestWrap::wrap(info.Env(), _compiled_model.create_infer_request());
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
 }
 
 Napi::Value CompiledModelWrap::get_output(const Napi::CallbackInfo& info) {

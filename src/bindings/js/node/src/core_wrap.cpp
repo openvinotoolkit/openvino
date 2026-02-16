@@ -194,11 +194,19 @@ void compileModelThreadModel(TsfnContextModel* context) {
 }
 
 void compileModelThreadPath(TsfnContextPath* context) {
-    ov::Core core;
-    context->_compiled_model = core.compile_model(context->_model, context->_device, context->_config);
-
-    auto callback = [](Napi::Env env, Napi::Function, TsfnContextPath* context) {
-        context->deferred.Resolve(CompiledModelWrap::wrap(env, context->_compiled_model));
+    std::string error_msg;
+    try {
+        ov::Core core;
+        context->_compiled_model = core.compile_model(context->_model, context->_device, context->_config);
+    } catch (const std::exception& e) {
+        error_msg = e.what();
+    }
+    auto callback = [error_msg](Napi::Env env, Napi::Function, TsfnContextPath* context) {
+        if (!error_msg.empty()) {
+            context->deferred.Reject(Napi::Error::New(env, error_msg).Value());
+        } else {
+            context->deferred.Resolve(CompiledModelWrap::wrap(env, context->_compiled_model));
+        }
     };
 
     context->tsfn.BlockingCall(context, callback);
