@@ -90,28 +90,52 @@ def generate_diff(file_path: str) -> str:
     if not info:
         return ""
     
-    comment_style, has_extra_line = info
-    current_year = datetime.now().year
-    has_copyright = any('Copyright' in line or 'SPDX-License-Identifier' in line 
-                       for line in lines[:5])
+    comment_style, _ = info
+    expected = get_expected_header(file_path)
+    expected_lines = expected.rstrip('\n').split('\n')
+    
+    # Count how many leading lines belong to the existing copyright header.
+    # Include blank lines and empty comments (e.g. "//") that may precede or
+    # follow the copyright/SPDX keyword lines.  Only treat the block as a
+    # header if it actually contains at least one copyright keyword.
+    header_keywords = {'copyright', 'spdx-license-identifier'}
+    num_old_header = 0
+    has_keyword = False
+    for line in lines:
+        stripped = line.strip()
+        is_blank = stripped == ''
+        is_comment = stripped.startswith(comment_style)
+        if not is_blank and not is_comment:
+            break
+        if is_comment:
+            comment_text = stripped[len(comment_style):].strip().lower()
+            if any(kw in comment_text for kw in header_keywords):
+                has_keyword = True
+            elif comment_text != '':
+                # Non-empty comment that isn't a copyright keyword — stop
+                break
+        num_old_header += 1
+    
+    # If the leading block didn't contain any copyright keywords, it's
+    # just regular blank lines / comments — don't treat it as a header.
+    if not has_keyword:
+        num_old_header = 0
     
     diff_lines = [f"--- a/{file_path}", f"+++ b/{file_path}"]
     
-    if has_copyright:
-        # Wrong year - replace first line only
-        diff_lines.extend([
-            "@@ -1 +1 @@",
-            f"-{lines[0]}",
-            f"+{comment_style} Copyright (C) 2018-{current_year} Intel Corporation"
-        ])
+    if num_old_header > 0:
+        # Replace the existing (possibly partial) header with the full expected one
+        diff_lines.append(f"@@ -1,{num_old_header} +1,{len(expected_lines)} @@")
+        for i in range(num_old_header):
+            diff_lines.append(f"-{lines[i]}")
+        for exp_line in expected_lines:
+            diff_lines.append(f"+{exp_line}")
     else:
         # Missing copyright - insert at beginning
-        num_lines = 4 if has_extra_line else 3
-        diff_lines.append(f"@@ -0,0 +1,{num_lines} @@")
-        diff_lines.append(f"+{comment_style} Copyright (C) 2018-{current_year} Intel Corporation")
-        diff_lines.append(f"+{comment_style} SPDX-License-Identifier: Apache-2.0")
-        if has_extra_line:
-            diff_lines.append(f"+{comment_style}")
+        num_insert = len(expected_lines) + 1  # +1 for blank separator line
+        diff_lines.append(f"@@ -0,0 +1,{num_insert} @@")
+        for exp_line in expected_lines:
+            diff_lines.append(f"+{exp_line}")
         diff_lines.append("+")
     
     return '\n'.join(diff_lines) + '\n'
