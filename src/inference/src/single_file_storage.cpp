@@ -28,15 +28,15 @@ void SingleFileStorage::populate_cache_index() {
     const auto f_size = ov::util::file_size(m_cache_file_path);
     if (std::ifstream blob_file(m_cache_file_path, std::ios_base::binary); blob_file.is_open()) {
         // Read shared context from the cache file
-        storage::tag_type tag{};
-        storage::length_type size{};
+        TLVStorage::Tag tag{};
+        TLVStorage::length_type size{};
         while (blob_file.good() && blob_file.tellg() < f_size) {
             blob_file.read(reinterpret_cast<char*>(&tag), sizeof(tag));
             blob_file.read(reinterpret_cast<char*>(&size), sizeof(size));
             if (blob_file.eof()) {
                 break;
             }
-            if (tag == storage::blob_tag) {
+            if (tag == TLVStorage::Tag::Blob) {
                 std::string blob_id(blob_id_size, '\0');
                 blob_file.read(blob_id.data(), blob_id.size());
                 blob_id.erase(std::find(blob_id.begin(), blob_id.end(), '\0'), blob_id.end());
@@ -82,8 +82,9 @@ void SingleFileStorage::update_shared_ctx_from_file() {
 
 void SingleFileStorage::write_blob_entry(const std::string& id, StreamWriter& writer, std::ofstream& stream) {
     OPENVINO_ASSERT(!has_blob_id(id), "Blob with id ", id, " already exists in cache.");
-    storage::length_type blob_size = 0;
-    stream.write(reinterpret_cast<const char*>(&storage::blob_tag), sizeof(storage::blob_tag));
+    TLVStorage::length_type blob_size = 0;
+    TLVStorage::Tag blob_tag = TLVStorage::Tag::Blob;
+    stream.write(reinterpret_cast<const char*>(&blob_tag), sizeof(blob_tag));
     const auto blob_size_pos = stream.tellp();
     stream.write(reinterpret_cast<const char*>(&blob_size), sizeof(blob_size));
 
