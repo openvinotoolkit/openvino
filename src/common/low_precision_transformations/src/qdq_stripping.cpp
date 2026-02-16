@@ -129,77 +129,19 @@ private:
 
         auto collect_nodes_to_scale = [&](ov::Node* node) {
             const auto node_shared = node->shared_from_this();
-            auto stop_propagation = [&](Matcher& m) {
-                for (const auto& in : m.get_match_root()->input_values()) {
+            // Case 1: DQ block on constant path — collect for scale adjustment
+            auto weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
+            auto matcher = std::make_shared<Matcher>(weights_dq_block, "WeightsDQPattern");
+            if (matcher->match(node_shared)) {
+                m_pending_weight_scales.insert(weights_dq_block->get_multiply(matcher->get_pattern_value_map()));
+                for (const auto& in : matcher->get_match_root()->input_values()) {
                     m_visited.insert(in.get_node());
                 }
-            };
-
-            // Case 1: Convolution + Add (bias) — scale both Conv weights and bias
-            {
-                auto conv_weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
-                auto conv_pattern = wrap_type<ov::op::v1::Convolution>({any_input(), conv_weights_dq_block});
-
-                auto conv_shape = wrap_type<ov::op::v3::ShapeOf>({conv_pattern});
-                auto conv_rank = wrap_type<ov::op::v3::ShapeOf>({conv_shape});
-                auto rank_minus_2 = wrap_type<ov::op::v1::Subtract>({conv_rank, any_input()});
-                auto tail = wrap_type<ov::op::v3::Broadcast>({any_input(), rank_minus_2});
-
-                auto bias_dq_block = std::make_shared<WeightsDequantizationBlock>();
-                auto c_dim = wrap_type<ov::op::v3::ShapeOf>({bias_dq_block});
-                auto target_shape = wrap_type<ov::op::v0::Concat>({any_input(), c_dim, tail});
-                auto reshape_pattern = wrap_type<ov::op::v1::Reshape>({bias_dq_block, target_shape});
-
-                auto add_pattern = optional<ov::op::v1::Add>({conv_pattern, reshape_pattern});
-                auto matcher = std::make_shared<Matcher>(add_pattern, "ConvAddPattern");
-
-                if (matcher->match(node_shared)) {
-                    auto& pm = matcher->get_pattern_value_map();
-                    m_pending_weight_scales.insert(conv_weights_dq_block->get_multiply(pm));
-                    if (pm.count(add_pattern)) {
-                        m_pending_weight_scales.insert(bias_dq_block->get_multiply(pm));
-                    }
-                    stop_propagation(*matcher);
-                    return;
-                }
+                return;
             }
 
-            // Case 2: MatMul with optional Add (bias)
-            {
-                auto weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
-                auto matmul_pattern = wrap_type<ov::op::v0::MatMul>({any_input(), weights_dq_block});
-
-                auto bias_dq_block = std::make_shared<WeightsDequantizationBlock>();
-                auto add_pattern = optional<ov::op::v1::Add>({matmul_pattern, bias_dq_block});
-
-                auto matcher = std::make_shared<Matcher>(add_pattern, "MatMulOptionalAddPattern");
-
-                if (matcher->match(node_shared)) {
-                    auto& pm = matcher->get_pattern_value_map();
-                    m_pending_weight_scales.insert(weights_dq_block->get_multiply(pm));
-                    if (pm.count(add_pattern)) {
-                        m_pending_weight_scales.insert(bias_dq_block->get_multiply(pm));
-                    }
-                    stop_propagation(*matcher);
-                    return;
-                }
-            }
-
-            // Case 3: Multiply with weights
-            {
-                auto weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
-                auto multiply_pattern = wrap_type<ov::op::v1::Multiply>({any_input(), weights_dq_block});
-                auto matcher = std::make_shared<Matcher>(multiply_pattern, "MultiplyPattern");
-
-                if (matcher->match(node_shared)) {
-                    m_pending_weight_scales.insert(weights_dq_block->get_multiply(matcher->get_pattern_value_map()));
-                    stop_propagation(*matcher);
-                    return;
-                }
-            }
-
-            // Case 4: FakeQuantize (un-stripped) — collect for range adjustment
-            if (auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node->shared_from_this())) {
+            // Case 2: FakeQuantize (un-stripped) — collect for ranges adjustment
+            if (auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node_shared)) {
                 m_pending_fq_adjustments.insert(fq);
                 for (size_t i = 1; i < fq->get_input_size(); ++i) {
                     m_visited.insert(fq->input_value(i).get_node());
@@ -207,10 +149,9 @@ private:
                 return;
             }
 
-            // For Multiply/MatMul without a constant DQ subgraph (none of the above matched),
-            // continue backward propagation only through input 0.
-            if (ov::is_type<ov::op::v1::Multiply>(node) || ov::is_type<ov::op::v0::MatMul>(node)) {
-                m_visited.insert(node->get_input_node_ptr(1));
+            // Case 3: Layers with weights: Backward propagation goes only by 2nd input
+            if (ov::is_type_any_of<ov::op::v0::MatMul, ov::op::v1::Multiply, ov::op::v1::Convolution>(node)) {
+                m_visited.insert(node->get_input_node_ptr(0));
                 return;
             }
         };
@@ -243,21 +184,6 @@ private:
             if (fq && node != m_fq && !node->get_users().empty()) {
                 m_pending_fq_adjustments.insert(fq);
                 return;
-            }
-
-            // If forward propagation encounters Convolution+bias or MatMul+bias,
-            // the bias must be adjusted: signal*w + bias → (signal/S)*w + bias/S.
-            // Conv/MatMul weights are NOT adjusted (the scale cancels through linearity).
-            {
-                auto bias_dq_block = std::make_shared<WeightsDequantizationBlock>();
-                auto add_pattern = wrap_type<ov::op::v1::Add>({any_input(), bias_dq_block});
-                auto matcher = std::make_shared<Matcher>(add_pattern, "ForwardBiasPattern");
-
-                if (matcher->match(node_shared)) {
-                    auto& pm = matcher->get_pattern_value_map();
-                    m_pending_weight_scales.insert(bias_dq_block->get_multiply(pm));
-                    return;
-                }
             }
 
             if (ov::is_type<ov::op::v1::Add>(node)) {
