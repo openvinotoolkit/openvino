@@ -128,7 +128,10 @@ private:
     class NormalizeL2Executor {
     public:
         NormalizeL2Executor() = default;
-        virtual void exec(const uint8_t* src_ptr, uint8_t* dst_ptr, const void** post_ops_data) = 0;
+        virtual void exec(const uint8_t* src_ptr,
+                          uint8_t* dst_ptr,
+                          const CpuParallelPtr& cpu_parallel,
+                          const void** post_ops_data) = 0;
         virtual ~NormalizeL2Executor() = default;
 
         static std::shared_ptr<NormalizeL2Executor> getNormalizeL2Executor(const NormalizeL2Attrs& attrs,

@@ -16,15 +16,14 @@ class TestSearchSorted(PytorchLayerTest):
 
         class aten_searchsorted(torch.nn.Module):
             def __init__(self, right_mode):
-                super(aten_searchsorted, self).__init__()
+                super().__init__()
                 self.right_mode = right_mode
 
             def forward(self, sorted, values):
                 return torch.searchsorted(sorted, values, right=self.right_mode)
 
-        ref_net = None
 
-        return aten_searchsorted(right_mode), ref_net, "aten::searchsorted"
+        return aten_searchsorted(right_mode), "aten::searchsorted"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
