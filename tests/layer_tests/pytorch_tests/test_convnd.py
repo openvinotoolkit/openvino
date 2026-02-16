@@ -10,19 +10,19 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestConv2D(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
-        return (np.random.randn(2, 3, 25, 25).astype(np.float32),)
+        return (self.random.randn(2, 3, 25, 25),)
 
     def create_model(self, weights_shape, strides, pads, dilations, groups, bias):
         import torch
         import torch.nn.functional as F
 
         class aten_conv2d(torch.nn.Module):
-            def __init__(self):
-                super(aten_conv2d, self).__init__()
-                self.weight = torch.randn(weights_shape)
+            def __init__(self, rng):
+                super().__init__()
+                self.weight = rng.torch_randn(*weights_shape)
                 self.bias = None
                 if bias:
-                    self.bias = torch.randn(weights_shape[0])
+                    self.bias = rng.torch_randn(weights_shape[0])
                 self.strides = strides
                 self.pads = pads
                 self.dilations = dilations
@@ -31,9 +31,8 @@ class TestConv2D(PytorchLayerTest):
             def forward(self, x):
                 return F.conv2d(x, self.weight, self.bias, self.strides, self.pads, self.dilations, self.groups)
 
-        ref_net = None
 
-        return aten_conv2d(), ref_net, "aten::conv2d"
+        return aten_conv2d(self.random), "aten::conv2d"
 
     @pytest.mark.parametrize("params",
                              [{'weights_shape': [1, 3, 3, 3], 'strides': 1, 'pads': 0, 'dilations': 1, 'groups': 1},
@@ -62,19 +61,19 @@ class TestConv2D(PytorchLayerTest):
 class TestConv1D(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
-        return (np.random.randn(2, 3, 25).astype(np.float32),)
+        return (self.random.randn(2, 3, 25),)
 
     def create_model(self, weights_shape, strides, pads, dilations, groups, bias):
         import torch
         import torch.nn.functional as F
 
         class aten_conv1d(torch.nn.Module):
-            def __init__(self):
-                super(aten_conv1d, self).__init__()
-                self.weight = torch.randn(weights_shape)
+            def __init__(self, rng):
+                super().__init__()
+                self.weight = rng.torch_randn(*weights_shape)
                 self.bias = None
                 if bias:
-                    self.bias = torch.randn(weights_shape[0])
+                    self.bias = rng.torch_randn(weights_shape[0])
                 self.strides = strides
                 self.pads = pads
                 self.dilations = dilations
@@ -83,9 +82,8 @@ class TestConv1D(PytorchLayerTest):
             def forward(self, x):
                 return F.conv1d(x, self.weight, self.bias, self.strides, self.pads, self.dilations, self.groups)
 
-        ref_net = None
 
-        return aten_conv1d(), ref_net, "aten::conv1d"
+        return aten_conv1d(self.random), "aten::conv1d"
 
     @pytest.mark.parametrize("params",
                              [{'weights_shape': [3, 3, 3], 'strides': 1, 'pads': 0, 'dilations': 1, 'groups': 1},
@@ -108,19 +106,19 @@ class TestConv1D(PytorchLayerTest):
 class TestConv3D(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
-        return (np.random.randn(2, 3, 25, 25, 25).astype(np.float32),)
+        return (self.random.randn(2, 3, 25, 25, 25),)
 
     def create_model(self, weights_shape, strides, pads, dilations, groups, bias):
         import torch
         import torch.nn.functional as F
 
         class aten_conv3d(torch.nn.Module):
-            def __init__(self):
-                super(aten_conv3d, self).__init__()
-                self.weight = torch.randn(weights_shape)
+            def __init__(self, rng):
+                super().__init__()
+                self.weight = rng.torch_randn(*weights_shape)
                 self.bias = None
                 if bias:
-                    self.bias = torch.randn(weights_shape[0])
+                    self.bias = rng.torch_randn(weights_shape[0])
                 self.strides = strides
                 self.pads = pads
                 self.dilations = dilations
@@ -129,9 +127,8 @@ class TestConv3D(PytorchLayerTest):
             def forward(self, x):
                 return F.conv3d(x, self.weight, self.bias, self.strides, self.pads, self.dilations, self.groups)
 
-        ref_net = None
 
-        return aten_conv3d(), ref_net, "aten::conv3d"
+        return aten_conv3d(self.random), "aten::conv3d"
 
     @pytest.mark.parametrize("params",
                              [{'weights_shape': [1, 3, 3, 3, 3], 'strides': 1, 'pads': 0, 'dilations': 1, 'groups': 1},
@@ -167,7 +164,7 @@ class TestConv3D(PytorchLayerTest):
 class TestConv2DInSubgraph(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
-        return (np.random.randn(2, 3, 25, 25).astype(np.float32), np.array([1], dtype=np.int32))
+        return (self.random.randn(2, 3, 25, 25), np.array([1], dtype=np.int32))
 
     def convert_directly_via_frontend(self, model, example_input, trace_model, dynamic_shapes, ov_inputs, freeze_model):
         # Overload function to allow reproduction of issue caused by additional freeze.
@@ -213,9 +210,8 @@ class TestConv2DInSubgraph(PytorchLayerTest):
                 if y:
                     acc += self.convs(x)
                 return acc
-        ref_net = None
 
-        return aten_conv2d(), ref_net, "aten::conv2d"
+        return aten_conv2d(), "aten::conv2d"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
