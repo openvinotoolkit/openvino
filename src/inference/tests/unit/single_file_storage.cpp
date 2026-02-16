@@ -82,4 +82,9 @@ TEST_F(SingleFileStorageTest, AppendOnly) {
     }));
     EXPECT_NO_THROW(m_storage->remove_cache_entry("dummy id"));
 }
+
+TEST_F(SingleFileStorageTest, SharedContext__) {
+    // void write_context_entry(const SharedContext& context) override;
+    // SharedContext get_shared_context() const override;
+}
 }  // namespace ov::test

@@ -5,18 +5,23 @@
 #pragma once
 
 #include <iostream>
+#include <string>
+#include <unordered_map>
 
 #include "openvino/runtime/internal_properties.hpp"
 #include "storage_traits.hpp"
 
 namespace ov {
 struct SharedContextStreamCodec {
-    ov::SharedContext* ctx;
+    SharedContext* ctx;
 
-    friend std::istream& operator>>(std::istream& stream, SharedContextStreamCodec& cache) {
-        storage::tag_type tag{};
+    friend std::istream& operator>>(std::istream& stream, SharedContextStreamCodec& codec) {
+        if (codec.ctx == nullptr) {
+            return stream;
+        }
+        TLVStorage::Tag tag{};
         do {
-            storage::length_type ctx_size{};
+            TLVStorage::length_type ctx_size{};
             stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
             if (!stream.good()) {
                 break;
@@ -25,7 +30,7 @@ struct SharedContextStreamCodec {
             if (!stream.good() || ctx_size == 0) {
                 break;
             }
-            if (tag == storage::shared_context_tag) {
+            if (tag == TLVStorage::Tag::SharedContext) {
                 const auto end_pos = stream.tellg() + static_cast<std::streamoff>(ctx_size);
                 do {
                     size_t id, const_id, offset, byte_size;
@@ -33,10 +38,10 @@ struct SharedContextStreamCodec {
                     stream.read(reinterpret_cast<char*>(&const_id), sizeof(const_id));
                     stream.read(reinterpret_cast<char*>(&offset), sizeof(offset));
                     stream.read(reinterpret_cast<char*>(&byte_size), sizeof(byte_size));
-                    if (auto id_it = cache.ctx->find(id); id_it != cache.ctx->end()) {
+                    if (auto id_it = codec.ctx->find(id); id_it != codec.ctx->end()) {
                         id_it->second[const_id] = std::make_tuple(offset, byte_size);
                     } else {
-                        (*cache.ctx)[id] = {{const_id, std::make_tuple(offset, byte_size)}};
+                        (*codec.ctx)[id] = {{const_id, std::make_tuple(offset, byte_size)}};
                     }
                 } while (stream.good() && stream.tellg() < end_pos);
             } else {
@@ -47,15 +52,16 @@ struct SharedContextStreamCodec {
         return stream;
     }
 
-    friend std::ostream& operator<<(std::ostream& stream, const SharedContextStreamCodec& cache) {
-        if (cache.ctx == nullptr || cache.ctx->empty()) {
+    friend std::ostream& operator<<(std::ostream& stream, const SharedContextStreamCodec& codec) {
+        if (codec.ctx == nullptr || codec.ctx->empty()) {
             return stream;
         }
-        stream.write(reinterpret_cast<const char*>(&storage::shared_context_tag), sizeof(storage::shared_context_tag));
-        storage::length_type ctx_size = 0;
+        constexpr auto sc_tag = TLVStorage::Tag::SharedContext;
+        stream.write(reinterpret_cast<const char*>(&sc_tag), sizeof(sc_tag));
+        TLVStorage::length_type ctx_size = 0;
         const auto size_offset = stream.tellp();
         stream.write(reinterpret_cast<const char*>(&ctx_size), sizeof(ctx_size));
-        for (const auto& [id, consts] : *cache.ctx) {
+        for (const auto& [id, consts] : *codec.ctx) {
             for (const auto& [const_id, props] : consts) {
                 const auto& [offset, size] = props;
                 stream.write(reinterpret_cast<const char*>(&id), sizeof(id));
@@ -73,4 +79,52 @@ struct SharedContextStreamCodec {
     }
 };
 
+struct BlobMapStreamCodec {
+    std::unordered_map<TLVStorage::blob_id_type, std::string>* blob_mappings;
+
+    friend std::istream& operator>>(std::istream& stream, BlobMapStreamCodec& codec) {
+        if (codec.blob_mappings == nullptr) {
+            return stream;
+        }
+        TLVStorage::Tag tag{};
+        do {
+            TLVStorage::length_type map_size{};
+            stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
+            if (!stream.good()) {
+                break;
+            }
+            stream.read(reinterpret_cast<char*>(&map_size), sizeof(map_size));
+            if (!stream.good() || map_size == 0) {
+                break;
+            }
+            if (tag == TLVStorage::Tag::Blob) {
+                const auto end_pos = stream.tellg() + static_cast<std::streamoff>(map_size);
+                TLVStorage::blob_id_type id;
+                stream.read(reinterpret_cast<char*>(&id), sizeof(id));
+                if (!stream.good()) {
+                    break;
+                }
+                stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
+                if (!stream.good() || tag != TLVStorage::Tag::String) {
+                    break;
+                }
+                TLVStorage::length_type str_size{};
+                stream.read(reinterpret_cast<char*>(&str_size), sizeof(str_size));
+                if (!stream.good() || str_size == 0) {
+                    break;
+                }
+                std::string model_name(str_size, '\0');
+                stream.read(model_name.data(), model_name.size());
+                // Intentionally overwrite existing mapping if id already exists. It should not be a case with properly
+                // stored cache file.
+                (*codec.blob_mappings)[id] = model_name;
+
+            } else {
+                stream.seekg(map_size ? map_size : 1, std::ios::cur);
+            }
+        } while (stream.good());
+
+        return stream;
+    }
+};
 }  // namespace ov

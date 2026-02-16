@@ -6,12 +6,18 @@
 
 #include <cstdint>
 
-namespace ov::storage {
+namespace ov {
 
-using tag_type = uint32_t;
-using length_type = uint64_t;
+struct TLVStorage {
+    using tag_type = uint32_t;
+    using length_type = uint64_t;
+    using blob_id_type = uint64_t;
 
-static constexpr tag_type shared_context_tag = 0x0100;
-static constexpr tag_type content_index_tag = 0x0200;
-static constexpr tag_type blob_tag = 0x0300;
-}  // namespace ov::storage
+    enum class Tag : tag_type {
+        SharedContext = 0x01,
+        String = 0x02,
+        Blob = 0x03,
+        BlobMap = 0x04,
+    };
+};
+}  // namespace ov
