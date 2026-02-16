@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
 import pytest
 import torch
 
@@ -13,7 +12,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestSelect(PytorchLayerTest):
 
     def _prepare_input(self):
-        return (np.random.randn(4, 4, 5, 5).astype(np.float32),)
+        return (self.random.randn(4, 4, 5, 5),)
 
     def create_model(self, input_dim, input_index):
         class aten_select(torch.nn.Module):
@@ -26,9 +25,8 @@ class TestSelect(PytorchLayerTest):
             def forward(self, input_tensor):
                 return torch.select(input_tensor, int(self.dim), int(self.index))
 
-        ref_net = None
 
-        return aten_select(input_dim, input_index), ref_net, "aten::select"
+        return aten_select(input_dim, input_index), "aten::select"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -43,7 +41,7 @@ class TestSelect(PytorchLayerTest):
 class TestSelectCopy(PytorchLayerTest):
 
     def _prepare_input(self):
-        return (np.random.randn(4, 4, 5, 5).astype(np.float32),)
+        return (self.random.randn(4, 4, 5, 5),)
 
     def create_model(self, input_dim, input_index):
         class aten_select_copy(torch.nn.Module):
@@ -56,9 +54,8 @@ class TestSelectCopy(PytorchLayerTest):
             def forward(self, input_tensor):
                 return torch.select_copy(input_tensor, int(self.dim), int(self.index))
 
-        ref_net = None
 
-        return aten_select_copy(input_dim, input_index), ref_net, "aten::select_copy"
+        return aten_select_copy(input_dim, input_index), "aten::select_copy"
 
     @pytest.mark.precommit_fx_backend
     def test_select_copy(self, ie_device, precision, ir_version, input_dim, input_index):

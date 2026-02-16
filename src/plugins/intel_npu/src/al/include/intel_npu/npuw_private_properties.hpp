@@ -250,6 +250,39 @@ static constexpr ov::Property<bool> spatial_dyn{"NPUW_SPATIAL_DYN"};
 
 /**
  * @brief
+ * Type: uint64_t.
+ * MoE expert model compilation strategy for prefill stage token chunking.
+ *
+ * When set to 0 (default): Compiles multiple expert models with different chunk sizes
+ * {16, 32, 64, 128, 256} for dynamic chunk selection at runtime. This provides optimal
+ * performance by selecting the best chunk size based on remaining tokens.
+ *
+ * When set to a specific value (e.g., 128, 256): Compiles only a single expert model
+ * with the specified fixed chunk size. This reduces compilation time and memory usage but
+ * may not be optimal for all token counts.
+ *
+ * The chunk size should be a power of two for best hardware utilization.
+ * Note: This only affects prefill stage (multi-token inference). Decoding stage (single token)
+ * always uses a dedicated model regardless of this setting.
+ *
+ * Default value: 0 (dynamic multi-model compilation).
+ */
+static constexpr ov::Property<uint64_t> moe_token_chunk_size{"NPUW_MOE_TOKEN_CHUNK_SIZE"};
+
+/**
+ * @brief Configure MoE request pool size per layer for caching expert configurations.
+ *
+ * Controls the number of pre-allocated inference requests per MoE layer to cache
+ * different expert combinations. Using LRU eviction when pool is full.
+ * Setting to 0 disables the MoE request cache entirely.
+ *
+ * Type: std::size_t.
+ * Default value: 8 (cache up to 8 expert configurations per layer).
+ */
+static constexpr ov::Property<std::size_t> moe_pool_size{"NPUW_MOE_POOL_SIZE"};
+
+/**
+ * @brief
  * Type: std::string.
  * Select attention optimization mode when attention block detected.
  * Possible values: "DYNAMIC", "STATIC", "PYRAMID", "HFA"
@@ -405,6 +438,16 @@ static constexpr ov::Property<std::string> subgraphs{"NPUW_DUMP_SUBS"};
 /**
  * @brief
  * Type: std::string.
+ * Directory path for dumping subgraph models (.xml).
+ * Default behavior: when this property is not set or set to an empty string,
+ * the current working directory is used. Any non-empty value is interpreted
+ * as a directory path.
+ */
+static constexpr ov::Property<std::string> subgraphs_dir{"NPUW_DUMP_SUBS_DIR"};
+
+/**
+ * @brief
+ * Type: std::string.
  * Dump subgraph on disk if a compilation failure happens.
  * Possible values: Comma-separated list of subgraph indices ("last" can be used
  * for dumping last subgraph) or "YES" for all subgraphs, "MIN" for representative
@@ -505,11 +548,37 @@ static constexpr ov::Property<bool> optimize_v_tensors{"NPUW_LLM_OPTIMIZE_V_TENS
 
 /**
  * @brief
+ * Type: bool.
+ * Tell NPUW to apply fp8 static quantisation pass from openvino low_precision library
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> optimize_fp8{"NPUW_LLM_OPTIMIZE_FP8"};
+
+/**
+ * @brief
  * Type: boolean
  * Substitute part of the RoPE with compile-time precalculation in higher precision
  * Default value: true.
  */
 static constexpr ov::Property<bool> cache_rope{"NPUW_LLM_CACHE_ROPE"};
+
+/**
+ * @brief
+ * Type: ::intel_npu::npuw::llm::MoEHint
+ * Specify MoE (Mixture of Experts) implementation strategy for prefill stage
+ * Possible values: DENSE, HOST_ROUTED, DEVICE_ROUTED
+ * Default value: HOST_ROUTED (recommended for prefill to avoid NPU-unfriendly operations)
+ */
+static constexpr ov::Property<std::string> prefill_moe_hint{"NPUW_LLM_PREFILL_MOE_HINT"};
+
+/**
+ * @brief
+ * Type: ::intel_npu::npuw::llm::MoEHint
+ * Specify MoE (Mixture of Experts) implementation strategy for generate/decoding stage
+ * Possible values: DENSE, HOST_ROUTED, DEVICE_ROUTED
+ * Default value: HOST_ROUTED (DEVICE_ROUTED recommended for better decoding performance)
+ */
+static constexpr ov::Property<std::string> generate_moe_hint{"NPUW_LLM_GENERATE_MOE_HINT"};
 
 /**
  * @brief

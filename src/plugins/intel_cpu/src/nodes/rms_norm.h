@@ -37,7 +37,9 @@ public:
 
 private:
     struct Executor {
-        virtual void execute(const std::vector<MemoryPtr>& inputs, MemoryPtr output) = 0;
+        virtual void execute(const std::vector<MemoryPtr>& inputs,
+                             MemoryPtr output,
+                             const CpuParallelPtr& cpu_parallel) = 0;
         virtual ~Executor() = default;
     };
 
