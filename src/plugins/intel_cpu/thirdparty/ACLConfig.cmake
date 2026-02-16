@@ -172,9 +172,36 @@ elseif(NOT TARGET arm_compute::arm_compute)
                                     "Please, specify -DANDROID_PLATFORM=android-18 at least")
             endif()
 
-            ov_arm_compute_add_option("toolchain_prefix" "${ANDROID_TOOLCHAIN_ROOT}/bin/llvm-")
+            set(android_api_level "${ANDROID_PLATFORM_LEVEL}")
+            if(NOT android_api_level AND ANDROID_PLATFORM)
+                string(REGEX REPLACE "[^0-9]" "" android_api_level "${ANDROID_PLATFORM}")
+            endif()
+            if(NOT android_api_level)
+                message(FATAL_ERROR "Failed to detect Android API level for ACL SCons compiler_prefix")
+            endif()
 
-            ov_arm_compute_add_option("compiler_prefix" "${ANDROID_TOOLCHAIN_ROOT}/bin/")
+            if(ANDROID_ABI STREQUAL "arm64-v8a")
+                set(android_triple_prefix "aarch64-linux-android")
+            elseif(ANDROID_ABI STREQUAL "armeabi-v7a")
+                set(android_triple_prefix "armv7a-linux-androideabi")
+            elseif(ANDROID_ABI STREQUAL "x86")
+                set(android_triple_prefix "i686-linux-android")
+            elseif(ANDROID_ABI STREQUAL "x86_64")
+                set(android_triple_prefix "x86_64-linux-android")
+            elseif(ANDROID_ABI STREQUAL "riscv64")
+                set(android_triple_prefix "riscv64-linux-android")
+            else()
+                message(FATAL_ERROR "Unsupported ANDROID_ABI='${ANDROID_ABI}' for ACL SCons compiler_prefix")
+            endif()
+
+            set(android_compiler_prefix "${android_triple_prefix}${android_api_level}-")
+
+            ov_arm_compute_add_option("toolchain_prefix" "")
+            ov_arm_compute_add_option("compiler_prefix" "${android_compiler_prefix}")
+
+            set(cmake_build_env
+                AR=llvm-ar
+                PATH=${ANDROID_TOOLCHAIN_ROOT}/bin:$ENV{PATH} PARENT_SCOPE)
 
             set(extra_cc_flags "--target=${ANDROID_LLVM_TRIPLE}" PARENT_SCOPE)
             set(extra_flags "${extra_flags} --gcc-toolchain=${ANDROID_TOOLCHAIN_ROOT}" PARENT_SCOPE)

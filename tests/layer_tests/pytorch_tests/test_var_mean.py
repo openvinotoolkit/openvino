@@ -10,8 +10,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestVarMean(PytorchLayerTest):
     def _prepare_input(self):
-        import numpy as np
-        return (np.random.randn(1, 3, 224, 224).astype(np.float32),)
+        return (self.random.randn(2, 3, 224, 224),)
 
     def create_model(self, unbiased, dim=None, keepdim=True, two_args_case=True, op_type="var"):
         import torch
@@ -27,7 +26,7 @@ class TestVarMean(PytorchLayerTest):
 
         class aten_var(torch.nn.Module):
             def __init__(self, dim, unbiased, keepdim, op):
-                super(aten_var, self).__init__()
+                super().__init__()
                 self.unbiased = unbiased
                 self.dim = dim
                 self.keepdim = keepdim
@@ -38,17 +37,16 @@ class TestVarMean(PytorchLayerTest):
 
         class aten_var2args(torch.nn.Module):
             def __init__(self, unbiased, op):
-                super(aten_var2args, self).__init__()
+                super().__init__()
                 self.unbiased = unbiased
                 self.op =  op
             def forward(self, x):
                 return self.op(x, self.unbiased)
 
-        ref_net = None
         op_name = f"aten::{op_type}"
         if two_args_case:
-            return aten_var2args(unbiased, op), ref_net, op_name
-        return aten_var(dim, unbiased, keepdim, op), ref_net, op_name
+            return aten_var2args(unbiased, op), op_name
+        return aten_var(dim, unbiased, keepdim, op), op_name
 
     @pytest.mark.nightly
     @pytest.mark.precommit

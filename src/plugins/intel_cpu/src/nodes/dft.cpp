@@ -30,7 +30,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
@@ -510,7 +509,8 @@ void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
 std::vector<float> DFT::generateTwiddlesDFT(size_t n_complex, bool inverse) {
     std::vector<float> twiddles(n_complex * n_complex * 2);
     const float inverseMultiplier = inverse ? 1 : -1;
-    parallel_for(n_complex, [&](const size_t k) {
+    const auto& cpu_parallel = context->getCpuParallel();
+    cpu_parallel->parallel_for(n_complex, [&](const size_t k) {
         for (size_t n = 0; n < n_complex; ++n) {
             float phase = 2.0F * PI * static_cast<float>(n * k) / static_cast<float>(n_complex);
             auto complexReal = std::cos(phase);
