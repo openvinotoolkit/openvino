@@ -463,8 +463,7 @@ void CoreWrap::add_extension(const Napi::CallbackInfo& info) {
         if (!info[0].IsString())
             OPENVINO_THROW("addExtension method applies one argument of string type");
 
-        std::string library_path = info[0].ToString();
-        _core.add_extension(library_path);
+        _core.add_extension(js_to_cpp<std::filesystem::path>(info, 0));
     } catch (std::runtime_error& err) {
         reportError(info.Env(), err.what());
     }
