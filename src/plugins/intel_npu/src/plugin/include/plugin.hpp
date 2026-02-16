@@ -33,39 +33,40 @@ public:
 
     ~Plugin() = default;
 
-    void set_property(const ov::AnyMap& arguments) override;
+    void set_property(const ov::AnyMap& properties) override;
 
     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                      const ov::AnyMap& arguments) const override;
+                                                      const ov::AnyMap& properties) const override;
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                      const ov::AnyMap& arguments,
+                                                      const ov::AnyMap& properties,
                                                       const ov::SoPtr<ov::IRemoteContext>& context) const override;
 
-    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remoteArguments) const override;
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remoteProperties) const override;
 
-    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remoteArguments) const override;
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remoteProperties) const override;
 
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& stream, const ov::AnyMap& arguments) const override;
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& stream, const ov::AnyMap& properties) const override;
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& stream,
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
-                                                     const ov::AnyMap& arguments) const override;
+                                                     const ov::AnyMap& properties) const override;
 
     std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& compiledBlob,
-                                                     const ov::AnyMap& arguments) const override;
+                                                     const ov::AnyMap& properties) const override;
 
     std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& compiledBlob,
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
-                                                     const ov::AnyMap& arguments) const override;
+                                                     const ov::AnyMap& properties) const override;
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
-                                    const ov::AnyMap& arguments) const override;
+                                    const ov::AnyMap& properties) const override;
 
 private:
     void init_options(FilteredConfig& filteredConfig);
+    void update_log_level(const ov::AnyMap& properties) const;
 
     /**
      * @brief Parses the compiled model found within the stream and tensor and returns a wrapper over the L0 handle that
@@ -76,12 +77,12 @@ private:
      *
      * @param tensorBig Contains the whole binary object.
      * @param metadata Parsed metadata at the end of the blob. Can be nullptr if compatibility checks were disabled.
-     * @param arguments Configuration taking the form of an "ov::AnyMap".
+     * @param properties Configuration taking the form of an "ov::AnyMap".
      * @return A compiled model
      */
     std::shared_ptr<ov::ICompiledModel> parse(const ov::Tensor& tensorBig,
                                               std::unique_ptr<MetadataBase> metadata,
-                                              const ov::AnyMap& arguments) const;
+                                              const ov::AnyMap& properties) const;
 
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 
@@ -92,7 +93,7 @@ private:
     std::shared_ptr<OptionsDesc> _options;
     mutable Logger _logger;
     std::shared_ptr<Metrics> _metrics;
-    std::unique_ptr<Properties> _properties;
+    std::unique_ptr<Properties> _propertiesManager;
 
     static std::atomic<int> _compiledModelLoadCounter;
 };

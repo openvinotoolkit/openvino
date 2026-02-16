@@ -47,7 +47,7 @@ public:
     /**
      * @brief Get the values of a property in a map
      */
-    ov::Any getProperty(const std::string& name, const ov::AnyMap& arguments = {}) const;
+    ov::Any getProperty(const std::string& name, const ov::AnyMap& arguments = {});
 
     /**
      * @brief Set the values of a subset of properties, provided as a map
@@ -55,9 +55,7 @@ public:
      * - checks if the property exists, will report if unsupported
      * - checks if the property is Read-only, will report error if so
      */
-    void setProperty(const ov::AnyMap& arguments,
-                     const ICompilerAdapter* compiler = nullptr,
-                     OptionMode mode = OptionMode::Both);
+    void setProperty(const ov::AnyMap& properties);
 
     /**
      * @brief Checks whether a property was registered by its name
@@ -72,16 +70,6 @@ public:
     }
 
     /**
-     * @brief Set the properties map and register properties for the plugin.
-     * @details
-     * - Checks if the compiler has changed; if so, creates a new compiler and re-filters properties.
-     * - Checks whether arguments are already registered; if not, queries compiler support.
-     * - Filters compiler options based on the current compiler.
-     * - Set the config with the provided arguments.
-     */
-    void setPropertiesSafe(const ov::AnyMap& arguments = {}, const bool ensurePropertiesInitialized = true);
-
-    /**
      * @brief Update the config map and register properties for the plugin.
      * @details
      * - Checks if the compiler has changed; if so, re-filters properties.
@@ -89,9 +77,8 @@ public:
      * - Filters compiler options based on the current compiler.
      * - Updates the config with the provided arguments.
      */
-    void updateConfig(const ov::AnyMap& arguments,
+    void updateConfig(const ov::AnyMap& properties,
                       const ICompilerAdapter* compiler,
-                      const bool initializeCompilerOptions,
                       OptionMode mode = OptionMode::Both);
 
     /**
@@ -99,7 +86,11 @@ public:
      * @details
      * - Updates the config with the provided arguments.
      */
-    void updateConfig(const ov::AnyMap& arguments, OptionMode mode = OptionMode::Both);
+    void updateConfig(const ov::AnyMap& properties, OptionMode mode = OptionMode::Both);
+
+    ov::intel_npu::CompilerType resolveCompilerTypeOption(const ov::AnyMap& properties) const;
+    std::string resolvePlatformOption(const ov::AnyMap& properties) const;
+    std::string resolveDeviceIdOption(const ov::AnyMap& properties) const;
 
 private:
     PropertiesType _pType;
@@ -107,6 +98,9 @@ private:
     std::shared_ptr<Metrics> _metrics;
     ov::SoPtr<IEngineBackend> _backend;
     Logger _logger;
+
+    ov::intel_npu::CompilerType _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;
+    std::string _currentlyUsedPlatform;
 
     bool _initialized = false;  ///< Boolean to check whether properties was filtered with compiler supported properties
 

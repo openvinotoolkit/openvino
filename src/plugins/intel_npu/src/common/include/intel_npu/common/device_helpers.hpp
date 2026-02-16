@@ -19,10 +19,6 @@ std::string getPlatformByDeviceName(const std::string_view deviceName);
 std::string getCompilationPlatform(const std::string_view platform,
                                    const std::string_view deviceId,
                                    std::vector<std::string> availableDevicesNames);
-
-ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig& base_conf, const ov::AnyMap& local_conf);
-std::string resolvePlatformOption(const FilteredConfig& base_conf, const ov::AnyMap& local_conf);
-std::string resolveDeviceIdOption(const FilteredConfig& base_conf, const ov::AnyMap& local_conf);
 }  // namespace utils
 
 }  // namespace intel_npu

@@ -52,37 +52,10 @@ std::string utils::getCompilationPlatform(const std::string_view platform,
 
     // Automatic detection of compilation platform
     if (availableDevicesNames.empty()) {
-        OPENVINO_THROW("No NPU devices were found.");
+        return std::string();
     }
 
     return ov::intel_npu::Platform::standardize(utils::getPlatformByDeviceName(availableDevicesNames.at(0)));
-}
-
-ov::intel_npu::CompilerType utils::resolveCompilerType(const FilteredConfig& base_conf, const ov::AnyMap& local_conf) {
-    // first look if provided config changes compiler type
-    auto it = local_conf.find(ov::intel_npu::compiler_type.name());
-    if (it != local_conf.end()) {
-        // if compiler_type is provided by local config = use that
-        return COMPILER_TYPE::parse(it->second.as<std::string>());
-    }
-    // if there is no compiler_type provided = use base_config value
-    return base_conf.get<COMPILER_TYPE>();
-}
-
-std::string utils::resolvePlatformOption(const FilteredConfig& base_conf, const ov::AnyMap& local_conf) {
-    auto platform = local_conf.find(ov::intel_npu::platform.name());
-    if (platform != local_conf.end()) {
-        return platform->second.as<std::string>();
-    }
-    return base_conf.get<PLATFORM>();
-}
-
-std::string utils::resolveDeviceIdOption(const FilteredConfig& base_conf, const ov::AnyMap& local_conf) {
-    auto device_id = local_conf.find(std::string(ov::device::id.name()));
-    if (device_id != local_conf.end()) {
-        return device_id->second.as<std::string>();
-    }
-    return base_conf.get<DEVICE_ID>();
 }
 
 }  // namespace intel_npu

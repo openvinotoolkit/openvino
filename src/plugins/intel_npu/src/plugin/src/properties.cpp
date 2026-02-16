@@ -331,6 +331,8 @@ Properties::Properties(const Properties& other)
       _metrics(other._metrics),
       _backend(other._backend),
       _logger("Properties", _config.get<LOG_LEVEL>()),
+      _currentlyUsedCompiler(other._currentlyUsedCompiler),
+      _currentlyUsedPlatform(other._currentlyUsedPlatform),
       _initialized(other._initialized),
       _properties(other._properties),
       _supportedProperties(other._supportedProperties) {}
@@ -714,7 +716,71 @@ void Properties::registerCompiledModelProperties() {
     });
 }
 
-ov::Any Properties::getProperty(const std::string& name, const ov::AnyMap& arguments) const {
+ov::Any Properties::getProperty(const std::string& name, const ov::AnyMap& arguments) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (_pType == PropertiesType::PLUGIN) {
+        bool propertyIsCompilerConfig = false;
+        if (isPropertyRegistered(name)) {
+            if (_config.hasOpt(name) && name != ov::log::level.name()) {
+                auto opt = _config.getOpt(name);
+                if (opt.mode() != OptionMode::RunTime) {
+                    propertyIsCompilerConfig = true;
+                }
+            }
+        } else {
+            propertyIsCompilerConfig = true;
+        }
+
+        bool argumentIsCompilerConfig = false;
+        for (const auto& arg : arguments) {
+            if (isPropertyRegistered(arg.first)) {
+                if (_config.hasOpt(arg.first) && arg.first != ov::log::level.name()) {
+                    auto opt = _config.getOpt(arg.first);
+                    if (opt.mode() != OptionMode::RunTime) {
+                        argumentIsCompilerConfig = true;
+                        break;
+                    }
+                }
+            } else {
+                argumentIsCompilerConfig = true;
+                break;
+            }
+        }
+
+        if (argumentIsCompilerConfig || propertyIsCompilerConfig || name == ov::supported_properties.name()) {
+            std::unique_ptr<ICompilerAdapter> compiler = nullptr;
+            auto compilerType = resolveCompilerTypeOption(arguments);
+            auto deviceId = resolveDeviceIdOption(arguments);
+            std::string deviceName;
+            try {
+                deviceName = _backend == nullptr ? std::string() : _backend->getDevice(deviceId)->getName();
+            } catch (const std::exception& ex) {
+                if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
+                    OPENVINO_THROW(ex.what());
+                } else {
+                    _logger.warning("The specified device (\"%s\") was not found.", deviceId.c_str());
+                }
+            }
+
+            auto compilationPlatform = utils::getCompilationPlatform(
+                resolvePlatformOption(arguments),
+                deviceName.empty() ? deviceId : deviceName,
+                _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+
+            // create a compiler to fetch version and supported options
+            CompilerAdapterFactory factory;
+            compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+
+            if (!_initialized || compilerType != _currentlyUsedCompiler ||
+                compilationPlatform != _currentlyUsedPlatform) {
+                // filter out unsupported options
+                _currentlyUsedCompiler = compilerType;
+                _currentlyUsedPlatform = compilationPlatform;
+                filterPropertiesByCompilerSupport(compiler.get());
+            }
+        }
+    }
+
     std::map<std::string, std::string> amends;
     for (auto&& value : arguments) {
         amends.emplace(value.first, value.second.as<std::string>());
@@ -737,10 +803,62 @@ ov::Any Properties::getProperty(const std::string& name, const ov::AnyMap& argum
     }
 }
 
-void Properties::setProperty(const ov::AnyMap& arguments, const ICompilerAdapter* compiler, OptionMode mode) {
+void Properties::setProperty(const ov::AnyMap& properties) {
+    std::unique_ptr<ICompilerAdapter> compiler = nullptr;
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (_pType == PropertiesType::PLUGIN) {
+        bool argumentIsCompilerConfig = false;
+        for (const auto& arg : properties) {
+            if (isPropertyRegistered(arg.first)) {
+                if (_config.hasOpt(arg.first) && arg.first != ov::log::level.name()) {
+                    auto opt = _config.getOpt(arg.first);
+                    if (opt.mode() != OptionMode::RunTime) {
+                        argumentIsCompilerConfig = true;
+                        break;
+                    }
+                }
+            } else {
+                argumentIsCompilerConfig = true;
+                break;
+            }
+        }
+
+        if (argumentIsCompilerConfig) {
+            auto compilerType = resolveCompilerTypeOption(properties);
+            auto deviceId = resolveDeviceIdOption(properties);
+            std::string deviceName;
+            try {
+                deviceName = _backend == nullptr ? std::string() : _backend->getDevice(deviceId)->getName();
+            } catch (const std::exception& ex) {
+                if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
+                    OPENVINO_THROW(ex.what());
+                } else {
+                    _logger.warning("The specified device (\"%s\") was not found.", deviceId.c_str());
+                }
+            }
+
+            auto compilationPlatform = utils::getCompilationPlatform(
+                resolvePlatformOption(properties),
+                deviceName.empty() ? deviceId : deviceName,
+                _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+
+            // create a compiler to fetch version and supported options
+            CompilerAdapterFactory factory;
+            compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+
+            if (!_initialized || compilerType != _currentlyUsedCompiler ||
+                compilationPlatform != _currentlyUsedPlatform) {
+                // filter out unsupported options
+                _currentlyUsedCompiler = compilerType;
+                _currentlyUsedPlatform = compilationPlatform;
+                filterPropertiesByCompilerSupport(compiler.get());
+            }
+        }
+    }
+
     std::map<std::string, std::string> cfgs_to_set;
 
-    for (auto&& value : arguments) {
+    for (auto&& value : properties) {
         if (_properties.find(value.first) == _properties.end()) {
             // property doesn't exist
             // checking as internal now
@@ -850,79 +968,29 @@ void Properties::filterPropertiesByCompilerSupport(const ICompilerAdapter* compi
     _initialized = true;
 }
 
-void Properties::setPropertiesSafe(const ov::AnyMap& arguments, const bool ensurePropertiesInitialized) {
-    std::lock_guard<std::mutex> lock(_mutex);
-
-    auto compilerType = utils::resolveCompilerType(_config, arguments);
-    auto platform = utils::resolvePlatformOption(_config, arguments);
-    auto deviceId = utils::resolveDeviceIdOption(_config, arguments);
-    std::string deviceName;
-    try {
-        deviceName = _backend == nullptr ? std::string() : _backend->getDevice(deviceId)->getName();
-    } catch (const std::exception& ex) {
-        if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
-            OPENVINO_THROW(ex.what());
-        } else {
-            _logger.warning("The specified device (\"%s\") was not found.", deviceId.c_str());
+void Properties::updateConfig(const ov::AnyMap& properties, const ICompilerAdapter* compiler, OptionMode mode) {
+    bool changeCompiler = false;
+    if (_initialized) {
+        auto compilerType = properties.find(ov::intel_npu::compiler_type.name());
+        if (compilerType != properties.end()) {
+            if (compilerType->second != _currentlyUsedCompiler) {
+                changeCompiler = true;
+            }
+        }
+        auto platform = properties.find(ov::intel_npu::platform.name());
+        if (platform != properties.end()) {
+            if (platform->second != _currentlyUsedPlatform) {
+                changeCompiler = true;
+            }
         }
     }
 
-    bool initializeCompilerOptions = false;
-    if (compilerType != _config.get<COMPILER_TYPE>() || platform != _config.get<PLATFORM>() ||
-        deviceId != _config.get<DEVICE_ID>()) {
-        initializeCompilerOptions = true;
-    }
-
-    bool argumentNotRegistered = false;
-    for (const auto& arg : arguments) {
-        if (!isPropertyRegistered(arg.first)) {
-            argumentNotRegistered = true;
-            break;
-        }
-    }
-
-    std::unique_ptr<ICompilerAdapter> compiler = nullptr;
-    if (argumentNotRegistered || (ensurePropertiesInitialized && (!_initialized || initializeCompilerOptions))) {
-        try {
-            // create a compiler to fetch version and supported options
-            CompilerAdapterFactory factory;
-            compiler =
-                factory.getCompiler(_backend,
-                                    compilerType,
-                                    utils::getCompilationPlatform(
-                                        platform,
-                                        deviceName.empty() ? deviceId : deviceName,
-                                        _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames()));
-        } catch (...) {
-            // assuming getCompiler failed, meaning we are offline
-            _logger.warning("No available compiler. Enabling only runtime options ");
-        }
-
-        // filter out unsupported options
-        filterPropertiesByCompilerSupport(compiler.get());
-    }
-
-    setProperty(arguments, compiler.get());
-}
-
-void Properties::updateConfig(const ov::AnyMap& arguments,
-                              const ICompilerAdapter* compiler,
-                              const bool initializeCompilerOptions,
-                              OptionMode mode) {
-    bool argumentNotRegistered = false;
-    for (const auto& arg : arguments) {
-        if (!isPropertyRegistered(arg.first)) {
-            argumentNotRegistered = true;
-            break;
-        }
-    }
-
-    if (!_initialized || argumentNotRegistered || initializeCompilerOptions) {
+    if (!_initialized || changeCompiler) {
         // filter out unsupported options
         filterPropertiesByCompilerSupport(compiler);
     }
 
-    const std::map<std::string, std::string> rawConfig = any_copy(arguments);
+    const std::map<std::string, std::string> rawConfig = any_copy(properties);
     std::map<std::string, std::string> cfgsToSet;
     for (const auto& [key, value] : rawConfig) {
         if (!_config.hasOpt(key)) {
@@ -940,8 +1008,8 @@ void Properties::updateConfig(const ov::AnyMap& arguments,
     _config.update(cfgsToSet, mode);
 }
 
-void Properties::updateConfig(const ov::AnyMap& arguments, OptionMode mode) {
-    const std::map<std::string, std::string> rawConfig = any_copy(arguments);
+void Properties::updateConfig(const ov::AnyMap& properties, OptionMode mode) {
+    const std::map<std::string, std::string> rawConfig = any_copy(properties);
     std::map<std::string, std::string> cfgsToSet;
     for (const auto& [key, value] : rawConfig) {
         if (!_config.hasOpt(key)) {
@@ -954,6 +1022,33 @@ void Properties::updateConfig(const ov::AnyMap& arguments, OptionMode mode) {
     }
 
     _config.update(cfgsToSet, mode);
+}
+
+ov::intel_npu::CompilerType Properties::resolveCompilerTypeOption(const ov::AnyMap& properties) const {
+    // first look if provided config changes compiler type
+    auto it = properties.find(ov::intel_npu::compiler_type.name());
+    if (it != properties.end()) {
+        // if compiler_type is provided by local config = use that
+        return COMPILER_TYPE::parse(it->second.as<std::string>());
+    }
+    // if there is no compiler_type provided = use _config value
+    return _config.get<COMPILER_TYPE>();
+}
+
+std::string Properties::resolvePlatformOption(const ov::AnyMap& properties) const {
+    auto platform = properties.find(ov::intel_npu::platform.name());
+    if (platform != properties.end()) {
+        return platform->second.as<std::string>();
+    }
+    return _config.get<PLATFORM>();
+}
+
+std::string Properties::resolveDeviceIdOption(const ov::AnyMap& properties) const {
+    auto device_id = properties.find(std::string(ov::device::id.name()));
+    if (device_id != properties.end()) {
+        return device_id->second.as<std::string>();
+    }
+    return _config.get<DEVICE_ID>();
 }
 
 }  // namespace intel_npu
