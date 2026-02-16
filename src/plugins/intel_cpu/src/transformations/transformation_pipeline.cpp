@@ -193,6 +193,7 @@
 #    include "nodes/rms_norm.h"
 #    include "onednn/dnnl.h"
 #    include "openvino/op/group_normalization.hpp"
+#    include "openvino/op/mish.hpp"
 #    include "openvino/op/multiply.hpp"
 #    include "openvino/op/softmax.hpp"
 #    include "openvino/op/subtract.hpp"
@@ -268,23 +269,9 @@
 #endif
 
 #if defined(OPENVINO_ARCH_RISCV64)
-#    include "openvino/op/elu.hpp"
-#    include "openvino/op/erf.hpp"
-#    include "openvino/op/exp.hpp"
-#    include "openvino/op/floor.hpp"
-#    include "openvino/op/gelu.hpp"
-#    include "openvino/op/hsigmoid.hpp"
-#    include "openvino/op/hswish.hpp"
-#    include "openvino/op/is_finite.hpp"
-#    include "openvino/op/is_inf.hpp"
-#    include "openvino/op/is_nan.hpp"
-#    include "openvino/op/mish.hpp"
-#    include "openvino/op/negative.hpp"
-#    include "openvino/op/relu.hpp"
-#    include "openvino/op/sigmoid.hpp"
-#    include "openvino/op/softsign.hpp"
-#    include "openvino/op/sqrt.hpp"
-#    include "openvino/op/tanh.hpp"
+#    include "openvino/op/power.hpp"
+#    include "openvino/op/select.hpp"
+#    include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #endif
 
 #if defined(SNIPPETS_LIBXSMM_TPP)
@@ -1422,38 +1409,22 @@ void Transformations::MainSnippets() {
 #endif  // OPENVINO_ARCH_X86_64
 
     auto is_supported_op = []([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
-#if defined(OPENVINO_ARCH_RISCV64)
-        auto is_supported = [](const std::shared_ptr<const ov::Node>& n) {
-            return (ov::is_type_any_of<ov::op::v0::Abs,
-                                       ov::op::v0::Clamp,
-                                       ov::op::v0::Elu,
-                                       ov::op::v0::Erf,
-                                       ov::op::v0::Exp,
-                                       ov::op::v0::Floor,
-                                       ov::op::v0::Gelu,
-                                       ov::op::v5::HSigmoid,
-                                       ov::op::v4::HSwish,
-                                       ov::op::v10::IsFinite,
-                                       ov::op::v10::IsInf,
-                                       ov::op::v10::IsNaN,
-                                       ov::op::v4::Mish,
-                                       ov::op::v0::Negative,
-                                       ov::op::v0::Relu,
-                                       ov::op::v0::Sigmoid,
-                                       ov::op::v9::SoftSign,
-                                       ov::op::v0::Sqrt,
-                                       ov::op::v0::Tanh>(n));
-        };
-        return is_supported(n);
-#else
-        // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
-        // and CPU Plugin does not support Mish for x64
+        // CPU Plugin supports Swish in Subgraph via conversion to SwishCPU that requires scalar beta.
+        // CPU Plugin does not support Mish for x64
         auto is_unsupported = [](const std::shared_ptr<const ov::Node>& n) {
             return (ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
                     !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1)))
-#    if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64)
                    || ov::is_type<const ov::op::v4::Mish>(n)
-#    endif
+#elif defined(OPENVINO_ARCH_RISCV64)
+                   // These operations are not currently supported in the RISC-V snippets target machine.
+                   || ov::is_type_any_of<const ov::op::v0::Ceiling,
+                                         const ov::op::v0::Convert,
+                                         const ov::op::v0::FakeQuantize,
+                                         const ov::op::v1::Power,
+                                         const ov::op::v1::Select,
+                                         const ov::intel_cpu::SwishNode>(n)
+#endif
                 ;
         };
         // todo: general tokenization flow is not currently supported for these operations.
@@ -1469,7 +1440,6 @@ void Transformations::MainSnippets() {
                                        const ov::op::v1::ReduceSum>(n));
         };
         return !is_unsupported(n) && !is_unsupported_by_common_tokenization(n);
-#endif
     };
 
     auto has_supported_tensors = [ignoreCallback](const std::shared_ptr<const ov::Node>& n) -> bool {
