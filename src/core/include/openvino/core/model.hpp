@@ -541,6 +541,9 @@ private:
     std::shared_ptr<SharedRTInfo> m_shared_rt_info;
 
     mutable std::mutex m_model_mutex;
+
+public:
+    std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>> m_data_src;
 };
 
 OPENVINO_API

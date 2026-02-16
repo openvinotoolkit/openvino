@@ -272,6 +272,9 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
 }
 
 OPENVINO_API
+void force_unmap_file(std::shared_ptr<ov::Model>& model);
+
+OPENVINO_API
 void release_model_constants_weights(const std::shared_ptr<ov::Model>& model);
 
 OPENVINO_API

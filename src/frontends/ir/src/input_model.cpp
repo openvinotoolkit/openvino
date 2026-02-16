@@ -273,8 +273,11 @@ std::shared_ptr<ov::Model> InputModel::InputModelIRImpl::convert() {
     std::shared_ptr<ov::Model> model;
     visitor.on_attribute("net", model);
     model->get_rt_info()["version"] = int64_t(version);
-    if (!m_weights_path.empty())
+
+    if (!m_weights_path.empty()) {
         model->get_rt_info()["__weights_path"] = m_weights_path;
+        model->m_data_src.insert({m_weights_path, m_shared_memory.lock()});
+    }
     parse_pre_process(m_root, m_weights, model);
 
     return model;
