@@ -132,7 +132,7 @@ Output<Node> quantize(const NodeContext& context,
 /**
  * Quantizes input node like the quantized node. Returns a shared pointer to the new QuantizedPtNode.
  */
-Output<Node> quantize(const NodeContext& context, Output<Node> input, Output<Node> quantized_node);
+Output<Node> quantize(const NodeContext& context, const Output<Node>& input, const Output<Node>& quantized_node);
 
 /**
  * Quantizes input node like the quantized node, with new scale and zero_point parameters. Returns a shared pointer to
