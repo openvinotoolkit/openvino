@@ -8,8 +8,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestNumel(PytorchLayerTest):
     def _prepare_input(self, input_shape=(2)):
-        import numpy as np
-        return (np.random.randn(*input_shape).astype(np.float32),)
+        return (self.random.randn(*input_shape),)
 
     def create_model(self):
         import torch
@@ -18,9 +17,8 @@ class TestNumel(PytorchLayerTest):
             def forward(self, x):
                 return torch.numel(x)
 
-        ref_net = None
 
-        return aten_numel(), ref_net, 'aten::numel'
+        return aten_numel(), 'aten::numel'
 
     @pytest.mark.parametrize("kwargs_to_prepare_input", [
         {'input_shape': (1,)},
