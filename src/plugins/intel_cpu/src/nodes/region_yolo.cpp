@@ -483,7 +483,8 @@ void RegionYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
                                     1,
                                     classes,
                                     IH,
-                                    IW);
+                                    IW,
+                                    context->getCpuParallel());
         }
     }
 }

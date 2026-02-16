@@ -8,8 +8,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestGelu(PytorchLayerTest):
     def _prepare_input(self):
-        import numpy as np
-        return (np.random.randn(2, 3).astype(np.float32),)
+        return (self.random.randn(2, 3),)
 
     def create_model(self, approximate):
         import torch
@@ -17,15 +16,14 @@ class TestGelu(PytorchLayerTest):
 
         class aten_gelu(torch.nn.Module):
             def __init__(self, approximate='none'):
-                super(aten_gelu, self).__init__()
+                super().__init__()
                 self.approximate = approximate
 
             def forward(self, x):
                 return F.gelu(x, approximate=self.approximate)
 
-        ref_net = None
 
-        return aten_gelu(approximate), ref_net, "aten::gelu"
+        return aten_gelu(approximate), "aten::gelu"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
