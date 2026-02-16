@@ -13,13 +13,13 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 
-namespace ov::wsh{
-    struct Context;
+namespace ov::weight_sharing {
+struct Context;
 }
 
 namespace ov {
-
 namespace internal {
+using WeightSharingCtxPtr = std::shared_ptr<const weight_sharing::Context>;
 /**
  * @brief Read-only property to get a std::vector<PropertyName> of supported internal properties.
  * @ingroup ov_runtime_cpp_prop_api
@@ -177,6 +177,6 @@ static constexpr Property<CacheQuantMode, PropertyMutability::RW> value_cache_qu
 /**
  * @brief Define shared context for share data between models like weights
  */
-static constexpr Property<wsh::Context, PropertyMutability::RW> model_sharing_context{"MODEL_SHARING_CONTEXT"};
+static constexpr Property<WeightSharingCtxPtr, PropertyMutability::RW> model_sharing_context{"MODEL_SHARING_CONTEXT"};
 }  // namespace internal
 }  // namespace ov

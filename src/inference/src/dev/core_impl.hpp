@@ -150,9 +150,11 @@ private:
                               bool mmap_enabled = false,
                               const std::filesystem::path model_path = {})
             : m_cache_manager(cache_manager),
+              m_shared_ctx(dynamic_cast<ov::ISharedCtxCacheManager*>(cache_manager.get())),
               m_model_path(model_path),
               m_mmap_enabled{mmap_enabled} {}
         std::shared_ptr<ov::ICacheManager> m_cache_manager{};
+        ov::ISharedCtxCacheManager* m_shared_ctx{};
         std::string m_blob_id{};
         std::filesystem::path m_model_path{};
         std::shared_ptr<const ov::Model> model{};
