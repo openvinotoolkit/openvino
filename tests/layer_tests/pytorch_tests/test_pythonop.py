@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
 import pytest
 
 from pytorch_layer_test_class import PytorchLayerTest
@@ -9,7 +8,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestPythonOp(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.randn(1, 3, 128, 128),)
+        return (self.random.randn(1, 3, 128, 128),)
 
     def create_model(self):
         import torch
@@ -28,9 +27,8 @@ class TestPythonOp(PytorchLayerTest):
             def forward(self, input_tensor):
                 return exp_f(input_tensor)
 
-        ref_net = None
 
-        return prim_pythonop(), ref_net, "prim::PythonOp"
+        return prim_pythonop(), "prim::PythonOp"
 
     @pytest.mark.parametrize(
         ("use_trace"),
