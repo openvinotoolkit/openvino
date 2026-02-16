@@ -47,10 +47,13 @@ namespace ov {
 namespace pass {
 namespace low_precision {
 namespace {
-// Adjusts weight DQ scales and FQ range constants to compensate for FQ stripping.
-// Walks backward from the FQ to find weight DQ blocks, then forward to find
-// downstream FQs and detect Result nodes. If forward propagation reaches a Result
-// (model output without a scale-invariant consumer), all adjustments are discarded.
+// Motivation: if the stripped FQ's dequantization scale (y_scale) is large,
+// the original activation values flowing through the stripped FQ path can exceed f16 range,
+// causing overflow and corrupting inference results.
+//
+// ScaleAdjuster reduces the magnitude of activations, keeping them within f16 range, by dividing weight DQ constants by
+// `scale_divisor = y_scale × ratio` (where `ratio = 10.0`).
+// Note: Such scaling is possible only if all downstream paths go to scale-invariant nodes (such as MVN or Softmax).
 class ScaleAdjuster {
 public:
     ScaleAdjuster(float scale_divisor, const std::shared_ptr<ov::Node>& fq)
