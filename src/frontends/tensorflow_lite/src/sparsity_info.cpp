@@ -98,7 +98,7 @@ static void read_sparse_data(uint8_t* dest,
                 dest_row_offset + row_offset,
                 " would exceed dense buffer of size ",
                 total_size);
-            FRONT_END_GENERAL_CHECK(values_size == 0 || (value_offset <= values_size - element_size),
+            FRONT_END_GENERAL_CHECK(values_size == 0 || (values_size >= element_size && value_offset <= values_size - element_size),
                                     "Sparse read at offset ",
                                     value_offset,
                                     " would exceed values buffer of size ",

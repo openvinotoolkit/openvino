@@ -67,7 +67,7 @@ TEST(FrontEndConvertModelTest, test_sparse_oob_index) {
         {
             inputModel = frontEnd->load(model_filename);
             if (inputModel) {
-                auto model = frontEnd->convert(inputModel);
+                frontEnd->convert(inputModel);
             }
         },
         std::exception);
@@ -86,7 +86,7 @@ TEST(FrontEndConvertModelTest, test_sparse_negative_index) {
         {
             inputModel = frontEnd->load(model_filename);
             if (inputModel) {
-                auto model = frontEnd->convert(inputModel);
+                frontEnd->convert(inputModel);
             }
         },
         std::exception);
@@ -105,7 +105,7 @@ TEST(FrontEndConvertModelTest, test_sparse_non_monotonic_segments) {
         {
             inputModel = frontEnd->load(model_filename);
             if (inputModel) {
-                auto model = frontEnd->convert(inputModel);
+                frontEnd->convert(inputModel);
             }
         },
         std::exception);
@@ -124,7 +124,7 @@ TEST(FrontEndConvertModelTest, test_sparse_overflow_shape) {
         {
             inputModel = frontEnd->load(model_filename);
             if (inputModel) {
-                auto model = frontEnd->convert(inputModel);
+                frontEnd->convert(inputModel);
             }
         },
         std::exception);
