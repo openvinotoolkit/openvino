@@ -7,10 +7,10 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
+#include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
-#include "openvino/itt.hpp"
 
 namespace {
 std::vector<size_t> get_strides(const std::vector<size_t>& strides_in_bytes, size_t element_size) {
