@@ -188,9 +188,9 @@ std::shared_ptr<ov::AlignedBuffer> get_source_buffer(const Context& shared_conte
     }
 }
 
-std::shared_ptr<ov::AlignedBuffer> get_constant_buffer(const Context& shared_context,
-                                                       const DataID source_id,
-                                                       const DataID constant_id) {
+std::shared_ptr<ov::AlignedBuffer> get_buffer(const Context& shared_context,
+                                              const DataID source_id,
+                                              const DataID constant_id) {
     if (const auto source_it = shared_context.m_weight_sources.find(source_id);
         source_it != shared_context.m_weight_sources.end()) {
         if (auto wt_buffer = get_shared_buffer(source_it->second)) {
@@ -200,9 +200,9 @@ std::shared_ptr<ov::AlignedBuffer> get_constant_buffer(const Context& shared_con
     return nullptr;
 }
 
-std::shared_ptr<ov::AlignedBuffer> get_constant_buffer(const Context& shared_context,
-                                                       const WeightBuffer& weight_buffer,
-                                                       const DataID constant_id) {
+std::shared_ptr<ov::AlignedBuffer> get_buffer(const Context& shared_context,
+                                              const WeightBuffer& weight_buffer,
+                                              const DataID constant_id) {
     const auto buffer = std::visit(get_aligned_buffer, weight_buffer);
     return buffer ? make_const_from_context(shared_context.m_constants_meta_data, buffer, constant_id) : nullptr;
 }

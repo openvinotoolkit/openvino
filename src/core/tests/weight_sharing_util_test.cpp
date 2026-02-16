@@ -311,11 +311,11 @@ TEST_F(WeightShareExtensionTest, get_constant_buffer_for_null_weights) {
                           std::make_shared<MappedMemDescriptor>(wt_buffer)));
     weight_sharing::set_constant(shared_ctx, c);
 
-    auto constant_buffer = weight_sharing::get_constant_buffer(shared_ctx, wt_buffer, 0);
+    auto constant_buffer = weight_sharing::get_buffer(shared_ctx, wt_buffer, 0);
     ASSERT_TRUE(constant_buffer);
 
     std::shared_ptr<ov::MappedMemory> wt_null;
-    constant_buffer = weight_sharing::get_constant_buffer(shared_ctx, wt_null, 0);
+    constant_buffer = weight_sharing::get_buffer(shared_ctx, wt_null, 0);
     ASSERT_FALSE(constant_buffer);
 }
 
@@ -376,8 +376,7 @@ TEST_F(WeightShareExtensionTest, rebuild_constant_from_shared_context) {
         const auto shape_from_blob = Shape{5, 1};
 
         // re-create constant buffer from shared context by IDs
-        auto constant_buffer =
-            weight_sharing::get_constant_buffer(shared_ctx, const_src_id_from_blob, const_id_from_blob);
+        auto constant_buffer = weight_sharing::get_buffer(shared_ctx, const_src_id_from_blob, const_id_from_blob);
         ASSERT_TRUE(constant_buffer);
         const auto& c_type = shared_ctx.m_constants_meta_data[const_src_id_from_blob][const_id_from_blob].m_type;
         auto c = std::make_shared<Constant>(c_type, shape_from_blob, constant_buffer);
@@ -398,7 +397,7 @@ TEST_F(WeightShareExtensionTest, rebuild_constant_from_shared_context) {
         // get constant source buffer fail as not exists in memory
         auto weight_buffer = ov::wsh::get_source_buffer(shared_ctx, const_src_id_from_blob);
         ASSERT_FALSE(weight_buffer);
-        auto constant_buffer = ov::wsh::get_constant_buffer(shared_ctx, const_src_id_from_blob, const_id_from_blob);
+        auto constant_buffer = ov::wsh::get_buffer(shared_ctx, const_src_id_from_blob, const_id_from_blob);
         ASSERT_FALSE(constant_buffer);
 
         // constant can not be rebuild from shared context by IDs, restore manually
@@ -407,7 +406,7 @@ TEST_F(WeightShareExtensionTest, rebuild_constant_from_shared_context) {
         auto w_buffer = load_mmap_object(weights_path);
         ASSERT_TRUE(w_buffer);
         // recreate constant buffer with weight_buffer as hint
-        constant_buffer = weight_sharing::get_constant_buffer(shared_ctx, w_buffer, const_id_from_blob);
+        constant_buffer = weight_sharing::get_buffer(shared_ctx, w_buffer, const_id_from_blob);
         ASSERT_TRUE(constant_buffer);
 
         auto c = std::make_shared<Constant>(c_type, shape_from_blob, constant_buffer);
