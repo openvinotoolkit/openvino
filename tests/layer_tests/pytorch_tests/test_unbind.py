@@ -9,14 +9,14 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestUnbind(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.uniform(0, 50, (3, 3, 3, 3)).astype(np.float32),)
+        return (self.random.uniform(0, 50, (3, 3, 3, 3), dtype=np.float32),)
 
     def create_model(self, shape):
         import torch
 
         class aten_unbind(torch.nn.Module):
             def __init__(self, dim):
-                super(aten_unbind, self).__init__()
+                super().__init__()
                 self.dim = dim
 
             def forward(self, x):
@@ -24,9 +24,8 @@ class TestUnbind(PytorchLayerTest):
                 a, b, c = torch.unbind(x, self.dim)
                 return b
 
-        ref_net = None
 
-        return aten_unbind(shape), ref_net, "aten::unbind"
+        return aten_unbind(shape), "aten::unbind"
 
     @pytest.mark.parametrize(("dim"), [0, 1, 2, 3])
     @pytest.mark.nightly

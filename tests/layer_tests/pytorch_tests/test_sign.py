@@ -18,7 +18,7 @@ class TestSilu(PytorchLayerTest):
         elif inp_type == "zeros":
             inp *= 0
         else:
-            idx = np.random.choice(inp, 3)
+            idx = self.random.choice(inp, 3)
             inp[idx.astype(int)] *= -1
         if out:
             return (inp, np.zeros_like(inp))
@@ -29,7 +29,7 @@ class TestSilu(PytorchLayerTest):
 
         class aten_sign(torch.nn.Module):
             def __init__(self, out):
-                super(aten_sign, self).__init__()
+                super().__init__()
                 if out:
                     self.forward = self.forward_out
 
@@ -39,9 +39,8 @@ class TestSilu(PytorchLayerTest):
             def forward_out(self, x, out):
                 return torch.sign(x), out
 
-        ref_net = None
 
-        return aten_sign(out), ref_net, "aten::sign"
+        return aten_sign(out), "aten::sign"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
