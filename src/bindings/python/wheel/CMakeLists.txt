@@ -9,7 +9,7 @@
 execute_process(COMMAND ${Python3_EXECUTABLE} -c "from packaging import tags; print(f'{tags.interpreter_name()}{tags.interpreter_version()}')"
                 OUTPUT_VARIABLE PYTHON_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
 if(NOT PYTHON_TAG)
-    message(FATAL_ERROR "Failed to detect Python Tag via packaging.tags. Please, check 'wheel' dependency version update")
+    message(FATAL_ERROR "Failed to detect Python Tag via packaging.tags. Please, check packaging")
 endif()
 
 execute_process(COMMAND ${Python3_EXECUTABLE} -c "from setuptools.command.bdist_wheel import get_abi_tag; print(f'{get_abi_tag()}')"
@@ -21,7 +21,7 @@ endif()
 execute_process(COMMAND ${Python3_EXECUTABLE} -c "from packaging import tags; print(f'{next(tags.platform_tags())}')"
                 OUTPUT_VARIABLE PLATFORM_TAG OUTPUT_STRIP_TRAILING_WHITESPACE)
 if(NOT PLATFORM_TAG)
-    message(FATAL_ERROR "Failed to detect Platform Tag via packaging.tags. Please, check 'wheel' dependency version update")
+    message(FATAL_ERROR "Failed to detect Platform Tag via packaging.tags. Please, check packaging")
 endif()
 
 # defines wheel architecture part of `PLATFORM_TAG`
