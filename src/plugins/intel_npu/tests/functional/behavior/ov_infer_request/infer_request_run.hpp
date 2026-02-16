@@ -18,13 +18,8 @@
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"
-#include "intel_npu/utils/utils.hpp"
-#include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "intel_npu/utils/zero/zero_mem.hpp"
-#include "intel_npu/utils/zero/zero_mem_pool.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
-#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -32,8 +27,6 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
-#include "vcl_serializer.hpp"
-#include "ze_graph_ext_wrappers.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
@@ -203,7 +196,8 @@ TEST_P(ProfilingBlob, NoProfilingCompileProfilingImport) {
     std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs =
         std::make_shared<::intel_npu::ZeroInitStructsHolder>();
     if (initStructs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
-        GTEST_SKIP() << "Skip since driver extension version is lower than expected";
+        std::cout << "Skip since driver extension version is lower than expected\n";
+        GTEST_SKIP();
     }
     ov::CompiledModel compiled_model;
 
@@ -231,7 +225,8 @@ TEST_P(ProfilingBlob, ProfilingCompileNoProfilingImport) {
     std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs =
         std::make_shared<::intel_npu::ZeroInitStructsHolder>();
     if (initStructs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
-        GTEST_SKIP() << "Skip since driver extension version is lower than expected";
+        std::cout << "Skip since driver extension version is lower than expected\n";
+        GTEST_SKIP();
     }
     ov::CompiledModel compiled_model;
 
@@ -255,7 +250,8 @@ TEST_P(ProfilingBlob, ProfilingCompileProfilingImport) {
     std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs =
         std::make_shared<::intel_npu::ZeroInitStructsHolder>();
     if (initStructs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
-        GTEST_SKIP() << "Skip since driver extension version is lower than expected";
+        std::cout << "Skip since driver extension version is lower than expected\n";
+        GTEST_SKIP();
     }
     ov::CompiledModel compiled_model;
 

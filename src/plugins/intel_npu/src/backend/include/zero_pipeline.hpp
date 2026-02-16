@@ -5,7 +5,6 @@
 #pragma once
 
 #include "intel_npu/common/igraph.hpp"
-#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "zero_profiling.hpp"
 #include "zero_tensor.hpp"
