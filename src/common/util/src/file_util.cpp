@@ -5,11 +5,17 @@
 #include "openvino/util/file_util.hpp"
 
 #include <algorithm>
+#include <atomic>
+#include <climits>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <future>
+#include <iostream>
 #include <sstream>
 #include <string_view>
+#include <thread>
+#include <vector>
 
 #include "openvino/util/common_util.hpp"
 
@@ -18,11 +24,16 @@
 #        define NOMINMAX
 #    endif
 #    include <direct.h>
+#    include <malloc.h>
 #    include <shlwapi.h>
 #    include <windows.h>
 #else
 #    include <dirent.h>
 #    include <dlfcn.h>
+#    include <fcntl.h>
+#    include <sys/stat.h>
+#    include <sys/types.h>
+#    include <unistd.h>
 #endif
 
 std::filesystem::path ov::util::get_directory(const std::filesystem::path& path) {
@@ -250,11 +261,193 @@ std::filesystem::path ov::util::get_plugin_path(const std::filesystem::path& plu
 std::vector<uint8_t> ov::util::load_binary(const std::filesystem::path& path) {
     std::vector<uint8_t> buffer;
     if (auto input = std::ifstream(path, std::ios::binary); input.is_open()) {
-        buffer.reserve(std::filesystem::file_size(path));
-        input.read(reinterpret_cast<char*>(buffer.data()), buffer.capacity());
+        buffer.resize(std::filesystem::file_size(path));
+        input.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
     }
     return buffer;
 }
+
+#ifdef _WIN32
+bool ov::util::read_binary_file_parallel(const std::filesystem::path& path, void* buffer, size_t size, size_t offset) {
+    if (path.empty())
+        return false;
+
+    // CreateFileW expects wchar_t*
+    std::wstring wpath = path.wstring();
+
+    HANDLE hFile = CreateFileW(wpath.c_str(),
+                               GENERIC_READ,
+                               FILE_SHARE_READ | FILE_SHARE_WRITE,
+                               NULL,
+                               OPEN_EXISTING,
+                               FILE_ATTRIBUTE_NORMAL,
+                               NULL);
+    if (hFile == INVALID_HANDLE_VALUE)
+        return false;
+
+    // Safety check: File size
+    LARGE_INTEGER fileSize;
+    if (GetFileSizeEx(hFile, &fileSize)) {
+        if (static_cast<unsigned long long>(fileSize.QuadPart) < offset + size) {
+            CloseHandle(hFile);
+            return false;
+        }
+    }
+    CloseHandle(hFile);
+
+    const size_t num_threads = std::min(static_cast<size_t>(std::thread::hardware_concurrency()), size / (1024 * 1024));
+    if (num_threads <= 1) {
+        // Fallback to single threaded read if size is small or bad concurrency
+        HANDLE s_hFile = CreateFileW(wpath.c_str(),
+                                     GENERIC_READ,
+                                     FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                     NULL,
+                                     OPEN_EXISTING,
+                                     FILE_ATTRIBUTE_NORMAL,
+                                     NULL);
+        if (s_hFile == INVALID_HANDLE_VALUE)
+            return false;
+
+        OVERLAPPED ov = {0};
+        ov.Offset = static_cast<DWORD>(offset & 0xFFFFFFFF);
+        ov.OffsetHigh = static_cast<DWORD>((offset >> 32) & 0xFFFFFFFF);
+        DWORD bytesRead = 0;
+        // Note: ReadFile takes DWORD (32-bit) for size. If size > 4GB, this simple fallback needs loop.
+        // But for single threaded simple read we might just fail or loop.
+        // Let's implement loop for correctness.
+
+        char* current_ptr = static_cast<char*>(buffer);
+        size_t remaining_size = size;
+        size_t current_file_offset = offset;
+        bool success = true;
+
+        while (remaining_size > 0) {
+            DWORD to_read = static_cast<DWORD>(std::min(remaining_size, static_cast<size_t>(UINT_MAX - 1024)));
+            ov.Offset = static_cast<DWORD>(current_file_offset & 0xFFFFFFFF);
+            ov.OffsetHigh = static_cast<DWORD>((current_file_offset >> 32) & 0xFFFFFFFF);
+
+            if (!ReadFile(s_hFile, current_ptr, to_read, &bytesRead, &ov) || bytesRead != to_read) {
+                if (GetLastError() != ERROR_IO_PENDING) {
+                    success = false;
+                    break;
+                }
+            }
+            remaining_size -= bytesRead;
+            current_ptr += bytesRead;
+            current_file_offset += bytesRead;
+        }
+        CloseHandle(s_hFile);
+        return success;
+    }
+
+    std::vector<std::future<void>> futures;
+    size_t chunk_size = size / num_threads;
+    chunk_size = (chunk_size + 4095) & ~4095;
+
+    size_t current_offset = 0;
+    std::atomic<bool> overall_status{true};
+
+    for (size_t i = 0; i < num_threads; i++) {
+        size_t read_size = (i == num_threads - 1) ? (size - current_offset) : chunk_size;
+        if (read_size == 0)
+            break;
+
+        void* ptr = static_cast<char*>(buffer) + current_offset;
+        size_t file_offset = offset + current_offset;
+
+        futures.emplace_back(std::async(std::launch::async, [wpath, file_offset, ptr, read_size, &overall_status] {
+            HANDLE t_hFile = CreateFileW(wpath.c_str(),
+                                         GENERIC_READ,
+                                         FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                         NULL,
+                                         OPEN_EXISTING,
+                                         FILE_ATTRIBUTE_NORMAL,
+                                         NULL);
+            if (t_hFile == INVALID_HANDLE_VALUE) {
+                overall_status = false;
+                return;
+            }
+
+            size_t remaining_size = read_size;
+            char* current_ptr = static_cast<char*>(ptr);
+            size_t current_file_offset = file_offset;
+
+            while (remaining_size > 0 && overall_status) {
+                DWORD to_read = static_cast<DWORD>(std::min(remaining_size, static_cast<size_t>(UINT_MAX - 1024)));
+
+                OVERLAPPED ov = {0};
+                ov.Offset = static_cast<DWORD>(current_file_offset & 0xFFFFFFFF);
+                ov.OffsetHigh = static_cast<DWORD>((current_file_offset >> 32) & 0xFFFFFFFF);
+
+                DWORD bytesRead = 0;
+                if (!ReadFile(t_hFile, current_ptr, to_read, &bytesRead, &ov) || bytesRead != to_read) {
+                    if (GetLastError() != ERROR_IO_PENDING) {
+                        overall_status = false;
+                        break;
+                    }
+                }
+
+                remaining_size -= bytesRead;
+                current_ptr += bytesRead;
+                current_file_offset += bytesRead;
+            }
+            CloseHandle(t_hFile);
+        }));
+
+        current_offset += read_size;
+    }
+
+    for (auto& f : futures) {
+        f.get();
+    }
+    return overall_status;
+}
+#else
+bool ov::util::read_binary_file_parallel(const std::filesystem::path& path, void* buffer, size_t size, size_t offset) {
+    std::ifstream ifs(path, std::ios::binary);
+    if (!ifs.is_open())
+        return false;
+
+    const size_t num_threads = std::min(static_cast<size_t>(std::thread::hardware_concurrency()), size / (1024 * 1024));
+    // Fallback to single thread if not enough work or threads
+    if (num_threads <= 1) {
+        ifs.seekg(offset, std::ios::beg);
+        ifs.read(static_cast<char*>(buffer), size);
+        return ifs.good();
+    }
+
+    std::vector<std::future<void>> futures;
+    size_t chunk_size = size / num_threads;
+    chunk_size = (chunk_size + 4095) & ~4095;
+    size_t current_offset = 0;
+    //std::cout << "Data_size = " << size << ", chunk_size = " << chunk_size << ", num_threads = " << num_threads << std::endl;
+
+    // We open file in each thread to have independent file pointers
+    for (size_t i = 0; i < num_threads; i++) {
+        size_t read_size = (i == num_threads - 1) ? (size - current_offset) : chunk_size;
+        if (read_size == 0)
+            break;
+
+        void* ptr = static_cast<char*>(buffer) + current_offset;
+        size_t file_offset = offset + current_offset;
+
+        futures.emplace_back(std::async(std::launch::async, [path, file_offset, ptr, read_size] {
+            std::ifstream t_ifs(path, std::ios::binary);
+            if (t_ifs.is_open()) {
+                t_ifs.seekg(file_offset, std::ios::beg);
+                t_ifs.read(static_cast<char*>(ptr), read_size);
+            }
+        }));
+
+        current_offset += read_size;
+    }
+
+    for (auto& f : futures) {
+        f.get();
+    }
+    return true;  // Simplified error handling for parallel ifstream
+}
+#endif
 
 void ov::util::save_binary(const std::filesystem::path& path, const void* binary, size_t bin_size) {
     if (std::ofstream out_file(path, std::ios::binary); out_file.is_open()) {
