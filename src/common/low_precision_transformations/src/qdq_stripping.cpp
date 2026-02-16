@@ -36,6 +36,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/block.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -131,6 +132,26 @@ private:
         return m_scale_adjustment_possible;
     }
 
+    static bool is_allowed_node(ov::Node* n) {
+        return ov::is_type_any_of<ov::op::v1::Add,
+                                  ov::op::v0::Constant,
+                                  ov::op::v0::Convert,
+                                  ov::op::v1::Convolution,
+                                  ov::op::v0::FakeQuantize,
+                                  ov::op::v0::MatMul,
+                                  ov::op::v1::Multiply,
+                                  ov::op::v1::Reshape,
+                                  ov::op::v1::Subtract,
+                                  ov::op::v1::Transpose,
+                                  ov::op::v1::Broadcast,
+                                  ov::op::v3::Broadcast,
+                                  ov::op::v0::Concat,
+                                  ov::op::v0::MVN,
+                                  ov::op::v6::MVN,
+                                  ov::op::v1::Softmax,
+                                  ov::op::v8::Softmax>(n);
+    }
+
     void collect_dq_multiply(const std::shared_ptr<ov::Node>& multiply) {
         bool const_is_in1 = ov::is_type<ov::op::v0::Constant>(multiply->input_value(1).get_node());
         m_pending_adjustments.push_back(multiply->input(const_is_in1 ? 1 : 0));
@@ -175,10 +196,7 @@ private:
         };
 
         auto skip_predicate = [&](ov::Node* n) {
-            // Note: if Parameter is reached, it means there are no nodes with weights that can be adjusted.
-            // Theoretically, we could just insert Multiply node right after Result in such cases,
-            // but there are no known models with such configuration, so such cases are skipped for safety.
-            if (ov::is_type<ov::op::v0::Parameter>(n)) {
+            if (!is_allowed_node(n)) {
                 m_scale_adjustment_possible = false;
             }
 
@@ -215,10 +233,7 @@ private:
         };
 
         auto skip_predicate = [&](ov::Node* n) {
-            // Note: if Result is reached, it means there are no scale-invariant nodes,
-            // which would allow to perform scale adjustment, keeping mathematicall equvivalence.
-            // In this case, all collected adjustments must be discarded
-            if (ov::is_type<ov::op::v0::Result>(n)) {
+            if (!is_allowed_node(n)) {
                 m_scale_adjustment_possible = false;
             }
 
