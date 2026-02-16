@@ -116,251 +116,237 @@ public:
     }
 };
 
-class TestValidate : public pass::Validate {
+class CountingValidate : public ov::pass::Validate {
 public:
-    TestValidate(bool& applied) : m_applied(applied) {}
-
-    bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
-        m_applied = true;
-        return pass::Validate::run_on_model(f);
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        is_applied = true;
+        return Validate::run_on_model(model);
     }
 
-private:
-    bool& m_applied;
+    bool is_applied = false;
 };
 
 class ValidateTestManager : public pass::Manager {
-    // For the testing we need to reimplement run_pass() method almost entirely
-    // to count the number of executed Validate passes. Overloading and abstracting don't help.
-    bool run_pass(const std::shared_ptr<ov::pass::PassBase>& pass, const std::shared_ptr<Model>& model) override {
-        using namespace ov::pass;
-        if (auto matcher_pass = ov::as_type_ptr<MatcherPass>(pass)) {
-            return GraphRewrite(matcher_pass).run_on_model(model);
-        } else if (auto model_pass = ov::as_type_ptr<ModelPass>(pass)) {
-            if (ov::as_type_ptr<ov::pass::Validate>(model_pass)) {
-                ++num_validate_executed;
-            }
-            return model_pass->run_on_model(model);
-        }
-        return false;
+protected:
+    void push_validate_pass() override {
+        push_pass<CountingValidate>();
     }
 
 public:
-    int num_validate_executed = 0;
+    int get_num_validate_executed() {
+        int total = 0;
+
+        for (const auto& pass : m_pass_list) {
+            if (auto counting_validate = ov::as_type_ptr<CountingValidate>(pass)) {
+                total += counting_validate->is_applied;
+            }
+        }
+
+        return total;
+    }
 };
 
 TEST(pass_manager, Validate_passes_not_applied) {
-    ov::pass::Manager pass_manager;
-    pass_manager.set_per_pass_validation(false);
+    ValidateTestManager manager;
+    manager.set_per_pass_validation(false);
 
     auto graph = make_test_graph();
-    bool validate_applied = false;
 
-    pass_manager.register_pass<TestMatcherPassFalse>();
-    pass_manager.register_pass<TestModelPassFalse>();
-    pass_manager.register_pass<TestMatcherPassFalse>();
-    pass_manager.register_pass<TestModelPassFalse>();
-    pass_manager.register_pass<TestValidate>(validate_applied);
-    const auto res = pass_manager.run_passes(graph);
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    auto validate = manager.register_pass<CountingValidate>();
+    const auto res = manager.run_passes(graph);
 
     EXPECT_FALSE(res);
-    EXPECT_FALSE(validate_applied);
+    EXPECT_FALSE(validate->is_applied);
 }
 
 TEST(pass_manager, Validate_model_pass_applied) {
-    ov::pass::Manager pass_manager;
-    pass_manager.set_per_pass_validation(false);
+    ValidateTestManager manager;
+    manager.set_per_pass_validation(false);
 
     auto graph = make_test_graph();
-    bool validate_applied = false;
 
-    pass_manager.register_pass<TestMatcherPassFalse>();
-    pass_manager.register_pass<TestModelPassTrue>();
-    pass_manager.register_pass<TestMatcherPassFalse>();
-    pass_manager.register_pass<TestModelPassFalse>();
-    pass_manager.register_pass<TestValidate>(validate_applied);
-    const auto res = pass_manager.run_passes(graph);
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassTrue>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    auto validate = manager.register_pass<CountingValidate>();
+    const auto res = manager.run_passes(graph);
 
     EXPECT_TRUE(res);
-    EXPECT_TRUE(validate_applied);
+    EXPECT_TRUE(validate->is_applied);
 }
 
 TEST(pass_manager, Validate_matcher_pass_applied) {
-    ov::pass::Manager pass_manager;
-    pass_manager.set_per_pass_validation(false);
+    ValidateTestManager manager;
+    manager.set_per_pass_validation(false);
 
     auto graph = make_test_graph();
-    bool validate_applied = false;
 
-    pass_manager.register_pass<TestMatcherPassTrue>();
-    pass_manager.register_pass<TestModelPassFalse>();
-    pass_manager.register_pass<TestMatcherPassFalse>();
-    pass_manager.register_pass<TestModelPassFalse>();
-    pass_manager.register_pass<TestValidate>(validate_applied);
-    const auto res = pass_manager.run_passes(graph);
+    manager.register_pass<TestMatcherPassTrue>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    auto validate = manager.register_pass<CountingValidate>();
+    const auto res = manager.run_passes(graph);
 
     EXPECT_TRUE(res);
-    EXPECT_TRUE(validate_applied);
+    EXPECT_TRUE(validate->is_applied);
 }
 
 TEST(pass_manager, Validate_three_validations) {
-    ov::pass::Manager pass_manager;
-    pass_manager.set_per_pass_validation(false);
+    ValidateTestManager manager;
+    manager.set_per_pass_validation(false);
 
     auto graph = make_test_graph();
-    bool validate_1_applied = false;
-    bool validate_2_applied = false;
-    bool validate_3_applied = false;
 
-    pass_manager.register_pass<TestMatcherPassTrue>();
-    pass_manager.register_pass<TestModelPassFalse>();
-    pass_manager.register_pass<TestMatcherPassFalse>();
-    pass_manager.register_pass<TestModelPassFalse>();
-    pass_manager.register_pass<TestValidate>(validate_1_applied);
-    pass_manager.register_pass<TestMatcherPassFalse>();
-    pass_manager.register_pass<TestModelPassFalse>();
-    pass_manager.register_pass<TestMatcherPassFalse>();
-    pass_manager.register_pass<TestModelPassFalse>();
-    pass_manager.register_pass<TestValidate>(validate_2_applied);
-    pass_manager.register_pass<TestMatcherPassFalse>();
-    pass_manager.register_pass<TestModelPassTrue>();
-    pass_manager.register_pass<TestMatcherPassFalse>();
-    pass_manager.register_pass<TestModelPassTrue>();
-    pass_manager.register_pass<TestModelPassFalse>();
-    pass_manager.register_pass<TestValidate>(validate_3_applied);
-    const auto res = pass_manager.run_passes(graph);
+    manager.register_pass<TestMatcherPassTrue>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    auto validate_1 = manager.register_pass<CountingValidate>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    auto validate_2 = manager.register_pass<CountingValidate>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassTrue>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassTrue>();
+    manager.register_pass<TestModelPassFalse>();
+    auto validate_3 = manager.register_pass<CountingValidate>();
+    const auto res = manager.run_passes(graph);
 
     EXPECT_TRUE(res);
-    EXPECT_TRUE(validate_1_applied);
-    EXPECT_FALSE(validate_2_applied);
-    EXPECT_TRUE(validate_3_applied);
+    EXPECT_TRUE(validate_1->is_applied);
+    EXPECT_FALSE(validate_2->is_applied);
+    EXPECT_TRUE(validate_3->is_applied);
 }
 
 TEST(pass_manager, Validate_per_pass) {
-    ValidateTestManager pass_manager;
-    pass_manager.set_per_pass_validation(true);  // by default true
+    ValidateTestManager manager;
+    manager.set_per_pass_validation(true);  // by default true
 
     auto graph = make_test_graph();
-    bool validate_1_applied = false;
-    bool validate_2_applied = false;
-    bool validate_3_applied = false;
 
-    pass_manager.register_pass<TestMatcherPassTrue>();
-    pass_manager.register_pass<TestValidate>(validate_1_applied);
-    pass_manager.register_pass<TestValidate>(validate_2_applied);
-    pass_manager.register_pass<TestModelPassFalse>();
-    pass_manager.register_pass<TestMatcherPassFalse>();
-    pass_manager.register_pass<TestModelPassFalse>();
-    pass_manager.register_pass<TestMatcherPassFalse>();
-    pass_manager.register_pass<TestModelPassFalse>();
-    pass_manager.register_pass<TestMatcherPassFalse>();
-    pass_manager.register_pass<TestModelPassFalse>();
-    pass_manager.register_pass<TestMatcherPassFalse>();
-    pass_manager.register_pass<TestModelPassTrue>();
-    pass_manager.register_pass<TestMatcherPassFalse>();
-    pass_manager.register_pass<TestModelPassTrue>();
-    pass_manager.register_pass<TestModelPassFalse>();
-    pass_manager.register_pass<TestValidate>(validate_3_applied);
-    const auto res = pass_manager.run_passes(graph);
+    manager.register_pass<TestMatcherPassTrue>();
+    auto validate_1 = manager.register_pass<CountingValidate>();
+    auto validate_2 = manager.register_pass<CountingValidate>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassTrue>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassTrue>();
+    manager.register_pass<TestModelPassFalse>();
+    auto validate_3 = manager.register_pass<CountingValidate>();
+    const auto res = manager.run_passes(graph);
 
     const auto num_true_passes = 3;
 
     EXPECT_TRUE(res);
-    EXPECT_FALSE(validate_1_applied);
-    EXPECT_FALSE(validate_2_applied);
-    EXPECT_FALSE(validate_3_applied);
-    EXPECT_EQ(pass_manager.num_validate_executed, num_true_passes);
+    EXPECT_FALSE(validate_1->is_applied);
+    EXPECT_FALSE(validate_2->is_applied);
+    EXPECT_FALSE(validate_3->is_applied);
+    EXPECT_EQ(manager.get_num_validate_executed(), num_true_passes);
 }
 
 TEST(pass_manager, Validate_single_validate) {
-    ov::pass::Manager pass_manager;
-    pass_manager.set_per_pass_validation(false);
+    ValidateTestManager manager;
+    manager.set_per_pass_validation(false);
 
     auto graph = make_test_graph();
-    bool validate_1_applied = false;
 
-    pass_manager.register_pass<TestValidate>(validate_1_applied);
-    const auto res = pass_manager.run_passes(graph);
+    auto validate = manager.register_pass<CountingValidate>();
+    const auto res = manager.run_passes(graph);
 
     EXPECT_FALSE(res);
-    EXPECT_FALSE(validate_1_applied);
+    EXPECT_FALSE(validate->is_applied);
 }
 
 TEST(pass_manager, Validate_single_validate_per_pass) {
-    ValidateTestManager pass_manager;
-    pass_manager.set_per_pass_validation(true);  // by default true
+    ValidateTestManager manager;
+    manager.set_per_pass_validation(true);  // by default true
 
     auto graph = make_test_graph();
-    bool validate_1_applied = false;
 
-    pass_manager.register_pass<TestValidate>(validate_1_applied);
-    const auto res = pass_manager.run_passes(graph);
+    auto validate = manager.register_pass<CountingValidate>();
+    const auto res = manager.run_passes(graph);
 
     const auto num_true_passes = 0;
 
     EXPECT_FALSE(res);
-    EXPECT_FALSE(validate_1_applied);
-    EXPECT_EQ(pass_manager.num_validate_executed, num_true_passes);
+    EXPECT_FALSE(validate->is_applied);
+    EXPECT_EQ(manager.get_num_validate_executed(), num_true_passes);
 }
 
 TEST(pass_manager, Validate_counter) {
-    ValidateTestManager pass_manager;
-    pass_manager.set_per_pass_validation(true);  // by default true
+    ValidateTestManager manager;
+    manager.set_per_pass_validation(true);  // by default true
 
     auto graph = make_test_graph();
 
-    pass_manager.register_pass<TestMatcherPassTrue>();
-    pass_manager.register_pass<TestModelPassFalse>();
-    pass_manager.register_pass<TestMatcherPassFalse>();
-    pass_manager.register_pass<TestModelPassFalse>();
-    pass_manager.register_pass<TestMatcherPassFalse>();
-    pass_manager.register_pass<TestModelPassFalse>();
-    pass_manager.register_pass<TestMatcherPassFalse>();
-    pass_manager.register_pass<TestModelPassFalse>();
-    pass_manager.register_pass<TestMatcherPassFalse>();
-    pass_manager.register_pass<TestModelPassTrue>();
-    pass_manager.register_pass<TestMatcherPassFalse>();
-    pass_manager.register_pass<TestModelPassTrue>();
-    pass_manager.register_pass<TestModelPassFalse>();
-    pass_manager.register_pass<ov::pass::Validate>();
-    const auto res = pass_manager.run_passes(graph);
+    manager.register_pass<TestMatcherPassTrue>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassTrue>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassTrue>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<CountingValidate>();
+    const auto res = manager.run_passes(graph);
 
     const auto num_true_passes = 3;
 
     EXPECT_TRUE(res);
-    EXPECT_EQ(pass_manager.num_validate_executed, num_true_passes);
+    EXPECT_EQ(manager.get_num_validate_executed(), num_true_passes);
 }
 
 TEST(pass_manager, Validate_counter_0) {
-    ValidateTestManager pass_manager;
-    pass_manager.set_per_pass_validation(false);
+    ValidateTestManager manager;
+    manager.set_per_pass_validation(false);
 
     auto graph = make_test_graph();
 
-    pass_manager.register_pass<TestMatcherPassFalse>();
-    pass_manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
 
-    const auto res = pass_manager.run_passes(graph);
+    const auto res = manager.run_passes(graph);
 
     const auto num_true_passes = 0;
 
     EXPECT_FALSE(res);
-    EXPECT_EQ(pass_manager.num_validate_executed, num_true_passes);
+    EXPECT_EQ(manager.get_num_validate_executed(), num_true_passes);
 }
 
 TEST(pass_manager, Validate_counter_1) {
-    ValidateTestManager pass_manager;
-    pass_manager.set_per_pass_validation(false);
+    ValidateTestManager manager;
+    manager.set_per_pass_validation(false);
 
     auto graph = make_test_graph();
 
-    pass_manager.register_pass<TestMatcherPassTrue>();
-    pass_manager.register_pass<TestModelPassTrue>();
+    manager.register_pass<TestMatcherPassTrue>();
+    manager.register_pass<TestModelPassTrue>();
 
-    const auto res = pass_manager.run_passes(graph);
+    const auto res = manager.run_passes(graph);
 
     EXPECT_TRUE(res);
-    EXPECT_EQ(pass_manager.num_validate_executed, /*no Validate inserted*/ 0);
+    EXPECT_EQ(manager.get_num_validate_executed(), /*no Validate inserted*/ 0);
 }
 
 }  // namespace

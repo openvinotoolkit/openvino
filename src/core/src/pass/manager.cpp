@@ -380,9 +380,6 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
     return manager_changed_model;
 }
 
-// For the current testing, once the run_pass() function changes, we need
-// to change ValidateTestManager::run_pass() in src/core/tests/pass_manager.cpp too.
-// It's dirty, but there's no native way of counting executed passes.
 bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass, const std::shared_ptr<Model>& model) {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ov_pass, ov::pass::perf_counters()[pass->get_type_info()]);
 
