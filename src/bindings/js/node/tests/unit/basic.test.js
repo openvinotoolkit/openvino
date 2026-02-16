@@ -17,7 +17,7 @@ const {
 } = require("../utils.js");
 
 // Tests are skipped until CVS-180810 is fixed.
-describe("ov basic tests.", { skip: true }, () => {
+describe("ov basic tests.", () => {
   const { testModelFP32 } = testModels;
   let core = null;
   let model = null;
@@ -201,18 +201,17 @@ describe("ov basic tests.", { skip: true }, () => {
       assert.ok(promise instanceof Promise);
       const cm = await promise;
       assert.ok(cm instanceof ov.CompiledModel);
+      assert.ok(cm.createInferRequest());
     });
 
-    it("compileModel(model_path, deviceName, config: {}) ", () => {
-      core.compileModel(testModelFP32.xml, "CPU", tput).then((cm) => {
-        assert.equal(cm.inputs.length, 1);
-      });
+    it("compileModel(model_path, deviceName, config: {}) ", async () => {
+      const cm = await core.compileModel(testModelFP32.xml, "CPU", tput);
+      assert.equal(cm.inputs.length, 1);
     });
 
-    it("compileModel(model:model_path, deviceName: string) ", () => {
-      core.compileModel(testModelFP32.xml, "CPU").then((cm) => {
-        assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
-      });
+    it("compileModel(model:model_path, deviceName: string) ", async () => {
+      const cm = await compileModel(testModelFP32.xml, "CPU");
+      assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
     });
 
     it("compileModel(model, device, invalidconfig) throws", () => {
