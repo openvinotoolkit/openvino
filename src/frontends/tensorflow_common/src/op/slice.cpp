@@ -55,9 +55,10 @@ OutputVector translate_slice_op(const NodeContext& node) {
 
     if (complex_type_mark_node) {
         auto complex_tensor = complex_type_mark_node->get_data();
-        auto sliced_tensor = make_shared<v8::Slice>(complex_tensor, start, stop, step)->output(0);
+        auto slice_node = make_shared<v8::Slice>(complex_tensor, start, stop, step);
+        set_node_name(node.get_name(), slice_node);
         auto complex_slice =
-            make_shared<ComplexTypeMark>(sliced_tensor, complex_type_mark_node->get_complex_part_type());
+            make_shared<ComplexTypeMark>(slice_node->output(0), complex_type_mark_node->get_complex_part_type());
         return complex_slice->outputs();
     } else {
         auto res = make_shared<v8::Slice>(input, start, stop, step);
