@@ -107,21 +107,39 @@ public:
         propagate_forward(m_fq);
 
         if (scale_adjustment_possible()) {
-            apply_collected_adjustments();
+            for (auto& input : m_pending_adjustments) {
+                auto original_const = input.get_source_output();
+                auto divisor_const =
+                    ov::op::v0::Constant::create(original_const.get_element_type(), {}, {m_scale_divisor});
+                auto new_const = ov::op::util::make_try_fold<ov::op::v1::Divide>(original_const, divisor_const);
+                OPENVINO_ASSERT(new_const, "Adjusted scale must be constant");
+                ov::copy_runtime_info(original_const.get_node_shared_ptr(), new_const);
+                input.replace_source_output(new_const);
+            }
         }
     }
 
 private:
     float m_scale_divisor;
     ov::Node* m_fq;
-    bool m_scale_adjustment_possible = false;
+    bool m_scale_adjustment_possible = true;
 
     std::unordered_set<ov::Node*> m_visited;
-    std::unordered_set<std::shared_ptr<ov::Node>> m_pending_weight_scales;
-    std::unordered_set<std::shared_ptr<ov::op::v0::FakeQuantize>> m_pending_fq_adjustments;
+    std::vector<ov::Input<ov::Node>> m_pending_adjustments;
 
     bool scale_adjustment_possible() const {
-        return !m_scale_adjustment_possible;
+        return m_scale_adjustment_possible;
+    }
+
+    void collect_dq_multiply(const std::shared_ptr<ov::Node>& multiply) {
+        bool const_is_in1 = ov::is_type<ov::op::v0::Constant>(multiply->input_value(1).get_node());
+        m_pending_adjustments.push_back(multiply->input(const_is_in1 ? 1 : 0));
+    }
+
+    void collect_fq_ranges(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) {
+        for (size_t i = 1; i < fq->get_input_size(); ++i) {
+            m_pending_adjustments.push_back(fq->input(i));
+        }
     }
 
     void propagate_backward(ov::Node* root) {
@@ -133,7 +151,7 @@ private:
             auto weights_dq_block = std::make_shared<WeightsDequantizationBlock>();
             auto matcher = std::make_shared<Matcher>(weights_dq_block, "WeightsDQPattern");
             if (matcher->match(node_shared)) {
-                m_pending_weight_scales.insert(weights_dq_block->get_multiply(matcher->get_pattern_value_map()));
+                collect_dq_multiply(weights_dq_block->get_multiply(matcher->get_pattern_value_map()));
                 for (const auto& in : matcher->get_match_root()->input_values()) {
                     m_visited.insert(in.get_node());
                 }
@@ -142,7 +160,7 @@ private:
 
             // Case 2: FakeQuantize (un-stripped) — collect for ranges adjustment
             if (auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node_shared)) {
-                m_pending_fq_adjustments.insert(fq);
+                collect_fq_ranges(fq);
                 for (size_t i = 1; i < fq->get_input_size(); ++i) {
                     m_visited.insert(fq->input_value(i).get_node());
                 }
@@ -161,7 +179,7 @@ private:
             // Theoretically, we could just insert Multiply node right after Result in such cases,
             // but there are no known models with such configuration, so such cases are skipped for safety.
             if (ov::is_type<ov::op::v0::Parameter>(n)) {
-                m_scale_adjustment_possible = true;
+                m_scale_adjustment_possible = false;
             }
 
             const auto& out_precision = n->get_output_element_type(0);
@@ -182,7 +200,7 @@ private:
 
             auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node_shared);
             if (fq && node != m_fq && !node->get_users().empty()) {
-                m_pending_fq_adjustments.insert(fq);
+                collect_fq_ranges(fq);
                 return;
             }
 
@@ -201,7 +219,7 @@ private:
             // which would allow to perform scale adjustment, keeping mathematicall equvivalence.
             // In this case, all collected adjustments must be discarded
             if (ov::is_type<ov::op::v0::Result>(n)) {
-                m_scale_adjustment_possible = true;
+                m_scale_adjustment_possible = false;
             }
 
             // Propagation stops at scale-invariant nodes
@@ -216,31 +234,6 @@ private:
         };
 
         ov::op::util::visit_path_forward(root, m_visited, collect_nodes_to_scale, skip_predicate);
-    }
-
-    void apply_collected_adjustments() {
-        for (const auto& old_multiply : m_pending_weight_scales) {
-            // Identify which input is the scale constant and which is the DQ chain
-            auto in0 = old_multiply->input_value(0);
-            auto in1 = old_multiply->input_value(1);
-            bool const_is_in1 = ov::is_type<ov::op::v0::Constant>(in1.get_node());
-            auto original_constant = const_is_in1 ? in1 : in0;
-            auto mul_input = const_is_in1 ? in0 : in1;
-
-            auto divisor_const =
-                ov::op::v0::Constant::create(original_constant.get_element_type(), {}, {m_scale_divisor});
-            auto new_constant = ov::op::util::make_try_fold<ov::op::v1::Divide>(original_constant, divisor_const);
-            auto new_multiply = old_multiply->clone_with_new_inputs({mul_input, new_constant});
-            ov::replace_node(old_multiply, new_multiply);
-        }
-
-        for (const auto& fq : m_pending_fq_adjustments) {
-            auto divisor_const = ov::op::v0::Constant::create(ov::element::f32, {}, {m_scale_divisor});
-            for (size_t i = 1; i < fq->get_input_size(); ++i) {
-                auto new_const = ov::op::util::make_try_fold<ov::op::v1::Divide>(fq->input_value(i), divisor_const);
-                fq->input(i).replace_source_output(new_const);
-            }
-        }
     }
 };
 }  // namespace
