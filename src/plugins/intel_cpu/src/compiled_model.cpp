@@ -238,7 +238,8 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
         std::make_shared<AsyncInferRequest>(std::static_pointer_cast<SyncInferRequest>(internal_request),
                                             get_task_executor(),
                                             get_callback_executor(),
-                                            m_optimized_single_stream);
+                                            m_optimized_single_stream,
+                                            m_cfg.multiAppThreadSyncExecution);
     if (m_has_sub_compiled_models) {
         std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
         requests.reserve(m_sub_compiled_models.size());
@@ -300,6 +301,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::intel_cpu::denormals_optimization.name()),
             RO_property(ov::log::level.name()),
             RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+            RO_property(ov::intel_cpu::multi_app_thread_sync_execution.name()),
             RO_property(ov::intel_cpu::enable_tensor_parallel.name()),
             RO_property(ov::intel_cpu::tbb_partitioner.name()),
             RO_property(ov::hint::dynamic_quantization_group_size.name()),
@@ -379,6 +381,10 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return static_cast<decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type>(
             config.fcSparseWeiDecompressionRate);
+    }
+    if (name == ov::intel_cpu::multi_app_thread_sync_execution) {
+        return static_cast<decltype(ov::intel_cpu::multi_app_thread_sync_execution)::value_type>(
+            config.multiAppThreadSyncExecution);
     }
     if (name == ov::intel_cpu::enable_tensor_parallel) {
         const auto& enable_tensor_parallel = config.enableTensorParallel;
