@@ -201,6 +201,9 @@ private:
             // Case 4: FakeQuantize (un-stripped) — collect for range adjustment
             if (auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node->shared_from_this())) {
                 m_pending_fq_adjustments.insert(fq);
+                for (size_t i = 1; i < fq->get_input_size(); ++i) {
+                    m_visited.insert(fq->input_value(i).get_node());
+                }
                 return;
             }
 
@@ -213,9 +216,18 @@ private:
         };
 
         auto skip_predicate = [&](ov::Node* n) {
+            // Note: if Parameter is reached, it means there are no nodes with weights that can be adjusted.
+            // Theoretically, we could just insert Multiply node right after Result in such cases,
+            // but there are no known models with such configuration, so such cases are skipped for safety.
+            if (ov::is_type<ov::op::v0::Parameter>(n)) {
+                m_scale_adjustment_possible = true;
+            }
+
+            const auto& out_precision = n->get_output_element_type(0);
             // Scale adjustment shouldn't be propagated via ShapeOf subgraphs
-            const bool shapeof_subgraph = ov::is_type<ov::op::v0::ShapeOf>(n) || ov::is_type<ov::op::v3::ShapeOf>(n);
-            return scale_adjustment_possible() && shapeof_subgraph;
+            const bool shapeof_subgraph = ov::is_type<ov::op::v0::ShapeOf>(n) || ov::is_type<ov::op::v3::ShapeOf>(n) ||
+                                          out_precision == ov::element::i32 || out_precision == ov::element::i64;
+            return !scale_adjustment_possible() || shapeof_subgraph;
         };
 
         ov::op::util::visit_path(root, m_visited, collect_nodes_to_scale, skip_predicate);
@@ -251,7 +263,11 @@ private:
             const bool scale_invariant_nodes =
                 ov::is_type_any_of<ov::op::v0::MVN, ov::op::v6::MVN, ov::op::v1::Softmax, ov::op::v8::Softmax>(
                     n->shared_from_this());
-            return scale_adjustment_possible() && scale_invariant_nodes;
+            const auto& out_precision = n->get_output_element_type(0);
+            // Scale adjustment shouldn't be propagated via ShapeOf subgraphs
+            const bool shapeof_subgraph = ov::is_type<ov::op::v0::ShapeOf>(n) || ov::is_type<ov::op::v3::ShapeOf>(n) ||
+                                          out_precision == ov::element::i32 || out_precision == ov::element::i64;
+            return !scale_adjustment_possible() || scale_invariant_nodes || shapeof_subgraph;
         };
 
         ov::op::util::visit_path_forward(root, m_visited, collect_nodes_to_scale, skip_predicate);
