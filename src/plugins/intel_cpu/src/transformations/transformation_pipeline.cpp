@@ -18,6 +18,7 @@
 #include "low_precision/common/precisions_restriction.hpp"
 #include "low_precision/common/quantization_granularity_restriction.hpp"
 #include "low_precision/layer_transformation.hpp"
+#include "low_precision/qdq_stripping.hpp"
 #include "low_precision/quantization_details.hpp"
 #include "nodes/fullyconnected.h"
 #include "openvino/core/descriptor/tensor.hpp"
@@ -105,6 +106,7 @@
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
 #include "transformations/op_conversions/convert_ti_to_sequences.hpp"
 #include "transformations/op_conversions/convert_topk11_downgrade.hpp"
+#include "transformations/op_conversions/convert_weight_compressed_conv1x1_to_matmul.hpp"
 #include "transformations/op_conversions/detection_output_downgrade.hpp"
 #include "transformations/op_conversions/detection_output_upgrade.hpp"
 #include "transformations/op_conversions/eye_decomposition.hpp"
@@ -294,14 +296,32 @@ namespace ov::intel_cpu {
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
 bool Transformations::is_decompression_multiply(const_node_ptr& node) {
-    auto all_has_type = [](const std::set<ov::Input<ov::Node>>& consumers, const ov::DiscreteTypeInfo& type) {
-        return std::all_of(consumers.begin(), consumers.end(), [&type](const ov::Input<ov::Node>& input) {
-            return input.get_node()->get_type_info() == type;
+    auto is_1x1_conv = [](const ov::Node* node) {
+        const auto* conv = ov::as_type<const ov::op::v1::Convolution>(node);
+        if (!conv) {
+            return false;
+        }
+        const auto& weights_pshape = conv->get_input_partial_shape(1);
+        return weights_pshape.is_static() && weights_pshape.rank().get_length() == 4 &&
+               weights_pshape[2].get_length() == 1 && weights_pshape[3].get_length() == 1;
+    };
+
+    auto all_has_type = [&](const std::set<ov::Input<ov::Node>>& consumers, const ov::DiscreteTypeInfo& type) {
+        return std::all_of(consumers.begin(), consumers.end(), [&type, &is_1x1_conv](const ov::Input<ov::Node>& input) {
+            auto* consumer_node = input.get_node();
+            if (consumer_node->get_type_info() != type) {
+                return false;
+            }
+            if (type == ov::op::v1::Convolution::get_type_info_static()) {
+                return is_1x1_conv(consumer_node);
+            }
+            return true;
         });
     };
 
     const auto consumers = node->get_output_target_inputs(0);
-    if (all_has_type(consumers, ov::op::v0::MatMul::get_type_info_static())) {
+    if (all_has_type(consumers, ov::op::v0::MatMul::get_type_info_static()) ||
+        all_has_type(consumers, ov::op::v1::Convolution::get_type_info_static())) {
         return true;
     }
 
@@ -311,7 +331,8 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) {
         }
         return std::all_of(consumers.begin(), consumers.end(), [&all_has_type](const ov::Input<ov::Node>& consumer) {
             const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
-            return all_has_type(child_consumers, ov::op::v0::MatMul::get_type_info_static());
+            return all_has_type(child_consumers, ov::op::v0::MatMul::get_type_info_static()) ||
+                   all_has_type(child_consumers, ov::op::v1::Convolution::get_type_info_static());
         });
     };
 
@@ -319,6 +340,7 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) {
         for (const auto& consumer : consumers) {
             const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
             if (all_has_type(child_consumers, ov::op::v0::MatMul::get_type_info_static()) ||
+                all_has_type(child_consumers, ov::op::v1::Convolution::get_type_info_static()) ||
                 are_converts_from_decompression(child_consumers)) {
                 return true;
             }
@@ -490,6 +512,23 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         },
         ov::pass::ConvertGatherToGatherCompressed);
     decompression_handling_manager.run_passes(model);
+
+    {
+        using namespace ov::pass::low_precision;
+        const auto enableQDQStripping = LowPrecision::isFunctionQuantized(model, std::set<levels>{levels::int16});
+        if (enableQDQStripping) {
+            ov::pass::Manager qdq_stripping_manager("Plugin:CPU:QDQ_Stripping");
+            using namespace ov::element;
+            // QDQ stripping pipeline
+            // 1. Fuse FQ->Convert->DQ to a single FQ
+            qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16},
+                                                                                     TypeVector{f32},
+                                                                                     true);
+            // 2. Strip FQ layers with unsupported levels
+            qdq_stripping_manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, false);
+            qdq_stripping_manager.run_passes(model);
+        }
+    }
 
     ov::pass::Manager manager("Plugin:CPU");
     manager.set_per_pass_validation(false);
@@ -1063,6 +1102,7 @@ void Transformations::PostLpt() {
 
     ov::pass::Manager postLPTPassManager("CPU:PostLPT");
     postLPTPassManager.set_per_pass_validation(false);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ConvertWeightCompressedConv1x1ToMatmul);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ConvertBroadcast3);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ReshapePRelu);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MoveEltwiseUpThroughDataMov);
