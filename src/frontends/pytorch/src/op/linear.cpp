@@ -107,10 +107,17 @@ Output<Node> rearrange_constant(const Output<Node>& c, uint32_t groups) {
     auto src = constant->get_data_ptr<uint32_t>();
     auto initial_shape = constant->get_shape();
     FRONT_END_OP_CONVERSION_CHECK(initial_shape.size() == 2, "Only 2D constants are supported.");
+    FRONT_END_OP_CONVERSION_CHECK(groups > 0, "AWQ group size must be greater than 0.");
+    FRONT_END_OP_CONVERSION_CHECK(initial_shape[0] % groups == 0,
+                                  "AWQ qweight first dimension must be divisible by group size.");
     auto new_shape = Shape{initial_shape[0] / groups, groups, initial_shape[1] * 8};
     auto new_qweight = std::make_shared<v0::Constant>(element::u4, new_shape);
     auto dst = const_cast<uint32_t*>(reinterpret_cast<const uint32_t*>(new_qweight->get_data_ptr()));
-    for (size_t i = 0; i < shape_size(constant->get_shape()); i++) {
+    const size_t src_elements_count = shape_size(initial_shape);
+    const size_t dst_elements_count = shape_size(new_shape) / 8;
+    FRONT_END_OP_CONVERSION_CHECK(dst_elements_count == src_elements_count,
+                                  "Unexpected AWQ constant size mismatch after rearrangement.");
+    for (size_t i = 0; i < src_elements_count; i++) {
         dst[i] = rearrange_awq_bits(src[i]);
     }
     new_qweight->set_friendly_name(constant->get_friendly_name());
