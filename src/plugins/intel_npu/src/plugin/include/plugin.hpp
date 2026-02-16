@@ -69,6 +69,14 @@ private:
     void update_log_level(const ov::AnyMap& properties) const;
 
     /**
+     * @brief Gets the device by its ID.
+     * @details Accounts for various scenarios when user passes DEVICE_ID:
+     * - For offline compilation (backend == nullptr), no further action is needed; only model compilation is allowed.
+     * - For on-device compilation where DEVICE_ID != current device ID, compilation is allowed only with CiP.
+     */
+    std::shared_ptr<IDevice> getDeviceById(const std::string& deviceId, ov::intel_npu::CompilerType compilerType) const;
+
+    /**
      * @brief Parses the compiled model found within the stream and tensor and returns a wrapper over the L0 handle that
      * can be used for running predictions.
      * @details The binary data corresponding to the compiled model is made of NPU plugin metadata, the schedule of

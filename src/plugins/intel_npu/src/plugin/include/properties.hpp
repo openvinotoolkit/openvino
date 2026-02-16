@@ -112,6 +112,8 @@ private:
     void registerPluginProperties();
     void registerCompiledModelProperties();
     void filterPropertiesByCompilerSupport(const ICompilerAdapter* compiler);
+    bool isCompilerConfig(const ov::AnyMap& properties) const;
+    std::string getDeviceName(const std::string& deviceId, ov::intel_npu::CompilerType compilerType) const;
 
     const std::vector<ov::PropertyName> _cachingProperties = {
         ov::cache_mode.name(),
