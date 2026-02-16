@@ -148,7 +148,7 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
             decomp_ops.push_back(result);
         }
 
-        if (do_rounding) {
+        if (do_rounding || out_scales.empty()) {
             // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low))
             result = std::make_shared<ov::op::v5::Round>(result, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
             decomp_ops.push_back(result);
@@ -381,7 +381,16 @@ std::vector<float> ov::snippets::pass::FakeQuantizeDecomposition::calculateScale
             }
         }
 
-        if (is_crop_aligned) {
+        // Rounding can be avoided if scales are integer
+        bool is_scale_integer = true;
+        for (float s : isc) {
+            if (std::abs(s - std::round(s)) > thr) {
+                is_scale_integer = false;
+                break;
+            }
+        }
+
+        if (is_crop_aligned && is_scale_integer) {
             out_scales = isc;
         }
     }

@@ -268,6 +268,7 @@
 #    include "low_precision/reduce_min.hpp"
 #    include "low_precision/reduce_sum.hpp"
 #    include "openvino/opsets/opset1_decl.hpp"
+#    include "snippets/pass/fq_decomposition.hpp"
 #    include "snippets/utils/tokenization_utils.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_conv_bias.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
@@ -1192,18 +1193,6 @@ void Transformations::PostLpt() {
 
 void Transformations::MainSnippets() {
     using namespace snippets::pass;
-// Disable MainSnippets for int8 models on arm platforms due to performance issues
-// Ticket: 163408
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    using namespace ov::pass::low_precision;
-    static const std::set<levels>& supported_fq_levels = {levels::int4,
-                                                          levels::int4_narrow_range,
-                                                          levels::int8,
-                                                          levels::int8_narrow_range};
-    if (LowPrecision::isFunctionQuantized(model, supported_fq_levels)) {
-        return;
-    }
-#endif
 
     auto is_supported_isa = []() {
 #if defined(OPENVINO_ARCH_X86_64)
@@ -1666,7 +1655,8 @@ void Transformations::MainSnippets() {
 void Transformations::PostSnippets() {
     ov::pass::Manager postSnippetsManager("CPU:PostSnippets");
     postSnippetsManager.set_per_pass_validation(false);
-    CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeQuantizeDecomposition);
+    CPU_REGISTER_PASS_ARM(postSnippetsManager, ov::snippets::pass::FakeQuantizeDecomposition);
+    //CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeQuantizeDecomposition);
     CPU_SET_CALLBACK_X64(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
@@ -1676,7 +1666,7 @@ void Transformations::PostSnippets() {
         ov::pass::FakeQuantizeDecomposition);
     // FQ node is not decomposed on ARM only if it is fused into Convolution node
     // Otherwise FQ node is decomposed because there is no native support of FQ on ARM
-    CPU_SET_CALLBACK_ARM(
+    /*CPU_SET_CALLBACK_ARM(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
             if (ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
@@ -1688,7 +1678,7 @@ void Transformations::PostSnippets() {
             }
             return false;
         },
-        ov::pass::FakeQuantizeDecomposition);
+        ov::pass::FakeQuantizeDecomposition);*/
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeConvertDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::ConstantFolding);
     postSnippetsManager.run_passes(model);
