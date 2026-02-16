@@ -15,11 +15,11 @@
 #include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -90,11 +90,6 @@ bool rewrite_loop_concat(const std::shared_ptr<ov::frontend::ConcatFromSequence>
 
     auto data_value = find_inserted_tensor(body_results[seq_result_idx]->input_value(0));
     if (!data_value.get_node())
-        return false;
-
-    // For !new_axis we reshape the loop output to flatten the unsqueeze
-    // dimension back, which requires static rank at graph-construction time.
-    if (!new_axis && data_value.get_partial_shape().rank().is_dynamic())
         return false;
 
     const auto norm_axis = normalize_axis(data_value, axis, new_axis);
@@ -206,29 +201,21 @@ bool rewrite_loop_concat(const std::shared_ptr<ov::frontend::ConcatFromSequence>
             if (!new_axis) {
                 // Flatten the unsqueeze dimension: merge dims [norm_axis, norm_axis+1]
                 // into one, recovering the original concatenation semantics.
-                const auto out_rank = data_value.get_partial_shape().rank().get_length() + 1;
+                // Use Slice-based shape computation that works with dynamic rank.
                 auto shape = std::make_shared<v3::ShapeOf>(out, ov::element::i64);
-                auto gather_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+                auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+                auto step = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+                auto neg_one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
                 ov::OutputVector parts;
                 if (norm_axis > 0) {
-                    std::vector<int64_t> idx;
-                    for (int64_t j = 0; j < norm_axis; ++j)
-                        idx.push_back(j);
-                    parts.push_back(
-                        std::make_shared<v1::Gather>(shape,
-                                                     v0::Constant::create(ov::element::i64, ov::Shape{idx.size()}, idx),
-                                                     gather_axis));
+                    auto stop = v0::Constant::create(ov::element::i64, ov::Shape{1}, {norm_axis});
+                    parts.push_back(std::make_shared<v8::Slice>(shape, zero, stop, step));
                 }
-                parts.push_back(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
-                if (norm_axis + 2 < out_rank) {
-                    std::vector<int64_t> idx;
-                    for (int64_t j = norm_axis + 2; j < out_rank; ++j)
-                        idx.push_back(j);
-                    parts.push_back(
-                        std::make_shared<v1::Gather>(shape,
-                                                     v0::Constant::create(ov::element::i64, ov::Shape{idx.size()}, idx),
-                                                     gather_axis));
-                }
+                parts.push_back(neg_one);
+                auto start_suffix = v0::Constant::create(ov::element::i64, ov::Shape{1}, {norm_axis + 2});
+                auto max_stop =
+                    v0::Constant::create(ov::element::i64, ov::Shape{1}, {std::numeric_limits<int64_t>::max()});
+                parts.push_back(std::make_shared<v8::Slice>(shape, start_suffix, max_stop, step));
                 auto target = parts.size() == 1 ? parts[0] : std::make_shared<v0::Concat>(parts, 0)->output(0);
                 auto reshape = std::make_shared<v1::Reshape>(out, target, false);
                 ov::copy_runtime_info({loop, concat_fw}, reshape);
