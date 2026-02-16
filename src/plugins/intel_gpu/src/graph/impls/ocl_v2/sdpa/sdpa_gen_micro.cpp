@@ -7,7 +7,6 @@
 // Put this file at first to avoid incorrect header files includes order.
 // For example, intel_gpu/runtime/utils.hpp will causes compiling error in hash<dnnl::impl::primitive_hashing::key_t>
 #include "sdpa_gen_micro.hpp"
-#include "paged_attention_opt.hpp"
 
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
@@ -336,7 +335,6 @@ sdpa_config_t xehpc_h32_s32 = {16, 16, 16, 16, 2, 4, 2, 4};
 sdpa_config_t xehpc_h32_2nd = {16, 64, 16, 16, 8, 1, 2, 4};
 
 sdpa_config_t xehpc_h64_pa = {16, 16, 16, 16, 4, 4, 4, 4};
-sdpa_config_t xehpc_h64_pa_2nd = {16, 16, 16, 16, 16, 2, 16, 2};
 sdpa_config_t xehpc_h64 = {16, 64, 32, 16, 8, 2, 2, 8};
 sdpa_config_t xehpc_h64_s64 = {32, 32, 32, 16, 4, 2, 2, 4};
 sdpa_config_t xehpc_h64_s32 = {16, 16, 16, 16, 4, 2, 4, 2};
@@ -570,7 +568,7 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
         return &xehpc_h32;
     } else if (head_size <= 64) {
         if (seq <= 0 && is_pa)
-            return is_prefill ? &xehpc_h64 : (thin_q ? &xehpc_h64_pa_2nd : &xehpc_h64_pa);
+            return is_prefill ? &xehpc_h64 : &xehpc_h64_pa;
         if (thin_q) {
             if (quantized) {
                 if (seq <= 96)
@@ -873,7 +871,7 @@ KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params)
     std::vector<micro::Package> gemms(4);  // KQ, VS, KcQ and VcS
     sdpa_configuration sdpa_config;
     init_sdpa_configuration(params, sdpa_config);
-    init_microkernels(params, sdpa_config, gemms[kq_id], gemms[vs_id], gemms[kcq_id], gemms[vcs_id], m_is_prefill, m_is_gqa_single_token);
+    init_microkernels(params, sdpa_config, gemms[kq_id], gemms[vs_id], gemms[kcq_id], gemms[vcs_id], m_is_prefill);
 
     const auto& device_info = params.get_device_info();
     auto jit = get_jit_constants(params, gemms[kq_id], gemms[vs_id]);
@@ -916,7 +914,7 @@ KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params)
     kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(gemms[kq_id]));
     kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(gemms[vs_id]));
 
-    if (!m_is_prefill && !m_is_gqa_single_token) {
+    if (!m_is_prefill) {
         shim_options.microkernelID++;
         shim_options.decorator = "kcq";
         kd.code->jit += generateShim(gemms[kcq_id], micro::HostLanguage::OpenCL_C, shim_options);
@@ -1049,11 +1047,10 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     jit.make("A_ALIGN", micro::alignment_for_ld(static_cast<int>(lda)));
 
     jit.make("IS_PREFILL", m_is_prefill);
-    jit.make("IS_GQA_SINGLE_TOKEN", m_is_gqa_single_token);
     jit.make("TRANSPOSE_K", false);
     jit.make("IS_PAGED_ATTENTION", config.is_paged_attention ? 1 : 0);
     jit.make("KV_HEADS_NUM", config.kv_heads_num);
-    jit.make("HEADS_NUM", m_is_gqa_single_token ? config.kv_heads_num : config.heads_num);
+    jit.make("HEADS_NUM", config.heads_num);
 
     jit.make("QRY_DATA_T", to_ocl_type(Q.data_type));
     jit.make("KEY_DATA_T", to_ocl_type(K.data_type));
@@ -1342,13 +1339,7 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
             const auto& out_ps = out.get_partial_shape();
 
             const auto v_head_size = micro_get_head_size(params, 2);
-            auto head_num = micro_get_num_heads(params, 0);
-
-            if (params.is_type<paged_attention>()) {
-                auto pa_rt_params = static_cast<PagedAttentionRuntimeParams*>(rt_params);
-                if (pa_rt_params->stage == PagedAttentionStage::GENERATE)
-                    head_num = micro_get_num_heads(params, 1);
-            }
+            const auto head_num = micro_get_num_heads(params, 0);
 
             auto wg_tile_q = gemm_kq.getSetting("wg_tile_n");
             auto sg_per_wg = gemm_kq.getSetting("sg_per_wg_m") * gemm_kq.getSetting("sg_per_wg_n");
@@ -1405,8 +1396,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
                                            micro::Package& gemm_vs,
                                            micro::Package& gemm_kcq,
                                            micro::Package& gemm_vcs,
-                                           bool is_prefill,
-                                           bool is_gqa_single_token) {
+                                           bool is_prefill) {
     // TODO: Remove once micro API is thread safe
     std::lock_guard<std::mutex> l(m);
 
@@ -1435,8 +1425,6 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     /* Retrieve pre-tuned kernel configuration */
     sdpa_config_t* config = nullptr;
     bool thin_q = (!n_queries.is_dynamic() && n_queries.get_length() <= 16) || !is_prefill;
-    if (is_paged_attention && !is_prefill)
-        thin_q = is_gqa_single_token;
     bool is_integrated = device_info.dev_type == device_type::integrated_gpu;
 
     bool is_quantized =
@@ -1601,7 +1589,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         throw;
     }
 
-    if (!is_prefill && !is_gqa_single_token) {
+    if (!is_prefill) {
         /* Update for optional GEMM: Kc*Q */
         opts_kq.scaleA = false;
         opts_kq.offsetA = false;
@@ -1718,7 +1706,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         throw;
     }
 
-    if (!is_prefill && !is_gqa_single_token) {
+    if (!is_prefill) {
         /* Update for optional GEMM: Vc*S */
         opts_vs.scaleA = false;
         opts_vs.offsetA = false;

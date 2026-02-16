@@ -107,6 +107,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ob << heads_num;
         ob << kv_heads_num;
         ob << has_alibi;
+        ob << has_score_aggregation;
         ob << has_rotated_blocks;
         ob << sliding_window;
         ob << has_score_aggregation;
@@ -130,6 +131,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ib >> heads_num;
         ib >> kv_heads_num;
         ib >> has_alibi;
+        ib >> has_score_aggregation;
         ib >> has_rotated_blocks;
         ib >> sliding_window;
         ib >> has_score_aggregation;

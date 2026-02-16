@@ -15,6 +15,7 @@
 #include <utility>
 
 #include "../primitive_ocl_base.hpp"
+#include "../utils/kernel_generator.hpp"
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
@@ -26,11 +27,26 @@
 #include "sdpa_gen_opt.hpp"
 namespace ov::intel_gpu::ocl {
 namespace {
+enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 
 constexpr ov::element::Type softmax_accumulator_type = ov::element::f32;
 constexpr size_t paged_attention_block_size = 16;
 constexpr size_t seq_len_partition_size = 256;
 constexpr size_t subgroup_size = 16;
+
+struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
+    PagedAttentionStage stage;
+    size_t num_of_partitions;
+    size_t partition_size;
+    size_t max_context_len;
+    size_t paged_attention_aligned_seq_len;
+    size_t sdpa_opt_seq_len_partition_size;
+
+    size_t paged_attention_snap_kv_tokens;
+    bool use_micro_sdpa = false;
+    bool use_gqa_kernel = false;
+    size_t query_block_size = 16;
+};
 
 inline bool get_kv_compressed(const RuntimeParams& params) {
     auto key_cache_layout = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
@@ -1197,7 +1213,6 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     Stage::Ptr pa_sdpa_micro = make_stage<SDPAMicroGenerator>(true);
     Stage::Ptr pa_sdpa_micro_mixed = make_stage<SDPAMicroGenerator>(false);
-    Stage::Ptr pa_sdpa_micro_gqa_single_token = make_stage<SDPAMicroGenerator>(false, true);
 #endif
 
     PagedAttentionOptImpl() : SDPAImplBase(PagedAttentionOpt::get_type_info_static()) {}
@@ -1212,7 +1227,6 @@ public:
         if (use_micro_sdpa) {
             add_stage(pa_sdpa_micro, params);
             add_stage(pa_sdpa_micro_mixed, params);
-            add_stage(pa_sdpa_micro_gqa_single_token, params);
         }
 #endif
 
@@ -1288,10 +1302,7 @@ public:
     size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
         const auto default_block_size = 16;
         if (use_micro_sdpa) {
-            if (stage == PagedAttentionStage::PREFILL)
-                return get_micro_tile_qsize(pa_sdpa_micro->kd);
-            else if (stage == PagedAttentionStage::MIXED)
-                return get_micro_tile_qsize(pa_sdpa_micro_mixed->kd);
+            return (stage == PagedAttentionStage::PREFILL) ? get_micro_tile_qsize(pa_sdpa_micro->kd) : get_micro_tile_qsize(pa_sdpa_micro_mixed->kd);
         }
         return default_block_size;
     }
@@ -1336,20 +1347,14 @@ public:
         }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        rt_params->use_micro_sdpa = supports_micro_sdpa(params);
+        rt_params->use_micro_sdpa = supports_micro_sdpa(params) && rt_params->stage != PagedAttentionStage::GENERATE;
 #else
         rt_params->use_micro_sdpa = false;
 #endif
         rt_params->query_block_size = get_query_block_size(rt_params->stage, rt_params->use_micro_sdpa);
 
-        if (rt_params->stage == PagedAttentionStage::GENERATE) {
-            if (rt_params->use_micro_sdpa) {
-                size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
-                rt_params->use_gqa_kernel = (kv_group_size == 8 && desc->k_head_size == 64);
-                rt_params->use_micro_sdpa = rt_params->use_gqa_kernel;
-            } else {
-                rt_params->use_gqa_kernel = can_use_gqa_kernel(params, PagedAttentionStage::GENERATE, rt_params->max_context_len);
-            }
+        if (rt_params->stage == PagedAttentionStage::GENERATE && !rt_params->use_micro_sdpa) {
+            rt_params->use_gqa_kernel = can_use_gqa_kernel(params, PagedAttentionStage::GENERATE, rt_params->max_context_len);
         } else {
             rt_params->use_gqa_kernel = false;
         }
@@ -1384,22 +1389,23 @@ public:
 
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-            if (rt_params->use_micro_sdpa)
+            if (rt_params->use_micro_sdpa) {
                 res_event = {execute_stage(res_event, instance, pa_sdpa_micro)};
-            else
-#endif
+            } else {
                 res_event = {execute_stage(res_event, instance, pa_sdpa_opt)};
+            }
+#else
+            res_event = {execute_stage(res_event, instance, pa_sdpa_opt)};
+#endif
         } else if (rt_params->stage == PagedAttentionStage::GENERATE || rt_params->stage == PagedAttentionStage::MIXED) {
             const auto multi_tokens_mode = rt_params->stage == PagedAttentionStage::MIXED;
             auto num_of_partitions = rt_params->num_of_partitions;
-            if (rt_params->use_gqa_kernel && !rt_params->use_micro_sdpa) {
+            if (rt_params->use_gqa_kernel) {
                 res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_gqa_single_token)};
             } else {
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 if (multi_tokens_mode && rt_params->use_micro_sdpa)
                     res_event = {execute_stage(res_event, instance, pa_sdpa_micro_mixed)};
-                else if (!multi_tokens_mode && rt_params->use_micro_sdpa && rt_params->use_gqa_kernel)
-                    res_event = {execute_stage(res_event, instance, pa_sdpa_micro_gqa_single_token)};
                 else
 #endif
                     res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_single_token)};
@@ -1511,9 +1517,7 @@ public:
         }
         bool can_use_micro_sdpa = false;
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        can_use_micro_sdpa = has_stage(pa_sdpa_micro);
-        if (stage == PagedAttentionStage::GENERATE && (rt_params == nullptr || (rt_params != nullptr && rt_params->use_gqa_kernel == false)))
-            can_use_micro_sdpa = false;
+        can_use_micro_sdpa = has_stage(pa_sdpa_micro) && stage != PagedAttentionStage::GENERATE;
 #endif
         GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: stage = " << static_cast<size_t>(stage) << std::endl;
         int64_t paged_attention_aligned_seq_len = -1;
@@ -1745,13 +1749,13 @@ public:
             OPENVINO_ASSERT(intermediates_memories.size() > sequential_gws_subseq_mapping_idx,
                             "[GPU] Unexpected number of intermediates buffers for Paged Attention for mixed stage");
 
-            auto& sequential_gws_subseq_mapping_mem = intermediates_memories[sequential_gws_subseq_mapping_idx];
+            auto sequential_gws_subseq_mapping_mem = intermediates_memories[sequential_gws_subseq_mapping_idx];
             sequential_gws_subseq_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(sequential_gws_subseq_mapping_mem, stream));
         }
 
         if (use_micro_sdpa) {
             const auto memory_idx = 3;  // intermediate_idx for micro kernel
-            auto& memory = intermediates_memories[memory_idx];
+            auto memory = intermediates_memories[memory_idx];
             micro_sdpa_block_starts_and_gws_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(memory, stream));
         }
 
