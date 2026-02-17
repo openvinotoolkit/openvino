@@ -185,7 +185,7 @@ def prepare_test_model_for_serialize(request, tmp_path, is_path_xml, is_path_bin
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
     node_floor = ov.opset8.floor(ov.opset8.minimum(ov.opset8.abs(parameter_a), parameter_b))
-    node_constant = ov.opset8.constant(np.array(0.1, dtype=np.float32))
+    node_constant = ov.opset8.constant(np.array(2.0, dtype=np.float32))
     node_ceil = ov.opset8.ceiling(node_constant)
     node_add = ov.opset8.add(node_ceil, node_floor)
     return Model([node_add], [parameter_a, parameter_b], "Model"), xml_path, bin_path
