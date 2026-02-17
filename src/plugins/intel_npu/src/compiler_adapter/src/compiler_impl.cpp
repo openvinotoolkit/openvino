@@ -334,7 +334,7 @@ VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerIm
 
     vcl_compiler_desc_t compilerDesc;
     compilerDesc.version = _vclVersion;
-    compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(Logger::global().level()) - 1);
+    compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(Logger::global().level()) + 1);
 
     // This information cannot be determined during the initialization phase; set device desc default value, the related
     // info will be processed in compile phase if passed by user.
