@@ -30,20 +30,26 @@ KERNEL (mvn_gpu_bfyx_opt)(
         ++iters_num;
 
     float my_sum = 0;
+    float my_sum_squared = 0;
     float tmp;
 
-    //each WI reads items_num consecutive items from batch*feature
+    //each WI reads items_num consecutive items from batch*feature, accumulating sum(x) and sum(x²)
     for (uint i=0; i<iters_num; ++i)
     {
-        my_sum += (float)input[my_data_offset + i * workers_per_data_set];
+        tmp = (float)input[my_data_offset + i * workers_per_data_set];
+        my_sum += tmp;
+        my_sum_squared += tmp * tmp;
     }
 
-    my_sum = work_group_reduce_add(my_sum) / data_set_size;
+    my_sum = work_group_reduce_add(my_sum);
+    my_sum_squared = work_group_reduce_add(my_sum_squared);
+    
+    float mean = my_sum / data_set_size;
 
 #if NORMALIZE_VARIANCE == 0
     for (uint i=0; i<iters_num; ++i) {
         uint iteration_in_data_set_offset = i * workers_per_data_set;
-        ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(input[my_data_offset + iteration_in_data_set_offset]) - TO_ACTIVATION_TYPE(my_sum);
+        ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(input[my_data_offset + iteration_in_data_set_offset]) - TO_ACTIVATION_TYPE(mean);
 #   if HAS_FUSED_OPS
         FUSED_OPS;
         output[my_data_offset + iteration_in_data_set_offset] = FUSED_OPS_RESULT;
@@ -53,20 +59,11 @@ KERNEL (mvn_gpu_bfyx_opt)(
     }
 #else
 
-    float my_variance = 0.f;
-    //each WI reads items_num consecutive items from batch*feature
-    for (uint i=0; i<iters_num; ++i)
-    {
-        tmp = (float)input[my_data_offset + i * workers_per_data_set];
-        tmp -= my_sum;
-        my_variance = fma(tmp, tmp, my_variance);
-    }
-
-    my_variance = work_group_reduce_add(my_variance);
-
+    float my_variance;
     if (in_data_set_idx == 0)
     {
-        my_variance /= data_set_size;
+        float mean_of_squares = my_sum_squared / data_set_size;
+        my_variance = mean_of_squares - mean * mean;
 
 #   if defined EPS_OUTSIDE_SQRT
         my_variance = native_powr(native_sqrt(my_variance) + (float)EPSILON, -1.f);
@@ -79,7 +76,7 @@ KERNEL (mvn_gpu_bfyx_opt)(
 
     for (uint i=0; i<iters_num; ++i) {
         uint iteration_in_data_set_offset = i * workers_per_data_set;
-        ACTIVATION_TYPE result = (TO_ACTIVATION_TYPE(input[my_data_offset + iteration_in_data_set_offset]) - TO_ACTIVATION_TYPE(my_sum)) * TO_ACTIVATION_TYPE(my_variance);
+        ACTIVATION_TYPE result = (TO_ACTIVATION_TYPE(input[my_data_offset + iteration_in_data_set_offset]) - TO_ACTIVATION_TYPE(mean)) * TO_ACTIVATION_TYPE(my_variance);
 #   if HAS_FUSED_OPS
         FUSED_OPS;
         output[my_data_offset + iteration_in_data_set_offset] = FUSED_OPS_RESULT;
