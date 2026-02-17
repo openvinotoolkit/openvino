@@ -21,6 +21,7 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    include "openvino/op/subtract.hpp"  // NOLINT(misc-include-cleaner) needed for explicit template instantiation
@@ -94,6 +95,17 @@ bool match_conv_fq_same_types(const std::shared_ptr<const ov::Node>& node) {
     return conv_node->get_input_element_type(0) == node->get_output_element_type(0);
 }
 
+bool match_acl_int8_conv_fq_chain(const std::shared_ptr<const ov::Node>& node) {
+    if (!node) {
+        return false;
+    }
+    // int8 ACL Convolution executor supports only same activation and output types
+    // if types are different, decompose FQ to avoid reference FQ
+    return ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
+           any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8) &&
+           (match_conv_fq_same_types(node) || match_fq_mul_conv_bias_same_types(node, FQMulAddPattern::ConvAddMul));
+}
+
 bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
                                    const std::vector<int64_t>& strides,
                                    const ov::Shape& kernel_shape,
@@ -110,15 +122,6 @@ bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
     const auto oc = symbols.at("OC").i();
     const auto ic = symbols.at("IC").i();
     return (oc >= 0 && static_cast<size_t>(oc) < oc_ic_limit) || (ic >= 0 && static_cast<size_t>(ic) < oc_ic_limit);
-}
-
-bool match_conv_mul_add(const std::shared_ptr<const ov::Node>& node) {
-    auto conv_m = wrap_type<ov::op::v1::Convolution>();
-    auto mul_m = wrap_type<ov::op::v1::Multiply>({conv_m, any_input()});
-    auto add_m = wrap_type<ov::op::v1::Add>({mul_m, any_input()});
-
-    auto matcher = std::make_shared<Matcher>(add_m);
-    return matcher->match(std::const_pointer_cast<ov::Node>(node));
 }
 
 }  // namespace ov::intel_cpu
