@@ -1227,11 +1227,13 @@ RoPEFusionLtxVideo::RoPEFusionLtxVideo() {
                                                      pattern::shape_matches("[?, ?, half_rotary_ndims, 2]"));
 
     // Split along axis=-1 into real (out0) and imag (out1)
-    auto split = pattern::wrap_type<v1::Split>({x_reshape, pattern::wrap_type<v0::Constant>()});
-    split->set_output_size(2);
+    auto split_out0 = pattern::wrap_type<v1::Split>({x_reshape, pattern::wrap_type<v0::Constant>()},
+                                                     pattern::output_index_matches(0));
+    auto split_out1 = pattern::wrap_type<v1::Split>({x_reshape, pattern::wrap_type<v0::Constant>()},
+                                                     pattern::output_index_matches(1));
 
     // Negate imaginary: Multiply(-1)
-    auto neg_imag_mul = pattern::wrap_type<v1::Multiply>({split->output(1), pattern::wrap_type<v0::Constant>()});
+    auto neg_imag_mul = pattern::wrap_type<v1::Multiply>({split_out1, pattern::wrap_type<v0::Constant>()});
 
     // Squeeze and Unsqueeze are optional (may be optimized away by NopElimination)
     auto squeeze_imag = pattern::optional<v0::Squeeze>({neg_imag_mul, pattern::wrap_type<v0::Constant>()});
@@ -1240,7 +1242,7 @@ RoPEFusionLtxVideo::RoPEFusionLtxVideo() {
 
     // Concat [-imag, real] along axis=-1
     auto neg_imag_final = neg_imag_unsqueeze | squeeze_imag | neg_imag_mul;
-    auto x_rotated_concat = pattern::wrap_type<v0::Concat>({neg_imag_final, split->output(0)},
+    auto x_rotated_concat = pattern::wrap_type<v0::Concat>({neg_imag_final, split_out0},
                                                            pattern::shape_matches("[?, ?, half_rotary_ndims, 2]"));
 
     // Reshape back to [batch, seq_len, rotary_ndims]

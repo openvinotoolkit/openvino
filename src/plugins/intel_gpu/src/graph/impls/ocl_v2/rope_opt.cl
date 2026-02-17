@@ -540,7 +540,6 @@ KERNEL(rope_opt)(
 
     const uint b = get_global_id(0);
     const uint p = get_global_id(1);
-    const uint v = ((uint)get_global_id(2) * VEC_SIZE) / HALF_ROTARY_NDIMS;
     const uint r = 2 * (((uint)get_global_id(2) * VEC_SIZE) % HALF_ROTARY_NDIMS);
 
     // Input layout: [batch, seq_len, 2048]
