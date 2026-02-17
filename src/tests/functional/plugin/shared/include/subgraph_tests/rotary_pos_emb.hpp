@@ -122,5 +122,12 @@ TEST_P(RoPETestGPTOSS, CompareWithRefs) {
     CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
 };
 
+TEST_P(RoPETestLtxVideo, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+    auto function = compiledModel.get_runtime_model();
+    CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
+};
+
 }  // namespace test
 }  // namespace ov
