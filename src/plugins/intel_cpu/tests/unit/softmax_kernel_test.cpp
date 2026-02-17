@@ -48,6 +48,10 @@ TEST(SoftmaxKernelTest, AttnSoftmaxKernelWithSparseMask) {
 }
 
 TEST(SoftmaxKernelTest, AttnSoftmaxKernelWithNaNInputAndSparseMask) {
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    // Issue: 180848
+    GTEST_SKIP() << "Skipping AttnSoftmaxKernelWithNaNInputAndSparseMask test on ARM";
+#endif
     std::vector<float> input = {1.0f, 2.0f, std::nanf(""), 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
     std::vector<float> output(input.size(), 0.0f);
     std::vector<uint8_t> sparse_mask = {1, 0, 1, 0};  // Masking some elements, block size 2
