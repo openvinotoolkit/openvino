@@ -1228,9 +1228,9 @@ RoPEFusionLtxVideo::RoPEFusionLtxVideo() {
 
     // Split along axis=-1 into real (out0) and imag (out1)
     auto split_out0 = pattern::wrap_type<v1::Split>({x_reshape, pattern::wrap_type<v0::Constant>()},
-                                                     pattern::output_index_matches(0));
+                                                    pattern::output_index_matches(0));
     auto split_out1 = pattern::wrap_type<v1::Split>({x_reshape, pattern::wrap_type<v0::Constant>()},
-                                                     pattern::output_index_matches(1));
+                                                    pattern::output_index_matches(1));
 
     // Negate imaginary: Multiply(-1)
     auto neg_imag_mul = pattern::wrap_type<v1::Multiply>({split_out1, pattern::wrap_type<v0::Constant>()});
