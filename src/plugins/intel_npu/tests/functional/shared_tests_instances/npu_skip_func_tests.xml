@@ -874,7 +874,6 @@ Example:
             <filter>.*CompileModelLoadFromCacheTest.*NPU_TURBO.*</filter>
             <filter>.*CompileModelLoadFromCacheTest.*NPU_QDQ_OPTIMIZATION.*</filter>
             <filter>.*CompileModelLoadFromCacheTest.*NPU_QDQ_OPTIMIZATION_AGGRESSIVE.*</filter>
-            
         </filters>
     </skip_config>
 

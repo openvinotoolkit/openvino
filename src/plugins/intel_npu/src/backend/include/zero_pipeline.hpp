@@ -5,7 +5,6 @@
 #pragma once
 
 #include "intel_npu/common/igraph.hpp"
-#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "zero_profiling.hpp"
 #include "zero_tensor.hpp"
@@ -59,7 +58,11 @@ protected:
     std::shared_ptr<EventPool> _event_pool;
     std::vector<std::shared_ptr<Event>> _events;
     bool _sync_output_with_fences = true;
+    uint32_t _extension_version;
     Logger _logger;
+
+private:
+    void enable_profiling();
 };
 
 }  // namespace intel_npu
