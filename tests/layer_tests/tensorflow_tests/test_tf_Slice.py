@@ -57,8 +57,8 @@ class TestComplexSlice(CommonTFLayerTest):
             size = tf.constant(size, dtype=index_type)
 
             slice_tensor = tf.raw_ops.Slice(input=complex_tensor, begin=begin, size=size, name=name)
-            real = tf.raw_ops.Real(input=slice_tensor)
-            imag = tf.raw_ops.Imag(input=slice_tensor)
+            tf.raw_ops.Real(input=slice_tensor)
+            tf.raw_ops.Imag(input=slice_tensor)
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
