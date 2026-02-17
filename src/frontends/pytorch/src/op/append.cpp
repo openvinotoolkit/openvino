@@ -4,6 +4,7 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/frontend/sequence_insert.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -16,7 +17,8 @@ OutputVector translate_append(const NodeContext& context) {
     auto seq = context.get_input(0);
     auto tensor = context.get_input(1);
     auto seq_insert = std::make_shared<ov::frontend::SequenceInsert>(seq, tensor);
-    auto result = context.mark_node(seq_insert);
+    context.mark_node(seq_insert);
+    auto result = context.mark_node(std::make_shared<ov::frontend::SequenceMark>(OutputVector{seq_insert}));
     // aten::append mutates input list in-place. Update the tensor map so that
     // subsequent reads of the same tensor ID (e.g. by aten::cat) see the
     // chained SequenceInsert rather than the original SequenceMark.

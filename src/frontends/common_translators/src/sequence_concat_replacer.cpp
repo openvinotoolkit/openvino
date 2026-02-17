@@ -46,11 +46,15 @@ int64_t normalize_axis(const ov::Output<ov::Node>& sample, int64_t axis, bool ne
     return ov::util::normalize(axis, full_rank);
 }
 
-// Trace through Unsqueeze/SequenceInsert to find the inserted tensor
+// Trace through SequenceMark/Unsqueeze/SequenceInsert to find the inserted tensor
 ov::Output<ov::Node> find_inserted_tensor(const ov::Output<ov::Node>& seq_output) {
     auto node = seq_output.get_node_shared_ptr();
     if (auto unsqueeze = std::dynamic_pointer_cast<v0::Unsqueeze>(node))
         node = unsqueeze->input_value(0).get_node_shared_ptr();
+    // aten::append wraps SequenceInsert in SequenceMark — unwrap it
+    if (auto seq_mark = std::dynamic_pointer_cast<ov::frontend::SequenceMark>(node))
+        if (seq_mark->get_input_size() == 1)
+            node = seq_mark->input_value(0).get_node_shared_ptr();
     if (auto seq_insert = std::dynamic_pointer_cast<ov::frontend::SequenceInsert>(node))
         return seq_insert->get_tensor();
     return {};
@@ -243,12 +247,11 @@ SequenceConcatReplacer::SequenceConcatReplacer() {
         const auto new_axis = concat_fw->get_new_axis();
         const auto& seq_input = concat_fw->input_value(0);
 
-        // Case 1: SequenceMark (known sequence elements)
+        // Case 1: SequenceMark / SequenceInsert chain (known sequence elements)
         if (const auto seq_mark = ov::as_type_ptr<ov::frontend::SequenceMark>(seq_input.get_node_shared_ptr())) {
             const auto& data = seq_mark->get_sequence();
             if (data.empty())
                 return false;
-
             const auto norm_axis = normalize_axis(data.front(), axis, new_axis);
             ov::OutputVector inputs;
             if (new_axis) {
