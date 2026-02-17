@@ -142,10 +142,10 @@ public:
 
     CPUInfo getCPUInfo() const;
     std::shared_ptr<ov::Model> create_ov_model(const ov::element::Type& ngPrc,
-                                                  ov::ParameterVector& params,
-                                                  const std::shared_ptr<ov::Node>& lastNode,
-                                                  std::string name,
-                                                  const QuantizationInfo& qinfo = {});
+                                               ov::ParameterVector& params,
+                                               const std::shared_ptr<ov::Node>& lastNode,
+                                               std::string name,
+                                               const QuantizationInfo& qinfo = {});
 
     void CheckPluginRelatedResults(const ov::CompiledModel& execNet, const std::set<std::string>& nodeType) const;
     void CheckPluginRelatedResults(const ov::CompiledModel& execNet, const std::string& nodeType) const;

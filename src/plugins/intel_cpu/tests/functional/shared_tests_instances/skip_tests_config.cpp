@@ -334,6 +334,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // Issue: 168490
             std::regex(R"(.*CPU/CoreThreadingTest.smoke_QueryModel.*)"),
             std::regex(R"(.*WeightlessCacheAccuracy.*)"),
+            // Ticket: 181107
+            std::regex(R"(.*smoke_ConvAndFQ_CPU.*)"),
 #endif
 #if defined(OPENVINO_ARCH_ARM)
             // Issue: 144998

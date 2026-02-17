@@ -18,6 +18,7 @@
 #include "low_precision/common/precisions_restriction.hpp"
 #include "low_precision/common/quantization_granularity_restriction.hpp"
 #include "low_precision/layer_transformation.hpp"
+#include "low_precision/qdq_stripping.hpp"
 #include "low_precision/quantization_details.hpp"
 #include "nodes/fullyconnected.h"
 #include "openvino/core/descriptor/tensor.hpp"
@@ -105,6 +106,7 @@
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
 #include "transformations/op_conversions/convert_ti_to_sequences.hpp"
 #include "transformations/op_conversions/convert_topk11_downgrade.hpp"
+#include "transformations/op_conversions/convert_weight_compressed_conv1x1_to_matmul.hpp"
 #include "transformations/op_conversions/detection_output_downgrade.hpp"
 #include "transformations/op_conversions/detection_output_upgrade.hpp"
 #include "transformations/op_conversions/eye_decomposition.hpp"
@@ -217,7 +219,11 @@
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    include "low_precision/avg_pool.hpp"
+#    include "low_precision/convolution.hpp"
+#    include "low_precision/convolution_backprop_data.hpp"
 #    include "low_precision/fake_quantize.hpp"
+#    include "low_precision/fuse_multiply_to_fake_quantize.hpp"
+#    include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #    include "low_precision/group_convolution.hpp"
 #    include "low_precision/interpolate.hpp"
 #    include "low_precision/mat_mul.hpp"
@@ -231,14 +237,17 @@
 #    include "low_precision/reduce_sum.hpp"
 #    include "openvino/opsets/opset1_decl.hpp"
 #    include "snippets/utils/tokenization_utils.hpp"
+#    include "transformations/cpu_opset/arm/pass/convert_conv_bias.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_no_keep_dims.hpp"
 #    include "transformations/cpu_opset/arm/pass/deconv_1d_decomposition.hpp"
+#    include "transformations/cpu_opset/arm/pass/fallback_unsupported_lp_conv_to_fp16.hpp"
 #    include "transformations/cpu_opset/arm/pass/grid_sample_decomposition.hpp"
 #    include "transformations/cpu_opset/common/op/sdpa.hpp"
 #    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
+#    include "transformations/utils.hpp"
 #else
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "openvino/op/gru_sequence.hpp"
@@ -287,14 +296,32 @@ namespace ov::intel_cpu {
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
 bool Transformations::is_decompression_multiply(const_node_ptr& node) {
-    auto all_has_type = [](const std::set<ov::Input<ov::Node>>& consumers, const ov::DiscreteTypeInfo& type) {
-        return std::all_of(consumers.begin(), consumers.end(), [&type](const ov::Input<ov::Node>& input) {
-            return input.get_node()->get_type_info() == type;
+    auto is_1x1_conv = [](const ov::Node* node) {
+        const auto* conv = ov::as_type<const ov::op::v1::Convolution>(node);
+        if (!conv) {
+            return false;
+        }
+        const auto& weights_pshape = conv->get_input_partial_shape(1);
+        return weights_pshape.is_static() && weights_pshape.rank().get_length() == 4 &&
+               weights_pshape[2].get_length() == 1 && weights_pshape[3].get_length() == 1;
+    };
+
+    auto all_has_type = [&](const std::set<ov::Input<ov::Node>>& consumers, const ov::DiscreteTypeInfo& type) {
+        return std::all_of(consumers.begin(), consumers.end(), [&type, &is_1x1_conv](const ov::Input<ov::Node>& input) {
+            auto* consumer_node = input.get_node();
+            if (consumer_node->get_type_info() != type) {
+                return false;
+            }
+            if (type == ov::op::v1::Convolution::get_type_info_static()) {
+                return is_1x1_conv(consumer_node);
+            }
+            return true;
         });
     };
 
     const auto consumers = node->get_output_target_inputs(0);
-    if (all_has_type(consumers, ov::op::v0::MatMul::get_type_info_static())) {
+    if (all_has_type(consumers, ov::op::v0::MatMul::get_type_info_static()) ||
+        all_has_type(consumers, ov::op::v1::Convolution::get_type_info_static())) {
         return true;
     }
 
@@ -304,7 +331,8 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) {
         }
         return std::all_of(consumers.begin(), consumers.end(), [&all_has_type](const ov::Input<ov::Node>& consumer) {
             const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
-            return all_has_type(child_consumers, ov::op::v0::MatMul::get_type_info_static());
+            return all_has_type(child_consumers, ov::op::v0::MatMul::get_type_info_static()) ||
+                   all_has_type(child_consumers, ov::op::v1::Convolution::get_type_info_static());
         });
     };
 
@@ -312,6 +340,7 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) {
         for (const auto& consumer : consumers) {
             const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
             if (all_has_type(child_consumers, ov::op::v0::MatMul::get_type_info_static()) ||
+                all_has_type(child_consumers, ov::op::v1::Convolution::get_type_info_static()) ||
                 are_converts_from_decompression(child_consumers)) {
                 return true;
             }
@@ -483,6 +512,23 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         },
         ov::pass::ConvertGatherToGatherCompressed);
     decompression_handling_manager.run_passes(model);
+
+    {
+        using namespace ov::pass::low_precision;
+        const auto enableQDQStripping = LowPrecision::isFunctionQuantized(model, std::set<levels>{levels::int16});
+        if (enableQDQStripping) {
+            ov::pass::Manager qdq_stripping_manager("Plugin:CPU:QDQ_Stripping");
+            using namespace ov::element;
+            // QDQ stripping pipeline
+            // 1. Fuse FQ->Convert->DQ to a single FQ
+            qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16},
+                                                                                     TypeVector{f32},
+                                                                                     true);
+            // 2. Strip FQ layers with unsupported levels
+            qdq_stripping_manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, false);
+            qdq_stripping_manager.run_passes(model);
+        }
+    }
 
     ov::pass::Manager manager("Plugin:CPU");
     manager.set_per_pass_validation(false);
@@ -929,15 +975,39 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
                              supportedPrecisions,
                              quantizationRestrictions,
                              LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
+
+    CPU_REGISTER_PASS_ARM(lptManager, ConvertConvolutionBias);
+    CPU_REGISTER_PASS_ARM(lptManager, FallbackUnsupportedLPConvToFP16);
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [](const_node_ptr& node) -> bool {
+            return match_conv_stride_oc_ic_limit(node, {1, 1}, ov::Shape{3, 3}, 512);
+        },
+        ConvolutionTransformation);
     CPU_SET_CALLBACK_COMMON(
         lptManager,
         [](const_node_ptr& node) -> bool {
             return ov::marked_as_bias(node);
         },
         AddTransformation);
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [](const_node_ptr& node) -> bool {
+            return match_conv_mul_add_fq<ov::op::v1::Subtract>(node);
+        },
+        FuseSubtractToFakeQuantizeTransformation);
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [](const_node_ptr& node) -> bool {
+            return match_conv_mul_add_fq<ov::op::v1::Multiply>(node);
+        },
+        FuseMultiplyToFakeQuantizeTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
     CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
+    // ConvolutionTransformation is disabled temporary until ACL issues are fixed: #1252, #1253
+    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
+    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionBackpropDataTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, MaxPoolTransformation);
@@ -966,8 +1036,13 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         lptManager,
         [&](const_node_ptr& node) -> bool {
             auto eltwise = node->get_input_node_shared_ptr(0);
-            if (ov::is_type<ov::op::v1::Multiply>(eltwise) && FakeQuantizeTransformation::checkElementwise(eltwise)) {
-                return ov::is_type<ov::op::v1::Convolution>(eltwise->get_input_node_shared_ptr(0));
+            if ((ov::is_type<ov::op::v1::Multiply>(eltwise) || ov::is_type<ov::op::v1::Add>(eltwise)) &&
+                FakeQuantizeTransformation::checkElementwise(eltwise)) {
+                // avoid convolution dequantization fusion to FQ node to keep
+                // Conv->DQ_scale->Bias->Requantization pattern
+                // Mul-Add pattern will be swapped later to Add-Mul by ConvertConvolutionBias
+                // to get subgraph Conv-Add-Mul supported by the ACL
+                return match_fq_mul_conv_bias_same_types(node, FQMulAddPattern::ConvMulAdd);
             }
             return false;
         },
@@ -1027,6 +1102,7 @@ void Transformations::PostLpt() {
 
     ov::pass::Manager postLPTPassManager("CPU:PostLPT");
     postLPTPassManager.set_per_pass_validation(false);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ConvertWeightCompressedConv1x1ToMatmul);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ConvertBroadcast3);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ReshapePRelu);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MoveEltwiseUpThroughDataMov);
@@ -1575,11 +1651,10 @@ void Transformations::PostSnippets() {
         [](const_node_ptr& node) -> bool {
             if (ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
                 ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
-                auto parent = node->get_input_node_shared_ptr(0);
-                if (ov::is_type<const ov::op::v1::Multiply>(parent) && !parent->inputs().empty() &&
-                    ov::is_type<const ov::op::v1::Convolution>(parent->get_input_node_shared_ptr(0))) {
-                    return true;
-                }
+                // int8 ACL Convolution executor supports only same activation and output types
+                // if types are different, decompose FQ to avoid reference FQ
+                return match_conv_fq_same_types(node) ||
+                       match_fq_mul_conv_bias_same_types(node, FQMulAddPattern::ConvAddMul);
             }
             return false;
         },
