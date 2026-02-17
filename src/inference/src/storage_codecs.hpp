@@ -12,6 +12,27 @@
 #include "storage_traits.hpp"
 
 namespace ov {
+struct SingleFileStorageHeaderCodec {
+    uint64_t major_version{};
+    uint64_t minor_version{};
+    std::string weight_path;
+
+    friend std::istream& operator>>(std::istream& stream, SingleFileStorageHeaderCodec& codec) {
+        stream.read(reinterpret_cast<char*>(&codec.major_version), sizeof(codec.major_version));
+        stream.read(reinterpret_cast<char*>(&codec.minor_version), sizeof(codec.minor_version));
+        std::getline(stream, codec.weight_path, '\0');
+        return stream;
+    }
+
+    friend std::ostream& operator<<(std::ostream& stream, const SingleFileStorageHeaderCodec& codec) {
+        stream.write(reinterpret_cast<const char*>(&codec.major_version), sizeof(codec.major_version));
+        stream.write(reinterpret_cast<const char*>(&codec.minor_version), sizeof(codec.minor_version));
+        stream.write(codec.weight_path.data(), codec.weight_path.size());
+        stream.put('\0');
+        return stream;
+    }
+};
+
 struct SharedContextStreamCodec {
     SharedContext* ctx;
 
@@ -115,8 +136,8 @@ struct BlobMapStreamCodec {
                 }
                 std::string model_name(str_size, '\0');
                 stream.read(model_name.data(), model_name.size());
-                // Intentionally overwrite existing mapping if id already exists. It should not be a case with properly
-                // stored cache file.
+                // Intentionally overwrite existing mapping if id already exists - it's not be a case with proper cache
+                // file.
                 (*codec.blob_mappings)[id] = model_name;
 
             } else {

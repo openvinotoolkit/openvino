@@ -9,6 +9,9 @@
 namespace ov {
 class SingleFileStorage final : public ICacheManager, public ISharedContextStore {
 public:
+    static constexpr uint64_t major_version = 0;
+    static constexpr uint64_t minor_version = 1;
+
     explicit SingleFileStorage(const std::filesystem::path& path);
 
     void write_cache_entry(const std::string& id, StreamWriter writer) override;
@@ -22,9 +25,10 @@ private:
     static constexpr size_t blob_id_size = 24;
 
     bool has_blob_id(const std::string& blob_id) const;
-    void populate_cache_index();
+    void populate_cache_index(std::ifstream&);
     void update_shared_ctx(const SharedContext& new_ctx);
     void update_shared_ctx_from_file();
+    // rename to append or sth??
     void write_ctx_diff(std::ostream& stream);
     void write_blob_entry(const std::string& id, StreamWriter& writer, std::ofstream& stream);
 
