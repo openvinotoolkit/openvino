@@ -1540,7 +1540,17 @@ void Transformations::MainSnippets() {
             return false;
         }
 #if defined(OPENVINO_ARCH_ARM64)
-        if (match_acl_int8_conv_fq_chain(n)) {
+        // Keep Conv->Add->Mul->FQ chain outside snippets if it can be fused into int8 convolution
+        if (ov::is_type<const ov::op::v1::Multiply>(n)) {
+            for (const auto& child : n->get_output_target_inputs(0)) {
+                if (match_acl_int8_conv_fq_chain(child.get_node()->shared_from_this())) {
+                    return true;
+                }
+            }
+        }
+
+        // Keep dequantize FQ outside snippets is it can be fused into int8 convolution
+        if (ov::is_type<const ov::op::v0::FakeQuantize>(n) && match_acl_int8_conv_fq_chain(n)) {
             return true;
         }
         // Keep dynamic FQ tokenizable on ARM
