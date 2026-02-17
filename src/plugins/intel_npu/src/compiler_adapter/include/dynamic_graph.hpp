@@ -160,6 +160,8 @@ public:
     void predict_output_shape(std::vector<MemRefType>& inputDescriptors,
                               std::vector<MemRefType>& outputDescriptors) override;
 
+    std::optional<bool> is_profiling_blob() const override;
+
 private:
     bool release_blob(const Config& config);
     std::optional<size_t> determine_batch_size();
