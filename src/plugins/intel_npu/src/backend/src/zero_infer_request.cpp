@@ -68,8 +68,6 @@ void* get_tensor_data_ptr(const std::shared_ptr<ov::ITensor>& tensor) {
     } else {
         return tensor->data();
     }
-
-    return nullptr;
 }
 
 }  // namespace
@@ -282,7 +280,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             return;
         }
 
-        auto ioShape = _compiledModel->inputs()[foundPort.idx].get_partial_shape();
+        const auto& ioShape = _compiledModel->inputs()[foundPort.idx].get_partial_shape();
         auto batchSizeCandidate =
             determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), ioShape, tensor._ptr, std::nullopt);
 
@@ -324,7 +322,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             return;
         }
 
-        auto ioShape = _compiledModel->outputs()[foundPort.idx].get_partial_shape();
+        const auto& ioShape = _compiledModel->outputs()[foundPort.idx].get_partial_shape();
         auto batchSizeCandidate =
             determine_dynamic_batch_size(_metadata.outputs.at(foundPort.idx), ioShape, tensor._ptr, std::nullopt);
 
@@ -416,7 +414,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
 
     _logger.debug("ZeroInferRequest::set_tensors: %zu", tensors.size());
 
-    auto ioShape = _compiledModel->inputs()[foundPort.idx].get_partial_shape();
+    const auto& ioShape = _compiledModel->inputs()[foundPort.idx].get_partial_shape();
     auto batchSizeCandidate =
         determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), ioShape, nullptr, tensors.size());
 
@@ -689,7 +687,7 @@ void ZeroInferRequest::infer_async() {
     auto batch_size = _graph->get_batch_size();
     size_t inputIndex = 0;
     for (const auto& userTensor : _userInputTensors) {
-        const IODescriptor inputDescriptor = _metadata.inputs.at(inputIndex);
+        const IODescriptor& inputDescriptor = _metadata.inputs.at(inputIndex);
 
         OPENVINO_ASSERT(!inputDescriptor.isInitInputWeights,
                         "This path should not be used for running inferences for the \"init\" model");
@@ -789,7 +787,7 @@ void ZeroInferRequest::get_result() {
 
     size_t outputIndex = 0;
     for (const auto& userTensor : _userOutputTensors) {
-        const IODescriptor outputDescriptor = _metadata.outputs.at(outputIndex);
+        const IODescriptor& outputDescriptor = _metadata.outputs.at(outputIndex);
         if (outputDescriptor.isShapeTensor) {
             OPENVINO_ASSERT(outputDescriptor.relatedDescriptorIndex.has_value(),
                             "The link between the dynamic tensor and its shape tensor is missing, entry name: ",

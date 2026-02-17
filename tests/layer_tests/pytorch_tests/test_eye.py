@@ -46,7 +46,7 @@ class TestEye(PytorchLayerTest):
                 return torch.eye(x, y, dtype=self.dtype)
 
         model = aten_eye_1_input(pt_dtype) if num_inputs == 1 else aten_eye_2_inputs(pt_dtype)
-        return model, None, ["aten::eye", "aten::IntImplicit"]
+        return model, ["aten::eye", "aten::IntImplicit"]
 
     @pytest.mark.nightly
     @pytest.mark.precommit

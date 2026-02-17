@@ -5,15 +5,16 @@
 #include "ref_opt_transpose.hpp"
 
 #include <cstddef>
+#include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <vector>
 
 #include "cpu_memory.h"
+#include "cpu_parallel.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/common/ref_opt_transpose.hpp"
 #include "nodes/executors/transpose.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "selective_build.h"
@@ -25,10 +26,14 @@ struct TransposeContext {
     MemoryCPtr srcMemPtr;
     MemoryPtr dstMemPtr;
     int MB;
+    std::shared_ptr<CpuParallel> cpuParallel;
 };
 
 template <typename T>
-void transpose_to_0312(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
+void transpose_to_0312(const int MB,
+                       const MemoryCPtr& srcMemPtr,
+                       MemoryPtr& dstMemPtr,
+                       const std::shared_ptr<CpuParallel>& cpuParallel) {
     const auto* const src_data = srcMemPtr->getDataAs<const T>();
     auto dst_data = dstMemPtr->getDataAs<T>();
 
@@ -36,7 +41,7 @@ void transpose_to_0312(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dst
     const int DIM2 = srcMemPtr->getStaticDims()[2];
     const int DIM3 = srcMemPtr->getStaticDims()[3];
 
-    parallel_for3d(MB, DIM1, DIM2, [&](const int n, const int dim1, const int dim2) {
+    cpuParallel->parallel_for3d(MB, DIM1, DIM2, [&](const int n, const int dim1, const int dim2) {
         for (int dim3 = 0; dim3 < DIM3; ++dim3) {
             const int src_off = n * DIM1 * DIM2 * DIM3 + dim1 * DIM2 * DIM3 + dim2 * DIM3 + dim3;
             const int dst_off = n * DIM1 * DIM2 * DIM3 + dim3 * DIM1 * DIM2 + dim1 * DIM2 + dim2;
@@ -47,7 +52,10 @@ void transpose_to_0312(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dst
 }
 
 template <typename T>
-void transpose_to_04123(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
+void transpose_to_04123(const int MB,
+                        const MemoryCPtr& srcMemPtr,
+                        MemoryPtr& dstMemPtr,
+                        const std::shared_ptr<CpuParallel>& cpuParallel) {
     const auto* const src_data = srcMemPtr->getDataAs<const T>();
     auto dst_data = dstMemPtr->getDataAs<T>();
 
@@ -56,7 +64,7 @@ void transpose_to_04123(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& ds
     const int DIM3 = srcMemPtr->getStaticDims()[3];
     const int DIM4 = srcMemPtr->getStaticDims()[4];
 
-    parallel_for4d(MB, DIM1, DIM2, DIM3, [&](const int n, const int dim1, const int dim2, const int dim3) {
+    cpuParallel->parallel_for4d(MB, DIM1, DIM2, DIM3, [&](const int n, const int dim1, const int dim2, const int dim3) {
         for (int dim4 = 0; dim4 < DIM4; ++dim4) {
             const int src_off =
                 n * DIM1 * DIM2 * DIM3 * DIM4 + dim1 * DIM2 * DIM3 * DIM4 + dim2 * DIM3 * DIM4 + dim3 * DIM4 + dim4;
@@ -69,7 +77,10 @@ void transpose_to_04123(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& ds
 }
 
 template <typename T>
-void transpose_to_051234(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
+void transpose_to_051234(const int MB,
+                         const MemoryCPtr& srcMemPtr,
+                         MemoryPtr& dstMemPtr,
+                         const std::shared_ptr<CpuParallel>& cpuParallel) {
     const auto* const src_data = srcMemPtr->getDataAs<const T>();
     auto dst_data = dstMemPtr->getDataAs<T>();
 
@@ -79,21 +90,22 @@ void transpose_to_051234(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& d
     const int DIM4 = srcMemPtr->getStaticDims()[4];
     const int DIM5 = srcMemPtr->getStaticDims()[5];
 
-    parallel_for5d(MB,
-                   DIM1,
-                   DIM2,
-                   DIM3,
-                   DIM4,
-                   [&](const int n, const int dim1, const int dim2, const int dim3, const int dim4) {
-                       for (int dim5 = 0; dim5 < DIM5; ++dim5) {
-                           const int src_off = n * DIM1 * DIM2 * DIM3 * DIM4 * DIM5 + dim1 * DIM2 * DIM3 * DIM4 * DIM5 +
-                                               dim2 * DIM3 * DIM4 * DIM5 + dim3 * DIM4 * DIM5 + dim4 * DIM5 + dim5;
-                           const int dst_off = n * DIM5 * DIM1 * DIM2 * DIM3 * DIM4 + dim5 * DIM1 * DIM2 * DIM3 * DIM4 +
-                                               dim1 * DIM2 * DIM3 * DIM4 + dim2 * DIM3 * DIM4 + dim3 * DIM4 + dim4;
+    cpuParallel->parallel_for5d(
+        MB,
+        DIM1,
+        DIM2,
+        DIM3,
+        DIM4,
+        [&](const int n, const int dim1, const int dim2, const int dim3, const int dim4) {
+            for (int dim5 = 0; dim5 < DIM5; ++dim5) {
+                const int src_off = n * DIM1 * DIM2 * DIM3 * DIM4 * DIM5 + dim1 * DIM2 * DIM3 * DIM4 * DIM5 +
+                                    dim2 * DIM3 * DIM4 * DIM5 + dim3 * DIM4 * DIM5 + dim4 * DIM5 + dim5;
+                const int dst_off = n * DIM5 * DIM1 * DIM2 * DIM3 * DIM4 + dim5 * DIM1 * DIM2 * DIM3 * DIM4 +
+                                    dim1 * DIM2 * DIM3 * DIM4 + dim2 * DIM3 * DIM4 + dim3 * DIM4 + dim4;
 
-                           dst_data[dst_off] = src_data[src_off];
-                       }
-                   });
+                dst_data[dst_off] = src_data[src_off];
+            }
+        });
 }
 
 template <typename T>
@@ -101,13 +113,13 @@ struct TransposeOptimizedEmitter {
     void operator()(TransposeContext& ctx) {
         switch (ctx.srcMemPtr->getStaticDims().size()) {
         case 4:
-            transpose_to_0312<T>(ctx.MB, ctx.srcMemPtr, ctx.dstMemPtr);
+            transpose_to_0312<T>(ctx.MB, ctx.srcMemPtr, ctx.dstMemPtr, ctx.cpuParallel);
             break;
         case 5:
-            transpose_to_04123<T>(ctx.MB, ctx.srcMemPtr, ctx.dstMemPtr);
+            transpose_to_04123<T>(ctx.MB, ctx.srcMemPtr, ctx.dstMemPtr, ctx.cpuParallel);
             break;
         case 6:
-            transpose_to_051234<T>(ctx.MB, ctx.srcMemPtr, ctx.dstMemPtr);
+            transpose_to_051234<T>(ctx.MB, ctx.srcMemPtr, ctx.dstMemPtr, ctx.cpuParallel);
             break;
         default:
             OPENVINO_THROW("Transpose supports optimized execution with only 4D, 5D and 6D shapes");
@@ -118,7 +130,7 @@ struct TransposeOptimizedEmitter {
 void RefOptimizedTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
     const size_t dataSize = src[0]->getDesc().getPrecision().size();
     const int MB = src[0]->getStaticDims()[0];
-    TransposeContext ctx = {src[0], dst[0], MB};
+    TransposeContext ctx = {src[0], dst[0], MB, context->getCpuParallel()};
     OV_SWITCH(intel_cpu,
               TransposeOptimizedEmitter,
               ctx,
