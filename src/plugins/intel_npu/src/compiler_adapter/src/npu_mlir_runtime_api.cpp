@@ -46,9 +46,4 @@ const std::shared_ptr<NPUMLIRRuntimeApi>& NPUMLIRRuntimeApi::getInstance() {
     return instance;
 }
 
-std::optional<bool> DynamicGraph::is_profiling_blob() const {
-    _logger.warning("Profiling is not supported for DynamicGraph");
-    return std::nullopt;
-}
-
 }  // namespace intel_npu
