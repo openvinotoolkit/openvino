@@ -29,6 +29,7 @@ public:
     void reset() const;
 
     void update_graph_arguments(uint32_t index, const std::shared_ptr<ZeroTensor>& tensor);
+    void update_graph_arguments(const std::vector<std::pair<uint32_t, std::shared_ptr<ZeroTensor>>>& tensors);
     void update_graph_arguments(uint32_t index, const std::shared_ptr<ZeroTensor>& tensor, size_t batch_index);
 
     std::vector<ov::ProfilingInfo> get_profiling_info() const;
