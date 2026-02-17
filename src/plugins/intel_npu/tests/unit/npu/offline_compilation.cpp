@@ -5,7 +5,6 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
-#include "common_test_utils/test_assertions.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -14,8 +13,7 @@ using namespace ov::intel_npu;
 
 using OfflineCompilationUnitTests = ::testing::Test;
 
-
-TEST_F(OfflineCompilationUnitTests, wrongDriverPath) {
+TEST_F(OfflineCompilationUnitTests, CompilationFailsWithPluginCompilerTypeAndMissingDriver) {
     ov::Core core;
 
     ov::AnyMap config;
@@ -23,8 +21,5 @@ TEST_F(OfflineCompilationUnitTests, wrongDriverPath) {
     core.set_property("NPU", config);
 
     std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
-
-    ov::CompiledModel compiled_model;
-
-    EXPECT_ANY_THROW(compiled_model = core.compile_model(model, "NPU", {}));
+    EXPECT_ANY_THROW(core.compile_model(model, "NPU", {}));
 }
