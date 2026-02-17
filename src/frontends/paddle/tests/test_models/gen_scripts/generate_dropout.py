@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -12,7 +12,7 @@ import sys
 def paddle_dropout(name : str, x, p, paddle_attrs):
     import paddle
     paddle.enable_static()
-    
+
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype='float32')
         out = paddle.nn.functional.dropout(x=node_x, p=p, training=paddle_attrs['training'], mode=paddle_attrs['mode'])
@@ -24,7 +24,7 @@ def paddle_dropout(name : str, x, p, paddle_attrs):
 
         outs = exe.run(
             feed={'x': x},
-            fetch_list=[out])             
+            fetch_list=[out])
 
         saveModel(name, exe, feed_vars=[node_x], fetchlist=[out], inputs=[x],
                   outputs=[outs[0]], target_dir=sys.argv[1])
@@ -47,4 +47,4 @@ def main():
     paddle_dropout("dropout_upscale_in_train", data, p, paddle_attrs2)
 
 if __name__ == "__main__":
-    main()     
+    main()

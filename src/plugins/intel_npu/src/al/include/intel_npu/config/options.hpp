@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,7 @@ struct PERFORMANCE_HINT final : OptionBase<PERFORMANCE_HINT, ov::hint::Performan
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::CompileTime;
     }
 
     static ov::hint::PerformanceMode parse(std::string_view val) {
@@ -125,7 +125,7 @@ struct PERFORMANCE_HINT_NUM_REQUESTS final : OptionBase<PERFORMANCE_HINT_NUM_REQ
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::RunTime;
     }
 };
 
@@ -155,7 +155,7 @@ struct INFERENCE_PRECISION_HINT final : OptionBase<INFERENCE_PRECISION_HINT, ov:
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::CompileTime;
     }
 
     static ov::element::Type parse(std::string_view val) {
@@ -249,7 +249,11 @@ struct PLATFORM final : OptionBase<PLATFORM, std::string> {
 #endif
 
     static bool isPublic() {
-        return false;
+        return true;
+    }
+
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(0, 0);
     }
 
     static uint32_t compilerSupportVersion() {
@@ -257,7 +261,7 @@ struct PLATFORM final : OptionBase<PLATFORM, std::string> {
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::CompileTime;
     }
 
     static ov::PropertyMutability mutability() {
@@ -287,7 +291,7 @@ struct DEVICE_ID final : OptionBase<DEVICE_ID, std::string> {
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::RunTime;
     }
 };
 
@@ -417,28 +421,6 @@ struct CACHING_PROPERTIES final : OptionBase<CACHING_PROPERTIES, std::string> {
 
     static OptionMode mode() {
         return OptionMode::RunTime;
-    }
-};
-
-struct INTERNAL_SUPPORTED_PROPERTIES final : OptionBase<INTERNAL_SUPPORTED_PROPERTIES, std::string> {
-    static std::string_view key() {
-        return ov::internal::supported_properties.name();
-    }
-
-    static std::string defaultValue() {
-        return {};
-    }
-
-    static bool isPublic() {
-        return false;
-    }
-
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(0, 0);
-    }
-
-    static OptionMode mode() {
-        return OptionMode::Both;
     }
 };
 
@@ -718,7 +700,7 @@ struct NUM_STREAMS final : OptionBase<NUM_STREAMS, ov::streams::Num> {
 
     static void validateValue(const ov::streams::Num& num) {
         if (defaultValue() != num && ov::streams::AUTO != num) {
-            throw std::runtime_error("NUM_STREAMS can not be set");
+            OPENVINO_THROW("NUM_STREAMS can not be set");
         }
     }
 
@@ -842,14 +824,16 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
     }
 
     static ov::intel_npu::CompilerType defaultValue() {
-        return ov::intel_npu::CompilerType::DRIVER;
+        return ov::intel_npu::CompilerType::PREFER_PLUGIN;
     }
 
     static ov::intel_npu::CompilerType parse(std::string_view val) {
-        if (val == "PLUGIN" || val == "MLIR") {
+        if (val == "PLUGIN") {
             return ov::intel_npu::CompilerType::PLUGIN;
         } else if (val == "DRIVER") {
             return ov::intel_npu::CompilerType::DRIVER;
+        } else if (val == "PREFER_PLUGIN") {
+            return ov::intel_npu::CompilerType::PREFER_PLUGIN;
         }
 
         OPENVINO_THROW("Value '", val, "' is not a valid COMPILER_TYPE option");
@@ -861,6 +845,8 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
             strStream << "PLUGIN";
         } else if (val == ov::intel_npu::CompilerType::DRIVER) {
             strStream << "DRIVER";
+        } else if (val == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
+            strStream << "PREFER_PLUGIN";
         } else {
             OPENVINO_THROW("No valid string for current COMPILER_TYPE option");
         }
@@ -877,7 +863,7 @@ struct COMPILER_TYPE final : OptionBase<COMPILER_TYPE, ov::intel_npu::CompilerTy
     }
 
     static bool isPublic() {
-        return false;
+        return true;
     }
 };
 
@@ -1313,6 +1299,46 @@ struct DISABLE_VERSION_CHECK final : OptionBase<DISABLE_VERSION_CHECK, bool> {
     }
 };
 
+struct EXPORT_RAW_BLOB final : OptionBase<EXPORT_RAW_BLOB, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::export_raw_blob.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    static std::string_view envVar() {
+        return "OV_NPU_EXPORT_RAW_BLOB";
+    }
+#endif
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
+struct IMPORT_RAW_BLOB final : OptionBase<IMPORT_RAW_BLOB, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::import_raw_blob.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    static std::string_view envVar() {
+        return "OV_NPU_IMPORT_RAW_BLOB";
+    }
+#endif
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
 struct BATCH_COMPILER_MODE_SETTINGS final : OptionBase<BATCH_COMPILER_MODE_SETTINGS, std::string> {
     static std::string_view key() {
         return ov::intel_npu::batch_compiler_mode_settings.name();
@@ -1338,6 +1364,148 @@ struct BATCH_COMPILER_MODE_SETTINGS final : OptionBase<BATCH_COMPILER_MODE_SETTI
 struct WEIGHTLESS_BLOB final : OptionBase<WEIGHTLESS_BLOB, bool> {
     static std::string_view key() {
         return ov::intel_npu::weightless_blob.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+};
+
+struct SEPARATE_WEIGHTS_VERSION final : OptionBase<SEPARATE_WEIGHTS_VERSION, ov::intel_npu::WSVersion> {
+    static std::string_view key() {
+        return ov::intel_npu::separate_weights_version.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::intel_npu::WSVersion";
+    }
+
+    static ov::intel_npu::WSVersion defaultValue() {
+        // Note: if the compiler-in-plugin is used (intel_npu::compiler_type = intel_npu::CompilerType::PLUGIN), then
+        // the default is actually WSVersion::ONE_SHOT
+        return ov::intel_npu::WSVersion::ITERATIVE;
+    }
+
+    static ov::intel_npu::WSVersion parse(std::string_view val) {
+        std::istringstream stringStream = std::istringstream(std::string(val));
+        ov::intel_npu::WSVersion wsVersion;
+        stringStream >> wsVersion;
+        return wsVersion;
+    }
+
+    static std::string toString(const ov::intel_npu::WSVersion& val) {
+        std::stringstream strStream;
+        strStream << val;
+        return strStream.str();
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+};
+
+struct WS_COMPILE_CALL_NUMBER final : OptionBase<WS_COMPILE_CALL_NUMBER, uint32_t> {
+    static std::string_view key() {
+        return ov::intel_npu::ws_compile_call_number.name();
+    }
+
+    static uint32_t defaultValue() {
+        return 0;
+    }
+
+    static uint32_t parse(std::string_view val) {
+        int val_i = -1;
+        try {
+            val_i = std::stoi(val.data());
+            if (val_i >= 0) {
+                return val_i;
+            } else {
+                throw std::logic_error("wrong val");
+            }
+        } catch (const std::exception&) {
+            OPENVINO_THROW("Wrong value of ",
+                           val.data(),
+                           " for property key ",
+                           ov::intel_npu::ws_compile_call_number.name(),
+                           ". Expected only positive integer numbers");
+        }
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+};
+
+struct USE_BASE_MODEL_SERIALIZER final : OptionBase<USE_BASE_MODEL_SERIALIZER, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::use_base_model_serializer.name();
+    }
+
+    static bool defaultValue() {
+        return true;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+};
+
+struct MODEL_SERIALIZER_VERSION final : OptionBase<MODEL_SERIALIZER_VERSION, ov::intel_npu::ModelSerializerVersion> {
+    static std::string_view key() {
+        return ov::intel_npu::model_serializer_version.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::intel_npu::ModelSerializerVersion";
+    }
+
+    static ov::intel_npu::ModelSerializerVersion defaultValue() {
+        return ov::intel_npu::ModelSerializerVersion::AUTO;
+    }
+
+    static ov::intel_npu::ModelSerializerVersion parse(std::string_view val) {
+        std::istringstream stringStream = std::istringstream(std::string(val));
+        ov::intel_npu::ModelSerializerVersion version;
+        stringStream >> version;
+        return version;
+    }
+
+    static std::string toString(const ov::intel_npu::ModelSerializerVersion& val) {
+        std::stringstream strStream;
+        strStream << val;
+        return strStream.str();
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+};
+
+struct ENABLE_STRIDES_FOR final : OptionBase<ENABLE_STRIDES_FOR, std::string> {
+    static std::string_view key() {
+        return ov::intel_npu::enable_strides_for.name();
+    }
+
+    static std::string defaultValue() {
+        return {};
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+};
+
+struct DISABLE_IDLE_MEMORY_PRUNING final : OptionBase<DISABLE_IDLE_MEMORY_PRUNING, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::disable_idle_memory_prunning.name();
     }
 
     static bool defaultValue() {
@@ -1419,10 +1587,6 @@ struct USE_BASE_MODEL_SERIALIZER final : OptionBase<USE_BASE_MODEL_SERIALIZER, b
 
     static bool defaultValue() {
         return true;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
     }
 };
 

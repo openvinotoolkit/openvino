@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,13 +17,6 @@
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/partial_shape.hpp"
 
-// A bug inside the driver makes the "pfnGraphGetArgumentMetadata" call not safe for use prior to
-// "ze_graph_dditable_ext_1_6_t".
-// See: E#117498
-#define NotSupportArgumentMetadata(T) (T < ZE_GRAPH_EXT_VERSION_1_6)
-
-#define UseCopyForNativeBinary(T) (T < ZE_GRAPH_EXT_VERSION_1_7)
-
 namespace {
 using namespace intel_npu;
 /**
@@ -36,7 +29,8 @@ using namespace intel_npu;
  * the referenced attribute.
  * @returns A descriptor object containing the metadata converted in OpenVINO specific structures.
  */
-static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
+static IODescriptor getIODescriptor(const uint32_t indexUsedByDriver,
+                                    const ze_graph_argument_properties_3_t& arg,
                                     const std::optional<ze_graph_argument_metadata_t>& metadata) {
     auto logger = Logger::global().clone("getIODescriptor");
     ov::element::Type_t precision = zeroUtils::toOVElementType(arg.devicePrecision);
@@ -101,6 +95,15 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
         isMainInputWeights = true;
     }
 
+    bool supportsStridedLayout = false;
+    if (arg.pNext != nullptr) {
+        if (*reinterpret_cast<const ze_structure_type_graph_ext_t*>(arg.pNext) ==
+            ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTY_STRIDES) {
+            auto& supports_strides = *reinterpret_cast<const ze_graph_argument_property_strides_t*>(arg.pNext);
+            supportsStridedLayout = supports_strides.supportsDynamicStrides;
+        }
+    }
+
     return {std::move(nameFromCompiler),
             precision,
             shapeFromCompiler,
@@ -113,7 +116,346 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
             std::nullopt,
             arg.debug_friendly_name,
             std::move(outputTensorNames),
-            metadata.has_value() ? std::optional(shapeFromIRModel) : std::nullopt};
+            metadata.has_value() ? std::optional(shapeFromIRModel) : std::nullopt,
+            indexUsedByDriver,
+            supportsStridedLayout};
+}
+}  // namespace
+
+namespace intel_npu {
+
+GraphDescriptor::GraphDescriptor(ze_graph_handle_t handle, bool memoryPersistent)
+    : _handle(handle),
+      _memoryPersistent(memoryPersistent) {}
+
+ZeGraphExtWrappers::ZeGraphExtWrappers(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
+    : _zeroInitStruct(zeroInitStruct),
+      _graphExtVersion(zeroInitStruct->getGraphDdiTable().version()),
+      _logger("ZeGraphExtWrappers", Logger::global().level()) {
+    _logger.info("Graph ext version used by zero wrapper: %d.%d",
+                 ZE_MAJOR_VERSION(_graphExtVersion),
+                 ZE_MINOR_VERSION(_graphExtVersion));
+}
+
+ZeGraphExtWrappers::~ZeGraphExtWrappers() {
+    _logger.debug("Obj destroyed");
+}
+
+void ZeGraphExtWrappers::destroyGraph(GraphDescriptor& graphDescriptor) {
+    if (graphDescriptor._handle) {
+        _logger.debug("destroyGraph - perform pfnDestroy");
+
+        auto result = _zeroInitStruct->getGraphDdiTable().pfnDestroy(graphDescriptor._handle);
+        if (ZE_RESULT_SUCCESS != result) {
+            _logger.error("failed to destroy graph handle. L0 pfnDestroy result: %s, code %#X",
+                          ze_result_to_string(result).c_str(),
+                          uint64_t(result));
+        } else {
+            graphDescriptor._handle = nullptr;
+        }
+    }
+}
+
+void ZeGraphExtWrappers::getGraphBinary(const GraphDescriptor& graphDescriptor,
+                                        std::vector<uint8_t>& blob,
+                                        const uint8_t*& blobPtr,
+                                        size_t& blobSize) const {
+    if (graphDescriptor._handle == nullptr) {
+        OPENVINO_THROW("Graph handle is null");
+    }
+
+    _logger.debug("getGraphBinary - get blob from graphHandle");
+
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 7)) {
+        // Get blob size first
+        _logger.debug("getGraphBinary - perform pfnGetNativeBinary to get size");
+        auto result =
+            _zeroInitStruct->getGraphDdiTable().pfnGetNativeBinary(graphDescriptor._handle, &blobSize, nullptr);
+        blob.resize(blobSize);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetNativeBinary get blob size, Failed to compile network.",
+                                        result,
+                                        _zeroInitStruct->getGraphDdiTable());
+
+        // Get blob data
+        _logger.debug("getGraphBinary - perform pfnGetNativeBinary to get data");
+        result =
+            _zeroInitStruct->getGraphDdiTable().pfnGetNativeBinary(graphDescriptor._handle, &blobSize, blob.data());
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetNativeBinary get blob data, Failed to compile network.",
+                                        result,
+                                        _zeroInitStruct->getGraphDdiTable());
+
+        blobPtr = blob.data();
+    } else {
+        // Get blob ptr and size
+        _logger.debug("getGraphBinary - perform pfnGetNativeBinary2 to get size and data");
+        auto result =
+            _zeroInitStruct->getGraphDdiTable().pfnGetNativeBinary2(graphDescriptor._handle, &blobSize, &blobPtr);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetNativeBinary get blob size, Failed to compile network.",
+                                        result,
+                                        _zeroInitStruct->getGraphDdiTable());
+    }
+}
+
+void ZeGraphExtWrappers::setGraphArgumentValue(const GraphDescriptor& graphDescriptor,
+                                               uint32_t id,
+                                               const void* data) const {
+    _logger.debug("setGraphArgumentValue - perform pfnSetArgumentValue");
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnSetArgumentValue(graphDescriptor._handle, id, data);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnSetArgumentValue", result, _zeroInitStruct->getGraphDdiTable());
+}
+
+void ZeGraphExtWrappers::setGraphArgumentValueWithStrides(const GraphDescriptor& graphDescriptor,
+                                                          uint32_t id,
+                                                          const void* data,
+                                                          const std::vector<size_t>& strides) const {
+    OPENVINO_ASSERT(_graphExtVersion >= ZE_MAKE_VERSION(1, 15),
+                    "Strides are not supported by the current driver version.");
+    ze_graph_argument_value_tensor_t tensorValue = {};
+    ze_graph_argument_value_strides_t stridesValue = {};
+    tensorValue.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_TENSOR;
+    tensorValue.pTensor = data;
+
+    if (!strides.empty()) {
+        if (strides.size() > ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) {
+            OPENVINO_THROW("The driver does not support strides with more than",
+                           ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE,
+                           "dimensions.");
+        }
+
+        stridesValue.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_STRIDES;
+        for (size_t i = 0; i < strides.size(); ++i) {
+            if (strides[i] > std::numeric_limits<uint32_t>::max()) {
+                OPENVINO_THROW("Stride value exceeds uint32_t range supported by the driver");
+            }
+            stridesValue.userStrides[i] = static_cast<uint32_t>(strides[i]);
+        }
+
+        _logger.debug("setGraphArgumentValue - set strides");
+        tensorValue.pNext = &stridesValue;
+    }
+
+    _logger.debug("setGraphArgumentValue - perform pfnSetArgumentValue2 for data");
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnSetArgumentValue2(graphDescriptor._handle,
+                                                                           id,
+                                                                           static_cast<const void*>(&tensorValue));
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnSetArgumentValue2 for data", result, _zeroInitStruct->getGraphDdiTable());
+}
+
+void ZeGraphExtWrappers::initializeGraph(const GraphDescriptor& graphDescriptor,
+                                         uint32_t commandQueueGroupOrdinal) const {
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 8)) {
+        _logger.debug("Use initializeGraphThroughCommandList for ext version smaller than 1.8");
+        initializeGraphThroughCommandList(graphDescriptor._handle, commandQueueGroupOrdinal);
+    } else {
+        _logger.debug("Initialize graph based on graph properties for ext version larger than 1.8");
+        ze_graph_properties_2_t properties = {};
+        properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_2;
+        _logger.debug("initializeGraph - perform pfnGetProperties2");
+        _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(graphDescriptor._handle, &properties);
+
+        if (properties.initStageRequired & ZE_GRAPH_STAGE_INITIALIZE) {
+            _logger.debug("initializeGraph - perform pfnGraphInitialize");
+            _zeroInitStruct->getGraphDdiTable().pfnGraphInitialize(graphDescriptor._handle);
+        }
+
+        if (properties.initStageRequired & ZE_GRAPH_STAGE_COMMAND_LIST_INITIALIZE) {
+            initializeGraphThroughCommandList(graphDescriptor._handle, commandQueueGroupOrdinal);
+        }
+    }
+}
+
+void ZeGraphExtWrappers::initializeGraphThroughCommandList(ze_graph_handle_t graphHandle,
+                                                           uint32_t commandQueueGroupOrdinal) const {
+    _logger.debug("initializeGraphThroughCommandList init start - create graphCommandList");
+    CommandList graphCommandList(_zeroInitStruct, commandQueueGroupOrdinal);
+    _logger.debug("initializeGraphThroughCommandList - create graphCommandQueue");
+    std::shared_ptr<CommandQueue> graphCommandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
+                                                                                     ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                                                     commandQueueGroupOrdinal,
+                                                                                     false);
+    _logger.debug("initializeGraphThroughCommandList - create fence");
+    Fence fence(graphCommandQueue);
+
+    _logger.debug("initializeGraphThroughCommandList - performing appendGraphInitialize");
+    graphCommandList.appendGraphInitialize(graphHandle);
+    _logger.debug("initializeGraphThroughCommandList - closing graph command list");
+    graphCommandList.close();
+
+    _logger.debug("initializeGraphThroughCommandList - performing executeCommandList");
+    graphCommandQueue->executeCommandList(graphCommandList, fence);
+    _logger.debug("initializeGraphThroughCommandList - performing hostSynchronize");
+    fence.hostSynchronize();
+    _logger.debug("initializeGraphThroughCommandList - hostSynchronize completed");
+}
+
+// Parse the result string of query from format <name_0><name_1><name_2> to unordered_set of string
+std::unordered_set<std::string> parseQueryResult(std::vector<char>& data) {
+    std::string dataString(data.begin(), data.end());
+    std::unordered_set<std::string> result;
+    size_t i = 0, start = 0;
+    while (i < dataString.length()) {
+        if (dataString[i] == '<') {
+            start = ++i;
+        } else if (dataString[i] == '>') {
+            std::string temp(dataString.begin() + start, dataString.begin() + i);
+            result.insert(std::move(temp));
+            i++;
+        } else {
+            i++;
+        }
+    }
+    return result;
+}
+
+std::unordered_set<std::string> ZeGraphExtWrappers::queryGraph(SerializedIR serializedIR,
+                                                               const std::string& buildFlags) const {
+    ze_graph_query_network_handle_t hGraphQueryNetwork = nullptr;
+    ze_graph_desc_2_t desc = {
+        _graphExtVersion < ZE_MAKE_VERSION(1, 16) ? ZE_STRUCTURE_TYPE_GRAPH_DESC : ZE_STRUCTURE_TYPE_GRAPH_DESC_2,
+        nullptr,
+        ZE_GRAPH_FORMAT_NGRAPH_LITE,
+        serializedIR.size,
+        serializedIR.buffer.get(),
+        buildFlags.c_str(),
+        ZE_GRAPH_FLAG_NONE};
+
+    _logger.debug("queryGraph - perform pfnQueryNetworkCreate2");
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnQueryNetworkCreate2(_zeroInitStruct->getContext(),
+                                                                             _zeroInitStruct->getDevice(),
+                                                                             &desc,
+                                                                             &hGraphQueryNetwork);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryNetworkCreate2", result, _zeroInitStruct->getGraphDdiTable());
+
+    // Get the size of query result
+    _logger.debug("queryGraph - perform pfnQueryNetworkGetSupportedLayers to get size");
+    size_t size = 0;
+    result = _zeroInitStruct->getGraphDdiTable().pfnQueryNetworkGetSupportedLayers(hGraphQueryNetwork, &size, nullptr);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryNetworkGetSupportedLayers get size of query result",
+                                    result,
+                                    _zeroInitStruct->getGraphDdiTable());
+
+    // Get the result data of query
+    _logger.debug("queryGraph - perform pfnQueryNetworkGetSupportedLayers to get data");
+    std::vector<char> supportedLayers(size);
+    result = _zeroInitStruct->getGraphDdiTable().pfnQueryNetworkGetSupportedLayers(hGraphQueryNetwork,
+                                                                                   &size,
+                                                                                   supportedLayers.data());
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryNetworkGetSupportedLayers get result data of query",
+                                    result,
+                                    _zeroInitStruct->getGraphDdiTable());
+
+    _logger.debug("queryGraph - perform pfnQueryNetworkDestroy");
+    result = _zeroInitStruct->getGraphDdiTable().pfnQueryNetworkDestroy(hGraphQueryNetwork);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryNetworkDestroy", result, _zeroInitStruct->getGraphDdiTable());
+
+    return parseQueryResult(supportedLayers);
+}
+
+bool ZeGraphExtWrappers::canCpuVaBeImported(const void* data, size_t size) const {
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 13) ||
+        !utils::memory_and_size_aligned_to_standard_page_size(data, size)) {
+        return false;
+    }
+
+    if (_graphExtVersion == ZE_MAKE_VERSION(1, 13)) {
+        // special case for ext version 1.13
+        ze_device_external_memory_properties_t externalMemorydDesc = {};
+        externalMemorydDesc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
+
+        auto res = zeDeviceGetExternalMemoryProperties(_zeroInitStruct->getDevice(), &externalMemorydDesc);
+        if ((res != ZE_RESULT_SUCCESS) || ((externalMemorydDesc.memoryAllocationImportTypes &
+                                            ZE_EXTERNAL_MEMORY_TYPE_FLAG_STANDARD_ALLOCATION) == 0)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(SerializedIR serializedIR,
+                                                       const std::string& buildFlags,
+                                                       const bool bypassUmdCache) const {
+    ze_graph_handle_t graphHandle = nullptr;
+    void* pNext = nullptr;
+    ze_graph_input_hash_t modelHash;
+    if (serializedIR.hash.has_value()) {
+        modelHash = {ZE_STRUCTURE_TYPE_GRAPH_INPUT_HASH, nullptr, serializedIR.hash.value()};
+        pNext = &modelHash;
+    }
+
+    uint32_t flags = ZE_GRAPH_FLAG_NONE;
+    if (bypassUmdCache) {
+        _logger.debug("getGraphDescriptor - set ZE_GRAPH_FLAG_DISABLE_CACHING");
+        flags |= ZE_GRAPH_FLAG_DISABLE_CACHING;
+    }
+
+    ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_2,
+                              pNext,
+                              ZE_GRAPH_FORMAT_NGRAPH_LITE,
+                              serializedIR.size,
+                              serializedIR.buffer.get(),
+                              buildFlags.c_str(),
+                              flags};
+
+    _logger.debug("getGraphDescriptor - perform pfnCreate2");
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnCreate2(_zeroInitStruct->getContext(),
+                                                                 _zeroInitStruct->getDevice(),
+                                                                 &desc,
+                                                                 &graphHandle);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate2", result, _zeroInitStruct->getGraphDdiTable());
+
+    return GraphDescriptor{graphHandle};
+}
+
+GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(const void* blobData, size_t blobSize) const {
+    ze_graph_handle_t graphHandle = nullptr;
+
+    if (blobSize == 0) {
+        OPENVINO_THROW("Empty blob");
+    }
+
+    uint32_t flags = ZE_GRAPH_FLAG_NONE;
+    bool setPersistentFlag = canCpuVaBeImported(blobData, blobSize);
+    if (setPersistentFlag) {
+        _logger.debug("getGraphDescriptor - set ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT");
+        flags |= ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT;
+    }
+
+    ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_2,
+                              nullptr,
+                              ZE_GRAPH_FORMAT_NATIVE,
+                              blobSize,
+                              reinterpret_cast<const uint8_t*>(blobData),
+                              nullptr,
+                              flags};
+
+    _logger.debug("getGraphDescriptor - perform pfnCreate2");
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnCreate2(_zeroInitStruct->getContext(),
+                                                                 _zeroInitStruct->getDevice(),
+                                                                 &desc,
+                                                                 &graphHandle);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate2", result, _zeroInitStruct->getGraphDdiTable());
+
+    return GraphDescriptor{graphHandle, setPersistentFlag};
+}
+
+bool ZeGraphExtWrappers::isBlobDataImported(const GraphDescriptor& graphDescriptor) const {
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 14)) {
+        return graphDescriptor._memoryPersistent;
+    }
+
+    if (graphDescriptor._memoryPersistent) {
+        ze_graph_properties_3_t graphProperties = {};
+        graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_3;
+        auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties3(graphDescriptor._handle, &graphProperties);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties3", result, _zeroInitStruct->getGraphDdiTable());
+
+        if (graphProperties.flags & ZE_GRAPH_PROPERTIES_FLAG_NO_STANDARD_ALLOCATION) {
+            return false;
+        }
+    }
+
+    return graphDescriptor._memoryPersistent;
 }
 }  // namespace
 
@@ -414,21 +756,26 @@ bool ZeGraphExtWrappers::isBlobDataImported(const GraphDescriptor& graphDescript
 }
 
 void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
-                                     uint32_t index,
+                                     uint32_t indexUsedByDriver,
                                      std::vector<IODescriptor>& inputs,
                                      std::vector<IODescriptor>& outputs) const {
-    if (NotSupportArgumentMetadata(_graphExtVersion)) {
+    // A bug inside the driver makes the "pfnGraphGetArgumentMetadata" call not safe for use prior to
+    // "ze_graph_dditable_ext_1_6_t".
+    // See: E#117498
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 6)) {
         ze_graph_argument_properties_3_t arg = {};
+        arg.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES_3;
         _logger.debug("getMetadata - perform pfnGetArgumentProperties3");
-        auto result = _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, index, &arg);
+        auto result =
+            _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, indexUsedByDriver, &arg);
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
 
         switch (arg.type) {
         case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
-            inputs.push_back(getIODescriptor(arg, std::nullopt));
+            inputs.push_back(getIODescriptor(indexUsedByDriver, arg, std::nullopt));
         } break;
         case ZE_GRAPH_ARGUMENT_TYPE_OUTPUT: {
-            outputs.push_back(getIODescriptor(arg, std::nullopt));
+            outputs.push_back(getIODescriptor(indexUsedByDriver, arg, std::nullopt));
         } break;
         default: {
             OPENVINO_THROW("Invalid ze_graph_argument_type_t found in ze_graph_argument_properties_3_t object: ",
@@ -437,8 +784,16 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
         }
     } else {
         ze_graph_argument_properties_3_t arg = {};
+        arg.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES_3;
+        ze_graph_argument_property_strides_t supports_strides = {};
+        if (_graphExtVersion >= ZE_MAKE_VERSION(1, 15)) {
+            supports_strides.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTY_STRIDES;
+            arg.pNext = &supports_strides;
+        }
+
         _logger.debug("getMetadata - perform pfnGetArgumentProperties3");
-        auto result = _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, index, &arg);
+        auto result =
+            _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, indexUsedByDriver, &arg);
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
 
         std::optional<ze_graph_argument_metadata_t> optionalMetadata = std::nullopt;
@@ -448,7 +803,10 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
             !isMainInputWeightsName(arg.name)) {
             _logger.debug("getMetadata - perform pfnGetArgumentMetadata");
             ze_graph_argument_metadata_t metadata = {};
-            result = _zeroInitStruct->getGraphDdiTable().pfnGraphGetArgumentMetadata(graphHandle, index, &metadata);
+            metadata.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_METADATA;
+            result = _zeroInitStruct->getGraphDdiTable().pfnGraphGetArgumentMetadata(graphHandle,
+                                                                                     indexUsedByDriver,
+                                                                                     &metadata);
             THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGraphGetArgumentMetadata", result, _zeroInitStruct->getGraphDdiTable());
 
             optionalMetadata = std::optional(metadata);
@@ -456,10 +814,10 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
 
         switch (arg.type) {
         case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
-            inputs.push_back(getIODescriptor(arg, optionalMetadata));
+            inputs.push_back(getIODescriptor(indexUsedByDriver, arg, optionalMetadata));
         } break;
         case ZE_GRAPH_ARGUMENT_TYPE_OUTPUT: {
-            outputs.push_back(getIODescriptor(arg, optionalMetadata));
+            outputs.push_back(getIODescriptor(indexUsedByDriver, arg, optionalMetadata));
         } break;
         default: {
             OPENVINO_THROW("Invalid ze_graph_argument_type_t found in ze_graph_argument_properties_3_t object: ",
@@ -477,8 +835,8 @@ NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(GraphDescriptor& graphDescrip
     auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties(graphDescriptor._handle, &graphProperties);
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties", result, _zeroInitStruct->getGraphDdiTable());
     NetworkMetadata meta;
-    for (uint32_t index = 0; index < graphProperties.numGraphArgs; ++index) {
-        getMetadata(graphDescriptor._handle, index, meta.inputs, meta.outputs);
+    for (uint32_t indexUsedByDriver = 0; indexUsedByDriver < graphProperties.numGraphArgs; ++indexUsedByDriver) {
+        getMetadata(graphDescriptor._handle, indexUsedByDriver, meta.inputs, meta.outputs);
     }
     // TODO: support this information in CiD [track: E#33479]
     meta.numStreams = 1;
@@ -545,7 +903,7 @@ std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
     return {};
 }
 
-bool ZeGraphExtWrappers::isOptionSupported(std::string optname) const {
+bool ZeGraphExtWrappers::isOptionSupported(std::string optName, std::optional<std::string> optValue) const {
     // Early exit if api is not supported
     if (_graphExtVersion < ZE_MAKE_VERSION(1, 11)) {
         return false;
@@ -561,11 +919,12 @@ bool ZeGraphExtWrappers::isOptionSupported(std::string optname) const {
     }
 #endif
 
-    const char* optname_ch = optname.c_str();
+    const char* optname_ch = optName.c_str();
+    const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
     auto result = _zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
                                                                                    ZE_NPU_COMPILER_OPTIONS,
                                                                                    optname_ch,
-                                                                                   nullptr);
+                                                                                   optvalue_ch);
     if (result == ZE_RESULT_SUCCESS) {
         return true;
     } else if ((result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) || (result == ZE_RESULT_ERROR_DEPENDENCY_UNAVAILABLE) ||
@@ -609,6 +968,10 @@ bool ZeGraphExtWrappers::isTurboOptionSupported(const ze_graph_compiler_version_
     }
 
     return is_supported;
+}
+
+bool ZeGraphExtWrappers::isPluginModelHashSupported() const {
+    return _graphExtVersion > ZE_MAKE_VERSION(1, 13);
 }
 
 }  // namespace intel_npu

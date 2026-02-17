@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -732,7 +732,10 @@ def test_graph_set_layout_by_layout_class_thow_exception():
     assert "Layout name is invalid" in str(e.value)
 
 
-@pytest.mark.parametrize(("pads_begin", "pads_end", "values", "mode"), [([0, 0, 0, 0], [0, 0, 1, 1], 0, PaddingMode.CONSTANT)])
+@pytest.mark.parametrize(
+    ("pads_begin", "pads_end", "values", "mode"),
+    [([0, 0, 0, 0], [0, 0, 1, 1], 0, PaddingMode.CONSTANT)]
+)
 def test_pad_vector_constant_layout(pads_begin, pads_end, values, mode):
     shape = [1, 3, 200, 200]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
@@ -746,7 +749,10 @@ def test_pad_vector_constant_layout(pads_begin, pads_end, values, mode):
     assert list(new_model.get_output_shape(0)) == shape
 
 
-@pytest.mark.parametrize(("pads_begin", "pads_end", "values", "mode"), [([0, 0, -2, 0], [0, 0, -4, 1], 0, PaddingMode.CONSTANT)])
+@pytest.mark.parametrize(
+    ("pads_begin", "pads_end", "values", "mode"),
+    [([0, 0, -2, 0], [0, 0, -4, 1], 0, PaddingMode.CONSTANT)]
+)
 def test_pad_vector_out_of_range(pads_begin, pads_end, values, mode):
     shape = [1, 3, 5, 5]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
@@ -759,7 +765,10 @@ def test_pad_vector_out_of_range(pads_begin, pads_end, values, mode):
     assert "not aligned with original parameter's shape" in str(e.value)
 
 
-@pytest.mark.parametrize(("pads_begin", "pads_end", "values", "mode"), [([0, 0, 2, 0, 1], [0, 0, 4, 1, 1], 0, PaddingMode.CONSTANT)])
+@pytest.mark.parametrize(
+    ("pads_begin", "pads_end", "values", "mode"),
+    [([0, 0, 2, 0, 1], [0, 0, 4, 1, 1], 0, PaddingMode.CONSTANT)]
+)
 def test_pad_vector_dim_mismatch(pads_begin, pads_end, values, mode):
     shape = [1, 3, 5, 5]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
@@ -772,7 +781,10 @@ def test_pad_vector_dim_mismatch(pads_begin, pads_end, values, mode):
     assert "mismatches with rank of input" in str(e.value)
 
 
-@pytest.mark.parametrize(("pads_begin", "pads_end", "values", "mode"), [([0, 0, 0, 0], [0, 0, 1, 1], 0, PaddingMode.CONSTANT)])
+@pytest.mark.parametrize(
+    ("pads_begin", "pads_end", "values", "mode"),
+    [([0, 0, 0, 0], [0, 0, 1, 1], 0, PaddingMode.CONSTANT)]
+)
 def test_pad_vector_type_and_ops(pads_begin, pads_end, values, mode):
     shape = [1, 3, 200, 200]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")

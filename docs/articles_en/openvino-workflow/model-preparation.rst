@@ -291,5 +291,3 @@ follow:
 
 * :doc:`Post-training optimization <model-optimization-guide/quantizing-models-post-training>`
 * :doc:`Model inference in OpenVINO Runtime <running-inference>`
-
-.. need to investigate python api article generation - api/ie_python_api/_autosummary/openvino.Model.html does not exist, api/ie_python_api/_autosummary/openvino.runtime.Model.html does.

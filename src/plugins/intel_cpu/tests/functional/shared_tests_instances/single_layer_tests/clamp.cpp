@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,13 +17,13 @@ const std::vector<std::vector<ov::Shape>> input_shapes_static = {
 };
 
 
-const std::vector<std::pair<float, float>> intervals = {
+const std::vector<std::pair<double, double>> intervals = {
     {-20.1, -10.5},
     {-10.0, 10.0},
     {10.3, 20.4}
 };
 
-const std::vector<std::pair<float, float>> intervals_unsigned = {
+const std::vector<std::pair<double, double>> intervals_unsigned = {
     {0.1, 10.1},
     {10.0, 100.0},
     {10.6, 20.6}
@@ -50,6 +50,15 @@ const auto test_Clamp_unsigned = ::testing::Combine(
     ::testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
+const auto test_Clamp_i64 = ::testing::Combine(
+    ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_static)),
+    ::testing::Values(std::pair<double, double>({static_cast<double>(std::numeric_limits<int64_t>::min()),
+                                                 static_cast<double>(std::numeric_limits<int64_t>::max())})),
+    ::testing::Values(ov::element::i64),
+    ::testing::Values(ov::test::utils::DEVICE_CPU)
+);
+
 INSTANTIATE_TEST_SUITE_P(smoke_TestsClamp_signed, ClampLayerTest, test_Clamp_signed, ClampLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_TestsClamp_unsigned, ClampLayerTest, test_Clamp_unsigned, ClampLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsClamp_i64, ClampLayerTest, test_Clamp_i64, ClampLayerTest::getTestCaseName);
 } // namespace

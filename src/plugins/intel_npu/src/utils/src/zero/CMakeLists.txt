@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -44,6 +44,8 @@ ov_developer_package_export_targets(
         $<TARGET_PROPERTY:level-zero-ext,INTERFACE_INCLUDE_DIRECTORIES>/ze_graph_profiling_ext.h
         $<TARGET_PROPERTY:level-zero-ext,INTERFACE_INCLUDE_DIRECTORIES>/ze_command_queue_npu_ext.h
         $<TARGET_PROPERTY:level-zero-ext,INTERFACE_INCLUDE_DIRECTORIES>/ze_intel_npu_uuid.h
+        $<TARGET_PROPERTY:level-zero-ext,INTERFACE_INCLUDE_DIRECTORIES>/ze_context_npu_ext.h
+        $<TARGET_PROPERTY:level-zero-ext,INTERFACE_INCLUDE_DIRECTORIES>/ze_driver_npu_ext.h
 )
 ov_install_static_lib(level-zero-ext ${NPU_PLUGIN_COMPONENT})
 

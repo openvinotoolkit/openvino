@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -145,7 +145,7 @@ protected:
         auto nms = std::make_shared<ov::op::v9::NonMaxSuppression>(params[0], params[1], maxOutBoxesPerClassNode, iouThrNode, scoreThrNode,
                                                                        softNmsSigmaNode, boxEncoding, sortResDescend, outType);
 
-        function = makeNgraphFunction(paramsPrec, params, nms, "NMS");
+        function = create_ov_model(paramsPrec, params, nms, "NMS");
     }
 
 private:

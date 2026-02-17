@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,10 +37,9 @@ struct PagedAttentionImplementationManager : public ImplementationManager {
             return false;
         }
 
-        // TODO: Remove this limitation when PA CM kernel supports more "heads_num / kv_heads_num" cases.
-        // PA 2nd token CM kernel only supports case of "heads_num / kv_heads_num <= 8"
-        if (desc->heads_num / desc->kv_heads_num > 8) {
-            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because heads_num / kv_heads_num > 8. " << std::endl;
+        // PA CM kernel only supports cases when kv_head_size is divisible by 16
+        if (desc->k_head_size % 16 != 0 && desc->v_head_size % 16 != 0) {
+            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because kv_head_size is not divisible by 16. " << std::endl;
             return false;
         }
 

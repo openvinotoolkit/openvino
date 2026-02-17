@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,7 +76,7 @@ size_t getThreadsNum() {
         ret = Process32Next( snapshot, &entry );
     }
     CloseHandle( snapshot );
-    return ret 
+    return ret
         ?   entry.cntThreads
         :   -1;
 }

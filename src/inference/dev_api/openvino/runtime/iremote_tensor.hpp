@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,14 @@ public:
     }
 
     const void* data(const element::Type&) const override final {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    void* data_rw() override final {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    void* data_rw(const element::Type&) override final {
         OPENVINO_NOT_IMPLEMENTED;
     }
 

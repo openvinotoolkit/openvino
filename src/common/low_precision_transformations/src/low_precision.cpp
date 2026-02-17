@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -323,7 +323,7 @@ bool LowPrecision::isFunctionQuantized(const std::shared_ptr<const ov::Model>& m
         } else if (const auto multiSubGraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
             // Look inside subraph operations, such as TensorIterator, Loop, If, etc
             for (size_t i = 0; i < multiSubGraph->get_internal_subgraphs_size(); i++) {
-                if (isFunctionQuantized(multiSubGraph->get_function(i))) {
+                if (isFunctionQuantized(multiSubGraph->get_function(i), supported_levels, check_fake_convert)) {
                     return true;
                 }
             }

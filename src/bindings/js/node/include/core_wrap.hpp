@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
@@ -71,6 +71,7 @@ public:
     Napi::Value query_model(const Napi::CallbackInfo& info);
 
     void add_extension(const Napi::CallbackInfo& info);
+
 protected:
     Napi::Value compile_model_sync(const Napi::CallbackInfo& info,
                                    const Napi::Object& model,
@@ -108,7 +109,7 @@ private:
 };
 
 struct TsfnContextModel {
-    TsfnContextModel(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
+    TsfnContextModel(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)) {};
     std::thread nativeThread;
 
     Napi::Promise::Deferred deferred;
@@ -121,7 +122,7 @@ struct TsfnContextModel {
 };
 
 struct TsfnContextPath {
-    TsfnContextPath(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)){};
+    TsfnContextPath(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)) {};
     std::thread nativeThread;
 
     Napi::Promise::Deferred deferred;

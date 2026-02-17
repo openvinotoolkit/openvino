@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -173,7 +173,7 @@ void regclass_graph_PartialShape(py::module m) {
             Get the dimension at specified index of a partial shape.
 
             :param index: The index of dimension.
-            :type index: int 
+            :type index: int
             :return: Get the particular dimension of a partial shape.
             :rtype: openvino.Dimension
         )");

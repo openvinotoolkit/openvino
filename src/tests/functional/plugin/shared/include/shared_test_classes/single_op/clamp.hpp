@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace test {
 
 using clampParamsTuple = std::tuple<
     std::vector<InputShape>,        // Input shape
-    std::pair<float, float>,        // Interval [min, max]
+    std::pair<double, double>,        // Interval [min, max]
     ov::element::Type,              // Model precision
     std::string>;                   // Device name
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,7 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/cpu_utils.hpp"
@@ -67,22 +68,23 @@ bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
 MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
                                                const MemoryArgs& memory,
                                                const ExecutorContext::CPtr& context)
-    : m_attrs(attrs),
-      m_memoryArgs(memory) {
+    : executorContext(context) {
     auto srcMem = memory.at(ARG_SRC);
     auto weiMem = memory.at(ARG_WEI);
     auto weiDims = weiMem->getDesc().getShape().getDims();
     auto N = weiDims[0];
     auto K = weiDims[1];
 
-    bool hasBias = memory.at(ARG_BIAS)->getDataAs<float>() != nullptr;
-    if (!hasBias) {
+    const bool hasBias = !memory.at(ARG_BIAS)->getDesc().empty();
+
+    if (hasBias) {
+        biasMem = memory.at(ARG_BIAS);
+    } else {
         auto biasDesc = std::make_shared<CpuBlockedMemoryDesc>(f32, Shape({N}));
         biasMem = std::make_shared<Memory>(context->getEngine(), biasDesc);
         biasMem->nullify();
-    } else {
-        biasMem = memory.at(ARG_BIAS);
     }
+
     if (memory.at(ARG_SRC)->getPrecision() != memory.at(ARG_WEI)->getPrecision()) {
         aclfcAttrs.isConvertedWeights = true;
     }
@@ -250,6 +252,7 @@ bool MatMulKleidiAIExecutor::update(const MemoryArgs& memory) {
 }
 
 void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
+    const auto& cpu_parallel = executorContext->getCpuParallel();
     auto srcMem = memory.at(ARG_SRC);
     auto weiMem = memory.at(ARG_WEI);
     auto dstMem = memory.at(ARG_DST);
@@ -270,7 +273,7 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
     if (!useDynamicQuant) {
         auto* rhs_packed = static_cast<float*>(rhsPackedMem->getData());
 
-        parallel_for(n_blocks, [&](size_t n_block) {
+        cpu_parallel->parallel_for(n_blocks, [&](size_t n_block) {
             size_t n_start = (n_block * BLOCK_SIZE);
             size_t n_end = std::min(n_start + BLOCK_SIZE, N);
             size_t n_block_size = n_end - n_start;
@@ -302,7 +305,7 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
             const size_t lhs_packed_offset = ukernel_i4->get_lhs_packed_offset(0, K);
 
             ParallelNestingContext nested_context;
-            parallel_for(M_BLOCKS, [&](size_t m_blk) {
+            cpu_parallel->parallel_for(M_BLOCKS, [&](size_t m_blk) {
                 const size_t M_iter = std::min(M - m_blk * m_step, m_step);
                 auto* lhs_packed_block = lhs_packed_lowp + m_blk * packedlhs_block_in_bytes;
 
@@ -316,7 +319,7 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
                                                    lhs_stride,
                                                    lhs_packed_block  // lhs packed output
                 );
-                parallel_for(N_BLOCKS, [&](size_t n_blk) {
+                cpu_parallel->parallel_for(N_BLOCKS, [&](size_t n_blk) {
                     //  matmul exec
                     const size_t rhs_packed_offset = ukernel_i4->get_rhs_packed_offset(n_blk * n_step, K);
                     const size_t dst_offset =
@@ -345,7 +348,7 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
             const size_t lhs_packed_offset = ukernel_i8->get_lhs_packed_offset(0, K);
 
             ParallelNestingContext nested_context;
-            parallel_for(M_BLOCKS, [&](size_t m_blk) {
+            cpu_parallel->parallel_for(M_BLOCKS, [&](size_t m_blk) {
                 const size_t M_iter = std::min(M - m_blk * m_step, m_step);
                 auto* lhs_packed_block = lhs_packed_lowp + m_blk * packedlhs_block_in_bytes;
 
@@ -359,7 +362,7 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
                                                    lhs_stride,
                                                    lhs_packed_block  // lhs packed output
                 );
-                parallel_for(N_BLOCKS, [&](size_t n_blk) {
+                cpu_parallel->parallel_for(N_BLOCKS, [&](size_t n_blk) {
                     //  matmul exec
                     const size_t rhs_packed_offset = ukernel_i8->get_rhs_packed_offset(n_blk * n_step, K);
                     const size_t dst_offset =
@@ -384,15 +387,8 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
     }
 }
 
-void MatMulKleidiAIExecutor::moveMemToNumaNode(int numaNodeID) {
-    if (curNumaNode == numaNodeID) {
-        return;
-    }
-    curNumaNode = numaNodeID;
-    mbind_move(packedWeights, numaNodeID);
-    if (m_attrs.withBias) {
-        mbind_move(m_memoryArgs.at(ARG_BIAS), numaNodeID);
-    }
+void MatMulKleidiAIExecutor::moveMemToNumaNode([[maybe_unused]] int numaNodeID) {
+    OPENVINO_THROW_NOT_IMPLEMENTED("'moveMemToNumaNode' is not implemented by the executor");
 }
 
 }  // namespace ov::intel_cpu

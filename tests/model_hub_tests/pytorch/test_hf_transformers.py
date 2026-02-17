@@ -1,7 +1,8 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import platform
 
 from datasets import Audio, load_dataset
 from huggingface_hub import hf_hub_download, model_info, snapshot_download
@@ -53,7 +54,9 @@ class TestTransformersModel(TestTorchConvertModel):
         self.infer_timeout = 1800
 
         url = "http://images.cocodataset.org/val2017/000000039769.jpg"
-        self.image = Image.open(requests.get(url, stream=True).raw)
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+        self.image = Image.open(response.raw)
 
     @retry(10, exceptions=(OSError,), delay=5, exponential_backoff=True, backoff_multiplier=2, max_delay=300)
     def load_model(self, name, type):
@@ -527,6 +530,8 @@ class TestTransformersModel(TestTorchConvertModel):
                                            ])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, type, ie_device):
+        if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+            pytest.skip("hf_transformers models are not enabled on ARM")
         self.run(model_name=name, model_link=type, ie_device=ie_device)
 
     @pytest.mark.parametrize("name,type", [("bert-base-uncased", "bert"),
@@ -534,6 +539,8 @@ class TestTransformersModel(TestTorchConvertModel):
                                            ])
     @pytest.mark.precommit
     def test_convert_model_precommit_export(self, name, type, ie_device):
+        if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+            pytest.skip("hf_transformers models are not enabled on ARM")
         self.mode = "export"
         self.run(model_name=name, model_link=type, ie_device=ie_device)
 

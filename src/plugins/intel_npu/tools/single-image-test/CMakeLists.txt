@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2022-2024 Intel Corporation.
+# Copyright (C) 2018-2026 Intel Corporation.
 # SPDX-License-Identifier: Apache 2.0
 #
 
@@ -38,8 +38,7 @@ endif()
 # Define the target
 #
 
-ov_add_target(ADD_CPPLINT
-              TYPE EXECUTABLE
+ov_add_target(TYPE EXECUTABLE
               NAME ${TARGET_NAME}
               ROOT ${CMAKE_CURRENT_SOURCE_DIR}
               LINK_LIBRARIES

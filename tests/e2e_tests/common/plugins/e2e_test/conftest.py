@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Local pytest plugin for tests execution."""
@@ -92,7 +92,7 @@ def satisfies_rules(parameter_set, rules, filters, can_partially_match=False):
         Check if a equals b
         or a match the rule 'not b'
         """
-        if str(a).startswith('not'): 
+        if str(a).startswith('not'):
             return a.replace('not ', '') != b
         return a == b
 

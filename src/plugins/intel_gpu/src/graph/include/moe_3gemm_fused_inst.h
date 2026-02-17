@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,7 @@ public:
 
         return params;
     }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };
 
 using moe_node = typed_program_node<moe_3gemm_fused_compressed>;

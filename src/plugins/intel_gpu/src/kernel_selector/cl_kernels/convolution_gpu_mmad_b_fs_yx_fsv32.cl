@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@
     #define ACTIVATION_TYPE_VEC float8
     #define TO_ACTIVATION_TYPE_VEC(x) convert_float8(x)
     #define MMAD MMAD_8x8
-#if SUB_GROUP_SIZE == 8    
+#if SUB_GROUP_SIZE == 8
     #define BLOCK_WRITE(ptr, val) _sub_group_block_write8((__global uint*)(ptr), as_uint8(val));
 #endif
 #elif OUTPUT_X_BLOCK_SIZE == 4
@@ -37,7 +37,7 @@
     #define ACTIVATION_TYPE_VEC float4
     #define TO_ACTIVATION_TYPE_VEC(x) convert_float4(x)
     #define MMAD MMAD_4x8
-#if SUB_GROUP_SIZE == 8    
+#if SUB_GROUP_SIZE == 8
     #define BLOCK_WRITE(ptr, val) _sub_group_block_write4((__global uint*)(ptr), as_uint4(val));
 #endif
 #else
@@ -120,7 +120,7 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
             m[i] = icb*32 + lid*OF_TO_DO + i < INPUT0_FEATURE_NUM;
         }
         int mm = as_int(m);
-#if SUB_GROUP_SIZE == 8 
+#if SUB_GROUP_SIZE == 8
         int8 multiplier = (int8)(sub_group_broadcast(mm, 0),
                                  sub_group_broadcast(mm, 1),
                                  sub_group_broadcast(mm, 2),
@@ -129,7 +129,7 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
                                  sub_group_broadcast(mm, 5),
                                  sub_group_broadcast(mm, 6),
                                  sub_group_broadcast(mm, 7));
-#else //SUB_GROUP_SIZE == 8 
+#else //SUB_GROUP_SIZE == 8
         int8 multiplier = (int8)(sub_group_broadcast(mm, 0) + (sub_group_broadcast(mm, 1) << 16),
                                  sub_group_broadcast(mm, 2) + (sub_group_broadcast(mm, 3) << 16),
                                  sub_group_broadcast(mm, 4) + (sub_group_broadcast(mm, 5) << 16),
@@ -195,20 +195,20 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
                                      + kh * ISV_SIZE * OSV_SIZE * FILTER_SIZE_X
                                      + kw * ISV_SIZE * OSV_SIZE;
 
-                    
-#if SUB_GROUP_SIZE == 8 
+
+#if SUB_GROUP_SIZE == 8
                     MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data0 = AS_PACKED_WEIGHTS_TYPE_VEC8(_sub_group_block_read8((const __global uint*)(weights + f_off + 0*8*ISV_SIZE)));
                     MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data1 = AS_PACKED_WEIGHTS_TYPE_VEC8(_sub_group_block_read8((const __global uint*)(weights + f_off + 1*8*ISV_SIZE)));
                     MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data2 = AS_PACKED_WEIGHTS_TYPE_VEC8(_sub_group_block_read8((const __global uint*)(weights + f_off + 2*8*ISV_SIZE)));
                     MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data3 = AS_PACKED_WEIGHTS_TYPE_VEC8(_sub_group_block_read8((const __global uint*)(weights + f_off + 3*8*ISV_SIZE)));
-#else //SUB_GROUP_SIZE == 8 
+#else //SUB_GROUP_SIZE == 8
                     MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data0 = AS_PACKED_WEIGHTS_TYPE_VEC8(_sub_group_block_read8((const __global uint*)(weights + f_off + 0*16*ISV_SIZE)));
                     MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data1 = AS_PACKED_WEIGHTS_TYPE_VEC8(_sub_group_block_read8((const __global uint*)(weights + f_off + 1*16*ISV_SIZE)));
 #endif
 
                     acc[0] = MMAD(src, weights_data0, acc[0]); // 8 elements in 4*lid+0 out channel
                     acc[1] = MMAD(src, weights_data1, acc[1]); // 8 elements in 4*lid+1 out channel
-#if SUB_GROUP_SIZE == 8 
+#if SUB_GROUP_SIZE == 8
                     acc[2] = MMAD(src, weights_data2, acc[2]); // 8 elements in 4*lid+2 out channel
                     acc[3] = MMAD(src, weights_data3, acc[3]); // 8 elements in 4*lid+3 out channel
 #endif
@@ -230,7 +230,7 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
     for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
 #if BIAS_TERM
         ACTIVATION_TYPE res0 = TO_ACTIVATION_TYPE(acc[0][i]) + (ACTIVATION_TYPE)(biases[bias_index + OF_TO_DO*lid+0]);
-        ACTIVATION_TYPE res1 = TO_ACTIVATION_TYPE(acc[1][i]) + (ACTIVATION_TYPE)(biases[bias_index + OF_TO_DO*lid+1]); 
+        ACTIVATION_TYPE res1 = TO_ACTIVATION_TYPE(acc[1][i]) + (ACTIVATION_TYPE)(biases[bias_index + OF_TO_DO*lid+1]);
 #if SUB_GROUP_SIZE == 8
         ACTIVATION_TYPE res2 = TO_ACTIVATION_TYPE(acc[2][i]) + (ACTIVATION_TYPE)(biases[bias_index + OF_TO_DO*lid+2]);
         ACTIVATION_TYPE res3 = TO_ACTIVATION_TYPE(acc[3][i]) + (ACTIVATION_TYPE)(biases[bias_index + OF_TO_DO*lid+3]);
@@ -307,7 +307,7 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
 #if BIAS_TERM
         ACTIVATION_TYPE res0 = TO_ACTIVATION_TYPE(acc[0][i]) + (ACTIVATION_TYPE)(biases[bias_index + OF_TO_DO*lid+0]);
         ACTIVATION_TYPE res1 = TO_ACTIVATION_TYPE(acc[1][i]) + (ACTIVATION_TYPE)(biases[bias_index + OF_TO_DO*lid+1]);
-#if SUB_GROUP_SIZE == 8        
+#if SUB_GROUP_SIZE == 8
         ACTIVATION_TYPE res2 = TO_ACTIVATION_TYPE(acc[2][i]) + (ACTIVATION_TYPE)(biases[bias_index + OF_TO_DO*lid+2]);
         ACTIVATION_TYPE res3 = TO_ACTIVATION_TYPE(acc[3][i]) + (ACTIVATION_TYPE)(biases[bias_index + OF_TO_DO*lid+3]);
 #endif

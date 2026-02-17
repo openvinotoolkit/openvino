@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -12,7 +12,7 @@ class TestBucketize(PytorchLayerTest):
 
     def _prepare_input(self, input_shape, boundaries_range, input_dtype, boundaries_dtype):
         return (
-            np.random.randn(*input_shape).astype(input_dtype), 
+            self.random.randn(*input_shape, dtype=input_dtype),
             np.arange(*boundaries_range).astype(boundaries_dtype))
 
     def create_model(self, out_int32, right, is_out):
@@ -21,7 +21,7 @@ class TestBucketize(PytorchLayerTest):
             def __init__(self, out_int32, right, is_out) -> None:
                 super().__init__()
                 self.out_int32 = out_int32
-                self.right = right 
+                self.right = right
                 self.is_out = is_out
 
             def forward(self, input, boundaries):
@@ -33,9 +33,8 @@ class TestBucketize(PytorchLayerTest):
                 else:
                     return torch.bucketize(input, boundaries, out_int32=self.out_int32, right=self.right)
 
-        ref_net = None
 
-        return aten_bucketize(out_int32, right, is_out), ref_net, "aten::bucketize"
+        return aten_bucketize(out_int32, right, is_out), "aten::bucketize"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

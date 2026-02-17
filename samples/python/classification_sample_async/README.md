@@ -18,10 +18,10 @@ The following Python API is used in the application:
 
 | Feature            | API                                                                                                                                                                                                   | Description               |
 | -------------------| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------|
-| Asynchronous Infer | [openvino.runtime.AsyncInferQueue](https://docs.openvino.ai/2025/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html),                                                             | Do asynchronous inference |
-|                    | [openvino.runtime.AsyncInferQueue.set_callback](https://docs.openvino.ai/2025/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.set_callback),  |                           |
-|                    | [openvino.runtime.AsyncInferQueue.start_async](https://docs.openvino.ai/2025/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.start_async),    |                           |
-|                    | [openvino.runtime.AsyncInferQueue.wait_all](https://docs.openvino.ai/2025/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.wait_all),          |                           |
-|                    | [openvino.runtime.InferRequest.results](https://docs.openvino.ai/2025/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.results)                      |                           |
+| Asynchronous Infer | [openvino.AsyncInferQueue](https://docs.openvino.ai/2025/api/ie_python_api/_autosummary/openvino.AsyncInferQueue.html),                                                             | Do asynchronous inference |
+|                    | [openvino.AsyncInferQueue.set_callback](https://docs.openvino.ai/2025/api/ie_python_api/_autosummary/openvino.AsyncInferQueue.html#openvino.AsyncInferQueue.set_callback),  |                           |
+|                    | [openvino.AsyncInferQueue.start_async](https://docs.openvino.ai/2025/api/ie_python_api/_autosummary/openvino.AsyncInferQueue.html#openvino.AsyncInferQueue.start_async),    |                           |
+|                    | [openvino.AsyncInferQueue.wait_all](https://docs.openvino.ai/2025/api/ie_python_api/_autosummary/openvino.AsyncInferQueue.html#openvino.AsyncInferQueue.wait_all),          |                           |
+|                    | [openvino.InferRequest.results](https://docs.openvino.ai/2025/api/ie_python_api/_autosummary/openvino.InferRequest.html#openvino.InferRequest.results)                      |                           |
 
 Basic OpenVINO™ Runtime API is covered by [Hello Classification Python Sample](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/hello-classification.html).

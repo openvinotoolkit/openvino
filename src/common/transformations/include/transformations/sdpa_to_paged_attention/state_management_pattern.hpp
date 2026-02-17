@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+
+#include <unordered_set>
 
 #include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
@@ -20,7 +22,6 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("StateManagementPattern");
     StateManagementPattern(ParameterVector& kv_parameters,
                            ParameterVector& model_wide_params,
-                           ParameterVector& parameters_to_remove,
                            int& layer_index,
                            ov::Output<Node> max_context_len,
                            ParameterVector& block_indices_inputs_for_each_layer,
@@ -30,8 +31,13 @@ public:
                            bool allow_cache_rotation,
                            bool allow_score_aggregation,
                            bool allow_xattention,
+                           bool allow_adaptive_rkv,
                            ParameterVector& rotated_block_indices_inputs_for_each_layer,
                            ParameterVector& rotation_deltas_inputs_for_each_layer,
                            ParameterVector& xattention_threshold_inputs_for_each_layer,
-                           const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params);
+                           ParameterVector& adaptive_rkv_diversity_block_set_indices_inputs_for_each_layer,
+                           ParameterVector& adaptive_rkv_diversity_block_set_indices_begins_inputs_for_each_layer,
+                           ResultVector& adaptive_rkv_diversity_results,
+                           const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params,
+                           std::unordered_set<std::string>& var_ids_to_remove);
 };

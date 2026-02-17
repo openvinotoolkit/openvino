@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@ class TRANSFORMATIONS_API RoPEFusionIOSlicing;
 class TRANSFORMATIONS_API RoPEFusionPreprocess;
 class TRANSFORMATIONS_API RoPEFusionCosSinPreprocess;
 class TRANSFORMATIONS_API RoPEShareCosSin;
+class TRANSFORMATIONS_API RoPEFusionGPTOSS;
 
 }  // namespace pass
 }  // namespace ov
@@ -34,7 +35,7 @@ public:
 class ov::pass::RoPEFusionFlux : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("RoPEFusionFlux");
-    RoPEFusionFlux();
+    RoPEFusionFlux(bool num_heads_transposed = true);
 };
 
 class ov::pass::RoPEFusionGPTJ : public ov::pass::MatcherPass {
@@ -89,6 +90,12 @@ private:
     std::shared_ptr<ov::Node> m_shared_cos0;
     std::shared_ptr<ov::Node> m_shared_sin0;
     std::vector<std::shared_ptr<ov::Node>> m_shared_inputs{2, nullptr};
+};
+
+class ov::pass::RoPEFusionGPTOSS : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("RoPEFusionGPTOSS");
+    RoPEFusionGPTOSS();
 };
 
 /**

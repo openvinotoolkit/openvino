@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,9 +43,7 @@ pass::BrgemmToGemmCPU::BrgemmToGemmCPU() {
         const auto node = m.get_match_root();
         const auto brgemm = ov::as_type_ptr<snippets::op::Brgemm>(node);
         const auto gemm_plugin = ov::as_type_ptr<aarch64::GemmCPU>(node);
-        if (!brgemm || gemm_plugin) {
-            OPENVINO_ASSERT("GemmCPU cannot be in body before BrgemmToGemmCPU pass");
-        }
+        OPENVINO_ASSERT(brgemm && !gemm_plugin, "GemmCPU cannot be in body before BrgemmToGemmCPU pass");
 
         const auto& brgemm_in0_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(0));
         const auto& brgemm_in1_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(1));
@@ -56,7 +54,8 @@ pass::BrgemmToGemmCPU::BrgemmToGemmCPU() {
         const auto& layout_c = brgemm_out_desc->get_layout();
 
         const auto element_type_b = brgemm->get_input_element_type(1);
-        OPENVINO_ASSERT(element_type_b == element::f32, "GemmCPU only support f32 precision.");
+        OPENVINO_ASSERT(ov::snippets::utils::any_of(element_type_b, element::f32, element::f16),
+                        "GemmCPU supports only f32/f16 precision.");
         const auto offset_a = brgemm->get_offset_a();
         const auto offset_b = brgemm->get_offset_b();
         const auto offset_c = brgemm->get_offset_c();

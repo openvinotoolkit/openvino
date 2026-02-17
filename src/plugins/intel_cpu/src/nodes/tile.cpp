@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -178,7 +178,7 @@ void Tile::executeDynamicImpl(const dnnl::stream& strm) {
 
 void Tile::execute(const dnnl::stream& strm) {
     if (optimizedCase) {
-        optimizedExecute(getSrcMemoryAtPort(TILE_INPUT), getDstMemoryAtPort(0));
+        optimizedExecute(getSrcMemoryAtPort(TILE_INPUT), getDstMemoryAtPort(0), context->getCpuParallel());
     } else {
         plainExecute(strm);
     }
