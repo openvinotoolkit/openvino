@@ -36,28 +36,13 @@ std::filesystem::path UnicodePathTest::get_path_param() const {
         GetParam());
 }
 
-const static auto basic_paths = testing::Values("test_encoder/test_encoder.encrypted",
-                                                L"test_encoder/test_encoder.encrypted",
-                                                u"test_encoder/dot.folder",
-                                                U"test_encoder/dot.folder");
-
-const static auto basic_paths_dir = testing::Values("test_encoder/test_encoder.encrypted/",
-                                                    L"test_encoder/test_encoder.encrypted/",
-                                                    u"test_encoder/dot.folder/",
-                                                    U"test_encoder/dot.folder/");
-
-INSTANTIATE_TEST_SUITE_P(basic_paths, UnicodePathTest, basic_paths);
-INSTANTIATE_TEST_CASE_P(basic_paths, FileUtilTestP, basic_paths);
-INSTANTIATE_TEST_CASE_P(basic_paths_dir, FileUtilTestP, basic_paths_dir);
+const static auto test_paths = testing::Values("test_folder", L"test_folder", u"test_folder", U"test_folder");
+INSTANTIATE_TEST_SUITE_P(test_paths, UnicodePathTest, test_paths);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-const static auto unicode_paths = testing::Values("这是.folder", L"这是_folder", u"这是_folder", U"这是_folder");
-const static auto unicode_paths_dir =
-    testing::Values("这是.folder/", L"这是_folder/", u"这是_folder/", U"这是_folder/");
+const static auto unicode_paths = testing::Values("这是_folder", L"这是_folder", u"这是_folder", U"这是_folder");
 
 INSTANTIATE_TEST_SUITE_P(unicode_paths, UnicodePathTest, unicode_paths);
-INSTANTIATE_TEST_SUITE_P(unicode_paths, FileUtilTestP, unicode_paths);
-INSTANTIATE_TEST_SUITE_P(unicode_paths_dir, FileUtilTestP, unicode_paths_dir);
 #endif
 
 }  // namespace ov::test

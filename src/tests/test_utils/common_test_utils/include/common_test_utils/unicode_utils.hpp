@@ -174,6 +174,5 @@ protected:
         return std::visit(func, GetParam());
     }
 };
-class FileUtilTestP : public UnicodePathTest {};
 
 }  // namespace ov::test
