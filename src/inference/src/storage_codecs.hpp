@@ -101,13 +101,13 @@ struct SharedContextStreamCodec {
 };
 
 namespace {
-void write_tlv_string(std::ostream& stream, const std::string& str) {
-    constexpr auto str_tag = TLVStorage::Tag::String;
-    stream.write(reinterpret_cast<const char*>(&str_tag), sizeof(str_tag));
-    const auto size = static_cast<TLVStorage::length_type>(str.size());
-    stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
-    stream.write(str.data(), str.size());
-}
+// void write_tlv_string(std::ostream& stream, const std::string& str) {
+//     constexpr auto str_tag = TLVStorage::Tag::String;
+//     stream.write(reinterpret_cast<const char*>(&str_tag), sizeof(str_tag));
+//     const auto size = static_cast<TLVStorage::length_type>(str.size());
+//     stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
+//     stream.write(str.data(), str.size());
+// }
 
 bool read_tlv_string(std::istream& stream, std::string& str) {
     TLVStorage::Tag tag{};

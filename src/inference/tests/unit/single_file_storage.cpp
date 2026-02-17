@@ -46,9 +46,9 @@ TEST_F(SingleFileStorageTest, FileHeader) {
 
 TEST_F(SingleFileStorageTest, WriteReadCacheEntry) {
     const std::vector<std::pair<std::string, std::vector<uint8_t>>> test_blobs{
-        {"blob 1", std::vector<uint8_t>(124, 0xAB)},
-        {"blob 2", std::vector<uint8_t>(481, 0xCD)},
-        {"blob 3", std::vector<uint8_t>(4967, 0xEF)},
+        {"12", std::vector<uint8_t>(124, 0xAB)},
+        {"345", std::vector<uint8_t>(481, 0xCD)},
+        {"6789", std::vector<uint8_t>(4967, 0xEF)},
     };
 
     for (const auto& [blob_id, blob_data] : test_blobs) {
@@ -58,10 +58,10 @@ TEST_F(SingleFileStorageTest, WriteReadCacheEntry) {
     }
     m_storage.reset();
 
+    SingleFileStorage reopened_storage(m_file_path);
     size_t read_count = 0;
-    SingleFileStorage storage(m_file_path);
     for (const auto& [blob_id, blob_data] : test_blobs) {
-        storage.read_cache_entry(blob_id, false, [&](const ICacheManager::CompiledBlobVariant& compiled_blob) {
+        reopened_storage.read_cache_entry(blob_id, false, [&](const ICacheManager::CompiledBlobVariant& compiled_blob) {
             ++read_count;
             ASSERT_TRUE(std::holds_alternative<std::reference_wrapper<std::istream>>(compiled_blob));
             auto& stream = std::get<std::reference_wrapper<std::istream>>(compiled_blob).get();
@@ -84,23 +84,31 @@ TEST_F(SingleFileStorageTest, WriteReadCacheEntry) {
 }
 
 TEST_F(SingleFileStorageTest, AppendOnly) {
-    const auto blob_id = std::string{"blob id"};
-    m_storage->write_cache_entry(blob_id, [&](std::ostream&) {});
-    OV_EXPECT_THROW_HAS_SUBSTRING(m_storage->write_cache_entry(blob_id, [&](std::ostream&) {}),
-                                  ov::AssertFailure,
-                                  blob_id + " already exists in cache");
-
-    EXPECT_NO_THROW(m_storage->remove_cache_entry(blob_id));  // removal does nothing
+    const auto blob_id = std::string{"123"};
+    m_storage->write_cache_entry(blob_id, [&](std::ostream& s) {
+        // Although pointless it shell be harmless to write nothing
+    });
+    EXPECT_NO_THROW(m_storage->remove_cache_entry(blob_id));  // removal does nothing => expect legit read
     bool read_called = false;
     EXPECT_NO_THROW(m_storage->read_cache_entry(blob_id, false, [&](const ICacheManager::CompiledBlobVariant&) {
         read_called = true;
     }));
     EXPECT_TRUE(read_called);
 
-    EXPECT_NO_THROW(m_storage->read_cache_entry("dummy id", false, [](const ICacheManager::CompiledBlobVariant&) {
-        throw "Unexpected read for dummy id";
+    OV_EXPECT_THROW_HAS_SUBSTRING(m_storage->write_cache_entry(blob_id, [&](std::ostream&) {}),
+                                  ov::AssertFailure,
+                                  blob_id + " already exists in cache");
+    m_storage.reset();
+
+    SingleFileStorage reopened_storage(m_file_path);
+    OV_EXPECT_THROW_HAS_SUBSTRING(reopened_storage.write_cache_entry(blob_id, [&](std::ostream&) {}),
+                                  ov::AssertFailure,
+                                  blob_id + " already exists in cache");
+
+    EXPECT_NO_THROW(reopened_storage.read_cache_entry("987", false, [](const ICacheManager::CompiledBlobVariant&) {
+        throw "Unexpected read for not stored blob id";
     }));
-    EXPECT_NO_THROW(m_storage->remove_cache_entry("dummy id"));
+    EXPECT_NO_THROW(reopened_storage.remove_cache_entry("987"));
 }
 
 // TEST_F(SingleFileStorageTest, SharedContext__) {

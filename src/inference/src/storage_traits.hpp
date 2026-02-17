@@ -5,6 +5,9 @@
 #pragma once
 
 #include <cstdint>
+#include <iostream>
+#include <string>
+#include <unordered_map>
 
 namespace ov {
 // todo Move it to src/inference/src/single_file_storage.hpp?
@@ -15,9 +18,9 @@ struct TLVStorage {
     using padding_size_type = uint64_t;
 
     struct blob_info {
-        blob_id_type id;
-        length_type size;
-        length_type offset;
+        blob_id_type id;  // todo It's likely redundant information - remove this field if used only as key in blob_map
+        std::streampos offset;
+        std::streampos size;
         std::string model_name;
     };
     using blob_map_type = std::unordered_map<TLVStorage::blob_id_type, blob_info>;
