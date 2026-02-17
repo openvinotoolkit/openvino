@@ -69,7 +69,8 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
         std::shared_ptr<ov::Model> model;
 
         if (ov::js::validate<Napi::String, Napi::String>(info, allowed_signatures)) {
-            model = _core.read_model(info[0].ToString(), info[1].ToString());
+            model =
+                _core.read_model(js_to_cpp<std::filesystem::path>(info, 0), js_to_cpp<std::filesystem::path>(info, 1));
         } else if (ov::js::validate<Napi::Buffer<uint8_t>, Napi::Buffer<uint8_t>>(info, allowed_signatures)) {
             std::string model_str = buffer_to_string(info[0]);
 
@@ -87,7 +88,7 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
 
             model = _core.read_model(model_str, weight_tensor);
         } else if (ov::js::validate<Napi::String>(info, allowed_signatures)) {
-            model = _core.read_model(info[0].ToString());
+            model = _core.read_model(js_to_cpp<std::filesystem::path>(info, 0));
         } else if (ov::js::validate<Napi::String, TensorWrap>(info, allowed_signatures)) {
             model = _core.read_model(info[0].ToString(), cast_to_tensor(info, 1));
         } else {
@@ -132,13 +133,6 @@ Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
 }
 
 Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
-                                         const Napi::String& model_path,
-                                         const Napi::String& device) {
-    const auto& compiled_model = _core.compile_model(model_path, device);
-    return CompiledModelWrap::wrap(info.Env(), compiled_model);
-}
-
-Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
                                          const Napi::Object& model_obj,
                                          const Napi::String& device,
                                          const std::map<std::string, ov::Any>& config) {
@@ -147,26 +141,22 @@ Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
     return CompiledModelWrap::wrap(info.Env(), compiled_model);
 }
 
-Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
-                                         const Napi::String& model_path,
-                                         const Napi::String& device,
-                                         const std::map<std::string, ov::Any>& config) {
-    const auto& compiled_model = _core.compile_model(model_path, device, config);
-    return CompiledModelWrap::wrap(info.Env(), compiled_model);
-}
-
 Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info) {
     std::vector<std::string> allowed_signatures;
 
     try {
         if (ov::js::validate<Napi::String, Napi::String>(info, allowed_signatures)) {
-            return compile_model_sync(info, info[0].ToString(), info[1].ToString());
+            const auto& compiled_model =
+                _core.compile_model(js_to_cpp<std::filesystem::path>(info, 0), info[1].ToString());
+            return CompiledModelWrap::wrap(info.Env(), compiled_model);
         } else if (ov::js::validate<ModelWrap, Napi::String>(info, allowed_signatures)) {
             return compile_model_sync(info, info[0].ToObject(), info[1].ToString());
         } else if (ov::js::validate<Napi::String, Napi::String, Napi::Object>(info, allowed_signatures)) {
             const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2);
 
-            return compile_model_sync(info, info[0].ToString(), info[1].ToString(), config);
+            const auto& compiled_model =
+                _core.compile_model(js_to_cpp<std::filesystem::path>(info, 0), info[1].ToString(), config);
+            return CompiledModelWrap::wrap(info.Env(), compiled_model);
         } else if (ov::js::validate<ModelWrap, Napi::String, Napi::Object>(info, allowed_signatures)) {
             const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2);
 
@@ -244,7 +234,7 @@ Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
         return context_data->deferred.Promise();
     } else if (info[0].IsString() && info[1].IsString()) {
         auto context_data = new TsfnContextPath(env);
-        context_data->_model = info[0].ToString();
+        context_data->_model = js_to_cpp<std::filesystem::path>(info, 0);
         context_data->_device = info[1].ToString();
 
         if (info.Length() == 3) {
@@ -473,8 +463,7 @@ void CoreWrap::add_extension(const Napi::CallbackInfo& info) {
         if (!info[0].IsString())
             OPENVINO_THROW("addExtension method applies one argument of string type");
 
-        std::string library_path = info[0].ToString();
-        _core.add_extension(library_path);
+        _core.add_extension(js_to_cpp<std::filesystem::path>(info, 0));
     } catch (std::runtime_error& err) {
         reportError(info.Env(), err.what());
     }
