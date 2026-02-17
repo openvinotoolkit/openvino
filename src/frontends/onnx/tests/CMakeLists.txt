@@ -20,7 +20,7 @@ list(APPEND ONNX_TESTS_DEPENDENCIES openvino_template_extension)
 if (ENABLE_INTEL_CPU)
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
     if (ENABLE_STRICT_DEPENDENCIES)
-        # For convinience add a runtime dependency to build along with this target.
+        # For convenience add a runtime dependency to build along with this target.
         # Warning: Parallel build with -GNinja may not be efficient.
         list(APPEND ONNX_TESTS_DEPENDENCIES openvino_intel_cpu_plugin)
     endif()
@@ -29,7 +29,7 @@ endif()
 if (ENABLE_INTEL_GPU)
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
     if (ENABLE_STRICT_DEPENDENCIES)
-        # For convinience add a runtime dependency to build along with this target.
+        # For convenience add a runtime dependency to build along with this target.
         # Warning: Parallel build with -GNinja may not be efficient.
         list(APPEND ONNX_TESTS_DEPENDENCIES openvino_intel_gpu_plugin)
     endif()
@@ -129,7 +129,10 @@ set_property(TEST ov_onnx_frontend_tests PROPERTY LABELS OV UNIT ONNX_FE)
 add_dependencies(ov_onnx_frontend_tests openvino_template_extension)
 
 
-target_include_directories(ov_onnx_frontend_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(ov_onnx_frontend_tests PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../frontend/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../onnx_common/include")
 
 target_compile_definitions(ov_onnx_frontend_tests
     PRIVATE

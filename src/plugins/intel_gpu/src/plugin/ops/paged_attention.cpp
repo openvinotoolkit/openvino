@@ -122,10 +122,16 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     prim.num_outputs = 1;
 
     if (op->get_output_size() > 1) {
-        const auto scores_output_idx = 1;
-        const auto& users = op->get_output_target_inputs(scores_output_idx);
-        if (users.size() > 0) {
+        if (!op->get_output_target_inputs(1).empty()) {
             prim.num_outputs++; // Add scores output
+        } else {
+            prim.has_score_aggregation = false;
+        }
+
+        if (!op->get_output_target_inputs(2).empty()) {
+            prim.num_outputs++; // Add diversity outut
+        } else {
+            prim.has_adaptive_rkv = false;
         }
     }
 

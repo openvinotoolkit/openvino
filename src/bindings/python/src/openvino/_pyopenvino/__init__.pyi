@@ -546,7 +546,7 @@ class CoordinateDiff:
         ...
 class Core:
     """
-    openvino.Core class represents OpenVINO runtime Core entity. User applications can create several Core class instances, but in this case, the underlying plugins are created multiple times and not shared between several Core instances. The recommended way is to have a single Core instance per application.
+    openvino.Core class represents OpenVINO runtime Core entity. User applications can create several Core class instances. In that case the device plugins will still share underlying resources (such as OCL context) in per-device singleton.
     """
     def __init__(self, xml_config_file: typing.Any = '') -> None:
         ...
@@ -4856,7 +4856,7 @@ class Tensor:
         
                     Returns numpy array with corresponding shape and dtype.
         
-                    For tensors with OpenVINO specific element type, such as u1, u2, u4 or i4
+                    For tensors with OpenVINO specific element type, such as u1, u2, u3, u4, u6 or i4
                     it returns linear array, with uint8 / int8 numpy dtype.
         
                     For tensors with string element type, returns a numpy array of bytes
@@ -5013,8 +5013,10 @@ class Type:
     u1: typing.ClassVar[Type]  # value = <Type: 'uint1_t'>
     u16: typing.ClassVar[Type]  # value = <Type: 'uint16_t'>
     u2: typing.ClassVar[Type]  # value = <Type: 'uint2_t'>
+    u3: typing.ClassVar[Type]  # value = <Type: 'uint3_t'>
     u32: typing.ClassVar[Type]  # value = <Type: 'uint32_t'>
     u4: typing.ClassVar[Type]  # value = <Type: 'uint4_t'>
+    u6: typing.ClassVar[Type]  # value = <Type: 'uint6_t'>
     u64: typing.ClassVar[Type]  # value = <Type: 'uint64_t'>
     u8: typing.ClassVar[Type]  # value = <Type: 'uint8_t'>
     def __eq__(self, arg0: Type) -> bool:
