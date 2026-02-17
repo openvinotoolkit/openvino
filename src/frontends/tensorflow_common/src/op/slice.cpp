@@ -34,13 +34,15 @@ OutputVector translate_slice_op(const NodeContext& node) {
     auto const_one = create_same_type_const_scalar<int32_t>(start, 1);
     auto const_zero = create_same_type_const_scalar<int32_t>(start, 0);
 
+    auto shape_source = complex_type_mark_node ? complex_type_mark_node->get_real() : input;
+
     // compute stop values in case non-negative sizes
     auto stop_pos = make_shared<v1::Add>(start, size);
 
     // compute stop values in case negative sizes
     // since TensorFlow supports only -1 among negative sizes
     // assign stop values to the data shape
-    Output<Node> stop_neg = make_shared<v3::ShapeOf>(input);
+    Output<Node> stop_neg = make_shared<v3::ShapeOf>(shape_source);
     stop_neg = make_shared<v1::ConvertLike>(stop_neg, size);
 
     // select the correct stop value based on a sign of size value
