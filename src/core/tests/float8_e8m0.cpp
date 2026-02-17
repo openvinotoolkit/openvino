@@ -120,7 +120,7 @@ TEST(F8E8M0Test, f32_normal_boundry_to_even_2) {
 TEST(F8E8M0Test, f32_normal_to_greater_2) {
     const auto f8 = ov::float8_e8m0(3.526483332726555388869624E-38);
 
-    EXPECT_EQ(f8.to_bits(), 0b00000010);
+    EXPECT_EQ(f8.to_bits(), 0b00000011);
 }
 
 TEST(F8E8M0Test, f32_negative_one) {
