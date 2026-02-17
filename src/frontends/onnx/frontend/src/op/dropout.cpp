@@ -7,6 +7,7 @@
 #include "exceptions.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/identity.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/util/op_types.hpp"
 using namespace ov::op;
@@ -20,15 +21,16 @@ ov::OutputVector build_dropout(const ov::frontend::onnx::Node& node, bool traini
     CHECK_VALID_NODE(node, !training_mode, "Training mode is not supported for Dropout op");
 
     const auto input_data = node.get_ov_inputs().at(0);
+    const auto identity = std::make_shared<v16::Identity>(input_data);
     const bool return_mask = node.get_outputs_size() > 1;
 
     if (return_mask) {
         const auto mask =
             std::make_shared<v3::Broadcast>(v0::Constant::create(ov::element::boolean, ov::Shape{}, {true}),
                                             std::make_shared<v3::ShapeOf>(input_data));
-        return {input_data, mask};
+        return {identity, mask};
     } else {
-        return {input_data};
+        return {identity};
     }
 }
 }  // namespace
