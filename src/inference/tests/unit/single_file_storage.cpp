@@ -58,11 +58,11 @@ TEST_F(SingleFileStorageTest, WriteReadCacheEntry) {
     }
     m_storage.reset();
 
-    size_t expected_read_count = 0;
+    size_t read_count = 0;
     SingleFileStorage storage(m_file_path);
     for (const auto& [blob_id, blob_data] : test_blobs) {
         storage.read_cache_entry(blob_id, false, [&](const ICacheManager::CompiledBlobVariant& compiled_blob) {
-            ++expected_read_count;
+            ++read_count;
             ASSERT_TRUE(std::holds_alternative<std::reference_wrapper<std::istream>>(compiled_blob));
             auto& stream = std::get<std::reference_wrapper<std::istream>>(compiled_blob).get();
             std::vector<uint8_t> read_data(blob_data.size());
@@ -70,7 +70,7 @@ TEST_F(SingleFileStorageTest, WriteReadCacheEntry) {
             EXPECT_EQ(blob_data, read_data);
         });
     }
-    EXPECT_EQ(expected_read_count, test_blobs.size());
+    EXPECT_EQ(read_count, test_blobs.size());
 
     // no support for multimap memory mapping yet
     // storage.read_cache_entry(blob_id, true, [&](const ICacheManager::CompiledBlobVariant& compiled_blob) {

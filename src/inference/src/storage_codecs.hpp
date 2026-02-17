@@ -37,7 +37,7 @@ struct SharedContextStreamCodec {
     SharedContext* ctx;
 
     friend std::istream& operator>>(std::istream& stream, SharedContextStreamCodec& codec) {
-        if (codec.ctx == nullptr) {
+        if (!codec.ctx) {
             return stream;
         }
         TLVStorage::Tag tag{};
@@ -74,7 +74,7 @@ struct SharedContextStreamCodec {
     }
 
     friend std::ostream& operator<<(std::ostream& stream, const SharedContextStreamCodec& codec) {
-        if (codec.ctx == nullptr || codec.ctx->empty()) {
+        if (!codec.ctx || codec.ctx->empty()) {
             return stream;
         }
         constexpr auto sc_tag = TLVStorage::Tag::SharedContext;
@@ -100,50 +100,95 @@ struct SharedContextStreamCodec {
     }
 };
 
+namespace {
+void write_tlv_string(std::ostream& stream, const std::string& str) {
+    constexpr auto str_tag = TLVStorage::Tag::String;
+    stream.write(reinterpret_cast<const char*>(&str_tag), sizeof(str_tag));
+    const auto size = static_cast<TLVStorage::length_type>(str.size());
+    stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
+    stream.write(str.data(), str.size());
+}
+
+bool read_tlv_string(std::istream& stream, std::string& str) {
+    TLVStorage::Tag tag{};
+    TLVStorage::length_type size{};
+    stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
+    if (!stream.good()) {
+        return false;
+    }
+    OPENVINO_ASSERT(tag == TLVStorage::Tag::String);
+    stream.read(reinterpret_cast<char*>(&size), sizeof(size));
+    if (!stream.good() || size == 0) {
+        return false;
+    }
+    str.resize(size);
+    stream.read(str.data(), str.size());
+    return true;
+}
+}  // namespace
+
 struct BlobMapStreamCodec {
-    std::unordered_map<TLVStorage::blob_id_type, std::string>* blob_mappings;
+    TLVStorage::blob_map_type* blob_map;
 
     friend std::istream& operator>>(std::istream& stream, BlobMapStreamCodec& codec) {
-        if (codec.blob_mappings == nullptr) {
+        if (!codec.blob_map) {
             return stream;
         }
-        TLVStorage::Tag tag{};
-        do {
-            TLVStorage::length_type map_size{};
+        auto& blob_map = *codec.blob_map;
+
+        std::streampos stream_end;
+        {
+            const auto cur_pos = stream.tellg();
+            stream.seekg(0, std::ios::end);
+            stream_end = stream.tellg();
+            stream.seekg(cur_pos);
+        }
+
+        while (stream.good() && stream.tellg() < stream_end) {
+            TLVStorage::Tag tag{};
+            TLVStorage::length_type size{};
             stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
             if (!stream.good()) {
                 break;
             }
-            stream.read(reinterpret_cast<char*>(&map_size), sizeof(map_size));
-            if (!stream.good() || map_size == 0) {
+            stream.read(reinterpret_cast<char*>(&size), sizeof(size));
+            if (!stream.good() || size == 0) {
                 break;
             }
             if (tag == TLVStorage::Tag::Blob) {
-                const auto end_pos = stream.tellg() + static_cast<std::streamoff>(map_size);
                 TLVStorage::blob_id_type id;
                 stream.read(reinterpret_cast<char*>(&id), sizeof(id));
                 if (!stream.good()) {
                     break;
                 }
-                stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
-                if (!stream.good() || tag != TLVStorage::Tag::String) {
+                TLVStorage::padding_size_type padding_size{};
+                stream.read(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
+                if (!stream.good()) {
                     break;
                 }
-                TLVStorage::length_type str_size{};
-                stream.read(reinterpret_cast<char*>(&str_size), sizeof(str_size));
-                if (!stream.good() || str_size == 0) {
-                    break;
-                }
-                std::string model_name(str_size, '\0');
-                stream.read(model_name.data(), model_name.size());
-                // Intentionally overwrite existing mapping if id already exists - it's not be a case with proper cache
-                // file.
-                (*codec.blob_mappings)[id] = model_name;
+                stream.seekg(padding_size, std::ios::cur);
 
+                const auto blob_data_pos = stream.tellg();
+                const auto blob_data_size = size - sizeof(id) - sizeof(padding_size) - padding_size;
+                blob_map[id].offset = blob_data_pos;
+                blob_map[id].size = blob_data_size;
+                stream.seekg(blob_data_size, std::ios::cur);
+            } else if (tag == TLVStorage::Tag::BlobMap) {
+                TLVStorage::blob_id_type id;
+                stream.read(reinterpret_cast<char*>(&id), sizeof(id));
+                if (!stream.good()) {
+                    break;
+                }
+
+                if (std::string model_name; read_tlv_string(stream, model_name)) {
+                    blob_map[id].model_name = model_name;
+                } else {
+                    break;
+                }
             } else {
-                stream.seekg(map_size ? map_size : 1, std::ios::cur);
+                stream.seekg(size, std::ios::cur);
             }
-        } while (stream.good());
+        };
 
         return stream;
     }
