@@ -3,7 +3,9 @@
 //
 
 #include <sstream>
-
+#ifdef WIN32
+#    include <process.h>
+#endif
 #include "gtest/gtest.h"
 
 int main(int argc, char** argv, char** envp) {
