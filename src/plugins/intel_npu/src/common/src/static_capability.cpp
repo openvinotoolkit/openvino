@@ -8,10 +8,10 @@
 
 namespace intel_npu {
 
-StaticCapability::StaticCapability(const CRE::Token token) : ICapability(token, true) {}
+StaticCapability::StaticCapability(const CRE::Token token) : ICapability(token) {}
 
 bool StaticCapability::lazy_check_support() const {
-    OPENVINO_NOT_IMPLEMENTED;
+    return true;
 }
 
 }  // namespace intel_npu

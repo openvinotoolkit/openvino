@@ -8,8 +8,6 @@ namespace intel_npu {
 
 ICapability::ICapability(const CRE::Token token) : m_token(token) {}
 
-ICapability::ICapability(const CRE::Token token, const bool supported) : m_token(token), m_supported(supported) {}
-
 CRE::Token ICapability::get_token() const {
     return m_token;
 }

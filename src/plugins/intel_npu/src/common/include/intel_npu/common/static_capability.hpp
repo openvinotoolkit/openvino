@@ -13,9 +13,6 @@ public:
     StaticCapability(const CRE::Token token);
 
     bool lazy_check_support() const override;
-
-private:
-    std::optional<bool> m_supported;
 };
 
 }  // namespace intel_npu
