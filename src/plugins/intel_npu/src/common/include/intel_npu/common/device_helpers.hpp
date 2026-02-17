@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <map>
 
-#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 

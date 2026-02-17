@@ -4,8 +4,6 @@
 
 #include "intel_npu/common/device_helpers.hpp"
 
-#include "intel_npu/config/options.hpp"
-#include "intel_npu/npu_private_properties.hpp"
 #include "openvino/core/except.hpp"
 
 namespace intel_npu {

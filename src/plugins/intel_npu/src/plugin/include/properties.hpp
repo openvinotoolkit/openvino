@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include "compiler_adapter_factory.hpp"
 #include "intel_npu/common/filtered_config.hpp"
-#include "intel_npu/config/config.hpp"
+#include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
 #include "metrics.hpp"
 
