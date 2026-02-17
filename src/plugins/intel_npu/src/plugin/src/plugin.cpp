@@ -223,6 +223,18 @@ std::shared_ptr<const ov::Model> exclude_model_ptr_from_map(ov::AnyMap& properti
     return modelPtr;
 }
 
+int get_ir_version(const std::shared_ptr<const ov::Model>& model, const intel_npu::Logger& logger) {
+    const auto& rtInfo = model->get_rt_info();
+    const auto it = rtInfo.find("version");
+    if (it != rtInfo.end()) {
+        return static_cast<int>(it->second.as<int64_t>());
+    }
+
+    logger.warning("The IR version was not found within the runtime information attributes. The NPU plugin will "
+                   "continue execution assuming the version is 11. If wrong, compilation issues may occur.");
+    return 11;
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -375,7 +387,10 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_LLM_MAX_GENERATION_TOKEN_LEN);
     REGISTER_OPTION(NPUW_LLM_MIN_RESPONSE_LEN);
     REGISTER_OPTION(NPUW_LLM_OPTIMIZE_V_TENSORS);
+    REGISTER_OPTION(NPUW_LLM_OPTIMIZE_FP8);
     REGISTER_OPTION(NPUW_LLM_CACHE_ROPE);
+    REGISTER_OPTION(NPUW_LLM_PREFILL_MOE_HINT);
+    REGISTER_OPTION(NPUW_LLM_GENERATE_MOE_HINT);
     REGISTER_OPTION(NPUW_LLM_GENERATE_PYRAMID);
     REGISTER_OPTION(NPUW_LLM_PREFILL_CHUNK_SIZE);
     REGISTER_OPTION(NPUW_LLM_SHARED_HEAD);
@@ -672,19 +687,27 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // sure only the option supported by the compiler is registered in the config.
     bool useBaseModelSerializer = true;
     bool modelSerializerChosenExplicitly = false;
-    const std::string useBaseModelSerializerKey = ov::intel_npu::use_base_model_serializer.name();
-    const std::string modelSerializerVersionKey = ov::intel_npu::model_serializer_version.name();
-    if (localProperties.count(useBaseModelSerializerKey)) {
+
+    if (get_ir_version(model, _logger) > 10) {
+        const std::string useBaseModelSerializerKey = ov::intel_npu::use_base_model_serializer.name();
+        const std::string modelSerializerVersionKey = ov::intel_npu::model_serializer_version.name();
+        if (localProperties.count(useBaseModelSerializerKey)) {
+            modelSerializerChosenExplicitly = true;
+            useBaseModelSerializer = localProperties.at(useBaseModelSerializerKey).as<bool>();
+            localProperties.erase(useBaseModelSerializerKey);
+            localProperties.erase(modelSerializerVersionKey);
+        } else if (localProperties.count(modelSerializerVersionKey)) {
+            modelSerializerChosenExplicitly = true;
+            const auto modelSerializerVersion =
+                localProperties.at(modelSerializerVersionKey).as<ov::intel_npu::ModelSerializerVersion>();
+            useBaseModelSerializer =
+                !(modelSerializerVersion == ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
+            localProperties.erase(modelSerializerVersionKey);
+        }
+    } else {
+        // Models that use a version < 11 cannot be marshalled using the "no_weights_copy" algorithm. See C#179944.
+        // This is a hack that should be cleaned up after the config option migration is complete.
         modelSerializerChosenExplicitly = true;
-        useBaseModelSerializer = localProperties.at(useBaseModelSerializerKey).as<bool>();
-        localProperties.erase(useBaseModelSerializerKey);
-        localProperties.erase(modelSerializerVersionKey);
-    } else if (localProperties.count(modelSerializerVersionKey)) {
-        modelSerializerChosenExplicitly = true;
-        const auto modelSerializerVersion =
-            localProperties.at(modelSerializerVersionKey).as<ov::intel_npu::ModelSerializerVersion>();
-        useBaseModelSerializer = !(modelSerializerVersion == ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
-        localProperties.erase(modelSerializerVersionKey);
     }
 
     update_log_level(localProperties);
@@ -762,8 +785,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // Update stepping w/ information from driver, unless provided by user or we are off-device
     // Ignore, if compilation was requested for platform, different from current
     if (!localConfig.has<STEPPING>() && device != nullptr &&
-        device->getName() == ov::intel_npu::Platform::standardize(platform) &&
-        _metrics->GetBackendName() == "level_zero") {
+        device->getName() == ov::intel_npu::Platform::standardize(platform)) {
         try {
             localConfig.update({{ov::intel_npu::stepping.name(), std::to_string(device->getSubDevId())}});
         } catch (...) {
@@ -774,8 +796,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // Update max_tiles w/ information from driver, unless provided by user or we are off-device
     // Ignore, if compilation was requested for platform, different from current
     if (!localConfig.has<MAX_TILES>() && device != nullptr &&
-        device->getName() == ov::intel_npu::Platform::standardize(platform) &&
-        _metrics->GetBackendName() == "level_zero") {
+        device->getName() == ov::intel_npu::Platform::standardize(platform)) {
         try {
             localConfig.update({{ov::intel_npu::max_tiles.name(), std::to_string(device->getMaxNumSlices())}});
         } catch (...) {
@@ -828,12 +849,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<intel_npu::IGraph> graph;
 
-    auto compileWithConfig = [&](const auto& modelToCompile, const auto& config) {
+    auto compileWithConfig = [&](auto&& modelToCompile, const auto& config) {
         if (!localConfig.get<WEIGHTLESS_BLOB>()) {
             return compiler->compile(modelToCompile, config);
         } else {
             check_weightless_cache_attribute_occurrence(model);
-            return compiler->compileWS(modelToCompile, config);
+            return compiler->compileWS(std::move(modelToCompile), config);
         }
     };
 
@@ -851,9 +872,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             strStream << ov::hint::PerformanceMode::THROUGHPUT;
             modifiedConfig.update({{ov::hint::performance_mode.name(), strStream.str()}});
 
-            graph = compileWithConfig(modelToCompile, modifiedConfig);
+            graph = compileWithConfig(std::move(modelToCompile), modifiedConfig);
         } else {
-            graph = compileWithConfig(modelToCompile, localConfig);  // No copy
+            graph = compileWithConfig(std::move(modelToCompile), localConfig);  // No copy
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
@@ -1032,19 +1053,26 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     // sure only the option supported by the compiler is registered in the config.
     bool useBaseModelSerializer = true;
     bool modelSerializerChosenExplicitly = false;
-    const std::string useBaseModelSerializerKey = ov::intel_npu::use_base_model_serializer.name();
-    const std::string modelSerializerVersionKey = ov::intel_npu::model_serializer_version.name();
-    if (localProperties.count(useBaseModelSerializerKey)) {
+    if (get_ir_version(model, _logger) > 10) {
+        const std::string useBaseModelSerializerKey = ov::intel_npu::use_base_model_serializer.name();
+        const std::string modelSerializerVersionKey = ov::intel_npu::model_serializer_version.name();
+        if (localProperties.count(useBaseModelSerializerKey)) {
+            modelSerializerChosenExplicitly = true;
+            useBaseModelSerializer = localProperties.at(useBaseModelSerializerKey).as<bool>();
+            localProperties.erase(useBaseModelSerializerKey);
+            localProperties.erase(modelSerializerVersionKey);
+        } else if (localProperties.count(modelSerializerVersionKey)) {
+            modelSerializerChosenExplicitly = true;
+            const auto modelSerializerVersion =
+                localProperties.at(modelSerializerVersionKey).as<ov::intel_npu::ModelSerializerVersion>();
+            useBaseModelSerializer =
+                !(modelSerializerVersion == ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
+            localProperties.erase(modelSerializerVersionKey);
+        }
+    } else {
+        // Models that use a version < 11 cannot be marshalled using the "no_weights_copy" algorithm. See C#179944.
+        // This is a hack that should be cleaned up after the config option migration is complete.
         modelSerializerChosenExplicitly = true;
-        useBaseModelSerializer = localProperties.at(useBaseModelSerializerKey).as<bool>();
-        localProperties.erase(useBaseModelSerializerKey);
-        localProperties.erase(modelSerializerVersionKey);
-    } else if (localProperties.count(modelSerializerVersionKey)) {
-        modelSerializerChosenExplicitly = true;
-        const auto modelSerializerVersion =
-            localProperties.at(modelSerializerVersionKey).as<ov::intel_npu::ModelSerializerVersion>();
-        useBaseModelSerializer = !(modelSerializerVersion == ov::intel_npu::ModelSerializerVersion::NO_WEIGHTS_COPY);
-        localProperties.erase(modelSerializerVersionKey);
     }
     exclude_model_ptr_from_map(localProperties);
     update_log_level(localProperties);
@@ -1205,10 +1233,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     const std::optional<std::vector<ov::Tensor>> initBlobs =
         weightsSeparationEnabled ? std::make_optional(std::move(tensorsInits)) : std::nullopt;
 
-    auto graph = compiler->parse(tensorMain,
-                                 localConfig,
-                                 initBlobs,
-                                 weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt);
+    auto graph =
+        compiler->parse(tensorMain,
+                        localConfig,
+                        initBlobs,
+                        weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt);
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
     const std::shared_ptr<ov::Model> modelDummy =

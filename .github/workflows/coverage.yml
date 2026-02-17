@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Setup python
-        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: '3.10.10'
           architecture: 'x64'
@@ -32,7 +32,7 @@ jobs:
           max-size: 50G
 
       - name: Clone OpenVINO
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
         with:
           submodules: 'true'

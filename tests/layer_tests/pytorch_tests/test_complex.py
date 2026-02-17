@@ -9,8 +9,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestComplex(PytorchLayerTest):
     def _prepare_input(self):
-        import numpy as np
-        return (np.random.randn(2).astype(np.float32),)
+        return (self.random.randn(2),)
 
     def create_model(self, dtype):
         class complex_model(torch.nn.Module):
@@ -36,7 +35,7 @@ class TestComplex(PytorchLayerTest):
                 result = real_result + imag_result
                 return result
 
-        return complex_model(dtype), None, ["prim::GetAttr", "prim::Constant"]
+        return complex_model(dtype), ["prim::GetAttr", "prim::Constant"]
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -51,11 +50,10 @@ class TestComplex(PytorchLayerTest):
 
 class TestReal(PytorchLayerTest):
     def _prepare_input(self, y):
-        import numpy as np
         if y:
-            return (np.random.randn(2, 3).astype(np.float32),
-                    np.random.randn(2, 3).astype(np.float32))
-        return (np.random.randn(2, 3).astype(np.float32),)
+            return (self.random.randn(2, 3),
+                    self.random.randn(2, 3))
+        return (self.random.randn(2, 3),)
 
     def create_model(self):
         class aten_real(torch.nn.Module):
@@ -66,7 +64,7 @@ class TestReal(PytorchLayerTest):
                     c = x
                 return torch.real(c)
 
-        return aten_real(), None, "aten::real"
+        return aten_real(), "aten::real"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

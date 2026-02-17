@@ -5,6 +5,7 @@
 import pytest
 import numpy as np
 import os
+from pathlib import Path
 
 import openvino as ov
 import openvino.properties as props
@@ -452,6 +453,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((False, False),),
         ),
         (
+            intel_gpu_hint.enable_large_allocations,
+            "GPU_ENABLE_LARGE_ALLOCATIONS",
+            ((True, True),),
+        ),
+        (
             intel_npu.compilation_mode_params,
             "NPU_COMPILATION_MODE_PARAMS",
             (("dummy-op-replacement=true", "dummy-op-replacement=true"),),
@@ -639,6 +645,13 @@ def test_single_property_setting(device):
 
     assert props.streams.Num.AUTO.to_integer() == -1
     assert isinstance(core.get_property(device, streams.num()), int)
+
+
+def test_property_pathlib_path(device):
+    core = Core()
+
+    core.set_property(device, {"CACHE_DIR": Path("./test_cache")})
+    assert core.get_property(device, props.cache_dir) == str(Path("./test_cache"))
 
 
 @pytest.mark.skipif(

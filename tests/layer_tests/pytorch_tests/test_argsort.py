@@ -32,9 +32,8 @@ class TestArgSort(PytorchLayerTest):
                         dim = self.dim,
                         descending = self.descending
                     )
-        ref_net = None
 
-        return aten_argsort(dim, descending, stable), ref_net, "aten::argsort"
+        return aten_argsort(dim, descending, stable), "aten::argsort"
 
     @pytest.mark.parametrize("tensor_stable_pair", [
         ([1, 4], False),
@@ -74,7 +73,7 @@ class TestArgSort(PytorchLayerTest):
     def test_argsort(self, tensor_stable_pair, descending, ie_device, precision, ir_version):
         input_shape, stable = tensor_stable_pair
         if type(input_shape) is list:
-            self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
+            self.input_tensor = self.random.randn(*input_shape)
         else:
             self.input_tensor = input_shape
         dims = len(self.input_tensor.shape)
