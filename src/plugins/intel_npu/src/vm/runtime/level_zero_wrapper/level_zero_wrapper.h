@@ -29,14 +29,14 @@ struct ArgumentDescriptor {
     uint32_t idx;
 };
 
-/* brief Allocate memory available to the device
+/* @brief Allocate memory available to the device
  * @param bytes Number of bytes to allocate
  * @param context Context handle
  * @return Pointer to the allocated memory
  */
 NPU_API(void*) npu_level_zero_alloc(int64_t bytes, void* context);
 
-/* brief Append a memory copy operation to the command list
+/* @brief Append a memory copy operation to the command list
  * @param src Source buffer
  * @param dst Destination buffer
  * @param size Number of bytes to copy
@@ -44,7 +44,7 @@ NPU_API(void*) npu_level_zero_alloc(int64_t bytes, void* context);
  */
 NPU_API(int32_t) npu_level_zero_append_memory_copy(void* src, void* dst, int64_t size, void** commandList);
 
-/* brief Append a barrier operation to the command list
+/* @brief Append a barrier operation to the command list
  * @param commandList Command list handle
  */
 NPU_API(int32_t) npu_level_zero_append_barrier(void* commandList);
@@ -89,7 +89,7 @@ npu_level_zero_reset_commandlist(void** commandList);
 NPU_API(int32_t)
 npu_level_zero_reset_commandlists(void** commandList, int32_t numCommandLists);
 
-/* brief Record inference execution in a command list
+/* @brief Record inference execution in a command list
  * @param inputs input tensor descs
  * @param outputs output tensor descs
  * @param kernel Kernel buffer
@@ -102,9 +102,9 @@ npu_level_zero_reset_commandlists(void** commandList, int32_t numCommandLists);
 NPU_API(int32_t)
 npu_level_zero_execute_graph(void** inputDescs, int32_t numInputs, void** outputDescs, int32_t numOutputs,
                              void* kernelName, void* kernel, int64_t kernelSize, void* context, void* device,
-                             void* ddiTable, void** commandList);
+                             void* ddiTable, void** commandList, int64_t commandListIndex, void* execCtx);
 
-/* brief Record inference execution in a command list
+/* @brief Record inference execution in a command list
  * @param commandList Command list handle
  * @param commandQueue Command queue handle
  * @param fence fence handle for sync
@@ -114,8 +114,8 @@ npu_level_zero_execute_graph(void** inputDescs, int32_t numInputs, void** output
 NPU_API(int32_t)
 npu_level_zero_submit_commandlist(void** commandList, void* commandQueue, void* fence, void* event);
 
-/* brief Deserializes and returns network metadata
- * @param metadata serialized metdata
+/* @brief Deserializes and returns network metadata
+ * @param metadata serialized metadata
  * @param metadataSize size of serialized metadata
  * @param networkMetadata a pointer of vpux::NetworkMetadata
  * @param inputDescs a pointer of std::vector<ArgumentDescriptor> for inputs
@@ -125,10 +125,42 @@ NPU_API(int32_t)
 npu_level_zero_get_network_metadata(void* metadata, uint64_t metadataSize, void* networkMetadata, void* inputDescs,
                                     void* outputDescs);
 
-/* brief Return an error message
+/* @brief Return an error message
  */
 NPU_API(void)
 npu_level_zero_get_last_error(char** pError);
+
+/* @brief Creates an executionContext
+ * @param handle MLIRRuntime handle
+ * @param numArgs the number of arguments (inputs and outputs)
+ * @param return handle of created execution context
+ */
+NPU_API(int32_t)
+npu_level_zero_create_execution_context(void* handle, int64_t numSubGraphs, int64_t numNetworkArgs, void** ret);
+
+/* @brief reset an executionContext
+ * @param handle execution context handle
+ */
+NPU_API(int32_t)
+npu_level_zero_reset_execution_context(void* handle, void** commandList, int64_t numCommandLists);
+
+/* @brief destroy an executionContext
+ * @param handle execution context handle
+ */
+NPU_API(int32_t)
+npu_level_zero_destroy_execution_context(void* handle);
+
+/* @brief Update mutable command list used in execution
+ * @param handle MLIRRuntime handle
+ * @param networkArgArr array of network arguments (inputs and outputs)
+ * @param networkArgArraySize size of network arguments array
+ * @param argIndexArr array of argument indices to update
+ * @param argIndexSize size of argument indices array
+ * @param commandQueue command queue handle
+ */
+NPU_API(int32_t)
+npu_level_zero_update_mutable_command_list(void* handle, void* networkArgArr, uint64_t networkArgArraySize,
+                                           void* argIndexArr, uint64_t argIndexSize);
 
 NPU_API(void) npu_level_zero_init();
 NPU_API(void) npu_level_zero_destroy();
