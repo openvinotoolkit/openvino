@@ -396,12 +396,12 @@ void Plugin::init_options(FilteredConfig& filteredConfig) {
             auto device = _backend->getDevice();
             if (device) {
                 auto platformName = device->getName();
-                if (platformName != ov::intel_npu::Platform::NPU4000 &&
-                    platformName != ov::intel_npu::Platform::NPU5010) {
-                    std::ostringstream oss;
-                    oss << ov::intel_npu::CompilerType::DRIVER;
-                    filteredConfig.update({{ov::intel_npu::compiler_type.name(), oss.str()}});
-                    _logger.info("Use %s as default compiler", oss.str().c_str());
+                CompilerAdapterFactory compilerFactory;
+                auto compileType = compilerFactory.determinteAppropriateCompilerTypeBasedOnPlatform(platformName);
+                if (compileType == ov::intel_npu::CompilerType::DRIVER) {
+                    filteredConfig.update(
+                        {{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compileType)}});
+                    _logger.info("Use %s as default compiler", COMPILER_TYPE::toString(compileType).c_str());
                 }
             }
         }
@@ -497,17 +497,19 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         _backend->updateInfo(localProperties);
     }
 
-    // create compiler
-    ov::intel_npu::CompilerType compilerType = _propertiesManager->resolveCompilerTypeOption(localProperties);
-    auto deviceId = _propertiesManager->resolveDeviceIdOption(localProperties);
+    // Resolving the requested compiler type based on local and global properties.
+    // It can still remain PREFER_PLUGIN even after this point
+    ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
 
-    // Accounts for various scenarios based on the DEVICE_ID:
-    // - For offline compilation (backend == nullptr), no further action is needed; only model compilation is allowed.
-    // - For on-device compilation where DEVICE_ID != current device ID, compilation is allowed only with CiP.
-    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, deviceId, compilerType);
+    auto deviceId = _propertiesManager->determineDeviceId(localProperties);
+    // DEVICE_ID can be passed both as an index and as a platform name.
+    // Identify the right device object to be taken into account when the target compilation platform is determined
+    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, deviceId);
 
+    // Determine the final compilation target based on NPU_PLATFORM, determined device name (if any) and the list of
+    // available devices (if any)
     const auto compilationPlatform =
-        utils::getCompilationPlatform(_propertiesManager->resolvePlatformOption(localProperties),
+        utils::getCompilationPlatform(_propertiesManager->determinePlatform(localProperties),
                                       device == nullptr ? deviceId : device->getName(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
@@ -885,13 +887,13 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
         _backend->updateInfo(localProperties);
     }
 
-    ov::intel_npu::CompilerType compilerType = _propertiesManager->resolveCompilerTypeOption(localProperties);
-    auto deviceId = _propertiesManager->resolveDeviceIdOption(localProperties);
+    ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
+    auto deviceId = _propertiesManager->determineDeviceId(localProperties);
 
-    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, deviceId, compilerType);
+    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, deviceId);
 
     const auto compilationPlatform =
-        utils::getCompilationPlatform(_propertiesManager->resolvePlatformOption(localProperties),
+        utils::getCompilationPlatform(_propertiesManager->determinePlatform(localProperties),
                                       device == nullptr ? deviceId : device->getName(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
@@ -956,13 +958,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     // list of properties
     auto originalModel = exclude_model_ptr_from_map(localProperties);
 
-    ov::intel_npu::CompilerType compilerType = _propertiesManager->resolveCompilerTypeOption(localProperties);
-    auto deviceId = _propertiesManager->resolveDeviceIdOption(localProperties);
+    ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
+    auto deviceId = _propertiesManager->determineDeviceId(localProperties);
 
-    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, deviceId, compilerType);
+    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, deviceId);
 
     const auto compilationPlatform =
-        utils::getCompilationPlatform(_propertiesManager->resolvePlatformOption(localProperties),
+        utils::getCompilationPlatform(_propertiesManager->determinePlatform(localProperties),
                                       device == nullptr ? deviceId : device->getName(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 

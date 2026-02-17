@@ -87,9 +87,9 @@ public:
      */
     void updateConfig(const ov::AnyMap& properties, OptionMode mode = OptionMode::Both);
 
-    ov::intel_npu::CompilerType resolveCompilerTypeOption(const ov::AnyMap& properties) const;
-    std::string resolvePlatformOption(const ov::AnyMap& properties) const;
-    std::string resolveDeviceIdOption(const ov::AnyMap& properties) const;
+    ov::intel_npu::CompilerType determineCompilerType(const ov::AnyMap& properties) const;
+    std::string determinePlatform(const ov::AnyMap& properties) const;
+    std::string determineDeviceId(const ov::AnyMap& properties) const;
 
 private:
     PropertiesType _pType;

@@ -23,9 +23,7 @@ std::string getCompilationPlatform(const std::string_view platform,
 /**
  * @brief Gets the device by its ID.
  */
-std::shared_ptr<IDevice> getDeviceById(const ov::SoPtr<IEngineBackend>& engineBackend,
-                                       const std::string& deviceId,
-                                       const ov::intel_npu::CompilerType compilerType);
+std::shared_ptr<IDevice> getDeviceById(const ov::SoPtr<IEngineBackend>& engineBackend, const std::string& deviceId);
 }  // namespace utils
 
 }  // namespace intel_npu

@@ -600,7 +600,7 @@ void Properties::registerPluginProperties() {
             /// create dummy compiler
             auto compilerType = config.get<COMPILER_TYPE>();
             auto deviceId = config.get<DEVICE_ID>();
-            auto device = utils::getDeviceById(_backend, deviceId, compilerType);
+            auto device = utils::getDeviceById(_backend, deviceId);
 
             auto compilationPlatform = utils::getCompilationPlatform(
                 config.get<PLATFORM>(),
@@ -743,12 +743,12 @@ ov::Any Properties::getProperty(const std::string& name, const ov::AnyMap& argum
         // supported_properties which needs to return different values based on compiler and platform configuration
         if (isCompilerConfig(arguments) || propertyIsCompilerConfig || name == ov::supported_properties.name()) {
             std::unique_ptr<ICompilerAdapter> compiler = nullptr;
-            auto compilerType = resolveCompilerTypeOption(arguments);
-            auto deviceId = resolveDeviceIdOption(arguments);
-            auto device = utils::getDeviceById(_backend, deviceId, compilerType);
+            auto compilerType = determineCompilerType(arguments);
+            auto deviceId = determineDeviceId(arguments);
+            auto device = utils::getDeviceById(_backend, deviceId);
 
             auto compilationPlatform = utils::getCompilationPlatform(
-                resolvePlatformOption(arguments),
+                determinePlatform(arguments),
                 device == nullptr ? deviceId : device->getName(),
                 _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
@@ -796,12 +796,12 @@ void Properties::setProperty(const ov::AnyMap& properties) {
     if (_pType == PropertiesType::PLUGIN && isCompilerConfig(properties)) {
         // Check if one of the properties is compiler config which needs to return different values based on compiler
         // and platform configuration
-        auto compilerType = resolveCompilerTypeOption(properties);
-        auto deviceId = resolveDeviceIdOption(properties);
-        auto device = utils::getDeviceById(_backend, deviceId, compilerType);
+        auto compilerType = determineCompilerType(properties);
+        auto deviceId = determineDeviceId(properties);
+        auto device = utils::getDeviceById(_backend, deviceId);
 
         auto compilationPlatform = utils::getCompilationPlatform(
-            resolvePlatformOption(properties),
+            determinePlatform(properties),
             device == nullptr ? deviceId : device->getName(),
             _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
@@ -988,7 +988,7 @@ void Properties::updateConfig(const ov::AnyMap& properties, OptionMode mode) {
     _config.update(cfgsToSet, mode);
 }
 
-ov::intel_npu::CompilerType Properties::resolveCompilerTypeOption(const ov::AnyMap& properties) const {
+ov::intel_npu::CompilerType Properties::determineCompilerType(const ov::AnyMap& properties) const {
     // first look if provided config changes compiler type
     auto it = properties.find(ov::intel_npu::compiler_type.name());
     if (it != properties.end()) {
@@ -999,7 +999,7 @@ ov::intel_npu::CompilerType Properties::resolveCompilerTypeOption(const ov::AnyM
     return _config.get<COMPILER_TYPE>();
 }
 
-std::string Properties::resolvePlatformOption(const ov::AnyMap& properties) const {
+std::string Properties::determinePlatform(const ov::AnyMap& properties) const {
     auto platform = properties.find(ov::intel_npu::platform.name());
     if (platform != properties.end()) {
         return platform->second.as<std::string>();
@@ -1007,7 +1007,7 @@ std::string Properties::resolvePlatformOption(const ov::AnyMap& properties) cons
     return _config.get<PLATFORM>();
 }
 
-std::string Properties::resolveDeviceIdOption(const ov::AnyMap& properties) const {
+std::string Properties::determineDeviceId(const ov::AnyMap& properties) const {
     auto device_id = properties.find(std::string(ov::device::id.name()));
     if (device_id != properties.end()) {
         return device_id->second.as<std::string>();

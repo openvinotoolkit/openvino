@@ -57,18 +57,14 @@ std::string utils::getCompilationPlatform(const std::string_view platform,
 }
 
 std::shared_ptr<IDevice> utils::getDeviceById(const ov::SoPtr<IEngineBackend>& engineBackend,
-                                              const std::string& deviceId,
-                                              const ov::intel_npu::CompilerType compilerType) {
+                                              const std::string& deviceId) {
     if (engineBackend == nullptr) {
         return nullptr;
     }
 
     try {
         return engineBackend->getDevice(deviceId);
-    } catch (const std::exception& ex) {
-        if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
-            OPENVINO_THROW(ex.what());
-        }
+    } catch (...) {
         Logger("getDeviceById", Logger::global().level())
             .warning("The specified device (\"%s\") was not found.", deviceId.c_str());
     }

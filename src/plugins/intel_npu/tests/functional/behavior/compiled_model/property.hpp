@@ -236,7 +236,7 @@ TEST_P(ClassExecutableNetworkInvalidDeviceIDTestSuite, InvalidNPUdeviceIDTest) {
     } else {
         OV_EXPECT_THROW_HAS_SUBSTRING(ov::CompiledModel compiled_model = ie.compile_model(model, deviceName),
                                       ov::Exception,
-                                      "Could not find available NPU device");
+                                      "Could not find a valid NPU device for the provided configuration.");
     }
 }
 
