@@ -252,8 +252,9 @@ TEST_P(UnicodePathTest, read_compile_model) {
     const auto visitor = [&](const auto& param) {
         using ParamT = std::decay_t<decltype(param)>;
 
-        auto model_path = utils::append_slash(ParamT(prefix_dir.begin(), prefix_dir.end())) +
-                          utils::append_slash(param) + ParamT(model_name.begin(), model_name.end());
+        const auto sep = ov::test::utils::FileTraits<typename ParamT::value_type>::file_separator;
+        const auto model_path = ParamT(prefix_dir.begin(), prefix_dir.end()) + sep + param + sep +
+                                ParamT(model_name.begin(), model_name.end());
 
         const auto model = core.read_model(model_path);
         EXPECT_NE(model, nullptr);

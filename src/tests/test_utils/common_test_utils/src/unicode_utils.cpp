@@ -36,18 +36,28 @@ std::filesystem::path UnicodePathTest::get_path_param() const {
         GetParam());
 }
 
-INSTANTIATE_TEST_SUITE_P(string_paths, UnicodePathTest, testing::Values("test_encoder/test_encoder.encrypted"));
+const static auto basic_paths = testing::Values("test_encoder/test_encoder.encrypted",
+                                                L"test_encoder/test_encoder.encrypted",
+                                                u"test_encoder/dot.folder",
+                                                U"test_encoder/dot.folder");
 
-INSTANTIATE_TEST_SUITE_P(u16_paths, UnicodePathTest, testing::Values(u"test_encoder/dot.folder"));
+const static auto basic_paths_dir = testing::Values("test_encoder/test_encoder.encrypted/",
+                                                    L"test_encoder/test_encoder.encrypted/",
+                                                    u"test_encoder/dot.folder/",
+                                                    U"test_encoder/dot.folder/");
 
-INSTANTIATE_TEST_SUITE_P(u32_paths, UnicodePathTest, testing::Values(U"test_encoder/dot.folder"));
-
-INSTANTIATE_TEST_SUITE_P(wstring_paths, UnicodePathTest, testing::Values(L"test_encoder/test_encoder.encrypted"));
+INSTANTIATE_TEST_SUITE_P(basic_paths, UnicodePathTest, basic_paths);
+INSTANTIATE_TEST_CASE_P(basic_paths, FileUtilTestP, basic_paths);
+INSTANTIATE_TEST_CASE_P(basic_paths_dir, FileUtilTestP, basic_paths_dir);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-INSTANTIATE_TEST_SUITE_P(unicode_paths,
-                         UnicodePathTest,
-                         testing::Values("这是.folder", L"这是_folder", u"这是_folder", U"这是_folder"));
+const static auto unicode_paths = testing::Values("这是.folder", L"这是_folder", u"这是_folder", U"这是_folder");
+const static auto unicode_paths_dir =
+    testing::Values("这是.folder/", L"这是_folder/", u"这是_folder/", U"这是_folder/");
+
+INSTANTIATE_TEST_SUITE_P(unicode_paths, UnicodePathTest, unicode_paths);
+INSTANTIATE_TEST_SUITE_P(unicode_paths, FileUtilTestP, unicode_paths);
+INSTANTIATE_TEST_SUITE_P(unicode_paths_dir, FileUtilTestP, unicode_paths_dir);
 #endif
 
 }  // namespace ov::test

@@ -636,7 +636,7 @@ TEST_F(FileUtilTest, androidWithCutFileSizeTest) {
 }
 #endif
 
-TEST_P(UnicodePathTest, create_directories) {
+TEST_P(FileUtilTestP, create_directories) {
     const auto test_dir = utils::generateTestFilePrefix();
     const auto path = std::filesystem::path(test_dir) / get_path_param();
     const auto exp_path = std::filesystem::path(test_dir) / utils::to_fs_path(GetParam());
@@ -647,25 +647,6 @@ TEST_P(UnicodePathTest, create_directories) {
     ASSERT_TRUE(std::filesystem::exists(path));
     ASSERT_TRUE(std::filesystem::exists(exp_path));
 
-    std::filesystem::remove_all(test_dir);
-}
-
-TEST_P(UnicodePathTest, create_directories_with_slash) {
-    const auto test_dir = utils::generateTestFilePrefix();
-
-    const auto visitor = [&](const auto& param) {
-        const auto param_dir = utils::append_slash(param);
-        const auto path = std::filesystem::path(test_dir) / ov::util::make_path(param_dir);
-        const auto exp_path = std::filesystem::path(test_dir) / utils::to_fs_path(param_dir);
-
-        ov::util::create_directory_recursive(path);
-
-        EXPECT_EQ(path, exp_path);
-        ASSERT_TRUE(std::filesystem::exists(path));
-        ASSERT_TRUE(std::filesystem::exists(exp_path));
-    };
-
-    run_test_visitor(visitor);
     std::filesystem::remove_all(test_dir);
 }
 }  // namespace ov::test

@@ -174,15 +174,6 @@ protected:
         return std::visit(func, GetParam());
     }
 };
+class FileUtilTestP : public UnicodePathTest {};
 
-namespace utils {
-template <typename StringT>
-StringT append_slash(StringT value) {
-    using CharT = typename StringT::value_type;
-    if (value.empty() || value.back() != static_cast<CharT>('/')) {
-        value.push_back(static_cast<CharT>('/'));
-    }
-    return value;
-}
-}  // namespace utils
 }  // namespace ov::test
