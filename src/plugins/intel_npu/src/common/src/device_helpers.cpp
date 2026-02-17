@@ -58,4 +58,23 @@ std::string utils::getCompilationPlatform(const std::string_view platform,
     return ov::intel_npu::Platform::standardize(utils::getPlatformByDeviceName(availableDevicesNames.at(0)));
 }
 
+std::shared_ptr<IDevice> utils::getDeviceById(const ov::SoPtr<IEngineBackend>& engineBackend,
+                                              const std::string& deviceId,
+                                              const ov::intel_npu::CompilerType compilerType) {
+    if (engineBackend == nullptr) {
+        return nullptr;
+    }
+
+    try {
+        return engineBackend->getDevice(deviceId);
+    } catch (const std::exception& ex) {
+        if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
+            OPENVINO_THROW(ex.what());
+        }
+        Logger("getDeviceById", Logger::global().level())
+            .warning("The specified device (\"%s\") was not found.", deviceId.c_str());
+    }
+    return nullptr;
+}
+
 }  // namespace intel_npu

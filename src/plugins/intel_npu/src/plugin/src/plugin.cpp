@@ -501,7 +501,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ov::intel_npu::CompilerType compilerType = _propertiesManager->resolveCompilerTypeOption(localProperties);
     auto deviceId = _propertiesManager->resolveDeviceIdOption(localProperties);
 
-    std::shared_ptr<IDevice> device = getDeviceById(deviceId, compilerType);
+    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, deviceId, compilerType);
 
     const auto compilationPlatform =
         utils::getCompilationPlatform(_propertiesManager->resolvePlatformOption(localProperties),
@@ -885,7 +885,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     ov::intel_npu::CompilerType compilerType = _propertiesManager->resolveCompilerTypeOption(localProperties);
     auto deviceId = _propertiesManager->resolveDeviceIdOption(localProperties);
 
-    std::shared_ptr<IDevice> device = getDeviceById(deviceId, compilerType);
+    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, deviceId, compilerType);
 
     const auto compilationPlatform =
         utils::getCompilationPlatform(_propertiesManager->resolvePlatformOption(localProperties),
@@ -956,7 +956,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     ov::intel_npu::CompilerType compilerType = _propertiesManager->resolveCompilerTypeOption(localProperties);
     auto deviceId = _propertiesManager->resolveDeviceIdOption(localProperties);
 
-    std::shared_ptr<IDevice> device = getDeviceById(deviceId, compilerType);
+    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, deviceId, compilerType);
 
     const auto compilationPlatform =
         utils::getCompilationPlatform(_propertiesManager->resolvePlatformOption(localProperties),
@@ -1077,23 +1077,6 @@ void Plugin::update_log_level(const ov::AnyMap& properties) const {
         Logger::global().setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());
         _logger.setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());
     }
-}
-
-std::shared_ptr<IDevice> Plugin::getDeviceById(const std::string& deviceId,
-                                               ov::intel_npu::CompilerType compilerType) const {
-    if (_backend == nullptr) {
-        return nullptr;
-    }
-
-    try {
-        return _backend->getDevice(deviceId);
-    } catch (const std::exception& ex) {
-        if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
-            OPENVINO_THROW(ex.what());
-        }
-        _logger.warning("The specified device (\"%s\") was not found.", deviceId.c_str());
-    }
-    return nullptr;
 }
 
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};
