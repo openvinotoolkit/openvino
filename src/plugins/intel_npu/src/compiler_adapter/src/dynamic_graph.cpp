@@ -741,4 +741,9 @@ void DynamicGraph::predict_output_shape(std::vector<MemRefType>& inputDescriptor
     impl->predictOutputShape(inputDescriptors, outputDescriptors);
 }
 
+std::optional<bool> DynamicGraph::is_profiling_blob() const {
+        _logger.warning("Profiling is not supported for DynamicGraph");
+        return std::nullopt;
+}
+
 }  // namespace intel_npu
