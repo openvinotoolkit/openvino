@@ -6,7 +6,7 @@
 
 #include "common_op_table.hpp"
 #include "common_translators.hpp"
-#include "helper_ops/complex_type_mark.hpp"
+#include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert_like.hpp"
