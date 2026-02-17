@@ -50,6 +50,7 @@
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/softsign.hpp"
 #include "openvino/op/sqrt.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/tanh.hpp"
 #include "snippets/emitter.hpp"
 #include "snippets/generator.hpp"
@@ -234,7 +235,7 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     // emitter_factory.from_node<jit_power_static_emitter>(); jitters[op::v0::SquaredDifference::get_type_info_static()]
     // =
     //     emitter_factory.from_node<jit_squared_difference_emitter>();
-    // jitters[op::v1::Subtract::get_type_info_static()] = emitter_factory.from_node<jit_subtract_emitter>();
+    jitters[op::v1::Subtract::get_type_info_static()] = emitter_factory.from_node<jit_subtract_emitter>();
     // jitters[op::v0::Xor::get_type_info_static()] = emitter_factory.from_node<jit_logical_xor_emitter>();
     jitters[intel_cpu::FusedMulAdd::get_type_info_static()] = emitter_factory.from_node<jit_mul_add_emitter>();
 
