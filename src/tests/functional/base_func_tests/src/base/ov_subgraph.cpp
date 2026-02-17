@@ -464,36 +464,41 @@ std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
 
 void SubgraphBaseTest::validate() {
     std::vector<ov::Tensor> expectedOutputs, actualOutputs;
-    std::exception_ptr expected_outputs_error, actual_output_error;
 
 #ifndef NDEBUG
     actualOutputs = get_plugin_outputs();
     expectedOutputs = calculate_refs();
 #else
-    std::thread t_device([this, &actualOutputs, &actual_output_error] {
-        // The try ... catch block is required to handle exceptions during output calculations and report as test fail.
-        // If exception is not caught then application would be terminated with crash. (CVS-133676)
-        try {
-            actualOutputs = get_plugin_outputs();
-        } catch (...) {
-            actual_output_error = std::current_exception();
-        }
-    });
-    std::thread t_ref([this, &expectedOutputs, &expected_outputs_error] {
-        try {
-            expectedOutputs = calculate_refs();
-        } catch (...) {
-            expected_outputs_error = std::current_exception();
-        }
-    });
-    t_device.join();
-    t_ref.join();
+    if (m_parallel_validation) {
+        std::exception_ptr expected_outputs_error, actual_output_error;
+        std::thread t_device([this, &actualOutputs, &actual_output_error] {
+            // The try ... catch block is required to handle exceptions during output calculations and report as test fail.
+            // If exception is not caught then application would be terminated with crash. (CVS-133676)
+            try {
+                actualOutputs = get_plugin_outputs();
+            } catch (...) {
+                actual_output_error = std::current_exception();
+            }
+        });
+        std::thread t_ref([this, &expectedOutputs, &expected_outputs_error] {
+            try {
+                expectedOutputs = calculate_refs();
+            } catch (...) {
+                expected_outputs_error = std::current_exception();
+            }
+        });
+        t_device.join();
+        t_ref.join();
 
-    if (actual_output_error) {
-        std::rethrow_exception(actual_output_error);
-    }
-    if (expected_outputs_error) {
-        std::rethrow_exception(expected_outputs_error);
+        if (actual_output_error) {
+            std::rethrow_exception(actual_output_error);
+        }
+        if (expected_outputs_error) {
+            std::rethrow_exception(expected_outputs_error);
+        }
+    } else {
+        actualOutputs = get_plugin_outputs();
+        expectedOutputs = calculate_refs();
     }
 #endif
 

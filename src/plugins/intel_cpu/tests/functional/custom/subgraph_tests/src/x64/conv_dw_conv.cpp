@@ -22,6 +22,7 @@ class ConvDWConv : public testing::WithParamInterface<ConvDWConvTestParams>,
                    public CPUTestUtils::CpuTestWithFusing {
 protected:
     void SetUp() override {
+        m_parallel_validation = true;
         targetDevice = utils::DEVICE_CPU;
         const auto& [precision, input_shape, out_channels, fusing_params] = this->GetParam();
         std::tie(postOpMgrPtr, fusedOps) = fusing_params;
