@@ -148,7 +148,7 @@ public:
      * @{
      */
     template <typename... Properties>
-    util::EnableIfAllStringAny<std::shared<ov::Model>, Properties...> read_model(const std::string& model_path,
+    util::EnableIfAllStringAny<std::shared_ptr<ov::Model>, Properties...> read_model(const std::string& model_path,
                                                                         const std::string& bin_path,
                                                                         Properties&&... properties) const {
         return read_model(model_path, bin_path, AnyMap{std::forward<Properties>(properties)...});
