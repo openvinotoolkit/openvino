@@ -15,29 +15,28 @@ public:
 
     explicit SingleFileStorage(const std::filesystem::path& path);
 
-    void write_cache_entry(const std::string& id, StreamWriter writer) override;
-    void read_cache_entry(const std::string& id, bool mmap_enabled, StreamReader reader) override;
-    void remove_cache_entry(const std::string& id) override;
+    void write_cache_entry(const std::string& blob_id, StreamWriter writer) override;
+    void read_cache_entry(const std::string& blob_id, bool mmap_enabled, StreamReader reader) override;
+    void remove_cache_entry(const std::string& blob_id) override;
 
     void write_context_entry(const SharedContext& context) override;
     SharedContext get_shared_context() const override;
 
 private:
     TLVStorage::blob_map_type m_blob_map;
+    static uint64_t convert_blob_id(const std::string& blob_id);
+    void write_blob_entry(uint64_t blob_id, StreamWriter& writer, std::ofstream& stream);
+    bool has_blob_id(uint64_t blob_id) const;
 
     // todo Below parts are for refactor and might be removed. Don't leave it - reuse or remove.
 private:
     static constexpr size_t blob_id_size = 24;
-    bool has_blob_id(const std::string& blob_id) const;
-    void populate_cache_index(std::ifstream&);
     void update_shared_ctx(const SharedContext& new_ctx);
     void update_shared_ctx_from_file();
     // rename to append or sth??
     void write_ctx_diff(std::ostream& stream);
-    void write_blob_entry(const std::string& id, StreamWriter& writer, std::ofstream& stream);
 
-    std::filesystem::path m_cache_file_path;
-    std::unordered_map<std::string, std::tuple<size_t, size_t>> m_cache_index;  // blob_id -> (offset, size)
+    std::filesystem::path m_cache_file_path;  // rename to m_storage_file_path or sth
     SharedContext m_shared_context;
     SharedContext m_context_diff;
     std::streampos m_context_end;
