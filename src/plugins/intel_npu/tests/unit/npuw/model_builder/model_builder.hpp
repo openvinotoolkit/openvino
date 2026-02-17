@@ -566,7 +566,7 @@ struct BERTConfig {
 ///   RMSNorm norm(64);
 ///   auto normed = norm(input->output(0), "norm");
 ///   b.result(normed, "output");
-///   auto model = b.build("my_model");
+///   auto model = b.build("synthetic_model");
 ///
 /// Or use the convenience method for complete LLMs:
 ///   auto model = b.build_llm(config);

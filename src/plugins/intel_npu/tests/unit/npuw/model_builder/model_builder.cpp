@@ -1522,7 +1522,16 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     }
 
     // ===== Build Model =====
-    auto model = std::make_shared<ov::Model>(m_results, all_sinks, m_parameters, "llm_test_model");
+    std::string model_name = "synthetic_";
+    if (!config.use_lm_head)
+        model_name += "embedding_";
+    else if (config.use_inputs_embeds)
+        model_name += "vlm_";
+    else
+        model_name += "llm_";
+    model_name += "decoder";
+
+    auto model = std::make_shared<ov::Model>(m_results, all_sinks, m_parameters, model_name);
     return model;
 }
 
@@ -1609,7 +1618,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_encoder(const WhisperConf
     return std::make_shared<ov::Model>(
         ov::ResultVector(m_results.begin(), m_results.end()),
         ov::ParameterVector(m_parameters.begin(), m_parameters.end()),
-        "whisper_encoder");
+        "synthetic_whisper_encoder");
 }
 
 // ============================================================================
@@ -1895,7 +1904,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperConf
     }
     result(logits_out, "logits");
 
-    return std::make_shared<ov::Model>(m_results, all_sinks, m_parameters, "whisper_decoder");
+    return std::make_shared<ov::Model>(m_results, all_sinks, m_parameters, "synthetic_whisper_decoder");
 }
 
 // ============================================================================
@@ -1966,7 +1975,7 @@ std::shared_ptr<ov::Model> ModelBuilder::build_bert_encoder(const BERTConfig& co
     // ===== Output =====
     result(current, "last_hidden_state");
 
-    return std::make_shared<ov::Model>(m_results, ov::SinkVector{}, m_parameters, "bert_encoder");
+    return std::make_shared<ov::Model>(m_results, ov::SinkVector{}, m_parameters, "synthetic_encoder_model");
 }
 
 }  // namespace npuw
