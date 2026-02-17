@@ -53,7 +53,7 @@ private:
 
     struct ShuffleChannelsExecutor final {
         explicit ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs);
-        void exec(const uint8_t* srcData, uint8_t* dstData, int MB);
+        void exec(const uint8_t* srcData, uint8_t* dstData, int MB, const CpuParallelPtr& cpuParallel);
         ~ShuffleChannelsExecutor() = default;
 
     private:
