@@ -14,8 +14,16 @@ SingleFileStorage::SingleFileStorage(const std::filesystem::path& path) : m_cach
     util::create_directory_recursive(m_cache_file_path.parent_path());
     if (!util::file_exists(m_cache_file_path)) {
         std::ofstream stream(m_cache_file_path, std::ios_base::binary);
+        // todo What about weight path? Where to get it from?
+        SingleFileStorageHeaderCodec header{major_version, minor_version, "weight/path"};
+        stream << header;
     } else {
-        populate_cache_index();
+        std::ifstream stream(m_cache_file_path, std::ios_base::binary);
+        SingleFileStorageHeaderCodec header{};
+        stream >> header;
+        // todo Check header version etc.
+
+        populate_cache_index(stream);
         update_shared_ctx_from_file();
     }
 }
@@ -24,35 +32,29 @@ bool SingleFileStorage::has_blob_id(const std::string& blob_id) const {
     return m_cache_index.find(blob_id) != m_cache_index.end();
 }
 
-void SingleFileStorage::populate_cache_index() {
+void SingleFileStorage::populate_cache_index(std::ifstream& file) {
     const auto f_size = ov::util::file_size(m_cache_file_path);
-    if (std::ifstream blob_file(m_cache_file_path, std::ios_base::binary); blob_file.is_open()) {
-        // Read shared context from the cache file
+    if (file.is_open()) {
         TLVStorage::Tag tag{};
         TLVStorage::length_type size{};
-        while (blob_file.good() && blob_file.tellg() < f_size) {
-            blob_file.read(reinterpret_cast<char*>(&tag), sizeof(tag));
-            blob_file.read(reinterpret_cast<char*>(&size), sizeof(size));
-            if (blob_file.eof()) {
+        while (file.good() && file.tellg() < f_size) {
+            file.read(reinterpret_cast<char*>(&tag), sizeof(tag));
+            file.read(reinterpret_cast<char*>(&size), sizeof(size));
+            if (file.eof()) {
                 break;
             }
             if (tag == TLVStorage::Tag::Blob) {
                 std::string blob_id(blob_id_size, '\0');
-                blob_file.read(blob_id.data(), blob_id.size());
+                file.read(blob_id.data(), blob_id.size());
                 blob_id.erase(std::find(blob_id.begin(), blob_id.end(), '\0'), blob_id.end());
                 size -= blob_id_size;
                 m_cache_index.emplace_hint(m_cache_index.end(),
                                            blob_id,
-                                           std::make_tuple(static_cast<size_t>(blob_file.tellg()), size));
+                                           std::make_tuple(static_cast<size_t>(file.tellg()), size));
             }
-            blob_file.seekg(size, std::ios::cur);
+            file.seekg(size, std::ios::cur);
         }
     }
-    // std::cout << "Populating cache index end" << std::endl;
-    // for (const auto& [id, info] : m_cache_index) {
-    //     std::cout << "Cache index - id: " << id << " offset: " << std::get<0>(info) << " size: " << std::get<1>(info)
-    //               << "\n";
-    // }
 }
 
 void SingleFileStorage::update_shared_ctx(const SharedContext& new_ctx) {
