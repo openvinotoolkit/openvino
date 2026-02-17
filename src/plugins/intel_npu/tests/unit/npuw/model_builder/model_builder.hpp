@@ -58,6 +58,9 @@ using FFNFn = std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&, co
 /// call takes (input, name) -> output.  Position IDs are baked in at construction.
 using RoPEFn = std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&, const std::string&)>;
 
+/// Layer function: takes (hidden_state, prefix, layer_idx), returns LayerResult.
+using LayerFn = std::function<LayerResult(const ov::Output<ov::Node>&, const std::string&, size_t)>;
+
 // ============================================================================
 // Weight functors
 // ============================================================================
@@ -329,6 +332,15 @@ KVCacheResult make_encoder_kv_cache(const ov::Output<ov::Node>& encoder_kv,
                                     const std::string& name,
                                     ov::element::Type precision = ov::element::f32);
 
+/// Run N transformer layers, collecting sinks.
+/// layer_fn is called for each layer with (hidden_state, prefix, layer_idx).
+/// Returns final hidden state and all Assign sinks.
+std::pair<ov::Output<ov::Node>, ov::SinkVector> run_transformer_layers(
+    const ov::Output<ov::Node>& initial,
+    size_t num_layers,
+    const std::string& prefix_base,
+    const LayerFn& layer_fn);
+
 // ============================================================================
 // Attention functor
 // ============================================================================
@@ -503,6 +515,12 @@ struct LLMConfig {
     size_t get_kv_heads() const {
         return num_kv_heads == 0 ? num_heads : num_kv_heads;
     }
+
+    /// Fill dimension-dependent defaults that can't be set in struct definition
+    void fill_defaults();
+
+    /// Create base Attention struct from config dimensions
+    Attention make_attention() const;
 };
 
 // ============================================================================
@@ -528,6 +546,18 @@ struct WhisperConfig {
     size_t head_dim() const {
         return d_model / decoder_attention_heads;
     }
+
+    /// Fill weight default if empty
+    void fill_defaults();
+
+    /// Create Attention for encoder self-attention layers
+    Attention make_encoder_attention() const;
+
+    /// Create Attention for decoder self-attention layers
+    Attention make_decoder_self_attention() const;
+
+    /// Create Attention for decoder cross-attention layers
+    Attention make_decoder_cross_attention() const;
 };
 
 // ============================================================================
@@ -548,6 +578,12 @@ struct BERTConfig {
     WeightFn weight = FP32Weight{};
     NormFn norm;
     FFNFn ffn;
+
+    /// Fill dimension-dependent defaults that can't be set in struct definition
+    void fill_defaults();
+
+    /// Create Attention struct from config dimensions (includes bias)
+    Attention make_attention() const;
 };
 
 // ============================================================================
@@ -618,6 +654,10 @@ public:
     void clear();
 
 private:
+    /// Set up position IDs for build_llm: handles internal/custom/auto-create modes.
+    /// May auto-create HalfRotationRoPE on config.rope. Registers Parameters into m_parameters.
+    ov::Output<ov::Node> setup_position_ids(LLMConfig& config, const ov::Output<ov::Node>& seq_source);
+
     std::shared_ptr<ov::Node> get_block(const std::shared_ptr<ov::Node>& input);
     void set_name(const std::shared_ptr<ov::Node>& node);
 
