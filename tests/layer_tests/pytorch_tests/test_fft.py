@@ -3,7 +3,6 @@
 
 from sys import platform
 
-import numpy as np
 import pytest
 import torch
 
@@ -12,12 +11,12 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestRFFTN(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.randn(*self.input_shape).astype(np.float32),)
+        return (self.random.randn(*self.input_shape),)
 
     def create_model(self, dim, s, norm):
         class aten_fft_rfftn(torch.nn.Module):
             def __init__(self, dim, s, norm):
-                super(aten_fft_rfftn, self).__init__()
+                super().__init__()
                 self.dim = dim
                 self.s = s
                 self.norm = norm
@@ -29,11 +28,9 @@ class TestRFFTN(PytorchLayerTest):
                 irfftn = torch.fft.irfftn(torch.complex(r, i), s=self.s, dim=self.dim, norm=self.norm)
                 return irfftn, r, i
 
-        ref_net = None
 
         return (
             aten_fft_rfftn(dim, s, norm),
-            ref_net,
             ["aten::fft_irfftn", "aten::complex", "aten::fft_rfftn", "aten::real", "aten::imag"],
         )
 
@@ -69,7 +66,7 @@ class aten_fft(torch.nn.Module):
 
 class TestFFT(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.randn(*self.input_shape).astype(np.float32),)
+        return (self.random.randn(*self.input_shape),)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -94,7 +91,7 @@ class TestFFT(PytorchLayerTest):
         else:
             self.input_shape = input_shape
         m = aten_fft(op, n, dim, norm)
-        self._test(m, None, aten_name, ie_device,
+        self._test(m, aten_name, ie_device,
                    precision, ir_version, trace_model=True, dynamic_shapes=False, custom_eps=1e-3)
 
     @pytest.mark.nightly
@@ -118,7 +115,7 @@ class TestFFT(PytorchLayerTest):
         else:
             self.input_shape = input_shape
         m = aten_fft(op, s, dim, norm)
-        self._test(m, None, aten_name, ie_device,
+        self._test(m, aten_name, ie_device,
                    precision, ir_version, trace_model=True, dynamic_shapes=False, custom_eps=1e-3)
 
     @pytest.mark.nightly
@@ -156,5 +153,5 @@ class TestFFT(PytorchLayerTest):
         else:
             self.input_shape = input_shape
         m = aten_fft(op, s, dim, norm)
-        self._test(m, None, aten_name, ie_device,
+        self._test(m, aten_name, ie_device,
                    precision, ir_version, trace_model=True, dynamic_shapes=False, custom_eps=1e-3)

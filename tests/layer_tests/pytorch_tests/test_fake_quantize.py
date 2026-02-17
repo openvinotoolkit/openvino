@@ -3,17 +3,15 @@
 
 import platform
 
-import numpy as np
 import pytest
 import torch
 from pytorch_layer_test_class import PytorchLayerTest, skip_check
 
 
 class TestFakeQuantizePerTensorAffine(PytorchLayerTest):
-    rng = np.random.default_rng(seed=123)
 
     def _prepare_input(self):
-        return (self.rng.standard_normal([3, 2, 2], dtype=np.float32),)
+        return (self.random.randn(3, 2, 2),)
 
     def create_model(self, scale, zero_point, quant_min, quant_max):
         class fake_quantize_per_tensor_affine(torch.nn.Module):
@@ -31,7 +29,6 @@ class TestFakeQuantizePerTensorAffine(PytorchLayerTest):
 
         return (
             fake_quantize_per_tensor_affine(scale, zero_point, quant_min, quant_max),
-            None,
             "aten::fake_quantize_per_tensor_affine",
         )
 
@@ -66,10 +63,9 @@ class TestFakeQuantizePerTensorAffine(PytorchLayerTest):
 
 
 class TestFakeQuantizePerTensorAffineCacheMaskTensorQParams(PytorchLayerTest):
-    rng = np.random.default_rng(seed=123)
 
     def _prepare_input(self):
-        return (self.rng.standard_normal([3, 2, 2], dtype=np.float32),)
+        return (self.random.randn(3, 2, 2),)
 
     def create_model(self, scale, zero_point, quant_min, quant_max):
         class _fake_quantize_per_tensor_affine_cachemask_tensor_qparams(torch.nn.Module):
@@ -89,7 +85,6 @@ class TestFakeQuantizePerTensorAffineCacheMaskTensorQParams(PytorchLayerTest):
 
         return (
             _fake_quantize_per_tensor_affine_cachemask_tensor_qparams(scale, zero_point, quant_min, quant_max),
-            None,
             "aten::_fake_quantize_per_tensor_affine_cachemask_tensor_qparams",
         )
 
@@ -122,10 +117,9 @@ class TestFakeQuantizePerTensorAffineCacheMaskTensorQParams(PytorchLayerTest):
 
 
 class TestFakeQuantizePerChannelAffine(PytorchLayerTest):
-    rng = np.random.default_rng(seed=123)
 
     def _prepare_input(self):
-        return (self.rng.standard_normal([3, 2, 2], dtype=np.float32),)
+        return (self.random.randn(3, 2, 2),)
 
     def create_model(self, scale, zero_point, axis, quant_min, quant_max):
         class fake_quantize_per_channel_affine(torch.nn.Module):
@@ -144,7 +138,6 @@ class TestFakeQuantizePerChannelAffine(PytorchLayerTest):
 
         return (
             fake_quantize_per_channel_affine(scale, zero_point, axis, quant_min, quant_max),
-            None,
             "aten::fake_quantize_per_channel_affine",
         )
 
