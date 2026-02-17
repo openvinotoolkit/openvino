@@ -1535,6 +1535,19 @@ void Transformations::MainSnippets() {
                });
     };
 
+    auto should_skip_snippets_tokenization = [ignoreCallback, &is_supported_op](const std::shared_ptr<const ov::Node>& n) {
+        if (ignoreCallback) {
+            return false;
+        }
+#if defined(OPENVINO_ARCH_ARM64)
+        // Keep dynamic FQ tokenizable on ARM
+        const bool is_dynamic_fq = n->is_dynamic() && ov::is_type<const ov::op::v0::FakeQuantize>(n);
+        return (n->is_dynamic() && !is_dynamic_fq) || !is_supported_op(n);
+#else
+        return n->is_dynamic() || !is_supported_op(n);
+#endif
+    };
+
     if (!ignoreCallback) {
         CPU_SET_CALLBACK_X64(
             snippetsManager,
@@ -1588,16 +1601,8 @@ void Transformations::MainSnippets() {
     CPU_SET_CALLBACK_COMMON(
         snippetsManager,
         [&](const std::shared_ptr<const ov::Node>& n) -> bool {
-            if (!ignoreCallback) {
-#if defined(OPENVINO_ARCH_ARM64)
-                // Keep dynamic FQ tokenizable on ARM: we still want FQ decomposition to happen
-                // inside snippets Subgraphs rather than on the top-level model.
-                const bool is_dynamic_fq = n->is_dynamic() && ov::is_type<const ov::op::v0::FakeQuantize>(n);
-                if ((n->is_dynamic() && !is_dynamic_fq) || !is_supported_op(n))
-#else
-                if (n->is_dynamic() || !is_supported_op(n))
-#endif
-                    return true;
+            if (should_skip_snippets_tokenization(n)) {
+                return true;
             }
 
             const auto& inputs = n->inputs();
@@ -1648,8 +1653,8 @@ void Transformations::MainSnippets() {
 #elif defined(OPENVINO_ARCH_X86_64)
         return true;
 #else
-        OPENVINO_THROW("ExplicitTransposeMatMulInputs callback is not supported on this architecture");
-        return false;
+    OPENVINO_THROW("ExplicitTransposeMatMulInputs callback is not supported on this architecture");
+    return false;
 #endif
     };
 
