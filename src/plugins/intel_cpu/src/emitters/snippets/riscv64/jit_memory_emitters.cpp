@@ -36,16 +36,19 @@ using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
 namespace {
 
-void set_vector_length(jit_generator_t* h, size_t avl, Xbyak_riscv::SEW sew, const std::vector<size_t>& aux_gpr_idxs) {
-    if (avl <= 31) {
-        h->vsetivli(Xbyak_riscv::zero, avl, sew, Xbyak_riscv::LMUL::m1);
+void set_vector_length(jit_generator_t* h,
+                       size_t vector_length,
+                       Xbyak_riscv::SEW sew,
+                       const std::vector<size_t>& aux_gpr_idxs) {
+    if (vector_length <= 31) {
+        h->vsetivli(Xbyak_riscv::zero, vector_length, sew, Xbyak_riscv::LMUL::m1);
         return;
     }
 
     OV_CPU_JIT_EMITTER_ASSERT(!aux_gpr_idxs.empty(), "Large vector length requires an auxiliary GPR register");
-    const auto avl_reg = Xbyak_riscv::Reg(static_cast<int>(aux_gpr_idxs.back()));
-    h->uni_li(avl_reg, avl);
-    h->vsetvli(Xbyak_riscv::zero, avl_reg, sew, Xbyak_riscv::LMUL::m1);
+    const auto vector_length_reg = Xbyak_riscv::Reg(static_cast<int>(aux_gpr_idxs.back()));
+    h->uni_li(vector_length_reg, vector_length);
+    h->vsetvli(Xbyak_riscv::zero, vector_length_reg, sew, Xbyak_riscv::LMUL::m1);
 }
 
 }  // namespace
@@ -248,6 +251,7 @@ jit_load_broadcast_emitter::jit_load_broadcast_emitter(ov::intel_cpu::riscv64::j
 
     const auto broadcast_load = ov::as_type_ptr<snippets::op::BroadcastLoad>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(broadcast_load != nullptr, "Expects BroadcastLoad expression");
+    count = 1;  // BroadcastLoad loads a single scalar value
     byte_size = src_prc.size();
 }
 
@@ -264,6 +268,7 @@ void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const s
     auto src_gpr = Xbyak_riscv::Reg(in[0]);
     auto dst_vreg = Xbyak_riscv::VReg(out[0]);
 
+    // Set vector configuration for appropriate element size
     if (byte_size == 4) {
         h->vsetivli(Xbyak_riscv::zero, 4, Xbyak_riscv::SEW::e32, Xbyak_riscv::LMUL::m1);
     } else if (byte_size == 2) {

@@ -134,12 +134,7 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in,
             OPENVINO_THROW("Unsupported emitter_in_out_map instance");
         }
     };
-    std::vector<Xbyak_riscv::Reg> aux_tmp_regs;
-    aux_tmp_regs.reserve(available_gpr.size());
-    for (const auto& reg : available_gpr) {
-        aux_tmp_regs.emplace_back(static_cast<int>(reg.idx));
-    }
-    init_data_pointers(utils::transform_idxs_to_regs(in), data_ptr_regs, aux_tmp_regs);
+    init_data_pointers(utils::transform_idxs_to_regs(in), data_ptr_regs, {});
     for (const auto& expression : *body) {
         const auto reg_info = expression->get_reg_info();
         const auto& emitter = std::dynamic_pointer_cast<jit_emitter>(expression->get_emitter());
@@ -262,15 +257,16 @@ jit_kernel_dynamic_emitter::jit_kernel_dynamic_emitter(jit_generator_t* h,
                               "jit_kernel_dynamic_emitter expects KernelDynamic expression");
 }
 
-void jit_kernel_dynamic_emitter::init_data_pointers(const std::vector<Xbyak_riscv::Reg>& arg_regs,
-                                                    const std::vector<Xbyak_riscv::Reg>& data_ptr_regs,
-                                                    const std::vector<Xbyak_riscv::Reg>& aux_gprs) const {
+void jit_kernel_dynamic_emitter::init_data_pointers(
+    const std::vector<Xbyak_riscv::Reg>& arg_regs,
+    const std::vector<Xbyak_riscv::Reg>& data_ptr_regs,
+    [[maybe_unused]] const std::vector<Xbyak_riscv::Reg>& aux_gprs) const {
     OV_CPU_JIT_EMITTER_ASSERT(arg_regs.size() == 1, "Invalid arg regs size");
     auto reg_runtime_params = arg_regs[0];
 
     const auto num_params = num_inputs + num_outputs;
     for (size_t i = 0; i < num_unique_buffers; ++i) {
-        Xbyak_riscv::Reg addr = aux_gprs.empty() ? Xbyak_riscv::t0 : aux_gprs.front();
+        Xbyak_riscv::Reg addr = Xbyak_riscv::t0;
         h->uni_li(addr, GET_OFF(buffer_scratchpad_ptr));
         h->add(addr, reg_runtime_params, addr);
         h->ld(data_ptr_regs[num_params + i], addr, 0);

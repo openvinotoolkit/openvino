@@ -56,6 +56,8 @@ template <cpu_isa_t isa>
 void jit_broadcast_move_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     auto src_vreg = Xbyak_riscv::VReg(in[0]);
     auto dst_vreg = Xbyak_riscv::VReg(out[0]);
+    // Due to the fact that InsertBroadcastMove happens after register allocation, we can end up in a situation where
+    // source and destination registers are the same
     const bool in_place = src_vreg.getIdx() == dst_vreg.getIdx();
 
     switch (byte_size) {
