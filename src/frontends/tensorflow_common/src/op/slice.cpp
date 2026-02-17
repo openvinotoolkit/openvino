@@ -34,7 +34,13 @@ OutputVector translate_slice_op(const NodeContext& node) {
     auto const_one = create_same_type_const_scalar<int32_t>(start, 1);
     auto const_zero = create_same_type_const_scalar<int32_t>(start, 0);
 
-    auto shape_source = complex_type_mark_node ? complex_type_mark_node->get_real() : input;
+    // Use real-part tensor for shape calculations when input is complex-tensor.
+    ov::Output<ov::Node> shape_source;
+    if (complex_type_mark_node) {
+        shape_source = complex_type_mark_node->get_real();
+    } else {
+        shape_source = input;
+    }
 
     // compute stop values in case non-negative sizes
     auto stop_pos = make_shared<v1::Add>(start, size);
