@@ -26,9 +26,10 @@ struct MemoryCounters {
 
     int32_t thread_count = -1;
 
-    int64_t gpu_free = -1;
-    int64_t gpu_used = -1;
-    int64_t gpu_total = -1;
+    int64_t gpu_local_used = -1;
+    int64_t gpu_local_total = -1;
+    int64_t gpu_nonlocal_used = -1;
+    int64_t gpu_nonlocal_total = -1;
 };
 
 
@@ -99,7 +100,7 @@ struct TestContext {
         bool gpu_ready = false;
         if (device.find("GPU") != std::string::npos) {
             // GPU is used -> initialize GPU sampling
-            gpu_ready = initGpuSampling() == INIT_GPU_STATUS_SUCCESS;
+            gpu_ready = initGpuSampling() == InitGpuStatus::SUCCESS;
             if (!gpu_ready) {
                 std::cerr << "GPU memory sampling will not be available" << std::endl;
             }
@@ -134,9 +135,10 @@ struct TestContext {
         };
         if (gpu_ready) {
             auto gpu_sample = sampleGpuMemory();
-            sample.gpu_free = gpu_sample.free;
-            sample.gpu_used = gpu_sample.used;
-            sample.gpu_total = gpu_sample.total;
+            sample.gpu_local_used = gpu_sample.local_used;
+            sample.gpu_local_total = gpu_sample.local_total;
+            sample.gpu_nonlocal_used = gpu_sample.nonlocal_used;
+            sample.gpu_nonlocal_total = gpu_sample.nonlocal_total;
         }
         samples.push_back({sample_name, sample});
     }
@@ -154,9 +156,10 @@ struct TestContext {
             << "\"vmrss\": " << sample.second.resident_size << ", "
             << "\"vmhwm\": " << sample.second.resident_peak << ", "
             << "\"threads\": " << sample.second.thread_count << ", "
-            << "\"gpu_free\": " << sample.second.gpu_free << ", "
-            << "\"gpu_used\": " << sample.second.gpu_used << ", "
-            << "\"gpu_total\": " << sample.second.gpu_total << "}";
+            << "\"gpu_local_used\": " << sample.second.gpu_local_used << ", "
+            << "\"gpu_local_total\": " << sample.second.gpu_local_total << ", "
+            << "\"gpu_nonlocal_used\": " << sample.second.gpu_nonlocal_used << ", "
+            << "\"gpu_nonlocal_total\": " << sample.second.gpu_nonlocal_total << "}";
             if (&sample != &samples.back()) {
                 std::cout << ", ";
             }

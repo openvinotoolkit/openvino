@@ -47,23 +47,29 @@ class MemSample:
     vmrss: int
     vmhwm: int
     threads: int
-    gpu_free: int
-    gpu_used: int
-    gpu_total: int
+    gpu_local_used: int = -1
+    gpu_local_total: int = -1
+    gpu_nonlocal_used: int = -1
+    gpu_nonlocal_total: int = -1
 
-    as_dict = asdict
+    def as_dict(self):
+        def to_camel_case(s: str):
+            first, *others = s.split("_")
+            return "".join([first, *[x.capitalize() for x in others]])
 
-    @staticmethod
-    def from_dict(values: dict):
+        return {
+            to_camel_case(k): v
+            for k, v in asdict(self).items()
+        }
+
+    @classmethod
+    def from_dict(cls, values: dict):
         class_fields = MemSample.__dataclass_fields__.keys()
-        selected_values = {k: int(values[k]) for k in class_fields}
+        selected_values = {
+            k: int(values[k])
+            for k in class_fields
+        }
         return MemSample(**selected_values)
-
-    def compare(self, reference: "MemSample"):
-        ref_dict = reference.as_dict()
-        for key, value in self.as_dict().items():
-            refval = ref_dict[key]
-            yield (key, *value_diff(value, refval))
 
     def __repr__(self):
         return "; ".join(f"{k} {v:>10}" for k, v in self.as_dict().items())
@@ -77,7 +83,7 @@ def run_test_executable_extract_result(command):
         results = json.loads(results_json)
         if "samples" in results:
             results["samples"] = {
-                sname: MemSample(**sample)
+                sname: MemSample.from_dict(sample)
                 for sname, sample in results["samples"].items()
             }
         return results
@@ -263,7 +269,7 @@ if __name__ == "__main__":
                         'must not intersect')
     parser.add_argument("--devices", default="CPU")
 
-    parser.add_argument("--api", help="API endpoint for results to compare and upload")
+    parser.add_argument("--api", help="API endpoint for results to upload")
     parser.add_argument("--upload-reference", "--upload_reference",
                         "--upload-references", "--upload_references", action="store_true",
                         help="This run will make new reference values")

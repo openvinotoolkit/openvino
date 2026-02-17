@@ -3,48 +3,28 @@
 
 #include "gpu_memory_sampling.hpp"
 
+#define INTEL_PCI_VENDOR_ID 0x8086
+
 
 #ifdef _WIN32
 
 #include <windows.h>
+#include <wrl/client.h>
 #include <dxgi1_4.h>
 #pragma comment(lib, "dxgi.lib")
 
-#define INTEL_VENDOR_ID 0x8086
+using Microsoft::WRL::ComPtr;
 
 
-static IDXGIFactory4 *dxgi_factory = nullptr;
-static IDXGIAdapter3 *selected_adapter = nullptr;
+static ComPtr<IDXGIFactory4> dxgi_factory;
+static ComPtr<IDXGIAdapter3> selected_adapter;
 
 
-std::ostream & operator<<(std::ostream &ostream, const DXGI_QUERY_VIDEO_MEMORY_INFO &info) {
-    ostream << "{"
-        << "\"Budget\": " << info.Budget
-        << ", \"CurrentUsage\": " << info.CurrentUsage
-        << ", \"AvailableForReservation\": " << info.AvailableForReservation
-        << ", \"CurrentReservation\": " << info.CurrentReservation
-    << "}";
-}
-
-std::ostream &operator<<(std::ostream &ostream, const DXGI_ADAPTER_DESC &desc) {
-    ostream << "{"
-        << "\"description\": \"" << desc.Description << "\""
-        << ", \"vendor\": \"" << std::hex << desc.VendorId << "\""
-        << ", \"device\": \"" << desc.DeviceId << std::dec << "\""
-        << ", \"mem_video\": " << desc.DedicatedVideoMemory / MiB
-        << ", \"mem_system\": " << desc.DedicatedSystemMemory / MiB
-        << ", \"mem_shared\": " << desc.SharedSystemMemory / MiB
-    << "}";
-}
-
-
-INIT_GPU_STATUS initGpuSampling() {
-    if (S_OK != CreateDXGIFactory2(0, __uuidof(IDXGIFactory4), (void **)&dxgi_factory)) {
+InitGpuStatus initGpuSampling() {
+    if (S_OK != CreateDXGIFactory2(0, IID_PPV_ARGS(&dxgi_factory))) {
         std::cerr << "CreateDXGIFactory2 failed" << std::endl;
-        return INIT_GPU_STATUS_SUBSYSTEM_UNAVAILABLE;
+        return InitGpuStatus::SUBSYSTEM_UNAVAILABLE;
     }
-
-    float MiB = 1024 * 1024;
     IDXGIAdapter *adapter = nullptr;
     for (
         UINT adapterIndex = 0;
@@ -53,34 +33,31 @@ INIT_GPU_STATUS initGpuSampling() {
     ) {
         DXGI_ADAPTER_DESC desc;
         adapter->GetDesc(&desc);
-        if (desc.VendorId == INTEL_VENDOR_ID) {
-            std::cerr << "Selecting adapter #" << adapterIndex << std::endl;
-            std::cerr << desc << std::endl;
-            if (S_OK != adapter->QueryInterface(__uuidof(IDXGIAdapter3), (void**)&selected_adapter)) {
+        if (desc.VendorId == INTEL_PCI_VENDOR_ID) {
+            // at this moment only looking for the first Intel GPU
+            std::cerr << "Selecting adapter " << std::hex << desc.DeviceId << std::dec << std::endl;
+            if (S_OK != adapter->QueryInterface(IID_PPV_ARGS(&selected_adapter))) {
                 std::cerr << "Failed to query IDXGIAdapter3 interface for selected adapter" << std::endl;
-                return INIT_GPU_STATUS_SUBSYSTEM_UNSUPPORTED;
+                return InitGpuStatus::SUBSYSTEM_UNSUPPORTED;
             }
             adapter->Release();
-
-            // try to take a sample?
-            return INIT_GPU_STATUS_SUCCESS;
+            return InitGpuStatus::SUCCESS;
         }
         adapter->Release();
     }
 
     std::cerr << "No proper adapter was found for sampling" << std::endl;
-    return INIT_GPU_STATUS_GPU_NOT_FOUND;
+    return InitGpuStatus::GPU_NOT_FOUND;
 }
 
 GpuMemorySample sampleGpuMemory() {
     DXGI_ADAPTER_DESC desc;
     selected_adapter->GetDesc(&desc);
-    int64_t total_mem = (desc.DedicatedVideoMemory
-        + desc.DedicatedSystemMemory
-        + desc.SharedSystemMemory) / 1024;
-    int64_t budget = 0;
-    int64_t available = 0;
-    int64_t used = 0;
+    int64_t local_total = desc.DedicatedVideoMemory + desc.DedicatedSystemMemory;
+    int64_t nonlocal_total = desc.SharedSystemMemory;
+
+    int64_t local_used = 0;
+    int64_t nonlocal_used = 0;
 
     int nodeId = 0;
     DXGI_QUERY_VIDEO_MEMORY_INFO info;
@@ -90,33 +67,28 @@ GpuMemorySample sampleGpuMemory() {
         if (result != S_OK) {
             break;
         }
-        std::cerr << "Sample of local memory: " << info << std::endl;
-        budget += info.Budget / 1024;
-        available += info.AvailableForReservation / 1024;
-        used += info.CurrentUsage / 1024;
+        local_used += info.CurrentUsage / 1024;
 
         result = selected_adapter->QueryVideoMemoryInfo(
             nodeId, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &info);
         if (result != S_OK) {
             break;
         }
-        std::cerr << "Sample of non-local memory: " << info << std::endl;
-        budget += info.Budget / 1024;
-        available += info.AvailableForReservation / 1024;
-        used += info.CurrentUsage / 1024;
+        nonlocal_used += info.CurrentUsage / 1024;
         nodeId += 1;
     }
     return {
-        .total=total_mem,
-        .free=available,
-        .used=used
+        .local_used = local_used,
+        .local_total = local_total,
+        .nonlocal_used = nonlocal_used,
+        .nonlocal_total = nonlocal_total
     };
 }
 
 #else
 
-INIT_GPU_STATUS initGpuSampling() {
-    return INIT_GPU_STATUS_SUBSYSTEM_UNAVAILABLE;
+InitGpuStatus initGpuSampling() {
+    return InitGpuStatus::SUBSYSTEM_UNAVAILABLE;
 }
 
 GpuMemorySample sampleGpuMemory() {
