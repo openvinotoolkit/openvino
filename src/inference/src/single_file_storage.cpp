@@ -23,6 +23,13 @@ SingleFileStorage::SingleFileStorage(const std::filesystem::path& path) : m_cach
         stream >> header;
         // todo Check header version etc.
 
+        {
+            const auto cur_pos = stream.tellg();
+            BlobMapStreamCodec blob_map_reader{&m_blob_map};
+            stream >> blob_map_reader;
+            stream.seekg(cur_pos);
+        }
+
         populate_cache_index(stream);
         update_shared_ctx_from_file();
     }

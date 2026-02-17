@@ -5,6 +5,7 @@
 #pragma once
 
 #include "icache_manager.hpp"
+#include "storage_traits.hpp"
 
 namespace ov {
 class SingleFileStorage final : public ICacheManager, public ISharedContextStore {
@@ -22,8 +23,11 @@ public:
     SharedContext get_shared_context() const override;
 
 private:
-    static constexpr size_t blob_id_size = 24;
+    TLVStorage::blob_map_type m_blob_map;
 
+    // todo Below parts are for refactor and might be removed. Don't leave it - reuse or remove.
+private:
+    static constexpr size_t blob_id_size = 24;
     bool has_blob_id(const std::string& blob_id) const;
     void populate_cache_index(std::ifstream&);
     void update_shared_ctx(const SharedContext& new_ctx);
