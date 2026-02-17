@@ -71,6 +71,8 @@ public:
     virtual void set_last_submitted_id(uint32_t id_index);
     virtual uint32_t get_last_submitted_id() const;
 
+    virtual std::optional<bool> is_profiling_blob() const = 0;
+
 protected:
     // Used to protect zero pipeline creation in the graph. The pipeline should be created only once per graph when the
     // first inference starts running
