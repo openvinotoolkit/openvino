@@ -501,6 +501,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ov::intel_npu::CompilerType compilerType = _propertiesManager->resolveCompilerTypeOption(localProperties);
     auto deviceId = _propertiesManager->resolveDeviceIdOption(localProperties);
 
+    // Accounts for various scenarios based on the DEVICE_ID:
+    // - For offline compilation (backend == nullptr), no further action is needed; only model compilation is allowed.
+    // - For on-device compilation where DEVICE_ID != current device ID, compilation is allowed only with CiP.
     std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, deviceId, compilerType);
 
     const auto compilationPlatform =

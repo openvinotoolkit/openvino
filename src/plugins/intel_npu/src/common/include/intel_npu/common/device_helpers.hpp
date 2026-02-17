@@ -22,9 +22,6 @@ std::string getCompilationPlatform(const std::string_view platform,
 
 /**
  * @brief Gets the device by its ID.
- * @details Accounts for various scenarios when user passes DEVICE_ID:
- * - For offline compilation (backend == nullptr), no further action is needed; only model compilation is allowed.
- * - For on-device compilation where DEVICE_ID != current device ID, compilation is allowed only with CiP.
  */
 std::shared_ptr<IDevice> getDeviceById(const ov::SoPtr<IEngineBackend>& engineBackend,
                                        const std::string& deviceId,
