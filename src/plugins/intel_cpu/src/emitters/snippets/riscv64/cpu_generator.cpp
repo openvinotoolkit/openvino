@@ -39,6 +39,8 @@
 #include "openvino/op/is_finite.hpp"
 #include "openvino/op/is_inf.hpp"
 #include "openvino/op/is_nan.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
 #include "openvino/op/mish.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/negative.hpp"
@@ -224,8 +226,8 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     // binary operations
     jitters[op::v1::Add::get_type_info_static()] = emitter_factory.from_node<jit_add_emitter>();
     // jitters[op::v1::Divide::get_type_info_static()] = emitter_factory.from_node<jit_divide_emitter>();
-    // jitters[op::v1::Maximum::get_type_info_static()] = emitter_factory.from_node<jit_maximum_emitter>();
-    // jitters[op::v1::Minimum::get_type_info_static()] = emitter_factory.from_node<jit_minimum_emitter>();
+    jitters[op::v1::Maximum::get_type_info_static()] = emitter_factory.from_node<jit_maximum_emitter>();
+    jitters[op::v1::Minimum::get_type_info_static()] = emitter_factory.from_node<jit_minimum_emitter>();
     // jitters[op::v1::Mod::get_type_info_static()] = emitter_factory.from_node<jit_mod_emitter>();
     jitters[op::v1::Multiply::get_type_info_static()] = emitter_factory.from_node<jit_multiply_emitter>();
     // jitters[snippets::op::PowerStatic::get_type_info_static()] =
