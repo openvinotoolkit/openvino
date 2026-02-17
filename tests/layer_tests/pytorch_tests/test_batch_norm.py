@@ -7,10 +7,9 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestBatchNorm(PytorchLayerTest):
     def _prepare_input(self, ndim=4):
-        import numpy as np
         shape5d = [20, 6, 10, 10, 10]
         shape = shape5d[:ndim]
-        return (np.random.randn(*shape).astype(np.float32),)
+        return (self.random.randn(*shape),)
 
     def create_model(self, weights, bias, eps, train, running_stats):
 
@@ -18,32 +17,31 @@ class TestBatchNorm(PytorchLayerTest):
         import torch.nn.functional as F
 
         class aten_batch_norm_inference(torch.nn.Module):
-            def __init__(self, weights=True, bias=True, eps=1e-05):
-                super(aten_batch_norm_inference, self).__init__()
-                self.weight = torch.randn(6) if weights else None
-                self.bias = torch.randn(6) if bias else None
-                self.running_mean = torch.randn(6)
-                self.running_var = torch.randn(6)
+            def __init__(self, rng, weights=True, bias=True, eps=1e-05):
+                super().__init__()
+                self.weight = rng.torch_randn(6) if weights else None
+                self.bias = rng.torch_randn(6) if bias else None
+                self.running_mean = rng.torch_randn(6)
+                self.running_var = rng.torch_randn(6)
                 self.eps = eps
 
             def forward(self, x):
                 return F.batch_norm(x, self.running_mean, self.running_var, self.weight, self.bias, eps=self.eps, training=False)
 
         class aten_batch_norm_train(torch.nn.Module):
-            def __init__(self, weights=True, bias=True, eps=1e-05, running_stats=False):
-                super(aten_batch_norm_train, self).__init__()
-                self.weight = torch.randn(6) if weights else None
-                self.bias = torch.randn(6) if bias else None
-                self.running_mean = torch.randn(6) if running_stats else None
-                self.running_var = torch.randn(6) if running_stats else None
+            def __init__(self, rng, weights=True, bias=True, eps=1e-05, running_stats=False):
+                super().__init__()
+                self.weight = rng.torch_randn(6) if weights else None
+                self.bias = rng.torch_randn(6) if bias else None
+                self.running_mean = rng.torch_randn(6) if running_stats else None
+                self.running_var = rng.torch_randn(6) if running_stats else None
                 self.eps = eps
 
             def forward(self, x):
                 return F.batch_norm(x, self.running_mean, self.running_var, self.weight, self.bias, eps=self.eps, training=True)
 
-        ref_net = None
 
-        return aten_batch_norm_inference(weights, bias, eps) if not train else aten_batch_norm_train(weights, bias, eps, running_stats), ref_net, "aten::batch_norm"
+        return aten_batch_norm_inference(self.random, weights, bias, eps) if not train else aten_batch_norm_train(self.random, weights, bias, eps, running_stats), "aten::batch_norm"
 
     @pytest.mark.parametrize("weights", [True, False])
     @pytest.mark.parametrize("bias", [True, False])

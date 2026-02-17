@@ -9,8 +9,8 @@ from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 class TestGather(PytorchLayerTest):
     def _prepare_input(self, m, n, max_val, out=False):
         import numpy as np
-        index = np.random.randint(0, max_val, (m, n)).astype(np.int64)
-        inp = np.random.randn(m, n).astype(np.float32)
+        index = self.random.randint(0, max_val, (m, n), dtype=np.int64)
+        inp = self.random.randn(m, n)
         if out:
             axis = int(max_val == n)
             out = np.zeros_like(np.take(inp, index, axis))
@@ -22,7 +22,7 @@ class TestGather(PytorchLayerTest):
 
         class aten_gather(torch.nn.Module):
             def __init__(self, axis, out=False):
-                super(aten_gather, self).__init__()
+                super().__init__()
                 self.axis = axis
                 if out:
                     self.forward = self.forward_out
@@ -33,9 +33,8 @@ class TestGather(PytorchLayerTest):
             def forward_out(self, x, index, out):
                 return torch.gather(x, self.axis, index, out=out)
 
-        ref_net = None
 
-        return aten_gather(axis, out), ref_net, "aten::gather"
+        return aten_gather(axis, out), "aten::gather"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
