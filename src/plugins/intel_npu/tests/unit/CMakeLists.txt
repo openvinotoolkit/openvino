@@ -6,6 +6,7 @@ set(TARGET_NAME "ov_npu_unit_tests")
 
 set(MANDATORY_UNIT_TESTS_LIBS
         "openvino::commonTestUtils"
+        "openvino::func_test_utils"
         "openvino::gmock"
         "openvino::gtest"
         "openvino::gtest_main"

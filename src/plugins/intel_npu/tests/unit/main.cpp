@@ -2,13 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <signal.h>
+
+#include <functional_test_utils/summary/op_summary.hpp>
 #include <sstream>
 #ifdef WIN32
 #    include <process.h>
 #endif
 #include "gtest/gtest.h"
 
+void sigsegv_handler(int errCode);
+
+void sigsegv_handler(int errCode) {
+    auto& s = ov::test::utils::OpSummary::getInstance();
+    s.saveReport();
+    std::cerr << "Unexpected application crash with code: " << errCode << std::endl;
+    std::abort();
+}
+
 int main(int argc, char** argv, char** envp) {
+    // register crashHandler for SIGSEGV signal
+    signal(SIGSEGV, sigsegv_handler);
+
     std::ostringstream oss;
     oss << "Command line args (" << argc << "): ";
     for (int c = 0; c < argc; ++c) {
@@ -31,6 +46,16 @@ int main(int argc, char** argv, char** envp) {
     }
 
     std::cout << oss.str() << std::endl;
+
+    ::testing::InitGoogleTest(&argc, argv);
+    ::testing::AddGlobalTestEnvironment(new testing::Environment());
+
+    std::string dTest = ::testing::internal::GTEST_FLAG(internal_run_death_test);
+    if (dTest.empty()) {
+        std::cout << oss.str() << std::endl;
+    } else {
+        std::cout << "gtest death test process is running" << std::endl;
+    }
 
     return RUN_ALL_TESTS();
 }
