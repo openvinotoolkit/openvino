@@ -49,9 +49,7 @@ int main(int argc, char** argv, char** envp) {
     ::testing::AddGlobalTestEnvironment(new testing::Environment());
 
     std::string dTest = ::testing::internal::GTEST_FLAG(internal_run_death_test);
-    if (dTest.empty()) {
-        std::cout << oss.str() << std::endl;
-    } else {
+    if (!dTest.empty()) {
         std::cout << "gtest death test process is running" << std::endl;
     }
 
