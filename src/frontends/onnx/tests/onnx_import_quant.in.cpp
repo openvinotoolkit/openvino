@@ -37,6 +37,13 @@ using Outputs = std::vector<std::vector<float>>;
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_const_scale_const_zero_p) {
     auto model = convert_model("quantize_linear_const.onnx");
 
+    auto fq = ov::as_type_ptr<op::v0::FakeQuantize>(model->get_result()->get_input_node_shared_ptr(0));
+    EXPECT_NE(fq, nullptr);
+    // Check that all bound inputs (input_low, input_high, output_low, output_high) are scalars
+    for (size_t i = 1; i <= 4; ++i) {
+        EXPECT_EQ(fq->input_value(i).get_shape(), Shape{}) << "Input " << i << " is not a scalar";
+    }
+
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input(std::vector<float>{32.25f, 48.34f, 50.f, 83.f});
 
@@ -1199,14 +1206,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_fake_quantize_import_only) {
     EXPECT_EQ(model->get_output_shape(0), expected_output_shape);
     EXPECT_EQ(count_ops_of_type<op::v0::FakeQuantize>(model), 1);
     EXPECT_EQ(count_ops_of_type<op::v0::Constant>(model), 4);
-
-    auto result = model->get_result();
-    auto fq = ov::as_type_ptr<op::v0::FakeQuantize>(result->get_input_node_shared_ptr(0));
-    EXPECT_NE(fq, nullptr);
-    // Check that all bound inputs (input_low, input_high, output_low, output_high) are scalars
-    for (size_t i = 1; i <= 4; ++i) {
-        EXPECT_EQ(fq->input_value(i).get_shape(), Shape{}) << "Input " << i << " is not a scalar";
-    }
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_fake_quantize_const_inputs_infer) {
