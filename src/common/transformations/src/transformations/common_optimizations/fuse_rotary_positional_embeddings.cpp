@@ -68,7 +68,6 @@ bool RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>(4);
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>(3);
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTJ>();
-    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTOSS>();
     // optional heads & tails are fused in separate matcher pass,
     // after RoPENode has been created.
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionCosSinPreprocess>();
@@ -1127,77 +1126,6 @@ RoPEShareCosSin::RoPEShareCosSin() {
         // There we use find to decides whether cons or sin is used
         auto replacement = is_sin_matched ? m_shared_sin0 : m_shared_cos0;
         replace_node(root, replacement);
-        return true;
-    };
-
-    auto m = std::make_shared<pattern::Matcher>(result, matcher_name);
-    this->register_matcher(m, callback);
-}
-
-RoPEFusionGPTOSS::RoPEFusionGPTOSS() {
-    MATCHER_SCOPE(RoPEFusionGPTOSS);
-
-    // gpt-oss style
-    // first_half, second_half = torch.chunk(x, 2, dim=-1)
-    // first_ = first_half * cos - second_half * sin
-    // second_ = second_half * cos + first_half * sin
-    // return torch.cat((first_, second_), dim=-1)
-    auto x = pattern::any_input(pattern::rank_equals(4));
-    auto t_cos = pattern::any_input(pattern::shape_matches("[?, 1, ?, half_ndims]"));
-    auto t_sin = pattern::any_input(pattern::shape_matches("[?, 1, ?, half_ndims]"));
-
-    auto vsplit_out0 = pattern::wrap_type<op::v1::VariadicSplit>(
-        {x, -1, {"half_ndims", "?"}},
-        pattern::output_index_matches(0) && pattern::shape_matches("[?, ?, ?, half_ndims]"));
-    auto vsplit_out1 = pattern::wrap_type<op::v1::VariadicSplit>(
-        {x, -1, {"half_ndims", "?"}},
-        pattern::output_index_matches(1) && pattern::shape_matches("[?, ?, ?, half_ndims]"));
-    auto first_half_mul_cos = pattern::wrap_type<v1::Multiply>({vsplit_out0, t_cos}, {{"auto_broadcast", "numpy"}});
-    auto second_half_mul_sin = pattern::wrap_type<v1::Multiply>({vsplit_out1, t_sin}, {{"auto_broadcast", "numpy"}});
-    auto neg = pattern::wrap_type<v1::Multiply>({second_half_mul_sin, -1.0f}, {{"auto_broadcast", "numpy"}});
-    auto sub_Subtract = pattern::wrap_type<v1::Add>({first_half_mul_cos, neg}, {{"auto_broadcast", "numpy"}});
-
-    auto second_half_mul_cos = pattern::wrap_type<v1::Multiply>({vsplit_out1, t_cos}, {{"auto_broadcast", "numpy"}});
-    auto first_half_mul_sin = pattern::wrap_type<v1::Multiply>({vsplit_out0, t_sin}, {{"auto_broadcast", "numpy"}});
-    auto add_Add =
-        pattern::wrap_type<v1::Add>({second_half_mul_cos, first_half_mul_sin}, {{"auto_broadcast", "numpy"}});
-    auto concat_result = pattern::wrap_type<opset1::Concat>({sub_Subtract, add_Add}, {{"axis", -1}});
-
-    auto result = concat_result;
-
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-        auto root = m.get_match_root();
-        const auto& x_val = pattern_map.at(x);
-        const auto& v_cos = pattern_map.at(t_cos);
-
-        auto symbols = m.get_symbols();
-        const auto& half_ndims = symbols["half_ndims"];
-        if (!half_ndims.is_integer()) {
-            return false;
-        }
-
-        op::internal::RoPE::Config config;
-        OutputVector new_args;
-        config.rotary_ndims = 2ul * static_cast<size_t>(half_ndims.i());
-        config.cos_sin_ndims = static_cast<size_t>(half_ndims.i());
-
-        new_args.push_back(x_val);
-        new_args.push_back(v_cos);
-        new_args.push_back(pattern_map.at(t_sin));
-        auto new_node = std::make_shared<ov::op::internal::RoPE>(new_args, config);
-        new_node->set_friendly_name(root->get_friendly_name());
-        ov::copy_runtime_info({pattern_map.at(neg).get_node_shared_ptr(),
-                               pattern_map.at(sub_Subtract).get_node_shared_ptr(),
-                               pattern_map.at(first_half_mul_cos).get_node_shared_ptr(),
-                               pattern_map.at(first_half_mul_sin).get_node_shared_ptr(),
-                               pattern_map.at(second_half_mul_cos).get_node_shared_ptr(),
-                               pattern_map.at(second_half_mul_sin).get_node_shared_ptr(),
-                               pattern_map.at(add_Add).get_node_shared_ptr(),
-                               pattern_map.at(result).get_node_shared_ptr()},
-                              new_node);
-        ov::replace_node(root, new_node);
-        register_new_node(new_node);
         return true;
     };
 
