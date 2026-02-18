@@ -147,13 +147,11 @@ std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& y_scale
 }
 
 bool is_per_tensor_quantization(const ov::Output<ov::Node>& scale, const ov::Output<ov::Node>& zero_point) {
-    auto scale_shape = scale.get_partial_shape();
-    auto zero_point_shape = zero_point.get_partial_shape();
-    return scale_shape.rank().is_static() &&
-           (scale_shape.rank().get_length() == 0 || (scale_shape.rank().get_length() == 1 && scale_shape[0] == 1)) &&
-           zero_point_shape.rank().is_static() &&
-           (zero_point_shape.rank().get_length() == 0 ||
-            (zero_point_shape.rank().get_length() == 1 && zero_point_shape[0] == 1));
+    auto is_per_tensor = [](const ov::Output<ov::Node>& input) {
+        const auto& shape = input.get_partial_shape();
+        return shape.is_static() && ov::shape_size(shape.to_shape()) == 1;
+    };
+    return is_per_tensor(scale) && is_per_tensor(zero_point);
 }
 }  // namespace detail
 

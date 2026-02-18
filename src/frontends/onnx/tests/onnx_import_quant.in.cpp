@@ -1205,7 +1205,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_fake_quantize_import_only) {
     EXPECT_NE(fq, nullptr);
     // Check that all bound inputs (input_low, input_high, output_low, output_high) are scalars
     for (size_t i = 1; i <= 4; ++i) {
-        EXPECT_EQ(fq->input_value(i).get_shape(), Shape{});
+        EXPECT_EQ(fq->input_value(i).get_shape(), Shape{}) << "Input " << i << " is not a scalar";
     }
 }
 
