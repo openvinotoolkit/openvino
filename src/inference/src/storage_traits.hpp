@@ -31,5 +31,15 @@ struct TLVStorage {
         Blob = 0x03,
         BlobMap = 0x04,
     };
+
+    struct Version {
+        uint16_t major{};
+        uint16_t minor{};
+        uint16_t patch{};
+
+        bool operator==(const Version& other) const {
+            return major == other.major && minor == other.minor && patch == other.patch;
+        }
+    };
 };
 }  // namespace ov
