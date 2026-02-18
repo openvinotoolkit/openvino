@@ -13,6 +13,8 @@ product better.
 
 ## Forms of contribution
 
+See also: [AI Usage Policy](./AI_USAGE_POLICY.md).
+
 ### Provide Feedback
 
    * **Report bugs / issues**

@@ -21,6 +21,9 @@
   OpenVINO, provide the information in proper articles. You can do it yourself, 
   or contact one of OpenVINO documentation contributors to work together on
   developing the right content. 
+* If your PR includes meaningful AI assistance, disclose it in the PR description
+  using the AI section in the [PR template](./.github/pull_request_template.md)
+  and follow the [AI Usage Policy](./AI_USAGE_POLICY.md).
 * For Work In Progress, or checking test results early, use a Draft PR.
 
 
