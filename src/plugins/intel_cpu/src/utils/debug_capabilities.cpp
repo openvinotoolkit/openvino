@@ -564,10 +564,7 @@ std::ostream& operator<<(std::ostream& os, const PrintableModel& model) {
                     if (constop->get_element_type().is_dynamic()) {
                         os << "...";
                     } else {
-                        for (const auto& v : constop->get_value_strings()) {
-                            os << sep << v;
-                            sep = ",";
-                        }
+                        os << ov::util::join(constop->get_value_strings(), ",");
                     }
                 } else {
                     os << "...";
