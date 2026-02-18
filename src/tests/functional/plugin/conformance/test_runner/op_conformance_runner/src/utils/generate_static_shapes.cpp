@@ -17,8 +17,7 @@ uint64_t clip(uint64_t n, uint64_t lower, uint64_t upper) {
 void clip_restrict_dims(InputShape& input_shape, const std::map<size_t, size_t>& restrict_dims) {
     std::vector<ov::Shape>& staticShapes = input_shape.second;
     for (const auto& pair : restrict_dims) {
-        size_t rank = staticShapes[0].size();
-        uint64_t dimMax = (rank <= 2) ? 127 : (rank <= 4) ? 32 : 20;
+        uint64_t dimMax = std::numeric_limits<char>::max();
         uint64_t dimMin = pair.second;
         auto& dim0 = staticShapes[0][pair.first];
         auto& dim1 = staticShapes[1][pair.first];
@@ -59,8 +58,7 @@ InputShape generate(const std::shared_ptr<ov::Node>& node,
                                             param->get_partial_shape().get_max_shape() };
     // Shape validation to avoid large values
     uint64_t dimMin = 1;
-    size_t rank = staticShapes[0].size();
-    uint64_t dimMax = (rank <= 2) ? 127 : (rank <= 4) ? 32 : 20;
+    uint64_t dimMax = std::numeric_limits<char>::max();
     for (int i = 0; i < staticShapes[0].size(); ++i) {
         auto& dim0 = staticShapes[0][i];
         auto& dim2 = staticShapes[2][i];
@@ -153,8 +151,7 @@ InputShape generatePoolingShape(const ov::PartialShape& partialShape, const Stri
 
     // Shape validation to avoid large values
     uint64_t dimMin = 1;
-    size_t rank = partialShape.size();
-    uint64_t dimMax = (rank <= 2) ? 127 : (rank <= 4) ? 32 : 20;    
+    uint64_t dimMax = std::numeric_limits<char>::max();
     for (auto& shape : staticShapes) {
         for (auto& dimValue : shape)
             dimValue = clip(dimValue, dimMin, dimMax);
