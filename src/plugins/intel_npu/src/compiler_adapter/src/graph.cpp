@@ -270,6 +270,20 @@ uint32_t Graph::get_last_submitted_id() const {
     return _lastSubmittedId;
 }
 
+std::optional<bool> Graph::is_profiling_blob() const {
+    if (_zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
+        _logger.debug("Cannot determine if the blob was compiled for profiling");
+        return std::nullopt;
+    }
+    ze_graph_properties_3_t graphProperties = {};
+    graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_3;
+
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties3(get_handle(), &graphProperties);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
+
+    return graphProperties.flags & ZE_GRAPH_PROPERTIES_FLAG_PROFILING_ENABLED;
+}
+
 std::optional<size_t> Graph::determine_batch_size() {
     if (!_metadata.outputs.at(0).shapeFromIRModel.has_value()) {
         _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");

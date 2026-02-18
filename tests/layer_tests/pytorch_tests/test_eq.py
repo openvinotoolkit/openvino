@@ -16,14 +16,13 @@ class TestEq(PytorchLayerTest):
 
         class aten_eq(torch.nn.Module):
             def __init__(self):
-                super(aten_eq, self).__init__()
+                super().__init__()
 
             def forward(self, input_tensor, other_tensor):
                 return torch.eq(input_tensor, other_tensor)
 
-        ref_net = None
 
-        return aten_eq(), ref_net, "aten::eq"
+        return aten_eq(), "aten::eq"
 
     @pytest.mark.parametrize(("input_array", "other_array"), [
         [np.array([[1, 2], [3, 4]]), np.array([[1, 1], [4, 4]])],
