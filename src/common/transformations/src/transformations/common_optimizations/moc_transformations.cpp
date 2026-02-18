@@ -135,6 +135,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     manager.set_per_pass_validation(false);
     using namespace ov::pass;
     REGISTER_PASS(manager, InitNodeInfo)
+    REGISTER_PASS(manager, TransposeMatMul)
     if (m_low_precision_enabled) {
         // Transformation call example, to check with the real model
         manager.register_pass<MarkGatherSubgraph>(TypeVector{f8e4m3}, TypeVector{u4});
