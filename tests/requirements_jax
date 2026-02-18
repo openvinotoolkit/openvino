@@ -7,6 +7,8 @@ jax==0.6.0; (platform_system != "Darwin" or platform_machine != "x86_64") and py
 # tensorflow 2.16.2 depends on ml-dtypes~=0.3.1 and jax 0.4.35 depends on ml-dtypes>=0.4.0
 jax==0.4.33; (platform_system == "Darwin" and platform_machine == "x86_64") and python_version > "3.9"
 jax==0.4.30; python_version <= "3.9"
+# CVS-181416: to fix the regression in flax dependency orbax-checkpoint 0.11.33
+orbax-checkpoint==0.11.32
 flax==0.10.4
 transformers==4.49.0
 defusedxml
