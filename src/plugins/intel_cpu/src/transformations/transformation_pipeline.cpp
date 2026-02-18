@@ -252,7 +252,7 @@
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    include "low_precision/avg_pool.hpp"
 #    include "low_precision/convolution.hpp"
-#    include "low_precision/convolution_backprop_data.hpp"
+// #    include "low_precision/convolution_backprop_data.hpp"
 #    include "low_precision/fake_quantize.hpp"
 #    include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #    include "low_precision/fuse_subtract_to_fake_quantize.hpp"
