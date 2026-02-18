@@ -37,7 +37,7 @@ using Outputs = std::vector<std::vector<float>>;
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_const_scale_const_zero_p) {
     auto model = convert_model("quantize_linear_const.onnx");
 
-    auto fq = ov::as_type_ptr<op::v0::FakeQuantize>(model->get_result()->get_input_node_shared_ptr(0));
+    auto fq = ov::as_type_ptr<op::v0::FakeQuantize>(model->get_parameters().back()->get_users().back());
     EXPECT_NE(fq, nullptr);
     // Check that all bound inputs (input_low, input_high, output_low, output_high) are scalars
     for (size_t i = 1; i <= 4; ++i) {
