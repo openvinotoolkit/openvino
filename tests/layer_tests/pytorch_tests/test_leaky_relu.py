@@ -8,8 +8,7 @@ from pytorch_layer_test_class import PytorchLayerTest, skip_check
 
 class TestLeakyRelu(PytorchLayerTest):
     def _prepare_input(self):
-        import numpy as np
-        return (np.random.randn(1, 3, 224, 224).astype(np.float32),)
+        return (self.random.randn(1, 3, 224, 224),)
 
     def create_model(self, alpha, inplace):
         import torch
@@ -17,16 +16,15 @@ class TestLeakyRelu(PytorchLayerTest):
 
         class aten_leaky_relu(torch.nn.Module):
             def __init__(self, alpha, inplace):
-                super(aten_leaky_relu, self).__init__()
+                super().__init__()
                 self.alpha = alpha
                 self.inplace = inplace
 
             def forward(self, x):
                 return x, F.leaky_relu(x, self.alpha, inplace=self.inplace)
 
-        ref_net = None
 
-        return aten_leaky_relu(alpha, inplace), ref_net, "aten::leaky_relu" if not inplace else "aten::leaky_relu_"
+        return aten_leaky_relu(alpha, inplace), "aten::leaky_relu" if not inplace else "aten::leaky_relu_"
 
     @pytest.mark.parametrize("alpha", [0.01, 1.01, -0.01])
     @pytest.mark.parametrize("inplace", [skip_check(True), False])

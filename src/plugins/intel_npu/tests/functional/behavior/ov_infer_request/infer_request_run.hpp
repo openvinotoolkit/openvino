@@ -19,11 +19,13 @@
 #include "common/utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_types.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
@@ -186,6 +188,86 @@ TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsAsyncInfers) {
         inferReqs[i].wait();
         OV_ASSERT_NO_THROW(inferReqs[i].get_tensor(output));
     }
+}
+
+using ProfilingBlob = InferRequestRunTests;
+
+TEST_P(ProfilingBlob, NoProfilingCompileProfilingImport) {
+    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs =
+        std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    if (initStructs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
+        std::cout << "Skip since driver extension version is lower than expected\n";
+        GTEST_SKIP();
+    }
+    ov::CompiledModel compiled_model;
+
+    configuration[ov::enable_profiling.name()] = false;
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    configuration[ov::enable_profiling.name()] = true;
+    OV_ASSERT_NO_THROW(compiled_model = core->import_model(export_stream, target_device, configuration));
+
+    ov::InferRequest inferReq;
+
+    OV_ASSERT_NO_THROW(inferReq = compiled_model.create_infer_request());
+
+    if (configuration.find(ov::intel_npu::profiling_type.name())->second == ov::intel_npu::ProfilingType::MODEL) {
+        ASSERT_ANY_THROW(inferReq.infer());
+    } else {
+        OV_ASSERT_NO_THROW(inferReq.infer());
+    }
+}
+
+TEST_P(ProfilingBlob, ProfilingCompileNoProfilingImport) {
+    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs =
+        std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    if (initStructs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
+        std::cout << "Skip since driver extension version is lower than expected\n";
+        GTEST_SKIP();
+    }
+    ov::CompiledModel compiled_model;
+
+    configuration[ov::enable_profiling.name()] = true;
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    configuration[ov::enable_profiling.name()] = false;
+    OV_ASSERT_NO_THROW(compiled_model = core->import_model(export_stream, target_device, configuration));
+
+    ov::InferRequest inferReq;
+
+    OV_ASSERT_NO_THROW(inferReq = compiled_model.create_infer_request());
+
+    OV_ASSERT_NO_THROW(inferReq.infer());
+}
+
+TEST_P(ProfilingBlob, ProfilingCompileProfilingImport) {
+    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs =
+        std::make_shared<::intel_npu::ZeroInitStructsHolder>();
+    if (initStructs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
+        std::cout << "Skip since driver extension version is lower than expected\n";
+        GTEST_SKIP();
+    }
+    ov::CompiledModel compiled_model;
+
+    configuration[ov::enable_profiling.name()] = true;
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    OV_ASSERT_NO_THROW(compiled_model = core->import_model(export_stream, target_device, configuration));
+
+    ov::InferRequest inferReq;
+
+    OV_ASSERT_NO_THROW(inferReq = compiled_model.create_infer_request());
+
+    OV_ASSERT_NO_THROW(inferReq.infer());
 }
 
 TEST_P(InferRequestRunTests, MultipleExecutorTestsSyncInfers) {
@@ -479,7 +561,7 @@ TEST_P(BatchingRunTests, CheckBatchingSupportInfer) {
 TEST_P(BatchingRunTests, CheckBatchingSupportAsync) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-        ov::CompiledModel compiled_model;
+    ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
     auto batch_shape = Shape{4, 2, 32, 32};
     std::shared_ptr<ov::Model> ov_model_batch = createModel(element::f32, batch_shape, "N...");

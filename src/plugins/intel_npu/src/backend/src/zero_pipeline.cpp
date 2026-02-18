@@ -9,10 +9,7 @@
 
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
-#include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "intel_npu/utils/zero/zero_api.hpp"
-#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
 
 namespace {
@@ -54,33 +51,54 @@ Pipeline::Pipeline(const Config& config,
 
     _logger.debug("Pipeline - initialize started, number_of_command_lists %i", _number_of_command_lists);
 
-    if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-        _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    _extension_version = _init_structs->getCommandQueueDdiTable().version();
+    if (_extension_version < ZE_MAKE_VERSION(1, 1) && _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         _graph->resize_last_submitted_event(_number_of_command_lists);
     }
 
     OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>() ||
-                        _init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
+                        _extension_version >= ZE_MAKE_VERSION(1, 1),
                     "In-order execution doesn't work in case synchronization of the inferences is done using events");
 
-    if (_config.has<PERF_COUNT>() && _config.get<PERF_COUNT>()) {
-        auto profiling_pool =
-            std::make_shared<zeroProfiling::ProfilingPool>(_init_structs, _graph, zeroProfiling::POOL_SIZE);
-        _profiling_query = std::make_unique<zeroProfiling::ProfilingQuery>(_init_structs, 0);
+    bool perf_count_enabled = _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>();
+    std::optional<bool> compiled_with_profiling = graph->is_profiling_blob();
 
-        if (profiling_pool->create()) {
-            _profiling_query->create(profiling_pool);
-        }
-
-        if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
-            _logger.debug("ZeroInferRequest::ZeroInferRequest - profiling type == ov::intel_npu::ProfilingType::INFER");
+    if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
+        if (perf_count_enabled) {
+            _logger.debug("Profiling type == ov::intel_npu::ProfilingType::INFER");
             _npu_profiling =
                 std::make_shared<zeroProfiling::NpuInferProfiling>(_init_structs, _config.get<LOG_LEVEL>());
+            if (compiled_with_profiling.value_or(false)) {
+                _logger.warning(
+                    "Model was compiled with layer profiling enabled, but the current profiling type is 'INFER'");
+                enable_profiling();
+            }
+        } else if (compiled_with_profiling.value_or(false)) {
+            _logger.warning(
+                "Model was compiled with layer profiling enabled, PERF_COUNT is NOT set and timestamps will "
+                "not be extracted");
+            enable_profiling();
         }
+    } else {
+        if (compiled_with_profiling.has_value()) {
+            if (perf_count_enabled && !compiled_with_profiling.value()) {
+                OPENVINO_THROW("Model was not compiled with profiling enabled");
+            }
+
+            if (compiled_with_profiling.value()) {
+                if (!perf_count_enabled) {
+                    _logger.warning("Model was compiled with layer profiling enabled, PERF_COUNT is NOT set and "
+                                    "statistics will not be extracted");
+                }
+                enable_profiling();
+            }
+        } else if (perf_count_enabled) {  // unable to determine if it was compiled with profiling enabled
+            enable_profiling();
+        }  // else appendGraphExecute will fail in case the model was compiled with profiling enabled
     }
 
-    if (!_sync_output_with_fences || (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-                                      _config.get<RUN_INFERENCES_SEQUENTIALLY>())) {
+    if (!_sync_output_with_fences ||
+        (_extension_version < ZE_MAKE_VERSION(1, 1) && _config.get<RUN_INFERENCES_SEQUENTIALLY>())) {
         _event_pool =
             std::make_shared<EventPool>(_init_structs->getDevice(),
                                         _init_structs->getContext(),
@@ -163,8 +181,7 @@ Pipeline::Pipeline(const Config& config,
             ++io_index;
         }
 
-        if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-            _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        if (_extension_version < ZE_MAKE_VERSION(1, 1) && _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
             if (_graph->get_last_submitted_event(i)) {
                 _graph->get_last_submitted_event(i)->AppendWaitOnEvent(*_command_lists.at(i));
             }
@@ -185,8 +202,7 @@ Pipeline::Pipeline(const Config& config,
             _command_lists.at(i)->appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_end));
         }
 
-        if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-            _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        if (_extension_version < ZE_MAKE_VERSION(1, 1) && _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
             if (_graph->get_last_submitted_event(i)) {
                 _graph->get_last_submitted_event(i)->AppendEventReset(*_command_lists.at(i));
             }
@@ -204,11 +220,24 @@ Pipeline::Pipeline(const Config& config,
     _logger.debug("Pipeline - initialize completed");
 }
 
+Pipeline::Pipeline(const Config& config,
+                   const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                   const std::shared_ptr<IGraph>& graph,
+                   const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
+                   const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
+                   const char* logName,
+                   size_t batch_size)
+    : _init_structs(init_structs),
+      _graph(graph),
+      _config(config),
+      _id(_graph->get_unique_id()),
+      _number_of_command_lists(batch_size),
+      _logger(logName, _config.get<LOG_LEVEL>()) {}
+
 void Pipeline::push() {
     _logger.debug("Pipeline - push() started");
 
-    if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-        _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    if (_extension_version < ZE_MAKE_VERSION(1, 1) && _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         if (_id) {
             auto previousIndex = _graph->get_last_submitted_id();
 
@@ -267,7 +296,9 @@ void Pipeline::reset() const {
     _logger.debug("Pipeline - rest() completed");
 };
 
-void Pipeline::update_graph_arguments(uint32_t index, const std::shared_ptr<ZeroTensor>& tensor) {
+void Pipeline::update_graph_arguments(uint32_t index,
+                                      const std::shared_ptr<ZeroTensor>& tensor,
+                                      std::shared_ptr<ov::ITensor> userTensor) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandList");
     _logger.debug("Pipeline - updateCommandList");
 
@@ -287,7 +318,10 @@ void Pipeline::update_graph_arguments(uint32_t index, const std::shared_ptr<Zero
     }
 };
 
-void Pipeline::update_graph_arguments(uint32_t index, const std::shared_ptr<ZeroTensor>& tensor, size_t batch_index) {
+void Pipeline::update_graph_arguments(uint32_t index,
+                                      const std::shared_ptr<ZeroTensor>& tensor,
+                                      size_t batch_index,
+                                      std::shared_ptr<ov::ITensor> userTensor) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandListIndex");
     _logger.debug("Pipeline - updateCommandListIndex");
 
@@ -328,6 +362,16 @@ std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
     } else {
         _logger.debug("InferRequest::get_profiling_info complete with _profiling_query.getLayerStatistics().");
         return _profiling_query->getLayerStatistics();
+    }
+}
+
+void Pipeline::enable_profiling() {
+    auto profiling_pool =
+        std::make_shared<zeroProfiling::ProfilingPool>(_init_structs, _graph, zeroProfiling::POOL_SIZE);
+    _profiling_query = std::make_unique<zeroProfiling::ProfilingQuery>(_init_structs, 0);
+
+    if (profiling_pool->create()) {
+        _profiling_query->create(profiling_pool);
     }
 }
 
