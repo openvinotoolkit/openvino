@@ -25,6 +25,7 @@
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
+#include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -95,6 +96,7 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
         Manager manager("pre_post_processing");
         manager.set_per_pass_validation(false);
 
+        REGISTER_PASS(manager, TransposeMatMul)
         // prerequisite: the model structure optimization before applying of the markup
         REGISTER_PASS(manager, SharedOpOptimization)
 
