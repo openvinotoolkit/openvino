@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "utils/attention.hpp"
+
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "openvino/frontend/exception.hpp"
@@ -35,7 +37,6 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "utils/attention.hpp"
 #include "utils/split.hpp"
 using namespace ov::op;
 using ov::Shape;

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "utils/attention.hpp"
+
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
@@ -23,7 +25,6 @@
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "utils/attention.hpp"
 #include "utils/common.hpp"
 
 using namespace ov::op;
@@ -98,12 +99,12 @@ ov::Output<ov::Node> convert_boolean_mask(const ov::Output<ov::Node>& mask, cons
 
 // Build SDPA-based attention (primary fast path)
 ov::Output<ov::Node> build_sdpa(const ov::Output<ov::Node>& Q,
-                                 const ov::Output<ov::Node>& K,
-                                 const ov::Output<ov::Node>& V,
-                                 bool has_mask,
-                                 const ov::Output<ov::Node>& attn_mask,
-                                 float scale_attr,
-                                 bool is_causal) {
+                                const ov::Output<ov::Node>& K,
+                                const ov::Output<ov::Node>& V,
+                                bool has_mask,
+                                const ov::Output<ov::Node>& attn_mask,
+                                float scale_attr,
+                                bool is_causal) {
     ov::OutputVector inputs{Q, K, V};
     if (has_mask) {
         inputs.push_back(attn_mask);
@@ -122,15 +123,15 @@ ov::Output<ov::Node> build_sdpa(const ov::Output<ov::Node>& Q,
 // Build manual attention decomposition (for softcap or qk_matmul_output)
 // Returns {Y, qk_matmul_output_or_null}
 ov::OutputVector build_manual_attention(const ov::Output<ov::Node>& Q,
-                                         const ov::Output<ov::Node>& K,
-                                         const ov::Output<ov::Node>& V,
-                                         bool has_mask,
-                                         const ov::Output<ov::Node>& attn_mask,
-                                         float scale_attr,
-                                         float softcap,
-                                         bool is_causal,
-                                         int64_t qk_matmul_output_mode,
-                                         bool needs_qk_output) {
+                                        const ov::Output<ov::Node>& K,
+                                        const ov::Output<ov::Node>& V,
+                                        bool has_mask,
+                                        const ov::Output<ov::Node>& attn_mask,
+                                        float scale_attr,
+                                        float softcap,
+                                        bool is_causal,
+                                        int64_t qk_matmul_output_mode,
+                                        bool needs_qk_output) {
     // 1. Q @ K^T
     auto qk = std::make_shared<v0::MatMul>(Q, K, false, true);
 
@@ -309,15 +310,15 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
     if (softcap > 0.0f || needs_qk_output) {
         // Manual decomposition path (softcap or debug output)
         auto results = detail::build_manual_attention(Q,
-                                                       K,
-                                                       V,
-                                                       has_attn_mask,
-                                                       attn_mask,
-                                                       scale_attr,
-                                                       softcap,
-                                                       is_causal,
-                                                       qk_matmul_output_mode,
-                                                       needs_qk_output);
+                                                      K,
+                                                      V,
+                                                      has_attn_mask,
+                                                      attn_mask,
+                                                      scale_attr,
+                                                      softcap,
+                                                      is_causal,
+                                                      qk_matmul_output_mode,
+                                                      needs_qk_output);
         Y = results[0];
         if (needs_qk_output && results.size() > 1 && results[1].get_node()) {
             qk_debug_output = results[1];
