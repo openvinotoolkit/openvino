@@ -6,7 +6,6 @@
 
 #include <gtest/gtest.h>
 
-#include "../../src/storage_codecs.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 
@@ -30,18 +29,24 @@ protected:
 };
 
 TEST_F(SingleFileStorageTest, FileHeader) {
+    m_storage.reset();
     std::ifstream stream(m_file_path, std::ios_base::binary);
-    SingleFileStorageHeaderCodec header{};
-    stream >> header;
 
-    char c;
-    stream.get(c);
-    EXPECT_EQ(c, '\0');
-    EXPECT_TRUE(stream.eof());  // No more data after header in just created file
+    constexpr auto header_size =
+        sizeof(TLVStorage::Version::major) + sizeof(TLVStorage::Version::minor) + sizeof(TLVStorage::Version::patch);
+    std::vector<char> header_data(header_size);
+    stream.read(header_data.data(), header_data.size());
+    const auto last_pos = stream.tellg();
+    ASSERT_NE(last_pos, std::streampos(-1));
+    stream.seekg(0, std::ios_base::end);
+    const auto end_pos = stream.tellg();
+    EXPECT_EQ(last_pos, end_pos);  // No more data after header in just created file
 
-    EXPECT_EQ(header.major_version, SingleFileStorage::major_version);
-    EXPECT_EQ(header.minor_version, SingleFileStorage::minor_version);
-    EXPECT_EQ(header.weight_path, "weight/path");
+    const auto major_p = reinterpret_cast<const uint16_t*>(header_data.data());
+    const auto minor_p = major_p + sizeof(TLVStorage::Version::major) / sizeof(uint16_t);
+    const auto patch_p = minor_p + sizeof(TLVStorage::Version::minor) / sizeof(uint16_t);
+    TLVStorage::Version read_version{*major_p, *minor_p, *patch_p};
+    EXPECT_EQ(read_version, SingleFileStorage::m_version);
 }
 
 TEST_F(SingleFileStorageTest, WriteReadCacheEntry) {

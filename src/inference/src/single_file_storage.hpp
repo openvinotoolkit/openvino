@@ -10,8 +10,7 @@
 namespace ov {
 class SingleFileStorage final : public ICacheManager, public ISharedContextStore {
 public:
-    static constexpr uint64_t major_version = 0;
-    static constexpr uint64_t minor_version = 1;
+    static constexpr TLVStorage::Version m_version = {0, 1, 0};
 
     explicit SingleFileStorage(const std::filesystem::path& path);
 

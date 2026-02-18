@@ -15,7 +15,7 @@ SingleFileStorage::SingleFileStorage(const std::filesystem::path& path) : m_cach
     if (!util::file_exists(m_cache_file_path)) {
         std::ofstream stream(m_cache_file_path, std::ios_base::binary);
         // todo What about weight path? Where to get it from?
-        SingleFileStorageHeaderCodec header{major_version, minor_version, "weight/path"};
+        SingleFileStorageHeaderCodec header{m_version};
         stream << header;
     } else {
         std::ifstream stream(m_cache_file_path, std::ios_base::binary);
@@ -35,7 +35,7 @@ SingleFileStorage::SingleFileStorage(const std::filesystem::path& path) : m_cach
 }
 
 uint64_t SingleFileStorage::convert_blob_id(const std::string& blob_id) {
-    return static_cast<uint64_t>(std::stoull(blob_id.c_str(), nullptr, 10));
+    return static_cast<uint64_t>(std::stoull(blob_id.c_str()));
 }
 
 bool SingleFileStorage::has_blob_id(uint64_t blob_id) const {
@@ -70,12 +70,12 @@ void SingleFileStorage::update_shared_ctx_from_file() {
 void SingleFileStorage::write_blob_entry(uint64_t blob_id, StreamWriter& writer, std::ofstream& stream) {
     OPENVINO_ASSERT(!has_blob_id(blob_id), "Blob with id ", blob_id, " already exists in cache.");
     TLVStorage::length_type entry_size = 0;
-    TLVStorage::Tag blob_tag = TLVStorage::Tag::Blob;
-    stream.write(reinterpret_cast<const char*>(&blob_tag), sizeof(blob_tag));
+    TLVStorage::Tag tag = TLVStorage::Tag::Blob;
+    stream.write(reinterpret_cast<const char*>(&tag), sizeof(tag));
     const auto blob_size_pos = stream.tellp();
     stream.write(reinterpret_cast<const char*>(&entry_size), sizeof(entry_size));
 
-    const auto blob_id_pos = stream.tellp();
+    auto blob_id_pos = stream.tellp();
     stream.write(reinterpret_cast<const char*>(&blob_id), sizeof(blob_id));
 
     // todo Apply actual padding
@@ -88,13 +88,31 @@ void SingleFileStorage::write_blob_entry(uint64_t blob_id, StreamWriter& writer,
 
     const auto blob_pos = stream.tellp();
     writer(stream);
-    const auto entry_end = stream.tellp();
+    auto entry_end = stream.tellp();
     entry_size = entry_end - blob_id_pos;
     const auto blob_size = entry_end - blob_pos;
     stream.seekp(blob_size_pos);
     stream.write(reinterpret_cast<const char*>(&entry_size), sizeof(entry_size));
     stream.seekp(entry_end);
-    m_blob_map[blob_id] = {blob_id, blob_pos, blob_size, ""};
+
+    tag = TLVStorage::Tag::BlobMap;
+    entry_size = 0;
+    stream.write(reinterpret_cast<const char*>(&tag), sizeof(tag));
+    const auto blob_map_size_pos = stream.tellp();
+    stream.write(reinterpret_cast<const char*>(&entry_size), sizeof(entry_size));
+
+    blob_id_pos = stream.tellp();
+    stream.write(reinterpret_cast<const char*>(&blob_id), sizeof(blob_id));
+
+    std::string model_name{"dev/invalid name"};  // todo Where to get it from?
+    write_tlv_string(stream, model_name);
+    entry_end = stream.tellp();
+    entry_size = entry_end - blob_id_pos;
+    stream.seekp(blob_map_size_pos);
+    stream.write(reinterpret_cast<const char*>(&entry_size), sizeof(entry_size));
+    stream.seekp(entry_end);
+
+    m_blob_map[blob_id] = {blob_id, blob_pos, blob_size, model_name};
 }
 
 void SingleFileStorage::write_cache_entry(const std::string& blob_id, StreamWriter writer) {

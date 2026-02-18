@@ -13,22 +13,19 @@
 
 namespace ov {
 struct SingleFileStorageHeaderCodec {
-    uint64_t major_version{};
-    uint64_t minor_version{};
-    std::string weight_path;
+    TLVStorage::Version version;
 
     friend std::istream& operator>>(std::istream& stream, SingleFileStorageHeaderCodec& codec) {
-        stream.read(reinterpret_cast<char*>(&codec.major_version), sizeof(codec.major_version));
-        stream.read(reinterpret_cast<char*>(&codec.minor_version), sizeof(codec.minor_version));
-        std::getline(stream, codec.weight_path, '\0');
+        stream.read(reinterpret_cast<char*>(&codec.version.major), sizeof(codec.version.major));
+        stream.read(reinterpret_cast<char*>(&codec.version.minor), sizeof(codec.version.minor));
+        stream.read(reinterpret_cast<char*>(&codec.version.patch), sizeof(codec.version.patch));
         return stream;
     }
 
     friend std::ostream& operator<<(std::ostream& stream, const SingleFileStorageHeaderCodec& codec) {
-        stream.write(reinterpret_cast<const char*>(&codec.major_version), sizeof(codec.major_version));
-        stream.write(reinterpret_cast<const char*>(&codec.minor_version), sizeof(codec.minor_version));
-        stream.write(codec.weight_path.data(), codec.weight_path.size());
-        stream.put('\0');
+        stream.write(reinterpret_cast<const char*>(&codec.version.major), sizeof(codec.version.major));
+        stream.write(reinterpret_cast<const char*>(&codec.version.minor), sizeof(codec.version.minor));
+        stream.write(reinterpret_cast<const char*>(&codec.version.patch), sizeof(codec.version.patch));
         return stream;
     }
 };
@@ -101,13 +98,13 @@ struct SharedContextStreamCodec {
 };
 
 namespace {
-// void write_tlv_string(std::ostream& stream, const std::string& str) {
-//     constexpr auto str_tag = TLVStorage::Tag::String;
-//     stream.write(reinterpret_cast<const char*>(&str_tag), sizeof(str_tag));
-//     const auto size = static_cast<TLVStorage::length_type>(str.size());
-//     stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
-//     stream.write(str.data(), str.size());
-// }
+void write_tlv_string(std::ostream& stream, const std::string& str) {
+    constexpr auto str_tag = TLVStorage::Tag::String;
+    stream.write(reinterpret_cast<const char*>(&str_tag), sizeof(str_tag));
+    const auto size = static_cast<TLVStorage::length_type>(str.size());
+    stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
+    stream.write(str.data(), str.size());
+}
 
 bool read_tlv_string(std::istream& stream, std::string& str) {
     TLVStorage::Tag tag{};
@@ -182,6 +179,8 @@ struct BlobMapStreamCodec {
 
                 if (std::string model_name; read_tlv_string(stream, model_name)) {
                     blob_map[id].model_name = model_name;
+                    // std::cout << "Read blob map entry: id=" << id << ", model_name=" << model_name
+                    //           << ", offset=" << blob_map[id].offset << ", size=" << blob_map[id].size << std::endl;
                 } else {
                     break;
                 }
