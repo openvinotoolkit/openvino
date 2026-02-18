@@ -611,14 +611,16 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
         std::shared_ptr<Node> sliding_window;
         if (pattern_map.count(phi3_offset)) {
-            if (std::getenv("OV_PA_DEBUG")) std::cout << "[PA] Layer " << (layer_index - 1) << ": phi3 sliding window" << std::endl;
+            if (std::getenv("OV_PA_DEBUG"))
+                std::cout << "[PA] Layer " << (layer_index - 1) << ": phi3 sliding window" << std::endl;
             auto offset = pattern_map.at(phi3_offset).get_node_shared_ptr();
             if (offset->get_element_type() != element::i32) {
                 offset = std::make_shared<v0::Convert>(offset, ov::element::i32);
             }
             sliding_window = std::make_shared<v1::Subtract>(v0::Constant::create(element::i32, Shape{}, {2}), offset);
         } else if (pattern_map.count(gptoss_gemma3_offset)) {
-            if (std::getenv("OV_PA_DEBUG")) std::cout << "[PA] Layer " << (layer_index - 1) << ": gpt_oss sliding window" << std::endl;
+            if (std::getenv("OV_PA_DEBUG"))
+                std::cout << "[PA] Layer " << (layer_index - 1) << ": gpt_oss sliding window" << std::endl;
             auto offset = pattern_map.at(gptoss_gemma3_offset).get_node_shared_ptr();
             if (pattern_map.at(gptoss_gemma3_offset).get_partial_shape().rank() != 0) {
                 offset = std::make_shared<v15::Squeeze>(offset);
@@ -626,9 +628,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             if (offset->get_element_type() != element::i32) {
                 offset = std::make_shared<v0::Convert>(offset, ov::element::i32);
             }
-            sliding_window = std::make_shared<v1::Multiply>(offset, v0::Constant::create(ov::element::i32, ov::Shape{}, {-1}));
+            sliding_window =
+                std::make_shared<v1::Multiply>(offset, v0::Constant::create(ov::element::i32, ov::Shape{}, {-1}));
         } else {
-            if (std::getenv("OV_PA_DEBUG")) std::cout << "[PA] Layer " << (layer_index - 1) << ": no sliding window pattern matched" << std::endl;
+            if (std::getenv("OV_PA_DEBUG"))
+                std::cout << "[PA] Layer " << (layer_index - 1) << ": no sliding window pattern matched" << std::endl;
             sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
         }
 
