@@ -3,8 +3,10 @@
 //
 #include "compiled_model.hpp"
 
+#include <fstream>
 #include <iostream>
 #include <memory>
+#include <set>
 #include <string>
 
 #include "accuracy/comparator.hpp"
