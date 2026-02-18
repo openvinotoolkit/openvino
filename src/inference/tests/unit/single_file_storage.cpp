@@ -11,6 +11,13 @@
 
 namespace ov::test {
 
+namespace {
+constexpr uint64_t header_size() {
+    return sizeof(TLVStorage::Version::major) + sizeof(TLVStorage::Version::minor) + sizeof(TLVStorage::Version::patch);
+}
+
+}  // namespace
+
 class SingleFileStorageTest : public ::testing::Test {
 protected:
     std::filesystem::path m_file_path;
@@ -32,9 +39,7 @@ TEST_F(SingleFileStorageTest, FileHeader) {
     m_storage.reset();
     std::ifstream stream(m_file_path, std::ios_base::binary);
 
-    constexpr auto header_size =
-        sizeof(TLVStorage::Version::major) + sizeof(TLVStorage::Version::minor) + sizeof(TLVStorage::Version::patch);
-    std::vector<char> header_data(header_size);
+    std::vector<char> header_data(header_size());
     stream.read(header_data.data(), header_data.size());
     const auto last_pos = stream.tellg();
     ASSERT_NE(last_pos, std::streampos(-1));
@@ -90,6 +95,54 @@ TEST_F(SingleFileStorageTest, WriteReadCacheEntry) {
     EXPECT_EQ(read_count, test_blobs.size());
 }
 
+TEST_F(SingleFileStorageTest, Alignement) {
+    const std::unordered_map<uint64_t, std::vector<uint8_t>> test_blobs{{1, std::vector<uint8_t>(4099, 0xAB)},
+                                                                        {2, std::vector<uint8_t>(400, 0xCD)},
+                                                                        {3, std::vector<uint8_t>(5, 0xEF)}};
+    for (const auto& [blob_id, blob_data] : test_blobs) {
+        m_storage->write_cache_entry(std::to_string(blob_id), [&](std::ostream& stream) {
+            stream.write(reinterpret_cast<const char*>(blob_data.data()), blob_data.size());
+        });
+    }
+
+    std::ifstream stream(m_file_path, std::ios_base::binary);
+    stream.seekg(0, std::ios::end);
+    const auto stream_end = stream.tellg();
+    std::cout << "Stream end position: " << stream_end << std::endl;
+    stream.seekg(header_size(), std::ios_base::beg);
+
+    // todo Make it configurable and/or detect actual file system page size
+    constexpr std::streamoff alignment = 4096;
+
+    while (stream.good() && stream.tellg() < stream_end) {
+        TLVStorage::Tag tag{};
+        TLVStorage::length_type entry_size{};
+        stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
+        ASSERT_TRUE(stream.good());
+        stream.read(reinterpret_cast<char*>(&entry_size), sizeof(entry_size));
+        ASSERT_TRUE(stream.good());
+        const auto blob_id_pos = stream.tellg();
+        if (tag == TLVStorage::Tag::Blob) {
+            TLVStorage::blob_id_type id;
+            stream.read(reinterpret_cast<char*>(&id), sizeof(id));
+            ASSERT_TRUE(stream.good());
+            TLVStorage::pad_size_type padding_size{};
+            stream.read(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
+            ASSERT_TRUE(stream.good());
+
+            stream.seekg(padding_size, std::ios_base::cur);
+            const auto blob_data_pos = stream.tellg();
+            EXPECT_EQ(blob_data_pos % alignment, 0) << "Blob with id " << id << " is not properly aligned";
+
+            const auto expected_pos = blob_id_pos + static_cast<std::streamoff>(entry_size);
+            stream.seekg(test_blobs.at(id).size(), std::ios_base::cur);
+            ASSERT_EQ(expected_pos, stream.tellg()) << "Blob with id " << id << " has incorrect entry size";
+        } else {
+            stream.seekg(entry_size, std::ios_base::cur);
+        }
+    }
+}
+
 TEST_F(SingleFileStorageTest, AppendOnly) {
     const auto blob_id = std::string{"123"};
     m_storage->write_cache_entry(blob_id, [&](std::ostream& s) {
@@ -115,7 +168,7 @@ TEST_F(SingleFileStorageTest, AppendOnly) {
     EXPECT_NO_THROW(reopened_storage.read_cache_entry("987", false, [](const ICacheManager::CompiledBlobVariant&) {
         throw "Unexpected read for not stored blob id";
     }));
-    EXPECT_NO_THROW(reopened_storage.remove_cache_entry("987"));
+    EXPECT_NO_THROW(reopened_storage.remove_cache_entry("987")) << "Removal of non-existing blob id should be no-op";
 }
 
 // TEST_F(SingleFileStorageTest, SharedContext__) {
