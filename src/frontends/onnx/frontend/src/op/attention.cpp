@@ -11,7 +11,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
@@ -24,6 +23,7 @@
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "utils/attention.hpp"
 #include "utils/common.hpp"
 
 using namespace ov::op;
@@ -35,12 +35,7 @@ namespace ai_onnx {
 namespace detail {
 namespace {
 
-std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<v3::ShapeOf>& shape, const std::vector<int>& dims) {
-    static const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
-    const auto dims_const = v0::Constant::create(ov::element::i32, ov::Shape{dims.size()}, dims);
-    return std::make_shared<v8::Gather>(shape, dims_const, zero);
-}
-
+using ov::frontend::onnx::attention::get_dimensions;
 
 // Reshape 3D input (batch, seq, num_heads * head_size) to 4D (batch, num_heads, seq, head_size)
 ov::Output<ov::Node> reshape_3d_to_4d(const ov::Output<ov::Node>& input, int64_t num_heads) {
@@ -109,24 +104,19 @@ ov::Output<ov::Node> build_sdpa(const ov::Output<ov::Node>& Q,
                                  const ov::Output<ov::Node>& attn_mask,
                                  float scale_attr,
                                  bool is_causal) {
-    bool needs_custom_scale = (scale_attr != 0.0f);
-
-    std::shared_ptr<ov::Node> sdpa;
-    if (needs_custom_scale) {
-        auto scale_node = v0::Constant::create(Q.get_element_type(), ov::Shape{}, {scale_attr});
-        if (has_mask) {
-            sdpa = std::make_shared<v13::ScaledDotProductAttention>(Q, K, V, attn_mask, scale_node, is_causal);
-        } else {
-            auto zero_mask = v0::Constant::create(Q.get_element_type(), ov::Shape{}, {0.0f});
-            sdpa = std::make_shared<v13::ScaledDotProductAttention>(Q, K, V, zero_mask, scale_node, is_causal);
-        }
-    } else if (has_mask) {
-        sdpa = std::make_shared<v13::ScaledDotProductAttention>(Q, K, V, attn_mask, is_causal);
-    } else {
-        sdpa = std::make_shared<v13::ScaledDotProductAttention>(Q, K, V, is_causal);
+    ov::OutputVector inputs{Q, K, V};
+    if (has_mask) {
+        inputs.push_back(attn_mask);
     }
-
-    return sdpa->output(0);
+    if (scale_attr != 0.0f) {
+        if (!has_mask) {
+            // SDPA interprets inputs positionally (index 3 = mask, index 4 = scale),
+            // so a zero mask placeholder is needed when only scale is provided
+            inputs.push_back(v0::Constant::create(Q.get_element_type(), ov::Shape{}, {0.0f}));
+        }
+        inputs.push_back(v0::Constant::create(Q.get_element_type(), ov::Shape{}, {scale_attr}));
+    }
+    return std::make_shared<v13::ScaledDotProductAttention>(inputs, is_causal)->output(0);
 }
 
 // Build manual attention decomposition (for softcap or qk_matmul_output)
