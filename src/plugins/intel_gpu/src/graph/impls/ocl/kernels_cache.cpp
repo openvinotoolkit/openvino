@@ -518,42 +518,6 @@ std::vector<kernel::ptr> kernels_cache::get_kernels(const kernel_impl_params& pa
     return kernels;
 }
 
-bool kernels_cache::validate_simple_kernel_execution(kernel::ptr krl) {
-    auto casted = downcast<ocl::ocl_kernel>(krl.get());
-    auto kernel = casted->get_handle();
-    try {
-        auto casted_dev = dynamic_cast<ocl::ocl_device*>(_device.get());
-        OPENVINO_ASSERT(casted_dev != nullptr, "device is nullptr");
-
-        auto device = casted_dev->get_device();
-        cl::Context ctx(device);
-
-        cl::Buffer buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * 8);
-        if (kernel.setArg(0, buffer) != CL_SUCCESS)
-            return false;
-
-        cl::Event ev;
-        cl::CommandQueue queue(ctx, device);
-        if (queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(8), cl::NDRange(8), nullptr, &ev) != CL_SUCCESS)
-            return false;
-
-        uint8_t result[8];
-        uint8_t expected[8] = { 1, 3, 5, 7, 9, 11, 13, 15 };
-        if (queue.enqueueReadBuffer(buffer, CL_TRUE, 0, sizeof(uint8_t) * 8, &result) != CL_SUCCESS)
-            return false;
-
-        for (int i = 0; i < 8; ++i) {
-            if (result[i] != expected[i])
-                return false;
-        }
-
-        ev.wait();
-        return true;
-    } catch (...) {
-        return false;
-    }
-}
-
 void kernels_cache::build_all() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll");
     if (!_pending_compilation)
