@@ -11,6 +11,8 @@
 #endif
 #include "gtest/gtest.h"
 
+void sigsegv_handler(int errCode);
+
 void sigsegv_handler(int errCode) {
     auto& s = ov::test::utils::OpSummary::getInstance();
     s.saveReport();
