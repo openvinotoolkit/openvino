@@ -225,19 +225,10 @@ using ClassExecutableNetworkInvalidDeviceIDTestSuite = ClassExecutableNetworkGet
 
 TEST_P(ClassExecutableNetworkInvalidDeviceIDTestSuite, InvalidNPUdeviceIDTest) {
     deviceName = configValue.as<std::string>();
-    std::string platform = ov::test::utils::getTestsPlatformFromEnvironmentOr(deviceName);
-    size_t pos0 = platform.find("5010");
-    size_t pos1 = platform.find("4000");
 
-    if (pos0 != std::string::npos || pos1 != std::string::npos) {
-        OV_EXPECT_THROW_HAS_SUBSTRING(ov::CompiledModel compiled_model = ie.compile_model(model, deviceName),
-                                      ov::Exception,
-                                      "Compilation failed.");
-    } else {
-        OV_EXPECT_THROW_HAS_SUBSTRING(ov::CompiledModel compiled_model = ie.compile_model(model, deviceName),
-                                      ov::Exception,
-                                      "Could not find a valid NPU device for the provided configuration.");
-    }
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::CompiledModel compiled_model = ie.compile_model(model, deviceName),
+                                  ov::Exception,
+                                  "Could not find a valid NPU device for the provided configuration.");
 }
 
 using CheckCompilerTypeProperty = ClassExecutableNetworkGetPropertiesTestNPU;

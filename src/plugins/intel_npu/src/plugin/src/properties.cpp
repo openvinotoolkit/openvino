@@ -724,13 +724,17 @@ void Properties::registerCompiledModelProperties() {
     });
 }
 
-ov::Any Properties::getProperty(const std::string& name, const ov::AnyMap& arguments) {
+ov::Any Properties::getProperty(const std::string& name) {
     std::lock_guard<std::mutex> lock(_mutex);
     if (_pType == PropertiesType::PLUGIN) {
         bool propertyIsCompilerConfig = false;
+        bool propertyIsRegistered = true;
+        // If the property is not registered, there is no point of checking the config.
         if (!isPropertyRegistered(name)) {
-            propertyIsCompilerConfig = true;
+            propertyIsRegistered = false;
         } else {
+            // Property is already registered but need to re-check if the CompilerTime config is still supported by the
+            // current compiler.
             if (_config.hasOpt(name) && name != ov::log::level.name()) {
                 auto opt = _config.getOpt(name);
                 if (opt.mode() != OptionMode::RunTime) {
@@ -739,52 +743,31 @@ ov::Any Properties::getProperty(const std::string& name, const ov::AnyMap& argum
             }
         }
 
-        // Check if one of the arguments is compiler config or the property itself is compiler config or
-        // supported_properties which needs to return different values based on compiler and platform configuration
-        if (isCompilerConfig(arguments) || propertyIsCompilerConfig || name == ov::supported_properties.name()) {
+        if (propertyIsCompilerConfig || !propertyIsRegistered || name == ov::supported_properties.name()) {
             std::unique_ptr<ICompilerAdapter> compiler = nullptr;
-            auto compilerType = determineCompilerType(arguments);
-            auto deviceId = determineDeviceId(arguments);
+            auto compilerType = _config.get<COMPILER_TYPE>();
+            auto deviceId = _config.get<DEVICE_ID>();
             auto device = utils::getDeviceById(_backend, deviceId);
 
             auto compilationPlatform = utils::getCompilationPlatform(
-                determinePlatform(arguments),
+                _config.get<PLATFORM>(),
                 device == nullptr ? deviceId : device->getName(),
                 _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
-            // create a compiler to fetch version and supported options
+            // Create a compiler to get the type and fetch version and supported options if needed
             CompilerAdapterFactory factory;
             compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
-            // In case properties are not initialized or the compiler/platform was changed since last call >
-            // filter out unsupported options again
-            if (!_initialized || compilerType != _currentlyUsedCompiler ||
-                compilationPlatform != _currentlyUsedPlatform) {
-                // filter out unsupported options
-                _currentlyUsedCompiler = compilerType;
-                _currentlyUsedPlatform = compilationPlatform;
-                filterPropertiesByCompilerSupport(compiler.get());
-            }
+            filterPropertiesByCompilerSupport(compiler.get(), compilerType, compilationPlatform);
         }
-    }
-
-    std::map<std::string, std::string> amends;
-    for (auto&& value : arguments) {
-        amends.emplace(value.first, value.second.as<std::string>());
-    }
-    FilteredConfig amendedConfig = _config;
-    try {
-        amendedConfig.update(amends, OptionMode::Both);
-    } catch (const ov::Exception& /* unusedOVException */) {
-        _logger.warning("Amended config couldn't be updated with the given arguments");
     }
 
     auto&& configIterator = _properties.find(name);
     if (configIterator != _properties.cend()) {
-        return std::get<2>(configIterator->second)(amendedConfig);
+        return std::get<2>(configIterator->second)(_config);
     }
     try {
-        return amendedConfig.getInternal(name);
+        return _config.getInternal(name);
     } catch (...) {
         OPENVINO_THROW("Unsupported configuration key: ", name);
     }
@@ -793,29 +776,40 @@ ov::Any Properties::getProperty(const std::string& name, const ov::AnyMap& argum
 void Properties::setProperty(const ov::AnyMap& properties) {
     std::unique_ptr<ICompilerAdapter> compiler = nullptr;
     std::lock_guard<std::mutex> lock(_mutex);
-    if (_pType == PropertiesType::PLUGIN && isCompilerConfig(properties)) {
+    if (_pType == PropertiesType::PLUGIN) {
+        bool propertyIsCompilerConfig = false;
+        bool propertyIsRegistered = true;
+        for (const auto& property : properties) {
+            if (!isPropertyRegistered(property.first)) {
+                propertyIsRegistered = false;
+                break;
+            }
+            if (_config.hasOpt(property.first) && property.first != ov::log::level.name()) {
+                auto opt = _config.getOpt(property.first);
+                if (opt.mode() != OptionMode::RunTime) {
+                    propertyIsCompilerConfig = true;
+                    break;
+                }
+            }
+        }
+
         // Check if one of the properties is compiler config which needs to return different values based on compiler
         // and platform configuration
-        auto compilerType = determineCompilerType(properties);
-        auto deviceId = determineDeviceId(properties);
-        auto device = utils::getDeviceById(_backend, deviceId);
+        if (propertyIsCompilerConfig || !propertyIsRegistered) {
+            auto compilerType = determineCompilerType(properties);
+            auto deviceId = determineDeviceId(properties);
+            auto device = utils::getDeviceById(_backend, deviceId);
 
-        auto compilationPlatform = utils::getCompilationPlatform(
-            determinePlatform(properties),
-            device == nullptr ? deviceId : device->getName(),
-            _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+            auto compilationPlatform = utils::getCompilationPlatform(
+                determinePlatform(properties),
+                device == nullptr ? deviceId : device->getName(),
+                _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
-        // create a compiler to fetch version and supported options
-        CompilerAdapterFactory factory;
-        compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+            // Create a compiler to get the type and fetch version and supported options if needed
+            CompilerAdapterFactory factory;
+            compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
-        // In case properties are not initialized or the compiler/platform was changed since last call > filter out
-        // unsupported options again
-        if (!_initialized || compilerType != _currentlyUsedCompiler || compilationPlatform != _currentlyUsedPlatform) {
-            // filter out unsupported options
-            _currentlyUsedCompiler = compilerType;
-            _currentlyUsedPlatform = compilationPlatform;
-            filterPropertiesByCompilerSupport(compiler.get());
+            filterPropertiesByCompilerSupport(compiler.get(), compilerType, compilationPlatform);
         }
     }
 
@@ -852,7 +846,15 @@ bool Properties::isPropertyRegistered(const std::string& propertyName) const {
     return _properties.find(propertyName) != _properties.end();
 }
 
-void Properties::filterPropertiesByCompilerSupport(const ICompilerAdapter* compiler) {
+void Properties::filterPropertiesByCompilerSupport(const ICompilerAdapter* compiler,
+                                                   const ov::intel_npu::CompilerType compilerType,
+                                                   const std::string& compilationPlatform) {
+    // In case properties are not initialized or the compiler/platform was changed since last call -
+    // filter out options again
+    if (_initialized && compilerType == _currentlyUsedCompiler && compilationPlatform == _currentlyUsedPlatform) {
+        return;
+    }
+
     bool legacy = false;
     std::vector<std::string> compilerSupportList{};
     uint32_t compilerVersion = 0;
@@ -928,30 +930,30 @@ void Properties::filterPropertiesByCompilerSupport(const ICompilerAdapter* compi
     // reset properties for the new options
     registerProperties();
     _initialized = true;
+    _currentlyUsedCompiler = compilerType;
+    _currentlyUsedPlatform = compilationPlatform;
 }
 
 void Properties::updateConfig(const ov::AnyMap& properties, const ICompilerAdapter* compiler, OptionMode mode) {
-    bool changeCompiler = false;
-    if (_initialized) {
-        auto compilerType = properties.find(ov::intel_npu::compiler_type.name());
-        if (compilerType != properties.end()) {
-            if (compilerType->second != _currentlyUsedCompiler) {
-                changeCompiler = true;
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        std::optional<ov::intel_npu::CompilerType> propertiesCompilerType = std::nullopt;
+        std::optional<std::string> propertiesPlatform = std::nullopt;
+        if (_initialized) {
+            auto compilerType = properties.find(ov::intel_npu::compiler_type.name());
+            if (compilerType != properties.end()) {
+                propertiesCompilerType = compilerType->second.as<ov::intel_npu::CompilerType>();
             }
         }
         auto platform = properties.find(ov::intel_npu::platform.name());
         if (platform != properties.end()) {
-            if (platform->second != _currentlyUsedPlatform) {
-                changeCompiler = true;
-            }
+            propertiesPlatform = platform->second.as<std::string>();
         }
-    }
 
-    // if properties are not initialized or the compiler/platform was changed since last call > filter out unsupported
-    // options again
-    if (!_initialized || changeCompiler) {
         // filter out unsupported options
-        filterPropertiesByCompilerSupport(compiler);
+        filterPropertiesByCompilerSupport(compiler,
+                                          propertiesCompilerType.value_or(_currentlyUsedCompiler),
+                                          propertiesPlatform.value_or(_currentlyUsedPlatform));
     }
 
     const std::map<std::string, std::string> rawConfig = any_copy(properties);
@@ -1013,21 +1015,6 @@ std::string Properties::determineDeviceId(const ov::AnyMap& properties) const {
         return device_id->second.as<std::string>();
     }
     return _config.get<DEVICE_ID>();
-}
-
-bool Properties::isCompilerConfig(const ov::AnyMap& properties) const {
-    for (const auto& property : properties) {
-        if (!isPropertyRegistered(property.first)) {
-            return true;
-        }
-        if (_config.hasOpt(property.first) && property.first != ov::log::level.name()) {
-            auto opt = _config.getOpt(property.first);
-            if (opt.mode() != OptionMode::RunTime) {
-                return true;
-            }
-        }
-    }
-    return false;
 }
 
 }  // namespace intel_npu

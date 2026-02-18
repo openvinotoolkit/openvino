@@ -426,15 +426,12 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     exclude_model_ptr_from_map(npuPluginArguments);
 
     if (!npuPluginArguments.empty()) {
-        update_log_level(npuPluginArguments);
-
-        if (_backend != nullptr) {
-            _backend->updateInfo(npuPluginArguments);
-        }
         // Need to create a temporary copy of the properties manager. The set of arguments we get might change the list
         // of supported properties, but we cannot alter the global state
         auto copyPropertiesManager = std::make_unique<Properties>(*_propertiesManager);
-        return copyPropertiesManager->getProperty(name, npuPluginArguments);
+        copyPropertiesManager->setProperty(npuPluginArguments);
+
+        return copyPropertiesManager->getProperty(name);
     }
 
     return _propertiesManager->getProperty(name);

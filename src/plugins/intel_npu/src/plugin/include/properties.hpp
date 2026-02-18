@@ -46,7 +46,7 @@ public:
     /**
      * @brief Get the values of a property in a map
      */
-    ov::Any getProperty(const std::string& name, const ov::AnyMap& arguments = {});
+    ov::Any getProperty(const std::string& name);
 
     /**
      * @brief Set the values of a subset of properties, provided as a map
@@ -110,8 +110,9 @@ private:
     // internal registration functions based on client object
     void registerPluginProperties();
     void registerCompiledModelProperties();
-    void filterPropertiesByCompilerSupport(const ICompilerAdapter* compiler);
-    bool isCompilerConfig(const ov::AnyMap& properties) const;
+    void filterPropertiesByCompilerSupport(const ICompilerAdapter* compiler,
+                                           const ov::intel_npu::CompilerType compilerType,
+                                           const std::string& compilationPlatform);
 
     const std::vector<ov::PropertyName> _cachingProperties = {
         ov::cache_mode.name(),
