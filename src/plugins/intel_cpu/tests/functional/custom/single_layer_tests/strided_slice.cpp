@@ -144,7 +144,7 @@ protected:
                                                              ssParams.shrinkAxisMask,
                                                              ssParams.ellipsisAxisMask);
 
-        function = makeNgraphFunction(inType, params, ss, "StridedSlice");
+        function = create_ov_model(inType, params, ss, "StridedSlice");
     }
 
     StridedSliceParams ssParams;

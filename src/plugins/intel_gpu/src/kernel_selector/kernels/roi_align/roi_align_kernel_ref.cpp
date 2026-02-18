@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "roi_align_kernel_ref.h"
@@ -123,7 +123,7 @@ JitConstants ROIAlignKernelRef::GetJitConstants(const roi_align_params& params) 
         const char* transform_macro =
             R"( \
         INPUT1_TYPE SAMPLE_X = pre_sample_x; \
-        INPUT1_TYPE SAMPLE_Y = pre_sample_y; 
+        INPUT1_TYPE SAMPLE_Y = pre_sample_y;
         )";
 
         jit.AddConstant(MakeJitConstant("TRANSFORM_POINT_TO_IMAGE_SPACE(pre_sample_x,pre_sample_y)", transform_macro));

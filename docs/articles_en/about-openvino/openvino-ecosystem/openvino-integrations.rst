@@ -6,8 +6,13 @@ OpenVINO™ Integrations
    :description: Check a list of integrations between OpenVINO and other Deep Learning solutions.
 
 
+OpenVINO has been adopted by multiple AI projects in various areas. For an extensive list of
+community-based projects involving OpenVINO, see the
+`Awesome OpenVINO repository <https://github.com/openvinotoolkit/awesome-openvino>`__.
+
 
 .. = 1 ========================================================================================
+
 
 **Hugging Face Optimum-Intel**
 
@@ -100,7 +105,6 @@ OpenVINO™ Integrations
    .. grid-item::
 
       * :doc:`PyTorch Deployment via torch.compile <../../openvino-workflow/torch-compile>`
-      * A notebook example: n.a.
       * `torch.compiler documentation <https://pytorch.org/docs/stable/torch.compiler.html>`__
       * `torch.compiler API reference <https://pytorch.org/docs/stable/torch.compiler_api.html>`__
 
@@ -138,7 +142,6 @@ OpenVINO™ Integrations
 
       * :doc:`LLM inference with Optimum-intel <../../openvino-workflow-generative/inference-with-optimum-intel>`
       * `A notebook example: llm-agent-rag <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-agent-react/llm-agent-rag-llamaindex.ipynb>`__
-      *
       * `Inference documentation <https://docs.llamaindex.ai/en/stable/examples/llm/openvino/>`__
       * `Rerank documentation <https://docs.llamaindex.ai/en/stable/examples/node_postprocessor/openvino_rerank/>`__
       * `Embeddings documentation <https://docs.llamaindex.ai/en/stable/examples/embeddings/openvino/>`__
@@ -167,11 +170,137 @@ OpenVINO™ Integrations
           device_map="cpu",
       )
 
+.. = 5 ========================================================================================
 
+**OpenVINO Backend for ExecuTorch**
 
+|hr|
 
+.. grid:: 1 1 2 2
+   :gutter: 4
 
+   .. grid-item::
 
+      | Export and run AI models using OpenVINO with ExecuTorch to optimize performance on 
+        Intel hardware. 
+      | Benefits:
+      | - Accelerate inference, reduce latency, and simplify deployment for efficient AI applications.
+
+   .. grid-item::
+
+      * `OpenVINO Backend for ExecuTorch <https://github.com/pytorch/executorch/blob/main/backends/openvino/README.md>`__
+      * `OpenVINO Backend Examples <https://github.com/pytorch/executorch/blob/main/examples/openvino/README.md>`__
+      * `Building and Running ExecuTorch with OpenVINO Backend <https://github.com/pytorch/executorch/blob/main/docs/source/build-run-openvino.md>`__
+
+.. dropdown:: Check example code
+   :animate: fade-in-slide-down
+   :color: secondary
+
+   .. code-block:: python
+
+      python aot_optimize_and_infer.py --export --suite timm --model vgg16 --input_shape "[1, 3, 224, 224]" --device CPU
+
+.. = 6 ========================================================================================
+
+**OpenVINO Integration for LangChain**
+
+|hr|
+
+.. grid:: 1 1 2 2
+   :gutter: 4
+
+   .. grid-item::
+
+      | Integrate OpenVINO with the LangChain framework to enhance runtime performance for GenAI applications. 
+      | Benefits:
+      | - Streamline the integration and chaining of language models for efficient AI workflows.
+
+   .. grid-item::
+
+      * `LangChain Integration Guide <https://python.langchain.com/docs/integrations/llms/openvino/>`__
+
+.. dropdown:: Check example code
+   :animate: fade-in-slide-down
+   :color: secondary
+
+   .. code-block:: python
+
+      ov_llm = HuggingFacePipeline.from_model_id(
+         model_id="ov_model_dir",
+         task="text-generation",
+         backend="openvino",
+         model_kwargs={"device": "CPU", "ov_config": ov_config},
+         pipeline_kwargs={"max_new_tokens": 10},
+      )
+
+      chain = prompt | ov_llm
+
+      question = "What is electroencephalography?"
+
+      print(chain.invoke({"question": question}))
+
+.. = 7 ========================================================================================
+
+**Intel® Geti™**
+
+|hr|
+
+.. grid:: 1 1 2 2
+   :gutter: 4
+
+   .. grid-item::
+
+      | Build computer vision models faster with less data using Intel® Geti™. It streamlines labeling, training, and deployment, exporting models optimized for OpenVINO.
+      | Benefits:
+      | - Train with less data and deploy models faster.
+   .. grid-item::
+
+      * `Intel® Geti Overview <https://docs.geti.intel.com/>`__
+      * `Documentation <https://docs.geti.intel.com/docs/user-guide/getting-started/introduction>`__
+      * `Tutorials <https://docs.geti.intel.com/docs/user-guide/getting-started/use-geti/tutorials>`__
+.. = 8 ========================================================================================
+
+**AI Playground™**
+
+|hr|
+
+.. grid:: 1 1 2 2
+   :gutter: 4
+
+   .. grid-item::
+
+      | Use Intel® OpenVINO™ in AI Playground to optimize and run AI models efficiently on Intel 
+        CPUs and Arc GPUs, enabling local image generation, editing, and video processing. It 
+       supports OpenVINO-optimized models like TinyLlama, Mistral 7B, and Phi-3 mini, no conversion 
+       needed.
+      | Benefits:
+      | - Easily set up pre-optimized models.
+      | - Run faster, hardware-accelerated inference with OpenVINO.
+   .. grid-item::
+
+      * `AI Playground Overview <https://www.intel.com/content/www/us/en/products/docs/discrete-gpus/arc/software/ai-playground.html>`__
+      * `GitHub Repository <https://github.com/intel/AI-Playground>`__
+      * `User Guide <https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf>`__
+.. = 9 ========================================================================================
+
+**Intel® AI Assistant Builder**
+
+|hr|
+
+.. grid:: 1 1 2 2
+   :gutter: 4
+
+   .. grid-item::
+
+      | Run local AI assistants with Intel® AI Assistant Builder using OpenVINO-optimized models 
+        like Phi-3 and Qwen2.5. Build secure, efficient assistants customized for your data 
+        and workflows.
+      | Benefits:
+      | - Build custom assistants with agentic workflows and knowledge bases.
+      | - Keep data secure by running fully local.
+   .. grid-item::
+
+      * `GitHub Repository <https://github.com/intel/intel-ai-assistant-builder>`__
 
 
 

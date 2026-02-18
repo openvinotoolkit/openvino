@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ public:
                 (const));
     MOCK_METHOD(ov::SoPtr<ov::ICompiledModel>,
                 compile_model,
-                (const std::string&, const std::string&, const ov::AnyMap&),
+                (const std::filesystem::path&, const std::string&, const ov::AnyMap&),
                 (const));
     MOCK_METHOD(ov::SoPtr<ov::ICompiledModel>,
                 compile_model,

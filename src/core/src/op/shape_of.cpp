@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,9 +73,9 @@ bool evaluate_bound(const Node* const node, ov::TensorVector& outputs, const boo
             constexpr auto max_et_val = static_cast<int64_t>(std::numeric_limits<int32_t>::max());
 
             const auto get_val = is_upper ? &Interval::get_max_val : &Interval::get_min_val;
-            auto limit_val = is_upper ? max_et_val : static_cast<decltype(max_et_val)>(0);
+            const auto limit_val = is_upper ? max_et_val : static_cast<decltype(max_et_val)>(0);
 
-            const TensorVector inputs{
+            TensorVector inputs{
                 {element::boolean, Shape{in_shape_rank}},  // mask
                 {out_et, Shape{}, &limit_val},             // limit
                 outputs[0]                                 // output
@@ -84,7 +84,6 @@ bool evaluate_bound(const Node* const node, ov::TensorVector& outputs, const boo
             std::transform(in_shape.begin(), in_shape.end(), dynamic_mask.data<char>(), [&](const Dimension& d) {
                 return static_cast<char>((d.get_interval().*get_val)() >= max_et_val);
             });
-
             eval_status = v1::Select().evaluate(outputs, inputs);
         }
         return eval_status;

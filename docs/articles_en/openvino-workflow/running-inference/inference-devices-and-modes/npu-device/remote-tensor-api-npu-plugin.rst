@@ -12,8 +12,8 @@ The NPU plugin supports memory sharing between OpenVINO and native APIs such as 
 It implements the ``ov::RemoteContext`` and ``ov::RemoteTensor`` interfaces, providing mechanisms for efficient memory sharing.
 On Windows, the plugin exports an NT handle; on Linux, it uses a DMA-BUF System Heap. You can share this memory by
 passing the pointer as the ``shared_buffer`` member to the ``remote_tensor(..., shared_buffer)`` create function.
-Another option is to share memory by mapping a file into memory. These methods help avoid memory copy overhead when
-plugging OpenVINO inference into an existing NPU pipeline.
+Another option is to import memory by mapping a file into memory or by using a CPU virtual address allocation. These methods
+help avoid memory copy overhead when plugging OpenVINO inference into an existing NPU pipeline.
 
 Supported scenario by the Remote Tensor API:
 
@@ -81,8 +81,15 @@ For more details, see the code snippets below:
                :language: cpp
                :fragment: [file_mapping]
 
+         .. tab-item:: Import CPU virtual address allocation
+            :sync: import-cpu-va
+
+            .. doxygensnippet:: docs/articles_en/assets/snippets/npu_remote_objects_creation.cpp
+               :language: cpp
+               :fragment: [import_cpu_va]
+
          .. tab-item:: NT handle
-            :sync: nthandle
+            :sync: nt-handle
 
             .. doxygensnippet:: docs/articles_en/assets/snippets/npu_remote_objects_creation.cpp
                :language: cpp
@@ -118,7 +125,23 @@ For more details, see the code snippets below:
 Limitations
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* Allocation of the NT handle or DMA-BUF System Heap file descriptor is done manually.
+The NPU plugin does not support methods for direct allocation of native handles.
+
+.. warning::
+
+   **CPU Virtual Address Allocation Requirements**
+   When using CPU virtual address allocations, you **must** comply with the following requirements to prevent memory corruption and crashes:
+
+   **1. Memory Alignment (Mandatory)**
+   Both the allocation pointer and its size must be aligned to the standard page size (4KB). Non-aligned allocations will be rejected.
+
+   **2. Allocation Lifetime (Critical)**
+   The allocation must remain valid **until ALL** of the following have occurred:
+      * All inference requests using this remote tensor have completed execution, **AND**
+      * All inference requests using this remote tensor have been destroyed, **AND**
+      * The remote tensor has been destroyed
+
+   Failure to maintain the allocation for the entire lifecycle will result in undefined behavior and potential crashes.
 
 Low-Level Methods for RemoteContext and RemoteTensor Creation
 #############################################################

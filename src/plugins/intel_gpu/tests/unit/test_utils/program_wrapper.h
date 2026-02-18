@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,18 @@ namespace cldnn
         {
             p.run_graph_compilation();
         }
+        static void init_graph(program& p)
+        {
+            p.init_graph();
+        }
+        static void pre_optimize_graph(program& p, bool is_internal)
+        {
+            p.pre_optimize_graph(is_internal);
+        }
+        static void post_optimize_graph(program& p, bool is_internal)
+        {
+            p.post_optimize_graph(is_internal);
+        }
         static void build(program& p)
         {
             program_wrapper::run_graph_compilation(p);
@@ -36,6 +48,10 @@ namespace cldnn
         static void prepare_memory_dependencies(program& p)
         {
             p.prepare_memory_dependencies();
+        }
+        static void transfer_memory_to_device(program& p)
+        {
+            p.transfer_memory_to_device();
         }
         static void update_configs_properties(program& p, const ov::AnyMap& properties) {
             auto config_copy = p._config.clone();

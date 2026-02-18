@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2024 Intel Corporation.
+// Copyright (C) 2018-2026 Intel Corporation.
 // SPDX-License-Identifier: Apache 2.0
 //
 
@@ -507,7 +507,7 @@ std::list<ov::Tensor> splitBatchedTensor(const ov::Tensor &tensor, const ov::Lay
     }
     pivotShape[ov::layout::batch_idx(layout)] /= parts;
     std::list<ov::Tensor> ret;
-    const auto *inputBuffer = static_cast<unsigned char*>(tensor.data());
+    const auto* inputBuffer = static_cast<const unsigned char*>(tensor.data());
     for (size_t i = 0; i < parts; i ++) {
         ov::Tensor out(pivotPrecision, pivotShape);
         memcpy(out.data(), inputBuffer, out.get_byte_size());

@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,24 +12,20 @@
 
 #include "cache/multi_cache.h"
 #include "cpu/aarch64/jit_generator.hpp"
+#include "emitters/snippets/common/compiled_snippet_cpu.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "snippets/emitter.hpp"
 #include "snippets/generator.hpp"
 #include "snippets/target_machine.hpp"
 
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include "emitters/snippets/utils/debug_caps_config.hpp"
+#endif
+
 namespace ov::intel_cpu::aarch64 {
 
-class CompiledSnippetCPU : public snippets::CompiledSnippet {
-public:
-    explicit CompiledSnippetCPU(std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator> h);
-    [[nodiscard]] const uint8_t* get_code() const override;
-    [[nodiscard]] size_t get_code_size() const override;
-    [[nodiscard]] bool empty() const override;
-
-private:
-    const std::unique_ptr<const dnnl::impl::cpu::aarch64::jit_generator> h_compiled;
-};
+using CompiledSnippetCPU = ov::intel_cpu::CompiledSnippetCPUCommon<dnnl::impl::cpu::aarch64::jit_generator>;
 
 class CPUTargetMachine : public snippets::TargetMachine {
 public:
@@ -44,6 +40,9 @@ public:
     [[nodiscard]] std::vector<snippets::Reg> get_vec_reg_pool() const override;
 
     [[nodiscard]] dnnl::impl::cpu::aarch64::cpu_isa_t get_isa() const;
+#ifdef SNIPPETS_DEBUG_CAPS
+    SnippetsDebugCapsConfig debug_config;
+#endif
 
 private:
     std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator> h;

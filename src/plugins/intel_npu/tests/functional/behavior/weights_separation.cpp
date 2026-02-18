@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,10 @@ using namespace ov::test::behavior;
 
 const std::vector<ov::AnyMap> emptyConfig = {{}};
 const std::vector<ov::AnyMap> cipConfig = {
+    {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
+     ov::intel_npu::platform(ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU))}};
+const std::vector<ov::AnyMap> bothConfig = {
+    {},
     {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
      ov::intel_npu::platform(ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU))}};
 
@@ -22,3 +26,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(cipConfig)),
                          WeightsSeparationOneShotTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
+                         WeightsSeparationIterativeTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(bothConfig)),
+                         WeightsSeparationIterativeTests::getTestCaseName);

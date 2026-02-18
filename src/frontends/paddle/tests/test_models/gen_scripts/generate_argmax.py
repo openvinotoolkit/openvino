@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -13,7 +13,7 @@ data_type = 'float32'
 def paddle_argmax(name : str, x, axis):
     import paddle
     paddle.enable_static()
-    
+
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype='float32')
         out = paddle.argmax(x=node_x, axis=axis)
@@ -25,7 +25,7 @@ def paddle_argmax(name : str, x, axis):
 
         outs = exe.run(
             feed={'x': x},
-            fetch_list=[out])             
+            fetch_list=[out])
 
         saveModel(name, exe, feed_vars=[node_x], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
 
@@ -34,7 +34,7 @@ def paddle_argmax(name : str, x, axis):
 def paddle_argmax1(name : str, x):
     import paddle
     paddle.enable_static()
-    
+
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype='float32')
         out = paddle.argmax(x=node_x)
@@ -46,7 +46,7 @@ def paddle_argmax1(name : str, x):
 
         outs = exe.run(
             feed={'x': x},
-            fetch_list=[out])             
+            fetch_list=[out])
 
         saveModel(name, exe, feed_vars=[node_x], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
 
@@ -60,4 +60,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()     
+    main()

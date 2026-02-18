@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -268,10 +268,9 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                             _post_ops.append_binary(aalgorithm,
                                 dnnl::memory::desc(fused_desc.at(idx).dims, fused_desc.at(idx).dt, fused_desc.at(idx).tag));
                         } else {
-                            dnnl::memory::desc md = onednn::layout_to_memory_desc(
-                                                            impl_params->get_input_layout(fused_desc.at(idx).mem_dep),
-                                                            fused_desc.at(idx).tag,
-                                                            (fused_desc.at(idx).flatten ? onednn::mem_flags::flatten : onednn::mem_flags::None));
+                            dnnl::memory::desc md = fused_desc.at(idx).flatten
+                                ? onednn::layout_to_memory_desc_flatten(impl_params->get_input_layout(fused_desc.at(idx).mem_dep), fused_desc.at(idx).tag)
+                                : onednn::layout_to_memory_desc(impl_params->get_input_layout(fused_desc.at(idx).mem_dep), fused_desc.at(idx).tag);
 
                             _post_ops.append_binary(aalgorithm, md);
                         }
@@ -355,7 +354,7 @@ private:
             std::vector<uint8_t> cache;
             {
                 std::lock_guard<std::mutex> lock(cacheAccessMutex);
-                cache = ov::util::load_binary(generate_cache_path_from_key(config, key));
+                cache = ov::util::load_binary(ov::util::make_path(generate_cache_path_from_key(config, key)));
             }
 
             if (cache.empty()) {
@@ -472,7 +471,11 @@ protected:
 
         if (_scratchpad_md.get_size() != 0) {
             // onednn primitive can have only 1 scratchpad memory.
-            auto scratchpad = instance.get_intermediates_memories()[0];
+            const auto& intermediates = instance.get_intermediates_memories();
+            OPENVINO_ASSERT(!intermediates.empty(),
+                            "[GPU] oneDNN primitive ", instance.id(), " requires scratchpad of size ",
+                            _scratchpad_md.get_size(), " bytes, but intermediates memory is missing");
+            auto scratchpad = intermediates[0];
             args.insert({DNNL_ARG_SCRATCHPAD, scratchpad->get_onednn_memory(_scratchpad_md, 0)});
         }
 

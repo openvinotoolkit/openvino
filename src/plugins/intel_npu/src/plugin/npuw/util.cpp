@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -113,10 +113,10 @@ void unpack_nf4f16(const ov::SoPtr<ov::ITensor>& from,
     }
 }
 
-void unpack_f8f16(const ov::SoPtr<ov::ITensor>& from,
-                  const ov::SoPtr<ov::ITensor>& scale,
-                  const ov::SoPtr<ov::ITensor>& to,
-                  const ov::npuw::util::UnpackOptions& unpack_options) {
+void unpack_f16f16(const ov::SoPtr<ov::ITensor>& from,
+                   const ov::SoPtr<ov::ITensor>& scale,
+                   const ov::SoPtr<ov::ITensor>& to,
+                   const ov::npuw::util::UnpackOptions& unpack_options) {
     auto from_shape = from->get_shape();
     auto scale_shape = scale->get_shape();
 
@@ -126,33 +126,18 @@ void unpack_f8f16(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(from->get_size() == to->get_size());
     NPUW_ASSERT(from_shape[0] == scale_shape[0]);
     NPUW_ASSERT(scale_shape[1] == 1);
-    NPUW_ASSERT(from->get_element_type() == ov::element::f8e4m3 || from->get_element_type() == ov::element::f8e5m2 ||
-                from->get_element_type() == ov::element::f8e8m0);
-    NPUW_ASSERT(scale->get_element_type() == ov::element::f32);
+    NPUW_ASSERT(from->get_element_type() == ov::element::f16);
+    NPUW_ASSERT(scale->get_element_type() == ov::element::f16);
     NPUW_ASSERT(to->get_element_type() == ov::element::f16);
 
-    const auto* scale_ptr = scale->data<float>();
+    const auto* from_ptr = from->data<ov::float16>();
+    const auto* scale_ptr = scale->data<ov::float16>();
     auto* to_ptr = to->data<ov::float16>();
+    const auto size = to->get_size();
 
-    const auto size = from->get_size();
-
-    // FIXME: copypaste with a different type
-    if (from->get_element_type() == ov::element::f8e4m3) {
-        const auto* from_ptr = from->data<ov::float8_e4m3>();
-        ov::parallel_for(size, [&](size_t idx) {
-            to_ptr[idx] = static_cast<float>(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
-        });
-    } else if (from->get_element_type() == ov::element::f8e5m2) {
-        const auto* from_ptr = from->data<ov::float8_e5m2>();
-        ov::parallel_for(size, [&](size_t idx) {
-            to_ptr[idx] = static_cast<float>(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
-        });
-    } else {
-        const auto* from_ptr = from->data<ov::float8_e8m0>();
-        ov::parallel_for(size, [&](size_t idx) {
-            to_ptr[idx] = static_cast<float>(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
-        });
-    }
+    ov::parallel_for(size, [&](size_t idx) {
+        to_ptr[idx] = from_ptr[idx] * scale_ptr[idx / from_shape[1]];
+    });
 }
 
 void unpack_f16f16(const ov::SoPtr<ov::ITensor>& from,
@@ -280,8 +265,7 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         unpack_nf4f16(from, scale, to, unpack_options);
     } else if (type_from == ov::element::f8e4m3 || type_from == ov::element::f8e5m2 ||
                type_from == ov::element::f8e8m0) {
-        // FIXME: Implement XARCH::unpack
-        unpack_f8f16(from, scale, to, unpack_options);
+        ov::npuw::util::XARCH::unpack_f8f16_scale(from, scale, to, unpack_options);
     } else if (type_from == ov::element::f16) {
         // FIXME: Implement XARCH::unpack
         unpack_f16f16(from, scale, to, unpack_options);
@@ -951,5 +935,16 @@ bool ov::npuw::util::matchLoRAMatMulAlphaString(const std::string& input) {
 
 void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val) {
     auto* tensor_data = reinterpret_cast<uint8_t*>(tensor->data());
-    std::fill_n(tensor_data, tensor->get_byte_size(), fill_val);
+    const size_t byte_size = tensor->get_byte_size();
+    std::memset(tensor_data, fill_val, byte_size);
+}
+
+bool ov::npuw::util::isPastKeyValuesKey(const std::string& str) {
+    std::regex pattern(R"(past_key_values\.\d+\.key)");
+    return std::regex_match(str, pattern);
+}
+
+bool ov::npuw::util::isPastKeyValuesValue(const std::string& str) {
+    std::regex pattern(R"(past_key_values\.\d+\.value)");
+    return std::regex_match(str, pattern);
 }

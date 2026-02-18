@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -186,9 +186,6 @@ attach_moe_mask_gen_reshape_impl::attach_moe_mask_gen_reshape_impl() {
 }  // namespace detail
 }  // namespace cpu
 }  // namespace cldnn
-
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::moe_mask_gen_impl)
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe_mask_gen)
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::moe_mask_gen_reshape_impl)
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe_mask_gen_reshape)

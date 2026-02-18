@@ -1,7 +1,7 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.runtime import Core, Model
+from openvino import Core, Model
 import torch
 from typing import Any
 import logging

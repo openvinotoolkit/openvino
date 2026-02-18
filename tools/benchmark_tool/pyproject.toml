@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # Use this configuration file to create a wheel with OpenVINO™ Python* benchmark tool:
@@ -22,9 +22,9 @@ classifiers = [
     "Operating System :: OS Independent",
     "License :: OSI Approved :: Apache Software License"
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
-  "numpy>=1.16.6,<2.2.0",
+  "numpy>=1.16.6,<2.5.0",
 ]
 
 [project.scripts]

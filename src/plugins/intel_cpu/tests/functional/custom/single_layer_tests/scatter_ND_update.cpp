@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -113,7 +113,7 @@ protected:
         auto scatter = std::make_shared<ov::op::v3::ScatterNDUpdate>(dataParams[0], indicesParam, dataParams[1]);
 
         ov::ParameterVector allParams{dataParams[0], indicesParam, dataParams[1]};
-        function = makeNgraphFunction(inputPrecision, allParams, scatter, "ScatterNDUpdateLayerCPUTest");
+        function = create_ov_model(inputPrecision, allParams, scatter, "ScatterNDUpdateLayerCPUTest");
 
         if (exceptionExpected) {
             set_callback_exception([](const std::exception& exp) {

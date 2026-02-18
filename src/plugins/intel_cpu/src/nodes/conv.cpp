@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -574,6 +574,16 @@ bool Convolution::canFuse(const NodePtr& node) const {
 #if defined(OV_CPU_WITH_ACL)
     if (!fusedWith.empty()) {
         return false;
+    }
+
+    // Keep signed/unsigned low-precision domains consistent for already-quantized activations.
+    // For fp32 activation path, allow FQ fusion so ACL int8/u8 convolution can still be selected.
+    if (node->getType() == Type::FakeQuantize) {
+        const auto fqOutPrc = node->getOriginalOutputPrecisionAtPort(0);
+        const auto convInPrc = getOriginalInputPrecisionAtPort(0);
+        if (any_of(convInPrc, ov::element::u8, ov::element::i8) && fqOutPrc != convInPrc) {
+            return false;
+        }
     }
 #endif
     return canFuseSimpleOperation(node);

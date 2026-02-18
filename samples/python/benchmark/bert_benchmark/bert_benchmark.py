@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -44,7 +44,7 @@ def main():
         log.error("Can't set dynamic shape")
         raise
     # Optimize for throughput. Best throughput can be reached by
-    # running multiple openvino.runtime.InferRequest instances asyncronously
+    # running multiple openvino.InferRequest instances asyncronously
     tput = {'PERFORMANCE_HINT': 'THROUGHPUT'}
     # Pick a device by replacing CPU, for example MULTI:CPU(4),GPU(8).
     # It is possible to set CUMULATIVE_THROUGHPUT as PERFORMANCE_HINT for AUTO device

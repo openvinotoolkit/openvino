@@ -27,13 +27,11 @@ GPU Plugin contains the following components:
 * [Memory formats](./docs/gpu_memory_formats.md)
 * [Kernels and kernel selectors](./docs/gpu_kernels.md)
 * [GPU plugin operations enabling flow](./docs/gpu_plugin_ops_enabling.md)
-* [Debug utils](./docs/gpu_debug_utils.md)
-* [OpenCL Runtime issues troubleshooting](./docs/gpu_plugin_driver_troubleshooting.md)
 * [GPU plugin unit test](./docs/gpu_plugin_unit_test.md)
 * [Run benchmark from device_mem](./docs/use_device_mem.md)
 
 ## Documentation on dynamic-shape
-This contents explain the internal implementation of dynamic shape support in the GPU Plugin. For general usage of dynamic shape and limitations of the GPU plugin, please refer to this link: [GPU Device — OpenVINO™ documentation - Version(2023.1)](https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_GPU.html#dynamic-shapes).
+This contents explain the internal implementation of dynamic shape support in the GPU Plugin. For general usage of dynamic shape and limitations of the GPU plugin, please refer to this link: [GPU Device — OpenVINO™ documentation - Version(2025)](https://docs.openvino.ai/2025/openvino-workflow/running-inference/inference-devices-and-modes/gpu-device.html#dynamic-shapes).
 
 * [Overall flow for dynamic shape execution](./docs/dynamic_shape/overall_flow.md)
 * Implementation details
@@ -44,6 +42,8 @@ This contents explain the internal implementation of dynamic shape support in th
   <!-- * weight compression (TBD)) -->
 * Optimization features
   * [Memory preallocation](./docs/dynamic_shape/memory_preallocation.md)
+  * [Runtime operation skip](./docs/dynamic_shape/runtime_skip.md)
+  * [KV cache optimization](./docs/dynamic_shape/kv_cache.md)
 <!--  * Fake alignment of shape (TBD)
   * Shape-of subgraph on CPU (TBD)
   * Runtime buffer fusing (TBD)
@@ -52,6 +52,11 @@ This contents explain the internal implementation of dynamic shape support in th
 * Performance analysis and debugging features (TBD)
 * Model caching for dynamic shape (TBD)
 -->
+
+## Troubleshooting / Debugging
+* [Debug utils](./docs/gpu_debug_utils.md)
+* [Debugging guide](./docs/debugging_guide.md)
+* [OpenCL Runtime issues troubleshooting](./docs/gpu_plugin_driver_troubleshooting.md)
 
 ## Attached licenses
 

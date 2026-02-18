@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -122,6 +122,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_RollGPU_3D, RollLayerGPUTest,
                             ::testing::ValuesIn(inputPrecisions),
                             ::testing::Values(std::vector<int64_t>{160, 150}), // Shift
                             ::testing::Values(std::vector<int64_t>{1, 2}),     // Axes
+                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                        RollLayerGPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_RollGPU_3DNegativeShiftAxes, RollLayerGPUTest,
+                        ::testing::Combine(
+                            ::testing::ValuesIn(data3DShapes),
+                            ::testing::ValuesIn(inputPrecisions),
+                            ::testing::Values(std::vector<int64_t>{-1, -2,  5,  2, 4}),    // Shift
+                            ::testing::Values(std::vector<int64_t>{-1, -2, -1, -3, 2}),    // Axes
                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         RollLayerGPUTest::getTestCaseName);
 

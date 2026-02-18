@@ -1,4 +1,4 @@
-// Copyright (C) 2024-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,6 +37,115 @@ inline uint8_t lo4(uint8_t x) {
 #if defined(HAVE_AVX2)
 inline int8_t upc(int8_t h) {
     return h | (-((h & (1 << 3)) >> 3) & (-8));
+}
+
+// OpenVINO core semantics for e4m3: mag = LUT[bits & 0x7F], sign by bit7.
+// Implement with AVX2 gather from 128-entry float LUT, then cvtps_ph.
+inline __m256i f8e4m3tof16(__m128i vf8) {
+    alignas(32) static constexpr float k_f8e4m3_lut[128] = {
+        0.0f,       0.001953125f, 0.00390625f, 0.005859375f,
+        0.0078125f, 0.009765625f, 0.01171875f, 0.013671875f,
+        0.015625f,  0.017578125f, 0.01953125f, 0.021484375f,
+        0.0234375f, 0.025390625f, 0.02734375f, 0.029296875f,
+        0.03125f,   0.03515625f,  0.0390625f,  0.04296875f,
+        0.046875f,  0.05078125f,  0.0546875f,  0.05859375f,
+        0.0625f,    0.0703125f,   0.078125f,   0.0859375f,
+        0.09375f,   0.1015625f,   0.109375f,   0.1171875f,
+        0.125f,     0.140625f,    0.15625f,    0.171875f,
+        0.1875f,    0.203125f,    0.21875f,    0.234375f,
+        0.25f,      0.28125f,     0.3125f,     0.34375f,
+        0.375f,     0.40625f,     0.4375f,     0.46875f,
+        0.5f,       0.5625f,      0.625f,      0.6875f,
+        0.75f,      0.8125f,      0.875f,      0.9375f,
+        1.0f,       1.125f,       1.25f,       1.375f,
+        1.5f,       1.625f,       1.75f,       1.875f,
+        2.0f,       2.25f,        2.5f,        2.75f,
+        3.0f,       3.25f,        3.5f,        3.75f,
+        4.0f,       4.5f,         5.0f,        5.5f,
+        6.0f,       6.5f,         7.0f,        7.5f,
+        8.0f,       9.0f,         10.0f,       11.0f,
+        12.0f,      13.0f,        14.0f,       15.0f,
+        16.0f,      18.0f,        20.0f,       22.0f,
+        24.0f,      26.0f,        28.0f,       30.0f,
+        32.0f,      36.0f,        40.0f,       44.0f,
+        48.0f,      52.0f,        56.0f,       60.0f,
+        64.0f,      72.0f,        80.0f,       88.0f,
+        96.0f,      104.0f,       112.0f,      120.0f,
+        128.0f,     144.0f,       160.0f,      176.0f,
+        192.0f,     208.0f,       224.0f,      240.0f,
+        256.0f,     288.0f,       320.0f,      352.0f,
+        384.0f,     416.0f,       448.0f,      std::numeric_limits<float>::quiet_NaN(),
+    };
+
+    __m256i u16 = _mm256_cvtepu8_epi16(vf8);
+
+    const __m256i sign_m = _mm256_set1_epi16(0x80);
+    const __m256i idx_m = _mm256_set1_epi16(0x7F);
+
+    __m256i sign16 = _mm256_and_si256(u16, sign_m);
+    __m256i idx16 = _mm256_and_si256(u16, idx_m);
+
+    __m256i sign_nonzero = _mm256_cmpgt_epi16(sign16, _mm256_setzero_si256());
+
+    __m128i idx16_lo = _mm256_castsi256_si128(idx16);
+    __m128i idx16_hi = _mm256_extracti128_si256(idx16, 1);
+    __m256i idx32_lo = _mm256_cvtepu16_epi32(idx16_lo);
+    __m256i idx32_hi = _mm256_cvtepu16_epi32(idx16_hi);
+
+    __m256 mag_lo = _mm256_i32gather_ps(k_f8e4m3_lut, idx32_lo, 4);
+    __m256 mag_hi = _mm256_i32gather_ps(k_f8e4m3_lut, idx32_hi, 4);
+
+    __m256i sign32_lo = _mm256_slli_epi32(_mm256_cvtepi16_epi32(_mm256_castsi256_si128(sign_nonzero)), 31);
+    __m256i sign32_hi = _mm256_slli_epi32(_mm256_cvtepi16_epi32(_mm256_extracti128_si256(sign_nonzero, 1)), 31);
+
+    __m256 v_lo = _mm256_xor_ps(mag_lo, _mm256_castsi256_ps(sign32_lo));
+    __m256 v_hi = _mm256_xor_ps(mag_hi, _mm256_castsi256_ps(sign32_hi));
+
+    __m128i h0 = _mm256_cvtps_ph(v_lo, _MM_FROUND_TO_NEAREST_INT);
+    __m128i h1 = _mm256_cvtps_ph(v_hi, _MM_FROUND_TO_NEAREST_INT);
+    return _mm256_set_m128i(h1, h0);
+}
+
+inline __m256i f8e5m2tof16(__m128i vf8) {
+    const __m256i b16 = _mm256_cvtepu8_epi16(vf8);
+    return _mm256_slli_epi16(b16, 8);
+}
+
+inline __m256i f8e8m0tof16(__m128i vf8) {
+    __m256i u16 = _mm256_cvtepu8_epi16(vf8);
+
+    __m128i u16_lo = _mm256_castsi256_si128(u16);
+    __m128i u16_hi = _mm256_extracti128_si256(u16, 1);
+    __m256i u32_lo = _mm256_cvtepu16_epi32(u16_lo);
+    __m256i u32_hi = _mm256_cvtepu16_epi32(u16_hi);
+
+    const __m256i ff = _mm256_set1_epi32(0xFF);
+    const __m256i zz = _mm256_setzero_si256();
+
+    __m256i is_ff_lo = _mm256_cmpeq_epi32(u32_lo, ff);
+    __m256i is_ff_hi = _mm256_cmpeq_epi32(u32_hi, ff);
+    __m256i is_00_lo = _mm256_cmpeq_epi32(u32_lo, zz);
+    __m256i is_00_hi = _mm256_cmpeq_epi32(u32_hi, zz);
+
+    __m256i fbits_lo = _mm256_slli_epi32(u32_lo, 23);
+    __m256i fbits_hi = _mm256_slli_epi32(u32_hi, 23);
+
+    const __m256i qnan_bits = _mm256_set1_epi32(0x7FC00000);
+
+    const __m256i zero_fbits = _mm256_setzero_si256();
+
+    fbits_lo = _mm256_blendv_epi8(fbits_lo, zero_fbits, is_00_lo);
+    fbits_hi = _mm256_blendv_epi8(fbits_hi, zero_fbits, is_00_hi);
+
+    fbits_lo = _mm256_blendv_epi8(fbits_lo, qnan_bits, is_ff_lo);
+    fbits_hi = _mm256_blendv_epi8(fbits_hi, qnan_bits, is_ff_hi);
+
+    __m256 f_lo = _mm256_castsi256_ps(fbits_lo);
+    __m256 f_hi = _mm256_castsi256_ps(fbits_hi);
+
+    __m128i h0 = _mm256_cvtps_ph(f_lo, _MM_FROUND_TO_NEAREST_INT);
+    __m128i h1 = _mm256_cvtps_ph(f_hi, _MM_FROUND_TO_NEAREST_INT);
+    return _mm256_set_m128i(h1, h0);
 }
 
 inline int32_t pack_4bit_avx2_reduction(__m256i ymm) {
@@ -391,21 +500,20 @@ void ov::npuw::util::XARCH::unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
         __m256i vout0, vout1;
         avx2_i4toi8(inv, &vout0, &vout1);
 
-        int8_t tmp[64];  // FIXME: Avoid it
-        __m256i* tmpv0 = reinterpret_cast<__m256i*>(tmp);
-        __m256i* tmpv1 = reinterpret_cast<__m256i*>(tmp + 32);
-        _mm256_storeu_si256(tmpv0, vout0);
-        _mm256_storeu_si256(tmpv1, vout1);
+        __m128i lo0 = _mm256_castsi256_si128(vout0);
+        __m128i hi0 = _mm256_extracti128_si256(vout0, 1);
+        __m128i lo1 = _mm256_castsi256_si128(vout1);
+        __m128i hi1 = _mm256_extracti128_si256(vout1, 1);
 
         __m128i i8vecs[8] = {
-            _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp)),
-            _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 8)),
-            _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 16)),
-            _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 24)),
-            _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 32)),
-            _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 40)),
-            _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 48)),
-            _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 56)),
+            _mm_unpacklo_epi64(lo0, lo0),
+            _mm_srli_si128(lo0, 8),
+            _mm_unpacklo_epi64(hi0, hi0),
+            _mm_srli_si128(hi0, 8),
+            _mm_unpacklo_epi64(lo1, lo1),
+            _mm_srli_si128(lo1, 8),
+            _mm_unpacklo_epi64(hi1, hi1),
+            _mm_srli_si128(hi1, 8),
         };
 
         __m128i vresults[8] = {avx2_i8tof16(i8vecs[0]),
@@ -553,21 +661,20 @@ void ov::npuw::util::XARCH::unpack_i4f16_scale(const ov::SoPtr<ov::ITensor>& fro
                 __m256i vout0, vout1;
                 avx2_i4toi8(inv, &vout0, &vout1);
 
-                int8_t tmp[64];  // FIXME: Avoid it
-                __m256i* tmpv0 = reinterpret_cast<__m256i*>(tmp);
-                __m256i* tmpv1 = reinterpret_cast<__m256i*>(tmp + 32);
-                _mm256_storeu_si256(tmpv0, vout0);
-                _mm256_storeu_si256(tmpv1, vout1);
+                __m128i lo0 = _mm256_castsi256_si128(vout0);
+                __m128i hi0 = _mm256_extracti128_si256(vout0, 1);
+                __m128i lo1 = _mm256_castsi256_si128(vout1);
+                __m128i hi1 = _mm256_extracti128_si256(vout1, 1);
 
                 __m128i i8vecs[8] = {
-                    _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp)),
-                    _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 8)),
-                    _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 16)),
-                    _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 24)),
-                    _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 32)),
-                    _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 40)),
-                    _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 48)),
-                    _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 56)),
+                    _mm_unpacklo_epi64(lo0, lo0),
+                    _mm_srli_si128(lo0, 8),
+                    _mm_unpacklo_epi64(hi0, hi0),
+                    _mm_srli_si128(hi0, 8),
+                    _mm_unpacklo_epi64(lo1, lo1),
+                    _mm_srli_si128(lo1, 8),
+                    _mm_unpacklo_epi64(hi1, hi1),
+                    _mm_srli_si128(hi1, 8),
                 };
 
                 __m128i vresults[8] = {avx2_i8tof16(i8vecs[0], svec),
@@ -678,20 +785,21 @@ void ov::npuw::util::XARCH::unpack_i4f16_z(const ov::SoPtr<ov::ITensor>& from,
                     __m256i vinput = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrc_iter));
                     __m256i vout0, vout1;
                     avx2_i4toi8(vinput, &vout0, &vout1);
-                    int8_t tmp[64];  // FIXME: Avoid it
-                    __m256i* tmpv0 = reinterpret_cast<__m256i*>(tmp);
-                    __m256i* tmpv1 = reinterpret_cast<__m256i*>(tmp + 32);
-                    _mm256_storeu_si256(tmpv0, vout0);
-                    _mm256_storeu_si256(tmpv1, vout1);
+
+                    __m128i lo0 = _mm256_castsi256_si128(vout0);
+                    __m128i hi0 = _mm256_extracti128_si256(vout0, 1);
+                    __m128i lo1 = _mm256_castsi256_si128(vout1);
+                    __m128i hi1 = _mm256_extracti128_si256(vout1, 1);
+
                     __m128i i8vecs[8] = {
-                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp)),
-                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 8)),
-                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 16)),
-                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 24)),
-                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 32)),
-                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 40)),
-                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 48)),
-                        _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 56)),
+                        _mm_unpacklo_epi64(lo0, lo0),
+                        _mm_srli_si128(lo0, 8),
+                        _mm_unpacklo_epi64(hi0, hi0),
+                        _mm_srli_si128(hi0, 8),
+                        _mm_unpacklo_epi64(lo1, lo1),
+                        _mm_srli_si128(lo1, 8),
+                        _mm_unpacklo_epi64(hi1, hi1),
+                        _mm_srli_si128(hi1, 8),
                     };
 
                     const float* pScl_iter = pScl + w + W * c;
@@ -775,22 +883,34 @@ void ov::npuw::util::XARCH::unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
             reinterpret_cast<__m128i*>(pDst + 56),
         };
 
-        int8_t tmp[64];  // FIXME: Avoid it
-        for (std::size_t ii = 0; ii < 32; ii++) {
-            tmp[ii * 2] = static_cast<int8_t>(lo4(pSrc[ii]));      // LSB is [0] -- since OpenVINO 24.0!
-            tmp[ii * 2 + 1] = static_cast<int8_t>(hi4(pSrc[ii]));  // MSB is [1] -- since OpenVINO 24.0!
-        }
+        __m256i vinput = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrc));
+        __m256i vout0, vout1;
+        avx2_i4toi8(vinput, &vout0, &vout1);
 
-        __m128i vresults[8] = {
-            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp))),
-            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 8))),
-            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 16))),
-            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 24))),
-            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 32))),
-            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 40))),
-            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 48))),
-            avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 56))),
+        __m128i lo0 = _mm256_castsi256_si128(vout0);
+        __m128i hi0 = _mm256_extracti128_si256(vout0, 1);
+        __m128i lo1 = _mm256_castsi256_si128(vout1);
+        __m128i hi1 = _mm256_extracti128_si256(vout1, 1);
+
+        __m128i i8vecs[8] = {
+            _mm_unpacklo_epi64(lo0, lo0),
+            _mm_srli_si128(lo0, 8),
+            _mm_unpacklo_epi64(hi0, hi0),
+            _mm_srli_si128(hi0, 8),
+            _mm_unpacklo_epi64(lo1, lo1),
+            _mm_srli_si128(lo1, 8),
+            _mm_unpacklo_epi64(hi1, hi1),
+            _mm_srli_si128(hi1, 8),
         };
+
+        __m128i vresults[8] = {avx2_i8tof16(i8vecs[0]),
+                               avx2_i8tof16(i8vecs[1]),
+                               avx2_i8tof16(i8vecs[2]),
+                               avx2_i8tof16(i8vecs[3]),
+                               avx2_i8tof16(i8vecs[4]),
+                               avx2_i8tof16(i8vecs[5]),
+                               avx2_i8tof16(i8vecs[6]),
+                               avx2_i8tof16(i8vecs[7])};
 
         _mm_storeu_si128(outv[0], vresults[0]);
         _mm_storeu_si128(outv[1], vresults[1]);
@@ -1617,6 +1737,170 @@ void ov::npuw::util::XARCH::transpose_f32(const float* src, float* dst, size_t r
             dst[c * rows + r] = src[r * cols + c];
         }
     });
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
+}
+
+void ov::npuw::util::XARCH::unpack_f8f16_scale(const ov::SoPtr<ov::ITensor>& from,
+                                               const ov::SoPtr<ov::ITensor>& scale,
+                                               const ov::SoPtr<ov::ITensor>& to,
+                                               const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(scale->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+
+    const auto from_shape = from->get_shape();
+    const auto scale_shape = scale->get_shape();
+
+    NPUW_ASSERT(from->get_size() == to->get_size());
+    NPUW_ASSERT(scale_shape.size() >= 2);
+    NPUW_ASSERT(from_shape[0] == scale_shape[0]);
+    NPUW_ASSERT(scale_shape[1] == 1);
+
+    const auto ftype = from->get_element_type();
+    NPUW_ASSERT(ftype == ov::element::f8e4m3 || ftype == ov::element::f8e5m2 || ftype == ov::element::f8e8m0);
+    NPUW_ASSERT(scale->get_element_type() == ov::element::f32);
+    NPUW_ASSERT(to->get_element_type() == ov::element::f16);
+
+    const size_t total = from->get_size();    // total number of f8 elements
+    const size_t stotal = scale->get_size();  // number of scale factors
+    NPUW_ASSERT(total % stotal == 0);
+    const size_t elemsPerScale = total / stotal;  // elements governed by one scale
+    NPUW_ASSERT(elemsPerScale > 0);
+
+#if defined(HAVE_AVX2)
+    const uint8_t* src = static_cast<uint8_t*>(from->data());
+    const float* scl = static_cast<float*>(scale->data());
+    uint16_t* dst = static_cast<uint16_t*>(to->data());
+
+    const size_t VEC = 16;  // vector width (16 x f8 -> 16 x f16)
+    // Vector convert helper: load 16 f8 -> 16 f16, apply uniform scale
+    auto convert_block = [&](const uint8_t* bsrc, uint16_t* bdst, float scale_val) {
+        __m128i vf8 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(bsrc));
+        __m256i vf16_bits;
+        switch (ftype) {
+        case ov::element::f8e4m3:
+            vf16_bits = f8e4m3tof16(vf8);
+            break;
+        case ov::element::f8e5m2:
+            vf16_bits = f8e5m2tof16(vf8);
+            break;
+        case ov::element::f8e8m0:
+            vf16_bits = f8e8m0tof16(vf8);
+            break;
+        default:
+            NPUW_ASSERT(false);
+            return;
+        }
+
+        // Split into two 128-bit halves (each holds 8 f16)
+        __m128i h_lo = _mm256_castsi256_si128(vf16_bits);
+        __m128i h_hi = _mm256_extracti128_si256(vf16_bits, 1);
+
+        // Convert to float32
+        __m256 f_lo = _mm256_cvtph_ps(h_lo);
+        __m256 f_hi = _mm256_cvtph_ps(h_hi);
+
+        // Apply scale
+        __m256 svec = _mm256_set1_ps(scale_val);
+        f_lo = _mm256_mul_ps(f_lo, svec);
+        f_hi = _mm256_mul_ps(f_hi, svec);
+
+        // Back to f16
+        __m128i out_lo = _mm256_cvtps_ph(f_lo, _MM_FROUND_TO_NEAREST_INT);
+        __m128i out_hi = _mm256_cvtps_ph(f_hi, _MM_FROUND_TO_NEAREST_INT);
+
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(bdst), out_lo);
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(bdst + 8), out_hi);
+    };
+
+    // Work partitioning over scale dimension (similar pattern to other unpack_*_scale functions)
+    size_t stride = 1;
+    if (unpack_options.nPartitions) {
+        if (unpack_options.bStrictPartitioning) {
+            stride = (stotal + unpack_options.nPartitions - 1) / unpack_options.nPartitions;
+        } else {
+            // Heuristic: ensure minimum intrinsic workload per thread.
+            // Require at least 2048 vector blocks per thread (if possible).
+            size_t vecBlocksPerScale = elemsPerScale / VEC;
+            if (vecBlocksPerScale == 0)
+                vecBlocksPerScale = 1;
+            size_t minScaleStride = 2048 / vecBlocksPerScale;
+            if (minScaleStride == 0)
+                minScaleStride = 1;
+            size_t minPartitions = stotal / minScaleStride;
+            if (minPartitions == 0)
+                minPartitions = 1;
+            minPartitions = std::min(minPartitions, unpack_options.nPartitions);
+            stride = stotal / minPartitions;
+            if (stride == 0)
+                stride = 1;
+        }
+    }
+    const size_t numWork = (stotal + stride - 1) / stride;
+
+    auto unpack_body = [&](size_t workIndex) {
+        size_t start = workIndex * stride;
+        size_t end = std::min(stotal, start + stride);
+        for (size_t s = start; s < end; ++s) {
+            const float scale_val = scl[s];
+            const uint8_t* src_scale_base = src + s * elemsPerScale;
+            uint16_t* dst_scale_base = dst + s * elemsPerScale;
+
+            size_t vecBlocks = elemsPerScale / VEC;
+            size_t tail = elemsPerScale % VEC;
+
+            // Vector path
+            for (size_t b = 0; b < vecBlocks; ++b) {
+                convert_block(src_scale_base + b * VEC, dst_scale_base + b * VEC, scale_val);
+            }
+
+            // Tail (scalar fallback)
+            if (tail) {
+                size_t offset = vecBlocks * VEC;
+                for (size_t t = 0; t < tail; ++t) {
+                    uint8_t v = src_scale_base[offset + t];
+                    uint16_t h;
+                    // Lossy direct mapping for tail (no special cases like NaN/Inf)
+                    if (ftype == ov::element::f8e4m3) {
+                        uint8_t sign = (v & 0x80) >> 7;
+                        uint8_t exp = (v & 0x78) >> 3;
+                        uint8_t man = (v & 0x07);
+                        int16_t exp16 = exp + 8;
+                        h = static_cast<uint16_t>((sign << 15) | (exp16 << 10) | (man << 7));
+                    } else if (ftype == ov::element::f8e5m2) {
+                        uint8_t sign = (v & 0x80) >> 7;
+                        uint8_t exp = (v & 0x7C) >> 2;
+                        uint8_t man = (v & 0x03);
+                        h = static_cast<uint16_t>((sign << 15) | (exp << 10) | (man << 8));
+                    } else {  // f8e8m0
+                        uint8_t sign = (v & 0x80) >> 7;
+                        uint8_t exp = (v & 0x7F);
+                        int16_t exp16 = static_cast<int16_t>(exp) - 112;
+                        h = static_cast<uint16_t>((sign << 15) | ((exp16 & 0x1F) << 10));
+                    }
+                    // Convert single f16 -> f32 -> scale -> f16
+                    __m128i hvec = _mm_cvtsi32_si128(h);
+                    __m256 f32v = _mm256_cvtph_ps(hvec);
+                    float fval = _mm_cvtss_f32(_mm256_castps256_ps128(f32v)) * scale_val;
+                    __m256 scaled = _mm256_set1_ps(fval);
+                    __m128i out_h = _mm256_cvtps_ph(scaled, _MM_FROUND_TO_NEAREST_INT);
+                    dst_scale_base[offset + t] = static_cast<uint16_t>(_mm_cvtsi128_si32(out_h));
+                }
+            }
+        }
+    };
+
+    if (unpack_options.bUseOvParallelFor) {
+        ov::parallel_for(numWork, [&](size_t wi) {
+            unpack_body(wi);
+        });
+    } else {
+        for (size_t wi = 0; wi < numWork; ++wi) {
+            unpack_body(wi);
+        }
+    }
 #else
     OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif

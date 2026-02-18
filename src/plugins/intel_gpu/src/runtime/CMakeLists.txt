@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -47,8 +47,6 @@ target_compile_options(${TARGET_NAME} PRIVATE
       -Wno-ignored-attributes
     >
   >)
-
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 if(OV_COMPILER_IS_INTEL_LLVM)
     add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES ${SYCL_SOURCES})

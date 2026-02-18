@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,7 @@ OutputVector translate_stft(const NodeContext& context) {
     if (!context.input_is_none(2)) {
         hop_length = context.get_input(2);
     } else {
-        // Defualt floor(n_fft / 4)
+        // Default floor(n_fft / 4)
         const auto four = context.mark_node(std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, 4));
         const auto four_cast = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(four, n_fft));
         hop_length = context.mark_node(std::make_shared<ov::op::v1::Divide>(n_fft, four_cast));

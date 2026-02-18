@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ template <class TO, class FROM>
 TO convert(const FROM value) {
     if (cmp::lt(value, std::numeric_limits<TO>::min())) {
         return std::numeric_limits<TO>::lowest();
-    } else if (cmp::gt(value, std::numeric_limits<TO>::max())) {
+    } else if (cmp::ge(value, std::numeric_limits<TO>::max())) {
         return std::numeric_limits<TO>::max();
     } else {
         return static_cast<TO>(value);

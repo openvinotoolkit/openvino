@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -44,7 +44,7 @@ class TestComplexRank(CommonTFLayerTest):
         inputs_data['param_real:0'] = 4 * rng.random(param_real_shape_1).astype(np.float32) - 2
         inputs_data['param_imag:0'] = 4 * rng.random(param_imag_shape_1).astype(np.float32) - 2
         return inputs_data
-    
+
     def create_rank_net(self, input_shape):
         tf.compat.v1.reset_default_graph()
         # Create the graph and model

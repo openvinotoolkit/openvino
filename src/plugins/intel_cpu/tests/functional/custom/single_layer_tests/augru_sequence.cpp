@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -126,7 +126,7 @@ protected:
                                       {batchSize}};
         auto augruSequenceOp = ov::test::utils::make_augru(paramsOuts, WRB, hiddenSize, true, direction, seqMode);
 
-        function = makeNgraphFunction(netPrecision, params, augruSequenceOp, "augruSequenceOp");
+        function = create_ov_model(netPrecision, params, augruSequenceOp, "augruSequenceOp");
 
         if (seqMode != ov::test::utils::SequenceTestsMode::PURE_SEQ) {
             // TODO: ConvertAUGRUSequenceToTensorIterator

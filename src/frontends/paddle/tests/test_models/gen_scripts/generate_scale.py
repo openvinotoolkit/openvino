@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -12,7 +12,7 @@ from save_model import saveModel
 def paddle_scale(name : str, x, scale, bias, attrs : dict, data_type):
     import paddle
     paddle.enable_static()
-    
+
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype=data_type)
         out = paddle.scale(x=node_x, scale=scale, bias=bias,
@@ -26,7 +26,7 @@ def paddle_scale(name : str, x, scale, bias, attrs : dict, data_type):
 
         outs = exe.run(
             feed={'x': x},
-            fetch_list=[out])             
+            fetch_list=[out])
 
         saveModel(name, exe, feed_vars=[node_x], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
 
@@ -99,4 +99,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()     
+    main()

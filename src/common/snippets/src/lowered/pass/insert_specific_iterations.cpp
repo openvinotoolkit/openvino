@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
-#include <map>
 #include <memory>
 #include <vector>
 
@@ -27,7 +26,6 @@
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/lowered/specific_loop_iter_types.hpp"
 #include "snippets/op/loop.hpp"
-#include "snippets/op/memory_access.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::lowered::pass {
@@ -44,38 +42,36 @@ std::vector<LoopPort> clone_ports(const ExpressionMap& expression_map, const std
     return new_ports;
 }
 
-void connect_cloned_body_with_buffers_outside(const LoopManager::LoopBounds& cur_bounds,
-                                              const LoopManager::LoopBounds& res_bounds,
-                                              LinearIR& linear_ir) {
+void connect_cloned_body_with_expr_outside_loop(const LoopManager::LoopBounds& cur_bounds,
+                                                const LoopManager::LoopBounds& res_bounds,
+                                                LinearIR& linear_ir) {
     const auto& [cur_begin, cur_end] = cur_bounds;
     const auto& [res_begin, res_end] = res_bounds;
     for (auto result_it = res_begin, original_it = cur_begin; result_it != res_end; ++result_it, ++original_it) {
         const auto& result_expr = *result_it;
         const auto& original_expr = *original_it;
-        // Buffer input can be connected only to outputs of MA ops
-        if (std::dynamic_pointer_cast<modifier::MemoryAccess>(original_expr->get_node())) {
-            for (size_t i = 0; i < original_expr->get_output_count(); i++) {
-                const auto& consumers = original_expr->get_output_port_connector(i)->get_consumers();
-                for (const auto& consumer : consumers) {
-                    const auto consumer_expr = consumer.get_expr();
-                    const auto buffer_expr = ov::as_type_ptr<BufferExpression>(consumer_expr);
-                    if (buffer_expr && std::find(cur_begin, cur_end, consumer.get_expr()) == cur_end) {
-                        std::vector<PortDescriptorPtr> new_descs = {
-                            buffer_expr->get_input_port_descriptor(consumer.get_index())->clone()};
-                        std::vector<PortConnectorPtr> new_inputs = {result_expr->get_output_port_connector(i)};
-                        OutputVector new_op_inputs = {result_expr->get_node()->output(i)};
-                        for (size_t j = 0; j < buffer_expr->get_input_count(); ++j) {
-                            const auto& source = buffer_expr->get_input_port_connector(j)->get_source();
-                            new_op_inputs.push_back(source.get_expr()->get_node()->output(source.get_index()));
-                            new_descs.push_back(buffer_expr->get_input_port_descriptor(j)->clone());
-                            new_inputs.push_back(buffer_expr->get_input_port_connector(j));
-                        }
-                        const auto new_buffer_op = buffer_expr->get_node()->clone_with_new_inputs(new_op_inputs);
-                        linear_ir.replace_with_expr(
-                            {consumer_expr},
-                            buffer_expr->clone_with_new_inputs(new_buffer_op, new_inputs, new_descs));
-                        break;
+        for (size_t i = 0; i < original_expr->get_output_count(); i++) {
+            const auto& consumers = original_expr->get_output_port_connector(i)->get_consumers();
+            for (const auto& consumer : consumers) {
+                const auto consumer_expr = consumer.get_expr();
+                // these expressions should be connected from all expanded loop for correct register assignment.
+                if (utils::need_full_connectors(consumer_expr) &&
+                    std::find(cur_begin, cur_end, consumer_expr) == cur_end) {
+                    std::vector<PortDescriptorPtr> new_descs = {
+                        consumer_expr->get_input_port_descriptor(consumer.get_index())->clone()};
+                    std::vector<PortConnectorPtr> new_inputs = {result_expr->get_output_port_connector(i)};
+                    OutputVector new_op_inputs = {result_expr->get_node()->output(i)};
+                    for (size_t j = 0; j < consumer_expr->get_input_count(); ++j) {
+                        const auto& source = consumer_expr->get_input_port_connector(j)->get_source();
+                        new_op_inputs.push_back(source.get_expr()->get_node()->output(source.get_index()));
+                        new_descs.push_back(consumer_expr->get_input_port_descriptor(j)->clone());
+                        new_inputs.push_back(consumer_expr->get_input_port_connector(j));
                     }
+                    const auto new_consumer_op = consumer_expr->get_node()->clone_with_new_inputs(new_op_inputs);
+                    linear_ir.replace_with_expr(
+                        {consumer_expr},
+                        consumer_expr->clone_with_new_inputs(new_consumer_op, new_inputs, new_descs));
+                    break;
                 }
             }
         }
@@ -224,9 +220,9 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir,
                 ExpressionMap expression_map;
                 decomposed_loop_bounds = insert_copy_loop(linear_ir, cur_bounds, begin, expression_map);
 
-                // Add connections between output of cloned bodies and Buffers from the current LinearIR
-                // (Buffers are connections between Loops)
-                connect_cloned_body_with_buffers_outside(cur_bounds, decomposed_loop_bounds, linear_ir);
+                // Add connections between output of cloned bodies and expressions outside loop from the current
+                // LinearIR (these expressions are connections between Loops)
+                connect_cloned_body_with_expr_outside_loop(cur_bounds, decomposed_loop_bounds, linear_ir);
 
                 const auto original_loop_info = loop_manager->get_loop_info(unified_loop_id);
                 decomposed_loop_entry_ports = clone_ports(expression_map, original_loop_info->get_input_ports());
@@ -245,51 +241,43 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir,
                                   }
                               });
 
-                std::map<UnifiedLoopInfoPtr, UnifiedLoopInfoPtr> unified_loop_map;
-                auto get_unified_cloned_info = [&unified_loop_map,
-                                                &expression_map](const ExpandedLoopInfoPtr& expanded_loop_info) {
-                    const auto& unified_loop_info = expanded_loop_info->get_unified_loop_info();
-                    if (unified_loop_map.count(unified_loop_info) == 0) {
-                        LoopInfoMap loop_info_map;
-                        // Note: we must clone UnifiedLoopInfo for the cloned ExpandedLoopInfos
-                        auto cloned_info = ov::as_type_ptr<UnifiedLoopInfo>(
-                            unified_loop_info->clone_with_new_expr(expression_map, loop_info_map));
-                        OPENVINO_ASSERT(cloned_info, "cloned info must be UnifiedLoopInfo");
-                        unified_loop_map[unified_loop_info] = cloned_info;
-                    }
-                    OPENVINO_ASSERT(unified_loop_map.count(unified_loop_info),
-                                    "Cloned UnifiedLoopInfo must be cloned at this stage.");
-                    return unified_loop_map[unified_loop_info];
-                };
-
                 // Note: all internal decomposed loops must be also cloned to avoid a situation
                 // when 2 loops with the same ID exist in both specific iterations of the outer loop
+                LoopInfoMap loop_info_map;
                 for (auto it = std::next(decomposed_loop_bounds.first); it != decomposed_loop_bounds.second; ++it) {
                     auto internal_loop_end = ov::as_type_ptr<op::LoopEnd>(it->get()->get_node());
                     if (!internal_loop_end) {
                         continue;
                     }
                     const auto loop_begin = internal_loop_end->get_loop_begin();
-                    auto begin_it = linear_ir.find_after(std::next(decomposed_loop_bounds.first),
-                                                         linear_ir.get_expr_by_node(loop_begin));
-                    OPENVINO_ASSERT(begin_it != linear_ir.cend(),
-                                    "Cannot find LoopBegin for LoopEnd with id ",
-                                    internal_loop_end->get_id());
+                    auto begin_it = linear_ir.find(std::next(decomposed_loop_bounds.first),
+                                                   it,
+                                                   linear_ir.get_expr_by_node(loop_begin));
                     LoopManager::LoopBounds internal_loop_bounds{begin_it, it};
                     const auto internal_loop_id = internal_loop_end->get_id();
                     // Note: internal loops must be already decomposed to ExpandedLoops
                     const auto internal_loop_info = loop_manager->get_loop_info<ExpandedLoopInfo>(internal_loop_id);
-                    const auto cloned_loop_info = std::make_shared<ExpandedLoopInfo>(
-                        internal_loop_info->get_work_amount(),
-                        internal_loop_info->get_increment(),
-                        clone_ports(expression_map, internal_loop_info->get_input_ports()),
-                        clone_ports(expression_map, internal_loop_info->get_output_ports()),
-                        internal_loop_info->get_ptr_increments(),
-                        internal_loop_info->get_finalization_offsets(),
-                        internal_loop_info->get_data_sizes(),
-                        internal_loop_info->get_type(),
-                        get_unified_cloned_info(internal_loop_info),
-                        internal_loop_info->is_evaluate_once());
+
+                    if (auto inner_split_info = ov::as_type_ptr<InnerSplittedUnifiedLoopInfo>(
+                            internal_loop_info->get_unified_loop_info())) {
+                        const auto outer_loop_info = inner_split_info->get_outer_splitted_loop_info();
+
+                        outer_loop_info->iterate_through_ports([&](const LoopPort& port) {
+                            const auto expr = port.get_expr_port()->get_expr();
+                            // Note: output loop info, whose ports are outside of the internal loop bounds,
+                            // must be kept, not cloned
+                            if (expr->get_exec_num() < cur_bounds.first->get()->get_exec_num() ||
+                                expr->get_exec_num() > cur_bounds.second->get()->get_exec_num()) {
+                                loop_info_map[outer_loop_info.get()] = outer_loop_info;
+                            }
+                        });
+                    }
+                    const auto cloned_loop_info = ov::as_type_ptr<ExpandedLoopInfo>(
+                        internal_loop_info->clone_with_new_expr(expression_map, loop_info_map));
+                    OPENVINO_ASSERT(cloned_loop_info,
+                                    "Internal loop with ID ",
+                                    internal_loop_id,
+                                    " must have ExpandedLoopInfo type after cloning!");
                     init_decomposed_loop(linear_ir,
                                          internal_loop_bounds,
                                          cloned_loop_info,
@@ -339,6 +327,13 @@ bool InsertSpecificIterations::run(LinearIR& linear_ir,
                             " has not been decomposed!");
             modified = true;
         }
+    }
+    // Expressions are iterated and check if it's connected to
+    // result and replace with new one. The first such expression may not connect to the first result in
+    // m_result_expressions. This means the result replacement doesn't happen in order. Result replacement push_back
+    // result to m_result_expressions. So Result order could be changed after this pass. We need to sort results again.
+    if (modified) {
+        linear_ir.sort_results();
     }
 
     return modified;

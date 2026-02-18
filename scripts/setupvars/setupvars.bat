@@ -1,6 +1,6 @@
 @echo off
 
-:: Copyright (C) 2018-2025 Intel Corporation
+:: Copyright (C) 2018-2026 Intel Corporation
 :: SPDX-License-Identifier: Apache-2.0
 
 set SCRIPT_NAME=%~nx0
@@ -102,7 +102,7 @@ if %pyversion_major% equ %PYTHON_VERSION_MAJOR% (
       if %pyversion_minor% leq %MAX_SUPPORTED_PYTHON_VERSION_MINOR% (
          set "check_pyversion=true"
       )
-   )   
+   )
 )
 
 if not "%check_pyversion%"=="true" (
