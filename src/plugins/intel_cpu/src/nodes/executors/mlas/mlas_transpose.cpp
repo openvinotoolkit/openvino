@@ -26,10 +26,11 @@
 
 namespace ov::intel_cpu {
 
-MlasTransposeExecutor::MlasTransposeExecutor(const TransposeParams& transposeParams, ExecutorContext::CPtr context)
-    : TransposeExecutor(std::move(context)) {
-    OPENVINO_ASSERT(IsTransposeMovingSingleAxis(transposeParams.permuteParams.order, from, to),
-                    "MLAS Transpose executor supports moving single axis only");
+MlasTransposeExecutor::MlasTransposeExecutor(const TransposeAttrs& attrs, ExecutorContext::CPtr context)
+    : TransposeExecutor(attrs, std::move(context)) {}
+
+bool MlasTransposeExecutor::init([[maybe_unused]] const MemoryArgs& memory) {
+    return IsTransposeMovingSingleAxis(permuteParams.order, from, to);
 }
 
 template <typename T>
@@ -338,7 +339,7 @@ bool MlasTransposeExecutor::supports(const TransposeConfig& config) {
     }
     size_t localFrom = 0UL;
     size_t localTo = 0UL;
-    if (!IsTransposeMovingSingleAxis(config.attrs.params.permuteParams.order, localFrom, localTo)) {
+    if (!IsTransposeMovingSingleAxis(config.attrs.permuteParams.order, localFrom, localTo)) {
         DEBUG_LOG("MLAS Transpose executor supports moving single axis only");
         return false;
     }
@@ -348,7 +349,7 @@ bool MlasTransposeExecutor::supports(const TransposeConfig& config) {
 ExecutorPtr MlasTransposeExecutor::create(const TransposeAttrs& attrs,
                                           [[maybe_unused]] const MemoryArgs& memory,
                                           const ExecutorContext::CPtr& context) {
-    return std::make_shared<MlasTransposeExecutor>(attrs.params, context);
+    return std::make_shared<MlasTransposeExecutor>(attrs, context);
 }
 
 }  // namespace ov::intel_cpu

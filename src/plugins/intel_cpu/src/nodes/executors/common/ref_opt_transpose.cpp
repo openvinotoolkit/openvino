@@ -140,7 +140,7 @@ bool RefOptimizedTransposeExecutor::supports(const TransposeConfig& config) {
 
     const auto& srcDesc = config.descs.at(ARG_SRC);
     if (srcDesc->hasLayoutType(LayoutType::ncsp) &&
-        std::find(optimizedOrders.begin(), optimizedOrders.end(), config.attrs.params.permuteParams.order) !=
+        std::find(optimizedOrders.begin(), optimizedOrders.end(), config.attrs.permuteParams.order) !=
             optimizedOrders.end()) {
         return true;
     }
@@ -149,10 +149,14 @@ bool RefOptimizedTransposeExecutor::supports(const TransposeConfig& config) {
     return false;
 }
 
-ExecutorPtr RefOptimizedTransposeExecutor::create([[maybe_unused]] const TransposeAttrs& attrs,
+ExecutorPtr RefOptimizedTransposeExecutor::create(const TransposeAttrs& attrs,
                                                   [[maybe_unused]] const MemoryArgs& memory,
                                                   const ExecutorContext::CPtr& context) {
-    return std::make_shared<RefOptimizedTransposeExecutor>(context);
+    return std::make_shared<RefOptimizedTransposeExecutor>(attrs, context);
+}
+
+bool RefOptimizedTransposeExecutor::init([[maybe_unused]] const MemoryArgs& memory) {
+    return true;
 }
 
 void RefOptimizedTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {

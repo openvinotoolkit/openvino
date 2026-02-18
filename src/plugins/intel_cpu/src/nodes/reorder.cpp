@@ -202,20 +202,16 @@ void Reorder::prepareReorderAsTranspose(const MemoryDescPtr& parentDesc, const M
     auto transposedDesc =
         std::make_shared<CpuBlockedMemoryDesc>(parentDesc->getPrecision(), Shape{transposedBlockDims});
 
-    TransposeParams transposeParams;
-    transposeParams.permuteParams.src_block_dims = parentDesc->as<BlockedMemoryDesc>()->getBlockDims();
-    transposeParams.permuteParams.src_block_order = parentDesc->as<BlockedMemoryDesc>()->getOrder();
-    transposeParams.permuteParams.dst_block_dims = transposedBlockDims;
-    transposeParams.permuteParams.dst_block_order = transposeParams.permuteParams.src_block_order;
-    transposeParams.permuteParams.order = transposeOrder;
-    transposeParams.permuteParams.data_size = parentDesc->getPrecision().size();
-
     MemoryDescArgs descs{{ARG_SRC, parentDesc}, {ARG_DST, transposedDesc}};
     MemoryArgs memory{{ARG_SRC, getSrcMemoryAtPort(0)}, {ARG_DST, getDstMemoryAtPort(0)}};
 
     TransposeAttrs attrs;
-    attrs.params = transposeParams;
-    attrs.descs = descs;
+    attrs.permuteParams.src_block_dims = parentDesc->as<BlockedMemoryDesc>()->getBlockDims();
+    attrs.permuteParams.src_block_order = parentDesc->as<BlockedMemoryDesc>()->getOrder();
+    attrs.permuteParams.dst_block_dims = transposedBlockDims;
+    attrs.permuteParams.dst_block_order = attrs.permuteParams.src_block_order;
+    attrs.permuteParams.order = transposeOrder;
+    attrs.permuteParams.data_size = parentDesc->getPrecision().size();
     auto transpose_context = std::make_shared<ExecutorContext>(context, getImplPriority());
     auto factory = std::make_shared<ExecutorFactory<TransposeAttrs>>(attrs, transpose_context, descs);
     transposeExecutor = factory->make(memory, false);

@@ -30,6 +30,9 @@ public:
     [[nodiscard]] impl_desc_type implType() const override {
         return impl_desc_type::ref;
     }
+
+private:
+    bool init(const MemoryArgs& memory) override;
 };
 
 }  // namespace ov::intel_cpu

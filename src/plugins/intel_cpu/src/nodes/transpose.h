@@ -53,19 +53,17 @@ protected:
 
 private:
     ExecutorPtr execPtr = nullptr;
-    dnnl::primitive prim;
     VectorDims order;
     ov::element::Type prec;
 
     MemoryArgs m_memory;
-    TransposeParams transposeParams;
+    TransposeAttrs attrs;
 
     bool isInputOrderConst = false;
 
     static constexpr size_t INPUT_DATA_IDX = 0LU;
     static constexpr size_t INPUT_ORDER_IDX = 1LU;
 
-    bool performAsReorder = false;
     bool isOptimized = false;
 };
 

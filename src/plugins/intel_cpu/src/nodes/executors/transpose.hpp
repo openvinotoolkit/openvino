@@ -18,13 +18,15 @@ namespace ov::intel_cpu {
 class TransposeExecutor : public Executor {
 public:
     static jit_permute_config_params prepareParams(const PermuteParams& params);
-    explicit TransposeExecutor(ExecutorContext::CPtr context);
+    TransposeExecutor(const TransposeAttrs& attrs, ExecutorContext::CPtr context);
     bool update(const MemoryArgs& memory) override;
     void execute(const MemoryArgs& memory) override;
     ~TransposeExecutor() override = default;
 
 protected:
+    virtual bool init(const MemoryArgs& memory) = 0;
     PermuteParams permuteParams;
+    bool isInitialized = false;
     const ExecutorContext::CPtr context;
 };
 using TransposeExecutorPtr = std::shared_ptr<TransposeExecutor>;

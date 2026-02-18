@@ -22,7 +22,6 @@
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/executor.hpp"
-#include "nodes/executors/implementation_utils.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/transpose.hpp"
 #include "nodes/executors/transpose_config.hpp"
@@ -38,7 +37,7 @@ struct ACLTransposeConfig {
     arm_compute::TensorInfo dstTensorInfo;
 };
 
-std::optional<ACLTransposeConfig> prepareAclTransposeConfig(const TransposeParams& transposeParams,
+std::optional<ACLTransposeConfig> prepareAclTransposeConfig(const PermuteParams& permuteParams,
                                                             const MemoryDescPtr& srcDesc,
                                                             const MemoryDescPtr& dstDesc) {
     if ((srcDesc->hasLayoutType(LayoutType::ncsp) || dstDesc->hasLayoutType(LayoutType::ncsp)) &&
@@ -59,7 +58,7 @@ std::optional<ACLTransposeConfig> prepareAclTransposeConfig(const TransposeParam
         return std::nullopt;
     }
 
-    auto inputOrder = transposeParams.permuteParams.order;
+    auto inputOrder = permuteParams.order;
     if (inputOrder.empty()) {
         inputOrder.resize(srcDesc->getShape().getRank());
         std::iota(inputOrder.begin(), inputOrder.end(), 0);
@@ -121,32 +120,39 @@ std::optional<ACLTransposeConfig> prepareAclTransposeConfig(const TransposeParam
 
 }  // namespace
 
-ACLTransposeExecutor::ACLTransposeExecutor(const TransposeParams& transposeParams,
-                                           const MemoryDescPtr& srcDesc,
-                                           const MemoryDescPtr& dstDesc,
-                                           ExecutorContext::CPtr context)
-    : TransposeExecutor(std::move(context)),
-      acl_permute(std::make_unique<arm_compute::NEPermute>()) {
-    auto aclConfig = prepareAclTransposeConfig(transposeParams, srcDesc, dstDesc);
-    OPENVINO_ASSERT(aclConfig, "ACLTransposeExecutor does not support provided configuration");
+ACLTransposeExecutor::ACLTransposeExecutor(const TransposeAttrs& attrs, ExecutorContext::CPtr context)
+    : TransposeExecutor(attrs, std::move(context)),
+      acl_permute(std::make_unique<arm_compute::NEPermute>()) {}
+
+bool ACLTransposeExecutor::init(const MemoryArgs& memory) {
+    const auto src = memory.at(ARG_SRC);
+    const auto dst = memory.at(ARG_DST);
+    OPENVINO_ASSERT(src, "ACLTransposeExecutor source memory is undefined");
+    OPENVINO_ASSERT(dst, "ACLTransposeExecutor destination memory is undefined");
+
+    auto aclConfig = prepareAclTransposeConfig(permuteParams, src->getDescPtr(), dst->getDescPtr());
+    if (!aclConfig) {
+        return false;
+    }
 
     srcTensor.allocator()->init(aclConfig->srcTensorInfo);
     dstTensor.allocator()->init(aclConfig->dstTensorInfo);
     configureThreadSafe([&] {
         acl_permute->configure(&srcTensor, &dstTensor, aclConfig->order);
     });
+
+    return true;
 }
 
 bool ACLTransposeExecutor::supports(const TransposeConfig& config) {
-    return prepareAclTransposeConfig(config.attrs.params, config.descs.at(ARG_SRC), config.descs.at(ARG_DST))
+    return prepareAclTransposeConfig(config.attrs.permuteParams, config.descs.at(ARG_SRC), config.descs.at(ARG_DST))
         .has_value();
 }
 
 ExecutorPtr ACLTransposeExecutor::create(const TransposeAttrs& attrs,
-                                         const MemoryArgs& memory,
+                                         [[maybe_unused]] const MemoryArgs& memory,
                                          const ExecutorContext::CPtr& context) {
-    const auto& descs = attrs.descs.empty() ? memoryDescsFromMemory(memory) : attrs.descs;
-    return std::make_shared<ACLTransposeExecutor>(attrs.params, descs.at(ARG_SRC), descs.at(ARG_DST), context);
+    return std::make_shared<ACLTransposeExecutor>(attrs, context);
 }
 
 void ACLTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {

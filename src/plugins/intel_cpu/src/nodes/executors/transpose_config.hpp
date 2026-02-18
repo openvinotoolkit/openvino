@@ -5,18 +5,12 @@
 #pragma once
 
 #include "executor_config.hpp"
-#include "memory_arguments.hpp"
 #include "nodes/common/permute_kernel.h"
 
 namespace ov::intel_cpu {
 
-struct TransposeParams {
-    PermuteParams permuteParams;
-};
-
 struct TransposeAttrs {
-    TransposeParams params;
-    MemoryDescArgs descs;
+    PermuteParams permuteParams;
 };
 
 using TransposeConfig = executor::Config<TransposeAttrs>;

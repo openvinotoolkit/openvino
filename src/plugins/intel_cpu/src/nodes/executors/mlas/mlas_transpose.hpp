@@ -20,7 +20,7 @@
 namespace ov::intel_cpu {
 class MlasTransposeExecutor : public TransposeExecutor {
 public:
-    MlasTransposeExecutor(const TransposeParams& transposeParams, ExecutorContext::CPtr context);
+    MlasTransposeExecutor(const TransposeAttrs& attrs, ExecutorContext::CPtr context);
     static bool supports(const TransposeConfig& config);
     static ExecutorPtr create(const TransposeAttrs& attrs,
                               [[maybe_unused]] const MemoryArgs& memory,
@@ -32,6 +32,7 @@ public:
     }
 
 private:
+    bool init(const MemoryArgs& memory) override;
     static int64_t calcShapeSize(const Shape& shape, size_t start, size_t end);
     static bool IsTransposeMovingSingleAxis(VectorDims permutations, size_t& from, size_t& to);
     static void TransposeSingleAxisOutwards(const MemoryCPtr& input, const MemoryPtr& output, size_t from, size_t to);

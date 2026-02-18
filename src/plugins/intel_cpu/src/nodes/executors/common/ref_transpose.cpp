@@ -24,9 +24,8 @@
 
 namespace ov::intel_cpu {
 
-RefTransposeExecutor::RefTransposeExecutor(const TransposeParams& transposeParams, ExecutorContext::CPtr context)
-    : TransposeExecutor(std::move(context)),
-      jcp(TransposeExecutor::prepareParams(transposeParams.permuteParams)) {}
+RefTransposeExecutor::RefTransposeExecutor(const TransposeAttrs& attrs, ExecutorContext::CPtr context)
+    : TransposeExecutor(attrs, std::move(context)) {}
 
 static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims& dims, VectorDims& indexes) {
     for (int j = nDims - 1; j >= 0; j--) {
@@ -95,10 +94,15 @@ void RefTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::v
     referenceExecute(src_data, dst_data, jcp, MB);
 }
 
+bool RefTransposeExecutor::init([[maybe_unused]] const MemoryArgs& memory) {
+    jcp = TransposeExecutor::prepareParams(permuteParams);
+    return true;
+}
+
 ExecutorPtr RefTransposeExecutor::create(const TransposeAttrs& attrs,
                                          [[maybe_unused]] const MemoryArgs& memory,
                                          const ExecutorContext::CPtr& context) {
-    return std::make_shared<RefTransposeExecutor>(attrs.params, context);
+    return std::make_shared<RefTransposeExecutor>(attrs, context);
 }
 
 }  // namespace ov::intel_cpu

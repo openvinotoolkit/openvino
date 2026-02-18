@@ -19,7 +19,7 @@
 namespace ov::intel_cpu {
 class RefTransposeExecutor : public TransposeExecutor {
 public:
-    RefTransposeExecutor(const TransposeParams& transposeParams, ExecutorContext::CPtr context);
+    RefTransposeExecutor(const TransposeAttrs& attrs, ExecutorContext::CPtr context);
     static void referenceExecute(const uint8_t* src_data,
                                  uint8_t* dst_data,
                                  const jit_permute_config_params& jcp,
@@ -36,6 +36,7 @@ public:
     }
 
 private:
+    bool init(const MemoryArgs& memory) override;
     jit_permute_config_params jcp;
 };
 

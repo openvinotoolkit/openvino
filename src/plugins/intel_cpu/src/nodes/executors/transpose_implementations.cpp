@@ -6,6 +6,7 @@
 
 #include "nodes/executors/common/ref_opt_transpose.hpp"
 #include "nodes/executors/common/ref_transpose.hpp"
+#include "nodes/executors/common/reorder_transpose.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/implementation_utils.hpp"
@@ -48,6 +49,17 @@ const auto acceptsAnyShape = []([[maybe_unused]] const TransposeAttrs& attrs, [[
 template <>
 const std::vector<ExecutorImplementation<TransposeAttrs>>& getImplementations() {
     static const std::vector<ExecutorImplementation<TransposeAttrs>> transposeImplementations {
+        OV_CPU_INSTANCE_COMMON(
+            "transpose_reorder",
+            ExecutorType::Dnnl,
+            OperationType::Transpose,
+            [](const TransposeConfig& config) -> bool {
+                return ReorderTransposeExecutor::supports(config);
+            },
+            HasNoOptimalConfig<TransposeAttrs>{},
+            acceptsAnyShape,
+            createTransposeExecutor<ReorderTransposeExecutor>
+            )
         OV_CPU_INSTANCE_COMMON(
             "transpose_ref_optimized",
             ExecutorType::Common,

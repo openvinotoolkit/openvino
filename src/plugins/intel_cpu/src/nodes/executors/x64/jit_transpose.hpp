@@ -19,7 +19,7 @@ namespace ov::intel_cpu {
 
 class JitTransposeExecutor : public TransposeExecutor {
 public:
-    JitTransposeExecutor(const TransposeParams& transposeParams, ExecutorContext::CPtr context);
+    JitTransposeExecutor(const TransposeAttrs& attrs, ExecutorContext::CPtr context);
 
     static bool supports([[maybe_unused]] const TransposeConfig& config);
     static ExecutorPtr create(const TransposeAttrs& attrs,
@@ -31,6 +31,7 @@ public:
     }
 
 private:
+    bool init(const MemoryArgs& memory) override;
     std::shared_ptr<PermuteKernel> pKernel;
 };
 
