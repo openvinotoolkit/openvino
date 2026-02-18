@@ -148,7 +148,10 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
             decomp_ops.push_back(result);
         }
 
-        if (do_rounding || out_scales.empty()) {
+        const bool force_round_before_integer_convert = !do_dequantize &&
+                                                        !out_scales.empty() &&
+                                                        fake_quantize_node->get_output_element_type(0).is_integral_number();
+        if (do_rounding || out_scales.empty() || force_round_before_integer_convert) {
             // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low))
             result = std::make_shared<ov::op::v5::Round>(result, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
             decomp_ops.push_back(result);
