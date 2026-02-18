@@ -44,7 +44,7 @@ bool isSupportedCommon(const ConcatAttrs& attrs,
                        const std::vector<MemoryDescPtr>& srcDescs,
                        const MemoryDescPtr& dstDesc,
                        LayoutType expectedLayout) {
-    if (srcDescs.empty() || !dstDesc) {
+    if (srcDescs.size() < 2 || !dstDesc) {
         return false;
     }
 
