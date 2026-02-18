@@ -486,21 +486,17 @@ void visit_path(const lowered::ExpressionPtr& expr,
 }
 
 std::string tensor2str(const VectorDims& tensor, const std::string& delimiter) {
-    std::stringstream ss;
-    for (size_t i = 0; i < tensor.size(); ++i) {
-        const auto& v = tensor[i];
-        std::string v_str;
+    std::vector<std::string> dims(tensor.size());
+    std::transform(tensor.cbegin(), tensor.cend(), dims.begin(), [](const auto& v) -> std::string {
         if (utils::is_full_dim_value(v)) {
-            v_str = "FULL_DIM";
-        } else if (utils::is_dynamic_value(v)) {
-            v_str = "?";
-        } else {
-            v_str = std::to_string(v);
+            return "FULL_DIM";
         }
-        const auto del = i < tensor.size() - 1 ? delimiter : "";
-        ss << v_str << del;
-    }
-    return ss.str();
+        if (utils::is_dynamic_value(v)) {
+            return "?";
+        }
+        return std::to_string(v);
+    });
+    return ov::util::join(dims, delimiter);
 }
 
 bool need_full_connectors(const lowered::ExpressionPtr& expr) {
