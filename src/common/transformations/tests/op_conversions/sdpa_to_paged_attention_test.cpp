@@ -569,6 +569,7 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         auto adaptive_rkv_evictable_sizes = makeConst(element::i32, ov::Shape({0}), {0});
         auto adaptive_rkv_diversity_block_set_indices = makeConst(element::i32, ov::Shape({0}), {0});
         auto adaptive_rkv_diversity_block_set_indices_begins = makeConst(element::i32, ov::Shape({0}), {0});
+        auto token_type_ids = makeConst(element::i32, ov::Shape({0}), {0});
 
         auto params = nodes_to_params({score_aggregation_window,
                                        max_context_len,
@@ -621,32 +622,33 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         auto sinks = v0::Constant::create(element::f32, Shape{0, 0, 0, 0}, {});
 
         // PagedAttention:
-        auto pa = std::make_shared<op::PagedAttentionExtension>(
-            OutputVector{Q,
-                         K,
-                         V,
-                         key_cache_0,
-                         value_cache_0,
-                         past_lens,
-                         subsequence_begins,
-                         block_indices,
-                         block_indices_begins,
-                         scale,
-                         sliding_window,
-                         alibi_slopes,
-                         max_context_len,
-                         score_aggregation_window_const,
-                         rotated_block_indices,
-                         rotation_deltas,
-                         rotation_trig_lut,
-                         xattention_threshold,
-                         xattention_block_size,
-                         xattention_stride,
-                         sinks,
-                         adaptive_rkv_start_size,
-                         adaptive_rkv_evictable_sizes,
-                         adaptive_rkv_diversity_block_set_indices,
-                         adaptive_rkv_diversity_block_set_indices_begins});
+        auto pa =
+            std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
+                                                                       K,
+                                                                       V,
+                                                                       key_cache_0,
+                                                                       value_cache_0,
+                                                                       past_lens,
+                                                                       subsequence_begins,
+                                                                       block_indices,
+                                                                       block_indices_begins,
+                                                                       scale,
+                                                                       sliding_window,
+                                                                       alibi_slopes,
+                                                                       max_context_len,
+                                                                       score_aggregation_window_const,
+                                                                       rotated_block_indices,
+                                                                       rotation_deltas,
+                                                                       rotation_trig_lut,
+                                                                       xattention_threshold,
+                                                                       xattention_block_size,
+                                                                       xattention_stride,
+                                                                       sinks,
+                                                                       adaptive_rkv_start_size,
+                                                                       adaptive_rkv_evictable_sizes,
+                                                                       adaptive_rkv_diversity_block_set_indices,
+                                                                       adaptive_rkv_diversity_block_set_indices_begins,
+                                                                       token_type_ids});
         pa->set_out_type(0, element::i64);
         auto pa_aligned = Qwen7bChatPA::align_pa_layout(pa, head_size_2);
         auto res = makeOP<v0::Result>({pa_aligned});
@@ -941,6 +943,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
         auto adaptive_rkv_evictable_sizes = makeConst(element::i32, ov::Shape({0}), {0});
         auto adaptive_rkv_diversity_block_set_indices = makeConst(element::i32, ov::Shape({0}), {0});
         auto adaptive_rkv_diversity_block_set_indices_begins = makeConst(element::i32, ov::Shape({0}), {0});
+        auto token_type_ids = makeConst(element::i32, ov::Shape({0}), {0});
 
         ParameterVector params = nodes_to_params({max_context_len,
                                                   block_indices_begins,
@@ -1036,7 +1039,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
                              adaptive_rkv_start_size,
                              adaptive_rkv_evictable_sizes,
                              adaptive_rkv_diversity_block_set_indices,
-                             adaptive_rkv_diversity_block_set_indices_begins});
+                             adaptive_rkv_diversity_block_set_indices_begins,
+                             token_type_ids});
         auto ShapeOf172 = makeOP<opset3::ShapeOf>({Transpose154}, {{"output_type", "i64"}});
         auto Gather175 = makeOP<opset8::Gather>({ShapeOf172, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze177 = makeOP<opset1::Unsqueeze>({Gather175, 0});
@@ -1266,6 +1270,7 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto adaptive_rkv_evictable_sizes = makeConst(element::i32, ov::Shape({0}), {0});
         auto adaptive_rkv_diversity_block_set_indices = makeConst(element::i32, ov::Shape({0}), {0});
         auto adaptive_rkv_diversity_block_set_indices_begins = makeConst(element::i32, ov::Shape({0}), {0});
+        auto token_type_ids = makeConst(element::i32, ov::Shape({0}), {0});
 
         ParameterVector params = nodes_to_params({max_context_len,
                                                   block_indices_begins,
@@ -1407,7 +1412,8 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
                              adaptive_rkv_start_size,
                              adaptive_rkv_evictable_sizes,
                              adaptive_rkv_diversity_block_set_indices,
-                             adaptive_rkv_diversity_block_set_indices_begins});
+                             adaptive_rkv_diversity_block_set_indices_begins,
+                             token_type_ids});
         auto ShapeOf_51965 = makeOP<opset3::ShapeOf>({Transpose_51955}, {{"output_type", "i64"}});
         auto Gather_51966 = makeOP<opset8::Gather>({ShapeOf_51965, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze_51971 = makeOP<opset1::Unsqueeze>({Gather_51966, 0});
@@ -1611,6 +1617,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto adaptive_rkv_evictable_sizes = makeConst(element::i32, ov::Shape({0}), {0});
         auto adaptive_rkv_diversity_block_set_indices = makeConst(element::i32, ov::Shape({0}), {0});
         auto adaptive_rkv_diversity_block_set_indices_begins = makeConst(element::i32, ov::Shape({0}), {0});
+        auto token_type_ids = makeConst(element::i32, ov::Shape({0}), {0});
 
         auto params = nodes_to_params({max_context_len,
                                        block_indices_begins,
@@ -1734,7 +1741,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
                          adaptive_rkv_start_size,
                          adaptive_rkv_evictable_sizes,
                          adaptive_rkv_diversity_block_set_indices,
-                         adaptive_rkv_diversity_block_set_indices_begins});
+                         adaptive_rkv_diversity_block_set_indices_begins,
+                         token_type_ids});
         auto ShapeOf1 = makeOP<opset3::ShapeOf>({Transpose6}, {{"output_type", "i64"}});
         auto Gather2 = makeOP<opset8::Gather>({ShapeOf1, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze5 = makeOP<opset1::Unsqueeze>({Gather2, 0});
@@ -1941,6 +1949,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto adaptive_rkv_evictable_sizes = makeConst(element::i32, ov::Shape({0}), {0});
         auto adaptive_rkv_diversity_block_set_indices = makeConst(element::i32, ov::Shape({0}), {0});
         auto adaptive_rkv_diversity_block_set_indices_begins = makeConst(element::i32, ov::Shape({0}), {0});
+        auto token_type_ids = makeConst(element::i32, ov::Shape({0}), {0});
 
         auto params = nodes_to_params({max_context_len,
                                        block_indices_begins,
@@ -2080,7 +2089,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
                          adaptive_rkv_start_size,
                          adaptive_rkv_evictable_sizes,
                          adaptive_rkv_diversity_block_set_indices,
-                         adaptive_rkv_diversity_block_set_indices_begins});
+                         adaptive_rkv_diversity_block_set_indices_begins,
+                         token_type_ids});
         auto ShapeOf2 = makeOP<opset3::ShapeOf>({Transpose7}, {{"output_type", "i64"}});
         auto Gather5 = makeOP<opset8::Gather>({ShapeOf2, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze9 = makeOP<opset1::Unsqueeze>({Gather5, 0});
@@ -2453,6 +2463,7 @@ TEST_F(SDPAToPATest, SDPAToPA_gpt_oss_General) {
         auto adaptive_rkv_evictable_sizes = makeConst(element::i32, ov::Shape({0}), {0});
         auto adaptive_rkv_diversity_block_set_indices = makeConst(element::i32, ov::Shape({0}), {0});
         auto adaptive_rkv_diversity_block_set_indices_begins = makeConst(element::i32, ov::Shape({0}), {0});
+        auto token_type_ids = makeConst(element::i32, ov::Shape({0}), {0});
 
         auto params = nodes_to_params({max_context_len,
                                        block_indices_begins,
@@ -2740,7 +2751,8 @@ TEST_F(SDPAToPATest, SDPAToPA_gpt_oss_General) {
                          adaptive_rkv_start_size,
                          adaptive_rkv_evictable_sizes,
                          adaptive_rkv_diversity_block_set_indices,
-                         adaptive_rkv_diversity_block_set_indices_begins});
+                         adaptive_rkv_diversity_block_set_indices_begins,
+                         token_type_ids});
         auto ShapeOf3 = makeOP<v3::ShapeOf>({Transpose6}, {{"output_type", "i64"}});
         auto Gather4 = makeOP<v8::Gather>({ShapeOf3, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze5 = makeOP<v0::Unsqueeze>({Gather4, 0});
@@ -3578,6 +3590,7 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
         auto adaptive_rkv_evictable_sizes = makeConst(element::i32, ov::Shape({0}), {0});
         auto adaptive_rkv_diversity_block_set_indices = makeConst(element::i32, ov::Shape({0}), {0});
         auto adaptive_rkv_diversity_block_set_indices_begins = makeConst(element::i32, ov::Shape({0}), {0});
+        auto token_type_ids = makeConst(element::i32, ov::Shape({0}), {0});
 
         auto Unsqueeze0 = makeOP<v0::Unsqueeze>({input_ids, 1});
         auto ShapeOf0 = makeOP<v3::ShapeOf>({Unsqueeze0}, {{"output_type", "i64"}});
@@ -4154,7 +4167,8 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2) {
                          adaptive_rkv_start_size,
                          adaptive_rkv_evictable_sizes,
                          adaptive_rkv_diversity_block_set_indices,
-                         adaptive_rkv_diversity_block_set_indices_begins});
+                         adaptive_rkv_diversity_block_set_indices_begins,
+                         token_type_ids});
         auto ShapeOf12 = makeOP<v3::ShapeOf>({Transpose15}, {{"output_type", "i64"}});
         auto Gather10 = makeOP<v8::Gather>({ShapeOf12, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze10 = makeOP<v0::Unsqueeze>({Gather10, 0});
@@ -4712,6 +4726,7 @@ TEST_F(SDPAToPATest, SDPAToPA_jais_13b_General) {
         auto Constant21 = makeConst(element::i32, ov::Shape({0}), {0});
         auto Constant22 = makeConst(element::i32, ov::Shape({0}), {0});
         auto Constant23 = makeConst(element::i32, ov::Shape({0}), {0});
+        auto Constant24 = makeConst(element::i32, ov::Shape({0}), {0});
         auto PagedAttentionExtension0 =
             make_shared<ov::op::PagedAttentionExtension>(OutputVector{Reshape4,
                                                                       Reshape6,
@@ -4737,7 +4752,8 @@ TEST_F(SDPAToPATest, SDPAToPA_jais_13b_General) {
                                                                       Constant20,
                                                                       Constant21,
                                                                       Constant22,
-                                                                      Constant23});
+                                                                      Constant23,
+                                                                      Constant24});
         auto ShapeOf1 = makeOP<v3::ShapeOf>({Transpose5}, {{"output_type", "i64"}});
         auto Gather2 = makeOP<v8::Gather>({ShapeOf1, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze1 = makeOP<v0::Unsqueeze>({Gather2, 0});
@@ -4756,6 +4772,274 @@ TEST_F(SDPAToPATest, SDPAToPA_jais_13b_General) {
                                        input_ids,
                                        score_aggregation_window,
                                        position_ids});
+
+        model_ref = std::make_shared<ov::Model>(OutputVector{res}, params);
+
+        comparator.disable(FunctionsComparator::PRECISIONS);
+        disable_result_friendly_names_check();
+        disable_rt_info_check();
+    }
+}
+
+// Gemma3 test: same sliding window pattern as gpt_oss, but with token_type_ids as model parameter
+TEST_F(SDPAToPATest, SDPAToPA_Gemma3_TokenTypeIds) {
+    {
+        auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");
+        auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
+        auto attention_mask = make_param(PartialShape{DYN, DYN}, element::i64, "attention_mask");
+        auto input_ids = make_param(PartialShape{DYN, DYN}, element::i64, "input_ids");
+        auto token_type_ids = make_param(PartialShape{1, DYN}, element::i64, "token_type_ids");
+        auto params = nodes_to_params({beam_idx, position_ids, attention_mask, input_ids, token_type_ids});
+
+        auto ShapeOf0 = makeOP<v3::ShapeOf>({input_ids}, {{"output_type", "i64"}});
+        auto Gather0 = makeOP<v8::Gather>({ShapeOf0, {0}, 0}, {{"batch_dims", 0}});
+
+        auto Constant0 = makeConst(element::f32, ov::Shape({32000, 128}), MOCK_VALUE);
+        auto Convert3 = makeOP<v0::Convert>({input_ids}, {{"destination_type", "i32"}});
+        auto Gather1 = makeOP<v8::Gather>({Constant0, Convert3, 0}, {{"batch_dims", 0}});
+        auto Power0 = makeOP<v1::Power>({Gather1, single_val(3, 2.0f)}, {{"auto_broadcast", "numpy"}});
+        auto ReduceMean0 = makeOP<v1::ReduceMean>({Power0, {-1}}, {{"keep_dims", true}});
+        auto Add0 = makeOP<v1::Add>({ReduceMean0, single_val(3, 1e-6f)}, {{"auto_broadcast", "numpy"}});
+        auto Sqrt0 = makeOP<v0::Sqrt>({Add0});
+        auto Divide0 =
+            makeOP<v1::Divide>({single_val(3, 1.0f), Sqrt0}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+        auto Multiply1 = makeOP<v1::Multiply>({Gather1, Divide0}, {{"auto_broadcast", "numpy"}});
+        auto Constant_w = makeConst(element::f32, ov::Shape({1, 1, 128}), MOCK_VALUE);
+        auto Multiply2 = makeOP<v1::Multiply>({Constant_w, Multiply1}, {{"auto_broadcast", "numpy"}});
+
+        auto q_weight = makeConst(element::f32, ov::Shape({512, 128}), MOCK_VALUE);
+        auto MatMul_q = makeOP<v0::MatMul>({Multiply2, q_weight}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Reshape_q = makeOP<v1::Reshape>({MatMul_q, {0, 0, 4, 128}}, {{"special_zero", true}});
+        auto Q = makeOP<v1::Transpose>({Reshape_q, {0, 2, 1, 3}});
+
+        auto k_weight = makeConst(element::f32, ov::Shape({128, 128}), MOCK_VALUE);
+        auto MatMul_k = makeOP<v0::MatMul>({Multiply2, k_weight}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Reshape_k = makeOP<v1::Reshape>({MatMul_k, {0, 0, 1, 128}}, {{"special_zero", true}});
+        auto K_cur = makeOP<v1::Transpose>({Reshape_k, {0, 2, 1, 3}});
+
+        auto v_weight = makeConst(element::f32, ov::Shape({128, 128}), MOCK_VALUE);
+        auto MatMul_v = makeOP<v0::MatMul>({Multiply2, v_weight}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Reshape_v = makeOP<v1::Reshape>({MatMul_v, {0, 0, 1, 128}}, {{"special_zero", true}});
+        auto V_cur = makeOP<v1::Transpose>({Reshape_v, {0, 2, 1, 3}});
+
+        auto k_init_shape = makeOP<v0::Concat>({Gather0, {1l}, {0l}, {128l}}, {{"axis", 0}});
+        auto k_init = makeOP<v3::Broadcast>({0.0f, k_init_shape}, {{"mode", "numpy"}});
+        auto k_read = makeOP<v6::ReadValue>(
+            {k_init},
+            {{"variable_id", "k_cache"}, {"variable_type", "f32"}, {"variable_shape", PartialShape{DYN, 1, DYN, 128}}});
+        auto k_past = makeOP<v8::Gather>({k_read, beam_idx, 0}, {{"batch_dims", 0}});
+        auto k_concat = makeOP<v0::Concat>({k_past, K_cur}, {{"axis", -2}});
+
+        auto v_init_shape = makeOP<v0::Concat>({Gather0, {1l}, {0l}, {128l}}, {{"axis", 0}});
+        auto v_init = makeOP<v3::Broadcast>({0.0f, v_init_shape}, {{"mode", "numpy"}});
+        auto v_read = makeOP<v6::ReadValue>(
+            {v_init},
+            {{"variable_id", "v_cache"}, {"variable_type", "f32"}, {"variable_shape", PartialShape{DYN, 1, DYN, 128}}});
+        auto v_past = makeOP<v8::Gather>({v_read, beam_idx, 0}, {{"batch_dims", 0}});
+        auto v_concat = makeOP<v0::Concat>({v_past, V_cur}, {{"axis", -2}});
+
+        auto k_unsqueeze = makeOP<v0::Unsqueeze>({k_concat, 2});
+        auto k_shape = makeOP<v3::ShapeOf>({k_concat}, {{"output_type", "i64"}});
+        auto k_gather_dims = makeOP<v8::Gather>({k_shape, {0, 1}, 0}, {{"batch_dims", 0}});
+        auto k_gather_dims2 = makeOP<v8::Gather>({k_shape, {2, 3}, 0}, {{"batch_dims", 0}});
+        auto k_bcast_shape = makeOP<v0::Concat>({k_gather_dims, {4l}, k_gather_dims2}, {{"axis", 0}});
+        auto k_broadcast = makeOP<v3::Broadcast>({k_unsqueeze, k_bcast_shape}, {{"mode", "bidirectional"}});
+        auto K = makeOP<v1::Reshape>({k_broadcast, {0, 4, -1, 128}}, {{"special_zero", true}});
+
+        auto v_unsqueeze = makeOP<v0::Unsqueeze>({v_concat, 2});
+        auto V = makeOP<v1::Reshape>(
+            {makeOP<v3::Broadcast>({v_unsqueeze, k_bcast_shape}, {{"mode", "bidirectional"}}), {0, 4, -1, 128}},
+            {{"special_zero", true}});
+
+        // Same pattern as gpt_oss
+        auto Constant_true1 = makeConst(element::boolean, ov::Shape({}), {1});
+        auto Constant_true2 = makeConst(element::boolean, ov::Shape({}), {1});
+
+        auto ShapeOf_pos = makeOP<v3::ShapeOf>({position_ids}, {{"output_type", "i64"}});
+        auto Gather_cur = makeOP<v8::Gather>({ShapeOf_pos, 1, 0}, {{"batch_dims", 0}});
+        auto Reshape_cur = makeOP<v1::Reshape>({Gather_cur, {1}}, {{"special_zero", false}});
+        auto Squeeze_cur = makeOP<v0::Squeeze>({Reshape_cur, 0});
+
+        auto ShapeOf_past = makeOP<v3::ShapeOf>({k_past}, {{"output_type", "i64"}});
+        auto Gather_past = makeOP<v8::Gather>({ShapeOf_past, 2, 0}, {{"batch_dims", 0}});
+
+        auto total_len = makeOP<v1::Add>({Squeeze_cur, Gather_past}, {{"auto_broadcast", "numpy"}});
+        auto Range_kv = makeOP<v4::Range>({0, total_len, 1}, {{"output_type", "i64"}});
+        auto Unsqueeze_kv0 = makeOP<v0::Unsqueeze>({Range_kv, 0});
+        auto Unsqueeze_kv1 = makeOP<v0::Unsqueeze>({Unsqueeze_kv0, 1});
+        auto Unsqueeze_kv2 = makeOP<v0::Unsqueeze>({Unsqueeze_kv1, 2});
+        auto kv_idx = makeOP<v0::Convert>({Unsqueeze_kv2}, {{"destination_type", "f32"}});
+
+        auto Range_q_start = makeOP<v1::Add>({Gather_past, Gather_cur}, {{"auto_broadcast", "numpy"}});
+        auto Range_q = makeOP<v4::Range>({Gather_past, Range_q_start, 1}, {{"output_type", "f32"}});
+        auto Unsqueeze_q0 = makeOP<v0::Unsqueeze>({Range_q, 0});
+        auto Unsqueeze_q1 = makeOP<v0::Unsqueeze>({Unsqueeze_q0, 1});
+        auto q_idx = makeOP<v0::Unsqueeze>({Unsqueeze_q1, 3});
+
+        auto sw_offset = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {-1024.0f});
+        auto sw_add = makeOP<v1::Add>({q_idx, sw_offset}, {{"auto_broadcast", "numpy"}});
+        auto sw_greater = makeOP<v1::Greater>({kv_idx, sw_add}, {{"auto_broadcast", "numpy"}});
+
+        auto causal_le = makeOP<v1::LessEqual>({kv_idx, q_idx}, {{"auto_broadcast", "numpy"}});
+        auto BitwiseAnd0 = makeOP<v13::BitwiseAnd>({Constant_true2, sw_greater}, {{"auto_broadcast", "numpy"}});
+        auto BitwiseAnd1 = makeOP<v13::BitwiseAnd>({BitwiseAnd0, causal_le}, {{"auto_broadcast", "numpy"}});
+        auto BitwiseAnd2 = makeOP<v13::BitwiseAnd>({Constant_true1, BitwiseAnd1}, {{"auto_broadcast", "numpy"}});
+
+        auto Convert_am = makeOP<v0::Convert>({attention_mask}, {{"destination_type", "boolean"}});
+        auto ShapeOf_am = makeOP<v3::ShapeOf>({Convert_am}, {{"output_type", "i32"}});
+        auto ReduceProd_am = makeOP<v1::ReduceProd>({ShapeOf_am, 0}, {{"keep_dims", true}});
+        auto Concat_am = makeOP<v0::Concat>({ReduceProd_am, {-1}}, {{"axis", 0}});
+        auto Reshape_am = makeOP<v1::Reshape>({Convert_am, Concat_am}, {{"special_zero", true}});
+        auto kv_idx_i32 = makeOP<v0::Convert>({Unsqueeze_kv2}, {{"destination_type", "i32"}});
+        auto Gather0_batch = makeOP<v8::Gather>({ShapeOf_pos, {0}, 0}, {{"batch_dims", 0}});
+        auto Squeeze_batch = makeOP<v0::Squeeze>({Gather0_batch});
+        auto Range_batch = makeOP<v4::Range>({0, Squeeze_batch, 1}, {{"output_type", "i64"}});
+        auto Unsq_b0 = makeOP<v0::Unsqueeze>({Range_batch, 1});
+        auto Unsq_b1 = makeOP<v0::Unsqueeze>({Unsq_b0, 2});
+        auto Unsq_b2 = makeOP<v0::Unsqueeze>({Unsq_b1, 3});
+        auto batch_idx = makeOP<v0::Convert>({Unsq_b2}, {{"destination_type", "i32"}});
+        auto Split_am = makeOP<v1::Split>({ShapeOf_am, 0}, {{"num_splits", 2}});
+        auto Multiply_idx = makeOP<v1::Multiply>({batch_idx, Split_am->output(1)}, {{"auto_broadcast", "numpy"}});
+        auto flat_idx = makeOP<v1::Add>({kv_idx_i32, Multiply_idx}, {{"auto_broadcast", "numpy"}});
+        auto Gather_am = makeOP<v8::Gather>({Reshape_am, flat_idx, 0}, {{"batch_dims", 0}});
+        auto Reshape_am2 = makeOP<v1::Reshape>({Gather_am, {-1}}, {{"special_zero", false}});
+        auto ShapeOf_idx = makeOP<v3::ShapeOf>({flat_idx}, {{"output_type", "i32"}});
+        auto Reshape_am3 = makeOP<v1::Reshape>({Reshape_am2, ShapeOf_idx}, {{"special_zero", false}});
+
+        auto BitwiseAnd3 = makeOP<v13::BitwiseAnd>({BitwiseAnd2, Reshape_am3}, {{"auto_broadcast", "numpy"}});
+        auto total_len_unsq = makeOP<v0::Unsqueeze>({total_len, 0});
+        auto bcast_shape = makeOP<v0::Concat>({Gather0_batch, {1l}, Reshape_cur, total_len_unsq}, {{"axis", 0}});
+        auto Broadcast_mask = makeOP<v3::Broadcast>({BitwiseAnd3, bcast_shape}, {{"mode", "bidirectional"}});
+        auto Select_mask = makeOP<v1::Select>({Broadcast_mask, 0.0f, -65504.0f}, {{"auto_broadcast", "numpy"}});
+        auto past_len_reshape = makeOP<v1::Reshape>({Gather_past, {1}}, {{"special_zero", false}});
+        auto slice_end = makeOP<v1::Add>({past_len_reshape, Reshape_cur}, {{"auto_broadcast", "numpy"}});
+        auto Slice_mask = makeOP<v8::Slice>({Select_mask, {0}, slice_end, {1}, {3}});
+
+        auto ScaledDotProductAttention =
+            makeOP<v13::ScaledDotProductAttention>({Q, K, V, Slice_mask, 0.125f}, {{"causal", false}});
+        auto res = make_shared<v0::Result>(ScaledDotProductAttention);
+
+        model = std::make_shared<ov::Model>(OutputVector{res}, params);
+        manager.register_pass<ov::pass::SDPAToPagedAttention>();
+    }
+
+    {
+        auto max_context_len = make_param(PartialShape{}, element::i32, "max_context_len");
+        auto block_indices_begins = make_param(PartialShape{DYN}, element::i32, "block_indices_begins");
+        auto block_indices = make_param(PartialShape{DYN}, element::i32, "block_indices");
+        auto subsequence_begins = make_param(PartialShape{DYN}, element::i32, "subsequence_begins");
+        auto past_lens = make_param(PartialShape{DYN}, element::i32, "past_lens");
+        auto value_cache_0 = make_param(PartialShape{DYN, DYN, DYN, DYN}, element::dynamic, "value_cache.0");
+        auto key_cache_0 = make_param(PartialShape{DYN, DYN, DYN, DYN}, element::dynamic, "key_cache.0");
+        auto input_ids = make_param(PartialShape{DYN}, element::i64, "input_ids");
+        auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto token_type_ids_param = make_param(PartialShape{1, DYN}, element::i64, "token_type_ids");
+
+        auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), {0});
+        auto rotated_block_indices = makeConst(element::i32, ov::Shape({0}), {0});
+        auto rotation_deltas = makeConst(element::i32, ov::Shape{0}, {0});
+        auto rotation_trig_lut = makeConst(element::f32, ov::Shape({0}), {0});
+        auto xattention_threshold = makeConst(element::f32, ov::Shape({0}), {0});
+        auto xattention_block_size = makeConst(element::i32, ov::Shape({}), {0});
+        auto xattention_stride = makeConst(element::i32, ov::Shape({}), {0});
+        auto adaptive_rkv_start_size = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
+        auto adaptive_rkv_evictable_sizes = makeConst(element::i32, ov::Shape({0}), {0});
+        auto adaptive_rkv_diversity_block_set_indices = makeConst(element::i32, ov::Shape({0}), {0});
+        auto adaptive_rkv_diversity_block_set_indices_begins = makeConst(element::i32, ov::Shape({0}), {0});
+
+        auto params = nodes_to_params({max_context_len,
+                                       block_indices_begins,
+                                       block_indices,
+                                       subsequence_begins,
+                                       past_lens,
+                                       value_cache_0,
+                                       key_cache_0,
+                                       input_ids,
+                                       position_ids,
+                                       token_type_ids_param});
+
+        auto Constant0 = makeConst(element::f32, ov::Shape({32000, 128}), MOCK_VALUE);
+        auto Unsqueeze_ids = makeOP<v0::Unsqueeze>({input_ids, 1});
+        auto Convert3 = makeOP<v0::Convert>({Unsqueeze_ids}, {{"destination_type", "i32"}});
+        auto Gather1 = makeOP<v8::Gather>({Constant0, Convert3, 0}, {{"batch_dims", 0}});
+        auto Power0 = makeOP<v1::Power>({Gather1, single_val(3, 2.0f)}, {{"auto_broadcast", "numpy"}});
+        auto ReduceMean0 = makeOP<v1::ReduceMean>({Power0, {-1}}, {{"keep_dims", true}});
+        auto Add0 = makeOP<v1::Add>({ReduceMean0, single_val(3, 1e-6f)}, {{"auto_broadcast", "numpy"}});
+        auto Sqrt0 = makeOP<v0::Sqrt>({Add0});
+        auto Divide0 =
+            makeOP<v1::Divide>({single_val(3, 1.0f), Sqrt0}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
+        auto Multiply1 = makeOP<v1::Multiply>({Gather1, Divide0}, {{"auto_broadcast", "numpy"}});
+        auto Constant_w = makeConst(element::f32, ov::Shape({1, 1, 128}), MOCK_VALUE);
+        auto Multiply2 = makeOP<v1::Multiply>({Constant_w, Multiply1}, {{"auto_broadcast", "numpy"}});
+
+        auto q_weight = makeConst(element::f32, ov::Shape({512, 128}), MOCK_VALUE);
+        auto MatMul_q = makeOP<v0::MatMul>({Multiply2, q_weight}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Reshape_q = makeOP<v1::Reshape>({MatMul_q, {0, 0, 4, 128}}, {{"special_zero", true}});
+        auto Transpose_q = makeOP<v1::Transpose>({Reshape_q, {0, 2, 1, 3}});
+        auto Transpose_q2 = makeOP<v1::Transpose>({Transpose_q, {0, 2, 1, 3}});
+        auto Q_flat = makeOP<v1::Reshape>({Transpose_q2, {0, -1}}, {{"special_zero", true}});
+
+        auto k_weight = makeConst(element::f32, ov::Shape({128, 128}), MOCK_VALUE);
+        auto MatMul_k = makeOP<v0::MatMul>({Multiply2, k_weight}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto Reshape_k = makeOP<v1::Reshape>({MatMul_k, {0, 0, 1, 128}}, {{"special_zero", true}});
+        auto Transpose_k = makeOP<v1::Transpose>({Reshape_k, {0, 2, 1, 3}});
+        auto Transpose_k2 = makeOP<v1::Transpose>({Transpose_k, {0, 2, 1, 3}});
+        auto K_flat = makeOP<v1::Reshape>({Transpose_k2, {0, -1}}, {{"special_zero", true}});
+
+        auto MatMul_v = makeOP<v0::MatMul>({Multiply2, makeConst(element::f32, ov::Shape({128, 128}), MOCK_VALUE)},
+                                           {{"transpose_a", false}, {"transpose_b", true}});
+        auto Reshape_v = makeOP<v1::Reshape>({MatMul_v, {0, 0, 1, 128}}, {{"special_zero", true}});
+        auto Transpose_v = makeOP<v1::Transpose>({Reshape_v, {0, 2, 1, 3}});
+        auto Transpose_v2 = makeOP<v1::Transpose>({Transpose_v, {0, 2, 1, 3}});
+        auto V_flat = makeOP<v1::Reshape>({Transpose_v2, {0, -1}}, {{"special_zero", true}});
+
+        auto sw_neg = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {-1024.0f});
+        auto Squeeze_sw = makeOP<v15::Squeeze>({sw_neg}, {{"allow_axis_skip", false}});
+        auto Convert_sw = makeOP<v0::Convert>({Squeeze_sw}, {{"destination_type", "i32"}});
+        auto sliding_window = makeOP<v1::Multiply>({Convert_sw, -1}, {{"auto_broadcast", "numpy"}});
+
+        auto scale = v0::Constant::create(element::f32, Shape{}, {0.125f});
+        auto alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});
+        auto sinks = v0::Constant::create(element::f32, Shape{0, 0, 0, 0}, {});
+
+        auto token_type_ids_i32 = makeOP<v0::Convert>({token_type_ids_param}, {{"destination_type", "i32"}});
+
+        auto PA = std::make_shared<ov::op::PagedAttentionExtension>(
+            OutputVector{Q_flat,
+                         K_flat,
+                         V_flat,
+                         key_cache_0,
+                         value_cache_0,
+                         past_lens,
+                         subsequence_begins,
+                         block_indices,
+                         block_indices_begins,
+                         scale,
+                         sliding_window,
+                         alibi_slopes,
+                         max_context_len,
+                         score_aggregation_window,
+                         rotated_block_indices,
+                         rotation_deltas,
+                         rotation_trig_lut,
+                         xattention_threshold,
+                         xattention_block_size,
+                         xattention_stride,
+                         sinks,
+                         adaptive_rkv_start_size,
+                         adaptive_rkv_evictable_sizes,
+                         adaptive_rkv_diversity_block_set_indices,
+                         adaptive_rkv_diversity_block_set_indices_begins,
+                         token_type_ids_i32});
+
+        auto ShapeOf_v = makeOP<v3::ShapeOf>({Transpose_v2}, {{"output_type", "i64"}});
+        auto Gather_dim = makeOP<v8::Gather>({ShapeOf_v, -1, 0}, {{"batch_dims", 0}});
+        auto Unsqueeze_dim = makeOP<v0::Unsqueeze>({Gather_dim, 0});
+        auto pa_shape = makeOP<v0::Concat>({{0l}, {1l}, {-1l}, Unsqueeze_dim}, {{"axis", 0}});
+        auto pa_reshape = makeOP<v1::Reshape>({PA->output(0), pa_shape}, {{"special_zero", true}});
+        auto pa_transpose = makeOP<v1::Transpose>({pa_reshape, {0, 2, 1, 3}});
+
+        auto res = makeOP<v0::Result>({pa_transpose});
 
         model_ref = std::make_shared<ov::Model>(OutputVector{res}, params);
 
