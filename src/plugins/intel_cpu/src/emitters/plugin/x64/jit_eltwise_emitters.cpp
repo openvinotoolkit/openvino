@@ -103,8 +103,9 @@ std::set<std::vector<element::Type>> jit_add_emitter::get_supported_precisions(c
 
     // Only enable u8 wrap-around for pure u8->u8 arithmetic.
     // QDQ/dequantization patterns (u8 input, f32/i32 output) must NOT use u8 execution.
-    OPENVINO_ASSERT(node, "node must not be null for get_supported_precisions");
-    if (ov::intel_cpu::all_of(element::u8,
+    // node may be nullptr when called from SupportedPrecisions functor (general query).
+    if (node &&
+        ov::intel_cpu::all_of(element::u8,
                               node->get_input_element_type(0),
                               node->get_input_element_type(1),
                               node->get_output_element_type(0))) {
@@ -285,8 +286,9 @@ std::set<std::vector<element::Type>> jit_subtract_emitter::get_supported_precisi
 
     // Only enable u8 wrap-around for pure u8->u8 arithmetic.
     // QDQ/dequantization patterns (u8 input, f32/i32 output) must NOT use u8 execution.
-    OPENVINO_ASSERT(node, "node must not be null for get_supported_precisions");
-    if (ov::intel_cpu::all_of(element::u8,
+    // node may be nullptr when called from SupportedPrecisions functor (general query).
+    if (node &&
+        ov::intel_cpu::all_of(element::u8,
                               node->get_input_element_type(0),
                               node->get_input_element_type(1),
                               node->get_output_element_type(0))) {
