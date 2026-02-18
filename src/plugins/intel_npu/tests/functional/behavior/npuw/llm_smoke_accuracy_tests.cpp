@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_engine/models/find_model.hpp"
-#include "test_engine/comparators/nrmse.hpp"
-#include "test_engine/simple_llm_pipeline.hpp"
-#include "intel_npu/npuw_private_properties.hpp"
-#include "openvino/util/shared_object.hpp"
-#include "openvino/util/file_util.hpp"
-
-#include <filesystem>
-#include <algorithm>
-
 #include <gtest/gtest.h>
+
+#include <algorithm>
+#include <filesystem>
+
+#include "functional_test_utils/skip_tests_config.hpp"
+#include "intel_npu/npuw_private_properties.hpp"
+#include "openvino/util/file_util.hpp"
+#include "openvino/util/shared_object.hpp"
+#include "test_engine/comparators/nrmse.hpp"
+#include "test_engine/models/find_model.hpp"
+#include "test_engine/simple_llm_pipeline.hpp"
 
 using namespace testing;
 using namespace ov::npuw::tests;
@@ -41,7 +42,8 @@ using LLMTestParams = std::tuple<std::string, ov::AnyMap, GroundTruth>;
 
 class LLMSmokeAccuracyTestsNPUW : public ::testing::TestWithParam<LLMTestParams> {
 public:
-    void SetUp() override {      
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         // NOTE: TEMPLATE plugin in OpenVINO works for ~20 minute to generate
         //       first token from prefill model and crashes on launch of
         //       3rd subrequest in generate model.

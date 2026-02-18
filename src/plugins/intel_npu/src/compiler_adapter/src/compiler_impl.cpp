@@ -442,9 +442,15 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
         uint8_t* blob = nullptr;
         size_t size = 0;
 
-        THROW_ON_FAIL_FOR_VCL("vclAllocatedExecutableCreate2",
-                              vclAllocatedExecutableCreate2(_compilerHandle, exeDesc, &allocator, &blob, &size),
-                              _logHandle);
+        auto result = vclAllocatedExecutableCreate2(_compilerHandle, exeDesc, &allocator, &blob, &size);
+        if (result != VCL_RESULT_SUCCESS) {
+            OPENVINO_THROW("Compilation failed. vclAllocatedExecutableCreate2 result: 0x",
+                           std::hex,
+                           uint64_t(result),
+                           " - ",
+                           getLatestVCLLog(_logHandle));
+        }
+
         if (size == 0 || blob == nullptr) {
             OPENVINO_THROW("Failed to create VCL executable, size is zero or blob is null");
         }
