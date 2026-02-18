@@ -1059,7 +1059,7 @@ void jit_softplus_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto aux2 = VReg(aux_vec_idxs[2]);
     auto aux3 = VReg(aux_vec_idxs[3]);
     auto aux4 = VReg(aux_vec_idxs[4]);
-    
+
     auto fp0 = FReg(aux_fp_gpr_idxs[0]);
 
     h->vmv_v_v(aux0, src);
@@ -1071,12 +1071,12 @@ void jit_softplus_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     h->fmv_w_x(fp0, zero);
     h->vmfge_vf(mask_vreg(), aux0, fp0);
     h->vfneg_vv(aux1, aux0, VM::masked);
-    
+
     h->vmflt_vf(mask_vreg(), aux0, fp0);
     h->vmerge_vvm(aux1, aux1, aux0);
 
     auto exp_aux_vec_idxs = std::vector<size_t>(aux_vec_idxs.begin() + 2, aux_vec_idxs.end());
-    
+
     exp_emitter->emit_code({static_cast<size_t>(aux1.getIdx())},
                            {static_cast<size_t>(aux1.getIdx())},
                            exp_aux_vec_idxs,
@@ -1088,28 +1088,28 @@ void jit_softplus_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     load_table_val("log_taylor_threshold", fp0);
     h->vmflt_vf(mask_vreg(), aux1, fp0);
-    
+
     h->vfmul_vv(aux3, aux1, aux1);
     load_table_val("half", fp0);
     h->vfmul_vf(aux3, aux3, fp0);
     h->vfsub_vv(aux4, aux1, aux3, VM::masked);
-    
+
     h->vmv_v_v(aux3, aux2);
-    
+
     load_table_val("log_c1", fp0);
     h->vfmv_v_f(dst, fp0);
-    
+
     load_table_val("log_c2", fp0);
     h->vmxnor_mm(mask_vreg(), mask_vreg(), mask_vreg());
-    h->vfmadd_vf(dst, fp0, aux2, VM::masked); 
+    h->vfmadd_vf(dst, fp0, aux2, VM::masked);
     h->vmxnor_mm(mask_vreg(), mask_vreg(), mask_vreg());
-    
+
     h->vmerge_vvm(dst, dst, aux4);
 
     h->fmv_w_x(fp0, zero);
     h->vmfge_vf(mask_vreg(), aux0, fp0);
     h->vfadd_vv(dst, dst, aux0, VM::masked);
-    
+
     load_table_val("large_threshold", fp0);
     h->vmfle_vf(mask_vreg(), aux0, fp0);
 }
