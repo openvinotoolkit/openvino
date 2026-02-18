@@ -30,6 +30,7 @@ GraphIteratorFlatBuffer::GraphIteratorFlatBuffer(const std::string& path) {
     FRONT_END_GENERAL_CHECK(sub_graphs && sub_graphs->size() > 0, "TFLite model has no subgraphs in file: ", path);
     m_subgraphs = {sub_graphs->begin(), sub_graphs->end()};
     m_graph = m_subgraphs[0];
+    FRONT_END_GENERAL_CHECK(m_graph != nullptr, "First subgraph is null in file: ", path);
     const auto operators = m_graph->operators();
     FRONT_END_GENERAL_CHECK(operators != nullptr, "TFLite subgraph has no operators in file: ", path);
     auto operators_vec = std::vector<const tflite::Operator*>{operators->begin(), operators->end()};
@@ -54,6 +55,7 @@ std::shared_ptr<GraphIterator> GraphIteratorFlatBuffer::get_subgraph(size_t idx)
     iterator->m_model = m_model;
     iterator->m_subgraphs = {};  // TODO: check if we need to pass all sub-graphs here (while in a while situation)
     iterator->m_graph = m_subgraphs[idx];
+    FRONT_END_GENERAL_CHECK(iterator->m_graph != nullptr, "Subgraph at index ", idx, " is null");
     const auto operators = iterator->m_graph->operators();
     FRONT_END_GENERAL_CHECK(operators != nullptr, "TFLite subgraph has no operators");
     auto operators_vec = std::vector<const tflite::Operator*>{operators->begin(), operators->end()};
@@ -77,6 +79,7 @@ std::shared_ptr<DecoderBase> GraphIteratorFlatBuffer::get_decoder() const {
 
     if (is_op) {
         auto node = m_nodes[node_index].as<const tflite::Operator*>();
+        FRONT_END_GENERAL_CHECK(node != nullptr, "Null operator at node index ", node_index);
         auto buffers = m_model->buffers();
         FRONT_END_GENERAL_CHECK(buffers != nullptr, "TFLite model has no buffers");
         const auto buffers_size = buffers->size();
@@ -130,6 +133,9 @@ std::shared_ptr<DecoderBase> GraphIteratorFlatBuffer::get_decoder() const {
                                 " is out of range. Number of operator codes: ",
                                 op_codes->size());
         auto operator_code = (*op_codes)[node->opcode_index()];
+        FRONT_END_GENERAL_CHECK(operator_code != nullptr,
+                                "Null operator code at index ",
+                                node->opcode_index());
         std::string type;
         if (operator_code->deprecated_builtin_code() <
             tflite::BuiltinOperator::BuiltinOperator_PLACEHOLDER_FOR_GREATER_OP_CODES) {
@@ -138,7 +144,10 @@ std::shared_ptr<DecoderBase> GraphIteratorFlatBuffer::get_decoder() const {
             type = tflite::EnumNamesBuiltinOperator()[operator_code->builtin_code()];
         }
         if (type == "CUSTOM") {
-            type = operator_code->custom_code()->str();
+            auto custom_code = operator_code->custom_code();
+            FRONT_END_GENERAL_CHECK(custom_code != nullptr,
+                                    "Operator has CUSTOM type but no custom_code string");
+            type = custom_code->str();
         }
         auto name = std::to_string(node_index - m_graph->inputs()->size() - m_graph->outputs()->size());
         return std::make_shared<DecoderFlatBuffer>(node, type, name, input_info, output_info);
