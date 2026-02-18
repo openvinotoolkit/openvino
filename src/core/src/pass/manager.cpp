@@ -337,54 +337,56 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, "pass::Manager::run_passes");
     Profiler profiler(m_name);
 
-    bool model_changed = false;
-    bool pass_changed_model = false;
+    bool manager_changed_model = false;
+    bool needs_validation = false;
 
     profiler.start_timer(m_name);
     for (const auto& pass : m_pass_list) {
+        if (needs_validation) {
+            m_pass_config->enable<ov::pass::Validate>();
+        } else {
+            m_pass_config->disable<ov::pass::Validate>();
+        }
+
+        if (m_pass_config->is_disabled(pass->get_type_info())) {
+            OPENVINO_DEBUG("Pass ", pass->get_name(), " is disabled.");
+            continue;
+        }
+
+        // This checks if we need to skip the graph transformation when the graph pass relies on
+        // static shape but the model state is dynamic.
+        if (pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && model->is_dynamic()) {
+            OPENVINO_DEBUG("Pass ",
+                           pass->get_name(),
+                           " requires static shape but the ",
+                           "model is dynamic. Skipping this transformation.");
+            continue;
+        }
+
         const auto& pass_name = pass->get_name();
 
         profiler.start_timer(pass_name);
-        pass_changed_model = run_pass(pass, model, pass_changed_model);
+        bool pass_changed_model = run_pass(pass, model);
         profiler.stop_timer(pass_name, pass_changed_model);
 
-        model_changed = model_changed || pass_changed_model;
+        manager_changed_model = manager_changed_model || pass_changed_model;
+        needs_validation = (ov::as_type_ptr<ov::pass::Validate>(pass)) ? false : needs_validation || pass_changed_model;
 
         profiler.visualize(model, pass_name);
         profiler.serialize(model, pass_name);
     }
-    profiler.stop_timer(m_name, model_changed);
+    profiler.stop_timer(m_name, manager_changed_model);
 
-    return model_changed;
+    return manager_changed_model;
 }
 
-bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass,
-                                 const std::shared_ptr<Model>& model,
-                                 bool needs_validate) {
-    if (m_pass_config->is_disabled(pass->get_type_info())) {
-        OPENVINO_DEBUG("Pass ", pass->get_name(), " is disabled.");
-        return false;
-    }
-
-    // This checks if we need to skip the graph transformation when the graph pass relies on
-    // static shape but the model state is dynamic.
-    if (pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && model->is_dynamic()) {
-        OPENVINO_DEBUG("Pass ",
-                       pass->get_name(),
-                       " requires static shape but the ",
-                       "model is dynamic. Skipping this transformation.");
-        return false;
-    }
-
+bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass, const std::shared_ptr<Model>& model) {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ov_pass, ov::pass::perf_counters()[pass->get_type_info()]);
 
     if (auto matcher_pass = ov::as_type_ptr<MatcherPass>(pass)) {
         // GraphRewrite is a temporary container for MatcherPass to make execution on entire ov::Model
         return GraphRewrite(matcher_pass).run_on_model(model);
     } else if (auto model_pass = ov::as_type_ptr<ModelPass>(pass)) {
-        if (ov::as_type_ptr<ov::pass::Validate>(model_pass) && !needs_validate) {
-            return false;
-        }
         return model_pass->run_on_model(model);
     }
     return false;

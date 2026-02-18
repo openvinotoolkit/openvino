@@ -24,7 +24,11 @@
 #include <utility>
 #include <vector>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include "cpu/x64/cpu_isa_traits.hpp"
+#    include "onednn/dnnl.h"
+#endif
+
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "edge.h"
@@ -48,7 +52,6 @@
 #include "nodes/rnn.h"
 #include "nodes/scaled_attn.h"
 #include "nodes/transpose.h"
-#include "onednn/dnnl.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -1194,6 +1197,14 @@ void GraphOptimizer::FuseMatMulAndSimpleOperation(Graph& graph) {
 }
 
 void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+    // There is no optimized implementation for avx512, so two avx512 convolutions
+    // are expected to be faster than single fused avx2 convolution
+    if (implication(impl::cpu::x64::mayiuse(impl::cpu::x64::avx2),
+                    impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core))) {
+        return;
+    }
+
     const auto& graphNodes = graph.GetNodes();
 
     auto isConvolutionNode = [](const NodePtr& node) {
@@ -1322,14 +1333,6 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
 
         auto parentConvolutionNode = std::dynamic_pointer_cast<Convolution>(parentNode);
         OPENVINO_ASSERT(parentConvolutionNode, "Cannot get convolution node ", parentNode->getName());
-        if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2)) {
-            return false;
-        }
-        // there is no optimized implementation for avx512, so two avx512 convolutions
-        // are expected to be faster than single fused avx2 convolution
-        if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
-            return false;
-        }
 
         return (dw_conv_input_size + dw_conv_output_size > L3_cache_size / 2);
     };
@@ -1366,6 +1369,7 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
 
         graph.DropDWConvNode(childConvNode);
     }
+#endif
 }
 
 // TODO [NM]: unite with FuseConvolutionAndSimpleOperation

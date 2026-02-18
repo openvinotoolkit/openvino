@@ -15,6 +15,7 @@
 #include "nodes/kernels/riscv64/jit_generator.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/op/constant.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/broadcastmove.hpp"
@@ -55,6 +56,9 @@ template <cpu_isa_t isa>
 void jit_broadcast_move_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     auto src_vreg = Xbyak_riscv::VReg(in[0]);
     auto dst_vreg = Xbyak_riscv::VReg(out[0]);
+    // Due to the fact that InsertBroadcastMove may happen after register allocation in case of dynamic shapes, we can
+    // end up in a situation where source and destination registers are the same
+    const bool in_place = src_vreg.getIdx() == dst_vreg.getIdx();
 
     switch (byte_size) {
     case 1:
@@ -70,8 +74,14 @@ void jit_broadcast_move_emitter::emit_isa(const std::vector<size_t>& in, const s
         OV_CPU_JIT_EMITTER_THROW("Unsupported data size ", byte_size);
     }
 
-    // Broadcast the first element of src to all dst lanes.
-    h->vrgather_vi(dst_vreg, src_vreg, 0);
+    if (in_place) {
+        OV_CPU_JIT_EMITTER_ASSERT(!aux_vec_idxs.empty(), "BroadcastMove requires an auxiliary vector register");
+        const auto tmp_vreg = Xbyak_riscv::VReg(aux_vec_idxs.back());
+        h->vrgather_vi(tmp_vreg, src_vreg, 0);
+        h->vmv_v_v(dst_vreg, tmp_vreg);
+    } else {
+        h->vrgather_vi(dst_vreg, src_vreg, 0);
+    }
 }
 
 jit_scalar_emitter::jit_scalar_emitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
@@ -87,6 +97,11 @@ jit_scalar_emitter::jit_scalar_emitter(jit_generator_t* h, cpu_isa_t isa, const 
         // For RISC-V, we'll store the float value as int32 bitcast
         const auto float_val = ov::as_type_ptr<ov::op::v0::Constant>(n)->cast_vector<float>()[0];
         std::memcpy(&value, &float_val, sizeof(value));
+        break;
+    }
+    case element::f16: {
+        const auto float16_val = ov::as_type_ptr<ov::op::v0::Constant>(n)->cast_vector<ov::float16>()[0];
+        value = static_cast<int32_t>(float16_val.to_bits());
         break;
     }
     default: {
@@ -114,10 +129,6 @@ void jit_scalar_emitter::emit_isa([[maybe_unused]] const std::vector<size_t>& in
 
     // Load scalar value directly into register
     h->uni_li(tmp_gpr, value);
-
-    // Broadcast scalar to vector register using RISC-V Vector Extension
-    // Set vector configuration for 32-bit elements
-    h->vsetivli(Xbyak_riscv::zero, 4, Xbyak_riscv::SEW::e32, Xbyak_riscv::LMUL::m1);
 
     // Move scalar from GPR to vector register and broadcast
     h->vmv_v_x(dst_vreg, tmp_gpr);

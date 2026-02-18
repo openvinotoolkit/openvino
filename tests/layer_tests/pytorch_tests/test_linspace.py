@@ -55,9 +55,8 @@ class TestLinspace(PytorchLayerTest):
         else:
             model_class = aten_linspace_out(dtype)
 
-        ref_net = None
 
-        return model_class, ref_net, "aten::linspace"
+        return model_class, "aten::linspace"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

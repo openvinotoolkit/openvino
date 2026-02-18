@@ -44,7 +44,8 @@ Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::
     const auto full_path = model_dir.empty() ? ov::util::make_path(m_data_location)
                                              : ov::util::make_path(ov::util::path_join({model_dir, m_data_location}));
     const int64_t file_size = ov::util::file_size(full_path);
-    if (file_size <= 0 || m_offset + m_data_length > static_cast<uint64_t>(file_size)) {
+    if (file_size <= 0 || m_data_length > static_cast<uint64_t>(file_size) ||
+        m_offset > static_cast<uint64_t>(file_size) - m_data_length) {
         throw error::invalid_external_data{*this};
     }
     auto cached_mapped_memory = cache->find(ov::util::path_to_string(full_path));
@@ -74,7 +75,7 @@ Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::stri
         throw error::invalid_external_data{*this};
     }
     const uint64_t file_size = static_cast<uint64_t>(external_data_stream.tellg());
-    if (m_offset + m_data_length > file_size) {
+    if (m_data_length > file_size || m_offset > file_size - m_data_length) {
         throw error::invalid_external_data{*this};
     }
 
