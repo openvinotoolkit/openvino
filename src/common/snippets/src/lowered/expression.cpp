@@ -4,13 +4,10 @@
 
 #include "snippets/lowered/expression.hpp"
 
-#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <exception>
-#include <iterator>
 #include <memory>
-#include <sstream>
 #include <string>
 #include <unordered_set>
 #include <utility>

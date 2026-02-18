@@ -12,6 +12,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/util/common_util.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/port_connector.hpp"

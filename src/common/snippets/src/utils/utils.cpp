@@ -13,7 +13,6 @@
 #include <numeric>
 #include <optional>
 #include <set>
-#include <sstream>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -29,6 +28,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/util/common_util.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/expressions/buffer_expression.hpp"
