@@ -47,8 +47,9 @@ TEST_F(SingleFileStorageTest, FileHeader) {
 TEST_F(SingleFileStorageTest, WriteReadCacheEntry) {
     const std::vector<std::pair<std::string, std::vector<uint8_t>>> test_blobs{
         {"12", std::vector<uint8_t>(124, 0xAB)},
-        {"345", std::vector<uint8_t>(481, 0xCD)},
-        {"6789", std::vector<uint8_t>(4967, 0xEF)},
+        {"0345", std::vector<uint8_t>(481, 0xCD)},
+        {"006789", std::vector<uint8_t>(4967, 0xEF)},
+        {std::to_string(std::numeric_limits<uint64_t>::max()), std::vector<uint8_t>(1, 0)},
     };
 
     for (const auto& [blob_id, blob_data] : test_blobs) {
@@ -69,18 +70,19 @@ TEST_F(SingleFileStorageTest, WriteReadCacheEntry) {
             stream.read(reinterpret_cast<char*>(read_data.data()), read_data.size());
             EXPECT_EQ(blob_data, read_data);
         });
+
+        // todo Check support for multimap memory mapping
+        // reopened_storage.read_cache_entry(blob_id, true, [&](const ICacheManager::CompiledBlobVariant& compiled_blob)
+        // {
+        //     ASSERT_TRUE(std::holds_alternative<const ov::Tensor>(compiled_blob));
+        // auto& tensor = std::get<const ov::Tensor>(compiled_blob);
+        // ASSERT_EQ(tensor.get_byte_size(), blob_data.size());
+        // std::vector<uint8_t> read_data(blob_data.size());
+        // std::memcpy(read_data.data(), tensor.data(), tensor.get_byte_size());
+        // ASSERT_EQ(blob_data, read_data);
+        // });
     }
     EXPECT_EQ(read_count, test_blobs.size());
-
-    // no support for multimap memory mapping yet
-    // storage.read_cache_entry(blob_id, true, [&](const ICacheManager::CompiledBlobVariant& compiled_blob) {
-    //     ASSERT_TRUE(std::holds_alternative<const ov::Tensor>(compiled_blob));
-    //     auto& tensor = std::get<const ov::Tensor>(compiled_blob);
-    //     ASSERT_EQ(tensor.get_byte_size(), blob_data.size());
-    //     std::vector<uint8_t> read_data(blob_data.size());
-    //     std::memcpy(read_data.data(), tensor.data(), tensor.get_byte_size());
-    //     ASSERT_EQ(blob_data, read_data);
-    // });
 }
 
 TEST_F(SingleFileStorageTest, AppendOnly) {

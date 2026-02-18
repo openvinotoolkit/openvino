@@ -35,9 +35,7 @@ SingleFileStorage::SingleFileStorage(const std::filesystem::path& path) : m_cach
 }
 
 uint64_t SingleFileStorage::convert_blob_id(const std::string& blob_id) {
-    const auto ui_id = std::atol(blob_id.c_str());
-    OPENVINO_ASSERT(ui_id > 0, "Blob id should be a positive integer. Got: ", blob_id);
-    return static_cast<uint64_t>(ui_id);
+    return static_cast<uint64_t>(std::stoull(blob_id.c_str(), nullptr, 10));
 }
 
 bool SingleFileStorage::has_blob_id(uint64_t blob_id) const {
