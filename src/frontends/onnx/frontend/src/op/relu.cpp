@@ -15,20 +15,9 @@ ov::OutputVector relu(const ov::frontend::onnx::Node& node) {
     ov::OutputVector ov_inputs{node.get_ov_inputs()};
     return {std::make_shared<ov::op::v0::Relu>(ov_inputs.at(0))};
 }
-ONNX_OP("Relu", OPSET_RANGE(1, 5), ai_onnx::opset_1::relu);
+
+ONNX_OP("Relu", OPSET_SINCE(1), ai_onnx::opset_1::relu);
 }  // namespace opset_1
-
-namespace opset_6 {
-ONNX_OP("Relu", OPSET_RANGE(6, 12), ai_onnx::opset_1::relu);
-}  // namespace opset_6
-
-namespace opset_13 {
-ONNX_OP("Relu", OPSET_RANGE(13, 13), ai_onnx::opset_1::relu);
-}  // namespace opset_13
-
-namespace opset_14 {
-ONNX_OP("Relu", OPSET_SINCE(14), ai_onnx::opset_1::relu);
-}  // namespace opset_14
 }  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
