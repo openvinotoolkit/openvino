@@ -185,7 +185,6 @@ private:
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported
     bool _blobIsReleased = false;
-    bool _blobAllocatedByPlugin = false;
 
     uint32_t _uniqueId = 0;
     uint32_t _lastSubmittedId = 0;
