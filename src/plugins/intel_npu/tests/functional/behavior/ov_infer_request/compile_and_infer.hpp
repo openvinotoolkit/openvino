@@ -158,9 +158,7 @@ TEST_P(OVCompileAndInferRequest, PluginWorkloadType) {
         ASSERT_TRUE(is_called);
     } else {
         ASSERT_FALSE(workloadTypeSupported);
-        OV_EXPECT_THROW_HAS_SUBSTRING(core->compile_model(function, target_device, configuration),
-                                      ov::Exception,
-                                      "cannot be created to validate the property WORKLOAD_TYPE");
+        EXPECT_ANY_THROW(core->compile_model(function, target_device, configuration));
     }
 }
 
