@@ -41,52 +41,44 @@ TEST_P(QDQStrippingTest, smoke_LPT_SharedDQ) {
     const auto& [need_weights_adjustment, quantization_precision] = GetParam();
     const auto input_shape = ov::PartialShape{1, 3, 8, 8};
     model = QDQStrippingFunction::build_shared_dq_pattern(input_shape, quantization_precision);
-    model_ref =
-        QDQStrippingFunction::build_shared_dq_pattern_ref(input_shape, quantization_precision, need_weights_adjustment);
+    model_ref = QDQStrippingFunction::build_shared_dq_pattern_ref(input_shape, need_weights_adjustment);
 }
 
 TEST_P(QDQStrippingTest, NeedScalingMulMatMul) {
     const auto& [need_weights_adjustment, quantization_precision] = GetParam();
     const auto input_shape = ov::PartialShape{1, 3, 8, 8};
     model = QDQStrippingFunction::build_mul_matmul_pattern(input_shape, quantization_precision);
-    model_ref = QDQStrippingFunction::build_mul_matmul_pattern_ref(input_shape,
-                                                                   quantization_precision,
-                                                                   need_weights_adjustment);
+    model_ref = QDQStrippingFunction::build_mul_matmul_pattern_ref(input_shape, need_weights_adjustment);
 }
 
 TEST_P(QDQStrippingTest, NeedScalingMatMulWithBias) {
     const auto& [need_weights_adjustment, quantization_precision] = GetParam();
     const auto input_shape = ov::PartialShape{1, 128};
     model = QDQStrippingFunction::build_matmul_with_bias_pattern(input_shape, quantization_precision);
-    model_ref = QDQStrippingFunction::build_matmul_with_bias_pattern_ref(input_shape,
-                                                                         quantization_precision,
-                                                                         need_weights_adjustment);
+    model_ref = QDQStrippingFunction::build_matmul_with_bias_pattern_ref(input_shape, need_weights_adjustment);
 }
 
 TEST_P(QDQStrippingTest, NeedScalingResidualBlock) {
     const auto& [need_weights_adjustment, quantization_precision] = GetParam();
     const auto input_shape = ov::PartialShape{1, 3, 8, 8};
     model = QDQStrippingFunction::build_residual_block_pattern(input_shape, quantization_precision);
-    model_ref = QDQStrippingFunction::build_residual_block_pattern_ref(input_shape,
-                                                                       quantization_precision,
-                                                                       need_weights_adjustment);
+    model_ref = QDQStrippingFunction::build_residual_block_pattern_ref(input_shape, need_weights_adjustment);
 }
 
 TEST_P(QDQStrippingTest, NeedScalingResidualBlockNoFinalMVN) {
     const auto& [need_weights_adjustment, quantization_precision] = GetParam();
     const auto input_shape = ov::PartialShape{1, 3, 8, 8};
-    model = QDQStrippingFunction::build_residual_block_pattern(input_shape, quantization_precision, /*skip_final_mvn=*/true);
-    model_ref =
-        QDQStrippingFunction::build_residual_block_pattern_ref(input_shape, quantization_precision, false, true);
+    model = QDQStrippingFunction::build_residual_block_pattern(input_shape,
+                                                               quantization_precision,
+                                                               /*skip_final_mvn=*/true);
+    model_ref = QDQStrippingFunction::build_residual_block_pattern_ref(input_shape, false, true);
 }
 
 TEST_P(QDQStrippingTest, NeedScalingForwardBias) {
     const auto& [need_weights_adjustment, quantization_precision] = GetParam();
     const auto input_shape = ov::PartialShape{1, 128};
     model = QDQStrippingFunction::build_forward_bias_pattern(input_shape, quantization_precision);
-    model_ref = QDQStrippingFunction::build_forward_bias_pattern_ref(input_shape,
-                                                                     quantization_precision,
-                                                                     need_weights_adjustment);
+    model_ref = QDQStrippingFunction::build_forward_bias_pattern_ref(input_shape, need_weights_adjustment);
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,

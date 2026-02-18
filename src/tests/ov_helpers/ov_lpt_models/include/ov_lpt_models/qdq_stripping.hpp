@@ -50,34 +50,28 @@ public:
     static std::shared_ptr<ov::Model> build_shared_dq_pattern(const ov::PartialShape& input_shape,
                                                               const ov::element::Type& quantization_precision);
     static std::shared_ptr<ov::Model> build_shared_dq_pattern_ref(const ov::PartialShape& input_shape,
-                                                                  const ov::element::Type& quantization_precision,
                                                                   bool need_weights_adjustment = true);
 
     static std::shared_ptr<ov::Model> build_mul_matmul_pattern(const ov::PartialShape& input_shape,
                                                                const ov::element::Type& quantization_precision);
     static std::shared_ptr<ov::Model> build_mul_matmul_pattern_ref(const ov::PartialShape& input_shape,
-                                                                   const ov::element::Type& quantization_precision,
                                                                    bool need_weights_adjustment = true);
 
     static std::shared_ptr<ov::Model> build_matmul_with_bias_pattern(const ov::PartialShape& input_shape,
                                                                      const ov::element::Type& quantization_precision);
-    static std::shared_ptr<ov::Model> build_matmul_with_bias_pattern_ref(
-        const ov::PartialShape& input_shape,
-        const ov::element::Type& quantization_precision,
-        bool need_weights_adjustment = true);
+    static std::shared_ptr<ov::Model> build_matmul_with_bias_pattern_ref(const ov::PartialShape& input_shape,
+                                                                         bool need_weights_adjustment = true);
 
     static std::shared_ptr<ov::Model> build_residual_block_pattern(const ov::PartialShape& input_shape,
                                                                    const ov::element::Type& quantization_precision,
                                                                    bool skip_final_mvn = false);
     static std::shared_ptr<ov::Model> build_residual_block_pattern_ref(const ov::PartialShape& input_shape,
-                                                                       const ov::element::Type& quantization_precision,
                                                                        bool need_weights_adjustment = true,
                                                                        bool skip_final_mvn = false);
 
     static std::shared_ptr<ov::Model> build_forward_bias_pattern(const ov::PartialShape& input_shape,
                                                                  const ov::element::Type& quantization_precision);
     static std::shared_ptr<ov::Model> build_forward_bias_pattern_ref(const ov::PartialShape& input_shape,
-                                                                     const ov::element::Type& quantization_precision,
                                                                      bool need_weights_adjustment = true);
 };
 
