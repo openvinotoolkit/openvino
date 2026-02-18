@@ -9,13 +9,16 @@
 #include <string>
 #include <unordered_map>
 
+// todo Rename file to tlv_helpers and move common codecs into here
+
 namespace ov {
-// todo Move it to src/inference/src/single_file_storage.hpp?
+
+// todo Separate CacheManager and TLV format traits
 struct TLVStorage {
     using tag_type = uint32_t;
     using length_type = uint64_t;
     using blob_id_type = uint64_t;
-    using padding_size_type = uint64_t;
+    using pad_size_type = uint64_t;
 
     struct blob_info {
         blob_id_type id;  // todo It's likely redundant information - remove this field if used only as key in blob_map

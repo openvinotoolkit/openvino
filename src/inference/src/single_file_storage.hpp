@@ -22,20 +22,24 @@ public:
     SharedContext get_shared_context() const override;
 
 private:
+    std::filesystem::path m_file_path;
     TLVStorage::blob_map_type m_blob_map;
+    void fill_blob_map(std::ifstream& stream);
+
     static uint64_t convert_blob_id(const std::string& blob_id);
     void write_blob_entry(uint64_t blob_id, StreamWriter& writer, std::ofstream& stream);
     bool has_blob_id(uint64_t blob_id) const;
 
+    // todo Make it configurable and/or detect actual file system page size
+    static constexpr uint64_t m_alignment = 4096;
+
     // todo Below parts are for refactor and might be removed. Don't leave it - reuse or remove.
 private:
-    static constexpr size_t blob_id_size = 24;
     void update_shared_ctx(const SharedContext& new_ctx);
     void update_shared_ctx_from_file();
     // rename to append or sth??
     void write_ctx_diff(std::ostream& stream);
 
-    std::filesystem::path m_cache_file_path;  // rename to m_storage_file_path or sth
     SharedContext m_shared_context;
     SharedContext m_context_diff;
     std::streampos m_context_end;
