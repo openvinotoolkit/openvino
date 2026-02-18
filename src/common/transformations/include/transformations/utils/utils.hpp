@@ -208,12 +208,12 @@ TRANSFORMATIONS_API void visit_path(ov::Node* node,
 /**
  * \brief Traverses path forward (following consumers) starting from `node`, and calls "func" for each ov::Node.
  *
- * \param node  The node from which forward path is started.
+ * \param start_node  The node from which forward path is started.
  * \param visited  Set of nodes which were visited.
  * \param func  The function which is called for each visited node.
  * \param skip_node_predicate  predicate to skip nodes.
  */
-TRANSFORMATIONS_API void visit_path_forward(ov::Node* node,
+TRANSFORMATIONS_API void visit_path_forward(ov::Node* start_node,
                                             std::unordered_set<ov::Node*>& visited,
                                             std::function<void(ov::Node*)> func,
                                             std::function<bool(ov::Node*)> skip_node_predicate);

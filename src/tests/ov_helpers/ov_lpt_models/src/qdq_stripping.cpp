@@ -308,7 +308,7 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_matmul_with_bias_pattern(
 
     // MVN is scale-invariant (normalizes by mean/variance), triggering scale adjustment.
     auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
-    auto mvn = std::make_shared<ov::op::v6::MVN>(dq, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
+    auto mvn = std::make_shared<ov::op::v6::MVN>(dq, reduction_axes, true, 1e-6f, ov::op::MVNEpsMode::INSIDE_SQRT);
     return std::make_shared<ov::Model>(ov::OutputVector{mvn}, params, "QDQStripping");
 }
 
@@ -338,7 +338,7 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_matmul_with_bias_pattern_
     // FQ stripped, CQDQ removed Convert+DQ → Add output goes directly to MVN
     auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
     auto mvn =
-        std::make_shared<ov::op::v6::MVN>(matmul_biased, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
+        std::make_shared<ov::op::v6::MVN>(matmul_biased, reduction_axes, true, 1e-6f, ov::op::MVNEpsMode::INSIDE_SQRT);
 
     return std::make_shared<ov::Model>(ov::OutputVector{mvn}, params, "QDQStripping");
 }
@@ -411,7 +411,7 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern(
         auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {3}, {1, 2, 3});
         // Left branch: MVN -> Conv
         auto mvn =
-            std::make_shared<ov::op::v6::MVN>(input, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
+            std::make_shared<ov::op::v6::MVN>(input, reduction_axes, true, 1e-6f, ov::op::MVNEpsMode::INSIDE_SQRT);
 
         auto weight = build_weights_dq(ov::element::i8, ov::Shape{32, 32, 3, 3}, 0.003f, -128, seed);
         auto conv = std::make_shared<ov::op::v1::Convolution>(mvn,
@@ -447,7 +447,7 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern(
 
     auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {3}, {1, 2, 3});
     auto final_mvn =
-        std::make_shared<ov::op::v6::MVN>(add3, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
+        std::make_shared<ov::op::v6::MVN>(add3, reduction_axes, true, 1e-6f, ov::op::MVNEpsMode::INSIDE_SQRT);
 
     return std::make_shared<ov::Model>(ov::OutputVector{final_mvn}, params, "QDQStripping");
 }
@@ -491,7 +491,7 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern_re
     auto create_residual_block = [&](const ov::Output<ov::Node>& input, size_t seed) {
         auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {3}, {1, 2, 3});
         auto mvn =
-            std::make_shared<ov::op::v6::MVN>(input, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
+            std::make_shared<ov::op::v6::MVN>(input, reduction_axes, true, 1e-6f, ov::op::MVNEpsMode::INSIDE_SQRT);
 
         // Weight scale: 0.003/100 = 3e-05
         auto weight = build_weights_dq(ov::element::i8, ov::Shape{32, 32, 3, 3}, 0.003f / scale_divisor, -128, seed);
@@ -520,7 +520,7 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern_re
 
     auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {3}, {1, 2, 3});
     auto final_mvn =
-        std::make_shared<ov::op::v6::MVN>(add3, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
+        std::make_shared<ov::op::v6::MVN>(add3, reduction_axes, true, 1e-6f, ov::op::MVNEpsMode::INSIDE_SQRT);
 
     return std::make_shared<ov::Model>(ov::OutputVector{final_mvn}, params, "QDQStripping");
 }
@@ -563,7 +563,7 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_forward_bias_pattern(
 
     auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
     auto mvn =
-        std::make_shared<ov::op::v6::MVN>(matmul2_biased, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
+        std::make_shared<ov::op::v6::MVN>(matmul2_biased, reduction_axes, true, 1e-6f, ov::op::MVNEpsMode::INSIDE_SQRT);
 
     return std::make_shared<ov::Model>(ov::OutputVector{mvn}, params, "QDQStripping");
 }
@@ -592,7 +592,7 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_forward_bias_pattern_ref(
 
     auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
     auto mvn =
-        std::make_shared<ov::op::v6::MVN>(matmul2_biased, reduction_axes, true, 1e-9f, ov::op::MVNEpsMode::INSIDE_SQRT);
+        std::make_shared<ov::op::v6::MVN>(matmul2_biased, reduction_axes, true, 1e-6f, ov::op::MVNEpsMode::INSIDE_SQRT);
     return std::make_shared<ov::Model>(ov::OutputVector{mvn}, params, "QDQStripping");
 }
 }  // namespace subgraph

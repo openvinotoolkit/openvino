@@ -97,6 +97,8 @@ private:
         if (is_forward && is_scale_invariant(n)) {
             return;
         }
+        // Note: the set of supported nodes is intentionally limited to avoid overcomplicating the adjuster logic and make it safer.
+        // The current set is enough for covering all existing models which require scale adjustment.
         if (!ov::is_type_any_of<ov::op::v1::Add,
                                 ov::op::v0::Constant,
                                 ov::op::v0::Convert,

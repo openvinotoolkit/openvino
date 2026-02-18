@@ -78,14 +78,14 @@ void visit_path(ov::Node* node,
     }
 }
 
-void visit_path_forward(ov::Node* node,
+void visit_path_forward(ov::Node* start_node,
                         std::unordered_set<ov::Node*>& visited,
                         std::function<void(ov::Node*)> func,
                         std::function<bool(ov::Node*)> skip_node_predicate) {
-    if (!node)
+    if (!start_node)
         return;
-    visited.insert(node);
-    std::deque<ov::Node*> nodes{node};
+    visited.insert(start_node);
+    std::deque<ov::Node*> nodes{start_node};
     while (!nodes.empty()) {
         auto curr_node = nodes.front();
         nodes.pop_front();

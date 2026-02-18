@@ -45,9 +45,8 @@ public:
 
         const auto& [input_shape, input_precision, quantization_precision, inference_precision, pattern_type] = obj.param;
         std::ostringstream result;
-        result << "IS=" << input_shape
-               << "_Precision=" << input_precision << "_QuantPrecision=" << quantization_precision << "_InferPrecision=" << inference_precision
-               << "_Pattern=" << pattern_type;
+        result << "input_shape=" << input_shape << "_input_precision=" << input_precision << "_quantization_precision=" << quantization_precision
+               << "_inference_precision=" << inference_precision << "_pattern=" << pattern_type;
         return result.str();
     }
 
@@ -100,6 +99,9 @@ protected:
         }
 
         inType = outType = input_precision;
+
+        // FakeQuantize alters values slightly during computation (scaling, rounding to discrete
+        // levels), so when FQ is stripped, minor differences from the reference are expected.
         abs_threshold = 0.05;
 
         configuration[ov::hint::inference_precision.name()] = inference_precision.get_type_name();
@@ -139,7 +141,8 @@ protected:
                 quantize_count++;
             }
         }
-        ASSERT_EQ(quantize_count, 0u) << "Unexpected Quantize node count.";
+        const size_t expected_quantize_count = 0;
+        ASSERT_EQ(quantize_count, expected_quantize_count) << "Unexpected Quantize node count.";
     }
 };
 

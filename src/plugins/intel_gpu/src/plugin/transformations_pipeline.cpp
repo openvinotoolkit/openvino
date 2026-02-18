@@ -399,8 +399,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     };
     const auto fallback_precision = ov::element::f32;
     auto infer_precision = config.get_inference_precision();
-    if (infer_precision != ov::element::dynamic && !fp_precision_supported(infer_precision))
+    if (infer_precision != ov::element::dynamic && !fp_precision_supported(infer_precision)) {
         infer_precision = fallback_precision;
+    }
     {
         using namespace ov::pass::low_precision;
         const auto enableQDQStripping = LowPrecision::isFunctionQuantized(func, std::set<levels>{levels::int16});
