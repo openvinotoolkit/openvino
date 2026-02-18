@@ -210,8 +210,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     // token_type_ids, i32, [B_token | 0] or [1, B_token]
     config.inConfs[PagedAttentionExecutor::ID_TOKEN_TYPE_IDS].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)
-            ->createSharedDesc(ov::element::i32,
-                               getInputShapeAtPort(PagedAttentionExecutor::ID_TOKEN_TYPE_IDS)));
+            ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_TOKEN_TYPE_IDS)));
 
     config.outConfs[2].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getOutputShapeAtPort(2)));

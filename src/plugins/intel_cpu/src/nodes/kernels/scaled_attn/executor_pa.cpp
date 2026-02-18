@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "cpu_memory.h"
+#include <iostream>
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
@@ -1412,6 +1413,7 @@ struct MHAHelper {
             auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
             auto q_token_start = static_cast<size_t>(subsequence_begins.ptr<int32_t>()[b]);
             auto ncausal = get_ncausal(q_token_start + pq, cur_kv_len, cur_kv_len);
+            //std::cout << ncausal << std::endl;
             // apply attention mask & sofmax
             float* score = _weight_bhl.ptr<float>(b, h, pq);
             OPENVINO_DEBUG_ASSERT(score != nullptr, "PagedAttention: _weight_bhl buffer must be allocated");
@@ -2362,6 +2364,47 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
         if (token_type_ids) {
             _helper.set_token_type(token_type_ids, subsequence_begins, past_lens);
+        }
+
+        // Debug: visualize effective mask parameters per query token
+        if (std::getenv("OV_PA_DEBUG")) {
+            auto B_seq = past_lens.size(0);
+            std::cout << "[PA executor] sliding_window=" << sliding_window
+                      << " token_type_ids=" << (token_type_ids ? "yes" : "no")
+                      << " B_seq=" << B_seq << std::endl;
+            for (size_t b = 0; b < B_seq; b++) {
+                auto seq_begin = subsequence_begins.ptr<int32_t>()[b];
+                auto seq_end = subsequence_begins.ptr<int32_t>()[b + 1];
+                auto past_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]);
+                auto q_len = static_cast<size_t>(seq_end - seq_begin);
+                auto cur_kv_len = past_len + q_len;
+                std::cout << "[PA executor] seq " << b << ": past_len=" << past_len
+                          << " q_len=" << q_len << " cur_kv_len=" << cur_kv_len << std::endl;
+                // Show first few and last few query tokens mask info
+                size_t show_max = 8;
+                for (size_t m = 0; m < q_len; m++) {
+                    if (q_len > 2 * show_max && m == show_max) {
+                        std::cout << "  ... (" << (q_len - 2 * show_max) << " tokens omitted) ..." << std::endl;
+                        m = q_len - show_max;
+                    }
+                    size_t default_ncausal = cur_kv_len - q_len + m + 1;
+                    size_t ncausal = _helper.get_ncausal(seq_begin + m, default_ncausal, cur_kv_len);
+                    size_t sw_start = 0;
+                    if (sliding_window && ncausal > sliding_window) {
+                        sw_start = ncausal - sliding_window;
+                    }
+                    int32_t ttype = token_type_ids ? token_type_ids.ptr<int32_t>()[seq_begin + m] : -1;
+                    int32_t img_end = (token_type_ids && static_cast<size_t>(seq_begin + m) < _helper._image_group_end.size())
+                                     ? _helper._image_group_end[seq_begin + m] : -1;
+                    std::cout << "  q[" << m << "] ttype=" << ttype
+                              << " ncausal=" << ncausal
+                              << " default_ncausal=" << default_ncausal
+                              << (ncausal != default_ncausal ? " (EXTENDED)" : "")
+                              << " sw_start=" << sw_start
+                              << " img_grp_end=" << img_end
+                              << std::endl;
+                }
+            }
         }
 
         if (rotated_block_indices) {

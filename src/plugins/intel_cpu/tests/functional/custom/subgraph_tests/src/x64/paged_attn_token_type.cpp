@@ -299,18 +299,14 @@ TEST_P(PagedAttnTokenTypeTest, ImageTokensDifferFromCausal) {
     auto pa_model_causal = get_pa_model(inType, head_size, head_num);
     auto result_causal = run_pa_with_token_types(pa_model_causal, inType, seq_len, head_size, head_num, all_causal);
 
-    std::vector<size_t> image_positions;
-    for (size_t i = 0; i < seq_len; i++) {
-        if (pattern.types[i] == 1) image_positions.push_back(i);
-    }
-
     // Image tokens should have different output compared to causal-only
     size_t hidden_dim = head_num * head_size;
     auto* bidir_data = result_bidir.output.data<float>();
     auto* causal_data = result_causal.output.data<float>();
 
     bool any_image_differs = false;
-    for (auto pos : image_positions) {
+    for (size_t pos = 0; pos < seq_len; pos++) {
+        if (pattern.types[pos] != 1) continue;  // Skip text tokens
         // Only image tokens that are NOT the last in their group will differ,
         // because only they gain access to future KV positions.
         for (size_t d = 0; d < hidden_dim; d++) {
