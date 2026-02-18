@@ -458,6 +458,11 @@ void Concat::prepareParams() {
             selectedPd->setImplementationType(m_executor->implType());
             return;
         }
+
+        // Fallback to oneDNN/ref concat when executor update is not applicable for runtime shapes.
+        useExecutor = false;
+        m_executor.reset();
+        selectedPd->setImplementationType(impl_desc_type::ref);
     }
 
     const auto& dstMemPtr = getDstMemoryAtPort(0);
