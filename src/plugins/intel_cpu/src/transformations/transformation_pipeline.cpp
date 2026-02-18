@@ -989,8 +989,8 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
 
     CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
     // ConvolutionTransformation is disabled temporary until ACL issues are fixed: #1252, #1253
-    //CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
-    //CPU_DISABLE_PASS_ARM(lptManager, ConvolutionBackpropDataTransformation);
+    // CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
+    // CPU_DISABLE_PASS_ARM(lptManager, ConvolutionBackpropDataTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, MaxPoolTransformation);
@@ -1535,32 +1535,6 @@ void Transformations::MainSnippets() {
                });
     };
 
-    auto should_skip_snippets_tokenization = [ignoreCallback, &is_supported_op](const std::shared_ptr<const ov::Node>& n) {
-        if (ignoreCallback) {
-            return false;
-        }
-#if defined(OPENVINO_ARCH_ARM64)
-        // Keep Conv->Add->Mul->FQ chain outside snippets if it can be fused into int8 convolution
-        if (ov::is_type<const ov::op::v1::Multiply>(n)) {
-            for (const auto& child : n->get_output_target_inputs(0)) {
-                if (match_acl_int8_conv_fq_chain(child.get_node()->shared_from_this())) {
-                    return true;
-                }
-            }
-        }
-
-        // Keep dequantize FQ outside snippets is it can be fused into int8 convolution
-        if (ov::is_type<const ov::op::v0::FakeQuantize>(n) && match_acl_int8_conv_fq_chain(n)) {
-            return true;
-        }
-        // Keep dynamic FQ tokenizable on ARM
-        const bool is_dynamic_fq = n->is_dynamic() && ov::is_type<const ov::op::v0::FakeQuantize>(n);
-        return (n->is_dynamic() && !is_dynamic_fq) || !is_supported_op(n);
-#else
-        return n->is_dynamic() || !is_supported_op(n);
-#endif
-    };
-
     if (!ignoreCallback) {
         CPU_SET_CALLBACK_X64(
             snippetsManager,
@@ -1611,11 +1585,35 @@ void Transformations::MainSnippets() {
             ExtractReshapesFromMHA);
     }
 
+    auto should_skip_snippets_tokenization = [&is_supported_op](const std::shared_ptr<const ov::Node>& n) {
+#if defined(OPENVINO_ARCH_ARM64)
+        // Keep Conv->Add->Mul->FQ chain outside snippets if it can be fused into int8 convolution
+        if (ov::is_type<const ov::op::v1::Multiply>(n)) {
+            for (const auto& child : n->get_output_target_inputs(0)) {
+                if (match_acl_int8_conv_fq_chain(child.get_node()->shared_from_this())) {
+                    return true;
+                }
+            }
+        }
+
+        // Keep dequantize FQ outside snippets is it can be fused into int8 convolution
+        if (ov::is_type<const ov::op::v0::FakeQuantize>(n) && match_acl_int8_conv_fq_chain(n)) {
+            return true;
+        }
+        // Keep dynamic FQ tokenizable on ARM
+        const bool is_dynamic_fq = n->is_dynamic() && ov::is_type<const ov::op::v0::FakeQuantize>(n);
+        return (n->is_dynamic() && !is_dynamic_fq) || !is_supported_op(n);
+#else
+        return n->is_dynamic() || !is_supported_op(n);
+#endif
+    };
+
     CPU_SET_CALLBACK_COMMON(
         snippetsManager,
         [&](const std::shared_ptr<const ov::Node>& n) -> bool {
-            if (should_skip_snippets_tokenization(n)) {
-                return true;
+            if (!ignoreCallback) {
+                if (should_skip_snippets_tokenization(n))
+                    return true;
             }
 
             const auto& inputs = n->inputs();
