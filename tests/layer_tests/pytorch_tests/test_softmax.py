@@ -86,6 +86,8 @@ class TestSoftmaxScalar(PytorchLayerTest):
     @pytest.mark.parametrize("dim", [-1, 0])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_softmax_scalar(self, dim, ie_device, precision, ir_version):
         self._test(aten_softmax_scalar(dim), None, "aten::softmax",
                    ie_device, precision, ir_version)
