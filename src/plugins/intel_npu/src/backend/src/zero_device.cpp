@@ -7,6 +7,7 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
+#include "zero_dynamic_infer_request.hpp"
 #include "zero_infer_request.hpp"
 
 using namespace intel_npu;
@@ -176,6 +177,9 @@ ov::device::Type ZeroDevice::getDeviceType() const {
 std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
     const std::shared_ptr<const ICompiledModel>& compiledModel,
     const Config& config) {
+    if (dynamic_cast<IDynamicGraph*>(compiledModel->get_graph().get())) {
+        return std::make_shared<ZeroDynamicInferRequest>(_initStructs, compiledModel, config);
+    }
     return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, config);
 }
 
