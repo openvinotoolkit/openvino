@@ -9,8 +9,8 @@
 
 namespace intel_npu {
 
-NPUVMRuntimeApi::NPUVMRuntimeApi() {
-    const std::string baseName = "npu_mlir_runtime";
+NPUVMRuntimeApi::NPUVMRuntimeApi(std::string_view libName) {
+    const std::string baseName = libName.empty() ? "npu_mlir_runtime" : std::string(libName);
     try {
         auto libPath = ov::util::make_plugin_library_name(ov::util::get_ov_lib_path(), baseName + OV_BUILD_POSTFIX);
         this->lib = ov::util::load_shared_object(libPath);

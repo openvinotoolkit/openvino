@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <string_view>
 
 #include "intel_npu/runtime/npu_vm_runtime.hpp"
 #include "openvino/core/except.hpp"
@@ -51,7 +52,7 @@ namespace intel_npu {
 
 class NPUVMRuntimeApi {
 public:
-    NPUVMRuntimeApi();
+    NPUVMRuntimeApi(std::string_view libName = "npu_mlir_runtime");
     NPUVMRuntimeApi(const NPUVMRuntimeApi& other) = delete;
     NPUVMRuntimeApi(NPUVMRuntimeApi&& other) = delete;
     void operator=(const NPUVMRuntimeApi&) = delete;
