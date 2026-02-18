@@ -8,7 +8,6 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstdint>
 #include <cstring>
-#include <iostream>
 #include <memory>
 #include <type_traits>
 #include <vector>

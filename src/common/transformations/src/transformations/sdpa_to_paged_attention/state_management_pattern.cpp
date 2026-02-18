@@ -4,7 +4,6 @@
 
 #include "transformations/sdpa_to_paged_attention/state_management_pattern.hpp"
 
-#include <iostream>
 #include <tuple>
 
 #include "openvino/cc/pass/itt.hpp"
@@ -201,9 +200,6 @@ static std::shared_ptr<ov::Node> handle_baichuan2_13b_alibi(
 
 static std::shared_ptr<ov::Node> handle_gemma3_token_type_ids(
     const std::map<std::string, std::shared_ptr<v0::Parameter>>& optional_model_wide_params) {
-    // Gemma3 VLM specific handling: bidirectional attention within image token groups.
-    // When token_type_ids input is present (Gemma3 VLM), it is passed to PagedAttention
-    // to enable bidirectional attention for image tokens.
     if (optional_model_wide_params.find("token_type_ids") != optional_model_wide_params.end()) {
         auto param = optional_model_wide_params.at("token_type_ids");
         return std::make_shared<v0::Convert>(param, ov::element::i32);
@@ -613,7 +609,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         if (pattern_map.count(phi3_offset)) {
             auto offset = pattern_map.at(phi3_offset).get_node_shared_ptr();
             if (offset->get_element_type() != element::i32) {
-                offset = std::make_shared<v0::Convert>(offset, ov::element::i32);
+                offset = std::make_shared<v0::Convert>(offset, element::i32);
             }
             sliding_window = std::make_shared<v1::Subtract>(v0::Constant::create(element::i32, Shape{}, {2}), offset);
         } else if (pattern_map.count(gptoss_gemma3_offset)) {
@@ -622,10 +618,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                 offset = std::make_shared<v15::Squeeze>(offset);
             }
             if (offset->get_element_type() != element::i32) {
-                offset = std::make_shared<v0::Convert>(offset, ov::element::i32);
+                offset = std::make_shared<v0::Convert>(offset, element::i32);
             }
-            sliding_window =
-                std::make_shared<v1::Multiply>(offset, v0::Constant::create(ov::element::i32, ov::Shape{}, {-1}));
+            sliding_window = std::make_shared<v1::Multiply>(offset, v0::Constant::create(element::i32, Shape{}, {-1}));
         } else {
             sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
         }
