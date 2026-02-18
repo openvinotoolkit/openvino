@@ -1,3 +1,8 @@
+#
+# Copyright (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
 set(TARGET_NAME npu_mlir_runtime_api)
 
 add_library(${TARGET_NAME} INTERFACE)
