@@ -1344,8 +1344,12 @@ public:
 
         if (rt_params->stage == PagedAttentionStage::GENERATE) {
             if (rt_params->use_micro_sdpa) {
+
+                //WA: Try fix to prohibit GQA in case of BS > 1
+                const auto& past_lens = params.input_layouts[PagedAttentionInputIdx::PAST_LENS];
+                const auto subsequences_num = past_lens.get_partial_shape()[0].get_length();
                 size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
-                rt_params->use_gqa_kernel = (kv_group_size == 8 && desc->k_head_size == 64);
+                rt_params->use_gqa_kernel = (subsequences_num==1 && kv_group_size == 8 && desc->k_head_size == 64);
                 rt_params->use_micro_sdpa = rt_params->use_gqa_kernel;
             } else {
                 rt_params->use_gqa_kernel = can_use_gqa_kernel(params, PagedAttentionStage::GENERATE, rt_params->max_context_len);
