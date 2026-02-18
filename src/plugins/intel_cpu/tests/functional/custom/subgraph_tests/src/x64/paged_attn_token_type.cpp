@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
