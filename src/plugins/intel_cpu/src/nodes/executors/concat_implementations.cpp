@@ -6,14 +6,14 @@
 
 #include "memory_format_filter.hpp"
 #include "nodes/executors/concat.hpp"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/executor_config.hpp"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/implementation_utils.hpp"
 #include "nodes/executors/implementations.hpp"
+#include "nodes/executors/memory_arguments.hpp"
 #include "utils/arch_macros.h"
 
-#if defined(OPENVINO_ARCH_RISCV64)
-#    include "memory_desc/cpu_memory_desc.h"
-#endif
 #if defined(OV_CPU_WITH_ACL)
 #    include "nodes/executors/acl/acl_concat.hpp"
 #endif
