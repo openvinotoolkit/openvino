@@ -133,9 +133,7 @@ std::shared_ptr<DecoderBase> GraphIteratorFlatBuffer::get_decoder() const {
                                 " is out of range. Number of operator codes: ",
                                 op_codes->size());
         auto operator_code = (*op_codes)[node->opcode_index()];
-        FRONT_END_GENERAL_CHECK(operator_code != nullptr,
-                                "Null operator code at index ",
-                                node->opcode_index());
+        FRONT_END_GENERAL_CHECK(operator_code != nullptr, "Null operator code at index ", node->opcode_index());
         std::string type;
         if (operator_code->deprecated_builtin_code() <
             tflite::BuiltinOperator::BuiltinOperator_PLACEHOLDER_FOR_GREATER_OP_CODES) {
@@ -145,8 +143,7 @@ std::shared_ptr<DecoderBase> GraphIteratorFlatBuffer::get_decoder() const {
         }
         if (type == "CUSTOM") {
             auto custom_code = operator_code->custom_code();
-            FRONT_END_GENERAL_CHECK(custom_code != nullptr,
-                                    "Operator has CUSTOM type but no custom_code string");
+            FRONT_END_GENERAL_CHECK(custom_code != nullptr, "Operator has CUSTOM type but no custom_code string");
             type = custom_code->str();
         }
         auto name = std::to_string(node_index - m_graph->inputs()->size() - m_graph->outputs()->size());
