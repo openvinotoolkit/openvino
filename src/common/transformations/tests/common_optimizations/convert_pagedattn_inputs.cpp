@@ -121,6 +121,7 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
             std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto adaptive_rkv_diversity_block_set_indices_begins =
             std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto token_type_ids = std::make_shared<op::v0::Parameter>(ov::element::i32, ov::Shape{0});
 
         auto pa = std::make_shared<op::PagedAttentionExtension>(
             OutputVector{Q,
@@ -147,7 +148,8 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                          adaptive_rkv_start_size,
                          adaptive_rkv_evictable_sizes,
                          adaptive_rkv_diversity_block_set_indices,
-                         adaptive_rkv_diversity_block_set_indices_begins});
+                         adaptive_rkv_diversity_block_set_indices_begins,
+                         token_type_ids});
         pa->get_rt_info()["num_k_heads"] = numKeyHeads;
         pa->get_rt_info()["k_head_size"] = keyHeadSize;
         pa->get_rt_info()["num_v_heads"] = numValueHeads;
@@ -174,7 +176,8 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                 adaptive_rkv_start_size,
                                                                 adaptive_rkv_evictable_sizes,
                                                                 adaptive_rkv_diversity_block_set_indices,
-                                                                adaptive_rkv_diversity_block_set_indices_begins});
+                                                                adaptive_rkv_diversity_block_set_indices_begins,
+                                                                token_type_ids});
 
         if (isIRKVCacheF16) {
             model->set_rt_info("f16", "runtime_options", ov::hint::kv_cache_precision.name());
@@ -254,6 +257,7 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
             std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
         auto adaptive_rkv_diversity_block_set_indices_begins =
             std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto token_type_ids = std::make_shared<v0::Parameter>(ov::element::i32, ov::Shape{0});
 
         auto pa = std::make_shared<op::PagedAttentionExtension>(
             OutputVector{Q,
@@ -280,7 +284,8 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                          adaptive_rkv_start_size,
                          adaptive_rkv_evictable_sizes,
                          adaptive_rkv_diversity_block_set_indices,
-                         adaptive_rkv_diversity_block_set_indices_begins});
+                         adaptive_rkv_diversity_block_set_indices_begins,
+                         token_type_ids});
         pa->get_rt_info()["num_k_heads"] = numKeyHeads;
         pa->get_rt_info()["k_head_size"] = keyHeadSize;
         pa->get_rt_info()["num_v_heads"] = numValueHeads;
@@ -307,7 +312,8 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                     adaptive_rkv_start_size,
                                                                     adaptive_rkv_evictable_sizes,
                                                                     adaptive_rkv_diversity_block_set_indices,
-                                                                    adaptive_rkv_diversity_block_set_indices_begins});
+                                                                    adaptive_rkv_diversity_block_set_indices_begins,
+                                                                    token_type_ids});
     }
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
     cacheConfig.keyCacheBlockSize = blockSize[0];
