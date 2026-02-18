@@ -925,7 +925,7 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initReference() con
             ov::op::TemporaryReplaceOutputType(deq, element::f32).get());
 
     const auto softMax = std::make_shared<ov::opset1::Softmax>(deq_mul, 3);
-    const auto fq4 = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(softMax, ov::element::u8, 0.f, 0.245f, 1040.81628f, false, false);
+    const auto fq4 = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(softMax, ov::element::u8, 0.f, 0.245f, 1040.81628f, true, false);
 
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose2Param, transpose2Const);
     const auto matMul1 = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
