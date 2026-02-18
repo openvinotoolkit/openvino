@@ -104,11 +104,10 @@ std::set<std::vector<element::Type>> jit_add_emitter::get_supported_precisions(c
     // Only enable u8 wrap-around for pure u8->u8 arithmetic.
     // QDQ/dequantization patterns (u8 input, f32/i32 output) must NOT use u8 execution.
     // node may be nullptr when called from SupportedPrecisions functor (general query).
-    if (node &&
-        ov::intel_cpu::all_of(element::u8,
-                              node->get_input_element_type(0),
-                              node->get_input_element_type(1),
-                              node->get_output_element_type(0))) {
+    if (node && ov::intel_cpu::all_of(element::u8,
+                                      node->get_input_element_type(0),
+                                      node->get_input_element_type(1),
+                                      node->get_output_element_type(0))) {
         supported.insert({element::u8, element::u8});
     }
 
@@ -287,11 +286,10 @@ std::set<std::vector<element::Type>> jit_subtract_emitter::get_supported_precisi
     // Only enable u8 wrap-around for pure u8->u8 arithmetic.
     // QDQ/dequantization patterns (u8 input, f32/i32 output) must NOT use u8 execution.
     // node may be nullptr when called from SupportedPrecisions functor (general query).
-    if (node &&
-        ov::intel_cpu::all_of(element::u8,
-                              node->get_input_element_type(0),
-                              node->get_input_element_type(1),
-                              node->get_output_element_type(0))) {
+    if (node && ov::intel_cpu::all_of(element::u8,
+                                      node->get_input_element_type(0),
+                                      node->get_input_element_type(1),
+                                      node->get_output_element_type(0))) {
         supported.insert({element::u8, element::u8});
     }
 
