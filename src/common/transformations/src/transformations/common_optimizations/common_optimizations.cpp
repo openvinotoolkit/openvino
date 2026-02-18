@@ -146,7 +146,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // - CPU plugin disables SDPAFusion (doesn't want SDPA nodes)
     // - GPU plugin keeps SDPAFusion and blocks SDPA decomposition
     // Running SDPAFusion during convert_model() would create SDPA nodes that get decomposed
-    // with different FP32 computation order, causing accuracy loss (CVS-180477).
+    // with different FP32 computation order, causing accuracy loss.
     REGISTER_PASS(manager, SDPAFusion)
     REGISTER_PASS(manager, SDPAScaleFusion)
 
