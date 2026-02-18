@@ -1345,7 +1345,7 @@ public:
         if (rt_params->stage == PagedAttentionStage::GENERATE) {
             if (rt_params->use_micro_sdpa) {
 
-                //WA: Try fix to prohibit GQA in case of BS > 1
+                // WA: Try fix to prohibit GQA in case of BS > 1
                 const auto& past_lens = params.input_layouts[PagedAttentionInputIdx::PAST_LENS];
                 const auto subsequences_num = past_lens.get_partial_shape()[0].get_length();
                 size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
