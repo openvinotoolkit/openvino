@@ -68,7 +68,6 @@
 #include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 #include "transformations/common_optimizations/ric_fusion.hpp"
-#include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/common_optimizations/select_with_one_value_condition.hpp"
 #include "transformations/common_optimizations/sequence_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
@@ -250,7 +249,6 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     common_fusions->set_name("ov::pass::CommonFusions");
 
     REGISTER_PASS(manager, PackMultiHeadAttention)
-    REGISTER_PASS(manager, SDPAFusion)
     REGISTER_PASS(manager, BinarizeWeights)
     REGISTER_PASS(manager, ConvToBinaryConv)
 
