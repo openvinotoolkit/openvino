@@ -34,25 +34,6 @@ using jit_generator_t = ov::intel_cpu::riscv64::jit_generator_t;
 using cpu_isa_t = ov::intel_cpu::riscv64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
-namespace {
-
-void set_vector_length(jit_generator_t* h,
-                       size_t vector_length,
-                       Xbyak_riscv::SEW sew,
-                       const std::vector<size_t>& aux_gpr_idxs) {
-    if (vector_length <= 31) {
-        h->vsetivli(Xbyak_riscv::zero, vector_length, sew, Xbyak_riscv::LMUL::m1);
-        return;
-    }
-
-    OV_CPU_JIT_EMITTER_ASSERT(!aux_gpr_idxs.empty(), "Large vector length requires an auxiliary GPR register");
-    const auto vector_length_reg = Xbyak_riscv::Reg(static_cast<int>(aux_gpr_idxs.back()));
-    h->uni_li(vector_length_reg, vector_length);
-    h->vsetvli(Xbyak_riscv::zero, vector_length_reg, sew, Xbyak_riscv::LMUL::m1);
-}
-
-}  // namespace
-
 jit_memory_emitter::jit_memory_emitter(jit_generator_t* h,
                                        cpu_isa_t isa,
                                        const ExpressionPtr& expr,
