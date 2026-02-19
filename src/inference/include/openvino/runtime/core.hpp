@@ -147,20 +147,12 @@ public:
      * @return A model.
      * @{
      */
-    template <typename... Properties>
-    util::EnableIfAllStringAny<std::shared_ptr<ov::Model>, Properties...> read_model(const std::string& model_path,
-                                                                                     const std::string& bin_path,
+    template <class Path, class... Properties, std::enable_if_t<(sizeof...(Properties) > 0)>* = nullptr>
+    util::EnableIfAllStringAny<std::shared_ptr<ov::Model>, Properties...> read_model(const Path& model_path,
+                                                                                     const Path& bin_path,
                                                                                      Properties&&... properties) const {
-        return read_model(model_path, bin_path, AnyMap{std::forward<Properties>(properties)...});
-    }
-
-    template <class Path,
-              class... Properties,
-              std::enable_if_t<std::is_same_v<Path, std::filesystem::path> && (sizeof...(Properties) > 0)>* = nullptr>
-    std::shared_ptr<ov::Model> read_model(const Path& model_path,
-                                          const Path& bin_path,
-                                          Properties&&... properties) const {
-        return read_model(model_path, bin_path, AnyMap{std::forward<Properties>(properties)...});
+        const AnyMap map{std::forward<Properties>(properties)...};
+        return read_model(model_path, bin_path, map);
     }
     /// @}
 

@@ -206,6 +206,17 @@ TEST_F(CoreBaseTest, read_model_with_std_fs_path) {
     }
 }
 
+TEST_F(CoreBaseTest, read_model_variadic_properties_std_string) {
+    generate_test_model_files("test-model-variadic");
+
+    ov::Core core;
+    const auto model = core.read_model(model_file_name,
+                                       weight_file_name,
+                                       std::pair<std::string, std::string>("prop1", "val1"),
+                                       std::pair<std::string, std::string>("prop2", "val2"));
+    EXPECT_NE(model, nullptr);
+}
+
 TEST_F(CoreBaseTest, compile_model_with_std_fs_path) {
     generate_test_model_files("model2");
 
