@@ -9,26 +9,10 @@
 #include <unordered_map>
 
 #include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/tlv_format.hpp"
 #include "storage_traits.hpp"
 
 namespace ov {
-struct SingleFileStorageHeaderCodec {
-    TLVStorage::Version version;
-
-    friend std::istream& operator>>(std::istream& stream, SingleFileStorageHeaderCodec& codec) {
-        stream.read(reinterpret_cast<char*>(&codec.version.major), sizeof(codec.version.major));
-        stream.read(reinterpret_cast<char*>(&codec.version.minor), sizeof(codec.version.minor));
-        stream.read(reinterpret_cast<char*>(&codec.version.patch), sizeof(codec.version.patch));
-        return stream;
-    }
-
-    friend std::ostream& operator<<(std::ostream& stream, const SingleFileStorageHeaderCodec& codec) {
-        stream.write(reinterpret_cast<const char*>(&codec.version.major), sizeof(codec.version.major));
-        stream.write(reinterpret_cast<const char*>(&codec.version.minor), sizeof(codec.version.minor));
-        stream.write(reinterpret_cast<const char*>(&codec.version.patch), sizeof(codec.version.patch));
-        return stream;
-    }
-};
 
 struct SharedContextStreamCodec {
     SharedContext* ctx;
@@ -39,7 +23,7 @@ struct SharedContextStreamCodec {
         }
         TLVStorage::Tag tag{};
         do {
-            TLVStorage::length_type ctx_size{};
+            TLVFormat::length_type ctx_size{};
             stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
             if (!stream.good()) {
                 break;
@@ -76,7 +60,7 @@ struct SharedContextStreamCodec {
         }
         constexpr auto sc_tag = TLVStorage::Tag::SharedContext;
         stream.write(reinterpret_cast<const char*>(&sc_tag), sizeof(sc_tag));
-        TLVStorage::length_type ctx_size = 0;
+        TLVFormat::length_type ctx_size = 0;
         const auto size_offset = stream.tellp();
         stream.write(reinterpret_cast<const char*>(&ctx_size), sizeof(ctx_size));
         for (const auto& [id, consts] : *codec.ctx) {
@@ -97,30 +81,5 @@ struct SharedContextStreamCodec {
     }
 };
 
-namespace {
-void write_tlv_string(std::ostream& stream, const std::string& str) {
-    constexpr auto str_tag = TLVStorage::Tag::String;
-    stream.write(reinterpret_cast<const char*>(&str_tag), sizeof(str_tag));
-    const auto size = static_cast<TLVStorage::length_type>(str.size());
-    stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
-    stream.write(str.data(), str.size());
-}
-
-bool read_tlv_string(std::istream& stream, std::string& str) {
-    TLVStorage::Tag tag{};
-    TLVStorage::length_type size{};
-    stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
-    if (!stream.good()) {
-        return false;
-    }
-    OPENVINO_ASSERT(tag == TLVStorage::Tag::String);
-    stream.read(reinterpret_cast<char*>(&size), sizeof(size));
-    if (!stream.good() || size == 0) {
-        return false;
-    }
-    str.resize(size);
-    stream.read(str.data(), str.size());
-    return true;
-}
-}  // namespace
+namespace {}  // namespace
 }  // namespace ov

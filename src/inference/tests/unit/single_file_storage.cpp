@@ -83,11 +83,11 @@ TEST_F(SingleFileStorageTest, WriteReadCacheEntry) {
                 ASSERT_TRUE(std::holds_alternative<const ov::Tensor>(compiled_blob));
                 ++read_count;
                 // todo Check support for multimap memory mapping
-                // auto& tensor = std::get<const ov::Tensor>(compiled_blob);
-                // ASSERT_EQ(tensor.get_byte_size(), blob_data.size());
-                // std::vector<uint8_t> read_data(blob_data.size());
-                // std::memcpy(read_data.data(), tensor.data(), tensor.get_byte_size());
-                // ASSERT_EQ(blob_data, read_data);
+                auto& tensor = std::get<const ov::Tensor>(compiled_blob);
+                ASSERT_EQ(tensor.get_byte_size(), blob_data.size());
+                std::vector<uint8_t> read_data(blob_data.size());
+                std::memcpy(read_data.data(), tensor.data(), tensor.get_byte_size());
+                ASSERT_EQ(blob_data, read_data);
             });
         }
         EXPECT_EQ(read_count, 2 * test_blobs.size());
@@ -119,7 +119,7 @@ TEST_F(SingleFileStorageTest, Alignement) {
 
     while (stream.good() && stream.tellg() < stream_end) {
         TLVStorage::Tag tag{};
-        TLVStorage::length_type entry_size{};
+        TLVFormat::length_type entry_size{};
         stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
         ASSERT_TRUE(stream.good());
         stream.read(reinterpret_cast<char*>(&entry_size), sizeof(entry_size));
