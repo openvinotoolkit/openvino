@@ -1,5 +1,5 @@
 // Copyright (C) 2018-2026 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: Apache 2.0
 //
 
 #include "image_quality_helper.hpp"
@@ -1509,6 +1509,7 @@ bool testRAW(const TensorMap& outputTensors, const TensorMap& referenceTensors, 
         return false;
     }
 
+    bool allPassed = true;
     for (const auto& [tensorName, outputTensor] : outputTensors) {
         auto referenceTensorIterator = referenceTensors.find(tensorName);
         OPENVINO_ASSERT(referenceTensorIterator != referenceTensors.end());
@@ -1517,10 +1518,11 @@ bool testRAW(const TensorMap& outputTensors, const TensorMap& referenceTensors, 
                                  splitBatchedTensor(outputTensor, tensorName, outputLayouts),
                                  splitBatchedTensor(referenceTensorIterator->second, tensorName, outputLayouts),
                                  compareTensors)) {
-            return false;
+            allPassed = false;
         }
     }
-    return true;
+
+    return allPassed;
 }
 
 //
@@ -1576,6 +1578,7 @@ bool testCoSim(const TensorMap& outputs, const TensorMap& references, const Layo
         return false;
     }
 
+    bool allPassed = true;
     for (const auto& [tensorName, output] : outputs) {
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
@@ -1584,11 +1587,11 @@ bool testCoSim(const TensorMap& outputs, const TensorMap& references, const Layo
                                  splitBatchedTensor(output, tensorName, outputLayouts),
                                  splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
                                  compareCoSim)) {
-            return false;
+            allPassed = false;
         }
     }
 
-    return true;
+    return allPassed;
 }
 
 //
@@ -1641,6 +1644,7 @@ bool testRRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
         return false;
     }
 
+    bool allPassed = true;
     for (const auto& [tensorName, output] : outputs) {
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
@@ -1649,11 +1653,11 @@ bool testRRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
                                  splitBatchedTensor(output, tensorName, outputLayouts),
                                  splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
                                  computeRRMSE)) {
-            return false;
+            allPassed = false;
         }
     }
 
-    return true;
+    return allPassed;
 }
 
 //
@@ -2142,6 +2146,7 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
         return false;
     }
 
+    bool allPassed = true;
     for (auto& [tensorName, output] : outputs) {
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
@@ -2170,15 +2175,16 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
             }
             return computeNRMSE(outputTensor, referenceTensor);
         };
+
         if (!test_blobs_in_batch(tensorName,
                                  splitBatchedTensor(output, tensorName, outputLayouts),
                                  splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
                                  blobComparator)) {
-            return false;
+            allPassed = false;
         }
     }
 
-    return true;
+    return allPassed;
 }
 
 
@@ -2222,6 +2228,7 @@ bool testL2Norm(const TensorMap& outputs, const TensorMap& references, const Lay
         return false;
     }
 
+    bool allPassed = true;
     for (auto& [tensorName, output] : outputs) {
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
@@ -2230,11 +2237,11 @@ bool testL2Norm(const TensorMap& outputs, const TensorMap& references, const Lay
                                  splitBatchedTensor(output, tensorName, outputLayouts),
                                  splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
                                  computeL2Norm)) {
-            return false;
+            allPassed = false;
         }
     }
 
-    return true;
+    return allPassed;
 }
 
 //
