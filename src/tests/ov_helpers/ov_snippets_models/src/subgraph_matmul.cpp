@@ -3,13 +3,16 @@
 //
 
 #include "subgraph_matmul.hpp"
-#include "common_test_utils/data_utils.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "snippets/op/result.hpp"
+
+#include <numeric>
 #include <snippets/op/subgraph.hpp>
+
+#include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
-#include "ov_ops/type_relaxed.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "ov_ops/type_relaxed.hpp"
+#include "snippets/op/result.hpp"
 
 namespace ov {
 namespace test {
@@ -21,15 +24,15 @@ std::shared_ptr<ov::Node> make_matmul_b_input(const ov::element::Type& precision
                                               ov::ParameterVector& params) {
     std::shared_ptr<ov::Node> result;
     switch (type) {
-        case MatMulType::FullyConnected:
-            return ov::test::utils::make_constant(precision, shape.to_shape());
-        case MatMulType::MatMul: {
-            auto param = std::make_shared<op::v0::Parameter>(precision, shape);
-            params.push_back(param);
-            return param;
-        }
-        default:
-            OPENVINO_THROW("Unexpected MatMulType is passed in make_matmul_b_input");
+    case MatMulType::FullyConnected:
+        return ov::test::utils::make_constant(precision, shape.to_shape());
+    case MatMulType::MatMul: {
+        auto param = std::make_shared<op::v0::Parameter>(precision, shape);
+        params.push_back(param);
+        return param;
+    }
+    default:
+        OPENVINO_THROW("Unexpected MatMulType is passed in make_matmul_b_input");
     }
 }
 
@@ -42,16 +45,16 @@ std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& in, boo
     const auto high = signed_interval ? i8_fq_ih : u8_fq_ih;
     return ov::test::utils::make_fake_quantize(in, ov::element::f32, 256, {1}, {low}, {high}, {low}, {high});
 }
-} // namespace
+}  // namespace
 
-std::ostream &operator<<(std::ostream& os, MatMulType type) {
+std::ostream& operator<<(std::ostream& os, MatMulType type) {
     switch (type) {
-        case MatMulType::MatMul:
-            return os << "MatMul";
-        case MatMulType::FullyConnected:
-            return os << "FullyConnected";
-        default:
-            OPENVINO_THROW("Unexpected MatMulType.");
+    case MatMulType::MatMul:
+        return os << "MatMul";
+    case MatMulType::FullyConnected:
+        return os << "FullyConnected";
+    default:
+        OPENVINO_THROW("Unexpected MatMulType.");
     }
 }
 
@@ -64,18 +67,23 @@ MatMulFunctionBase::MatMulFunctionBase(const std::vector<PartialShape>& inputSha
     if (!precisions.empty()) {
         OPENVINO_ASSERT(precisions.size() == 2, "Got invalid number of input element types");
         const bool is_f32 = ov::snippets::utils::all_of(element::f32, precisions[0], precisions[1]);
-        const bool is_int8 = ov::snippets::utils::any_of(precisions[0], element::i8, element::u8) && precisions[1] == element::i8;
+        const bool is_int8 =
+            ov::snippets::utils::any_of(precisions[0], element::i8, element::u8) && precisions[1] == element::i8;
         const bool is_bf16 = ov::snippets::utils::all_of(element::bf16, precisions[0], precisions[1]);
         const bool is_f16 = ov::snippets::utils::all_of(element::f16, precisions[0], precisions[1]);
         OPENVINO_ASSERT(is_f32 || is_bf16 || is_f16 || is_int8, "Invalid precisions");
     }
 }
 
-void MatMulFunctionBase::validate_function(const std::shared_ptr<Model> &f) const {
+void MatMulFunctionBase::validate_function(const std::shared_ptr<Model>& f) const {
     OPENVINO_ASSERT(f != nullptr, "The test requires Model to be defined");
     const auto count_of_shapes = input_shapes.size();
     const auto idces_to_remove = get_constant_input_idces();
-    OPENVINO_ASSERT(std::all_of(idces_to_remove.begin(), idces_to_remove.end(), [&count_of_shapes](size_t x) { return x < count_of_shapes; }),
+    OPENVINO_ASSERT(std::all_of(idces_to_remove.begin(),
+                                idces_to_remove.end(),
+                                [&count_of_shapes](size_t x) {
+                                    return x < count_of_shapes;
+                                }),
                     "constant_input_idces must be less than input shapes size");
 
     std::vector<ov::PartialShape> shapes_to_check;
@@ -83,7 +91,9 @@ void MatMulFunctionBase::validate_function(const std::shared_ptr<Model> &f) cons
         if (idces_to_remove.count(i) == 0)
             shapes_to_check.push_back(input_shapes[i]);
     }
-    SnippetsFunctionBase::validate_params_shape(shapes_to_check, f->get_parameters());
+    std::vector<size_t> parameter_indices(shapes_to_check.size());
+    std::iota(parameter_indices.begin(), parameter_indices.end(), 0);
+    SnippetsFunctionBase::validate_params_shape(shapes_to_check, parameter_indices, f->get_parameters());
 }
 
 std::shared_ptr<ov::Model> MatMulFunction::initOriginal() const {
@@ -97,7 +107,8 @@ std::shared_ptr<ov::Model> MatMulFunction::initOriginal() const {
             std::vector<element::Type>{element::f32},
             ov::op::TemporaryReplaceOutputType(data0, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(data1, element::f32).get(),
-            false, transpose_b);
+            false,
+            transpose_b);
     } else {
         matmul = std::make_shared<op::v0::MatMul>(data0, data1, false, transpose_b);
     }
@@ -112,11 +123,12 @@ std::shared_ptr<ov::Model> MatMulFunction::initReference() const {
     std::shared_ptr<Node> matmul;
     if (precisions[1] == ov::element::i8) {
         matmul = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
-                std::vector<element::Type>{ element::f32, element::f32 },
-                std::vector<element::Type>{ element::f32 },
-                ov::op::TemporaryReplaceOutputType(indata0, element::f32).get(),
-                ov::op::TemporaryReplaceOutputType(indata1, element::f32).get(),
-                false, transpose_b);
+            std::vector<element::Type>{element::f32, element::f32},
+            std::vector<element::Type>{element::f32},
+            ov::op::TemporaryReplaceOutputType(indata0, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(indata1, element::f32).get(),
+            false,
+            transpose_b);
     } else {
         matmul = std::make_shared<op::v0::MatMul>(indata0, indata1, false, transpose_b);
     }
@@ -127,7 +139,7 @@ std::shared_ptr<ov::Model> MatMulFunction::initReference() const {
     return std::make_shared<ov::Model>(OutputVector{subgraph}, params);
 }
 std::shared_ptr<ov::Model> FQMatMulFunction::initOriginal() const {
-    auto const_order = std::make_shared<op::v0::Constant>(ov::element::i32, Shape {4}, std::vector<int>{0, 2, 1, 3});
+    auto const_order = std::make_shared<op::v0::Constant>(ov::element::i32, Shape{4}, std::vector<int>{0, 2, 1, 3});
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     ParameterVector params{data0};
 
@@ -138,7 +150,8 @@ std::shared_ptr<ov::Model> FQMatMulFunction::initOriginal() const {
 
     auto data1 = make_matmul_b_input(ov::element::i8, input_shapes[1], matmul_type, params);
     auto convert = std::make_shared<op::v0::Convert>(data1, ov::element::f32);
-    auto deq_mul = std::make_shared<op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0.00499185826});
+    auto deq_mul =
+        std::make_shared<op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0.00499185826});
     auto mul = std::make_shared<op::v1::Multiply>(convert, deq_mul);
     std::shared_ptr<ov::Node> in1 = mul;
     if (pos == 1) {
@@ -161,12 +174,12 @@ std::shared_ptr<ov::Model> MatMulBiasFunction::initOriginal() const {
     params.push_back(data2);
 
     std::shared_ptr<Node> matmul;
-    if (precisions[1]  == ov::element::i8) {
+    if (precisions[1] == ov::element::i8) {
         matmul = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
-                std::vector<element::Type>{ element::f32, element::f32 },
-                std::vector<element::Type>{ element::f32 },
-                ov::op::TemporaryReplaceOutputType(data0, element::f32).get(),
-                ov::op::TemporaryReplaceOutputType(data1, element::f32).get());
+            std::vector<element::Type>{element::f32, element::f32},
+            std::vector<element::Type>{element::f32},
+            ov::op::TemporaryReplaceOutputType(data0, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(data1, element::f32).get());
     } else {
         matmul = std::make_shared<op::v0::MatMul>(data0, data1);
     }
@@ -201,8 +214,10 @@ std::shared_ptr<ov::Model> MatMulsQuantizedFunction::initOriginal() const {
         ov::op::TemporaryReplaceOutputType(data1, element::f32).get());
     auto fq0 = make_fake_quantize(matmul0, false);
     auto fq2 = make_fake_quantize(data2, true);
-    auto new_shape = std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{4},
-                                                            std::vector<uint64_t>{1, 1, input_shapes[2].get_shape()[0], input_shapes[2].get_shape()[1]});
+    auto new_shape = std::make_shared<ov::op::v0::Constant>(
+        ov::element::u64,
+        ov::Shape{4},
+        std::vector<uint64_t>{1, 1, input_shapes[2].get_shape()[0], input_shapes[2].get_shape()[1]});
     auto reshape = std::make_shared<ov::op::v1::Reshape>(fq2, new_shape, false);
     auto matmul1 = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
         std::vector<element::Type>{ov::element::f32, element::f32},
@@ -216,47 +231,49 @@ std::shared_ptr<ov::Model> Transpose0213MatMulFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precisions[0], input_shapes[0]);
     ParameterVector params{data0};
     auto data1 = make_matmul_b_input(precisions[1], input_shapes[1], matmul_type, params);
-    auto const_order = std::make_shared<op::v0::Constant>(ov::element::i32, Shape {4}, std::vector<int>{0, 2, 1, 3});
+    auto const_order = std::make_shared<op::v0::Constant>(ov::element::i32, Shape{4}, std::vector<int>{0, 2, 1, 3});
     std::shared_ptr<Node> result;
     switch (transpose_position) {
-        case 0: {
-            auto transpose = std::make_shared<op::v1::Transpose>(data0, const_order);
-            if (precisions[1] == ov::element::i8) {
-                result = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
-                    std::vector<element::Type>{ov::element::f32, element::f32},
-                    std::vector<element::Type>{element::f32},
-                    ov::op::TemporaryReplaceOutputType(transpose, element::f32).get(),
-                    ov::op::TemporaryReplaceOutputType(data1, element::f32).get());
-            } else {
-                result = std::make_shared<op::v0::MatMul>(transpose, data1);
-            }
-            break;
-        } case 1: {
-            auto transpose = std::make_shared<op::v1::Transpose>(data1, const_order);
-            if (precisions[1] == ov::element::i8) {
-                result = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
-                    std::vector<element::Type>{ov::element::f32, element::f32},
-                    std::vector<element::Type>{element::f32},
-                    ov::op::TemporaryReplaceOutputType(data0, element::f32).get(),
-                    ov::op::TemporaryReplaceOutputType(transpose, element::f32).get());
-            } else {
-                result = std::make_shared<op::v0::MatMul>(data0, transpose);
-            }
-            break;
-        } case 2: {
-            std::shared_ptr<ov::Node> matmul;
-            if (precisions[1] == ov::element::i8) {
-                matmul = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
-                    std::vector<element::Type>{ov::element::f32, element::f32},
-                    std::vector<element::Type>{element::f32},
-                    ov::op::TemporaryReplaceOutputType(data0, element::f32).get(),
-                    ov::op::TemporaryReplaceOutputType(data1, element::f32).get());
-            } else {
-                matmul = std::make_shared<op::v0::MatMul>(data0, data1);
-            }
-            result = std::make_shared<op::v1::Transpose>(matmul, const_order);
-            break;
+    case 0: {
+        auto transpose = std::make_shared<op::v1::Transpose>(data0, const_order);
+        if (precisions[1] == ov::element::i8) {
+            result = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
+                std::vector<element::Type>{ov::element::f32, element::f32},
+                std::vector<element::Type>{element::f32},
+                ov::op::TemporaryReplaceOutputType(transpose, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(data1, element::f32).get());
+        } else {
+            result = std::make_shared<op::v0::MatMul>(transpose, data1);
         }
+        break;
+    }
+    case 1: {
+        auto transpose = std::make_shared<op::v1::Transpose>(data1, const_order);
+        if (precisions[1] == ov::element::i8) {
+            result = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
+                std::vector<element::Type>{ov::element::f32, element::f32},
+                std::vector<element::Type>{element::f32},
+                ov::op::TemporaryReplaceOutputType(data0, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(transpose, element::f32).get());
+        } else {
+            result = std::make_shared<op::v0::MatMul>(data0, transpose);
+        }
+        break;
+    }
+    case 2: {
+        std::shared_ptr<ov::Node> matmul;
+        if (precisions[1] == ov::element::i8) {
+            matmul = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
+                std::vector<element::Type>{ov::element::f32, element::f32},
+                std::vector<element::Type>{element::f32},
+                ov::op::TemporaryReplaceOutputType(data0, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(data1, element::f32).get());
+        } else {
+            matmul = std::make_shared<op::v0::MatMul>(data0, data1);
+        }
+        result = std::make_shared<op::v1::Transpose>(matmul, const_order);
+        break;
+    }
     }
     return std::make_shared<ov::Model>(OutputVector{result}, params);
 }
@@ -264,7 +281,7 @@ std::shared_ptr<ov::Model> Transpose0213MatMulFunction::initOriginal() const {
 std::shared_ptr<ov::Model> TransposeMatMulFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
-    auto const_order = std::make_shared<op::v0::Constant>(ov::element::i32, Shape {4}, std::vector<int>{0, 2, 3, 1});
+    auto const_order = std::make_shared<op::v0::Constant>(ov::element::i32, Shape{4}, std::vector<int>{0, 2, 3, 1});
     auto transpose = std::make_shared<op::v1::Transpose>(data1, const_order);
     auto matmul = std::make_shared<op::v0::MatMul>(data0, transpose);
     return std::make_shared<ov::Model>(OutputVector{matmul}, ParameterVector{data0, data1});
@@ -273,7 +290,7 @@ std::shared_ptr<ov::Model> TransposeMatMulBiasFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
     auto data2 = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
-    auto const_order = std::make_shared<op::v0::Constant>(ov::element::i32, Shape {4}, std::vector<int>{0, 2, 3, 1});
+    auto const_order = std::make_shared<op::v0::Constant>(ov::element::i32, Shape{4}, std::vector<int>{0, 2, 3, 1});
     auto transpose = std::make_shared<op::v1::Transpose>(data1, const_order);
     auto matmul = std::make_shared<op::v0::MatMul>(data0, transpose);
     auto bias = std::make_shared<op::v1::Add>(matmul, data2);
@@ -284,7 +301,7 @@ std::shared_ptr<ov::Model> TransposeMulMatMulBiasFunction::initOriginal() const 
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
     auto data2 = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
     auto data3 = std::make_shared<op::v0::Parameter>(precision, input_shapes[3]);
-    auto const_order = std::make_shared<op::v0::Constant>(ov::element::i32, Shape {4}, std::vector<int>{0, 2, 3, 1});
+    auto const_order = std::make_shared<op::v0::Constant>(ov::element::i32, Shape{4}, std::vector<int>{0, 2, 3, 1});
     auto transpose = std::make_shared<op::v1::Transpose>(data1, const_order);
     auto mul = std::make_shared<op::v1::Multiply>(transpose, data2);
     auto matmul = std::make_shared<op::v0::MatMul>(data0, mul);
@@ -304,8 +321,10 @@ std::shared_ptr<ov::Model> MatMulsQuantizedSoftmaxFunction::initOriginal() const
     auto softmax = std::make_shared<ov::op::v8::Softmax>(matmul0, -1);
     auto fq0 = make_fake_quantize(softmax, false);
     auto fq2 = make_fake_quantize(data2, true);
-    auto new_shape = std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{4},
-                                                            std::vector<uint64_t>{1, 1, input_shapes[2].get_shape()[0], input_shapes[2].get_shape()[1]});
+    auto new_shape = std::make_shared<ov::op::v0::Constant>(
+        ov::element::u64,
+        ov::Shape{4},
+        std::vector<uint64_t>{1, 1, input_shapes[2].get_shape()[0], input_shapes[2].get_shape()[1]});
     auto reshape = std::make_shared<ov::op::v1::Reshape>(fq2, new_shape, false);
     auto matmul1 = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
         std::vector<element::Type>{ov::element::f32, element::f32},

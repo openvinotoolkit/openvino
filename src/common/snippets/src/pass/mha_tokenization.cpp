@@ -23,6 +23,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
@@ -378,6 +379,18 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
                 // Transpose is redundant for rank <= 2
                 if (rank <= 2) {
                     return;
+                }
+                // For input transposes we can only tokenize branches that are rooted in Parameter.
+                // Constant-origin transposes must stay outside body (or be folded) to keep body valid.
+                if (transpose) {
+                    auto parent = transpose->get_input_node_shared_ptr(0);
+                    while (!ov::is_type<ov::op::v0::Parameter>(parent)) {
+                        if (ov::is_type<ov::op::v0::Constant>(parent) || parent->get_input_size() == 0 ||
+                            !ov::snippets::pass::ExplicitTransposeMatMulInputs::are_weights_scalar(parent)) {
+                            return;
+                        }
+                        parent = parent->get_input_node_shared_ptr(0);
+                    }
                 }
                 // If Transpose has valid order for the Transpose fusing (ExplicitTransposeMatMulInputs pass call),
                 // tokenize him. Otherwise, skip the Transpose.

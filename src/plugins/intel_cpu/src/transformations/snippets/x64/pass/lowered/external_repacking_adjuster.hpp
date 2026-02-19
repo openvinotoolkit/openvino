@@ -34,7 +34,7 @@ public:
 
     bool run(const snippets::lowered::LinearIR& linear_ir) override;
     bool applicable() const override {
-        return !m_executors.empty();
+        return !m_executors.empty() || !m_prepacked_configs.empty();
     }
 
 private:
@@ -52,11 +52,13 @@ private:
                               size_t N,
                               size_t K);
 
+    static BrgemmCopyBKernelConfig get_kernel_config(const ov::snippets::lowered::ExpressionPtr& param);
     static RepackExecutorPtr create_executor(const ov::snippets::lowered::ExpressionPtr& param,
                                              const ov::intel_cpu::MultiCacheWeakPtr& cache);
 
     static const size_t brgemm_kernel_rank;
     std::unordered_map<size_t, RepackExecutorPtr> m_executors;
+    std::unordered_map<size_t, BrgemmCopyBKernelConfig> m_prepacked_configs;
 };
 
 }  // namespace ov::intel_cpu::pass

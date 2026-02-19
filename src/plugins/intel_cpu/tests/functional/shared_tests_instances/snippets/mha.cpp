@@ -52,6 +52,10 @@ std::vector<std::vector<InputShape>> transposedShape_4D(bool with_static = true,
     return shapes;
 }
 
+std::vector<std::vector<InputShape>> transposedShape_4D_matmul1_const_b() {
+    return SNIPPETS_TESTS_STATIC_SHAPES({{1, 300, 8, 32}, {1, 300, 8, 32}, {1, 8, 300, 300}, {1, 300, 8, 32}});
+}
+
 std::vector<std::vector<InputShape>> transposedShape_3D(bool with_dynamic = true) {
     auto shapes = SNIPPETS_TESTS_STATIC_SHAPES({{128, 12, 64}, {128, 12, 64}, {12, 128, 128}, {128, 12, 64}},
                                                {{68, 6, 92}, {68, 6, 92}, {1, 68, 68}, {68, 6, 92}},
@@ -98,6 +102,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D,
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MHA::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D_MatMul1_Const_B_ARE_WEI_BLOCKED,
+                         MHAConstB,
+                         ::testing::Combine(::testing::ValuesIn(transposedShape_4D_matmul1_const_b()),
+                                            ::testing::ValuesIn(precision_f32(4)),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(true),
+                                            ::testing::Values(1),
+                                            ::testing::Values(expected_nodes_mha_4d_f32),
+                                            ::testing::Values(2),  // decomposed Transpose + MHA
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                         MHAConstB::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D_WithScalarMul,
                          MHA,

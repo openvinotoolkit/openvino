@@ -13,6 +13,7 @@
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/dnnl/dnnl_utils.hpp"
@@ -40,7 +41,7 @@ DnnlMemoryDescPtr RepackMatMulWeights::get_src_desc(const VectorDims& shape,
         std::make_shared<CpuBlockedMemoryDesc>(brgemm_config.orig_wei_dt(), planar_shape, shape, layout));
 }
 
-DnnlMemoryDescPtr RepackMatMulWeights::get_dst_desc(const Shape& shape, const BrgemmConfig& brgemm_config) {
+CpuBlockedMemoryDescPtr RepackMatMulWeights::get_dst_cpu_desc(const Shape& shape, const BrgemmConfig& brgemm_config) {
     const auto [blocked_dims, blocked_order] =
         brgemm_utils::repacking::get_wei_blocked_shape(shape.getStaticDims(),
                                                        brgemm_config.wei_dt(),
@@ -48,8 +49,11 @@ DnnlMemoryDescPtr RepackMatMulWeights::get_dst_desc(const Shape& shape, const Br
                                                        brgemm_config.wei_n_blk(),
                                                        brgemm_config.are_wei_blocked());
 
-    return MemoryDescUtils::convertToDnnlMemoryDesc(
-        std::make_shared<CpuBlockedMemoryDesc>(brgemm_config.wei_dt(), shape, blocked_dims, blocked_order));
+    return std::make_shared<CpuBlockedMemoryDesc>(brgemm_config.wei_dt(), shape, blocked_dims, blocked_order);
+}
+
+DnnlMemoryDescPtr RepackMatMulWeights::get_dst_desc(const Shape& shape, const BrgemmConfig& brgemm_config) {
+    return MemoryDescUtils::convertToDnnlMemoryDesc(get_dst_cpu_desc(shape, brgemm_config));
 }
 
 bool RepackMatMulWeights::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -106,12 +110,10 @@ bool RepackMatMulWeights::run_on_model(const std::shared_ptr<ov::Model>& model) 
                                                                        m_context->getWeightsCache(),
                                                                        nullptr,
                                                                        m_context->getCpuParallel()->get_thread_pool());
-        weights_idxs.insert(i);
-    }
 
-    // Removed already repacked inputs: remaining inputs will be repacked in runtime configurator on inference stage
-    for (const auto& weight_idx : weights_idxs) {
-        m_input_repackers.erase(weight_idx);
+        m_input_repackers[i] =
+            InputRepacker(nullptr, get_dst_cpu_desc(src_mem_desc->getShape(), brgemm_config), {}, {});
+        weights_idxs.insert(i);
     }
 
     return !weights_idxs.empty();
