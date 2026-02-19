@@ -67,7 +67,6 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
-    void init_options(FilteredConfig& filteredConfig);
     void update_log_level(const ov::AnyMap& properties) const;
 
     /**
@@ -92,9 +91,7 @@ private:
     //  Appropriate checks are needed in plugin/metrics/properties when actions depend on a backend.
     ov::SoPtr<IEngineBackend> _backend;
 
-    std::shared_ptr<OptionsDesc> _options;
     mutable Logger _logger;
-    std::shared_ptr<Metrics> _metrics;
     std::unique_ptr<Properties> _propertiesManager;
 
     static std::atomic<int> _compiledModelLoadCounter;
