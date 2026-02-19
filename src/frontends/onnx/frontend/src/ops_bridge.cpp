@@ -166,8 +166,8 @@ OperatorSet OperatorsBridge::get_operator_set(const std::string& domain, int64_t
     for (const auto& op : dm->second) {
         const auto& it = find(version, op.second);
         if (it == std::end(op.second)) {
-            OPENVINO_THROW("Unsupported operator version: " + (domain.empty() ? "" : domain + ".") + op.first + ":" +
-                           std::to_string(version));
+            // Op not available at this opset version (e.g. Attention starts at opset 23) — skip it
+            continue;
         }
         result.emplace(op.first, it->second);
     }
