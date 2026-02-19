@@ -51,6 +51,8 @@ jobs:
           python3 -m pip install -r ${{ github.workspace }}/src/frontends/onnx/tests/requirements.txt
           # For running TensorFlow frontend unit tests
           python3 -m pip install -r ${{ github.workspace }}/src/frontends/tensorflow/tests/requirements.txt
+          # For running TensorFlow Lite frontend unit tests
+          python3 -m pip install -r ${{ github.workspace }}/src/frontends/tensorflow_lite/tests/requirements.txt
 
       - name: Build OpenVINO with CMake
         uses: ashutoshvarma/action-cmake-build@ade188313bc7eaa6f14349569a64d8bc716342ff # master
@@ -64,7 +66,12 @@ jobs:
             -DENABLE_PYTHON=ON
             -DENABLE_ONEDNN_FOR_GPU=ON
             -DENABLE_TESTS=ON
+            -DENABLE_FUNCTIONAL_TESTS=ON
             -DENABLE_OV_ONNX_FRONTEND=ON
+            -DENABLE_OV_PADDLE_FRONTEND=ON
+            -DENABLE_OV_TF_FRONTEND=ON
+            -DENABLE_OV_TF_LITE_FRONTEND=ON
+            -DENABLE_INTEL_NPU=OFF
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DENABLE_COVERAGE=ON
             -DCMAKE_C_COMPILER_LAUNCHER=ccache
@@ -83,33 +90,98 @@ jobs:
       - name: Install OpenVINO
         run: cmake -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install_pkg -P '${{ github.workspace }}/build/cmake_install.cmake'
 
-      - name: Run OV core unit tests
-        run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_core_unit_tests
-        continue-on-error: true
+      - name: Run selected coverage tests
+        run: |
+          set +e
 
-      - name: Run OV Proxy plugin tests
-        run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_proxy_plugin_tests
-        continue-on-error: true
+          BIN_DIR="${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}"
+          MODEL_PATH="${{ github.workspace }}/src/core/tests/models/ir/add_abc.xml"
+          FAILED_TESTS=()
+          SKIPPED_TESTS=()
 
-      - name: Run OV Hetero Func tests
-        run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_hetero_func_tests --gtest_filter="*smoke*" --gtest_filter=-"nightly*"
-        continue-on-error: true
+          run_binary() {
+            local test_name="$1"
+            local binary_name="$2"
+            shift 2
 
-      - name: Run IR frontend tests
-        run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_ir_frontend_tests
-        continue-on-error: true
+            local exe_path="${BIN_DIR}/${binary_name}"
+            if [[ ! -x "${exe_path}" ]]; then
+              SKIPPED_TESTS+=("${test_name} (missing binary: ${binary_name})")
+              return 0
+            fi
 
-      - name: Run ONNX frontend tests
-        run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_onnx_frontend_tests --gtest_filter=-*IE_GPU*
-        continue-on-error: true
+            echo "========== Running ${test_name} =========="
+            "${exe_path}" "$@"
+            local rc=$?
+            if [[ ${rc} -ne 0 ]]; then
+              FAILED_TESTS+=("${test_name} (exit ${rc})")
+            fi
+          }
 
-      # - name: Run Paddle frontend unit tests
-      #   run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/paddle_tests --gtest_filter=-*IE_GPU*
-      #   continue-on-error: true
+          # Unsupported in this workflow:
+          # - ov_npu_func_tests, ov_npu_unit_tests require NPU-specific environment/driver stability.
+          # - ov_nvidia_func_tests requires openvino_contrib NVIDIA plugin build and NVIDIA runner.
+          SKIPPED_TESTS+=("ov_npu_func_tests (unsupported in coverage workflow)")
+          SKIPPED_TESTS+=("ov_npu_unit_tests (unsupported in coverage workflow)")
+          SKIPPED_TESTS+=("ov_nvidia_func_tests (unsupported in coverage workflow)")
 
-      - name: Run TensorFlow frontend unit tests
-        run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_tensorflow_frontend_tests --gtest_filter=-*IE_GPU*
-        continue-on-error: true
+          run_binary "ov_api_conformance_tests" "ov_api_conformance_tests" "--gtest_filter=*mandatory*"
+          run_binary "ov_auto_batch_func_tests" "ov_auto_batch_func_tests" "--gtest_filter=*smoke*"
+          run_binary "ov_auto_batch_unit_tests" "ov_auto_batch_unit_tests"
+          run_binary "ov_auto_func_tests" "ov_auto_func_tests" "--gtest_filter=*smoke*"
+          run_binary "ov_auto_unit_tests" "ov_auto_unit_tests"
+          run_binary "ov_capi_test" "ov_capi_test"
+          run_binary "ov_conditional_compilation_tests" "ov_conditional_compilation_tests"
+          run_binary "ov_core_unit_tests" "ov_core_unit_tests" "--gtest_filter=-*IE_GPU*"
+          run_binary "ov_cpu_func_tests" "ov_cpu_func_tests" "--gtest_filter=*smoke*"
+          run_binary "ov_cpu_unit_tests" "ov_cpu_unit_tests"
+          run_binary "ov_cpu_unit_tests_vectorized" "ov_cpu_unit_tests_vectorized"
+          run_binary "ov_hetero_func_tests" "ov_hetero_func_tests" "--gtest_filter=*smoke*:-nightly*"
+          run_binary "ov_hetero_unit_tests" "ov_hetero_unit_tests"
+          run_binary "ov_inference_functional_tests" "ov_inference_functional_tests"
+          run_binary "ov_inference_unit_tests" "ov_inference_unit_tests"
+          run_binary "ov_ir_frontend_tests" "ov_ir_frontend_tests"
+          run_binary "ov_lp_transformations_tests" "ov_lp_transformations_tests"
+          run_binary "ov_onnx_frontend_tests" "ov_onnx_frontend_tests" "--gtest_filter=-*IE_GPU*"
+          run_binary "ov_op_conformance_tests" "ov_op_conformance_tests" "--device=TEMPLATE" "--gtest_filter=*OpImpl*"
+          run_binary "ov_proxy_plugin_tests" "ov_proxy_plugin_tests"
+          run_binary "ov_snippets_func_tests" "ov_snippets_func_tests"
+          run_binary "ov_subgraphs_dumper_tests" "ov_subgraphs_dumper_tests"
+          run_binary "ov_template_func_tests" "ov_template_func_tests" "--gtest_filter=*smoke*"
+          run_binary "ov_tensorflow_common_tests" "ov_tensorflow_common_tests"
+          run_binary "ov_tensorflow_frontend_tests" "ov_tensorflow_frontend_tests" "--gtest_filter=-*IE_GPU*"
+          run_binary "ov_tensorflow_lite_frontend_tests" "ov_tensorflow_lite_frontend_tests"
+          run_binary "ov_transformations_tests" "ov_transformations_tests"
+          run_binary "ov_util_tests" "ov_util_tests"
+          run_binary "paddle_tests" "paddle_tests"
+          run_binary "test_inference_async" "test_inference_async" "${MODEL_PATH}" "CPU"
+          run_binary "test_inference_sync" "test_inference_sync" "${MODEL_PATH}" "CPU"
+
+          {
+            echo "## Coverage test execution summary"
+            echo ""
+            if [[ ${#FAILED_TESTS[@]} -gt 0 ]]; then
+              echo "Failed tests:"
+              for item in "${FAILED_TESTS[@]}"; do
+                echo "- ${item}"
+              done
+            else
+              echo "Failed tests: none"
+            fi
+            echo ""
+            if [[ ${#SKIPPED_TESTS[@]} -gt 0 ]]; then
+              echo "Skipped tests:"
+              for item in "${SKIPPED_TESTS[@]}"; do
+                echo "- ${item}"
+              done
+            else
+              echo "Skipped tests: none"
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          if [[ ${#FAILED_TESTS[@]} -gt 0 ]]; then
+            echo "One or more tests failed; continuing to coverage generation."
+          fi
 
       - name: Print info
         run: |
