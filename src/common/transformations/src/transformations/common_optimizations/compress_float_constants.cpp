@@ -138,6 +138,27 @@ void compress_model_to_f16(const std::shared_ptr<Model>& model, bool postponed) 
     }
 }
 
+namespace {
+
+// Returns true if a scalar constant of type T loses significant precision when rounded to FP16.
+// Used to protect mathematical scale factors (e.g., log(16) in attention bucketing) from FP16
+// rounding errors that cascade through every computation referencing them.
+template <typename T>
+bool scalar_has_high_f16_error(const ov::op::v0::Constant* const_node) {
+    constexpr double max_relative_error = 1e-4;
+    static_assert(sizeof(T) >= 4);
+    const T src = *const_node->get_data_ptr<T>();
+    if (std::isfinite(src) && src != T{0}) {
+        const double src_val = static_cast<double>(src);
+        const ov::float16 f16_val = static_cast<ov::float16>(src);
+        const double roundtripped = static_cast<double>(static_cast<T>(f16_val));
+        return std::abs(src_val - roundtripped) / std::abs(src_val) > max_relative_error;
+    }
+    return false;
+}
+
+}  // namespace
+
 CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
     MATCHER_SCOPE(CompressFloatConstantsImpl);
     auto const_pattern = pattern::wrap_type<v0::Constant>();
@@ -155,34 +176,14 @@ CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
 
         auto c_type = const_node->get_element_type();
 
-        // For scalar constants, check if FP16 rounding introduces significant relative error.
+        // Skip FP16 compression for scalar constants with significant rounding error.
         // Scalar constants often serve as mathematical scale factors (e.g., log(16) in attention
-        // bucketing). FP16 rounding error in such scalars cascades through every computation
-        // that uses them. Non-scalar constants have errors averaged across many elements.
+        // bucketing) where FP16 rounding error cascades through every computation that uses them.
         if (ov::shape_size(const_node->get_shape()) == 1) {
-            constexpr double max_scalar_f16_relative_error = 1e-4;
-            if (c_type == ov::element::f32) {
-                const float src_f32 = *const_node->get_data_ptr<float>();
-                static_assert(sizeof(src_f32) == 4);
-                const double src_val = static_cast<double>(src_f32);
-                if (std::isfinite(src_f32) && src_f32 != 0.0f) {
-                    const ov::float16 f16_val = static_cast<ov::float16>(src_f32);
-                    const double roundtripped = static_cast<double>(static_cast<float>(f16_val));
-                    const double rel_error = std::abs(src_val - roundtripped) / std::abs(src_val);
-                    if (rel_error > max_scalar_f16_relative_error)
-                        return false;
-                }
-            } else if (c_type == ov::element::f64) {
-                const double src_val = *const_node->get_data_ptr<double>();
-                static_assert(sizeof(src_val) >= 8);
-                if (std::isfinite(src_val) && src_val != 0.0) {
-                    const ov::float16 f16_val = static_cast<ov::float16>(src_val);
-                    const double roundtripped = static_cast<double>(f16_val);
-                    const double rel_error = std::abs(src_val - roundtripped) / std::abs(src_val);
-                    if (rel_error > max_scalar_f16_relative_error)
-                        return false;
-                }
-            }
+            if (c_type == ov::element::f32 && scalar_has_high_f16_error<float>(const_node.get()))
+                return false;
+            if (c_type == ov::element::f64 && scalar_has_high_f16_error<double>(const_node.get()))
+                return false;
         }
 
         std::shared_ptr<ov::Node> new_const;
