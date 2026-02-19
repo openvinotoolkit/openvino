@@ -28,11 +28,12 @@ TEST_F(OfflineCompilationUnitTests, CompilationPassesWithCiPWhenDriverNotInstall
         logs.push_back('\n');
     };
 
+    ov::util::set_log_callback(log_cb);
+
     config[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::PLUGIN;
     config[ov::intel_npu::platform.name()] = ov::intel_npu::Platform::NPU5010;
+    config[ov::log::level.name()] = ov::log::Level::WARNING;
     core.set_property("NPU", config);
-
-    ov::util::set_log_callback(log_cb);
 
     std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
     OV_ASSERT_NO_THROW(core.compile_model(model, "NPU"));
@@ -54,11 +55,12 @@ TEST_F(OfflineCompilationUnitTests, CompilationPassesWithCiPWhenDriverNotInstall
         logs.push_back('\n');
     };
 
+    ov::util::set_log_callback(log_cb);
+
     config[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::PLUGIN;
     config[ov::intel_npu::platform.name()] = ov::intel_npu::Platform::NPU5010;
+    config[ov::log::level.name()] = ov::log::Level::WARNING;
     core.set_property("NPU", config);
-
-    ov::util::set_log_callback(log_cb);
 
     std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
     OV_ASSERT_NO_THROW(core.compile_model(model, "NPU", config));
