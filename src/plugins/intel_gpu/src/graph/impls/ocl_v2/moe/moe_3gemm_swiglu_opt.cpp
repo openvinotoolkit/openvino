@@ -686,7 +686,7 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
 
     ov::element::Type weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
     // auto scale_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0)).data_type;
-    // auto zp_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::ZP_0)).data_type;
+    auto zp_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::ZP_0)).data_type;
     if (weight_dt == ov::element::u4 || weight_dt == ov::element::i4) {
         jit.make("WEIGHT_COMPRESSEION_DT", 0);
         jit.make("MOE_WEI_DT", "uchar");
@@ -703,6 +703,12 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
         jit.make("MOE_SCALE_DT", "half");  // not use
         jit.make("MOE_ZP_DT", "half");     // not use
     }
+
+    // Detect if zp is stored as u8 (one byte per element) instead of packed u4 (two per byte).
+    // This happens when u4 zp Constants go through Reshape+Transpose which converts them to u8.
+    bool zp_is_u8 = (weight_dt == ov::element::u4 || weight_dt == ov::element::i4) &&
+                    (zp_dt == ov::element::u8 || zp_dt == ov::element::i8);
+    jit.make("ZP_IS_U8", zp_is_u8 ? 1 : 0);
 }
 
 class MoE3GemmSwigluMLPGateUp : public KernelGenerator {
