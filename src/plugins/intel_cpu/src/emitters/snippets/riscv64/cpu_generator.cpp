@@ -79,6 +79,7 @@
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/target_machine.hpp"
+#include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
 
@@ -200,6 +201,9 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
         emitter_factory.from_expr<jit_kernel_static_emitter>();
     jitters[snippets::op::KernelDynamic::get_type_info_static()] =
         emitter_factory.from_expr<jit_kernel_dynamic_emitter>();
+
+    // fused operations
+    jitters[intel_cpu::FusedMulAdd::get_type_info_static()] = emitter_factory.from_node<jit_mul_add_emitter>();
 
     // binary operations
     jitters[op::v1::Add::get_type_info_static()] = emitter_factory.from_node<jit_add_emitter>();
@@ -343,8 +347,11 @@ std::shared_ptr<ov::snippets::Generator> CPUGenerator::clone() const {
     return std::make_shared<CPUGenerator>(cpu_target_machine);
 }
 
-ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(
-    [[maybe_unused]] const ov::Output<ov::Node>& out) const {
+ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {
+    const auto op = out.get_node_shared_ptr();
+    if (ov::is_type<intel_cpu::FusedMulAdd>(op)) {
+        return ov::snippets::RegType::vec;
+    }
     return ov::snippets::RegType::undefined;
 }
 
