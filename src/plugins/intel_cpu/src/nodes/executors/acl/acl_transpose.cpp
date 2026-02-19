@@ -66,6 +66,10 @@ std::optional<ACLTransposeConfig> prepareAclTransposeConfig(const PermuteParams&
 
     std::vector<size_t> vec;
     if (srcDesc->hasLayoutType(LayoutType::nspc)) {
+        if (!srcDesc->getShape().isStatic() || !dstDesc->getShape().isStatic()) {
+            DEBUG_LOG("NEPermute cannot determine permutation order for dynamic nspc shapes");
+            return std::nullopt;
+        }
         auto changeLayoutToNhwc = [](VectorDims shape) -> VectorDims {
             std::swap(shape[1], shape[2]);
             std::swap(shape[2], shape[3]);
