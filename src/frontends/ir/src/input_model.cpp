@@ -209,15 +209,18 @@ class InputModel::InputModelIRImpl {
     pugi::xml_node m_root;
     pugi::xml_document m_xml_doc;
     std::string m_weights_path;
+    std::weak_ptr<ov::MappedMemory> m_shared_memory;
 
 public:
     InputModelIRImpl(std::istream& model,
                      const std::shared_ptr<ov::AlignedBuffer>& weights,
                      const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                     std::string weights_path)
+                     std::string weights_path,
+                     std::weak_ptr<ov::MappedMemory> shared_memory)
         : m_weights(weights),
           m_extensions(extensions),
-          m_weights_path(std::move(weights_path)) {
+          m_weights_path(std::move(weights_path)),
+          m_shared_memory(shared_memory) {
         pugi::xml_parse_result res = m_xml_doc.load(model);
         OPENVINO_ASSERT(res.status == pugi::status_ok, res.description(), " at offset ", res.offset);
         init_opset();
@@ -226,10 +229,12 @@ public:
     InputModelIRImpl(const std::shared_ptr<ov::AlignedBuffer>& model,
                      const std::shared_ptr<ov::AlignedBuffer>& weights,
                      const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                     std::string weights_path)
+                     std::string weights_path,
+                     std::weak_ptr<ov::MappedMemory> shared_memory)
         : m_weights(weights),
           m_extensions(extensions),
-          m_weights_path(std::move(weights_path)) {
+          m_weights_path(std::move(weights_path)),
+          m_shared_memory(shared_memory) {
         auto res = m_xml_doc.load_buffer(model->get_ptr(), model->size(), pugi::parse_default, pugi::encoding_utf8);
         OPENVINO_ASSERT(res.status == pugi::status_ok, res.description(), " at offset ", res.offset);
         init_opset();
@@ -249,15 +254,17 @@ private:
 InputModel::InputModel(std::istream& model,
                        const std::shared_ptr<ov::AlignedBuffer>& weights,
                        const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                       std::string weights_path) {
-    _impl = std::make_shared<InputModelIRImpl>(model, weights, extensions, std::move(weights_path));
+                       std::string weights_path,
+                       std::weak_ptr<ov::MappedMemory> shared_memory) {
+    _impl = std::make_shared<InputModelIRImpl>(model, weights, extensions, std::move(weights_path), shared_memory);
 }
 
 InputModel::InputModel(const std::shared_ptr<ov::AlignedBuffer>& model,
                        const std::shared_ptr<ov::AlignedBuffer>& weights,
                        const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                       std::string weights_path) {
-    _impl = std::make_shared<InputModelIRImpl>(model, weights, extensions, std::move(weights_path));
+                       std::string weights_path,
+                       std::weak_ptr<ov::MappedMemory> shared_memory) {
+    _impl = std::make_shared<InputModelIRImpl>(model, weights, extensions, std::move(weights_path), shared_memory);
 }
 
 std::shared_ptr<ov::Model> InputModel::convert() {

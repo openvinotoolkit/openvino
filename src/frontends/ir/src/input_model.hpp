@@ -12,6 +12,7 @@
 #include "openvino/runtime/aligned_buffer.hpp"
 
 namespace ov {
+class MappedMemory;
 namespace frontend {
 namespace ir {
 
@@ -23,12 +24,14 @@ public:
     InputModel(std::istream& stream,
                const std::shared_ptr<ov::AlignedBuffer>& weights,
                const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-               std::string weights_path = {});
+               std::string weights_path = {},
+               std::weak_ptr<ov::MappedMemory> shared_memory = {});
 
     InputModel(const std::shared_ptr<ov::AlignedBuffer>& model_buf,
                const std::shared_ptr<ov::AlignedBuffer>& weights,
                const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-               std::string weights_path = {});
+               std::string weights_path = {},
+               std::weak_ptr<ov::MappedMemory> shared_memory = {});
 
     std::shared_ptr<Model> convert();
 };
