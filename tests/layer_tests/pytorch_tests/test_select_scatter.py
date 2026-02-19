@@ -8,14 +8,13 @@ import torch
 
 class TestSelectScatter(PytorchLayerTest):
     def _prepare_input(self):
-        import numpy as np
-        return (np.random.randn(2, 5, 3, 4).astype(np.float32),)
+        return (self.random.randn(2, 5, 3, 4),)
 
     def create_model(self, src, dim, index):
 
         class aten_select_scatter(torch.nn.Module):
             def __init__(self, src=None, dim=None, index=None):
-                super(aten_select_scatter, self).__init__()
+                super().__init__()
                 self.src = src
                 self.dim = dim
                 self.index = index
@@ -24,9 +23,8 @@ class TestSelectScatter(PytorchLayerTest):
                 return torch.select_scatter(x, self.src, self.dim, self.index);
 
 
-        ref_net = None
 
-        return aten_select_scatter(src, dim, index), ref_net, "aten::select_scatter"
+        return aten_select_scatter(src, dim, index), "aten::select_scatter"
 
     @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize(("src", "dim", "index"),

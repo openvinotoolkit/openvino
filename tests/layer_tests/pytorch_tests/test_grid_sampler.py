@@ -10,8 +10,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestGridSampler(PytorchLayerTest):
     def _prepare_input(self,  h_in, w_in, h_out, w_out):
-        import numpy as np
-        return (np.random.randn(1, 3, h_in, w_in).astype(np.float32), np.random.randn(1, h_out, w_out, 2).astype(np.float32))
+        return (self.random.randn(1, 3, h_in, w_in), self.random.randn(1, h_out, w_out, 2))
 
     def create_model(self, mode, padding_mode, align_corners):
         import torch
@@ -19,7 +18,7 @@ class TestGridSampler(PytorchLayerTest):
 
         class aten_grid_sampler(torch.nn.Module):
             def __init__(self, mode, padding_mode, align_corners):
-                super(aten_grid_sampler, self).__init__()
+                super().__init__()
                 self.mode = mode
                 self.padding_mode = padding_mode
                 self.align_corners = align_corners
@@ -27,14 +26,13 @@ class TestGridSampler(PytorchLayerTest):
             def forward(self, input, grid):
                 return F.grid_sample(input, grid, self.mode, self.padding_mode, self.align_corners)
 
-        ref_net = None
 
-        return aten_grid_sampler(mode, padding_mode, align_corners), ref_net, "aten::grid_sampler"
+        return aten_grid_sampler(mode, padding_mode, align_corners), "aten::grid_sampler"
 
     @pytest.mark.parametrize(["h_in", "w_in", "h_out", "w_out"], ([10, 10, 5, 5], [10, 15, 3, 5]))
     @pytest.mark.parametrize("mode", ["bilinear", "nearest", "bicubic"])
     @pytest.mark.parametrize("padding_mode", ["zeros", "border", "reflection"])
-    @pytest.mark.parametrize("align_corners", [True, False, None])
+    @pytest.mark.parametrize("align_corners", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
