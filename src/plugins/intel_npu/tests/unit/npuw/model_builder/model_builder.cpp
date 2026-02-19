@@ -24,28 +24,43 @@ constexpr float kRoPEBaseFrequency = 10000.0f;
 constexpr float kAttentionMaskPadding = -10000.0f;
 constexpr float kAttentionMaskPaddingFP16Min = -65504.0f;
 
+// Deterministic single fill value from tensor name (for scalars, norms, biases).
 static float fill_value_from_name(const std::string& name) {
     size_t h = std::hash<std::string>{}(name);
     return 0.01f + static_cast<float>(h % 100000u) / 100000.0f;  // [0.01, 1.01)
 }
 
-static int8_t int_fill_from_name(const std::string& name, ov::element::Type type) {
-    size_t h = std::hash<std::string>{}(name);
-    if (type == ov::element::i4)
-        return static_cast<int8_t>(1 + (h % 6));
-    if (type == ov::element::u4)
-        return static_cast<int8_t>(1 + (h % 14));
-    return static_cast<int8_t>(1 + (h % 100));
+// Deterministic xorshift32 PRNG — produces pseudo-random per-element values
+// that are reproducible from the tensor name alone.
+static uint32_t xorshift32(uint32_t& state) {
+    state ^= state << 13;
+    state ^= state >> 17;
+    state ^= state << 5;
+    return state;
+}
+
+static uint32_t seed_from_name(const std::string& name) {
+    // Ensure non-zero seed (xorshift requires it)
+    uint32_t s = static_cast<uint32_t>(std::hash<std::string>{}(name));
+    return s ? s : 1u;
 }
 
 ov::Output<ov::Node> FloatWeight::operator()(const std::string& name,
                                              const ov::Shape& shape,
                                              ov::element::Type compute_precision) const {
-    // Use unique fill values per constant to prevent CSE from merging
-    // different projections (e.g. Q/K/V) that happen to share dimensions.
-    float fill_val = fill_value_from_name(name);
-    auto weight =
-        ov::opset11::Constant::create(storage_type, shape, std::vector<float>(ov::shape_size(shape), fill_val));
+    // Deterministic pseudo-random fill: each element gets a unique value derived
+    // from the tensor name via xorshift32.  Same name always produces the same
+    // weights, but values look random and span a wide enough range ([-0.5, 0.5))
+    // to survive FP16 quantisation through NPUW.  This prevents CSE from merging
+    // same-shape projections and produces diverse logits in the LM head.
+    uint32_t state = seed_from_name(name);
+    size_t total = ov::shape_size(shape);
+    std::vector<float> data(total);
+    for (size_t i = 0; i < total; ++i) {
+        uint32_t r = xorshift32(state);
+        data[i] = static_cast<float>(r % 10000u) / 10000.0f - 0.5f;  // [-0.5, 0.5)
+    }
+    auto weight = ov::opset11::Constant::create(storage_type, shape, data);
     weight->set_friendly_name(name);
 
     if (storage_type == compute_precision) {
@@ -63,10 +78,27 @@ ov::Output<ov::Node> CompressedWeight::operator()(const std::string& name,
     const size_t rows = shape[0];
     const size_t cols = shape[1];
 
-    // Use unique fill values to prevent CSE from merging same-shape projections.
-    // i4 range is [-8, 7], u4 is [0, 15], so clamp accordingly.
-    int8_t fill_val = int_fill_from_name(name, storage_type);
-    auto weight = ov::opset11::Constant::create(storage_type, shape, std::vector<int8_t>(rows * cols, fill_val));
+    // Deterministic pseudo-random int fill via xorshift32, clamped to the
+    // storage type's representable range.  Same rationale as FloatWeight.
+    int8_t lo = 0, hi = 0;
+    if (storage_type == ov::element::i4) {
+        lo = -7;
+        hi = 7;
+    } else if (storage_type == ov::element::u4) {
+        lo = 1;
+        hi = 15;
+    } else {
+        lo = -100;
+        hi = 100;
+    }
+    uint32_t w_state = seed_from_name(name);
+    std::vector<int8_t> w_data(rows * cols);
+    for (size_t i = 0; i < w_data.size(); ++i) {
+        uint32_t r = xorshift32(w_state);
+        int val = static_cast<int>(lo) + static_cast<int>(r % static_cast<uint32_t>(hi - lo + 1));
+        w_data[i] = static_cast<int8_t>(val);
+    }
+    auto weight = ov::opset11::Constant::create(storage_type, shape, w_data);
     weight->set_friendly_name(name);
 
     auto convert = std::make_shared<ov::opset11::Convert>(weight, ov::element::f16);
@@ -93,10 +125,17 @@ ov::Output<ov::Node> CompressedWeight::operator()(const std::string& name,
         auto reshaped = std::make_shared<ov::opset11::Reshape>(convert, reshape_shape, false);
         reshaped->set_friendly_name(name + "_group_reshape");
 
-        float scale_val = fill_value_from_name(name + "_scale");
-        auto scale = ov::opset11::Constant::create(ov::element::f16,
-                                                   ov::Shape{rows, num_groups, 1},
-                                                   std::vector<float>(rows * num_groups, scale_val));
+        // Per-group scales via PRNG.  Keep effective decompressed values in
+        // a moderate range (~[-0.5, 0.5)) so hidden states don't overflow
+        // through many transformer layers (matches FloatWeight magnitude).
+        const float scale_range = 1.0f / static_cast<float>(hi);  // ~0.005 for i8, ~0.14 for i4
+        uint32_t s_state = seed_from_name(name + "_scale");
+        std::vector<float> scale_data(rows * num_groups);
+        for (size_t i = 0; i < scale_data.size(); ++i) {
+            uint32_t r = xorshift32(s_state);
+            scale_data[i] = scale_range * (0.1f + static_cast<float>(r % 1000u) / 1000.0f);
+        }
+        auto scale = ov::opset11::Constant::create(ov::element::f16, ov::Shape{rows, num_groups, 1}, scale_data);
         scale->set_friendly_name(name + "_scale");
 
         auto scaled = std::make_shared<ov::opset11::Multiply>(reshaped, scale);
@@ -112,10 +151,15 @@ ov::Output<ov::Node> CompressedWeight::operator()(const std::string& name,
 
         decompressed = back->output(0);
     } else {
-        // Per-channel scale
-        float scale_val = fill_value_from_name(name + "_scale");
-        auto scale =
-            ov::opset11::Constant::create(ov::element::f16, ov::Shape{rows, 1}, std::vector<float>(rows, scale_val));
+        // Per-channel scales via PRNG (same magnitude rationale as group path)
+        const float scale_range = 1.0f / static_cast<float>(hi);
+        uint32_t s_state = seed_from_name(name + "_scale");
+        std::vector<float> scale_data(rows);
+        for (size_t i = 0; i < scale_data.size(); ++i) {
+            uint32_t r = xorshift32(s_state);
+            scale_data[i] = scale_range * (0.1f + static_cast<float>(r % 1000u) / 1000.0f);
+        }
+        auto scale = ov::opset11::Constant::create(ov::element::f16, ov::Shape{rows, 1}, scale_data);
         scale->set_friendly_name(name + "_scale");
 
         auto scaled = std::make_shared<ov::opset11::Multiply>(convert, scale);
@@ -195,7 +239,8 @@ static RoPEFrequencies build_rope_frequencies(size_t head_dim,
 
     std::vector<float> inv_freq_data(half_dim);
     for (size_t i = 0; i < half_dim; ++i) {
-        inv_freq_data[i] = 1.0f / std::pow(kRoPEBaseFrequency, static_cast<float>(2 * i) / static_cast<float>(head_dim));
+        inv_freq_data[i] =
+            1.0f / std::pow(kRoPEBaseFrequency, static_cast<float>(2 * i) / static_cast<float>(head_dim));
     }
     auto inv_freq = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, half_dim, 1}, inv_freq_data);
     inv_freq->set_friendly_name(prefix + ".inv_freq");
@@ -1415,7 +1460,8 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_encoder(const ModelConfig
     const auto d = config.hidden_size;
 
     auto input_features = parameter(ov::element::f32,
-                                    ov::PartialShape{-1, static_cast<int64_t>(config.num_mel_bins),
+                                    ov::PartialShape{-1,
+                                                     static_cast<int64_t>(config.num_mel_bins),
                                                      static_cast<int64_t>(2 * config.max_source_positions)},
                                     "input_features");
 
