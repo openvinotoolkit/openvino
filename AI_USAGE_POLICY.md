@@ -19,7 +19,7 @@ This policy applies to:
 
 ## Allowed AI Assistance
 
-You may use AI tools to assist your work, including:
+You may use AI tools to assist your work, including but not limited to:
 
 - Brainstorming and research
 - Explaining APIs, language features, and error messages
@@ -43,9 +43,8 @@ If you use AI in any meaningful way, you must:
 Suggested disclosure format:
 
 ```text
-AI assistance: <none | limited | substantial>
-Tools used: <tool names>
-How used: <e.g., brainstorming, snippet drafting, refactoring, docs>
+AI assistance used: <no | yes>
+If yes: <how AI was used>
 Human validation performed: <build/tests/manual checks>
 ```
 

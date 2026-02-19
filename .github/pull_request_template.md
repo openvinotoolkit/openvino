@@ -5,8 +5,6 @@
 ### Tickets:
  - *ticket-id*
 
-### AI Assistance (if applicable):
- - *AI assistance level: none / limited / substantial*
- - *Tools used: [tool names]*
- - *How used: [brainstorming / snippet drafting / refactoring / docs]*
- - *Human validation performed: [build/tests/manual checks]*
+### AI Assistance:
+ - *AI assistance used: no / yes*
+ - *If yes, summarize how AI was used and what human validation was performed (build/tests/manual checks).*
