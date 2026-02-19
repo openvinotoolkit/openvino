@@ -1517,7 +1517,7 @@ public:
 #endif
         GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: stage = " << static_cast<size_t>(stage) << std::endl;
         int64_t paged_attention_aligned_seq_len = -1;
-        if ((stage == PagedAttentionStage::PREFILL || stage == PagedAttentionStage::MIXED) && !params.is_dynamic()) {
+        if (!params.is_dynamic()) {
             auto block_size = get_query_block_size(stage, can_use_micro_sdpa);
             paged_attention_aligned_seq_len = get_aligned_seq_len(params, stage, block_size);
         }
@@ -1653,7 +1653,7 @@ public:
         const bool has_scores_output = desc->has_scores_output();
         const bool has_score_aggregation = desc->has_score_aggregation;
 
-        if ((stage == PagedAttentionStage::UNKNOWN) || (stage == PagedAttentionStage::GENERATE && !has_scores_output))
+        if ((stage == PagedAttentionStage::UNKNOWN) || (stage == PagedAttentionStage::GENERATE && !has_scores_output && !use_micro_sdpa))
             return;
 
         auto& stream = instance.get_network().get_stream();
@@ -1697,7 +1697,7 @@ public:
             }
         }
 
-        if (stage == PagedAttentionStage::GENERATE) {
+        if (stage == PagedAttentionStage::GENERATE && !use_micro_sdpa) {
             // For the generate stage it's not necessary to configure any other intermediate
             // buffers. Simply calculate the offsets and exit
             size_t subsequence_offsets_acc = 0;
@@ -1715,8 +1715,6 @@ public:
 
             return;
         }
-
-        OPENVINO_ASSERT(intermediates_memories.size() >= 3, "Unexpected number of intermediates buffers for Paged Attention at prefill stage");
 
         const auto blocks_indexes_start_idx = 0;
         const auto blocks_indexes_end_idx = 1;
