@@ -422,10 +422,10 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    auto npuPluginArguments = arguments;
-    exclude_model_ptr_from_map(npuPluginArguments);
+    if (!arguments.empty()) {
+        auto npuPluginArguments = arguments;
+        exclude_model_ptr_from_map(npuPluginArguments);
 
-    if (!npuPluginArguments.empty()) {
         // Need to create a temporary copy of the properties manager. The set of arguments we get might change the list
         // of supported properties, but we cannot alter the global state
         auto copyPropertiesManager = std::make_unique<Properties>(*_propertiesManager);
@@ -435,6 +435,29 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     }
 
     return _propertiesManager->getProperty(name);
+}
+
+bool Plugin::is_property_supported(const std::string& name, const ov::AnyMap& arguments) const {
+    if (!arguments.empty()) {
+        auto npuPluginArguments = arguments;
+        exclude_model_ptr_from_map(npuPluginArguments);
+
+        // Need to create a temporary copy of the properties manager. The set of arguments we get might change the list
+        // of supported properties, but we cannot alter the global state
+        auto copyPropertiesManager = std::make_unique<Properties>(*_propertiesManager);
+
+        try {
+            copyPropertiesManager->setProperty(npuPluginArguments);
+        } catch (...) {
+            // In case of a failure during property setting, we assume the arguments are not valid and thus the
+            // supported properties cannot be reliably determined - return false in this case
+            return false;
+        }
+
+        return copyPropertiesManager->isPropertySupported(name);
+    }
+
+    return _propertiesManager->isPropertySupported(name);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,

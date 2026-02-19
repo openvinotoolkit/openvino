@@ -57,6 +57,11 @@ public:
     void setProperty(const ov::AnyMap& properties);
 
     /**
+     * @brief Checks if a property is supported by the plugin.
+     */
+    bool isPropertySupported(const std::string& name);
+
+    /**
      * @brief Checks whether a property was registered by its name
      */
     bool isPropertyRegistered(const std::string& propertyName) const;
