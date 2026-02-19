@@ -17,7 +17,7 @@
 namespace intel_npu {
 
 /**
- * @brief Class responsible for exporting a compiled model.
+ * @brief Class responsible for exporting the NPU specific data a compiled model.
  * @details There should be a 1:1 mapping between "CompiledModel" & "BlobWriter" instances.
  *
  * When the user requests the compilation of a model, a "BlobWriter" object is created. During the compilation flow,
@@ -82,6 +82,7 @@ public:
 
     /**
      * @brief Get the position of the write cursor relative to the beginning of the NPU region.
+     * @note This is part of the section reader API.
      */
     std::streamoff get_stream_relative_position(std::ostream& stream) const;
 
@@ -89,6 +90,7 @@ public:
      * @brief Move the position of the write cursor.
      * @note This operation allows moving the cursor only within the region allocated to the indicated section. The
      * parsing of each blob section should be done indepent of other sections, thus this constraint.
+     * @note This is part of the section reader API.
      *
      * @param stream The target stream.
      * @param section_id Used to check if the offset falls within the region allocated to this section.
