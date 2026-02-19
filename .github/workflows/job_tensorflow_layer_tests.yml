@@ -82,6 +82,7 @@ jobs:
         run: |
           echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
           echo "HUGGINGFACE_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
+          echo "PIP_INSTALL_COMMAND=${{ runner.os == 'Linux' && 'python3 -m pip install' || 'python3 c:/pip_diag.py install' }}" >> "$GITHUB_ENV"
 
       - name: Install OpenVINO dependencies (mac)
         if: ${{ runner.os == 'macOS' }}
@@ -114,7 +115,7 @@ jobs:
       - name: Install Python Layer tests dependencies
         run: |
           # tensorflow test requirements
-          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_tensorflow
+          ${{ env.PIP_INSTALL_COMMAND }} -r ${{ env.INSTALL_TEST_DIR }}/requirements_tensorflow
 
       - name: TensorFlow 1 Layer Tests - TF FE
         if: ${{ fromJSON(inputs.affected-components).TF_FE.test }}
