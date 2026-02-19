@@ -69,6 +69,7 @@ Before posting any comment, apply this gate:
 - Check conversion output compatibility with existing frontend tests.
 
 ### Bindings and Public APIs
+- For changes to existing public APIs, verify backward compatibility with previously released OpenVINO versions.
 - If public C++ API changes, verify corresponding binding updates in `src/bindings/python`, `src/bindings/c`, and `src/bindings/js` when applicable.
 - Require docs updates for user-visible behavior changes (`docs/`, release notes when relevant).
 
