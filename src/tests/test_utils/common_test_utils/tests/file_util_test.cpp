@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/util/file_util.hpp"
-
 #include <gtest/gtest.h>
 
 #include <random>
@@ -17,6 +15,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "openvino/core/visibility.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace ov::test {
 using std::string;
@@ -239,8 +238,7 @@ TEST(file_util, path_cast) {
     EXPECT_TRUE(std::u16string(u"file.txt") == std::filesystem::path("file.txt").u16string());
     EXPECT_TRUE(std::u16string(u"./local/file.txt") == std::filesystem::path("./local/file.txt").generic_u16string());
     EXPECT_TRUE(std::u16string(u"~/local/file.txt") == std::filesystem::path("~/local/file.txt").generic_u16string());
-    EXPECT_TRUE(std::u16string(u"/usr/local/file.txt") ==
-                std::filesystem::path("/usr/local/file.txt").generic_u16string());
+    EXPECT_TRUE(std::u16string(u"/usr/local/file.txt") == std::filesystem::path("/usr/local/file.txt").generic_u16string());
     EXPECT_TRUE(std::u16string(u"C:\\Users\\file.txt") == std::filesystem::path("C:\\Users\\file.txt").u16string());
 
     // from char8_t to u16string
@@ -248,8 +246,7 @@ TEST(file_util, path_cast) {
     EXPECT_TRUE(std::u16string(u"file.txt") == std::filesystem::path(u8"file.txt").u16string());
     EXPECT_TRUE(std::u16string(u"./local/file.txt") == std::filesystem::path(u8"./local/file.txt").generic_u16string());
     EXPECT_TRUE(std::u16string(u"~/local/file.txt") == std::filesystem::path(u8"~/local/file.txt").generic_u16string());
-    EXPECT_TRUE(std::u16string(u"/usr/local/file.txt") ==
-                std::filesystem::path(u8"/usr/local/file.txt").generic_u16string());
+    EXPECT_TRUE(std::u16string(u"/usr/local/file.txt") == std::filesystem::path(u8"/usr/local/file.txt").generic_u16string());
     EXPECT_TRUE(std::u16string(u"C:\\Users\\file.txt") == std::filesystem::path(u8"C:\\Users\\file.txt").u16string());
 
     // from char16_t to u16string
@@ -257,8 +254,7 @@ TEST(file_util, path_cast) {
     EXPECT_TRUE(std::u16string(u"file.txt") == std::filesystem::path(u"file.txt").u16string());
     EXPECT_TRUE(std::u16string(u"./local/file.txt") == std::filesystem::path(u"./local/file.txt").generic_u16string());
     EXPECT_TRUE(std::u16string(u"~/local/file.txt") == std::filesystem::path(u"~/local/file.txt").generic_u16string());
-    EXPECT_TRUE(std::u16string(u"/usr/local/file.txt") ==
-                std::filesystem::path(u"/usr/local/file.txt").generic_u16string());
+    EXPECT_TRUE(std::u16string(u"/usr/local/file.txt") == std::filesystem::path(u"/usr/local/file.txt").generic_u16string());
     EXPECT_TRUE(std::u16string(u"C:\\Users\\file.txt") == std::filesystem::path(u"C:\\Users\\file.txt").u16string());
 
     // from char32_t to u16string
@@ -266,14 +262,12 @@ TEST(file_util, path_cast) {
     EXPECT_TRUE(std::u16string(u"file.txt") == std::filesystem::path(U"file.txt").u16string());
     EXPECT_TRUE(std::u16string(u"./local/file.txt") == std::filesystem::path(U"./local/file.txt").generic_u16string());
     EXPECT_TRUE(std::u16string(u"~/local/file.txt") == std::filesystem::path(U"~/local/file.txt").generic_u16string());
-    EXPECT_TRUE(std::u16string(u"/usr/local/file.txt") ==
-                std::filesystem::path(U"/usr/local/file.txt").generic_u16string());
+    EXPECT_TRUE(std::u16string(u"/usr/local/file.txt") == std::filesystem::path(U"/usr/local/file.txt").generic_u16string());
     EXPECT_TRUE(std::u16string(u"C:\\Users\\file.txt") == std::filesystem::path(U"C:\\Users\\file.txt").u16string());
 }
 
 TEST(file_util, path_cast_unicode) {
-    EXPECT_EQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗1.txt",
-              std::filesystem::path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗1.txt").generic_string());
+    EXPECT_EQ("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗1.txt", std::filesystem::path("~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗1.txt").generic_string());
     EXPECT_TRUE(std::u16string(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗6.txt") ==
                 std::filesystem::path(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗6.txt").generic_u16string());
     EXPECT_TRUE(std::u16string(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗7.txt") ==
@@ -412,8 +406,7 @@ TEST(file_util, path_cast_from_wstring) {
     EXPECT_TRUE(std::u16string(u"file.txt") == std::filesystem::path(L"file.txt").u16string());
     EXPECT_TRUE(std::u16string(u"./local/file.txt") == std::filesystem::path(L"./local/file.txt").generic_u16string());
     EXPECT_TRUE(std::u16string(u"~/local/file.txt") == std::filesystem::path(L"~/local/file.txt").generic_u16string());
-    EXPECT_TRUE(std::u16string(u"/usr/local/file.txt") ==
-                std::filesystem::path(L"/usr/local/file.txt").generic_u16string());
+    EXPECT_TRUE(std::u16string(u"/usr/local/file.txt") == std::filesystem::path(L"/usr/local/file.txt").generic_u16string());
     EXPECT_TRUE(std::u16string(u"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗26.txt") ==
                 std::filesystem::path(L"~/狗/ǡ୫ԩϗ/にほ/ąę/ど/௸ඊƷ/狗26.txt").generic_u16string());
 }
@@ -445,8 +438,7 @@ TEST(file_util, path_cast_from_wstring_to_char8_t) {
     EXPECT_TRUE(std::u8string(u8"file.txt") == std::filesystem::path(L"file.txt").u8string());
     EXPECT_TRUE(std::u8string(u8"./local/file.txt") == std::filesystem::path(L"./local/file.txt").generic_u8string());
     EXPECT_TRUE(std::u8string(u8"~/local/file.txt") == std::filesystem::path(L"~/local/file.txt").generic_u8string());
-    EXPECT_TRUE(std::u8string(u8"/usr/local/file.txt") ==
-                std::filesystem::path(L"/usr/local/file.txt").generic_u8string());
+    EXPECT_TRUE(std::u8string(u8"/usr/local/file.txt") == std::filesystem::path(L"/usr/local/file.txt").generic_u8string());
 #elif defined(OPENVINO_CPP_VER_AT_LEAST_17)
     EXPECT_EQ(std::string(""), std::filesystem::path(L"").u8string());
     EXPECT_EQ(std::string("file.txt"), std::filesystem::path(L"file.txt").u8string());
@@ -664,6 +656,8 @@ INSTANTIATE_TEST_SUITE_P(wstring_paths,
                                          L"test_encoder/test_encoder.encrypted/"));
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+INSTANTIATE_TEST_SUITE_P(unicode_paths, FileUtilTestP, unicode_paths);
+
 INSTANTIATE_TEST_SUITE_P(unicode_paths_with_slash,
                          FileUtilTestP,
                          testing::Values("这是.folder/", L"这是_folder/", u"这是_folder/", U"这是_folder/"));
