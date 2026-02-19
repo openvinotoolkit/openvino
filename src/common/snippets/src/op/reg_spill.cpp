@@ -29,7 +29,7 @@ namespace ov::snippets::op {
 RegSpillBase::RegSpillBase(const std::vector<Output<Node>>& args) : Op(args) {}
 
 bool RegSpillBase::visit_attributes(AttributeVisitor& visitor) {
-    auto spilled = ov::util::join(get_regs_to_spill(), ", ");
+    auto spilled = ov::util::join(get_regs_to_spill());
     visitor.on_attribute("regs_to_spill", spilled);
     return true;
 }
