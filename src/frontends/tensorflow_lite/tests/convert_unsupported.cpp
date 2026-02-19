@@ -52,3 +52,80 @@ TEST(FrontEndConvertModelTest, test_wrong_pos) {
     shared_ptr<ov::Model> model;
     ASSERT_THROW(model = frontEnd->convert(inputModel), std::exception);
 }
+
+// Sparse tensor with out-of-bounds index value
+// Index 999 in a dimension of size 100 would cause heap OOB write without bounds checking
+TEST(FrontEndConvertModelTest, test_sparse_oob_index) {
+    FrontEndManager fem;
+    FrontEnd::Ptr frontEnd;
+    InputModel::Ptr inputModel;
+    OV_ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_LITE_FE));
+    ASSERT_NE(frontEnd, nullptr);
+    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) +
+                                                             string("sparse_oob/sparse_oob_index.tflite"));
+    ASSERT_THROW(
+        {
+            inputModel = frontEnd->load(model_filename);
+            if (inputModel) {
+                frontEnd->convert(inputModel);
+            }
+        },
+        std::exception);
+}
+
+// Sparse tensor with negative index value
+TEST(FrontEndConvertModelTest, test_sparse_negative_index) {
+    FrontEndManager fem;
+    FrontEnd::Ptr frontEnd;
+    InputModel::Ptr inputModel;
+    OV_ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_LITE_FE));
+    ASSERT_NE(frontEnd, nullptr);
+    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) +
+                                                             string("sparse_oob/sparse_negative_index.tflite"));
+    ASSERT_THROW(
+        {
+            inputModel = frontEnd->load(model_filename);
+            if (inputModel) {
+                frontEnd->convert(inputModel);
+            }
+        },
+        std::exception);
+}
+
+// Sparse tensor with non-monotonic segments
+TEST(FrontEndConvertModelTest, test_sparse_non_monotonic_segments) {
+    FrontEndManager fem;
+    FrontEnd::Ptr frontEnd;
+    InputModel::Ptr inputModel;
+    OV_ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_LITE_FE));
+    ASSERT_NE(frontEnd, nullptr);
+    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) +
+                                                             string("sparse_oob/sparse_non_monotonic_segments.tflite"));
+    ASSERT_THROW(
+        {
+            inputModel = frontEnd->load(model_filename);
+            if (inputModel) {
+                frontEnd->convert(inputModel);
+            }
+        },
+        std::exception);
+}
+
+// Sparse tensor with shape dimensions that cause integer overflow in size computation
+TEST(FrontEndConvertModelTest, test_sparse_overflow_shape) {
+    FrontEndManager fem;
+    FrontEnd::Ptr frontEnd;
+    InputModel::Ptr inputModel;
+    OV_ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_LITE_FE));
+    ASSERT_NE(frontEnd, nullptr);
+    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) +
+                                                             string("sparse_oob/sparse_overflow_shape.tflite"));
+    ASSERT_THROW(
+        {
+            inputModel = frontEnd->load(model_filename);
+            if (inputModel) {
+                frontEnd->convert(inputModel);
+            }
+        },
+        std::exception);
+}
