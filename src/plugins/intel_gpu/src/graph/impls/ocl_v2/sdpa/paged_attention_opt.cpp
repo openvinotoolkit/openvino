@@ -1343,14 +1343,12 @@ public:
         rt_params->query_block_size = get_query_block_size(rt_params->stage, rt_params->use_micro_sdpa);
 
         if (rt_params->stage == PagedAttentionStage::GENERATE) {
-            const bool allow_gqa = can_use_gqa_kernel(params, PagedAttentionStage::GENERATE, rt_params->max_context_len);
             if (rt_params->use_micro_sdpa) {
                 size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
-                const bool allow_micro_gqa = allow_gqa && kv_group_size == 8 && desc->k_head_size == 64;
-                rt_params->use_gqa_kernel = allow_micro_gqa;
-                rt_params->use_micro_sdpa = allow_micro_gqa;
+                rt_params->use_gqa_kernel = (kv_group_size == 8 && desc->k_head_size == 64);
+                rt_params->use_micro_sdpa = rt_params->use_gqa_kernel;
             } else {
-                rt_params->use_gqa_kernel = allow_gqa;
+                rt_params->use_gqa_kernel = can_use_gqa_kernel(params, PagedAttentionStage::GENERATE, rt_params->max_context_len);
             }
         } else {
             rt_params->use_gqa_kernel = false;
