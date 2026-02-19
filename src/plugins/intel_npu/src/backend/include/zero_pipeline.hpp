@@ -11,7 +11,7 @@
 
 namespace intel_npu {
 
-struct Pipeline final {
+struct Pipeline {
 public:
     Pipeline(const Config& config,
              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
@@ -20,18 +20,31 @@ public:
              const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
              size_t batch_size = 1);
 
+    Pipeline(const Config& config,
+             const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+             const std::shared_ptr<IGraph>& graph,
+             const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
+             const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
+             const char* logName,
+             size_t batch_size = 1);
+
     Pipeline(const Pipeline&) = delete;
     Pipeline& operator=(const Pipeline&) = delete;
-    ~Pipeline() = default;
+    virtual ~Pipeline() = default;
 
-    void push();
-    void pull();
-    void reset() const;
+    virtual void push();
+    virtual void pull();
+    virtual void reset() const;
 
-    void update_graph_arguments(uint32_t index, const std::shared_ptr<ZeroTensor>& tensor);
-    void update_graph_arguments(uint32_t index, const std::shared_ptr<ZeroTensor>& tensor, size_t batch_index);
+    virtual void update_graph_arguments(uint32_t index,
+                                        const std::shared_ptr<ZeroTensor>& tensor,
+                                        [[maybe_unused]] std::shared_ptr<ov::ITensor> userTensor = nullptr);
+    virtual void update_graph_arguments(uint32_t index,
+                                        const std::shared_ptr<ZeroTensor>& tensor,
+                                        size_t batch_index,
+                                        [[maybe_unused]] std::shared_ptr<ov::ITensor> userTensor = nullptr);
 
-    std::vector<ov::ProfilingInfo> get_profiling_info() const;
+    virtual std::vector<ov::ProfilingInfo> get_profiling_info() const;
 
 protected:
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;

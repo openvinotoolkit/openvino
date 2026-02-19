@@ -220,6 +220,20 @@ Pipeline::Pipeline(const Config& config,
     _logger.debug("Pipeline - initialize completed");
 }
 
+Pipeline::Pipeline(const Config& config,
+                   const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                   const std::shared_ptr<IGraph>& graph,
+                   const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
+                   const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
+                   const char* logName,
+                   size_t batch_size)
+    : _init_structs(init_structs),
+      _graph(graph),
+      _config(config),
+      _id(_graph->get_unique_id()),
+      _number_of_command_lists(batch_size),
+      _logger(logName, _config.get<LOG_LEVEL>()) {}
+
 void Pipeline::push() {
     _logger.debug("Pipeline - push() started");
 
@@ -282,7 +296,9 @@ void Pipeline::reset() const {
     _logger.debug("Pipeline - rest() completed");
 };
 
-void Pipeline::update_graph_arguments(uint32_t index, const std::shared_ptr<ZeroTensor>& tensor) {
+void Pipeline::update_graph_arguments(uint32_t index,
+                                      const std::shared_ptr<ZeroTensor>& tensor,
+                                      std::shared_ptr<ov::ITensor> userTensor) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandList");
     _logger.debug("Pipeline - updateCommandList");
 
@@ -302,7 +318,10 @@ void Pipeline::update_graph_arguments(uint32_t index, const std::shared_ptr<Zero
     }
 };
 
-void Pipeline::update_graph_arguments(uint32_t index, const std::shared_ptr<ZeroTensor>& tensor, size_t batch_index) {
+void Pipeline::update_graph_arguments(uint32_t index,
+                                      const std::shared_ptr<ZeroTensor>& tensor,
+                                      size_t batch_index,
+                                      std::shared_ptr<ov::ITensor> userTensor) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandListIndex");
     _logger.debug("Pipeline - updateCommandListIndex");
 
