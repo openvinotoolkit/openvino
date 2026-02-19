@@ -201,9 +201,8 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
     info.max_alloc_mem_size = device.get_info<::sycl::info::device::max_mem_alloc_size>();
     info.max_global_cache_size = device.get_info<::sycl::info::device::global_mem_cache_size>();
 
-    info.supports_image = device.has(::sycl::aspect::ext_intel_legacy_image);
-    info.max_image2d_width = static_cast<uint64_t>(device.get_info<::sycl::info::device::image2d_max_width>());
-    info.max_image2d_height = static_cast<uint64_t>(device.get_info<::sycl::info::device::image2d_max_height>());
+    // Image is not yet supported in this SYCL runtime
+    info.supports_image = false;
 
     info.supports_intel_planar_yuv = false; // no corresponding aspect in SYCL
     info.supports_fp16 = device.has(::sycl::aspect::fp16);
