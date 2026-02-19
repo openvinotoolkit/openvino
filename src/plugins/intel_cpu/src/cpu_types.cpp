@@ -22,7 +22,7 @@ std::string dims2str(const VectorDims& dims) {
     std::transform(dims.begin(), dims.end(), dimStrings.begin(), [](Dim dim) {
         return dim2str(dim);
     });
-    return "{" + ov::util::join(dimStrings, ", ") + "}";
+    return "{" + ov::util::join(dimStrings) + "}";
 }
 
 using TypeToNameMap = ov::intel_cpu::caseless_unordered_map<std::string, Type>;

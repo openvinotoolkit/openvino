@@ -68,7 +68,7 @@ Tile::Tile(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
 
 void Tile::getSupportedDescriptors() {
     const auto& vec_to_string = [](const std::vector<size_t>& vec) -> std::string {
-        return "[" + ov::util::join(vec, ", ");
+        return "[" + ov::util::join(vec);
     };
     if (getParentEdges().size() != 2) {
         CPU_NODE_THROW("has incorrect number of input edges. "

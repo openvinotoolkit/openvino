@@ -50,7 +50,7 @@ std::string Shape::toString() const {
             dimStrings.emplace_back(std::to_string(dims[i]));
         }
     }
-    return "{" + ov::util::join(dimStrings, ", ") + "}";
+    return "{" + ov::util::join(dimStrings) + "}";
 }
 
 Shape mergeShapes(const Shape& lhs, const Shape& rhs) {
