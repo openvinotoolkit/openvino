@@ -25,8 +25,7 @@ BlobWriter::BlobWriter(const std::shared_ptr<BlobReader>& blob_reader)
     : m_offsets_table(blob_reader->m_offsets_table),
       m_logger("BlobWriter", Logger::global().level()) {
     // TODO review the class const qualifiers
-    // TODO constant for this section ID & offsets table inside isection.hpp
-    const auto cre_section = blob_reader->retrieve_section(SectionID(PredefinedSectionType::CRE, FIRST_INSTANCE_ID));
+    const auto cre_section = blob_reader->retrieve_section(CRE_SECTION_ID);
     OPENVINO_ASSERT(cre_section != nullptr, "The CRE section was not found within the BlobReader");
 
     m_cre = std::dynamic_pointer_cast<CRESection>(cre_section)->get_cre();
@@ -91,7 +90,7 @@ void BlobWriter::move_stream_cursor_to_relative_position(std::ostream& stream,
                                                          const SectionID section_id,
                                                          const uint64_t offset) {
     OPENVINO_ASSERT(m_stream_base.has_value());
-    OPENVINO_ASSERT(stream.good());  // TODO maybe the stream should be an attribute
+    OPENVINO_ASSERT(stream.good());  // TODO maybe the stream should be an attribute exposed via the BlobWriter's API
 
     // Bound checking. Sections should jump only to locations within their payload.
     const std::optional<uint64_t> section_offset = m_offsets_table.lookup_offset(section_id);
@@ -165,7 +164,8 @@ void BlobWriter::write(std::ostream& stream) {
 
     // Write the CRESection
     // Note: this was left near the end jic some writers had to register some more capability IDs for some reason
-    // TODO: in that case, read then write would fill a bit of junk
+    // TODO: in that case, reading this blob and then writing it again would add redundant CRE tokens. Maybe a redesign
+    // would be useful here.
     const auto cre_section = std::make_shared<CRESection>(m_cre);
     cre_section->set_section_type_instance(FIRST_INSTANCE_ID);
     write_section(stream, cre_section);

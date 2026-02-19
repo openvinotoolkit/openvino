@@ -100,7 +100,7 @@ void BlobReader::read(const std::unordered_map<CRE::Token, std::shared_ptr<ICapa
     move_cursor_to_relative_position(offsets_table_location);
 
     m_parsed_sections[PredefinedSectionType::OFFSETS_TABLE][FIRST_INSTANCE_ID] =
-        OffsetsTableSection::read(this, offsets_table_size);  // TODO this might not work
+        OffsetsTableSection::read(this, offsets_table_size);
     m_parsed_sections[PredefinedSectionType::OFFSETS_TABLE][FIRST_INSTANCE_ID]->set_section_type_instance(
         FIRST_INSTANCE_ID);
     m_offsets_table = std::dynamic_pointer_cast<OffsetsTableSection>(
@@ -108,9 +108,8 @@ void BlobReader::read(const std::unordered_map<CRE::Token, std::shared_ptr<ICapa
                           ->get_table();
 
     // Step 2: Look for the CRE and evaluate it
-    const SectionID cre_section_id(PredefinedSectionType::CRE, FIRST_INSTANCE_ID);
-    std::optional<uint64_t> offset = m_offsets_table.lookup_offset(cre_section_id);
-    std::optional<uint64_t> section_length = m_offsets_table.lookup_length(cre_section_id);
+    std::optional<uint64_t> offset = m_offsets_table.lookup_offset(CRE_SECTION_ID);
+    std::optional<uint64_t> section_length = m_offsets_table.lookup_length(CRE_SECTION_ID);
     OPENVINO_ASSERT(offset.has_value(), "The CRE was not found within the table of offsets");
     move_cursor_to_relative_position(offset.value());
 

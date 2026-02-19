@@ -103,7 +103,7 @@ private:
     mutable Logger _logger;
     std::shared_ptr<Metrics> _metrics;
     std::unique_ptr<Properties> _properties;
-    // TODO is this the best type of ptr for this usecase?
+
     mutable std::unordered_map<CRE::Token, std::shared_ptr<ICapability>> _capabilities;
 
     static std::atomic<int> _compiledModelLoadCounter;

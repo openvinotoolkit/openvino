@@ -16,8 +16,7 @@
 namespace intel_npu {
 
 // TODOs: fix the circular dependencies
-// Move sections in directory
-// Unique SID - how do we reinforce this without compromising modularity? Description matching?
+// Consider moving the secion files in dedicated directories
 
 using SectionType = uint16_t;
 using SectionTypeInstance = uint16_t;
@@ -47,6 +46,10 @@ enum {
     BATCH_SIZE = 105,
 };
 };
+
+// Only a single instance should exist within a blob. So, we may predefine these IDs for convenience.
+const SectionID CRE_SECTION_ID(PredefinedSectionType::CRE, 0);
+const SectionID OFFSETS_TABLE_SECTION_ID(PredefinedSectionType::OFFSETS_TABLE, 0);
 
 class ISection {
 public:

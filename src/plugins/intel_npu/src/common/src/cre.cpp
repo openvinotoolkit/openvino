@@ -65,7 +65,6 @@ bool CRE::end_condition(const std::vector<Token>::const_iterator& expression_ite
     }
 }
 
-// TODO: if depth = 1, fail asap and print a suggestive message regarding the missing cap
 bool CRE::evaluate(std::vector<Token>::const_iterator& expression_iterator,
                    const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities,
                    const Delimiter end_delimiter) {

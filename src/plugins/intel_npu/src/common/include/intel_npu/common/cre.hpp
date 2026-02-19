@@ -17,7 +17,7 @@ class CRE final {
 public:
     using Token = uint16_t;
 
-    // TODO should we also add "NOT"?
+    // TODO add the "NOT" operator as well
     enum ReservedToken : Token { AND = 50000, OR = 50001, OPEN = 50002, CLOSE = 50003 };
 
     static inline const std::unordered_set<Token> RESERVED_TOKENS{ReservedToken::AND,
