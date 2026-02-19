@@ -4,7 +4,6 @@
 
 #include <signal.h>
 
-#include <functional_test_utils/summary/op_summary.hpp>
 #include <sstream>
 #ifdef WIN32
 #    include <process.h>
@@ -14,8 +13,6 @@
 void sigsegv_handler(int errCode);
 
 void sigsegv_handler(int errCode) {
-    auto& s = ov::test::utils::OpSummary::getInstance();
-    s.saveReport();
     std::cerr << "Unexpected application crash with code: " << errCode << std::endl;
     std::abort();
 }
