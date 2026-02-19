@@ -978,13 +978,21 @@ void Properties::updateConfig(const ov::AnyMap& properties, OptionMode mode) {
     const std::map<std::string, std::string> rawConfig = any_copy(properties);
     std::map<std::string, std::string> cfgsToSet;
     for (const auto& [key, value] : rawConfig) {
-        if (!_config.hasOpt(key)) {
+        if (!isPropertyRegistered(key)) {
             _logger.info(
                 "Config key '%s' is not recognized as a known option, will not be used for current configuration.",
                 key.c_str());
-        } else {
-            cfgsToSet.emplace(key, value);
+            continue;
         }
+
+        if (_config.hasOpt(key) && _config.getOpt(key).mode() == OptionMode::CompileTime) {
+            _logger.info(
+                "Config key '%s' is recognized as a compiler option, will not be used for current configuration.",
+                key.c_str());
+            continue;
+        }
+
+        cfgsToSet.emplace(key, value);
     }
 
     _config.update(cfgsToSet, mode);
