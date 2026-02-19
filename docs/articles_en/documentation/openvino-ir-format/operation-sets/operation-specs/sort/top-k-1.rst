@@ -76,6 +76,10 @@ Sorting and minimum/maximum are controlled by ``sort`` and ``mode`` attributes:
 
 If there are several elements with the same value then their output order is not determined.
 
+**NaN Handling**
+
+For floating-point types, NaN values are treated as smaller than any valid number (consistent with NumPy behavior). In ``max`` mode, NaN values will not appear in top-K results unless fewer than K valid numbers exist. Note that this differs from PyTorch, which treats NaN as larger than all valid numbers.
+
 **Example**
 
 .. code-block:: cpp
