@@ -513,10 +513,10 @@ TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerProperty) {
 
     ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
     ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
-    ASSERT_NE(logs.find("Config key 'NPU_PLATFORM' is not recognized as a known option, will not be used for current "
+    ASSERT_NE(logs.find("Config key 'NPU_PLATFORM' is recognized as a compiler option, will not be used for current "
                         "configuration."),
               std::string::npos);
-    ASSERT_NE(logs.find("Config key 'NPU_QDQ_OPTIMIZATION' is not recognized as a known option, will not be used for "
+    ASSERT_NE(logs.find("Config key 'NPU_QDQ_OPTIMIZATION' is recognized as a compiler option, will not be used for "
                         "current configuration."),
               std::string::npos);
 }
