@@ -10,6 +10,11 @@
 
 namespace intel_npu {
 
+/**
+ * @brief Table of offsets meant to be integrated within the NPU blob format.
+ * @note Although this implementation is used by the main offsets table section of the NPU blob region, it can be reused
+ * for use cases within the payload of other sections.
+ */
 class OffsetsTable final {
 public:
     OffsetsTable() = default;
@@ -27,7 +32,13 @@ public:
 private:
     friend class OffsetsTableSection;
 
+    /**
+     * @brief From section IDs to offsets & lengths.
+     */
     std::unordered_map<SectionID, std::pair<uint64_t, uint64_t>> m_table;
+    /**
+     * @brief From offsets to section IDs.
+     */
     std::unordered_map<uint64_t, SectionID> m_reversed_table;
 };
 

@@ -26,8 +26,8 @@ public:
                                                                   ReservedToken::CLOSE};
 
     /**
-     * @brief All capability codes known in advance. Past codes should be recorded here as well, this helps avoid code
-     * collision.
+     * @brief All capability codes known in advance. Past codes should be recorded here as well to help avoiding
+     * code collision.
      */
     enum PredefinedCapabilityToken : Token {
         CRE_EVALUATION = 100,
@@ -36,6 +36,7 @@ public:
         WEIGHTS_SEPARATION = 103
     };
 
+    // TODO: separate set for the "static" ones?
     static inline const std::unordered_set<Token> DEFAULT_PLUGIN_CAPABILITIES_TOKENS{
         PredefinedCapabilityToken::CRE_EVALUATION,
         PredefinedCapabilityToken::ELF_SCHEDULE,
@@ -46,14 +47,29 @@ public:
 
     CRE(const std::vector<Token>& expression);
 
+    /**
+     * @brief Append a new token to the CRE, at depth-level 1. All tokens found at this depth-level are bound by a
+     * logical "AND" operator.
+     */
     void append_to_expression(const CRE::Token requirement_token);
 
+    /**
+     * @brief Append a new CRE subexpression to the CRE, at depth-level 1. All tokens found at this depth-level are
+     * bound by a logical "AND" operator.
+     */
     void append_to_expression(const std::vector<CRE::Token>& requirement_tokens);
 
     size_t get_expression_length() const;
 
     std::vector<Token> get_expression() const;
 
+    /**
+     * @brief Evaluates the expression against the given NPU plugin capabilities.
+     * @details The plugin capabilities are evaluated in a lazy manner: the check support function is called only upon
+     * encountering the corresponding CRE token.
+     *
+     * @param plugin_capabilities A mapping between CRE tokens and their (lazy) evaluators.
+     */
     bool check_compatibility(const std::unordered_map<CRE::Token, std::shared_ptr<ICapability>>& plugin_capabilities);
 
 private:
