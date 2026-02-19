@@ -15,6 +15,7 @@
 #include "nodes/common/permute_kernel.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
+#include "nodes/executors/transpose_config.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"

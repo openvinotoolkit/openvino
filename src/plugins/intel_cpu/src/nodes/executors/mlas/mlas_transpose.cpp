@@ -20,7 +20,6 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/transpose.hpp"
 #include "nodes/executors/transpose_config.hpp"
-#include "openvino/core/except.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 

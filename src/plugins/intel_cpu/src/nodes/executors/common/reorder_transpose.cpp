@@ -4,16 +4,27 @@
 
 #include "reorder_transpose.hpp"
 
+#include <oneapi/dnnl/dnnl_types.h>
+
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <utility>
 
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/common/reorder_prim.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "nodes/executors/transpose.hpp"
+#include "nodes/executors/transpose_config.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
-#include "openvino/core/type/element_type.hpp"
 #include "thread_pool_imp.hpp"
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    include "openvino/core/type/element_type.hpp"
+#endif
 
 namespace ov::intel_cpu {
 
@@ -21,22 +32,13 @@ ReorderTransposeExecutor::ReorderTransposeExecutor(const TransposeAttrs& attrs, 
     : TransposeExecutor(attrs, std::move(context)) {}
 
 bool ReorderTransposeExecutor::supports(const TransposeConfig& config) {
-    if (!config.descs.at(ARG_SRC)->hasLayoutType(LayoutType::ncsp) ||
-        !config.descs.at(ARG_DST)->hasLayoutType(LayoutType::ncsp)) {
-        return false;
-    }
-
-    if (config.attrs.permuteParams.order != VectorDims{0, 3, 1, 2}) {
-        return false;
-    }
-
+    bool result = config.descs.at(ARG_SRC)->hasLayoutType(LayoutType::ncsp) &&
+                  config.descs.at(ARG_DST)->hasLayoutType(LayoutType::ncsp) &&
+                  config.attrs.permuteParams.order == VectorDims{0, 3, 1, 2};
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    if (config.descs.at(ARG_SRC)->getPrecision() != ov::element::f32) {
-        return false;
-    }
+    result = result && config.descs.at(ARG_SRC)->getPrecision() == ov::element::f32;
 #endif
-
-    return true;
+    return result;
 }
 
 ExecutorPtr ReorderTransposeExecutor::create(const TransposeAttrs& attrs,

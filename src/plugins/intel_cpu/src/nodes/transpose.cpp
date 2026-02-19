@@ -21,6 +21,7 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/transpose_config.hpp"
 #include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
