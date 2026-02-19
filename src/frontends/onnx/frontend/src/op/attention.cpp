@@ -345,6 +345,20 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
         }
     }
 
+    // When KV cache is used with is_causal, SDPA's internal causal mask doesn't account for
+    // KV cache offset (seq_kv > seq_q). Build an explicit offset-aware causal mask and pass it
+    // as attn_mask instead, disabling SDPA's is_causal flag.
+    if (is_causal && has_past_key) {
+        auto causal_mask = detail::build_causal_mask(Q, K);
+        if (has_attn_mask) {
+            attn_mask = std::make_shared<v1::Add>(attn_mask, causal_mask);
+        } else {
+            attn_mask = causal_mask;
+        }
+        has_attn_mask = true;
+        is_causal = false;
+    }
+
     // Choose execution path
     ov::Output<ov::Node> Y;
     ov::Output<ov::Node> qk_debug_output;

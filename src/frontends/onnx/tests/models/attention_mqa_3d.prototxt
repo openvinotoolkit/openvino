@@ -1,0 +1,36 @@
+ir_version: 10
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "Q"
+    input: "K"
+    input: "V"
+    output: "Y"
+    name: "Attention_1"
+    op_type: "Attention"
+    attribute { name: "q_num_heads" i: 4 type: INT }
+    attribute { name: "kv_num_heads" i: 1 type: INT }
+  }
+  name: "attention_mqa_3d"
+  input {
+    name: "Q"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 4 } dim { dim_value: 12 } } } }
+  }
+  input {
+    name: "K"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 4 } dim { dim_value: 3 } } } }
+  }
+  input {
+    name: "V"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 4 } dim { dim_value: 3 } } } }
+  }
+  output {
+    name: "Y"
+    type { tensor_type { elem_type: 1
+      shape { dim { dim_value: 1 } dim { dim_value: 4 } dim { dim_value: 12 } } } }
+  }
+}
+opset_import { version: 23 }
