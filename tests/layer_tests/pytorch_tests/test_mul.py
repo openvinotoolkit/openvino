@@ -15,14 +15,13 @@ class TestMul(PytorchLayerTest):
     def create_model(self):
         class aten_mul(torch.nn.Module):
             def __init__(self):
-                super(aten_mul, self).__init__()
+                super().__init__()
 
             def forward(self, input_tensor, other_tensor):
                 return torch.mul(input_tensor, other_tensor)
 
-        ref_net = None
 
-        return aten_mul(), ref_net, "aten::mul"
+        return aten_mul(), "aten::mul"
 
     @pytest.mark.parametrize(("input_array", "other_array"), [
         [np.array([0.2015, -0.4255, 2.6087]), np.array(100)],
@@ -44,11 +43,11 @@ class TestMulTypes(PytorchLayerTest):
 
     def _prepare_input(self):
         if len(self.lhs_shape) == 0:
-            return (torch.randn(self.rhs_shape).to(self.rhs_type).numpy(),)
+            return (self.random.randn(*self.rhs_shape, dtype=self.rhs_type),)
         elif len(self.rhs_shape) == 0:
-            return (torch.randn(self.lhs_shape).to(self.lhs_type).numpy(),)
-        return (torch.randn(self.lhs_shape).to(self.lhs_type).numpy(),
-                torch.randn(self.rhs_shape).to(self.rhs_type).numpy())
+            return (self.random.randn(*self.lhs_shape, dtype=self.lhs_type),)
+        return (self.random.randn(*self.lhs_shape, dtype=self.lhs_type),
+                self.random.randn(*self.rhs_shape, dtype=self.rhs_type))
 
     def create_model(self, lhs_type, lhs_shape, rhs_type, rhs_shape):
 
@@ -73,9 +72,8 @@ class TestMulTypes(PytorchLayerTest):
             def forward3(self, lhs, rhs):
                 return torch.mul(lhs.to(self.lhs_type), rhs.to(self.rhs_type))
 
-        ref_net = None
 
-        return aten_mul(lhs_type, lhs_shape, rhs_type, rhs_shape), ref_net, "aten::mul"
+        return aten_mul(lhs_type, lhs_shape, rhs_type, rhs_shape), "aten::mul"
 
     @pytest.mark.parametrize(("lhs_type", "rhs_type"),
                              [[torch.int32, torch.int64],
@@ -112,8 +110,8 @@ class TestMulTypes(PytorchLayerTest):
 
 class TestMulBool(PytorchLayerTest):
     def _prepare_input(self):
-        input_tensor = torch.randint(0, 2, size=(1, 100)).numpy()
-        other_tensor = torch.randint(0, 2, size=(1, 100)).numpy()
+        input_tensor = self.random.randint(0, 2, size=(1, 100), dtype=np.int64)
+        other_tensor = self.random.randint(0, 2, size=(1, 100), dtype=np.int64)
         return (input_tensor, other_tensor)
 
     def create_model(self, lhs_type, rhs_type):
@@ -126,9 +124,8 @@ class TestMulBool(PytorchLayerTest):
             def forward(self, input_tensor, other_tensor):
                 return torch.mul(input_tensor.to(self.lhs_type), other_tensor.to(self.rhs_type))
 
-        ref_net = None
 
-        return aten_mul(), ref_net, "aten::mul"
+        return aten_mul(), "aten::mul"
 
     @pytest.mark.parametrize(("lhs_type", "rhs_type"), [
         (torch.bool, torch.bool),
@@ -147,8 +144,8 @@ class TestMulWithLhsComplex(PytorchLayerTest):
     def _prepare_input(self):
         rhs_input_shape = [3, 4, 5]
         lhs_input_shape = rhs_input_shape + [2]
-        return [torch.randint(-10, 10, lhs_input_shape).to(self.lhs_type).numpy(),
-                torch.randint(-10, 10, rhs_input_shape).to(self.rhs_type).numpy()]
+        return [self.random.randint(-10, 10, size=lhs_input_shape, dtype=self.lhs_type),
+            self.random.randint(-10, 10, size=rhs_input_shape, dtype=self.rhs_type)]
 
     def create_model(self, op_type):
         class aten_mul(torch.nn.Module):
@@ -167,9 +164,8 @@ class TestMulWithLhsComplex(PytorchLayerTest):
                 lhs.mul_(rhs)
                 return torch.view_as_real(lhs)
 
-        ref_net = None
 
-        return aten_mul(op_type), ref_net, f"aten::{op_type}"
+        return aten_mul(op_type), f"aten::{op_type}"
 
     @pytest.mark.parametrize("lhs_type",
                              [torch.float32,
@@ -194,8 +190,8 @@ class TestMulWithLhsComplex(PytorchLayerTest):
     def _prepare_input(self):
         rhs_input_shape = [3, 4, 5]
         lhs_input_shape = rhs_input_shape + [2]
-        return [torch.randint(-10, 10, lhs_input_shape).to(self.lhs_type).numpy(),
-                torch.randint(-10, 10, rhs_input_shape).to(self.rhs_type).numpy()]
+        return [self.random.randint(-10, 10, size=lhs_input_shape, dtype=self.lhs_type),
+            self.random.randint(-10, 10, size=rhs_input_shape, dtype=self.rhs_type)]
 
     def create_model(self, op_type):
         class aten_mul(torch.nn.Module):
@@ -214,9 +210,8 @@ class TestMulWithLhsComplex(PytorchLayerTest):
                 lhs.mul_(rhs)
                 return torch.view_as_real(lhs)
 
-        ref_net = None
 
-        return aten_mul(op_type), ref_net, f"aten::{op_type}"
+        return aten_mul(op_type), f"aten::{op_type}"
 
     @pytest.mark.parametrize("lhs_type",
                              [torch.float32,
@@ -241,8 +236,8 @@ class TestMulWithRhsComplex(PytorchLayerTest):
     def _prepare_input(self):
         lhs_input_shape = [3, 4, 5]
         rhs_input_shape = lhs_input_shape + [2]
-        return [torch.randint(0, 10, lhs_input_shape).to(self.lhs_type).numpy(),
-                torch.randint(0, 10, rhs_input_shape).to(self.rhs_type).numpy()]
+        return [self.random.randint(0, 10, size=lhs_input_shape, dtype=self.lhs_type),
+            self.random.randint(0, 10, size=rhs_input_shape, dtype=self.rhs_type)]
 
     def create_model(self):
         class aten_mul(torch.nn.Module):
@@ -255,9 +250,8 @@ class TestMulWithRhsComplex(PytorchLayerTest):
                 res = torch.mul(lhs, rhs)
                 return torch.view_as_real(res)
 
-        ref_net = None
 
-        return aten_mul(), ref_net, f"aten::mul"
+        return aten_mul(), f"aten::mul"
 
     @pytest.mark.parametrize("rhs_type",
                              [torch.float32,
@@ -282,8 +276,8 @@ class TestMulWithBothComplex(PytorchLayerTest):
     def _prepare_input(self):
         input_shape = [3, 4, 5]
         input_shape = input_shape + [2]
-        return [torch.randint(0, 10, input_shape).to(self.lhs_type).numpy(),
-                torch.randint(0, 10, input_shape).to(self.rhs_type).numpy()]
+        return [self.random.randint(0, 10, size=input_shape, dtype=self.lhs_type),
+            self.random.randint(0, 10, size=input_shape, dtype=self.rhs_type)]
 
     def create_model(self, op_type):
         class aten_mul(torch.nn.Module):
@@ -304,9 +298,8 @@ class TestMulWithBothComplex(PytorchLayerTest):
                 res = lhs.mul_(rhs)
                 return torch.view_as_real(res + lhs)
 
-        ref_net = None
 
-        return aten_mul(op_type), ref_net, f"aten::{op_type}"
+        return aten_mul(op_type), f"aten::{op_type}"
 
     @pytest.mark.parametrize("lhs_type",
                              [torch.float32,

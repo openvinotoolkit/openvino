@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
 import pytest
 import torch
 
@@ -10,8 +9,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestTupleUnpack(PytorchLayerTest):
     def _prepare_input(self):
-        import numpy as np
-        return (np.random.randn(2, 4, 6, 8).astype(np.float32),)
+        return (self.random.randn(2, 4, 6, 8),)
 
     def create_model(self):
 
@@ -26,7 +24,7 @@ class TestTupleUnpack(PytorchLayerTest):
                 N, _, H, W = self.dims
                 return input_data * N * H * W
 
-        return TupleArgument(), None, "prim::TupleUnpack"
+        return TupleArgument(), "prim::TupleUnpack"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -49,16 +47,14 @@ class TestComplexTupleUnpack(PytorchLayerTest):
     """
 
     def _prepare_input(self):
-        rng = np.random.default_rng(43)
-        return (rng.standard_normal((2, 4, 2)).astype(np.float32),)
+        return (self.random.randn(2, 4, 2),)
 
     def create_model(self):
         class ComplexTupleUnpack(torch.nn.Module):
-            def __init__(self):
+            def __init__(self, rng):
                 super().__init__()
                 # Use separate buffers instead of tuple
-                g = torch.Generator().manual_seed(42)
-                freqs = torch.randn(4, 2, generator=g)
+                freqs = rng.torch_randn(4, 2)
                 complex_freqs = torch.view_as_complex(freqs)
                 self.register_buffer('freqs_a', torch.view_as_real(complex_freqs))
                 self.register_buffer('freqs_b', torch.view_as_real(complex_freqs * 2))
@@ -71,7 +67,7 @@ class TestComplexTupleUnpack(PytorchLayerTest):
                 result = complex_x * a + complex_x * b
                 return torch.view_as_real(result)
 
-        return ComplexTupleUnpack(), None, "aten::mul"
+        return ComplexTupleUnpack(self.random), "aten::mul"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -84,15 +80,13 @@ class TestComplexTupleUnpackMultiple(PytorchLayerTest):
     """Test TupleUnpack with multiple complex tensor outputs."""
 
     def _prepare_input(self):
-        rng = np.random.default_rng(43)
-        return (rng.standard_normal((2, 4, 2)).astype(np.float32),)
+        return (self.random.randn(2, 4, 2),)
 
     def create_model(self):
         class ComplexTupleUnpackMultiple(torch.nn.Module):
-            def __init__(self):
+            def __init__(self, rng):
                 super().__init__()
-                g = torch.Generator().manual_seed(42)
-                freqs = torch.randn(4, 2, generator=g)
+                freqs = rng.torch_randn(4, 2)
                 complex_freqs = torch.view_as_complex(freqs)
                 self.register_buffer('freqs_a', torch.view_as_real(complex_freqs))
                 self.register_buffer('freqs_b', torch.view_as_real(complex_freqs * 2))
@@ -106,7 +100,7 @@ class TestComplexTupleUnpackMultiple(PytorchLayerTest):
                 result = complex_x * a + complex_x * b + complex_x * c
                 return torch.view_as_real(result)
 
-        return ComplexTupleUnpackMultiple(), None, "aten::mul"
+        return ComplexTupleUnpackMultiple(self.random), "aten::mul"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

@@ -173,7 +173,6 @@ struct OptionPrinter final {
             ss << std::fixed << std::setprecision(2) << val;
         } else if constexpr (std::is_enum_v<std::decay_t<T>>) {
             ss << stringifyEnum(val);
-            return ss.str();
         } else {
             ss << val;
         }
@@ -437,6 +436,7 @@ public:
 private:
     std::unordered_map<std::string, details::OptionConcept> _impl;
     std::unordered_map<std::string, std::string> _deprecated;
+    Logger _log{Logger::global().clone("OptionsDesc")};
 };
 
 template <class Opt>
@@ -460,7 +460,7 @@ void OptionsDesc::add(std::optional<std::function<bool(std::string_view)>> custo
 class Config {
 public:
     using ConfigMap = std::map<std::string, std::string>;
-    using ImplMap = std::unordered_map<std::string, std::shared_ptr<details::OptionValue>>;
+    using ImplMap = std::unordered_map<std::string_view, std::shared_ptr<details::OptionValue>>;
 
     explicit Config(const std::shared_ptr<const OptionsDesc>& desc);
 
@@ -489,6 +489,9 @@ public:
 protected:
     std::shared_ptr<const OptionsDesc> _desc;
     ImplMap _impl;
+
+private:
+    Logger _log{Logger::global().clone("Config")};
 };
 
 template <class Opt>
@@ -500,14 +503,13 @@ template <class Opt>
 typename Opt::ValueType Config::get() const {
     using ValueType = typename Opt::ValueType;
 
-    auto log = Logger::global().clone("Config");
-    log.trace("Get value for the option '%s'", Opt::key().data());
+    _log.trace("Get value for the option '%s'", Opt::key().data());
 
-    const auto it = _impl.find(Opt::key().data());
+    const auto it = _impl.find(Opt::key());
 
     if (it == _impl.end()) {
         const std::optional<ValueType> optional = Opt::defaultValue();
-        log.trace("The option '%s' was not set by user, try default value", Opt::key().data());
+        _log.trace("The option '%s' was not set by user, try default value", Opt::key().data());
 
         OPENVINO_ASSERT(optional.has_value(),
                         "Option '",

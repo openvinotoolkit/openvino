@@ -49,9 +49,6 @@
 
 namespace ov::snippets::utils {
 
-using namespace ov::snippets::op;
-using namespace ov::snippets::pass;
-
 namespace {
 auto has_result_child(const std::shared_ptr<const Node>& node) -> bool {
     const auto& users = node->get_users();
@@ -117,7 +114,7 @@ std::function<bool(const std::shared_ptr<const ov::Node>&)> make_transpose_suppo
     };
 }
 
-bool tokenize_node(const std::shared_ptr<ov::Node>& node, const TokenizationConfig& config) {
+bool tokenize_node(const std::shared_ptr<ov::Node>& node, const ov::snippets::pass::TokenizationConfig& config) {
     const auto getFusedNames = [](const std::shared_ptr<Node>& n) -> std::string {
         auto rt_info = n->get_rt_info();
         auto it = rt_info.find("originalLayersNames");
@@ -183,19 +180,20 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const TokenizationConf
                                 if (ov::is_type_any_of<ov::op::v0::Constant, ov::op::v0::Parameter>(n)) {
                                     return maxOrder;
                                 }
-                                return std::max(maxOrder, GetTopologicalOrder(n));
+                                return std::max(maxOrder, ov::snippets::pass::GetTopologicalOrder(n));
                             });
         const auto& childNodes = nodeToExamine->get_users();
         // Skip the node being attached, since it will be a part of subgraph and can't introduce loop dependency
-        const int64_t minChildOrder = std::accumulate(childNodes.begin(),
-                                                      childNodes.end(),
-                                                      currentBounds.second,
-                                                      [&node](int64_t minOrder, const std::shared_ptr<Node>& n) {
-                                                          if (ov::is_type<ov::op::v0::Result>(n) || n == node) {
-                                                              return minOrder;
-                                                          }
-                                                          return std::min(minOrder, GetTopologicalOrder(n));
-                                                      });
+        const int64_t minChildOrder =
+            std::accumulate(childNodes.begin(),
+                            childNodes.end(),
+                            currentBounds.second,
+                            [&node](int64_t minOrder, const std::shared_ptr<Node>& n) {
+                                if (ov::is_type<ov::op::v0::Result>(n) || n == node) {
+                                    return minOrder;
+                                }
+                                return std::min(minOrder, ov::snippets::pass::GetTopologicalOrder(n));
+                            });
         if (maxParentOrder < minChildOrder) {
             currentBounds = std::pair<int64_t, int64_t>(maxParentOrder, minChildOrder);
             return false;
@@ -205,8 +203,8 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const TokenizationConf
 
     for (const auto& input_node : ov::as_node_vector(input_values)) {
         if (auto subgraph = ov::as_type_ptr<op::Subgraph>(input_node)) {
-            if ((clones.count(input_node) == 0U) &&
-                GetSnippetsSubgraphType(subgraph) != SnippetsSubgraphType::Completed) {
+            if ((clones.count(input_node) == 0U) && ov::snippets::pass::GetSnippetsSubgraphType(subgraph) !=
+                                                        ov::snippets::pass::SnippetsSubgraphType::Completed) {
                 auto f = subgraph->body().clone();
                 f->set_friendly_name(subgraph->body_ptr()->get_friendly_name());
                 clones[input_node] = f;

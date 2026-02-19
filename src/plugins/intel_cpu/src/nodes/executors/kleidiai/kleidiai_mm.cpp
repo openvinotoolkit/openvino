@@ -67,7 +67,8 @@ bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
 
 MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
                                                const MemoryArgs& memory,
-                                               const ExecutorContext::CPtr& context) {
+                                               const ExecutorContext::CPtr& context)
+    : executorContext(context) {
     auto srcMem = memory.at(ARG_SRC);
     auto weiMem = memory.at(ARG_WEI);
     auto weiDims = weiMem->getDesc().getShape().getDims();
@@ -251,6 +252,7 @@ bool MatMulKleidiAIExecutor::update(const MemoryArgs& memory) {
 }
 
 void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
+    const auto& cpu_parallel = executorContext->getCpuParallel();
     auto srcMem = memory.at(ARG_SRC);
     auto weiMem = memory.at(ARG_WEI);
     auto dstMem = memory.at(ARG_DST);
@@ -271,7 +273,7 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
     if (!useDynamicQuant) {
         auto* rhs_packed = static_cast<float*>(rhsPackedMem->getData());
 
-        parallel_for(n_blocks, [&](size_t n_block) {
+        cpu_parallel->parallel_for(n_blocks, [&](size_t n_block) {
             size_t n_start = (n_block * BLOCK_SIZE);
             size_t n_end = std::min(n_start + BLOCK_SIZE, N);
             size_t n_block_size = n_end - n_start;
@@ -303,7 +305,7 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
             const size_t lhs_packed_offset = ukernel_i4->get_lhs_packed_offset(0, K);
 
             ParallelNestingContext nested_context;
-            parallel_for(M_BLOCKS, [&](size_t m_blk) {
+            cpu_parallel->parallel_for(M_BLOCKS, [&](size_t m_blk) {
                 const size_t M_iter = std::min(M - m_blk * m_step, m_step);
                 auto* lhs_packed_block = lhs_packed_lowp + m_blk * packedlhs_block_in_bytes;
 
@@ -317,7 +319,7 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
                                                    lhs_stride,
                                                    lhs_packed_block  // lhs packed output
                 );
-                parallel_for(N_BLOCKS, [&](size_t n_blk) {
+                cpu_parallel->parallel_for(N_BLOCKS, [&](size_t n_blk) {
                     //  matmul exec
                     const size_t rhs_packed_offset = ukernel_i4->get_rhs_packed_offset(n_blk * n_step, K);
                     const size_t dst_offset =
@@ -346,7 +348,7 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
             const size_t lhs_packed_offset = ukernel_i8->get_lhs_packed_offset(0, K);
 
             ParallelNestingContext nested_context;
-            parallel_for(M_BLOCKS, [&](size_t m_blk) {
+            cpu_parallel->parallel_for(M_BLOCKS, [&](size_t m_blk) {
                 const size_t M_iter = std::min(M - m_blk * m_step, m_step);
                 auto* lhs_packed_block = lhs_packed_lowp + m_blk * packedlhs_block_in_bytes;
 
@@ -360,7 +362,7 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
                                                    lhs_stride,
                                                    lhs_packed_block  // lhs packed output
                 );
-                parallel_for(N_BLOCKS, [&](size_t n_blk) {
+                cpu_parallel->parallel_for(N_BLOCKS, [&](size_t n_blk) {
                     //  matmul exec
                     const size_t rhs_packed_offset = ukernel_i8->get_rhs_packed_offset(n_blk * n_step, K);
                     const size_t dst_offset =

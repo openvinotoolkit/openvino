@@ -32,23 +32,6 @@ private:
 };
 
 /**
- * @interface SetFillOffset
- * @brief The pass changes offset of all Fill ops
- * @param m_offset - offset which must be set
- * @ingroup snippets
- */
-class SetFillOffset : public pass::RangedPass {
-public:
-    explicit SetFillOffset(size_t offset);
-    OPENVINO_RTTI("SetFillOffset", "", RangedPass);
-    bool run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) override;
-    std::shared_ptr<pass::PassBase> merge(const std::shared_ptr<pass::PassBase>& other) override;
-
-private:
-    size_t m_offset;
-};
-
-/**
  * @interface SetLoopIncrementOne
  * @brief The pass set `increment = 1` to ExpandedLoopInfo which is mapped on LoopEnd in the passed iterator `end` and
  * to this LoopEnd.
