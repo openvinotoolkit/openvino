@@ -4,7 +4,6 @@
 
 #include <vector>
 
-#include "memory_desc/cpu_memory_desc.h"
 #include "memory_format_filter.hpp"
 #include "nodes/executors/concat.hpp"
 #include "nodes/executors/executor.hpp"
@@ -16,6 +15,7 @@
 #include "utils/arch_macros.h"
 
 #if defined(OV_CPU_WITH_ACL)
+#    include "memory_desc/cpu_memory_desc.h"
 #    include "nodes/executors/acl/acl_concat.hpp"
 #endif
 
