@@ -10,7 +10,6 @@
 
 #include "backends_registry.hpp"
 #include "intel_npu/common/filtered_config.hpp"
-#include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
