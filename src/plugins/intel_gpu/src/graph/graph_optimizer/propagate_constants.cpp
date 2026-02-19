@@ -76,6 +76,7 @@ void propagate_constants::run(program& p) {
 
     // replace all constant nodes which are relevant for inference (either used by non-const user or marked as output)
     // with recomputed cldnn::data
+    bool need_impl_reselection = false;
     for (auto& cout : to_replace) {
         auto& id_to_replace = std::get<0>(cout);
         auto mem_impl = std::get<1>(cout);
@@ -114,11 +115,15 @@ void propagate_constants::run(program& p) {
         bool was_dynamic = curr_node.get_output_layout().is_dynamic();
         p.replace(curr_node, new_node);
         new_node.recalc_output_layout(was_dynamic);
+        need_impl_reselection = need_impl_reselection || was_dynamic;
     }
 
     // propagate_constants is executed after compile_graph pass.
     // If some users become static due to propagated constants, they can end up without selected_impl.
     // Re-select implementation for such static nodes to avoid runtime _impl-nullptr validation failure.
+    if (!need_impl_reselection)
+        return;
+
     for (auto& node : p.get_processing_order()) {
         bool can_select_impl = !node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty());
         if (!can_select_impl)
