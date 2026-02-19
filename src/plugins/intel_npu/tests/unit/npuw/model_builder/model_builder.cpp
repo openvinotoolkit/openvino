@@ -19,9 +19,14 @@ namespace ov {
 namespace test {
 namespace npuw {
 
+// Named constants for magic values used throughout model construction.
+constexpr float kRoPEBaseFrequency = 10000.0f;
+constexpr float kAttentionMaskPadding = -10000.0f;
+constexpr float kAttentionMaskPaddingFP16Min = -65504.0f;
+
 static float fill_value_from_name(const std::string& name) {
     size_t h = std::hash<std::string>{}(name);
-    return 0.01f + static_cast<float>(h % 10000000u) / 1e9f;  // [0.01, 0.02)
+    return 0.01f + static_cast<float>(h % 100000u) / 100000.0f;  // [0.01, 1.01)
 }
 
 static int8_t int_fill_from_name(const std::string& name, ov::element::Type type) {
@@ -190,7 +195,7 @@ static RoPEFrequencies build_rope_frequencies(size_t head_dim,
 
     std::vector<float> inv_freq_data(half_dim);
     for (size_t i = 0; i < half_dim; ++i) {
-        inv_freq_data[i] = 1.0f / std::pow(10000.0f, static_cast<float>(2 * i) / static_cast<float>(head_dim));
+        inv_freq_data[i] = 1.0f / std::pow(kRoPEBaseFrequency, static_cast<float>(2 * i) / static_cast<float>(head_dim));
     }
     auto inv_freq = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, half_dim, 1}, inv_freq_data);
     inv_freq->set_friendly_name(prefix + ".inv_freq");
@@ -794,7 +799,7 @@ static ov::Output<ov::Node> make_padding_mask(const ov::Output<ov::Node>& attent
     auto inv_mask = std::make_shared<ov::opset11::Subtract>(one_const, mask_float);
     inv_mask->set_friendly_name("model.mask_invert");
 
-    auto neg_inf = ov::opset11::Constant::create(prec, ov::Shape{}, {-10000.0f});
+    auto neg_inf = ov::opset11::Constant::create(prec, ov::Shape{}, {kAttentionMaskPadding});
     auto padding_mask = std::make_shared<ov::opset11::Multiply>(inv_mask, neg_inf);
     padding_mask->set_friendly_name("model.padding_mask");
 
@@ -853,7 +858,7 @@ static ov::Output<ov::Node> make_causal_mask(const ov::Output<ov::Node>& input_i
     causal_bool->set_friendly_name("model.causal_bool");
 
     auto select_true = ov::opset11::Constant::create(prec, ov::Shape{}, {0.0f});
-    auto select_false = ov::opset11::Constant::create(prec, ov::Shape{}, {-10000.0f});
+    auto select_false = ov::opset11::Constant::create(prec, ov::Shape{}, {kAttentionMaskPadding});
 
     auto causal_float = std::make_shared<ov::op::v1::Select>(causal_bool, select_true, select_false);
     causal_float->set_friendly_name("model.causal_mask");
@@ -1410,7 +1415,8 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_encoder(const ModelConfig
     const auto d = config.hidden_size;
 
     auto input_features = parameter(ov::element::f32,
-                                    ov::PartialShape{-1, static_cast<int64_t>(config.num_mel_bins), 3000},
+                                    ov::PartialShape{-1, static_cast<int64_t>(config.num_mel_bins),
+                                                     static_cast<int64_t>(2 * config.max_source_positions)},
                                     "input_features");
 
     ov::Output<ov::Node> encoder_input = input_features->output(0);
@@ -1432,9 +1438,10 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_encoder(const ModelConfig
     auto transposed = std::make_shared<ov::opset11::Transpose>(gelu2, transpose_order);
     transposed->set_friendly_name("model.encoder.transpose");
 
+    auto pos_embed_val = fill_value_from_name("model.encoder.embed_positions.weight");
     auto pos_embed = ov::opset11::Constant::create(prec,
                                                    ov::Shape{1, config.max_source_positions, d},
-                                                   std::vector<float>(config.max_source_positions * d, 0.02f));
+                                                   std::vector<float>(config.max_source_positions * d, pos_embed_val));
     pos_embed->set_friendly_name("model.encoder.embed_positions.weight");
 
     auto embedded = std::make_shared<ov::opset11::Add>(transposed, pos_embed);
@@ -1602,7 +1609,7 @@ static ov::Output<ov::Node> make_whisper_causal_mask(const CachePositionResult& 
 
     // Always f32 — NPUW's AttentionMask matchers inject f32 nodes
     auto select_true = ov::opset11::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
-    auto select_false = ov::opset11::Constant::create(ov::element::f32, ov::Shape{}, {-65504.0f});
+    auto select_false = ov::opset11::Constant::create(ov::element::f32, ov::Shape{}, {kAttentionMaskPaddingFP16Min});
     auto causal_float = std::make_shared<ov::op::v1::Select>(causal_broadcast, select_true, select_false);
     causal_float->set_friendly_name(prefix + "causal_mask");
 
