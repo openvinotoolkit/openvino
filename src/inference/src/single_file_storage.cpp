@@ -149,8 +149,8 @@ void SingleFileStorage::write_blob_entry(uint64_t blob_id, StreamWriter& writer,
     }
 
     const auto blob_pos = stream.tellp();
-    std::cout << "Writing blob entry: id=" << blob_id << ", offset=" << blob_pos << ", pad_size=" << pad_size
-              << std::endl;
+    std::cout << "Writing blob entry: id=" << blob_id << ", offset=" << std::showbase << std::hex << blob_pos
+              << ", pad_size=" << pad_size << std::dec << std::endl;
     writer(stream);
     auto entry_end = stream.tellp();
     entry_size = entry_end - blob_id_pos;
@@ -192,12 +192,14 @@ void SingleFileStorage::read_cache_entry(const std::string& blob_id, bool enable
 
     if (std::filesystem::exists(m_file_path) && has_blob_id(cid)) {
         const auto& [id, blob_pos, blob_size, model_name] = m_blob_map[cid];
-        std::cout << "Reading blob entry: id=" << id << ", model_name=" << model_name << ", offset=" << blob_pos
-                  << ", size=" << blob_size << std::endl;
+        std::cout << "Reading blob entry: id=" << id << ", model_name=" << model_name << ", offset=" << std::showbase
+                  << std::hex << blob_pos << ", size=" << blob_size << std::dec << std::endl;
         if (enable_mmap) {
             CompiledBlobVariant compiled_blob{
                 std::in_place_index<0>,
-                ov::read_tensor_data(m_file_path, element::u8, PartialShape{static_cast<int>(blob_size)}, blob_pos)};
+                // todo Extend memory mapping helpers to suport partial file mapping
+                // ov::read_tensor_data(m_file_path, element::u8, PartialShape{static_cast<int>(blob_size)}, blob_pos)};
+                ov::Tensor{}};
             reader(compiled_blob);
         } else {
             std::ifstream stream(m_file_path, std::ios_base::binary);
