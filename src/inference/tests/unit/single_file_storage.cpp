@@ -12,10 +12,9 @@
 namespace ov::test {
 
 namespace {
-constexpr uint64_t header_size() {
+constexpr uint64_t version_size() {
     return sizeof(TLVStorage::Version::major) + sizeof(TLVStorage::Version::minor) + sizeof(TLVStorage::Version::patch);
 }
-
 }  // namespace
 
 class SingleFileStorageTest : public ::testing::Test {
@@ -39,7 +38,7 @@ TEST_F(SingleFileStorageTest, FileHeader) {
     m_storage.reset();
     std::ifstream stream(m_file_path, std::ios_base::binary);
 
-    std::vector<char> header_data(header_size());
+    std::vector<char> header_data(version_size());
     stream.read(header_data.data(), header_data.size());
     const auto last_pos = stream.tellg();
     ASSERT_NE(last_pos, std::streampos(-1));
@@ -67,32 +66,37 @@ TEST_F(SingleFileStorageTest, WriteReadCacheEntry) {
             stream.write(reinterpret_cast<const char*>(blob_data.data()), blob_data.size());
         });
     }
+
+    const auto test_storage_read = [&](SingleFileStorage& storage) {
+        size_t read_count = 0;
+        for (const auto& [blob_id, blob_data] : test_blobs) {
+            storage.read_cache_entry(blob_id, false, [&](const ICacheManager::CompiledBlobVariant& compiled_blob) {
+                ASSERT_TRUE(std::holds_alternative<std::reference_wrapper<std::istream>>(compiled_blob));
+                ++read_count;
+                auto& stream = std::get<std::reference_wrapper<std::istream>>(compiled_blob).get();
+                std::vector<uint8_t> read_data(blob_data.size());
+                stream.read(reinterpret_cast<char*>(read_data.data()), read_data.size());
+                EXPECT_EQ(blob_data, read_data);
+            });
+
+            storage.read_cache_entry(blob_id, true, [&](const ICacheManager::CompiledBlobVariant& compiled_blob) {
+                ASSERT_TRUE(std::holds_alternative<const ov::Tensor>(compiled_blob));
+                ++read_count;
+                // todo Check support for multimap memory mapping
+                // auto& tensor = std::get<const ov::Tensor>(compiled_blob);
+                // ASSERT_EQ(tensor.get_byte_size(), blob_data.size());
+                // std::vector<uint8_t> read_data(blob_data.size());
+                // std::memcpy(read_data.data(), tensor.data(), tensor.get_byte_size());
+                // ASSERT_EQ(blob_data, read_data);
+            });
+        }
+        EXPECT_EQ(read_count, 2 * test_blobs.size());
+    };
+
+    test_storage_read(*m_storage);
     m_storage.reset();
-
     SingleFileStorage reopened_storage(m_file_path);
-    size_t read_count = 0;
-    for (const auto& [blob_id, blob_data] : test_blobs) {
-        reopened_storage.read_cache_entry(blob_id, false, [&](const ICacheManager::CompiledBlobVariant& compiled_blob) {
-            ++read_count;
-            ASSERT_TRUE(std::holds_alternative<std::reference_wrapper<std::istream>>(compiled_blob));
-            auto& stream = std::get<std::reference_wrapper<std::istream>>(compiled_blob).get();
-            std::vector<uint8_t> read_data(blob_data.size());
-            stream.read(reinterpret_cast<char*>(read_data.data()), read_data.size());
-            EXPECT_EQ(blob_data, read_data);
-        });
-
-        // todo Check support for multimap memory mapping
-        // reopened_storage.read_cache_entry(blob_id, true, [&](const ICacheManager::CompiledBlobVariant& compiled_blob)
-        // {
-        //     ASSERT_TRUE(std::holds_alternative<const ov::Tensor>(compiled_blob));
-        // auto& tensor = std::get<const ov::Tensor>(compiled_blob);
-        // ASSERT_EQ(tensor.get_byte_size(), blob_data.size());
-        // std::vector<uint8_t> read_data(blob_data.size());
-        // std::memcpy(read_data.data(), tensor.data(), tensor.get_byte_size());
-        // ASSERT_EQ(blob_data, read_data);
-        // });
-    }
-    EXPECT_EQ(read_count, test_blobs.size());
+    test_storage_read(reopened_storage);
 }
 
 TEST_F(SingleFileStorageTest, Alignement) {
@@ -108,8 +112,7 @@ TEST_F(SingleFileStorageTest, Alignement) {
     std::ifstream stream(m_file_path, std::ios_base::binary);
     stream.seekg(0, std::ios::end);
     const auto stream_end = stream.tellg();
-    std::cout << "Stream end position: " << stream_end << std::endl;
-    stream.seekg(header_size(), std::ios_base::beg);
+    stream.seekg(version_size(), std::ios_base::beg);
 
     // todo Make it configurable and/or detect actual file system page size
     constexpr std::streamoff alignment = 4096;
@@ -169,6 +172,12 @@ TEST_F(SingleFileStorageTest, AppendOnly) {
         throw "Unexpected read for not stored blob id";
     }));
     EXPECT_NO_THROW(reopened_storage.remove_cache_entry("987")) << "Removal of non-existing blob id should be no-op";
+
+    read_called = false;
+    EXPECT_NO_THROW(reopened_storage.read_cache_entry(blob_id, false, [&](const ICacheManager::CompiledBlobVariant&) {
+        read_called = true;
+    }));
+    EXPECT_TRUE(read_called);
 }
 
 // TEST_F(SingleFileStorageTest, SharedContext__) {
