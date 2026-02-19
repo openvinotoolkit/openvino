@@ -267,6 +267,12 @@ struct Attention {
                                     const ov::Output<ov::Node>& v,
                                     const std::string& prefix,
                                     size_t layer_idx = 0) const;
+
+    /// Convenience: project Q/K/V from input (and optionally kv_input for K/V), then attend.
+    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input,
+                                    const ov::Output<ov::Node>& kv_input,
+                                    const std::string& prefix,
+                                    size_t layer_idx = 0) const;
 };
 
 template <typename Norm, typename SelfAttn, typename CrossAttn, typename FFN>
