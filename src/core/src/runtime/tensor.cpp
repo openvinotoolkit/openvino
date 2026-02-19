@@ -141,8 +141,13 @@ ov::Shape calc_static_shape_for_file(size_t file_size,
                                      size_t offset) {
     if (partial_shape.is_static()) {
         auto static_shape = partial_shape.get_shape();
-        OPENVINO_ASSERT((ov::shape_size(static_shape)) * element_type.bitwidth() + offset * 8 == file_size * 8,
-                        "Cannot fit file size into requested static PartialShape");
+        OPENVINO_ASSERT((ov::shape_size(static_shape)) * element_type.bitwidth() + offset * 8 <= file_size * 8,
+                        "Requested space goes out of the file: file size=",
+                        file_size,
+                        " offset=",
+                        offset,
+                        " requested size=",
+                        (ov::shape_size(static_shape) * element_type.bitwidth()) / 8);
         return static_shape;
     }
     auto partial_shape_copy = partial_shape;

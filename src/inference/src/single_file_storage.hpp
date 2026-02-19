@@ -10,6 +10,7 @@
 namespace ov {
 class SingleFileStorage final : public ICacheManager, public ISharedContextStore {
 public:
+    // todo Whose version should it be and how to handle incompatibilities?
     static constexpr TLVStorage::Version m_version = {0, 1, 0};
 
     explicit SingleFileStorage(const std::filesystem::path& path);
@@ -24,11 +25,11 @@ public:
 private:
     std::filesystem::path m_file_path;
     TLVStorage::blob_map_type m_blob_map;
-    void fill_blob_map(std::ifstream& stream);
+    void scan_blob_map(std::ifstream& stream);
 
-    static uint64_t convert_blob_id(const std::string& blob_id);
-    void write_blob_entry(uint64_t blob_id, StreamWriter& writer, std::ofstream& stream);
-    bool has_blob_id(uint64_t blob_id) const;
+    static TLVStorage::blob_id_type convert_blob_id(const std::string& blob_id);
+    void write_blob_entry(TLVStorage::blob_id_type blob_id, StreamWriter& writer, std::ofstream& stream);
+    bool has_blob_id(TLVStorage::blob_id_type blob_id) const;
 
     // todo Make it configurable and/or detect actual file system page size
     static constexpr uint64_t m_alignment = 4096;
