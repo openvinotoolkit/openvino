@@ -16,6 +16,32 @@ using namespace ov::intel_npu;
 
 using OfflineCompilationUnitTests = ::testing::Test;
 
+TEST_F(OfflineCompilationUnitTests, CompilationPassesWithCiPWhenDriverNotInstalledSetProperty) {
+    ov::Core core;
+    ov::AnyMap config;
+    std::string logs;
+    std::mutex logs_mutex;
+
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    config[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::PLUGIN;
+    config[ov::intel_npu::platform.name()] = ov::intel_npu::Platform::NPU5010;
+    core.set_property("NPU", config);
+
+    ov::util::set_log_callback(log_cb);
+
+    std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
+    OV_ASSERT_NO_THROW(core.compile_model(model, "NPU"));
+
+    ov::util::reset_log_callback();
+
+    ASSERT_NE(logs.find("Only offline compilation can be done"), std::string::npos);
+}
+
 TEST_F(OfflineCompilationUnitTests, CompilationPassesWithCiPWhenDriverNotInstalled) {
     ov::Core core;
     ov::AnyMap config;
@@ -29,13 +55,13 @@ TEST_F(OfflineCompilationUnitTests, CompilationPassesWithCiPWhenDriverNotInstall
     };
 
     config[ov::intel_npu::compiler_type.name()] = ov::intel_npu::CompilerType::PLUGIN;
-    config[ov::intel_npu::platform.name()] = ov::intel_npu::Platform::NPU3720;
+    config[ov::intel_npu::platform.name()] = ov::intel_npu::Platform::NPU5010;
     core.set_property("NPU", config);
 
     ov::util::set_log_callback(log_cb);
 
     std::shared_ptr<ov::Model> model = ov::test::utils::make_multi_single_conv();
-    OV_ASSERT_NO_THROW(core.compile_model(model, "NPU", {}));
+    OV_ASSERT_NO_THROW(core.compile_model(model, "NPU", config));
 
     ov::util::reset_log_callback();
 
