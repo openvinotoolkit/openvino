@@ -150,8 +150,11 @@ void propagate_constants::run(program& p) {
         auto selected_impl_manager = node->type()->choose_impl(*node, shape_type);
         std::string fail_reason;
         try {
-            if (selected_impl_manager)
+            if (selected_impl_manager) {
                 node->set_selected_impl(selected_impl_manager->create(*node, *params));
+            } else {
+                fail_reason = "choose_impl returned nullptr (no matching implementation found)";
+            }
         } catch (std::exception& e) {
             fail_reason = e.what();
         }
