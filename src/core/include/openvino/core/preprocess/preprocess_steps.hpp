@@ -18,8 +18,8 @@ namespace preprocess {
 
 /// \brief Flip mode for preprocessing
 enum class FlipMode {
-    HORIZONTAL, ///< Flip along the Width axis (Mirror)
-    VERTICAL    ///< Flip along the Height axis (Upside down)
+    HORIZONTAL,  ///< Flip along the Width axis (Mirror)
+    VERTICAL     ///< Flip along the Height axis (Upside down)
 };
 
 /// \brief Preprocessing steps. Each step typically intends adding of some operation to input parameter

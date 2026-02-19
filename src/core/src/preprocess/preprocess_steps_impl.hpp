@@ -171,9 +171,7 @@ public:
     void add_convert_color_impl(const ColorFormat& dst_format);
     void add_reverse_channels();
 
-    // [ADDED NEW FEATURE]
     void add_flip_impl(FlipMode mode);
-    // [END NEW FEATURE]
 
     std::tuple<PartialShape, Layout> calculate_param_shape(const PartialShape& model_shape,
                                                            const Layout& model_layout) const;

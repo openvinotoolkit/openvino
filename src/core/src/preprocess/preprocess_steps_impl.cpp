@@ -9,7 +9,6 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/reverse.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -24,6 +23,7 @@
 #include "openvino/op/nv12_to_rgb.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/reverse.hpp"
 #include "openvino/op/round.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
@@ -879,35 +879,39 @@ void PreStepsList::add_flip_impl(FlipMode mode) {
             const auto& layout = context.layout();
             OPENVINO_ASSERT(!layout.empty(), "Preprocessing: Flip requires input layout to be set (e.g. 'NHWC')");
 
-            // 1. Identify the axis to flip
+            // Identify the axis to flip
             int axis_idx = -1;
             if (mode == FlipMode::HORIZONTAL) {
-                OPENVINO_ASSERT(ov::layout::has_width(layout), 
-                    "Layout ", layout.to_string(), " must have Width (W) dimension to flip horizontal");
+                OPENVINO_ASSERT(ov::layout::has_width(layout),
+                                "Layout ",
+                                layout.to_string(),
+                                " must have Width (W) dimension to flip horizontal");
                 axis_idx = ov::layout::width_idx(layout);
             } else if (mode == FlipMode::VERTICAL) {
-                OPENVINO_ASSERT(ov::layout::has_height(layout), 
-                    "Layout ", layout.to_string(), " must have Height (H) dimension to flip vertical");
+                OPENVINO_ASSERT(ov::layout::has_height(layout),
+                                "Layout ",
+                                layout.to_string(),
+                                " must have Height (H) dimension to flip vertical");
                 axis_idx = ov::layout::height_idx(layout);
             }
 
-            // 2. Handle dynamic rank or negative indices
+            // Handle dynamic rank or negative indices
             // If the layout index returns -1 (meaning "not found" or "relative from end"), we fix it here.
             auto param_shape = nodes[0].get_partial_shape();
             if (axis_idx < 0) {
-                 if (param_shape.rank().is_static()) {
-                     axis_idx += param_shape.rank().get_length();
-                 }
+                if (param_shape.rank().is_static()) {
+                    axis_idx += param_shape.rank().get_length();
+                }
             }
             OPENVINO_ASSERT(axis_idx >= 0, "Could not determine valid axis index for flip operation");
 
-            // 3. Create the Reverse Operation
+            // Create the Reverse Operation
             // We create a constant node to tell the operation WHICH axis to flip.
             auto axis_node = ov::op::v0::Constant::create(element::i32, {1}, {axis_idx});
-            
-            // "INDEX" mode means we reverse the order of indices along that axis (standard mirror)
-            auto reverse_op = std::make_shared<ov::op::v1::Reverse>(nodes[0], axis_node, ov::op::v1::Reverse::Mode::INDEX);
-            
+
+            auto reverse_op =
+                std::make_shared<ov::op::v1::Reverse>(nodes[0], axis_node, ov::op::v1::Reverse::Mode::INDEX);
+
             reverse_op->set_friendly_name("Preprocessing_Flip");
 
             // Return the result
