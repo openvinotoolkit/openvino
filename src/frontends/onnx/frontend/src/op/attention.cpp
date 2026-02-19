@@ -102,8 +102,7 @@ ov::Output<ov::Node> convert_boolean_mask(const ov::Output<ov::Node>& mask, cons
 
 // Build additive causal mask of shape (seq_q, seq_kv): 0 for allowed, -10000 for masked.
 // Accounts for KV cache offset so that query position i attends to key positions j where j <= i + (S - L).
-ov::Output<ov::Node> build_causal_mask(const ov::Output<ov::Node>& Q,
-                                       const ov::Output<ov::Node>& K) {
+ov::Output<ov::Node> build_causal_mask(const ov::Output<ov::Node>& Q, const ov::Output<ov::Node>& K) {
     auto q_shape = std::make_shared<v3::ShapeOf>(Q);
     auto k_shape = std::make_shared<v3::ShapeOf>(K);
     // Q is 4D: (B, heads, seq_q, head_size), K is 4D: (B, heads, seq_kv, head_size)
