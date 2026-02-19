@@ -78,11 +78,23 @@ ov::Output<ov::Node> CompressedWeight::operator()(const std::string& name,
     const size_t rows = shape[0];
     const size_t cols = shape[1];
 
-    // Deterministic pseudo-random int fill via xorshift32, clamped to the
-    // storage type's representable range.  Same rationale as FloatWeight.
+    // --- Validate pattern constraints ---
+    const bool has_zp =
+        (pattern == DCOffPattern::SYMM_ZP || pattern == DCOffPattern::GPTQ || pattern == DCOffPattern::ASYMM_ZP);
+    if (has_zp) {
+        OPENVINO_ASSERT(storage_type == ov::element::u4,
+                        "Zero-point patterns require u4 storage type, got ",
+                        storage_type);
+    }
+
+    // Decomp element type: f32 for SYMM_NO_ZP_F32 and GPTQ, f16 otherwise.
+    const bool decomp_f32 = (pattern == DCOffPattern::SYMM_NO_ZP_F32 || pattern == DCOffPattern::GPTQ);
+    const auto decomp_et = decomp_f32 ? ov::element::f32 : ov::element::f16;
+
+    // --- Weight value range ---
     int8_t lo = 0, hi = 0;
     if (storage_type == ov::element::i4) {
-        lo = -7;
+        lo = -7;  // Symmetric range [-7, 7] (not [-8, 7]) — no zero point needed.
         hi = 7;
     } else if (storage_type == ov::element::u4) {
         lo = 1;
@@ -91,6 +103,37 @@ ov::Output<ov::Node> CompressedWeight::operator()(const std::string& name,
         lo = -100;
         hi = 100;
     }
+
+    // --- Group quantization setup ---
+    const bool has_groups = group_size > 0;
+    size_t num_groups = 1;
+    if (has_groups) {
+        OPENVINO_ASSERT(group_size >= 64 && group_size % 64 == 0,
+                        "Group size must be >= 64 and a multiple of 64 "
+                        "(DCOFF AVX2 unpack constraint), got ",
+                        group_size);
+        OPENVINO_ASSERT(cols >= group_size && cols % group_size == 0,
+                        "Group quantization requires cols (",
+                        cols,
+                        ") >= group_size (",
+                        group_size,
+                        ") and evenly divisible");
+        num_groups = cols / group_size;
+    }
+
+    // GPTQ and ASYMM_ZP only have group-quant DCOFF patterns (Reshape2 / AsymmZP::Reshape).
+    // No per-channel (group_size=0) DCOFF pass exists for these pattern types.
+    if (pattern == DCOffPattern::GPTQ || pattern == DCOffPattern::ASYMM_ZP) {
+        OPENVINO_ASSERT(has_groups,
+                        "DCOffPattern::",
+                        (pattern == DCOffPattern::GPTQ ? "GPTQ" : "ASYMM_ZP"),
+                        " requires group_size > 0 (no per-channel DCOFF pass exists)");
+    }
+
+    // Weight shape: 3D [rows, num_groups, group_size] for group quant, 2D [rows, cols]
+    // for per-channel.  DCOFF patterns expect the weight Parameter to already be in the
+    // correct shape — no leading Reshape is recognized.
+    const ov::Shape weight_shape = has_groups ? ov::Shape{rows, num_groups, group_size} : ov::Shape{rows, cols};
     uint32_t w_state = seed_from_name(name);
     std::vector<int8_t> w_data(rows * cols);
     for (size_t i = 0; i < w_data.size(); ++i) {
@@ -98,77 +141,104 @@ ov::Output<ov::Node> CompressedWeight::operator()(const std::string& name,
         int val = static_cast<int>(lo) + static_cast<int>(r % static_cast<uint32_t>(hi - lo + 1));
         w_data[i] = static_cast<int8_t>(val);
     }
-    auto weight = ov::opset11::Constant::create(storage_type, shape, w_data);
+    auto weight = ov::opset11::Constant::create(storage_type, weight_shape, w_data);
     weight->set_friendly_name(name);
 
-    auto convert = std::make_shared<ov::opset11::Convert>(weight, ov::element::f16);
+    ov::Output<ov::Node> decomp_input = weight->output(0);
+
+    // --- Convert weight to decomp element type ---
+    auto convert = std::make_shared<ov::opset11::Convert>(decomp_input, decomp_et);
     convert->set_friendly_name(name + "_convert");
 
-    ov::Output<ov::Node> decompressed;
+    ov::Output<ov::Node> multiply_input = convert->output(0);
 
-    if (group_size > 0) {
-        // Group quantization: reshape -> per-group scale -> reshape back
-        OPENVINO_ASSERT(cols >= group_size && cols % group_size == 0,
-                        "Group quantization requires cols (",
-                        cols,
-                        ") >= group_size (",
-                        group_size,
-                        ") and evenly divisible");
-        const size_t num_groups = cols / group_size;
+    // --- Zero-point subtraction (SYMM_ZP, GPTQ, ASYMM_ZP) ---
+    if (has_zp) {
+        const ov::Shape zp_shape = has_groups ? ov::Shape{rows, num_groups, 1} : ov::Shape{rows, 1};
+        const size_t zp_count = has_groups ? rows * num_groups : rows;
+        const int mid = (static_cast<int>(lo) + static_cast<int>(hi)) / 2;
 
-        auto reshape_shape = ov::opset11::Constant::create(ov::element::i64,
-                                                           ov::Shape{3},
-                                                           std::vector<int64_t>{static_cast<int64_t>(rows),
-                                                                                static_cast<int64_t>(num_groups),
-                                                                                static_cast<int64_t>(group_size)});
+        if (pattern == DCOffPattern::GPTQ) {
+            // GPTQ: ZP is f32 Constant fed directly to Subtract (no Convert).
+            // Uniform value so it stays Constant after partitioning.
+            std::vector<float> zp_f32(zp_count, static_cast<float>(mid));
+            auto zp_const = ov::opset11::Constant::create(ov::element::f32, zp_shape, zp_f32);
+            zp_const->set_friendly_name(name + "_zp");
 
-        auto reshaped = std::make_shared<ov::opset11::Reshape>(convert, reshape_shape, false);
-        reshaped->set_friendly_name(name + "_group_reshape");
+            auto subtract = std::make_shared<ov::opset11::Subtract>(convert, zp_const);
+            subtract->set_friendly_name(name + "_subtract");
+            multiply_input = subtract->output(0);
 
-        // Per-group scales via PRNG.  Keep effective decompressed values in
-        // a moderate range (~[-0.5, 0.5)) so hidden states don't overflow
-        // through many transformer layers (matches FloatWeight magnitude).
-        const float scale_range = 1.0f / static_cast<float>(hi);  // ~0.005 for i8, ~0.14 for i4
-        uint32_t s_state = seed_from_name(name + "_scale");
-        std::vector<float> scale_data(rows * num_groups);
-        for (size_t i = 0; i < scale_data.size(); ++i) {
-            uint32_t r = xorshift32(s_state);
-            scale_data[i] = scale_range * (0.1f + static_cast<float>(r % 1000u) / 1000.0f);
+        } else if (pattern == DCOffPattern::SYMM_ZP) {
+            // SymmZP: u4 ZP Constant → Convert(f16) → Subtract.
+            // Uniform value across all layers so it stays Constant after partitioning.
+            std::vector<int8_t> zp_data(zp_count, static_cast<int8_t>(mid));
+            auto zp_const = ov::opset11::Constant::create(storage_type, zp_shape, zp_data);
+            zp_const->set_friendly_name(name + "_zp");
+
+            auto zp_convert = std::make_shared<ov::opset11::Convert>(zp_const, ov::element::f16);
+            zp_convert->set_friendly_name(name + "_zp_convert");
+
+            auto subtract = std::make_shared<ov::opset11::Subtract>(convert, zp_convert);
+            subtract->set_friendly_name(name + "_subtract");
+            multiply_input = subtract->output(0);
+
+        } else {
+            // AsymmZP: u4 ZP Constant → Convert(f16) → Subtract.
+            // Per-layer varying values (seeded from name) so NPUW promotes
+            // it to a Parameter after partitioning.
+            uint32_t zp_state = seed_from_name(name + "_zp");
+            std::vector<int8_t> zp_data(zp_count);
+            for (size_t i = 0; i < zp_data.size(); ++i) {
+                uint32_t r = xorshift32(zp_state);
+                int zp_val = mid + static_cast<int>(r % 3u) - 1;
+                zp_data[i] = static_cast<int8_t>(zp_val);
+            }
+            auto zp_const = ov::opset11::Constant::create(storage_type, zp_shape, zp_data);
+            zp_const->set_friendly_name(name + "_zp");
+
+            auto zp_convert = std::make_shared<ov::opset11::Convert>(zp_const, ov::element::f16);
+            zp_convert->set_friendly_name(name + "_zp_convert");
+
+            auto subtract = std::make_shared<ov::opset11::Subtract>(convert, zp_convert);
+            subtract->set_friendly_name(name + "_subtract");
+            multiply_input = subtract->output(0);
         }
-        auto scale = ov::opset11::Constant::create(ov::element::f16, ov::Shape{rows, num_groups, 1}, scale_data);
-        scale->set_friendly_name(name + "_scale");
+    }
 
-        auto scaled = std::make_shared<ov::opset11::Multiply>(reshaped, scale);
-        scaled->set_friendly_name(name + "_decompress");
+    // --- Scale: per-group [rows, num_groups, 1] or per-channel [rows, 1] ---
+    // Magnitude kept small (scale_range ≈ 1/hi) so decompressed values stay moderate
+    // (roughly ±1), preventing hidden state overflow.
+    const ov::Shape scale_shape = has_groups ? ov::Shape{rows, num_groups, 1} : ov::Shape{rows, 1};
+    const size_t scale_count = has_groups ? rows * num_groups : rows;
+    const float scale_range = 1.0f / static_cast<float>(hi);
+    uint32_t s_state = seed_from_name(name + "_scale");
+    std::vector<float> scale_data(scale_count);
+    for (size_t i = 0; i < scale_data.size(); ++i) {
+        uint32_t r = xorshift32(s_state);
+        scale_data[i] = scale_range * (0.1f + static_cast<float>(r % 1000u) / 1000.0f);
+    }
+    auto scale = ov::opset11::Constant::create(decomp_et, scale_shape, scale_data);
+    scale->set_friendly_name(name + "_scale");
 
+    auto scaled = std::make_shared<ov::opset11::Multiply>(multiply_input, scale);
+    scaled->set_friendly_name(name + "_decompress");
+
+    ov::Output<ov::Node> decompressed = scaled->output(0);
+
+    // --- Group quant: Reshape 3D → 2D [rows, cols] ---
+    if (has_groups) {
         auto out_shape =
             ov::opset11::Constant::create(ov::element::i64,
                                           ov::Shape{2},
                                           std::vector<int64_t>{static_cast<int64_t>(rows), static_cast<int64_t>(cols)});
-
-        auto back = std::make_shared<ov::opset11::Reshape>(scaled, out_shape, false);
-        back->set_friendly_name(name + "_group_reshape_back");
-
-        decompressed = back->output(0);
-    } else {
-        // Per-channel scales via PRNG (same magnitude rationale as group path)
-        const float scale_range = 1.0f / static_cast<float>(hi);
-        uint32_t s_state = seed_from_name(name + "_scale");
-        std::vector<float> scale_data(rows);
-        for (size_t i = 0; i < scale_data.size(); ++i) {
-            uint32_t r = xorshift32(s_state);
-            scale_data[i] = scale_range * (0.1f + static_cast<float>(r % 1000u) / 1000.0f);
-        }
-        auto scale = ov::opset11::Constant::create(ov::element::f16, ov::Shape{rows, 1}, scale_data);
-        scale->set_friendly_name(name + "_scale");
-
-        auto scaled = std::make_shared<ov::opset11::Multiply>(convert, scale);
-        scaled->set_friendly_name(name + "_decompress");
-
-        decompressed = scaled->output(0);
+        auto reshaped = std::make_shared<ov::opset11::Reshape>(decompressed, out_shape, false);
+        reshaped->set_friendly_name(name + "_reshape");
+        decompressed = reshaped->output(0);
     }
 
-    if (compute_precision != ov::element::f16) {
+    // --- Convert to compute precision if needed ---
+    if (decomp_et != compute_precision) {
         auto to_compute = std::make_shared<ov::opset11::Convert>(decompressed, compute_precision);
         to_compute->set_friendly_name(name + "_to_compute");
         return to_compute->output(0);
@@ -630,10 +700,15 @@ ov::Output<ov::Node> make_embedding(const ov::Output<ov::Node>& input_ids,
                                     size_t hidden_size,
                                     const std::string& name,
                                     ov::element::Type precision) {
-    float fill_val = fill_value_from_name(name);
-    auto weight = ov::opset11::Constant::create(precision,
-                                                ov::Shape{vocab_size, hidden_size},
-                                                std::vector<float>(vocab_size * hidden_size, fill_val));
+    // Per-element PRNG so each token gets a distinct embedding vector.
+    uint32_t state = seed_from_name(name);
+    size_t total = vocab_size * hidden_size;
+    std::vector<float> data(total);
+    for (size_t i = 0; i < total; ++i) {
+        uint32_t r = xorshift32(state);
+        data[i] = static_cast<float>(r % 10000u) / 10000.0f - 0.5f;
+    }
+    auto weight = ov::opset11::Constant::create(precision, ov::Shape{vocab_size, hidden_size}, data);
     weight->set_friendly_name(name + ".weight");
 
     auto axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
