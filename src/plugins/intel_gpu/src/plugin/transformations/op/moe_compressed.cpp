@@ -6,7 +6,7 @@
 
 namespace ov::intel_gpu::op {
 
-MOECompressed::MOECompressed(const OutputVector& args, const Config& config) : MOE(args), m_config(config) {
+MOECompressed::MOECompressed(const OutputVector& args, const Config& config) : MOE(args, config), m_config(config) {
     constructor_validate_and_infer_types();
 }
 

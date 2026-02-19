@@ -17,6 +17,8 @@ public:
     MOECompressed() = default;
     MOECompressed(const OutputVector& args) : MOE(args) {}
 
+    enum class RoutingType { SOFTMAX, SIGMOID_BIAS };
+
     struct Config : public MOE::Config {
         size_t hidden_size = 0;
         size_t inter_size = 0;
@@ -30,6 +32,7 @@ public:
         size_t has_batch_dim = 0;
         bool has_zp = false;
         ov::element::Type out_type = ov::element::dynamic;
+        RoutingType routing_type = RoutingType::SOFTMAX;
         Config() = default;
         Config(const MOE::Config& moe_config) : MOE::Config(moe_config) {}
     };

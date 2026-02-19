@@ -6,6 +6,7 @@
 
 #include <limits>
 #include <memory>
+#include <iostream>
 
 #include "intel_gpu/op/moe_compressed.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -174,11 +175,38 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
+        std::cerr << "[ConvertMOEToMOECompressed] Pattern matched! Matched root: " << m.get_match_root()->get_friendly_name() << std::endl;
+        std::cerr << "[ConvertMOEToMOECompressed] Pattern map size: " << pattern_map.size() << std::endl;
+
+        // Check which pattern was matched
+        bool gemm3_pattern_matched = pattern_map.count(gemm3_convert_m_gate) > 0;
+        bool gemm2_pattern_matched = pattern_map.count(topk_gemm2_m) > 0;
+        std::cerr << "[ConvertMOEToMOECompressed] GEMM3 pattern nodes found: " << gemm3_pattern_matched << std::endl;
+        std::cerr << "[ConvertMOEToMOECompressed] GEMM2 pattern nodes found: " << gemm2_pattern_matched << std::endl;
+
         auto moe = ov::as_type_ptr<ov::op::internal::MOE>(pattern_map.at(moe_root).get_node_shared_ptr());
         if (!moe || transformation_callback(moe)) {
+            std::cerr << "[ConvertMOEToMOECompressed] MOE is null or callback returned true, skipping" << std::endl;
             return false;
         }
+
+        auto expert_type = moe->get_config().expert_type;
+        std::cerr << "[ConvertMOEToMOECompressed] MOE expert_type: "
+                  << (expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU              ? "GEMM3_SWIGLU"
+                      : expert_type == ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP ? "GEMM2_BIAS_SWIGLU_CLAMP"
+                                                                                                   : "UNKNOWN")
+                  << std::endl;
+        std::cerr << "[ConvertMOEToMOECompressed] MOE node name: " << moe->get_friendly_name() << std::endl;
+        std::cerr << "[ConvertMOEToMOECompressed] MOE input count: " << moe->get_input_size() << std::endl;
+
+        for (size_t i = 0; i < moe->get_input_size(); i++) {
+            auto input_node = moe->get_input_node_shared_ptr(i);
+            std::cerr << "[ConvertMOEToMOECompressed] MOE input[" << i << "]: " << input_node->get_type_name() << " - " << input_node->get_friendly_name()
+                      << std::endl;
+        }
+
         if (moe->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU) {
+            std::cerr << "[ConvertMOEToMOECompressed] Entering GEMM3_SWIGLU branch" << std::endl;
             auto wei_partial_shape = pattern_map.at(gemm3_compressed_weights_m_up).get_partial_shape();
             if (!wei_partial_shape.is_static()) {
                 OPENVINO_THROW("Moe weight shape should be static.");
@@ -235,7 +263,14 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             config.top_k = topk_shape[1].get_length();
             config.out_type = ov::element::f16;
             config.has_batch_dim = is_pa ? 0 : 1;
+            std::cerr << "[ConvertMOEToMOECompressed] GEMM3: Creating MOECompressed with expert_type: "
+                      << (config.expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU ? "GEMM3_SWIGLU" : "OTHER") << std::endl;
             std::shared_ptr<ov::Node> moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(args, config);
+            auto moe_compressed2 = std::make_shared<ov::intel_gpu::op::MOECompressed>(args, config);
+            std::cerr << "[WARNING] GEMM3: Creating MOECompressed with expert_type: "
+                      << (moe_compressed2->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU ? "GEMM3_SWIGLU" : "OTHER")
+                      << std::endl;
+
             moe_compressed->set_friendly_name(moe->get_friendly_name());
             ov::copy_runtime_info(moe, moe_compressed);
 
@@ -248,6 +283,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             }
             ov::replace_node(moe, moe_compressed);
         } else if (moe->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP) {
+            std::cerr << "[ConvertMOEToMOECompressed] Entering GEMM2_BIAS_SWIGLU_CLAMP branch" << std::endl;
             OutputVector args;
             auto topk_indice_node = pattern_map.at(topk_indices_gemm2_m);
             auto weight_up_node = pattern_map.at(compressed_weights_input_m_up);
@@ -267,7 +303,8 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             ov::intel_gpu::op::MOECompressed::Config config(moe->get_config());
             config.num_expert = weight_shape[0];
             config.hidden_size = weight_shape[2];
-            if (weight_shape.size() == 4) config.hidden_size *= weight_shape[3];
+            if (weight_shape.size() == 4)
+                config.hidden_size *= weight_shape[3];
             config.inter_size = weight_shape[1];
             config.group_size = (weight_shape.size() == 3) ? config.hidden_size : scale_shape[3];
             config.top_k = topk_shape.rbegin()->get_length();
@@ -298,11 +335,14 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
                 OPENVINO_THROW("gemm_down has no zp while gemm_up has zp!");
             }
             args.push_back(pattern_map.at(bias_down_gemm2_m));
+            std::cerr << "[ConvertMOEToMOECompressed] GEMM2: Creating MOECompressed with expert_type: "
+                      << (config.expert_type == ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP ? "GEMM2_BIAS_SWIGLU_CLAMP" : "OTHER") << std::endl;
             auto moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(args, config);
             moe_compressed->set_friendly_name(moe->get_friendly_name());
             ov::copy_runtime_info(moe, moe_compressed);
             ov::replace_node(moe, moe_compressed);
         } else {
+            std::cerr << "[ConvertMOEToMOECompressed] ERROR: Unsupported expert_type, but pattern matched!" << std::endl;
             OPENVINO_THROW("Unsupported MOE expert type in ConvertMOEToMOECompressed");
         }
 
