@@ -5,7 +5,6 @@
 #include "model_builder.hpp"
 
 #include <algorithm>
-#include <set>
 #include <unordered_map>
 
 #include "openvino/op/assign.hpp"
@@ -879,7 +878,7 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_with_one_op() {
     add->set_friendly_name("add");
     auto result = std::make_shared<ov::opset11::Result>(add);
     result->set_friendly_name("res");
-    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+    return std::make_shared<ov::Model>(ov::OutputVector{result->output(0)});
 }
 
 std::shared_ptr<ov::Model> ModelBuilder::get_model_without_repeated_blocks() {
@@ -895,10 +894,7 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_without_repeated_blocks() {
     m_nodes.push_back(result);
     set_name(result);
 
-    ov::ParameterVector params = {input};
-    ov::ResultVector results = {result};
-
-    return std::make_shared<ov::Model>(results, params);
+    return std::make_shared<ov::Model>(ov::OutputVector{result->output(0)});
 }
 
 std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks(std::size_t repetitions) {
@@ -960,7 +956,7 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_and_resu
     }
 
     // Create Results
-    ov::ResultVector results;
+    ov::OutputVector outputs;
 
     // Add Results for specified blocks
     for (size_t idx : block_indices) {
@@ -968,7 +964,7 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_and_resu
             auto result = std::make_shared<ov::op::v0::Result>(block_outputs[idx]);
             m_nodes.push_back(result);
             set_name(result);
-            results.push_back(result);
+            outputs.push_back(result->output(0));
         }
     }
 
@@ -976,11 +972,9 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_and_resu
     auto final_result = std::make_shared<ov::op::v0::Result>(tail[5]);
     m_nodes.push_back(final_result);
     set_name(final_result);
-    results.push_back(final_result);
+    outputs.push_back(final_result->output(0));
 
-    ov::ParameterVector params = {input};
-
-    return std::make_shared<ov::Model>(results, params);
+    return std::make_shared<ov::Model>(outputs);
 }
 
 std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_and_parameters(
@@ -993,8 +987,6 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_and_para
 
     auto input = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{1, 1, 8});
     m_nodes.push_back(input);
-
-    ov::ParameterVector params = {input};
 
     std::vector<std::size_t> sorted_indices = block_indices;
     std::sort(sorted_indices.begin(), sorted_indices.end());
@@ -1009,7 +1001,6 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_and_para
         auto param = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{1, 1, 8});
         m_nodes.push_back(param);
         block_params.emplace(idx, param);
-        params.push_back(param);
     }
 
     auto scale_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1}, {1.f});
@@ -1056,7 +1047,7 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_with_repeated_blocks_and_para
     auto result = std::make_shared<ov::opset11::Result>(tail_add);
     m_nodes.push_back(result);
 
-    return std::make_shared<ov::Model>(ov::ResultVector{result}, params);
+    return std::make_shared<ov::Model>(ov::OutputVector{result->output(0)});
 }
 
 std::shared_ptr<ov::Model> ModelBuilder::get_model_with_multi_output_repeating_blocks(
@@ -1127,22 +1118,20 @@ std::shared_ptr<ov::Model> ModelBuilder::get_model_with_multi_output_repeating_b
     m_nodes.push_back(tail_add);
     set_name(tail_add);
 
-    ov::ResultVector results;
+    ov::OutputVector outputs;
     auto tail_result = std::make_shared<ov::opset11::Result>(tail_add);
     m_nodes.push_back(tail_result);
     set_name(tail_result);
-    results.push_back(tail_result);
+    outputs.push_back(tail_result->output(0));
 
     if (last_block_has_direct_result) {
         auto direct_result = std::make_shared<ov::opset11::Result>(current_values);
         m_nodes.push_back(direct_result);
         set_name(direct_result);
-        results.push_back(direct_result);
+        outputs.push_back(direct_result->output(0));
     }
 
-    ov::ParameterVector params = {input};
-
-    return std::make_shared<ov::Model>(results, params);
+    return std::make_shared<ov::Model>(outputs);
 }
 
 std::shared_ptr<ov::Node> ModelBuilder::get_block(const std::shared_ptr<ov::Node>& input) {
@@ -1227,28 +1216,11 @@ std::shared_ptr<ov::op::v0::Parameter> ModelBuilder::parameter(ov::element::Type
     auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
     param->set_friendly_name(name);
     param->output(0).set_names({name});
-    m_parameters.push_back(param);
     return param;
-}
-
-std::shared_ptr<ov::op::v0::Result> ModelBuilder::result(const ov::Output<ov::Node>& output, const std::string& name) {
-    auto res = std::make_shared<ov::op::v0::Result>(output);
-    res->set_friendly_name(name);
-    res->output(0).set_names({name});
-    m_results.push_back(res);
-    return res;
-}
-
-std::shared_ptr<ov::Model> ModelBuilder::build(const std::string& name) {
-    return std::make_shared<ov::Model>(ov::ResultVector(m_results.begin(), m_results.end()),
-                                       ov::ParameterVector(m_parameters.begin(), m_parameters.end()),
-                                       name);
 }
 
 void ModelBuilder::clear() {
     m_nodes.clear();
-    m_parameters.clear();
-    m_results.clear();
     m_sinks.clear();
     m_name_idx = 0;
 }
@@ -1292,25 +1264,7 @@ std::shared_ptr<ov::Model> ModelBuilder::make_model(const ov::Output<ov::Node>& 
     res->set_friendly_name(result_name);
     res->output(0).set_names({result_name});
 
-    ov::ParameterVector params;
-    std::set<ov::Node*> visited;
-    std::vector<ov::Node*> stack;
-    stack.push_back(res.get());
-    for (auto& sink : m_sinks)
-        stack.push_back(sink.get());
-    while (!stack.empty()) {
-        auto* node = stack.back();
-        stack.pop_back();
-        if (!visited.insert(node).second)
-            continue;
-        auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node->shared_from_this());
-        if (param)
-            params.push_back(param);
-        for (size_t i = 0; i < node->get_input_size(); ++i)
-            stack.push_back(node->get_input_node_ptr(i));
-    }
-
-    return std::make_shared<ov::Model>(ov::ResultVector{res}, m_sinks, params, model_name);
+    return std::make_shared<ov::Model>(ov::OutputVector{res->output(0)}, m_sinks, model_name);
 }
 
 std::shared_ptr<ov::Model> ModelBuilder::build_model(const ModelConfig& config) {

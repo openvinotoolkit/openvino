@@ -423,8 +423,6 @@ public:
     std::shared_ptr<ov::op::v0::Parameter> parameter(ov::element::Type type,
                                                      const ov::PartialShape& shape,
                                                      const std::string& name);
-    std::shared_ptr<ov::op::v0::Result> result(const ov::Output<ov::Node>& output, const std::string& name);
-    std::shared_ptr<ov::Model> build(const std::string& name = "");
 
     /// Unified entry point. Dispatches on config structural flags.
     std::shared_ptr<ov::Model> build_model(const ModelConfig& config);
@@ -448,8 +446,6 @@ private:
     void set_name(const std::shared_ptr<ov::Node>& node);
 
     std::vector<std::shared_ptr<ov::Node>> m_nodes;
-    std::vector<std::shared_ptr<ov::op::v0::Parameter>> m_parameters;
-    std::vector<std::shared_ptr<ov::op::v0::Result>> m_results;
     ov::SinkVector m_sinks;
     size_t m_name_idx = 0;
 };
