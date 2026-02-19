@@ -87,7 +87,8 @@ Before posting any comment, apply this gate:
 
 ## Security Review Heuristics
 - Treat arithmetic on sizes/offsets/indices as overflow-prone unless guarded.
-- Flag unchecked casts, signed/unsigned mixing, and implicit narrowing in bounds-sensitive code.
+- Flag implicit narrowing unconditionally.
+- In bounds-sensitive code, flag unchecked casts and signed/unsigned mixing.
 - Treat model metadata and file content as untrusted input in frontend/parser code paths.
 - Prefer fail-fast validation to warning-only behavior for unsafe input states.
 
