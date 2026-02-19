@@ -527,3 +527,107 @@ KERNEL(rope_opt)(
 #endif
 }
 #endif
+
+#ifdef LTX_VIDEO
+KERNEL(rope_opt)(
+    OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* input,
+    const __global INPUT1_TYPE* cos,
+    const __global INPUT2_TYPE* sin,
+    __global OUTPUT_TYPE* output) {
+#if VEC_SIZE != 1 && VEC_SIZE != 8 && VEC_SIZE != 16
+#   error "rope_opt.cl - VEC_SIZE must be one of {1, 8, 16}"
+#endif
+
+    const uint b = get_global_id(0);
+    const uint p = get_global_id(1);
+    const uint r = 2 * (((uint)get_global_id(2) * VEC_SIZE) % HALF_ROTARY_NDIMS);
+
+    // Input layout: [batch, seq_len, 2048]
+    uint input_idx = INPUT0_GET_INDEX(b, p, 0, 0);
+
+    // Cos/Sin layout: [batch, seq_len, 2048]
+    uint cos_sin_b = b < INPUT1_BATCH_NUM ? b : 0;
+    uint cos_sin_p = p < INPUT1_FEATURE_NUM ? p : 0;
+
+#ifndef SIN_COS_HAVE_DYNAMIC_PADDINGS
+    uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_p, 0, 0);
+    uint cos_idx = cos_sin_idx;
+    uint sin_idx = cos_sin_idx;
+#else
+    uint cos_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_p, 0, 0);
+    uint sin_idx = INPUT2_GET_INDEX(cos_sin_b, cos_sin_p, 0, 0);
+#endif
+
+    uint output_idx = OUTPUT_GET_INDEX(b, p, 0, 0);
+
+#if VEC_SIZE == 1
+    // Scalar processing: process one complex pair at a time
+    INPUT0_TYPE in_real = input[input_idx + r];      // real part
+    INPUT0_TYPE in_imag = input[input_idx + r + 1];  // imaginary part
+
+    INPUT1_TYPE cos_val = cos[cos_idx + r];
+    INPUT2_TYPE sin_val = sin[sin_idx + r];
+
+    // Complex rotation: (real + i*imag) * (cos + i*sin)
+    // out_real = real * cos - imag * sin
+    // out_imag = real * sin + imag * cos
+    output[output_idx + r] = TO_OUTPUT_TYPE(cos_val * in_real - sin_val * in_imag);
+    output[output_idx + r + 1] = TO_OUTPUT_TYPE(sin_val * in_real + cos_val * in_imag);
+
+#elif VEC_SIZE == 8
+    // Vector processing: 8 complex pairs (16 elements) at a time
+    INPUT_VEC_TYPE inv1 = *(INPUT_VEC_TYPE*)(input + input_idx + r);
+    INPUT_VEC_TYPE inv2 = *(INPUT_VEC_TYPE*)(input + input_idx + r + VEC_SIZE);
+    INPUT_VEC_TYPE cosv1 = *(INPUT_VEC_TYPE*)(cos + cos_idx + r);
+    INPUT_VEC_TYPE sinv1 = *(INPUT_VEC_TYPE*)(sin + sin_idx + r);
+    INPUT_VEC_TYPE cosv2 = *(INPUT_VEC_TYPE*)(cos + cos_idx + r + VEC_SIZE);
+    INPUT_VEC_TYPE sinv2 = *(INPUT_VEC_TYPE*)(sin + sin_idx + r + VEC_SIZE);
+
+    float8 in_real, in_imag, cos_val, sin_val, cos_val2, sin_val2;
+    UNPACK_FLOAT_VEC_1(in_real, inv1, inv2);   // Extract real parts
+    UNPACK_FLOAT_VEC_2(in_imag, inv1, inv2);   // Extract imaginary parts
+    UNPACK_FLOAT_VEC_1(cos_val, cosv1, cosv2);
+    UNPACK_FLOAT_VEC_2(cos_val2, cosv1, cosv2);
+    UNPACK_FLOAT_VEC_1(sin_val, sinv1, sinv2);
+    UNPACK_FLOAT_VEC_2(sin_val2, sinv1, sinv2);
+
+    float8 out_real = cos_val * in_real - sin_val * in_imag;
+    float8 out_imag = sin_val2 * in_real + cos_val2 * in_imag;
+
+    // Interleave back: [real0, imag0, real1, imag1, ...]
+    *(float8*)(output + output_idx + r) =
+        (float8)(out_real.s0, out_imag.s0, out_real.s1, out_imag.s1, 
+                 out_real.s2, out_imag.s2, out_real.s3, out_imag.s3);
+    *(float8*)(output + output_idx + r + VEC_SIZE) =
+        (float8)(out_real.s4, out_imag.s4, out_real.s5, out_imag.s5, 
+                 out_real.s6, out_imag.s6, out_real.s7, out_imag.s7);
+
+#elif VEC_SIZE == 16
+    // Half precision vector processing: 16 complex pairs (32 elements) at a time
+    INPUT_VEC_TYPE inv1 = *(INPUT_VEC_TYPE*)(input + input_idx + r);
+    INPUT_VEC_TYPE inv2 = *(INPUT_VEC_TYPE*)(input + input_idx + r + VEC_SIZE);
+    INPUT_VEC_TYPE cosv1 = *(INPUT_VEC_TYPE*)(cos + cos_idx + r);
+    INPUT_VEC_TYPE sinv1 = *(INPUT_VEC_TYPE*)(sin + sin_idx + r);
+    INPUT_VEC_TYPE cosv2 = *(INPUT_VEC_TYPE*)(cos + cos_idx + r + VEC_SIZE);
+    INPUT_VEC_TYPE sinv2 = *(INPUT_VEC_TYPE*)(sin + sin_idx + r + VEC_SIZE);
+
+    INPUT_VEC_TYPE in_real, in_imag, cos_val, sin_val, cos_val2, sin_val2;
+    UNPACK_HALF16_VEC_1(in_real, inv1, inv2);
+    UNPACK_HALF16_VEC_2(in_imag, inv1, inv2);
+    UNPACK_HALF16_VEC_1(cos_val, cosv1, cosv2);
+    UNPACK_HALF16_VEC_2(cos_val2, cosv1, cosv2);
+    UNPACK_HALF16_VEC_1(sin_val, sinv1, sinv2);
+    UNPACK_HALF16_VEC_2(sin_val2, sinv1, sinv2);
+
+    half16 out_real = cos_val * in_real - sin_val * in_imag;
+    half16 out_imag = sin_val2 * in_real + cos_val2 * in_imag;
+
+    half16 outputv1, outputv2;
+    PACK_HALF16_VEC_1(outputv1, out_real, out_imag);
+    PACK_HALF16_VEC_2(outputv2, out_real, out_imag);
+
+    *(half16*)(output + output_idx + r) = outputv1;
+    *(half16*)(output + output_idx + r + VEC_SIZE) = outputv2;
+#endif
+}
+#endif
