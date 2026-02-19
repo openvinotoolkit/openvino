@@ -78,7 +78,8 @@ Before posting any comment, apply this gate:
 - Ensure branch/commit policy checks remain satisfied (`.github/workflows/check_pr_commits.yml`).
 
 ## Code Quality Rules to Enforce
-- No `using namespace` in implementation scope unless strongly justified.
+- Do not use `using namespace` in headers or in global/namespace scope of source files.
+- Function-local `using` is acceptable when narrowly scoped and clearly improves readability (for example, operator usage like `x << 5` instead of `x.operator<<(5)`).
 - Avoid unnecessary copying of large objects/tensors; prefer references or move semantics.
 - Avoid hidden behavior changes and silent fallback/config mutation without explicit handling.
 - Keep fixes minimal and root-cause oriented; avoid unrelated refactors.
