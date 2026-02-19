@@ -4,6 +4,7 @@
 
 #include <vector>
 
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_format_filter.hpp"
 #include "nodes/executors/concat.hpp"
 #include "nodes/executors/executor.hpp"
