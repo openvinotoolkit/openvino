@@ -163,10 +163,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoESubgraph_basic,
                                             ::testing::ValuesIn(generate_additional_config())),
                          MoESubgraphTest::getTestCaseName);
 
-const std::vector<ov::test::ElementType> decompression_precisions = {ov::element::f32};
-const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8,
-                                                               ov::element::i8,
-                                                               ov::element::u4,
-                                                               ov::element::i4};
-
 }  // namespace ov::test

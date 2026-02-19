@@ -1,11 +1,7 @@
 #include <openvino/core/visibility.hpp>
 #ifdef OPENVINO_ARCH_ARM64
-#    include <oneapi/dnnl/dnnl_common_types.h>
-#    include <oneapi/dnnl/dnnl_types.h>
 
 #    include <bitset>
-#    include <common/primitive_hashing_utils.hpp>
-#    include <common/utils.hpp>
 #    include <cstddef>
 #    include <cstdint>
 #    include <cstring>
@@ -13,14 +9,12 @@
 #    include <oneapi/dnnl/dnnl.hpp>
 #    include <oneapi/dnnl/dnnl_common.hpp>
 #    include <string>
-#    include <tuple>
 #    include <unordered_map>
 #    include <utility>
 #    include <vector>
 
 #    include "common/blocked_desc_creator.h"
 #    include "config.h"
-#    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "cpu_memory.h"
 #    include "cpu_types.h"
 #    include "dnnl_extension_utils.h"
@@ -30,9 +24,13 @@
 #    include "memory_desc/cpu_memory_desc.h"
 #    include "memory_desc/cpu_memory_desc_utils.h"
 #    include "memory_desc/dnnl_memory_desc.h"
+#    include "memory_format_filter.hpp"
 #    include "node.h"
 #    include "node_config.h"
 #    include "nodes/executors/executor.hpp"
+#    include "nodes/executors/executor_factory.hpp"
+#    include "nodes/executors/fullyconnected_config.hpp"
+#    include "nodes/executors/memory_arguments.hpp"
 #    include "onednn/iml_type_mapper.h"
 #    include "openvino/core/except.hpp"
 #    include "openvino/core/node.hpp"
@@ -197,7 +195,12 @@ void GatherMatmul::initSupportedPrimitiveDescriptors() {
     NodeConfig nodeConfig;
 
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    for (size_t i = 0; i < srcTypes.size(); i++) {
+
+    auto rtPrecision = getRuntimePrecision();
+    const auto srcDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(rtPrecision, getInputShapeAtPort(0));
+    nodeConfig.inConfs.emplace_back(srcDesc);
+
+    for (size_t i = 1; i < srcTypes.size(); i++) {
         if (srcTypes[i] == element::dynamic) {
             nodeConfig.inConfs.emplace_back(MemoryDescUtils::makeEmptyDesc());
             continue;
@@ -206,7 +209,10 @@ void GatherMatmul::initSupportedPrimitiveDescriptors() {
         nodeConfig.inConfs.emplace_back(srcDesc);
     }
 
-    for (size_t i = 0; i < dstTypes.size(); i++) {
+    const auto dstDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(rtPrecision, getOutputShapeAtPort(0));
+    nodeConfig.outConfs.emplace_back(dstDesc);
+
+    for (size_t i = 1; i < dstTypes.size(); i++) {
         const auto dstDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(dstTypes[i], getOutputShapeAtPort(i));
         nodeConfig.outConfs.emplace_back(dstDesc);
     }
@@ -227,7 +233,7 @@ void GatherMatmul::createPrimitive() {
 
     CPU_NODE_ASSERT(weiMemoryDesc->isDefined(), "Weights memory descriptor is not defined");
     CPU_NODE_ASSERT(weiPrec == ov::element::f32, "Weights currently supported only in f32");
-    CPU_NODE_ASSERT(SrcPrec == ov::element::f32, "Weights currently supported only in f32");
+    CPU_NODE_ASSERT(SrcPrec == ov::element::f32, "Activation currently supported only in f32");
 
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto expertWeiDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(weiPrec, Shape({N, K}));
@@ -261,7 +267,6 @@ void GatherMatmul::createPrimitive() {
     memDescArgs[ARG_WEI] = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(weiPrec, Shape({N, K}));
     if (biasMemoryDesc && !biasMemoryDesc->empty()) {
         memDescArgs[ARG_BIAS] = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(weiPrec, Shape({N}));
-        ;
     } else {
         memDescArgs[ARG_BIAS] = MemoryDescUtils::makeEmptyDesc();
     }
@@ -277,7 +282,7 @@ void GatherMatmul::createPrimitive() {
     for (size_t expert = 0; expert < numExperts; ++expert) {
         MemoryArgs FCArgs;
         FCArgs[ARG_WEI] = split_horizontal(context->getEngine(), m_weightsMemory, 0, expert, numExperts, true);
-        // wei_shape shape becomes: [1, N, K] --> redefine desc to [N, K]
+        // wei_shape shape after split becomes: [1, N, K] --> redefine desc to [N, K]
         FCArgs[ARG_WEI]->redefineDesc(memDescArgs[ARG_WEI]);
         if (biasMemoryDesc && !biasMemoryDesc->empty()) {
             auto bias = getSrcMemoryAtPort(BIAS);
@@ -288,7 +293,6 @@ void GatherMatmul::createPrimitive() {
         }
         FCArgs[ARG_SRC] = std::make_shared<Memory>(context->getEngine(), memDescArgs[ARG_SRC]);
         memArgsFC.emplace_back(FCArgs);
-        // Currectly support only KleidiAI Executor.
         executor.push_back(factory->make(memArgsFC.back()));
     }
     Node::createPrimitive();
@@ -309,24 +313,25 @@ void GatherMatmul::prepareParams() {
     const auto& dstShape = dstMem->getStaticDims();
 
     const Dim M = srcShape[1];
+    if (M > 1) {
+        const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+        const auto srcPrc = srcMem->getDesc().getPrecision();
 
-    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    const auto srcPrc = srcMem->getDesc().getPrecision();
+        m_tmpInputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, srcShape[2]}));
+        m_tmpOutputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, dstShape[2]}));
 
-    m_tmpInputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, srcShape[2]}));
-    m_tmpOutputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, dstShape[2]}));
-
-    auto srcSize = rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);  // 64 bytes is the cache line size
-    const size_t totalSize = srcSize + m_tmpOutputDesc->getCurrentMemSize();
-    auto scratchPadDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::u8, Shape({totalSize}));
-    m_tmpInpBuffer = getScratchPadMem(scratchPadDesc);
+        auto srcSize = rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);  // 64 bytes is the cache line size
+        const size_t totalSize = srcSize + m_tmpOutputDesc->getCurrentMemSize();
+        auto scratchPadDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::u8, Shape({totalSize}));
+        m_tmpInpBuffer = getScratchPadMem(scratchPadDesc);
+    }
 }
 
 bool GatherMatmul::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);  // only data shape matters
 }
 
-void GatherMatmul::execute(const dnnl::stream& strm) {
+void GatherMatmul::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto& srcMem = getParentEdgeAt(DATA)->getMemoryPtr();
     const auto& indexMem = getParentEdgeAt(INDICES)->getMemoryPtr();
     const auto& dstMem = getChildEdgeAt(0)->getMemoryPtr();
@@ -339,78 +344,96 @@ void GatherMatmul::execute(const dnnl::stream& strm) {
     size_t M = indexShape[0];
     size_t B = indexShape[1];
 
-    const auto& srcShape = srcMem->getStaticDims();
     const auto srcPrc = srcMem->getDesc().getPrecision();
-    const Dim K = srcShape[2];
+    const Dim K = srcMem->getStaticDims()[2];
     const Dim N = dstMem->getStaticDims()[2];
 
-    CPU_NODE_ASSERT(m_tmpInpBuffer, "Temporary input/output memory is not created");
-    CPU_NODE_ASSERT(m_tmpInputDesc, "Temporary input memory desc is not created");
-    CPU_NODE_ASSERT(m_tmpOutputDesc, "Temporary output memory desc is not created");
-
-    // all the gather idx for corresponding m index
-    const size_t gather_axis_size = numExperts;
-    std::vector<std::pair<int32_t, int32_t>> gather_idx_map(gather_axis_size * M);
-    std::vector<int32_t> elements_per_gather_indx(gather_axis_size, 0);
-    for (size_t m = 0; m < M; m++) {
-        const auto* gather_ids = static_cast<const int32_t*>(index_offset(m));
+    if (M == 1) {
+        auto m = 0;
+        auto* gather_ids = static_cast<int32_t*>(index_offset(m));
         for (size_t i = 0; i < B; i++) {
-            int32_t gather_axis_index = gather_ids[i];
-            CPU_NODE_ASSERT(gather_axis_index >= 0 && static_cast<size_t>(gather_axis_index) < gather_axis_size,
-                            "Invalid gather_id ",
-                            gather_axis_index,
-                            " for m ",
-                            m);
-            auto& index = elements_per_gather_indx[gather_axis_index];
-            gather_idx_map[gather_axis_index * M + index] = {m, i};
-            index++;
-        }
-    }
-
-    const auto element_size = m_tmpInputDesc->getPrecision().size();
-    auto* input_ptr = m_tmpInpBuffer->getDataAs<uint8_t>();
-    auto* output_ptr = input_ptr + rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);  // 64 bytes is the cache line size
-
-    Memory tmpInput(getEngine(), m_tmpInputDesc, input_ptr);
-    Memory tmpOutput(getEngine(), m_tmpOutputDesc, output_ptr);
-
-    auto tmp_input_offset = OffsetHelper::createOffsetHelper(tmpInput);
-    auto tmp_dst_offset = OffsetHelper::createOffsetHelper(tmpOutput);
-
-    for (size_t gather_axis_index = 0; gather_axis_index < gather_axis_size; gather_axis_index++) {
-        const size_t num_valid_rows = elements_per_gather_indx[gather_axis_index];
-        if (0 == num_valid_rows) {
-            continue;
+            const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+            auto SrcDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({1, K}));
+            auto DstDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({1, N}));
+            auto* srcPtr = src_offset(i, m);
+            auto* dstPtr = dst_offset(i, m);
+            auto expertId = gather_ids[i];
+            memArgsFC[expertId][ARG_SRC] = std::make_shared<Memory>(context->getEngine(), SrcDesc, srcPtr);
+            memArgsFC[expertId][ARG_DST] = std::make_shared<Memory>(context->getEngine(), DstDesc, dstPtr);
+            executor[expertId]->update(memArgsFC[expertId]);
+            executor[expertId]->execute(memArgsFC[expertId]);
         }
 
-        parallel_for(num_valid_rows, [&](size_t m) {
-            auto* dst_row = tmp_input_offset(m);
-            const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
-            const auto batch_index = gather_idx_map[gather_axis_index * M + m].second;
-            const auto* src_data = src_offset(batch_index, row_id);
-            std::memcpy(dst_row, src_data, K * element_size);
-        });
+    } else {
+        CPU_NODE_ASSERT(m_tmpInpBuffer, "Temporary input/output memory is not created");
+        CPU_NODE_ASSERT(m_tmpInputDesc, "Temporary input memory desc is not created");
+        CPU_NODE_ASSERT(m_tmpOutputDesc, "Temporary output memory desc is not created");
 
-        const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-        auto SrcDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({num_valid_rows, K}));
-        auto DstDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({num_valid_rows, N}));
+        // all the gather idx for corresponding m index
+        const size_t gather_axis_size = numExperts;
+        std::vector<std::pair<int32_t, int32_t>> gather_idx_map(gather_axis_size * M);
+        std::vector<int32_t> elements_per_gather_indx(gather_axis_size, 0);
+        for (size_t m = 0; m < M; m++) {
+            const auto* gather_ids = static_cast<const int32_t*>(index_offset(m));
+            for (size_t i = 0; i < B; i++) {
+                int32_t gather_axis_index = gather_ids[i];
+                CPU_NODE_ASSERT(gather_axis_index >= 0 && static_cast<size_t>(gather_axis_index) < gather_axis_size,
+                                "Invalid gather_id ",
+                                gather_axis_index,
+                                " for m ",
+                                m);
+                auto& index = elements_per_gather_indx[gather_axis_index];
+                gather_idx_map[gather_axis_index * M + index] = {m, i};
+                index++;
+            }
+        }
 
-        auto* srcPtr = tmp_input_offset.get_base();
-        auto* dstPtr = tmp_dst_offset.get_base();
+        const auto element_size = m_tmpInputDesc->getPrecision().size();
+        auto* input_ptr = m_tmpInpBuffer->getDataAs<uint8_t>();
+        auto* output_ptr =
+            input_ptr + rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);  // 64 bytes is the cache line size
 
-        memArgsFC[gather_axis_index][ARG_SRC] = std::make_shared<Memory>(context->getEngine(), SrcDesc, srcPtr);
-        memArgsFC[gather_axis_index][ARG_DST] = std::make_shared<Memory>(context->getEngine(), DstDesc, dstPtr);
-        executor[gather_axis_index]->update(memArgsFC[gather_axis_index]);
-        executor[gather_axis_index]->execute(memArgsFC[gather_axis_index]);
+        Memory tmpInput(getEngine(), m_tmpInputDesc, input_ptr);
+        Memory tmpOutput(getEngine(), m_tmpOutputDesc, output_ptr);
 
-        // Immediately scatter results while they're hot in cache
-        parallel_for(num_valid_rows, [&](size_t m) {
-            const auto* src_row = tmp_dst_offset(m);
-            const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
-            const auto batch_index = gather_idx_map[gather_axis_index * M + m].second;
-            auto* dst_row = dst_offset(batch_index, row_id);
-            std::memcpy(dst_row, src_row, N * element_size);
-        });
+        auto tmp_input_offset = OffsetHelper::createOffsetHelper(tmpInput);
+        auto tmp_dst_offset = OffsetHelper::createOffsetHelper(tmpOutput);
+
+        for (size_t gather_axis_index = 0; gather_axis_index < gather_axis_size; gather_axis_index++) {
+            const size_t num_valid_rows = elements_per_gather_indx[gather_axis_index];
+            if (0 == num_valid_rows) {
+                continue;
+            }
+
+            parallel_for(num_valid_rows, [&](size_t m) {
+                auto* dst_row = tmp_input_offset(m);
+                const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
+                const auto batch_index = gather_idx_map[gather_axis_index * M + m].second;
+                const auto* src_data = src_offset(batch_index, row_id);
+                std::memcpy(dst_row, src_data, K * element_size);
+            });
+
+            const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+            auto SrcDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({num_valid_rows, K}));
+            auto DstDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({num_valid_rows, N}));
+
+            auto* srcPtr = tmp_input_offset.get_base();
+            auto* dstPtr = tmp_dst_offset.get_base();
+
+            memArgsFC[gather_axis_index][ARG_SRC] = std::make_shared<Memory>(context->getEngine(), SrcDesc, srcPtr);
+            memArgsFC[gather_axis_index][ARG_DST] = std::make_shared<Memory>(context->getEngine(), DstDesc, dstPtr);
+            executor[gather_axis_index]->update(memArgsFC[gather_axis_index]);
+            executor[gather_axis_index]->execute(memArgsFC[gather_axis_index]);
+
+            // Immediately scatter results while they're hot in cache
+            parallel_for(num_valid_rows, [&](size_t m) {
+                const auto* src_row = tmp_dst_offset(m);
+                const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
+                const auto batch_index = gather_idx_map[gather_axis_index * M + m].second;
+                auto* dst_row = dst_offset(batch_index, row_id);
+                std::memcpy(dst_row, src_row, N * element_size);
+            });
+        }
     }
 }
 
@@ -424,7 +447,6 @@ bool GatherMatmul::created() const {
 
 GatherMatmul::GatherMatmul(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, GatherMatmulShapeInferFactory(op)) {
-    // Graph_context = context;
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -436,6 +458,12 @@ GatherMatmul::GatherMatmul(const std::shared_ptr<ov::Node>& op, const GraphConte
     } else {
         algorithm = Algorithm::GatherMatmulDefault;
     }
+}
+
+ov::element::Type GatherMatmul::getRuntimePrecision() const {
+    auto rtPrecision = getOriginalInputPrecisionAtPort(0);
+    rtPrecision = ov::element::f32;
+    return rtPrecision;
 }
 
 }  // namespace ov::intel_cpu::node

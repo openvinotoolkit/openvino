@@ -79,8 +79,9 @@ private:
     bool bf16_amx_mode = false;
 #else
 
+    ov::element::Type getRuntimePrecision() const override;
     Algorithm algorithm = Algorithm::GatherMatmulDefault;
-    size_t numExperts;
+    size_t numExperts = 0;
 
     std::vector<ExecutorPtr> executor;
     std::vector<MemoryArgs> memArgsFC;
