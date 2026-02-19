@@ -28,15 +28,25 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
         float sum_all0 = 0;
         float sum_all1 = 0;
         __global half* S = scales + n;
+#if ZP_IS_U8
+        __global uchar* Z = zps + n;
+#else
         __global uchar* Z = zps + n / 2;
+#endif
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
             int scale_offset = gk * (FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
+#if ZP_IS_U8
+            int zp_offset = gk * (FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N;
+            half z_hf0 = convert_half(Z[zp_offset]);
+            half z_hf1 = convert_half(Z[zp_offset + 1]);
+#else
             int zp_offset = gk * (FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N / 2;
-            half s0 = S[scale_offset];
-            half s1 = S[scale_offset + 1];
             uchar z = Z[zp_offset];
             half z_hf0 = convert_half(z & 0xf);
             half z_hf1 = convert_half(z >> 4);
+#endif
+            half s0 = S[scale_offset];
+            half s1 = S[scale_offset + 1];
 
 #    if SUBGROUP_SIZE == 32
             half2 sum0;
@@ -288,7 +298,11 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(co
 #    if WEIGHT_COMPRESSEION_DT == 0
     const int expert_wei_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / 2;
     const int expert_scale_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / GATE_UP_GROUP_SIZE;
+#      if ZP_IS_U8
+    const int expert_zp_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / GATE_UP_GROUP_SIZE;
+#      else
     const int expert_zp_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / 2 / GATE_UP_GROUP_SIZE;
+#      endif
 #    else
     const int expert_wei_size = INTERMEDIATE_SIZE * HIDDEN_SIZE;
     const int expert_scale_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / GATE_UP_GROUP_SIZE;
@@ -394,17 +408,27 @@ inline void down_gemv_n2x_u4(const __global uchar* weight,
     unroll_for(int n = n_start; n < n_end; n += 2) {
         const __global uchar* B = weight + n * K / 2;
         __global half* S = scales + n;
+#if ZP_IS_U8
+        __global uchar* Z = zps + n;
+#else
         __global uchar* Z = zps + n / 2;
+#endif
         float sum_all0 = 0;
         float sum_all1 = 0;
         unroll_for(int gk = 0; gk < K / FAKE_GROUP_SIZE; gk++) {
             int scale_offset = gk * (FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
+#if ZP_IS_U8
+            int zp_offset = gk * (FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N;
+            half z_hf0 = convert_half(Z[zp_offset]);
+            half z_hf1 = convert_half(Z[zp_offset + 1]);
+#else
             int zp_offset = gk * (FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N / 2;
-            half s0 = S[scale_offset];
-            half s1 = S[scale_offset + 1];
             ushort z = Z[zp_offset];
             half z_hf0 = convert_half(z & 0xf);
             half z_hf1 = convert_half(z >> 4);
+#endif
+            half s0 = S[scale_offset];
+            half s1 = S[scale_offset + 1];
 
 #    if SUBGROUP_SIZE == 32
             half2 sum0;
@@ -638,7 +662,11 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
 #    if WEIGHT_COMPRESSEION_DT == 0
     const int expert_wei_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / 2;
     const int expert_scale_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / DOWN_GROUP_SIZE;
+#      if ZP_IS_U8
+    const int expert_zp_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / DOWN_GROUP_SIZE;
+#      else
     const int expert_zp_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / 2 / DOWN_GROUP_SIZE;
+#      endif
 #    else
     const int expert_wei_size = INTERMEDIATE_SIZE * HIDDEN_SIZE;
     const int expert_scale_size = INTERMEDIATE_SIZE * HIDDEN_SIZE / DOWN_GROUP_SIZE;
