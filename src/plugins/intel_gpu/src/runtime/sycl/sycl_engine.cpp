@@ -50,14 +50,6 @@ sycl_engine::sycl_engine(const device::ptr dev, runtime_types runtime_type)
     : engine(dev) {
     OPENVINO_ASSERT(runtime_type == runtime_types::sycl, "[GPU] Invalid runtime type specified for SYCL engine. Only SYCL runtime is supported");
 
-    auto casted = dynamic_cast<sycl_device*>(dev.get());
-    OPENVINO_ASSERT(casted, "[GPU] Invalid device type passed to sycl engine");
-    try {
-        _extensions = casted->get_device().get_info<::sycl::info::device::aspects>();
-    } catch (const ::sycl::exception& e) {
-        OPENVINO_THROW("[GPU] SYCL Engine initialization failed: ", e.what());
-    }
-
     _service_stream.reset(new sycl_stream(*this, ExecutionConfig()));
 }
 
@@ -231,7 +223,8 @@ std::shared_ptr<kernel_builder> sycl_engine::create_kernel_builder() const {
 }
 
 bool sycl_engine::extension_supported(::sycl::aspect extension) const {
-    return std::find(_extensions.begin(), _extensions.end(), extension) != _extensions.end();
+    auto& sycl_device = get_sycl_device();
+    return sycl_device.has(extension);
 }
 
 stream::ptr sycl_engine::create_stream(const ExecutionConfig& config) const {

@@ -54,7 +54,6 @@ public:
     static std::shared_ptr<cldnn::engine> create(const device::ptr device, runtime_types runtime_type);
 
 private:
-    std::vector<::sycl::aspect> _extensions;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::mutex onednn_mutex;
