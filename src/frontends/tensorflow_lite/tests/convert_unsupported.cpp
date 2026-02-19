@@ -47,8 +47,48 @@ TEST(FrontEndConvertModelTest, test_wrong_pos) {
     ASSERT_NE(frontEnd, nullptr);
     auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) +
                                                              string("bad_header/wrong_pos.tflite"));
-    OV_ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
-    ASSERT_NE(inputModel, nullptr);
-    shared_ptr<ov::Model> model;
-    ASSERT_THROW(model = frontEnd->convert(inputModel), std::exception);
+    ASSERT_THROW(
+        {
+            inputModel = frontEnd->load(model_filename);
+            if (inputModel) {
+                auto model = frontEnd->convert(inputModel);
+            }
+        },
+        std::exception);
+}
+
+TEST(FrontEndConvertModelTest, test_undersized_buffer) {
+    FrontEndManager fem;
+    FrontEnd::Ptr frontEnd;
+    InputModel::Ptr inputModel;
+    OV_ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_LITE_FE));
+    ASSERT_NE(frontEnd, nullptr);
+    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) +
+                                                             string("bad_buffer_size/undersized_buffer.tflite"));
+    ASSERT_THROW(
+        {
+            inputModel = frontEnd->load(model_filename);
+            if (inputModel) {
+                auto model = frontEnd->convert(inputModel);
+            }
+        },
+        std::exception);
+}
+
+TEST(FrontEndConvertModelTest, test_empty_buffer_nonempty_shape) {
+    FrontEndManager fem;
+    FrontEnd::Ptr frontEnd;
+    InputModel::Ptr inputModel;
+    OV_ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_LITE_FE));
+    ASSERT_NE(frontEnd, nullptr);
+    auto model_filename = FrontEndTestUtils::make_model_path(
+        string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) + string("bad_buffer_size/empty_buffer_nonempty_shape.tflite"));
+    ASSERT_THROW(
+        {
+            inputModel = frontEnd->load(model_filename);
+            if (inputModel) {
+                auto model = frontEnd->convert(inputModel);
+            }
+        },
+        std::exception);
 }

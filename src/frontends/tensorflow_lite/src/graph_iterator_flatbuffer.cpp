@@ -24,6 +24,12 @@ GraphIteratorFlatBuffer::GraphIteratorFlatBuffer(const std::string& path) {
     m_data = {(std::istreambuf_iterator<char>(model_file)), std::istreambuf_iterator<char>()};
     model_file.close();
 
+    flatbuffers::Verifier verifier(m_data.data(), m_data.size());
+    FRONT_END_GENERAL_CHECK(tflite::VerifyModelBuffer(verifier),
+                            "TensorFlow Lite Frontend: the model file \"",
+                            path,
+                            "\" is corrupted or malformed (FlatBuffer verification failed).");
+
     m_model = tflite::GetModel(m_data.data());
     auto sub_graphs = m_model->subgraphs();
     m_subgraphs = {sub_graphs->begin(), sub_graphs->end()};

@@ -22,6 +22,8 @@ TensorMetaInfo extract_tensor_meta_info(const TensorInfo& tensor_info) {
     const auto tensor = tensor_info.tensor;
     const uint8_t* tensor_data =
         (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->data() : nullptr);
+    const size_t tensor_data_size =
+        (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->size() : 0);
 
     tensor_meta_info.m_partial_shape =
         ov::frontend::tensorflow_lite::get_ov_shape(tensor->shape(), tensor->shape_signature());
@@ -32,6 +34,7 @@ TensorMetaInfo extract_tensor_meta_info(const TensorInfo& tensor_info) {
                                                                                    tensor_meta_info.m_element_type,
                                                                                    tensor_data);
     tensor_meta_info.m_tensor_data = tensor_data;
+    tensor_meta_info.m_tensor_data_size = tensor_data_size;
     tensor_meta_info.m_tensor_name = tensor->name()->str();
 
     return tensor_meta_info;
@@ -114,6 +117,8 @@ std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffe
     std::vector<std::string> names = {tensor->name()->str()};
     const uint8_t* tensor_data =
         (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->data() : nullptr);
+    const size_t tensor_data_size =
+        (tensor_info.buffer && tensor_info.buffer->data() ? tensor_info.buffer->data()->size() : 0);
 
     return std::make_shared<ov::frontend::tensorflow_lite::TensorLitePlace>(
         model,
@@ -125,7 +130,8 @@ std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> DecoderFlatBuffe
                                                     tensor->sparsity(),
                                                     ov::frontend::tensorflow_lite::get_ov_type(tensor->type()),
                                                     tensor_data),
-        tensor_data);
+        tensor_data,
+        tensor_data_size);
 }
 
 ov::Any get_value_as_ov_any(const flexbuffers::Reference& value) {
