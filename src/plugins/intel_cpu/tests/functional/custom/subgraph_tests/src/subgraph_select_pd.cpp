@@ -3,6 +3,7 @@
 //
 
 #include "common_test_utils/node_builders/constant.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/opsets/opset8_decl.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
@@ -50,6 +51,7 @@ class SubgraphSelectPD : virtual public SubgraphBaseStaticTest {
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         abs_threshold = 2e-2;
 
         auto type = element::f32;
