@@ -349,7 +349,7 @@ struct ModelConfig {
     size_t num_kv_heads = 0;  ///< 0 = MHA
     size_t intermediate_size = 256;
     size_t vocab_size = 1000;
-    size_t num_layers = 2;
+    size_t num_layers = 10;
 
     bool use_kv_cache = true;
     bool use_inputs_embeds = false;
