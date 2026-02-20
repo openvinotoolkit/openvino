@@ -34,6 +34,15 @@ When reviewing a PR, always:
 5. For new third-party dependencies or public API changes, verify component labels are present when required by `.github/labeler.yml`.
 6. Leave actionable comments with severity and concrete fix direction.
 
+For PRs labeled `ExternalPR`, apply stricter evidence-based checks while keeping noise low:
+1. Treat `ExternalPR` as a risk signal, not as proof of low quality.
+2. Prioritize objective quality gates first: required CI status, build/test failures, and changed-path risk.
+3. Check workflow result for `ExternalPR Build Smoke` when it is expected for that PR.
+4. If `ExternalPR Build Smoke` is pending or missing, avoid speculative quality conclusions; ask for/await the smoke result first.
+5. If buildability is in question, reference failing required checks and concrete failure symptoms; do not speculate.
+6. Do not request extra local validation steps when required CI checks are green.
+7. Keep comments focused on merge blockers, regressions, and security/performance risks; avoid style-only expansion.
+
 Before posting any comment, apply this gate:
 - **Evidence gate**: point to exact changed code and explain the failure mode.
 - **Impact gate**: explain user/runtime/CI impact in OpenVINO terms.
@@ -47,6 +56,7 @@ Before posting any comment, apply this gate:
 - Avoid review comments on unrelated legacy code not touched by the PR.
 - Do not request large refactors in bug-fix PRs unless needed to prevent correctness/security regression.
 - Highlight out-of-scope or accidental changes and request revert when they are not required for the stated fix.
+- For `ExternalPR`, require stronger evidence before posting comments and prefer one high-confidence issue over multiple speculative ones.
 
 ## Ignore List for Automated Reviews
 - Do not review vendored/third-party sources under `thirdparty/` unless the PR explicitly modifies integration or patch logic.
@@ -101,6 +111,8 @@ Before posting any comment, apply this gate:
 - For bug fixes, require a regression test that fails before and passes after.
 - For architecture-specific changes (x64/ARM64/RISCV, CPU/GPU/NPU), verify appropriate platform/test gating.
 - If tests are skipped/disabled, require explicit rationale and limited scope.
+- If required validation jobs fail, cite the exact failing job(s) and explain impact on merge readiness.
+- For `ExternalPR`, include `ExternalPR Build Smoke` status in review summary when available.
 
 ## How to Write Review Comments
 - Use this severity prefix:
@@ -123,6 +135,7 @@ Comment quality constraints:
 - Prefer at most 5 substantive comments per review pass.
 - Rank by severity and likely merge-blocking impact.
 - Skip low-value nits when BLOCKER/HIGH issues are present.
+- For `ExternalPR`, bias toward fewer, higher-confidence comments to avoid misleading contributors.
 
 Avoid low-value comments that conflict with auto-formatting or established project conventions.
 
