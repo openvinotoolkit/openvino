@@ -172,7 +172,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, SavedModelWithNumericalNames) {
     comparator.enable(FunctionsComparator::CmpValues::TENSOR_NAMES);
     // The test aims to check that model with only numerical names for operation
     // is successfully converted
-    // it is a tricky case because colision between naming input and output ports may occur
+    // it is a tricky case because collision between naming input and output ports may occur
     { model = convert_model("saved_model_with_numerical_names"); }
     {
         // create a reference graph

@@ -36,7 +36,7 @@ ov::OutputVector build_dropout(const ov::frontend::onnx::Node& node, bool traini
 namespace opset_12 {
 ov::OutputVector dropout(const ov::frontend::onnx::Node& node) {
     const auto ng_inputs = node.get_ov_inputs();
-    // seed attribute and ratio input are ignored because traning mode is not
+    // seed attribute and ratio input are ignored because training mode is not
     // supported anyway
     bool training_mode = false;  // default value
     if (ng_inputs.size() > 2 && !ov::op::util::is_null(ng_inputs.at(2))) {
@@ -53,7 +53,7 @@ ONNX_OP("Dropout", OPSET_SINCE(12), ai_onnx::opset_12::dropout);
 namespace opset_7 {
 ov::OutputVector dropout(const ov::frontend::onnx::Node& node) {
     // "is_test" attribute was removed
-    // ratio attribute is ignored because traning mode is not supported
+    // ratio attribute is ignored because training mode is not supported
     const bool training_mode = false;
 
     return build_dropout(node, training_mode);
@@ -64,7 +64,7 @@ ONNX_OP("Dropout", OPSET_RANGE(7, 11), ai_onnx::opset_7::dropout);
 namespace opset_1 {
 ov::OutputVector dropout(const ov::frontend::onnx::Node& node) {
     // legacy consumed_inputs attribute ignored
-    // ratio attribute is ignored because traning mode is not supported
+    // ratio attribute is ignored because training mode is not supported
     const bool training_mode = !node.get_attribute_value<int64_t>("is_test", 0);
 
     return build_dropout(node, training_mode);

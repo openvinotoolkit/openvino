@@ -24,10 +24,6 @@ if (ENABLE_MLAS_FOR_CPU)
     set(MLAS_LIBRARY "mlas")
 endif()
 
-if (ENABLE_SHL_FOR_CPU)
-    set(SHL_LIBRARY "shl")
-endif()
-
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -53,7 +49,6 @@ ov_add_test_target(
             ov_snippets_models
             snippets_test_utils
             ${MLAS_LIBRARY}
-            ${SHL_LIBRARY}
         LABELS
             OV UNIT CPU
 )

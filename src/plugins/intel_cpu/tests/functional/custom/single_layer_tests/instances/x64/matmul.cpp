@@ -1281,7 +1281,7 @@ class MatMul3DWeightLayerCPUTest : public MatMulLayerCPUTest {
         }
 
         auto matMul = std::make_shared<ov::op::v0::MatMul>(paramOuts[0], matrixB, transpA, transpB);
-        function = makeNgraphFunction(netType, params, matMul, cpuNodeType);
+        function = create_ov_model(netType, params, matMul, cpuNodeType);
         checkFusingPosition = false;
     }
 };

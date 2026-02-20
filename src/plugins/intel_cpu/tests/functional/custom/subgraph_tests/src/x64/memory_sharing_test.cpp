@@ -53,7 +53,7 @@ TEST_F(EdgeWithSameNameInTwoModels, smoke_CompareWithRef) {
                                                    convOutCh1);
     conv1->set_friendly_name(convName);
     conv1->get_input_node_shared_ptr(1)->set_friendly_name(weightName);
-    auto model1 = makeNgraphFunction(type, params1, conv1, "Model1");
+    auto model1 = create_ov_model(type, params1, conv1, "Model1");
 
     // second model
     const std::vector<ov::Shape> shapes2{{1, 32, 24, 24}};
@@ -73,7 +73,7 @@ TEST_F(EdgeWithSameNameInTwoModels, smoke_CompareWithRef) {
                                                    convOutCh2);
     conv2->set_friendly_name(convName);
     conv2->get_input_node_shared_ptr(1)->set_friendly_name(weightName);
-    auto model2 = makeNgraphFunction(type, params2, conv2, "Model2");
+    auto model2 = create_ov_model(type, params2, conv2, "Model2");
 
     // model compilation
     std::map<std::string, ov::AnyMap> config;

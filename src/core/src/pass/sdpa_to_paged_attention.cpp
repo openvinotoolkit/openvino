@@ -31,7 +31,7 @@ ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_in
                                                      bool allow_adaptive_rkv)
     : m_use_per_layer_block_indices_inputs(use_per_layer_block_indices_inputs),
       m_use_score_outputs(use_score_outputs),
-      m_allow_score_aggregation(use_score_outputs),
+      m_allow_score_aggregation(allow_score_aggregation),
       m_allow_cache_rotation(allow_cache_rotation),
       m_allow_xattention(allow_xattention),
       m_allow_adaptive_rkv(allow_adaptive_rkv) {}

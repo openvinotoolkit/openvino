@@ -73,7 +73,7 @@ std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {
 
 void FrontEnd::normalize(const std::shared_ptr<Model>& model) const {
     FRONT_END_CHECK_IMPLEMENTED(m_actual, normalize);
-    FRONTEND_CALL_STATEMENT("Normalizing model", m_actual->normalize(model);)
+    FRONTEND_CALL_STATEMENT("Normalizing model", m_actual->normalize(model))
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
@@ -106,7 +106,7 @@ std::string FrontEnd::get_name() const {
     if (!m_actual) {
         return {};
     }
-    FRONTEND_RETURN_STATEMENT("Getting frontend name", m_actual->get_name();)
+    FRONTEND_RETURN_STATEMENT("Getting frontend name", m_actual->get_name())
 }
 
 void FrontEnd::validate_path(const std::filesystem::path& path) const {

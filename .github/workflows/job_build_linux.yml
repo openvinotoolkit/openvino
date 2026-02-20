@@ -119,7 +119,7 @@ jobs:
           GIT_TRACE: 1
           GIT_TRACE_PERFORMANCE: 1
           GIT_CURL_VERBOSE: 1
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
@@ -127,7 +127,7 @@ jobs:
 
       - name: Clone OpenVINO
         if: ${{ inputs.os != 'fedora_29' }}
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
@@ -143,7 +143,7 @@ jobs:
           git rev-parse HEAD
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
         with:
           repository: 'openvinotoolkit/openvino_contrib'
@@ -228,18 +228,18 @@ jobs:
             echo "Building Python API and wheels for Python ${py_version}"
             export PY_BUILD_DIR=${{ github.workspace }}/py$py_version
             mkdir -p $PY_BUILD_DIR
-          
+
             python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
             echo "Using Python executable at: ${python_exec_path}"
-          
+
             $python_exec_path -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
-            
+
             CMAKE_OPTIONS="-DPython3_EXECUTABLE=$python_exec_path -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${BUILD_DIR}"
             if [[ "${OS}" == 'debian_10' ]]; then
               echo "Adding ARM specific CMake options"
               CMAKE_OPTIONS+=" -DCMAKE_TOOLCHAIN_FILE=${{ env.OPENVINO_REPO }}/cmake/arm.toolchain.cmake -DPYTHON_MODULE_EXTENSION=$(/opt/python${py_version}_arm/bin/python${py_version}-config --extension-suffix) -DPython3_INCLUDE_DIR=/opt/python${py_version}_arm/include/python${py_version}"
             fi
-            
+
             if [[ $py_version == "3.14t" ]]; then
               CMAKE_OPTIONS+=" -DENABLE_GIL_PYTHON_API=OFF"
             fi
@@ -310,7 +310,7 @@ jobs:
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_js_package.tar.gz
         working-directory: ${{ env.INSTALL_DIR_JS }}
-      
+
       - name: Pack openvino_node_npm_package
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
         run: |

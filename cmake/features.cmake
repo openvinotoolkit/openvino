@@ -43,7 +43,7 @@ endif()
 
 ov_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)
 
-ov_dependent_option (ENABLE_INTEL_NPU "NPU plugin for OpenVINO runtime" ON "X86_64;WIN32 OR LINUX" OFF)
+ov_dependent_option (ENABLE_INTEL_NPU "NPU plugin for OpenVINO runtime" ON "X86_64;WIN32 OR LINUX OR ANDROID" OFF)
 ov_dependent_option (ENABLE_INTEL_NPU_INTERNAL "NPU plugin internal components for OpenVINO runtime" ON "ENABLE_INTEL_NPU" OFF)
 
 ov_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
@@ -58,12 +58,7 @@ ov_dependent_option (ENABLE_SNIPPETS_LIBXSMM_TPP "allow Snippets to use LIBXSMM 
 # OFF  - no ITT backend linked; macros are no-ops
 # BASE - link ITT backend; only top-level API scopes are active (default)
 # FULL - link ITT backend; preserve full instrumentation (default prior behavior)
-if(X86_64)
-    set(ENABLE_PROFILING_ITT_DEFAULT BASE)
-else()
-    set(ENABLE_PROFILING_ITT_DEFAULT OFF)
-endif()
-ov_option_enum(ENABLE_PROFILING_ITT "ITT tracing mode: OFF | BASE | FULL" ${ENABLE_PROFILING_ITT_DEFAULT}
+ov_option_enum(ENABLE_PROFILING_ITT "ITT tracing mode: OFF | BASE | FULL" BASE
                ALLOWED_VALUES OFF BASE FULL)
 
 ov_option_enum(ENABLE_PROFILING_FILTER "Enable or disable ITT counter groups.\
@@ -122,7 +117,6 @@ else()
 endif()
 
 ov_dependent_option (ENABLE_TBBBIND_2_5 "Enable TBBBind_2_5 static usage in OpenVINO runtime" ${ENABLE_TBBBIND_2_5_DEFAULT} "THREADING MATCHES TBB; NOT APPLE" OFF)
-ov_dependent_option (ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the OpenVINO Runtime binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
 
 ov_option (ENABLE_MULTI "Enables MULTI Device Plugin" ON)
 ov_option (ENABLE_AUTO "Enables AUTO Device Plugin" ON)
@@ -149,7 +143,6 @@ ov_option(ENABLE_OV_PADDLE_FRONTEND "Enable PaddlePaddle FrontEnd" ON)
 ov_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
 ov_option(ENABLE_OV_PYTORCH_FRONTEND "Enable PyTorch FrontEnd" ON)
 ov_option(ENABLE_OV_JAX_FRONTEND "Enable JAX FrontEnd" ON)
-ov_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
 ov_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON)
 ov_option(ENABLE_OV_TF_LITE_FRONTEND "Enable TensorFlow Lite FrontEnd" ON)
 
@@ -227,10 +220,6 @@ endif()
 
 if(ENABLE_OPENVINO_DEBUG)
     add_definitions(-DENABLE_OPENVINO_DEBUG)
-endif()
-
-if (ENABLE_PROFILING_RAW)
-    add_definitions(-DENABLE_PROFILING_RAW=1)
 endif()
 
 if (ENABLE_SNIPPETS_DEBUG_CAPS)

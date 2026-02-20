@@ -16,11 +16,11 @@ namespace op {
 // 1. TensorArray could be indexed with paddle slice op.
 // We only support slice along axis 0 with only 1 element in TensorArray for now,
 // with unsqueezing the element along axis 0 manually.
-// 2. TensoArray could be tranfered to tensor with paddle tensor_array_to_tensor op.
-// The elements in it should be concated along an axis.
+// 2. TensorArray could be transferred to tensor with paddle tensor_array_to_tensor op.
+// The elements in it should be concatenated along an axis.
 // We only support concat along axis 0 for now. paddle.concat always along axis 0.
 // what's more, we only support the pattern of "TensorArrayLength<->TensorArrayWrite" for now, which
-// is tranformed togther. That means, tensorarray are always appended at the end.
+// is transformed together. That means, tensorarray are always appended at the end.
 NamedOutputs tensor_array_to_tensor(const NodeContext& node) {
     using namespace default_opset;
     const auto x = node.get_input("X");

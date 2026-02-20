@@ -37,7 +37,7 @@ OutputVector translate_masked_scatter(const NodeContext& context) {
     auto index = context.mark_node(std::make_shared<v3::NonZero>(expanded_mask));
     auto input_order = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {1, 0}));
     index = context.mark_node(std::make_shared<v1::Transpose>(index, input_order));
-    // source can be arbitary shape, select only relevant data
+    // source can be arbitrary shape, select only relevant data
     auto const_minus_one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
     auto flatten_source = context.mark_node(std::make_shared<v1::Reshape>(source, const_minus_one, false));
     auto const_zero = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));

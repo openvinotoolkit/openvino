@@ -55,7 +55,7 @@ def slice_dyn(test_shape=[2,8,10,10]):
     @paddle.jit.to_static
     def test_slice(x):
         return paddle.slice(x, axes=[0,1,3], starts=[0,1,5], ends=[1,3,6])
-    # exportModel('slice_dyn', test_slice, [data], target_dir=sys.argv[1]) # output shape (1, 2, 10, 1)  # disable it by default as this kind of test model already there. It's for comparsion only.
+    # exportModel('slice_dyn', test_slice, [data], target_dir=sys.argv[1]) # output shape (1, 2, 10, 1)  # disable it by default as this kind of test model already there. It's for comparison only.
 
     '''
     slice w/ decrease_axis of all dims
@@ -71,7 +71,7 @@ def slice_dyn(test_shape=[2,8,10,10]):
     @paddle.jit.to_static
     def test_slice_alldim(x):
         return paddle.slice(x, axes=[0,1,2,3], starts=[0,0,0,0], ends=[1,1,1,1])
-    # exportModel('slice_alldim', test_slice_alldim, [data], target_dir=sys.argv[1]) # output shape (1, 1, 1, 1) # disable it by default as this kind of test model already there. It's for comparsion only.
+    # exportModel('slice_alldim', test_slice_alldim, [data], target_dir=sys.argv[1]) # output shape (1, 1, 1, 1) # disable it by default as this kind of test model already there. It's for comparison only.
 
 '''
 a test case simulating the last reshape2 of ocrnet which accepts slice (with decrease_axes in all dims) as its parents.

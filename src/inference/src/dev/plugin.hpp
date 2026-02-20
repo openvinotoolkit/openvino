@@ -45,7 +45,8 @@ public:
     SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                             const ov::AnyMap& properties) const;
 
-    SoPtr<ov::ICompiledModel> compile_model(const std::string& model_path, const ov::AnyMap& properties) const;
+    SoPtr<ov::ICompiledModel> compile_model(const std::filesystem::path& model_path,
+                                            const ov::AnyMap& properties) const;
 
     SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                             const ov::SoPtr<ov::IRemoteContext>& context,
@@ -84,4 +85,3 @@ public:
 };
 
 }  // namespace ov
-

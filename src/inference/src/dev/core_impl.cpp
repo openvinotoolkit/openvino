@@ -228,7 +228,7 @@ std::filesystem::path extract_weight_path(const std::string& compiled_properties
     }
 }
 
-using model_hint_t = std::variant<std::shared_ptr<const ov::Model>, std::string>;
+using model_hint_t = std::variant<std::shared_ptr<const ov::Model>, std::filesystem::path>;
 
 ov::SoPtr<ov::ICompiledModel> import_compiled_model(const ov::Plugin& plugin,
                                                     const ov::SoPtr<ov::IRemoteContext>& context,
@@ -257,13 +257,13 @@ ov::SoPtr<ov::ICompiledModel> import_compiled_model(const ov::Plugin& plugin,
                 cfg[ov::hint::model.name()] = model_ptr;
             }
         },
-        [&cfg, &plugin](const std::string& model_path) {
+        [&cfg, &plugin](const std::filesystem::path& model_path) {
             if (cfg.count(ov::weights_path.name()) == 0 &&
                 ov::util::contains(plugin.get_property(ov::supported_properties), ov::weights_path)) {
                 std::filesystem::path weights_path{model_path};
                 weights_path.replace_extension(".bin");
                 if (ov::util::file_exists(weights_path)) {
-                    cfg[ov::weights_path.name()] = weights_path.string();
+                    cfg[ov::weights_path.name()] = ov::util::path_to_string(weights_path);
                 }
             }
         }};
@@ -899,7 +899,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     return res;
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& model_path,
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::filesystem::path& model_path,
                                                           const std::string& device_name,
                                                           const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::Path");
@@ -915,7 +915,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         // Skip caching for proxy plugin. HW plugin will load network from the cache
         CoreConfig::remove_core(parsed.m_config);
         emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
-        CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), util::make_path(model_path)};
+        CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), model_path};
         cache_content.m_blob_id =
             ov::ModelCache::compute_hash(cache_content.m_model_path, create_compile_config(plugin, parsed.m_config));
         const auto lock = m_cache_guard.get_hash_lock(cache_content.m_blob_id);
@@ -1726,13 +1726,13 @@ void ov::CoreImpl::add_mutex(const std::string& dev_name) {
     m_dev_mutexes[dev_name];
 }
 
-std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& modelPath,
-                                                    const std::string& binPath,
+std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::filesystem::path& model_path,
+                                                    const std::filesystem::path& bin_path,
                                                     const AnyMap& properties) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from file");
     auto local_core_config = m_core_config;
     local_core_config.set(properties, {});
-    return ov::util::read_model(modelPath, binPath, get_extensions_copy(), local_core_config.get_enable_mmap());
+    return ov::util::read_model(model_path, bin_path, get_extensions_copy(), local_core_config.get_enable_mmap());
 }
 
 std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& model,

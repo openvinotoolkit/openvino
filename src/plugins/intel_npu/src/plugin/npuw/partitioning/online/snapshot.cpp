@@ -8,6 +8,7 @@
 #include "../../util.hpp"
 #include "../patterns/avoid.hpp"
 #include "../patterns/compute.hpp"
+#include "../patterns/moe.hpp"
 #include "../patterns/sdpa.hpp"
 #include "group.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -643,6 +644,11 @@ void Snapshot::earlyRegroup() {
         rewr.add_matcher<ov::npuw::patterns::attn::p>(shared_from_this(), isolate.tag); \
         handle_patterns = true;                                                         \
     }
+#define HNDL_MOE(p)                                                                    \
+    if (isolate.pattern == #p) {                                                       \
+        rewr.add_matcher<ov::npuw::patterns::moe::p>(shared_from_this(), isolate.tag); \
+        handle_patterns = true;                                                        \
+    }
             HNDL(RMSNorm);
             HNDL(RMSNorm2);
             HNDL(RMSNorm3);
@@ -654,10 +660,13 @@ void Snapshot::earlyRegroup() {
             HNDL(DQMatMulConv);
             HNDL(VocabMatMul);
             HNDL(VariadicSplit);
+            HNDL_MOE(GPTOSSExpert);
+            HNDL_MOE(GPTOSSRouter);
             HNDL_FAKE(FakeConvert);
             HNDL_FAKE(FakeQuantize);
             HNDL_ATTN(SDPA);
             HNDL_ATTN(SDPADecomposed);
+#undef HNDL_MOE
 #undef HNDL_ATTN
 #undef HNDL_FAKE
 #undef HNDL

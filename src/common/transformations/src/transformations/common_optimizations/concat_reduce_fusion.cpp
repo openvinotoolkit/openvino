@@ -10,6 +10,7 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/maximum.hpp"
@@ -94,7 +95,9 @@ PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
 ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
     MATCHER_SCOPE(ReplaceConcatReduceByMinOrMax);
 
-    auto concat_pattern = pattern::wrap_type<v0::Concat>({pattern::any_input(), pattern::any_input()});
+    auto concat_input1 = pattern::any_input(pattern::has_static_rank());
+    auto concat_input2 = pattern::any_input(pattern::has_static_rank());
+    auto concat_pattern = pattern::wrap_type<v0::Concat>({concat_input1, concat_input2});
     auto reduce_axes_pattern = pattern::wrap_type<v0::Constant>();
     auto reduce_pattern = pattern::wrap_type<v1::ReduceMin, v1::ReduceMax>({concat_pattern, reduce_axes_pattern});
 
@@ -106,6 +109,23 @@ ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
             as_type_ptr<op_util::ArithmeticReductionKeepDims>(pattern_map.at(reduce_pattern).get_node_shared_ptr());
         if (!reduce || !concat)
             return false;
+
+        // Fusing Concat+Reduce into Max/Min is only valid if the operation matches element-wise Max/Min.
+        // This requires that the concatenation only merged "single" elements along that axis,
+        // so that Max(A, B) is equivalent to ReduceMax(Concat(A, B)).
+        // If inputs have dimension > 1 along the concat axis, ReduceMax performs a reduction within A and within B,
+        // which Max/Min(A, B) does not capture (it broadcasts).
+        int64_t concat_axis = concat->get_axis();
+        for (const auto& input : concat->inputs()) {
+            const auto& p_shape = input.get_partial_shape();
+            // Rank is guaranteed static by pattern predicates
+            const int64_t rank = p_shape.rank().get_length();
+            const auto norm_axis = ov::util::normalize_axis(concat_axis, rank);
+
+            if (p_shape[norm_axis].is_dynamic() || p_shape[norm_axis].get_length() != 1) {
+                return false;
+            }
+        }
 
         const auto& reduction_axes = reduce->get_reduction_axes();
         if (reduction_axes.size() != 1 || concat->get_axis() != static_cast<int64_t>(*reduction_axes.begin())) {

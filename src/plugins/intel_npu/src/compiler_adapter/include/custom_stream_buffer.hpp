@@ -39,7 +39,7 @@ private:
             return m_size;
         } else {
             // No seek support
-            throw std::runtime_error("Seek operation is not supported for counting_streambuf");
+            OPENVINO_THROW("Seek operation is not supported for counting_streambuf");
         }
     }
 
@@ -71,7 +71,7 @@ private:
             return std::distance(startIt, writeIt);
         } else {
             // No seek support
-            throw std::runtime_error("Seek operation is not supported for writer_streambuf");
+            OPENVINO_THROW("Seek operation is not supported for writer_streambuf");
         }
     }
 

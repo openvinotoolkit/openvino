@@ -41,7 +41,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
@@ -87,14 +87,14 @@ jobs:
 
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
         with:
           path: 'openvino'
           submodules: 'true'
 
       - name: Clone test models
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
         with:
           repository: 'openvinotoolkit/testdata'
@@ -123,20 +123,20 @@ jobs:
       - name: Install python dependencies
         run: |
           # For running ONNX frontend unit tests
-          python3 -m pip install -vv --force-reinstall -r ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/requirements.txt
+          python3 -m pip install --force-reinstall -r ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/requirements.txt
 
           # For running TensorFlow frontend unit tests
-          python3 -m pip install -vv -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow/tests/requirements.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow/tests/requirements.txt
 
           # For running TensorFlow Lite frontend unit tests
-          python3 -m pip install -vv -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow_lite/tests/requirements.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow_lite/tests/requirements.txt
 
           # For getting rid of SSL issues during model downloading for unit tests
-          python3 -m pip install -vv certifi
+          python3 -m pip install certifi
 
           # Disabled because of CVS-95904
           # For running Paddle frontend unit tests
-          # python3 -m pip install -vv -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
+          # python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
 
       #
       # Build
@@ -329,14 +329,14 @@ jobs:
 
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
         with:
           path: 'openvino'
           submodules: 'true'
 
       - name: Clone test models
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
         with:
           repository: 'openvinotoolkit/testdata'
@@ -417,7 +417,7 @@ jobs:
         run: Expand-Archive ${{ env.INSTALL_TEST_DIR }}/openvino_tests.zip -DestinationPath "${{ env.INSTALL_TEST_DIR }}"
 
       - name: Fetch setup_python action
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: |
@@ -433,7 +433,7 @@ jobs:
           self-hosted-runner: 'false'
 
       - name: Install python dependencies for run_parallel.py
-        run: python3 -m pip install -vv -r ${{ env.INSTALL_TEST_DIR }}/layer_tests_summary/requirements.txt
+        run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/layer_tests_summary/requirements.txt
 
       - name: Restore tests execution time
         uses: actions/cache/restore@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2

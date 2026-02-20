@@ -10,6 +10,7 @@
 #include "paged_attention_opt.hpp"
 
 #include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "ocl_v2/utils/jitter.hpp"
 #include "scaled_dot_product_attention_inst.h"
@@ -1153,10 +1154,15 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     jit.make("KV_GROUP_SIZE", Q_num_heads_dim / K_num_heads_dim);
 
     if (d_full) {
-        if (ldq % 4 == 0)
+        const auto sg_size = get_subgroup_size(device_info.arch);
+        constexpr size_t packed_elems_per_uint = sizeof(uint32_t) / sizeof(ov::float16);
+        constexpr size_t max_block_elems = 16;  // max 16 elements per block load/store per item
+        const auto q_block_elems = (d_max / packed_elems_per_uint) / sg_size;
+        if (ldq % 4 == 0 && q_block_elems <= max_block_elems)
             jit.make("BLOCK_Q", 1);
         // TODO: Causes accuracy drop for static SD model. Enable back once the issue is resolved
-        // if (lda % 4 == 0 && v_full)
+        // const auto a_block_elems = static_cast<size_t>(gemm_vs.getSetting("sg_tile_m")) / sg_size;
+        // if (lda % 4 == 0 && v_full && a_block_elems <= max_block_elems)
         //     jit.make("BLOCK_A", 1);
         jit.make("REMAINDER_Q", !q_full);
     } else if (device_info.arch >= gpu_arch::xe_hpc) {

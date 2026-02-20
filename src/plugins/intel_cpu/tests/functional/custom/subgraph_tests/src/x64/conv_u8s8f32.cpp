@@ -86,7 +86,7 @@ public:
 
         auto result = std::make_shared<ov::op::v0::Result>(conv);
 
-        function = makeNgraphFunction(netPrecision, params, conv, "Convolution");
+        function = create_ov_model(netPrecision, params, conv, "Convolution");
     }
 };
 

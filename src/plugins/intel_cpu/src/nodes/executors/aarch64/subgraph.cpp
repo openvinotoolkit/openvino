@@ -21,7 +21,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 
-#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
+#if defined(SNIPPETS_DEBUG_CAPS) && (defined(__linux__) || defined(__APPLE__))
 #    include "emitters/snippets/aarch64/jit_segfault_detector_emitter.hpp"
 #endif
 
@@ -43,27 +43,29 @@ SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<CPURuntimeConfig>& snip
                            kernel_cache) {
     m_buffer_scratchpad = allocator(m_internal_buffer_size);
 
-#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
+#if defined(SNIPPETS_DEBUG_CAPS) && (defined(__linux__) || defined(__APPLE__))
     const auto target = std::dynamic_pointer_cast<const aarch64::CPUTargetMachine>(
         snippet_attrs->snippet->get_generator()->get_target_machine());
     enabled_segfault_detector = target && target->debug_config.enable_segfault_detector;
 #endif
 }
 
-#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
+#if defined(SNIPPETS_DEBUG_CAPS) && (defined(__linux__) || defined(__APPLE__))
 // NOLINTBEGIN(misc-include-cleaner) bug in clang-tidy
 void SubgraphExecutor::segfault_detector() const {
     static std::mutex err_print_lock;
     if (enabled_segfault_detector) {
-        __sighandler_t signal_handler = []([[maybe_unused]] int signal) {
-            std::lock_guard<std::mutex> guard(err_print_lock);
-            if (auto* segfault_detector_emitter = ov::intel_cpu::aarch64::g_custom_segfault_handler->local()) {
-                std::cout << segfault_detector_emitter->info() << '\n';
-            }
-            auto tid = parallel_get_thread_num();
-            OPENVINO_THROW("Segfault was caught by the signal handler in subgraph node execution on thread " +
-                           std::to_string(tid));
-        };
+        auto signal_handler =
+            []([[maybe_unused]] int signal) {
+                std::lock_guard<std::mutex> guard(err_print_lock);
+                if (auto* segfault_detector_emitter =
+                    ov::intel_cpu::g_custom_segfault_handler<ov::intel_cpu::aarch64::jit_uni_segfault_detector_emitter>->local()) {
+                    std::cout << segfault_detector_emitter->info() << '\n';
+                }
+                auto tid = parallel_get_thread_num();
+                OPENVINO_THROW("Segfault was caught by the signal handler in subgraph node execution on thread " +
+                               std::to_string(tid));
+            };
         struct sigaction new_handler {};
         new_handler.sa_handler = signal_handler;
         sigaction(SIGSEGV, &new_handler, nullptr);
@@ -85,7 +87,7 @@ void SubgraphStaticExecutor::exec_impl(const std::vector<MemoryPtr>& inMemPtrs,
             callable(&call_args, indexes.data());
         };
 
-#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
+#if defined(SNIPPETS_DEBUG_CAPS) && (defined(__linux__) || defined(__APPLE__))
     segfault_detector();
 #endif
 
@@ -122,7 +124,7 @@ void SubgraphDynamicSpecializedExecutor::exec_impl(const std::vector<MemoryPtr>&
             callable(&call_args);
         };
 
-#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
+#if defined(SNIPPETS_DEBUG_CAPS) && (defined(__linux__) || defined(__APPLE__))
     segfault_detector();
 #endif
 

@@ -2834,6 +2834,37 @@ TEST(constant, get_values_as) {
     EXPECT_EQ(c.get_axis_vector_val(), AxisVector({2, 0, 1, 0, 1, 5}));
     EXPECT_EQ(c.get_axis_set_val(), AxisSet({0, 1, 2, 5}));
 }
+
+TEST(constant, dynamic_type_no_data_creation) {
+    EXPECT_NO_THROW({ ov::op::v0::Constant c(element::dynamic, Shape{2}); });
+}
+
+TEST(constant, dynamic_type_no_data_access_throws) {
+    ov::op::v0::Constant c(element::dynamic, Shape{2});
+
+    EXPECT_THROW(c.get_data_ptr<int64_t>(), ov::Exception);
+}
+
+TEST(constant, dynamic_type_with_data_throws_on_creation) {
+    EXPECT_THROW({ ov::op::v0::Constant c(element::dynamic, Shape{2}, std::vector<int64_t>{1, 2}); }, ov::Exception);
+}
+
+TEST(constant, dynamic_type_string_data_throws_on_creation) {
+    EXPECT_THROW(
+        { ov::op::v0::Constant c(element::dynamic, Shape{2}, std::vector<std::string>{"1", "2"}); },
+        ov::Exception);
+}
+
+TEST(constant, dynamic_type_get_vector_throws) {
+    ov::op::v0::Constant c(element::dynamic, Shape{2});
+    EXPECT_THROW(c.get_vector<int64_t>(), ov::Exception);
+}
+
+TEST(constant, dynamic_type_cast_vector_throws) {
+    ov::op::v0::Constant c(element::dynamic, Shape{2});
+    EXPECT_THROW(c.cast_vector<int64_t>(), ov::Exception);
+}
+
 }  // namespace test
 }  // namespace ov
 

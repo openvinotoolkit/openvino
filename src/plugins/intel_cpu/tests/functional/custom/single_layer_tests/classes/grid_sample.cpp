@@ -88,7 +88,7 @@ void GridSampleLayerTestCPU::SetUp() {
     params[1]->set_friendly_name("grid");
     ov::op::v9::GridSample::Attributes attributes = {alignCorners, interpolateMode, paddingMode};
     auto gridSample = std::make_shared<ov::op::v9::GridSample>(params[0], params[1], attributes);
-    function = makeNgraphFunction(dataPrecision, params, gridSample, "GridSampleCPU");
+    function = create_ov_model(dataPrecision, params, gridSample, "GridSampleCPU");
 }
 
 TEST_P(GridSampleLayerTestCPU, CompareWithRefs) {

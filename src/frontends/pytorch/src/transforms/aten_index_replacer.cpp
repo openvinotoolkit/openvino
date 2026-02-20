@@ -7,6 +7,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/pytorch/visibility.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -42,10 +43,13 @@ AtenIndexToSelect::AtenIndexToSelect() {
         auto index_op = m.get_match_root();
         ov::pass::NodeRegistry rg;
         auto input_node = index_op->input_value(0);
-        auto indicies = index_op->input_value(1).get_node_shared_ptr();
-        auto list_indicies = cast_fw_node(indicies, "prim::ListConstruct");
-        if (list_indicies) {
-            auto ids = list_indicies->input_values();
+        auto indices = index_op->input_value(1).get_node_shared_ptr();
+
+        // Check for SequenceMark
+        auto seq_mark_indices = ov::as_type_ptr<SequenceMark>(indices);
+
+        if (seq_mark_indices) {
+            auto ids = indices->input_values();
             auto rank = input_node.get_partial_shape().rank();
             // index transformation supports only tensors with static rank
             ov::Output<ov::Node> new_output;
@@ -62,7 +66,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
             replace_node(index_op, new_output.get_node_shared_ptr());
             return true;
         } else {
-            auto const_input = cast_fw_node(indicies, "prim::Constant");
+            auto const_input = cast_fw_node(indices, "prim::Constant");
 
             if (const_input) {
                 // index is None, stay input as is
@@ -72,9 +76,9 @@ AtenIndexToSelect::AtenIndexToSelect() {
                     return true;
                 }
             }
-            auto index_dtype = indicies->get_output_element_type(0);
+            auto index_dtype = indices->get_output_element_type(0);
             if (index_dtype == element::boolean || index_dtype == element::u8) {
-                auto nonzero = rg.make<v3::NonZero>(indicies);
+                auto nonzero = rg.make<v3::NonZero>(indices);
                 auto input_order = v0::Constant::create(element::i32, Shape{2}, {1, 0});
                 auto masked_id = rg.make<v1::Transpose>(nonzero, input_order);
                 auto gather = rg.make<v8::GatherND>(input_node, masked_id);
@@ -83,10 +87,10 @@ AtenIndexToSelect::AtenIndexToSelect() {
                 return true;
             }
             if (index_dtype != element::i32) {
-                indicies = rg.make<ov::op::v0::Convert>(indicies, element::i32);
+                indices = rg.make<ov::op::v0::Convert>(indices, element::i32);
             }
             auto dim = v0::Constant::create(element::i32, Shape{}, {0});
-            auto gather = rg.make<v8::Gather>(input_node, indicies, dim);
+            auto gather = rg.make<v8::Gather>(input_node, indices, dim);
             copy_runtime_info_and_name(index_op, rg.get());
             replace_node(index_op, gather);
             return true;

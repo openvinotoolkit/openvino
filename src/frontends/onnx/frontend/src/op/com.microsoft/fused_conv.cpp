@@ -64,13 +64,10 @@ ov::OutputVector fused_conv(const ov::frontend::onnx::Node& node) {
         const auto alpha = v0::Constant::create<float>(ov::element::f32, ov::Shape{}, {activation_params[0]});
         const auto beta = v0::Constant::create<float>(ov::element::f32, ov::Shape{}, {activation_params[1]});
         return {std::make_shared<v0::HardSigmoid>(conv_res, alpha, beta)};
+    } else if (activation_type.empty()) {
+        return {conv_res};
     }
-    CHECK_VALID_NODE(node,
-                     !activation_type.empty(),
-                     "Not supported: ",
-                     activation_type,
-                     " activation function was used");
-
+    CHECK_VALID_NODE(node, false, "Not supported: ", activation_type, " activation function was used");
     return {conv_res};
 }
 

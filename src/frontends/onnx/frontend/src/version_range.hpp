@@ -20,7 +20,7 @@ struct VersionRange {
     static constexpr VersionRange in(int version) {
         return VersionRange{version, version};
     }
-    // -1 means that that a left/right boundary of the range was not specified
+    // -1 means that a left/right boundary of the range was not specified
     const int m_since = -1, m_until = -1;
 };
 

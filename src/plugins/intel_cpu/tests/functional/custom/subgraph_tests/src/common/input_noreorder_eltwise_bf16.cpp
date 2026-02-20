@@ -34,7 +34,7 @@ protected:
 
         auto eltwise = ov::test::utils::make_eltwise(input[0], secondaryInput, eltwiseType);
 
-        function = makeNgraphFunction(netPrecision, input, eltwise, "Eltwise");
+        function = create_ov_model(netPrecision, input, eltwise, "Eltwise");
     }
 };
 

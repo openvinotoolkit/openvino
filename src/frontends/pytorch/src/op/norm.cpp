@@ -126,7 +126,7 @@ OutputVector translate_norm(const NodeContext& context) {
     if (context.input_is_none(2)) {
         dim = get_node_axes_range(context, input_tensor);
     } else {
-        dim = context.get_input(2);
+        dim = concat_list_construct(context.get_input(2));
     }
     if (!context.input_is_none(3)) {
         keep_dim = context.const_input<bool>(3);
@@ -196,7 +196,7 @@ OutputVector translate_linalg_vector_norm(const NodeContext& context) {
     if (context.input_is_none(2)) {
         dim = get_node_axes_range(context, x);
     } else {
-        dim = context.get_input(2);
+        dim = concat_list_construct(context.get_input(2));
     }
     // dtype may be used to perform the computation in a more precise dtype. It is semantically equivalent to calling
     // linalg.vector_norm(x.to(dtype))
@@ -220,7 +220,7 @@ OutputVector translate_linalg_matrix_norm(const NodeContext& context) {
     auto x = context.get_input(0);
     // ord defines the vector norm that is computed can be string or number
     auto ord_type = context.get_input_type(1);
-    auto dim = context.get_input(2);
+    auto dim = concat_list_construct(context.get_input(2));
     bool keep_dim = context.const_input<bool>(3);
     Output<Node> result;
 
@@ -266,7 +266,7 @@ OutputVector translate_linalg_norm(const NodeContext& context) {
     if (context.input_is_none(2)) {
         dim = get_node_axes_range(context, x);
     } else {
-        dim = context.get_input(2);
+        dim = concat_list_construct(context.get_input(2));
     }
     // default norm for matrix is frobenius norm, for vector - L2, for other ranks are not determined
     if (context.input_is_none(1)) {
@@ -321,7 +321,7 @@ OutputVector translate_frobenius_norm(const NodeContext& context) {
         dim = get_axes_range(context, 0);
 
     } else {
-        dim = context.get_input(1);
+        dim = concat_list_construct(context.get_input(1));
     }
     auto result = frobenius_norm(context, x, dim, keep_dim);
     if (!context.input_is_none(3)) {

@@ -90,7 +90,7 @@ void PoolingLayerCPUTest::SetUp() {
         pooling = std::make_shared<ov::op::v1::AvgPool>(poolInput, stride, padBegin, padEnd, kernel, excludePad, roundingType, padType);
     }
 
-    function = makeNgraphFunction(inPrc, params, pooling, "PoolingCPU");
+    function = create_ov_model(inPrc, params, pooling, "PoolingCPU");
 }
 
 std::string AvgPoolingV14LayerCPUTest::getTestCaseName(const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj) {
@@ -157,7 +157,7 @@ void AvgPoolingV14LayerCPUTest::SetUp() {
 
     auto pooling = std::make_shared<ov::op::v14::AvgPool>(poolInput, stride, padBegin, padEnd, kernel, excludePad, roundingType, padType);
 
-    function = makeNgraphFunction(inPrc, params, pooling, "PoolingCPU");
+    function = create_ov_model(inPrc, params, pooling, "PoolingCPU");
 }
 
 std::string MaxPoolingV8LayerCPUTest::getTestCaseName(

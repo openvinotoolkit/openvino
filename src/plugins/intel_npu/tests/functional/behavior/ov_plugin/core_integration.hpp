@@ -383,6 +383,13 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, NpuDeviceAllocMemSizeSameAfterDestroyInf
     ov::CompiledModel compiledModel;
     auto model = createModelWithLargeSize();
 
+    //Warm up inference to initialize driver scratch buffers
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device));
+    auto inferRequest = compiledModel.create_infer_request();
+    inferRequest.infer();
+    inferRequest = {};
+    compiledModel = {};
+
     OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
                            core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
     uint64_t deviceAllocMemSize = deviceAllocMemSizeAny.as<uint64_t>();
@@ -474,7 +481,7 @@ TEST_P(OVClassBasicTestPNPU, smoke_registerPluginsLibrariesUnicodePath) {
                     ov::util::make_plugin_library_name(::ov::util::wstring_to_string(unicode_path), lib));
                 bool is_copy_successfully = ov::test::utils::copyFile(libPath, libPathNew);
                 if (!is_copy_successfully) {
-                    FAIL() << "Unable to copy from '" << libPath << "' to '" << libPathNew << "'";
+                    FAIL() << "Unable to copy from '" << libPath.c_str() << "' to '" << libPathNew.c_str() << "'";
                 }
             }
 

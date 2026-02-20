@@ -48,7 +48,7 @@ OutputVector translate_hash_table_op(const ov::frontend::tensorflow::NodeContext
         auto new_table = make_shared<HashTable>(*hash_table, keys, values);
         return {new_table};
     } else {
-        // update variables states of translation session with new unitialized variable
+        // update variables states of translation session with new uninitialized variable
         auto variables_state_map = node.get_variable_state_map();
         TENSORFLOW_OP_VALIDATION(node,
                                  variables_state_map,

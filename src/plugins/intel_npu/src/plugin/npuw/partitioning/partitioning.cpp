@@ -21,6 +21,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "patterns/dcoff.hpp"
+#include "patterns/moe.hpp"
 #include "patterns/opt.hpp"
 #include "traits.hpp"
 
@@ -238,6 +239,11 @@ private:
     using Match = std::function<bool(const std::shared_ptr<ov::Node>& node)>;
     void propagate(const std::string& func_name, const Match& test, ov::npuw::RepeatedBlock::MatchedBank& bank);
 
+    // Helper method to find and cache router model for MoE transformations
+    // Returns cached router model if available, otherwise searches P.functions
+    // for a function tagged as "router" and caches it for future use
+    std::shared_ptr<ov::Model> getRouterModel();
+
     void createFunction(FunctionPipeline& func_ggg);
 
     // NB(dm): This method should get a better place, it is here only because
@@ -335,6 +341,13 @@ public:
     void matchRepeatedSubgraphs(const std::string& func_name);
     void spatial(const std::string& func_name);
     void attention(const std::string& func_name);
+
+    // MoE-specific transformations (require router model availability)
+    // transformMoeExperts: Transform expert functions (tag="expert") to optimized MoE expert models
+    // transformMoeDownstream: Transform downstream processing (pattern-based detection)
+    void transformMoeExperts(const std::string& func_name);
+    void transformMoeDownstream(const std::string& func_name);
+
     void optimize(const std::string& func_name);
     void decompressionCutOff(const std::string& func_name);
 
@@ -1391,12 +1404,19 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
             HANDLE_CASE(f8e4m3, uint8_t);
             HANDLE_CASE(f16, uint16_t);
             HANDLE_CASE(f32, float);
+            HANDLE_CASE(u8, uint8_t);
 #undef HANDLE_CASE
         default:
             OPENVINO_THROW("Unable to handle type ", node_a->output(0));
         }
         return false;
     };
+    // Helper to check if a constant is MoE Gather indices (marked by GatherTo2DGather pass)
+    auto is_moe_gather_const = [](const CTPtr& const_node) -> bool {
+        const auto& rt_info = const_node->get_rt_info();
+        return rt_info.count("npuw_moe_gather_indices") > 0;
+    };
+
     auto check_and_mark = [&](const ov::npuw::RepeatedBlock::MatchedLayers& bank) {
         std::unordered_set<CTPtr> instances;
         for (auto&& l : bank) {
@@ -1408,19 +1428,30 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
         LOG_DEBUG("Checking a bank with prototype node " << proto_node << "...");
         LOG_BLOCK();
 
-        if (ov::npuw::partitioning::traits::is_tiny_shape(proto_shape) &&
-            std::all_of(instances.begin(), instances.end(), [&](const CTPtr& other_node) -> bool {
-                return (other_node->output(0).get_shape() == proto_node->output(0).get_shape()) &&
-                       values_are_the_same(proto_node, other_node);
-            })) {
-            // Check passed for this group.
-            LOG_DEBUG("[KEEP] It is safe to keep this bank in function");
-            for (auto&& const_node : instances) {
-                func_group.consts_to_keep.insert(const_node);
-            }
-        } else {
-            LOG_DEBUG("[CUT ] This group of Const ops will be cut-off from the function: "
+        bool is_tiny = ov::npuw::partitioning::traits::is_tiny_shape(proto_shape);
+        bool is_moe_gather = is_moe_gather_const(proto_node);
+        if (!is_tiny && !is_moe_gather) {
+            LOG_DEBUG("[CUT ] Not tiny shape and not MoE Gather indices - will be cut-off from the function");
+            return;
+        }
+
+        bool all_identical = std::all_of(instances.begin(), instances.end(), [&](const CTPtr& other_node) -> bool {
+            return (other_node->output(0).get_shape() == proto_node->output(0).get_shape()) &&
+                   values_are_the_same(proto_node, other_node);
+        });
+        if (!all_identical) {
+            LOG_DEBUG("[CUT ] Values differ across instances - will be cut-off from the function: "
                       << proto_node->get_friendly_name());
+            return;
+        }
+
+        if (is_moe_gather) {
+            LOG_DEBUG("[KEEP] MoE Gather indices constant - identical across all repeats");
+        } else {
+            LOG_DEBUG("[KEEP] Tiny shape constant - safe to keep in function");
+        }
+        for (auto&& const_node : instances) {
+            func_group.consts_to_keep.insert(const_node);
         }
     };
     for (auto&& bank : rep_block.consts) {
@@ -1940,6 +1971,85 @@ void Partitioner::attention(const std::string& func_name) {
         }
         LOG_WARN("No host flash attention found in the ATTN block");
     }
+}
+
+std::shared_ptr<ov::Model> Partitioner::getRouterModel() {
+    // Find and cache router model in context if not already cached
+    if (part_ctx.router_model != nullptr) {
+        return part_ctx.router_model;
+    }
+
+    for (const auto& [name, func] : P.functions) {
+        LOG_DEBUG("Checking function " << name << " with tag " << func.gettag());
+        if (func.gettag() != ov::npuw::patterns::moe::ROUTER_TAG) {
+            continue;
+        }
+
+        part_ctx.router_model = func._model;
+        LOG_INFO("Found router model: " << name);
+        break;
+    }
+
+    return part_ctx.router_model;
+}
+
+void Partitioner::transformMoeExperts(const std::string& func_name) {
+    ov::npuw::Function& f = P.functions.at(func_name);
+
+    // Only process functions tagged as "expert"
+    if (f.gettag() != ov::npuw::patterns::moe::EXPERT_TAG) {
+        return;
+    }
+
+    // Retrieve router model (required for extracting K from TopK node)
+    auto router_model = getRouterModel();
+    if (!router_model) {
+        LOG_WARN("Router model not available yet, skipping MoE expert transformation for " << func_name);
+        return;
+    }
+
+    LOG_DEBUG("Transforming " << func_name << " into MoE expert block in model " << model->get_friendly_name()
+                              << "...");
+    LOG_BLOCK();
+
+    // Determine compilation strategy from configuration:
+    // - moe_chunk_size = 0 (default): Compile multiple models for various chunk sizes
+    //   {16, 32, 64, 128, 256} to enable dynamic chunk selection at runtime
+    // - moe_chunk_size > 0: Compile a single model with the specified fixed chunk size
+    const auto moe_chunk_size = cfg.get<::intel_npu::NPUW_MOE_TOKEN_CHUNK_SIZE>();
+
+    // Create MoEExperts using factory method:
+    // - Analyzes expert model structure
+    // - Extracts K (number of active experts) from router model's TopK node
+    // - Generates optimized expert models for prefill and/or decoding stages
+    f._moe_experts = ov::npuw::function::MoEExperts::from(f._model, router_model, moe_chunk_size);
+}
+
+void Partitioner::transformMoeDownstream(const std::string& func_name) {
+    ov::npuw::Function& f = P.functions.at(func_name);
+
+    // Retrieve router model (required for extracting active expert count)
+    auto router_model = getRouterModel();
+    if (!router_model) {
+        LOG_WARN("Router model not available, skipping MoE downstream transformation for " << func_name);
+        return;
+    }
+
+    LOG_DEBUG("Attempting MoE downstream transformation for " << func_name << "...");
+    LOG_BLOCK();
+
+    // Detect and transform MoE downstream processing pattern:
+    // Expected pattern: Parameter[total_experts, 1, H, W] -> Convert -> ReduceSum
+    //
+    // Transformation:
+    // - Identifies parameters with expert dimension (first dimension = total_experts)
+    // - Reshapes from [total_experts, ...] to [active_experts, ...]
+    // - active_experts (K) is extracted from router model's TopK node
+    //
+    // Note: No tag-based filtering - pattern matching determines applicability
+    // This allows downstream processing to be detected in any function that follows
+    // the structural pattern, regardless of how it was originally tagged
+    f._moe_experts_downstream = ov::npuw::function::create_moe_downstream(f._model, router_model);
 }
 
 void Partitioner::optimize(const std::string& func_name) {
@@ -2522,8 +2632,13 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
         if (cfg.get<::intel_npu::NPUW_FOLD>()) {
             // Do full-featured folding
             auto all_functions = p.initFunctionPipeline(Partitioner::FunctionPipelineType::FOLD);
+
+            // Pass 1: Register all functions and apply general transformations
+            // - matchRepeatedSubgraphs() populates P.functions with all function definitions
+            // - Other transformations (spatial, attention, optimize, etc.) can be applied
+            //   independently without cross-function dependencies
             for (auto&& func_group : all_functions) {
-                LOG_INFO("FOLD: Process function " << func_group << "...");
+                LOG_INFO("FOLD Pass 1: Register and transform function " << func_group << "...");
                 LOG_BLOCK();
                 p.propagateSlices(func_group);
                 p.propagateConverts(func_group);
@@ -2535,11 +2650,26 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.saveTailDictConstants(func_group);
                 p.matchParameters(func_group);
                 p.matchResults(func_group);
-                p.matchRepeatedSubgraphs(func_group);
+                p.matchRepeatedSubgraphs(func_group);  // This populates P.functions
                 p.spatial(func_group);
                 p.attention(func_group);
                 p.optimize(func_group);
                 p.decompressionCutOff(func_group);
+            }
+
+            // Pass 2: MoE-specific transformations (requires all functions registered)
+            //
+            // Why separate pass?
+            // - transformMoeExperts() and transformMoeDownstream() require the "router" function
+            // - Router function must be found in P.functions (populated in Pass 1)
+            // - Processing order in Pass 1 is not guaranteed (router may come after experts)
+            // - Therefore, MoE transformations run in Pass 2 after all function registration
+            //   completes, ensuring router model is always available when needed
+            for (auto&& func_group : all_functions) {
+                LOG_INFO("FOLD Pass 2: MoE-specific transformations for " << func_group << "...");
+                LOG_BLOCK();
+                p.transformMoeExperts(func_group);
+                p.transformMoeDownstream(func_group);
             }
         } else if (cfg.get<::intel_npu::NPUW_CWAI>()) {
             // Less brutal version - just transform repeated blocks

@@ -8,10 +8,9 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestSize(PytorchLayerTest):
     def _prepare_input(self, input_shape, complex_type):
-        import numpy as np
         if complex_type:
             input_shape += [2]
-        return (np.random.randn(*input_shape).astype(np.float32),)
+        return (self.random.randn(*input_shape),)
 
     def create_model(self, complex_type):
         import torch
@@ -28,7 +27,7 @@ class TestSize(PytorchLayerTest):
 
         op = aten_size(complex_type)
 
-        return op, None, "aten::size"
+        return op, "aten::size"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

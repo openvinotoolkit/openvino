@@ -119,6 +119,10 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
     if (slm_size > 0)
         jit.make("USE_SLM", 1);
 
+    const bool enable_silu_mul = ENABLE_MOE_MICRO_GEMM_POST_PROC_SILU_MUL;
+    if (enable_silu_mul && m_type == MoE3GemmMicroKernelType::MLP_GATE)
+        jit.make("POST_PROC_SILU_MUL", 1);
+
     return jit;
 }
 
@@ -187,6 +191,7 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     const auto& zp_layout = params.get_input_layout(zp_idx);
 
     MoE3GemmMicroGenerator::GemmCacheKey key;
+    key.type = type;
     key.weight_shape = weight_layout.get_shape();
     key.weight_dt = weight_layout.data_type;
     key.scale_shape = scale_layout.get_shape();
@@ -365,7 +370,12 @@ Arguments MoE3GemmMicroGenerator::get_arguments_desc(const kernel_impl_params& p
     case MoE3GemmMicroKernelType::MLP_GATE:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_GATE_UP_INPUT});  // gather input tensor
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<int>(MOE3GemmInputIndex::WEIGHT_0)});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_GATE_OUTPUT});                     // gate output
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_GATE_OUTPUT});  // gate output
+        {
+            const bool enable_silu_mul = ENABLE_MOE_MICRO_GEMM_POST_PROC_SILU_MUL;
+            if (enable_silu_mul)
+                args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_UP_OUTPUT});
+        }
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS});            // experts_ids
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT});   // input_offset_per_expert
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT});  // n_array - token len

@@ -102,8 +102,8 @@ def setup_model(model_id):
 
     # Download original model
     model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
-    model = AutoModelForCausalLM.from_pretrained(model_cached)
-    tokenizer = AutoTokenizer.from_pretrained(model_cached)
+    model = AutoModelForCausalLM.from_pretrained(model_cached, local_files_only=True)
+    tokenizer = AutoTokenizer.from_pretrained(model_cached, local_files_only=True)
 
     # Save original model
     model_path = get_model_path(model_id, "org")

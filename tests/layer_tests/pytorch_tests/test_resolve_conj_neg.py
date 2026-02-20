@@ -9,7 +9,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestResolveConjNeg(PytorchLayerTest):
     def _prepare_input(self, dtype="float32"):
         import numpy as np
-        return (np.random.randn(2, 4).astype(dtype),)
+        return (self.random.randn(2, 4, dtype=dtype),)
 
     def _prepare_input_complex(self):
         import numpy as np
@@ -28,15 +28,14 @@ class TestResolveConjNeg(PytorchLayerTest):
 
         class aten_resolve(torch.nn.Module):
             def __init__(self, op):
-                super(aten_resolve, self).__init__()
+                super().__init__()
                 self.op = op
 
             def forward(self, x):
                 return self.op(x)
 
-        ref_net = None
 
-        return aten_resolve(op), ref_net, f"aten::{op_type}"
+        return aten_resolve(op), f"aten::{op_type}"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -44,7 +43,8 @@ class TestResolveConjNeg(PytorchLayerTest):
     @pytest.mark.parametrize("op_type", ["resolve_neg", "resolve_conj"])
     @pytest.mark.parametrize("dtype", ["float32", "int32"])
     def test_reslove(self, op_type, dtype, ie_device, precision, ir_version):
-        self._test(*self.create_model(op_type), ie_device, precision, ir_version, kwargs_to_prepare_input={"dtype": dtype})
+        self._test(*self.create_model(op_type), ie_device, precision, ir_version, kwargs_to_prepare_input={"dtype": dtype},
+                   fx_kind=f"aten.{op_type}")
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -53,4 +53,5 @@ class TestResolveConjNeg(PytorchLayerTest):
     @pytest.mark.xfail(reason="complex dtype is not supported yet")
     def test_resolve_complex(self, op_type, ie_device, precision, ir_version):
         self._prepare_input = self._prepare_input_complex
-        self._test(*self.create_model(op_type), ie_device, precision, ir_version)
+        self._test(*self.create_model(op_type), ie_device, precision, ir_version,
+                   fx_kind=f"aten.{op_type}")

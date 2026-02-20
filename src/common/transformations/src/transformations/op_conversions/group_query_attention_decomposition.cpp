@@ -76,8 +76,13 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     auto past_key = node->input_value(3);
     auto past_value = node->input_value(4);
     auto seqlens_k = node->input_value(5);
-    auto cos_cache = node->input_value(6);
-    auto sin_cache = node->input_value(7);
+    auto total_sequence_length = node->input_value(6);
+    auto cos_cache = node->input_value(7);
+    auto sin_cache = node->input_value(8);
+
+    auto is_null = [](const ov::Output<ov::Node>& output) {
+        return output.get_node_shared_ptr()->description() == "NullNode";
+    };
 
     // The length of all tokens (past + current) is `seqlens_k` + 1.
     // current = Q.shape[2], past = `seqlens_k` + 1 - current
@@ -103,8 +108,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     if (do_rotary) {
         ov::Output<ov::Node> position_ids =
             register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
-        if (node->get_input_size() > 8) {
-            position_ids = node->input_value(8).get_node_shared_ptr();
+        if (node->get_input_size() > 9 && !is_null(node->input_value(9))) {
+            position_ids = node->input_value(9).get_node_shared_ptr();
         } else {
             position_ids = register_new_node<v1::Add>(position_ids, past_seqlen);
         }
@@ -164,8 +169,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
 
     // Make attention mask
     std::shared_ptr<ov::Node> mask;
-    if (node->get_input_size() > 9) {
-        auto original_mask = node->input_value(9).get_node_shared_ptr();
+    if (node->get_input_size() > 10 && !is_null(node->input_value(10))) {
+        auto original_mask = node->input_value(10).get_node_shared_ptr();
         // Extract mask [num_heads, curr_seqlen, concat_kv_len] from 4D mask [1, num_heads, curr_seqlen, max_kv_len]
         auto axes_to_squeeze = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
         auto mask_squeezed = register_new_node<v0::Squeeze>(original_mask, axes_to_squeeze);

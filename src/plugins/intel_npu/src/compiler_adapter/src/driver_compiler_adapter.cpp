@@ -41,13 +41,13 @@ namespace intel_npu {
 DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
     : _zeroInitStruct(zeroInitStruct),
       _logger("DriverCompilerAdapter", Logger::global().level()) {
-    _logger.debug("initialize DriverCompilerAdapter start");
+    _logger.info("initialize DriverCompilerAdapter start");
 
     uint32_t graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
 
     _compilerProperties = _zeroInitStruct->getCompilerProperties();
 
-    _logger.info("DriverCompilerAdapter creating adapter using graphExtVersion");
+    _logger.debug("DriverCompilerAdapter creating adapter using graphExtVersion");
 
     _zeGraphExt = std::make_shared<ZeGraphExtWrappers>(_zeroInitStruct);
 
@@ -102,7 +102,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                    config);
 }
 
-std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
+std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
                                                          const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compileWS");
 
@@ -204,15 +204,14 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
                                              initGraphDescriptors,
                                              std::move(initNetworkMetadata),
                                              /* initBlobs = */ std::nullopt,
-                                             model,
+                                             std::move(model),
                                              config);
 }
 
-std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
-    const ov::Tensor& mainBlob,
-    const FilteredConfig& config,
-    const std::optional<std::vector<ov::Tensor>>& initBlobs,
-    const std::optional<std::shared_ptr<const ov::Model>>& model) const {
+std::shared_ptr<IGraph> DriverCompilerAdapter::parse(const ov::Tensor& mainBlob,
+                                                     const FilteredConfig& config,
+                                                     const std::optional<std::vector<ov::Tensor>>& initBlobs,
+                                                     std::optional<std::shared_ptr<const ov::Model>>&& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
     _logger.debug("parse start");
@@ -258,7 +257,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
                                              initGraphDescriptors,
                                              std::move(initMetadata),
                                              initBlobs,
-                                             model.value(),
+                                             std::move(model.value()),
                                              config,
                                              blobIsPersistent);
 }

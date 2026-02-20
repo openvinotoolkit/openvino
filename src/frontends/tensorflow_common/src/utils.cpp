@@ -277,7 +277,7 @@ OutputVector translate_convolution_op(const frontend::NodeContext& node, size_t 
         // assumption to use regular convolution for all other cases is taken from the legacy frontend
         // this solution is sufficient for all observed models in the validation
         // in general, it has limitation and it needs to use grouped convolution when num_groups is not static
-        // 118107: remove this assumtpion when it obtains complete shape propagation in the core
+        // 118107: remove this assumption when it obtains complete shape propagation in the core
         conv = make_shared<v1::Convolution>(input, filter, strides, pads_begin, pads_end, dilations, auto_pad);
     }
 

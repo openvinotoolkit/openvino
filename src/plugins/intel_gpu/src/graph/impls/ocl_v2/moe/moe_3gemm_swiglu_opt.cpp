@@ -1433,6 +1433,7 @@ public:
         //      8: wei_zp
         //  output:
         //      0: up/gate output, shape = [token_len * expert_topK, hidden_size]
+        // Note: If POST_PROC_SILU_MUL is enabled, silu_mul result will be involved in micro_gemm_gate, don't change kernel executor order.
         {
 #    if DEBUG_MOE_LOG
             GPU_DEBUG_TRACE_DETAIL << "\nstep 3: moe_gemm for up and gate" << std::endl;
@@ -1447,7 +1448,10 @@ public:
         //      1: gate  [token_len * expert_topK, hidden_size]
         // output
         //      0: gate_up  [token_len * expert_topK, hidden_size]
-        {
+        // Note: If POST_PROC_SILU_MUL is disabled, single silu_mul kernel will be submmited.
+        //       Otherwise, silu_mul has been involved in micro_gemm_gate kernel, skip here.
+        const bool enable_silu_mul = ENABLE_MOE_MICRO_GEMM_POST_PROC_SILU_MUL;
+        if (!enable_silu_mul) {
             auto token_size = token_num * max_topk;
 #    if DEBUG_MOE_LOG
             GPU_DEBUG_TRACE_DETAIL << "\nstep 4: prefill_swiglu token_size=" << token_size << ", hidden_size=" << _intermediate_size << std::endl;
@@ -1457,8 +1461,8 @@ public:
                                       *prefill_swiglu,
                                       {intermediates_memories[MOE_INTERNAL_BUFFER_UP_OUTPUT], intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT]},
                                       {intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT]},
-                                      {static_cast<size_t>(token_size), static_cast<size_t>(_intermediate_size), 1},
-                                      {1, subgroup_size, 1});
+                                      {static_cast<size_t>(_intermediate_size), static_cast<size_t>(token_size), 1},
+                                      {subgroup_size, 1, 1});
         }
 
         // step 5: moe_gemm for down

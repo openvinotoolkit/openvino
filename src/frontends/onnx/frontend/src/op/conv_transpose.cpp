@@ -145,7 +145,7 @@ ov::OutputVector conv_transpose(const ov::frontend::onnx::Node& node) {
     std::pair<ov::CoordinateDiff, ov::CoordinateDiff> paddings;
     ov::op::PadType auto_pad_type = convpool::get_auto_pad(node);
 
-    // Get attirbutes or infer them from input data rank it it's static.
+    // Get attributes or infer them from input data rank if it's static.
     if (data_pshape.rank().is_static()) {
         num_spatial_dims = data_pshape.rank().get_length() - 2;
     } else if (filters_pshape.rank().is_static()) {

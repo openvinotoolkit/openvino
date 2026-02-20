@@ -286,7 +286,8 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             // Add -g -s to build options to allow IGC assembly dumper to associate assembler sources with corresponding OpenCL kernel code lines
             // Should be used with the IGC_ShaderDump option
-            if (!dump_sources_dir.empty()) {
+            // Note: Skip adding -g -s for CM kernels as these options are not supported by CM compiler
+            if (!dump_sources_dir.empty() && b.language != kernel_language::CM) {
                 std::string current_dump_file_name = std::move(dump_sources_dir);
                 if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
                     current_dump_file_name += '/';
@@ -349,8 +350,10 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
         if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
             current_dump_file_name += '/';
 
+        // Use .cm extension for CM kernels, .cl for OpenCL kernels
+        std::string ext = (batch.language == kernel_language::CM) ? ".cm" : ".cl";
         current_dump_file_name += "clDNN_program_" + std::to_string(_prog_id) + "_bucket_" + std::to_string(batch.bucket_id)
-                               + "_part_" + std::to_string(batch.batch_id) + "_" + std::to_string(batch.hash_value) + ".cl";
+                               + "_part_" + std::to_string(batch.batch_id) + "_" + std::to_string(batch.hash_value) + ext;
     }
 
     std::ofstream dump_file;
@@ -513,42 +516,6 @@ std::vector<kernel::ptr> kernels_cache::get_kernels(const kernel_impl_params& pa
         kernels[kernel_part_idx] = engine.prepare_kernel(kernel_ptr->clone(_reuse_kernels));
     }
     return kernels;
-}
-
-bool kernels_cache::validate_simple_kernel_execution(kernel::ptr krl) {
-    auto casted = downcast<ocl::ocl_kernel>(krl.get());
-    auto kernel = casted->get_handle();
-    try {
-        auto casted_dev = dynamic_cast<ocl::ocl_device*>(_device.get());
-        OPENVINO_ASSERT(casted_dev != nullptr, "device is nullptr");
-
-        auto device = casted_dev->get_device();
-        cl::Context ctx(device);
-
-        cl::Buffer buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * 8);
-        if (kernel.setArg(0, buffer) != CL_SUCCESS)
-            return false;
-
-        cl::Event ev;
-        cl::CommandQueue queue(ctx, device);
-        if (queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(8), cl::NDRange(8), nullptr, &ev) != CL_SUCCESS)
-            return false;
-
-        uint8_t result[8];
-        uint8_t expected[8] = { 1, 3, 5, 7, 9, 11, 13, 15 };
-        if (queue.enqueueReadBuffer(buffer, CL_TRUE, 0, sizeof(uint8_t) * 8, &result) != CL_SUCCESS)
-            return false;
-
-        for (int i = 0; i < 8; ++i) {
-            if (result[i] != expected[i])
-                return false;
-        }
-
-        ev.wait();
-        return true;
-    } catch (...) {
-        return false;
-    }
 }
 
 void kernels_cache::build_all() {

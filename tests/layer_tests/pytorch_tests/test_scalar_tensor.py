@@ -5,13 +5,13 @@ import numpy as np
 import pytest
 import torch
 
-from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
+from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestScalarTensor(PytorchLayerTest):
 
     def _prepare_input(self):
-        return (np.array(np.random.randn(), dtype=np.float32),)
+        return (np.array(self.random.randn(), dtype=np.float32),)
 
     def create_model(self):
         class aten_scalar_tensor(torch.nn.Module):
@@ -22,9 +22,8 @@ class TestScalarTensor(PytorchLayerTest):
             def forward(self, lhs):
                 return torch.scalar_tensor(lhs.item())
 
-        ref_net = None
 
-        return aten_scalar_tensor(), ref_net, f"aten::scalar_tensor"
+        return aten_scalar_tensor(), f"aten::scalar_tensor"
 
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend

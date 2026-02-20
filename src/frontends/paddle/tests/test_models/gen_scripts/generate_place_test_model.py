@@ -23,7 +23,7 @@ def paddle_rnn_lstm(input_size, hidden_size, layers, direction):
         prev_c = paddle.ones(shape=[layers * num_of_directions, 4, hidden_size], dtype=np.float32, name="const_2")
 
         y, (h, c) = rnn(data, (prev_h, prev_c))
-        # in paddle 2.6.2, it alway add a scale in the generated model, but after updated to 3.0.0, the scale is removed,
+        # in paddle 2.6.2, it always add a scale in the generated model, but after updated to 3.0.0, the scale is removed,
         output1 = paddle.scale(y, scale=1.0, bias=0.0, bias_after_scale=True, act=None, name=None)
         output2 = paddle.scale(h, scale=1.0, bias=0.0, bias_after_scale=True, act=None, name=None)
         output3 = paddle.scale(c, scale=1.0, bias=0.0, bias_after_scale=True, act=None, name=None)

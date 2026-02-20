@@ -25,6 +25,7 @@
 #include "openvino/op/elu.hpp"
 #include "openvino/op/is_inf.hpp"
 #include "openvino/op/relu.hpp"
+#include "snippets/op/powerstatic.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
@@ -105,6 +106,7 @@ void jit_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
 
     switch (exec_prc_) {
     case ov::element::f32:
+    case ov::element::f16:
         h->vfadd_vv(dst, src0, src1);
         break;
     case ov::element::i32:
@@ -117,7 +119,7 @@ void jit_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
 
 std::set<std::vector<element::Type>> jit_add_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}, {element::i32, element::i32}};
+    return {{element::f32, element::f32}, {element::f16, element::f16}, {element::i32, element::i32}};
 }
 /// CEIL ///
 jit_ceil_emitter::jit_ceil_emitter(jit_generator_t* host, cpu_isa_t host_isa, const element::Type exec_prc)
@@ -2633,6 +2635,21 @@ std::set<std::vector<element::Type>> jit_round_half_to_even_emitter::get_support
 }
 
 /// Power Static ///
+jit_power_static_emitter::jit_power_static_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                                   ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                                   const std::shared_ptr<ov::Node>& node,
+                                                   ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {
+    const auto power_static = ov::as_type_ptr<ov::snippets::op::PowerStatic>(node);
+    OV_CPU_JIT_EMITTER_ASSERT(power_static, "Can't cast to snippets::op::PowerStatic");
+
+    power = power_static->get_power();
+    scale = 1.F;
+    shift = 0.F;
+
+    prepare_table();
+}
+
 jit_power_static_emitter::jit_power_static_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                                    ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                                    float power,

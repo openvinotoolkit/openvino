@@ -44,7 +44,7 @@ def NMS(name: str, bboxes, scores, attrs: dict, rois_num=None, verbose=False):
                                         dtype=rois_num.dtype,
                                         lod_level=1)
 
-        if attrs['nms_type'] is 'multiclass_nms3':
+        if attrs['nms_type'] == 'multiclass_nms3':
             nms_outputs = multiclass_nms(bboxes=node_boxes,
                                              scores=node_scores,
                                              background_label=attrs['background_label'],
@@ -109,7 +109,7 @@ def NMS(name: str, bboxes, scores, attrs: dict, rois_num=None, verbose=False):
         feed_vars = [node_boxes, node_scores]
         if node_rois_num is not None:
             feed_vars.append(node_rois_num)
-        # Save inputs in order of OpenVINO model, to facilite Fuzzy test,
+        # Save inputs in order of OpenVINO model, to facilitate Fuzzy test,
         # which accepts inputs and outputs in this order as well.
         output_np = [out, nms_rois_num, index]
         saveModel(name,
@@ -123,16 +123,16 @@ def NMS(name: str, bboxes, scores, attrs: dict, rois_num=None, verbose=False):
     if verbose:
         # input
         print('\033[94m' + 'bboxes: {}'.format(bboxes.shape) + '\033[0m')
-        print_alike(bboxes, seperator_begin='', seperator_end='', verbose=True)
+        print_alike(bboxes, separator_begin='', separator_end='', verbose=True)
         print('\033[94m' + 'scores: {}'.format(scores.shape) + '\033[0m')
-        print_alike(scores, seperator_begin='', seperator_end='', verbose=True)
+        print_alike(scores, separator_begin='', separator_end='', verbose=True)
 
         # output
         print('\033[91m' + 'out_np: {}'.format(out.shape) + '\033[0m')
-        print_alike(out, seperator_begin='', seperator_end='', verbose=True)
+        print_alike(out, separator_begin='', separator_end='', verbose=True)
         print('\033[91m' + 'nms_rois_num_np: {}'.format(nms_rois_num.shape) +
               '\033[0m')
-        print_alike(nms_rois_num, seperator_begin='', seperator_end='', verbose=True)
+        print_alike(nms_rois_num, separator_begin='', separator_end='', verbose=True)
         if index is not None:
             print('\033[91m' + 'index_np: {}'.format(index.shape) + '\033[0m')
-            print_alike(index, seperator_begin='', seperator_end='', verbose=True)
+            print_alike(index, separator_begin='', separator_end='', verbose=True)
