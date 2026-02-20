@@ -8,7 +8,6 @@
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -26,6 +25,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tanh.hpp"
+#include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "utils/common.hpp"
@@ -42,18 +42,18 @@ namespace {
 using ov::frontend::onnx::attention::get_dimensions;
 
 // Reshape 3D input (batch, seq, num_heads * head_size) to 4D (batch, num_heads, seq, head_size)
+// Uses direct reshape matching the ONNX Attention spec (no transpose):
+// the hidden dimension is split as [num_heads, seq, head_size] in row-major order.
 ov::Output<ov::Node> reshape_3d_to_4d(const ov::Output<ov::Node>& input, int64_t num_heads) {
     auto input_shape = std::make_shared<v3::ShapeOf>(input);
-    auto batch_seq = get_dimensions(input_shape, {0, 1});
+    auto batch = get_dimensions(input_shape, {0});
+    auto seq = get_dimensions(input_shape, {1});
     auto num_heads_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_heads});
     auto hidden = get_dimensions(input_shape, {2});
     auto head_size = std::make_shared<v1::Divide>(hidden, num_heads_node);
-    auto new_shape = std::make_shared<v0::Concat>(ov::NodeVector{batch_seq, num_heads_node, head_size}, 0);
-    // Reshape to (batch, seq, num_heads, head_size)
-    auto reshaped = std::make_shared<v1::Reshape>(input, new_shape, false);
-    // Transpose to (batch, num_heads, seq, head_size)
-    auto perm = v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
-    return std::make_shared<v1::Transpose>(reshaped, perm);
+    // Direct reshape to (batch, num_heads, seq, head_size)
+    auto new_shape = std::make_shared<v0::Concat>(ov::NodeVector{batch, num_heads_node, seq, head_size}, 0);
+    return std::make_shared<v1::Reshape>(input, new_shape, false);
 }
 
 // Reshape 4D output (batch, num_heads, seq, head_size) back to 3D (batch, seq, num_heads * head_size)
@@ -66,31 +66,15 @@ ov::Output<ov::Node> reshape_4d_to_3d(const ov::Output<ov::Node>& output) {
     return std::make_shared<v1::Reshape>(transposed, reshape_pattern, true);
 }
 
-// Repeat K/V heads for GQA: (B, kv_h, seq, h) -> (B, q_h, seq, h)
+// Repeat K/V heads for GQA: (B, kv_h, seq, h) -> (B, kv_h * n_rep, seq, h)
+// Uses Tile to match ONNX spec's np.tile(K, [1, n_rep, 1, 1]) behavior.
 // n_rep = q_num_heads / kv_num_heads
 ov::Output<ov::Node> repeat_kv(const ov::Output<ov::Node>& input, int64_t n_rep) {
     if (n_rep == 1) {
         return input;
     }
-    // (B, kv_h, seq, h) -> (B, kv_h, 1, seq, h)
-    auto unsqueeze_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
-    auto unsqueezed = std::make_shared<v0::Unsqueeze>(input, unsqueeze_axis);
-
-    // Broadcast (B, kv_h, 1, seq, h) -> (B, kv_h, n_rep, seq, h)
-    auto input_shape = std::make_shared<v3::ShapeOf>(unsqueezed);
-    auto batch_kv = get_dimensions(input_shape, {0, 1});
-    auto n_rep_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {n_rep});
-    auto seq_h = get_dimensions(input_shape, {3, 4});
-    auto target_shape = std::make_shared<v0::Concat>(ov::NodeVector{batch_kv, n_rep_node, seq_h}, 0);
-    auto broadcasted = std::make_shared<v3::Broadcast>(unsqueezed, target_shape);
-
-    // Reshape (B, kv_h, n_rep, seq, h) -> (B, kv_h * n_rep, seq, h) = (B, q_h, seq, h)
-    auto bcast_shape = std::make_shared<v3::ShapeOf>(broadcasted);
-    auto batch = get_dimensions(bcast_shape, {0});
-    auto kv_h_times_nrep = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
-    auto seq_h_dims = get_dimensions(bcast_shape, {3, 4});
-    auto final_shape = std::make_shared<v0::Concat>(ov::NodeVector{batch, kv_h_times_nrep, seq_h_dims}, 0);
-    return std::make_shared<v1::Reshape>(broadcasted, final_shape, false);
+    auto repeats = v0::Constant::create(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{1, n_rep, 1, 1});
+    return std::make_shared<v0::Tile>(input, repeats);
 }
 
 // Convert boolean mask to float additive mask: true -> 0.0, false -> -10000.0
@@ -319,7 +303,7 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
     auto present_value = V;
 
     // Handle GQA: expand K/V heads to match Q heads
-    // Determine head counts from shapes if not provided via attributes
+    // Case 1: head counts from explicit attributes (3D inputs)
     if (q_num_heads > 0 && kv_num_heads > 0 && q_num_heads != kv_num_heads) {
         CHECK_VALID_NODE(node,
                          q_num_heads % kv_num_heads == 0,
@@ -330,6 +314,28 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
         int64_t n_rep = q_num_heads / kv_num_heads;
         K = detail::repeat_kv(K, n_rep);
         V = detail::repeat_kv(V, n_rep);
+    }
+    // Case 2: head counts from shapes (4D inputs without attributes)
+    else {
+        auto q_pshape = Q.get_partial_shape();
+        auto k_pshape = K.get_partial_shape();
+        if (q_pshape.rank().is_static() && q_pshape.rank().get_length() == 4 &&
+            k_pshape.rank().is_static() && k_pshape.rank().get_length() == 4 &&
+            q_pshape[1].is_static() && k_pshape[1].is_static()) {
+            auto q_heads = q_pshape[1].get_length();
+            auto kv_heads = k_pshape[1].get_length();
+            if (q_heads != kv_heads) {
+                CHECK_VALID_NODE(node,
+                                 q_heads % kv_heads == 0,
+                                 "q_heads must be divisible by kv_heads for GQA. q_heads=",
+                                 q_heads,
+                                 ", kv_heads=",
+                                 kv_heads);
+                int64_t n_rep = static_cast<int64_t>(q_heads / kv_heads);
+                K = detail::repeat_kv(K, n_rep);
+                V = detail::repeat_kv(V, n_rep);
+            }
+        }
     }
 
     // Prepare attention mask
@@ -388,19 +394,33 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
         Y = detail::reshape_4d_to_3d(Y);
     }
 
-    // Build output vector
+    // Build output vector.
+    // Output names from the ONNX graph determine which outputs are actually requested.
+    // Empty names indicate unused optional outputs — push NullNode for those to avoid
+    // creating shared input/output parameters that confuse port resolution.
+    auto output_names = node.get_output_names();
     ov::OutputVector results;
     results.push_back(Y);
 
     if (num_outputs > 1) {
-        results.push_back(present_key);
+        if (!output_names[1].get().empty()) {
+            results.push_back(present_key);
+        } else {
+            results.push_back(std::make_shared<NullNode>()->output(0));
+        }
     }
     if (num_outputs > 2) {
-        results.push_back(present_value);
+        if (!output_names[2].get().empty()) {
+            results.push_back(present_value);
+        } else {
+            results.push_back(std::make_shared<NullNode>()->output(0));
+        }
     }
     if (num_outputs > 3) {
-        if (qk_debug_output.get_node()) {
+        if (qk_debug_output.get_node() && !output_names[3].get().empty()) {
             results.push_back(qk_debug_output);
+        } else {
+            results.push_back(std::make_shared<NullNode>()->output(0));
         }
     }
 
