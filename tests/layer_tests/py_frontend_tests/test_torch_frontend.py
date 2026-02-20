@@ -1040,13 +1040,20 @@ def test_patched_16bit_model_with_bmm():
     from openvino import convert_model, compile_model
     import copy
 
+    # Fix seed for reproducibility
+    rng = torch.Generator().manual_seed(42)
+
     class MoEStyleModel(torch.nn.Module):
         """A simplified MoE-style model that uses bmm for expert routing."""
         def __init__(self):
             super().__init__()
+            # Use small integer weights scaled down - exactly representable in fp16/bf16
             # Expert weights: 4 experts, each mapping 32 -> 64
-            self.expert_weights = torch.nn.Parameter(torch.randn(4, 32, 64))
-            self.linear = torch.nn.Linear(64, 32)
+            self.expert_weights = torch.nn.Parameter(
+                torch.randint(-4, 5, (4, 32, 64), generator=rng).float() * 0.25)
+            self.linear = torch.nn.Linear(64, 32, bias=False)
+            # Initialize linear with simple values
+            self.linear.weight.data = torch.randint(-4, 5, (32, 64), generator=rng).float() * 0.25
 
         def forward(self, x):
             # x shape: [batch, seq, 32]
@@ -1060,8 +1067,8 @@ def test_patched_16bit_model_with_bmm():
             out = expert_out.mean(dim=0).reshape(batch, seq, -1)
             return self.linear(out)
 
-    # Test MoE-style model with bmm
-    example = (torch.randn(2, 8, 32),)
+    # Test MoE-style model with bmm - use simple input values
+    example = (torch.randint(-4, 5, (2, 8, 32), generator=rng).float() * 0.25,)
     model_ref = MoEStyleModel()
     with torch.no_grad():
         res_ref = model_ref(*example)
