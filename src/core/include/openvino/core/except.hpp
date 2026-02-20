@@ -97,20 +97,7 @@ protected:
 namespace detail {
 
 template <class T>
-struct condition_checker {
-    static void validate() noexcept {}
-};
-
-template <typename CharT, std::size_t N>
-struct condition_checker<CharT[N]> {
-    static void validate() noexcept {
-        constexpr bool is_char_type = std::is_same_v<CharT, char> || std::is_same_v<CharT, wchar_t> ||
-                                      std::is_same_v<CharT, char16_t> || std::is_same_v<CharT, char32_t>;
-        static_assert(!is_char_type,
-                      "OPENVINO_ASSERT: string literal used as condition (always true). "
-                      "Did you mean to compare strings or check a pointer?");
-    }
-};
+void check_condition(const T&) noexcept {}
 
 [[noreturn]] inline void unreachable_after_throw() noexcept {
 #if defined(__GNUC__) || defined(__clang__)
@@ -120,6 +107,17 @@ struct condition_checker<CharT[N]> {
 #else
     std::abort();
 #endif
+}
+
+template <typename CharT,
+          std::size_t N,
+          std::enable_if_t<std::is_same_v<CharT, char> || std::is_same_v<CharT, wchar_t> ||
+                               std::is_same_v<CharT, char16_t> || std::is_same_v<CharT, char32_t>,
+                           int> = 0>
+void check_condition(const CharT (&)[N]) noexcept {
+    static_assert(N == 0,
+                  "OPENVINO_ASSERT: string literal used as condition (always true). "
+                  "Did you mean to compare strings or check a pointer?");
 }
 
 }  // namespace detail
@@ -133,10 +131,9 @@ struct condition_checker<CharT[N]> {
 // Always enabled to ensure these errors are caught in all builds including CI.
 //
 #ifndef NDEBUG
-#    define OPENVINO_CHECK_CONDITION(check) \
-        ::ov::detail::condition_checker<std::remove_cv_t<std::remove_reference_t<decltype(check)>>>::validate()
+#    define OPENVINO_CHECK_CONDITION(check_result__) ::ov::detail::check_condition(check_result__)
 #else
-#    define OPENVINO_CHECK_CONDITION(check)
+#    define OPENVINO_CHECK_CONDITION(check_result__)
 #endif
 
 //
@@ -203,9 +200,9 @@ struct condition_checker<CharT[N]> {
 //
 #define OPENVINO_ASSERT_HELPER2(exc_class, ctx, check, ...)                      \
     do {                                                                         \
-        OPENVINO_CHECK_CONDITION(check);                                         \
-        const bool check_result = static_cast<bool>(check);                      \
-        if (!check_result) {                                                     \
+        const auto& ov_check_result__ = (check);                                 \
+        OPENVINO_CHECK_CONDITION(ov_check_result__);                             \
+        if (!static_cast<bool>(ov_check_result__)) {                             \
             ::std::ostringstream ss___;                                          \
             ::ov::write_all_to_stream(ss___, __VA_ARGS__);                       \
             exc_class::create(__FILE__, __LINE__, (#check), (ctx), ss___.str()); \
@@ -215,9 +212,9 @@ struct condition_checker<CharT[N]> {
 
 #define OPENVINO_ASSERT_HELPER1(exc_class, ctx, check)                                      \
     do {                                                                                    \
-        OPENVINO_CHECK_CONDITION(check);                                                    \
-        const bool check_result = static_cast<bool>(check);                                 \
-        if (!check_result) {                                                                \
+        const auto& ov_check_result__ = (check);                                            \
+        OPENVINO_CHECK_CONDITION(ov_check_result__);                                        \
+        if (!static_cast<bool>(ov_check_result__)) {                                        \
             exc_class::create(__FILE__, __LINE__, (#check), (ctx), exc_class::default_msg); \
             ::ov::detail::unreachable_after_throw();                                        \
         }                                                                                   \
