@@ -189,8 +189,9 @@ OPENVINO_FORCE_INLINE void check_condition(const CharT (&)[N]) noexcept {
 //
 #define OPENVINO_ASSERT_HELPER2(exc_class, ctx, check, ...)                      \
     do {                                                                         \
-        OPENVINO_CHECK_CONDITION(check);                                         \
-        if (!static_cast<bool>(check)) {                                         \
+        auto check_result = static_cast<bool>(check);                            \
+        OPENVINO_CHECK_CONDITION(check_result);                                  \
+        if (!check_result) {                                                     \
             ::std::ostringstream ss___;                                          \
             ::ov::write_all_to_stream(ss___, __VA_ARGS__);                       \
             exc_class::create(__FILE__, __LINE__, (#check), (ctx), ss___.str()); \
@@ -199,8 +200,9 @@ OPENVINO_FORCE_INLINE void check_condition(const CharT (&)[N]) noexcept {
 
 #define OPENVINO_ASSERT_HELPER1(exc_class, ctx, check)                                      \
     do {                                                                                    \
-        OPENVINO_CHECK_CONDITION(check);                                                    \
-        if (!static_cast<bool>(check)) {                                                    \
+        auto check_result = static_cast<bool>(check);                                       \
+        OPENVINO_CHECK_CONDITION(check_result);                                             \
+        if (!check_result) {                                                                \
             exc_class::create(__FILE__, __LINE__, (#check), (ctx), exc_class::default_msg); \
         }                                                                                   \
     } while (0)
