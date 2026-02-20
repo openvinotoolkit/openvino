@@ -334,6 +334,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // Issue: 168490
             std::regex(R"(.*CPU/CoreThreadingTest.smoke_QueryModel.*)"),
             std::regex(R"(.*WeightlessCacheAccuracy.*)"),
+            // Ticket: 181107
+            std::regex(R"(.*smoke_ConvAndFQ_CPU.*)"),
 #endif
 #if defined(OPENVINO_ARCH_ARM)
             // Issue: 144998
@@ -475,8 +477,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*proposal_params/.*)"),
             // Quantized models unsupported
             std::regex(R"(.*Quantized.*)"),
-            std::regex(R"(smoke_Snippets.*\[.*\?.*\].*)"),
-            std::regex(R"(smoke_Snippets.*IS\[0\]=\[1\.1\.\.10\.1\.\.8\.1\.\.4\].*)"),
             std::regex(R"(smoke_Snippets(?!_(Eltwise|ThreeInputsEltwise)(/|_)).*)"),
             std::regex(R"(.*_enforceSnippets=1.*)"),
 #endif

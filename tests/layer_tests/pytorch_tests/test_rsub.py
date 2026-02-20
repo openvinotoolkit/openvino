@@ -30,9 +30,8 @@ class TestRsub(PytorchLayerTest):
         model = model_cls[second_type]
 
 
-        ref_net = None
 
-        return model(), ref_net, "aten::rsub"
+        return model(), "aten::rsub"
 
     @pytest.mark.parametrize('input_data',
     [
@@ -44,7 +43,7 @@ class TestRsub(PytorchLayerTest):
         self.input_data = []
         for input in input_data:
             if type(input) is list:
-                self.input_data.append(np.random.randn(*input).astype(np.float32))
+                self.input_data.append(self.random.randn(*input))
             else:
                 self.input_data.append(input)
         self._test(*self.create_model(second_type="float"), ie_device, precision, ir_version, use_convert_model=True)
@@ -59,7 +58,7 @@ class TestRsub(PytorchLayerTest):
         self.input_data = []
         for input in input_data:
             if type(input) is list:
-                self.input_data.append(np.random.randn(*input).astype(np.float32))
+                self.input_data.append(self.random.randn(*input))
             else:
                 self.input_data.append(input)
         self._test(*self.create_model(second_type="int"), ie_device, precision, ir_version, use_convert_model=True)
@@ -68,7 +67,7 @@ class TestRsub(PytorchLayerTest):
 class TestRsubTypes(PytorchLayerTest):
 
     def _prepare_input(self):
-        return (torch.randn(self.lhs_shape).to(self.lhs_type).numpy(),
+        return (self.random.randn(*self.lhs_shape, dtype=self.lhs_type),
                 np.array([1]).astype(self.rhs_type))
 
     def create_model(self, lhs_type, rhs_type):
@@ -88,9 +87,8 @@ class TestRsubTypes(PytorchLayerTest):
             def forward2(self, lhs, rhs:int):
                 return torch.rsub(lhs.to(self.lhs_type), rhs, alpha=2)
 
-        ref_net = None
 
-        return aten_rsub(lhs_type, rhs_type), ref_net, "aten::rsub"
+        return aten_rsub(lhs_type, rhs_type), "aten::rsub"
 
     @pytest.mark.parametrize(("lhs_type", "rhs_type"),
                              [[torch.int32, np.int32],

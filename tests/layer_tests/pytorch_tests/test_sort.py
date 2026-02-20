@@ -33,8 +33,7 @@ class TestSortConstants(PytorchLayerTest):
                                       descending=self.descending
                                       )[0]
 
-        ref_net = None
-        return aten_sort(dim, descending, stable), ref_net, "aten::sort"
+        return aten_sort(dim, descending, stable), "aten::sort"
 
     @pytest.mark.parametrize("input_shape", [
         [16],
@@ -82,7 +81,7 @@ class TestSortConstants(PytorchLayerTest):
     def test_sort(self, input_shape, descending, stable, ie_device, precision, ir_version):
         self.input_tensor = []
         if type(input_shape) is list:
-            self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
+            self.input_tensor = self.random.randn(*input_shape)
         else:
             self.input_tensor = input_shape
         dims = len(self.input_tensor.shape)

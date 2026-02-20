@@ -33,7 +33,7 @@ class TestSortedRandperm(PytorchLayerTest):
                 sorted_tensor, _ = torch.sort(x_permuted)
                 return sorted_tensor
 
-        return AtenSortedRandperm(n, num_inputs, dtype_value), None, "aten::randperm"
+        return AtenSortedRandperm(n, num_inputs, dtype_value), "aten::randperm"
 
     @pytest.mark.parametrize(("n", "num_inputs", "dtype_value"), [
         (0, 1, None),

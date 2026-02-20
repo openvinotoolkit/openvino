@@ -29,7 +29,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const FilteredConfig& config,
                              const std::optional<int64_t>& batchSize)
     : ICompiledModel(model, plugin),
-      _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
       _graph(graph),
@@ -37,7 +36,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
-    _properties = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL, _config);
+    _properties = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL, config);
     _properties->registerProperties();
 
     configure_stream_executors();
@@ -58,11 +57,11 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
         OPENVINO_THROW("No available devices. Failed to create infer request!");
     }
 
-    if (!_config.get<CREATE_EXECUTOR>() || _config.get<DEFER_WEIGHTS_LOAD>()) {
+    if (!_properties->getConfig().get<CREATE_EXECUTOR>() || _properties->getConfig().get<DEFER_WEIGHTS_LOAD>()) {
         if (_graph == nullptr) {
             OPENVINO_THROW("Invalid graph handle! Failed to create infer request!");
         }
-        _graph->initialize(_config);
+        _graph->initialize(_properties->getConfig());
     }
 
     if (!_graph->init_completed()) {
@@ -71,7 +70,7 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     }
 
     const std::shared_ptr<SyncInferRequest>& syncInferRequest =
-        _device->createInferRequest(shared_from_this(), _config);
+        _device->createInferRequest(shared_from_this(), _properties->getConfig());
     syncInferRequest->initialize_states();
 
     return std::make_shared<AsyncInferRequest>(syncInferRequest,
@@ -91,7 +90,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
 
     auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream);
 
-    if (!_config.get<EXPORT_RAW_BLOB>()) {
+    if (!_properties->getConfig().get<EXPORT_RAW_BLOB>()) {
         std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
         std::optional<std::vector<ov::Layout>> outputLayouts = std::vector<ov::Layout>();
 
@@ -161,7 +160,7 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
 
 void CompiledModel::set_property(const ov::AnyMap& properties) {
     // 1. Set the property via Properties interface
-    _properties->set_property(properties);
+    _properties->setProperty(properties);
 
     // 2. Extra hooks
     if (properties.count(std::string(WORKLOAD_TYPE::key())) != 0) {
@@ -179,7 +178,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return _graph->get_metadata().name;
     } else {
         // default behaviour
-        return _properties->get_property(name);
+        return _properties->getProperty(name);
     }
 }
 
@@ -188,7 +187,7 @@ const std::shared_ptr<IGraph>& CompiledModel::get_graph() const {
 }
 
 const FilteredConfig& CompiledModel::get_config() const {
-    return _config;
+    return _properties->getConfig();
 }
 
 void CompiledModel::configure_stream_executors() {

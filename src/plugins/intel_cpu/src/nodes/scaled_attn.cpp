@@ -1763,7 +1763,7 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::N
     m_value_quant_param.groupSize = (cpuConfig.valueCacheGroupSize == 0 || valueS % cpuConfig.valueCacheGroupSize != 0)
                                         ? valueS
                                         : cpuConfig.valueCacheGroupSize;
-    m_key_quant_param.precision = valueCachePrecision;
+    m_value_quant_param.precision = valueCachePrecision;
 
     if (const auto node = ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(op)) {
         m_config.config.is_causal = node->get_causal();

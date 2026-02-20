@@ -4,7 +4,6 @@
 """Test Rotary Position Embedding (RoPE) pattern with complex tensors.
 """
 
-import numpy as np
 import pytest
 import torch
 
@@ -18,16 +17,14 @@ class TestRoPEPattern(PytorchLayerTest):
     """
 
     def _prepare_input(self, seq_len=8, dim=64):
-        rng = np.random.default_rng(43)
-        return (rng.standard_normal((1, seq_len, dim)).astype(np.float32),)
+        return (self.random.randn(1, seq_len, dim),)
 
     def create_model(self, dim=64):
         class RoPEModule(torch.nn.Module):
-            def __init__(self, dim):
+            def __init__(self, rng, dim):
                 super().__init__()
                 # Create freqs_cis as complex buffer (like in Qwen-Image)
-                g = torch.Generator().manual_seed(42)
-                freqs = torch.randn(8, dim // 2, generator=g)
+                freqs = rng.torch_randn(8, dim // 2)
                 self.register_buffer("freqs_cis",
                     torch.polar(torch.ones_like(freqs), freqs))
 
@@ -40,7 +37,7 @@ class TestRoPEPattern(PytorchLayerTest):
                 result = x_reshaped * freqs_real
                 return result.view(batch, seq_len, dim)
 
-        return RoPEModule(dim), None, ["aten::unsqueeze", "aten::view_as_real"]
+        return RoPEModule(self.random, dim), ["aten::unsqueeze", "aten::view_as_real"]
 
     @pytest.mark.parametrize("dim", [32, 64, 128])
     @pytest.mark.nightly
@@ -62,16 +59,14 @@ class TestComplexBufferUnsqueeze(PytorchLayerTest):
     """
 
     def _prepare_input(self):
-        rng = np.random.default_rng(43)
-        return (rng.standard_normal((1, 4, 8)).astype(np.float32),)
+        return (self.random.randn(1, 4, 8),)
 
     def create_model(self):
         class ComplexBufferUnsqueeze(torch.nn.Module):
-            def __init__(self):
+            def __init__(self, rng):
                 super().__init__()
-                g = torch.Generator().manual_seed(42)
-                real = torch.randn(4, 8, generator=g)
-                imag = torch.randn(4, 8, generator=g)
+                real = rng.torch_randn(4, 8)
+                imag = rng.torch_randn(4, 8)
                 self.register_buffer("pos_embed", torch.complex(real, imag))
 
             def forward(self, x):
@@ -80,7 +75,7 @@ class TestComplexBufferUnsqueeze(PytorchLayerTest):
                 pos_real = torch.view_as_real(pos)
                 return x.unsqueeze(-1) + pos_real
 
-        return ComplexBufferUnsqueeze(), None, "aten::unsqueeze"
+        return ComplexBufferUnsqueeze(self.random), "aten::unsqueeze"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -96,15 +91,13 @@ class TestComplexBufferMultipleOps(PytorchLayerTest):
     """
 
     def _prepare_input(self):
-        rng = np.random.default_rng(43)
-        return (rng.standard_normal((1, 4, 2)).astype(np.float32),)
+        return (self.random.randn(1, 4, 2),)
 
     def create_model(self):
         class ComplexBufferMultipleOps(torch.nn.Module):
-            def __init__(self):
+            def __init__(self, rng):
                 super().__init__()
-                g = torch.Generator().manual_seed(42)
-                freqs = torch.randn(4, 2, generator=g)
+                freqs = rng.torch_randn(4, 2)
                 complex_freqs = torch.view_as_complex(freqs)
                 self.register_buffer("freqs_a", complex_freqs)
                 self.register_buffer("freqs_b", complex_freqs * 2)
@@ -117,7 +110,7 @@ class TestComplexBufferMultipleOps(PytorchLayerTest):
                 result = cx * a + cx * b
                 return torch.view_as_real(result)
 
-        return ComplexBufferMultipleOps(), None, ["aten::unsqueeze", "aten::mul"]
+        return ComplexBufferMultipleOps(self.random), ["aten::unsqueeze", "aten::mul"]
 
     @pytest.mark.nightly
     @pytest.mark.precommit
