@@ -16,8 +16,10 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pass.hpp"
+#include "openvino/pass/validate.hpp"
 
 using namespace ov;
 using namespace std;
@@ -73,6 +75,278 @@ bool validate_list(const std::vector<std::shared_ptr<ov::Node>>& nodes) {
         }
     }
     return rc;
+}
+class TestMatcherPassTrue : public ov::pass::MatcherPass {
+public:
+    TestMatcherPassTrue() : MatcherPass() {
+        auto any_input = ov::pass::pattern::any_input();
+        ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher&) {
+            return true;
+        };
+
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(any_input, "TestMatcherPassTrue");
+        this->register_matcher(m, callback);
+    }
+};
+
+class TestMatcherPassFalse : public ov::pass::MatcherPass {
+public:
+    TestMatcherPassFalse() : MatcherPass() {
+        auto any_input = ov::pass::pattern::any_input();
+        ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher&) {
+            return false;
+        };
+
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(any_input, "TestMatcherPassFalse");
+        this->register_matcher(m, callback);
+    }
+};
+
+class TestModelPassTrue : public pass::ModelPass {
+public:
+    bool run_on_model(const std::shared_ptr<ov::Model>&) override {
+        return true;
+    }
+};
+
+class TestModelPassFalse : public pass::ModelPass {
+public:
+    bool run_on_model(const std::shared_ptr<ov::Model>&) override {
+        return false;
+    }
+};
+
+class CountingValidate : public ov::pass::Validate {
+public:
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        is_applied = true;
+        return Validate::run_on_model(model);
+    }
+
+    bool is_applied = false;
+};
+
+class ValidateTestManager : public pass::Manager {
+protected:
+    void push_validate_pass() override {
+        push_pass<CountingValidate>();
+    }
+
+public:
+    int get_num_validate_executed() {
+        int total = 0;
+
+        for (const auto& pass : m_pass_list) {
+            if (auto counting_validate = ov::as_type_ptr<CountingValidate>(pass)) {
+                total += counting_validate->is_applied;
+            }
+        }
+
+        return total;
+    }
+};
+
+TEST(pass_manager, Validate_passes_not_applied) {
+    ValidateTestManager manager;
+    manager.set_per_pass_validation(false);
+
+    auto graph = make_test_graph();
+
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    auto validate = manager.register_pass<CountingValidate>();
+    const auto res = manager.run_passes(graph);
+
+    EXPECT_FALSE(res);
+    EXPECT_FALSE(validate->is_applied);
+}
+
+TEST(pass_manager, Validate_model_pass_applied) {
+    ValidateTestManager manager;
+    manager.set_per_pass_validation(false);
+
+    auto graph = make_test_graph();
+
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassTrue>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    auto validate = manager.register_pass<CountingValidate>();
+    const auto res = manager.run_passes(graph);
+
+    EXPECT_TRUE(res);
+    EXPECT_TRUE(validate->is_applied);
+}
+
+TEST(pass_manager, Validate_matcher_pass_applied) {
+    ValidateTestManager manager;
+    manager.set_per_pass_validation(false);
+
+    auto graph = make_test_graph();
+
+    manager.register_pass<TestMatcherPassTrue>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    auto validate = manager.register_pass<CountingValidate>();
+    const auto res = manager.run_passes(graph);
+
+    EXPECT_TRUE(res);
+    EXPECT_TRUE(validate->is_applied);
+}
+
+TEST(pass_manager, Validate_three_validations) {
+    ValidateTestManager manager;
+    manager.set_per_pass_validation(false);
+
+    auto graph = make_test_graph();
+
+    manager.register_pass<TestMatcherPassTrue>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    auto validate_1 = manager.register_pass<CountingValidate>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    auto validate_2 = manager.register_pass<CountingValidate>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassTrue>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassTrue>();
+    manager.register_pass<TestModelPassFalse>();
+    auto validate_3 = manager.register_pass<CountingValidate>();
+    const auto res = manager.run_passes(graph);
+
+    EXPECT_TRUE(res);
+    EXPECT_TRUE(validate_1->is_applied);
+    EXPECT_FALSE(validate_2->is_applied);
+    EXPECT_TRUE(validate_3->is_applied);
+}
+
+TEST(pass_manager, Validate_per_pass) {
+    ValidateTestManager manager;
+    manager.set_per_pass_validation(true);  // by default true
+
+    auto graph = make_test_graph();
+
+    manager.register_pass<TestMatcherPassTrue>();
+    auto validate_1 = manager.register_pass<CountingValidate>();
+    auto validate_2 = manager.register_pass<CountingValidate>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassTrue>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassTrue>();
+    manager.register_pass<TestModelPassFalse>();
+    auto validate_3 = manager.register_pass<CountingValidate>();
+    const auto res = manager.run_passes(graph);
+
+    const auto num_true_passes = 3;
+
+    EXPECT_TRUE(res);
+    EXPECT_FALSE(validate_1->is_applied);
+    EXPECT_FALSE(validate_2->is_applied);
+    EXPECT_FALSE(validate_3->is_applied);
+    EXPECT_EQ(manager.get_num_validate_executed(), num_true_passes);
+}
+
+TEST(pass_manager, Validate_single_validate) {
+    ValidateTestManager manager;
+    manager.set_per_pass_validation(false);
+
+    auto graph = make_test_graph();
+
+    auto validate = manager.register_pass<CountingValidate>();
+    const auto res = manager.run_passes(graph);
+
+    EXPECT_FALSE(res);
+    EXPECT_FALSE(validate->is_applied);
+}
+
+TEST(pass_manager, Validate_single_validate_per_pass) {
+    ValidateTestManager manager;
+    manager.set_per_pass_validation(true);  // by default true
+
+    auto graph = make_test_graph();
+
+    auto validate = manager.register_pass<CountingValidate>();
+    const auto res = manager.run_passes(graph);
+
+    const auto num_true_passes = 0;
+
+    EXPECT_FALSE(res);
+    EXPECT_FALSE(validate->is_applied);
+    EXPECT_EQ(manager.get_num_validate_executed(), num_true_passes);
+}
+
+TEST(pass_manager, Validate_counter) {
+    ValidateTestManager manager;
+    manager.set_per_pass_validation(true);  // by default true
+
+    auto graph = make_test_graph();
+
+    manager.register_pass<TestMatcherPassTrue>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassTrue>();
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassTrue>();
+    manager.register_pass<TestModelPassFalse>();
+    manager.register_pass<CountingValidate>();
+    const auto res = manager.run_passes(graph);
+
+    const auto num_true_passes = 3;
+
+    EXPECT_TRUE(res);
+    EXPECT_EQ(manager.get_num_validate_executed(), num_true_passes);
+}
+
+TEST(pass_manager, Validate_counter_0) {
+    ValidateTestManager manager;
+    manager.set_per_pass_validation(false);
+
+    auto graph = make_test_graph();
+
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+
+    const auto res = manager.run_passes(graph);
+
+    const auto num_true_passes = 0;
+
+    EXPECT_FALSE(res);
+    EXPECT_EQ(manager.get_num_validate_executed(), num_true_passes);
+}
+
+TEST(pass_manager, Validate_counter_1) {
+    ValidateTestManager manager;
+    manager.set_per_pass_validation(false);
+
+    auto graph = make_test_graph();
+
+    manager.register_pass<TestMatcherPassTrue>();
+    manager.register_pass<TestModelPassTrue>();
+
+    const auto res = manager.run_passes(graph);
+
+    EXPECT_TRUE(res);
+    EXPECT_EQ(manager.get_num_validate_executed(), /*no Validate inserted*/ 0);
 }
 
 }  // namespace
