@@ -25,6 +25,17 @@ Give high-signal review comments that help maintainers merge safely with minimal
 5. **Tests, GHA config changes if required, and CI coverage for changed behavior**
 6. **Maintainability and readability**
 
+## Review Activation Rules
+
+### PRs in Draft state
+- Do not initiate automatic review.
+- Review only when explicitly triggered by a user.
+
+### PRs labeled `do_not_review`
+- Do not initiate automatic review.
+- Review only when explicitly triggered by a user.
+- If the label is removed after prior review results were published: perform a new review but do not duplicate previously reported observations; focus exclusively on areas not covered by prior reviews.
+
 ## Review Protocol
 When reviewing a PR, always:
 1. Determine changed component(s) by paths and labels (see `.github/labeler.yml`).
@@ -37,12 +48,13 @@ When reviewing a PR, always:
 For PRs labeled `ExternalPR`, apply stricter evidence-based checks while keeping noise low:
 1. Treat `ExternalPR` as a risk signal, not as proof of low quality.
 2. Prioritize objective quality gates first: required CI status, build/test failures, and changed-path risk.
-3. Treat `ExternalPR Build Smoke` as required only when the PR has `ExternalPR` label.
+3. Treat `ExternalPR Build Smoke` as important only when the PR has `ExternalPR` label.
 4. For PRs without `ExternalPR` label, do not treat `ExternalPR Build Smoke` as a required gate.
-5. If `ExternalPR Build Smoke` is pending or missing, avoid speculative quality conclusions; ask for/await the smoke result first.
-6. If buildability is in question, reference failing required checks and concrete failure symptoms; do not speculate.
-7. Do not request extra local validation steps when required CI checks are green.
-8. Keep comments focused on merge blockers, regressions, and security/performance risks; avoid style-only expansion.
+5. Wait for `ExternalPR Build Smoke` results before starting review. If the job does not exist or cannot execute, proceed with static-analysis-only review.
+6. If other validation checks have started, incorporate their results to increase review precision and value.
+7. If buildability is in question, reference failing required checks and concrete failure symptoms; do not speculate.
+8. Do not request extra local validation steps when required CI checks are green.
+9. Keep comments focused on merge blockers, regressions, and security/performance risks; avoid style-only expansion.
 
 Before posting any comment, apply this gate:
 - **Evidence gate**: point to exact changed code and explain the failure mode.
