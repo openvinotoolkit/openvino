@@ -71,4 +71,4 @@ runs:
       name: Set PIP_INSTALL_COMMAND variable for Windows
       shell: pwsh
       run: |
-        "PIP_INSTALL_COMMAND='python3 c:/pip_diag.py install'" >> $env:GITHUB_ENV
+        "PIP_INSTALL_COMMAND=python3 c:/pip_diag.py install" >> $env:GITHUB_ENV
