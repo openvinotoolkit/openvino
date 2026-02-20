@@ -111,8 +111,8 @@ private:
     void registerPluginProperties();
     void registerCompiledModelProperties();
     void filterPropertiesByCompilerSupport(const ICompilerAdapter* compiler,
-                                           const ov::intel_npu::CompilerType compilerType,
-                                           const std::string& compilationPlatform);
+                                           const std::optional<ov::intel_npu::CompilerType> compilerType = std::nullopt,
+                                           const std::string compilationPlatform = "");
 
     const std::vector<ov::PropertyName> _cachingProperties = {
         ov::cache_mode.name(),
