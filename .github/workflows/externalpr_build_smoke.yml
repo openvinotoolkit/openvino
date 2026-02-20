@@ -1,0 +1,60 @@
+name: ExternalPR Build Smoke
+
+on:
+  pull_request_target:
+    types: [labeled, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: externalpr-build-smoke-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build-smoke:
+    if: ${{ github.repository_owner == 'openvinotoolkit' && contains(github.event.pull_request.labels.*.name, 'ExternalPR') && !github.event.pull_request.draft }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Security mode note
+        run: |
+          echo "Running ExternalPR build-smoke in restricted mode."
+          echo "No secrets are consumed; permissions are read-only."
+
+      - name: Checkout PR HEAD (no persisted credentials)
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+          submodules: false
+
+      - name: Install minimal build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+
+      - name: Configure minimal OpenVINO build
+        env:
+          GITHUB_TOKEN: ""
+          GH_TOKEN: ""
+        run: |
+          cmake -S . -B build-smoke -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_TESTS=OFF \
+            -DENABLE_FUNCTIONAL_TESTS=OFF \
+            -DENABLE_SAMPLES=OFF \
+            -DENABLE_CPPLINT=OFF \
+            -DENABLE_INTEL_GPU=OFF \
+            -DENABLE_INTEL_NPU=OFF
+
+      - name: Build smoke target
+        env:
+          GITHUB_TOKEN: ""
+          GH_TOKEN: ""
+        run: |
+          cmake --build build-smoke --target openvino --parallel 2
