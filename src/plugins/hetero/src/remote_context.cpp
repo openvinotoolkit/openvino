@@ -13,9 +13,8 @@ namespace ov {
 namespace hetero {
 
 RemoteContext::RemoteContext(std::map<std::string, ov::SoPtr<ov::IRemoteContext>> contexts)
-    : m_contexts(std::move(contexts)) {
-    OPENVINO_ASSERT(!m_contexts.empty(), "HETERO RemoteContext must have at least one underlying context");
-}
+    : m_contexts(std::move(contexts)) {}
+
 const ov::AnyMap& RemoteContext::get_property() const {
     return m_contexts.begin()->second->get_property();
 }
