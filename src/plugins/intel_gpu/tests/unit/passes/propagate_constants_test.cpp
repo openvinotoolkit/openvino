@@ -36,5 +36,6 @@ TEST(propagate_constants, select_impl_after_dynamic_to_static_transition) {
 
     program_wrapper::apply_opt_pass<propagate_constants>(*prog);
 
-    ASSERT_NE(reorder_node.get_selected_impl(), nullptr);
+    auto selected_impl = reorder_node.get_selected_impl();
+    ASSERT_TRUE(selected_impl != nullptr && !selected_impl->is_dynamic());
 }

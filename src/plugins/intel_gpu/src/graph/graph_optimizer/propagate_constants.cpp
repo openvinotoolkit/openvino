@@ -77,10 +77,10 @@ void propagate_constants::run(program& p) {
     // replace all constant nodes which are relevant for inference (either used by non-const user or marked as output)
     // with recomputed cldnn::data
     bool need_impl_reselection = false;
-    for (auto& cout : to_replace) {
-        auto& id_to_replace = std::get<0>(cout);
-        auto mem_impl = std::get<1>(cout);
-        auto cache_info = std::get<2>(cout);
+    for (auto& entry : to_replace) {
+        auto& id_to_replace = std::get<0>(entry);
+        auto mem_impl = std::get<1>(entry);
+        auto cache_info = std::get<2>(entry);
         auto cache_manager = std::get<0>(cache_info);
         auto in_layout = std::get<1>(cache_info);
         auto reorder = std::get<2>(cache_info);
