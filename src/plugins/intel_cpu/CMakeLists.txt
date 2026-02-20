@@ -256,6 +256,10 @@ if (ENABLE_SNIPPETS_LIBXSMM_TPP)
 endif ()
 if(ENABLE_KLEIDIAI_FOR_CPU)
     target_link_libraries(${TARGET_NAME} PRIVATE kleidiai)
+    set_source_files_properties(
+        src/emitters/snippets/aarch64/jit_gemm_emitter.cpp
+        src/emitters/snippets/aarch64/jit_gemm_copy_b_emitter.cpp
+        PROPERTIES COMPILE_OPTIONS -march=armv8.2-a+fp16)
 endif()
 
 if(RISCV64)
