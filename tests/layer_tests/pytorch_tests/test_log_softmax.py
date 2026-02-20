@@ -57,7 +57,7 @@ class aten_log_softmax_scalar(torch.nn.Module):
 
 class TestLogSoftmaxScalar(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.randn(1).reshape(()).astype(np.float32),)
+        return (self.random.randn(),)
 
     @pytest.mark.parametrize("dim", [-1, 0])
     @pytest.mark.nightly
@@ -65,5 +65,5 @@ class TestLogSoftmaxScalar(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_log_softmax_scalar(self, dim, ie_device, precision, ir_version):
-        self._test(aten_log_softmax_scalar(dim), None, "aten::log_softmax",
+        self._test(aten_log_softmax_scalar(dim), "aten::log_softmax",
                    ie_device, precision, ir_version)

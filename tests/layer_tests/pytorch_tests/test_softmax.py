@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
 import pytest
 import torch
 import torch.nn.functional as F
@@ -81,7 +80,7 @@ class aten_softmax_scalar(torch.nn.Module):
 
 class TestSoftmaxScalar(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.randn(1).reshape(()).astype(np.float32),)
+        return (self.random.randn(),)
 
     @pytest.mark.parametrize("dim", [-1, 0])
     @pytest.mark.nightly
@@ -89,5 +88,5 @@ class TestSoftmaxScalar(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_softmax_scalar(self, dim, ie_device, precision, ir_version):
-        self._test(aten_softmax_scalar(dim), None, "aten::softmax",
+        self._test(aten_softmax_scalar(dim), "aten::softmax",
                    ie_device, precision, ir_version)
