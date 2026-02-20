@@ -1035,46 +1035,33 @@ def test_patched_8bit_model_converts_e5m2():
 
 
 def test_patched_16bit_model_with_bmm():
-    """Test that torch.bmm is patched for MoE-style models."""
     from openvino.frontend.pytorch import patch_model
     from openvino import convert_model, compile_model
     import copy
 
-    # Fix seed for reproducibility
     rng = torch.Generator().manual_seed(42)
 
     class MoEStyleModel(torch.nn.Module):
-        """A simplified MoE-style model that uses bmm for expert routing."""
         def __init__(self):
             super().__init__()
-            # Use small integer weights scaled down - exactly representable in fp16/bf16
-            # Expert weights: 4 experts, each mapping 32 -> 64
             self.expert_weights = torch.nn.Parameter(
                 torch.randint(-4, 5, (4, 32, 64), generator=rng).float() * 0.25)
             self.linear = torch.nn.Linear(64, 32, bias=False)
-            # Initialize linear with simple values
             self.linear.weight.data = torch.randint(-4, 5, (32, 64), generator=rng).float() * 0.25
 
         def forward(self, x):
-            # x shape: [batch, seq, 32]
             batch, seq, _ = x.shape
-            # Simulate expert selection - use all experts for simplicity
-            # Reshape for bmm: [4, batch*seq, 32]
             x_expanded = x.reshape(1, batch * seq, -1).expand(4, -1, -1)
-            # bmm: [4, batch*seq, 32] @ [4, 32, 64] -> [4, batch*seq, 64]
             expert_out = torch.bmm(x_expanded, self.expert_weights)
-            # Average over experts and reshape back
             out = expert_out.mean(dim=0).reshape(batch, seq, -1)
             return self.linear(out)
 
-    # Test MoE-style model with bmm - use simple input values
     example = (torch.randint(-4, 5, (2, 8, 32), generator=rng).float() * 0.25,)
     model_ref = MoEStyleModel()
     with torch.no_grad():
         res_ref = model_ref(*example)
 
     try:
-        # Test fp16
         model_fp16 = copy.deepcopy(model_ref).half()
         patch_model.__make_16bit_traceable(model_fp16)
         with torch.no_grad():
@@ -1084,7 +1071,6 @@ def test_patched_16bit_model_with_bmm():
         res_fp16 = cm_fp16([x.numpy() for x in example])
         np.testing.assert_allclose(res_fp16[0], res_ref.numpy(), atol=1e-2)
 
-        # Test bf16
         model_bf16 = copy.deepcopy(model_ref).bfloat16()
         patch_model.__make_16bit_traceable(model_bf16)
         with torch.no_grad():
@@ -1092,9 +1078,8 @@ def test_patched_16bit_model_with_bmm():
         assert converted_model
         cm_bf16 = compile_model(converted_model, "CPU", default_cfg)
         res_bf16 = cm_bf16([x.numpy() for x in example])
-        np.testing.assert_allclose(res_bf16[0], res_ref.numpy(), atol=2e-2)
+        np.testing.assert_allclose(res_bf16[0], res_ref.numpy(), atol=1e-2)
     finally:
-        # Restore torch.bmm to avoid leaking global state to other tests
         patch_model._unpatch_torch_functions()
 
 
