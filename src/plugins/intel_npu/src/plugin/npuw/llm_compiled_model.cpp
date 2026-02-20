@@ -11,6 +11,8 @@
 #include "low_precision/kv_cache_concat.hpp"
 #include "low_precision/low_precision.hpp"
 #include "low_precision/move_fake_convert_up_through_kv_cache_concat.hpp"
+#include "moe_transformations/device_routed_moe_transform.hpp"
+#include "moe_transformations/gather_to_2d_gather.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/group_query_attention.hpp"
@@ -1359,29 +1361,29 @@ bool is_moe_model(const std::shared_ptr<ov::Model>& model) {
     return false;
 }
 
-// Apply MoE-specific optimizations to stage configuration based on hint
-void apply_moe_optimizations(ov::AnyMap& stage_config,
-                             ::intel_npu::npuw::llm::MoEHint moe_hint,
-                             const std::string& stage_name) {
-    // MoE expert and router pattern isolation options
-    const ov::AnyMap expert_opts = {
-        {"NPUW_ONLINE_PIPELINE", "REP"},
-        {"NPUW_ONLINE_ISOLATE", "MOE"},
-        {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
-        {"NPUW_UNFOLD_IREQS", "NO"},
-    };
-
+// Apply MoE-specific configuration based on hint
+void apply_moe_config(ov::AnyMap& stage_config,
+                      ::intel_npu::npuw::llm::MoEHint moe_hint,
+                      const std::string& stage_name) {
     if (moe_hint == ::intel_npu::npuw::llm::MoEHint::HOST_ROUTED) {
-        LOG_INFO("MoE architecture optimization for " << stage_name
-                                                      << " stage: HOST_ROUTED (host-side expert routing)");
+        LOG_INFO("MoE config for " << stage_name << " stage: HOST_ROUTED (host-side expert routing)");
+        // MoE expert and router pattern isolation options
+        const ov::AnyMap expert_opts = {
+            {"NPUW_ONLINE_PIPELINE", "REP"},
+            {"NPUW_ONLINE_ISOLATE", "MOE"},
+            {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
+            {"NPUW_UNFOLD_IREQS", "NO"},
+        };
         merge_config_with(stage_config, expert_opts);
     } else if (moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
-        NPUW_ASSERT(false && "MoE DEVICE_ROUTED is not yet implemented! "
-                             "DEVICE_ROUTED will use in-graph gather-based expert selection to avoid "
-                             "graph splitting and reduce host-device communication overhead. "
-                             "This feature is planned for future releases.");
+        if (stage_name == "PREFILL") {
+            NPUW_ASSERT(false && "MoE DEVICE_ROUTED is not supported for PREFILL stage. "
+                                 "DEVICE_ROUTED mode uses in-graph gather-based expert selection which is only "
+                                 "optimized for GENERATE stage. Please use HOST_ROUTED or DENSE for PREFILL.");
+        }
+        stage_config["NPUW_UNFOLD_IREQS"] = "NO";
     } else if (moe_hint == ::intel_npu::npuw::llm::MoEHint::DENSE) {
-        LOG_INFO("MoE architecture optimization for " << stage_name << " stage: DENSE (all experts active)");
+        LOG_INFO("MoE config for " << stage_name << " stage: DENSE (all experts active)");
         // DENSE mode requires CPU-only device due to extremely long NPU compilation time and high resource consumption
         auto npuw_devices =
             stage_config.count("NPUW_DEVICES") ? stage_config.at("NPUW_DEVICES").as<std::string>() : "NPU";
@@ -1390,6 +1392,23 @@ void apply_moe_optimizations(ov::AnyMap& stage_config,
                     "DENSE activates all experts simultaneously, causing extremely long NPU compilation time. "
                     "Please set NPUW_DEVICES to 'CPU'.");
     }
+}
+
+// Apply DEVICE_ROUTED MoE transformations to models
+void apply_moe_device_routed_transforms(std::vector<std::shared_ptr<ov::Model>>& model_variants) {
+    LOG_INFO("Applying DEVICE_ROUTED MoE transformations...");
+    ov::npuw::pass::DeviceRoutedMoETransform moe_transform;
+    ov::npuw::pass::GatherTo2DGather gather_transform;
+
+    for (auto& model : model_variants) {
+        moe_transform.run_on_model(model);
+        LOG_DEBUG("  Applied DEVICE_ROUTED transformations to model variant");
+
+        // Apply Gather to 2D Gather transformation for HW optimization
+        gather_transform.run_on_model(model);
+        LOG_DEBUG("  Applied GatherTo2DGather transformation to model variant");
+    }
+    LOG_INFO("DEVICE_ROUTED MoE transformations completed");
 }
 
 }  // namespace
@@ -1599,6 +1618,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_is_eagle = use_eagle_key.value_or(false).as<bool>() == true;
     if (m_is_eagle) {
         LOG_INFO("Eagle3 speculative decoding mode enabled");
+    }
+
+    // Auto-detect MoE model by scanning for router/expert nodes
+    const bool is_moe = is_moe_model(model);
+    if (is_moe) {
+        // Only apply MoE defaults if not explicitly set in external config
+        if (npuw_llm_props.find("NPUW_LLM_SHARED_HEAD") == npuw_llm_props.end()) {
+            m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
+        }
+        if (npuw_llm_props.find("NPUW_LLM_GENERATE_HINT") == npuw_llm_props.end()) {
+            m_cfg.update({{"NPUW_LLM_GENERATE_HINT", "BEST_PERF"}});
+        }
     }
 
     // NB: PREFILL_HINT is now compatible with the PREFILL_CONFIG section, unlike for
@@ -1879,16 +1910,19 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         merge_config_with(generate_config, dyn_attn_opts);
     }
 
-    // Auto-detect MoE model by scanning for router/expert nodes
-    const bool is_moe = is_moe_model(kvcache_model);
     if (is_moe) {
-        // Apply MoE optimizations for prefill stage
+        // Apply MoE configuration for prefill stage
         const auto prefill_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>();
-        apply_moe_optimizations(prefill_config, prefill_moe_hint, "PREFILL");
+        apply_moe_config(prefill_config, prefill_moe_hint, "PREFILL");
 
-        // Apply MoE optimizations for generate stage
+        // Apply MoE configuration for generate stage
         const auto generate_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>();
-        apply_moe_optimizations(generate_config, generate_moe_hint, "GENERATE");
+        apply_moe_config(generate_config, generate_moe_hint, "GENERATE");
+
+        // Apply model transformations only to GENERATE stage (PREFILL doesn't support DEVICE_ROUTED transformations)
+        if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
+            apply_moe_device_routed_transforms(generate_model_variants);
+        }
     }
 
     // Note: with dynamic attention in EITHER STAGE, we have to

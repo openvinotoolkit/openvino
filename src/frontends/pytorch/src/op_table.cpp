@@ -802,7 +802,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"prim::NumToTensor", op::skip_node},  // In openvino we already store number as tensor with shape []
         {"prim::PythonOp", op::translate_pythonop},
         {"prim::requires_grad", op::return_false_scalar},
-        // prim::TupleConstruct - Supported in limited set of patterns
+        {"prim::TupleConstruct", op::translate_list_construct},
         {"prim::TupleIndex", op::translate_tuple_index},
         {"prim::TupleUnpack", op::translate_tuple_unpack},
         {"prim::type", op::skip_node},  // Used with prim::device, pass PtFrameworkNode.
@@ -1117,7 +1117,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"quantized_decomposed.quantize_per_channel.default", op::translate_quantize_per_channel_fx},
         {"quantized_decomposed.dequantize_per_tensor.default", op::skip_node},
         {"quantized_decomposed.dequantize_per_channel.default", op::skip_node},
-        {"inlined.constant.default", op::translate_constant},  // this is a custom ov type
+        {"inlined.constant.default", op::translate_constant},    // this is a custom ov type
+        {"inlined.list.default", op::translate_list_construct},  // this is a custom list type
         // Higher-order operations from torch.export (torch.cond, torch.while_loop, etc.)
         {"cond", op::translate_cond_fx},
         {"while_loop", op::translate_while_loop_fx},

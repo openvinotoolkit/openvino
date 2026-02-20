@@ -202,7 +202,8 @@ void Proposal::execute([[maybe_unused]] const dnnl::stream& strm) {
                                                   roi_indices.data(),
                                                   outRoiData,
                                                   outProbData,
-                                                  conf);
+                                                  conf,
+                                                  context->getCpuParallel());
     } catch (const ov::Exception& e) {
         CPU_NODE_THROW(e.what());
     }

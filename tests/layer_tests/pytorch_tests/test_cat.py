@@ -86,8 +86,7 @@ class aten_cat_single_complex(aten_cat_complex):
 
 class TestCat(PytorchLayerTest):
     def _prepare_input(self, out=False, num_repeats=2):
-        import numpy as np
-        data = np.random.randn(3, 1, 2)
+        data = self.random.randn(3, 1, 2)
         if not out:
             return (data, )
         concat = [data for _ in range(num_repeats)]
@@ -100,7 +99,7 @@ class TestCat(PytorchLayerTest):
     @pytest.mark.parametrize("out", [False, True])
     def test_cat(self, out, ie_device, precision, ir_version):
         model = aten_cat() if not out else aten_cat_out()
-        self._test(model, None, ["aten::cat", "prim::ListConstruct"],
+        self._test(model, ["aten::cat", "prim::ListConstruct"],
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"out": out, "num_repeats": 2})
 
@@ -108,7 +107,7 @@ class TestCat(PytorchLayerTest):
     @pytest.mark.precommit
     def test_single_cat(self, ie_device, precision, ir_version):
         model = aten_single_cat()
-        self._test(model, None, ["aten::cat", "prim::ListConstruct"],
+        self._test(model, ["aten::cat", "prim::ListConstruct"],
                    ie_device, precision, ir_version)
 
 
@@ -117,7 +116,7 @@ class TestCat(PytorchLayerTest):
     @pytest.mark.parametrize("out", [False, True])
     def test_append_cat(self, out, ie_device, precision, ir_version):
         model = aten_append_cat() if not out else aten_append_cat_out()
-        self._test(model, None, ["aten::cat", "aten::append", "prim::ListConstruct"],
+        self._test(model, ["aten::cat", "aten::append", "prim::ListConstruct"],
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"out": out, "num_repeats": 2})
 
@@ -126,7 +125,7 @@ class TestCat(PytorchLayerTest):
     @pytest.mark.parametrize("out", [False, pytest.param(True, marks=pytest.mark.xfail(reason="out case is not supported"))])
     def test_loop_append_cat(self, out, ie_device, precision, ir_version):
         model = aten_loop_append_cat() if not out else aten_loop_append_cat_out()
-        self._test(model, None, ["aten::cat", "aten::append", "prim::ListConstruct", "prim::Loop"],
+        self._test(model, ["aten::cat", "aten::append", "prim::ListConstruct", "prim::Loop"],
                    ie_device, precision, ir_version, freeze_model=False,
                    kwargs_to_prepare_input={"out": out, "num_repeats": 3})
 
@@ -135,7 +134,7 @@ class TestCat(PytorchLayerTest):
     @pytest.mark.parametrize("out", [False, True])
     def test_add_cat(self, out, ie_device, precision, ir_version):
         model = aten_add_cat() if not out else aten_add_cat_out()
-        self._test(model, None, ["aten::cat", "aten::add", "prim::ListConstruct"],
+        self._test(model, ["aten::cat", "aten::add", "prim::ListConstruct"],
                    ie_device, precision, ir_version, freeze_model=False,
                    kwargs_to_prepare_input={"out": out, "num_repeats": 4})
 
@@ -143,14 +142,14 @@ class TestCat(PytorchLayerTest):
     @pytest.mark.precommit
     def test_cat_complex(self, ie_device, precision, ir_version):
         model = aten_cat_complex()
-        self._test(model, None, ["aten::cat", "prim::ListConstruct"],
+        self._test(model, ["aten::cat", "prim::ListConstruct"],
                    ie_device, precision, ir_version, freeze_model=False)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_cat_single_complex(self, ie_device, precision, ir_version):
         model = aten_cat_single_complex()
-        self._test(model, None, ["aten::cat", "prim::ListConstruct"],
+        self._test(model, ["aten::cat", "prim::ListConstruct"],
                    ie_device, precision, ir_version, freeze_model=False)
 
 
@@ -158,7 +157,7 @@ class TestCatAlignTypes(PytorchLayerTest):
     def _prepare_input(self, in_types):
         in_vals = []
         for dtype in in_types:
-            in_vals.append(np.random.randn(2, 1, 3).astype(dtype))
+            in_vals.append(self.random.randn(2, 1, 3, dtype=dtype))
         return in_vals
 
     def create_model(self, in_count):
@@ -201,21 +200,21 @@ class TestCatAlignTypes(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_align_types_cat(self, ie_device, precision, ir_version, in_types, trace_model):
-        self._test(self.create_model(len(in_types)), None, ["aten::cat", "prim::ListConstruct"],
+        self._test(self.create_model(len(in_types)), ["aten::cat", "prim::ListConstruct"],
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"in_types": in_types}, trace_model=trace_model)
 
 
 class TestCatAlignTypesPT(PytorchLayerTest):
     def _prepare_input(self, in_types):
-        in_vals = [np.random.randn(2, 2, 3).astype(in_types[0])]
+        in_vals = [self.random.randn(2, 2, 3, dtype=in_types[0])]
         return in_vals
 
     def create_model_param_first(self, in_types):
         class aten_align_types_cat_two_args(torch.nn.Module):
-            def __init__(self):
-                super(aten_align_types_cat_two_args, self).__init__()
-                self.y = torch.randn(2, 1, 3).to(in_types[1])
+            def __init__(self, rng):
+                super().__init__()
+                self.y = rng.torch_randn(2, 1, 3).to(in_types[1])
 
             def forward(self, x):
                 x_ = torch.split(x, 1, 1)[1]
@@ -223,10 +222,10 @@ class TestCatAlignTypesPT(PytorchLayerTest):
                 return torch.cat(ins, 1)
 
         class aten_align_types_cat_three_args(torch.nn.Module):
-            def __init__(self):
-                super(aten_align_types_cat_three_args, self).__init__()
-                self.y = torch.randn(2, 1, 3).to(in_types[1])
-                self.z = torch.randn(2, 1, 3).to(in_types[2])
+            def __init__(self, rng):
+                super().__init__()
+                self.y = rng.torch_randn(2, 1, 3).to(in_types[1])
+                self.z = rng.torch_randn(2, 1, 3).to(in_types[2])
 
             def forward(self, x):
                 x_ = torch.split(x, 1, 1)[1]
@@ -235,36 +234,36 @@ class TestCatAlignTypesPT(PytorchLayerTest):
 
         in_count = len(in_types)
         if in_count == 2:
-            return aten_align_types_cat_two_args()
+            return aten_align_types_cat_two_args(self.random)
 
         if in_count == 3:
-            return aten_align_types_cat_three_args()
+            return aten_align_types_cat_three_args(self.random)
 
     def create_model_param_mid(self, in_types):
         class aten_align_types_cat_three_args(torch.nn.Module):
-            def __init__(self):
-                super(aten_align_types_cat_three_args, self).__init__()
-                self.x = torch.randn(2, 1, 3).to(in_types[1])
-                self.z = torch.randn(2, 1, 3).to(in_types[2])
+            def __init__(self, rng):
+                super().__init__()
+                self.x = rng.torch_randn(2, 1, 3).to(in_types[1])
+                self.z = rng.torch_randn(2, 1, 3).to(in_types[2])
 
             def forward(self, y):
                 y_ = torch.split(y, 1, 1)[1]
                 ins = [self.x, y_, self.z]
                 return torch.cat(ins, 1)
-        return aten_align_types_cat_three_args()
+        return aten_align_types_cat_three_args(self.random)
 
     def create_model_param_last(self, in_types):
         class aten_align_types_cat_three_args(torch.nn.Module):
-            def __init__(self):
-                super(aten_align_types_cat_three_args, self).__init__()
-                self.x = torch.randn(2, 1, 3).to(in_types[1])
-                self.y = torch.randn(2, 1, 3).to(in_types[2])
+            def __init__(self, rng):
+                super().__init__()
+                self.x = rng.torch_randn(2, 1, 3).to(in_types[1])
+                self.y = rng.torch_randn(2, 1, 3).to(in_types[2])
 
             def forward(self, z):
                 z_ = torch.split(z, 1, 1)[1]
                 ins = [self.x, self.y, z_]
                 return torch.cat(ins, 1)
-        return aten_align_types_cat_three_args()
+        return aten_align_types_cat_three_args(self.random)
 
     @pytest.mark.parametrize(("in_types"), [
         # Two inputs (param, const)
@@ -293,7 +292,7 @@ class TestCatAlignTypesPT(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_align_types_cat(self, ie_device, precision, ir_version, in_types, trace_model):
-        self._test(self.create_model_param_first(in_types), None, ["aten::cat", "prim::ListConstruct"],
+        self._test(self.create_model_param_first(in_types), ["aten::cat", "prim::ListConstruct"],
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"in_types": in_types}, trace_model=trace_model)
 
@@ -309,7 +308,7 @@ class TestCatAlignTypesPT(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_align_types_cat_param_mid(self, ie_device, precision, ir_version, in_types, trace_model):
-        self._test(self.create_model_param_mid(in_types), None, ["aten::cat", "prim::ListConstruct"],
+        self._test(self.create_model_param_mid(in_types), ["aten::cat", "prim::ListConstruct"],
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"in_types": in_types}, trace_model=trace_model)
 
@@ -325,6 +324,6 @@ class TestCatAlignTypesPT(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_align_types_cat_param_last(self, ie_device, precision, ir_version, in_types, trace_model):
-        self._test(self.create_model_param_last(in_types), None, ["aten::cat", "prim::ListConstruct"],
+        self._test(self.create_model_param_last(in_types), ["aten::cat", "prim::ListConstruct"],
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"in_types": in_types}, trace_model=trace_model)

@@ -37,7 +37,8 @@ class TestTFHubApiNotebooks(TestConvertModel):
             )
             film_layer = hub.KerasLayer(
                 "https://www.kaggle.com/models/google/film/frameworks/tensorFlow2/variations/film/versions/1")(inputs)
-            film_model = tf.keras.Model(inputs=inputs, outputs=list(film_layer.values())[0])
+            # Select 'image' output - the interpolated frame
+            film_model = tf.keras.Model(inputs=inputs, outputs=film_layer['image'])
             return film_model
         else:
             raise "Unknown input model: {}".format(model_name)
