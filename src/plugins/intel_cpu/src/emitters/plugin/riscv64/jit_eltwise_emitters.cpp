@@ -184,12 +184,9 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t>& in_vec_
     auto avl = Reg(aux_gpr_idxs[0]);
     h->csrr(avl, CSR::vl);
 
-    const auto set_vtype = [&](const SEW sew, const LMUL lmul) {
-        set_vector_length(h, 0, sew, aux_gpr_idxs, lmul, &avl);
-    };
     const auto set_type_for = [&](const ov::element::Type& type) {
         const auto [sew, lmul] = getVTypeForElementSize(type);
-        set_vtype(sew, lmul);
+        set_vector_length(h, 0, sew, aux_gpr_idxs, lmul, &avl);
     };
     const auto move_if_needed = [&](const VReg& from, const VReg& to) {
         if (from.getIdx() != to.getIdx()) {
@@ -219,7 +216,6 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t>& in_vec_
         h->vfncvt_f_f_w(to, from);
     };
     const auto widen_i8_to_i32 = [&](const VReg& from, const VReg& to, const bool is_signed) {
-        set_type_for(ov::element::i8);
         set_type_for(ov::element::i32);
         if (is_signed) {
             h->vsext_vf4(to, from);
@@ -236,21 +232,27 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t>& in_vec_
         narrow_i32_to_u8(to, to);
     };
 
+    if (input_type == output_type) {
+        set_type_for(input_type);
+        move_if_needed(src, dst);
+        return;
+    }
+
     if (output_type == ov::element::f32) {
-        if (input_type == ov::element::f32) {
-            set_type_for(ov::element::f32);
-            move_if_needed(src, dst);
-        } else if (input_type == ov::element::f16) {
+        if (input_type == ov::element::f16) {
             widen_f16_to_f32(src, dst);
         } else if (input_type == ov::element::i32) {
-            set_type_for(ov::element::f32);
+            set_type_for(ov::element::i32);
             h->vfcvt_f_x_v(dst, src);
+            set_type_for(ov::element::f32);
         } else if (input_type == ov::element::i8) {
             widen_i8_to_i32(src, dst, true);
             h->vfcvt_f_x_v(dst, dst);
+            set_type_for(ov::element::f32);
         } else if (input_type == ov::element::u8) {
             widen_i8_to_i32(src, dst, false);
             h->vfcvt_f_xu_v(dst, dst);
+            set_type_for(ov::element::f32);
         } else {
             OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
         }
@@ -258,22 +260,22 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t>& in_vec_
     }
 
     if (output_type == ov::element::f16) {
-        if (input_type == ov::element::f16) {
-            set_type_for(ov::element::f16);
-            move_if_needed(src, dst);
-        } else if (input_type == ov::element::f32) {
+        if (input_type == ov::element::f32) {
             narrow_f32_to_f16(src, dst);
         } else if (input_type == ov::element::i32) {
-            set_type_for(ov::element::f32);
+            set_type_for(ov::element::i32);
             h->vfcvt_f_x_v(dst, src);
+            set_type_for(ov::element::f32);
             narrow_f32_to_f16(dst, dst);
         } else if (input_type == ov::element::i8) {
             widen_i8_to_i32(src, dst, true);
             h->vfcvt_f_x_v(dst, dst);
+            set_type_for(ov::element::f32);
             narrow_f32_to_f16(dst, dst);
         } else if (input_type == ov::element::u8) {
             widen_i8_to_i32(src, dst, false);
             h->vfcvt_f_xu_v(dst, dst);
+            set_type_for(ov::element::f32);
             narrow_f32_to_f16(dst, dst);
         } else {
             OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
@@ -283,14 +285,13 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t>& in_vec_
 
     if (output_type == ov::element::i32) {
         if (input_type == ov::element::f32) {
-            set_type_for(ov::element::i32);
+            set_type_for(ov::element::f32);
             h->vfcvt_x_f_v(dst, src);
+            set_type_for(ov::element::i32);
         } else if (input_type == ov::element::f16) {
             widen_f16_to_f32(src, dst);
             h->vfcvt_x_f_v(dst, dst);
-        } else if (input_type == ov::element::i32) {
             set_type_for(ov::element::i32);
-            move_if_needed(src, dst);
         } else if (any_of(input_type, ov::element::i8, ov::element::u8)) {
             widen_i8_to_i32(src, dst, input_type == ov::element::i8);
         } else {
@@ -301,21 +302,20 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t>& in_vec_
 
     if (output_type == ov::element::i8) {
         if (input_type == ov::element::f32) {
-            set_type_for(ov::element::i32);
+            set_type_for(ov::element::f32);
             h->vfcvt_x_f_v(dst, src);
+            set_type_for(ov::element::i32);
             narrow_i32_to_i8(dst, dst);
         } else if (input_type == ov::element::f16) {
             widen_f16_to_f32(src, dst);
             h->vfcvt_x_f_v(dst, dst);
+            set_type_for(ov::element::i32);
             narrow_i32_to_i8(dst, dst);
         } else if (input_type == ov::element::i32) {
             narrow_i32_to_i8(src, dst);
         } else if (input_type == ov::element::u8) {
             widen_i8_to_i32(src, dst, false);
             narrow_i32_to_i8(dst, dst);
-        } else if (input_type == ov::element::i8) {
-            set_type_for(ov::element::i8);
-            move_if_needed(src, dst);
         } else {
             OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
         }
@@ -324,21 +324,20 @@ void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t>& in_vec_
 
     if (output_type == ov::element::u8) {
         if (input_type == ov::element::f32) {
-            set_type_for(ov::element::i32);
+            set_type_for(ov::element::f32);
             h->vfcvt_xu_f_v(dst, src);
+            set_type_for(ov::element::i32);
             narrow_i32_to_u8(dst, dst);
         } else if (input_type == ov::element::f16) {
             widen_f16_to_f32(src, dst);
             h->vfcvt_xu_f_v(dst, dst);
+            set_type_for(ov::element::i32);
             narrow_i32_to_u8(dst, dst);
         } else if (input_type == ov::element::i32) {
             saturate_i32_to_u8(src, dst);
         } else if (input_type == ov::element::i8) {
             widen_i8_to_i32(src, dst, true);
             saturate_i32_to_u8(dst, dst);
-        } else if (input_type == ov::element::u8) {
-            set_type_for(ov::element::i8);
-            move_if_needed(src, dst);
         } else {
             OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
         }
@@ -395,12 +394,9 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_
     auto avl = Reg(aux_gpr_idxs[0]);
     h->csrr(avl, CSR::vl);
 
-    const auto set_vtype = [&](const SEW sew, const LMUL lmul) {
-        set_vector_length(h, 0, sew, aux_gpr_idxs, lmul, &avl);
-    };
     const auto set_type_for = [&](const ov::element::Type& type) {
         const auto [sew, lmul] = getVTypeForElementSize(type);
-        set_vtype(sew, lmul);
+        set_vector_length(h, 0, sew, aux_gpr_idxs, lmul, &avl);
     };
     const auto move_if_needed = [&](const VReg& from, const VReg& to) {
         if (from.getIdx() != to.getIdx()) {
@@ -409,14 +405,12 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_
     };
 
     const auto truncate_i32_to_i8 = [&](const VReg& from, const VReg& to) {
-        // Implement wrap-around conversion by narrowing without saturation.
         set_type_for(ov::element::i16);
         h->vnsra_wi(to, from, 0);
         set_type_for(ov::element::i8);
         h->vnsra_wi(to, to, 0);
     };
     const auto truncate_i32_to_u8 = [&](const VReg& from, const VReg& to) {
-        // Implement wrap-around conversion by narrowing without saturation.
         set_type_for(ov::element::i16);
         h->vnsrl_wi(to, from, 0);
         set_type_for(ov::element::i8);
@@ -432,7 +426,6 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_
         h->vfncvt_f_f_w(to, from);
     };
     const auto widen_i8_to_i32 = [&](const VReg& from, const VReg& to, const bool is_signed) {
-        set_type_for(ov::element::i8);
         set_type_for(ov::element::i32);
         if (is_signed) {
             h->vsext_vf4(to, from);
@@ -441,21 +434,27 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_
         }
     };
 
+    if (input_type == output_type) {
+        set_type_for(input_type);
+        move_if_needed(src, dst);
+        return;
+    }
+
     if (output_type == ov::element::f32) {
-        if (input_type == ov::element::f32) {
-            set_type_for(ov::element::f32);
-            move_if_needed(src, dst);
-        } else if (input_type == ov::element::f16) {
+        if (input_type == ov::element::f16) {
             widen_f16_to_f32(src, dst);
         } else if (input_type == ov::element::i32) {
-            set_type_for(ov::element::f32);
+            set_type_for(ov::element::i32);
             h->vfcvt_f_x_v(dst, src);
+            set_type_for(ov::element::f32);
         } else if (input_type == ov::element::i8) {
             widen_i8_to_i32(src, dst, true);
             h->vfcvt_f_x_v(dst, dst);
+            set_type_for(ov::element::f32);
         } else if (input_type == ov::element::u8) {
             widen_i8_to_i32(src, dst, false);
             h->vfcvt_f_xu_v(dst, dst);
+            set_type_for(ov::element::f32);
         } else {
             OV_CPU_JIT_EMITTER_THROW("Unsupported conversion: ", input_type, " -> ", output_type);
         }
@@ -463,13 +462,10 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_
     }
 
     if (output_type == ov::element::f16) {
-        if (input_type == ov::element::f16) {
-            set_type_for(ov::element::f16);
-            move_if_needed(src, dst);
-        } else if (input_type == ov::element::f32) {
+        if (input_type == ov::element::f32) {
             narrow_f32_to_f16(src, dst);
         } else if (input_type == ov::element::i32) {
-            set_type_for(ov::element::f32);
+            set_type_for(ov::element::i32);
             h->vfcvt_f_x_v(dst, src);
             narrow_f32_to_f16(dst, dst);
         } else if (input_type == ov::element::i8) {
@@ -488,14 +484,13 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_
 
     if (output_type == ov::element::i32) {
         if (input_type == ov::element::f32) {
-            set_type_for(ov::element::i32);
+            set_type_for(ov::element::f32);
             h->vfcvt_rtz_x_f_v(dst, src);
+            set_type_for(ov::element::i32);
         } else if (input_type == ov::element::f16) {
             widen_f16_to_f32(src, dst);
             h->vfcvt_rtz_x_f_v(dst, dst);
-        } else if (input_type == ov::element::i32) {
             set_type_for(ov::element::i32);
-            move_if_needed(src, dst);
         } else if (any_of(input_type, ov::element::i8, ov::element::u8)) {
             widen_i8_to_i32(src, dst, input_type == ov::element::i8);
         } else {
@@ -506,16 +501,18 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_
 
     if (output_type == ov::element::i8) {
         if (input_type == ov::element::f32) {
-            set_type_for(ov::element::i32);
+            set_type_for(ov::element::f32);
             h->vfcvt_rtz_x_f_v(dst, src);
+            set_type_for(ov::element::i32);
             truncate_i32_to_i8(dst, dst);
         } else if (input_type == ov::element::f16) {
             widen_f16_to_f32(src, dst);
             h->vfcvt_rtz_x_f_v(dst, dst);
+            set_type_for(ov::element::i32);
             truncate_i32_to_i8(dst, dst);
         } else if (input_type == ov::element::i32) {
             truncate_i32_to_i8(src, dst);
-        } else if (any_of(input_type, ov::element::i8, ov::element::u8)) {
+        } else if (input_type == ov::element::u8) {
             set_type_for(ov::element::i8);
             move_if_needed(src, dst);
         } else {
@@ -526,16 +523,18 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_
 
     if (output_type == ov::element::u8) {
         if (input_type == ov::element::f32) {
-            set_type_for(ov::element::i32);
+            set_type_for(ov::element::f32);
             h->vfcvt_rtz_x_f_v(dst, src);
+            set_type_for(ov::element::i32);
             truncate_i32_to_u8(dst, dst);
         } else if (input_type == ov::element::f16) {
             widen_f16_to_f32(src, dst);
             h->vfcvt_rtz_x_f_v(dst, dst);
+            set_type_for(ov::element::i32);
             truncate_i32_to_u8(dst, dst);
         } else if (input_type == ov::element::i32) {
             truncate_i32_to_u8(src, dst);
-        } else if (any_of(input_type, ov::element::i8, ov::element::u8)) {
+        } else if (input_type == ov::element::i8) {
             set_type_for(ov::element::i8);
             move_if_needed(src, dst);
         } else {
