@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "dynamic_graph.hpp"
 #include "graph.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
@@ -29,7 +30,7 @@ namespace intel_npu {
 PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
     : _zeroInitStruct(zeroInitStruct),
       _logger("PluginCompilerAdapter", Logger::global().level()) {
-    _logger.debug("initialize PluginCompilerAdapter start");
+    _logger.info("initialize PluginCompilerAdapter start");
 
     _logger.info("Loading PLUGIN compiler");
     try {
@@ -69,6 +70,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     ov::Tensor tensor;
     tensor = std::move(networkDesc.compiledNetworkTensor);
 
+    if (config.get<COMPILATION_MODE>() == "HostCompile") {
+        // no _compiler::parse call is required. networkmetadata will be obtained in DynamicGraph constructor
+        _logger.debug("blob is not ELF format, create graph for LLVM IR!");
+        return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), true, config, _compiler);
+    }
+
     GraphDescriptor graphDesc;
     NetworkMetadata networkMeta;
 
@@ -99,7 +106,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         _compiler);
 }
 
-std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
+std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
                                                          const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compileWS");
     _logger.debug("compile start");
@@ -241,18 +248,33 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         initGraphDescriptors,
         std::move(initNetworkMetadata),
         tensorsInits,
-        model,
+        std::move(model),
         localConfig,
         /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
         _compiler);
 }
 
-std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
-    const ov::Tensor& mainBlob,
-    const FilteredConfig& config,
-    const std::optional<std::vector<ov::Tensor>>& initBlobs,
-    const std::optional<std::shared_ptr<const ov::Model>>& model) const {
+std::shared_ptr<IGraph> PluginCompilerAdapter::parse(const ov::Tensor& mainBlob,
+                                                     const FilteredConfig& config,
+                                                     const std::optional<std::vector<ov::Tensor>>& initBlobs,
+                                                     std::optional<std::shared_ptr<const ov::Model>>&& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
+
+    const void* data = mainBlob.data();
+    size_t size = mainBlob.get_byte_size();
+    std::string header;
+    if (size >= 20) {
+        header.assign(static_cast<const char*>(data), 20);
+    } else {
+        header.assign(static_cast<const char*>(data), size);
+    }
+    if (header.find("ELF") == std::string::npos) {
+        // no _compiler::parse call is required. networkmetadata will be obtained in DynamicGraph constructor
+        _logger.debug("blob is not ELF format, create graph for LLVM IR!");
+        return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(mainBlob), true, config, _compiler);
+    } else {
+        _logger.debug("blob is ELF format, create graph for elf blob!");
+    }
 
     GraphDescriptor mainGraphDesc;
     NetworkMetadata mainNetworkMetadata;
@@ -312,7 +334,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
                                              initGraphDescriptors,
                                              std::move(initNetworkMetadata),
                                              initBlobs,
-                                             model.value(),
+                                             std::move(model.value()),
                                              config,
                                              blobIsPersistent,
                                              _compiler);
