@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 #include <sstream>
@@ -98,6 +99,16 @@ namespace detail {
 template <class T>
 void check_condition(const T&) noexcept {}
 
+[[noreturn]] inline void unreachable_after_throw() noexcept {
+#if defined(__GNUC__) || defined(__clang__)
+    __builtin_unreachable();
+#elif defined(_MSC_VER)
+    __assume(0);
+#else
+    std::abort();
+#endif
+}
+
 template <typename CharT,
           std::size_t N,
           std::enable_if_t<std::is_same_v<CharT, char> || std::is_same_v<CharT, wchar_t> ||
@@ -189,21 +200,23 @@ void check_condition(const CharT (&)[N]) noexcept {
 //
 #define OPENVINO_ASSERT_HELPER2(exc_class, ctx, check, ...)                      \
     do {                                                                         \
-        auto check_result = static_cast<bool>(check);                            \
-        OPENVINO_CHECK_CONDITION(check_result);                                  \
+        OPENVINO_CHECK_CONDITION(check);                                         \
+        const bool check_result = static_cast<bool>(check);                      \
         if (!check_result) {                                                     \
             ::std::ostringstream ss___;                                          \
             ::ov::write_all_to_stream(ss___, __VA_ARGS__);                       \
             exc_class::create(__FILE__, __LINE__, (#check), (ctx), ss___.str()); \
+            ::ov::detail::unreachable_after_throw();                             \
         }                                                                        \
     } while (0)
 
 #define OPENVINO_ASSERT_HELPER1(exc_class, ctx, check)                                      \
     do {                                                                                    \
-        auto check_result = static_cast<bool>(check);                                       \
-        OPENVINO_CHECK_CONDITION(check_result);                                             \
+        OPENVINO_CHECK_CONDITION(check);                                                    \
+        const bool check_result = static_cast<bool>(check);                                 \
         if (!check_result) {                                                                \
             exc_class::create(__FILE__, __LINE__, (#check), (ctx), exc_class::default_msg); \
+            ::ov::detail::unreachable_after_throw();                                        \
         }                                                                                   \
     } while (0)
 
@@ -216,11 +229,13 @@ void check_condition(const CharT (&)[N]) noexcept {
         ::std::ostringstream ss___;                         \
         ::ov::write_all_to_stream(ss___, __VA_ARGS__);      \
         exc_class::create(__FILE__, __LINE__, ss___.str()); \
+        ::ov::detail::unreachable_after_throw();            \
     } while (0)
 
 #define OPENVINO_THROW_HELPER1(exc_class, ctx, explanation)                  \
     do {                                                                     \
         exc_class::create(__FILE__, __LINE__, ::ov::stringify(explanation)); \
+        ::ov::detail::unreachable_after_throw();                             \
     } while (0)
 
 #define OPENVINO_THROW_HELPER(exc_class, ctx, ...) CALL_OVERLOAD(OPENVINO_THROW_HELPER, exc_class, ctx, __VA_ARGS__)
