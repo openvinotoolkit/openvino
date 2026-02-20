@@ -36,6 +36,24 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
 
       The ``openvino-dev`` metapackage has been discontinued. Use the ``openvino`` package and enable optional framework integrations with extras such as ``openvino[tensorflow2]`` or ``openvino[onnx]``.
 
+.. dropdown:: ``pip install --no-binary openvino openvino`` fails
+
+   Installation from source distribution requires local build tools and Python build dependencies.
+   Before retrying installation, update your packaging tools:
+
+   .. code-block:: sh
+
+      python -m pip install --upgrade pip setuptools wheel cmake
+
+   Then run:
+
+   .. code-block:: sh
+
+      python -m pip install --no-binary openvino openvino
+
+   If the issue persists, verify your compiler toolchain and system dependencies using
+   :doc:`System Requirements <../../../about-openvino/release-notes-openvino/system-requirements>`.
+
 .. dropdown:: ImportError: cannot import name 'Core' from 'openvino'
 
    This error may appear on systems lacking C++ components. Since it is almost exclusively a

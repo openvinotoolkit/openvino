@@ -90,6 +90,17 @@ Use the following command to install either the base or GenAI OpenVINO package:
 
    python -m pip install openvino
 
+If you want to install from source distribution (sdist), use the following command:
+
+.. code-block:: python
+
+   python -m pip install --no-binary openvino openvino
+
+.. note::
+
+   Installing from source distribution requires build tools and may take more time
+   than wheel-based installation.
+
 Step 5. Verify that the Package Is Installed
 ++++++++++++++++++++++++++++++++++++++++++++
 
