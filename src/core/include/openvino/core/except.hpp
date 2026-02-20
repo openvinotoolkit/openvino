@@ -97,7 +97,20 @@ protected:
 namespace detail {
 
 template <class T>
-void check_condition(const T&) noexcept {}
+struct condition_checker {
+    static void validate() noexcept {}
+};
+
+template <typename CharT, std::size_t N>
+struct condition_checker<CharT[N]> {
+    static void validate() noexcept {
+        constexpr bool is_char_type = std::is_same_v<CharT, char> || std::is_same_v<CharT, wchar_t> ||
+                                      std::is_same_v<CharT, char16_t> || std::is_same_v<CharT, char32_t>;
+        static_assert(!is_char_type,
+                      "OPENVINO_ASSERT: string literal used as condition (always true). "
+                      "Did you mean to compare strings or check a pointer?");
+    }
+};
 
 [[noreturn]] inline void unreachable_after_throw() noexcept {
 #if defined(__GNUC__) || defined(__clang__)
@@ -107,17 +120,6 @@ void check_condition(const T&) noexcept {}
 #else
     std::abort();
 #endif
-}
-
-template <typename CharT,
-          std::size_t N,
-          std::enable_if_t<std::is_same_v<CharT, char> || std::is_same_v<CharT, wchar_t> ||
-                               std::is_same_v<CharT, char16_t> || std::is_same_v<CharT, char32_t>,
-                           int> = 0>
-void check_condition(const CharT (&)[N]) noexcept {
-    static_assert(N == 0,
-                  "OPENVINO_ASSERT: string literal used as condition (always true). "
-                  "Did you mean to compare strings or check a pointer?");
 }
 
 }  // namespace detail
@@ -131,7 +133,8 @@ void check_condition(const CharT (&)[N]) noexcept {
 // Always enabled to ensure these errors are caught in all builds including CI.
 //
 #ifndef NDEBUG
-#    define OPENVINO_CHECK_CONDITION(check) ::ov::detail::check_condition(check)
+#    define OPENVINO_CHECK_CONDITION(check) \
+        ::ov::detail::condition_checker<std::remove_cv_t<std::remove_reference_t<decltype(check)>>>::validate()
 #else
 #    define OPENVINO_CHECK_CONDITION(check)
 #endif
