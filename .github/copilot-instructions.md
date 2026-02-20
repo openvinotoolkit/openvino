@@ -84,6 +84,8 @@ Before posting any comment, apply this gate:
 ### Bindings and Public APIs
 - For changes to existing public APIs, verify backward compatibility with previously released OpenVINO versions.
 - If public C++ API changes, verify corresponding binding updates in `src/bindings/python`, `src/bindings/c`, and `src/bindings/js` when applicable.
+- For Python API changes to operators, when corresponding files are in scope, verify docstrings, inputs, and typing align with Core implementation and binding behavior.
+- For Python API and bindings changes, flag new avoidable C++↔Python data copies and unnecessary pure-Python wrappers around existing compiled bindings.
 - Require docs updates for user-visible behavior changes (`docs/`, release notes when relevant).
 
 ### CI / Build / Dependencies
