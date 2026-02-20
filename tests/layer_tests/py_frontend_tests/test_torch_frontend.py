@@ -1062,15 +1062,6 @@ def test_patched_16bit_model_with_bmm():
         res_ref = model_ref(*example)
 
     try:
-        model_fp16 = copy.deepcopy(model_ref).half()
-        patch_model.__make_16bit_traceable(model_fp16)
-        with torch.no_grad():
-            converted_model = convert_model(model_fp16, example_input=example)
-        assert converted_model
-        cm_fp16 = compile_model(converted_model, "CPU")
-        res_fp16 = cm_fp16([x.numpy() for x in example])
-        np.testing.assert_allclose(res_fp16[0], res_ref.numpy(), atol=1e-2)
-
         model_bf16 = copy.deepcopy(model_ref).bfloat16()
         patch_model.__make_16bit_traceable(model_bf16)
         with torch.no_grad():
@@ -1079,6 +1070,15 @@ def test_patched_16bit_model_with_bmm():
         cm_bf16 = compile_model(converted_model, "CPU")
         res_bf16 = cm_bf16([x.numpy() for x in example])
         np.testing.assert_allclose(res_bf16[0], res_ref.numpy(), atol=1e-2)
+
+        model_fp16 = copy.deepcopy(model_ref).half()
+        patch_model.__make_16bit_traceable(model_fp16)
+        with torch.no_grad():
+            converted_model = convert_model(model_fp16, example_input=example)
+        assert converted_model
+        cm_fp16 = compile_model(converted_model, "CPU")
+        res_fp16 = cm_fp16([x.numpy() for x in example])
+        np.testing.assert_allclose(res_fp16[0], res_ref.numpy(), atol=1e-2)
     finally:
         patch_model._unpatch_torch_functions()
 
