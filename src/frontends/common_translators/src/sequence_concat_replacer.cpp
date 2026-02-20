@@ -175,21 +175,22 @@ bool rewrite_loop_concat(const std::shared_ptr<ov::frontend::ConcatFromSequence>
 
     // Fix input descriptions: adjust indices for removed parameter/input
     std::vector<std::shared_ptr<v5::Loop::InputDescription>> in_descs;
-    for (auto desc : loop->get_input_descriptions()) {
-        if (remove_seq_input && desc->m_input_index == seq_input_idx)
+    for (const auto& desc : loop->get_input_descriptions()) {
+        auto d = desc->copy();
+        if (remove_seq_input && d->m_input_index == seq_input_idx)
             continue;
-        if (remove_seq_input && desc->m_input_index > seq_input_idx)
-            desc->m_input_index--;
-        if (auto merged = std::dynamic_pointer_cast<v5::Loop::MergedInputDescription>(desc))
+        if (remove_seq_input && d->m_input_index > seq_input_idx)
+            d->m_input_index--;
+        if (auto merged = std::dynamic_pointer_cast<v5::Loop::MergedInputDescription>(d))
             if (merged->m_body_value_index > static_cast<size_t>(seq_result_idx))
                 merged->m_body_value_index--;
         if (remove_seq_input) {
-            if (desc->m_body_parameter_index == seq_param_idx)
+            if (d->m_body_parameter_index == seq_param_idx)
                 continue;
-            if (desc->m_body_parameter_index > seq_param_idx)
-                desc->m_body_parameter_index--;
+            if (d->m_body_parameter_index > seq_param_idx)
+                d->m_body_parameter_index--;
         }
-        in_descs.push_back(desc);
+        in_descs.push_back(d);
     }
 
     // Create new Loop
