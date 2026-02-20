@@ -339,16 +339,14 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
     }
 
     CHECK_VALID_NODE(node,
-                     state_parameters.size() >= loop_carried_dependencies.size(),
+                     state_parameters.size() == loop_carried_dependencies.size(),
                      "The provided loop body state parameters size (",
                      state_parameters.size(),
-                     ") is smaller than the number of loop carried dependencies (",
+                     ") must match the number of loop carried dependencies (",
                      loop_carried_dependencies.size(),
                      ")");
 
-    // Sequence-carry patterns may produce more state parameters than carried dependencies;
-    // map only the available pairs.
-    const auto mapped = std::min(state_parameters.size(), loop_carried_dependencies.size());
+    const auto mapped = loop_carried_dependencies.size();
 
     // Infer loop body inputs' element type based on carried dependencies
     for (size_t i = 0; i < mapped; i++) {
@@ -392,12 +390,6 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
         loop->set_merged_input(*body_inputs_it++, loop_carried_dependencies[i], *body_outputs_it);
         final_values.push_back(loop->get_iter_value(*body_outputs_it++, -1));
     }
-    // Skip body outputs corresponding to extra state parameters (not backed by carried dependencies)
-    if (state_parameters.size() > loop_carried_dependencies.size()) {
-        const auto extra_params = state_parameters.size() - loop_carried_dependencies.size();
-        std::advance(body_outputs_it, extra_params);
-    }
-
     for (const auto& [param, value] : invariant_inputs) {
         FRONT_END_GENERAL_CHECK(value.get_node() != nullptr,
                                 "Non-existent connection in body-graph to " + param->get_friendly_name());

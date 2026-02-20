@@ -706,6 +706,7 @@ void InputModel::InputModelONNXImpl::load_model() {
             if (tensor_place_registered->is_input())
                 m_inputs.push_back(tensor_place_registered);
             if (tensor_decoder->get_output_idx() >= 0) {
+                tensor_place_registered->set_output_index(tensor_decoder->get_output_idx());
                 m_outputs.push_back(tensor_place_registered);
                 output_indices.push_back(tensor_decoder->get_output_idx());
             }

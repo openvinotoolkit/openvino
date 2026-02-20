@@ -12,6 +12,7 @@
 #include <exception>
 #include <fstream>
 #include <map>
+#include <queue>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -163,40 +164,66 @@ void topological_sort_graph(GraphProto* graph) {
         collect_node_dependencies(graph->node(i), node_deps[i]);
     }
 
-    // Kahn's algorithm: repeatedly add nodes whose dependencies are satisfied
-    std::vector<NodeProto> sorted_nodes;
-    sorted_nodes.reserve(num_nodes);
-    std::vector<bool> processed(num_nodes, false);
+    // Build producer map for node outputs
+    std::unordered_map<std::string, int> producer_by_tensor;
+    producer_by_tensor.reserve(num_nodes * 2);
+    for (int i = 0; i < num_nodes; ++i) {
+        for (const auto& out : graph->node(i).output()) {
+            if (!out.empty()) {
+                producer_by_tensor.emplace(out, i);
+            }
+        }
+    }
 
-    for (int added = 0; added < num_nodes; ++added) {
-        bool found = false;
-        for (int i = 0; i < num_nodes; ++i) {
-            if (processed[i]) {
+    // Build dependency graph: producer -> consumer and indegree per consumer.
+    // Also track dependencies that are neither known graph inputs/initializers
+    // nor produced by any node in this graph.
+    std::vector<std::vector<int>> adjacency(num_nodes);
+    std::vector<int> indegree(num_nodes, 0);
+    std::vector<int> unresolved_external(num_nodes, 0);
+    for (int i = 0; i < num_nodes; ++i) {
+        for (const auto& dep : node_deps[i]) {
+            if (known_tensors.count(dep) > 0) {
                 continue;
             }
-            // Check if all dependencies are satisfied
-            bool ready = true;
-            for (const auto& dep : node_deps[i]) {
-                if (known_tensors.count(dep) == 0) {
-                    ready = false;
-                    break;
-                }
-            }
-            if (ready) {
-                sorted_nodes.push_back(graph->node(i));
-                processed[i] = true;
-                found = true;
-                for (const auto& out : graph->node(i).output()) {
-                    if (!out.empty()) {
-                        known_tensors.insert(out);
-                    }
-                }
-                break;
+            if (const auto producer_it = producer_by_tensor.find(dep); producer_it != producer_by_tensor.end()) {
+                adjacency[producer_it->second].push_back(i);
+                ++indegree[i];
+            } else {
+                ++unresolved_external[i];
             }
         }
-        if (!found) {
-            return;  // Cycle detected or missing input - keep original order
+    }
+
+    // Kahn's algorithm: queue nodes with all dependencies satisfied
+    std::queue<int> ready_nodes;
+    for (int i = 0; i < num_nodes; ++i) {
+        if (indegree[i] == 0 && unresolved_external[i] == 0) {
+            ready_nodes.push(i);
         }
+    }
+
+    std::vector<NodeProto> sorted_nodes;
+    sorted_nodes.reserve(num_nodes);
+    int processed_nodes = 0;
+
+    while (!ready_nodes.empty()) {
+        const int node_idx = ready_nodes.front();
+        ready_nodes.pop();
+
+        sorted_nodes.push_back(graph->node(node_idx));
+        ++processed_nodes;
+
+        for (const auto consumer_idx : adjacency[node_idx]) {
+            --indegree[consumer_idx];
+            if (indegree[consumer_idx] == 0 && unresolved_external[consumer_idx] == 0) {
+                ready_nodes.push(consumer_idx);
+            }
+        }
+    }
+
+    if (processed_nodes != num_nodes) {
+        return;  // Cycle detected or missing input - keep original order
     }
 
     // Replace graph nodes with sorted order

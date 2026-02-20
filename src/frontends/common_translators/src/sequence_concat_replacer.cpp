@@ -33,6 +33,20 @@ namespace {
 
 constexpr size_t INVALID_INDEX = std::numeric_limits<size_t>::max();
 
+bool is_append_only_sequence_insert(const std::shared_ptr<ov::frontend::SequenceInsert>& seq_insert) {
+    if (!seq_insert || !seq_insert->has_position()) {
+        return true;
+    }
+
+    const auto pos_const = ov::as_type_ptr<v0::Constant>(seq_insert->get_position().get_node_shared_ptr());
+    if (!pos_const) {
+        return false;
+    }
+
+    const auto pos_values = pos_const->cast_vector<int64_t>();
+    return pos_values.size() == 1 && pos_values[0] == -1;
+}
+
 int64_t normalize_axis(const ov::Output<ov::Node>& sample, int64_t axis, bool new_axis) {
     const auto rank = sample.get_partial_shape().rank();
     if (!rank.is_static())
@@ -55,8 +69,12 @@ ov::Output<ov::Node> find_inserted_tensor(const ov::Output<ov::Node>& seq_output
     if (auto seq_mark = std::dynamic_pointer_cast<ov::frontend::SequenceMark>(node))
         if (seq_mark->get_input_size() == 1)
             node = seq_mark->input_value(0).get_node_shared_ptr();
-    if (auto seq_insert = std::dynamic_pointer_cast<ov::frontend::SequenceInsert>(node))
+    if (auto seq_insert = std::dynamic_pointer_cast<ov::frontend::SequenceInsert>(node)) {
+        if (!is_append_only_sequence_insert(seq_insert)) {
+            return {};
+        }
         return seq_insert->get_tensor();
+    }
     return {};
 }
 
