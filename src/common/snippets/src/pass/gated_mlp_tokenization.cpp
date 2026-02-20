@@ -38,9 +38,8 @@
 
 namespace ov::snippets::pass {
 
-using namespace ov::op;
 using namespace ov::pass::pattern;
-using namespace ov::pass::pattern::op;
+using ov::pass::pattern::op::Predicate;
 
 namespace {
 Predicate act_predicate() {
@@ -64,9 +63,9 @@ Predicate fc_predicate(bool is_down) {
     return Predicate(
         [=](const Output<Node>& output) -> bool {
             const auto node = output.get_node_shared_ptr();
-            return ov::is_type<v0::MatMul>(node) && ((!is_down && consumers_count(1)(output)) || is_down) &&
-                   (op::Brgemm::get_output_type(node->get_input_element_type(0), node->get_input_element_type(1)) !=
-                    element::dynamic);
+            return ov::is_type<ov::op::v0::MatMul>(node) && ((!is_down && consumers_count(1)(output)) || is_down) &&
+                   (ov::snippets::op::Brgemm::get_output_type(node->get_input_element_type(0),
+                                                              node->get_input_element_type(1)) != element::dynamic);
         },
         "fc_predicate");
 }
@@ -80,21 +79,23 @@ TokenizeGatedMLPSnippets::TokenizeGatedMLPSnippets(const TokenizationConfig& con
 
     auto make_weights = []() {
         // TODO: Add decompressed weights
-        return wrap_type<v0::Constant>();
+        return wrap_type<ov::op::v0::Constant>();
     };
 
     auto m_input = any_input(has_static_rank());
-    auto m_fc_gate = wrap_type<v0::MatMul>({m_input, make_weights()}, fc_predicate(false));
-    auto m_fc_up = wrap_type<v0::MatMul>({m_input, make_weights()}, fc_predicate(false));
+    auto m_fc_gate = wrap_type<ov::op::v0::MatMul>({m_input, make_weights()}, fc_predicate(false));
+    auto m_fc_up = wrap_type<ov::op::v0::MatMul>({m_input, make_weights()}, fc_predicate(false));
 
-    auto m_act_unary = wrap_type<UnaryElementwiseArithmetic, v0::HardSigmoid, v4::Swish>({m_fc_gate}, act_predicate());
-    auto m_act_binary_scalar = wrap_type<v0::Constant>(scalar_predicate());
+    auto m_act_unary =
+        wrap_type<UnaryElementwiseArithmetic, ov::op::v0::HardSigmoid, ov::op::v4::Swish>({m_fc_gate}, act_predicate());
+    auto m_act_binary_scalar = wrap_type<ov::op::v0::Constant>(scalar_predicate());
     auto m_act_binary =
-        wrap_type<BinaryElementwiseArithmetic, v0::PRelu, v4::Swish>({m_fc_gate, m_act_binary_scalar}, act_predicate());
+        wrap_type<BinaryElementwiseArithmetic, ov::op::v0::PRelu, ov::op::v4::Swish>({m_fc_gate, m_act_binary_scalar},
+                                                                                     act_predicate());
     auto m_act = m_act_unary | m_act_binary;
 
-    auto m_mul = wrap_type<v1::Multiply>({m_act, m_fc_up}, consumers_count(1));
-    auto m_fc_down = wrap_type<v0::MatMul>({m_mul, make_weights()}, fc_predicate(true));
+    auto m_mul = wrap_type<ov::op::v1::Multiply>({m_act, m_fc_up}, consumers_count(1));
+    auto m_fc_down = wrap_type<ov::op::v0::MatMul>({m_mul, make_weights()}, fc_predicate(true));
 
     register_matcher(std::make_shared<Matcher>(m_fc_down, matcher_name), [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::TokenizeGatedMLPSnippets")

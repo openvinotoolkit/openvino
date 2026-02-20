@@ -127,7 +127,7 @@ protected:
 
             pad = std::make_shared<ov::op::v12::Pad>(params[0], padsBeginNode, padsEndNode, argPadValueNode, padMode);
         }
-        function = makeNgraphFunction(inType, params, pad, "Pad");
+        function = create_ov_model(inType, params, pad, "Pad");
     }
     std::vector<int64_t> padsBegin;  // padsBegin
     std::vector<int64_t> padsEnd;    // padsEnd

@@ -61,7 +61,7 @@ protected:
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
         }
         auto d2s = std::make_shared<ov::op::v0::SpaceToDepth>(params[0], mode, blockSize);
-        function = makeNgraphFunction(inType, params, d2s, "SpaceToDepthCPU");
+        function = create_ov_model(inType, params, d2s, "SpaceToDepthCPU");
     }
 };
 

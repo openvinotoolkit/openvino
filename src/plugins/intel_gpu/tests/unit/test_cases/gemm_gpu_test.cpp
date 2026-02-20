@@ -1337,6 +1337,107 @@ public:
         }
     }
 
+    // Test for FP16 accumulator accuracy
+    void test_fp16_accumulator_accuracy(bool is_caching_test = false) {
+        auto& engine = get_test_engine();
+
+        const size_t batch_size = 1;
+        const size_t m_size = 16;
+        const size_t n_size = 16;
+        const size_t k_size = 4096;  // Large K to amplify FP16 accumulation error significantly
+
+        // Create FP16 input layouts
+        auto input0_layout = layout{
+            ov::PartialShape({batch_size, 1, m_size, k_size}),
+            data_types::f16,
+            format::bfyx
+        };
+        auto input1_layout = layout{
+            ov::PartialShape({batch_size, 1, k_size, n_size}),
+            data_types::f16,
+            format::bfyx
+        };
+
+        auto input0_mem = engine.allocate_memory(input0_layout);
+        auto input1_mem = engine.allocate_memory(input1_layout);
+
+        // Create test data: very small uniform values to expose FP16 precision loss
+        // When 4096 values of ~0.0001f are accumulated in FP16, precision loss is significant
+        // because FP16 has only 10-bit mantissa
+        std::vector<ov::float16> input0_data(batch_size * m_size * k_size);
+        std::vector<ov::float16> input1_data(batch_size * k_size * n_size);
+
+        // Fill with small identical values: 0.0001f
+        // Sum = 4096 * 0.0001 * 0.0001 = 0.04096 per output element
+        // FP16 accumulation will lose precision over 4096 additions
+        const float val = 0.0001f;
+        for (size_t i = 0; i < input0_data.size(); ++i) {
+            input0_data[i] = ov::float16(val);
+        }
+        for (size_t i = 0; i < input1_data.size(); ++i) {
+            input1_data[i] = ov::float16(val);
+        }
+
+        set_values(input0_mem, input0_data);
+        set_values(input1_mem, input1_data);
+
+        // Build topology
+        topology topology;
+        topology.add(
+            input_layout("input0", input0_layout),
+            input_layout("input1", input1_layout),
+            gemm("gemm", {input_info("input0"), input_info("input1")}, data_types::f16, false, false, 1.0f, 0.0f),
+            reorder("output", input_info("gemm"), format::bfyx, data_types::f32)
+        );
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+        network->set_input_data("input0", input0_mem);
+        network->set_input_data("input1", input1_mem);
+
+        auto outputs = network->execute();
+        auto output_mem = outputs.at("output").get_memory();
+        cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
+
+        // Compute CPU reference with double precision
+        std::vector<double> ref_output(batch_size * m_size * n_size, 0.0);
+
+        for (size_t b = 0; b < batch_size; ++b) {
+            for (size_t m = 0; m < m_size; ++m) {
+                for (size_t n = 0; n < n_size; ++n) {
+                    double sum = 0.0;
+                    for (size_t k = 0; k < k_size; ++k) {
+                        size_t idx0 = b * m_size * k_size + m * k_size + k;
+                        size_t idx1 = b * k_size * n_size + k * n_size + n;
+                        sum += static_cast<double>(input0_data[idx0]) * static_cast<double>(input1_data[idx1]);
+                    }
+                    ref_output[b * m_size * n_size + m * n_size + n] = sum;
+                }
+            }
+        }
+
+        // Very strict tolerance: 0.1% relative error
+        const float tolerance = 0.001f;
+
+        for (size_t i = 0; i < ref_output.size(); ++i) {
+            float gpu_val = output_ptr[i];
+            float cpu_val = static_cast<float>(ref_output[i]);
+
+            float max_val = std::max(std::abs(gpu_val), std::abs(cpu_val));
+            float abs_error = std::abs(gpu_val - cpu_val);
+            float rel_error = max_val > 1e-9f ? (abs_error / max_val) : abs_error;
+
+            ASSERT_LE(rel_error, tolerance)
+                << "Mismatch at index " << i
+                << ": GPU=" << gpu_val
+                << ", CPU=" << cpu_val
+                << ", RelError=" << rel_error
+                << " (expected < " << tolerance << ")";
+        }
+    }
+
     void set_default_shapes(size_t num_dims, std::vector<size_t>& BMKN, ov::Shape& input0_shape_default, ov::Shape& input1_shape_default, ov::Shape& output_shape_default) {
         size_t BATCH_SIZE = BMKN[0];
         size_t M_SIZE = BMKN[1];
@@ -3669,6 +3770,16 @@ TEST_F(gemm_gpu_tests, dynamic_multi_inference_different_shape_cached) {
 
 TEST_F(gemm_gpu_tests, basic_bfyx_t2_inplace_crop_with_pad_cached) {
     this->test_basic_bfyx_t2_inplace_crop_with_pad(true);
+}
+
+TEST_F(gemm_gpu_tests, fp16_accumulator_accuracy) {
+    // Test for FP16 accumulator accuracy fix (commit 685ccb196a)
+    this->test_fp16_accumulator_accuracy(false);
+}
+
+TEST_F(gemm_gpu_tests, fp16_accumulator_accuracy_cached) {
+    // Test for FP16 accumulator accuracy fix with caching
+    this->test_fp16_accumulator_accuracy(true);
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_4d_cached) {

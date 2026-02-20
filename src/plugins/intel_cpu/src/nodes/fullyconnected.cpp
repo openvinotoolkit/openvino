@@ -638,8 +638,9 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         // wgt
         // split N direction
         tp_cfg.cached_splited_weight =
-            attrs.weightsNonTransposed ? split_vertical(context->getEngine(), wgt, 0, tp_cfg.w_rank, tp_cfg.w_size)
-                                       : split_horizontal(context->getEngine(), wgt, 0, tp_cfg.w_rank, tp_cfg.w_size);
+            attrs.weightsNonTransposed
+                ? split_vertical(context->getEngine(), wgt, 0, tp_cfg.w_rank, tp_cfg.w_size, context->getCpuParallel())
+                : split_horizontal(context->getEngine(), wgt, 0, tp_cfg.w_rank, tp_cfg.w_size);
         memory[ARG_WEI] = tp_cfg.cached_splited_weight;
         // bias
         const auto& bias = getSrcMemoryAtPort(BIAS);
@@ -661,7 +662,12 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         if (auto it = memory.find(ARG_WEI | ARG_ATTR_SCALES); it != memory.end()) {
             auto scale_mem = std::const_pointer_cast<IMemory>(it->second);
             it->second = attrs.weightsNonTransposed
-                             ? split_vertical(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                             ? split_vertical(context->getEngine(),
+                                              scale_mem,
+                                              0,
+                                              tp_cfg.w_rank,
+                                              tp_cfg.w_size,
+                                              context->getCpuParallel())
                              : split_horizontal(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
         }
 
@@ -671,7 +677,12 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
             if (element_num != 1) {
                 it->second =
                     attrs.weightsNonTransposed
-                        ? split_vertical(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                        ? split_vertical(context->getEngine(),
+                                         zeropoint_mem,
+                                         0,
+                                         tp_cfg.w_rank,
+                                         tp_cfg.w_size,
+                                         context->getCpuParallel())
                         : split_horizontal(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
             }
         }

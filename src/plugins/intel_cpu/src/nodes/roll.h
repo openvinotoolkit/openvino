@@ -44,7 +44,8 @@ private:
         void exec(const MemoryPtr& dataMemPtr,
                   const MemoryPtr& shiftMemPtr,
                   const MemoryPtr& axesMemPtr,
-                  const MemoryPtr& dstMemPtr);
+                  const MemoryPtr& dstMemPtr,
+                  const CpuParallelPtr& cpuParallel);
 
     private:
         const size_t numOfDims;

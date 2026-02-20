@@ -123,7 +123,7 @@ public:
 
         selectedType = "?";
 
-        function = makeNgraphFunction(getNetType(), inputParams, sum, "ConvolutionSumBroadcast");
+        function = create_ov_model(getNetType(), inputParams, sum, "ConvolutionSumBroadcast");
 
         targetDevice = ov::test::utils::DEVICE_CPU;
         if (!configuration.count(ov::intel_cpu::snippets_mode.name())) {
