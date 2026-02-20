@@ -21,6 +21,7 @@
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "nodes/common/permute_kernel.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/transpose.hpp"
