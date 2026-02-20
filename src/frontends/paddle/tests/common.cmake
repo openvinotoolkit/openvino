@@ -66,7 +66,7 @@ if(paddlepaddle_FOUND)
     
     DownloadAndCheck(${PADDLEDET_OPS_URL} ${PADDLEDET_DIRNAME}/ops.py PADDLEDET_FATAL PADDLEDET_RESULT ${PADDLEDET_OPS_SHA256})
 else()
-    set(paddle_gen_tag "unkown")
+    set(paddle_gen_tag "unknown")
 endif()
 
 

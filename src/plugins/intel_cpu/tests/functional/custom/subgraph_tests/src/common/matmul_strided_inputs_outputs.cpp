@@ -60,7 +60,7 @@ protected:
         const auto concatMatMuls = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{matMul1, matMul2}, 2 /* 3rd axis */);
 
         ov::ParameterVector inputParams = {splitInputParams[0], concatInputParams[0], concatInputParams[1], matmulInputParams[0]};
-        function = makeNgraphFunction(ngPrec, inputParams, concatMatMuls, "MatmulStridedInputsOutputs");
+        function = create_ov_model(ngPrec, inputParams, concatMatMuls, "MatmulStridedInputsOutputs");
     }
 };
 

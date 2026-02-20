@@ -58,6 +58,7 @@ bool Round::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     auto& arg0 = inputs.front();
     auto& out = outputs.front();
 
+    out.set_shape(arg0.get_shape());
     using namespace ov::element;
     return IF_TYPE_OF_CONVERT_TENSORS(v5_Round_evaluate,
                                       this,

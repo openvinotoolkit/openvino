@@ -19,6 +19,7 @@
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 
 using Version = ov::pass::Serialize::Version;
@@ -266,6 +267,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(luid_stream.str());
     } else if (any.is<ov::device::PCIInfo>()) {
         return py::cast(any.as<ov::device::PCIInfo>());
+    } else if (any.is<ov::intel_npu::CompilerType>()) {
+        return py::cast(any.as<ov::intel_npu::CompilerType>());
         // Custom FrontEnd Types
     } else if (any.is<ov::frontend::type::List>()) {
         return py::cast(any.as<ov::frontend::type::List>());
@@ -450,8 +453,9 @@ std::tuple<Args...> tuple_from_py_tuple(const py::tuple& py_tuple) {
 ov::Any py_object_to_any(const py::object& py_obj) {
     // Python types
     py::object float_32_type = py::module_::import("numpy").attr("float32");
-    if (py::isinstance<py::str>(py_obj)) {
-        return py_obj.cast<std::string>();
+    py::object Path = py::module_::import("pathlib").attr("Path");
+    if (py::isinstance<py::str>(py_obj) || py::isinstance(py_obj, Path)) {
+        return py::str(py_obj).cast<std::string>();
     } else if (py::isinstance<py::bool_>(py_obj)) {
         return py_obj.cast<bool>();
     } else if (py::isinstance<py::bytes>(py_obj)) {
@@ -555,6 +559,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::streams::Num>(py_obj);
     } else if (py::isinstance<ov::WorkloadType>(py_obj)) {
         return py::cast<ov::WorkloadType>(py_obj);
+    } else if (py::isinstance<ov::intel_npu::CompilerType>(py_obj)) {
+        return py::cast<ov::intel_npu::CompilerType>(py_obj);
     } else if (py::isinstance<ov::Tensor>(py_obj)) {
         return py::cast<ov::Tensor>(py_obj);
     } else if (py::isinstance<ov::Output<ov::Node>>(py_obj)) {

@@ -10,7 +10,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestAsStrided(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.randn(8, 8).astype(np.float32),)
+        return (self.random.randn(8, 8),)
 
     def create_model(self, size, stride, offset):
         class aten_as_strided(torch.nn.Module):
@@ -23,9 +23,8 @@ class TestAsStrided(PytorchLayerTest):
             def forward(self, x):
                 return torch.as_strided(x, self.size, self.stride, self.offset)
 
-        ref_net = None
 
-        return aten_as_strided(size, stride, offset), ref_net, "aten::as_strided"
+        return aten_as_strided(size, stride, offset), "aten::as_strided"
 
     @pytest.mark.parametrize(
         "size,stride",
@@ -47,7 +46,7 @@ class TestAsStrided(PytorchLayerTest):
 
 class TestAsStridedCopy(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.randn(8, 8).astype(np.float32),)
+        return (self.random.randn(8, 8),)
 
     def create_model(self, size, stride, offset):
         class aten_as_strided_copy(torch.nn.Module):
@@ -60,9 +59,8 @@ class TestAsStridedCopy(PytorchLayerTest):
             def forward(self, x):
                 return torch.as_strided_copy(x, self.size, self.stride, self.offset)
 
-        ref_net = None
 
-        return aten_as_strided_copy(size, stride, offset), ref_net, "aten::as_strided_copy"
+        return aten_as_strided_copy(size, stride, offset), "aten::as_strided_copy"
 
     @pytest.mark.parametrize(
         "size,stride",
@@ -83,7 +81,7 @@ class TestAsStridedCopy(PytorchLayerTest):
 class TestAsStridedListConstruct(PytorchLayerTest):
     def _prepare_input(self, size_shape_tensor=[1], stride_shape_tensor=[1]):
         return (
-            np.random.randn(8, 8).astype(np.float32),
+            self.random.randn(8, 8),
             np.ones(size_shape_tensor),
             np.ones(stride_shape_tensor),
         )
@@ -117,9 +115,8 @@ class TestAsStridedListConstruct(PytorchLayerTest):
                 st1, st2, st3 = stride_shape_tensor.shape
                 return torch.as_strided(x, self.size, [st1, st2, st3], self.offset)
 
-        ref_net = None
 
-        return aten_as_strided(size, stride, offset, mode), ref_net, ["aten::as_strided", "prim::ListConstruct"]
+        return aten_as_strided(size, stride, offset, mode), ["aten::as_strided", "prim::ListConstruct"]
 
     @pytest.mark.parametrize("size,stride", [([5, 4, 3], [1, 3, 7]), ([5, 5, 5], [5, 0, 5])])
     @pytest.mark.parametrize("offset", [None, 7])
@@ -136,13 +133,14 @@ class TestAsStridedListConstruct(PytorchLayerTest):
             precision,
             ir_version,
             kwargs_to_prepare_input=inp_kwargs,
-            trace_model=True
+            trace_model=True,
+            fx_kind="aten.as_strided.default",
         )
 
 
 class TestAsStridedLongformer(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.randn(1, 10, 20, 40).astype(np.float32).transpose([0, 2, 3, 1]),)
+        return (self.random.randn(1, 10, 20, 40).transpose([0, 2, 3, 1]),)
 
     def create_model(self):
         class aten_as_strided_lf(torch.nn.Module):
@@ -153,9 +151,8 @@ class TestAsStridedLongformer(PytorchLayerTest):
                 chunk_stride[1] = chunk_stride[1] // 2
                 return x.as_strided(size=chunk_size, stride=chunk_stride)
 
-        ref_net = None
 
-        return aten_as_strided_lf(), ref_net, "aten::as_strided"
+        return aten_as_strided_lf(), "aten::as_strided"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

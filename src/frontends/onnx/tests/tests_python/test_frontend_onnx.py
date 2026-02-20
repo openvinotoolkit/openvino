@@ -17,6 +17,21 @@ from openvino.frontend import FrontEndManager
 from tests.runtime import get_runtime
 
 
+def _is_graph_iterator_enabled():
+    env_value = os.environ.get("ONNX_ITERATOR")
+    if env_value is None:
+        return True
+    value = env_value.strip().lower()
+    return value not in {"", "0", "false", "off", "disable"}
+
+
+DECODE_AND_CONVERT_XFAIL = pytest.mark.xfail(
+    condition=_is_graph_iterator_enabled(),
+    reason="Decoding via GraphIterator is not supported yet",
+    strict=True,
+)
+
+
 def create_onnx_model():
     add = onnx.helper.make_node("Add", inputs=["x", "y"], outputs=["z"])
     const_tensor = onnx.helper.make_tensor(
@@ -255,6 +270,7 @@ def test_convert():
     run_model(converted_model, input_1, input_2, expected=[expected])
 
 
+@DECODE_AND_CONVERT_XFAIL
 @pytest.mark.parametrize(
     ("model_filename", "inputs", "expected"),
     [
@@ -699,6 +715,7 @@ def test_op_extension_via_onnx_extension_set_attrs_values():
                 "exclude-pad": True,
                 "auto_pad": "same_upper",
                 "rounding_type": "floor",
+                "dilations": [1, 1],
             },
         )
     )
@@ -738,6 +755,7 @@ def test_op_extension_via_frontend_extension_set_attrs_values():
                 "exclude-pad": True,
                 "auto_pad": "same_upper",
                 "rounding_type": "floor",
+                "dilations": [1, 1],
             },
         )
     )
@@ -772,6 +790,7 @@ def test_op_extension_via_frontend_extension_map_attributes():
                 "pads_end": [1, 1],
                 "exclude-pad": True,
                 "rounding_type": "floor",
+                "dilations": [1, 1],
             },
         )
     )

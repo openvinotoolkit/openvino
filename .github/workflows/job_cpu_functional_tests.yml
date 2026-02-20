@@ -45,20 +45,20 @@ jobs:
       GTEST_FILTER: ${{ inputs.scope == 'nightly' && '' || '--gtest_filter=*smoke*' }}
     steps:
       - name: Fetch setup_python action
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: |
             .github/actions
           sparse-checkout-cone-mode: false
           submodules: 'false'
-          
+
       - name: Download OpenVINO artifacts (package)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
-      
+
       - name: Download OpenVINO artifacts (tests)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
@@ -68,7 +68,7 @@ jobs:
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
         run: brew install pigz
-      
+
       - name: Extract OpenVINO packages
         run: |
             pigz -dc openvino_package.tar.gz | tar -xf - -v
@@ -86,7 +86,7 @@ jobs:
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
 
       - name: Restore tests execution time
-        uses: actions/cache/restore@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        uses: actions/cache/restore@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}
@@ -106,7 +106,7 @@ jobs:
         timeout-minutes: ${{ inputs.scope == 'nightly' && 125 || 40 }}
 
       - name: Save tests execution time
-        uses: actions/cache/save@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        uses: actions/cache/save@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
         if: github.ref_name == 'master'
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}

@@ -82,7 +82,7 @@ void StringTensorPackLayerCPUTest::SetUp() {
     auto StringTensorPack =
         std::make_shared<ov::op::v15::StringTensorPack>(beginsParameter, endsParameter, symbolsParameter);
     ov::ParameterVector params{beginsParameter, endsParameter, symbolsParameter};
-    function = makeNgraphFunction(ov::element::string, params, StringTensorPack, "StringTensorPack");
+    function = create_ov_model(ov::element::string, params, StringTensorPack, "StringTensorPack");
 }
 
 TEST_P(StringTensorPackLayerCPUTest, CompareWithRefs) {

@@ -10,6 +10,7 @@
 #include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
@@ -17,6 +18,7 @@
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
+#include "cpu_parallel.hpp"
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -39,8 +41,10 @@
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 
-#ifdef OPENVINO_ARCH_X86_64
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_X86)
 #    include "openvino/core/type/bfloat16.hpp"
+#    include "openvino/core/type/float16.hpp"
+#elif defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    include "openvino/core/type/float16.hpp"
 #endif
 
@@ -123,10 +127,33 @@ struct MHAKernel {
     }
 
     void softmax(float* a, int len, const float* sink) {
+#if defined(OPENVINO_ARCH_ARM64)
+        if (len == 0) {
+            return;
+        }
+#endif
         float max = *std::max_element(a, a + len);
         if (sink != nullptr) {
             max = max > (*sink) ? max : (*sink);
         }
+#if defined(OPENVINO_ARCH_ARM64)
+        if (std::isinf(max) && max > 0.0F) {
+            size_t inf_count = 0;
+            if (sink != nullptr && std::isinf(*sink) && *sink > 0.0F) {
+                inf_count++;
+            }
+            for (int i = 0; i < len; i++) {
+                if (std::isinf(a[i]) && a[i] > 0.0F) {
+                    inf_count++;
+                }
+            }
+            const float inv = inf_count ? (1.0F / static_cast<float>(inf_count)) : 0.0F;
+            for (int i = 0; i < len; i++) {
+                a[i] = (inf_count && std::isinf(a[i]) && a[i] > 0.0F) ? inv : 0.0F;
+            }
+            return;
+        }
+#endif
         float sum = 0.0F;
         for (int i = 0; i < len; i++) {
             a[i] = exp(a[i] - max);
@@ -172,6 +199,7 @@ struct MHAKernel {
                     bool auto_causal,
                     PlainTensor& sink_input,
                     float d_scale = 0.0F) {
+        const auto& cpu_parallel = context->getCpuParallel();
         auto B = query.size(0);
         auto H = query.size(1);
         auto q_len = query.size(2);
@@ -186,7 +214,7 @@ struct MHAKernel {
 
         auto k_stride_s = present_key.stride(3);
 
-        parallel_for2d(B, H, [&](size_t b, size_t h) {
+        cpu_parallel->parallel_for2d(B, H, [&](size_t b, size_t h) {
             std::vector<float> attn_score(kv_len);
             std::vector<float> word_vec(head_size_v, 0.0F);
 
@@ -404,6 +432,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                         bool auto_causal,
                         PlainTensor& sink_input,
                         float d_scale = 0.0F) {
+        const auto& cpu_parallel = context->getCpuParallel();
         const auto B = query.size(0);
         const auto H = query.size(1);
         const auto q_len = query.size(2);
@@ -417,7 +446,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         auto attn_mask_precision =
             attention_mask ? attention_mask.get_precision() : ov::element::Type(precision_of<T>::value);
         // packed k, v
-        parallel_for2d(B, Hk, [&](size_t b, size_t h) {
+        cpu_parallel->parallel_for2d(B, Hk, [&](size_t b, size_t h) {
             T* k_ptr = &present_key.at<T>({b, h, 0, 0});
             T* v_ptr = &present_value.at<T>({b, h, 0, 0});
             qk_gemm_ptr->copy_buffer_b(k_ptr, &qk_scratch_b.at<T>({b, h, 0}));
@@ -469,22 +498,27 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                     cmask_stride = causal_mask.stride(2);
                 }
             }
+            auto row_ptr = [](auto* base, size_t stride, size_t m) {
+                return base ? base + m * stride : nullptr;
+            };
+            auto sink_ptr = [&](size_t m) {
+                return sink_input ? &sink_input.at<float>({b, h, m, 0}, true) : nullptr;
+            };
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
                 auto* score = weight_score.ptr<float>(ithr, 0, m - m_start);
-                float* sink = nullptr;
-                if (sink_input) {
-                    sink = &sink_input.at<float>({b, h, m, 0}, true);
-                }
-                uint8_t* attn_mask_row = attn_mask_ptr ? attn_mask_ptr + m * attn_mask_stride : nullptr;
+                auto* sink = sink_ptr(m);
+                auto* attn_mask_row = row_ptr(attn_mask_ptr, attn_mask_stride, m);
+                auto* cmask_row = row_ptr(cmask_ptr, cmask_stride, m);
+                auto* alibi_row = row_ptr(alibi_ptr, alibi_stride, m);
 
                 attn_softmax(reinterpret_cast<void*>(score),
                              reinterpret_cast<T*>(score),
                              d_scale,
-                             reinterpret_cast<void*>(alibi_ptr + m * alibi_stride),
+                             reinterpret_cast<void*>(alibi_row),
                              attn_mask_row,
-                             cmask_ptr + m * cmask_stride,
+                             cmask_row,
                              select_nfltmax_at_0,
                              ncausal,
                              kv_len,
@@ -625,7 +659,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                     PlainTensor& output_emb,
                     bool has_out_transpose,
                     bool auto_causal,
-                    [[maybe_unused]] PlainTensor& sink_input,
+                    PlainTensor& sink_input,
                     float d_scale = 0.0F) {
         auto B = query.size(0);
         auto H = query.size(1);
@@ -652,6 +686,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
             auto q_ptr = &query.at<T>({b, h, m_start, 0});
             auto k_ptr = &present_key.at<T>({b, h / h_each_group_len, 0, 0});
             auto v_ptr = &present_value.at<T>({b, h / h_each_group_len, 0, 0});
+            const bool b_transpose = (k_stride_s == 1);
 
             T* alibi_ptr = nullptr;
             auto alibi_stride = 0;
@@ -679,13 +714,212 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                 }
             }
 
+#    if defined(OPENVINO_ARCH_ARM64)
+            auto run_f32_path = [&]() {
+                std::vector<float> q_f32(m_cnt * head_size);
+                std::vector<float> k_f32(kv_len * head_size);
+                std::vector<float> v_f32(kv_len * head_size_v);
+
+                const size_t q_stride_m = query.stride(2);
+                const size_t q_stride_s = query.stride(3);
+                for (size_t m = 0; m < m_cnt; m++) {
+                    const T* q_row = q_ptr + m * q_stride_m;
+                    for (size_t s = 0; s < head_size; s++) {
+                        q_f32[m * head_size + s] = static_cast<float>(q_row[s * q_stride_s]);
+                    }
+                }
+
+                const size_t k_stride_m = present_key.stride(2);
+                const size_t k_stride_s = present_key.stride(3);
+                for (size_t n = 0; n < kv_len; n++) {
+                    const T* k_row = k_ptr + n * k_stride_m;
+                    for (size_t s = 0; s < head_size; s++) {
+                        k_f32[n * head_size + s] = static_cast<float>(k_row[s * k_stride_s]);
+                    }
+                }
+
+                const size_t v_stride_m = present_value.stride(2);
+                const size_t v_stride_s = present_value.stride(3);
+                for (size_t n = 0; n < kv_len; n++) {
+                    const T* v_row = v_ptr + n * v_stride_m;
+                    for (size_t s = 0; s < head_size_v; s++) {
+                        v_f32[n * head_size_v + s] = static_cast<float>(v_row[s * v_stride_s]);
+                    }
+                }
+
+                const bool b_transpose_f32 = true;
+                GemmKernel qk_gemm(m_cnt, head_size, kv_len, b_transpose_f32, ov::element::f32);
+                arm_compute::Tensor qkTensor;
+                arm_compute::TensorInfo qkInfo;
+                arm_compute::Strides qStrides({sizeof(float), head_size * sizeof(float)});
+                arm_compute::Strides kStrides({sizeof(float), head_size * sizeof(float)});
+                qk_gemm.executeGemm(reinterpret_cast<void*>(q_f32.data()),
+                                    reinterpret_cast<void*>(k_f32.data()),
+                                    qkInfo,
+                                    qkTensor,
+                                    qStrides,
+                                    kStrides);
+
+                auto* qk = reinterpret_cast<float*>(qkTensor.buffer());
+                const size_t qk_row_stride = qkInfo.strides_in_bytes()[1] / sizeof(float);
+                bool qk_has_nan = false;
+                for (size_t m = 0; m < m_cnt && !qk_has_nan; m++) {
+                    const float* row = qk + m * qk_row_stride;
+                    for (size_t n = 0; n < kv_len; n++) {
+                        if (!std::isfinite(row[n])) {
+                            qk_has_nan = true;
+                            break;
+                        }
+                    }
+                }
+
+                std::vector<float> qk_f32;
+                float* qk_ptr = qk;
+                size_t qk_ptr_stride = qk_row_stride;
+                if (qk_has_nan) {
+                    qk_f32.assign(m_cnt * kv_len, 0.0F);
+                    for (size_t m = 0; m < m_cnt; m++) {
+                        float* dst_row = qk_f32.data() + m * kv_len;
+                        const float* q_row = q_f32.data() + m * head_size;
+                        for (size_t n = 0; n < kv_len; n++) {
+                            const float* k_row = k_f32.data() + n * head_size;
+                            float sum = 0.0F;
+                            for (size_t s = 0; s < head_size; s++) {
+                                sum += q_row[s] * k_row[s];
+                            }
+                            dst_row[n] = sum;
+                        }
+                    }
+                    qk_ptr = qk_f32.data();
+                    qk_ptr_stride = kv_len;
+                }
+
+                float* alibi_ptr_f32 = nullptr;
+                size_t alibi_stride_f32 = 0;
+                const auto alibi_prec = alibi_mask ? alibi_mask.get_precision() : ov::element::f32;
+                const bool alibi_needs_convert = alibi_mask && (alibi_prec != ov::element::f32);
+                std::vector<float> alibi_row;
+                if (alibi_mask && !alibi_needs_convert) {
+                    alibi_ptr_f32 = &alibi_mask.at<float>({b, h, 0, 0}, true);
+                    if (alibi_mask.size(2) > 1) {
+                        alibi_stride_f32 = alibi_mask.stride(2);
+                    }
+                } else if (alibi_needs_convert) {
+                    alibi_row.resize(kv_len);
+                }
+                auto row_ptr = [](auto* base, size_t stride, size_t m) {
+                    return base ? base + m * stride : nullptr;
+                };
+                auto sink_ptr = [&](size_t m) {
+                    return sink_input ? &sink_input.at<float>({b, h, m, 0}, true) : nullptr;
+                };
+
+                for (size_t m = m_start; m < m_end; m++) {
+                    auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
+                    auto* attn_mask_row = row_ptr(attn_mask_ptr, attn_mask_stride, m);
+                    auto* cmask_row = row_ptr(cmask_ptr, cmask_stride, m);
+                    float* alibi_row_ptr = nullptr;
+                    if (alibi_ptr_f32) {
+                        alibi_row_ptr = alibi_ptr_f32 + m * alibi_stride_f32;
+                    } else if (alibi_needs_convert) {
+                        const size_t b_idx = alibi_mask.size(0) > 1 ? b : 0;
+                        const size_t h_idx = alibi_mask.size(1) > 1 ? h : 0;
+                        const size_t m_idx = alibi_mask.size(2) > 1 ? m : 0;
+                        const void* alibi_src = alibi_mask.ptr_v(b_idx, h_idx, m_idx, 0);
+                        cpu_convert(alibi_src, alibi_row.data(), alibi_prec, ov::element::f32, kv_len);
+                        alibi_row_ptr = alibi_row.data();
+                    }
+                    auto* sink = sink_ptr(m);
+                    auto* qk_row = qk_ptr + (m - m_start) * qk_ptr_stride;
+                    attn_softmax(reinterpret_cast<void*>(qk_row),
+                                 qk_row,
+                                 d_scale,
+                                 reinterpret_cast<void*>(alibi_row_ptr),
+                                 attn_mask_row,
+                                 cmask_row,
+                                 select_nfltmax_at_0,
+                                 ncausal,
+                                 kv_len,
+                                 ov::element::f32,
+                                 attn_mask_precision,
+                                 ov::element::f32,
+                                 sink);
+                }
+
+                bool out_has_nan = false;
+                std::vector<float> out_f32_fallback;
+                if (!qk_has_nan) {
+                    GemmKernel out_gemm(m_cnt, kv_len, head_size_v, false, ov::element::f32);
+                    arm_compute::TensorInfo outInfo;
+                    arm_compute::Tensor outTensor;
+                    arm_compute::Strides vStrides({sizeof(float), head_size_v * sizeof(float)});
+                    out_gemm.executeGemm(qkTensor.buffer(),
+                                         reinterpret_cast<void*>(v_f32.data()),
+                                         outInfo,
+                                         outTensor,
+                                         qkInfo.strides_in_bytes(),
+                                         vStrides);
+
+                    auto* out_f32 = reinterpret_cast<float*>(outTensor.buffer());
+                    const size_t out_row_stride = outInfo.strides_in_bytes()[1] / sizeof(float);
+                    for (size_t m = 0; m < m_cnt && !out_has_nan; m++) {
+                        const float* row = out_f32 + m * out_row_stride;
+                        for (size_t s = 0; s < head_size_v; s++) {
+                            if (!std::isfinite(row[s])) {
+                                out_has_nan = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!out_has_nan) {
+                        const int out_col_dim = has_out_transpose ? 2 : 3;
+                        const size_t out_stride_s = output_emb.stride(out_col_dim);
+                        for (size_t m = 0; m < m_cnt; m++) {
+                            auto* out_dst = has_out_transpose ? &output_emb.at<T>({b, m_start + m, h * head_size_v})
+                                                              : &output_emb.at<T>({b, h, m_start + m});
+                            const float* src_row = out_f32 + m * out_row_stride;
+                            for (size_t s = 0; s < head_size_v; s++) {
+                                out_dst[s * out_stride_s] = static_cast<T>(src_row[s]);
+                            }
+                        }
+                    }
+                    outTensor.allocator()->free();
+                }
+
+                if (qk_has_nan || out_has_nan) {
+                    out_f32_fallback.assign(m_cnt * head_size_v, 0.0F);
+                    for (size_t m = 0; m < m_cnt; m++) {
+                        const float* qk_row = qk_ptr + m * qk_ptr_stride;
+                        float* out_row = out_f32_fallback.data() + m * head_size_v;
+                        for (size_t s = 0; s < head_size_v; s++) {
+                            float sum = 0.0F;
+                            for (size_t n = 0; n < kv_len; n++) {
+                                sum += qk_row[n] * v_f32[n * head_size_v + s];
+                            }
+                            out_row[s] = sum;
+                        }
+                    }
+
+                    const int out_col_dim = has_out_transpose ? 2 : 3;
+                    const size_t out_stride_s = output_emb.stride(out_col_dim);
+                    for (size_t m = 0; m < m_cnt; m++) {
+                        auto* out_dst = has_out_transpose ? &output_emb.at<T>({b, m_start + m, h * head_size_v})
+                                                          : &output_emb.at<T>({b, h, m_start + m});
+                        const float* src_row = out_f32_fallback.data() + m * head_size_v;
+                        for (size_t s = 0; s < head_size_v; s++) {
+                            out_dst[s * out_stride_s] = static_cast<T>(src_row[s]);
+                        }
+                    }
+                }
+                qkTensor.allocator()->free();
+            };
+
+#    endif
+
             arm_compute::Tensor qkTensor;
             arm_compute::TensorInfo qkInfo;
 
-            bool b_transpose = false;
-            if (k_stride_s == 1) {
-                b_transpose = true;
-            }
             GemmKernel qk_gemm(m_cnt, head_size, kv_len, b_transpose, precision);
 
             arm_compute::Strides qStrides({query.stride_bytes(3), query.stride_bytes(2)});
@@ -698,31 +932,146 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                                 kStrides);
 
             auto qk = reinterpret_cast<T*>(qkTensor.buffer());
-
+#    if defined(OPENVINO_ARCH_ARM64)
+            const size_t qk_row_stride = qkInfo.strides_in_bytes()[1] / sizeof(T);
+            std::vector<float> qk_row_f32;
+            if constexpr (std::is_same_v<T, ov::float16>) {
+                bool qk_has_nonfinite = false;
+                for (size_t m_check = 0; m_check < m_cnt && !qk_has_nonfinite; m_check++) {
+                    const T* row = qk + m_check * qk_row_stride;
+                    for (size_t n = 0; n < kv_len; n++) {
+                        const auto v = static_cast<float>(row[n]);
+                        if (!std::isfinite(v)) {
+                            qk_has_nonfinite = true;
+                            break;
+                        }
+                    }
+                }
+                if (qk_has_nonfinite) {
+                    qkTensor.allocator()->free();
+                    run_f32_path();
+                    return;
+                }
+                qk_row_f32.resize(kv_len);
+            }
+#    endif
+            auto row_ptr = [](auto* base, size_t stride, size_t m) {
+                return base ? base + m * stride : nullptr;
+            };
+            auto sink_ptr = [&](size_t m) {
+                return sink_input ? &sink_input.at<float>({b, h, m, 0}, true) : nullptr;
+            };
+#    if defined(OPENVINO_ARCH_ARM64)
+            if constexpr (std::is_same_v<T, ov::float16>) {
+                float* alibi_ptr_f32 = nullptr;
+                size_t alibi_stride_f32 = 0;
+                const auto alibi_prec = alibi_mask ? alibi_mask.get_precision() : ov::element::f32;
+                const bool alibi_needs_convert = alibi_mask && (alibi_prec != ov::element::f32);
+                std::vector<float> alibi_row;
+                if (alibi_mask && !alibi_needs_convert) {
+                    alibi_ptr_f32 = &alibi_mask.at<float>({b, h, 0, 0}, true);
+                    if (alibi_mask.size(2) > 1) {
+                        alibi_stride_f32 = alibi_mask.stride(2);
+                    }
+                } else if (alibi_needs_convert) {
+                    alibi_row.resize(kv_len);
+                }
+                for (size_t m = m_start; m < m_end; m++) {
+                    // apply attention mask & sofmax
+                    auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
+                    auto* attn_mask_row = row_ptr(attn_mask_ptr, attn_mask_stride, m);
+                    auto* cmask_row = row_ptr(cmask_ptr, cmask_stride, m);
+                    float* alibi_row_ptr = nullptr;
+                    if (alibi_ptr_f32) {
+                        alibi_row_ptr = alibi_ptr_f32 + m * alibi_stride_f32;
+                    } else if (alibi_needs_convert) {
+                        const size_t b_idx = alibi_mask.size(0) > 1 ? b : 0;
+                        const size_t h_idx = alibi_mask.size(1) > 1 ? h : 0;
+                        const size_t m_idx = alibi_mask.size(2) > 1 ? m : 0;
+                        const void* alibi_src = alibi_mask.ptr_v(b_idx, h_idx, m_idx, 0);
+                        cpu_convert(alibi_src, alibi_row.data(), alibi_prec, ov::element::f32, kv_len);
+                        alibi_row_ptr = alibi_row.data();
+                    }
+                    auto* sink = sink_ptr(m);
+                    T* qk_row = qk + (m - m_start) * qk_row_stride;
+                    for (size_t n = 0; n < kv_len; n++) {
+                        qk_row_f32[n] = static_cast<float>(qk_row[n]);
+                    }
+                    attn_softmax(reinterpret_cast<void*>(qk_row_f32.data()),
+                                 qk_row_f32.data(),
+                                 d_scale,
+                                 reinterpret_cast<void*>(alibi_row_ptr),
+                                 attn_mask_row,
+                                 cmask_row,
+                                 select_nfltmax_at_0,
+                                 ncausal,
+                                 kv_len,
+                                 ov::element::f32,
+                                 attn_mask_precision,
+                                 ov::element::f32,
+                                 sink);
+                    for (size_t n = 0; n < kv_len; n++) {
+                        qk_row[n] = static_cast<T>(qk_row_f32[n]);
+                    }
+                }
+            } else {
+                for (size_t m = m_start; m < m_end; m++) {
+                    // apply attention mask & sofmax
+                    auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
+                    auto* attn_mask_row = row_ptr(attn_mask_ptr, attn_mask_stride, m);
+                    auto* cmask_row = row_ptr(cmask_ptr, cmask_stride, m);
+                    auto* alibi_row = row_ptr(alibi_ptr, alibi_stride, m);
+                    auto* sink = sink_ptr(m);
+                    attn_softmax(reinterpret_cast<void*>(qk + (m - m_start) * qk_row_stride),
+                                 qk + (m - m_start) * qk_row_stride,
+                                 d_scale,
+                                 reinterpret_cast<void*>(alibi_row),
+                                 attn_mask_row,
+                                 cmask_row,
+                                 select_nfltmax_at_0,
+                                 ncausal,
+                                 kv_len,
+                                 precision,
+                                 attn_mask_precision,
+                                 precision,
+                                 sink);
+                }
+            }
+#    else
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-                uint8_t* attn_mask_row = attn_mask_ptr ? attn_mask_ptr + m * attn_mask_stride : nullptr;
+                auto* attn_mask_row = row_ptr(attn_mask_ptr, attn_mask_stride, m);
+                auto* cmask_row = row_ptr(cmask_ptr, cmask_stride, m);
+                auto* alibi_row = row_ptr(alibi_ptr, alibi_stride, m);
+                auto* sink = sink_ptr(m);
                 attn_softmax(reinterpret_cast<void*>(qk + (m - m_start) * kv_len),
                              qk + (m - m_start) * kv_len,
                              d_scale,
-                             reinterpret_cast<void*>(alibi_ptr + m * alibi_stride),
+                             reinterpret_cast<void*>(alibi_row),
                              attn_mask_row,
-                             cmask_ptr + m * cmask_stride,
+                             cmask_row,
                              select_nfltmax_at_0,
                              ncausal,
                              kv_len,
                              precision,
                              attn_mask_precision,
                              precision,
-                             nullptr);
+                             sink);
             }
+#    endif
             arm_compute::TensorInfo outInfo;
             arm_compute::Tensor outTensor;
 
             auto out = has_out_transpose ? &output_emb.at<T>({b, m_start, h * head_size_v})
                                          : &output_emb.at<T>({b, h, m_start});
+#    if defined(OPENVINO_ARCH_ARM64)
+            const int row_dim = has_out_transpose ? 1 : 2;
+            const int col_dim = has_out_transpose ? 2 : 3;
+            auto strides = arm_compute::Strides({output_emb.stride_bytes(col_dim), output_emb.stride_bytes(row_dim)});
+#    else
             auto strides = arm_compute::Strides({output_emb.stride_bytes(1), output_emb.stride_bytes(2)});
+#    endif
             GemmKernel out_gemm(m_cnt, kv_len, head_size_v, false, precision);
 
             arm_compute::Strides vStrides({present_value.stride_bytes(3), present_value.stride_bytes(2)});
@@ -880,19 +1229,25 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
                            1);
             }
 
+            auto row_ptr = [](auto* base, size_t stride, size_t m) {
+                return base ? base + m * stride : nullptr;
+            };
+            auto sink_ptr = [&](size_t m) {
+                return sink_input ? &sink_input.at<float>({b, h, m, 0}, true) : nullptr;
+            };
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-                float* sink = nullptr;
-                if (sink_input) {
-                    sink = &sink_input.at<float>({b, h, m, 0}, true);
-                }
+                auto* sink = sink_ptr(m);
+                auto* attn_mask_row = row_ptr(attn_mask_ptr, attn_mask_stride, m);
+                auto* cmask_row = row_ptr(cmask_ptr, cmask_stride, m);
+                auto* alibi_row = row_ptr(alibi_ptr, alibi_stride, m);
                 attn_softmax(reinterpret_cast<void*>(qk + (m - m_start) * qk_m_stride),
                              qk + (m - m_start) * qk_m_stride,
                              d_scale,
-                             reinterpret_cast<void*>(alibi_ptr + m * alibi_stride),
-                             attn_mask_ptr + m * attn_mask_stride,
-                             cmask_ptr + m * cmask_stride,
+                             reinterpret_cast<void*>(alibi_row),
+                             attn_mask_row,
+                             cmask_row,
                              select_nfltmax_at_0,
                              ncausal,
                              kv_len,
@@ -958,7 +1313,8 @@ struct MHASingleToken {
                     float d_scale,
                     const PlainTensor& k_scale_zp,
                     const PlainTensor& v_scale_zp,
-                    const PlainTensor& sink_input) {
+                    const PlainTensor& sink_input,
+                    const std::shared_ptr<CpuParallel>& cpu_parallel) {
         auto B = query.size(0);
         auto H = query.size(1);
         auto q_len = query.size(2);
@@ -985,7 +1341,8 @@ struct MHASingleToken {
                          m_key_group_size,
                          m_value_group_size,
                          m_quant_key_by_channel,
-                         sink_input);
+                         sink_input,
+                         cpu_parallel);
     }
 };
 
@@ -1039,6 +1396,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         PlainTensor v_input;     // f32[B, H|1, L1, S] / [B, H|1, L0+L1, S]
         PlainTensor beam_table;  // i32[B, max_kvLen]
         PlainTensor attn_mask;
+        PlainTensor alibi_mask;
         PlainTensor output_emb(output);
         PlainTensor sink_input;
         float scale_input = 0.0F;
@@ -1086,6 +1444,9 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             if (input_num > 4) {
                 scale_input = *inputs[4]->getDataAs<float>();
             }
+        }
+        if (input_num > 6) {
+            alibi_mask.reset(inputs[6]);
         }
 
         // q: [B, H, L1, S]
@@ -1160,7 +1521,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                    q_input,
                    k_input,
                    v_input,
-                   {},
+                   alibi_mask,
                    use_attn_mask ? attn_mask : PlainTensor(),
                    output_emb,
                    has_out_transpose,
@@ -1176,7 +1537,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             kernel_single_token(q_input,
                                 present_key,
                                 present_value,
-                                {},
+                                alibi_mask,
                                 use_attn_mask ? attn_mask : PlainTensor(),
                                 output_emb,
                                 beam_table,
@@ -1185,8 +1546,195 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                                 scale_input,
                                 k_scale_zp,
                                 v_scale_zp,
-                                sink_input);
+                                sink_input,
+                                context->getCpuParallel());
         }
+
+#if defined(OPENVINO_ARCH_ARM64)
+        if (output_emb.get_precision() == ov::element::f16) {
+            bool has_nan = false;
+            if (output_emb.m_rank == 4) {
+                const auto Bn = output_emb.size(0);
+                const auto Hn = output_emb.size(1);
+                const auto Ln = output_emb.size(2);
+                const auto Sn = output_emb.size(3);
+                for (size_t b = 0; b < Bn && !has_nan; b++) {
+                    for (size_t h = 0; h < Hn && !has_nan; h++) {
+                        for (size_t l = 0; l < Ln && !has_nan; l++) {
+                            for (size_t s = 0; s < Sn; s++) {
+                                const float v = static_cast<float>(output_emb.at<ov::float16>({b, h, l, s}));
+                                if (!std::isfinite(v)) {
+                                    has_nan = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if (output_emb.m_rank == 3) {
+                const auto Bn = output_emb.size(0);
+                const auto Ln = output_emb.size(1);
+                const auto HSn = output_emb.size(2);
+                for (size_t b = 0; b < Bn && !has_nan; b++) {
+                    for (size_t l = 0; l < Ln && !has_nan; l++) {
+                        for (size_t s = 0; s < HSn; s++) {
+                            const float v = static_cast<float>(output_emb.at<ov::float16>({b, l, s}));
+                            if (!std::isfinite(v)) {
+                                has_nan = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (has_nan) {
+                const auto& causal_mask = kernel.causal_mask;
+                const bool select_nfltmax_at_0 = kernel.select_nfltmax_at_0;
+                const size_t Bn = q_input.size(0);
+                const size_t Hn = q_input.size(1);
+                const size_t q_len = q_input.size(2);
+                const size_t head_size = q_input.size(3);
+                const size_t kv_len = present_key.size(2);
+                const size_t head_size_v = present_value.size(3);
+                const size_t h_group_num = present_key.size(1);
+                const size_t h_each_group_len = h_group_num ? (Hn / h_group_num) : 1;
+
+                float d_scale = scale_input;
+                if (d_scale == 0.0F) {
+                    d_scale = 1.0F / static_cast<float>(sqrt(head_size));
+                }
+
+                const auto attn_mask_prec = use_attn_mask ? attn_mask.get_precision() : ov::element::f32;
+                const auto alibi_prec = alibi_mask ? alibi_mask.get_precision() : ov::element::f32;
+                const bool alibi_needs_convert = alibi_mask && (alibi_prec != ov::element::f32);
+
+                for (size_t b = 0; b < Bn; b++) {
+                    for (size_t h = 0; h < Hn; h++) {
+                        const size_t hk = h_group_num ? (h / h_each_group_len) : h;
+                        std::vector<float> k_f32(kv_len * head_size);
+                        std::vector<float> v_f32(kv_len * head_size_v);
+
+                        const size_t k_stride_m = present_key.stride(2);
+                        const size_t k_stride_s = present_key.stride(3);
+                        const ov::float16* k_ptr = &present_key.at<ov::float16>({b, hk, 0, 0});
+                        for (size_t n = 0; n < kv_len; n++) {
+                            const ov::float16* k_row = k_ptr + n * k_stride_m;
+                            for (size_t s = 0; s < head_size; s++) {
+                                k_f32[n * head_size + s] = static_cast<float>(k_row[s * k_stride_s]);
+                            }
+                        }
+
+                        const size_t v_stride_m = present_value.stride(2);
+                        const size_t v_stride_s = present_value.stride(3);
+                        const ov::float16* v_ptr = &present_value.at<ov::float16>({b, hk, 0, 0});
+                        for (size_t n = 0; n < kv_len; n++) {
+                            const ov::float16* v_row = v_ptr + n * v_stride_m;
+                            for (size_t s = 0; s < head_size_v; s++) {
+                                v_f32[n * head_size_v + s] = static_cast<float>(v_row[s * v_stride_s]);
+                            }
+                        }
+
+                        uint8_t* attn_mask_ptr = nullptr;
+                        size_t attn_mask_stride = 0;
+                        if (use_attn_mask) {
+                            const size_t mask_head = attn_mask.size(1) > 1 ? h : 0;
+                            attn_mask_ptr = static_cast<uint8_t*>(attn_mask.ptr_v(b, mask_head, 0, 0));
+                            if (attn_mask.size(2) > 1) {
+                                attn_mask_stride = attn_mask.stride_bytes(2);
+                            }
+                        }
+                        uint8_t* cmask_ptr = nullptr;
+                        size_t cmask_stride = 0;
+                        if (causal_mask) {
+                            cmask_ptr = &causal_mask.template at<uint8_t>({b, h, 0, 0}, true);
+                            if (causal_mask.size(2) > 1) {
+                                cmask_stride = causal_mask.stride(2);
+                            }
+                        }
+                        float* alibi_ptr_f32 = nullptr;
+                        size_t alibi_stride_f32 = 0;
+                        std::vector<float> alibi_row;
+                        if (alibi_mask && !alibi_needs_convert) {
+                            alibi_ptr_f32 = &alibi_mask.at<float>({b, h, 0, 0}, true);
+                            if (alibi_mask.size(2) > 1) {
+                                alibi_stride_f32 = alibi_mask.stride(2);
+                            }
+                        } else if (alibi_needs_convert) {
+                            alibi_row.resize(kv_len);
+                        }
+                        auto row_ptr = [](auto* base, size_t stride, size_t m) {
+                            return base ? base + m * stride : nullptr;
+                        };
+                        auto sink_ptr = [&](size_t m) {
+                            return sink_input ? &sink_input.at<float>({b, h, m, 0}, true) : nullptr;
+                        };
+
+                        for (size_t m = 0; m < q_len; m++) {
+                            std::vector<float> q_row(head_size);
+                            const size_t q_stride_s = q_input.stride(3);
+                            const ov::float16* q_ptr = &q_input.at<ov::float16>({b, h, m, 0});
+                            for (size_t s = 0; s < head_size; s++) {
+                                q_row[s] = static_cast<float>(q_ptr[s * q_stride_s]);
+                            }
+
+                            std::vector<float> scores(kv_len);
+                            for (size_t n = 0; n < kv_len; n++) {
+                                const float* k_row = k_f32.data() + n * head_size;
+                                float sum = 0.0F;
+                                for (size_t s = 0; s < head_size; s++) {
+                                    sum += q_row[s] * k_row[s];
+                                }
+                                scores[n] = sum;
+                            }
+
+                            auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
+                            auto* attn_mask_row = row_ptr(attn_mask_ptr, attn_mask_stride, m);
+                            auto* cmask_row = row_ptr(cmask_ptr, cmask_stride, m);
+                            float* alibi_row_ptr = nullptr;
+                            if (alibi_ptr_f32) {
+                                alibi_row_ptr = alibi_ptr_f32 + m * alibi_stride_f32;
+                            } else if (alibi_needs_convert) {
+                                const size_t b_idx = alibi_mask.size(0) > 1 ? b : 0;
+                                const size_t h_idx = alibi_mask.size(1) > 1 ? h : 0;
+                                const size_t m_idx = alibi_mask.size(2) > 1 ? m : 0;
+                                const void* alibi_src = alibi_mask.ptr_v(b_idx, h_idx, m_idx, 0);
+                                cpu_convert(alibi_src, alibi_row.data(), alibi_prec, ov::element::f32, kv_len);
+                                alibi_row_ptr = alibi_row.data();
+                            }
+                            auto* sink = sink_ptr(m);
+                            ov::Extensions::Cpu::XARCH::attn_softmax(scores.data(),
+                                                                     scores.data(),
+                                                                     d_scale,
+                                                                     reinterpret_cast<void*>(alibi_row_ptr),
+                                                                     attn_mask_row,
+                                                                     cmask_row,
+                                                                     select_nfltmax_at_0,
+                                                                     ncausal,
+                                                                     kv_len,
+                                                                     ov::element::f32,
+                                                                     attn_mask_prec,
+                                                                     ov::element::f32,
+                                                                     sink);
+
+                            for (size_t s = 0; s < head_size_v; s++) {
+                                float sum = 0.0F;
+                                for (size_t n = 0; n < kv_len; n++) {
+                                    sum += scores[n] * v_f32[n * head_size_v + s];
+                                }
+                                if (has_out_transpose) {
+                                    output_emb.at<ov::float16>({b, m, h * head_size_v + s}) =
+                                        static_cast<ov::float16>(sum);
+                                } else {
+                                    output_emb.at<ov::float16>({b, h, m, s}) = static_cast<ov::float16>(sum);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+#endif
     }
 };
 
@@ -1215,7 +1763,7 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::N
     m_value_quant_param.groupSize = (cpuConfig.valueCacheGroupSize == 0 || valueS % cpuConfig.valueCacheGroupSize != 0)
                                         ? valueS
                                         : cpuConfig.valueCacheGroupSize;
-    m_key_quant_param.precision = valueCachePrecision;
+    m_value_quant_param.precision = valueCachePrecision;
 
     if (const auto node = ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(op)) {
         m_config.config.is_causal = node->get_causal();
@@ -1264,6 +1812,13 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     if (orginSDPInputNumber > 5) {
         config.inConfs[nextPortIdx].setMemDesc(
             creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getInputShapeAtPort(nextPortIdx)));
+        nextPortIdx++;
+    }
+    // alibi
+    if (orginSDPInputNumber > 6) {
+        config.inConfs[nextPortIdx].setMemDesc(
+            creatorsMap.at(LayoutType::ncsp)
+                ->createSharedDesc(getOriginalInputPrecisionAtPort(nextPortIdx), getInputShapeAtPort(nextPortIdx)));
         nextPortIdx++;
     }
 
@@ -1519,6 +2074,7 @@ std::vector<T> permute_axes(const std::vector<T>& shape, const std::vector<size_
 void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
                                                      const MemoryPtr& mem_cur_v,
                                                      const MemoryPtr& mem_beam_idx) {
+    const auto& cpu_parallel = context->getCpuParallel();
     std::vector<size_t> order = {0, 1, 2, 3};
     if (!m_config.config.permute_axes.empty()) {
         order = m_config.config.permute_axes;
@@ -1602,7 +2158,7 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
             old_past_v.reset(old_internal_mem_v);
             old_past_k = old_past_k.permute(order);
             old_past_v = old_past_v.permute(order);
-            parallel_for3d(B, H, L0, [&](size_t b, size_t h, size_t m) {
+            cpu_parallel->parallel_for3d(B, H, L0, [&](size_t b, size_t h, size_t m) {
                 auto idx = static_cast<size_t>(table[b]);
                 auto b_kv = static_cast<size_t>(old_beam_table_k.at<int32_t>({idx, m}));
                 memcpy(&new_pastk.at<char>({b, h, m}),
@@ -1637,7 +2193,7 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
                 auto update_scales_zp =
                     [&](const SDPAQuantParam& quant_param, PlainTensor& new_scale_zp, PlainTensor& old_scale_zp) {
                         if (quant_param.isByChannel) {
-                            parallel_for2d(L0, B, [&](size_t m, size_t b) {
+                            cpu_parallel->parallel_for2d(L0, B, [&](size_t m, size_t b) {
                                 auto idx = static_cast<size_t>(table[b]);
                                 auto b_kv = static_cast<size_t>(old_beam_table_k.at<int32_t>({idx, m}));
                                 size_t group_id = m / quant_param.groupSize;
@@ -1653,7 +2209,7 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
                                 }
                             });
                         } else {
-                            parallel_for2d(L0, B, [&](size_t m, size_t b) {
+                            cpu_parallel->parallel_for2d(L0, B, [&](size_t m, size_t b) {
                                 auto idx = static_cast<size_t>(table[b]);
                                 for (size_t h = 0; h < H; h++) {
                                     auto b_kv = static_cast<size_t>(old_beam_table_k.at<int32_t>({idx, m}));
@@ -1712,9 +2268,10 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
                          L0,
                          m_key_quant_param.isByChannel,
                          m_key_quant_param.groupSize,
-                         m_value_quant_param.groupSize);
+                         m_value_quant_param.groupSize,
+                         cpu_parallel);
         } else {
-            attn_memcpy(cur_k, cur_v, new_pastk.slice(2, L0, L0 + L1), new_pastv.slice(2, L0, L0 + L1));
+            attn_memcpy(cur_k, cur_v, new_pastk.slice(2, L0, L0 + L1), new_pastv.slice(2, L0, L0 + L1), cpu_parallel);
         }
 
         m_k_state->assign_internal_state(new_internal_mem_k);
@@ -1992,7 +2549,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
             past_v.reset(internal_mem_v);
             past_k = past_k.permute(order);
             past_v = past_v.permute(order);
-            attn_memcpy(past_k, past_v, new_pastk, new_pastv);
+            attn_memcpy(past_k, past_v, new_pastk, new_pastv, cpu_parallel);
         }
         internal_mem_k = new_internal_mem_k;
         internal_mem_v = new_internal_mem_v;
@@ -2143,9 +2700,10 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
                              0,
                              m_key_quant_param.isByChannel,
                              m_key_quant_param.groupSize,
-                             m_value_quant_param.groupSize);
+                             m_value_quant_param.groupSize,
+                             cpu_parallel);
             } else {
-                attn_memcpy(init_k, init_v, past_k, past_v);
+                attn_memcpy(init_k, init_v, past_k, past_v, cpu_parallel);
             }
         }
     }
@@ -2168,9 +2726,10 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
                      L0,
                      m_key_quant_param.isByChannel,
                      m_key_quant_param.groupSize,
-                     m_value_quant_param.groupSize);
+                     m_value_quant_param.groupSize,
+                     cpu_parallel);
     } else {
-        attn_memcpy(cur_k, cur_v, past_k.slice(2, L0, L0 + L1), past_v.slice(2, L0, L0 + L1));
+        attn_memcpy(cur_k, cur_v, past_k.slice(2, L0, L0 + L1), past_v.slice(2, L0, L0 + L1), cpu_parallel);
     }
 }
 

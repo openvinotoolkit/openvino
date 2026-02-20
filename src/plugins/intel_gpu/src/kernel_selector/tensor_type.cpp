@@ -443,14 +443,7 @@ DataTensor DataTensor::FlattenFeatureAndSpatials() const {
 
         case Tensor::fyxb:
             targetLayout = Tensor::fb;
-
-            // TODO: [FUTURE] Use C++17 [[fallthrough]] instead of code duplication to get portable warning avoidance.
-            if (f.pitch == y.v * x.v * x.pitch) {  // no padding in X/Y axis
-                l = targetLayout;
-                break;
-            }
-            throw std::runtime_error("Unsupported - cannot flatten with padding");
-
+            [[fallthrough]];
         case Tensor::bfyx:
             if (f.pitch == y.v * x.v * x.pitch) {  // no padding in X/Y axis
                 l = targetLayout;
@@ -472,16 +465,7 @@ DataTensor DataTensor::FlattenFeatureAndSpatials() const {
             throw std::runtime_error("Unsupported - cannot flatten with padding");
         case Tensor::yxfb:
             targetLayout = Tensor::fb;
-
-            // TODO: [FUTURE] Use C++17 [[fallthrough]] instead of code duplication to get portable warning avoidance.
-            if ((x.pitch == f.pitch && y.pitch == x.v * x.pitch) ||                                // YX - no Features (val/pitch)
-                (y.v == 1 && x.v == 1 && x.pitch == f.pitch && y.pitch == f.pitch) ||              // Feature only
-                (f.v * f.pitch == x.pitch && f.v * f.pitch == y.pitch && y.v == 1 && x.v == 1)) {  // Feature only
-                l = targetLayout;
-                break;
-            }
-            throw std::runtime_error("Unsupported - cannot flatten yxf to f if f/yx != 1");
-
+            [[fallthrough]];
         case Tensor::byxf:
             if ((x.pitch == f.pitch && y.pitch == x.v * x.pitch) ||                               // YX - no Features (val/pitch)
                 (y.v == 1 && x.v == 1 && x.pitch == f.pitch && y.pitch == f.pitch) ||             // Feature only

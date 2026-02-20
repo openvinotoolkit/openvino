@@ -10,6 +10,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/constant.hpp"
@@ -112,14 +113,15 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                 }
                 getitem->output(0).replace(split->outputs()[index]);
             }
-        } else if (auto list_construct = cast_fw_node(input_node, "prim::ListConstruct")) {
+        } else if (auto seq_mark = ov::as_type_ptr<SequenceMark>(input_node)) {
+            // Handle SequenceMark (for list/tuple construct)
             auto getitem_idx = getitem->input_value(1);
             auto getitem_idx_const = ov::util::get_constant_from_source(getitem_idx);
             if (getitem_idx_const) {
                 auto idx = getitem_idx_const->cast_vector<int64_t>();
-                getitem->output(0).replace(list_construct->input_value(idx[0]));
+                getitem->output(0).replace(seq_mark->input_value(idx[0]));
             } else {
-                auto input_concat = concat_list_construct(list_construct);
+                auto input_concat = concat_list_construct(seq_mark);
                 auto zero = v0::Constant::create(element::i32, Shape{}, {0});
                 auto gather = rg.make<v8::Gather>(input_concat, getitem_idx, zero);
                 replace_node(getitem, gather);

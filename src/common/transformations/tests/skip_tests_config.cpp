@@ -7,9 +7,11 @@
 #include <string>
 #include <vector>
 
-std::vector<std::string> disabledTestPatterns() {
-    return {
+const std::vector<std::regex>& disabled_test_patterns() {
+    const static std::vector<std::regex> patterns{
         // TODO: task 32568, enable after supporting constants outputs in plugins
-        ".*TransformationTests\\.ConstFoldingPriorBox.*",
+        std::regex(".*TransformationTests\\.ConstFoldingPriorBox.*"),
     };
+
+    return patterns;
 }

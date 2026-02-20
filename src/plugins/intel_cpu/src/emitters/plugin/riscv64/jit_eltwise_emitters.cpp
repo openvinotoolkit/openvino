@@ -25,6 +25,7 @@
 #include "openvino/op/elu.hpp"
 #include "openvino/op/is_inf.hpp"
 #include "openvino/op/relu.hpp"
+#include "snippets/op/powerstatic.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
@@ -105,6 +106,7 @@ void jit_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
 
     switch (exec_prc_) {
     case ov::element::f32:
+    case ov::element::f16:
         h->vfadd_vv(dst, src0, src1);
         break;
     case ov::element::i32:
@@ -117,7 +119,61 @@ void jit_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
 
 std::set<std::vector<element::Type>> jit_add_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}, {element::i32, element::i32}};
+    return {{element::f32, element::f32}, {element::f16, element::f16}, {element::i32, element::i32}};
+}
+/// CEIL ///
+jit_ceil_emitter::jit_ceil_emitter(jit_generator_t* host, cpu_isa_t host_isa, const element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
+
+jit_ceil_emitter::jit_ceil_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                   ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                   const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
+    prepare_table();
+}
+
+size_t jit_ceil_emitter::get_inputs_num() const {
+    return 1;
+}
+
+size_t jit_ceil_emitter::aux_fp_gprs_count() const {
+    return 1;
+}
+
+void jit_ceil_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                 const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel for CEIL");
+    }
+}
+
+void jit_ceil_emitter::register_table_entries() {
+    push_arg_entry_of("one", 0x3f800000);
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_ceil_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
+    auto src = VReg(in_vec_idxs[0]);
+    auto dst = VReg(out_vec_idxs[0]);
+    auto fp1 = FReg(aux_fp_gpr_idxs[0]);
+
+    h->vfcvt_x_f_v(dst, src);
+    h->vfcvt_f_x_v(dst, dst);
+
+    h->vmflt_vv(mask_vreg(), dst, src);
+    load_table_val("one", fp1);
+    h->vfadd_vf(dst, dst, fp1, VM::masked);
+}
+
+std::set<std::vector<element::Type>> jit_ceil_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
 }
 
 /// Clamp ///
@@ -2579,6 +2635,21 @@ std::set<std::vector<element::Type>> jit_round_half_to_even_emitter::get_support
 }
 
 /// Power Static ///
+jit_power_static_emitter::jit_power_static_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                                   ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                                   const std::shared_ptr<ov::Node>& node,
+                                                   ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {
+    const auto power_static = ov::as_type_ptr<ov::snippets::op::PowerStatic>(node);
+    OV_CPU_JIT_EMITTER_ASSERT(power_static, "Can't cast to snippets::op::PowerStatic");
+
+    power = power_static->get_power();
+    scale = 1.F;
+    shift = 0.F;
+
+    prepare_table();
+}
+
 jit_power_static_emitter::jit_power_static_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                                    ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                                    float power,

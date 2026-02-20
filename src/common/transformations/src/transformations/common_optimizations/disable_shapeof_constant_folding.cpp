@@ -10,7 +10,9 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 
-ov::pass::DisableShapeOfConstantFolding::DisableShapeOfConstantFolding(bool check_shape) {
+namespace ov::pass {
+
+DisableShapeOfConstantFolding::DisableShapeOfConstantFolding(bool check_shape) {
     auto shape_of = pattern::wrap_type<ov::op::v0::ShapeOf, ov::op::v3::ShapeOf>([=](const Output<Node>& output) {
         const auto& shape = output.get_partial_shape();
         if (!check_shape)
@@ -23,6 +25,8 @@ ov::pass::DisableShapeOfConstantFolding::DisableShapeOfConstantFolding(bool chec
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(shape_of, "DisableShapeOfConstantFolding");
+    auto m = std::make_shared<pattern::Matcher>(shape_of, "DisableShapeOfConstantFolding");
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

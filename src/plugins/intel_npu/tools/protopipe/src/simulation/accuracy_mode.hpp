@@ -17,6 +17,7 @@ public:
     struct Options {
         std::string ref_device;
         std::string tgt_device;
+        std::string npu_compiler_type;
         IRandomGenerator::Ptr global_initializer;
         ModelsAttrMap<IRandomGenerator::Ptr> initializers_map;
         ModelsAttrMap<std::string> input_data_map;

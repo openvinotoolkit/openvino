@@ -20,6 +20,7 @@
 
 using namespace std;
 
+namespace op_util = ov::op::util;
 ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs::MarkPrecisionSensitiveShapeOfSubgraphs() {
     m_markup_func = [](Node* node) {
         ov::disable_fp16_compression(node->shared_from_this());
@@ -65,9 +66,9 @@ bool ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs::run_on_model(const shared
                 // visit_shape_path shouldn't depend on "visited" nodes because we can approach Divide
                 // earlier from some non precision sensitive path. So we use dedicated "precision_sensitive_visited"
                 // set for precision sensitive nodes, so they can be visited twice and finally marked-up.
-                ov::op::util::visit_shape_path(input.get_source_output().get_node(),
-                                               precision_sensitive_visited,
-                                               m_markup_func);
+                op_util::visit_shape_path(input.get_source_output().get_node(),
+                                          precision_sensitive_visited,
+                                          m_markup_func);
             }
         }
 
@@ -77,7 +78,7 @@ bool ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs::run_on_model(const shared
             if (visited.count(input_node))
                 continue;
 
-            if (auto sub_graph_node = ov::as_type<ov::op::util::MultiSubGraphOp>(input_node)) {
+            if (auto sub_graph_node = ov::as_type<op_util::MultiSubGraphOp>(input_node)) {
                 size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
                 for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
                     auto sub_graph = sub_graph_node->get_function(static_cast<int>(sub_graph_ind));

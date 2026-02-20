@@ -9,7 +9,7 @@ from pathlib import Path
 try:
     import yaml
 except:
-    import subprocess
+    import subprocess  # nosec B404
     import sys
     p = subprocess.Popen('{} -m pip install pyyaml'.format(
             sys.executable

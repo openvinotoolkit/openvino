@@ -18,12 +18,13 @@
 
 using namespace std;
 using namespace ov;
-using namespace ov::op;
 using namespace ov::symbol::util;
+
+namespace ov::pass {
 
 namespace {
 shared_ptr<Node> broadcast_label(const OutputVector& inputs) {
-    return ov::pass::pattern::wrap_type<op::v1::Broadcast, op::v3::Broadcast>(inputs, [](Output<Node> output) {
+    return pattern::wrap_type<op::v1::Broadcast, op::v3::Broadcast>(inputs, [](Output<Node> output) {
         const auto& op = output.get_node_shared_ptr();
         auto data_rank = op->get_input_partial_shape(0).rank();
         auto new_shape_shape = op->get_input_partial_shape(1);
@@ -32,7 +33,7 @@ shared_ptr<Node> broadcast_label(const OutputVector& inputs) {
 }
 }  // namespace
 
-ov::pass::NopBroadcast::NopBroadcast() {
+NopBroadcast::NopBroadcast() {
     MATCHER_SCOPE(NopBroadcast);
     auto data_label = pattern::any_input(pattern::has_static_rank());
 
@@ -59,3 +60,5 @@ ov::pass::NopBroadcast::NopBroadcast() {
     auto m = std::make_shared<pattern::Matcher>(broadcast, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
+
+}  // namespace ov::pass

@@ -8,15 +8,14 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestIm2Col(PytorchLayerTest):
     def _prepare_input(self):
-        import numpy as np
-        return (np.random.randn(10, 3, 24, 24).astype(np.float32),)
+        return (self.random.randn(10, 3, 24, 24),)
 
     def create_model(self, kernel_size, dilation, padding, stride):
         import torch
 
         class aten_im2col(torch.nn.Module):
             def __init__(self, kernel_size, dilation, padding, stride):
-                super(aten_im2col, self).__init__()
+                super().__init__()
                 self.kernel_size = kernel_size
                 self.dilation = dilation
                 self.padding = padding
@@ -31,9 +30,8 @@ class TestIm2Col(PytorchLayerTest):
                     stride=self.stride
                 )
 
-        ref_net = None
 
-        return aten_im2col(kernel_size, dilation, padding, stride), ref_net, "aten::im2col"
+        return aten_im2col(kernel_size, dilation, padding, stride), "aten::im2col"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

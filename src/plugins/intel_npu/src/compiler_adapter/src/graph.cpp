@@ -20,7 +20,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              std::optional<ov::Tensor> blob,
              const Config& config,
              const bool blobIsPersistent,
-             const ov::SoPtr<ICompiler>& compiler,
+             const ov::SoPtr<VCLCompilerImpl>& compiler,
              const bool calledFromWeightlessGraph)
     : IGraph(),
       _zeGraphExt(zeGraphExt),
@@ -268,6 +268,20 @@ void Graph::set_last_submitted_id(uint32_t id_index) {
 
 uint32_t Graph::get_last_submitted_id() const {
     return _lastSubmittedId;
+}
+
+std::optional<bool> Graph::is_profiling_blob() const {
+    if (_zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
+        _logger.debug("Cannot determine if the blob was compiled for profiling");
+        return std::nullopt;
+    }
+    ze_graph_properties_3_t graphProperties = {};
+    graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_3;
+
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties3(get_handle(), &graphProperties);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
+
+    return graphProperties.flags & ZE_GRAPH_PROPERTIES_FLAG_PROFILING_ENABLED;
 }
 
 std::optional<size_t> Graph::determine_batch_size() {

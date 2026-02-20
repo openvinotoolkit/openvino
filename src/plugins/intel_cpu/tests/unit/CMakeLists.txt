@@ -32,17 +32,14 @@ if(NOT X86_64)
       ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations/x64
       ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/brgemm_executor_test.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/xattention_test.cpp)
+      ${CMAKE_CURRENT_SOURCE_DIR}/xattention_test.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/softmax_kernel_test.cpp)
 endif()
 
 if (NOT ENABLE_MLAS_FOR_CPU)
     list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST ${CMAKE_CURRENT_SOURCE_DIR}/gemm_api_test.cpp)
 else()
     set(MLAS_LIBRARY "mlas")
-endif()
-
-if (ENABLE_SHL_FOR_CPU)
-    set(SHL_LIBRARY "shl")
 endif()
 
 if (ENABLE_KLEIDIAI_FOR_CPU)
@@ -80,7 +77,6 @@ ov_add_test_target(
             ov_snippets_models
             snippets_test_utils
             ${MLAS_LIBRARY}
-            ${SHL_LIBRARY}
             ${KLEIDIAI_LIBRARY}
         LABELS
             OV UNIT CPU

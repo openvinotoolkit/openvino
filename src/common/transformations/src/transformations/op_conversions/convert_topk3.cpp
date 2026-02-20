@@ -13,12 +13,16 @@
 #include "openvino/op/topk.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v3 = ov::op::v3;
 ov::pass::ConvertTopK3::ConvertTopK3() {
     MATCHER_SCOPE(ConvertTopK3);
-    auto topk = pattern::wrap_type<ov::op::v3::TopK>();
+    auto topk = ov::pass::pattern::wrap_type<v3::TopK>();
 
-    matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto topk = ov::as_type_ptr<ov::op::v3::TopK>(m.get_match_root());
+    matcher_pass_callback callback = [](Matcher& m) {
+        auto topk = ov::as_type_ptr<v3::TopK>(m.get_match_root());
         if (!topk) {
             return false;
         }
@@ -41,15 +45,15 @@ ov::pass::ConvertTopK3::ConvertTopK3() {
             new_topk->set_friendly_name(topk->get_friendly_name());
         } else if (topk->get_output_target_inputs(0).size() == 0) {
             last0 = topk->output(0);
-            last1 = std::make_shared<ov::op::v0::Convert>(new_topk->output(1), topk->get_index_element_type());
+            last1 = std::make_shared<v0::Convert>(new_topk->output(1), topk->get_index_element_type());
             new_ops.push_back(last1.get_node_shared_ptr());
 
             // workaround for naming two outputs of TopK
             last1.get_node_shared_ptr()->set_friendly_name(topk->get_friendly_name() + ".1");
         } else {
             // create fake convert for 0 output, it is a workaround in purpose of correct output names preserving
-            last0 = std::make_shared<ov::op::v0::Convert>(new_topk->output(0), topk->get_output_element_type(0));
-            last1 = std::make_shared<ov::op::v0::Convert>(new_topk->output(1), topk->get_index_element_type());
+            last0 = std::make_shared<v0::Convert>(new_topk->output(0), topk->get_output_element_type(0));
+            last1 = std::make_shared<v0::Convert>(new_topk->output(1), topk->get_index_element_type());
             new_ops.push_back(last0.get_node_shared_ptr());
             new_ops.push_back(last1.get_node_shared_ptr());
 
@@ -64,6 +68,6 @@ ov::pass::ConvertTopK3::ConvertTopK3() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(topk, matcher_name);
+    auto m = std::make_shared<Matcher>(topk, matcher_name);
     register_matcher(m, callback);
 }

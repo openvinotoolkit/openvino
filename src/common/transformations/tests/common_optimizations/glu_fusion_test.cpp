@@ -24,14 +24,17 @@
 using namespace testing;
 using namespace ov::pass;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v4 = ov::op::v4;
 TEST_F(TransformationTestsF, GLUFusionTest1) {
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{2, 1, 6});
-        auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
-        auto split_lengths_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {3, -1});
-        auto variadic_split = std::make_shared<ov::op::v1::VariadicSplit>(input, axis_const, split_lengths_const);
-        auto swish = std::make_shared<ov::op::v4::Swish>(variadic_split->output(0));
-        auto mul = std::make_shared<ov::op::v1::Multiply>(swish, variadic_split->output(1));
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 1, 6});
+        auto axis_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
+        auto split_lengths_const = v0::Constant::create(ov::element::i64, ov::Shape{2}, {3, -1});
+        auto variadic_split = std::make_shared<v1::VariadicSplit>(input, axis_const, split_lengths_const);
+        auto swish = std::make_shared<v4::Swish>(variadic_split->output(0));
+        auto mul = std::make_shared<v1::Multiply>(swish, variadic_split->output(1));
 
         model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
         manager.register_pass<GLUFusion>();
@@ -39,7 +42,7 @@ TEST_F(TransformationTestsF, GLUFusionTest1) {
     {
         int64_t axis = -1;
         int64_t split_lenghts = 3;
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{2, 1, 6});
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 1, 6});
         auto swiglu = std::make_shared<ov::op::internal::GLU>(input,
                                                               axis,
                                                               split_lenghts,
@@ -53,12 +56,12 @@ TEST_F(TransformationTestsF, GLUFusionTest1) {
 
 TEST_F(TransformationTestsF, GLUFusionTest2) {
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, 6});
-        auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
-        auto split_lengths_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {3, 3});
-        auto variadic_split = std::make_shared<ov::op::v1::VariadicSplit>(input, axis_const, split_lengths_const);
-        auto swish = std::make_shared<ov::op::v4::Swish>(variadic_split->output(0));
-        auto mul = std::make_shared<ov::op::v1::Multiply>(swish, variadic_split->output(1));
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, 6});
+        auto axis_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+        auto split_lengths_const = v0::Constant::create(ov::element::i64, ov::Shape{2}, {3, 3});
+        auto variadic_split = std::make_shared<v1::VariadicSplit>(input, axis_const, split_lengths_const);
+        auto swish = std::make_shared<v4::Swish>(variadic_split->output(0));
+        auto mul = std::make_shared<v1::Multiply>(swish, variadic_split->output(1));
 
         model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
         manager.register_pass<GLUFusion>();
@@ -67,12 +70,12 @@ TEST_F(TransformationTestsF, GLUFusionTest2) {
 
 TEST_F(TransformationTestsF, GLUFusionTest3) {
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, 6});
-        auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
-        auto split_lengths_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {3, -1});
-        auto variadic_split = std::make_shared<ov::op::v1::VariadicSplit>(input, axis_const, split_lengths_const);
-        auto swish = std::make_shared<ov::op::v4::Swish>(variadic_split->output(0));
-        auto mul = std::make_shared<ov::op::v1::Multiply>(swish, variadic_split->output(1));
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, 6});
+        auto axis_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
+        auto split_lengths_const = v0::Constant::create(ov::element::i64, ov::Shape{2}, {3, -1});
+        auto variadic_split = std::make_shared<v1::VariadicSplit>(input, axis_const, split_lengths_const);
+        auto swish = std::make_shared<v4::Swish>(variadic_split->output(0));
+        auto mul = std::make_shared<v1::Multiply>(swish, variadic_split->output(1));
 
         model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
         manager.register_pass<GLUFusion>();
@@ -80,7 +83,7 @@ TEST_F(TransformationTestsF, GLUFusionTest3) {
     {
         int64_t axis = -1;
         int64_t split_lenghts = 3;
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, 6});
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, 6});
         auto swiglu = std::make_shared<ov::op::internal::GLU>(input,
                                                               axis,
                                                               split_lenghts,
@@ -94,12 +97,12 @@ TEST_F(TransformationTestsF, GLUFusionTest3) {
 
 TEST_F(TransformationTestsF, GLUFusionTest3ReverseOrder) {
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, 6});
-        auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
-        auto split_lengths_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {3, -1});
-        auto variadic_split = std::make_shared<ov::op::v1::VariadicSplit>(input, axis_const, split_lengths_const);
-        auto swish = std::make_shared<ov::op::v4::Swish>(variadic_split->output(0));
-        auto mul = std::make_shared<ov::op::v1::Multiply>(variadic_split->output(1), swish);
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, 6});
+        auto axis_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
+        auto split_lengths_const = v0::Constant::create(ov::element::i64, ov::Shape{2}, {3, -1});
+        auto variadic_split = std::make_shared<v1::VariadicSplit>(input, axis_const, split_lengths_const);
+        auto swish = std::make_shared<v4::Swish>(variadic_split->output(0));
+        auto mul = std::make_shared<v1::Multiply>(variadic_split->output(1), swish);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
         manager.register_pass<GLUFusion>();
@@ -107,7 +110,7 @@ TEST_F(TransformationTestsF, GLUFusionTest3ReverseOrder) {
     {
         int64_t axis = -1;
         int64_t split_lenghts = 3;
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, 6});
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, 6});
         auto swiglu = std::make_shared<ov::op::internal::GLU>(input,
                                                               axis,
                                                               split_lenghts,
@@ -121,12 +124,12 @@ TEST_F(TransformationTestsF, GLUFusionTest3ReverseOrder) {
 
 TEST_F(TransformationTestsF, GLUFusionTest4) {
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, 6});
-        auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
-        auto split_lengths_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {3, -1});
-        auto variadic_split = std::make_shared<ov::op::v1::VariadicSplit>(input, axis_const, split_lengths_const);
-        auto swish = std::make_shared<ov::op::v4::Swish>(variadic_split->output(0));
-        auto mul = std::make_shared<ov::op::v1::Multiply>(swish, variadic_split->output(0));
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, 6});
+        auto axis_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
+        auto split_lengths_const = v0::Constant::create(ov::element::i64, ov::Shape{2}, {3, -1});
+        auto variadic_split = std::make_shared<v1::VariadicSplit>(input, axis_const, split_lengths_const);
+        auto swish = std::make_shared<v4::Swish>(variadic_split->output(0));
+        auto mul = std::make_shared<v1::Multiply>(swish, variadic_split->output(0));
 
         model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
         manager.register_pass<GLUFusion>();
@@ -135,12 +138,12 @@ TEST_F(TransformationTestsF, GLUFusionTest4) {
 
 TEST_F(TransformationTestsF, GeGLUFusionTest1) {
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{2, 1, 6});
-        auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
-        auto split_lengths_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {3, -1});
-        auto variadic_split = std::make_shared<ov::op::v1::VariadicSplit>(input, axis_const, split_lengths_const);
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 1, 6});
+        auto axis_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
+        auto split_lengths_const = v0::Constant::create(ov::element::i64, ov::Shape{2}, {3, -1});
+        auto variadic_split = std::make_shared<v1::VariadicSplit>(input, axis_const, split_lengths_const);
         auto gelu = std::make_shared<ov::op::v7::Gelu>(variadic_split->output(1));
-        auto mul = std::make_shared<ov::op::v1::Multiply>(variadic_split->output(0), gelu);
+        auto mul = std::make_shared<v1::Multiply>(variadic_split->output(0), gelu);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
         manager.register_pass<GLUFusion>();
@@ -148,7 +151,7 @@ TEST_F(TransformationTestsF, GeGLUFusionTest1) {
     {
         int64_t axis = -1;
         int64_t split_lenghts = 3;
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{2, 1, 6});
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 1, 6});
         auto swiglu = std::make_shared<ov::op::internal::GLU>(input,
                                                               axis,
                                                               split_lenghts,

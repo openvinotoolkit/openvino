@@ -116,7 +116,7 @@ public:
 };
 
 TEST_P(RemoteRunTests, CheckIsContinuousHostTensorScalar) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto zero_context = core->get_default_context(target_device);
@@ -132,7 +132,7 @@ TEST_P(RemoteRunTests, CheckIsContinuousHostTensorScalar) {
 }
 
 TEST_P(RemoteRunTests, CheckIsContinuousHostTensor1Dimension) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto zero_context = core->get_default_context(target_device);
@@ -151,7 +151,7 @@ TEST_P(RemoteRunTests, CheckIsContinuousHostTensor1Dimension) {
 }
 
 TEST_P(RemoteRunTests, CheckIsContinuousHostTensor2Dimensions) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto zero_context = core->get_default_context(target_device);
@@ -176,7 +176,7 @@ TEST_P(RemoteRunTests, CheckIsContinuousHostTensor2Dimensions) {
 }
 
 TEST_P(RemoteRunTests, CheckIsContinuousHostTensor3Dimensions) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto zero_context = core->get_default_context(target_device);
@@ -204,7 +204,7 @@ TEST_P(RemoteRunTests, CheckIsContinuousHostTensor3Dimensions) {
 }
 
 TEST_P(RemoteRunTests, CheckIsContinuousHostTensor4Dimensions) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto zero_context = core->get_default_context(target_device);
@@ -244,7 +244,7 @@ TEST_P(RemoteRunTests, CheckIsContinuousHostTensor4Dimensions) {
 }
 
 TEST_P(RemoteRunTests, CheckRemoteTensorInternalBuf) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::InferRequest inference_request;
     ov::CompiledModel compiled_model;
@@ -627,7 +627,7 @@ TEST_P(RemoteRunTests, ImportCpuVAUsingStandardRemoteTensorAPI) {
 }
 
 TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContext) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::InferRequest inference_request;
 
@@ -652,7 +652,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContext) {
 }
 
 TEST_P(RemoteRunTests, CheckRemoteTensorSetOnlyTensorType) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
@@ -668,7 +668,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorSetOnlyTensorType) {
 }
 
 TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContextandChangedInTensor) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
@@ -694,7 +694,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContextandChange
 }
 
 TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContextandChangedInTensorExpectToFail) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
@@ -713,7 +713,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContextandChange
 }
 
 TEST_P(RemoteRunTests, CheckImportModelPath) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
@@ -742,7 +742,7 @@ TEST_P(RemoteRunTests, CheckImportModelPath) {
 }
 
 TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufChangingTensors) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
@@ -784,7 +784,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufChangingTensors) {
 }
 
 TEST_P(RemoteRunTests, CheckOutputDataFromTwoRuns) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::CompiledModel compiled_model;
@@ -828,7 +828,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRuns) {
 }
 
 TEST_P(RemoteRunTests, CheckOutputDataFromRemoteTensorFromDifferentContext) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::CompiledModel compiled_model;
@@ -883,7 +883,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromRemoteTensorFromDifferentContext) {
 }
 
 TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensors1) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::CompiledModel compiled_model;
@@ -935,7 +935,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensors1) {
 }
 
 TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensors2) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::CompiledModel compiled_model;
@@ -984,7 +984,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensors2) {
 }
 
 TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensors3) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::CompiledModel compiled_model;
@@ -1024,7 +1024,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensors3) {
 }
 
 TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensorsHostTensor1) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::CompiledModel compiled_model;
@@ -1053,7 +1053,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensorsHostTensor1) 
 }
 
 TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensorsHostTensor2) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::CompiledModel compiled_model;
@@ -1094,7 +1094,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensorsHostTensor2) 
 }
 
 TEST_P(RemoteRunTests, checkResultsAfterChangingStateTensors) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::CompiledModel compiled_model;
@@ -1192,7 +1192,7 @@ TEST_P(RemoteRunTests, checkResultsAfterChangingStateTensors) {
 }
 
 TEST_P(RemoteRunTests, checkResultsAfterChangingStateTensorsWithRemoteTensors) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::CompiledModel compiled_model;
@@ -1290,7 +1290,7 @@ TEST_P(RemoteRunTests, checkResultsAfterChangingStateTensorsWithRemoteTensors) {
 }
 
 TEST_P(RemoteRunTests, checkResultsAfterChangingStateDataWithRemoteAndRandomTensors0) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     testing::internal::Random random(1);
@@ -1379,7 +1379,7 @@ TEST_P(RemoteRunTests, checkResultsAfterChangingStateDataWithRemoteAndRandomTens
 }
 
 TEST_P(RemoteRunTests, checkResultsAfterChangingStateDataWithRemoteAndRandomTensors1) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     testing::internal::Random random(1);
@@ -1469,7 +1469,7 @@ TEST_P(RemoteRunTests, checkResultsAfterChangingStateDataWithRemoteAndRandomTens
 }
 
 TEST_P(RemoteRunTests, CheckContextFromDifferentOvCores) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::Core core0;
     ov::Core core1;
@@ -1483,7 +1483,7 @@ TEST_P(RemoteRunTests, CheckContextFromDifferentOvCores) {
 }
 
 TEST_P(RemoteRunTests, CheckContextFromDifferentDestroyedOvCores) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::RemoteContext context1, context2;

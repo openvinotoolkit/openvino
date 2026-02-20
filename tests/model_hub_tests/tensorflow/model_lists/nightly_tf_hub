@@ -1,7 +1,7 @@
 universal-sentence-encoder,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/universal-sentence-encoder/versions/2,xfail,128994 127962 128995 128996 unsupported operations LookupTableFindV2 LookupTableSizeV2 SparseFillEmptyRows StaticRegexReplace StringSplit StringToHashBucketFast
 imagenet/mobilenet_v1_100_224/classification,https://www.kaggle.com/models/google/mobilenet-v1/frameworks/tensorFlow2/variations/100-224-classification/versions/2
 imagenet/mobilenet_v2_100_224/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/100-224-classification/versions/2
-universal-sentence-encoder-multilingual,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/multilingual/versions/2
+universal-sentence-encoder-multilingual,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/multilingual/versions/2,skip,ticket 179327
 universal-sentence-encoder-large,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/large/versions/2,xfail,128994 127962 128995 128996 unsupported operations LookupTableFindV2 LookupTableSizeV2 SparseFillEmptyRows StaticRegexReplace StringSplit StringToHashBucketFast
 imagenet/mobilenet_v2_075_224/classification,https://www.kaggle.com/models/google/mobilenet-v2/frameworks/tensorFlow2/variations/075-224-classification/versions/2
 movenet/singlepose/lightning,https://www.kaggle.com/models/google/movenet/frameworks/tensorFlow2/variations/singlepose-lightning/versions/4

@@ -11,6 +11,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/opsets/opset9_decl.hpp"
 
+namespace v0 = ov::op::v0;
 struct ReshapeSinkingAttributes {
     ov::element::Type_t data_et;
     ov::PartialShape input_shape;
@@ -33,7 +34,7 @@ TEST_P(ReshapeSinkingTest, ReshapeSinkingOnlyMatMul) {
         auto reshape = std::make_shared<ov::opset9::Reshape>(parameter, create_constant(p.output_pattern), false);
         auto matmul =
             std::make_shared<ov::opset9::MatMul>(reshape,
-                                                 ov::op::v0::Constant::create(p.data_et, p.mm_second_input_shape, {0}),
+                                                 v0::Constant::create(p.data_et, p.mm_second_input_shape, {0}),
                                                  p.transpose_a,
                                                  p.transpose_b);
         auto reshape_back =
@@ -55,10 +56,10 @@ TEST_P(ReshapeSinkingTestWithAdd, ReshapeSinkingMatMulAdd) {
         auto reshape = std::make_shared<ov::opset9::Reshape>(parameter, create_constant(p.output_pattern), false);
         auto matmul =
             std::make_shared<ov::opset9::MatMul>(reshape,
-                                                 ov::op::v0::Constant::create(p.data_et, p.mm_second_input_shape, {0}),
+                                                 v0::Constant::create(p.data_et, p.mm_second_input_shape, {0}),
                                                  p.transpose_a,
                                                  p.transpose_b);
-        auto add = std::make_shared<ov::opset9::Add>(matmul, ov::op::v0::Constant::create(p.data_et, {1, 37}, {0}));
+        auto add = std::make_shared<ov::opset9::Add>(matmul, v0::Constant::create(p.data_et, {1, 37}, {0}));
         auto reshape_back = std::make_shared<ov::opset9::Reshape>(add, create_constant(p.output_pattern_back), false);
         model = std::make_shared<ov::Model>(ov::OutputVector{reshape_back}, ov::ParameterVector{parameter});
     }

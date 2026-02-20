@@ -13,8 +13,9 @@
 
 using namespace std;
 using namespace ov;
-using namespace ov::op;
 
+namespace v0 = ov::op::v0;
+namespace op_util = ov::op::util;
 namespace {
 #define ACCESSOR(type)                                                                \
     void on_adapter(const std::string& name, ValueAccessor<type>& adapter) override { \
@@ -62,7 +63,7 @@ bool inputs_from_same_source_or_equal_constants(const std::shared_ptr<Node>& lhs
     if (input_size != rhs->get_input_size())
         return false;
     for (size_t i = 0; i < input_size; ++i) {
-        if (ov::op::util::input_sources_are_equal(lhs, rhs, i))
+        if (op_util::input_sources_are_equal(lhs, rhs, i))
             continue;
         auto lhs_constant = as_type<v0::Constant>(lhs->get_input_node_ptr(i));
         auto rhs_constant = as_type<v0::Constant>(rhs->get_input_node_ptr(i));
@@ -127,7 +128,7 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
     std::unordered_map<std::shared_ptr<ov::Node>, ov::AnyMap> node_attributes_cache;
     for (const auto& op : order) {
         // Recursively apply transformation for sub-graph based operations
-        if (auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
+        if (auto multi_subgraph_op = ov::as_type_ptr<op_util::MultiSubGraphOp>(op)) {
             for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
                 if (sub_graph)
                     rewritten = shared_node_optimization(sub_graph) || rewritten;
@@ -165,7 +166,7 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
                         const auto& child_op = shared_nodes[j];
 
                         // no functionality is implemented to compare bodies of MultiSubGraphOp operations
-                        if (ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(root_op)) {
+                        if (ov::as_type_ptr<op_util::MultiSubGraphOp>(root_op)) {
                             continue;
                         }
 
@@ -186,13 +187,13 @@ bool shape_of_upgrade(const shared_ptr<Model>& model) {
     bool rewritten = false;
     for (const auto& op : model->get_ordered_ops()) {
         // Recursively apply transformation for sub-graph based operations
-        if (auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
+        if (auto multi_subgraph_op = ov::as_type_ptr<op_util::MultiSubGraphOp>(op)) {
             for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
                 if (sub_graph)
                     rewritten = shape_of_upgrade(sub_graph) || rewritten;
             }
         } else if (auto v1_shape_of = ov::as_type_ptr<v0::ShapeOf>(op)) {
-            auto v3_shape_of = std::make_shared<v3::ShapeOf>(v1_shape_of->input_value(0), element::i64);
+            auto v3_shape_of = std::make_shared<ov::op::v3::ShapeOf>(v1_shape_of->input_value(0), element::i64);
             v3_shape_of->set_friendly_name(v1_shape_of->get_friendly_name());
             ov::replace_output_update_name(v1_shape_of, v3_shape_of);
             rewritten = true;

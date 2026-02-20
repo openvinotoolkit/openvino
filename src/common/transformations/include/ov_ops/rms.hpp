@@ -26,8 +26,15 @@ public:
     /// \param output_type Output element type
     RMS(const Output<Node>& data,
         const Output<Node>& gamma,
-        double epsilson,
+        double epsilon,
         const ov::element::Type output_type = ov::element::dynamic);
+
+    /// @brief Constructs an RMS operation without gamma.
+    ///
+    /// @param data Input tensor with data
+    /// @param eps Epsilon for not dividing by zero while normalizing the value
+    /// @param output_type Output element type
+    RMS(const Output<Node>& data, double epsilon, const ov::element::Type output_type = ov::element::dynamic);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
@@ -47,9 +54,18 @@ public:
         m_output_type = output_type;
     }
 
+    bool get_elementwise_affine() const {
+        return m_elementwise_affine;
+    }
+
+    void set_elementwise_affine(bool elementwise_affine) {
+        m_elementwise_affine = elementwise_affine;
+    }
+
 private:
     double m_epsilon{0};
     ov::element::Type m_output_type;
+    bool m_elementwise_affine{true};
 };
 
 }  // namespace internal

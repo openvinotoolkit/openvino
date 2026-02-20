@@ -5,6 +5,7 @@
 #include "openvino/core/descriptor/tensor.hpp"
 
 #include "atomic_guard.hpp"
+#include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/memory_util.hpp"
@@ -150,7 +151,8 @@ Tensor::Tensor(const element::Type& element_type,
     : m_impl(std::make_shared<BasicTensor>(element_type, pshape, names)) {}
 
 void Tensor::invalidate_values() {
-    if (ov::skip_invalidation(*this))
+    if (const auto ignore_skip = get_rt_info().extract(util::ForceInvalidation::get_type_info_static());
+        !ignore_skip && ov::skip_invalidation(*this))
         return;
     m_upper_value = {};
     m_lower_value = {};

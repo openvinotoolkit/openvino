@@ -79,6 +79,7 @@ public:
     static std::mutex mtx;
 
     struct GemmCacheKey {
+        MoE3GemmMicroKernelType type;
         ov::Shape weight_shape;
         ov::element::Type weight_dt;
 
@@ -89,8 +90,8 @@ public:
         ov::element::Type zp_dt;
 
         bool operator==(const GemmCacheKey& other) const {
-            return weight_shape == other.weight_shape && weight_dt == other.weight_dt && scale_shape == other.scale_shape && scale_dt == other.scale_dt &&
-                   zp_shape == other.zp_shape && zp_dt == other.zp_dt;
+            return type == other.type && weight_shape == other.weight_shape && weight_dt == other.weight_dt && scale_shape == other.scale_shape &&
+                   scale_dt == other.scale_dt && zp_shape == other.zp_shape && zp_dt == other.zp_dt;
         }
     };
 
@@ -108,6 +109,7 @@ public:
                 }
             };
 
+            hash_combine(h, static_cast<size_t>(k.type));
             hash_shape(k.weight_shape);
             hash_shape(k.scale_shape);
             hash_shape(k.zp_shape);

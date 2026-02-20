@@ -1615,7 +1615,7 @@ inline void Graph::ExecuteNode(const NodePtr& node, SyncInferRequest* request, i
 }
 
 inline void Graph::ExecuteNodeWithCatch(const NodePtr& node, SyncInferRequest* request, int numaId) const {
-    VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(itt::domains::ov_intel_cpu, node, getConfig());
+    VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(itt::domains::ov_op_cpu_exec, node, getConfig());
 
     try {
         ExecuteNode(node, request, numaId);
@@ -2019,7 +2019,8 @@ void Graph::EnforceInferencePrecision() const {
                       Type::ScaledDotProductAttention,
                       Type::QKVProjection,
                       Type::GatherMatmul,
-                      Type::LLMMLP);
+                      Type::LLMMLP,
+                      Type::RoPE);
     };
 
     // Backward DFS: traverse from node to its parents, stopping at mandatory BF16 nodes
@@ -2105,22 +2106,6 @@ void Graph::EnforceInferencePrecision() const {
                             forwardSkipSearch(node, nodesToSkip);
                         }
                     }
-                }
-            }
-
-            // Pattern 2: Gather with an integer type on data input is usually encountered in token embeddings (when
-            // compressed). It's better to preserve token embeddings preprocessing (e.g., normalization) in fp32
-            if (node->getType() == Type::Gather) {
-                // Note: ShapeOf subgraphs are excluded from skipping markup
-                // since they are always kept in integer precision
-                const bool shapeOfSubgraph = node->getParentEdgeAt(0)->getParent()->getType() == Type::ShapeOf;
-                const auto inputPrec = node->getOriginalInputPrecisionAtPort(0);
-                if (!shapeOfSubgraph && inputPrec.is_integral_number()) {
-                    // Add Gather node to nodesToSkip
-                    nodesToSkip.insert(node);
-
-                    // keep the child subtree in the original precision
-                    forwardSkipSearch(node, nodesToSkip);
                 }
             }
         }

@@ -51,7 +51,7 @@ protected:
         auto fq = ov::test::utils::make_fake_quantize(sum, ov::element::f32, 256, {}, {-8.0f}, {7.0f}, {-8.0f}, {7.0f});
 
         ov::ParameterVector inputParams = {mmParams[0]};
-        function = makeNgraphFunction(netPrecision, inputParams, fq, "FQScaleshiftWithConstantShift");
+        function = create_ov_model(netPrecision, inputParams, fq, "FQScaleshiftWithConstantShift");
     }
 };
 

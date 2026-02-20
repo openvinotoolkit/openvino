@@ -16,23 +16,27 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations_visibility.hpp"
 
-ov::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+
+namespace ov::pass {
+
+StridedSliceSqueeze::StridedSliceSqueeze() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(StridedSliceSqueeze);
-    auto ss_label = ov::pass::pattern::wrap_type<ov::op::v1::StridedSlice>(pattern::consumers_count(1));
-    auto squeeze_label = ov::pass::pattern::wrap_type<ov::op::v0::Squeeze>(
-        {ss_label, ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
+    auto ss_label = pattern::wrap_type<v1::StridedSlice>(pattern::consumers_count(1));
+    auto squeeze_label = pattern::wrap_type<v0::Squeeze>({ss_label, pattern::wrap_type<v0::Constant>()});
 
     matcher_pass_callback callback = [](pattern::Matcher& m) -> bool {
         const auto& squeeze = m.get_match_root();
-        const auto& const_axes = ov::as_type_ptr<ov::op::v0::Constant>(squeeze->get_input_node_shared_ptr(1));
-        auto slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(squeeze->get_input_node_shared_ptr(0));
+        const auto& const_axes = ov::as_type_ptr<v0::Constant>(squeeze->get_input_node_shared_ptr(1));
+        auto slice = ov::as_type_ptr<v1::StridedSlice>(squeeze->get_input_node_shared_ptr(0));
         if (!const_axes || !slice)
             return false;
 
-        auto begin = ov::as_type_ptr<ov::op::v0::Constant>(slice->input_value(1).get_node_shared_ptr());
-        auto end = ov::as_type_ptr<ov::op::v0::Constant>(slice->input_value(2).get_node_shared_ptr());
-        auto strides = ov::as_type_ptr<ov::op::v0::Constant>(slice->input_value(3).get_node_shared_ptr());
+        auto begin = ov::as_type_ptr<v0::Constant>(slice->input_value(1).get_node_shared_ptr());
+        auto end = ov::as_type_ptr<v0::Constant>(slice->input_value(2).get_node_shared_ptr());
+        auto strides = ov::as_type_ptr<v0::Constant>(slice->input_value(3).get_node_shared_ptr());
         if (!begin || !end || !strides)
             return false;
 
@@ -96,43 +100,43 @@ ov::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
             shrink_axis_mask[axis] = 1;
         }
 
-        auto new_slice = std::make_shared<ov::op::v1::StridedSlice>(
-            slice->input_value(0),
-            ov::op::v0::Constant::create(element::i64, {begin_vec.size()}, begin_vec),
-            ov::op::v0::Constant::create(element::i64, {end_vec.size()}, end_vec),
-            ov::op::v0::Constant::create(element::i64, {strides_vec.size()}, strides_vec),
-            begin_mask,
-            end_mask,
-            new_axis_mask,
-            shrink_axis_mask,
-            ellipsis_mask);
+        auto new_slice =
+            std::make_shared<v1::StridedSlice>(slice->input_value(0),
+                                               v0::Constant::create(element::i64, {begin_vec.size()}, begin_vec),
+                                               v0::Constant::create(element::i64, {end_vec.size()}, end_vec),
+                                               v0::Constant::create(element::i64, {strides_vec.size()}, strides_vec),
+                                               begin_mask,
+                                               end_mask,
+                                               new_axis_mask,
+                                               shrink_axis_mask,
+                                               ellipsis_mask);
 
         return replace_output_update_name(squeeze->output(0), new_slice->output(squeeze->input_value(0).get_index()));
     };
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(squeeze_label /*, matcher_name */);
+    auto m = std::make_shared<pattern::Matcher>(squeeze_label /*, matcher_name */);
     register_matcher(m, callback);
 }
-ov::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
+
+SqueezeStridedSlice::SqueezeStridedSlice() {
     // TODO: enable conditional compile
     // MATCHER_SCOPE(SqueezeStridedSlice);
-    auto squeeze_label = ov::pass::pattern::wrap_type<ov::op::v0::Squeeze>(
-        {pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()},
-        pattern::consumers_count(1));
-    auto ss_label = ov::pass::pattern::wrap_type<ov::op::v1::StridedSlice>(
+    auto squeeze_label = pattern::wrap_type<v0::Squeeze>({pattern::any_input(), pattern::wrap_type<v0::Constant>()},
+                                                         pattern::consumers_count(1));
+    auto ss_label = pattern::wrap_type<v1::StridedSlice>(
         {squeeze_label, pattern::any_input(), pattern::any_input(), pattern::any_input()});
 
     matcher_pass_callback callback = [](pattern::Matcher& m) -> bool {
-        auto slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(m.get_match_root());
+        auto slice = ov::as_type_ptr<v1::StridedSlice>(m.get_match_root());
         if (!slice)
             return false;
         auto squeeze = slice->get_input_node_shared_ptr(0);
-        const auto& const_axes = ov::as_type_ptr<ov::op::v0::Constant>(squeeze->get_input_node_shared_ptr(1));
+        const auto& const_axes = ov::as_type_ptr<v0::Constant>(squeeze->get_input_node_shared_ptr(1));
         if (!const_axes)
             return false;
 
-        auto begin = ov::as_type_ptr<ov::op::v0::Constant>(slice->input_value(1).get_node_shared_ptr());
-        auto end = ov::as_type_ptr<ov::op::v0::Constant>(slice->input_value(2).get_node_shared_ptr());
-        auto strides = ov::as_type_ptr<ov::op::v0::Constant>(slice->input_value(3).get_node_shared_ptr());
+        auto begin = ov::as_type_ptr<v0::Constant>(slice->input_value(1).get_node_shared_ptr());
+        auto end = ov::as_type_ptr<v0::Constant>(slice->input_value(2).get_node_shared_ptr());
+        auto strides = ov::as_type_ptr<v0::Constant>(slice->input_value(3).get_node_shared_ptr());
         if (!begin || !end || !strides)
             return false;
 
@@ -175,22 +179,24 @@ ov::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
             ellipsis_mask.insert(ellipsis_mask.begin() + axis, 0);
         }
 
-        auto new_slice = std::make_shared<ov::op::v1::StridedSlice>(
-            slice->get_input_node_shared_ptr(0)->input_value(0),
-            ov::op::v0::Constant::create(element::i64, {begin_vec.size()}, begin_vec),
-            ov::op::v0::Constant::create(element::i64, {end_vec.size()}, end_vec),
-            ov::op::v0::Constant::create(element::i64, {strides_vec.size()}, strides_vec),
-            begin_mask,
-            end_mask,
-            new_axis_mask,
-            shrink_axis_mask,
-            ellipsis_mask);
+        auto new_slice =
+            std::make_shared<v1::StridedSlice>(slice->get_input_node_shared_ptr(0)->input_value(0),
+                                               v0::Constant::create(element::i64, {begin_vec.size()}, begin_vec),
+                                               v0::Constant::create(element::i64, {end_vec.size()}, end_vec),
+                                               v0::Constant::create(element::i64, {strides_vec.size()}, strides_vec),
+                                               begin_mask,
+                                               end_mask,
+                                               new_axis_mask,
+                                               shrink_axis_mask,
+                                               ellipsis_mask);
 
         replace_node(slice, new_slice);
         new_slice->set_friendly_name(slice->get_friendly_name());
         copy_runtime_info(slice, new_slice);
         return true;
     };
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(ss_label /*, matcher_name */);
+    auto m = std::make_shared<pattern::Matcher>(ss_label /*, matcher_name */);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

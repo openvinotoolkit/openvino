@@ -57,7 +57,7 @@ OutputVector translate_repeat_interleave(const NodeContext& context) {
     auto repeats_ext = context.get_input_from_visible_context(1);
     auto repeats_const = ov::as_type_ptr<v0::Constant>(repeats_ext.get_node_shared_ptr());
     if (repeats_const && repeats_const->cast_vector<int32_t>().size() > 1) {
-        // repeats is Constant with more then 1 element
+        // repeats is Constant with more than 1 element
         auto repeats = repeats_const->cast_vector<int32_t>();
         if (context.input_is_none(2)) {
             // case (repeats=tensor, dim=None)

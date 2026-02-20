@@ -34,8 +34,8 @@ ov::OutputVector quick_gelu(const ov::frontend::onnx::Node& node) {
                      "Unsupported input x type, accepted FP16, FP32, FP64, BFP16 but got: ",
                      element_type);
 
-    // Get attribute from node
-    const float alpha = node.get_attribute_value<float>("alpha");
+    constexpr auto ort_default = 1.702f;
+    const float alpha = node.get_attribute_value<float>("alpha", ort_default);
 
     // Numpy broadcasting rule is automatically applied with mismatched shapes according to:
     // https://docs.openvino.ai/2022.3/openvino_docs_ops_arithmetic_Multiply_1.html "Tensor with dimension of size 1

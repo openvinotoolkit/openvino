@@ -75,8 +75,9 @@ class BaseFXDecoder(Decoder):
         elif isinstance(arg, float):
             return make_constant(OVType.f32, Shape([]), [arg])
         elif isinstance(arg, str):
-            u8_tensor = torch.frombuffer(str.encode(arg), dtype=torch.uint8)
-            return torch_tensor_to_ov_const(u8_tensor, shared_memory=True)
+            buf = bytearray(arg, "utf-8")
+            u8_tensor = torch.frombuffer(buf, dtype=torch.uint8)
+            return torch_tensor_to_ov_const(u8_tensor, shared_memory=False)
         return None
 
     @staticmethod
@@ -571,7 +572,7 @@ class InlinedInputDecoder (BaseFXDecoder):
     def get_op_type(self):
         # return specific type for inlined inputs
         if not self.is_const:
-            return "prim::ListConstruct"
+            return "inlined.list.default"
         return "inlined.constant.default"
 
     def outputs(self):

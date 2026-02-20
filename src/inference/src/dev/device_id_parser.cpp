@@ -40,7 +40,7 @@ std::vector<std::string> DeviceIDParser::get_hetero_devices(const std::string& f
     }
 
     if (!fallback_dev.empty())
-        deviceNames.push_back(fallback_dev);
+        deviceNames.push_back(std::move(fallback_dev));
 
     return deviceNames;
 }

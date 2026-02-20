@@ -68,9 +68,9 @@ OutputVector translate_reverse_base_op(const NodeContext& node,
     }
 
     auto input_shape = make_shared<v3::ShapeOf>(batched_input, element::i32);
-    auto seq_lenghts = compute_sequence_lengths(input_shape, batch_axis, seq_axis);
+    auto seq_lengths = compute_sequence_lengths(input_shape, batch_axis, seq_axis);
     auto reverse_sequence =
-        make_shared<v0::ReverseSequence>(batched_input, seq_lenghts, batch_axis, seq_axis)->output(0);
+        make_shared<v0::ReverseSequence>(batched_input, seq_lengths, batch_axis, seq_axis)->output(0);
 
     if (unsqueeze_axes.size() > 0) {
         // remove earlier added additional dimensions from the result

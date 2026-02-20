@@ -100,6 +100,9 @@ protected:
 };
 
 void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, CustomLayerPtr customLayer) {
+    if (!p.use_new_shape_infer()) {
+        OPENVINO_ASSERT(op->get_output_size() == 1u, "Custom OP limitation: static model only support one output.");
+    }
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -126,7 +129,7 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
 
     // Handle kernel parameters
     std::vector<cldnn::custom_gpu_primitive::arg_desc> kernelParameters;
-    cldnn::format outputFormat(cldnn::format::any);
+    std::vector<cldnn::format> outputFormats;
     for (const auto& param : customLayer->KernelParams()) {
         switch (param.type) {
         case CustomLayer::ParamType::Input: {
@@ -159,7 +162,7 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
             kernelParameters[param.paramIndex].type = cldnn::custom_gpu_primitive::arg_output;
             kernelParameters[param.paramIndex].index =
                 static_cast<cldnn::custom_gpu_primitive::arg_index>((param.portIndex >= static_cast<int>(inputs.size())) ? -1 : param.portIndex);
-            outputFormat = param.format;
+            outputFormats.push_back(param.format);
             break;
         }
         default:
@@ -169,21 +172,25 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
     const std::string layerTitle("\n// Layer " + op->get_friendly_name() + " using Custom Layer " + customLayer->Name() + "\n");
     const std::string defineTitle("// Custom Layer User Defines\n");
 
-    auto dims = op->get_output_partial_shape(0);
     int iidx = customLayer->InputDimSourceIndex();
+    OPENVINO_ASSERT(outputFormats.size() == op->get_output_size(), "The number of outputFormats should be same as op->get_output_size().");
 
-    constexpr size_t kDynamic = std::numeric_limits<size_t>::max();
-    size_t N = (dims.size() > 0) ? dims[0].is_dynamic() ? kDynamic : dims[0].get_length() : 1;
-    size_t C = (dims.size() > 1) ? dims[1].is_dynamic() ? kDynamic : dims[1].get_length() : 1;
-    size_t H = (dims.size() > 2) ? dims[2].is_dynamic() ? kDynamic : dims[2].get_length() : 1;
-    size_t W = (dims.size() > 3) ? dims[3].is_dynamic() ? kDynamic : dims[3].get_length() : 1;
+    std::vector<cldnn::layout> outputLayouts(op->get_output_size());
+    for (size_t i = 0; i < op->get_output_size(); i++) {
+        auto dims = op->get_output_partial_shape(i);
 
-    cldnn::layout outputLayout;
-    if (dims.is_dynamic()) {
-        outputLayout = cldnn::layout(dims, cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat);
-    } else {
-        cldnn::tensor outputTensor = cldnn::tensor(cldnn::batch(N), cldnn::feature(C), cldnn::spatial(W, H));
-        outputLayout = cldnn::layout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat, outputTensor);
+        constexpr size_t kDynamic = std::numeric_limits<size_t>::max();
+        size_t N = (dims.size() > 0) ? dims[0].is_dynamic() ? kDynamic : dims[0].get_length() : 1;
+        size_t C = (dims.size() > 1) ? dims[1].is_dynamic() ? kDynamic : dims[1].get_length() : 1;
+        size_t H = (dims.size() > 2) ? dims[2].is_dynamic() ? kDynamic : dims[2].get_length() : 1;
+        size_t W = (dims.size() > 3) ? dims[3].is_dynamic() ? kDynamic : dims[3].get_length() : 1;
+
+        if (dims.is_dynamic()) {
+            outputLayouts[i] = cldnn::layout(dims, cldnn::element_type_to_data_type(op->get_output_element_type(i)), outputFormats[i]);
+        } else {
+            cldnn::tensor outputTensor = cldnn::tensor(cldnn::batch(N), cldnn::feature(C), cldnn::spatial(W, H));
+            outputLayouts[i] = cldnn::layout(cldnn::element_type_to_data_type(op->get_output_element_type(i)), outputFormats[i], outputTensor);
+        }
     }
 
     std::vector<size_t> gws, lws;
@@ -193,9 +200,17 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
         if (static_cast<size_t>(iidx) >= op->get_input_size())
             OPENVINO_THROW("Invalid input tensor for index: ", iidx);
         auto inputDims = op->get_input_shape(iidx);
-        cldnn::custom_gpu_primitive::update_work_group_size(dims, iidx, inputDims, customLayer->GlobalSizeRules(), customLayer->LocalSizeRules(), gws, lws);
+        // Regardless of whether the model has one or more outputs, only the first output is used to update gws and lws.
+        cldnn::custom_gpu_primitive::update_work_group_size(op->get_output_partial_shape(0),
+                                                            iidx,
+                                                            inputDims,
+                                                            customLayer->GlobalSizeRules(),
+                                                            customLayer->LocalSizeRules(),
+                                                            gws,
+                                                            lws);
     } else {
-        cldnn::custom_gpu_primitive::update_work_group_size(dims,
+        // Regardless of whether the model has one or more outputs, only the first output is used to update gws and lws.
+        cldnn::custom_gpu_primitive::update_work_group_size(op->get_output_partial_shape(0),
                                                             iidx,
                                                             ov::PartialShape(),
                                                             customLayer->GlobalSizeRules(),
@@ -220,7 +235,7 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
                                                   customLayer->KernelEntry(),
                                                   kernelParameters,
                                                   customLayer->CompilerOptions(),
-                                                  outputLayout,
+                                                  outputLayouts,
                                                   gws,
                                                   lws,
                                                   op_bk,
@@ -229,15 +244,23 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
                                                   customLayer->LocalSizeRules());
     p.add_primitive(*op, customPrim);
 
-    auto prevLayerName = genericLayerName;
-    if (outputLayout.format != cldnn::format::any) {
-        // Handle output reorder
-        auto reorderPrimName = genericLayerName + ProgramBuilder::m_postCustomLayerTag;
-        p.add_primitive(*op, cldnn::reorder(reorderPrimName,
-                                            cldnn::input_info(genericLayerName),
-                                            cldnn::format::get_default_format(op->get_output_partial_shape(0).size()),
-                                            customPrim.output_layout.data_type));
-        prevLayerName = reorderPrimName;
+    for (size_t i = 0; i < outputLayouts.size(); i++) {
+        if (outputLayouts[i].format != cldnn::format::any) {
+            auto default_format = cldnn::format::get_default_format(op->get_output_partial_shape(i).size());
+            if (outputLayouts.size() > 1) {
+                OPENVINO_ASSERT(default_format == outputLayouts[i].format,
+                                "Multiple outputs with non-default formats are not supported because a reorder primitive cannot be inserted; the subsequent "
+                                "nodes would fail to retrieve the correct output port index during shape inference after the graph transformation.");
+            } else {
+                // Handle output reorder
+                auto reorderPrimName = genericLayerName + ProgramBuilder::m_postCustomLayerTag + std::string("_output_") + std::to_string(i);
+                auto reorderPrim = cldnn::reorder(reorderPrimName,
+                                                  cldnn::input_info(genericLayerName, static_cast<int>(i)),
+                                                  default_format,
+                                                  customPrim.output_layouts[i].data_type);
+                p.add_primitive(*op, reorderPrim);
+            }
+        }
     }
 }
 

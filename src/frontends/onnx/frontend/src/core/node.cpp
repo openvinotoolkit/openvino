@@ -58,6 +58,7 @@ public:
     const std::string& domain() const;
     const std::string& op_type() const;
     const std::string& name() const;
+    int64_t opset_version() const;
 
     const std::string& description() const;
     const std::vector<std::reference_wrapper<const std::string>>& get_output_names() const;
@@ -127,6 +128,9 @@ const std::string& Node::Impl::op_type() const {
 }
 const std::string& Node::Impl::name() const {
     return m_name;
+}
+int64_t Node::Impl::opset_version() const {
+    return m_graph->get_opset_version(m_domain);
 }
 const std::vector<std::reference_wrapper<const std::string>>& Node::Impl::get_output_names() const {
     return m_output_names;
@@ -221,7 +225,32 @@ Subgraph Node::Impl::get_attribute_value(const std::string& name) const {
 
 template <>
 ov::Any Node::get_attribute_value(const std::string& name) const {
-    return get_attribute(name).get_any();
+    if (m_pimpl != nullptr) {
+        return get_attribute(name).get_any();
+    } else if (m_decoder != nullptr) {
+        if (!m_decoder->has_attribute(name)) {
+            throw error::node::UnknownAttribute{this->get_name(), name};
+        }
+        auto attribute_value = m_decoder->get_attribute(name);
+        // We upcast decoder-provided floats here to align the behavior of OpExtension with the legacy approach and
+        // keep both code paths identical.
+        if (attribute_value.is<float>()) {
+            return static_cast<double>(attribute_value.as<float>());
+        } else if (attribute_value.is<std::vector<float>>()) {
+            const auto& float_values = attribute_value.as<std::vector<float>>();
+            std::vector<double> double_values;
+            double_values.reserve(float_values.size());
+            std::transform(float_values.begin(),
+                           float_values.end(),
+                           std::back_inserter(double_values),
+                           [](float v) -> double {
+                               return v;
+                           });
+            return double_values;
+        }
+        return attribute_value;
+    }
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -409,6 +438,15 @@ const std::string& Node::get_name() const {
         return m_decoder->get_name();
     }
     FRONT_END_NOT_IMPLEMENTED(get_name);
+}
+
+int64_t Node::opset_version() const {
+    if (m_pimpl != nullptr) {
+        return m_pimpl->opset_version();
+    } else if (m_decoder != nullptr) {
+        return static_cast<int64_t>(m_decoder->get_op_set());
+    }
+    FRONT_END_NOT_IMPLEMENTED(opset_version);
 }
 
 const std::vector<std::reference_wrapper<const std::string>> Node::get_output_names() const {
@@ -792,8 +830,10 @@ Tensor Node::get_attribute_value(const std::string& name) const {
         auto tensor_decoder = std::dynamic_pointer_cast<ov::frontend::onnx::DecoderBaseTensor>(
             m_decoder->get_attribute(name).as<ov::frontend::onnx::DecoderBase::Ptr>());
         const auto& tensor_meta_info = tensor_decoder->get_tensor_info();
+        auto input_model = m_translate_session ? m_translate_session->get_input_model() : nullptr;
+        FRONT_END_GENERAL_CHECK(input_model != nullptr, "InputModel is not available for tensor attributes");
         auto tensor_place = std::make_shared<ov::frontend::onnx::TensorONNXPlace>(
-            *m_translate_session->get_input_model().get(),
+            *input_model,
             tensor_meta_info.m_partial_shape,
             tensor_meta_info.m_element_type,
             std::vector<std::string>{*tensor_meta_info.m_tensor_name},
@@ -816,11 +856,14 @@ SparseTensor Node::get_attribute_value(const std::string& name) const {
         FRONT_END_GENERAL_CHECK(sparse_tensor_info.m_indices && sparse_tensor_info.m_values,
                                 "Incomplete sparse tensors are not supported");
 
+        auto input_model = m_translate_session ? m_translate_session->get_input_model() : nullptr;
+        FRONT_END_GENERAL_CHECK(input_model != nullptr, "InputModel is not available for sparse tensor attributes");
+
         auto values_decoder =
             std::dynamic_pointer_cast<ov::frontend::onnx::DecoderBaseTensor>(sparse_tensor_info.m_values);
         const auto& values_meta_info = values_decoder->get_tensor_info();
         auto values_place = std::make_shared<ov::frontend::onnx::TensorONNXPlace>(
-            *m_translate_session->get_input_model().get(),
+            *input_model,
             values_meta_info.m_partial_shape,
             values_meta_info.m_element_type,
             std::vector<std::string>{*values_meta_info.m_tensor_name},
@@ -834,7 +877,7 @@ SparseTensor Node::get_attribute_value(const std::string& name) const {
             std::dynamic_pointer_cast<ov::frontend::onnx::DecoderBaseTensor>(sparse_tensor_info.m_indices);
         const auto& indices_meta_info = indices_decoder->get_tensor_info();
         auto indices_place = std::make_shared<ov::frontend::onnx::TensorONNXPlace>(
-            *m_translate_session->get_input_model().get(),
+            *input_model,
             indices_meta_info.m_partial_shape,
             indices_meta_info.m_element_type,
             std::vector<std::string>{*indices_meta_info.m_tensor_name},

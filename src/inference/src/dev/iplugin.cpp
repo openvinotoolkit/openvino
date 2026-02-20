@@ -40,7 +40,11 @@ bool is_graph_input_node(const std::shared_ptr<ov::Node>& node) {
 
 }  // namespace
 
-ov::IPlugin::IPlugin() : m_executor_manager(ov::threading::executor_manager()) {}
+ov::IPlugin::IPlugin()
+    : m_plugin_name(),
+      m_core(),
+      m_executor_manager(ov::threading::executor_manager()),
+      m_version() {}
 
 void ov::IPlugin::set_version(const ov::Version& version) {
     m_version = version;
@@ -76,7 +80,7 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::string
                                                                const ov::AnyMap& properties) const {
     auto core = get_core();
     OPENVINO_ASSERT(core);
-    const auto model = core->read_model(model_path, {}, properties);
+    const auto model = core->read_model(util::make_path(model_path), {}, properties);
     auto local_properties = properties;
     if (!ov::is_virtual_device(get_device_name())) {
         CoreConfig::remove_core(local_properties);
@@ -479,7 +483,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
     // and operation names from original model
     for (auto&& name : supported) {
         if (original_ops.count(name)) {
-            res.insert(name);
+            res.insert(std::move(name));
         }
     }
     // Remove parameters (or parameter/constant + convert) which has no supported consumers

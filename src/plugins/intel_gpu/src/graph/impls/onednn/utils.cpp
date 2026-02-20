@@ -84,35 +84,6 @@ dnnl::memory::dims convert_tensor(cldnn::tensor t, size_t dims, bool is_grouped)
     return res;
 }
 
-dnnl::memory::dims convert_gemm_tensor(cldnn::tensor t, size_t dims, bool batched_dims_can_be_removed) {
-    auto sizes = t.sizes(default_fmt_for_dims(dims, false));
-    dnnl::memory::dims res(sizes.begin(), sizes.end());
-    if (dims > 4) {
-        for (size_t i = 0; i < dims - 4; i++) {
-            res[i + 1] *= res[i];
-        }
-        res.erase(res.begin(), res.begin() + dims - 4);
-    }
-    if (res.size() == 4 && batched_dims_can_be_removed) {
-        res.erase(res.begin(), res.begin() + 2);
-    }
-    return res;
-}
-
-dnnl::memory::dims convert_gemm_dims(const std::vector<ov::Dimension::value_type> &sizes, size_t dims, bool batched_dims_can_be_removed) {
-    dnnl::memory::dims res(sizes.begin(), sizes.end());
-    if (dims > 4) {
-        for (size_t i = 0; i < dims - 4; i++) {
-            res[i + 1] *= res[i];
-        }
-        res.erase(res.begin(), res.begin() + dims - 4);
-    }
-    if (res.size() == 4 && batched_dims_can_be_removed) {
-        res.erase(res.begin(), res.begin() + 2);
-    }
-    return res;
-}
-
 dnnl::memory::format_tag get_default_data_format(const cldnn::layout& l) {
     switch (l.get_partial_shape().size()) {
     case 2: return dnnl::memory::format_tag::ab;
@@ -137,6 +108,8 @@ dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, forma
         case 2: return dnnl::memory::format_tag::ab;
         case 3: return dnnl::memory::format_tag::abc;
         case 4: return dnnl::memory::format_tag::abcd;
+        case 5: return dnnl::memory::format_tag::abcde;
+        case 6: return dnnl::memory::format_tag::abcdef;
         default: throw std::invalid_argument("[clDNN] Unsupported conversion from "+ std::to_string(dims.size()) + " to onednn format_tag");
         }
     }
@@ -431,6 +404,8 @@ private:
                 auto it = format_map_cldnn_4d_to_onednn_3d.find(_layout.format);
                 if (it != format_map_cldnn_4d_to_onednn_3d.end()) {
                     fmt_tag = it->second;
+                } else if (_layout.format == cldnn::format::custom) {
+                    fmt_tag = dnnl::memory::format_tag::any;
                 } else {
                     OPENVINO_THROW("[GPU] Unexpected layout format " + _layout.to_short_string());
                 }

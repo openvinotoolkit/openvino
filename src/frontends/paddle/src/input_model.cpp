@@ -434,9 +434,9 @@ void InputModel::InputModelImpl::create_temp_consts() {
         // as its output. e.g. the tensorarray is both the input and output of the same node.
         // So we have to create a fake empty node here.
         // Problem is, we have no idea which axis should be 0.
-        // Since the models (faster/mask rcnn) are either concating tensors in tensorarray along the dynamic
-        // dimension, or concating static shape tensors. So we make the dynamic dimension to be 0. In case of static
-        // shape, we simply the the first dimension be 0.
+        // Since the models (faster/mask rcnn) are either concatenating tensors in tensorarray along the dynamic
+        // dimension, or concatenating static shape tensors. So we make the dynamic dimension to be 0. In case of
+        // static shape, we simply set the first dimension to 0.
         if (var_desc.type().has_tensor_array()) {
             const auto& tensor = var_desc.type().tensor_array().tensor();
             const auto& type = get_ov_type(tensor.data_type());

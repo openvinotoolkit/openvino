@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "memory_desc/blocked_memory_desc.h"
 #include "nodes/executors/eltwise_config.hpp"
@@ -320,7 +321,9 @@ EltwiseJitExecutor::EltwiseJitExecutor(const Key& key)
     m_kernel->create_ker();
 }
 
-void EltwiseJitExecutor::exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) {
+void EltwiseJitExecutor::exec(const jit_eltwise_call_args_ptrs& args_ptrs,
+                              const VectorDims& dims_out,
+                              [[maybe_unused]] const CpuParallelPtr& cpu_parallel) {
     if (!m_kernel) {
         OPENVINO_THROW("Can't execute, kernel for eltwise node is not compiled");
     }
@@ -443,6 +446,7 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
     if (!any_of(algorithm,
                 Algorithm::EltwiseAbs,
                 Algorithm::EltwiseAdd,
+                Algorithm::EltwiseCeiling,
                 Algorithm::EltwiseClamp,
                 Algorithm::EltwiseDivide,
                 Algorithm::EltwiseElu,

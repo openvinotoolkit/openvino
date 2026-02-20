@@ -2,15 +2,15 @@ name: 'OpenVINO provider'
 description: 'Provides OpenVINO build artifacts from a requested source'
 inputs:
   revision:
-    description: 'Version of OpenVINO to provide - latest_available_commit | HEAD | specific commit hash | 
+    description: 'Version of OpenVINO to provide - latest_available_commit | HEAD | specific commit hash |
                   latest_nightly | specific package version (e.g. 2024.4.0rc2)'
     required: true
   branch_name:
-    description: 'Branch of OpenVINO to take the revision from if no specific hash was provided. 
+    description: 'Branch of OpenVINO to take the revision from if no specific hash was provided.
                   Taken from github context by default'
     required: false
   event_name:
-    description: 'Even name from which artifacts were generated. "push" by default; overwrite it with "pull_request" 
+    description: 'Even name from which artifacts were generated. "push" by default; overwrite it with "pull_request"
                   if revision/branch is from PR'
     default: "push"
     required: false
@@ -18,7 +18,7 @@ inputs:
     description: "Name under which to upload provided OpenVINO build artifacts, set automatically by default"
     required: false
   platform:
-    description: "Platform for which to get artifacts: centos7 | debian10 | rhel8 | ubuntu20 | 
+    description: "Platform for which to get artifacts: centos7 | debian10 | rhel8 | ubuntu20 |
       ubuntu20 | ubuntu22 | ubuntu24 | macos | macos_12_6 | windows"
     required: false
   arch:
@@ -26,7 +26,7 @@ inputs:
     default: "x86_64"
     required: false
   install_dir:
-    description: 'Local path to install OpenVINO package to. If not specified, package is installed to GitHub workspace 
+    description: 'Local path to install OpenVINO package to. If not specified, package is installed to GitHub workspace
                   and uploaded to GitHub'
     required: false
   commit_packages_to_provide:
@@ -76,7 +76,7 @@ runs:
       env:
         ACTION_REF: ${{ github.action_ref || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    - uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
       with:
         repository: 'openvinotoolkit/openvino'
         ref: ${{ steps.get_action_revision.outputs.action_ref }}
@@ -84,7 +84,7 @@ runs:
 
     - name: Clone OpenVINO to get HEAD commit
       if: inputs.revision == 'HEAD'
-      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
       with:
         repository: 'openvinotoolkit/openvino'
         path: 'openvino'
@@ -164,7 +164,7 @@ runs:
       run: >-
         python3 -m venv venv && . venv/bin/activate &&
         pip install -r $GITHUB_ACTION_PATH/requirements.txt &&
-        python $GITHUB_ACTION_PATH/get_s3_package.py --product openvino --platform ${{ inputs.platform }} --arch ${{ inputs.arch }} 
+        python $GITHUB_ACTION_PATH/get_s3_package.py --product openvino --platform ${{ inputs.platform }} --arch ${{ inputs.arch }}
         --version ${{ inputs.revision }}
 
     - name: Download nightly OpenVINO archives
@@ -209,7 +209,7 @@ runs:
 
         release_version=$(echo ${{ steps.openvino_s3_download.outputs.ov_package_path }} |
           grep -oP '_\K\d{4}\.\d+\.\d+')
-        
+
         dev_version=$(echo ${{ steps.openvino_s3_download.outputs.ov_package_path }} |
           grep -oP "${release_version//./\\.}\.dev\d{8}" || true)
 

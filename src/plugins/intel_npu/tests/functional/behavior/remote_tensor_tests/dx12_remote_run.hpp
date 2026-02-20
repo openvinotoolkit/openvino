@@ -257,7 +257,7 @@ public:
 };
 
 TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuf) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
@@ -283,7 +283,7 @@ TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuf) {
 }
 
 TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuChangingTensors) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
@@ -330,7 +330,7 @@ TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuChangingTensors) {
 }
 
 TEST_P(DX12RemoteRunTests, CheckOutputDataFromMultipleRuns) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::CompiledModel compiled_model;

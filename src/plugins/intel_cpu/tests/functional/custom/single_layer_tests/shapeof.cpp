@@ -60,7 +60,7 @@ protected:
 
         auto shapeOf = std::make_shared<ov::op::v3::ShapeOf>(params.front(), ov::element::i32);
 
-        function = makeNgraphFunction(netPrecision, params, shapeOf, "ShapeOf");
+        function = create_ov_model(netPrecision, params, shapeOf, "ShapeOf");
     }
 };
 

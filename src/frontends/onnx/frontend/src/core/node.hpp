@@ -60,6 +60,7 @@ public:
     const std::string& domain() const;
     const std::string& op_type() const;
     const std::string& get_name() const;
+    int64_t opset_version() const;
     std::vector<std::string> get_attribute_names() const;
     const Attribute& get_attribute(const std::string& name) const;
     ov::Any get_attribute_any(const std::string& name) const;

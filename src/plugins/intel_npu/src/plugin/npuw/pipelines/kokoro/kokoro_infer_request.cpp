@@ -187,15 +187,19 @@ void ov::npuw::KokoroInferRequest::set_tensor(const ov::Output<const ov::Node>& 
 
     // If mappings are initialized, update sub-requests
     // Model A inputs
-    for (const auto& item : m_model_a_in_map) {
-        if (item.second == port) {
-            m_model_a_request->set_tensor(item.first, tensor);
+    if (m_model_a_request) {
+        for (const auto& item : m_model_a_in_map) {
+            if (item.second == port) {
+                m_model_a_request->set_tensor(item.first, tensor);
+            }
         }
     }
     // Model B inputs
-    for (const auto& item : m_model_b_in_map) {
-        if (item.second == port) {
-            m_model_b_request->set_tensor(item.first, tensor);
+    if (m_model_b_request) {
+        for (const auto& item : m_model_b_in_map) {
+            if (item.second == port) {
+                m_model_b_request->set_tensor(item.first, tensor);
+            }
         }
     }
 }

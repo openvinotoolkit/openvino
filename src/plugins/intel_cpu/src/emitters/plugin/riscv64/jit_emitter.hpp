@@ -13,6 +13,10 @@
 #include "nodes/kernels/riscv64/jit_generator.hpp"
 #include "snippets/generator.hpp"
 
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include "emitters/snippets/riscv64/verbose.hpp"
+#endif
+
 namespace ov::intel_cpu::riscv64 {
 
 enum emitter_in_out_map : uint8_t {
@@ -54,6 +58,15 @@ public:
      */
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    const char* info() const {
+        if (!info_.is_initialized()) {
+            info_.init(this);
+        }
+        return info_.c_str();
+    }
+#endif
 
     // TODO: RV64 supports vector multiplier.
     // However, currently not all JIT emitter support LMUL > 1:
@@ -153,9 +166,16 @@ protected:
     virtual void register_table_entries() {}
 
     void load_table_addr() const {
-        const auto address = reinterpret_cast<uintptr_t>(l_table->getAddress());
-        OPENVINO_ASSERT(address != 0, "Address of data section is missed!");
-        h->uni_li(p_table, address);
+        // Use a local literal pool with a forward label reference so we don't require the data
+        // label to be defined before code emission.
+        constexpr int32_t literal_offset = 16;  // 4 insns * 4 bytes -> 8-byte aligned literal
+        Xbyak_riscv::Label after_literal;
+        h->auipc(p_table, 0);
+        h->ld(p_table, p_table, literal_offset);
+        h->nop();
+        h->j_(after_literal);
+        h->putL(*l_table);
+        h->L(after_literal);
     }
 
     void load_table_val(const std::string& key, const Xbyak_riscv::FReg& freg, size_t key_off_val_shift = 0) const {
@@ -196,6 +216,10 @@ private:
     mutable std::vector<size_t> preserved_gpr_idxs;
     mutable std::vector<size_t> preserved_fp_gpr_idxs;
 
+#ifdef SNIPPETS_DEBUG_CAPS
+    friend class jit_debug_emitter;
+#endif
+
     // In the standard RISC-V calling convention, the stack pointer is always kept 16-byte aligned
     const size_t sp_aligment = 16;
     // integer gpr byte size
@@ -204,6 +228,10 @@ private:
     const size_t flen = Xbyak_riscv::CPU().getFlen() / 8;
     // vector register byte size
     const size_t vlen = Xbyak_riscv::CPU().getVlen() / 8;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    mutable jit_emitter_info_t info_;
+#endif
 
     size_t table_off(const std::string& key, size_t key_off_val_shift = 0) const {
         const auto it = entry_map_.find(key);  // search an entry for a key

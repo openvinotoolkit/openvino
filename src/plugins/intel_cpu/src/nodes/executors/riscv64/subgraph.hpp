@@ -24,6 +24,12 @@ public:
                      const std::vector<ptrdiff_t>& start_offset_out,
                      const BufferScratchpadAllocator& allocator,
                      const ov::intel_cpu::MultiCacheWeakPtr& kernel_cache);
+
+#ifdef SNIPPETS_DEBUG_CAPS
+protected:
+    bool enabled_segfault_detector = false;
+    inline void segfault_detector() const;
+#endif
 };
 
 class SubgraphStaticExecutor : public SubgraphExecutor, public SubgraphStaticBaseExecutor {
@@ -39,7 +45,6 @@ public:
     void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
 };
 
-// Dynamic specialized executor is not used on RISCV64 yet, but keep the class for symmetry
 class SubgraphDynamicSpecializedExecutor : public SubgraphExecutor, public SubgraphDynamicSpecializedBaseExecutor {
 public:
     template <typename... Args>
@@ -48,9 +53,7 @@ public:
                                        size_t in_num,
                                        Args&&... rest)
         : SubgraphExecutor(config, std::forward<Args>(rest)...),
-          SubgraphDynamicSpecializedBaseExecutor(config, external_ptrs_idces, in_num) {
-        OPENVINO_THROW("SubgraphDynamicSpecializedExecutor is not supported on RISC-V platform");
-    }
+          SubgraphDynamicSpecializedBaseExecutor(config, external_ptrs_idces, in_num) {}
 
     void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
 };

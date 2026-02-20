@@ -18,19 +18,24 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-ov::pass::SubtractFusion::SubtractFusion() {
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+
+namespace ov::pass {
+
+SubtractFusion::SubtractFusion() {
     MATCHER_SCOPE(SubtractFusion);
     auto p_input = pattern::any_input();
 
-    auto p_mul_const = pattern::wrap_type<ov::op::v0::Constant>();
-    auto p_mul = pattern::wrap_type<ov::op::v1::Multiply>({p_input, p_mul_const});
+    auto p_mul_const = pattern::wrap_type<v0::Constant>();
+    auto p_mul = pattern::wrap_type<v1::Multiply>({p_input, p_mul_const});
 
-    auto p_neg = pattern::wrap_type<ov::op::v0::Negative>({p_input});
+    auto p_neg = pattern::wrap_type<v0::Negative>({p_input});
 
     auto p_mul_or_neg = std::make_shared<pattern::op::Or>(OutputVector({p_mul, p_neg}));
 
     auto p_add_input = pattern::any_input();
-    auto p_add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({p_add_input, p_mul_or_neg});
+    auto p_add = pattern::wrap_type<v1::Add>({p_add_input, p_mul_or_neg});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -43,7 +48,7 @@ ov::pass::SubtractFusion::SubtractFusion() {
 
         if (pattern_to_output.count(p_mul_const)) {
             auto minus_one_const =
-                ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(p_mul_const).get_node_shared_ptr());
+                ov::as_type_ptr<v0::Constant>(pattern_to_output.at(p_mul_const).get_node_shared_ptr());
             if (!ov::op::util::has_constant_value<float>(minus_one_const, -1.)) {
                 return false;
             }
@@ -52,13 +57,15 @@ ov::pass::SubtractFusion::SubtractFusion() {
             nodes_to_replace.emplace_back(pattern_to_output.at(p_neg).get_node_shared_ptr());
         }
 
-        auto sub = register_new_node<ov::op::v1::Subtract>(minuend_input, subtrahend_input);
+        auto sub = register_new_node<v1::Subtract>(minuend_input, subtrahend_input);
         sub->set_friendly_name(add->get_friendly_name());
         copy_runtime_info(nodes_to_replace, sub);
         replace_node(add, sub);
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(p_add, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(p_add, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

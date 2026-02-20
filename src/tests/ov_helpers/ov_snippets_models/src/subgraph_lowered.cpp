@@ -9,6 +9,7 @@
 #include <snippets/op/broadcastmove.hpp>
 #include <snippets/op/convert_saturation.hpp>
 #include <snippets/op/load.hpp>
+#include <snippets/op/result.hpp>
 #include <snippets/op/store.hpp>
 #include <snippets/op/scalar.hpp>
 #include <snippets/op/brgemm.hpp>
@@ -114,7 +115,8 @@ std::shared_ptr<ov::Model> Transpose0213MatMulLoweredFunction::initLowered() con
                                                                                                                                 layout));
     }
     matmul->validate_and_infer_types();
-    return std::make_shared<ov::Model>(OutputVector{matmul}, data);
+    auto snippets_result = std::make_shared<ov::snippets::op::Result>(matmul);
+    return std::make_shared<ov::Model>(OutputVector{snippets_result}, data);
 }
 
 std::shared_ptr<ov::Model> BroadcastAddLoweredFunction::initLowered() const {

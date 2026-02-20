@@ -39,6 +39,31 @@ void replace_node_unsafe(const std::shared_ptr<ov::Node>& target, const std::sha
     target->clear_control_dependents();
 }
 
+std::shared_ptr<ov::Node> make_kvcache_indirect(const std::shared_ptr<ov::intel_gpu::op::KVCache>& kv_cache_node,
+                                                const std::shared_ptr<ov::Node>& gather_input_node,
+                                                const std::shared_ptr<ov::Node>& beam_idx_node, 
+                                                const int64_t gather_axis) {
+    OPENVINO_ASSERT(!kv_cache_node->get_update_kv());
+    if (kv_cache_node->get_trim()) {
+        return std::make_shared<ov::intel_gpu::op::KVCache>(gather_input_node,
+                                                            kv_cache_node->input(1).get_source_output(),
+                                                            beam_idx_node,
+                                                            kv_cache_node->input(2).get_source_output(),
+                                                            kv_cache_node->get_variable(),
+                                                            kv_cache_node->get_concat_axis(),
+                                                            gather_axis,
+                                                            kv_cache_node->get_output_element_type(0));
+    } else {
+        return std::make_shared<ov::intel_gpu::op::KVCache>(gather_input_node,
+                                                            kv_cache_node->input(1).get_source_output(),
+                                                            beam_idx_node,
+                                                            kv_cache_node->get_variable(),
+                                                            kv_cache_node->get_concat_axis(),
+                                                            gather_axis,
+                                                            kv_cache_node->get_output_element_type(0));
+    }
+}
+
 }  // namespace
 
 namespace ov::intel_gpu {
@@ -53,7 +78,9 @@ IndirectGemmOpt::IndirectGemmOpt() {
             return value.size() == 1 && (value[0] == 0 || value[0] == 1);
         }));
     auto gather_past = wrap_type<ov::op::v8::Gather>({gather_input, beam_idx, axis_const});
-    auto kv_cache = wrap_type<ov::intel_gpu::op::KVCache>({gather_past, any_input()});
+    auto kv_cache_notrim = wrap_type<ov::intel_gpu::op::KVCache>({gather_past, any_input()});
+    auto kv_cache_trim = wrap_type<ov::intel_gpu::op::KVCache>({gather_past, any_input(), any_input()});
+    auto kv_cache = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{kv_cache_notrim, kv_cache_trim});
     auto matmul_0 = wrap_type<ov::intel_gpu::op::Gemm>({kv_cache, any_input()});
     auto matmul_1 = wrap_type<ov::intel_gpu::op::Gemm>({any_input(), kv_cache});
     auto matmul = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{matmul_0, matmul_1});
@@ -72,13 +99,7 @@ IndirectGemmOpt::IndirectGemmOpt() {
         auto gather_axis = gather_node->get_axis();
         ov::replace_node(gather_node, gather_input_node);
 
-        auto indirect_kv_cache = std::make_shared<op::KVCache>(gather_input_node,
-                                                               kv_cache_node->input(1).get_source_output(),
-                                                               beam_idx_node,
-                                                               kv_cache_node->get_variable(),
-                                                               kv_cache_node->get_concat_axis(),
-                                                               gather_axis,
-                                                               kv_cache_node->get_output_element_type(0));
+        auto indirect_kv_cache = make_kvcache_indirect(kv_cache_node, gather_input_node, beam_idx_node, gather_axis);
 
         indirect_kv_cache->set_friendly_name(kv_cache_node->get_friendly_name());
         ov::copy_runtime_info(kv_cache_node, indirect_kv_cache);
@@ -126,8 +147,12 @@ IndirectSDPAOpt::IndirectSDPAOpt() {
         }));
     auto gather_past_0 = wrap_type<ov::op::v8::Gather>({gather_input_0, beam_idx, axis_const});
     auto gather_past_1 = wrap_type<ov::op::v8::Gather>({gather_input_1, beam_idx, axis_const});
-    auto kv_cache_0 = wrap_type<ov::intel_gpu::op::KVCache>({gather_past_0, any_input()});
-    auto kv_cache_1 = wrap_type<ov::intel_gpu::op::KVCache>({gather_past_1, any_input()});
+    auto kv_cache_notrim_0 = wrap_type<ov::intel_gpu::op::KVCache>({gather_past_0, any_input()});
+    auto kv_cache_notrim_1 = wrap_type<ov::intel_gpu::op::KVCache>({gather_past_1, any_input()});
+    auto kv_cache_trim_0 = wrap_type<ov::intel_gpu::op::KVCache>({gather_past_0, any_input(), any_input()});
+    auto kv_cache_trim_1 = wrap_type<ov::intel_gpu::op::KVCache>({gather_past_1, any_input(), any_input()});
+    auto kv_cache_0 = std::make_shared<Or>(OutputVector{kv_cache_notrim_0, kv_cache_trim_0});
+    auto kv_cache_1 = std::make_shared<Or>(OutputVector{kv_cache_notrim_1, kv_cache_trim_1});
 
     auto input_attn_mask = any_input();
     auto input_scale = any_input();
@@ -159,21 +184,8 @@ IndirectSDPAOpt::IndirectSDPAOpt() {
         ov::replace_node(gather_node_0, gather_input_node_0);
         ov::replace_node(gather_node_1, gather_input_node_1);
 
-        auto indirect_kv_cache_0 = std::make_shared<op::KVCache>(gather_input_node_0,
-                                                                 kv_cache_node_0->input_value(1),
-                                                                 beam_idx_node,
-                                                                 kv_cache_node_0->get_variable(),
-                                                                 kv_cache_node_0->get_concat_axis(),
-                                                                 gather_axis_0,
-                                                                 kv_cache_node_0->get_output_element_type(0));
-
-        auto indirect_kv_cache_1 = std::make_shared<op::KVCache>(gather_input_node_1,
-                                                                 kv_cache_node_1->input_value(1),
-                                                                 beam_idx_node,
-                                                                 kv_cache_node_1->get_variable(),
-                                                                 kv_cache_node_1->get_concat_axis(),
-                                                                 gather_axis_1,
-                                                                 kv_cache_node_1->get_output_element_type(0));
+        auto indirect_kv_cache_0 = make_kvcache_indirect(kv_cache_node_0, gather_input_node_0, beam_idx_node, gather_axis_0);
+        auto indirect_kv_cache_1 = make_kvcache_indirect(kv_cache_node_1, gather_input_node_1, beam_idx_node, gather_axis_1);
 
         indirect_kv_cache_0->set_friendly_name(kv_cache_node_0->get_friendly_name());
         indirect_kv_cache_1->set_friendly_name(kv_cache_node_1->get_friendly_name());

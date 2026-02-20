@@ -28,7 +28,6 @@
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::lowered::pass {
-using namespace ov::snippets::pass;
 
 const size_t MHAParallelWAOptimizer::m_dim_M_idx = 1;
 
@@ -57,7 +56,7 @@ MHAParallelWAOptimizer::MHAParallelWAOptimizer(const lowered::LinearIRCPtr& line
                                                             : utils::get_output_dim_idx(layout, m_dim_M_idx);
         m_dim_M_idces[i] = dim_idx;
         const auto m_idx = i < configurator->get_in_num() ? dim_idx : layout.size() - 2;
-        m_optimized_layouts[i] = SplitDimensionM::get_updated_order(layout, m_idx);
+        m_optimized_layouts[i] = ov::snippets::pass::SplitDimensionM::get_updated_order(layout, m_idx);
     }
 }
 
@@ -65,7 +64,10 @@ bool MHAParallelWAOptimizer::run(const lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::MHAParallelWAOptimizer")
     const auto& config = m_configurator->get_config();
     size_t new_batch_dim = 0, new_kernel_dim = 0;
-    if (!SplitDimensionM::split(config->master_shape, m_concurrency, new_batch_dim, new_kernel_dim)) {
+    if (!ov::snippets::pass::SplitDimensionM::split(config->master_shape,
+                                                    m_concurrency,
+                                                    new_batch_dim,
+                                                    new_kernel_dim)) {
         return false;
     }
     auto& master_shape = config->master_shape;
@@ -98,8 +100,11 @@ bool MHAParallelWAOptimizer::run(const lowered::LinearIR& linear_ir) {
     for (size_t i = 0; i < m_configurator->get_io_num(); ++i) {
         config->io_shapes[i] =
             m_unsqueezed_params.count(i)
-                ? SplitDimensionM::unsqueeze_m_dim(config->io_shapes[i], m_dim_M_idces[i])
-                : SplitDimensionM::reshape_m_dim(config->io_shapes[i], m_dim_M_idces[i], new_batch_dim, new_kernel_dim);
+                ? ov::snippets::pass::SplitDimensionM::unsqueeze_m_dim(config->io_shapes[i], m_dim_M_idces[i])
+                : ov::snippets::pass::SplitDimensionM::reshape_m_dim(config->io_shapes[i],
+                                                                     m_dim_M_idces[i],
+                                                                     new_batch_dim,
+                                                                     new_kernel_dim);
     }
     config->io_layouts = m_optimized_layouts;
     return true;

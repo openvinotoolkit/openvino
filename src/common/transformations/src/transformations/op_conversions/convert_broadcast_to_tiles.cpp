@@ -16,12 +16,17 @@
 #include "openvino/op/tile.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-ov::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+
+namespace ov::pass {
+
+ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
     MATCHER_SCOPE(ConvertBroadcastToTiles);
-    auto broadcast = ov::pass::pattern::wrap_type<ov::op::v1::Broadcast>();
+    auto broadcast = pattern::wrap_type<v1::Broadcast>();
 
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        auto broadcast = ov::as_type_ptr<ov::op::v1::Broadcast>(m.get_match_root());
+        auto broadcast = ov::as_type_ptr<v1::Broadcast>(m.get_match_root());
 
         if (!broadcast) {
             return false;
@@ -32,8 +37,8 @@ ov::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
             return false;
         }
 
-        auto shape_node = ov::as_type_ptr<ov::op::v0::Constant>(broadcast->input_value(1).get_node_shared_ptr());
-        auto axes_node = ov::as_type_ptr<ov::op::v0::Constant>(broadcast->input_value(2).get_node_shared_ptr());
+        auto shape_node = ov::as_type_ptr<v0::Constant>(broadcast->input_value(1).get_node_shared_ptr());
+        auto axes_node = ov::as_type_ptr<v0::Constant>(broadcast->input_value(2).get_node_shared_ptr());
         if (!shape_node || !axes_node)
             return false;
 
@@ -67,8 +72,8 @@ ov::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
             } else {
                 return false;
             }
-            auto shape_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{shape.size()}, shape);
-            auto reshape = std::make_shared<ov::op::v1::Reshape>(data_node, shape_const, true);
+            auto shape_const = std::make_shared<v0::Constant>(element::i64, Shape{shape.size()}, shape);
+            auto reshape = std::make_shared<v1::Reshape>(data_node, shape_const, true);
             new_ops.push_back(reshape);
             last_node = reshape;
             input_shape = shape;
@@ -91,8 +96,8 @@ ov::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
             ++input_shape_it;
         }
 
-        auto const_node = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{dims_count}, dims);
-        auto tile = register_new_node<ov::op::v0::Tile>(last_node, const_node);
+        auto const_node = std::make_shared<v0::Constant>(element::i64, Shape{dims_count}, dims);
+        auto tile = register_new_node<v0::Tile>(last_node, const_node);
         new_ops.push_back(tile);
         tile->set_friendly_name(broadcast->get_friendly_name());
 
@@ -101,6 +106,8 @@ ov::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(broadcast, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(broadcast, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

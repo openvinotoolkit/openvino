@@ -12,6 +12,7 @@
 #include <exception>
 #include <fstream>
 #include <map>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -20,6 +21,7 @@
 #include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/wstring_convert_util.hpp"
+#include "transform.hpp"
 
 namespace {
 // THis is copied from utils/common.hpp
@@ -66,6 +68,40 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
     }
     throw std::runtime_error("Unsupported type");
 }
+
+const ::ONNX_NAMESPACE::TypeProto_Tensor* get_tensor_type(const ::ONNX_NAMESPACE::TypeProto& type_proto) {
+    if (type_proto.has_tensor_type()) {
+        return &type_proto.tensor_type();
+    }
+    if (type_proto.has_optional_type() && type_proto.optional_type().has_elem_type()) {
+        return get_tensor_type(type_proto.optional_type().elem_type());
+    }
+    if (type_proto.has_sequence_type() && type_proto.sequence_type().has_elem_type()) {
+        return get_tensor_type(type_proto.sequence_type().elem_type());
+    }
+    return nullptr;
+}
+
+void fixup_legacy_nodes(::ONNX_NAMESPACE::ModelProto& model_proto) {
+    auto* graph_proto = model_proto.mutable_graph();
+    if (!graph_proto) {
+        return;
+    }
+    constexpr const char legacy_domain[] = "org.openvinotoolkit";
+
+    for (auto& node : *graph_proto->mutable_node()) {
+        const auto needs_fix = std::find(ov::frontend::onnx::transform::legacy_ops_to_fixup.begin(),
+                                         ov::frontend::onnx::transform::legacy_ops_to_fixup.end(),
+                                         node.op_type()) != ov::frontend::onnx::transform::legacy_ops_to_fixup.end();
+        if (!needs_fix) {
+            continue;
+        }
+
+        if (!node.has_domain() || node.domain().empty() || node.domain() == "ai.onnx") {
+            node.set_domain(legacy_domain);
+        }
+    }
+}
 }  // namespace
 
 namespace ov {
@@ -94,14 +130,17 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
     const auto full_path =
         ov::util::get_absolute_file_path(ov::util::path_join({graph_iterator->get_model_dir(), ext_location}));
     const int64_t file_size = ov::util::file_size(full_path);
-    if ((file_size <= 0 && ext_data_length > 0) ||
-        ext_data_offset + ext_data_length > static_cast<uint64_t>(file_size)) {
+    if ((file_size <= 0 && ext_data_length > 0) || ext_data_length > static_cast<uint64_t>(file_size) ||
+        ext_data_offset > static_cast<uint64_t>(file_size) - ext_data_length) {
         // not_existed_file.data, offset: 4096, data_length: 16)
         std::stringstream ss;
         ss << "Invalid usage of method for externally stored data in file (" << ext_location;
         ss << ", offset: " << ext_data_offset << ", data_length: " << ext_data_length << ")";
         throw std::runtime_error(ss.str());
     }
+    const size_t resolved_data_length = ext_data_length > 0
+                                            ? static_cast<size_t>(ext_data_length)
+                                            : static_cast<size_t>(file_size) - static_cast<size_t>(ext_data_offset);
     auto memory_mode = graph_iterator->get_memory_management_mode();
     // Remove when cache map will use path instead string.
     const auto full_path_str = ov::util::path_to_string(full_path);
@@ -124,11 +163,11 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
         tensor_meta_info.m_is_raw = true;
         tensor_meta_info.m_tensor_data =
             static_cast<uint8_t*>(static_cast<void*>(mapped_memory->data() + ext_data_offset));
-        tensor_meta_info.m_tensor_data_size =
-            ext_data_length > 0 ? ext_data_length : static_cast<size_t>(file_size) - ext_data_length;
+        tensor_meta_info.m_tensor_data_size = resolved_data_length;
         return true;
     } else if (memory_mode == External_Stream) {
         auto cache = graph_iterator->get_stream_cache();
+        FRONT_END_GENERAL_CHECK(cache, "Stream cache is not initialized for external stream mode");
         auto cached_stream = cache->find(full_path_str);
         std::shared_ptr<std::ifstream> external_data_stream;
         if (cached_stream != cache->end()) {
@@ -147,8 +186,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
         }
 
         tensor_meta_info.m_is_raw = true;
-        tensor_meta_info.m_tensor_data_size =
-            ext_data_length > 0 ? ext_data_length : static_cast<size_t>(file_size) - ext_data_length;
+        tensor_meta_info.m_tensor_data_size = resolved_data_length;
         uint8_t* data_ptr = graph_iterator->allocate_data(tensor_meta_info.m_tensor_data_size).get();
         tensor_meta_info.m_tensor_data = data_ptr;
 
@@ -172,53 +210,24 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
 ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* tensor_info,
                                                             const ValueInfoProto* value_info,
                                                             GraphIteratorProto* graph_iterator) {
-    auto graph_def = graph_iterator->get_graph();
-    ov::frontend::onnx::TensorMetaInfo tensor_meta_info{};
-    tensor_meta_info.m_external_location = nullptr;
-    tensor_meta_info.m_is_raw = false;
+    const auto* graph_def = graph_iterator->get_graph();
     if ((tensor_info == nullptr && value_info == nullptr) || graph_def == nullptr) {
         throw std::runtime_error("Wrong usage");
     }
 
-    if (value_info == nullptr && tensor_info->has_name()) {
-        for (const auto& val : graph_def->value_info()) {
-            if (val.has_name() && val.name() == tensor_info->name()) {
-                value_info = &val;
-                break;
-            }
-        }
-    }
-    if (value_info != nullptr) {
-        tensor_meta_info.m_tensor_name = value_info->has_name() ? &value_info->name() : &empty_name;
-        if (value_info->has_type() && !value_info->type().has_tensor_type()) {
-            throw std::runtime_error("Unsupported value_info type: " + (*tensor_meta_info.m_tensor_name));
-        }
-        const auto& value_type = value_info->type().tensor_type();
-        if (value_type.has_shape()) {
-            std::vector<int64_t> dims{};
-            for (const auto& dim : value_type.shape().dim()) {
-                if (dim.has_dim_value()) {
-                    dims.push_back(dim.dim_value());
-                } else {
-                    dims.push_back(-1);
-                }
-            }
-            tensor_meta_info.m_partial_shape = ov::PartialShape{dims};
-        } else {
-            tensor_meta_info.m_partial_shape = ov::PartialShape::dynamic();
-        }
-        if (value_type.has_elem_type()) {
-            tensor_meta_info.m_element_type = get_ov_element_type(value_type.elem_type());
-        } else {
-            tensor_meta_info.m_element_type = ov::element::dynamic;
-        }
-    }
+    ov::frontend::onnx::TensorMetaInfo tensor_meta_info{};
+    tensor_meta_info.m_external_location = nullptr;
+    tensor_meta_info.m_is_raw = false;
+
     if (tensor_info != nullptr) {
         tensor_meta_info.m_tensor_name = tensor_info->has_name() ? &tensor_info->name() : &empty_name;
-        std::vector<int64_t> dims_vec{tensor_info->dims().begin(), tensor_info->dims().end()};
-        tensor_meta_info.m_partial_shape = ov::PartialShape(dims_vec);
+        tensor_meta_info.m_partial_shape =
+            ov::PartialShape(std::vector<int64_t>(tensor_info->dims().begin(), tensor_info->dims().end()));
         tensor_meta_info.m_element_type =
             tensor_info->has_data_type() ? get_ov_element_type(tensor_info->data_type()) : ov::element::dynamic;
+        if (tensor_info->has_segment()) {
+            throw std::runtime_error("Loading segments isn't supported");
+        }
         if (tensor_info->has_data_location() &&
             tensor_info->data_location() == TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL) {
             if (extract_tensor_external_data(tensor_meta_info, tensor_info, graph_iterator)) {
@@ -226,62 +235,77 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
             }
             throw std::runtime_error("Unsupported method for externally stored data");
         }
-        switch (tensor_info->data_type()) {
-        case TensorProto_DataType::TensorProto_DataType_FLOAT:
-            tensor_meta_info.m_tensor_data =
-                static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->float_data().data()));
-            tensor_meta_info.m_tensor_data_size = tensor_info->float_data_size();
-            break;
-        case TensorProto_DataType::TensorProto_DataType_INT4:
-        case TensorProto_DataType::TensorProto_DataType_INT8:
-        case TensorProto_DataType::TensorProto_DataType_INT16:
-        case TensorProto_DataType::TensorProto_DataType_INT32:
-        case TensorProto_DataType::TensorProto_DataType_UINT4:
-        case TensorProto_DataType::TensorProto_DataType_UINT8:
-        case TensorProto_DataType::TensorProto_DataType_UINT16:
-        case TensorProto_DataType::TensorProto_DataType_BOOL:
-        case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
-        case TensorProto_DataType::TensorProto_DataType_FLOAT16:
-        case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
-        case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
-            tensor_meta_info.m_tensor_data =
-                static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->int32_data().data()));
-            tensor_meta_info.m_tensor_data_size = tensor_info->int32_data_size();
-            break;
-        case TensorProto_DataType::TensorProto_DataType_INT64:
-            tensor_meta_info.m_tensor_data =
-                static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->int64_data().data()));
-            tensor_meta_info.m_tensor_data_size = tensor_info->int64_data_size();
-            break;
-        case TensorProto_DataType::TensorProto_DataType_UINT32:
-        case TensorProto_DataType::TensorProto_DataType_UINT64:
-            tensor_meta_info.m_tensor_data =
-                static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->uint64_data().data()));
-            tensor_meta_info.m_tensor_data_size = tensor_info->uint64_data_size();
-            break;
-        case TensorProto_DataType::TensorProto_DataType_DOUBLE:
-            tensor_meta_info.m_tensor_data =
-                static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->double_data().data()));
-            tensor_meta_info.m_tensor_data_size = tensor_info->double_data_size();
-            break;
-        case TensorProto_DataType::TensorProto_DataType_STRING:
-            tensor_meta_info.m_tensor_data_any =
-                std::vector<std::string>(tensor_info->string_data().begin(), tensor_info->string_data().end());
-            tensor_meta_info.m_tensor_data_size = tensor_info->string_data_size();
-            break;
-        default:
-            throw std::runtime_error("Unsupported type " +
-                                     ::ONNX_NAMESPACE::TensorProto_DataType_Name(tensor_info->data_type()));
-            break;
-        }
-        // Looks like raw_data has bigger priority. but not 100% sure
-        if (tensor_meta_info.m_tensor_data == nullptr && tensor_info->has_raw_data()) {
-            tensor_meta_info.m_tensor_data =
-                static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->raw_data().data()));
+        if (tensor_info->has_raw_data()) {
+            tensor_meta_info.m_tensor_data = reinterpret_cast<const uint8_t*>(tensor_info->raw_data().data());
             tensor_meta_info.m_tensor_data_size = tensor_info->raw_data().size();
             tensor_meta_info.m_is_raw = true;
+        } else {
+            const auto assign_numeric_data = [&](const auto& container) {
+                tensor_meta_info.m_tensor_data = reinterpret_cast<const uint8_t*>(container.data());
+                tensor_meta_info.m_tensor_data_size = static_cast<size_t>(container.size());
+            };
+            switch (tensor_info->data_type()) {
+            case TensorProto_DataType::TensorProto_DataType_FLOAT:
+                assign_numeric_data(tensor_info->float_data());
+                break;
+            case TensorProto_DataType::TensorProto_DataType_INT4:
+            case TensorProto_DataType::TensorProto_DataType_INT8:
+            case TensorProto_DataType::TensorProto_DataType_INT16:
+            case TensorProto_DataType::TensorProto_DataType_INT32:
+            case TensorProto_DataType::TensorProto_DataType_UINT4:
+            case TensorProto_DataType::TensorProto_DataType_UINT8:
+            case TensorProto_DataType::TensorProto_DataType_UINT16:
+            case TensorProto_DataType::TensorProto_DataType_BOOL:
+            case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
+            case TensorProto_DataType::TensorProto_DataType_FLOAT16:
+            case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
+            case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
+                assign_numeric_data(tensor_info->int32_data());
+                break;
+            case TensorProto_DataType::TensorProto_DataType_INT64:
+                assign_numeric_data(tensor_info->int64_data());
+                break;
+            case TensorProto_DataType::TensorProto_DataType_UINT32:
+            case TensorProto_DataType::TensorProto_DataType_UINT64:
+                assign_numeric_data(tensor_info->uint64_data());
+                break;
+            case TensorProto_DataType::TensorProto_DataType_DOUBLE:
+                assign_numeric_data(tensor_info->double_data());
+                break;
+            case TensorProto_DataType::TensorProto_DataType_STRING:
+                tensor_meta_info.m_tensor_data_any =
+                    std::vector<std::string>(tensor_info->string_data().begin(), tensor_info->string_data().end());
+                tensor_meta_info.m_tensor_data_size = tensor_info->string_data_size();
+                break;
+            default:
+                throw std::runtime_error("Unsupported type " +
+                                         ::ONNX_NAMESPACE::TensorProto_DataType_Name(tensor_info->data_type()));
+            }
         }
+    } else if (value_info != nullptr) {
+        tensor_meta_info.m_tensor_name = value_info->has_name() ? &value_info->name() : &empty_name;
+        const auto* value_type = value_info->has_type() ? get_tensor_type(value_info->type()) : nullptr;
+        const auto value_case =
+            value_info->has_type() ? value_info->type().value_case() : ::ONNX_NAMESPACE::TypeProto::VALUE_NOT_SET;
+        if (value_type == nullptr && value_case != ::ONNX_NAMESPACE::TypeProto::VALUE_NOT_SET) {
+            throw std::runtime_error("Unsupported value_info type: " + (*tensor_meta_info.m_tensor_name));
+        }
+        if (value_type != nullptr && value_type->has_shape()) {
+            std::vector<int64_t> dims;
+            const auto& shape = value_type->shape();
+            dims.reserve(shape.dim_size());
+            for (const auto& dim : shape.dim()) {
+                dims.push_back(dim.has_dim_value() ? dim.dim_value() : -1);
+            }
+            tensor_meta_info.m_partial_shape = ov::PartialShape{dims};
+        } else {
+            tensor_meta_info.m_partial_shape = ov::PartialShape::dynamic();
+        }
+        tensor_meta_info.m_element_type = (value_type != nullptr && value_type->has_elem_type())
+                                              ? get_ov_element_type(value_type->elem_type())
+                                              : ov::element::dynamic;
     }
+
     if (tensor_meta_info.m_tensor_name == nullptr) {
         tensor_meta_info.m_tensor_name = &empty_name;
     }
@@ -294,7 +318,6 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
 GraphIteratorProto::GraphIteratorProto(const GraphIteratorProtoMemoryManagementMode mode)
     : m_graph(nullptr),
       m_parent(nullptr),
-      m_model_dir(nullptr),
       m_mode(mode),
       m_mmap_cache{mode == External_MMAP ? std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>()
                                          : nullptr},
@@ -313,16 +336,18 @@ GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphPr
     m_model = parent->m_model;
 }
 
-void GraphIteratorProto::initialize(const std::string& path) {
-    m_model_dir = std::make_shared<std::string>(ov::util::get_directory(path).string());
+void GraphIteratorProto::initialize(const std::filesystem::path& path) {
+    m_model_dir = ov::util::get_directory(path);
+    const auto path_string = ov::util::path_to_string(path);
     try {
         std::ifstream model_file(path, std::ios::binary | std::ios::in);
-        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Could not open the file: \"", path, "\"");
+        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Could not open the file: \"", path_string, "\"");
 
         m_model = std::make_shared<ModelProto>();
         FRONT_END_GENERAL_CHECK(m_model->ParseFromIstream(&model_file), "Model can't be parsed");
         model_file.close();
         if (m_model->has_graph()) {
+            fixup_legacy_nodes(*m_model);
             m_graph = &m_model->graph();
         } else {
             m_graph = nullptr;
@@ -337,13 +362,6 @@ void GraphIteratorProto::initialize(const std::string& path) {
         throw;
     }
 }
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-void GraphIteratorProto::initialize(const std::wstring& path) {
-    initialize(ov::util::wstring_to_string(path));
-}
-#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
 std::shared_ptr<DecoderProtoTensor> GraphIteratorProto::get_tensor(const std::string& name,
                                                                    GraphIteratorProto** owner) {
     if (m_tensors.count(name) == 0) {
@@ -373,59 +391,58 @@ void GraphIteratorProto::reset() {
     node_index = 0;
     if (m_decoders.size() > 0 || m_model == nullptr || m_graph == nullptr)
         return;
-    m_decoders.reserve(m_graph->initializer_size() + m_graph->input_size() + m_graph->output_size() +
-                       m_graph->node_size());
+    const auto& graph = *m_graph;
+    m_decoders.reserve(graph.initializer_size() + graph.input_size() + graph.output_size() + graph.node_size());
+
+    std::unordered_map<std::string, const TensorProto*> initializer_by_name;
+    initializer_by_name.reserve(graph.initializer_size());
+    for (const auto& initializer : graph.initializer()) {
+        if (initializer.has_name()) {
+            initializer_by_name.emplace(initializer.name(), &initializer);
+        }
+    }
+
+    std::unordered_map<std::string, const ValueInfoProto*> value_info_by_name;
+    value_info_by_name.reserve(graph.value_info().size());
+    for (const auto& info : graph.value_info()) {
+        if (info.has_name()) {
+            value_info_by_name.emplace(info.name(), &info);
+        }
+    }
+
     int64_t index = 0;
-    for (const auto& value : m_graph->input()) {
-        const auto& initializer = std::find_if(m_graph->initializer().begin(),
-                                               m_graph->initializer().end(),
-                                               [&value](const TensorProto& tensor) {
-                                                   return tensor.has_name() && tensor.name() == value.name();
-                                               });
+    for (const auto& value : graph.input()) {
         std::shared_ptr<DecoderProtoTensor> tensor;
-        if (initializer == m_graph->initializer().end()) {
+        if (auto init_it = initializer_by_name.find(value.name()); init_it == initializer_by_name.end()) {
             tensor = std::make_shared<DecoderProtoTensor>(&value, this, index++, -1);
         } else {
-            tensor = std::make_shared<DecoderProtoTensor>(&*initializer, this);
+            tensor = std::make_shared<DecoderProtoTensor>(init_it->second, this);
+        }
+        const auto& tensor_name = *tensor->get_tensor_info().m_tensor_name;
+        if (auto [it, inserted] = m_tensors.try_emplace(tensor_name, tensor); !inserted) {
+            throw std::runtime_error("Tensor already exists \"" + tensor_name + "\"");
         }
         m_decoders.push_back(tensor);
-        const auto& t_name = *tensor->get_tensor_info().m_tensor_name;
-        if (m_tensors.count(t_name) > 0) {
-            throw std::runtime_error("Tensor already exists \"" + t_name + "\"");
-        }
-        m_tensors.emplace(t_name, tensor);
     }
+
     index = 0;
-    for (const auto& value : m_graph->output()) {
+    for (const auto& value : graph.output()) {
         auto tensor = std::make_shared<DecoderProtoTensor>(&value, this, -1, index++);
+        const auto& tensor_name = *tensor->get_tensor_info().m_tensor_name;
+        m_tensors.try_emplace(tensor_name, tensor);
         m_decoders.push_back(tensor);
-        const auto& t_name = *tensor->get_tensor_info().m_tensor_name;
-        if (m_tensors.count(t_name) == 0) {
-            // model may have several outputs of the same tensor
-            m_tensors.emplace(t_name, tensor);
-        }
     }
-    for (const auto& initializer : m_graph->initializer()) {
-        const auto& decoder =
-            std::find_if(m_decoders.begin(),
-                         m_decoders.end(),
-                         [&initializer](const std::shared_ptr<ov::frontend::onnx::DecoderBase>& value) {
-                             const auto& tensor = std::dynamic_pointer_cast<DecoderProtoTensor>(value);
-                             if (tensor == nullptr)
-                                 return false;
-                             return initializer.name() == *tensor->get_tensor_info().m_tensor_name;
-                         });
-        if (decoder != m_decoders.end()) {
-            *const_cast<ov::frontend::onnx::TensorMetaInfo*>(
-                &std::dynamic_pointer_cast<DecoderProtoTensor>(*decoder)->get_tensor_info()) =
+
+    for (const auto& initializer : graph.initializer()) {
+        if (auto tensor_it = m_tensors.find(initializer.name()); tensor_it != m_tensors.end()) {
+            *const_cast<ov::frontend::onnx::TensorMetaInfo*>(&tensor_it->second->get_tensor_info()) =
                 extract_tensor_meta_info(&initializer, nullptr, this);
-            continue;
+        } else {
+            m_tensors.try_emplace(initializer.name(), std::make_shared<DecoderProtoTensor>(&initializer, this, -1, -1));
         }
-        const auto tensor = std::make_shared<DecoderProtoTensor>(&initializer, this, -1, -1);
-        m_tensors[*tensor->get_tensor_info().m_tensor_name] = tensor;
     }
     size_t top_index = 0;
-    for (const auto& node : m_graph->node()) {
+    for (const auto& node : graph.node()) {
         std::vector<const ov::frontend::onnx::TensorMetaInfo*> input_tensors{};
         std::vector<const ov::frontend::onnx::TensorMetaInfo*> output_tensors{};
         input_tensors.reserve(node.input_size());
@@ -441,37 +458,25 @@ void GraphIteratorProto::reset() {
             }
         }
         for (const auto& name : node.output()) {
-            if (name != "") {
-                const auto& found_tensor = m_tensors.find(name);
-                if (found_tensor == m_tensors.end()) {
-                    const auto& initializer = std::find_if(m_graph->initializer().begin(),
-                                                           m_graph->initializer().end(),
-                                                           [&name](const TensorProto& value) {
-                                                               return value.has_name() && value.name() == name;
-                                                           });
-                    std::shared_ptr<DecoderProtoTensor> tensor{nullptr};
-                    if (initializer != m_graph->initializer().end()) {
-                        tensor = std::make_shared<DecoderProtoTensor>(&*initializer, this, -1, -1);
-                    } else {
-                        const auto& value_info = std::find_if(m_graph->value_info().begin(),
-                                                              m_graph->value_info().end(),
-                                                              [&name](const ValueInfoProto& value) {
-                                                                  return value.has_name() && value.name() == name;
-                                                              });
-                        if (value_info != m_graph->value_info().end())
-                            tensor = std::make_shared<DecoderProtoTensor>(&*value_info, this, -1, -1);
-                    }
-                    if (tensor == nullptr) {
-                        tensor = std::make_shared<DecoderProtoTensor>(name, this, -1, -1);
-                    }
-                    m_decoders.push_back(tensor);
-                    m_tensors[name] = tensor;
-                    output_tensors.push_back(&tensor->get_tensor_info());
-                } else {
-                    output_tensors.push_back(&found_tensor->second->get_tensor_info());
-                }
-            } else {
+            if (name.empty()) {
                 output_tensors.push_back(&this->get_tensor(empty_name, &tensor_owner)->get_tensor_info());
+                continue;
+            }
+            if (auto tensor_it = m_tensors.find(name); tensor_it == m_tensors.end()) {
+                std::shared_ptr<DecoderProtoTensor> tensor;
+                if (auto init_it = initializer_by_name.find(name); init_it != initializer_by_name.end()) {
+                    tensor = std::make_shared<DecoderProtoTensor>(init_it->second, this, -1, -1);
+                } else if (auto value_info_it = value_info_by_name.find(name);
+                           value_info_it != value_info_by_name.end()) {
+                    tensor = std::make_shared<DecoderProtoTensor>(value_info_it->second, this, -1, -1);
+                } else {
+                    tensor = std::make_shared<DecoderProtoTensor>(name, this, -1, -1);
+                }
+                m_decoders.push_back(tensor);
+                const auto& inserted_tensor = m_tensors.try_emplace(name, tensor).first->second;
+                output_tensors.push_back(&inserted_tensor->get_tensor_info());
+            } else {
+                output_tensors.push_back(&tensor_it->second->get_tensor_info());
             }
         }
         const std::string& domain = node.has_domain() ? node.domain() : DEFAULT_DOMAIN;

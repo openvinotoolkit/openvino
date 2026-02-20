@@ -4,16 +4,26 @@
 
 #include "nodes/executors/aarch64/subgraph.hpp"
 
+#include <csignal>
 #include <cstddef>
 #include <cstdint>
+#include <iostream>
 #include <memory>
+#include <mutex>
+#include <string>
 #include <vector>
 
 #include "cache/multi_cache.h"
+#include "emitters/snippets/aarch64/cpu_generator.hpp"
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "nodes/executors/subgraph.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/parallel.hpp"
+
+#if defined(SNIPPETS_DEBUG_CAPS) && (defined(__linux__) || defined(__APPLE__))
+#    include "emitters/snippets/aarch64/jit_segfault_detector_emitter.hpp"
+#endif
 
 namespace ov::intel_cpu {
 
@@ -32,7 +42,37 @@ SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<CPURuntimeConfig>& snip
                            allocator,
                            kernel_cache) {
     m_buffer_scratchpad = allocator(m_internal_buffer_size);
+
+#if defined(SNIPPETS_DEBUG_CAPS) && (defined(__linux__) || defined(__APPLE__))
+    const auto target = std::dynamic_pointer_cast<const aarch64::CPUTargetMachine>(
+        snippet_attrs->snippet->get_generator()->get_target_machine());
+    enabled_segfault_detector = target && target->debug_config.enable_segfault_detector;
+#endif
 }
+
+#if defined(SNIPPETS_DEBUG_CAPS) && (defined(__linux__) || defined(__APPLE__))
+// NOLINTBEGIN(misc-include-cleaner) bug in clang-tidy
+void SubgraphExecutor::segfault_detector() const {
+    static std::mutex err_print_lock;
+    if (enabled_segfault_detector) {
+        auto signal_handler =
+            []([[maybe_unused]] int signal) {
+                std::lock_guard<std::mutex> guard(err_print_lock);
+                if (auto* segfault_detector_emitter =
+                    ov::intel_cpu::g_custom_segfault_handler<ov::intel_cpu::aarch64::jit_uni_segfault_detector_emitter>->local()) {
+                    std::cout << segfault_detector_emitter->info() << '\n';
+                }
+                auto tid = parallel_get_thread_num();
+                OPENVINO_THROW("Segfault was caught by the signal handler in subgraph node execution on thread " +
+                               std::to_string(tid));
+            };
+        struct sigaction new_handler {};
+        new_handler.sa_handler = signal_handler;
+        sigaction(SIGSEGV, &new_handler, nullptr);
+    }
+}
+// NOLINTEND(misc-include-cleaner) bug in clang-tidy
+#endif
 
 void SubgraphStaticExecutor::exec_impl(const std::vector<MemoryPtr>& inMemPtrs,
                                        const std::vector<MemoryPtr>& outMemPtrs) {
@@ -46,6 +86,10 @@ void SubgraphStaticExecutor::exec_impl(const std::vector<MemoryPtr>& inMemPtrs,
         [&](jit_snippets_call_args& call_args, const std::vector<size_t>& indexes, [[maybe_unused]] size_t ithr) {
             callable(&call_args, indexes.data());
         };
+
+#if defined(SNIPPETS_DEBUG_CAPS) && (defined(__linux__) || defined(__APPLE__))
+    segfault_detector();
+#endif
 
     if (m_parallel_exec_domain.size() == rank6D) {
         parallel_for6d(initializer, caller);
@@ -79,6 +123,10 @@ void SubgraphDynamicSpecializedExecutor::exec_impl(const std::vector<MemoryPtr>&
             update_ptrs(call_args, src_ptrs, dst_ptrs, indexes);
             callable(&call_args);
         };
+
+#if defined(SNIPPETS_DEBUG_CAPS) && (defined(__linux__) || defined(__APPLE__))
+    segfault_detector();
+#endif
 
     if (m_parallel_exec_domain.size() == rank6D) {
         parallel_for6d(initializer, caller);

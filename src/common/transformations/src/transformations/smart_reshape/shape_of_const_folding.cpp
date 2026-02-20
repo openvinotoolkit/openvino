@@ -12,7 +12,9 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-ov::pass::ShapeOfConstFolding::ShapeOfConstFolding() {
+namespace ov::pass {
+
+ShapeOfConstFolding::ShapeOfConstFolding() {
     MATCHER_SCOPE(ShapeOfConstFolding);
     auto constant_label = pattern::wrap_type<ov::op::v0::Constant>();
     auto shape_of_label = pattern::wrap_type<op::v0::ShapeOf, ov::op::v3::ShapeOf>({constant_label});
@@ -32,3 +34,5 @@ ov::pass::ShapeOfConstFolding::ShapeOfConstFolding() {
     auto m = std::make_shared<pattern::Matcher>(shape_of_label, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

@@ -699,6 +699,9 @@ JitConstants XAttentionEstimateFindBlock::get_jit_constants(const kernel_impl_pa
 
     const uint32_t NUM_THREADS = _xattn_block_size == 128 ? 32 : 16;  // for xattn sort kernel
     jit.make("NUM_THREADS", NUM_THREADS);
+#if FIND_DEBUG_ACC
+    jit.make("DEBUG_ACC", FIND_DEBUG_ACC);
+#endif
 
     return jit;
 }
@@ -721,6 +724,10 @@ Arguments XAttentionEstimateFindBlock::get_arguments_desc(const kernel_impl_para
     args.push_back({ArgumentDescriptor::Types::SCALAR, 4});  // k_block_pad
     args.push_back({ArgumentDescriptor::Types::SCALAR, 5});  // causal_start_index
     args.push_back({ArgumentDescriptor::Types::SCALAR, 6});  // thresh
+
+#if FIND_DEBUG_ACC
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::XATTN_FIND_DEBUG_ACC});  // kq_sum for debug purpose only
+#endif
 
     return args;
 }

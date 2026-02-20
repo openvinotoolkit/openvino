@@ -239,4 +239,31 @@ TEST_F(CoreBaseTest, compile_model_with_std_fs_path) {
     }
 #endif
 }
+
+TEST_P(UnicodePathTest, read_compile_model) {
+    const std::string model_name = "test-model.xml";
+    const auto prefix_dir = utils::generateTestFilePrefix();
+
+    const auto model_path =
+        std::filesystem::path(prefix_dir) / utils::to_fs_path(GetParam()) / std::filesystem::path(model_name);
+    ov::test::utils::generate_test_model(model_path, "");
+
+    ov::Core core;
+    const auto visitor = [&](const auto& param) {
+        using ParamT = std::decay_t<decltype(param)>;
+
+        const auto sep = ov::test::utils::FileTraits<typename ParamT::value_type>::file_separator;
+        const auto model_path = ParamT(prefix_dir.begin(), prefix_dir.end()) + sep + param + sep +
+                                ParamT(model_name.begin(), model_name.end());
+
+        const auto model = core.read_model(model_path);
+        EXPECT_NE(model, nullptr);
+
+        const auto compiled_model = core.compile_model(model_path);
+        EXPECT_TRUE(compiled_model);
+    };
+    run_test_visitor(visitor);
+    std::filesystem::remove_all(prefix_dir);
+}
+
 }  // namespace ov::test

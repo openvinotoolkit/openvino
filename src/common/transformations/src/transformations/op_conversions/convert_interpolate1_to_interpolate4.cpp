@@ -18,20 +18,25 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::any_input;
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v4 = ov::op::v4;
 ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4() {
     MATCHER_SCOPE(ConvertInterpolate1ToInterpolate4);
-    auto interpolate1 = ov::pass::pattern::wrap_type<ov::op::v0::Interpolate>(
-        {pattern::any_input(pattern::has_static_rank()), pattern::any_input()});
-    matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto interpolationV0 = ov::as_type_ptr<ov::op::v0::Interpolate>(m.get_match_root());
+    auto interpolate1 =
+        ov::pass::pattern::wrap_type<v0::Interpolate>({any_input(ov::pass::pattern::has_static_rank()), any_input()});
+    matcher_pass_callback callback = [](Matcher& m) {
+        auto interpolationV0 = ov::as_type_ptr<v0::Interpolate>(m.get_match_root());
         if (!interpolationV0) {
             return false;
         }
 
         auto attrsV0 = interpolationV0->get_attrs();
         std::vector<size_t> axes{attrsV0.axes.begin(), attrsV0.axes.end()};
-        const auto& out_dims = std::make_shared<ov::op::v0::Convert>(interpolationV0->input_value(1), element::f32);
-        const auto& in_dims = std::make_shared<ov::op::v0::Convert>(
+        const auto& out_dims = std::make_shared<v0::Convert>(interpolationV0->input_value(1), element::f32);
+        const auto& in_dims = std::make_shared<v0::Convert>(
             ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(interpolationV0->input_value(0), axes),
             element::f32);
 
@@ -39,45 +44,45 @@ ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4()
         if (const auto& constant = ov::util::get_constant_from_source(scales)) {
             scales = constant;
         }
-        auto axisConstant = ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes);
+        auto axisConstant = v0::Constant::create(ov::element::i64, {axes.size()}, axes);
 
-        ov::op::v4::Interpolate::InterpolateAttrs attrsV4;
+        v4::Interpolate::InterpolateAttrs attrsV4;
         auto input_shape_rank = interpolationV0->get_input_partial_shape(0).rank().get_length();
         if (attrsV0.mode == "nearest") {
-            attrsV4.mode = ov::op::v4::Interpolate::InterpolateMode::NEAREST;
+            attrsV4.mode = v4::Interpolate::InterpolateMode::NEAREST;
         } else if (attrsV0.mode == "linear") {
             // If we write only
-            //    attrsV4.mode = ov::op::v4::Interpolate::InterpolateMode::linear;
+            //    attrsV4.mode = v4::Interpolate::InterpolateMode::linear;
             // instead of a conditional statements below when attrsV0.mode == "linear",
             // then we have a performance drop, because CPU have no optimized
             // version of the 'linear' mode.
             // TODO: delete this conditional statement, when CPU will have
             // optimized version of the 'linear' mode.
             if (input_shape_rank < 5) {
-                attrsV4.mode = ov::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX;
+                attrsV4.mode = v4::Interpolate::InterpolateMode::LINEAR_ONNX;
             } else if (input_shape_rank == 5) {
-                attrsV4.mode = ov::op::v4::Interpolate::InterpolateMode::LINEAR;
+                attrsV4.mode = v4::Interpolate::InterpolateMode::LINEAR;
             } else {
                 return false;
             }
         } else if (attrsV0.mode == "cubic") {
-            attrsV4.mode = ov::op::v4::Interpolate::InterpolateMode::CUBIC;
+            attrsV4.mode = v4::Interpolate::InterpolateMode::CUBIC;
         } else if (attrsV0.mode == "linear_onnx") {
-            attrsV4.mode = ov::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX;
+            attrsV4.mode = v4::Interpolate::InterpolateMode::LINEAR_ONNX;
         } else {
             return false;
         }
-        attrsV4.shape_calculation_mode = ov::op::v4::Interpolate::ShapeCalcMode::SIZES;
-        attrsV4.nearest_mode = ov::op::v4::Interpolate::NearestMode::SIMPLE;
+        attrsV4.shape_calculation_mode = v4::Interpolate::ShapeCalcMode::SIZES;
+        attrsV4.nearest_mode = v4::Interpolate::NearestMode::SIMPLE;
         attrsV4.pads_begin = attrsV0.pads_begin;
         attrsV4.pads_end = attrsV0.pads_end;
         attrsV4.antialias = attrsV0.antialias;
-        attrsV4.coordinate_transformation_mode = ov::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC;
+        attrsV4.coordinate_transformation_mode = v4::Interpolate::CoordinateTransformMode::ASYMMETRIC;
         attrsV4.cube_coeff = -0.75f;
         if (attrsV0.align_corners) {
-            attrsV4.coordinate_transformation_mode = ov::op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS;
-        } else if ((attrsV4.mode == ov::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX ||
-                    attrsV4.mode == ov::op::v4::Interpolate::InterpolateMode::LINEAR) &&
+            attrsV4.coordinate_transformation_mode = v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS;
+        } else if ((attrsV4.mode == v4::Interpolate::InterpolateMode::LINEAR_ONNX ||
+                    attrsV4.mode == v4::Interpolate::InterpolateMode::LINEAR) &&
                    std::all_of(attrsV4.pads_begin.begin(),
                                attrsV4.pads_begin.end(),
                                [](size_t i) {
@@ -89,14 +94,14 @@ ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4()
                                    return i == 0;
                                }) &&
                    !(input_shape_rank - 2 == 2 && attrsV0.axes == AxisSet{2, 3})) {
-            attrsV4.coordinate_transformation_mode = ov::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL;
+            attrsV4.coordinate_transformation_mode = v4::Interpolate::CoordinateTransformMode::HALF_PIXEL;
         }
 
-        auto interpolateV4 = std::make_shared<ov::op::v4::Interpolate>(interpolationV0->input_value(0),
-                                                                       interpolationV0->input_value(1),
-                                                                       scales,
-                                                                       axisConstant,
-                                                                       attrsV4);
+        auto interpolateV4 = std::make_shared<v4::Interpolate>(interpolationV0->input_value(0),
+                                                               interpolationV0->input_value(1),
+                                                               scales,
+                                                               axisConstant,
+                                                               attrsV4);
 
         interpolateV4->set_friendly_name(interpolationV0->get_friendly_name());
         ov::copy_runtime_info(interpolationV0, interpolateV4);
@@ -104,6 +109,6 @@ ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4()
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(interpolate1, matcher_name);
+    auto m = std::make_shared<Matcher>(interpolate1, matcher_name);
     this->register_matcher(m, callback);
 }

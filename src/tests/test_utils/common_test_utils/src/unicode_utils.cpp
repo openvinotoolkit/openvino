@@ -24,3 +24,25 @@ const std::vector<std::wstring> test_unicode_postfix_vector = {L"unicode_Яㅎ�
 }  // namespace ov
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+
+namespace ov::test {
+
+std::filesystem::path UnicodePathTest::get_path_param() const {
+    return std::visit(
+        [](const auto& p) {
+            // Use OV util to hide some platform details with path creation
+            return ov::util::make_path(p);
+        },
+        GetParam());
+}
+
+const static auto test_paths = testing::Values("test_folder", L"test_folder", u"test_folder", U"test_folder");
+INSTANTIATE_TEST_SUITE_P(test_paths, UnicodePathTest, test_paths);
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+const static auto unicode_paths = testing::Values("这是_folder", L"这是_folder", u"这是_folder", U"这是_folder");
+
+INSTANTIATE_TEST_SUITE_P(unicode_paths, UnicodePathTest, unicode_paths);
+#endif
+
+}  // namespace ov::test

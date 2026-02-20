@@ -167,6 +167,11 @@ void ov::npuw::EmbeddingInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor>
     LOG_DEBUG("Calling inference for embedding prefill model in a single launch.");
     LOG_BLOCK();
 
+    auto position_ids = ov::make_tensor(ov::element::i64, attention_mask->get_shape());
+    auto ids_data = position_ids->data<int64_t>();
+    std::iota(ids_data, ids_data + position_ids->get_size(), 0);
+    ov::npuw::util::pad_position_ids(m_pos_ids_in_tensor, position_ids);
+
     std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()),
                 input_ids->get_byte_size(),
                 reinterpret_cast<uint8_t*>(m_input_ids_in_tensor->data()) + m_input_ids_in_tensor->get_byte_size() -

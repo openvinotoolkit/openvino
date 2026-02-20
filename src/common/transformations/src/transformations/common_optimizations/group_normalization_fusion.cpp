@@ -19,9 +19,14 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ov::pass::pattern;
+namespace ov::pass {
 
-ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v6 = ov::op::v6;
+namespace v8 = ov::op::v8;
+
+GroupNormalizationFusion::GroupNormalizationFusion() {
     MATCHER_SCOPE(GroupNormalizationFusion);
 
     auto has_real_not_quantized_type = [](const ov::Output<ov::Node>& output) -> bool {
@@ -34,36 +39,44 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         return (output_ps.rank().is_static()) && (output_ps.rank().get_length() >= 2);
     };
 
-    auto input_m = any_input(all_of({has_real_not_quantized_type, has_at_least_2d_shape, has_static_dim(1)}));
+    auto input_m = pattern::any_input(
+        pattern::all_of({has_real_not_quantized_type, has_at_least_2d_shape, pattern::has_static_dim(1)}));
 
-    auto pre_mvn_shape_const_m = wrap_type<ov::op::v0::Constant>(all_of({rank_equals(1), has_static_dim(0)}));
-    auto pre_mvn_reshape_m =
-        wrap_type<ov::op::v1::Reshape>({input_m, pre_mvn_shape_const_m},
-                                       all_of({has_real_not_quantized_type, rank_equals(3), has_static_dim(1)}));
+    auto pre_mvn_shape_const_m =
+        pattern::wrap_type<v0::Constant>(pattern::all_of({pattern::rank_equals(1), pattern::has_static_dim(0)}));
+    auto pre_mvn_reshape_m = pattern::wrap_type<v1::Reshape>(
+        {input_m, pre_mvn_shape_const_m},
+        pattern::all_of({has_real_not_quantized_type, pattern::rank_equals(3), pattern::has_static_dim(1)}));
 
-    auto mvn_reduction_axes_const_m = wrap_type<ov::op::v0::Constant>(all_of({rank_equals(1), has_static_dim(0)}));
-    auto mvn_m = wrap_type<ov::op::v6::MVN>({pre_mvn_reshape_m, mvn_reduction_axes_const_m});
+    auto mvn_reduction_axes_const_m =
+        pattern::wrap_type<v0::Constant>(pattern::all_of({pattern::rank_equals(1), pattern::has_static_dim(0)}));
+    auto mvn_m = pattern::wrap_type<v6::MVN>({pre_mvn_reshape_m, mvn_reduction_axes_const_m});
 
-    auto instance_norm_gamma_m = any_input(all_of({has_real_not_quantized_type, has_static_shape()}));
-    auto instance_norm_opt_gamma_m = optional<ov::op::v1::Multiply>({mvn_m, instance_norm_gamma_m});
+    auto instance_norm_gamma_m =
+        pattern::any_input(pattern::all_of({has_real_not_quantized_type, pattern::has_static_shape()}));
+    auto instance_norm_opt_gamma_m = pattern::optional<v1::Multiply>({mvn_m, instance_norm_gamma_m});
 
-    auto instance_norm_beta_m = any_input(all_of({has_real_not_quantized_type, has_static_shape()}));
+    auto instance_norm_beta_m =
+        pattern::any_input(pattern::all_of({has_real_not_quantized_type, pattern::has_static_shape()}));
     auto instance_norm_opt_gamma_opt_beta_m =
-        optional<ov::op::v1::Add>({instance_norm_opt_gamma_m, instance_norm_beta_m});
+        pattern::optional<v1::Add>({instance_norm_opt_gamma_m, instance_norm_beta_m});
 
-    auto post_instance_norm_shape_m = any_input(all_of({rank_equals(1), has_static_dim(0)}));
-    auto post_instance_norm_reshape_m =
-        wrap_type<ov::op::v1::Reshape>({instance_norm_opt_gamma_opt_beta_m, post_instance_norm_shape_m},
-                                       all_of({has_real_not_quantized_type, has_at_least_2d_shape, has_static_dim(1)}));
+    auto post_instance_norm_shape_m =
+        pattern::any_input(pattern::all_of({pattern::rank_equals(1), pattern::has_static_dim(0)}));
+    auto post_instance_norm_reshape_m = pattern::wrap_type<v1::Reshape>(
+        {instance_norm_opt_gamma_opt_beta_m, post_instance_norm_shape_m},
+        pattern::all_of({has_real_not_quantized_type, has_at_least_2d_shape, pattern::has_static_dim(1)}));
 
-    auto group_norm_gamma_m = any_input(all_of({has_real_not_quantized_type, has_static_shape()}));
+    auto group_norm_gamma_m =
+        pattern::any_input(pattern::all_of({has_real_not_quantized_type, pattern::has_static_shape()}));
     auto group_norm_gamma_multiply_m =
-        wrap_type<ov::op::v1::Multiply>({post_instance_norm_reshape_m, group_norm_gamma_m});
+        pattern::wrap_type<v1::Multiply>({post_instance_norm_reshape_m, group_norm_gamma_m});
 
-    auto group_norm_beta_m = any_input(all_of({has_real_not_quantized_type, has_static_shape()}));
-    auto group_norm_beta_add_m = wrap_type<ov::op::v1::Add>({group_norm_gamma_multiply_m, group_norm_beta_m});
+    auto group_norm_beta_m =
+        pattern::any_input(pattern::all_of({has_real_not_quantized_type, pattern::has_static_shape()}));
+    auto group_norm_beta_add_m = pattern::wrap_type<v1::Add>({group_norm_gamma_multiply_m, group_norm_beta_m});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         const auto& input = pattern_map.at(input_m);
@@ -80,7 +93,7 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         // but leave batch and channel dimensions untouched
         const auto& pre_mvn_shape = pattern_map.at(pre_mvn_shape_const_m);
         const auto& pre_mvn_shape_const =
-            ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(pre_mvn_shape_const_m).get_node_shared_ptr());
+            ov::as_type_ptr<v0::Constant>(pattern_map.at(pre_mvn_shape_const_m).get_node_shared_ptr());
         const auto& pre_mvn_shape_out_ps = pre_mvn_shape.get_shape();
         if (pre_mvn_shape_out_ps[0] != 3)
             return false;
@@ -118,8 +131,7 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
 
         // we expect to execute normalization over last dimension of MVN input
         const auto& mvn_reduction_axes = pattern_map.at(mvn_reduction_axes_const_m);
-        const auto& mvn_reduction_axes_const =
-            ov::as_type_ptr<ov::op::v0::Constant>(mvn_reduction_axes.get_node_shared_ptr());
+        const auto& mvn_reduction_axes_const = ov::as_type_ptr<v0::Constant>(mvn_reduction_axes.get_node_shared_ptr());
         const auto& mvn_reduction_axes_out_shape = mvn_reduction_axes.get_shape();
         if (mvn_reduction_axes_out_shape[0] != 1)
             return false;
@@ -154,7 +166,7 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
 
         ov::NodeVector nodes;
 
-        std::shared_ptr<ov::Node> group_norm_gamma_1d_m = std::make_shared<ov::op::v0::Squeeze>(group_norm_gamma);
+        std::shared_ptr<ov::Node> group_norm_gamma_1d_m = std::make_shared<v0::Squeeze>(group_norm_gamma);
         nodes.push_back(group_norm_gamma_1d_m);
         const auto& group_norm_gamma_1d_out_ps = group_norm_gamma_1d_m->get_output_partial_shape(0);
 
@@ -162,20 +174,20 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         if (group_norm_gamma_1d_out_ps != expected_param_shape)
             return false;
 
-        std::shared_ptr<ov::Node> group_norm_beta_1d_m = std::make_shared<ov::op::v0::Squeeze>(group_norm_beta);
+        std::shared_ptr<ov::Node> group_norm_beta_1d_m = std::make_shared<v0::Squeeze>(group_norm_beta);
         nodes.push_back(group_norm_beta_1d_m);
         const auto& group_norm_beta_1d_out_ps = group_norm_beta_1d_m->get_output_partial_shape(0);
 
         if (group_norm_beta_1d_out_ps != expected_param_shape)
             return false;
 
-        auto gather_axis_const_m = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
+        auto gather_axis_const_m = v0::Constant::create(element::i64, Shape{1}, {0});
         nodes.push_back(gather_axis_const_m);
         auto gather_indices_vals = std::vector<int64_t>();
         for (auto i = 0; i < num_groups; i++)
             gather_indices_vals.insert(gather_indices_vals.end(), num_channels / num_groups, i);
         auto gather_indices_const_m =
-            ov::op::v0::Constant::create(element::i64, Shape{static_cast<size_t>(num_channels)}, gather_indices_vals);
+            v0::Constant::create(element::i64, Shape{static_cast<size_t>(num_channels)}, gather_indices_vals);
         nodes.push_back(gather_indices_const_m);
 
         if (pattern_map.count(instance_norm_beta_m) > 0) {
@@ -189,19 +201,17 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
             // with group_norm parameters, i.e. 1D vector of shape (num_channels)
             std::shared_ptr<ov::Node> instance_norm_beta_1d_m = nullptr;
             if (ov::shape_size(instance_norm_beta.get_shape()) == 1) {
-                auto shape_1d_const_m = ov::op::v0::Constant::create(element::i64, Shape{1}, {1});
+                auto shape_1d_const_m = v0::Constant::create(element::i64, Shape{1}, {1});
                 nodes.push_back(shape_1d_const_m);
-                instance_norm_beta_1d_m =
-                    std::make_shared<ov::op::v1::Reshape>(instance_norm_beta, shape_1d_const_m, true);
+                instance_norm_beta_1d_m = std::make_shared<v1::Reshape>(instance_norm_beta, shape_1d_const_m, true);
                 nodes.push_back(instance_norm_beta_1d_m);
             } else {
-                instance_norm_beta_1d_m = std::make_shared<ov::op::v0::Squeeze>(instance_norm_beta);
+                instance_norm_beta_1d_m = std::make_shared<v0::Squeeze>(instance_norm_beta);
                 nodes.push_back(instance_norm_beta_1d_m);
             }
 
-            instance_norm_beta_1d_m = std::make_shared<ov::op::v8::Gather>(instance_norm_beta_1d_m,
-                                                                           gather_indices_const_m,
-                                                                           gather_axis_const_m);
+            instance_norm_beta_1d_m =
+                std::make_shared<v8::Gather>(instance_norm_beta_1d_m, gather_indices_const_m, gather_axis_const_m);
             nodes.push_back(instance_norm_beta_1d_m);
 
             const auto& instance_norm_beta_1d_ps = instance_norm_beta_1d_m->get_output_partial_shape(0);
@@ -210,10 +220,9 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
 
             // group_norm_beta = group_norm_gamma * instance_norm_beta + group_norm_beta
             auto group_norm_beta_corr_multiply_m =
-                std::make_shared<ov::op::v1::Multiply>(group_norm_gamma_1d_m, instance_norm_beta_1d_m);
+                std::make_shared<v1::Multiply>(group_norm_gamma_1d_m, instance_norm_beta_1d_m);
             nodes.push_back(group_norm_beta_corr_multiply_m);
-            group_norm_beta_1d_m =
-                std::make_shared<ov::op::v1::Add>(group_norm_beta_corr_multiply_m, group_norm_beta_1d_m);
+            group_norm_beta_1d_m = std::make_shared<v1::Add>(group_norm_beta_corr_multiply_m, group_norm_beta_1d_m);
             nodes.push_back(group_norm_beta_1d_m);
         }
 
@@ -228,19 +237,17 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
             // with group_norm parameters, i.e. 1D vector of shape (num_channels)
             std::shared_ptr<ov::Node> instance_norm_gamma_1d_m = nullptr;
             if (ov::shape_size(instance_norm_gamma.get_shape()) == 1) {
-                auto shape_1d_const_m = ov::op::v0::Constant::create(element::i64, Shape{1}, {1});
+                auto shape_1d_const_m = v0::Constant::create(element::i64, Shape{1}, {1});
                 nodes.push_back(shape_1d_const_m);
-                instance_norm_gamma_1d_m =
-                    std::make_shared<ov::op::v1::Reshape>(instance_norm_gamma, shape_1d_const_m, true);
+                instance_norm_gamma_1d_m = std::make_shared<v1::Reshape>(instance_norm_gamma, shape_1d_const_m, true);
                 nodes.push_back(instance_norm_gamma_1d_m);
             } else {
-                instance_norm_gamma_1d_m = std::make_shared<ov::op::v0::Squeeze>(instance_norm_gamma);
+                instance_norm_gamma_1d_m = std::make_shared<v0::Squeeze>(instance_norm_gamma);
                 nodes.push_back(instance_norm_gamma_1d_m);
             }
 
-            instance_norm_gamma_1d_m = std::make_shared<ov::op::v8::Gather>(instance_norm_gamma_1d_m,
-                                                                            gather_indices_const_m,
-                                                                            gather_axis_const_m);
+            instance_norm_gamma_1d_m =
+                std::make_shared<v8::Gather>(instance_norm_gamma_1d_m, gather_indices_const_m, gather_axis_const_m);
             nodes.push_back(instance_norm_gamma_1d_m);
 
             const auto& instance_norm_gamma_1d_ps = instance_norm_gamma_1d_m->get_output_partial_shape(0);
@@ -248,14 +255,13 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
                 return false;
 
             // group_norm_gamma *= instance_norm_gamma
-            group_norm_gamma_1d_m =
-                std::make_shared<ov::op::v1::Multiply>(group_norm_gamma_1d_m, instance_norm_gamma_1d_m);
+            group_norm_gamma_1d_m = std::make_shared<v1::Multiply>(group_norm_gamma_1d_m, instance_norm_gamma_1d_m);
             nodes.push_back(group_norm_gamma_1d_m);
         }
 
         // we need to cast mvn to MVN layer type in order to read actual epsilon value
         const auto& mvn_out = pattern_map.at(mvn_m);
-        const auto& mvn = ov::as_type_ptr<ov::op::v6::MVN>(mvn_out.get_node_shared_ptr());
+        const auto& mvn = ov::as_type_ptr<v6::MVN>(mvn_out.get_node_shared_ptr());
         const auto& epsilon = mvn->get_eps();
 
         // reuse original friendly names for gamma and beta inputs
@@ -277,6 +283,8 @@ ov::pass::GroupNormalizationFusion::GroupNormalizationFusion() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(group_norm_beta_add_m, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(group_norm_beta_add_m, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

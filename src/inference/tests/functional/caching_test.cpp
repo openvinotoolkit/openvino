@@ -34,6 +34,7 @@
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/ov_version.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_iasync_infer_request.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icompiled_model.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_iplugin.hpp"
@@ -1803,7 +1804,20 @@ TEST_P(CachingTest, TestCacheFileCorrupted) {
     }
 }
 
-TEST_P(CachingTest, TestCacheFileOldVersion) {
+namespace {
+std::string version_to_string(const ov::util::Version& version) {
+    std::ostringstream oss;
+    oss << version.major << "." << version.minor << "." << version.patch;
+    if (version.tweak != 0) {
+        oss << "." << version.tweak;
+    }
+    oss << "-" << version.build;
+    oss << "-" << "test";  // mandatory postfix
+    return oss.str();
+}
+}  // namespace
+
+TEST_P(CachingTest, TestCacheFileIncompatible) {
     EXPECT_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::device::capability::EXPORT_IMPORT, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
@@ -1838,14 +1852,15 @@ TEST_P(CachingTest, TestCacheFileOldVersion) {
                 content = ostr.str();
             }
             std::string buildNum = ov::get_openvino_version().buildNumber;
-            std::string zeroBuild(buildNum.size(), '0');
+            auto build_version = ov::util::Version(buildNum);
+            // Update build number to make it incompatible, e.g. if it was 2026.0.0.123, make it 2026.0.0.124
+            build_version.build += 1;
             auto index = content.find(buildNum);
             if (index != std::string::npos) {
-                content.replace(index, buildNum.size(), zeroBuild);
+                content.replace(index, buildNum.size(), version_to_string(build_version));
             } else {
                 return;  // skip test
             }
-
             std::filesystem::permissions(fileName,
                                          std::filesystem::perms::owner_write,
                                          std::filesystem::perm_options::add);
@@ -1890,6 +1905,80 @@ TEST_P(CachingTest, TestCacheFileOldVersion) {
             EXPECT_NO_THROW(m_testFunction(core));
         });
     }
+}
+
+TEST_P(CachingTest, TestCacheFileOldVersion) {
+    EXPECT_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::capability::EXPORT_IMPORT, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::capabilities.name(), _)).Times(AnyNumber());
+
+    {
+        EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
+            .Times(!m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _)).Times(0);
+        m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+            EXPECT_CALL(net, export_model(_)).Times(1);
+        });
+        testLoad([&](ov::Core& core) {
+            EXPECT_NO_THROW(core.set_property(ov::cache_dir(m_cacheDir)));
+            EXPECT_NO_THROW(m_testFunction(core));
+        });
+    }
+    {
+        auto blobs = ov::test::utils::listFilesWithExt(m_cacheDir, "blob");
+        for (const auto& fileName : blobs) {
+            std::string content;
+            {
+                std::ifstream inp(fileName, std::ios_base::binary);
+                std::ostringstream ostr;
+                ostr << inp.rdbuf();
+                content = ostr.str();
+            }
+            std::string buildNum = ov::get_openvino_version().buildNumber;
+            auto build_version = ov::util::Version(buildNum);
+            build_version.build -= 1;
+            auto index = content.find(buildNum);
+            if (index != std::string::npos) {
+                content.replace(index, buildNum.size(), version_to_string(build_version));
+            } else {
+                return;  // skip test
+            }
+
+            std::filesystem::permissions(fileName,
+                                         std::filesystem::perms::owner_write,
+                                         std::filesystem::perm_options::add);
+            std::ofstream out(fileName, std::ios_base::binary);
+            out.write(content.c_str(), static_cast<std::streamsize>(content.size()));
+            out.close();
+            std::filesystem::permissions(fileName,
+                                         std::filesystem::perms::owner_write,
+                                         std::filesystem::perm_options::remove);
+        }
+    }
+    m_post_mock_net_callbacks.pop_back();
+    {  // Step 2. Cache file version is older. So cache is valid from Core perspective.
+        EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(!m_remoteContext ? 1 : 0);
+        EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _, _)).Times(0);
+        EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _)).Times(0);
+        m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+            EXPECT_CALL(net, export_model(_)).Times(1);
+        });
+        testLoad([&](ov::Core& core) {
+            EXPECT_NO_THROW(core.set_property(ov::cache_dir(m_cacheDir)));
+            EXPECT_NO_THROW(m_testFunction(core));
+        });
+    }
+    m_post_mock_net_callbacks.pop_back();
 }
 
 TEST_P(CachingTest, TestCacheFileWithCompiledModelRuntimeProperties) {

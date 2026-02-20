@@ -15,14 +15,18 @@
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/utils/utils.hpp"
 
-ov::pass::MarkRopeInputsToKeepInMixedPrecision::MarkRopeInputsToKeepInMixedPrecision() {
-    MATCHER_SCOPE(MarkRopeInputsToKeepInMixedPrecision);
-    using namespace ov::pass::pattern;
-    auto cos_tab = any_input();
-    auto sin_tab = any_input();
-    auto rope = wrap_type<ov::op::internal::RoPE>({any_input(), cos_tab, sin_tab});
+namespace v0 = ov::op::v0;
+namespace op_util = ov::op::util;
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+namespace ov::pass {
+
+MarkRopeInputsToKeepInMixedPrecision::MarkRopeInputsToKeepInMixedPrecision() {
+    MATCHER_SCOPE(MarkRopeInputsToKeepInMixedPrecision);
+    auto cos_tab = pattern::any_input();
+    auto sin_tab = pattern::any_input();
+    auto rope = pattern::wrap_type<ov::op::internal::RoPE>({pattern::any_input(), cos_tab, sin_tab});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto cos_input_node = pattern_map.at(cos_tab).get_node();
         auto sin_input_node = pattern_map.at(sin_tab).get_node();
@@ -34,18 +38,20 @@ ov::pass::MarkRopeInputsToKeepInMixedPrecision::MarkRopeInputsToKeepInMixedPreci
         // The inputs of cos_sin table generation are position_ids and a ShapeOf [batch, input_length]
         // The parent of ShapeOf may change when IR changes so skip it to avoid unknown precision problem
         auto skip_node_predicate = [](ov::Node* node) -> bool {
-            return ov::is_type<ov::op::v0::Constant>(node) || ov::is_type<ov::op::v0::Parameter>(node) ||
-                   ov::is_type<ov::op::util::ShapeOfBase>(node);
+            return ov::is_type<v0::Constant>(node) || ov::is_type<v0::Parameter>(node) ||
+                   ov::is_type<op_util::ShapeOfBase>(node);
         };
         if (!visited.count(cos_input_node)) {
-            ov::op::util::visit_path(cos_input_node, visited, visit_func, skip_node_predicate);
+            op_util::visit_path(cos_input_node, visited, visit_func, skip_node_predicate);
         }
         if (!visited.count(sin_input_node)) {
-            ov::op::util::visit_path(sin_input_node, visited, visit_func, skip_node_predicate);
+            op_util::visit_path(sin_input_node, visited, visit_func, skip_node_predicate);
         }
         return false;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(rope, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(rope, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

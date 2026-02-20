@@ -7,6 +7,16 @@
 #include "memory_test.hpp"
 
 
+std::vector<std::string> test_samples() {
+    return {
+        "start",
+        "compile_model",
+        "fill_inputs",
+        "inference"
+    };
+}
+
+
 void do_test(TestContext &test) {
     test.sample("start");
 

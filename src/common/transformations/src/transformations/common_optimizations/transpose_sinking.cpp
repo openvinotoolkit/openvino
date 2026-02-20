@@ -27,11 +27,18 @@
 
 using namespace ov;
 
+using ov::pass::pattern::any_input;
+using ov::pass::pattern::consumers_count;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace op_util = ov::op::util;
 namespace {
 
-std::shared_ptr<ov::op::v0::Constant> get_reduced_order_constant(
-    const std::shared_ptr<ov::op::v0::Constant>& axes_const,
-    const std::shared_ptr<ov::op::v0::Constant>& order_const) {
+std::shared_ptr<v0::Constant> get_reduced_order_constant(const std::shared_ptr<v0::Constant>& axes_const,
+                                                         const std::shared_ptr<v0::Constant>& order_const) {
     auto order = order_const->cast_vector<int64_t>();
 
     auto axes = axes_const->cast_vector<int64_t>();
@@ -54,11 +61,10 @@ std::shared_ptr<ov::op::v0::Constant> get_reduced_order_constant(
         std::replace(order.begin(), order.end(), *lowest_greater_eq_i, i);
         std::replace(order_sorted.begin(), order_sorted.end(), *lowest_greater_eq_i, i);
     }
-    return std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{order.size()}, order);
+    return std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{order.size()}, order);
 }
 
-std::shared_ptr<ov::op::v0::Constant> get_reversed_order_constant(
-    const std::shared_ptr<ov::op::v0::Constant>& order_const) {
+std::shared_ptr<v0::Constant> get_reversed_order_constant(const std::shared_ptr<v0::Constant>& order_const) {
     const auto& order = order_const->cast_vector<size_t>();
     const auto& rank = order.size();
     AxisVector default_order(rank);
@@ -67,7 +73,7 @@ std::shared_ptr<ov::op::v0::Constant> get_reversed_order_constant(
     for (size_t i = 0; i < rank; ++i)
         reverse_order[order[i]] = default_order[i];
 
-    return std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{reverse_order.size()}, reverse_order);
+    return std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{reverse_order.size()}, reverse_order);
 }
 
 }  // namespace
@@ -75,18 +81,16 @@ std::shared_ptr<ov::op::v0::Constant> get_reversed_order_constant(
 ov::pass::TransposeEltwise::TransposeEltwise() {
     MATCHER_SCOPE(TransposeEltwise);
 
-    auto eltwise_data_input_p = pattern::any_input();
-    auto eltwise_const_input_p = pattern::wrap_type<ov::op::v0::Constant>();
-    auto eltwise_p = pattern::wrap_type<ov::op::util::BinaryElementwiseArithmetic>(
+    auto eltwise_data_input_p = any_input();
+    auto eltwise_const_input_p = wrap_type<v0::Constant>();
+    auto eltwise_p = wrap_type<op_util::BinaryElementwiseArithmetic>(
         {eltwise_data_input_p, eltwise_const_input_p},
         [](const Output<Node>& output) {
             return ov::is_preprocesing_node(output.get_node_shared_ptr());
         });
-    auto transpose_p =
-        pattern::wrap_type<ov::op::v1::Transpose>({eltwise_p, pattern::wrap_type<ov::op::v0::Constant>()},
-                                                  pattern::consumers_count(1));
+    auto transpose_p = wrap_type<v1::Transpose>({eltwise_p, wrap_type<v0::Constant>()}, consumers_count(1));
 
-    auto callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    auto callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto eltwise = pattern_to_output.at(eltwise_p).get_node_shared_ptr();
         auto eltwise_const_input = pattern_to_output.at(eltwise_const_input_p);
@@ -101,8 +105,7 @@ ov::pass::TransposeEltwise::TransposeEltwise() {
         }
 
         if (ov::shape_size(shape) != 1) {
-            eltwise_const_input =
-                std::make_shared<ov::op::v1::Transpose>(eltwise_const_input, transpose->input_value(1));
+            eltwise_const_input = std::make_shared<v1::Transpose>(eltwise_const_input, transpose->input_value(1));
             if (auto const_node = ov::util::get_constant_from_source(eltwise_const_input)) {
                 eltwise_const_input = const_node;
             }
@@ -118,19 +121,17 @@ ov::pass::TransposeEltwise::TransposeEltwise() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_p, matcher_name);
+    auto m = std::make_shared<Matcher>(transpose_p, matcher_name);
     register_matcher(m, callback);
 }
 
 ov::pass::TransposeConvert::TransposeConvert() {
     MATCHER_SCOPE(TransposeConvert);
 
-    auto transpose_label =
-        pattern::wrap_type<ov::op::v1::Transpose>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()},
-                                                  pattern::consumers_count(1));
-    auto convert_label = pattern::wrap_type<ov::op::v0::Convert>({transpose_label});
+    auto transpose_label = wrap_type<v1::Transpose>({any_input(), wrap_type<v0::Constant>()}, consumers_count(1));
+    auto convert_label = wrap_type<v0::Convert>({transpose_label});
 
-    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto convert = pattern_to_output.at(convert_label).get_node_shared_ptr();
@@ -145,29 +146,26 @@ ov::pass::TransposeConvert::TransposeConvert() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(convert_label, matcher_name);
+    auto m = std::make_shared<Matcher>(convert_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
 
 ov::pass::TransposeReduction::TransposeReduction() {
     MATCHER_SCOPE(TransposeReduction);
 
-    auto transpose_label =
-        pattern::wrap_type<ov::op::v1::Transpose>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()},
-                                                  pattern::consumers_count(1));
+    auto transpose_label = wrap_type<v1::Transpose>({any_input(), wrap_type<v0::Constant>()}, consumers_count(1));
     auto reduce_or_squeeze_label =
-        pattern::wrap_type<ov::op::util::ArithmeticReductionKeepDims,
-                           ov::op::util::LogicalReductionKeepDims,
-                           ov::op::v0::Squeeze>({transpose_label, pattern::wrap_type<ov::op::v0::Constant>()});
+        wrap_type<op_util::ArithmeticReductionKeepDims, op_util::LogicalReductionKeepDims, v0::Squeeze>(
+            {transpose_label, wrap_type<v0::Constant>()});
 
-    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto reduction = pattern_to_output.at(reduce_or_squeeze_label).get_node_shared_ptr();
-        auto arithmetic_reduce = ov::as_type_ptr<ov::op::util::ArithmeticReductionKeepDims>(reduction);
-        auto logical_reduce = ov::as_type_ptr<ov::op::util::LogicalReductionKeepDims>(reduction);
-        auto squeeze = ov::as_type_ptr<ov::op::v0::Squeeze>(reduction);
+        auto arithmetic_reduce = ov::as_type_ptr<op_util::ArithmeticReductionKeepDims>(reduction);
+        auto logical_reduce = ov::as_type_ptr<op_util::LogicalReductionKeepDims>(reduction);
+        auto squeeze = ov::as_type_ptr<v0::Squeeze>(reduction);
         if (!transpose || !(arithmetic_reduce || logical_reduce || squeeze))
             return false;
 
@@ -177,8 +175,8 @@ ov::pass::TransposeReduction::TransposeReduction() {
         else if (arithmetic_reduce)
             keep_dims = arithmetic_reduce->get_keep_dims();
 
-        auto transpose_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
-        auto reduction_axes = ov::as_type_ptr<ov::op::v0::Constant>(reduction->get_input_node_shared_ptr(1));
+        auto transpose_order = ov::as_type_ptr<v0::Constant>(transpose->get_input_node_shared_ptr(1));
+        auto reduction_axes = ov::as_type_ptr<v0::Constant>(reduction->get_input_node_shared_ptr(1));
         if (!transpose_order || !reduction_axes)
             return false;
 
@@ -186,13 +184,12 @@ ov::pass::TransposeReduction::TransposeReduction() {
             util::try_get_normalized_axis_vector(reduction_axes->get_tensor_view(),
                                                  reduction->get_input_partial_shape(0).rank(),
                                                  *reduction);
-        reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {non_negative_axes.size()}, non_negative_axes);
+        reduction_axes = v0::Constant::create(ov::element::i64, {non_negative_axes.size()}, non_negative_axes);
 
         ov::NodeVector new_ops;
-        auto new_axes =
-            ov::op::util::make_try_fold<ov::op::v1::Gather>(transpose_order,
-                                                            reduction_axes,
-                                                            ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
+        auto new_axes = op_util::make_try_fold<v1::Gather>(transpose_order,
+                                                           reduction_axes,
+                                                           v0::Constant::create(ov::element::i64, {}, {0}));
         new_ops.push_back(new_axes);
         auto new_reduce = reduction->clone_with_new_inputs({transpose->input_value(0), new_axes});
         new_ops.push_back(new_reduce);
@@ -206,7 +203,7 @@ ov::pass::TransposeReduction::TransposeReduction() {
         if (!updated_order) {
             return false;
         }
-        auto new_transpose = register_new_node<ov::op::v1::Transpose>(new_reduce, updated_order);
+        auto new_transpose = register_new_node<v1::Transpose>(new_reduce, updated_order);
         new_ops.push_back(new_transpose);
         new_transpose->set_friendly_name(reduction->get_friendly_name());
 
@@ -216,33 +213,31 @@ ov::pass::TransposeReduction::TransposeReduction() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(reduce_or_squeeze_label, matcher_name);
+    auto m = std::make_shared<Matcher>(reduce_or_squeeze_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
 
 ov::pass::TransposeFQReduction::TransposeFQReduction() {
     MATCHER_SCOPE(TransposeFQReduction);
 
-    auto transpose_label =
-        pattern::wrap_type<ov::op::v1::Transpose>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()});
-    auto fq_label = pattern::wrap_type<ov::op::v0::FakeQuantize>({transpose_label,
-                                                                  pattern::any_input(pattern::has_static_rank()),
-                                                                  pattern::any_input(pattern::has_static_rank()),
-                                                                  pattern::any_input(pattern::has_static_rank()),
-                                                                  pattern::any_input(pattern::has_static_rank())});
+    auto transpose_label = wrap_type<v1::Transpose>({any_input(), wrap_type<v0::Constant>()});
+    auto fq_label = wrap_type<v0::FakeQuantize>({transpose_label,
+                                                 any_input(ov::pass::pattern::has_static_rank()),
+                                                 any_input(ov::pass::pattern::has_static_rank()),
+                                                 any_input(ov::pass::pattern::has_static_rank()),
+                                                 any_input(ov::pass::pattern::has_static_rank())});
     auto reduce_or_squeeze_label =
-        pattern::wrap_type<ov::op::util::ArithmeticReductionKeepDims,
-                           ov::op::util::LogicalReductionKeepDims,
-                           ov::op::v0::Squeeze>({fq_label, pattern::wrap_type<ov::op::v0::Constant>()});
+        wrap_type<op_util::ArithmeticReductionKeepDims, op_util::LogicalReductionKeepDims, v0::Squeeze>(
+            {fq_label, wrap_type<v0::Constant>()});
 
-    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
 
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         if (!transpose)
             return false;
 
-        auto transpose_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
+        auto transpose_order = ov::as_type_ptr<v0::Constant>(transpose->get_input_node_shared_ptr(1));
         auto fq = pattern_to_output.at(fq_label).get_node_shared_ptr();
         if (!transpose_order || !fq)
             return false;
@@ -261,21 +256,20 @@ ov::pass::TransposeFQReduction::TransposeFQReduction() {
             if (ranks_diff > 0) {
                 std::vector<int64_t> axes(ranks_diff);
                 std::iota(axes.begin(), axes.end(), 0);
-                const auto& axes_const = ov::op::v0::Constant::create(element::i64, Shape{axes.size()}, axes);
+                const auto& axes_const = v0::Constant::create(element::i64, Shape{axes.size()}, axes);
                 new_ops.push_back(axes_const);
-                const auto& unsqueezed_input = ov::op::util::make_try_fold<ov::op::v0::Unsqueeze>(input, axes_const);
+                const auto& unsqueezed_input = op_util::make_try_fold<v0::Unsqueeze>(input, axes_const);
                 new_ops.push_back(unsqueezed_input);
                 input = unsqueezed_input->output(0);
             }
-            const auto& transposed_input =
-                ov::op::util::make_try_fold<ov::op::v1::Transpose>(input, reverse_order_constant);
+            const auto& transposed_input = op_util::make_try_fold<v1::Transpose>(input, reverse_order_constant);
             new_ops.push_back(transposed_input);
             fq_inputs.push_back(transposed_input);
         }
         auto new_fq = fq->clone_with_new_inputs(fq_inputs);
         new_ops.push_back(new_fq);
 
-        auto new_transpose = register_new_node<ov::op::v1::Transpose>(new_fq, transpose_order);
+        auto new_transpose = register_new_node<v1::Transpose>(new_fq, transpose_order);
         new_ops.push_back(new_transpose);
         new_transpose->set_friendly_name(fq->get_friendly_name());
 
@@ -286,28 +280,25 @@ ov::pass::TransposeFQReduction::TransposeFQReduction() {
         return false;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(reduce_or_squeeze_label, matcher_name);
+    auto m = std::make_shared<Matcher>(reduce_or_squeeze_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
 
 ov::pass::TransposeFuse::TransposeFuse() {
     MATCHER_SCOPE(TransposeFuse);
 
-    auto transpose_1 =
-        pattern::wrap_type<ov::op::v1::Transpose>({pattern::any_input(), pattern::wrap_type<ov::op::v0::Constant>()},
-                                                  pattern::consumers_count(1));
-    auto transpose_2 =
-        pattern::wrap_type<ov::op::v1::Transpose>({transpose_1, pattern::wrap_type<ov::op::v0::Constant>()});
+    auto transpose_1 = wrap_type<v1::Transpose>({any_input(), wrap_type<v0::Constant>()}, consumers_count(1));
+    auto transpose_2 = wrap_type<v1::Transpose>({transpose_1, wrap_type<v0::Constant>()});
 
-    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         auto transpose1 = pattern_to_output.at(transpose_1).get_node_shared_ptr();
         auto transpose2 = pattern_to_output.at(transpose_2).get_node_shared_ptr();
         auto input = transpose1->input_value(0);
 
-        auto transpose1_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose1->get_input_node_shared_ptr(1));
-        auto transpose2_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose2->get_input_node_shared_ptr(1));
+        auto transpose1_order = ov::as_type_ptr<v0::Constant>(transpose1->get_input_node_shared_ptr(1));
+        auto transpose2_order = ov::as_type_ptr<v0::Constant>(transpose2->get_input_node_shared_ptr(1));
         if (!transpose1_order || !transpose2_order)
             return false;
 
@@ -330,8 +321,8 @@ ov::pass::TransposeFuse::TransposeFuse() {
         if (is_ordered) {
             return ov::replace_output_update_name(transpose2->output(0), input);
         } else {
-            auto new_order = ov::op::v0::Constant::create(transpose_order_type, {order2.size()}, order2);
-            auto new_transpose = register_new_node<ov::op::v1::Transpose>(input, new_order);
+            auto new_order = v0::Constant::create(transpose_order_type, {order2.size()}, order2);
+            auto new_transpose = register_new_node<v1::Transpose>(input, new_order);
 
             new_transpose->set_friendly_name(m.get_match_root()->get_friendly_name());
             ov::copy_runtime_info({transpose1, transpose2}, new_transpose);
@@ -341,6 +332,6 @@ ov::pass::TransposeFuse::TransposeFuse() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_2, matcher_name);
+    auto m = std::make_shared<Matcher>(transpose_2, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }

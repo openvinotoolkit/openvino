@@ -42,7 +42,7 @@ OutputVector translate_loop(const NodeContext& context) {
         auto result = body_results[i];
         auto out_idx = session->decode_tensor_name(result->input(0).get_source_output());
         PYTORCH_OP_CONVERSION_CHECK(output_idxs.count(out_idx) == 0,
-                                    "More then one body output with same tensor name.");
+                                    "More than one body output with same tensor name.");
         output_idxs[out_idx] = result;
     }
 
@@ -145,14 +145,14 @@ OutputVector translate_while_loop_fx(const NodeContext& context) {
     // counter
     auto loop_counter = std::make_shared<ov::opset10::Parameter>(ov::element::i64, ov::PartialShape{});
     loop_counter->set_friendly_name("loop_iteration");
-    loop_body_params.push_back(loop_counter);
+    loop_body_params.push_back(std::move(loop_counter));
 
     // carried inputs
     for (size_t i = 0; i < num_carried; i++) {
         auto param =
             std::make_shared<ov::opset10::Parameter>(inputs[i].get_element_type(), inputs[i].get_partial_shape());
         param->set_friendly_name("loop_carried_" + std::to_string(i));
-        loop_body_params.push_back(param);
+        loop_body_params.push_back(std::move(param));
     }
 
     // Map body model parameters to loop body parameters
@@ -238,7 +238,7 @@ OutputVector translate_while_loop_fx(const NodeContext& context) {
         auto cloned = op->clone_with_new_inputs(new_inputs);
         cloned->set_friendly_name(op->get_friendly_name() + "_cond");
         cond_cloned_map[op.get()] = cloned.get();
-        body_ops.push_back(cloned);
+        body_ops.push_back(std::move(cloned));
     }
 
     // Get condition output
@@ -287,7 +287,7 @@ OutputVector translate_while_loop_fx(const NodeContext& context) {
     OutputVector outputs;
     for (size_t i = 0; i < num_carried; i++) {
         auto out = loop->get_iter_value(loop_body_results[i + 1], -1);
-        outputs.push_back(out);
+        outputs.push_back(std::move(out));
     }
 
     context.mark_node(loop);

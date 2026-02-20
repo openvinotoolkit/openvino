@@ -4,9 +4,9 @@
 
 #include "onnx_utils.hpp"
 
-#include <openvino/runtime/core.hpp>
 #include <vector>
 
+#include "openvino/runtime/core.hpp"
 #include "utils.hpp"
 
 using namespace std;
