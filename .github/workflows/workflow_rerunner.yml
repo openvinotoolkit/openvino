@@ -108,6 +108,6 @@ jobs:
 
           # Need to get a run id with successful status for log analyzing
           # cannot lock a run id as logs get deleted after some time
-          run_id=$(python3 -c "from github import Github, Auth; import os; github=Github(auth=Auth.Token(token=os.environ.get('GITHUB_TOKEN'))); repo = github.get_repo('${GITHUB_REPOSITORY}'); run_id = repo.get_workflow_runs(status='success')[0].id; print(run_id)")
+          run_id=$(python3 -c "from github import Github, Auth; import os; from datetime import datetime, timedelta, timezone; github=Github(auth=Auth.Token(token=os.environ.get('GITHUB_TOKEN'))); repo = github.get_repo('${GITHUB_REPOSITORY}'); cutoff_date=(datetime.now(timezone.utc)-timedelta(days=14)).date().isoformat(); runs=repo.get_workflow_runs(status='success', created=f'>={cutoff_date}'); print(runs[0].id)")
 
           python3 rerunner.py --repository-name ${GITHUB_REPOSITORY} --run-id $run_id --rerunner-run-id ${{ github.run_id }} --dry-run
