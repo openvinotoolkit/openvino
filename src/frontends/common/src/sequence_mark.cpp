@@ -67,12 +67,12 @@ ov::OutputVector SequenceMark::get_sequence() const {
     // Pattern: SM(a,b) -> SI(SM,c) -> SM -> SI(SM,d) -> SM (this)
     // Each aten::append wraps SequenceInsert output in a new SequenceMark.
     OutputVector appended;
-    std::shared_ptr<ov::Node> current = std::const_pointer_cast<ov::Node>(shared_from_this());
+    std::shared_ptr<const ov::Node> current = shared_from_this();
 
-    while (auto mark = ov::as_type_ptr<SequenceMark>(current)) {
+    while (auto mark = ov::as_type_ptr<const SequenceMark>(current)) {
         if (mark->get_input_size() != 1)
             break;
-        auto si = ov::as_type_ptr<SequenceInsert>(mark->input_value(0).get_node_shared_ptr());
+        auto si = ov::as_type_ptr<const SequenceInsert>(mark->input_value(0).get_node_shared_ptr());
         if (!si)
             break;
         appended.push_back(si->get_tensor());
@@ -81,7 +81,7 @@ ov::OutputVector SequenceMark::get_sequence() const {
 
     // current is the base SequenceMark with direct element inputs
     OutputVector result;
-    if (auto mark = ov::as_type_ptr<SequenceMark>(current)) {
+    if (auto mark = ov::as_type_ptr<const SequenceMark>(current)) {
         result = mark->input_values();
     }
     result.insert(result.end(), appended.rbegin(), appended.rend());

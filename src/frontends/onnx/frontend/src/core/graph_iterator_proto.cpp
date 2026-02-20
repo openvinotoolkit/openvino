@@ -181,14 +181,21 @@ void topological_sort_graph(GraphProto* graph) {
     std::vector<std::vector<int>> adjacency(num_nodes);
     std::vector<int> indegree(num_nodes, 0);
     std::vector<int> unresolved_external(num_nodes, 0);
+    std::unordered_set<uint64_t> unique_edges;
+    unique_edges.reserve(static_cast<size_t>(num_nodes) * 2);
     for (int i = 0; i < num_nodes; ++i) {
         for (const auto& dep : node_deps[i]) {
             if (known_tensors.count(dep) > 0) {
                 continue;
             }
             if (const auto producer_it = producer_by_tensor.find(dep); producer_it != producer_by_tensor.end()) {
-                adjacency[producer_it->second].push_back(i);
-                ++indegree[i];
+                const int producer_idx = producer_it->second;
+                const auto edge_key =
+                    (static_cast<uint64_t>(static_cast<uint32_t>(producer_idx)) << 32) | static_cast<uint32_t>(i);
+                if (unique_edges.insert(edge_key).second) {
+                    adjacency[producer_idx].push_back(i);
+                    ++indegree[i];
+                }
             } else {
                 ++unresolved_external[i];
             }
