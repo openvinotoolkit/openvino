@@ -57,10 +57,10 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMetaMainGraph");
     mainNetworkMetadata = _zeGraphExt->getNetworkMeta(mainGraphDesc);
     _logger.debug("main schedule parse end");
-    if (model) {
+    if (model.has_value()) {
         mainNetworkMetadata.name = model.value()->get_friendly_name();
     } else {
-        _logger.info("networkMeta name is empty in parse!");
+        _logger.debug("networkMeta name is empty in parse!");
     }
 
     // exporting the blob when we get it from cache or ov::hint::compiled_blob property
@@ -95,6 +95,8 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
         initNetworkMetadata.push_back(std::move(initNetworkMeta));
     }
     _logger.debug("inits schedule parse end");
+
+    OPENVINO_ASSERT(model.has_value(), "Model is required for parsing weightless blobs.");
 
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
                                              _zeroInitStruct,
