@@ -319,9 +319,8 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
     else {
         auto q_pshape = Q.get_partial_shape();
         auto k_pshape = K.get_partial_shape();
-        if (q_pshape.rank().is_static() && q_pshape.rank().get_length() == 4 &&
-            k_pshape.rank().is_static() && k_pshape.rank().get_length() == 4 &&
-            q_pshape[1].is_static() && k_pshape[1].is_static()) {
+        if (q_pshape.rank().is_static() && q_pshape.rank().get_length() == 4 && k_pshape.rank().is_static() &&
+            k_pshape.rank().get_length() == 4 && q_pshape[1].is_static() && k_pshape[1].is_static()) {
             auto q_heads = q_pshape[1].get_length();
             auto kv_heads = k_pshape[1].get_length();
             if (q_heads != kv_heads) {
