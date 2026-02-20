@@ -756,6 +756,23 @@ ov::Any Properties::getProperty(const std::string& name) {
 
             // Create a compiler to get the type and fetch version and supported options if needed
             CompilerAdapterFactory factory;
+            try {
+                compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+            } catch (const std::exception& ex) {
+                if (name == ov::supported_properties.name() || name == ov::internal::supported_properties.name()) {
+                    // In case of supported_properties query, we want to return at least the runtime properties even if
+                    // compiler creation failed
+                    _logger.warning("Failed to create compiler for getting supported properties with error: %s."
+                                    "Returning only runtime supported properties.",
+                                    ex.what());
+                    auto&& configIterator = _properties.find(name);
+                    if (configIterator != _properties.cend()) {
+                        return std::get<2>(configIterator->second)(_config);
+                    }
+                }
+                OPENVINO_THROW("Failed to create compiler for getting property ", name, " with error: ", ex.what());
+            }
+
             compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
             filterPropertiesByCompilerSupport(compiler.get(), compilerType, compilationPlatform);
