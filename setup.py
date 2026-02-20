@@ -50,6 +50,7 @@ BUILD_BASE = f"build_{PYTHON_VERSION}"
 OPENVINO_SOURCE_DIR = os.getenv("OPENVINO_SOURCE_DIR", SCRIPT_DIR)
 OPENVINO_BINARY_DIR = os.getenv("OPENVINO_BINARY_DIR", f'{OPENVINO_SOURCE_DIR}/build_wheel')
 OPENVINO_PYTHON_BINARY_DIR = os.getenv("OPENVINO_PYTHON_BINARY_DIR", "python_build")
+SDIST_BUILD = "sdist" in sys.argv
 CONFIG = os.getenv("BUILD_TYPE", "Release")
 OV_RUNTIME_LIBS_DIR = os.getenv("OV_RUNTIME_LIBS_DIR", f"runtime/{LIBS_DIR}/{ARCH}")
 TBB_LIBS_DIR = os.getenv("TBB_LIBS_DIR", f"runtime/3rdparty/tbb/{LIBS_DIR}")
@@ -762,6 +763,10 @@ def get_package_dir(install_cfg):
     return py_package_path
 
 
+def get_sdist_package_dir():
+    return str(Path(OPENVINO_SOURCE_DIR) / "src" / "bindings" / "python" / "src")
+
+
 def find_entry_points(install_cfg):
     """Creates a list of entry points for OpenVINO runtime package."""
     entry_points = {
@@ -786,10 +791,11 @@ def concat_files(input_files, output_file):
 
 
 OPENVINO_VERSION = WHEEL_VERSION = os.getenv("WHEEL_VERSION", "0.0.0")
-PACKAGE_DIR = get_package_dir(PY_INSTALL_CFG)
-# need to create package dir, because since https://github.com/pypa/wheel/commit/e43f2fcb296c2ac63e8bac2549ab596ab79accd0
-# egg_info command works in this folder, because it's being created automatically
-os.makedirs(PACKAGE_DIR, exist_ok=True)
+PACKAGE_DIR = get_sdist_package_dir() if SDIST_BUILD else get_package_dir(PY_INSTALL_CFG)
+if not SDIST_BUILD:
+    # need to create package dir, because since https://github.com/pypa/wheel/commit/e43f2fcb296c2ac63e8bac2549ab596ab79accd0
+    # egg_info command works in this folder, because it's being created automatically
+    os.makedirs(PACKAGE_DIR, exist_ok=True)
 
 packages = find_namespace_packages(PACKAGE_DIR)
 package_data: dict[str, list] = {}
