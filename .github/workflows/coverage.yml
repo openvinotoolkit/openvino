@@ -65,7 +65,7 @@ jobs:
         run: |
           sudo apt --assume-yes update
           sudo -E ${{ github.workspace }}/install_build_dependencies.sh
-          sudo apt --assume-yes install lcov wget pigz xvfb
+          sudo apt --assume-yes install lcov wget pigz xvfb clang-14 libclang-14-dev
 
           python3 -m pip install --upgrade pip
           python3 -m pip install pytest pytest-cov pytest-xdist[psutil]
