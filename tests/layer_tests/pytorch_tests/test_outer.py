@@ -9,8 +9,8 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestOuter(PytorchLayerTest):
     def _prepare_input(self, x_shape, y_shape, x_dtype, y_dtype, out=False):
         import numpy as np
-        x = np.random.randn(*x_shape).astype(x_dtype)
-        y = np.random.randn(*y_shape).astype(y_dtype)
+        x = self.random.randn(*x_shape, dtype=x_dtype)
+        y = self.random.randn(*y_shape, dtype=y_dtype)
         if not out:
             return (x, y)
         out = np.zeros((x_shape[0], y_shape[0]))
@@ -40,9 +40,8 @@ class TestOuter(PytorchLayerTest):
             def forward_out(self, x, y, out):
                 return torch.outer(x.to(self.x_dtype), y.to(self.y_dtype), out=out), out
 
-        ref_net = None
 
-        return aten_outer(out, x_dtype, y_dtype), ref_net, 'aten::outer'
+        return aten_outer(out, x_dtype, y_dtype), 'aten::outer'
 
     @pytest.mark.parametrize("x_shape", ([1], [2], [3]))
     @pytest.mark.parametrize("y_shape", ([1], [7], [5]))

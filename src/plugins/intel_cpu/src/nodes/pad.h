@@ -53,6 +53,7 @@ private:
         int endPadIdx = 0;
         ov::element::Type prc;
         bool constPadValue = false;
+        std::shared_ptr<CpuParallel> cpuParallel;
     } attrs;
 
     struct PadExecutor {
