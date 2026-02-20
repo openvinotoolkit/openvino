@@ -37,11 +37,12 @@ When reviewing a PR, always:
 For PRs labeled `ExternalPR`, apply stricter evidence-based checks while keeping noise low:
 1. Treat `ExternalPR` as a risk signal, not as proof of low quality.
 2. Prioritize objective quality gates first: required CI status, build/test failures, and changed-path risk.
-3. Check workflow result for `ExternalPR Build Smoke` when it is expected for that PR.
-4. If `ExternalPR Build Smoke` is pending or missing, avoid speculative quality conclusions; ask for/await the smoke result first.
-5. If buildability is in question, reference failing required checks and concrete failure symptoms; do not speculate.
-6. Do not request extra local validation steps when required CI checks are green.
-7. Keep comments focused on merge blockers, regressions, and security/performance risks; avoid style-only expansion.
+3. Treat `ExternalPR Build Smoke` as required only when the PR has `ExternalPR` label.
+4. For PRs without `ExternalPR` label, do not treat `ExternalPR Build Smoke` as a required gate.
+5. If `ExternalPR Build Smoke` is pending or missing, avoid speculative quality conclusions; ask for/await the smoke result first.
+6. If buildability is in question, reference failing required checks and concrete failure symptoms; do not speculate.
+7. Do not request extra local validation steps when required CI checks are green.
+8. Keep comments focused on merge blockers, regressions, and security/performance risks; avoid style-only expansion.
 
 Before posting any comment, apply this gate:
 - **Evidence gate**: point to exact changed code and explain the failure mode.
@@ -112,7 +113,7 @@ Before posting any comment, apply this gate:
 - For architecture-specific changes (x64/ARM64/RISCV, CPU/GPU/NPU), verify appropriate platform/test gating.
 - If tests are skipped/disabled, require explicit rationale and limited scope.
 - If required validation jobs fail, cite the exact failing job(s) and explain impact on merge readiness.
-- For `ExternalPR`, include `ExternalPR Build Smoke` status in review summary when available.
+- For PRs labeled `ExternalPR`, include `ExternalPR Build Smoke` status in review summary when available.
 
 ## How to Write Review Comments
 - Use this severity prefix:
