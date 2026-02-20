@@ -61,7 +61,6 @@ public:
 private:
     void configure_stream_executors();
 
-    FilteredConfig _config;
     Logger _logger;
     const std::shared_ptr<IDevice> _device;
     std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor;
