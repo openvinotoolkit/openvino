@@ -29,6 +29,7 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
                                       std::optional<std::shared_ptr<const ov::Model>>&& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "Parser", "parse");
 
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
     const void* data = mainBlob.data();
     size_t size = mainBlob.get_byte_size();
     std::string header;
@@ -44,6 +45,7 @@ std::shared_ptr<IGraph> Parser::parse(const ov::Tensor& mainBlob,
     } else {
         _logger.debug("blob is ELF format, create graph for elf blob!");
     }
+#endif
 
     GraphDescriptor mainGraphDesc;
     NetworkMetadata mainNetworkMetadata;
