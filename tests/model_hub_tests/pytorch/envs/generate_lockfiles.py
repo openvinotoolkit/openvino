@@ -35,6 +35,7 @@ GROUPS = {
     "base": {"reqs": [], "overrides": []},
     "timm_torchvision": {"reqs": ["timm.txt", "edsr.txt", "torchvision.txt"], "overrides": []},
     "hf_models": {"reqs": ["hf_transformers.txt", "easyocr.txt", "gfpgan.txt", "tpsmm.txt"], "overrides": []},
+    "llm": {"reqs": ["hf_transformers.txt", "llm.txt"], "overrides": []},
     "compile_gptq": {"reqs": ["hf_transformers.txt", "llm.txt"], "overrides": ["compile_gptq.txt"]},
     "moe": {"reqs": ["hf_transformers.txt", "llm.txt"], "overrides": ["moe.txt"]},
 }

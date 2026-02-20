@@ -138,7 +138,25 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope2' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_"${TYPE}"_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel or TestEdsrConvertModel)"
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_"${TYPE}"_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel or TestEdsrConvertModel or TestLLMModel)"
+        env:
+          TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
+          TEST_DEVICE: CPU
+          OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
+
+      - name: Install deps for LLM model tests
+        if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope2' }}
+        run: |
+          uv pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/locks/llm.lock \
+            --extra-index-url https://download.pytorch.org/whl/cpu \
+            --index-strategy unsafe-best-match \
+            --python "$(which python3)"
+
+      - name: PyTorch LLM Model Tests
+        if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope2' }}
+        run: |
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/test_llm.py -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_llm_"${TYPE}"_tests.html --self-contained-html -v
         env:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU
