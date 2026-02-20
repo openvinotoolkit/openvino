@@ -11,9 +11,7 @@ import os
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 import torch
 import numpy as np
-
-pytestmark = pytest.mark.skip(reason="FuseMOE transformation temporarily disabled in moc_transformations.cpp")
-
+import platform
 
 def verify_moe_fusion(ov_model: ov.Model, model_id: str):
     """
@@ -291,6 +289,7 @@ BATCH_SIZES = [1, 2, 4]
 
 
 @pytest.mark.precommit
+@pytest.mark.xfail(platform.machine() in ["aarch64", "arm64", "ARM64"], reason='Ticket - 180936')
 @pytest.mark.parametrize("model_info_tuple", MOE_PRECOMMIT_TEST_CASES, ids=moe_test_idfn)
 @pytest.mark.parametrize("batch_size", BATCH_SIZES)
 def test_moe_precommit(tmp_path, model_info_tuple, ie_device, batch_size):
@@ -349,8 +348,8 @@ def synthetic_test_idfn(entry):
     num_layers, num_experts, dtype, batch_size = entry
     return f"synthetic-l{num_layers}-e{num_experts}-{dtype}-b{batch_size}"
 
-
 @pytest.mark.precommit
+@pytest.mark.xfail(platform.machine() in ["aarch64", "arm64", "ARM64"], reason='Ticket - 180936')
 @pytest.mark.parametrize("test_params", MOE_SYNTHETIC_TEST_CASES, ids=synthetic_test_idfn)
 def test_moe_synthetic(tmp_path, test_params, ie_device):
     """

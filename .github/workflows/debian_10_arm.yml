@@ -136,9 +136,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
-      # Additional investigation needed why CPU functional tests are failing on v6 VM size's version,
-      # so leave it as it is for now
-      runner: 'aks-linux-16-cores-arm'
+      runner: 'aks-linux-16-cores-32gb-arm'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.debian_10_arm }}
       python-version: '3.7'
       scope: ${{ github.event_name == 'workflow_dispatch' && 'nightly' || 'smoke' }}

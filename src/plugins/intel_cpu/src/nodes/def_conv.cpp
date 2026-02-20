@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
+#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
@@ -931,6 +932,7 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
 }
 
 void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float* offsets,
+                                                                    const CpuParallelPtr& cpuParallel,
                                                                     const float* modulation,
                                                                     [[maybe_unused]] bool enforceRef) {
     const int MB = jcp.mb;
@@ -1050,7 +1052,7 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
         }
     };
 
-    parallel_for4d(MB, DG, OH, OW, [&](dim_t mb, dim_t dg, dim_t oh, dim_t ow) {
+    cpuParallel->parallel_for4d(MB, DG, OH, OW, [&](dim_t mb, dim_t dg, dim_t oh, dim_t ow) {
         precompKer(static_cast<int>(mb), static_cast<int>(dg), static_cast<int>(oh), static_cast<int>(ow));
     });
 }
@@ -1163,10 +1165,11 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
                                                      const float* modulation,
                                                      float* dst,
                                                      int* pSampledCoordsVector,
-                                                     float* pInterpWeightsVector) {
+                                                     float* pInterpWeightsVector,
+                                                     const CpuParallelPtr& cpuParallel) {
     this->pSampledCoordsVector = pSampledCoordsVector;
     this->pInterpWeightsVector = pInterpWeightsVector;
-    prepareSamplingWeights(offsets, modulation, true);
+    prepareSamplingWeights(offsets, cpuParallel, modulation, true);
     const int G = jcp.ngroups;
     const int MB = jcp.mb;
     const int OH = jcp.oh;
@@ -1229,14 +1232,20 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
         return d;
     };
 
-    parallel_for5d(G, MB, OC, OH, OW, [&](dnnl_dim_t g, dnnl_dim_t mb, dnnl_dim_t oc, dnnl_dim_t oh, dnnl_dim_t ow) {
-        dst[mb * dstStrides[0] + (g * OC + oc) * dstStrides[1] + oh * dstStrides[2] + ow * dstStrides[3]] =
-            compKer(static_cast<int>(g),
-                    static_cast<int>(mb),
-                    static_cast<int>(oc),
-                    static_cast<int>(oh),
-                    static_cast<int>(ow));
-    });
+    cpuParallel->parallel_for5d(
+        G,
+        MB,
+        OC,
+        OH,
+        OW,
+        [&](dnnl_dim_t g, dnnl_dim_t mb, dnnl_dim_t oc, dnnl_dim_t oh, dnnl_dim_t ow) {
+            dst[mb * dstStrides[0] + (g * OC + oc) * dstStrides[1] + oh * dstStrides[2] + ow * dstStrides[3]] =
+                compKer(static_cast<int>(g),
+                        static_cast<int>(mb),
+                        static_cast<int>(oc),
+                        static_cast<int>(oh),
+                        static_cast<int>(ow));
+        });
 }
 
 void DeformableConvolution::prepareParams() {
@@ -1312,15 +1321,16 @@ void DeformableConvolution::DefConvJitExecutor::exec(const float* src,
                                                      const float* modulation,
                                                      float* dst,
                                                      int* pSampledCoordsVector,
-                                                     float* pInterpWeightsVector) {
+                                                     float* pInterpWeightsVector,
+                                                     const CpuParallelPtr& cpuParallel) {
     this->pSampledCoordsVector = pSampledCoordsVector;
     this->pInterpWeightsVector = pInterpWeightsVector;
-    prepareSamplingWeights(offsets, modulation, false);
+    prepareSamplingWeights(offsets, cpuParallel, modulation, false);
     size_t buffer_size = static_cast<size_t>(jcp.nthr) * jcp.ur_w * jcp.kh * jcp.kw * jcp.ic * jcp.typesize_in;
     std::vector<float> input_buffer(buffer_size, 0);
     float* input_buffer_ptr = input_buffer.data();
 
-    parallel_for3d(jcp.mb, jcp.ngroups, jcp.oh, [&](size_t n, size_t g, size_t oh) {
+    cpuParallel->parallel_for3d(jcp.mb, jcp.ngroups, jcp.oh, [&](size_t n, size_t g, size_t oh) {
         auto ithr = parallel_get_thread_num();
 
         auto par_conv = jit_def_conv_call_args();
@@ -1366,7 +1376,14 @@ void DeformableConvolution::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto config = selectedPrimitiveDescriptor->getConfig();
 
     CPU_NODE_ASSERT(execPtr, "executor doesn't exist");
-    execPtr->exec(src, offsets, weights, modulation, dst, sampledCoordsVector.data(), interpWeightsVector.data());
+    execPtr->exec(src,
+                  offsets,
+                  weights,
+                  modulation,
+                  dst,
+                  sampledCoordsVector.data(),
+                  interpWeightsVector.data(),
+                  context->getCpuParallel());
 }
 
 void DeformableConvolution::updatePadding() {

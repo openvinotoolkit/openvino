@@ -277,6 +277,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke_Conv_1D_GEMM_FP32\/ConvolutionLayerCPUTest.CompareWithRefs\/IS=\[\]_TS=\(\(2.12.7\)_\)_K\(3\)_S\(2\)_PB\(1\)_PE\(0\)_D=\(1\)_O=6_AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=ncw_outFmts=ncw_primitive=jit_gemm_Fused=Relu.*)"),
             // fp32 floor for bf16 models: conversion issue
             std::regex(R"(.*smoke.*ActivationLayerCPUTest.*CompareWithRefs/(Floor|Ceiling)_.*netPRC=bf16.*)"),
+            // Issue: 170623
+            std::regex(R"(.*smoke_ConcatSDPTransposeTestWrongBeamIdx.*)"),
 
             // Disabled due to dependency on tests execution order, issue: 178036
 #if !(defined(__APPLE__) && defined(__MACH__)) && (defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM))
@@ -332,6 +334,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // Issue: 168490
             std::regex(R"(.*CPU/CoreThreadingTest.smoke_QueryModel.*)"),
             std::regex(R"(.*WeightlessCacheAccuracy.*)"),
+            // Ticket: 181107
+            std::regex(R"(.*smoke_ConvAndFQ_CPU.*)"),
 #endif
 #if defined(OPENVINO_ARCH_ARM)
             // Issue: 144998
@@ -473,13 +477,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*proposal_params/.*)"),
             // Quantized models unsupported
             std::regex(R"(.*Quantized.*)"),
-            std::regex(R"(smoke_Snippets.*\[.*\?.*\].*)"),
             std::regex(R"(smoke_Snippets(?!_(Eltwise|ThreeInputsEltwise)(/|_)).*)"),
             std::regex(R"(.*_enforceSnippets=1.*)"),
-            std::regex(R"(smoke_Snippets_Eltwise.*/Add.*)"),
-            std::regex(R"(smoke_Snippets_Eltwise/TwoInputsAndOutputs.*)"),
-            std::regex(R"(smoke_Snippets_Eltwise_TwoResults.*)"),
-            std::regex(R"(smoke_Snippets_ThreeInputsEltwise.*)"),
 #endif
 #if !defined(OPENVINO_ARCH_X86_64)
             // very time-consuming test
