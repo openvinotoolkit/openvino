@@ -1,8 +1,7 @@
 -c ../constraints.txt
 # paddlepaddle #  ticket 95904
 numpy
-onnxruntime>=1.18.0,<=1.19.2
-onnxruntime>=1.18.0; python_version >= '3.10'
+onnxruntime>=1.18.0
 requests
 torch
 torchvision; platform_machine == 'arm64'
