@@ -96,14 +96,14 @@ protected:
 namespace detail {
 
 template <class T>
-OPENVINO_FORCE_INLINE void check_condition(const T&) noexcept {}
+void check_condition(const T&) noexcept {}
 
 template <typename CharT,
           std::size_t N,
           std::enable_if_t<std::is_same_v<CharT, char> || std::is_same_v<CharT, wchar_t> ||
                                std::is_same_v<CharT, char16_t> || std::is_same_v<CharT, char32_t>,
                            int> = 0>
-OPENVINO_FORCE_INLINE void check_condition(const CharT (&)[N]) noexcept {
+void check_condition(const CharT (&)[N]) noexcept {
     static_assert(N == 0,
                   "OPENVINO_ASSERT: string literal used as condition (always true). "
                   "Did you mean to compare strings or check a pointer?");

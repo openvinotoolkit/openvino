@@ -78,17 +78,6 @@
 #    define OV_NO_DANGLING
 #endif
 
-/**
- * @brief Define always inline attribute for performance-critical functions.
- */
-#if defined(_MSC_VER)
-#    define OPENVINO_FORCE_INLINE __forceinline
-#elif defined(__GNUC__) || defined(__clang__)
-#    define OPENVINO_FORCE_INLINE inline __attribute__((always_inline))
-#else
-#    define OPENVINO_FORCE_INLINE inline
-#endif
-
 #if !(defined(_MSC_VER) && __cplusplus == 199711L)
 #    if __cplusplus >= 201103L
 #        define OPENVINO_CPP_VER_AT_LEAST_11
