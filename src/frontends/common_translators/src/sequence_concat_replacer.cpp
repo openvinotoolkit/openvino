@@ -139,11 +139,17 @@ bool rewrite_loop_concat(const std::shared_ptr<ov::frontend::ConcatFromSequence>
         static_cast<size_t>(special_ports.current_iteration_input_idx) > seq_param_idx)
         --special_ports.current_iteration_input_idx;
 
+    // Adjust body_condition_output port if body results were shifted.
+    if (special_ports.body_condition_output_idx >= 0 &&
+        static_cast<size_t>(special_ports.body_condition_output_idx) > static_cast<size_t>(seq_result_idx)) {
+        --special_ports.body_condition_output_idx;
+    }
+
     // Fix output descriptions: adjust indices and convert sequence output to ConcatOutputDescription.
     // Body output is always unsqueezed at norm_axis (dim=1), so stride=1, part_size=1.
     std::vector<std::shared_ptr<v5::Loop::OutputDescription>> out_descs;
     for (const auto& desc : loop->get_output_descriptions()) {
-        auto d = desc;
+        auto d = desc->copy();
         if (d->m_body_value_index > static_cast<size_t>(seq_result_idx))
             d->m_body_value_index--;
         if (d->m_output_index == output_index)

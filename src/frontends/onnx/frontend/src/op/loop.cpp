@@ -338,6 +338,14 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
         }
     }
 
+    CHECK_VALID_NODE(node,
+                     state_parameters.size() >= loop_carried_dependencies.size(),
+                     "The provided loop body state parameters size (",
+                     state_parameters.size(),
+                     ") is smaller than the number of loop carried dependencies (",
+                     loop_carried_dependencies.size(),
+                     ")");
+
     // Sequence-carry patterns may produce more state parameters than carried dependencies;
     // map only the available pairs.
     const auto mapped = std::min(state_parameters.size(), loop_carried_dependencies.size());
