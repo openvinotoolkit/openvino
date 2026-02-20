@@ -13,6 +13,10 @@ product better.
 
 ## Forms of contribution
 
+See also: [AI Usage Policy](./AI_USAGE_POLICY.md).
+If you use AI assistance for any contribution activity (code, docs, issues,
+discussions, or PR communication), read and follow this policy.
+
 ### Provide Feedback
 
    * **Report bugs / issues**
