@@ -29,8 +29,8 @@ jobs:
       PARALLEL_JOBS: '64'
       PYTEST_XDIST_WORKERS: '64'
       JS_TEST_CONCURRENCY: '64'
-      CXX_TEST_BINARY_PARALLELISM: '8'
-      GTEST_PARALLEL_WORKERS: '8'
+      CXX_TEST_BINARY_PARALLELISM: '16'
+      GTEST_PARALLEL_WORKERS: '4'
       TEST_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.test_profile || 'cpu' }}
     strategy:
       fail-fast: false
@@ -176,11 +176,24 @@ jobs:
           set +e
 
           BIN_DIR="${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}"
+          BUILD_DIR="${{ github.workspace }}/build"
           MODEL_PATH="${{ github.workspace }}/src/core/tests/models/ir/add_abc.xml"
           GTEST_PARALLEL="${{ github.workspace }}/gtest_parallel.py"
+          GCOV_PREFIX_STRIP_VALUE="$(awk -F/ '{print NF-1}' <<< "${{ github.workspace }}")"
+          GCOV_TASK_ROOT="${BUILD_DIR}/gcov"
           FAILED_FILE="$(mktemp)"
           SKIPPED_FILE="$(mktemp)"
           EXECUTED_FILE="$(mktemp)"
+
+          # Avoid stale coverage artifacts and isolate writes from parallel test tasks.
+          find "${BUILD_DIR}" -name '*.gcda' -delete || true
+          rm -rf "${GCOV_TASK_ROOT}"
+          mkdir -p "${GCOV_TASK_ROOT}"
+
+          export OMP_NUM_THREADS=1
+          export MKL_NUM_THREADS=1
+          export OPENBLAS_NUM_THREADS=1
+          export TBB_NUM_THREADS=1
 
           enqueue_task() {
             local test_name="$1"
@@ -202,16 +215,40 @@ jobs:
             (
               echo "${test_name}" >> "${EXECUTED_FILE}"
               echo "========== Running ${test_name} =========="
+              local task_slug
+              task_slug="$(echo "${test_name}" | tr -cs '[:alnum:]' '_' | sed 's/^_//; s/_$//')"
+              local task_cov_dir="${GCOV_TASK_ROOT}/${task_slug}-${BASHPID}"
+              mkdir -p "${task_cov_dir}"
+
+              local -a env_cmd=("env" "GCOV_PREFIX=${task_cov_dir}" "GCOV_PREFIX_STRIP=${GCOV_PREFIX_STRIP_VALUE}")
+              if [[ -n "${extra_env}" ]]; then
+                local -a extra_env_parts
+                read -r -a extra_env_parts <<< "${extra_env}"
+                env_cmd+=("${extra_env_parts[@]}")
+              fi
+
               if [[ "${mode}" == "gtest_parallel" ]]; then
                 if [[ -n "${gtest_filter}" ]]; then
-                  eval "${extra_env}" python3 "${GTEST_PARALLEL}" "${exe_path}" \
+                  "${env_cmd[@]}" python3 "${GTEST_PARALLEL}" "${exe_path}" \
                     --workers="${GTEST_PARALLEL_WORKERS}" -- --gtest_filter="${gtest_filter}"
                 else
-                  eval "${extra_env}" python3 "${GTEST_PARALLEL}" "${exe_path}" \
+                  "${env_cmd[@]}" python3 "${GTEST_PARALLEL}" "${exe_path}" \
                     --workers="${GTEST_PARALLEL_WORKERS}"
                 fi
+              elif [[ "${mode}" == "gtest_single" ]]; then
+                if [[ -n "${gtest_filter}" ]]; then
+                  "${env_cmd[@]}" "${exe_path}" --gtest_filter="${gtest_filter}"
+                else
+                  "${env_cmd[@]}" "${exe_path}"
+                fi
               else
-                eval "${extra_env}" "${exe_path}" "${gtest_filter}"
+                if [[ -n "${gtest_filter}" ]]; then
+                  local -a raw_args
+                  read -r -a raw_args <<< "${gtest_filter}"
+                  "${env_cmd[@]}" "${exe_path}" "${raw_args[@]}"
+                else
+                  "${env_cmd[@]}" "${exe_path}"
+                fi
               fi
               rc=$?
               if [[ ${rc} -ne 0 ]]; then
@@ -261,37 +298,37 @@ jobs:
           else
             enqueue_task "ov_core_unit_tests" "ov_core_unit_tests" "gtest_parallel" "-*IE_GPU*"
           fi
-          enqueue_task "ov_cpu_func_tests" "ov_cpu_func_tests" "gtest_parallel" "*smoke*"
+          enqueue_task "ov_cpu_func_tests" "ov_cpu_func_tests" "gtest_single" "*smoke*"
           enqueue_task "ov_cpu_unit_tests" "ov_cpu_unit_tests" "gtest_parallel"
           enqueue_task "ov_cpu_unit_tests_vectorized" "ov_cpu_unit_tests_vectorized" "gtest_parallel"
           enqueue_task "ov_hetero_func_tests" "ov_hetero_func_tests" "gtest_parallel" "*smoke*:-nightly*"
           enqueue_task "ov_hetero_unit_tests" "ov_hetero_unit_tests" "gtest_parallel"
-          enqueue_task "ov_inference_functional_tests" "ov_inference_functional_tests" "gtest_parallel"
+          enqueue_task "ov_inference_functional_tests" "ov_inference_functional_tests" "gtest_single"
           enqueue_task "ov_inference_unit_tests" "ov_inference_unit_tests" "gtest_parallel"
           enqueue_task "ov_ir_frontend_tests" "ov_ir_frontend_tests" "gtest_parallel"
           enqueue_task "ov_lp_transformations_tests" "ov_lp_transformations_tests" "gtest_parallel"
           if [[ "${RUN_GPU_TESTS}" == "true" ]]; then
-            enqueue_task "ov_onnx_frontend_tests" "ov_onnx_frontend_tests" "gtest_parallel"
+            enqueue_task "ov_onnx_frontend_tests" "ov_onnx_frontend_tests" "gtest_single"
           else
-            enqueue_task "ov_onnx_frontend_tests" "ov_onnx_frontend_tests" "gtest_parallel" "-*IE_GPU*"
+            enqueue_task "ov_onnx_frontend_tests" "ov_onnx_frontend_tests" "gtest_single" "-*IE_GPU*"
           fi
           if [[ -x "${BIN_DIR}/ov_onnx_frontend_tests" ]]; then
             if [[ "${RUN_GPU_TESTS}" == "true" ]]; then
-              enqueue_task "ov_onnx_frontend_tests (ONNX_ITERATOR=0)" "ov_onnx_frontend_tests" "gtest_parallel" "" "ONNX_ITERATOR=0"
+              enqueue_task "ov_onnx_frontend_tests (ONNX_ITERATOR=0)" "ov_onnx_frontend_tests" "gtest_single" "" "ONNX_ITERATOR=0"
             else
-              enqueue_task "ov_onnx_frontend_tests (ONNX_ITERATOR=0)" "ov_onnx_frontend_tests" "gtest_parallel" "-*IE_GPU*" "ONNX_ITERATOR=0"
+              enqueue_task "ov_onnx_frontend_tests (ONNX_ITERATOR=0)" "ov_onnx_frontend_tests" "gtest_single" "-*IE_GPU*" "ONNX_ITERATOR=0"
             fi
           fi
-          enqueue_task "ov_op_conformance_tests" "ov_op_conformance_tests" "raw" "\"--device=TEMPLATE\" \"--gtest_filter=*OpImpl*\""
+          enqueue_task "ov_op_conformance_tests" "ov_op_conformance_tests" "raw" "--device=TEMPLATE --gtest_filter=*OpImpl*"
           enqueue_task "ov_proxy_plugin_tests" "ov_proxy_plugin_tests" "gtest_parallel"
           enqueue_task "ov_snippets_func_tests" "ov_snippets_func_tests" "gtest_parallel"
           enqueue_task "ov_subgraphs_dumper_tests" "ov_subgraphs_dumper_tests" "gtest_parallel"
           enqueue_task "ov_template_func_tests" "ov_template_func_tests" "gtest_parallel" "*smoke*"
           enqueue_task "ov_tensorflow_common_tests" "ov_tensorflow_common_tests" "gtest_parallel"
           if [[ "${RUN_GPU_TESTS}" == "true" ]]; then
-            enqueue_task "ov_tensorflow_frontend_tests" "ov_tensorflow_frontend_tests" "gtest_parallel"
+            enqueue_task "ov_tensorflow_frontend_tests" "ov_tensorflow_frontend_tests" "gtest_single"
           else
-            enqueue_task "ov_tensorflow_frontend_tests" "ov_tensorflow_frontend_tests" "gtest_parallel" "-*IE_GPU*"
+            enqueue_task "ov_tensorflow_frontend_tests" "ov_tensorflow_frontend_tests" "gtest_single" "-*IE_GPU*"
           fi
           enqueue_task "ov_tensorflow_lite_frontend_tests" "ov_tensorflow_lite_frontend_tests" "gtest_parallel"
           enqueue_task "ov_transformations_tests" "ov_transformations_tests" "gtest_parallel"
@@ -299,14 +336,14 @@ jobs:
           enqueue_task "paddle_tests" "paddle_tests" "gtest_parallel"
           if [[ "${RUN_NPU_TESTS}" == "true" ]]; then
             enqueue_task "ov_npu_unit_tests" "ov_npu_unit_tests" "gtest_parallel"
-            enqueue_task "ov_npu_func_tests" "ov_npu_func_tests" "gtest_parallel" "*smoke*"
+            enqueue_task "ov_npu_func_tests" "ov_npu_func_tests" "gtest_single" "*smoke*"
           fi
           if [[ "${RUN_GPU_TESTS}" == "true" ]]; then
             enqueue_task "ov_gpu_unit_tests" "ov_gpu_unit_tests" "gtest_parallel"
-            enqueue_task "ov_gpu_func_tests" "ov_gpu_func_tests" "gtest_parallel" "*smoke*"
+            enqueue_task "ov_gpu_func_tests" "ov_gpu_func_tests" "gtest_single" "*smoke*"
           fi
-          enqueue_task "test_inference_async" "test_inference_async" "raw" "\"${MODEL_PATH}\" \"CPU\""
-          enqueue_task "test_inference_sync" "test_inference_sync" "raw" "\"${MODEL_PATH}\" \"CPU\""
+          enqueue_task "test_inference_async" "test_inference_async" "raw" "${MODEL_PATH} CPU"
+          enqueue_task "test_inference_sync" "test_inference_sync" "raw" "${MODEL_PATH} CPU"
 
           wait
 
@@ -525,6 +562,7 @@ jobs:
           echo "Capturing coverage from $BUILD_DIR (base=$SRC_DIR)..."
           lcov --capture \
                --directory "$BUILD_DIR" \
+               --directory "$BUILD_DIR/gcov" \
                --base-directory "$SRC_DIR" \
                --output-file coverage.info \
                --no-external \
