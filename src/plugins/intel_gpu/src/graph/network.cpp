@@ -761,6 +761,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
     for (auto& inst : _exec_order) {
         NODE_DEBUG(*inst);
+        OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::intel_gpu_op, openvino::itt::handle(inst->id()));
 
         inst->reset_events();
 

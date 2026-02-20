@@ -381,8 +381,6 @@ bool pass::SimplifyShapeOfSubGraph::run_on_model(const std::shared_ptr<Model>& f
 
     REGISTER_PASS(manager, PrepareShapeOpsForEliminationAroundBE)
     REGISTER_PASS(manager, AbsSinking)
-    // FIXME: manager runs Validate based on the last pass, when fixed the following line must be deleted
-    REGISTER_PASS(manager, Validate)
     REGISTER_PASS(manager, SharedOpOptimization)
     REGISTER_PASS(manager, EliminateGatherUnsqueeze)  // should run after SharedOpOptimization
     REGISTER_PASS(manager, NopElimination, m_use_shapes)
@@ -393,8 +391,6 @@ bool pass::SimplifyShapeOfSubGraph::run_on_model(const std::shared_ptr<Model>& f
     REGISTER_PASS(manager, GatherNopElimination)
     REGISTER_PASS(manager, SimplifyGatherShapeOf)
     REGISTER_PASS(manager, SimplifySecondInputOfReshape)
-
-    // TODO: potentially this Validate is not needed but it requires additional validation
     REGISTER_PASS(manager, Validate)
 
     manager.run_passes(f);

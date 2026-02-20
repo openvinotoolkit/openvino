@@ -267,11 +267,11 @@ std::unique_ptr<util::XmlSerializer> pass::StreamSerialize::make_serializer(
 
 namespace {
 
-class OstreamHashWrapper final : public std::streambuf {
+class HashStreamBuffer final : public std::streambuf {
     uint64_t m_res = 0lu;
 
 public:
-    uint64_t getResult() const {
+    uint64_t get_result() const {
         return m_res;
     }
 
@@ -282,24 +282,29 @@ public:
         return n;
     }
 };
+
+class NullStreamBuffer final : public std::streambuf {
+public:
+    std::streamsize xsputn(const char*, std::streamsize n) override {
+        return n;
+    }
+};
 }  // namespace
 
 bool pass::Hash::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(Hash);
-    OstreamHashWrapper xmlHash;
-    util::OstreamHashWrapperBin binHash;
-    std::ostream xml(&xmlHash);
-    std::ostream bin(&binHash);
+    HashStreamBuffer xml_hash;
+    NullStreamBuffer null_buffer;
+    std::ostream xml(&xml_hash);
+    std::ostream bin(&null_buffer);
 
     // Determinism is important for hash calculation
-    // disable compression when skip weight to speed hash calculation
+    // If skip weights set, disable compression to skip internal data hashing
     auto constant_writer = util::ConstantWriter(bin, !m_skip_weights);
     serialize_func(xml, bin, model, Serialize::Version::UNSPECIFIED, true, constant_writer);
-    uint64_t seed = 0;
-    seed = util::u64_hash_combine(seed, xmlHash.getResult());
-    seed = util::u64_hash_combine(seed, binHash.get_result());
 
-    m_hash = seed;
+    auto seed = util::u64_hash_combine(0, xml_hash.get_result());
+    m_hash = util::u64_hash_combine(seed, constant_writer.get_data_hash());
     // Return false because we didn't change OpenVINO Model
     return false;
 }
