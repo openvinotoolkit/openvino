@@ -1,10 +1,14 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
-//
 
 #include "openvino/op/paged_attention.hpp"
 
 #include <gtest/gtest.h>
+
+#include <memory>
+#include <set>
+#include <tuple>
+#include <utility>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
@@ -15,6 +19,48 @@
 namespace ov {
 namespace testing {
 
+namespace {
+ov::OutputVector make_valid_pa_args(const element::Type& t = element::f32) {
+    using ov::op::v0::Parameter;
+
+    auto query = std::make_shared<Parameter>(t, PartialShape{3, 4});
+    auto key = std::make_shared<Parameter>(t, PartialShape{3, 4});
+    auto value = std::make_shared<Parameter>(t, PartialShape{3, 4});
+
+    auto key_cache = std::make_shared<Parameter>(t, PartialShape{4, 3, 32, 4});
+    auto value_cache = std::make_shared<Parameter>(t, PartialShape{4, 3, 32, 4});
+
+    auto past_lens = std::make_shared<Parameter>(element::i32, PartialShape{3});
+    auto subseq = std::make_shared<Parameter>(element::i32, PartialShape{4});
+    auto block_idx = std::make_shared<Parameter>(element::i32, PartialShape{6});
+    auto block_beg = std::make_shared<Parameter>(element::i32, PartialShape{4});
+
+    auto scale = std::make_shared<Parameter>(t, PartialShape{});
+    auto slide = std::make_shared<Parameter>(element::i32, PartialShape{});
+    auto alibi = std::make_shared<Parameter>(t, PartialShape{3});
+    auto maxctx = std::make_shared<Parameter>(element::i32, PartialShape{});
+    auto scorew = std::make_shared<Parameter>(element::i32, PartialShape{});
+
+    auto rotated = std::make_shared<Parameter>(element::i32, PartialShape{6});
+    auto deltas = std::make_shared<Parameter>(element::i32, PartialShape{6});
+    auto trig = std::make_shared<Parameter>(t, PartialShape{6});
+
+    auto xthr = std::make_shared<Parameter>(t, PartialShape{});
+    auto xbs = std::make_shared<Parameter>(element::i32, PartialShape{});
+    auto xst = std::make_shared<Parameter>(element::i32, PartialShape{});
+
+    auto sinks = std::make_shared<Parameter>(t, PartialShape{1, 3, 4});
+
+    auto arkv_start = std::make_shared<Parameter>(element::i32, PartialShape{});
+    auto arkv_evict = std::make_shared<Parameter>(element::i32, PartialShape{3});
+    auto arkv_idx = std::make_shared<Parameter>(element::i32, PartialShape{3});
+    auto arkv_beg = std::make_shared<Parameter>(element::i32, PartialShape{3});
+
+    return {query, key,   value, key_cache,  value_cache, past_lens, subseq,  block_idx, block_beg,
+            scale, slide, alibi, maxctx,     scorew,      rotated,   deltas,  trig,      xthr,
+            xbs,   xst,   sinks, arkv_start, arkv_evict,  arkv_idx,  arkv_beg};
+}
+}  // namespace
 TEST(type_prop, paged_attention_static_eviction_per_block) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
@@ -207,61 +253,20 @@ TEST(type_prop, paged_attention_dynamic_ranks_and_types) {
 }
 
 TEST(type_prop, paged_attention_invalid_rank_query) {
-    auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3});
-    auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
-    auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
-    auto dummy = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
-    auto dummy1D = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{3});
-    auto scalar = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
-    ov::OutputVector args =
-        {query, key, value, dummy, dummy, scalar, scalar, scalar, scalar, dummy, scalar, dummy, scalar};
-
+    auto args = make_valid_pa_args();
+    args[0] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3});  // query must be rank-2
     EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args), ov::NodeValidationFailure);
 }
 
 TEST(type_prop, paged_attention_invalid_type_scale) {
-    auto scale = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
-    auto dummy2D = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
-    auto dummy1D = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{3});
-    auto dummyScalar = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
-
-    ov::OutputVector args = {dummy2D,
-                             dummy2D,
-                             dummy2D,
-                             dummy2D,
-                             dummy2D,
-                             dummy1D,
-                             dummy1D,
-                             dummy1D,
-                             dummy1D,
-                             scale,
-                             dummyScalar,
-                             dummy2D,
-                             dummyScalar};
-
+    auto args = make_valid_pa_args();
+    args[9] = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});  // scale must be real type
     EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args), ov::NodeValidationFailure);
 }
 
 TEST(type_prop, paged_attention_invalid_rank_key_cache) {
-    auto key_cache = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1});
-    auto dummy = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
-    auto dummy1D = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{3});
-    auto dummyScalar = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
-
-    ov::OutputVector args = {dummy,
-                             dummy,
-                             dummy,
-                             key_cache,
-                             dummy,
-                             dummy1D,
-                             dummy1D,
-                             dummy1D,
-                             dummy1D,
-                             dummyScalar,
-                             dummyScalar,
-                             dummy,
-                             dummyScalar};
-
+    auto args = make_valid_pa_args();
+    args[3] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});  // key_cache must be rank 2..5
     EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args), ov::NodeValidationFailure);
 }
 

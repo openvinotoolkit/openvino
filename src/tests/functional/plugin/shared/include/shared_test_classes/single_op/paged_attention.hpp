@@ -107,8 +107,8 @@ private:
         auto rotation_trig_lut    = ov::op::v0::Constant::create(ov::element::f32, {0}, {});
 
         auto xattention_threshold = enable_xattn
-            ? ov::op::v0::Constant::create(ov::element::f32, {1}, {0.9f})
-            : ov::op::v0::Constant::create(ov::element::f32, {1}, {0.0f});
+            ? ov::op::v0::Constant::create(ov::element::f32, {}, {0.9f})
+            : ov::op::v0::Constant::create(ov::element::f32, {}, {0.0f});
         auto xattention_block_size = ov::op::v0::Constant::create(ov::element::i32, {}, {64});
         auto xattention_stride     = ov::op::v0::Constant::create(ov::element::i32, {}, {8});
 
@@ -135,12 +135,21 @@ private:
         pa->set_cache_manager(ov::op::make_paged_cache_handle(data_type));
 
         // Provide head metadata expected by some plugin implementations via rt_info.
-        // Keys follow the common PagedAttention conventions used in OpenVINO examples.
-        pa->get_rt_info()["num_k_heads"] = head_num;
-        pa->get_rt_info()["k_head_size"] = head_size;
-        pa->get_rt_info()["num_v_heads"] = head_num;
-        pa->get_rt_info()["v_head_size"] = head_size;
-        return std::make_shared<ov::Model>(ov::OutputVector{pa->output(0)}, params, "pa_vsref");
+// Keys follow the common PagedAttention conventions used in OpenVINO examples.
+auto& rt = pa->get_rt_info();
+rt["num_k_heads"] = head_num;
+rt["k_head_size"] = head_size;
+rt["num_v_heads"] = head_num;
+rt["v_head_size"] = head_size;
+
+// aliases used by various plugin paths / historical revisions
+rt["num_heads"] = head_num;
+rt["num_q_heads"] = head_num;
+rt["num_kv_heads"] = head_num;
+rt["head_size"] = head_size;
+rt["kv_head_size"] = head_size;
+rt["block_size"] = int64_t{32};
+return std::make_shared<ov::Model>(ov::OutputVector{pa->output(0)}, params, "pa_vsref");
     }
 
     // ---------- Input generation ----------
@@ -196,45 +205,54 @@ private:
         out.tensors[params[3]] = key_cache;
         out.tensors[params[4]] = value_cache;
 
-        // past_lens/subseq/block tables
-        const size_t batch_seq = 1;
-        const int32_t total_blocks = static_cast<int32_t>((tokens + past_len_count + 32 - 1) / 32); // divide UP
+        
+// past_lens/subseq/block tables
+const size_t block_size = key_cache.get_shape().at(2);
+const size_t batch_seq = B;
 
-        ov::Tensor past_lens(ov::element::i32, {batch_seq});
-        ov::Tensor subseq(ov::element::i32, {batch_seq + 1});
-        ov::Tensor bi_begins(ov::element::i32, {batch_seq + 1});
-        const int32_t used_blocks = std::max<int32_t>(1, total_blocks);
-        const int32_t bi_count_i = extendBlockIndices ? std::max<int32_t>(2, used_blocks) : used_blocks;
-        ov::Tensor bi(ov::element::i32, {static_cast<size_t>(bi_count_i)});
+// number of blocks needed PER SEQUENCE (batch item)
+const int32_t used_blocks_per_seq = std::max<int32_t>(
+    1,
+    static_cast<int32_t>((static_cast<int64_t>(past_len_count) + static_cast<int64_t>(L) +
+                          static_cast<int64_t>(block_size) - 1) /
+                         static_cast<int64_t>(block_size)));
 
-        auto* pl = past_lens.data<int32_t>();
-        auto* sb = subseq.data<int32_t>();
-        auto* bb = bi_begins.data<int32_t>();
-        auto* b  = bi.data<int32_t>();
+OPENVINO_ASSERT(static_cast<size_t>(used_blocks_per_seq) <= max_blocks_per_seq_,
+                "PagedAttention test: cache plan too small for current step");
 
-        if (step_idx == 0) {
-            pl[0] = 0;
-            sb[0] = 0;
-            sb[1] = static_cast<int32_t>(L);
-            bb[0] = 0;
-            bb[1] = bi_count_i; // optional vLLM-style over-allocation
-            for (int32_t i = 0; i < bi_count_i; i++) b[i] = (i < used_blocks) ? i : -1;
-        } else {
-            pl[0] = past_len_count;
-            sb[0] = 0;
-            sb[1] = static_cast<int32_t>(L);
-            bb[0] = 0;
-            bb[1] = used_blocks;
-            for (int32_t i = 0; i < used_blocks; i++) b[i] = i;
-            for (int32_t i = used_blocks; i < bi_count_i; i++) b[i] = -1;
-        }
+const int32_t bi_count_per_seq =
+    extendBlockIndices ? std::max<int32_t>(2, used_blocks_per_seq) : used_blocks_per_seq;
 
-        out.tensors[params[5]] = past_lens;
-        out.tensors[params[6]] = subseq;
-        out.tensors[params[7]] = bi;
-        out.tensors[params[8]] = bi_begins;
+ov::Tensor past_lens(ov::element::i32, {batch_seq});
+ov::Tensor subseq(ov::element::i32, {batch_seq + 1});
+ov::Tensor bi_begins(ov::element::i32, {batch_seq + 1});
+ov::Tensor bi(ov::element::i32, {batch_seq * static_cast<size_t>(bi_count_per_seq)});
 
-        past_len_count += static_cast<int32_t>(L);
+auto* pl = past_lens.data<int32_t>();
+auto* sb = subseq.data<int32_t>();
+auto* bb = bi_begins.data<int32_t>();
+auto* b  = bi.data<int32_t>();
+
+for (size_t s = 0; s < batch_seq; ++s) {
+    pl[s] = (step_idx == 0) ? 0 : past_len_count;
+    sb[s] = static_cast<int32_t>(s * L);
+    bb[s] = static_cast<int32_t>(s * static_cast<size_t>(bi_count_per_seq));
+
+    const int32_t block_base = static_cast<int32_t>(s * max_blocks_per_seq_);
+    for (int32_t i = 0; i < bi_count_per_seq; ++i) {
+        b[bb[s] + i] = (i < used_blocks_per_seq) ? (block_base + i) : -1;
+    }
+}
+
+sb[batch_seq] = static_cast<int32_t>(tokens);
+bb[batch_seq] = static_cast<int32_t>(batch_seq * static_cast<size_t>(bi_count_per_seq));
+
+out.tensors[params[5]] = past_lens;
+out.tensors[params[6]] = subseq;
+out.tensors[params[7]] = bi;
+out.tensors[params[8]] = bi_begins;
+
+past_len_count += static_cast<int32_t>(L);
         return out;
     }
 
@@ -297,13 +315,45 @@ for (const ov::PropertyName& p : props) {
 
         init_input_shapes(inputShapes);
 
-        pa_model_ = make_paged_attn_model(inType, enableXattn, 64, 8, /*sink*/false, slidingWindow);
+        
+pa_model_ = make_paged_attn_model(inType, enableXattn, 64, 8, /*sink*/false, slidingWindow);
 
-        // Pre-generate the step inputs ONCE so CPU/TEMPLATE see identical tensors.
-        // Allocate caches once here, and reuse for both runs by copying initial cache state.
-        allocate_caches_for_model(pa_model_, /*block_nums*/4, inType);
+// Pre-generate the step inputs ONCE so CPU/TEMPLATE see identical tensors.
+// Allocate caches once here, and reuse for both runs by copying initial cache state.
+{
+    const auto& kc_ps = pa_model_->get_parameters()[3]->get_partial_shape();
+    OPENVINO_ASSERT(kc_ps.rank().is_static() && kc_ps.rank().get_length() == 4,
+                    "PagedAttention test: expected key_cache rank 4");
+    OPENVINO_ASSERT(kc_ps[2].is_static(), "PagedAttention test: expected static block_size dimension in cache");
+    block_size_ = static_cast<size_t>(kc_ps[2].get_length());
 
-        int32_t past = 0;
+    // We treat each batch item as an independent sequence in metadata tensors.
+    // Ensure cache has enough blocks per sequence for the entire multi-step run.
+    batch_size_ = targetStaticShapes.empty() ? 1 : targetStaticShapes[0][0][1];
+    max_blocks_per_seq_ = 1;
+    int32_t past_tmp = 0;
+
+    for (size_t i = 0; i < targetStaticShapes.size(); ++i) {
+        const auto& lbhs = targetStaticShapes[i][0];
+        OPENVINO_ASSERT(lbhs.size() == 4, "PagedAttention test expects [L,B,H,S] shapes");
+        const size_t L = lbhs[0];
+        const size_t B = lbhs[1];
+        if (i == 0) {
+            batch_size_ = B;
+        } else {
+            OPENVINO_ASSERT(B == batch_size_, "PagedAttention test expects stable batch across steps");
+        }
+
+        const size_t blocks_now =
+            std::max<size_t>(1, (static_cast<size_t>(past_tmp) + L + block_size_ - 1) / block_size_);
+        max_blocks_per_seq_ = std::max(max_blocks_per_seq_, blocks_now);
+        past_tmp += static_cast<int32_t>(L);
+    }
+
+    allocate_caches_for_model(pa_model_, batch_size_ * max_blocks_per_seq_, inType);
+}
+
+int32_t past = 0;
         steps_.clear();
         steps_.reserve(targetStaticShapes.size());
         for (size_t i = 0; i < targetStaticShapes.size(); ++i) {
@@ -337,6 +387,10 @@ for (const ov::PropertyName& p : props) {
     }
 
 protected:
+    size_t block_size_ = 32;
+    size_t max_blocks_per_seq_ = 1;
+    size_t batch_size_ = 1;
+
     std::shared_ptr<ov::Model> pa_model_;
     ov::Tensor key_cache_init_;
     ov::Tensor value_cache_init_;

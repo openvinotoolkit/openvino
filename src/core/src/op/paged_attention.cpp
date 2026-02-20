@@ -36,7 +36,7 @@ inline void input_check(const ov::Node* node,
     };
 
     auto type_check = [&](const Type& type) {
-        auto it = std::find(allowed_types.begin(), allowed_types.end(), tp);
+        auto it = std::find(allowed_types.begin(), allowed_types.end(), type);
         return type.is_dynamic() || allowed_types.empty() || it != allowed_types.end();
     };
 
@@ -105,7 +105,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 14, "rotated_block_indices", {1}, {element::i32});
     input_check(this, 15, "rotation_deltas", {1, 2}, {element::i32});
     input_check(this, 16, "rotation_trig_lut", {1, 2}, {element::f16, element::f32});
-    input_check(this, 17, "xattention_threshold", {1}, {element::f16, element::f32});
+    input_check(this, 17, "xattention_threshold", {0, 1}, {element::f16, element::f32});
     input_check(this, 18, "xattention_block_size", {0}, {element::i32});
     input_check(this, 19, "xattention_stride", {0}, {element::i32});
     input_check(this, 20, "sinks", {1, 4}, {});
