@@ -92,6 +92,10 @@ public:
         return weightsCache;
     }
 
+    [[nodiscard]] std::shared_ptr<CpuParallel> getCpuParallel() const {
+        return cpuParallel;
+    }
+
     [[nodiscard]] std::shared_ptr<ThreadPool> getThreadPool() const {
         return cpuParallel->get_thread_pool();
     }

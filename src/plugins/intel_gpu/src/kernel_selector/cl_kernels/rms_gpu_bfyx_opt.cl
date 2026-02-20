@@ -27,7 +27,9 @@ REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL(rms_gpu_bfyx_opt)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
+#if ELEMENTWISE_AFFINE
     const __global INPUT1_TYPE* gamma,
+#endif
     __global OUTPUT_TYPE* output
     #if HAS_FUSED_OPS_DECLS
         , FUSED_OPS_DECLS
@@ -153,13 +155,19 @@ KERNEL(rms_gpu_bfyx_opt)(
     {
         for (; i < items_num - (items_num % SUBGROUP_BLOCK_SIZE); i += SUBGROUP_BLOCK_SIZE)
         {
+#if ELEMENTWISE_AFFINE
             ACC_TYPE vec_gamma = TO_ACC_TYPE(BLOCK_READ(gamma, subgroup_offset + i * get_sub_group_size()));
+#endif
             OUTPUT_VEC_TYPE vec_tmp;
             #if HAS_FUSED_OPS
                 LAST_DIM = subgroup_offset + i * get_sub_group_size() + get_sub_group_local_id();
             #endif
 #if SUBGROUP_BLOCK_SIZE == 1
+#if ELEMENTWISE_AFFINE
             OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i] * vec_gamma);
+#else
+            OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i]);
+#endif
             #if HAS_FUSED_OPS
                 FUSED_OPS;
                 normalized = FUSED_OPS_RESULT;
@@ -167,7 +175,11 @@ KERNEL(rms_gpu_bfyx_opt)(
             vec_tmp = normalized;
 #else
             unroll_for (int j = 0; j < SUBGROUP_BLOCK_SIZE; j++) {
+#if ELEMENTWISE_AFFINE
                 OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i + j] * vec_gamma[j]);
+#else
+                OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i + j]);
+#endif
                 #if HAS_FUSED_OPS
                     LAST_DIM += j * get_sub_group_size();
                     FUSED_OPS;
@@ -182,8 +194,12 @@ KERNEL(rms_gpu_bfyx_opt)(
 
     for (; i < items_num; i++)
     {
+#if ELEMENTWISE_AFFINE
         ACCUMULATOR_TYPE temp = TO_ACCUMULATOR_TYPE(gamma[subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()]);
         OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i] * temp);
+#else
+        OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i]);
+#endif
         #if HAS_FUSED_OPS
             LAST_DIM = subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size();
             FUSED_OPS;
@@ -194,8 +210,12 @@ KERNEL(rms_gpu_bfyx_opt)(
 
     if (in_data_idx < leftovers)
     {
+#if ELEMENTWISE_AFFINE
         ACCUMULATOR_TYPE temp = TO_ACCUMULATOR_TYPE(gamma[workers_per_data * items_num + in_data_idx]);
         OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[items_num] * temp);
+#else
+        OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[items_num]);
+#endif
         #if HAS_FUSED_OPS
             LAST_DIM = workers_per_data * items_num + in_data_idx;
             FUSED_OPS;

@@ -11,7 +11,7 @@ add_library(${TARGET_NAME} STATIC ${SOURCES})
 add_library(openvino::itt ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME itt)
 
-target_link_libraries(${TARGET_NAME} PUBLIC openvino::util)
+target_link_libraries(${TARGET_NAME} PUBLIC openvino::util openvino::shutdown)
 
 if(NOT ENABLE_PROFILING_ITT STREQUAL "OFF")
     if(TARGET ittapi::ittnotify)

@@ -175,6 +175,7 @@ jobs:
     needs: [ Build, Smart_CI, Docker_arm64 ]
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
+      # Left on older runner for reasons described in CVS-158878
       runner: 'aks-linux-16-cores-arm'
       image: ${{ fromJSON(needs.docker_arm64.outputs.images).ov_test.ubuntu_22_04_arm64 }}
       python-version: '3.11'

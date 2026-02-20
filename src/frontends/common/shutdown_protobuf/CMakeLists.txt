@@ -14,3 +14,4 @@ target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:protobuf::libprotobuf,INTERFACE_INCLUDE_DIRECTORIES>>)
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 target_compile_features(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:protobuf::libprotobuf,INTERFACE_COMPILE_FEATURES>)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::shutdown)

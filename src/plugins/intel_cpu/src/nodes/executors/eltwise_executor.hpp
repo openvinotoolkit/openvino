@@ -18,7 +18,9 @@ public:
     IEltwiseExecutor() = default;
     virtual ~IEltwiseExecutor() = default;
 
-    virtual void exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) = 0;
+    virtual void exec(const jit_eltwise_call_args_ptrs& args_ptrs,
+                      const VectorDims& dims_out,
+                      const CpuParallelPtr& cpu_parallel) = 0;
     [[nodiscard]] virtual size_t getBatchDimIdx() const = 0;
     [[nodiscard]] virtual const VectorDims& getOutDims() const = 0;
 };

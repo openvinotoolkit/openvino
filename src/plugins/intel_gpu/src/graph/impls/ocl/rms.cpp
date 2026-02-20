@@ -36,9 +36,12 @@ struct rms_impl : typed_primitive_impl_ocl<rms> {
         const auto& primitive = impl_param.typed_desc<rms>();
         auto params = get_default_params<kernel_selector::rms_params>(impl_param, is_shape_agnostic);
 
-        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+        if (primitive->elementwise_affine) {
+            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+        }
         params.epsilon = primitive->epsilon;
         params.ov_input_rank = static_cast<int32_t>(impl_param.get_input_layout().get_partial_shape().size());
+        params.elementwise_affine = primitive->elementwise_affine;
         return params;
     }
 

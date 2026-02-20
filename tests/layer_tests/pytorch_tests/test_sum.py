@@ -12,7 +12,7 @@ class TestSum(PytorchLayerTest):
         import numpy as np
         min_value = -10 if input_dtype not in ["uint8", "bool"] else 0
         max_value = 10 if input_dtype != "bool" else 2
-        input = np.random.randint(min_value, max_value, (1, 3, 5, 5)).astype(input_dtype)
+        input = self.random.randint(min_value, max_value, (1, 3, 5, 5), dtype=input_dtype)
         if not out:
             return (input, )
         if out_dtype is None:
@@ -35,7 +35,7 @@ class TestSum(PytorchLayerTest):
 
         class aten_sum(torch.nn.Module):
             def __init__(self, input_dtype, axes=None, keep_dims=None, dtype=None, out=None):
-                super(aten_sum, self).__init__()
+                super().__init__()
                 self.axes = axes
                 self.keep_dims = keep_dims
                 self.dtype = dtype
@@ -85,9 +85,8 @@ class TestSum(PytorchLayerTest):
                 else:
                     return torch.sum(x, self.axes, self.keep_dims, out=out), out
 
-        ref_net = None
 
-        return aten_sum(input_torch_dtype, axes, keep_dims, torch_dtype, out), ref_net, "aten::sum"
+        return aten_sum(input_torch_dtype, axes, keep_dims, torch_dtype, out), "aten::sum"
 
     @pytest.mark.parametrize("axes,keep_dims",
                              [(None, None), (None, False), (-1, None), (1, None), ((2, 3), False), ((3, 2), True)])

@@ -32,16 +32,23 @@ class Logger {
 public:
     static Logger& global();
 
-    Logger(std::string_view name, ov::log::Level lvl = ov::log::Level::NO);
+    Logger(const char* name, ov::log::Level lvl = ov::log::Level::NO);
+    Logger(const std::string&, ov::log::Level lvl = ov::log::Level::NO) = delete;
+    Logger(const std::string_view& name, ov::log::Level lvl = ov::log::Level::NO) = delete;
     Logger(const Logger& log) = default;
 
-    Logger clone(std::string_view name) const;
+    Logger clone(const char* name) const;
+    Logger clone(const std::string& name) const = delete;
+    Logger clone(const std::string_view& name) const = delete;
+
+    void setName(const std::string& name) = delete;
+    void setName(const std::string_view& name) = delete;
 
     auto name() const {
         return _name;
     }
 
-    void setName(std::string_view name) {
+    void setName(const char* name) {
         _name = name;
     }
 
@@ -100,7 +107,7 @@ private:
     }
 
 private:
-    std::string _name;
+    const char* _name;
     ov::log::Level _logLevel = ov::log::Level::NO;
 };
 

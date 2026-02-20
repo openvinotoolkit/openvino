@@ -24,6 +24,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/elu.hpp"
 #include "openvino/op/erf.hpp"
@@ -36,6 +37,7 @@
 #include "openvino/op/is_inf.hpp"
 #include "openvino/op/is_nan.hpp"
 #include "openvino/op/mish.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/negative.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
@@ -47,9 +49,11 @@
 #include "snippets/generator.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/broadcastload.hpp"
+#include "snippets/op/broadcastmove.hpp"
 #include "snippets/op/kernel.hpp"
 #include "snippets/op/load.hpp"
 #include "snippets/op/loop.hpp"
+#include "snippets/op/rank_normalization.hpp"
 #include "snippets/op/result.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/store.hpp"
@@ -154,7 +158,10 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     // data movement
     jitters[op::v0::Parameter::get_type_info_static()] = emitter_factory.from_expr<jit_nop_emitter>();
     jitters[snippets::op::Result::get_type_info_static()] = emitter_factory.from_expr<jit_nop_emitter>();
+    jitters[snippets::op::RankNormalization::get_type_info_static()] = emitter_factory.from_expr<jit_nop_emitter>();
     jitters[snippets::op::Scalar::get_type_info_static()] = emitter_factory.from_expr<jit_scalar_emitter>();
+    jitters[snippets::op::BroadcastMove::get_type_info_static()] =
+        emitter_factory.from_expr<jit_broadcast_move_emitter>();
 
     // memory access
     jitters[snippets::op::Load::get_type_info_static()] = emitter_factory.from_expr<jit_load_memory_emitter>();
@@ -174,12 +181,12 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
         emitter_factory.from_expr<jit_kernel_dynamic_emitter>();
 
     // binary operations
-    // jitters[op::v1::Add::get_type_info_static()] = emitter_factory.from_node<jit_add_emitter>();
+    jitters[op::v1::Add::get_type_info_static()] = emitter_factory.from_node<jit_add_emitter>();
     // jitters[op::v1::Divide::get_type_info_static()] = emitter_factory.from_node<jit_divide_emitter>();
     // jitters[op::v1::Maximum::get_type_info_static()] = emitter_factory.from_node<jit_maximum_emitter>();
     // jitters[op::v1::Minimum::get_type_info_static()] = emitter_factory.from_node<jit_minimum_emitter>();
     // jitters[op::v1::Mod::get_type_info_static()] = emitter_factory.from_node<jit_mod_emitter>();
-    // jitters[op::v1::Multiply::get_type_info_static()] = emitter_factory.from_node<jit_multiply_emitter>();
+    jitters[op::v1::Multiply::get_type_info_static()] = emitter_factory.from_node<jit_multiply_emitter>();
     // jitters[snippets::op::PowerStatic::get_type_info_static()] =
     // emitter_factory.from_node<jit_power_static_emitter>(); jitters[op::v0::SquaredDifference::get_type_info_static()]
     // =

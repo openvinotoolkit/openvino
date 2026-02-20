@@ -38,12 +38,12 @@ Napi::Value save_model_sync(const Napi::CallbackInfo& info) {
         if (ov::js::validate<ModelWrap, Napi::String>(info, allowed_signatures)) {
             const auto& model = info[0].ToObject();
             const auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(model);
-            const auto path = js_to_cpp<std::string>(info, 1);
+            const auto path = js_to_cpp<std::filesystem::path>(info, 1);
             ov::save_model(m->get_model(), path);
         } else if (ov::js::validate<ModelWrap, Napi::String, Napi::Boolean>(info, allowed_signatures)) {
             const auto& model = info[0].ToObject();
             const auto m = Napi::ObjectWrap<ModelWrap>::Unwrap(model);
-            const auto path = js_to_cpp<std::string>(info, 1);
+            const auto path = js_to_cpp<std::filesystem::path>(info, 1);
             const auto compress_to_fp16 = info[2].ToBoolean();
             ov::save_model(m->get_model(), path, compress_to_fp16);
         } else {

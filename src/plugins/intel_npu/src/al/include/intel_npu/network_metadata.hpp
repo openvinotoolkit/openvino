@@ -165,12 +165,8 @@ struct NetworkMetadata final {
  * name and compiled network in a format executable by device
  */
 struct NetworkDescription final {
-    NetworkDescription(std::vector<uint8_t>&& compiledNetwork, NetworkMetadata&& metadata)
-        : compiledNetwork(std::move(compiledNetwork)),
-          metadata(std::move(metadata)) {}
     NetworkDescription(ov::Tensor&& compiledNetWorkTensor, NetworkMetadata&& metadata)
-        : compiledNetwork(),
-          metadata(std::move(metadata)),
+        : metadata(std::move(metadata)),
           compiledNetworkTensor(std::move(compiledNetWorkTensor)) {}
     // Force move semantics to prevent blob copies
     NetworkDescription(const NetworkDescription&) = delete;
@@ -178,8 +174,6 @@ struct NetworkDescription final {
     NetworkDescription& operator=(const NetworkDescription&) = delete;
     NetworkDescription& operator=(NetworkDescription&&) = default;
     ~NetworkDescription() = default;
-
-    std::vector<uint8_t> compiledNetwork;
 
     NetworkMetadata metadata;
 
