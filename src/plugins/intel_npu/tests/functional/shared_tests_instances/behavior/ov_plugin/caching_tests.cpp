@@ -125,7 +125,7 @@ const std::vector<ov::AnyMap> cachingProperties = {
     {ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE)},
     {ov::hint::inference_precision(ov::element::i8)},
     {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
-    {ov::intel_npu::batch_compiler_mode_settings("NPU_BATCH_SIZE=4")},
+    {ov::intel_npu::batch_compiler_mode_settings("batch-compile-method=unroll")},
     {ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::COMPILER)},
     {ov::intel_npu::compilation_mode("ReferenceSW")},
     {ov::intel_npu::compilation_mode_params("dummy-op-replacement=true")},
@@ -134,11 +134,11 @@ const std::vector<ov::AnyMap> cachingProperties = {
     {ov::intel_npu::dma_engines(1)},
     {ov::intel_npu::dynamic_shape_to_static("true")},
     {ov::intel_npu::max_tiles(64)},
+    {ov::intel_npu::stepping(1)},
     {ov::intel_npu::tiles(2)},
     {ov::intel_npu::turbo(true)},
     {ov::intel_npu::qdq_optimization(true)},
-    {ov::intel_npu::qdq_optimization_aggressive(true)}
-};
+    {ov::intel_npu::qdq_optimization_aggressive(true)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CachingSupportCase_NPU_Check_Config,
                          CompileModelLoadFromCacheTest,

@@ -28,10 +28,9 @@ export type OVAny = string | number | boolean;
 /**
  * Core represents an OpenVINO runtime Core entity.
  *
- * User applications can create several Core class instances,
- * but in this case, the underlying plugins
- * are created multiple times and not shared between several Core instances.
- * It is recommended to have a single Core instance per application.
+ * User applications can create several Core class instances.
+ * In that case the device plugins will still share underlying resources
+ * (such as OCL context) in per-device singleton.
  */
 export interface Core {
   /**

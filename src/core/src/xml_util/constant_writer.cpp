@@ -11,20 +11,12 @@
 
 namespace ov::util {
 
-uint64_t OstreamHashWrapperBin::get_result() const {
-    return m_res;
-}
-
-std::streamsize OstreamHashWrapperBin::xsputn(const char* s, std::streamsize n) {
-    m_res = u64_hash_combine(m_res, n);
-    return n;
-}
-
 ConstantWriter::ConstantWriter(std::ostream& bin_data, bool enable_compression)
-    : m_binary_output(bin_data),
+    : m_hash_to_file_positions{},
+      m_binary_output(bin_data),
       m_enable_compression(enable_compression),
-      m_write_hash_value(static_cast<bool>(dynamic_cast<OstreamHashWrapperBin*>(bin_data.rdbuf()))),
-      m_blob_offset(bin_data.tellp()) {}
+      m_blob_offset(bin_data.tellp()),
+      m_data_hash{} {}
 
 ConstantWriter::~ConstantWriter() = default;
 
@@ -34,41 +26,21 @@ ConstantWriter::FilePosition ConstantWriter::write(const char* ptr,
                                                    bool compress_to_fp16,
                                                    ov::element::Type src_type,
                                                    bool ptr_is_temporary) {
-    // when true, do not rely on ptr after this function call, data
-    // is temporary allocated
     const FilePosition write_pos = m_binary_output.get().tellp();
     const auto offset = write_pos - m_blob_offset;
     new_size = size;
 
-    if (!m_enable_compression) {
-        if (!compress_to_fp16) {
-            m_binary_output.get().write(ptr, size);
-        } else {
-            OPENVINO_ASSERT(size % src_type.size() == 0);
-            auto fp16_buffer = compress_data_to_fp16(ptr, size, src_type, new_size);
-            m_binary_output.get().write(fp16_buffer.get(), new_size);
-        }
-        return offset;
-    } else {
-        std::unique_ptr<char[]> fp16_buffer = nullptr;
-        if (compress_to_fp16) {
-            OPENVINO_ASSERT(size % src_type.size() == 0);
-            fp16_buffer = compress_data_to_fp16(ptr, size, src_type, new_size);
-        }
-        const char* ptr_to_write;
-        if (fp16_buffer) {
-            ptr_to_write = fp16_buffer.get();
-        } else {
-            ptr_to_write = ptr;
-        }
+    const auto fp16_data = compress_to_fp16 ? compress_data_to_fp16(ptr, size, src_type, new_size) : nullptr;
+    const auto data_ptr = compress_to_fp16 ? fp16_data.get() : ptr;
 
+    if (m_enable_compression) {
         // This hash is weak (but efficient). For example current hash algorithms gives
         // the same hash for {2, 2} and {0, 128} arrays.
         // But even strong hashing algorithms sometimes give collisions.
         // Therefore we always have to compare values when finding a match in the hash multimap.
-        const HashValue hash = ov::runtime::compute_hash(ptr_to_write, new_size);
+        const HashValue hash = ov::runtime::compute_hash(data_ptr, new_size);
 
-        auto found = m_hash_to_file_positions.equal_range(hash);
+        const auto found = m_hash_to_file_positions.equal_range(hash);
         // iterate over all matches of the key in the multimap
         for (auto it = found.first; it != found.second; ++it) {
             if (memcmp(ptr, it->second.second, size) == 0) {
@@ -80,22 +52,23 @@ ConstantWriter::FilePosition ConstantWriter::write(const char* ptr,
             // ostream, we store pointer to the original uncompressed blob.
             m_hash_to_file_positions.insert({hash, {offset, static_cast<const void*>(ptr)}});
         }
-        if (m_write_hash_value) {
-            // hash stored with special ostream only
-            m_binary_output.get().write(reinterpret_cast<const char*>(&hash), hash);
-        } else {
-            m_binary_output.get().write(ptr_to_write, new_size);
-        }
+        m_data_hash = util::u64_hash_combine(m_data_hash, hash);
+    } else {
+        // fast hash (skip data)
+        m_data_hash = util::u64_hash_combine(m_data_hash, new_size);
     }
+    m_binary_output.get().write(data_ptr, new_size);
     return offset;
 }
 
 std::unique_ptr<char[]> ConstantWriter::compress_data_to_fp16(const char* ptr,
                                                               size_t size,
-                                                              ov::element::Type src_type,
+                                                              const element::Type& src_type,
                                                               size_t& compressed_size) {
     auto num_src_elements = size / src_type.size();
-    compressed_size = num_src_elements * ov::element::f16.size();
+    OPENVINO_ASSERT(num_src_elements * src_type.size() == size);
+    using T = fundamental_type_for<ov::element::Type_t::f16>;
+    compressed_size = num_src_elements * sizeof(T);
     if (src_type == ov::element::f32) {
         auto new_ptr = std::unique_ptr<char[]>(new char[compressed_size]);
         auto dst_data = reinterpret_cast<ov::float16*>(new_ptr.get());

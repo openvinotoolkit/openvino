@@ -12,10 +12,10 @@ from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 class TestBitwiseOp(PytorchLayerTest):
     def _prepare_input(self, out, unary, lhs_dtype, rhs_dtype, lhs_shape, rhs_shape):
         choices = np.array([0, 1, 255, 7])
-        x = np.random.choice(choices, lhs_shape).astype(lhs_dtype)
+        x = self.random.choice(choices, lhs_shape).astype(lhs_dtype)
         if unary:
             return (x,) if not out else (x, np.zeros_like(x).astype(lhs_dtype))
-        y = np.random.choice(choices, rhs_shape).astype(rhs_dtype)
+        y = self.random.choice(choices, rhs_shape).astype(rhs_dtype)
         if not out:
             return x, y
         return x, y, np.zeros_like(x).astype(lhs_dtype) + np.zeros_like(y).astype(rhs_dtype)
@@ -50,9 +50,8 @@ class TestBitwiseOp(PytorchLayerTest):
             def forward_not_out(self, tensor_a, out):
                 return self.op(tensor_a, out=out), out
 
-        ref_net = None
 
-        return aten_bitwise(op, out), ref_net, f"aten::bitwise_{op_name}"
+        return aten_bitwise(op, out), f"aten::bitwise_{op_name}"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -90,14 +89,15 @@ class TestBitwiseOp(PytorchLayerTest):
             },
             freeze_model=False,
             trace_model=True,
+            fx_kind=f"aten.bitwise_{op_type}",
         )
 
 
 class TestBitwiseOperators(PytorchLayerTest):
     def _prepare_input(self, lhs_dtype, rhs_dtype, lhs_shape, rhs_shape):
         choices = np.array([0, 1, 255, 7])
-        x = np.random.choice(choices, lhs_shape).astype(lhs_dtype)
-        y = np.random.choice(choices, rhs_shape).astype(rhs_dtype)
+        x = self.random.choice(choices, lhs_shape).astype(lhs_dtype)
+        y = self.random.choice(choices, rhs_shape).astype(rhs_dtype)
         return x, y
 
     def create_model(self):
@@ -105,9 +105,8 @@ class TestBitwiseOperators(PytorchLayerTest):
             def forward(self, lhs, rhs):
                 return lhs & rhs, ~lhs, lhs | rhs, lhs ^ rhs
 
-        ref_net = None
 
-        return aten_bitwise(), ref_net, ("aten::__and__", "aten::bitwise_not", "aten::__or__", "aten::__xor__")
+        return aten_bitwise(), ("aten::__and__", "aten::bitwise_not", "aten::__or__", "aten::__xor__")
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -139,14 +138,15 @@ class TestBitwiseOperators(PytorchLayerTest):
             },
             trace_model=True,
             freeze_model=False,
+            fx_kind=["aten.__and__", "aten.bitwise_not", "aten.__or__", "aten.__xor__"],
         )
 
 
 class TestBitwiseInplaceOp(PytorchLayerTest):
     def _prepare_input(self, lhs_shape, rhs_shape, dtype):
         choices = np.array([0, 1, 255, 7])
-        x = np.random.choice(choices, lhs_shape).astype(dtype)
-        y = np.random.choice(choices, rhs_shape).astype(dtype)
+        x = self.random.choice(choices, lhs_shape).astype(dtype)
+        y = self.random.choice(choices, rhs_shape).astype(dtype)
         return x, y
 
     def create_model(self, op):
@@ -169,7 +169,7 @@ class TestBitwiseInplaceOp(PytorchLayerTest):
             def forward_xor(self, lhs, rhs):
                 return lhs.__ixor__(rhs)
 
-        return aten_bitwise(op), None, op
+        return aten_bitwise(op), op
 
     @pytest.mark.skipif(PytorchLayerTest.use_torch_export() and parse_version(torch.__version__) < parse_version("2.6.0"), reason="unsupported on pytorch before 2.6 with torch.export")
     @pytest.mark.nightly
@@ -187,6 +187,8 @@ class TestBitwiseInplaceOp(PytorchLayerTest):
     def test_bitwise_operators(self, op, dtype, lhs_shape, rhs_shape, ie_device, precision, ir_version):
         if ie_device == "GPU" and dtype != "bool":
             pytest.xfail(reason="bitwise ops are not supported on GPU")
+        # Map op names to fx_kind: __ior__ -> aten.__ior__, __iand__ -> aten.__iand__, __ixor__ -> aten.__ixor__
+        op_to_fx = {"aten::__ior__": "aten.__ior__", "aten::__iand__": "aten.__iand__", "aten::__ixor__": "aten.__ixor__"}
         self._test(
             *self.create_model(op),
             ie_device,
@@ -199,4 +201,5 @@ class TestBitwiseInplaceOp(PytorchLayerTest):
             },
             trace_model=True,
             freeze_model=False,
+            fx_kind=op_to_fx[op],
         )

@@ -161,7 +161,7 @@ jobs:
 
       - name: Samples tests
         run: |
-          python3 -m pip install -vv --ignore-installed PyYAML -r ./tests/smoke_tests/requirements.txt
+          python3 -m pip install --ignore-installed PyYAML -r ./tests/smoke_tests/requirements.txt
           . "./setupvars.ps1"
           $Env:PYTHONCOERCECLOCALE="warn"
           python3 -bb -W error -X dev -X warn_default_encoding -m pytest ./tests/smoke_tests --numprocesses auto
@@ -330,25 +330,25 @@ jobs:
       - name: Install Python API tests dependencies
         run: |
           # To enable pytest parallel features
-          python3 -m pip install -vv pytest-xdist[psutil]
+          python3 -m pip install pytest-xdist[psutil]
 
           # For torchvision to OpenVINO preprocessing converter
-          python3 -m pip install -vv -r ${{ env.INSTALL_TEST_DIR }}/python/preprocess/torchvision/requirements.txt
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/python/preprocess/torchvision/requirements.txt
 
           # For validation of Python API
-          python3 -m pip install -vv -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
 
           #  ONNX tests requirements
-          python3 -m pip install -vv -r ${{ env.INSTALL_TEST_DIR }}/requirements_onnx
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_onnx
 
           # For getting rid of SSL issues during model downloading for unit tests
-          python3 -m pip install -vv certifi
+          python3 -m pip install certifi
 
       - name: Set SSL_CERT_FILE for model downloading for unit tests
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
       - name: Install Python Layer tests dependencies
-        run: python3 -m pip install -vv -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
+        run: python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
 
       - name: Python API Tests
         #if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test # Ticket: 127101
@@ -472,7 +472,7 @@ jobs:
           free-threaded-python: ${{ contains(matrix.python-version, 't') }}
 
       - name: Install Python API tests dependencies
-        run: python3 -m pip install -vv -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
+        run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
 
       - name: Python API Tests
         shell: cmd
@@ -484,8 +484,8 @@ jobs:
         shell: cmd
         run: |
           python3 -m pip uninstall -y numpy
-          python3 -m pip install -vv "numpy>=2.0.0,<2.1.0"
-          python3 -m pip install -vv -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
+          python3 -m pip install "numpy>=2.0.0,<2.1.0"
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
           # for 'template' extension
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }};%PYTHONPATH%
           set PATH=${{ env.INSTALL_TEST_DIR }};%PATH%
@@ -605,7 +605,7 @@ jobs:
           self-hosted-runner: 'true'
 
       - name: Install python dependencies
-        run: python3 -m pip install -vv -r ${{ github.workspace }}\install\tests\functional_test_utils\layer_tests_summary\requirements.txt
+        run: python3 -m pip install -r ${{ github.workspace }}\install\tests\functional_test_utils\layer_tests_summary\requirements.txt
 
       - name: Restore tests execution time
         uses: actions/cache/restore@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2

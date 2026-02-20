@@ -6,8 +6,6 @@
 #include "parser/parser.hpp"
 #include "parser/config.hpp"
 
-#include "utils/error.hpp"
-
 #include <yaml-cpp/yaml.h>
 
 ScenarioParser::ScenarioParser(const std::string& filepath): m_filepath(filepath) {

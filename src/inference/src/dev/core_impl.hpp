@@ -302,9 +302,9 @@ public:
     std::shared_ptr<ov::Model> read_model(const std::shared_ptr<AlignedBuffer>& model,
                                           const std::shared_ptr<AlignedBuffer>& weights) const override;
 
-    std::shared_ptr<ov::Model> read_model(const std::string& model_path,
-                                          const std::string& bin_path,
-                                          const AnyMap& properties) const override;
+    std::shared_ptr<ov::Model> read_model(const std::filesystem::path& model_path,
+                                          const std::filesystem::path& bin_path,
+                                          const ov::AnyMap& properties) const override;
 
     ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                 const std::string& device_name,
@@ -314,7 +314,7 @@ public:
                                                 const ov::SoPtr<ov::IRemoteContext>& context,
                                                 const ov::AnyMap& config = {}) const override;
 
-    ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_path,
+    ov::SoPtr<ov::ICompiledModel> compile_model(const std::filesystem::path& model_path,
                                                 const std::string& device_name,
                                                 const ov::AnyMap& config) const override;
 

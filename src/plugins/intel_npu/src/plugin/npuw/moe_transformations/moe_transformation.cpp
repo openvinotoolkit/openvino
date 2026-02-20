@@ -803,8 +803,12 @@ std::shared_ptr<ov::Model> MoEModelTransformer::unroll_expert_dimension(const st
         if (full_optimization) {
             manager.register_pass<ov::npuw::pass::MoEExpertUnrolling>(unrolled_model);
         } else {
+            // Weight-only optimizations
             manager.register_pass<ov::npuw::pass::MoEExpertUnrollingWeightsOnly>(unrolled_model);
+            // AWQ parameter multiply unrolling with cleanup
+            manager.register_pass<ov::npuw::pass::UnrollAWQParameterMultiply>(unrolled_model);
         }
+
         manager.run_passes(unrolled_model);
 
         unrolled_model->validate_nodes_and_infer_types();

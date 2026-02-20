@@ -13,7 +13,7 @@ class TestReshape(PytorchLayerTest):
         shape = (1, 12, 12, 24)
         if complex_type:
             shape += (2,)
-        return (np.random.uniform(0, 50, shape).astype(np.float32))
+        return (self.random.uniform(0, 50, shape, dtype=np.float32),)
 
     def create_model(self, shape, complex_type):
         import torch
@@ -32,7 +32,7 @@ class TestReshape(PytorchLayerTest):
                     res = torch.view_as_real(res)
                 return res
 
-        return aten_reshape(shape, complex_type), None, "aten::reshape"
+        return aten_reshape(shape, complex_type), "aten::reshape"
 
     @pytest.mark.parametrize(("shape"), [
         [-1, 6],
@@ -58,7 +58,7 @@ class TestReshape(PytorchLayerTest):
 class TestDynamicReshape(PytorchLayerTest):
     def _prepare_input(self):
         last_dym = random.randint(1, 2)
-        return (np.random.uniform(0, 50, (1, 12, 12, 24)).astype(np.float32), last_dym)
+        return (self.random.uniform(0, 50, (1, 12, 12, 24), dtype=np.float32), last_dym)
 
     def create_model(self, shape):
         import torch
@@ -72,7 +72,7 @@ class TestDynamicReshape(PytorchLayerTest):
                 dym2 = int(torch.ops.aten.sym_size(x, 3)/dym)
                 return torch.reshape(x, [12, 12, dym2, dym])
 
-        return aten_reshape(shape), None, "aten::reshape"
+        return aten_reshape(shape), "aten::reshape"
 
     @pytest.mark.parametrize(("shape"), [
         [12, 12, 24, 1],

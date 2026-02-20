@@ -9,6 +9,7 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -174,21 +175,23 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
                 return true;
             }
         } else if (auto broadcast_tensors = cast_fw_node(input_node, "aten::broadcast_tensors")) {
-            auto tensors = cast_fw_node(broadcast_tensors->input_value(0).get_node_shared_ptr(), "prim::ListConstruct");
-            if (!tensors) {
-                add_exception_to_fw_node(input_node,
-                                         "aten::broadcast_tensors: only prim::ListConstruct supported as input.");
+            // Check for SequenceMark
+            auto seq_mark_tensors =
+                ov::as_type_ptr<SequenceMark>(broadcast_tensors->input_value(0).get_node_shared_ptr());
+
+            if (!seq_mark_tensors) {
+                add_exception_to_fw_node(input_node, "aten::broadcast_tensors: only SequenceMark supported as input.");
                 return false;
             }
             Output<Node> final_shape_t = v0::Constant::create(element::i32, Shape{}, {0});
-            for (auto& input : tensors->inputs()) {
+            for (auto& input : seq_mark_tensors->inputs()) {
                 auto tensor_shape = rg.make<v3::ShapeOf>(input.get_source_output(), element::i32);
                 final_shape_t =
                     rg.make<v3::Broadcast>(final_shape_t, tensor_shape, ov::op::BroadcastType::BIDIRECTIONAL);
             }
             auto final_shape = rg.make<v3::ShapeOf>(final_shape_t, element::i32);
             OutputVector outputs;
-            for (auto& input : tensors->inputs()) {
+            for (auto& input : seq_mark_tensors->inputs()) {
                 outputs.push_back(rg.make<v3::Broadcast>(input.get_source_output(), final_shape));
             }
             copy_runtime_info_and_name(list_unpack, rg.get(), {input_node});
@@ -239,15 +242,15 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
 
             return true;
         } else if (auto meshgrid = cast_fw_node(input_node, "aten::meshgrid")) {
-            // Input - ListConstruct
-            auto meshgrid_input_node =
-                cast_fw_node(meshgrid->input_value(0).get_node_shared_ptr(), "prim::ListConstruct");
-            if (!meshgrid_input_node) {
-                add_exception_to_fw_node(input_node, "aten::meshgrid: only prim::ListConstruct supported as input.");
+            // Input - SequenceMark
+            auto seq_mark_input = ov::as_type_ptr<SequenceMark>(meshgrid->input_value(0).get_node_shared_ptr());
+
+            if (!seq_mark_input) {
+                add_exception_to_fw_node(input_node, "aten::meshgrid: only SequenceMark supported as input.");
                 return false;
             }
             OutputVector meshgrid_inputs;
-            for (auto& input : meshgrid_input_node->inputs()) {
+            for (auto& input : seq_mark_input->inputs()) {
                 meshgrid_inputs.push_back(input.get_source_output());
             }
 
@@ -292,7 +295,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             if (indexing == "xy" && outputs.size() >= 2) {
                 std::swap(outputs[0], outputs[1]);
             }
-            copy_runtime_info_and_name(list_unpack, rg.get(), {input_node, meshgrid_input_node});
+            copy_runtime_info_and_name(list_unpack, rg.get(), {input_node, seq_mark_input});
             replace_node(list_unpack, outputs);
             return true;
         } else if (auto shape_of = ov::as_type_ptr<v3::ShapeOf>(input_node)) {
@@ -329,6 +332,13 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             return true;
         }
 
+        // Check for SequenceMark - if it is, we can directly use its elements
+        if (auto seq_mark = ov::as_type_ptr<SequenceMark>(input_node)) {
+            auto outputs = seq_mark->get_sequence();
+            copy_runtime_info_and_name(list_unpack, {seq_mark}, {input_node});
+            replace_node(list_unpack, outputs);
+            return true;
+        }
         std::stringstream msg;
         msg << "prim::ListUnpack: unsupported input node: " << input_node;
         add_exception_to_fw_node(list_unpack, msg.str());

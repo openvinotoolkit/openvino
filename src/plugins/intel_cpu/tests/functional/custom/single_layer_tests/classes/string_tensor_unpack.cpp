@@ -54,7 +54,7 @@ void StringTensorUnpackLayerCPUTest::SetUp() {
     auto dataParameter = std::make_shared<ov::op::v0::Parameter>(ov::element::string, inputDynamicShapes[0]);
     auto StringTensorUnpack = std::make_shared<ov::op::v15::StringTensorUnpack>(dataParameter);
     ov::ParameterVector params{dataParameter};
-    function = makeNgraphFunction(ov::element::string, params, StringTensorUnpack, "StringTensorUnpack");
+    function = create_ov_model(ov::element::string, params, StringTensorUnpack, "StringTensorUnpack");
 }
 
 TEST_P(StringTensorUnpackLayerCPUTest, CompareWithRefs) {

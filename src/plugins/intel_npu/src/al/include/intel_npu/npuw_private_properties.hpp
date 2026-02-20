@@ -438,6 +438,16 @@ static constexpr ov::Property<std::string> subgraphs{"NPUW_DUMP_SUBS"};
 /**
  * @brief
  * Type: std::string.
+ * Directory path for dumping subgraph models (.xml).
+ * Default behavior: when this property is not set or set to an empty string,
+ * the current working directory is used. Any non-empty value is interpreted
+ * as a directory path.
+ */
+static constexpr ov::Property<std::string> subgraphs_dir{"NPUW_DUMP_SUBS_DIR"};
+
+/**
+ * @brief
+ * Type: std::string.
  * Dump subgraph on disk if a compilation failure happens.
  * Possible values: Comma-separated list of subgraph indices ("last" can be used
  * for dumping last subgraph) or "YES" for all subgraphs, "MIN" for representative
@@ -466,7 +476,6 @@ static constexpr ov::Property<std::string> inputs_outputs{"NPUW_DUMP_IO"};
  * Default value: false.
  */
 static constexpr ov::Property<std::string> io_iters{"NPUW_DUMP_IO_ITERS"};
-
 }  // namespace dump
 
 namespace llm {
@@ -536,6 +545,14 @@ static constexpr ov::Property<uint32_t> max_lora_rank{"NPUW_LLM_MAX_LORA_RANK"};
  * Default value: false.
  */
 static constexpr ov::Property<bool> optimize_v_tensors{"NPUW_LLM_OPTIMIZE_V_TENSORS"};
+
+/**
+ * @brief
+ * Type: bool.
+ * Tell NPUW to apply fp8 static quantisation pass from openvino low_precision library
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> optimize_fp8{"NPUW_LLM_OPTIMIZE_FP8"};
 
 /**
  * @brief

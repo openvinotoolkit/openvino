@@ -13,6 +13,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/unicode_utils.hpp"
 #include "openvino/core/visibility.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -635,17 +636,7 @@ TEST_F(FileUtilTest, androidWithCutFileSizeTest) {
 }
 #endif
 
-class FileUtilTestP : public FileUtilTest, public ::testing::WithParamInterface<utils::StringPathVariant> {
-protected:
-    std::filesystem::path get_path_param() const {
-        return std::visit(
-            [](const auto& p) {
-                // Use OV util to hide some platform details with path creation
-                return ov::util::make_path(p);
-            },
-            GetParam());
-    }
-};
+using FileUtilTestP = UnicodePathTest;
 
 INSTANTIATE_TEST_SUITE_P(string_paths,
                          FileUtilTestP,

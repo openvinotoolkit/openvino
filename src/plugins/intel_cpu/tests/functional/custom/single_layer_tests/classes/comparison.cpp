@@ -76,7 +76,7 @@ void ComparisonLayerCPUTest::SetUp() {
     }
     const auto comparison_node = ov::test::utils::make_comparison(params[0], secondInput, comparisonType);
 
-    function = makeNgraphFunction(currModelPrc, params, comparison_node, "Comparison");
+    function = create_ov_model(currModelPrc, params, comparison_node, "Comparison");
 }
 
 std::string ComparisonLayerCPUTest::getPrimitiveType(const utils::ComparisonTypes& type, ov::element::Type modelType) const {

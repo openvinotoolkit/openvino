@@ -5,10 +5,10 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestLogicalOp(PytorchLayerTest):
 
     def _prepare_input(self, out, unary, first_dtype, second_dtype):
-        x = np.random.randint(1, 5, (1, 10)).astype(first_dtype)
+        x = self.random.randint(1, 5, (1, 10), dtype=first_dtype)
         if unary:
             return (x, ) if not out else (x, np.zeros_like(x).astype(bool))
-        y = np.random.randint(1, 5, (1, 10)).astype(second_dtype)
+        y = self.random.randint(1, 5, (1, 10), dtype=second_dtype)
         if not out:
             return x, y
         return x, y, np.zeros_like(x).astype(bool)
@@ -46,9 +46,8 @@ class TestLogicalOp(PytorchLayerTest):
             def forward_not_out(self, tensor_a, out):
                 return self.op(tensor_a, out=out), out
 
-        ref_net = None
 
-        return aten_logical(op, out), ref_net, f"aten::logical_{op_name}"
+        return aten_logical(op, out), f"aten::logical_{op_name}"
  
 
     @pytest.mark.nightly

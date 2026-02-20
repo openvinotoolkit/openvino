@@ -10,8 +10,8 @@ class TestMinMax(PytorchLayerTest):
     def _prepare_input(self, input_dtype="float32", second_input=False, second_input_dtype="float32"):
         import numpy as np
         if not second_input:
-            return (np.random.randn(1, 3, 10, 10).astype(input_dtype),)
-        return (np.random.randn(1, 3, 10, 10).astype(input_dtype), np.random.randn(1, 3, 10, 10).astype(second_input_dtype))
+            return (self.random.randn(1, 3, 10, 10, dtype=input_dtype),)
+        return (self.random.randn(1, 3, 10, 10, dtype=input_dtype), self.random.randn(1, 3, 10, 10, dtype=second_input_dtype))
 
     def create_model(self, op_type, axes, keep_dims, single_input=True, dtypes=("float32", "float32")):
         import torch
@@ -32,7 +32,7 @@ class TestMinMax(PytorchLayerTest):
 
         class aten_min_max(torch.nn.Module):
             def __init__(self, op):
-                super(aten_min_max, self).__init__()
+                super().__init__()
                 self.op = op
 
             def forward(self, x):
@@ -40,7 +40,7 @@ class TestMinMax(PytorchLayerTest):
 
         class aten_min_max_3args(torch.nn.Module):
             def __init__(self, op, axes=None, keep_dims=None):
-                super(aten_min_max_3args, self).__init__()
+                super().__init__()
                 self.op = op
                 self.axes = axes
                 self.keep_dims = keep_dims
@@ -50,7 +50,7 @@ class TestMinMax(PytorchLayerTest):
 
         class aten_min_max_2args(torch.nn.Module):
             def __init__(self, op, l_dtype, r_dtype):
-                super(aten_min_max_2args, self).__init__()
+                super().__init__()
                 self.op = op
                 self.l_dtype = l_dtype
                 self.r_dtype = r_dtype
@@ -58,7 +58,6 @@ class TestMinMax(PytorchLayerTest):
             def forward(self, x, y):
                 return self.op(x.to(self.l_dtype), y.to(self.r_dtype))
 
-        ref_net = None
         if axes is None and keep_dims is None:
             if single_input:
                 model_cls = aten_min_max(op)
@@ -69,7 +68,7 @@ class TestMinMax(PytorchLayerTest):
         else:
             model_cls = aten_min_max_3args(op, axes, keep_dims)
 
-        return model_cls, ref_net, f"aten::{op_type}"
+        return model_cls, f"aten::{op_type}"
 
     @pytest.mark.parametrize("axes,keep_dims", [(None, None), (1, False), (1, True), (-1, False), (-1, True)])
     @pytest.mark.parametrize("op_type", ['min', 'max'])
@@ -79,7 +78,7 @@ class TestMinMax(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     def test_reduce_min_max(self, axes, keep_dims, op_type, ie_device, precision, ir_version):
         self._test(*self.create_model(op_type, axes, keep_dims,
-                                      single_input=True), ie_device, precision, ir_version)
+                                      single_input=True), ie_device, precision, ir_version, fx_kind=f"aten.{op_type}")
 
     @pytest.mark.parametrize("op_type", ['min', 'max'])
     @pytest.mark.parametrize("second_input_dtype", ["float32", "int32", "float64", "int64", "uint8"])
@@ -93,8 +92,8 @@ class TestMinMax(PytorchLayerTest):
             pytest.xfail(reason="Cumsum for i8 is unsupported on GPU")
         self._test(*self.create_model(op_type, None, None, single_input=False, dtypes=(first_input_dtype, second_input_dtype)),
                    ie_device, precision, ir_version, kwargs_to_prepare_input=
-                   {"second_input": True, "input_dtype": first_input_dtype, "second_input_dtype": second_input_dtype}
-                   )
+                   {"second_input": True, "input_dtype": first_input_dtype, "second_input_dtype": second_input_dtype},
+                   fx_kind=f"aten.{op_type}")
 
 
 class TestPrimMax(PytorchLayerTest):
@@ -135,9 +134,8 @@ class TestPrimMax(PytorchLayerTest):
         }
         model_cls = cases[case]()
 
-        ref_net = None
 
-        return model_cls, ref_net, "prim::max"
+        return model_cls, "prim::max"
 
     @pytest.mark.parametrize("case", ["2_values", "2_list_values", "list_several_values", "one_value"])
     @pytest.mark.parametrize("kwargs_to_prepare_input", [
@@ -195,9 +193,8 @@ class TestPrimMin(PytorchLayerTest):
         }
         model_cls = cases[case]()
 
-        ref_net = None
 
-        return model_cls, ref_net, "prim::min"
+        return model_cls, "prim::min"
 
     @pytest.mark.parametrize("case", ["2_values", "2_list_values", "list_several_values", "one_value"])
     @pytest.mark.parametrize("kwargs_to_prepare_input", [
@@ -221,8 +218,8 @@ class TestPrimMin(PytorchLayerTest):
 class TestMinimumMaximum(PytorchLayerTest):
     def _prepare_input(self, input_dtype="float32", second_input_dtype="float32", out=False):
         import numpy as np
-        x = np.random.randn(1, 3, 10, 10).astype(input_dtype)
-        y = np.random.randn(1, 3, 10, 10).astype(second_input_dtype)
+        x = self.random.randn(1, 3, 10, 10, dtype=input_dtype)
+        y = self.random.randn(1, 3, 10, 10, dtype=second_input_dtype)
         if not out:
             return x, y
         return (x, y, np.zeros_like(x).astype(input_dtype))
@@ -245,7 +242,7 @@ class TestMinimumMaximum(PytorchLayerTest):
 
         class aten_minimum_maximum(torch.nn.Module):
             def __init__(self, op, l_dtype, r_dtype, out):
-                super(aten_minimum_maximum, self).__init__()
+                super().__init__()
                 self.op = op
                 self.l_dtype = l_dtype
                 self.r_dtype = r_dtype
@@ -262,7 +259,7 @@ class TestMinimumMaximum(PytorchLayerTest):
         r_dtype = dtypes_map[dtypes[1]]
         model_cls = aten_minimum_maximum(op, l_dtype, r_dtype, out)
 
-        return model_cls, None, f"aten::{op_type}"
+        return model_cls, f"aten::{op_type}"
 
     @pytest.mark.parametrize("op_type", ["minimum", "maximum"])
     @pytest.mark.parametrize("second_input_dtype", ["float32", "int32", "int64", "float64"])
@@ -276,8 +273,8 @@ class TestMinimumMaximum(PytorchLayerTest):
         ):
         self._test(*self.create_model(op_type, dtypes=(first_input_dtype, second_input_dtype), out=False),
                    ie_device, precision, ir_version, kwargs_to_prepare_input=
-                   {"input_dtype": first_input_dtype, "second_input_dtype": second_input_dtype, "out": False}
-                   )
+                   {"input_dtype": first_input_dtype, "second_input_dtype": second_input_dtype, "out": False},
+                   fx_kind=f"aten.{op_type}")
 
 
     @pytest.mark.parametrize("op_type", ['minimum', 'maximum'])
@@ -297,7 +294,7 @@ class TestMinimumMaximum(PytorchLayerTest):
 class TestAminAmax(PytorchLayerTest):
     def _prepare_input(self, input_dtype="float32", out=False, axes=None, keep_dims=False):
         import numpy as np
-        x = np.random.randn(1, 3, 10, 10).astype(input_dtype)
+        x = self.random.randn(1, 3, 10, 10, dtype=input_dtype)
         if not out:
             return (x,)
         if isinstance(axes, list):
@@ -333,7 +330,7 @@ class TestAminAmax(PytorchLayerTest):
 
         model_cls = aten_amin_amax(op, axis, keep_dims, out)
 
-        return model_cls, None, f"aten::{op_type}"
+        return model_cls, f"aten::{op_type}"
 
     @pytest.mark.parametrize("op_type", ["amin", "amax"])
     @pytest.mark.parametrize("axis", [0, -1, 1, [1, 2], [-1, -2], [2, 0, -1], [0, 1, 2, 3]])
@@ -347,4 +344,4 @@ class TestAminAmax(PytorchLayerTest):
         self._test(*self.create_model(op_type, axis, keep_dims, out),
                    ie_device, precision, ir_version, kwargs_to_prepare_input=
                    {"input_dtype": input_dtype, "out": out, "axes": axis, "keep_dims": keep_dims},
-                   )
+                   fx_kind=f"aten.{op_type}")

@@ -79,7 +79,7 @@ protected:
         // real runtime precision is still U8
         selectedType = makeSelectedTypeStr("ref", netType == ElementType::u8 ? ElementType::i8 : netType);
         inputParams[0]->set_friendly_name("input");
-        function = makeNgraphFunction(netType, inputParams, nonZero, "NonZero");
+        function = create_ov_model(netType, inputParams, nonZero, "NonZero");
     }
 };
 

@@ -88,7 +88,7 @@ void MvnLayerCPUTest::SetUp() {
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
     updateSelectedType(getPrimitiveType(), netPrecision, configuration);
 
-    function = makeNgraphFunction(netPrecision, params, mvn, "mvn");
+    function = create_ov_model(netPrecision, params, mvn, "mvn");
 }
 
 TEST_P(MvnLayerCPUTest, CompareWithRefs) {

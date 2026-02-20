@@ -11,7 +11,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestEmptyNumeric(PytorchLayerTest):
 
     def _prepare_input(self):
-        return (np.random.randn(10, 10, 10),)
+        return (self.random.randn(10, 10, 10),)
 
     def create_model(self, dtype):
 
@@ -37,9 +37,8 @@ class TestEmptyNumeric(PytorchLayerTest):
                 # produce sporadic errors if nan would be in empty.
                 return torch.zeros_like(empty)
 
-        ref_net = None
 
-        return aten_empty(dtype), ref_net, "aten::empty"
+        return aten_empty(dtype), "aten::empty"
 
     @pytest.mark.parametrize('dtype', ("float32", "float64", "int64", "int32", "uint8", "int8"))
     @pytest.mark.nightly
@@ -52,8 +51,8 @@ class TestEmptyLike(PytorchLayerTest):
 
     def _prepare_input(self, shape, dtype=np.float32, out=False):
         if not out:
-            return (np.random.randn(*shape).astype(dtype if dtype is not None else np.float32),)
-        return (np.random.randn(*shape), np.ones(shape, dtype=(dtype if dtype is not None else np.float32)))
+            return (self.random.randn(*shape, dtype=dtype if dtype is not None else np.float32),)
+        return (self.random.randn(*shape), np.ones(shape, dtype=(dtype if dtype is not None else np.float32)))
 
     def create_model(self, dtype, out, no_expose_dtype=False):
 
@@ -97,9 +96,8 @@ class TestEmptyLike(PytorchLayerTest):
                 # produce sporadic errors if nan would be in empty.
                 return torch.zeros_like(out_tensor)
 
-        ref_net = None
 
-        return aten_empty_like(dtype, out, no_expose_dtype), ref_net, "aten::empty_like"
+        return aten_empty_like(dtype, out, no_expose_dtype), "aten::empty_like"
 
     @pytest.mark.parametrize('dtype', (None, "float32", "float64", "int64", "int32", "uint8", "int8"))
     @pytest.mark.parametrize("input_shape", [[2,], [1, 10], [10, 5, 2]])
@@ -122,7 +120,7 @@ class TestEmptyLike(PytorchLayerTest):
 class TestEmptyBoolean(PytorchLayerTest):
 
     def _prepare_input(self):
-        return (np.random.randn(10, 10, 10),)
+        return (self.random.randn(10, 10, 10),)
 
     def create_model(self):
 
@@ -139,9 +137,8 @@ class TestEmptyBoolean(PytorchLayerTest):
                 # so we do "and" operation with False.
                 return empty & self.false
 
-        ref_net = None
 
-        return aten_empty(), ref_net, "aten::empty"
+        return aten_empty(), "aten::empty"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -150,7 +147,7 @@ class TestEmptyBoolean(PytorchLayerTest):
 
 class TestNewEmpty(PytorchLayerTest):
     def _prepare_input(self, input_dtype=np.float32):
-        return (np.random.randn(1, 3, 10, 10).astype(input_dtype),)
+        return (self.random.randn(1, 3, 10, 10, dtype=input_dtype),)
 
     def create_model(self, shape, dtype=None, used_dtype=False):
         import torch
@@ -166,7 +163,7 @@ class TestNewEmpty(PytorchLayerTest):
 
         class aten_empty(torch.nn.Module):
             def __init__(self, shape):
-                super(aten_empty, self).__init__()
+                super().__init__()
                 self.shape = shape
                 self.zero = torch.tensor([0])
 
@@ -179,7 +176,7 @@ class TestNewEmpty(PytorchLayerTest):
 
         class aten_empty_with_dtype(torch.nn.Module):
             def __init__(self, shape, dtype):
-                super(aten_empty_with_dtype, self).__init__()
+                super().__init__()
                 self.shape = shape
                 self.dtype = dtype
                 self.zero = torch.tensor([0], dtype=self.dtype)
@@ -191,14 +188,13 @@ class TestNewEmpty(PytorchLayerTest):
                 # produce sporadic errors if nan would be in empty.
                 return torch.zeros_like(empty)
 
-        ref_net = None
         model = aten_empty(shape)
 
         if used_dtype:
             dtype = dtype_map[dtype]
             model = aten_empty_with_dtype(shape, dtype)
 
-        return model, ref_net, "aten::new_empty"
+        return model, "aten::new_empty"
 
     @pytest.mark.parametrize("shape", [[1], [1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5, 6]])
     @pytest.mark.parametrize("input_dtype", [np.uint8, np.int8, np.int32, np.int64, np.float32, np.float64])

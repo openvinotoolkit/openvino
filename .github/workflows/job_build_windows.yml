@@ -118,23 +118,23 @@ jobs:
       - name: Install python dependencies
         run: |
           # For Python API: build and wheel packaging
-          python3 -m pip install -vv -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
 
           # For running ONNX frontend unit tests
-          python3 -m pip install -vv --force-reinstall -r ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/requirements.txt
+          python3 -m pip install --force-reinstall -r ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/requirements.txt
 
           # For running TensorFlow frontend unit tests
-          python3 -m pip install -vv -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow/tests/requirements.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow/tests/requirements.txt
 
           # For running TensorFlow Lite frontend unit tests
-          python3 -m pip install -vv -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow_lite/tests/requirements.txt
+          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/tensorflow_lite/tests/requirements.txt
 
           # Disabled because of CVS-95904
           # For running Paddle frontend unit tests
-          # python3 -m pip install -vv -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
+          # python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
 
           # For getting rid of SSL issues during model downloading for unit tests
-          python3 -m pip install -vv certifi
+          python3 -m pip install certifi
 
       #
       # Build
@@ -216,7 +216,7 @@ jobs:
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
-
+        
       # Setup additional Python versions for wheels building
       - name: Setup Python 3.14
         if: ${{ inputs.build-additional-python-wheels }}
@@ -244,7 +244,7 @@ jobs:
             Write-Host "Using pip version: $pipVersion for $pyVersion"
             $env:PIP_CACHE_DIR="${{ env.PIP_CACHE_PATH }}/$pipVersion"
 
-            & $pythonExecutablePath -m pip install -vv -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
+            & $pythonExecutablePath -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
 
             if ($pyVersion -eq '3.14t') {
               cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DENABLE_GIL_PYTHON_API=OFF -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir"
@@ -273,7 +273,7 @@ jobs:
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
           allow-prereleases: 'true'
-
+      
       - name: Build additional Python wheels - Python 3.14t
         if: ${{ inputs.build-additional-python-wheels }}
         run: |
@@ -290,7 +290,7 @@ jobs:
           Write-Host "Using pip version: $pipVersion for $pyVersion"
           $env:PIP_CACHE_DIR="${{ env.PIP_CACHE_PATH }}/$pipVersion"
 
-          & $pythonExecutablePath -m pip install -vv -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
+          & $pythonExecutablePath -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
 
           cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DENABLE_GIL_PYTHON_API=OFF -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir"
 

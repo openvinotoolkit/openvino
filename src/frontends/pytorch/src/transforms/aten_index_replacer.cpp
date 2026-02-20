@@ -7,6 +7,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/pytorch/visibility.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -43,9 +44,12 @@ AtenIndexToSelect::AtenIndexToSelect() {
         ov::pass::NodeRegistry rg;
         auto input_node = index_op->input_value(0);
         auto indices = index_op->input_value(1).get_node_shared_ptr();
-        auto list_indices = cast_fw_node(indices, "prim::ListConstruct");
-        if (list_indices) {
-            auto ids = list_indices->input_values();
+
+        // Check for SequenceMark
+        auto seq_mark_indices = ov::as_type_ptr<SequenceMark>(indices);
+
+        if (seq_mark_indices) {
+            auto ids = indices->input_values();
             auto rank = input_node.get_partial_shape().rank();
             // index transformation supports only tensors with static rank
             ov::Output<ov::Node> new_output;
