@@ -367,8 +367,12 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
     ov::Output<ov::Node> Y;
     ov::Output<ov::Node> qk_debug_output;
 
-    if (softcap > 0.0f || needs_qk_output) {
-        // Manual decomposition path (softcap or debug output)
+    // Workaround: CPU KT_ONEDNN SDPA executor mishandles DirectReshape+Tile pattern
+    // for 3D GQA/MQA inputs. Use manual decomposition to produce correct results.
+    const bool is_3d_gqa = q_is_3d && q_num_heads > 0 && kv_num_heads > 0 && q_num_heads != kv_num_heads;
+
+    if (softcap > 0.0f || needs_qk_output || is_3d_gqa) {
+        // Manual decomposition path (softcap, debug output, or 3D GQA/MQA workaround)
         auto results = detail::build_manual_attention(Q,
                                                       K,
                                                       V,
