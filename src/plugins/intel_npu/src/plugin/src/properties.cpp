@@ -847,11 +847,12 @@ bool Properties::isPropertyRegistered(const std::string& propertyName) const {
 }
 
 void Properties::filterPropertiesByCompilerSupport(const ICompilerAdapter* compiler,
-                                                   const ov::intel_npu::CompilerType compilerType,
-                                                   const std::string& compilationPlatform) {
+                                                   const std::optional<ov::intel_npu::CompilerType> compilerType,
+                                                   const std::string compilationPlatform) {
     // In case properties are not initialized or the compiler/platform was changed since last call -
     // filter out options again
-    if (_initialized && compilerType == _currentlyUsedCompiler && compilationPlatform == _currentlyUsedPlatform) {
+    if (_initialized && compilerType.has_value() && compilerType.value() == _currentlyUsedCompiler &&
+        !compilationPlatform.empty() && compilationPlatform == _currentlyUsedPlatform) {
         return;
     }
 
@@ -881,9 +882,7 @@ void Properties::filterPropertiesByCompilerSupport(const ICompilerAdapter* compi
         bool isEnabled = false;
         auto opt = _config.getOpt(key);
         // Runtime (plugin-only) options are always enabled
-        if (opt.mode() == OptionMode::RunTime) {
-            isEnabled = true;
-        } else {  // Compiler and common options
+        if (opt.mode() != OptionMode::RunTime) {  // Compiler and common options
             if (compiler == nullptr && opt.mode() == OptionMode::CompileTime) {
                 // we do not register compileTime options if there is no compiler
                 isEnabled = false;
@@ -909,14 +908,15 @@ void Properties::filterPropertiesByCompilerSupport(const ICompilerAdapter* compi
                     }
                 }
             }
+
+            if (!isEnabled) {
+                _logger.debug("Config option %s not supported! Requirements not met.", key.c_str());
+            } else {
+                _logger.debug("Enabled config option %s", key.c_str());
+            }
+            // update enable flag
+            _config.enable(key, isEnabled);
         }
-        if (!isEnabled) {
-            _logger.debug("Config option %s not supported! Requirements not met.", key.c_str());
-        } else {
-            _logger.debug("Enabled config option %s", key.c_str());
-        }
-        // update enable flag
-        _config.enable(key, isEnabled);
     });
 
     // Special case for NPU_TURBO which might not be supported by compiler, but driver will still use it
@@ -930,8 +930,13 @@ void Properties::filterPropertiesByCompilerSupport(const ICompilerAdapter* compi
     // reset properties for the new options
     registerProperties();
     _initialized = true;
-    _currentlyUsedCompiler = compilerType;
-    _currentlyUsedPlatform = compilationPlatform;
+
+    if (compilerType.has_value()) {
+        _currentlyUsedCompiler = compilerType.value();
+    }
+    if (!compilationPlatform.empty()) {
+        _currentlyUsedPlatform = compilationPlatform;
+    }
 }
 
 void Properties::updateConfig(const ov::AnyMap& properties, const ICompilerAdapter* compiler, OptionMode mode) {
@@ -952,7 +957,7 @@ void Properties::updateConfig(const ov::AnyMap& properties, const ICompilerAdapt
 
         // filter out unsupported options
         filterPropertiesByCompilerSupport(compiler,
-                                          propertiesCompilerType.value_or(_currentlyUsedCompiler),
+                                          propertiesCompilerType,
                                           propertiesPlatform.value_or(_currentlyUsedPlatform));
     }
 
@@ -975,11 +980,22 @@ void Properties::updateConfig(const ov::AnyMap& properties, const ICompilerAdapt
 }
 
 void Properties::updateConfig(const ov::AnyMap& properties, OptionMode mode) {
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+
+        // Special case for NPU_COMPILER_TYPE - don't need it in the config for this case.
+        _config.enable(ov::intel_npu::compiler_type.name(), false);
+
+        // Make sure all options are re-filtered based on a config with no compiler
+        filterPropertiesByCompilerSupport(nullptr);
+    }
+
     const std::map<std::string, std::string> rawConfig = any_copy(properties);
     std::map<std::string, std::string> cfgsToSet;
     for (const auto& [key, value] : rawConfig) {
-        if (_config.hasOpt(key) && _config.getOpt(key).mode() == OptionMode::CompileTime) {
-            _logger.info(
+        if ((_config.hasOpt(key) && _config.getOpt(key).mode() == OptionMode::CompileTime) ||
+            key == ov::intel_npu::compiler_type.name()) {
+            _logger.warning(
                 "Config key '%s' is recognized as a compiler option, will not be used for current configuration.",
                 key.c_str());
             continue;
