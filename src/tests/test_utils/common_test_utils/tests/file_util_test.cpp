@@ -656,10 +656,11 @@ INSTANTIATE_TEST_SUITE_P(wstring_paths,
                                          L"test_encoder/test_encoder.encrypted/"));
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-INSTANTIATE_TEST_SUITE_P(
-    unicode_paths,
-    FileUtilTestP,
-    testing::Values("这是.folder", L"这是_folder", L"这是_folder/", u"这是_folder/", U"这是_folder/"));
+INSTANTIATE_TEST_SUITE_P(unicode_paths, FileUtilTestP, unicode_paths);
+
+INSTANTIATE_TEST_SUITE_P(unicode_paths_with_slash,
+                         FileUtilTestP,
+                         testing::Values("这是.folder/", L"这是_folder/", u"这是_folder/", U"这是_folder/"));
 #endif
 
 TEST_P(FileUtilTestP, create_directories) {
