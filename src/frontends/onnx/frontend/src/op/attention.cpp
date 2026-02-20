@@ -267,6 +267,7 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
     // Determine if inputs are 3D and need reshaping
     auto q_rank = Q.get_partial_shape().rank();
     auto k_rank = K.get_partial_shape().rank();
+    auto v_rank = V.get_partial_shape().rank();
     bool q_is_3d = false;
     bool kv_is_3d = false;
 
@@ -283,6 +284,12 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
                          k_rank.get_length() == 3 || k_rank.get_length() == 4,
                          "K input rank must be 3 or 4, got: ",
                          k_rank.get_length());
+    }
+    if (v_rank.is_static()) {
+        CHECK_VALID_NODE(node,
+                         v_rank.get_length() == 3 || v_rank.get_length() == 4,
+                         "V input rank must be 3 or 4, got: ",
+                         v_rank.get_length());
     }
 
     // Reshape 3D inputs to 4D
