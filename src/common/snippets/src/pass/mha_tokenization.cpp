@@ -385,9 +385,11 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
                 if (transpose) {
                     auto parent = transpose->get_input_node_shared_ptr(0);
                     while (!ov::is_type<ov::op::v0::Parameter>(parent)) {
-                        if (ov::is_type<ov::op::v0::Constant>(parent) || parent->get_input_size() == 0 ||
-                            !ov::snippets::pass::ExplicitTransposeMatMulInputs::are_weights_scalar(parent)) {
+                        if (ov::is_type<ov::op::v0::Constant>(parent) || parent->get_input_size() == 0) {
                             return;
+                        }
+                        if (!ov::snippets::pass::ExplicitTransposeMatMulInputs::are_weights_scalar(parent)) {
+                            break;
                         }
                         parent = parent->get_input_node_shared_ptr(0);
                     }
