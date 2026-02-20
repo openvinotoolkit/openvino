@@ -59,6 +59,10 @@ Performance Information F.A.Q.
         - Hugginface
         - Text-To-Text Decoder-only
         - 128K
+      * - `GPT-OSS-20B <https://huggingface.co/openai/gpt-oss-20b>`__
+        - Hugginface
+        - Reasoning, agentic and developer use cases.
+        - 128K
       * - `Llama-2-7b-chat <https://www.llama.com/>`__
         - Meta AI
         - Auto regressive language
@@ -71,19 +75,27 @@ Performance Information F.A.Q.
         - Meta AI
         - Auto regressive language
         - 128K
+      * - `MiniCPM-v-2_6 <https://huggingface.co/openbmb/MiniCPM-V-2_6>`__
+        - OpenBMB
+        - Multimodal, image-text to text
+        - 32K
+      * - `Mistral-7B-Instruct-V0.3 <https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3>`__
+        - Mistral AI
+        - Auto regressive language
+        - 32K
       * - `Phi4-mini-Instruct <https://huggingface.co/microsoft/Phi-4-mini-instruct>`__
-        - Huggingface
+        - Hugginface
         - Auto regressive language
         - 4096
-      * - `Qwen-2-VL-7B-instruct <https://huggingface.co/Qwen/Qwen2-VL-7B-instruct>`__
+      * - `Qwen-2.5-VL-7B-instruct <https://huggingface.co/Qwen/Qwen2.5-VL-7B-instruct>`__
         - Huggingface
-        - Auto regressive language
+        - Auto regressive language, Agentic
         - 128K
       * - `Qwen-3-8B <https://huggingface.co/Qwen/Qwen3-8B>`__
         - Huggingface
         - Auto regressive language
         - 32K
-      * - `Stable-Diffusion-V1-5 <https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5>`__
+     * - `Stable-Diffusion-V1-5 <https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5>`__
         - Hugginface
         - Latent Diffusion Model
         - 77
