@@ -255,6 +255,10 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
     int64_t kv_num_heads = node.get_attribute_value<int64_t>("kv_num_heads", 0);
 
     CHECK_VALID_NODE(node, softcap >= 0.0f, "softcap must be non-negative, got: ", softcap);
+    CHECK_VALID_NODE(node,
+                     qk_matmul_output_mode >= 0 && qk_matmul_output_mode <= 3,
+                     "qk_matmul_output_mode must be 0, 1, 2, or 3, got: ",
+                     qk_matmul_output_mode);
 
     // Determine number of requested outputs
     size_t num_outputs = node.get_outputs_size();
