@@ -1,6 +1,17 @@
 name: Code coverage
 on:
   workflow_dispatch:
+    inputs:
+      test_profile:
+        description: 'Hardware test profile'
+        required: false
+        default: cpu
+        type: choice
+        options:
+          - cpu
+          - cpu_gpu
+          - cpu_npu
+          - cpu_npu_gpu
   pull_request:
 
 concurrency:
@@ -11,14 +22,19 @@ permissions: read-all
 
 jobs:
   Coverage:
+    continue-on-error: true
     runs-on: ${{ matrix.config.os }}
     env:
       CMAKE_BUILD_TYPE: 'Release'
+      PARALLEL_JOBS: '64'
+      PYTEST_XDIST_WORKERS: '64'
+      JS_TEST_CONCURRENCY: '64'
+      TEST_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.test_profile || 'cpu' }}
     strategy:
       fail-fast: false
       matrix:
         config:
-          - { name: "Ubuntu-gcc", os: ubuntu-latest-16-cores, cc: "gcc", cxx: "g++" }
+          - { name: "Ubuntu-gcc", os: ubuntu-latest-64-cores, cc: "gcc", cxx: "g++" }
 
     steps:
       - name: Setup python
@@ -27,6 +43,10 @@ jobs:
           python-version: '3.10.10'
           architecture: 'x64'
 
+      - name: Setup Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: '22'
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@5ebbd400eff9e74630f759d94ddd7b6c26299639 # v1.2.20
@@ -43,9 +63,10 @@ jobs:
         run: |
           sudo apt --assume-yes update
           sudo -E ${{ github.workspace }}/install_build_dependencies.sh
-          sudo apt --assume-yes install lcov
+          sudo apt --assume-yes install lcov wget pigz xvfb
 
           python3 -m pip install --upgrade pip
+          python3 -m pip install pytest pytest-cov pytest-xdist[psutil]
           python3 -m pip install -r ${{ github.workspace }}/src/bindings/python/wheel/requirements-dev.txt
           # For running Paddle frontend unit tests
           python3 -m pip install -r ${{ github.workspace }}/src/frontends/paddle/tests/requirements.txt
@@ -56,48 +77,105 @@ jobs:
           # For running TensorFlow Lite frontend unit tests
           python3 -m pip install -r ${{ github.workspace }}/src/frontends/tensorflow_lite/tests/requirements.txt
 
-      - name: Build OpenVINO with CMake
-        uses: ashutoshvarma/action-cmake-build@ade188313bc7eaa6f14349569a64d8bc716342ff # master
-        with:
-          build-dir: ${{ github.workspace }}/build
-          cc: ${{ matrix.config.cc }}
-          cxx: ${{ matrix.config.cxx }}
-          configure-options: >
-            -GNinja
-            -DCMAKE_VERBOSE_MAKEFILE=ON
-            -DENABLE_PYTHON=ON
-            -DENABLE_ONEDNN_FOR_GPU=ON
-            -DENABLE_TESTS=ON
-            -DENABLE_FUNCTIONAL_TESTS=ON
-            -DENABLE_OV_ONNX_FRONTEND=ON
-            -DENABLE_OV_PADDLE_FRONTEND=ON
-            -DENABLE_OV_TF_FRONTEND=ON
-            -DENABLE_OV_TF_LITE_FRONTEND=ON
-            -DENABLE_INTEL_NPU=OFF
-            -DENABLE_STRICT_DEPENDENCIES=OFF
-            -DENABLE_COVERAGE=ON
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-            -DCMAKE_C_LINKER_LAUNCHER=ccache
-            -DCMAKE_CXX_LINKER_LAUNCHER=ccache
-            -DENABLE_SYSTEM_SNAPPY=ON
-          build-type: ${{ env.CMAKE_BUILD_TYPE }}
+      - name: Configure OpenVINO with CMake
+        run: |
+          if [[ "${TEST_PROFILE}" == "cpu_gpu" || "${TEST_PROFILE}" == "cpu_npu_gpu" ]]; then
+            RUN_GPU_TESTS="true"
+            GPU_FLAGS="-DENABLE_INTEL_GPU=ON -DENABLE_ONEDNN_FOR_GPU=ON"
+          else
+            RUN_GPU_TESTS="false"
+            GPU_FLAGS="-DENABLE_INTEL_GPU=OFF -DENABLE_ONEDNN_FOR_GPU=OFF"
+          fi
+
+          if [[ "${TEST_PROFILE}" == "cpu_npu" || "${TEST_PROFILE}" == "cpu_npu_gpu" ]]; then
+            RUN_NPU_TESTS="true"
+            NPU_FLAGS="-DENABLE_INTEL_NPU=ON"
+          else
+            RUN_NPU_TESTS="false"
+            NPU_FLAGS="-DENABLE_INTEL_NPU=OFF"
+          fi
+
+          echo "TEST_PROFILE=${TEST_PROFILE}"
+          echo "RUN_GPU_TESTS=${RUN_GPU_TESTS}"
+          echo "RUN_NPU_TESTS=${RUN_NPU_TESTS}"
+          echo "Using GPU flags: ${GPU_FLAGS}"
+          echo "Using NPU flags: ${NPU_FLAGS}"
+
+          cmake -S ${{ github.workspace }} -B ${{ github.workspace }}/build \
+            -GNinja \
+            -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DENABLE_PYTHON=ON \
+            -DENABLE_JS=ON \
+            -DENABLE_TESTS=ON \
+            -DENABLE_FUNCTIONAL_TESTS=ON \
+            -DENABLE_OV_ONNX_FRONTEND=ON \
+            -DENABLE_OV_PADDLE_FRONTEND=ON \
+            -DENABLE_OV_TF_FRONTEND=ON \
+            -DENABLE_OV_TF_LITE_FRONTEND=ON \
+            -DENABLE_STRICT_DEPENDENCIES=OFF \
+            -DENABLE_COVERAGE=ON \
+            -DCMAKE_C_COMPILER=${{ matrix.config.cc }} \
+            -DCMAKE_CXX_COMPILER=${{ matrix.config.cxx }} \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_C_LINKER_LAUNCHER=ccache \
+            -DCMAKE_CXX_LINKER_LAUNCHER=ccache \
+            -DENABLE_SYSTEM_SNAPPY=ON \
+            ${GPU_FLAGS} \
+            ${NPU_FLAGS}
+
+      - name: Build OpenVINO
+        run: cmake --build ${{ github.workspace }}/build --parallel ${{ env.PARALLEL_JOBS }} --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Install wheel packages
-        run: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install_pkg -P '${{ github.workspace }}/build/cmake_install.cmake'
+        run: cmake --install ${{ github.workspace }}/build --prefix ${{ github.workspace }}/install_pkg --component python_wheels --config ${{ env.CMAKE_BUILD_TYPE }}
+
+      - name: Install OpenVINO runtime and tests
+        run: |
+          cmake --install ${{ github.workspace }}/build --prefix ${{ github.workspace }}/install_pkg --config ${{ env.CMAKE_BUILD_TYPE }}
+          cmake --install ${{ github.workspace }}/build --prefix ${{ github.workspace }}/install_pkg --component tests --config ${{ env.CMAKE_BUILD_TYPE }}
+
+      - name: Build and install OpenVINO JS addon package runtime
+        run: |
+          cmake -S ${{ github.workspace }} -B ${{ github.workspace }}/build_js \
+            -GNinja \
+            -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} \
+            -DCPACK_GENERATOR=NPM \
+            -DENABLE_SYSTEM_TBB=OFF \
+            -DENABLE_TESTS=OFF \
+            -DENABLE_SAMPLES=OFF \
+            -DENABLE_WHEEL=OFF \
+            -DENABLE_PYTHON=OFF \
+            -DENABLE_INTEL_GPU=OFF \
+            -DENABLE_JS=ON \
+            -DENABLE_COVERAGE=ON \
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/src/bindings/js/node/bin
+          cmake --build ${{ github.workspace }}/build_js --parallel ${{ env.PARALLEL_JOBS }} --config ${{ env.CMAKE_BUILD_TYPE }}
+          cmake --install ${{ github.workspace }}/build_js --prefix ${{ github.workspace }}/src/bindings/js/node/bin --config ${{ env.CMAKE_BUILD_TYPE }}
+
+      - name: Install OpenVINO Python wheel
+        run: |
+          WHEEL_PATH=$(ls -1 ${{ github.workspace }}/install_pkg/wheels/openvino-*.whl | head -n 1)
+          if [[ -z "${WHEEL_PATH}" ]]; then
+            echo "OpenVINO wheel not found in install_pkg/wheels"
+            exit 1
+          fi
+          python3 -m pip install --force-reinstall "${WHEEL_PATH}"
 
       - name: List binaries
         run: ls -la ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}
 
-      - name: Install OpenVINO
-        run: cmake -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install_pkg -P '${{ github.workspace }}/build/cmake_install.cmake'
+      - name: Download gtest-parallel
+        run: wget -q https://raw.githubusercontent.com/google/gtest-parallel/master/gtest_parallel.py -O ${{ github.workspace }}/gtest_parallel.py
 
-      - name: Run selected coverage tests
+      - name: Run selected C++ coverage tests
         run: |
           set +e
 
           BIN_DIR="${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}"
           MODEL_PATH="${{ github.workspace }}/src/core/tests/models/ir/add_abc.xml"
+          GTEST_PARALLEL="${{ github.workspace }}/gtest_parallel.py"
           FAILED_TESTS=()
           SKIPPED_TESTS=()
 
@@ -120,12 +198,51 @@ jobs:
             fi
           }
 
+          run_gtest_parallel() {
+            local test_name="$1"
+            local binary_name="$2"
+            local gtest_filter="$3"
+
+            local exe_path="${BIN_DIR}/${binary_name}"
+            if [[ ! -x "${exe_path}" ]]; then
+              SKIPPED_TESTS+=("${test_name} (missing binary: ${binary_name})")
+              return 0
+            fi
+
+            echo "========== Running ${test_name} with gtest-parallel =========="
+            python3 "${GTEST_PARALLEL}" "${exe_path}" --workers="${{ env.PARALLEL_JOBS }}" -- --gtest_filter="${gtest_filter}"
+            local rc=$?
+            if [[ ${rc} -ne 0 ]]; then
+              FAILED_TESTS+=("${test_name} (exit ${rc})")
+            fi
+          }
+
           # Unsupported in this workflow:
-          # - ov_npu_func_tests, ov_npu_unit_tests require NPU-specific environment/driver stability.
           # - ov_nvidia_func_tests requires openvino_contrib NVIDIA plugin build and NVIDIA runner.
-          SKIPPED_TESTS+=("ov_npu_func_tests (unsupported in coverage workflow)")
-          SKIPPED_TESTS+=("ov_npu_unit_tests (unsupported in coverage workflow)")
+          if [[ "${TEST_PROFILE}" != "cpu_npu" && "${TEST_PROFILE}" != "cpu_npu_gpu" ]]; then
+            SKIPPED_TESTS+=("ov_npu_func_tests (NPU profile is OFF)")
+            SKIPPED_TESTS+=("ov_npu_unit_tests (NPU profile is OFF)")
+          fi
           SKIPPED_TESTS+=("ov_nvidia_func_tests (unsupported in coverage workflow)")
+          if [[ "${TEST_PROFILE}" != "cpu_gpu" && "${TEST_PROFILE}" != "cpu_npu_gpu" ]]; then
+            SKIPPED_TESTS+=("ov_gpu_unit_tests (GPU switch is OFF, CPU-only mode)")
+            SKIPPED_TESTS+=("ov_gpu_func_tests (GPU switch is OFF, CPU-only mode)")
+          fi
+
+          if [[ "${TEST_PROFILE}" == "cpu_gpu" || "${TEST_PROFILE}" == "cpu_npu_gpu" ]]; then
+            RUN_GPU_TESTS="true"
+          else
+            RUN_GPU_TESTS="false"
+          fi
+          if [[ "${TEST_PROFILE}" == "cpu_npu" || "${TEST_PROFILE}" == "cpu_npu_gpu" ]]; then
+            RUN_NPU_TESTS="true"
+          else
+            RUN_NPU_TESTS="false"
+          fi
+
+          echo "TEST_PROFILE=${TEST_PROFILE}"
+          echo "RUN_GPU_TESTS=${RUN_GPU_TESTS}"
+          echo "RUN_NPU_TESTS=${RUN_NPU_TESTS}"
 
           run_binary "ov_api_conformance_tests" "ov_api_conformance_tests" "--gtest_filter=*mandatory*"
           run_binary "ov_auto_batch_func_tests" "ov_auto_batch_func_tests" "--gtest_filter=*smoke*"
@@ -134,8 +251,12 @@ jobs:
           run_binary "ov_auto_unit_tests" "ov_auto_unit_tests"
           run_binary "ov_capi_test" "ov_capi_test"
           run_binary "ov_conditional_compilation_tests" "ov_conditional_compilation_tests"
-          run_binary "ov_core_unit_tests" "ov_core_unit_tests" "--gtest_filter=-*IE_GPU*"
-          run_binary "ov_cpu_func_tests" "ov_cpu_func_tests" "--gtest_filter=*smoke*"
+          if [[ "${RUN_GPU_TESTS}" == "true" ]]; then
+            run_binary "ov_core_unit_tests" "ov_core_unit_tests"
+          else
+            run_binary "ov_core_unit_tests" "ov_core_unit_tests" "--gtest_filter=-*IE_GPU*"
+          fi
+          run_gtest_parallel "ov_cpu_func_tests" "ov_cpu_func_tests" "*smoke*"
           run_binary "ov_cpu_unit_tests" "ov_cpu_unit_tests"
           run_binary "ov_cpu_unit_tests_vectorized" "ov_cpu_unit_tests_vectorized"
           run_binary "ov_hetero_func_tests" "ov_hetero_func_tests" "--gtest_filter=*smoke*:-nightly*"
@@ -144,23 +265,53 @@ jobs:
           run_binary "ov_inference_unit_tests" "ov_inference_unit_tests"
           run_binary "ov_ir_frontend_tests" "ov_ir_frontend_tests"
           run_binary "ov_lp_transformations_tests" "ov_lp_transformations_tests"
-          run_binary "ov_onnx_frontend_tests" "ov_onnx_frontend_tests" "--gtest_filter=-*IE_GPU*"
+          if [[ "${RUN_GPU_TESTS}" == "true" ]]; then
+            run_gtest_parallel "ov_onnx_frontend_tests" "ov_onnx_frontend_tests" "*"
+          else
+            run_gtest_parallel "ov_onnx_frontend_tests" "ov_onnx_frontend_tests" "-*IE_GPU*"
+          fi
+          if [[ -x "${BIN_DIR}/ov_onnx_frontend_tests" ]]; then
+            if [[ "${RUN_GPU_TESTS}" == "true" ]]; then
+              ONNX_ITERATOR=0 "${BIN_DIR}/ov_onnx_frontend_tests"
+            else
+              ONNX_ITERATOR=0 "${BIN_DIR}/ov_onnx_frontend_tests" "--gtest_filter=-*IE_GPU*"
+            fi
+            [[ $? -ne 0 ]] && FAILED_TESTS+=("ov_onnx_frontend_tests (ONNX_ITERATOR=0)")
+          fi
           run_binary "ov_op_conformance_tests" "ov_op_conformance_tests" "--device=TEMPLATE" "--gtest_filter=*OpImpl*"
           run_binary "ov_proxy_plugin_tests" "ov_proxy_plugin_tests"
           run_binary "ov_snippets_func_tests" "ov_snippets_func_tests"
           run_binary "ov_subgraphs_dumper_tests" "ov_subgraphs_dumper_tests"
           run_binary "ov_template_func_tests" "ov_template_func_tests" "--gtest_filter=*smoke*"
           run_binary "ov_tensorflow_common_tests" "ov_tensorflow_common_tests"
-          run_binary "ov_tensorflow_frontend_tests" "ov_tensorflow_frontend_tests" "--gtest_filter=-*IE_GPU*"
+          if [[ "${RUN_GPU_TESTS}" == "true" ]]; then
+            run_gtest_parallel "ov_tensorflow_frontend_tests" "ov_tensorflow_frontend_tests" "*"
+          else
+            run_gtest_parallel "ov_tensorflow_frontend_tests" "ov_tensorflow_frontend_tests" "-*IE_GPU*"
+          fi
           run_binary "ov_tensorflow_lite_frontend_tests" "ov_tensorflow_lite_frontend_tests"
           run_binary "ov_transformations_tests" "ov_transformations_tests"
           run_binary "ov_util_tests" "ov_util_tests"
           run_binary "paddle_tests" "paddle_tests"
+          if [[ "${RUN_NPU_TESTS}" == "true" ]]; then
+            run_binary "ov_npu_unit_tests" "ov_npu_unit_tests"
+            run_binary "ov_npu_func_tests" "ov_npu_func_tests" "--gtest_filter=*smoke*"
+          fi
+          if [[ "${RUN_GPU_TESTS}" == "true" ]]; then
+            run_binary "ov_gpu_unit_tests" "ov_gpu_unit_tests"
+            run_binary "ov_gpu_func_tests" "ov_gpu_func_tests" "--gtest_filter=*smoke*"
+          fi
           run_binary "test_inference_async" "test_inference_async" "${MODEL_PATH}" "CPU"
           run_binary "test_inference_sync" "test_inference_sync" "${MODEL_PATH}" "CPU"
 
           {
-            echo "## Coverage test execution summary"
+            echo "## C++ coverage test execution summary"
+            echo ""
+            echo "Test profile: ${TEST_PROFILE}"
+            echo ""
+            echo "GPU mode: ${RUN_GPU_TESTS}"
+            echo ""
+            echo "NPU mode: ${RUN_NPU_TESTS}"
             echo ""
             if [[ ${#FAILED_TESTS[@]} -gt 0 ]]; then
               echo "Failed tests:"
@@ -182,15 +333,106 @@ jobs:
           } >> "${GITHUB_STEP_SUMMARY}"
 
           if [[ ${#FAILED_TESTS[@]} -gt 0 ]]; then
-            echo "One or more tests failed; continuing to coverage generation."
+            echo "One or more C++ tests failed; continuing to coverage generation."
           fi
 
-      - name: Print info
+      - name: Run Python bindings tests with coverage
         run: |
-          ls -laR
-          pwd
+          set +e
 
-      - name: Generate raport
+          TESTS_DIR="${{ github.workspace }}/install_pkg/tests"
+          FAILED_PY_TESTS=()
+
+          python3 -m pip install -r "${TESTS_DIR}/bindings/python/requirements_test.txt"
+          python3 -m pip install -r "${TESTS_DIR}/layer_tests/requirements.txt"
+          python3 -m pip install -r "${TESTS_DIR}/requirements_onnx"
+
+          export LD_LIBRARY_PATH="${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}:${LD_LIBRARY_PATH}"
+          export PYTHONPATH="${TESTS_DIR}/python:${PYTHONPATH}"
+
+          coverage erase
+
+          run_pytest() {
+            local test_name="$1"
+            shift
+            echo "========== Running Python test: ${test_name} =========="
+            python3 -m pytest "$@"
+            local rc=$?
+            if [[ ${rc} -ne 0 ]]; then
+              FAILED_PY_TESTS+=("${test_name} (exit ${rc})")
+            fi
+          }
+
+          run_pytest "pyopenvino" -sv "${TESTS_DIR}/pyopenvino" -n "${{ env.PYTEST_XDIST_WORKERS }}" --cov=openvino --cov-append --ignore="${TESTS_DIR}/pyopenvino/tests/test_utils/test_utils.py"
+          run_pytest "onnx_python" -sv "${TESTS_DIR}/onnx" -n "${{ env.PYTEST_XDIST_WORKERS }}" -k "not cuda" --cov=openvino --cov-append --ignore="${TESTS_DIR}/onnx/test_python/test_zoo_models.py"
+          run_pytest "ovc_unit" -sv "${TESTS_DIR}/ovc/unit_tests" -n "${{ env.PYTEST_XDIST_WORKERS }}" --cov=openvino --cov-append
+          run_pytest "py_frontend" -sv "${TESTS_DIR}/layer_tests/py_frontend_tests" -n "${{ env.PYTEST_XDIST_WORKERS }}" --cov=openvino --cov-append
+          TEST_DEVICE=CPU TEST_PRECISION=FP16 run_pytest "tensorflow_lite_layers" -sv "${TESTS_DIR}/layer_tests/tensorflow_lite_tests" -n "${{ env.PYTEST_XDIST_WORKERS }}" --cov=openvino --cov-append
+
+          coverage xml -o "${{ github.workspace }}/python-coverage.xml"
+
+          {
+            echo ""
+            echo "## Python coverage test execution summary"
+            if [[ ${#FAILED_PY_TESTS[@]} -gt 0 ]]; then
+              echo "Failed tests:"
+              for item in "${FAILED_PY_TESTS[@]}"; do
+                echo "- ${item}"
+              done
+            else
+              echo "Failed tests: none"
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          if [[ ${#FAILED_PY_TESTS[@]} -gt 0 ]]; then
+            echo "One or more Python tests failed; continuing to coverage generation."
+          fi
+
+      - name: Run JS bindings tests with coverage
+        run: |
+          set +e
+
+          JS_DIR="${{ github.workspace }}/src/bindings/js/node"
+          FAILED_JS_TESTS=()
+
+          cd "${JS_DIR}"
+          npm i
+          npm i --no-save c8
+
+          npm run lint
+          [[ $? -ne 0 ]] && FAILED_JS_TESTS+=("npm run lint")
+
+          npx c8 --reporter=lcov --reporter=text --report-dir "${{ github.workspace }}/js-coverage" \
+            node --test --test-concurrency="${{ env.JS_TEST_CONCURRENCY }}" ./tests/unit/*.test.js
+          [[ $? -ne 0 ]] && FAILED_JS_TESTS+=("node unit tests")
+
+          if [[ -f "${{ github.workspace }}/js-coverage/lcov.info" ]]; then
+            cp "${{ github.workspace }}/js-coverage/lcov.info" "${{ github.workspace }}/js-lcov.info"
+          fi
+
+          Xvfb :99 &
+          export DISPLAY=:99
+          npm run test:e2e --loglevel=silly
+          [[ $? -ne 0 ]] && FAILED_JS_TESTS+=("npm run test:e2e")
+
+          {
+            echo ""
+            echo "## JS coverage test execution summary"
+            if [[ ${#FAILED_JS_TESTS[@]} -gt 0 ]]; then
+              echo "Failed tests:"
+              for item in "${FAILED_JS_TESTS[@]}"; do
+                echo "- ${item}"
+              done
+            else
+              echo "Failed tests: none"
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          if [[ ${#FAILED_JS_TESTS[@]} -gt 0 ]]; then
+            echo "One or more JS tests failed; continuing to coverage generation."
+          fi
+
+      - name: Generate C/C++ coverage report
         run: |
           set -euo pipefail
 
@@ -212,6 +454,7 @@ jobs:
                "${SRC_DIR}/*.pb.cc" \
                "${SRC_DIR}/*.pb.h" \
                "${SRC_DIR}/*/tests/*" \
+               "${SRC_DIR}/tests/*" \
                "${SRC_DIR}/thirdparty/*" \
                -o coverage.info
 
@@ -223,14 +466,19 @@ jobs:
 
       - name: Coverage summary
         run: |
-          echo "## Code coverage (lcov)" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Code coverage reports" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "C/C++ lcov: \`coverage.info\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Python coverage XML: \`python-coverage.xml\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "JS lcov: \`js-lcov.info\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          echo "### C/C++ Code coverage (lcov)" >> "$GITHUB_STEP_SUMMARY"
           if [ -f coverage.info ]; then
-            echo "" >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
             lcov --summary coverage.info >> "$GITHUB_STEP_SUMMARY" || true
             echo '```' >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "coverage.info not found (coverage generation likely failed earlier)." >> "$GITHUB_STEP_SUMMARY"
           fi
 
@@ -238,7 +486,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -d "${{ github.workspace }}/coverage-report" ] && [ -f coverage.info ]; then
-            tar -czf coverage-report.tgz coverage-report coverage.info
+            tar -czf coverage-report.tgz coverage-report coverage.info python-coverage.xml js-lcov.info || true
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "Artifact: \`coverage-report.tgz\` (download from Actions → Artifacts, then extract and open \`coverage-report/index.html\`)." >> "$GITHUB_STEP_SUMMARY"
           else
@@ -250,7 +498,11 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: coverage-report-${{ matrix.config.name }}
-          path: coverage-report.tgz
+          path: |
+            coverage-report.tgz
+            coverage.info
+            python-coverage.xml
+            js-lcov.info
           if-no-files-found: warn
           retention-days: 30
           compression-level: 0
@@ -258,4 +510,7 @@ jobs:
       - name: Collect coverage
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
+          files: coverage.info,python-coverage.xml,js-lcov.info
+          flags: cpp-runtime,python-bindings,js-bindings
+          fail_ci_if_error: false
           verbose: true
