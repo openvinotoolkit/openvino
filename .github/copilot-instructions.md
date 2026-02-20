@@ -99,7 +99,8 @@ Before posting any comment, apply this gate:
 - Avoid unnecessary copying of large objects/tensors; prefer references or move semantics.
 - Avoid hidden behavior changes and silent fallback/config mutation without explicit handling.
 - Keep fixes minimal and root-cause oriented; avoid unrelated refactors.
-- Prefer clear naming and avoid duplicate logic.
+- Prefer clear naming.
+- Avoid duplicated logic; suggest usage of existing utilities for component, flag duplicated patterns, and suggest consolidation.
 - For constructor-heavy code, prefer proper initializer lists and explicit ownership semantics.
 
 ## Security Review Heuristics
@@ -139,8 +140,7 @@ Comment quality constraints:
 - Rank by severity and likely merge-blocking impact.
 - Skip low-value nits when BLOCKER/HIGH issues are present.
 - For `ExternalPR`, bias toward fewer, higher-confidence comments to avoid misleading contributors.
-
-Avoid low-value comments that conflict with auto-formatting or established project conventions.
+- Avoid low-value comments that conflict with auto-formatting or established project conventions.
 
 ## Output Requirements for Automated Reviews
 - Focus only on issues materially affecting quality gates.
