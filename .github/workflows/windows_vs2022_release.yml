@@ -25,6 +25,7 @@ concurrency:
 env:
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
   PIP_CACHE_PATH: "C:\\mount\\caches\\pip\\win"
+  PIP_INSTALL_COMMAND: "python3 c:/pip_diag.py install"
   PYTHON_VERSION: '3.11'
 
 permissions: read-all
