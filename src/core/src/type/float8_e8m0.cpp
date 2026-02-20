@@ -35,13 +35,11 @@ uint8_t f32_to_f8e8m0_bits(const float value) {
         return 0b00000000;
     } else if (input_exponent_bits >= 0b11111110) {
         return input_exponent_bits - static_cast<uint8_t>(std::isinf(value));
-    } else if (input_exponent_bits == 0b00000000) {
+    } else if (const auto input_mantissa_bits = input & f32_mantissa_bits_mask; input_exponent_bits == 0b00000000) {
         // subnormal values
-        const auto input_mantissa_bits = input & f32_mantissa_bits_mask;
         return (input_mantissa_bits <= subnormal_boundary_value) ? 0b00000000 : 0b00000001;
     } else {
         // normal values
-        const auto input_mantissa_bits = input & f32_mantissa_bits_mask;
         return input_exponent_bits +
                static_cast<uint8_t>((input_mantissa_bits > normal_boundary_value) ||    // round to nearest
                                     ((input_mantissa_bits == normal_boundary_value) &&  // round tie to even
