@@ -1067,7 +1067,7 @@ def test_patched_16bit_model_with_bmm():
         with torch.no_grad():
             converted_model = convert_model(model_fp16, example_input=example)
         assert converted_model
-        cm_fp16 = compile_model(converted_model, "CPU", default_cfg)
+        cm_fp16 = compile_model(converted_model, "CPU")
         res_fp16 = cm_fp16([x.numpy() for x in example])
         np.testing.assert_allclose(res_fp16[0], res_ref.numpy(), atol=1e-2)
 
@@ -1076,7 +1076,7 @@ def test_patched_16bit_model_with_bmm():
         with torch.no_grad():
             converted_model = convert_model(model_bf16, example_input=example)
         assert converted_model
-        cm_bf16 = compile_model(converted_model, "CPU", default_cfg)
+        cm_bf16 = compile_model(converted_model, "CPU")
         res_bf16 = cm_bf16([x.numpy() for x in example])
         np.testing.assert_allclose(res_bf16[0], res_ref.numpy(), atol=1e-2)
     finally:
