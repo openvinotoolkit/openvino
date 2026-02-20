@@ -80,8 +80,8 @@ jobs:
       - name: Cleanup HF cache
         uses: ./.github/actions/cache/cleanup
         with:
-          cache-size: 5000
-          max-cache-size: 8000
+          cache-size: 8000
+          max-cache-size: 10000
           cache-path: "C:\\mount\\caches\\huggingface"
           recursive: true
           key: '.'
