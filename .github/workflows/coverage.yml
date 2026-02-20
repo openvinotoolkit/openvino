@@ -29,6 +29,8 @@ jobs:
       PARALLEL_JOBS: '64'
       PYTEST_XDIST_WORKERS: '64'
       JS_TEST_CONCURRENCY: '64'
+      CXX_TEST_BINARY_PARALLELISM: '8'
+      GTEST_PARALLEL_WORKERS: '8'
       TEST_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.test_profile || 'cpu' }}
     strategy:
       fail-fast: false
@@ -176,57 +178,58 @@ jobs:
           BIN_DIR="${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}"
           MODEL_PATH="${{ github.workspace }}/src/core/tests/models/ir/add_abc.xml"
           GTEST_PARALLEL="${{ github.workspace }}/gtest_parallel.py"
-          FAILED_TESTS=()
-          SKIPPED_TESTS=()
+          FAILED_FILE="$(mktemp)"
+          SKIPPED_FILE="$(mktemp)"
+          EXECUTED_FILE="$(mktemp)"
 
-          run_binary() {
+          enqueue_task() {
             local test_name="$1"
             local binary_name="$2"
-            shift 2
+            local mode="$3"
+            local gtest_filter="${4:-}"
+            local extra_env="${5:-}"
 
             local exe_path="${BIN_DIR}/${binary_name}"
             if [[ ! -x "${exe_path}" ]]; then
-              SKIPPED_TESTS+=("${test_name} (missing binary: ${binary_name})")
+              echo "${test_name} (missing binary: ${binary_name})" >> "${SKIPPED_FILE}"
               return 0
             fi
 
-            echo "========== Running ${test_name} =========="
-            "${exe_path}" "$@"
-            local rc=$?
-            if [[ ${rc} -ne 0 ]]; then
-              FAILED_TESTS+=("${test_name} (exit ${rc})")
-            fi
-          }
+            while [[ "$(jobs -pr | wc -l)" -ge "${CXX_TEST_BINARY_PARALLELISM}" ]]; do
+              wait -n
+            done
 
-          run_gtest_parallel() {
-            local test_name="$1"
-            local binary_name="$2"
-            local gtest_filter="$3"
-
-            local exe_path="${BIN_DIR}/${binary_name}"
-            if [[ ! -x "${exe_path}" ]]; then
-              SKIPPED_TESTS+=("${test_name} (missing binary: ${binary_name})")
-              return 0
-            fi
-
-            echo "========== Running ${test_name} with gtest-parallel =========="
-            python3 "${GTEST_PARALLEL}" "${exe_path}" --workers="${{ env.PARALLEL_JOBS }}" -- --gtest_filter="${gtest_filter}"
-            local rc=$?
-            if [[ ${rc} -ne 0 ]]; then
-              FAILED_TESTS+=("${test_name} (exit ${rc})")
-            fi
+            (
+              echo "${test_name}" >> "${EXECUTED_FILE}"
+              echo "========== Running ${test_name} =========="
+              if [[ "${mode}" == "gtest_parallel" ]]; then
+                if [[ -n "${gtest_filter}" ]]; then
+                  eval "${extra_env}" python3 "${GTEST_PARALLEL}" "${exe_path}" \
+                    --workers="${GTEST_PARALLEL_WORKERS}" -- --gtest_filter="${gtest_filter}"
+                else
+                  eval "${extra_env}" python3 "${GTEST_PARALLEL}" "${exe_path}" \
+                    --workers="${GTEST_PARALLEL_WORKERS}"
+                fi
+              else
+                eval "${extra_env}" "${exe_path}" "${gtest_filter}"
+              fi
+              rc=$?
+              if [[ ${rc} -ne 0 ]]; then
+                echo "${test_name} (exit ${rc})" >> "${FAILED_FILE}"
+              fi
+            ) &
           }
 
           # Unsupported in this workflow:
           # - ov_nvidia_func_tests requires openvino_contrib NVIDIA plugin build and NVIDIA runner.
           if [[ "${TEST_PROFILE}" != "cpu_npu" && "${TEST_PROFILE}" != "cpu_npu_gpu" ]]; then
-            SKIPPED_TESTS+=("ov_npu_func_tests (NPU profile is OFF)")
-            SKIPPED_TESTS+=("ov_npu_unit_tests (NPU profile is OFF)")
+            echo "ov_npu_func_tests (NPU profile is OFF)" >> "${SKIPPED_FILE}"
+            echo "ov_npu_unit_tests (NPU profile is OFF)" >> "${SKIPPED_FILE}"
           fi
-          SKIPPED_TESTS+=("ov_nvidia_func_tests (unsupported in coverage workflow)")
+          echo "ov_nvidia_func_tests (unsupported in coverage workflow)" >> "${SKIPPED_FILE}"
           if [[ "${TEST_PROFILE}" != "cpu_gpu" && "${TEST_PROFILE}" != "cpu_npu_gpu" ]]; then
-            SKIPPED_TESTS+=("ov_gpu_unit_tests (GPU switch is OFF, CPU-only mode)")
-            SKIPPED_TESTS+=("ov_gpu_func_tests (GPU switch is OFF, CPU-only mode)")
+            echo "ov_gpu_unit_tests (GPU switch is OFF, CPU-only mode)" >> "${SKIPPED_FILE}"
+            echo "ov_gpu_func_tests (GPU switch is OFF, CPU-only mode)" >> "${SKIPPED_FILE}"
           fi
 
           if [[ "${TEST_PROFILE}" == "cpu_gpu" || "${TEST_PROFILE}" == "cpu_npu_gpu" ]]; then
@@ -243,66 +246,88 @@ jobs:
           echo "TEST_PROFILE=${TEST_PROFILE}"
           echo "RUN_GPU_TESTS=${RUN_GPU_TESTS}"
           echo "RUN_NPU_TESTS=${RUN_NPU_TESTS}"
+          echo "CXX_TEST_BINARY_PARALLELISM=${CXX_TEST_BINARY_PARALLELISM}"
+          echo "GTEST_PARALLEL_WORKERS=${GTEST_PARALLEL_WORKERS}"
 
-          run_binary "ov_api_conformance_tests" "ov_api_conformance_tests" "--gtest_filter=*mandatory*"
-          run_binary "ov_auto_batch_func_tests" "ov_auto_batch_func_tests" "--gtest_filter=*smoke*"
-          run_binary "ov_auto_batch_unit_tests" "ov_auto_batch_unit_tests"
-          run_binary "ov_auto_func_tests" "ov_auto_func_tests" "--gtest_filter=*smoke*"
-          run_binary "ov_auto_unit_tests" "ov_auto_unit_tests"
-          run_binary "ov_capi_test" "ov_capi_test"
-          run_binary "ov_conditional_compilation_tests" "ov_conditional_compilation_tests"
+          enqueue_task "ov_api_conformance_tests" "ov_api_conformance_tests" "gtest_parallel" "*mandatory*"
+          enqueue_task "ov_auto_batch_func_tests" "ov_auto_batch_func_tests" "gtest_parallel" "*smoke*"
+          enqueue_task "ov_auto_batch_unit_tests" "ov_auto_batch_unit_tests" "gtest_parallel"
+          enqueue_task "ov_auto_func_tests" "ov_auto_func_tests" "gtest_parallel" "*smoke*"
+          enqueue_task "ov_auto_unit_tests" "ov_auto_unit_tests" "gtest_parallel"
+          enqueue_task "ov_capi_test" "ov_capi_test" "gtest_parallel"
+          enqueue_task "ov_conditional_compilation_tests" "ov_conditional_compilation_tests" "gtest_parallel"
           if [[ "${RUN_GPU_TESTS}" == "true" ]]; then
-            run_binary "ov_core_unit_tests" "ov_core_unit_tests"
+            enqueue_task "ov_core_unit_tests" "ov_core_unit_tests" "gtest_parallel"
           else
-            run_binary "ov_core_unit_tests" "ov_core_unit_tests" "--gtest_filter=-*IE_GPU*"
+            enqueue_task "ov_core_unit_tests" "ov_core_unit_tests" "gtest_parallel" "-*IE_GPU*"
           fi
-          run_gtest_parallel "ov_cpu_func_tests" "ov_cpu_func_tests" "*smoke*"
-          run_binary "ov_cpu_unit_tests" "ov_cpu_unit_tests"
-          run_binary "ov_cpu_unit_tests_vectorized" "ov_cpu_unit_tests_vectorized"
-          run_binary "ov_hetero_func_tests" "ov_hetero_func_tests" "--gtest_filter=*smoke*:-nightly*"
-          run_binary "ov_hetero_unit_tests" "ov_hetero_unit_tests"
-          run_binary "ov_inference_functional_tests" "ov_inference_functional_tests"
-          run_binary "ov_inference_unit_tests" "ov_inference_unit_tests"
-          run_binary "ov_ir_frontend_tests" "ov_ir_frontend_tests"
-          run_binary "ov_lp_transformations_tests" "ov_lp_transformations_tests"
+          enqueue_task "ov_cpu_func_tests" "ov_cpu_func_tests" "gtest_parallel" "*smoke*"
+          enqueue_task "ov_cpu_unit_tests" "ov_cpu_unit_tests" "gtest_parallel"
+          enqueue_task "ov_cpu_unit_tests_vectorized" "ov_cpu_unit_tests_vectorized" "gtest_parallel"
+          enqueue_task "ov_hetero_func_tests" "ov_hetero_func_tests" "gtest_parallel" "*smoke*:-nightly*"
+          enqueue_task "ov_hetero_unit_tests" "ov_hetero_unit_tests" "gtest_parallel"
+          enqueue_task "ov_inference_functional_tests" "ov_inference_functional_tests" "gtest_parallel"
+          enqueue_task "ov_inference_unit_tests" "ov_inference_unit_tests" "gtest_parallel"
+          enqueue_task "ov_ir_frontend_tests" "ov_ir_frontend_tests" "gtest_parallel"
+          enqueue_task "ov_lp_transformations_tests" "ov_lp_transformations_tests" "gtest_parallel"
           if [[ "${RUN_GPU_TESTS}" == "true" ]]; then
-            run_gtest_parallel "ov_onnx_frontend_tests" "ov_onnx_frontend_tests" "*"
+            enqueue_task "ov_onnx_frontend_tests" "ov_onnx_frontend_tests" "gtest_parallel"
           else
-            run_gtest_parallel "ov_onnx_frontend_tests" "ov_onnx_frontend_tests" "-*IE_GPU*"
+            enqueue_task "ov_onnx_frontend_tests" "ov_onnx_frontend_tests" "gtest_parallel" "-*IE_GPU*"
           fi
           if [[ -x "${BIN_DIR}/ov_onnx_frontend_tests" ]]; then
             if [[ "${RUN_GPU_TESTS}" == "true" ]]; then
-              ONNX_ITERATOR=0 "${BIN_DIR}/ov_onnx_frontend_tests"
+              enqueue_task "ov_onnx_frontend_tests (ONNX_ITERATOR=0)" "ov_onnx_frontend_tests" "gtest_parallel" "" "ONNX_ITERATOR=0"
             else
-              ONNX_ITERATOR=0 "${BIN_DIR}/ov_onnx_frontend_tests" "--gtest_filter=-*IE_GPU*"
+              enqueue_task "ov_onnx_frontend_tests (ONNX_ITERATOR=0)" "ov_onnx_frontend_tests" "gtest_parallel" "-*IE_GPU*" "ONNX_ITERATOR=0"
             fi
-            [[ $? -ne 0 ]] && FAILED_TESTS+=("ov_onnx_frontend_tests (ONNX_ITERATOR=0)")
           fi
-          run_binary "ov_op_conformance_tests" "ov_op_conformance_tests" "--device=TEMPLATE" "--gtest_filter=*OpImpl*"
-          run_binary "ov_proxy_plugin_tests" "ov_proxy_plugin_tests"
-          run_binary "ov_snippets_func_tests" "ov_snippets_func_tests"
-          run_binary "ov_subgraphs_dumper_tests" "ov_subgraphs_dumper_tests"
-          run_binary "ov_template_func_tests" "ov_template_func_tests" "--gtest_filter=*smoke*"
-          run_binary "ov_tensorflow_common_tests" "ov_tensorflow_common_tests"
+          enqueue_task "ov_op_conformance_tests" "ov_op_conformance_tests" "raw" "\"--device=TEMPLATE\" \"--gtest_filter=*OpImpl*\""
+          enqueue_task "ov_proxy_plugin_tests" "ov_proxy_plugin_tests" "gtest_parallel"
+          enqueue_task "ov_snippets_func_tests" "ov_snippets_func_tests" "gtest_parallel"
+          enqueue_task "ov_subgraphs_dumper_tests" "ov_subgraphs_dumper_tests" "gtest_parallel"
+          enqueue_task "ov_template_func_tests" "ov_template_func_tests" "gtest_parallel" "*smoke*"
+          enqueue_task "ov_tensorflow_common_tests" "ov_tensorflow_common_tests" "gtest_parallel"
           if [[ "${RUN_GPU_TESTS}" == "true" ]]; then
-            run_gtest_parallel "ov_tensorflow_frontend_tests" "ov_tensorflow_frontend_tests" "*"
+            enqueue_task "ov_tensorflow_frontend_tests" "ov_tensorflow_frontend_tests" "gtest_parallel"
           else
-            run_gtest_parallel "ov_tensorflow_frontend_tests" "ov_tensorflow_frontend_tests" "-*IE_GPU*"
+            enqueue_task "ov_tensorflow_frontend_tests" "ov_tensorflow_frontend_tests" "gtest_parallel" "-*IE_GPU*"
           fi
-          run_binary "ov_tensorflow_lite_frontend_tests" "ov_tensorflow_lite_frontend_tests"
-          run_binary "ov_transformations_tests" "ov_transformations_tests"
-          run_binary "ov_util_tests" "ov_util_tests"
-          run_binary "paddle_tests" "paddle_tests"
+          enqueue_task "ov_tensorflow_lite_frontend_tests" "ov_tensorflow_lite_frontend_tests" "gtest_parallel"
+          enqueue_task "ov_transformations_tests" "ov_transformations_tests" "gtest_parallel"
+          enqueue_task "ov_util_tests" "ov_util_tests" "gtest_parallel"
+          enqueue_task "paddle_tests" "paddle_tests" "gtest_parallel"
           if [[ "${RUN_NPU_TESTS}" == "true" ]]; then
-            run_binary "ov_npu_unit_tests" "ov_npu_unit_tests"
-            run_binary "ov_npu_func_tests" "ov_npu_func_tests" "--gtest_filter=*smoke*"
+            enqueue_task "ov_npu_unit_tests" "ov_npu_unit_tests" "gtest_parallel"
+            enqueue_task "ov_npu_func_tests" "ov_npu_func_tests" "gtest_parallel" "*smoke*"
           fi
           if [[ "${RUN_GPU_TESTS}" == "true" ]]; then
-            run_binary "ov_gpu_unit_tests" "ov_gpu_unit_tests"
-            run_binary "ov_gpu_func_tests" "ov_gpu_func_tests" "--gtest_filter=*smoke*"
+            enqueue_task "ov_gpu_unit_tests" "ov_gpu_unit_tests" "gtest_parallel"
+            enqueue_task "ov_gpu_func_tests" "ov_gpu_func_tests" "gtest_parallel" "*smoke*"
           fi
-          run_binary "test_inference_async" "test_inference_async" "${MODEL_PATH}" "CPU"
-          run_binary "test_inference_sync" "test_inference_sync" "${MODEL_PATH}" "CPU"
+          enqueue_task "test_inference_async" "test_inference_async" "raw" "\"${MODEL_PATH}\" \"CPU\""
+          enqueue_task "test_inference_sync" "test_inference_sync" "raw" "\"${MODEL_PATH}\" \"CPU\""
+
+          wait
+
+          mapfile -t FAILED_TESTS < "${FAILED_FILE}"
+          mapfile -t SKIPPED_TESTS < "${SKIPPED_FILE}"
+          mapfile -t EXECUTED_TESTS < "${EXECUTED_FILE}"
+          rm -f "${FAILED_FILE}" "${SKIPPED_FILE}" "${EXECUTED_FILE}"
+
+          CXX_TOTAL_EXECUTED=${#EXECUTED_TESTS[@]}
+          CXX_FAILED=${#FAILED_TESTS[@]}
+          CXX_SKIPPED=${#SKIPPED_TESTS[@]}
+          CXX_PASSED=$((CXX_TOTAL_EXECUTED - CXX_FAILED))
+          CXX_TOTAL_PLANNED=$((CXX_TOTAL_EXECUTED + CXX_SKIPPED))
+
+          {
+            echo "CXX_TESTS_TOTAL=${CXX_TOTAL_PLANNED}"
+            echo "CXX_TESTS_EXECUTED=${CXX_TOTAL_EXECUTED}"
+            echo "CXX_TESTS_PASSED=${CXX_PASSED}"
+            echo "CXX_TESTS_FAILED=${CXX_FAILED}"
+            echo "CXX_TESTS_SKIPPED=${CXX_SKIPPED}"
+          } >> "$GITHUB_ENV"
 
           {
             echo "## C++ coverage test execution summary"
@@ -312,6 +337,12 @@ jobs:
             echo "GPU mode: ${RUN_GPU_TESTS}"
             echo ""
             echo "NPU mode: ${RUN_NPU_TESTS}"
+            echo ""
+            echo "C++ tests planned: ${CXX_TOTAL_PLANNED}"
+            echo "C++ tests executed: ${CXX_TOTAL_EXECUTED}"
+            echo "C++ tests passed: ${CXX_PASSED}"
+            echo "C++ tests failed: ${CXX_FAILED}"
+            echo "C++ tests skipped: ${CXX_SKIPPED}"
             echo ""
             if [[ ${#FAILED_TESTS[@]} -gt 0 ]]; then
               echo "Failed tests:"
@@ -341,6 +372,8 @@ jobs:
           set +e
 
           TESTS_DIR="${{ github.workspace }}/install_pkg/tests"
+          PY_COV_CONFIG="${{ github.workspace }}/.python_coverage_ci.rc"
+          PY_TOTAL_EXECUTED=0
           FAILED_PY_TESTS=()
 
           python3 -m pip install -r "${TESTS_DIR}/bindings/python/requirements_test.txt"
@@ -350,11 +383,26 @@ jobs:
           export LD_LIBRARY_PATH="${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}:${LD_LIBRARY_PATH}"
           export PYTHONPATH="${TESTS_DIR}/python:${PYTHONPATH}"
 
+          cat > "${PY_COV_CONFIG}" << 'PYCOV'
+          [run]
+          omit =
+              */tests/*
+              */thirdparty/*
+              */docs/*
+              */samples/*
+              */tools/*
+              */src/bindings/js/node/tests/*
+              */src/bindings/python/tests/*
+              *.pb.cc
+              *.pb.h
+          PYCOV
+
           coverage erase
 
           run_pytest() {
             local test_name="$1"
             shift
+            PY_TOTAL_EXECUTED=$((PY_TOTAL_EXECUTED + 1))
             echo "========== Running Python test: ${test_name} =========="
             python3 -m pytest "$@"
             local rc=$?
@@ -363,17 +411,31 @@ jobs:
             fi
           }
 
-          run_pytest "pyopenvino" -sv "${TESTS_DIR}/pyopenvino" -n "${{ env.PYTEST_XDIST_WORKERS }}" --cov=openvino --cov-append --ignore="${TESTS_DIR}/pyopenvino/tests/test_utils/test_utils.py"
-          run_pytest "onnx_python" -sv "${TESTS_DIR}/onnx" -n "${{ env.PYTEST_XDIST_WORKERS }}" -k "not cuda" --cov=openvino --cov-append --ignore="${TESTS_DIR}/onnx/test_python/test_zoo_models.py"
-          run_pytest "ovc_unit" -sv "${TESTS_DIR}/ovc/unit_tests" -n "${{ env.PYTEST_XDIST_WORKERS }}" --cov=openvino --cov-append
-          run_pytest "py_frontend" -sv "${TESTS_DIR}/layer_tests/py_frontend_tests" -n "${{ env.PYTEST_XDIST_WORKERS }}" --cov=openvino --cov-append
-          TEST_DEVICE=CPU TEST_PRECISION=FP16 run_pytest "tensorflow_lite_layers" -sv "${TESTS_DIR}/layer_tests/tensorflow_lite_tests" -n "${{ env.PYTEST_XDIST_WORKERS }}" --cov=openvino --cov-append
+          run_pytest "pyopenvino" -sv "${TESTS_DIR}/pyopenvino" -n "${{ env.PYTEST_XDIST_WORKERS }}" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append --ignore="${TESTS_DIR}/pyopenvino/tests/test_utils/test_utils.py"
+          run_pytest "onnx_python" -sv "${TESTS_DIR}/onnx" -n "${{ env.PYTEST_XDIST_WORKERS }}" -k "not cuda" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append --ignore="${TESTS_DIR}/onnx/test_python/test_zoo_models.py"
+          run_pytest "ovc_unit" -sv "${TESTS_DIR}/ovc/unit_tests" -n "${{ env.PYTEST_XDIST_WORKERS }}" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
+          run_pytest "py_frontend" -sv "${TESTS_DIR}/layer_tests/py_frontend_tests" -n "${{ env.PYTEST_XDIST_WORKERS }}" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
+          TEST_DEVICE=CPU TEST_PRECISION=FP16 run_pytest "tensorflow_lite_layers" -sv "${TESTS_DIR}/layer_tests/tensorflow_lite_tests" -n "${{ env.PYTEST_XDIST_WORKERS }}" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
 
           coverage xml -o "${{ github.workspace }}/python-coverage.xml"
+
+          PY_FAILED=${#FAILED_PY_TESTS[@]}
+          PY_PASSED=$((PY_TOTAL_EXECUTED - PY_FAILED))
+          {
+            echo "PY_TESTS_TOTAL=${PY_TOTAL_EXECUTED}"
+            echo "PY_TESTS_PASSED=${PY_PASSED}"
+            echo "PY_TESTS_FAILED=${PY_FAILED}"
+            echo "PY_TESTS_SKIPPED=0"
+          } >> "$GITHUB_ENV"
 
           {
             echo ""
             echo "## Python coverage test execution summary"
+            echo "Python tests executed: ${PY_TOTAL_EXECUTED}"
+            echo "Python tests passed: ${PY_PASSED}"
+            echo "Python tests failed: ${PY_FAILED}"
+            echo "Python tests skipped: 0"
+            echo ""
             if [[ ${#FAILED_PY_TESTS[@]} -gt 0 ]]; then
               echo "Failed tests:"
               for item in "${FAILED_PY_TESTS[@]}"; do
@@ -393,16 +455,21 @@ jobs:
           set +e
 
           JS_DIR="${{ github.workspace }}/src/bindings/js/node"
+          JS_TOTAL_EXECUTED=0
           FAILED_JS_TESTS=()
 
           cd "${JS_DIR}"
           npm i
           npm i --no-save c8
 
+          JS_TOTAL_EXECUTED=$((JS_TOTAL_EXECUTED + 1))
           npm run lint
           [[ $? -ne 0 ]] && FAILED_JS_TESTS+=("npm run lint")
 
+          JS_TOTAL_EXECUTED=$((JS_TOTAL_EXECUTED + 1))
           npx c8 --reporter=lcov --reporter=text --report-dir "${{ github.workspace }}/js-coverage" \
+            --exclude "tests/**" \
+            --exclude "thirdparty/**" \
             node --test --test-concurrency="${{ env.JS_TEST_CONCURRENCY }}" ./tests/unit/*.test.js
           [[ $? -ne 0 ]] && FAILED_JS_TESTS+=("node unit tests")
 
@@ -410,14 +477,29 @@ jobs:
             cp "${{ github.workspace }}/js-coverage/lcov.info" "${{ github.workspace }}/js-lcov.info"
           fi
 
+          JS_TOTAL_EXECUTED=$((JS_TOTAL_EXECUTED + 1))
           Xvfb :99 &
           export DISPLAY=:99
           npm run test:e2e --loglevel=silly
           [[ $? -ne 0 ]] && FAILED_JS_TESTS+=("npm run test:e2e")
 
+          JS_FAILED=${#FAILED_JS_TESTS[@]}
+          JS_PASSED=$((JS_TOTAL_EXECUTED - JS_FAILED))
+          {
+            echo "JS_TESTS_TOTAL=${JS_TOTAL_EXECUTED}"
+            echo "JS_TESTS_PASSED=${JS_PASSED}"
+            echo "JS_TESTS_FAILED=${JS_FAILED}"
+            echo "JS_TESTS_SKIPPED=0"
+          } >> "$GITHUB_ENV"
+
           {
             echo ""
             echo "## JS coverage test execution summary"
+            echo "JS tests executed: ${JS_TOTAL_EXECUTED}"
+            echo "JS tests passed: ${JS_PASSED}"
+            echo "JS tests failed: ${JS_FAILED}"
+            echo "JS tests skipped: 0"
+            echo ""
             if [[ ${#FAILED_JS_TESTS[@]} -gt 0 ]]; then
               echo "Failed tests:"
               for item in "${FAILED_JS_TESTS[@]}"; do
@@ -455,6 +537,11 @@ jobs:
                "${SRC_DIR}/*.pb.h" \
                "${SRC_DIR}/*/tests/*" \
                "${SRC_DIR}/tests/*" \
+               "${SRC_DIR}/docs/*" \
+               "${SRC_DIR}/samples/*" \
+               "${SRC_DIR}/tools/*" \
+               "${SRC_DIR}/src/bindings/js/node/tests/*" \
+               "${SRC_DIR}/src/bindings/python/tests/*" \
                "${SRC_DIR}/thirdparty/*" \
                -o coverage.info
 
@@ -467,6 +554,21 @@ jobs:
       - name: Coverage summary
         run: |
           echo "## Code coverage reports" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          OVERALL_TOTAL=$(( ${CXX_TESTS_TOTAL:-0} + ${PY_TESTS_TOTAL:-0} + ${JS_TESTS_TOTAL:-0} ))
+          OVERALL_PASSED=$(( ${CXX_TESTS_PASSED:-0} + ${PY_TESTS_PASSED:-0} + ${JS_TESTS_PASSED:-0} ))
+          OVERALL_FAILED=$(( ${CXX_TESTS_FAILED:-0} + ${PY_TESTS_FAILED:-0} + ${JS_TESTS_FAILED:-0} ))
+          OVERALL_SKIPPED=$(( ${CXX_TESTS_SKIPPED:-0} + ${PY_TESTS_SKIPPED:-0} + ${JS_TESTS_SKIPPED:-0} ))
+          echo "### Test Results (all suites)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Total planned/executed units: ${OVERALL_TOTAL}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Passed: ${OVERALL_PASSED}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Failed: ${OVERALL_FAILED}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Skipped: ${OVERALL_SKIPPED}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Per-suite:" >> "$GITHUB_STEP_SUMMARY"
+          echo "- C++: total=${CXX_TESTS_TOTAL:-0}, passed=${CXX_TESTS_PASSED:-0}, failed=${CXX_TESTS_FAILED:-0}, skipped=${CXX_TESTS_SKIPPED:-0}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Python: total=${PY_TESTS_TOTAL:-0}, passed=${PY_TESTS_PASSED:-0}, failed=${PY_TESTS_FAILED:-0}, skipped=${PY_TESTS_SKIPPED:-0}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- JS: total=${JS_TESTS_TOTAL:-0}, passed=${JS_TESTS_PASSED:-0}, failed=${JS_TESTS_FAILED:-0}, skipped=${JS_TESTS_SKIPPED:-0}" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "C/C++ lcov: \`coverage.info\`" >> "$GITHUB_STEP_SUMMARY"
           echo "Python coverage XML: \`python-coverage.xml\`" >> "$GITHUB_STEP_SUMMARY"
@@ -511,6 +613,7 @@ jobs:
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: coverage.info,python-coverage.xml,js-lcov.info
+          disable_search: true
           flags: cpp-runtime,python-bindings,js-bindings
           fail_ci_if_error: false
           verbose: true
