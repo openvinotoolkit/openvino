@@ -65,3 +65,10 @@ runs:
         $pipVersion = python3 -c "import pip; print(pip.__version__)"
         Write-Host "Using pip version: $pipVersion"
         "PIP_CACHE_DIR=${{ inputs.pip-cache-path }}/$pipVersion" >> $env:GITHUB_ENV
+
+    # See PR #34185 for details, this is just for debug purposes and will be reverted
+    - if: ${{ runner.os == 'Windows' }}
+      name: Set PIP_INSTALL_COMMAND variable for Windows
+      shell: pwsh
+      run: |
+        "PIP_INSTALL_COMMAND='python3 c:/pip_diag.py install'" >> $env:GITHUB_ENV
