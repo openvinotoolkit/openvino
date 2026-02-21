@@ -8,6 +8,9 @@
 
 #include "common_test_utils/test_constants.hpp"
 
+#include "openvino/op/avg_pool.hpp"
+
+
 namespace {
 using ov::test::AvgPoolingV16LayerTest;
 using ov::test::avgPoolV16LayerTestParams;
@@ -311,6 +314,43 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(ov::test::static_shapes_to_test_representation(input_shapes_5d_static)),
                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     PoolingLayerTest::getTestCaseName);
+
+const auto avgPool_DynamicShape_CompileOnly_Params =
+    ::testing::Combine(
+        ::testing::Values(PoolingTypes::AVG),
+        ::testing::Values(ov::Shape{100}),      
+        ::testing::Values(ov::Strides{1}),
+        ::testing::Values(ov::Shape{0}),        
+        ::testing::Values(ov::Shape{0}),        
+        ::testing::Values(ov::op::RoundingType::FLOOR),
+        ::testing::Values(ov::op::PadType::EXPLICIT),
+        ::testing::Values(false)
+    );
+
+
+const std::vector<ov::test::InputShape> avgpool_dynamic_input_shapes = {
+    {
+        ov::PartialShape{ov::Dimension::dynamic(), 128, ov::Dimension::dynamic()},
+        {
+            ov::Shape{1, 128, 128},
+            ov::Shape{1, 128, 148}
+        }
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_AvgPool_DynamicShapeCompilationDoesNotFail,
+    PoolingLayerTest,
+    ::testing::Combine(
+        avgPool_DynamicShape_CompileOnly_Params,
+        ::testing::Values(ov::element::f32),
+        ::testing::Values(avgpool_dynamic_input_shapes),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
+    ),
+    PoolingLayerTest::getTestCaseName
+);
+
+
 
 ////* ========== Max Pooling V8 ========== */
 
@@ -634,4 +674,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     AvgPoolingV16LayerTest::getTestCaseName);
 
-}  // namespace
+} 
+
+ // namespace

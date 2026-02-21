@@ -146,15 +146,17 @@ void valid_dilated_kernel_with_dim(const TOp* op, const size_t kernel, const TDi
                           axis,
                           ".");
 
-    NODE_VALIDATION_CHECK(op,
-                          cmp::le(kernel, dim.get_length()),
-                          "Kernel after dilation has size (dim: ",
-                          kernel,
-                          ") larger than the data shape after padding (dim: ",
-                          dim,
-                          ") at axis ",
-                          axis,
-                          ".");
+    /*if (dim.is_static()) {
+        NODE_VALIDATION_CHECK(op,
+                              cmp::le(kernel, dim.get_length()),
+                              "Kernel after dilation has size (dim: ",
+                              kernel,
+                              ") larger than the data shape after padding (dim: ",
+                              dim,
+                              ") at axis ",
+                              axis,
+                              ".");
+    }*/
 }
 
 template <class TOp>
