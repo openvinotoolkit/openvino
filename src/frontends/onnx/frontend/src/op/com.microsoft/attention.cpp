@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "utils/attention.hpp"
+
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "openvino/frontend/exception.hpp"
@@ -119,15 +121,7 @@ ONNX_OP("Attention", OPSET_SINCE(1), com_microsoft::opset_1::attention, MICROSOF
 namespace detail {
 namespace {
 
-std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<v3::ShapeOf>& shape, const std::vector<int>& dims) {
-    static const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
-    const auto dims_const = v0::Constant::create(ov::element::i32, ov::Shape{dims.size()}, dims);
-    return std::make_shared<v8::Gather>(shape, dims_const, zero);
-}
-
-std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::Node>& node, const std::vector<int>& dims) {
-    return get_dimensions(std::make_shared<v3::ShapeOf>(node), dims);
-}
+using ov::frontend::onnx::attention::get_dimensions;
 
 std::shared_ptr<ov::Node> get_hidden_size(const std::shared_ptr<v3::ShapeOf>& node_shape) {
     // node has shape (batch_size, sequence_length, 3 * hidden_size)
