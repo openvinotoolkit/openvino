@@ -166,6 +166,7 @@ struct createOptimalConfigDefault {
     LayoutConfig layoutConfig;
 };
 
+// @todo remove
 [[maybe_unused]] static std::optional<executor::Config<EltwiseAttrs>> createOptimalConfigEltwise(
     const executor::Config<EltwiseAttrs>& config,
     const TypeMapping& typeMapping,
@@ -304,10 +305,10 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
                 return true;
             },
             [](const EltwiseConfig& config) -> std::optional<EltwiseConfig> {
-                return createOptimalConfigEltwise(config,
-                                                  eltwiseTypeMapping,
-                                                  {LayoutType::nCsp16c, LayoutType::nCsp16c},
-                                                  eltwiseMappingNotation);
+                return createOptimalConfigCommon(config,
+                                                 eltwiseTypeMapping,
+                                                 {LayoutType::nCsp16c, LayoutType::nCsp16c},
+                                                 eltwiseMappingNotation);
             },
             AcceptsAnyShape<EltwiseAttrs>,
             CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
@@ -323,10 +324,10 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
                 return true;
             },
             [](const EltwiseConfig& config) -> std::optional<EltwiseConfig> {
-                return createOptimalConfigEltwise(config,
-                                                  eltwiseTypeMapping,
-                                                  {LayoutType::nCsp8c, LayoutType::nCsp8c},
-                                                  eltwiseMappingNotation);
+                return createOptimalConfigCommon(config,
+                                                 eltwiseTypeMapping,
+                                                 {LayoutType::nCsp8c, LayoutType::nCsp8c},
+                                                 eltwiseMappingNotation);
             },
             AcceptsAnyShape<EltwiseAttrs>,
             CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
@@ -343,10 +344,10 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             },
             // createOptimalConfig
             [](const EltwiseConfig& config) -> std::optional<EltwiseConfig> {
-                return createOptimalConfigEltwise(config,
-                                                  aclEltwiseTypeMapping,
-                                                  LayoutConfig{LayoutType::ncsp, LayoutType::ncsp},
-                                                  eltwiseMappingNotation);
+                return createOptimalConfigCommon(config,
+                                                 aclEltwiseTypeMapping,
+                                                 LayoutConfig{LayoutType::ncsp, LayoutType::ncsp},
+                                                 eltwiseMappingNotation);
             },
             AcceptsAnyShape<EltwiseAttrs>,
             CreateDefault<AclEltwiseExecutor, EltwiseAttrs>{}
@@ -364,10 +365,10 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             },
             // createOptimalConfig
             [](const EltwiseConfig& config) -> std::optional<EltwiseConfig> {
-                return createOptimalConfigEltwise(config,
-                                                  aclEltwiseTypeMapping,
-                                                  LayoutConfig{LayoutType::nspc, LayoutType::nspc},
-                                                  eltwiseMappingNotation);
+                return createOptimalConfigCommon(config,
+                                                 aclEltwiseTypeMapping,
+                                                 LayoutConfig{LayoutType::nspc, LayoutType::nspc},
+                                                 eltwiseMappingNotation);
             },
             AcceptsAnyShape<EltwiseAttrs>,
             CreateDefault<AclEltwiseExecutor, EltwiseAttrs>{}

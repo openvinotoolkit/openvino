@@ -210,6 +210,12 @@ std::optional<executor::Config<Attrs>> createOptimalConfigCommon(const executor:
                 return true;  // rank 1 tensors are always ncsp
             }
 
+            const bool blocked1C = any_of(layoutConfig[i], LayoutType::nCsp16c, LayoutType::nCsp8c) &&
+                                   desc->getShape().getMinDims()[1] == 1;
+            if (blocked1C) {
+                return true;
+            }
+
             return desc->hasLayoutType(layoutConfig[i]);
         });
     };
@@ -238,7 +244,17 @@ std::optional<executor::Config<Attrs>> createOptimalConfigCommon(const executor:
                 continue;  // already optimal
             }
 
-            if (desc->getShape().getRank() < 2) {  // rank 1 tensors are always ncsp
+            auto alwaysNCSP = [](const MemoryDescPtr& desc, LayoutType layout) {
+                if (desc->getShape().getRank() < 2) {
+                    return true;
+                }
+
+                const size_t channelSize = desc->getShape().getMinDims()[1];
+                const bool blocked1C = any_of(layout, LayoutType::nCsp16c, LayoutType::nCsp8c) && channelSize <= 1;
+                return blocked1C;
+            };
+
+            if (alwaysNCSP(desc, layout)) {
                 descs[argId] = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(type, desc->getShape());
                 continue;
             }
