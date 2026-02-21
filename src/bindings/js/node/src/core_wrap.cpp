@@ -364,7 +364,7 @@ void importModelThread(ImportModelContext* context, std::mutex& mutex) {
         context->_compiled_model =
             std::visit(ov::util::VariantVisitor{
                            [](std::monostate&) -> ov::CompiledModel {
-                                OPENVINO_THROW("ImportModelContext source not initialized");
+                               OPENVINO_THROW("ImportModelContext source not initialized");
                            },
                            [&](auto& src) -> ov::CompiledModel {
                                return src.import(context->_core, context->_device, context->_config);
