@@ -1960,6 +1960,7 @@ void program::load(cldnn::BinaryInputBuffer& ib,
                    std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map) {
     init_program();
 
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "program::load");
     std::shared_ptr<WeightsMemory> weights_memory = nullptr;
     std::string weights_path = _config.get_weights_path();
     if (_config.get_enable_weightless()) {
@@ -1988,7 +1989,7 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         std::shared_ptr<cldnn::primitive> prim;
         ib >> prim;
         if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
-            data_prim->load_weights(ib, weights_memory);
+            data_prim->load_weights(ib, weights_memory, weights_path);
         }
         get_or_create(prim);
     }

@@ -253,6 +253,17 @@ std::filesystem::path get_plugin_path(const std::filesystem::path& plugin,
 std::vector<uint8_t> load_binary(const std::filesystem::path& path);
 
 /**
+ * @brief Reads data from file into buffer with optimized method (Parallel IO)
+ * @param path File path
+ * @param buffer Destination buffer
+ * @param size Number of bytes to read
+ * @param offset Offset in file
+ * @return true if read successful
+ */
+bool read_binary_file_parallel(const std::filesystem::path& path, void* buffer, size_t size, size_t offset);
+
+
+/**
  * @brief save binary data to file
  * @param path - binary file path to store
  */

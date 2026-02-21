@@ -52,8 +52,10 @@ public:
     virtual void read(void* const data, std::streamsize size) {
         auto const read_size = _stream.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
         OPENVINO_ASSERT(read_size == size,
-            "[GPU] Failed to read " + std::to_string(size) + " bytes from stream! Read " + std::to_string(read_size));
+            "[GPU] Failed to read " + std::to_string(size) + " bytes to stream! Read " + std::to_string(read_size));
     }
+
+    std::istream& get_stream() { return _stream; }
 
     void setKernelImplParams(void* impl_params) { _impl_params = impl_params; }
     void* getKernelImplParams() const { return _impl_params; }
