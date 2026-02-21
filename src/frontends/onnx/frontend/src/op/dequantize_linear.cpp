@@ -21,6 +21,7 @@
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
+#include <openvino/core/rt_info.hpp>
 using namespace ov::op;
 
 namespace ov {
@@ -33,6 +34,25 @@ std::shared_ptr<ov::Node> get_zero_point(const ov::OutputVector& inputs) {
     if (inputs.size() == 3 && !ov::op::util::is_null(inputs[2])) {
         const auto& scale = inputs[1];
         const auto& zero_point = inputs[2];
+
+        if (zero_point.get_element_type() == ov::element::u16) {
+            auto zp_values =
+                ov::as_type_ptr<ov::op::v0::Constant>(zero_point.get_node_shared_ptr())->cast_vector<uint16_t>();
+            constexpr uint16_t FP16_MAX = 65504;
+            bool changed = false;
+            for (auto i = 0; i < zp_values.size(); i++) {
+                if (zp_values[i] > FP16_MAX) {
+                    zp_values[i] = FP16_MAX;
+                    changed = true;
+                }
+            }
+            if (changed) {
+                auto new_zp = ov::op::v0::Constant::create(ov::element::u16, zero_point.get_shape(), zp_values);
+                ov::copy_runtime_info(zero_point.get_node_shared_ptr(), new_zp);
+                if (zero_point.get_element_type() != scale.get_element_type())
+                    return std::make_shared<v0::Convert>(new_zp, scale.get_element_type());
+            }
+        }
 
         if (zero_point.get_element_type() != scale.get_element_type()) {
             return std::make_shared<v0::Convert>(zero_point, scale.get_element_type());
