@@ -50,6 +50,7 @@ OP_CONVERTER(translate_atan2);
 OP_CONVERTER(translate_avg_pool1d);
 OP_CONVERTER(translate_avg_pool2d);
 OP_CONVERTER(translate_avg_pool3d);
+OP_CONVERTER( translate_autocast_to_full_precision);
 OP_CONVERTER(translate_bool);
 OP_CONVERTER(translate_batch_norm);
 OP_CONVERTER(translate_bernoulli);
@@ -442,6 +443,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::avg_pool1d", op::quantizable_op<op::translate_avg_pool1d>},
         {"aten::avg_pool2d", op::quantizable_op<op::translate_avg_pool2d>},
         {"aten::avg_pool3d", op::quantizable_op<op::translate_avg_pool3d>},
+        {"aten::_autocast_to_full_precision", op::translate_autocast_to_full_precision}, 
         {"aten::baddbmm", op::translate_addmm},
         {"aten::batch_norm", op::translate_batch_norm},
         {"aten::bernoulli", op::translate_bernoulli},
