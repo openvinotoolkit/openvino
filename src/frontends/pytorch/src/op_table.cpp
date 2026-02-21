@@ -248,6 +248,7 @@ OP_CONVERTER(translate_shape_as_tensor);
 OP_CONVERTER(translate_sign);
 OP_CONVERTER(translate_size);
 OP_CONVERTER(translate_slice);
+OP_CONVERTER(translate_smooth_l1_loss);
 OP_CONVERTER(translate_softmax);
 OP_CONVERTER(translate_sort);
 OP_CONVERTER(translate_split_with_sizes);
@@ -1063,6 +1064,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.slice.Tensor", op::translate_slice_fx},
         {"aten.slice_copy.Tensor", op::translate_slice_fx},
         {"aten.slice_scatter.default", op::translate_slice_scatter_fx},
+        {"aten::smooth_l1_loss", op::translate_smooth_l1_loss},
         {"aten.sort.default", op::translate_sort_fx},
         {"aten.split.Tensor", op::translate_chunk_fx},
         {"aten.split_with_sizes.default", op::translate_split_with_sizes},
