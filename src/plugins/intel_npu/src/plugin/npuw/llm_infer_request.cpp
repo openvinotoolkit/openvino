@@ -11,6 +11,7 @@
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "perf.hpp"
 #include "util.hpp"
 
 namespace {
@@ -505,7 +506,6 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             // Part 1: The KV results from loops 1 to n-1 have been copied into the 'past' KV input tensor
             // Part 2: The kv results from the last loop remain in the 'present' KV output tensor
             // The task is to copy both parts into the KV-cache input tensor for the decoding process
-
             // Copy part 1 KV results
             // tokens_in_past_chunks may be 0 in case short prompts are prefilled in single chunk
             auto tokens_in_past_chunks = kvcache_desc.num_stored_tokens - m_tokens_in_present_chunk;
@@ -513,33 +513,47 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
                 // Create backup of past KV tensor when buffer sharing is enabled to prevent data corruption
                 // This is necessary because subsequent copy operations would overwrite the shared buffer
                 auto prefill_past_kv = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
-                ov::SoPtr<ov::ITensor> tmp_dense_kv_tensor;
-                ov::SoPtr<ov::ITensor> prefill_past_kv_chunks;
-                if (m_past_kv_bound) {
-                    tmp_dense_kv_tensor = ov::npuw::util::allocMem(prefill_past_kv->get_element_type(),
-                                                                   prefill_past_kv->get_shape(),
-                                                                   m_pre_alloc_device,
-                                                                   m_npuw_llm_compiled_model->get_plugin());
-                    prefill_past_kv->copy_to(tmp_dense_kv_tensor._ptr);
-                    prefill_past_kv_chunks = make_tensor_slice(tmp_dense_kv_tensor,
-                                                               pre_kv_dim,
-                                                               0u,
-                                                               static_cast<uint32_t>(tokens_in_past_chunks));
-                } else {
-                    prefill_past_kv_chunks = make_tensor_slice(prefill_past_kv,
-                                                               pre_kv_dim,
-                                                               0u,
-                                                               static_cast<uint32_t>(tokens_in_past_chunks));
-                }
-
                 auto kvcache_past_kv_chunks = uu::make_tensor_slice(kvcache_in_tensor,
                                                                     gen_kv_dim,
                                                                     0u,
                                                                     static_cast<uint32_t>(tokens_in_past_chunks));
+                ov::SoPtr<ov::ITensor> prefill_past_kv_chunks;
+                // In-place KV copy is only safe/possible when the source and destination KV layouts match.
+                // When we have mixed v-transpose settings across models (prefill vs generate: v-transpose OFF/ON),
+                // the effective KV "token" dimension differs (pre_kv_dim != gen_kv_dim), so an in-place move/copy
+                // would corrupt data. Therefore, we only use in-place copy when pre_kv_dim == gen_kv_dim;
+                // otherwise we must copy via a temporary tensor.
+                if (m_past_kv_bound) {
+                    if (pre_kv_dim == gen_kv_dim) {
+                        prefill_past_kv_chunks = uu::make_tensor_slice(prefill_past_kv,
+                                                                       pre_kv_dim,
+                                                                       0u,
+                                                                       static_cast<uint32_t>(tokens_in_past_chunks));
 
-                uu::copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, pre_kv_dim, gen_kv_dim);
+                        uu::copy_tensor_inplace_by_dim(prefill_past_kv_chunks,
+                                                       kvcache_past_kv_chunks,
+                                                       pre_kv_dim,
+                                                       gen_kv_dim);
+                    } else {
+                        auto tmp_dense_kv_tensor = ov::npuw::util::allocMem(prefill_past_kv->get_element_type(),
+                                                                            prefill_past_kv->get_shape(),
+                                                                            m_pre_alloc_device,
+                                                                            m_npuw_llm_compiled_model->get_plugin());
+                        prefill_past_kv->copy_to(tmp_dense_kv_tensor._ptr);
+                        prefill_past_kv_chunks = uu::make_tensor_slice(tmp_dense_kv_tensor,
+                                                                       pre_kv_dim,
+                                                                       0u,
+                                                                       static_cast<uint32_t>(tokens_in_past_chunks));
+                        uu::copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, pre_kv_dim, gen_kv_dim);
+                    }
+                } else {
+                    prefill_past_kv_chunks = uu::make_tensor_slice(prefill_past_kv,
+                                                                   pre_kv_dim,
+                                                                   0u,
+                                                                   static_cast<uint32_t>(tokens_in_past_chunks));
+                    uu::copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, pre_kv_dim, gen_kv_dim);
+                }
             }
-
             // Copy part 2 KV results
             auto prefill_present_kv_chunk =
                 uu::make_tensor_slice(prefill_out_tensor,
@@ -860,7 +874,14 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     if (!m_generate_initialized) {
         LOG_DEBUG("Copy kv-cache from prefill to generate model.");
         if (kvcache_desc.num_stored_tokens > 0) {
-            copy_kvcache();
+            using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
+            MS m_ms_copy_kvcache("copy_kvcache", /*active*/ true);
+
+            m_ms_copy_kvcache += ov::npuw::perf::ms_to_run([&]() {
+                copy_kvcache();
+            });
+
+            LOG_INFO("cost of copy_kvcache(): " << m_ms_copy_kvcache.med() << " ms");
         }
 
         LOG_DEBUG("Prepare inputs.");
