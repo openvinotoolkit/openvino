@@ -20,7 +20,7 @@ namespace ov::intel_cpu::aarch64 {
 
 class jit_loop_begin_emitter : public jit_emitter {
 public:
-    jit_loop_begin_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_loop_begin_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                            dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                            const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -59,7 +59,7 @@ protected:
 
 class jit_loop_end_emitter : public jit_emitter {
 public:
-    jit_loop_end_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_loop_end_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                          dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                          const ov::snippets::lowered::ExpressionPtr& expr);
 

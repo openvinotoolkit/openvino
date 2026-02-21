@@ -35,7 +35,7 @@ using namespace Xbyak_aarch64;
 
 namespace ov::intel_cpu::aarch64 {
 
-using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
+using jit_generator = dnnl::impl::cpu::aarch64::jit_generator_t;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
@@ -244,7 +244,7 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in,
     h->postamble();
 }
 
-jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                                                      dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                                                      const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_kernel_emitter(h, isa, expr) {
@@ -301,7 +301,7 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<XReg>& arg_
     }
 }
 
-jit_kernel_dynamic_emitter::jit_kernel_dynamic_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+jit_kernel_dynamic_emitter::jit_kernel_dynamic_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                                                        dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                                                        const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_kernel_emitter(h, isa, expr) {

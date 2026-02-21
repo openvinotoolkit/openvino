@@ -222,29 +222,35 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const MatMulAttrs& attrs,
                                 outputDataType,
                                 attrs.dqScales);
 
-    if (memory.count(ARG_WEI | ARG_ATTR_SCALES) == 0U) {
-        return dnnlpoc.compose();
-    }
-
-    const auto maxRank =
-        std::max({srcDesc->getShape().getRank(), weiDesc->getShape().getRank(), dstDesc->getShape().getRank()});
-    const auto normWeiDims = normalizeToRank(weiDesc->getShape().getStaticDims(), maxRank);
-    if (auto it = memory.find(ARG_WEI | ARG_ATTR_SCALES); it != memory.end()) {
-        auto dstPrc = ov::element::f32;
-        dnnlpoc.appendDecompressionScales(it->second, !weightsNonTransposed, dstPrc, normWeiDims);
-    }
-    if (auto it = memory.find(ARG_WEI | ARG_ATTR_ZERO_POINTS); it != memory.end()) {
-        // TODO: clarify oneDNN requirements on ZP precision
-        auto zp = it->second;
-        auto zpPrc = zp->getPrecision();
-        auto dstPrc = any_of(zpPrc, i32, i8, u8, i4, u4) ? zpPrc : i32;
-        dnnlpoc.appendDecompressionZeroPoints(zp, !weightsNonTransposed, dstPrc, normWeiDims);
+    if (memory.count(ARG_WEI | ARG_ATTR_SCALES) != 0U) {
+        const auto maxRank =
+            std::max({srcDesc->getShape().getRank(), weiDesc->getShape().getRank(), dstDesc->getShape().getRank()});
+        const auto normWeiDims = normalizeToRank(weiDesc->getShape().getStaticDims(), maxRank);
+        if (auto it = memory.find(ARG_WEI | ARG_ATTR_SCALES); it != memory.end()) {
+            auto dstPrc = ov::element::f32;
+            dnnlpoc.appendDecompressionScales(it->second, !weightsNonTransposed, dstPrc, normWeiDims);
+        }
+        if (auto it = memory.find(ARG_WEI | ARG_ATTR_ZERO_POINTS); it != memory.end()) {
+            // TODO: clarify oneDNN requirements on ZP precision
+            auto zp = it->second;
+            auto zpPrc = zp->getPrecision();
+            auto dstPrc = any_of(zpPrc, i32, i8, u8, i4, u4) ? zpPrc : i32;
+            dnnlpoc.appendDecompressionZeroPoints(zp, !weightsNonTransposed, dstPrc, normWeiDims);
+        }
     }
 
     auto primAttrs = dnnlpoc.compose();
     if (useWeightsDecompression) {
         primAttrs.attr.set_fpmath_mode(fpmath_mode::any, true);
     }
+    // by default fp16 matmul ACL kernels accumulate into fp32
+    // the default behaviour is changed by using f16 accumulator to improve performance
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    if (srcDesc->getPrecision() == ov::element::f16 && weiDesc->getPrecision() == ov::element::f16 &&
+        dstDesc->getPrecision() == ov::element::f16) {
+        primAttrs.attr.set_accumulation_mode(dnnl::accumulation_mode::f16);
+    }
+#endif
 
     return primAttrs;
 }
@@ -590,7 +596,7 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const MatM
 static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc& primDesc) {
     const auto implType = parse_impl_name(primDesc.impl_info_str());
     if (implType == ov::intel_cpu::brgemm_avx512_amx &&
-        primDesc.weights_desc().get_format_kind() == memory::format_kind::sparsed) {
+        primDesc.weights_desc().get_format_kind() == memory::format_kind::sparse) {
         return ov::intel_cpu::brgemm_sparse_avx512_amx;
     }
 

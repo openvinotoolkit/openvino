@@ -332,7 +332,7 @@ static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(cons
     }
 
     const dnnl::memory::desc weightsDesc =
-        useSparseWeights ? dnnl::memory::desc().sparse_desc(normalizedWeightDesc.get_dims(), wdt)
+        useSparseWeights ? dnnl::memory::desc::packed_v0(normalizedWeightDesc.get_dims(), wdt)
                          : dnnl::memory::desc(normalizedWeightDesc.get_dims(), wdt, memory::format_tag::any);
 
     return {engine,
@@ -474,7 +474,7 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
 static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc& primDesc) {
     const auto implType = parse_impl_name(primDesc.impl_info_str());
     if (implType == ov::intel_cpu::brgemm_avx512_amx &&
-        primDesc.weights_desc().get_format_kind() == memory::format_kind::sparsed) {
+        primDesc.weights_desc().get_format_kind() == memory::format_kind::sparse) {
         return ov::intel_cpu::brgemm_sparse_avx512_amx;
     }
 

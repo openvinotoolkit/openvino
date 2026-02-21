@@ -39,7 +39,7 @@ namespace ov::intel_cpu::aarch64 {
 
 class jit_kernel_emitter : public jit_emitter {
 public:
-    jit_kernel_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_kernel_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                        dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                        const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -92,7 +92,7 @@ protected:
 
 class jit_kernel_static_emitter : public jit_kernel_emitter {
 public:
-    jit_kernel_static_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_kernel_static_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                               dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                               const ov::snippets::lowered::ExpressionPtr& expr);
     size_t get_inputs_count() const override {
@@ -113,7 +113,7 @@ private:
 
 class jit_kernel_dynamic_emitter : public jit_kernel_emitter {
 public:
-    jit_kernel_dynamic_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_kernel_dynamic_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                                dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                                const ov::snippets::lowered::ExpressionPtr& expr);
     size_t get_inputs_count() const override {

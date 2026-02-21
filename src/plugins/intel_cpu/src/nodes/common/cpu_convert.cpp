@@ -165,20 +165,20 @@ public:
           _dst_size(sizeof(dst_t)) {
         const auto type = get_f8_type<src_t, dst_t>();
         if (type == f8_type::f8e4m3) {
-            f8_e4m3_emu_ = std::make_shared<fp8_emulation_e4m3_t>(this,
-                                                                  fp8_emu_reserv_1_,
-                                                                  fp8_emu_reserv_2_,
-                                                                  fp8_emu_reserv_3_,
-                                                                  fp8_emu_reserv_4_,
-                                                                  fp8_emu_reserv_5_,
-                                                                  fp8_emu_scratch_);
+            f8_e4m3_emu_ = std::make_shared<fp8_conversion_e4m3_t>(this,
+                                                                   fp8_emu_reserv_1_,
+                                                                   fp8_emu_reserv_2_,
+                                                                   fp8_emu_reserv_3_,
+                                                                   fp8_emu_reserv_4_,
+                                                                   fp8_emu_reserv_5_,
+                                                                   fp8_emu_scratch_);
         } else if (type == f8_type::f8e5m2) {
-            f8_e5m2_emu_ = std::make_shared<fp8_emulation_e5m2_t>(this,
-                                                                  fp8_emu_reserv_1_,
-                                                                  fp8_emu_reserv_2_,
-                                                                  fp8_emu_reserv_3_,
-                                                                  fp8_emu_kmask_aux_,
-                                                                  fp8_emu_scratch_);
+            f8_e5m2_emu_ = std::make_shared<fp8_conversion_e5m2_t>(this,
+                                                                   fp8_emu_reserv_1_,
+                                                                   fp8_emu_reserv_2_,
+                                                                   fp8_emu_reserv_3_,
+                                                                   fp8_emu_kmask_aux_,
+                                                                   fp8_emu_scratch_);
         }
         const bool is_dst_bf16 = std::is_same_v<dst_t, ov::intel_cpu::bfloat16_t>;
         if (is_dst_bf16 && mayiuse(cpu_isa_t::avx512_core)) {
@@ -196,11 +196,11 @@ public:
         return nullptr;
     }
 
-    std::shared_ptr<fp8_emulation_e4m3_t> get_f8_e4m3_emu() const {
+    std::shared_ptr<fp8_conversion_e4m3_t> get_f8_e4m3_emu() const {
         return f8_e4m3_emu_;
     }
 
-    std::shared_ptr<fp8_emulation_e5m2_t> get_f8_e5m2_emu() const {
+    std::shared_ptr<fp8_conversion_e5m2_t> get_f8_e5m2_emu() const {
         return f8_e5m2_emu_;
     }
 
@@ -213,8 +213,8 @@ private:
     size_t _src_size;
     size_t _dst_size;
 
-    std::shared_ptr<fp8_emulation_e4m3_t> f8_e4m3_emu_;
-    std::shared_ptr<fp8_emulation_e5m2_t> f8_e5m2_emu_;
+    std::shared_ptr<fp8_conversion_e4m3_t> f8_e4m3_emu_;
+    std::shared_ptr<fp8_conversion_e5m2_t> f8_e5m2_emu_;
     std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16_;
 
     const Reg64 fp8_emu_scratch_ = rax;

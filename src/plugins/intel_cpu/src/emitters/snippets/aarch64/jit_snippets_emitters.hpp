@@ -17,7 +17,7 @@ namespace ov::intel_cpu::aarch64 {
 
 class jit_nop_emitter : public jit_emitter {
 public:
-    jit_nop_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_nop_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                     dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                     const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -31,7 +31,7 @@ private:
 
 class jit_broadcast_move_emitter : public jit_emitter {
 public:
-    jit_broadcast_move_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_broadcast_move_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                                dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                                const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -50,7 +50,7 @@ private:
 
 class jit_scalar_emitter : public jit_emitter {
 public:
-    jit_scalar_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_scalar_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* h,
                        dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                        const ov::snippets::lowered::ExpressionPtr& expr);
 

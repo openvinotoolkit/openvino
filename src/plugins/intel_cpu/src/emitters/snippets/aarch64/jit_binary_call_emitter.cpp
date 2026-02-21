@@ -24,7 +24,7 @@ using namespace dnnl::impl::cpu::aarch64;
 
 namespace ov::intel_cpu::aarch64 {
 
-jit_binary_call_emitter::jit_binary_call_emitter(jit_generator* h, cpu_isa_t isa, std::set<snippets::Reg> live_regs)
+jit_binary_call_emitter::jit_binary_call_emitter(jit_generator_t* h, cpu_isa_t isa, std::set<snippets::Reg> live_regs)
     : jit_emitter(h, isa),
       m_regs_to_spill(std::move(live_regs)) {}
 
