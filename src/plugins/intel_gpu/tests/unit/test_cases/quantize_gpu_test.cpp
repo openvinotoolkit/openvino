@@ -609,6 +609,126 @@ TEST(quantize_gpu, quantize_levels_256_3d_unsigned) {
     }
 }
 
+TEST(quantize_gpu, quantize_levels_65536_2d_int8_const_input) {
+    cldnn::engine& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::i8, format::bfyx, {1, 4, 2, 2} });
+    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 4, 1, 1 } });
+    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 4, 1, 1 } });
+    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+
+    set_values(input, {
+        0, 64, 127, -128,
+        32, -32, 16, -16,
+        8, -8, 4, -4,
+        2, -2, 1, -1,
+        });
+
+    // Per-channel input_low and input_high
+    set_values(input_low, { -128.0f, -64.0f, -32.0f, 0.0f});
+    set_values(input_high, { 127.0f, 63.0f, 31.0f, 32.0f});
+    set_values(output_low, { 0.0f });
+    set_values(output_high, { 65535.0f });
+
+    // Reference output calculated using the quantization formula:
+    // quantized = round((x - input_low) * (levels - 1) / (input_high - input_low) + output_low)
+    std::vector<float> ref_data = {
+        32896, 32896, 32896, 32896,
+        65535, 33026, 33026, 33026,
+        65535, 33288, 33288, 33288,
+        0   , 0,     0,     0
+
+    };
+
+    topology topology;
+    topology.add(
+        data("input", input),
+        data("input_low", input_low),
+        data("input_high", input_high),
+        data("output_low", output_low),
+        data("output_high", output_high),
+        quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 65536, data_types::f32)
+    );
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("quantize").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    // Check that layout and memory contains logical size of tensor
+    ASSERT_EQ(output->count(), ref_data.size());
+    ASSERT_EQ(output->get_layout().count(), ref_data.size());
+
+    // Check that memory physical size consider binary pack
+    ASSERT_EQ(output->size(), ref_data.size() * sizeof(float));
+
+    for (size_t i = 0; i < ref_data.size(); ++i) {
+        ASSERT_EQ(output_ptr[i], ref_data[i]) << " i=" << i;
+    }
+}
+
+TEST(quantize_gpu, quantize_levels_65536_2d_uint8_const_input) {
+    cldnn::engine& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::u8, format::bfyx, {1, 4, 2, 2} });
+    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 4, 1, 1 } });
+    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 4, 1, 1 } });
+    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+
+    set_values(input, {
+      10, 20, 30, 40,
+      50, 60, 70, 80,
+      90, 100, 110, 120,
+      130, 140, 150, 160
+    });
+
+    // Set values for input_low tensor
+    set_values(input_low, { -128.0f, -64.0f, -32.0f, 0.0f });
+    set_values(input_high, { 127.0f, 63.0f, 31.0f, 32.0f });
+    set_values(output_low, { 0.0f });
+    set_values(output_high, { 65535.0f });
+
+    // Reference output calculated using the quantization formula:
+    // quantized = round((x - input_low) * (levels - 1) / (input_high - input_low) + output_low)
+    std::vector<float> ref_data = {
+        35466, 32896, 32896, 32896,
+        43346, 33026, 33026, 33026,
+        64495, 33288, 33288, 33288,
+        65535   , 0,     0,     0
+
+    };
+
+    topology topology;
+    topology.add(
+        data("input", input),
+        data("input_low", input_low),
+        data("input_high", input_high),
+        data("output_low", output_low),
+        data("output_high", output_high),
+        quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 65536, data_types::f32)
+    );
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("quantize").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    // Check that layout and memory contains logical size of tensor
+    ASSERT_EQ(output->count(), ref_data.size());
+    ASSERT_EQ(output->get_layout().count(), ref_data.size());
+
+    // Check that memory physical size consider binary pack
+    ASSERT_EQ(output->size(), ref_data.size() * sizeof(float));
+
+    for (size_t i = 0; i < ref_data.size(); ++i) {
+        ASSERT_EQ(output_ptr[i], ref_data[i]) << " i=" << i;
+    }
+}
+
 TEST(quantize_gpu, eltwise_quantize_fs_b_yx_fsv32) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();

@@ -325,6 +325,14 @@ void prepare_quantization::handle_quantize_node(program& p, quantize_node& quant
     if (l > 2 && l <= 256 && !quantize_node.get_scale_shift_opt()) {
         prepare_scale_shift_opt(p, quantize_node);
     }
+    else if (l > 256 && l <= 65536) {
+        const auto& input_node = quantize_node.get_dependency(0);
+        auto input_dt = input_node.get_output_layout().data_type;
+
+        if (!quantize_node.get_scale_shift_opt() && one_of(input_dt, { data_types::u8, data_types::i8 })) {
+            prepare_scale_shift_opt(p, quantize_node);
+        }
+    }
 }
 
 void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& eltwise_node) {

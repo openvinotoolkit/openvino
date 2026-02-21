@@ -43,3 +43,51 @@ TEST(prepare_quantization, program_replace_check_num_of_nodes) {
 
     ASSERT_TRUE(prog->get_node("quantize").get_dependencies().size() == 9);
 }
+
+TEST(prepare_quantization, program_replace_check_num_of_nodes_uint16_quantization_u8_input) {
+    auto& engine = get_test_engine();
+    auto data0_layout = engine.allocate_memory({ ov::PartialShape{1}, data_types::f32, format::bfyx });
+    auto data1_layout = engine.allocate_memory({ ov::PartialShape{1}, data_types::f32, format::bfyx });
+    auto in_layout = layout{ ov::PartialShape::dynamic(0), data_types::u8, format::bfyx };
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(data("input_low", data0_layout));
+    topology.add(data("input_high", data1_layout));
+    topology.add(quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("input_low"), input_info("input_high"), 65536, data_types::f32));
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    ASSERT_NE(prog, nullptr);
+    ASSERT_TRUE(prog->get_node("quantize").get_dependencies().size() == 5);
+
+    program_wrapper::apply_opt_pass<prepare_quantization>(*prog);
+
+    ASSERT_TRUE(prog->get_node("quantize").get_dependencies().size() == 9);
+}
+
+TEST(prepare_quantization, program_replace_check_num_of_nodes_uint16_quantization_i8_input) {
+    auto& engine = get_test_engine();
+    auto data0_layout = engine.allocate_memory({ ov::PartialShape{1}, data_types::f32, format::bfyx });
+    auto data1_layout = engine.allocate_memory({ ov::PartialShape{1}, data_types::f32, format::bfyx });
+    auto in_layout = layout{ ov::PartialShape::dynamic(0), data_types::i8, format::bfyx };
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(data("input_low", data0_layout));
+    topology.add(data("input_high", data1_layout));
+    topology.add(quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("input_low"), input_info("input_high"), 65536, data_types::f32));
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    ASSERT_NE(prog, nullptr);
+    ASSERT_TRUE(prog->get_node("quantize").get_dependencies().size() == 5);
+
+    program_wrapper::apply_opt_pass<prepare_quantization>(*prog);
+
+    ASSERT_TRUE(prog->get_node("quantize").get_dependencies().size() == 9);
+}
