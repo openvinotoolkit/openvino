@@ -15,6 +15,9 @@
 #if defined(OV_CPU_WITH_ACL)
 #    include "acl/acl_deconv.hpp"
 #endif
+#if defined(OPENVINO_ARCH_ARM64)
+#    include "nodes/executors/aarch64/jit_deconv3d.hpp"
+#endif
 
 namespace ov::intel_cpu {
 
@@ -67,6 +70,47 @@ public:
         }
 
         OPENVINO_THROW("DeconvExecutorFactory: Supported executor is not found");
+    }
+
+    // ARM64 helper: build executor and allow constructor-time early packing using input/weight memories
+    DeconvExecutorPtr makeExecutorWithMem(const DeconvAttrs& deconvAttrs,
+                                          const std::vector<MemoryDescPtr>& srcDescs,
+                                          const std::vector<MemoryDescPtr>& dstDescs,
+                                          const dnnl::primitive_attr& attr,
+                                          const std::vector<MemoryCPtr>& srcMemories) {
+        auto build = [&](const DeconvExecutorDesc* desc) -> DeconvExecutorPtr {
+            // If this is our AArch64 JIT builder, construct with memories to trigger early packing in ctor
+#if defined(OPENVINO_ARCH_ARM64)
+            if (auto jitBuilder = std::dynamic_pointer_cast<const AArch64JitDeconvExecutorBuilder>(desc->builder)) {
+                auto executor = jitBuilder->makeExecutorWithMem(context, srcMemories);
+                if (executor->init(deconvAttrs, srcDescs, dstDescs, attr)) {
+                    return executor;
+                }
+            }
+#endif
+            // Fallback to regular path
+            auto executor = desc->builder->makeExecutor(context);
+            if (executor->init(deconvAttrs, srcDescs, dstDescs, attr)) {
+                return executor;
+            }
+            DeconvExecutorPtr ptr = nullptr;
+            return ptr;
+        };
+
+        if (chosenDesc) {
+            if (auto executor = build(chosenDesc)) {
+                return executor;
+            }
+        }
+
+        for (const auto& sd : supportedDescs) {
+            if (auto executor = build(&sd)) {
+                chosenDesc = &sd;
+                return executor;
+            }
+        }
+
+        OPENVINO_THROW("DeconvExecutorFactory: Supported executor is not found (with memories)");
     }
 
 private:
