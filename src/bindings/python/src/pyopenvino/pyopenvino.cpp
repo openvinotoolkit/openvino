@@ -228,6 +228,41 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_graph_AttributeVisitor(m);
     regclass_graph_Output<ov::Node>(m, std::string(""));
     regclass_Tensor(m);
+
+    m.def(
+        "read_tensor_data",
+        [](const py::object& path,
+           const ov::element::Type& element_type,
+           const ov::PartialShape& shape,
+           std::size_t offset_in_bytes,
+           bool mmap) {
+            return ov::read_tensor_data(Common::utils::to_fs_path(path), element_type, shape, offset_in_bytes, mmap);
+        },
+        py::arg("path"),
+        py::arg("element_type") = ov::element::u8,
+        py::arg("shape") = ov::PartialShape::dynamic(1),
+        py::arg("offset_in_bytes") = 0,
+        py::arg("mmap") = true,
+        R"(
+            Read a tensor content from a file. Only raw data is loaded.
+
+            :param path: path to file to read
+            :type path: Union[str, bytes, pathlib.Path]
+            :param element_type: tensor element type (default: openvino.Type.u8)
+            :type element_type: openvino.Type
+            :param shape: shape for resulting tensor. If provided shape is static, specified number of elements is read only.
+                          One of the dimensions can be dynamic. In this case it will be determined automatically based on the
+                          length of the file content and `offset_in_bytes` (default: openvino.PartialShape.dynamic(1)).
+            :type shape: openvino.PartialShape
+            :param offset_in_bytes: read file starting from specified offset (default: 0)
+            :type offset_in_bytes: int
+            :param mmap: use mmap so real reads are deferred until tensor data is accessed. If used, the file should not be
+                         modified until the returned tensor is destroyed (default: True)
+            :type mmap: bool
+            :return: resulting tensor
+            :rtype: openvino.Tensor
+        )");
+
     regclass_graph_descriptor_Tensor(m);
     // https://pybind11.readthedocs.io/en/stable/advanced/cast/stl.html#making-opaque-types
     py::bind_vector<ov::TensorVector>(m, "TensorVector");

@@ -66,7 +66,7 @@ endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::core::dev openvino::runtime openvino::offline_transformations)
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::core::dev openvino::runtime openvino::offline_transformations openvino::runtime::dev)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO}

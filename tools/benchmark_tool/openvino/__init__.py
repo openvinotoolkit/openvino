@@ -47,6 +47,7 @@ from openvino._pyopenvino import set_batch
 from openvino._pyopenvino import serialize
 from openvino._pyopenvino import shutdown
 from openvino._pyopenvino import save_model
+from openvino._pyopenvino import read_tensor_data
 from openvino._pyopenvino import layout_helpers
 from openvino._pyopenvino import RemoteContext
 from openvino._pyopenvino import RemoteTensor
