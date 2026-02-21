@@ -2152,7 +2152,8 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
 #if defined(OV_CPU_WITH_ACL)
     bool isInputPrecisionSupported = any_of(inputPrecision, ov::element::i8, ov::element::u8, ov::element::f16);
 #else
-    bool isInputPrecisionSupported = any_of(inputPrecision, ov::element::i8, ov::element::u8, ov::element::bf16);
+    bool isInputPrecisionSupported =
+        any_of(inputPrecision, ov::element::i8, ov::element::u8, ov::element::bf16, ov::element::f64);
 #endif
     if (!isInputPrecisionSupported) {
         inputPrecision = ov::element::f32;
@@ -2537,15 +2538,20 @@ void Interpolate::prepareParams() {
         bool isNearestLinearOrCubic = key.nodeAttrs.mode == InterpolateMode::nearest ||
                                       key.nodeAttrs.mode == InterpolateMode::linear_onnx ||
                                       key.nodeAttrs.mode == InterpolateMode::cubic;
-        bool isPlanarLayourAndSse41 = key.nodeAttrs.layout != InterpolateLayoutType::planar && mayiuse(cpu::x64::sse41);
+        bool isPlanarLayourAndSse41 = key.nodeAttrs.layout != InterpolateLayoutType::planar &&
+                                      mayiuse(cpu::x64::sse41) && key.nodeAttrs.inPrc != ov::element::f64;
         bool isAvx2AndF32 = mayiuse(cpu::x64::avx2) && key.nodeAttrs.inPrc == ov::element::f32;
         bool isPillowMode = key.nodeAttrs.mode == InterpolateMode::bilinear_pillow ||
                             key.nodeAttrs.mode == InterpolateMode::bicubic_pillow;
         bool isByChannelLayout = key.nodeAttrs.layout == InterpolateLayoutType::by_channel;
         bool isNearestLinearOrCubicSupported = isNearestLinearOrCubic && (isPlanarLayourAndSse41 || isAvx2AndF32);
-        bool isPillowModeSupported = isPillowMode && isByChannelLayout;
+        bool isPillowModeSupported = isPillowMode && isByChannelLayout && key.nodeAttrs.inPrc != ov::element::f64;
 
-        if ((isNearestLinearOrCubicSupported || isPillowModeSupported) && mayiuse(cpu::x64::sse41)) {
+        // f64 must always use Reference executor (JIT doesn't support f64)
+        bool canUseJit = key.nodeAttrs.inPrc != ov::element::f64 &&
+                         (isNearestLinearOrCubicSupported || isPillowModeSupported) && mayiuse(cpu::x64::sse41);
+
+        if (canUseJit) {
             executor = std::make_shared<InterpolateJitExecutor>(key.nodeAttrs,
                                                                 key.srcDims,
                                                                 key.dstDims,
@@ -3914,6 +3920,11 @@ float Interpolate::InterpolateRefExecutor::getValue(const uint8_t* base, size_t 
         return *valuePtr;
         break;
     }
+    case ov::element::f64: {
+        const auto* valuePtr = reinterpret_cast<const double*>(baseOffset);
+        return static_cast<float>(*valuePtr);
+        break;
+    }
     default: {
         OPENVINO_THROW("Interpolate layer does not support precision: ", prec);
         break;
@@ -3941,6 +3952,11 @@ void Interpolate::InterpolateRefExecutor::setValue(uint8_t* base, size_t offset,
     }
     case ov::element::f32: {
         cpu_memcpy(baseOffset, &value, sizeof(float));
+        break;
+    }
+    case ov::element::f64: {
+        double dValue = static_cast<double>(value);
+        cpu_memcpy(baseOffset, &dValue, sizeof(double));
         break;
     }
     default: {
