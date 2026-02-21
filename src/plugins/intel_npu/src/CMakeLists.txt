@@ -11,6 +11,11 @@ add_subdirectory(al)
 
 add_subdirectory(ops)
 
+# VM is an experimental feature, so it is only available for Developer build
+if (ENABLE_NPU_DEBUG_CAPS)
+    add_subdirectory(vm)
+endif()
+
 if (ENABLE_NPU_PLUGIN_ENGINE)
     add_subdirectory(common)
     add_subdirectory(compiler_adapter)

@@ -5,9 +5,13 @@
 #pragma once
 
 #include <memory>
+#include <string_view>
 
-#include "intel_npu/npu_mlir_runtime.hpp"
+#include "intel_npu/runtime/npu_vm_runtime.hpp"
 #include "openvino/core/except.hpp"
+
+// TODO: to be removed as soon as we are ready to use NPU VM Runtime API
+#include "intel_npu/npu_mlir_runtime.hpp"
 
 namespace intel_npu {
 
@@ -29,20 +33,34 @@ namespace intel_npu {
 #define nmr_weak_symbols_list()                                     \
     nmr_symbol_statement(npuMLIRRuntimeCreateExecutionContext)      \
     nmr_symbol_statement(npuMLIRRuntimeDestroyExecutionContext)     \
-    nmr_symbol_statement(npuMLIRRuntimeUpdateMutableCommandList)
+    nmr_symbol_statement(npuMLIRRuntimeUpdateMutableCommandList)    \
+    nmr_symbol_statement(npuVMRuntimeGetAPIVersion)                 \
+    nmr_symbol_statement(npuVMRuntimeCreate)                        \
+    nmr_symbol_statement(npuVMRuntimeDestroy)                       \
+    nmr_symbol_statement(npuVMRuntimeGetMetadata)                   \
+    nmr_symbol_statement(npuVMRuntimeExecute)                       \
+    nmr_symbol_statement(npuVMRuntimePredictOutputShape)            \
+    nmr_symbol_statement(npuVMRuntimeCreateMemRef)                  \
+    nmr_symbol_statement(npuVMRuntimeDestroyMemRef)                 \
+    nmr_symbol_statement(npuVMRuntimeSetMemRef)                     \
+    nmr_symbol_statement(npuVMRuntimeParseMemRef)                   \
+    nmr_symbol_statement(npuVMRuntimeCreateExecutionContext)        \
+    nmr_symbol_statement(npuVMRuntimeDestroyExecutionContext)       \
+    nmr_symbol_statement(npuVMRuntimeUpdateMutableCommandList)
+
 // clang-format on
 
-class NPUMLIRRuntimeApi {
+class NPUVMRuntimeApi {
 public:
-    NPUMLIRRuntimeApi();
-    NPUMLIRRuntimeApi(const NPUMLIRRuntimeApi& other) = delete;
-    NPUMLIRRuntimeApi(NPUMLIRRuntimeApi&& other) = delete;
-    void operator=(const NPUMLIRRuntimeApi&) = delete;
-    void operator=(NPUMLIRRuntimeApi&&) = delete;
+    NPUVMRuntimeApi(std::string_view libName = "npu_mlir_runtime");
+    NPUVMRuntimeApi(const NPUVMRuntimeApi& other) = delete;
+    NPUVMRuntimeApi(NPUVMRuntimeApi&& other) = delete;
+    void operator=(const NPUVMRuntimeApi&) = delete;
+    void operator=(NPUVMRuntimeApi&&) = delete;
 
-    ~NPUMLIRRuntimeApi() = default;
+    ~NPUVMRuntimeApi() = default;
 
-    static const std::shared_ptr<NPUMLIRRuntimeApi>& getInstance();
+    static const std::shared_ptr<NPUVMRuntimeApi>& getInstance();
 
 #define nmr_symbol_statement(symbol) decltype(&::symbol) symbol;
     nmr_symbols_list();
@@ -56,7 +74,7 @@ private:
 #define nmr_symbol_statement(symbol)                                                                        \
     template <typename... Args>                                                                             \
     inline typename std::invoke_result<decltype(&::symbol), Args...>::type wrapped_##symbol(Args... args) { \
-        const auto& ptr = NPUMLIRRuntimeApi::getInstance();                                                 \
+        const auto& ptr = NPUVMRuntimeApi::getInstance();                                                 \
         if (ptr->symbol == nullptr) {                                                                       \
             OPENVINO_THROW("Unsupported symbol " #symbol);                                                  \
         }                                                                                                   \

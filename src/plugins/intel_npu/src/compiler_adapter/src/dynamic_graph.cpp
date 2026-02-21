@@ -408,7 +408,6 @@ DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroIni
                            const ov::SoPtr<VCLCompilerImpl>& compiler)
     : _zeroInitStruct(zeroInitStruct),
       _blob(std::move(blob)),
-      _blobAllocatedByPlugin(blobAllocatedByPlugin),
       _compiler(compiler),
       _logger("DynamicGraph", config.get<LOG_LEVEL>()) {
     _logger.info("Create DynamicGraph");
