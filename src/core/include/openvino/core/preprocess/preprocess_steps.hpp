@@ -16,13 +16,19 @@ class Node;
 
 namespace preprocess {
 
+/// \brief Flip mode for preprocessing
+enum class FlipMode {
+    HORIZONTAL,  ///< Flip along the Width axis (Mirror)
+    VERTICAL     ///< Flip along the Height axis (Upside down)
+};
+
 /// \brief Preprocessing steps. Each step typically intends adding of some operation to input parameter
 /// User application can specify sequence of preprocessing steps in a builder-like manner
 /// \code{.cpp}
 /// auto proc = PrePostProcessor(function);
 /// proc.input().preprocess()
-///                        .mean(0.2f)     // Subtract 0.2 from each element
-///                        .scale(2.3f));   // then divide each element to 2.3
+///                         .mean(0.2f)     // Subtract 0.2 from each element
+///                         .scale(2.3f));   // then divide each element to 2.3
 /// \endcode
 class OPENVINO_API PreProcessSteps final {
     class PreProcessStepsImpl;
@@ -149,6 +155,13 @@ public:
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
     PreProcessSteps& resize(ResizeAlgorithm alg);
+
+    // [ADDED NEW FEATURE]
+    /// \brief Flips the image spatially.
+    /// \param mode The direction to flip (HORIZONTAL or VERTICAL).
+    /// \return Reference to the current 'PreProcessSteps' object.
+    PreProcessSteps& flip(FlipMode mode);
+    // [END NEW FEATURE]
 
     /// \brief Crop input tensor between begin and end coordinates. Under the hood, inserts `opset8::Slice` operation to
     /// execution graph. It is recommended to use to together with `ov::preprocess::InputTensorInfo::set_shape` to set
