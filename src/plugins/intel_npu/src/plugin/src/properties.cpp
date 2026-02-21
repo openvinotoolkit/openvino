@@ -843,7 +843,10 @@ void Properties::setProperty(const ov::AnyMap& properties) {
                     OPENVINO_THROW("Unsupported configuration key: ", value.first);
                 }
             } else {
-                OPENVINO_THROW("Unsupported configuration key: ", value.first);
+                OPENVINO_THROW("The selected compiler type, ",
+                               _config.get<COMPILER_TYPE>(),
+                               ", cannot be created to validate the property ",
+                               value.first);
             }
         } else {
             if (std::get<1>(_properties[value.first]) == ov::PropertyMutability::RO) {
