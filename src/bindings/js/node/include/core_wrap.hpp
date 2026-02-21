@@ -5,9 +5,14 @@
 
 #include <napi.h>
 
+#include <istream>
+#include <memory>
+#include <optional>
 #include <thread>
+#include <variant>
 
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 
 class CoreWrap : public Napi::ObjectWrap<CoreWrap> {
 public:
@@ -135,17 +140,40 @@ struct TsfnContextPath {
 };
 
 struct ImportModelContext {
-    ImportModelContext(Napi::Env env, ov::Core& core) : deferred(Napi::Promise::Deferred::New(env)), _core{core} {};
-    std::thread nativeThread;
+    // Buffer source: pins JS Buffer, wraps with SharedStreamBuffer (zero-copy)
+    struct BufferSource {
+        Napi::ObjectReference buffer_ref;
+        std::optional<ov::SharedStreamBuffer> shared_buf;
 
+        ov::CompiledModel import(ov::Core& core, const std::string& device, const ov::AnyMap& config) {
+            std::istream stream(&*shared_buf);
+            return core.import_model(stream, device, config);
+        }
+    };
+
+    struct TensorSource {
+        Napi::ObjectReference tensor_ref;
+        ov::Tensor tensor;
+
+        ov::CompiledModel import(ov::Core& core, const std::string& device, const ov::AnyMap& config) {
+            return core.import_model(tensor, device, config);
+        }
+    };
+
+    using Source = std::variant<std::monostate, BufferSource, TensorSource>;
+    Source source{};
+
+    ImportModelContext(Napi::Env env, ov::Core& core) : deferred(Napi::Promise::Deferred::New(env)), _core{core} {}
+
+    std::thread native_thread;
     Napi::Promise::Deferred deferred;
     Napi::ThreadSafeFunction tsfn;
 
-    std::stringstream _stream;
     std::string _device;
-    std::map<std::string, ov::Any> _config = {};
+    ov::AnyMap _config;
     ov::Core& _core;
     ov::CompiledModel _compiled_model;
+    std::string _error_msg;
 };
 
 void FinalizerCallbackModel(Napi::Env env, void* finalizeData, TsfnContextModel* context);
