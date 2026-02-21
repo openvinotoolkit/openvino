@@ -6,6 +6,7 @@
 
 import functools
 import logging
+import threading
 import torch
 from openvino.frontend.pytorch import ModuleExtension
 
@@ -110,8 +111,10 @@ _bmm_extension = ModuleExtension(
 )
 
 
-# Global storage for original torch functions to enable proper cleanup
+# Thread-safe, reference-counted storage for patched torch functions.
+# Each entry: key -> (orig_fn, ref_count)
 _patched_torch_functions = {}
+_patch_lock = threading.Lock()
 
 
 def _patch_torch_functions():
@@ -120,27 +123,50 @@ def _patch_torch_functions():
     These patches skip actual computation and create custom ops in the TorchScript graph,
     similar to how ModuleExtension works for modules. This speeds up tracing and avoids
     loading weights from mmap.
+
+    Thread-safe and ref-counted: the wrapper is installed only on the first call and
+    restored only when every matching _unpatch_torch_functions() call has been made,
+    so concurrent or nested patching is safe.
     """
     functions_to_patch = [
         (torch, "bmm", _bmm_extension),
     ]
 
-    for module, fn_name, extension in functions_to_patch:
-        if (module, fn_name) in _patched_torch_functions:
-            # Already patched
-            continue
-        orig_fn = getattr(module, fn_name)
-        _patched_torch_functions[(module, fn_name)] = orig_fn
-        setattr(module, fn_name, _create_function_wrapper(extension))
-        log.debug("Patched torch function: %s.%s", module.__name__, fn_name)
+    with _patch_lock:
+        for module, fn_name, extension in functions_to_patch:
+            key = (module, fn_name)
+            if key in _patched_torch_functions:
+                orig_fn, ref_count = _patched_torch_functions[key]
+                _patched_torch_functions[key] = (orig_fn, ref_count + 1)
+                log.debug("Already patched torch function: %s.%s (ref_count=%d)",
+                          module.__name__, fn_name, ref_count + 1)
+            else:
+                orig_fn = getattr(module, fn_name)
+                _patched_torch_functions[key] = (orig_fn, 1)
+                setattr(module, fn_name, _create_function_wrapper(extension))
+                log.debug("Patched torch function: %s.%s", module.__name__, fn_name)
 
 
 def _unpatch_torch_functions():
-    """Restore original torch functions."""
-    for (module, fn_name), orig_fn in _patched_torch_functions.items():
-        setattr(module, fn_name, orig_fn)
-        log.debug("Restored torch function: %s.%s", module.__name__, fn_name)
-    _patched_torch_functions.clear()
+    """Restore original torch functions.
+
+    Decrements the ref count; the original function is restored only when the
+    count reaches zero, so nested/concurrent patch pairs work correctly.
+    """
+    with _patch_lock:
+        to_remove = []
+        for (module, fn_name), (orig_fn, ref_count) in _patched_torch_functions.items():
+            new_count = ref_count - 1
+            if new_count <= 0:
+                setattr(module, fn_name, orig_fn)
+                to_remove.append((module, fn_name))
+                log.debug("Restored torch function: %s.%s", module.__name__, fn_name)
+            else:
+                _patched_torch_functions[(module, fn_name)] = (orig_fn, new_count)
+                log.debug("Decremented ref count for torch function: %s.%s (ref_count=%d)",
+                          module.__name__, fn_name, new_count)
+        for key in to_remove:
+            del _patched_torch_functions[key]
 
 
 def __make_16bit_traceable(model: torch.nn.Module,
