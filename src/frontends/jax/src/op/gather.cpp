@@ -173,12 +173,22 @@ OutputVector translate_gather(const NodeContext& context) {
     auto operand = context.get_input(0);
     auto start_indices = context.get_input(1);
 
-    auto collapsed_slice_dims = context.get_attribute<std::vector<int64_t>>("collapsed_slice_dims");
-    auto offset_dims = context.get_attribute<std::vector<int64_t>>("offset_dims");
-    auto start_index_map = context.get_attribute<std::vector<int64_t>>("start_index_map");
-    auto slice_sizes = context.get_attribute<std::vector<int64_t>>("slice_sizes");
+    auto collapsed_slice_dims = context.const_named_param<std::vector<int64_t>>("collapsed_slice_dims");
+    auto offset_dims = context.const_named_param<std::vector<int64_t>>("offset_dims");
+    auto start_index_map = context.const_named_param<std::vector<int64_t>>("start_index_map");
+    auto slice_sizes = context.const_named_param<std::vector<int64_t>>("slice_sizes");
 
     int64_t mode = 0;
+    int64_t batch_dims = 0;
+
+    if (context.has_param("operand_batching_dims")) {
+        auto op_batch_dims = context.const_named_param<std::vector<int64_t>>("operand_batching_dims");
+        batch_dims = op_batch_dims.size();
+    } else if (context.has_param("start_indices_batching_dims")) {
+        auto idx_batch_dims = context.const_named_param<std::vector<int64_t>>("start_indices_batching_dims");
+        batch_dims = idx_batch_dims.size();
+    }
+
     if (context.has_param("mode")) {
         mode = context.const_named_param<int64_t>("mode");
     }
@@ -212,6 +222,11 @@ OutputVector translate_gather(const NodeContext& context) {
         if (indices_rank.is_static()) {
             index_vector_axis = indices_rank.get_length() - 1;
         }
+    }
+
+    auto safe_operand_rank = operand_reordered->get_output_partial_shape(0).rank();
+    if (safe_operand_rank.is_static() && safe_operand_rank.get_length() <= batch_dims) {
+        batch_dims = 0;
     }
 
     auto normalized_indices = normalize_start_indices(start_indices, index_vector_axis);
@@ -271,7 +286,6 @@ OutputVector translate_gather(const NodeContext& context) {
         FRONT_END_NOT_IMPLEMENTED("Slice gathering (slice_sizes > 1) is not fully implemented yet.");
     } 
 
-    int64_t batch_dims = indices_rank_val - 1;
     Output<Node> gathered = std::make_shared<v8::GatherND>(operand_reordered, normalized_indices, batch_dims);
 
     // 5. Mode Handling: Masking (FILL_OR_DROP)
@@ -285,7 +299,7 @@ OutputVector translate_gather(const NodeContext& context) {
 
     // 6. Post-processing: Collapse Slices & Transpose Output
     auto current_pshape = gathered.get_partial_shape();
-    int64_t num_slice_dims = offset_dims.size();
+    int64_t num_slice_dims = slice_sizes_reordered.size();
 
     // Handle collapsed_slice_dims (Squeeze)
     if (all_slice_one && !collapsed_slice_dims.empty()) {
@@ -311,28 +325,25 @@ OutputVector translate_gather(const NodeContext& context) {
     // Handle offset_dims (Transpose)
     if (current_pshape.rank().is_static()) {
         int64_t current_rank = current_pshape.rank().get_length();
+        int64_t num_offset_dims = offset_dims.size();
+        
+        if (num_offset_dims > 0) {
+            bool is_identity = true;
+            int64_t expected_start = current_rank - num_offset_dims;
 
-        // Validate offset_dims properties
-        FRONT_END_OP_CONVERSION_CHECK(static_cast<int64_t>(offset_dims.size()) == num_slice_dims,
-                                      "offset_dims must match number of slice dims");
-
-        bool is_identity = true;
-        int64_t expected_start = current_rank - num_slice_dims;
-
-        // Check if dimensions are already in the correct place
-        for (size_t i = 0; i < offset_dims.size(); ++i) {
-            if (offset_dims[i] != expected_start + static_cast<int64_t>(i)) {
-                is_identity = false;
+            for (size_t i = 0; i < offset_dims.size(); i++) {
+                if (offset_dims[i] != expected_start + static_cast<int64_t>(i)) {
+                    is_identity = false;
+                }
+                if (i > 0) {
+                    FRONT_END_OP_CONVERSION_CHECK(offset_dims[i] == offset_dims[i - 1] + 1,
+                            "Only Contiguous offset_dims are supported.");
+                }
             }
-            if (i > 0) {
-                 FRONT_END_OP_CONVERSION_CHECK(offset_dims[i] == offset_dims[i - 1] + 1,
-                                               "Only contiguous offset_dims are supported.");
-            }
-        }
-
-        if (!is_identity) {
-            auto perm = compute_output_permutation(current_rank, offset_dims);
-            gathered = make_transpose(gathered, perm);
+            if (!is_identity) {
+                auto perm = compute_output_permutation(current_rank, offset_dims);
+                gathered = make_transpose(gathered, perm);
+            } 
         }
     } else {
         FRONT_END_NOT_IMPLEMENTED("Dynamic Rank output is not supported.");

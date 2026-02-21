@@ -6,6 +6,7 @@
 
 from enum import Enum
 from jax.lax import ConvDimensionNumbers
+from jax.lax import GatherDimensionNumbers
 
 def enum_values_pass(value):
     if isinstance(value, Enum):
@@ -54,9 +55,23 @@ def dot_general_param_pass(param_name: str, jax_eqn):
             res['batch_dimensions'] = [list(batch_dimensions[0]), list(batch_dimensions[1])]
     return res
 
+def gather_param_pass(param_name: str, jax_eqn):
+    param = jax_eqn.params[param_name]
+    res = {}
+    if param_name == 'dimension_numbers':
+        res['offset_dims'] = list(param.offset_dims)
+        res['collapsed_slice_dims'] = list(param.collapsed_slice_dims)
+        res['start_index_map'] = list(param.start_index_map)
+        res['operand_batching_dims'] = list(param.operand_batching_dims)
+        res['start_indices_batching_dims'] = list(param.start_indices_batching_dims)
+    else:
+        res[param_name] = param
+    return res
+
 # mapping from primitive to pass
 param_passes = {
     'dot_general': dot_general_param_pass,
+    'gather': gather_param_pass
 }
 
 def filter_param(primitive: str, param_name: str, jax_eqn):
