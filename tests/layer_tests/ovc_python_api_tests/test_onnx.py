@@ -28,13 +28,13 @@ def make_graph_proto_model():
         'LeakyRelu',
         inputs=['input'],
         outputs=['LeakyRelu_data'],
-        alpha=0.1
+        alpha=0.25
     )
     node_def2 = onnx.helper.make_node(
         'Elu',
         inputs=['LeakyRelu_data'],
         outputs=['output'],
-        alpha=0.1
+        alpha=0.25
     )
 
     # Create the graph (GraphProto)
@@ -53,19 +53,19 @@ def make_graph_proto_model():
 
 def create_ref_model(shape):
     param1 = ov.opset8.parameter(shape, dtype=np.float32)
-    slope_const = ov.opset8.constant([0.1], dtype=np.float16)
+    slope_const = ov.opset8.constant([0.25], dtype=np.float16)
     decompress_slope = ov.opset8.convert(slope_const, np.float32)
     prelu = ov.opset8.prelu(param1, slope=decompress_slope)
-    relu = ov.opset8.elu(prelu, alpha=np.float32(0.1))
+    relu = ov.opset8.elu(prelu, alpha=np.float32(0.25))
     parameter_list = [param1]
     return Model([relu], parameter_list, "test")
 
 
 def create_ref_model_fp32(shape):
     param1 = ov.opset8.parameter(shape, dtype=np.float32)
-    slope_const = ov.opset8.constant([0.1], dtype=np.float32)
+    slope_const = ov.opset8.constant([0.25], dtype=np.float32)
     prelu = ov.opset8.prelu(param1, slope=slope_const)
-    relu = ov.opset8.elu(prelu, alpha=np.float32(0.1))
+    relu = ov.opset8.elu(prelu, alpha=np.float32(0.25))
     parameter_list = [param1]
     return Model([relu], parameter_list, "test")
 

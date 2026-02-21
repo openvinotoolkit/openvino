@@ -138,6 +138,27 @@ void compress_model_to_f16(const std::shared_ptr<Model>& model, bool postponed) 
     }
 }
 
+namespace {
+
+// Returns true if a scalar constant of type T loses significant precision when rounded to FP16.
+// Used to protect mathematical scale factors (e.g., log(16) in attention bucketing) from FP16
+// rounding errors that cascade through every computation referencing them.
+template <typename T>
+bool scalar_has_high_f16_error(const ov::op::v0::Constant* const_node) {
+    constexpr double max_relative_error = 1e-4;
+    static_assert(sizeof(T) >= 4);
+    const T src = *const_node->get_data_ptr<T>();
+    if (std::isfinite(src) && src != T{0}) {
+        const double src_val = static_cast<double>(src);
+        const ov::float16 f16_val = static_cast<ov::float16>(src);
+        const double roundtripped = static_cast<double>(static_cast<T>(f16_val));
+        return std::abs(src_val - roundtripped) / std::abs(src_val) > max_relative_error;
+    }
+    return false;
+}
+
+}  // namespace
+
 CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
     MATCHER_SCOPE(CompressFloatConstantsImpl);
     auto const_pattern = pattern::wrap_type<v0::Constant>();
@@ -154,6 +175,17 @@ CompressFloatConstantsImpl::CompressFloatConstantsImpl(bool postponed) {
             return false;
 
         auto c_type = const_node->get_element_type();
+
+        // Skip FP16 compression for scalar constants with significant rounding error.
+        // Scalar constants often serve as mathematical scale factors (e.g., log(16) in attention
+        // bucketing) where FP16 rounding error cascades through every computation that uses them.
+        if (ov::shape_size(const_node->get_shape()) == 1) {
+            if (c_type == ov::element::f32 && scalar_has_high_f16_error<float>(const_node.get()))
+                return false;
+            if (c_type == ov::element::f64 && scalar_has_high_f16_error<double>(const_node.get()))
+                return false;
+        }
+
         std::shared_ptr<ov::Node> new_const;
 
 #if !defined(OPENVINO_ARCH_X86) && !defined(OPENVINO_ARCH_X86_64)
