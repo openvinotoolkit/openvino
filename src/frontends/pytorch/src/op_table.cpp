@@ -177,6 +177,7 @@ OP_CONVERTER(translate_meshgrid);
 OP_CONVERTER(translate_min);
 OP_CONVERTER(translate_minimum);
 OP_CONVERTER(translate_movedim);
+OP_CONVERTER(translate_mT);
 OP_CONVERTER(translate_multinomial);
 OP_CONVERTER(translate_narrow);
 OP_CONVERTER(translate_native_multi_head_attention);
@@ -543,6 +544,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::full_like", op::translate_full_like},
         {"aten::gather", op::translate_gather},
         {"aten::gcd", op::translate_gcd},
+        {"aten::affine_grid_generator", op::translate_affine_grid_generator},
         {"aten::ge", op::translate_1to1_match_2_inputs_align_types<opset10::GreaterEqual>},
         {"aten::gelu", op::translate_gelu},
         {"aten::glu", op::translate_glu},
@@ -627,6 +629,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::max_pool3d_with_indices", op::quantizable_op<op::translate_max_pool3d>},
         {"aten::mean", op::quantizable_op<op::translate_mean>},
         {"aten::meshgrid", op::translate_meshgrid},
+        {"aten::mT", op::translate_mT},
         {"aten::min", op::translate_min},
         {"aten::minimum", op::translate_minimum},
         {"aten::mish", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Mish>},
