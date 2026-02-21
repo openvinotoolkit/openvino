@@ -79,6 +79,38 @@ ov::OutputVector PoolingFactory::make_avg_pool() const {
                                            m_auto_pad)};
 }
 
+ov::OutputVector PoolingFactory::make_avg_pool_opset7() const {
+    // Handle count_include_pad (introduced in Opset 7)
+    // Default is 0 (false), which means exclude padding from the average
+    const bool count_include_pad = m_onnx_node.get_attribute_value<std::int64_t>("count_include_pad", 0);
+    
+    // ceil_mode (introduced in Opset 10) is already handled via m_rounding_type
+    // dilations (introduced in Opset 11) is already handled via m_dilations
+
+    // Use v16::AvgPool if dilations are present (non-unit), otherwise use v1::AvgPool
+    if (std::all_of(m_dilations.begin(), m_dilations.end(), [](size_t d) {
+            return d == static_cast<size_t>(1);
+        })) {
+        return {std::make_shared<v1::AvgPool>(m_inputs.at(0),
+                                              m_strides,
+                                              m_padding_below,
+                                              m_padding_above,
+                                              m_kernel_shape,
+                                              !count_include_pad,
+                                              m_rounding_type,
+                                              m_auto_pad)};
+    }
+    return {std::make_shared<v16::AvgPool>(m_inputs.at(0),
+                                           m_strides,
+                                           m_dilations,
+                                           m_padding_below,
+                                           m_padding_above,
+                                           m_kernel_shape,
+                                           !count_include_pad,
+                                           m_rounding_type,
+                                           m_auto_pad)};
+}
+
 ov::OutputVector PoolingFactory::make_max_pool() const {
     return {std::make_shared<v1::MaxPool>(m_inputs.at(0),
                                           m_strides,
