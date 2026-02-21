@@ -73,7 +73,7 @@ struct Config {
     size_t rtCacheCapacity = 5000UL;
 #endif
     size_t snippetsCacheCapacity = 5000UL;
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     ov::element::Type kvCachePrecision = ov::element::u8;
     ov::element::Type keyCachePrecision = ov::element::u8;
     ov::element::Type valueCachePrecision = ov::element::u8;
