@@ -24,6 +24,10 @@
 #include "ocl/ocl_common.hpp"
 #include "ocl/ocl_device.hpp"
 
+#ifdef OV_GPU_WITH_SYCL
+#include "sycl/sycl_engine.hpp"
+#endif
+
 #ifdef WIN32
 #include <sdkddkver.h>
 #ifdef NTDDI_WIN10_RS5
@@ -58,7 +62,18 @@ static const cldnn::device::ptr get_target_device(const cldnn::engine& engine) {
     using namespace cldnn;
     if (engine.runtime_type() == runtime_types::ocl) {
         return engine.get_device();
-    } else {
+    }
+#ifdef OV_GPU_WITH_SYCL
+    else if (engine.runtime_type() == runtime_types::sycl) {
+        auto& sycl_engine = downcast<const cldnn::sycl::sycl_engine>(engine);
+        auto cl_device = ::sycl::get_native<::sycl::backend::opencl>(sycl_engine.get_sycl_device());
+        auto cl_ctx = ::sycl::get_native<::sycl::backend::opencl>(sycl_engine.get_sycl_context());
+        auto cl_platform = ::sycl::get_native<::sycl::backend::opencl>(sycl_engine.get_sycl_device().get_platform());
+        auto ocl_device = std::make_shared<ocl::ocl_device>(cl::Device(cl_device, true), cl::Context(cl_ctx, true), cl::Platform(cl_platform, true));
+        return ocl_device;
+    }
+#endif
+    else {
         ocl::ocl_device_detector detector;
         auto device_map = detector.get_available_devices(nullptr, nullptr);
         auto original_device = engine.get_device();

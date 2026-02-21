@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(NOT OV_COMPILER_IS_INTEL_LLVM)
+if(NOT OV_GPU_WITH_SYCL)
     return()
 endif()
 

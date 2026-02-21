@@ -6,8 +6,12 @@
 
 #include "primitive_inst.h"
 #include "intel_gpu/runtime/memory.hpp"
+// undefine EXPAND macro before/after registry/registry.hpp because it also defined by including sycl/sycl.hpp
+#undef EXPAND
 #include "registry/registry.hpp"
+#undef EXPAND
 #include "runtime/ocl/ocl_event.hpp"
+#include "sycl/sycl_base_event.hpp"
 
 #include <vector>
 
@@ -49,6 +53,16 @@ protected:
         } else {
             return nullptr;
         }
+    }
+
+    static std::vector<::sycl::event> to_sycl_events(std::vector<event::ptr> const& deps) {
+        std::vector<::sycl::event> events;
+        for (auto& dep : deps) {
+            if (auto sycl_base_ev = std::dynamic_pointer_cast<sycl::sycl_base_event>(dep)) {
+                events.push_back(sycl_base_ev->get());
+            }
+        }
+        return events;
     }
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {

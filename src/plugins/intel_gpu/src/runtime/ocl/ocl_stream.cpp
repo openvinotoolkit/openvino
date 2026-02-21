@@ -369,7 +369,7 @@ void ocl_stream::flush() const {
         OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
     }
 }
-void ocl_stream::finish() const {
+void ocl_stream::finish() {
     try {
         get_cl_queue().finish();
     } catch (cl::Error const& err) {

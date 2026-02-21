@@ -2335,6 +2335,8 @@ TEST(OVRemoteContextGPU, smoke_CustomContextDeviceNames) {
 
     for (size_t i = 0; i < gpuDevices.size(); i++) {
         auto device_name = "GPU." + std::to_string(i);
+#ifdef OV_GPU_WITH_SYCL
+#else
         auto ctx = core.get_default_context(device_name).as<ov::intel_gpu::ocl::ClContext>();
         cl::Context original_ctx_handle = ctx;
         std::vector<cl::Device> devices = original_ctx_handle.getInfo<CL_CONTEXT_DEVICES>();
@@ -2350,6 +2352,7 @@ TEST(OVRemoteContextGPU, smoke_CustomContextDeviceNames) {
         auto remote_context1 = ov::intel_gpu::ocl::ClContext(core, new_ctx_handle_md.get(), 1);
         ASSERT_EQ(remote_context0.get_device_name(), device_name);
         ASSERT_EQ(remote_context1.get_device_name(), device_name);
+#endif
     }
 }
 

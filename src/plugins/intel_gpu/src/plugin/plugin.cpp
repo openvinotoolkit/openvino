@@ -236,7 +236,7 @@ Plugin::Plugin() {
 
     // Set OCL runtime which should be always available
 #ifdef OV_GPU_WITH_SYCL
-    cldnn::device_query device_query(cldnn::engine_types::sycl, cldnn::runtime_types::ocl);
+    cldnn::device_query device_query(cldnn::engine_types::sycl, cldnn::runtime_types::sycl);
 #else
     cldnn::device_query device_query(cldnn::engine_types::ocl, cldnn::runtime_types::ocl);
 #endif
