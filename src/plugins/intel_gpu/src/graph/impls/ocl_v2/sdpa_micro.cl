@@ -281,9 +281,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     /* Locate K/Q/V/A matrices within batch */
 #if IS_PAGED_ATTENTION
     #if IS_GQA_SINGLE_TOKEN
-        Q += subsequence_begin * ldq
+        Q += subsequence_begin * ldq * HEADS_NUM * KV_GROUP_SIZE
            + b0 * HEAD_SIZE * KV_GROUP_SIZE + INPUT0_PAD_BEFORE_FEATURE_NUM;
-        A += subsequence_begin * lda
+        A += subsequence_begin * lda * HEADS_NUM * KV_GROUP_SIZE
            + b0 * HEAD_SIZE * KV_GROUP_SIZE;
     #else
         Q += subsequence_begin * ldq
