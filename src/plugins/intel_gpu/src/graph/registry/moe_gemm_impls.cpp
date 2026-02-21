@@ -6,8 +6,8 @@
 #include "intel_gpu/primitives/moe_gemm.hpp"
 #include "primitive_inst.h"
 
-#if OV_GPU_WITH_OCL
-    #include "impls/ocl_v2/moe/moe_gemm.hpp"
+#if OV_GPU_WITH_ONEDNN
+    #include "impls/onednn/moe_gemm_onednn.hpp"
 #endif
 
 
@@ -17,8 +17,7 @@ using namespace cldnn;
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<moe_gemm>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
-        OV_GPU_CREATE_INSTANCE_OCL(ocl::MoEGemm, shape_types::static_shape)
-        OV_GPU_CREATE_INSTANCE_OCL(ocl::MoEGemm, shape_types::dynamic_shape)
+        OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::MoEGemmImplementationManager, shape_types::static_shape)
     };
 
     return impls;

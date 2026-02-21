@@ -29,7 +29,7 @@ KERNEL(moe_scatter_reduction_ref)(
                 break;
             }
         }
-        uint exp_offset_start = experts_start_offset[idx];
+        uint exp_offset_start = expert_id == 0 ? 0 : experts_start_offset[expert_id - 1];
         uint input_len = tokens_len_per_expert[idx];
         uint input_offset = 0;
         for (uint t = 0; t < input_len; ++t) {
