@@ -5,10 +5,10 @@
 ### Enviroment
 In case the Python version you have is not supported by OpenVINO, you can refer to ["Python version upgrade" guide](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/python/docs/python_version_upgrade.md) for instructions on how to download and build a newer, supported Python version.
 
-The environment setup is described as part of the pyenv example in [Building the OpenVINO™ Python API](./build.md#Example:_using_pyenv_with_OpenVINO™_on_Linux_based_system).
+The environment setup is described as part of the pyenv example in [Building the OpenVINO™ Python API](./build.md#example-using-pyenv-with-openvino-on-linux-based-system).
 
 ### Building
-Building instructions can be found in [Building the OpenVINO™ Python API](./build.md#_Building_the_OpenVINO™_Python_API).
+Building instructions can be found in [Building the OpenVINO™ Python API](./build.md).
 
 ## Contribution guidelines and best practices
 
@@ -21,7 +21,7 @@ Code snippets and detailed explanations can be found here:
 
 ### Always test out our code! Don't forget about it before pushing and triggering CIs.
 
-To learn how to test your code, refer to the guide on [how to test OpenVINO™ Python API?](./test_examples.md#Running_OpenVINO™_Python_API_tests)
+To learn how to test your code, refer to the guide on [how to test OpenVINO™ Python API?](./test_examples.md#run-openvino-python-api-tests)
 
 Moreover, the project utilizes *flake8* and *mypy* packages to run codestyle checks. Additionally OpenVINO™ uses the custom configuration file to exclude some strict rules. To run codestyle checks, navigate to the main Python API folder first and use following commands:
 ```shell

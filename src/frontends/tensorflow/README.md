@@ -105,7 +105,7 @@ The next extension types are supported:
 TensorFlow conversion into the OpenVINO opset operation requires one pass or two passes:
 * One pass using [Loaders](../tensorflow_common/src/op/) directly transforms TF operation into a sub-graph of OpenVINO opset.
 * Two passes consist of [Loaders](../tensorflow_common/src/op/) and [Internal Transformations](../tensorflow_common/include/helper_transforms),
-where the first pass transforms a TF operation into a sub-graph with [Internal Operations](../tensorflow_common/include/src/helper_ops),
+where the first pass transforms a TF operation into a sub-graph with [Internal Operations](../tensorflow_common/include/helper_ops),
 and the second pass avoids internal operations. Two transformation passes are used when a TensorFlow operation
 cannot be mapped into a sub-graph of the OpenVINO opset, and the conversion depends on the succeeding operations in the graph.
 
@@ -138,7 +138,7 @@ The main rules for loaders implementation:
 ### Two transformation passes using Loader and Internal Transformation
 
 In rare cases, TensorFlow operation conversion requires two transformations (`Loader` and `Internal Transformation`).
-In the first step, `Loader` must convert a TF operation into [Internal Operation](../tensorflow_common/helper_ops) that is used temporarily by the conversion pipeline.
+In the first step, `Loader` must convert a TF operation into [Internal Operation](../tensorflow_common/include/helper_ops) that is used temporarily by the conversion pipeline.
 The internal operation implementation must also contain the `validate_and_infer_types()` method as similar to [OpenVINO Core](https://docs.openvino.ai/2025/api/c_cpp_api/group__ov__ops__cpp__api.html) operations.
 
 Here is an example of an implementation for the internal operation `SparseSegmentOps`:

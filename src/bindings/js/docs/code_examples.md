@@ -81,12 +81,12 @@ add_library(${PROJECT_NAME} SHARED
 ### Argument validation and conversion
 
 When binding JavaScript arguments with C++ functions, it is crucial to validate and convert the arguments appropriately. The template `ov::js::validate` function is a utility that facilitates this process. It is particularly useful for handling different overloads of functions and ensuring standardized error messages when arguments do not match expected signatures.
-Before implementing a new conversion function, such as `js_to_cpp<ov::Shape>`, review the existing [helper methods](../../node/include/helper.hpp) to see if one already meets your requirements.
+Before implementing a new conversion function, such as `js_to_cpp<ov::Shape>`, review the existing [helper methods](../node/include/helper.hpp) to see if one already meets your requirements.
 
 
 ### New class initialization
 
-When a new class is introduced to the `openvino-node` module, it must be initialized upon module loading. This is done in the [addon.cpp](../../src/addon.cpp) file. The initialization process registers the class with the Node.js environment so that it can be used within JavaScript code.
+When a new class is introduced to the `openvino-node` module, it must be initialized upon module loading. This is done in the [addon.cpp](../node/src/addon.cpp) file. The initialization process registers the class with the Node.js environment so that it can be used within JavaScript code.
 ```cpp
 Napi::Object init_module(Napi::Env env, Napi::Object exports) {
     auto addon_data = new AddonData();

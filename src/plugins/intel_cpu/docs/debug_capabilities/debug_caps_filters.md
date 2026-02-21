@@ -35,7 +35,7 @@ Generation is based on dot representation, so IR is additionally dumped to .svg.
 ## Transformation filter
 
 Transformation filter is used to specify main graph transformation stages for different purposes,
-e.g. for [disabling](feature_disabling.md#graph-transformation) or [serialization](graph_serialization.md#graph-transformations).
+e.g. for [disabling](feature_disabling.md#graph-transformations) or [serialization](graph_serialization.md#graph-transformations).
 ```sh
     transformations=<comma_separated_tokens>
 ```
