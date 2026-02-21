@@ -75,6 +75,23 @@ std::vector<FloorParams> generateParamsForFloorFloat() {
     return params;
 }
 
+// Add after the existing generateParamsForFloorFloat function (around line 73)
+
+template <element::Type_t IN_ET>
+std::vector<FloorParams> generateParamsForFloorF16NearOne() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+    
+    // Test case for issue #33233: Floor with f16 values near 1.0
+    std::vector<FloorParams> params{
+        FloorParams(ov::PartialShape{6},
+                   IN_ET,
+                   std::vector<T>{T(0.999f), T(1.0f), T(1.001f), T(-0.999f), T(-1.0f), T(-1.001f)},
+                   std::vector<T>{T(0.0f), T(1.0f), T(1.0f), T(-1.0f), T(-1.0f), T(-2.0f)})
+    };
+    return params;
+}
+
+
 template <element::Type_t IN_ET>
 std::vector<FloorParams> generateParamsForFloorInt64() {
     using T = typename element_type_traits<IN_ET>::value_type;
@@ -108,7 +125,8 @@ std::vector<FloorParams> generateParamsForFloorInt() {
 
 std::vector<FloorParams> generateCombinedParamsForFloor() {
     const std::vector<std::vector<FloorParams>> allTypeParams{generateParamsForFloorFloat<element::Type_t::f32>(),
-                                                              generateParamsForFloorFloat<element::Type_t::f16>(),
+                                                              generateParamsForFloorF16NearOne<element::Type_t::f16>(), 
+                                                              generateParamsForFloorFloat<element::Type_t::f16>(), 
                                                               generateParamsForFloorInt64<element::Type_t::i64>(),
                                                               generateParamsForFloorInt32<element::Type_t::i32>(),
                                                               generateParamsForFloorInt<element::Type_t::i16>(),
