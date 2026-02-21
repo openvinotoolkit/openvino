@@ -96,10 +96,18 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
             return res;
         }
 
-        if (list.tensor_size() || list.func_size())
+        if(list.func_size()) {
+            std::vector<std::string> names;
+            for (int idx = 0; idx < list.func_size(); ++idx) {
+                names.emplace_back(list.func(idx).name());
+            }
+            return names;
+        }
+
+        if (list.tensor_size())
             FRONT_END_GENERAL_CHECK(
                 false,
-                "Conversion from Tensorflow to OpenVINO data type failed: List of tensors/functions type for '",
+                "Conversion from Tensorflow to OpenVINO data type failed: List of tensors type for '",
                 name,
                 "' attribute is not supported.");
 
