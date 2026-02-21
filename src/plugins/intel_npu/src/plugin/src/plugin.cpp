@@ -28,9 +28,9 @@
 #include "remote_context.hpp"
 #include "transformations.hpp"
 
-using namespace intel_npu;
-
 namespace {
+
+using namespace intel_npu;
 
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
@@ -206,54 +206,17 @@ int get_ir_version(const std::shared_ptr<const ov::Model>& model, const intel_np
     return 11;
 }
 
-}  // namespace
-
-namespace intel_npu {
-
-Plugin::Plugin() : _options(std::make_shared<OptionsDesc>()), _logger("NPUPlugin", Logger::global().level()) {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
-    set_device_name("NPU");
-
-    // parse env_variables to get LOG_LEVEL if needed
-    _options->add<LOG_LEVEL>();
-
-    FilteredConfig filteredConfig(_options);
-
-    filteredConfig.parseEnvVars();
-    Logger::global().setLevel(filteredConfig.get<LOG_LEVEL>());
-    _logger.setLevel(filteredConfig.get<LOG_LEVEL>());
-
-    OV_ITT_TASK_CHAIN(PLUGIN, itt::domains::NPUPlugin, "Plugin::Plugin", "GetBackend");
-    // backend registry shall be created after configs are updated
-    _backendsRegistry = std::make_unique<BackendsRegistry>();
-    _backend = _backendsRegistry->getEngineBackend();
-
-    if (_backend) {
-        OV_ITT_TASK_NEXT(PLUGIN, "registerBackendOptions");
-        _backend->registerOptions(*_options);
-    }
-
-    OV_ITT_TASK_NEXT(PLUGIN, "createMetrics");
-    _metrics = std::make_unique<Metrics>(_backend);
-
-    OV_ITT_TASK_NEXT(PLUGIN, "InitOptions");
-    init_options(filteredConfig);
-
-    /// Init and register properties
-    OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
-    _propertiesManager = std::make_unique<Properties>(PropertiesType::PLUGIN, filteredConfig, _metrics, _backend);
-    _propertiesManager->registerProperties();
-}
-
-void Plugin::init_options(FilteredConfig& filteredConfig) {
+void init_options(const std::shared_ptr<OptionsDesc>& options,
+                  const ov::SoPtr<IEngineBackend>& backend,
+                  FilteredConfig& filteredConfig) {
     // Initialize (note: it will reset registered options)
-    _options->reset();
+    options->reset();
 
 #define REGISTER_OPTION(OPT_TYPE)                             \
     do {                                                      \
         auto dummyopt = details::makeOptionModel<OPT_TYPE>(); \
         std::string o_name = dummyopt.key().data();           \
-        _options->add<OPT_TYPE>();                            \
+        options->add<OPT_TYPE>();                             \
         filteredConfig.enable(std::move(o_name), false);      \
     } while (0)
 
@@ -305,15 +268,13 @@ void Plugin::init_options(FilteredConfig& filteredConfig) {
     REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
     REGISTER_OPTION(ENABLE_STRIDES_FOR);
 
-    if (_backend) {
-        if (_backend->isCommandQueueExtSupported()) {
+    if (backend) {
+        if (backend->isCommandQueueExtSupported()) {
             REGISTER_OPTION(WORKLOAD_TYPE);
         }
-        if (_backend->isContextExtSupported()) {
+        if (backend->isContextExtSupported()) {
             REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
         }
-        // register backend options
-        _backend->registerOptions(*_options);
     }
 
     // parse again env_variables to update registered configs which have env vars set
@@ -392,8 +353,8 @@ void Plugin::init_options(FilteredConfig& filteredConfig) {
     filteredConfig.enable(ov::log::level.name(), true);  // needed also by runtime options
 
     if (filteredConfig.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
-        if (_backend) {
-            auto device = _backend->getDevice();
+        if (backend) {
+            auto device = backend->getDevice();
             if (device) {
                 auto platformName = device->getName();
                 CompilerAdapterFactory compilerFactory;
@@ -401,11 +362,51 @@ void Plugin::init_options(FilteredConfig& filteredConfig) {
                 if (compileType == ov::intel_npu::CompilerType::DRIVER) {
                     filteredConfig.update(
                         {{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compileType)}});
-                    _logger.info("Use %s as default compiler", COMPILER_TYPE::toString(compileType).c_str());
                 }
             }
         }
     }
+}
+
+}  // namespace
+
+namespace intel_npu {
+
+Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
+    set_device_name("NPU");
+
+    std::shared_ptr<OptionsDesc> options = std::make_shared<OptionsDesc>();
+
+    // parse env_variables to get LOG_LEVEL if needed
+    options->add<LOG_LEVEL>();
+
+    FilteredConfig filteredConfig(options);
+
+    filteredConfig.parseEnvVars();
+    Logger::global().setLevel(filteredConfig.get<LOG_LEVEL>());
+    _logger.setLevel(Logger::global().level());
+
+    OV_ITT_TASK_CHAIN(PLUGIN, itt::domains::NPUPlugin, "Plugin::Plugin", "GetBackend");
+    // backend registry shall be created after configs are updated
+    _backendsRegistry = std::make_unique<BackendsRegistry>();
+    _backend = _backendsRegistry->getEngineBackend();
+
+    if (_backend) {
+        OV_ITT_TASK_NEXT(PLUGIN, "registerBackendOptions");
+        _backend->registerOptions(*options);
+    }
+
+    OV_ITT_TASK_NEXT(PLUGIN, "createMetrics");
+    auto metrics = std::make_shared<Metrics>(_backend);
+
+    OV_ITT_TASK_NEXT(PLUGIN, "InitOptions");
+    init_options(options, _backend, filteredConfig);
+
+    /// Init and register properties
+    OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
+    _propertiesManager = std::make_unique<Properties>(PropertiesType::PLUGIN, filteredConfig, metrics, _backend);
+    _propertiesManager->registerProperties();
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
@@ -422,10 +423,10 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    auto npuPluginArguments = arguments;
-    exclude_model_ptr_from_map(npuPluginArguments);
+    if (!arguments.empty()) {
+        auto npuPluginArguments = arguments;
+        exclude_model_ptr_from_map(npuPluginArguments);
 
-    if (!npuPluginArguments.empty()) {
         // Need to create a temporary copy of the properties manager. The set of arguments we get might change the list
         // of supported properties, but we cannot alter the global state
         auto copyPropertiesManager = std::make_unique<Properties>(*_propertiesManager);
@@ -435,6 +436,29 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     }
 
     return _propertiesManager->getProperty(name);
+}
+
+bool Plugin::is_property_supported(const std::string& name, const ov::AnyMap& arguments) const {
+    if (!arguments.empty()) {
+        auto npuPluginArguments = arguments;
+        exclude_model_ptr_from_map(npuPluginArguments);
+
+        // Need to create a temporary copy of the properties manager. The set of arguments we get might change the list
+        // of supported properties, but we cannot alter the global state
+        auto copyPropertiesManager = std::make_unique<Properties>(*_propertiesManager);
+
+        try {
+            copyPropertiesManager->setProperty(npuPluginArguments);
+        } catch (...) {
+            // In case of a failure during property setting, we assume the arguments are not valid and thus the
+            // supported properties cannot be reliably determined - return false in this case
+            return false;
+        }
+
+        return copyPropertiesManager->isPropertySupported(name);
+    }
+
+    return _propertiesManager->isPropertySupported(name);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,

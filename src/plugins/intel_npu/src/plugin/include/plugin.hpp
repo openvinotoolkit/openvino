@@ -37,6 +37,8 @@ public:
 
     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
 
+    bool is_property_supported(const std::string& name, const ov::AnyMap& arguments = {}) const override;
+
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                       const ov::AnyMap& properties) const override;
 
@@ -65,7 +67,6 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
-    void init_options(FilteredConfig& filteredConfig);
     void update_log_level(const ov::AnyMap& properties) const;
 
     /**
@@ -90,9 +91,7 @@ private:
     //  Appropriate checks are needed in plugin/metrics/properties when actions depend on a backend.
     ov::SoPtr<IEngineBackend> _backend;
 
-    std::shared_ptr<OptionsDesc> _options;
     mutable Logger _logger;
-    std::shared_ptr<Metrics> _metrics;
     std::unique_ptr<Properties> _propertiesManager;
 
     static std::atomic<int> _compiledModelLoadCounter;

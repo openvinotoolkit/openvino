@@ -859,6 +859,55 @@ void Properties::setProperty(const ov::AnyMap& properties) {
     }
 }
 
+bool Properties::isPropertySupported(const std::string& name) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (_pType == PropertiesType::PLUGIN) {
+        const bool isRegistered = isPropertyRegistered(name);
+        const bool isConfigOption = _config.hasOpt(name);
+
+        if (!isRegistered && !isConfigOption) {
+            // Property is neither registered nor known by config
+            return false;
+        }
+
+        if (isRegistered) {
+            // Registered and not a config option: always supported.
+            if (!isConfigOption || name == ov::log::level.name()) {
+                return true;
+            }
+
+            // Registered as a config option: runtime mode is always supported.
+            auto opt = _config.getOpt(name);
+            if (opt.mode() == OptionMode::RunTime) {
+                return true;
+            }
+        }
+
+        // Property is compiler config, need to check compiler support
+        std::unique_ptr<ICompilerAdapter> compiler = nullptr;
+        auto compilerType = _config.get<COMPILER_TYPE>();
+        auto deviceId = _config.get<DEVICE_ID>();
+        auto device = utils::getDeviceById(_backend, deviceId);
+
+        auto compilationPlatform = utils::getCompilationPlatform(
+            _config.get<PLATFORM>(),
+            device == nullptr ? deviceId : device->getName(),
+            _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+
+        // Create a compiler to get the type and fetch version and supported options if needed
+        CompilerAdapterFactory factory;
+        compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+
+        filterPropertiesByCompilerSupport(compiler.get(), compilerType, compilationPlatform);
+    }
+
+    if (isPropertyRegistered(name)) {
+        return true;
+    }
+
+    return false;
+}
+
 bool Properties::isPropertyRegistered(const std::string& propertyName) const {
     return _properties.find(propertyName) != _properties.end();
 }
