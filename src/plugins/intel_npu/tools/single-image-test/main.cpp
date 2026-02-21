@@ -826,14 +826,14 @@ bool hasLoadableExt(const std::string& network_path) {
     });
 }
 
-std::string cleanName(std::string&& name) {
+std::string cleanName(std::string name) {
     std::replace_if(
             name.begin(), name.end(),
             [](unsigned char c) {
                 return !std::isalnum(c);
             },
             '_');
-    return std::move(name);
+    return name;
 }
 
 ov::Tensor loadImages(const ov::element::Type& precision, const ov::Shape& shape, const ov::Layout& layout,
@@ -2953,21 +2953,11 @@ static int runSingleImageTest() {
 
         std::string netFileName;
         {
-            auto startPos = FLAGS_network.rfind('/');
-            if (startPos == std::string::npos) {
-                startPos = FLAGS_network.rfind('\\');
-                if (startPos == std::string::npos) {
-                    startPos = 0;
-                }
-            }
-
-            auto endPos = FLAGS_network.rfind('.');
-            if (endPos == std::string::npos) {
-                endPos = FLAGS_network.size();
-            }
-
-            OPENVINO_ASSERT(endPos > startPos);
-            netFileName = cleanName(FLAGS_network.substr(startPos, endPos - startPos));
+            std::filesystem::path networkPath(FLAGS_network);
+            OPENVINO_ASSERT(std::filesystem::exists(networkPath) && networkPath.has_filename(),
+                            "Network path does not exist or is invalid: ",
+                            FLAGS_network);
+            netFileName = cleanName(networkPath.stem().string());
         }
 
         for (size_t numberOfTestCase = 0; numberOfTestCase < inputFilesPerCase.size(); ++numberOfTestCase) {
