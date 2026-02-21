@@ -889,28 +889,34 @@ def test_patched_16bit_model_converts():
     model_fp16 = copy.deepcopy(model_ref).half()
 
     patch_model.__make_16bit_traceable(model_fp16)
-    # verify torch.nn.Linear signature after patching
-    signature = inspect.signature(model_ref.branch1[0].forward).parameters
-    assert ["input"] == list(signature)
-    # the approach with patching only works for node with no grad
-    with torch.no_grad():
-        converted_model = convert_model(model_fp16, example_input=example)
-    assert converted_model
-    cm_fp16 = compile_model(converted_model, "CPU", default_cfg)
-    res_fp16 = cm_fp16([x.numpy() for x in example])
-    np.testing.assert_allclose(res_fp16[0], res_ref[0].numpy(), atol=1e-2)
-    np.testing.assert_allclose(res_fp16[1], res_ref[1].numpy(), atol=1e-2)
+    try:
+        # verify torch.nn.Linear signature after patching
+        signature = inspect.signature(model_ref.branch1[0].forward).parameters
+        assert ["input"] == list(signature)
+        # the approach with patching only works for node with no grad
+        with torch.no_grad():
+            converted_model = convert_model(model_fp16, example_input=example)
+        assert converted_model
+        cm_fp16 = compile_model(converted_model, "CPU", default_cfg)
+        res_fp16 = cm_fp16([x.numpy() for x in example])
+        np.testing.assert_allclose(res_fp16[0], res_ref[0].numpy(), atol=1e-2)
+        np.testing.assert_allclose(res_fp16[1], res_ref[1].numpy(), atol=1e-2)
+    finally:
+        patch_model._unpatch_torch_functions()
 
     model_bf16 = copy.deepcopy(model_ref).bfloat16()
     patch_model.__make_16bit_traceable(model_bf16)
-    # the approach with patching only works for node with no grad
-    with torch.no_grad():
-        converted_model = convert_model(model_bf16, example_input=example)
-    assert converted_model
-    cm_bf16 = compile_model(converted_model, "CPU", default_cfg)
-    res_bf16 = cm_bf16([x.numpy() for x in example])
-    np.testing.assert_allclose(res_bf16[0], res_ref[0].numpy(), atol=1e-2)
-    np.testing.assert_allclose(res_bf16[1], res_ref[1].numpy(), atol=1e-2)
+    try:
+        # the approach with patching only works for node with no grad
+        with torch.no_grad():
+            converted_model = convert_model(model_bf16, example_input=example)
+        assert converted_model
+        cm_bf16 = compile_model(converted_model, "CPU", default_cfg)
+        res_bf16 = cm_bf16([x.numpy() for x in example])
+        np.testing.assert_allclose(res_bf16[0], res_ref[0].numpy(), atol=1e-2)
+        np.testing.assert_allclose(res_bf16[1], res_ref[1].numpy(), atol=1e-2)
+    finally:
+        patch_model._unpatch_torch_functions()
 
 
 def test_patched_16bit_model_with_convert():
@@ -932,18 +938,21 @@ def test_patched_16bit_model_with_convert():
     example = (torch.randint(0, 10, [16, 32]),)
     model = ModelWithLinear()
     patch_model.__make_16bit_traceable(model)
-    with torch.no_grad():
-        converted_model = convert_model(model, example_input=example)
-    assert converted_model
-    mm_num = 0
-    for node in converted_model.get_ordered_ops():
-        if node.get_type_name() == "MatMul":
-            mm_num += 1
-            # verify all matmuls are executed in fp32
-            assert node.get_input_element_type(0) == Type.f32
-            assert node.get_input_element_type(1) == Type.f32
-            assert node.get_output_element_type(0) == Type.f32
-    assert mm_num == 2
+    try:
+        with torch.no_grad():
+            converted_model = convert_model(model, example_input=example)
+        assert converted_model
+        mm_num = 0
+        for node in converted_model.get_ordered_ops():
+            if node.get_type_name() == "MatMul":
+                mm_num += 1
+                # verify all matmuls are executed in fp32
+                assert node.get_input_element_type(0) == Type.f32
+                assert node.get_input_element_type(1) == Type.f32
+                assert node.get_output_element_type(0) == Type.f32
+        assert mm_num == 2
+    finally:
+        patch_model._unpatch_torch_functions()
 
 
 def test_patched_8bit_model_converts_e4m3fn():
