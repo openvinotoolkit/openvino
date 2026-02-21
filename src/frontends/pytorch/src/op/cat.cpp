@@ -176,7 +176,11 @@ OutputVector translate_stack(const NodeContext& context) {
     auto axis = context.const_input<int64_t>(1);
     // Loop case: create ConcatFromSequence with new_axis=true (stack semantics)
     if (ov::as_type_ptr<v5::Loop>(input.get_node_shared_ptr())) {
-        return {context.mark_node(std::make_shared<ov::frontend::ConcatFromSequence>(input, axis, true))};
+        auto concat_from_seq = context.mark_node(std::make_shared<ov::frontend::ConcatFromSequence>(input, axis, true));
+        if (!context.input_is_none(2)) {
+            context.mutate_input(2, concat_from_seq);
+        }
+        return {concat_from_seq};
     }
     const auto&& list_elems = get_list_as_outputs(input);
     OutputVector stack_inputs(list_elems.begin(), list_elems.end());
@@ -189,7 +193,11 @@ OutputVector translate_stack(const NodeContext& context) {
     for (const auto& elem : list_elems) {
         unsqueezed.push_back(context.mark_node(std::make_shared<v0::Unsqueeze>(elem, dim)));
     }
-    return translate_cat_common(context, unsqueezed, axis, false);
+    auto out = translate_cat_common(context, unsqueezed, axis, false);
+    if (!context.input_is_none(2)) {
+        context.mutate_input(2, out[0]);
+    }
+    return out;
 }
 
 OutputVector translate_stack_fx(const NodeContext& context) {
