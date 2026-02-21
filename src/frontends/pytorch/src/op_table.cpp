@@ -161,6 +161,7 @@ OP_CONVERTER(translate_log_softmax);
 OP_CONVERTER(translate_log2);
 OP_CONVERTER(translate_log10);
 OP_CONVERTER(translate_logsumexp);
+OP_CONVERTER(translate_logit);
 OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_while_loop_fx);
 OP_CONVERTER(translate_lstm);
@@ -610,6 +611,9 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::log10", op::optional_out<op::translate_log10, 1>},
         {"aten::log10_", op::inplace_op<op::translate_log10>},
         {"aten::logsumexp", op::translate_logsumexp},
+        {"aten::logit", op::translate_logit},
+        {"aten::special_logit", op::translate_special_logit},
+        {"aten::special_logit", op::translate_logit},
         {"aten::lstm", op::translate_lstm},
         {"aten::lt", op::translate_1to1_match_2_inputs_align_types<opset10::Less>},
         {"aten::masked_fill", op::translate_masked_fill},
