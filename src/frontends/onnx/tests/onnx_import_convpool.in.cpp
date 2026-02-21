@@ -1583,3 +1583,158 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape_with_batch_
 
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deform_conv_2d) {
+    auto model = convert_model("deform_conv_2d.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // X (data): [1,1,4,4]
+    test_case.add_input<float>(
+        {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f});
+
+    // offset: [1,8,3,3]
+    test_case.add_input<float>({0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,
+                                1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f,
+                                0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,
+                                0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,
+                                1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f,
+                                0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f});
+
+    test_case.add_expected_output<float>(Shape{1, 1, 3, 3},
+                                         {6.9000001f,
+                                          2.8500001f,
+                                          6.4000001f,
+                                          13.4000006f,
+                                          11.8999996f,
+                                          7.9000006f,
+                                          12.4000006f,
+                                          4.6999998f,
+                                          1.6000000f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deform_conv_2d_with_bias) {
+    auto model = convert_model("deform_conv_2d_with_bias.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // X (data): [1,1,4,4]
+    test_case.add_input<float>(
+        {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f});
+
+    // offset: [1,8,3,3]
+    test_case.add_input<float>({0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,
+                                1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f,
+                                0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,
+                                0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,
+                                1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f,
+                                0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f});
+
+    // expected = deform_conv output + bias(0.5)
+    test_case.add_expected_output<float>(Shape{1, 1, 3, 3},
+                                         {7.4000001f,
+                                          3.3500001f,
+                                          6.9000001f,
+                                          13.9000006f,
+                                          12.3999996f,
+                                          8.4000006f,
+                                          12.9000006f,
+                                          5.1999998f,
+                                          2.1000000f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deform_conv_2d_with_mask) {
+    auto model = convert_model("deform_conv_2d_with_mask.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // X (data): [1,1,4,4]
+    test_case.add_input<float>(
+        {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f});
+
+    // offset: [1,8,3,3]
+    test_case.add_input<float>({0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,
+                                1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f,
+                                0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,
+                                0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,
+                                1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f,
+                                0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f});
+
+    // mask: [1,4,3,3]
+    test_case.add_input<float>({0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 1.1f, 1.2f,
+                                1.3f, 1.4f, 1.5f, 1.6f, 1.7f, 1.8f, 1.9f, 2.0f, 2.1f, 2.2f, 2.3f, 2.4f,
+                                2.5f, 2.6f, 2.7f, 2.8f, 2.9f, 3.0f, 3.1f, 3.2f, 3.3f, 3.4f, 3.5f, 3.6f});
+
+    test_case.add_expected_output<float>(Shape{1, 1, 3, 3},
+                                         {14.7299995f,
+                                          7.3200006f,
+                                          15.0600004f,
+                                          31.1000004f,
+                                          28.9899998f,
+                                          20.5800018f,
+                                          32.6200027f,
+                                          6.6400003f,
+                                          1.4399999f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deform_conv_2d_with_bias_and_mask) {
+    auto model = convert_model("deform_conv_2d_with_bias_and_mask.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // X (data): [1,1,4,4]
+    test_case.add_input<float>(
+        {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f});
+
+    // offset: [1,8,3,3]
+    test_case.add_input<float>({0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,
+                                1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f,
+                                0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,
+                                0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,
+                                1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f,
+                                0.0f, 1.0f,  1.0f,  0.5f, -0.5f, 0.0f,  1.0f, 0.5f,  -0.5f, 0.0f, 1.0f,  1.0f});
+
+    // mask: [1,4,3,3]
+    test_case.add_input<float>({0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 1.1f, 1.2f,
+                                1.3f, 1.4f, 1.5f, 1.6f, 1.7f, 1.8f, 1.9f, 2.0f, 2.1f, 2.2f, 2.3f, 2.4f,
+                                2.5f, 2.6f, 2.7f, 2.8f, 2.9f, 3.0f, 3.1f, 3.2f, 3.3f, 3.4f, 3.5f, 3.6f});
+
+    // expected = deform_conv_with_mask output + bias(0.5)
+    test_case.add_expected_output<float>(Shape{1, 1, 3, 3},
+                                         {15.2299995f,
+                                          7.8200006f,
+                                          15.5600004f,
+                                          31.6000004f,
+                                          29.4899998f,
+                                          21.0800018f,
+                                          33.1200027f,
+                                          7.1400003f,
+                                          1.9399999f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deform_conv_2d_with_pads) {
+    auto model = convert_model("deform_conv_2d_with_pads.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // X (data): [1,1,4,4]
+    test_case.add_input<float>(
+        {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f});
+
+    // offset: [1,8,5,5] - all zeros (no deformation, equivalent to regular padded conv)
+    test_case.add_input<float>(std::vector<float>(200, 0.0f));
+
+    // With pads=[1,1,1,1], zero offsets, this is a regular convolution on zero-padded input.
+    // W = [0.1, 0.2; 0.3, 0.4], output 5x5
+    test_case.add_expected_output<float>(Shape{1, 1, 5, 5},
+                                         {0.4f,  1.1f,  1.8f,  2.5f,  1.2f,
+                                          2.2f,  4.4f,  5.4f,  6.4f,  2.8f,
+                                          4.6f,  8.4f,  9.4f,  10.4f, 4.4f,
+                                          7.0f,  12.4f, 13.4f, 14.4f, 6.0f,
+                                          2.6f,  4.1f,  4.4f,  4.7f,  1.6f});
+    test_case.run();
+}

@@ -1,0 +1,99 @@
+ir_version: 9
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "X"
+    input: "W"
+    input: "offset"
+    input: ""
+    input: "mask"
+    output: "Y"
+    op_type: "DeformConv"
+  }
+  name: "test_deform_conv_2d_with_mask"
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 1 }
+          dim { dim_value: 4 }
+          dim { dim_value: 4 }
+        }
+      }
+    }
+  }
+  input {
+    name: "W"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 1 }
+          dim { dim_value: 2 }
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+  input {
+    name: "offset"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 8 }
+          dim { dim_value: 3 }
+          dim { dim_value: 3 }
+        }
+      }
+    }
+  }
+  input {
+    name: "mask"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 4 }
+          dim { dim_value: 3 }
+          dim { dim_value: 3 }
+        }
+      }
+    }
+  }
+  initializer {
+    name: "W"
+    dims: 1
+    dims: 1
+    dims: 2
+    dims: 2
+    data_type: 1
+    float_data: 0.1
+    float_data: 0.2
+    float_data: 0.3
+    float_data: 0.4
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 1 }
+          dim { dim_value: 3 }
+          dim { dim_value: 3 }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 19
+}
