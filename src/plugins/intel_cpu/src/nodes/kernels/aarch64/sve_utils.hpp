@@ -4,7 +4,7 @@
 #include <arm_sve.h>
 
 #include "openvino/core/type/float16.hpp"
-
+#include "openvino/runtime/system_conf.hpp"
 namespace ov::intel_cpu::sve_utils {
 
 template <typename T, typename... Args>
@@ -80,6 +80,14 @@ static void cvt_copy(TA* dst, TB* src, size_t n) {
             svst1(pg_dst, dst + i, cvt_dst);
         }
     }
+}
+
+inline bool with_cpu_sve() {
+    return ov::with_cpu_sve();
+}
+
+inline bool with_cpu_sve2() {
+    return ov::with_cpu_sve2();
 }
 
 }  // namespace ov::intel_cpu::sve_utils

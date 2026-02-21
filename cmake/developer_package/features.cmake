@@ -58,6 +58,8 @@ ov_dependent_option (ENABLE_NEON_FP16 "Enable ARM FP16 optimizations" ON "AARCH6
 
 ov_dependent_option (ENABLE_SVE "Enable SVE optimizations" ON "AARCH64 AND NOT APPLE" OFF)
 
+ov_dependent_option (ENABLE_SVE2 "Enable SVE2 optimizations" ON "AARCH64 AND NOT APPLE" OFF)
+
 # Type of build, we add this as an explicit option to default it to ON
 get_property(BUILD_SHARED_LIBS_DEFAULT GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS)
 ov_option (BUILD_SHARED_LIBS "Build as a shared library" ${BUILD_SHARED_LIBS_DEFAULT})
@@ -116,5 +118,17 @@ if(ENABLE_SVE)
 
     if(NOT CXX_HAS_SVE)
         set(ENABLE_SVE OFF CACHE BOOL "Enables ARM64 SVE support" FORCE)
+    endif()
+endif()
+
+if(ENABLE_SVE2 AND NOT ENABLE_SVE)
+    set(ENABLE_SVE ON CACHE BOOL "Enables ARM64 SVE support" FORCE)
+endif()
+
+if(ENABLE_SVE2)
+    ov_check_compiler_supports_sve2("-march=armv8.2-a+sve2+fp16")
+
+    if(NOT CXX_HAS_SVE2)
+        set(ENABLE_SVE2 OFF CACHE BOOL "Enables ARM64 SVE2 support" FORCE)
     endif()
 endif()

@@ -418,7 +418,9 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(GatherAddAvgpool.smoke_CompareWithRefs)"),
             std::regex(R"(smoke_StaticAdaPoolAvg(4|5)DLayoutTest/AdaPoolLayerCPUTest.*_outFmts=nd?hwc_1)"),
             std::regex(R"(.*smoke_CompareWithRefs_Mvn(4|5)D(_Static)?/MvnLayerCPUTest.CompareWithRefs.*inFmts=nd?hwc.*)"),
+#if !defined(OPENVINO_ARCH_ARM64)
             std::regex(R"(.*smoke_TopK(_int32|_bubble_BLK_on_channel_horiz)?(_dynamic)?/TopKLayerCPUTest.CompareWithRefs.*inFmts=(nhwc|nChw8c|nChw16c).x.*)"),
+#endif
             std::regex(R"(.*smoke_(Group)?Convolution(2|3)D/ConvConcatSubgraphTest.CompareWithRefs.*)"),
             std::regex(R"(.*smoke_FakeQuantizeCache_(4|5)D/FakeQuantizeCacheTest.CompareWithRefs.*inFmts=(nhwc|nChw8c|ndhwc|nCdhw8c).*)"),
             std::regex(R"(.*ReduceCPULayerTest.CompareWithRefs.*inFmts=nhwc.*)"),

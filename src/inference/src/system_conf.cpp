@@ -20,10 +20,17 @@
 #if !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && (defined(__arm__) || defined(__aarch64__))
 #    include <asm/hwcap.h> /* Get HWCAP bits from asm/hwcap.h */
 #    include <sys/auxv.h>
+#    ifndef HWCAP_SVE
+#        define HWCAP_SVE (1UL << 22)
+#    endif
+#    ifndef HWCAP2_SVE2
+#        define HWCAP2_SVE2 (1UL << 1)
+#    endif
 #    define ARM_COMPUTE_CPU_FEATURE_HWCAP_FPHP    (1 << 9)
 #    define ARM_COMPUTE_CPU_FEATURE_HWCAP_ASIMDHP (1 << 10)
 #    define ARM_COMPUTE_CPU_FEATURE_HWCAP2_I8MM   (1 << 13)
-#    define ARM_COMPUTE_CPU_FEATURE_HWCAP_SVE     (1 << 24)
+#    define ARM_COMPUTE_CPU_FEATURE_HWCAP_SVE     HWCAP_SVE
+#    define ARM_COMPUTE_CPU_FEATURE_HWCAP2_SVE2   HWCAP2_SVE2
 #elif defined(__APPLE__) && defined(__aarch64__)
 #    include <sys/sysctl.h>
 #    include <sys/types.h>
@@ -119,6 +126,9 @@ bool with_cpu_neon_fp16() {
 bool with_cpu_sve() {
     return false;
 }
+bool with_cpu_sve2() {
+    return false;
+}
 
 bool with_cpu_arm_dotprod() {
     return false;
@@ -172,7 +182,7 @@ bool with_cpu_x86_avx512_core_amx() {
 bool with_cpu_neon_fp16() {
 #    if !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
         !defined(__arm__) && defined(__aarch64__)
-    const uint32_t hwcaps = getauxval(AT_HWCAP);
+    const unsigned long hwcaps = getauxval(AT_HWCAP);
     return hwcaps & (ARM_COMPUTE_CPU_FEATURE_HWCAP_FPHP | ARM_COMPUTE_CPU_FEATURE_HWCAP_ASIMDHP);
 #    elif !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
         !defined(__aarch64__) && defined(__arm__)
@@ -190,8 +200,23 @@ bool with_cpu_neon_fp16() {
 bool with_cpu_sve() {
 #    if !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
         !defined(__arm__) && defined(__aarch64__)
-    const uint32_t hwcaps = getauxval(AT_HWCAP);
+    const unsigned long hwcaps = getauxval(AT_HWCAP);
     return hwcaps & ARM_COMPUTE_CPU_FEATURE_HWCAP_SVE;
+#    elif !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
+        !defined(__aarch64__) && defined(__arm__)
+    return false;
+#    elif defined(__aarch64__) && defined(__APPLE__)
+    return false;
+#    else
+    return false;
+#    endif
+}
+
+bool with_cpu_sve2() {
+#    if !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
+        !defined(__arm__) && defined(__aarch64__)
+    const unsigned long hwcaps2 = getauxval(AT_HWCAP2);
+    return hwcaps2 & ARM_COMPUTE_CPU_FEATURE_HWCAP2_SVE2;
 #    elif !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
         !defined(__aarch64__) && defined(__arm__)
     return false;
@@ -205,7 +230,7 @@ bool with_cpu_sve() {
 bool with_cpu_arm_dotprod() {
 #    if !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
         !defined(__arm__) && defined(__aarch64__)
-    const uint32_t hwcaps = getauxval(AT_HWCAP);
+    const unsigned long hwcaps = getauxval(AT_HWCAP);
     return hwcaps & HWCAP_ASIMDDP;
 #    elif !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
         !defined(__aarch64__) && defined(__arm__)
@@ -224,7 +249,7 @@ bool with_cpu_arm_dotprod() {
 bool with_cpu_arm_i8mm() {
 #    if !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
         !defined(__arm__) && defined(__aarch64__)
-    const uint32_t hwcaps = getauxval(AT_HWCAP);
+    const unsigned long hwcaps = getauxval(AT_HWCAP2);
     return hwcaps & ARM_COMPUTE_CPU_FEATURE_HWCAP2_I8MM;
 #    elif !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
         !defined(__aarch64__) && defined(__arm__)
