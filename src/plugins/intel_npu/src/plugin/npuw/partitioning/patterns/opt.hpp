@@ -232,14 +232,14 @@ public:
     PreserveConstDictMatMulAsymm(Results to_keep);
 };
 
-class PreserveConstDictMatMulSymm : public ov::pass::MatcherPass {
+class PreserveConstDictMatMulFP8 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstDictMatMulSymm");
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstDictMatMulFP8");
 
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     using Results = std::reference_wrapper<std::vector<CPtr>>;
 
-    PreserveConstDictMatMulSymm(Results to_keep);
+    PreserveConstDictMatMulFP8(Results to_keep);
 };
 
 // Slice last Matmul

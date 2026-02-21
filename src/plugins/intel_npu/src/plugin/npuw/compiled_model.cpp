@@ -636,7 +636,7 @@ bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared
 
     ov::pass::GraphRewrite rewr2;
     rewr2.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(to_keep));
-    rewr2.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulSymm>(std::ref(to_keep));
+    rewr2.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulFP8>(std::ref(to_keep));
     rewr2.run_on_model(model);
     // FIXME: since 3-model pipeline is the default option, the tail will be separate,
     // so we need to match either head or tail pattern here for host gather quantized feature to work.
