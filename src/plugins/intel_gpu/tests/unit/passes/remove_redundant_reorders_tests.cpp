@@ -496,3 +496,26 @@ TEST(remove_redundant_reorders, reorder_of_non_default_port) {
         ASSERT_EQ(out_buffer[i], ref_result[i]);
     }
 }
+
+TEST(remove_redundant_reorders, fuse_permute_reorder_dtype_change) {
+    auto& engine = get_test_engine();
+    auto in_layout = layout{ov::PartialShape{1, 16, 32, 48}, data_types::f16, format::bfyx};
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(permute("permute", input_info("input"), {0, 2, 3, 1}));
+    topology.add(reorder("reorder", input_info("permute"), format::any, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, true, true, true);
+
+    ASSERT_NE(prog, nullptr);
+    ASSERT_FALSE(has_node_with_type<reorder>(*prog));
+
+    auto& permute_node = prog->get_node("reorder");
+    ASSERT_TRUE(permute_node.is_type<permute>());
+    ASSERT_EQ(permute_node.get_output_layout().data_type, data_types::f32);
+}

@@ -683,6 +683,73 @@ void remove_redundant_reorders::run(program& p) {
         }
     }
 
+    // Optimize permute -> reorder (change dt)
+    auto try_fuse_reorder_to_permute = [&](reorder_node* node) -> bool {
+        if (node->is_output() && !remove_output_reorders)
+            return false;
+
+        if (!node->is_simple_reorder() || node->get_dependencies().size() != 1 || node->has_fused_primitives() || node->get_primitive()->has_surface_input())
+            return false;
+
+        auto& dep_node = node->get_dependency(0);
+
+        if (!dep_node.is_type<permute>() || dep_node.can_be_optimized() || dep_node.get_users().size() != 1 || dep_node.is_output())
+            return false;
+
+        if (dep_node.is_constant())
+            return false;
+
+        // Skip if permute has fused primitives - we cannot change its output data type
+        // as fused operations depend on the original output layout
+        if (dep_node.has_fused_primitives())
+            return false;
+
+        if (node->get_output_layout().format != dep_node.get_output_layout().format)
+            return false;
+
+        if (node->get_output_layout().data_type == dep_node.get_output_layout().data_type)
+            return false;
+
+        auto output_layout = node->get_output_layout();
+        auto old_layout = dep_node.get_output_layout();
+
+        dep_node.set_output_layout(output_layout, false);
+        if (dep_node.type()->has_impl_for(dep_node)) {
+            if (node->is_output()) {
+                p.add_optimized_primitive_info(dep_node.id(), { node->id() });
+            } else {
+                p.add_optimized_primitive_info(node->id());
+            }
+
+            LOG_NODE_REMOVAL(node->id());
+            node->can_be_optimized(true);
+            p.extract_and_remove(*node);
+
+            update_implementation(dep_node);
+            return true;
+        } else {
+            dep_node.set_output_layout(old_layout, false);
+        }
+
+        return false;
+    };
+
+    if (update_implementations) {
+        // This optimization handles cases where a permute is followed by a reorder that only changes data type
+        // If the permute can support the output data type directly, we can fuse the reorder into the permute
+        // This optimization should be run after remove_redundant_reorders because some reorders might be removed there
+        // and permute might become directly connected to another node
+        itr = p.get_processing_order().begin();
+        while (itr != p.get_processing_order().end()) {
+            auto node = *itr++;
+            if (!node->is_type<reorder>())
+                continue;
+
+            if (try_fuse_reorder_to_permute(&node->as<reorder>()))
+                continue;
+        }
+    }
+
     // Additional reshape chains shrink.
     // This step is needed to handle the cases when the plugin creates patterns like reshape -> reorder -> reshape
     // So these reshapes are not optimized in handle_reshape pass due to reorder between them,

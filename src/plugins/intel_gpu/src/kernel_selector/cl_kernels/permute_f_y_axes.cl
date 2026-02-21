@@ -158,7 +158,7 @@ KERNEL (permute_f_y_axes)(
         const int f_out_idx = y_begin + bf_local;
         const int y_out_idx = (f_begin + j_vec) % INPUT0_FEATURE_NUM;;
         FUSED_OPS_VEC;
-        OUT_VEC_TYPE result = FUSED_OPS_RESULT_VEC;
+        OUT_VEC_TYPE result = TO_OUT_VEC_TYPE(FUSED_OPS_RESULT_VEC);
         const int output_idx = OUTPUT_GET_INDEX(b_idx, f_out_idx, y_out_idx, x_idx);
         WRITE_VEC(result, 0 , &output[output_idx]);
     }
