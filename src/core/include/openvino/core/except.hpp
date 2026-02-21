@@ -4,10 +4,12 @@
 
 #pragma once
 
+#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
+#include <type_traits>
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/deprecated.hpp"
@@ -91,7 +93,48 @@ public:
 protected:
     explicit NotImplemented(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
 };
+
+namespace detail {
+
+template <class T>
+void check_condition(const T&) noexcept {}
+
+[[noreturn]] inline void unreachable_after_throw() noexcept {
+#if defined(__GNUC__) || defined(__clang__)
+    __builtin_unreachable();
+#elif defined(_MSC_VER)
+    __assume(0);
+#else
+    std::abort();
+#endif
+}
+
+template <typename CharT,
+          std::size_t N,
+          std::enable_if_t<std::is_same_v<CharT, char> || std::is_same_v<CharT, wchar_t> ||
+                               std::is_same_v<CharT, char16_t> || std::is_same_v<CharT, char32_t>,
+                           int> = 0>
+void check_condition(const CharT (&)[N]) noexcept {
+    static_assert(N == 0,
+                  "OPENVINO_ASSERT: string literal used as condition (always true). "
+                  "Did you mean to compare strings or check a pointer?");
+}
+
+}  // namespace detail
+
 }  // namespace ov
+
+//
+// Wrapper for check_condition that performs compile-time checks for programming errors.
+// Since check_condition uses static_assert, it has zero runtime overhead and only catches
+// programming mistakes at compile time (e.g., using string literals as conditions).
+// Always enabled to ensure these errors are caught in all builds including CI.
+//
+#ifndef NDEBUG
+#    define OPENVINO_CHECK_CONDITION(check_result__) ::ov::detail::check_condition(check_result__)
+#else
+#    define OPENVINO_CHECK_CONDITION(check_result__)
+#endif
 
 //
 // Helper macro for defining custom check macros, which throw custom exception classes and provide
@@ -157,17 +200,23 @@ protected:
 //
 #define OPENVINO_ASSERT_HELPER2(exc_class, ctx, check, ...)                      \
     do {                                                                         \
-        if (!static_cast<bool>(check)) {                                         \
+        const auto& ov_check_result__ = (check);                                 \
+        OPENVINO_CHECK_CONDITION(ov_check_result__);                             \
+        if (!static_cast<bool>(ov_check_result__)) {                             \
             ::std::ostringstream ss___;                                          \
             ::ov::write_all_to_stream(ss___, __VA_ARGS__);                       \
             exc_class::create(__FILE__, __LINE__, (#check), (ctx), ss___.str()); \
+            ::ov::detail::unreachable_after_throw();                             \
         }                                                                        \
     } while (0)
 
 #define OPENVINO_ASSERT_HELPER1(exc_class, ctx, check)                                      \
     do {                                                                                    \
-        if (!static_cast<bool>(check)) {                                                    \
+        const auto& ov_check_result__ = (check);                                            \
+        OPENVINO_CHECK_CONDITION(ov_check_result__);                                        \
+        if (!static_cast<bool>(ov_check_result__)) {                                        \
             exc_class::create(__FILE__, __LINE__, (#check), (ctx), exc_class::default_msg); \
+            ::ov::detail::unreachable_after_throw();                                        \
         }                                                                                   \
     } while (0)
 
@@ -180,11 +229,13 @@ protected:
         ::std::ostringstream ss___;                         \
         ::ov::write_all_to_stream(ss___, __VA_ARGS__);      \
         exc_class::create(__FILE__, __LINE__, ss___.str()); \
+        ::ov::detail::unreachable_after_throw();            \
     } while (0)
 
 #define OPENVINO_THROW_HELPER1(exc_class, ctx, explanation)                  \
     do {                                                                     \
         exc_class::create(__FILE__, __LINE__, ::ov::stringify(explanation)); \
+        ::ov::detail::unreachable_after_throw();                             \
     } while (0)
 
 #define OPENVINO_THROW_HELPER(exc_class, ctx, ...) CALL_OVERLOAD(OPENVINO_THROW_HELPER, exc_class, ctx, __VA_ARGS__)

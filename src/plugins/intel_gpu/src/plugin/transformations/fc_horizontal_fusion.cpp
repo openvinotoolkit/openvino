@@ -256,7 +256,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                             ov::as_type_ptr<ov::op::v0::Constant>(zp_convert->get_input_node_shared_ptr(0));
                         cur_zp_val = zp_const->cast_vector<int32_t>()[0];
                     } else {
-                        OPENVINO_ASSERT("Unsupported zp input node for FC horizontal fusion");
+                        OPENVINO_THROW("Unsupported zp input node for FC horizontal fusion");
                     }
                     if (cur_zp_val != scalar_zp_val)
                         return false;
