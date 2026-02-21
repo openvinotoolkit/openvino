@@ -86,24 +86,18 @@ CM_INLINE void Transpose_16x16(matrix_ref<T1, 16, 16> in,
 
 template <typename T1, typename T2>
 CM_INLINE void Transpose_8x8(matrix_ref<T1, 8, 8> in, matrix_ref<T2, 8, 8> out) {
-  matrix<T2, 8, 8> temp;
-  temp.row(0) = in.template select<2, 1, 4, 2>(0, 0);
-  temp.row(1) = in.template select<2, 1, 4, 2>(2, 0);
-  temp.row(2) = in.template select<2, 1, 4, 2>(4, 0);
-  temp.row(3) = in.template select<2, 1, 4, 2>(6, 0);
-  temp.row(4) = in.template select<2, 1, 4, 2>(0, 1);
-  temp.row(5) = in.template select<2, 1, 4, 2>(2, 1);
-  temp.row(6) = in.template select<2, 1, 4, 2>(4, 1);
-  temp.row(7) = in.template select<2, 1, 4, 2>(6, 1);
+    matrix<T2, 8, 8> temp;
+    #pragma unroll
+    for (int i = 0; i < 4; ++i) {
+        temp.row(i)     = in.template select<2, 1, 4, 2>(i * 2, 0);
+        temp.row(i + 4) = in.template select<2, 1, 4, 2>(i * 2, 1);
+    }
 
-  out.row(0) = temp.template select<4, 1, 2, 4>(0, 0);
-  out.row(2) = temp.template select<4, 1, 2, 4>(0, 1);
-  out.row(4) = temp.template select<4, 1, 2, 4>(0, 2);
-  out.row(6) = temp.template select<4, 1, 2, 4>(0, 3);
-  out.row(1) = temp.template select<4, 1, 2, 4>(4, 0);
-  out.row(3) = temp.template select<4, 1, 2, 4>(4, 1);
-  out.row(5) = temp.template select<4, 1, 2, 4>(4, 2);
-  out.row(7) = temp.template select<4, 1, 2, 4>(4, 3);
+    #pragma unroll
+    for (int i = 0; i < 4; ++i) {
+        out.row(i * 2)     = temp.template select<4, 1, 2, 4>(0, i);
+        out.row(i * 2 + 1) = temp.template select<4, 1, 2, 4>(4, i);
+    }
 }
 
 // function templates cannot be partially specialized; use overloading to achieve the same effect
@@ -338,65 +332,64 @@ vector<float, cols> online_softmax_update(matrix_ref<T, rows, cols> St, vector_r
     #define cm_load_transpose cm_load<lsc::Transpose>
     #define cm_load_vnni cm_load<lsc::VNNI>
     #define cm_store_normal cm_store
-#else
-    // simulation of LSC API using SVM API
-    template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
-    inline void cm_load_normal(vector_ref<T, NBlocks*BlockH*BlockW> Res, const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, int16_t Pred = 1) {
-        static_assert(NBlocks == 1);
-        auto pitch = Desc.get_pitch() + 1;
-        auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
-        #pragma unroll
-        for(int i = 0; i < BlockH; i++) {
-            cm_svm_block_read(base + i * pitch, Res.select<BlockW, 1>(i*BlockW));
-        }
-    }
+    // // simulation of LSC API using SVM API
+    // template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
+    // inline void cm_load_normal(vector_ref<T, NBlocks*BlockH*BlockW> Res, const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, int16_t Pred = 1) {
+    //     static_assert(NBlocks == 1);
+    //     auto pitch = Desc.get_pitch() + 1;
+    //     auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
+    //     #pragma unroll
+    //     for(int i = 0; i < BlockH; i++) {
+    //         cm_svm_block_read(base + i * pitch, Res.select<BlockW, 1>(i*BlockW));
+    //     }
+    // }
 
-    template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
-    inline void cm_load_transpose(vector_ref<T, NBlocks*BlockW*BlockH> Res, const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, int16_t Pred = 1) {
-        static_assert(NBlocks == 1);
-        auto pitch = Desc.get_pitch() + 1;
-        auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
-        matrix<T, BlockH, BlockW> temp;
-        #pragma unroll
-        for(int i = 0; i < BlockH; i++) {
-            cm_svm_block_read(base + i * pitch, temp[i]);
-        }
-        Transpose2DMatrix(temp, Res.format<T, BlockW, BlockH>());
-    }
+    // template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
+    // inline void cm_load_transpose(vector_ref<T, NBlocks*BlockW*BlockH> Res, const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, int16_t Pred = 1) {
+    //     static_assert(NBlocks == 1);
+    //     auto pitch = Desc.get_pitch() + 1;
+    //     auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
+    //     matrix<T, BlockH, BlockW> temp;
+    //     #pragma unroll
+    //     for(int i = 0; i < BlockH; i++) {
+    //         cm_svm_block_read(base + i * pitch, temp[i]);
+    //     }
+    //     Transpose2DMatrix(temp, Res.format<T, BlockW, BlockH>());
+    // }
 
-    // in VNNI case, NBlocks is increasing along X dimension (increase cache-line usage)
-    template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
-    inline void cm_load_vnni(vector_ref<T, NBlocks*BlockW*BlockH> Res, const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, int16_t Pred = 1) {
-        static_assert(NBlocks == 1 || NBlocks == 2);
-        // each block must be a full XMX B matrix
-        static_assert(BlockH == REG_K);
-        static_assert(BlockW == REG_N);
-        auto pitch = Desc.get_pitch() + 1;
-        auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
-        matrix<T, BlockH, NBlocks * BlockW> temp;
-        #pragma unroll
-        for(int i = 0; i < BlockH; i++) {
-            cm_svm_block_read(base + i * pitch, temp[i]);
-        }
+    // // in VNNI case, NBlocks is increasing along X dimension (increase cache-line usage)
+    // template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
+    // inline void cm_load_vnni(vector_ref<T, NBlocks*BlockW*BlockH> Res, const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, int16_t Pred = 1) {
+    //     static_assert(NBlocks == 1 || NBlocks == 2);
+    //     // each block must be a full XMX B matrix
+    //     static_assert(BlockH == REG_K);
+    //     static_assert(BlockW == REG_N);
+    //     auto pitch = Desc.get_pitch() + 1;
+    //     auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
+    //     matrix<T, BlockH, NBlocks * BlockW> temp;
+    //     #pragma unroll
+    //     for(int i = 0; i < BlockH; i++) {
+    //         cm_svm_block_read(base + i * pitch, temp[i]);
+    //     }
 
-        auto out_vnni = Res.format<T, NBlocks * (BlockH/2), 2*BlockW>();
-        #pragma unroll
-        for(int i = 0; i < NBlocks; i ++) {
-            out_vnni.select<BlockH/2, 1, BlockW, 2>(i*(BlockH/2), 0) = temp.select<BlockH/2, 2, BlockW, 1>(0, i*BlockW);
-            out_vnni.select<BlockH/2, 1, BlockW, 2>(i*(BlockH/2), 1) = temp.select<BlockH/2, 2, BlockW, 1>(1, i*BlockW);
-        }
-    }
+    //     auto out_vnni = Res.format<T, NBlocks * (BlockH/2), 2*BlockW>();
+    //     #pragma unroll
+    //     for(int i = 0; i < NBlocks; i ++) {
+    //         out_vnni.select<BlockH/2, 1, BlockW, 2>(i*(BlockH/2), 0) = temp.select<BlockH/2, 2, BlockW, 1>(0, i*BlockW);
+    //         out_vnni.select<BlockH/2, 1, BlockW, 2>(i*(BlockH/2), 1) = temp.select<BlockH/2, 2, BlockW, 1>(1, i*BlockW);
+    //     }
+    // }
 
-    template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
-    inline void cm_store_normal(const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, vector_ref<T, NBlocks*BlockW*BlockH> Res) {
-        static_assert(NBlocks == 1);
-        auto pitch = Desc.get_pitch() + 1;
-        auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
-        #pragma unroll
-        for(int i = 0; i < BlockH; i++) {
-            cm_svm_block_write(base + i * pitch, Res.select<BlockW, 1>(i*BlockW));
-        }
-    }
+    // template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
+    // inline void cm_store_normal(const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, vector_ref<T, NBlocks*BlockW*BlockH> Res) {
+    //     static_assert(NBlocks == 1);
+    //     auto pitch = Desc.get_pitch() + 1;
+    //     auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
+    //     #pragma unroll
+    //     for(int i = 0; i < BlockH; i++) {
+    //         cm_svm_block_write(base + i * pitch, Res.select<BlockW, 1>(i*BlockW));
+    //     }
+    // }
 #endif
 
 //===============================================================================================
