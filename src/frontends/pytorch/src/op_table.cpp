@@ -272,6 +272,7 @@ OP_CONVERTER(translate_tuple_index);
 OP_CONVERTER(translate_tuple_unpack);
 OP_CONVERTER(translate_unflatten);
 OP_CONVERTER(translate_unfold);
+OP_CONVERTER(translate_uniform_);
 OP_CONVERTER(translate_unique2);
 OP_CONVERTER(translate_upsample_bicubic2d);
 OP_CONVERTER(translate_upsample_bilinear2d);
@@ -675,6 +676,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::randint", op::translate_randint},
         {"aten::randn", op::translate_randn},
         {"aten::randn_like", op::translate_randn_like},
+        {"aten::uniform_", op::translate_uniform_},
         {"aten::real", common_translators::translate_real},
         {"aten::reciprocal", op::optional_out<op::translate_reciprocal, 1>},
         {"aten::reciprocal_", op::inplace_op<op::translate_reciprocal>},
