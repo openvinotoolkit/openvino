@@ -90,12 +90,27 @@ if(OV_GENERATOR_MULTI_CONFIG)
         COMMAND_EXPAND_LISTS)
 endif()
 
-# perform copy
-add_custom_command(TARGET ${PROJECT_NAME}
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${OpenVINOPython_SOURCE_DIR}/src/openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
-        COMMAND ${CMAKE_COMMAND} -E copy ${OpenVINOPython_SOURCE_DIR}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../requirements.txt
-        )
+# Collect all Python source files for dependency tracking
+file(GLOB_RECURSE OPENVINO_PYTHON_SOURCE_FILES CONFIGURE_DEPENDS ${OpenVINOPython_SOURCE_DIR}/src/openvino/*.py)
+
+# Create a stamp file to track when copy was last performed
+set(PYTHON_COPY_STAMP_FILE ${CMAKE_CURRENT_BINARY_DIR}/python_copy.stamp)
+
+# Use add_custom_command with OUTPUT to properly track dependencies
+add_custom_command(
+    OUTPUT ${PYTHON_COPY_STAMP_FILE}
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${OpenVINOPython_SOURCE_DIR}/src/openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+    COMMAND ${CMAKE_COMMAND} -E copy ${OpenVINOPython_SOURCE_DIR}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../requirements.txt
+    COMMAND ${CMAKE_COMMAND} -E touch ${PYTHON_COPY_STAMP_FILE}
+    DEPENDS ${OPENVINO_PYTHON_SOURCE_FILES} ${OpenVINOPython_SOURCE_DIR}/requirements.txt
+    COMMENT "Copying Python source files to build directory"
+)
+
+# Create a target that depends on the stamp file
+add_custom_target(copy_python_files ALL DEPENDS ${PYTHON_COPY_STAMP_FILE})
+
+# Ensure pyopenvino depends on copy_python_files so the files are copied when building pyopenvino
+add_dependencies(${PROJECT_NAME} copy_python_files)
 
 ov_python_minimal_api(${PROJECT_NAME})
 ov_add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
