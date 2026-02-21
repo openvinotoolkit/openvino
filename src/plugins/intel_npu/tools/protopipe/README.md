@@ -567,8 +567,8 @@ Iteration <number>:
 2. Build OpenCV
 - Clone OpenCV repo:
     ```
-    git clone https://github.com/opencv/opencv
-    cd opencv && git checkout 252403bbf2
+    git clone -b 4.x https://github.com/intel-innersource/frameworks.vpu.tools.opencv-intel-fork opencv opencv
+    cd opencv && git checkout 912d27
     ```
 - Build OpenCV G-API:
     ```
