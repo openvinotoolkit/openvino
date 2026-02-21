@@ -24,4 +24,4 @@ kornia==0.8.2
 
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch~=2.8.0
-torchvision~=0.23.0
+torchvision~=0.24.1
