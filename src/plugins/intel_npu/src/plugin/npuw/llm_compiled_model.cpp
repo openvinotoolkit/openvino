@@ -960,11 +960,20 @@ public:
             auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
             auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(matched_node_result);
 
-            // Some LLMs add intermediate hidden state outputs that can interfere with LM head detection.
-            // Skip Result nodes that were manually added (marked with "manually_added_output" in RT_INFO).
-            // For example, Eagle-3 target/draft models add "last_hidden_state" output which should be skipped.
-            const auto& rt_info = matched_result->get_rt_info();
-            if (rt_info.count("manually_added_output")) {
+            // Skip Result nodes that are not logits.
+            // Note: We can check that Result's output name is "logits" and it will be a
+            //       sufficiently reliable check for finding exatly logits output, because:
+            //       1. LLMInferRequest always rely on "logits" name to get logits from
+            ///         prefill/kvcache models.
+            //       2. - Following Exporter configs: OnnxConfig, OnnxConfigWithPast,
+            //            TextDecoderOnnxConfig and TextDecoderWithPositionIdsOnnxConfig
+            //            from optimum-onnx name LLM output with "logits".
+            //          - Most of optimum-intel OpenVINO Exporter configs are derived
+            //            from the configs above.
+            //          - optimum-intel `export()` function set names for output tensors
+            //            from Exporter config:
+            //            https://github.com/huggingface/optimum-intel/blob/main/optimum/exporters/openvino/convert.py#L442-L445
+            if (matched_result->output(0).get_names().count(ov::npuw::LLMCompiledModel::layer_names::logits) == 0) {
                 return false;
             }
 
@@ -977,14 +986,14 @@ public:
             //        ICompiledModel::ICompiledModel().
             //        As a WA, setting the same name to output from MatMul
             //        avoids the issue.
-            matmul_first_source.set_names({ov::npuw::LLMCompiledModel::output_embeds});
-            matched_result->output(0).set_names({ov::npuw::LLMCompiledModel::output_embeds});
+            matmul_first_source.set_names({ov::npuw::LLMCompiledModel::layer_names::output_embeds});
+            matched_result->output(0).set_names({ov::npuw::LLMCompiledModel::layer_names::output_embeds});
             matched_result->validate_and_infer_types();
 
             // Create an additional model after cut point:
             auto new_param = std::make_shared<ov::op::v0::Parameter>(matmul_first_source.get_element_type(),
                                                                      matmul_first_source.get_partial_shape());
-            new_param->output(0).add_names({ov::npuw::LLMCompiledModel::output_embeds});
+            new_param->output(0).add_names({ov::npuw::LLMCompiledModel::layer_names::output_embeds});
             matched_matmul->input(0).replace_source_output(new_param);
             auto new_result = std::make_shared<ov::op::v0::Result>(matched_node_last_op);
             lm_head_model =
@@ -1106,7 +1115,7 @@ void slice_out_embeds(std::shared_ptr<ov::Model> model,
                       std::size_t max_generation_token_len) {
     std::shared_ptr<ov::Node> embed_result;
     for (auto&& output : model->outputs()) {
-        if (output.get_any_name() == ov::npuw::LLMCompiledModel::output_embeds) {
+        if (output.get_any_name() == ov::npuw::LLMCompiledModel::layer_names::output_embeds) {
             embed_result = output.get_node_shared_ptr();
         }
     }
@@ -1879,6 +1888,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(prefill_config, other_props);
     merge_config_with(generate_config, other_props);
     merge_config_with(prefill_config, prefill_config_addition_value);
+    if (lm_head_model) {
+        prefill_config.erase("NPUW_SLICE_OUT");
+    }
     merge_config_with(generate_config, generate_config_addition_value);
 
     // Convert LLM-specific attention hints to NPUW_ATTN

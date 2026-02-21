@@ -400,7 +400,7 @@ void Partitioner::identifySubgraphs() {
     // Apply partitioning changes to the original model
     // but first cache all nodes to identify by name
     using NodeSPtr = std::shared_ptr<ov::Node>;
-    std::unordered_map<ov::Output<ov::Node>, LinkPtrFrom> result_cache;
+    std::unordered_map<ov::Output<ov::Node>, std::vector<LinkPtrFrom>> result_cache;
     std::unordered_map<std::string, NodeSPtr> node_id_cache;
     for (auto&& node_ptr : model->get_ordered_ops()) {
         node_id_cache[node_ptr->get_friendly_name()] = node_ptr;
@@ -637,9 +637,18 @@ void Partitioner::identifySubgraphs() {
                     // so it is a cut-off point (see above, parameter_from()):
                     // - record connectivity between subgraphs.
                     // Exception: param is registered via slice or convert
-                    const auto& link_from = result_cache.at(src_node);
+                    const auto& links_from = result_cache.at(src_node);
+                    NPUW_ASSERT(links_from.size() > 0);
+                    // Note: It may happen that one output layer has more than one
+                    // Result nodes, that are the same!
+                    // Please see the `results_cache` filling below.
+                    if (links_from.size() > 1) {
+                        LOG_INFO("Parameter " << this_param->get_friendly_name()
+                                              << " has more than one possible similar Result nodes to connect!"
+                                              << " Will pick the first one: " << (*links_from.begin()).second);
+                    }
                     const auto link_to = LinkPtrTo{this_group_idx, this_param};
-                    subgraph_ptr_links[link_to] = link_from;
+                    subgraph_ptr_links[link_to] = *links_from.begin();
                 }
             } else {
                 // assert is_constant(), there's no other way
@@ -713,7 +722,15 @@ void Partitioner::identifySubgraphs() {
                 //    v
                 //    op102
                 bool has_external_readers = false;
-                NodeSPtr maybe_result = nullptr;
+                // NB: It turns out that sometime we may end up with multiple
+                // Result nodes from one output layer, but they should be equal.
+                // Ex.: OmniThinker multi-outputs case with cut LM head.
+                //      Output embeddings (not logits) became a Result from the
+                //      prefill/kvcache model when LM head is cut.
+                //      However, last operation before LM head has had already
+                //      a connected Result node corresponding to the second
+                //      output of the original model.
+                std::vector<NodeSPtr> maybe_results;
                 auto readers = output_desc.get_target_inputs();
                 // This is possible then some of layer's outputs are not used in the model.
                 if (readers.empty()) {
@@ -727,19 +744,31 @@ void Partitioner::identifySubgraphs() {
                     // at the npuw::CompiledModel level)
                     auto reader_node_ptr = r.get_node()->shared_from_this();
                     if (ov::op::util::is_output(reader_node_ptr)) {
-                        maybe_result = std::move(reader_node_ptr);
+                        maybe_results.push_back(std::move(reader_node_ptr));
                     } else if (group_nodes.find(reader_node_ptr) == group_nodes.end()) {
                         has_external_readers = true;
                     }
                 }
-                if (maybe_result) {
+                if (!maybe_results.empty()) {
                     // This layer's output was connected to Result already.
                     // It happens when this layer is the original model's output
                     // Keep it to make the ugly top-level I/O matching procedure work.
                     // FIXME: This needs to be refactored
-                    group.sg._results.push_back(ov::as_type_ptr<ov::op::v0::Result>(maybe_result));
-                    result_cache[output_desc] =
-                        LinkPtrFrom{this_group_idx, ov::as_type_ptr<ov::op::v0::Result>(maybe_result)};
+
+                    // Sanity check that if layer output connects with multiple Result nodes,
+                    // then all Result nodes share the same shape.
+                    if (maybe_results.size() > 1) {
+                        const auto shape = (*maybe_results.begin())->get_shape();
+                        for (std::size_t i = 1; i < maybe_results.size(); ++i) {
+                            OPENVINO_ASSERT(shape == maybe_results[i]->get_shape(),
+                                            "Multiple results from one output layer should be similar!");
+                        }
+                    }
+                    for (auto&& mr : maybe_results) {
+                        group.sg._results.push_back(ov::as_type_ptr<ov::op::v0::Result>(mr));
+                        result_cache[output_desc].push_back(
+                            LinkPtrFrom{this_group_idx, ov::as_type_ptr<ov::op::v0::Result>(mr)});
+                    }
                 } else if (has_external_readers) {
                     // Introduce and record a new Result
                     // As the graph is processed in the topological order,
@@ -767,7 +796,7 @@ void Partitioner::identifySubgraphs() {
                             }
                         }
                         auto new_result = std::make_shared<ov::op::v0::Result>(result_src);
-                        result_cache[output_desc] = LinkPtrFrom{this_group_idx, new_result};
+                        result_cache[output_desc].push_back(LinkPtrFrom{this_group_idx, new_result});
 
                         ov::copy_runtime_info(output_desc.get_node_shared_ptr(), new_result);
                         group.sg._results.push_back(std::move(new_result));
