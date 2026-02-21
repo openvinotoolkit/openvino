@@ -220,6 +220,32 @@ OutputVector translate_linear_bitnet(const NodeContext& context) {
     return {matmul};
 };
 
+OutputVector translate_bmm_ext(const NodeContext& context) {
+    // ov_ext::bmm - batch matrix multiplication for 16-bit models
+    // schema: ov_ext::bmm(Tensor batch1, Tensor batch2) -> Tensor
+    num_inputs_check(context, 2, 2);
+    auto batch1 = context.get_input(0);
+    auto batch2 = context.get_input(1);
+    const auto initial_batch1 = batch1;
+
+    // Handle mixed precision - convert to f32 if inputs are fp16/bf16
+    const bool convert_back = batch1.get_element_type() != element::f32;
+    if (batch2.get_element_type() != element::f32) {
+        batch2 = context.mark_node(std::make_shared<v0::Convert>(batch2, element::f32));
+    }
+    if (convert_back) {
+        batch1 = context.mark_node(std::make_shared<v0::Convert>(batch1, element::f32));
+    }
+
+    // bmm: (b, n, m) @ (b, m, p) -> (b, n, p)
+    auto matmul = context.mark_node(std::make_shared<v0::MatMul>(std::move(batch1), std::move(batch2), false, false));
+
+    if (convert_back) {
+        matmul = context.mark_node(std::make_shared<v1::ConvertLike>(std::move(matmul), initial_batch1));
+    }
+    return {matmul};
+}
+
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend

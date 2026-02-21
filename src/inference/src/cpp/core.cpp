@@ -74,16 +74,7 @@ Core::Core(const std::filesystem::path& xml_config_file) : _impl(std::make_share
 }
 
 std::map<std::string, Version> Core::get_versions(const std::string& device_name) const {
-    OV_CORE_CALL_STATEMENT(return _impl->get_versions(device_name););
-}
-
-std::shared_ptr<ov::Model> Core::read_model(const std::filesystem::path& model_path,
-                                            const std::filesystem::path& bin_path,
-                                            const ov::AnyMap& properties) const {
-    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Phases, "Read model");
-    OV_CORE_CALL_STATEMENT(return _impl->read_model(model_path, bin_path, properties););
-}
-
+    OV_CORE_CALL_STATEMENT({ return _impl->get_versions(device_name); })}
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::shared_ptr<ov::Model> Core::read_model(const std::wstring& model_path,
                                             const std::wstring& bin_path,

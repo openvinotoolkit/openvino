@@ -6,8 +6,10 @@
 
 #include <iostream>
 
+#include "model_builder/model_builder.hpp"
 #include "openvino/openvino.hpp"
-#include "model_generator/model_generator.hpp"
+
+using ov::test::npuw::ModelBuilder;
 
 // FIXME: parametrize all the tests below
 
@@ -23,8 +25,8 @@ TEST(SetTensorNPUW, RemoteTensorOutputJust) {
     const std::string device = "NPU";
 
     // Create model
-    ModelGenerator mg;
-    auto model = mg.get_model_with_one_op();
+    ModelBuilder mb;
+    auto model = mb.get_model_with_one_op();
 
     ov::element::Type element_type = ov::element::i64;
     auto output_tensor_shape = model->outputs()[0].get_shape();
@@ -44,12 +46,10 @@ TEST(SetTensorNPUW, RemoteTensorOutputJust) {
     values.copy_to(output);
 
     // NPUW config
-    ov::AnyMap config = {
-        {"NPU_USE_NPUW", "YES"},
-        {"NPUW_FUNCALL_FOR_ALL", "YES"},
-        {"NPUW_DEVICES", "NPU"},
-        {"NPUW_FOLD" , "YES"}
-    };
+    ov::AnyMap config = {{"NPU_USE_NPUW", "YES"},
+                         {"NPUW_FUNCALL_FOR_ALL", "YES"},
+                         {"NPUW_DEVICES", "NPU"},
+                         {"NPUW_FOLD", "YES"}};
 
     // Compile NPUW
     auto compiled = ov_core.compile_model(model, device, config);
@@ -77,7 +77,7 @@ TEST(SetTensorNPUW, RemoteTensorOutputJust) {
     EXPECT_TRUE(check_non_zero(output_tensor, total_elements));
 }
 
-using RemoteTensorInputParams = std::tuple<ov::AnyMap>; // additional config to pick infer request class
+using RemoteTensorInputParams = std::tuple<ov::AnyMap>;  // additional config to pick infer request class
 
 class RemoteTensorInputTestsBase {
 protected:
@@ -98,8 +98,8 @@ public:
 
 template <class T>
 class RemoteTensorInputTestsTmpl : public ::testing::Test,
-                           public T,
-                           public ::testing::WithParamInterface<RemoteTensorInputParams> {
+                                   public T,
+                                   public ::testing::WithParamInterface<RemoteTensorInputParams> {
 protected:
     void SetUp() override {
         T::SetUp(GetParam());
@@ -127,8 +127,8 @@ TEST_P(SetTensorNPUW_RemoteTensorInputTests, RemoteTensorInput) {
     const std::string device = "NPU";
 
     // Create model
-    ModelGenerator mg;
-    auto model = mg.get_model_with_repeated_blocks();
+    ModelBuilder mb;
+    auto model = mb.get_model_with_repeated_blocks();
 
     ov::element::Type element_type = ov::element::i32;
     auto input_tensor_shape = model->inputs()[0].get_shape();
@@ -148,12 +148,10 @@ TEST_P(SetTensorNPUW_RemoteTensorInputTests, RemoteTensorInput) {
     values.copy_to(input);
 
     // NPUW config
-    ov::AnyMap config = {
-        {"NPU_USE_NPUW", "YES"},
-        {"NPUW_FUNCALL_FOR_ALL", "YES"},
-        {"NPUW_DEVICES", "NPU"},
-        {"NPUW_FOLD" , "YES"}
-    };
+    ov::AnyMap config = {{"NPU_USE_NPUW", "YES"},
+                         {"NPUW_FUNCALL_FOR_ALL", "YES"},
+                         {"NPUW_DEVICES", "NPU"},
+                         {"NPUW_FOLD", "YES"}};
 
     // Apply parametrized config
     for (const auto& el : extra_config) {
@@ -178,8 +176,10 @@ TEST_P(SetTensorNPUW_RemoteTensorInputTests, RemoteTensorInput) {
     EXPECT_EQ(input_tensor.data(), input.data());
 }
 
-const auto TestCases = ::testing::Combine(
-        ::testing::ValuesIn({ov::AnyMap{}, ov::AnyMap{{"NPUW_UNFOLD_IREQS", "YES"}}}));
+const auto TestCases =
+    ::testing::Combine(::testing::ValuesIn({ov::AnyMap{}, ov::AnyMap{{"NPUW_UNFOLD_IREQS", "YES"}}}));
 
-INSTANTIATE_TEST_SUITE_P(SetTensorNPUW_RemoteTensorInputTests, SetTensorNPUW_RemoteTensorInputTests,
-                         TestCases, SetTensorNPUW_RemoteTensorInputTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(SetTensorNPUW_RemoteTensorInputTests,
+                         SetTensorNPUW_RemoteTensorInputTests,
+                         TestCases,
+                         SetTensorNPUW_RemoteTensorInputTests::getTestCaseName);
