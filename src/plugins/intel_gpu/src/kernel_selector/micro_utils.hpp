@@ -75,11 +75,11 @@ struct MicroKernelPackage {
 inline Package select_gemm_microkernel(GEMMProtocol protocol, HWInformation hw_info, SizeParams sizes, const GEMMProblem &problem,
                                         const std::vector<StrategyRequirement> &reqs = std::vector<StrategyRequirement>(),
                                         void (*strategyAdjuster)(GEMMStrategy &strategy) = nullptr, gemmstone::SelectionObserver *observer = nullptr) {
-    return gemmstone::selectGEMMMicrokernel(protocol, hw_info, sizes, problem, reqs, strategyAdjuster, observer);
+    return gemmstone::selectGEMMMicrokernel(protocol, hw_info, sizes, problem, reqs, strategyAdjuster);
 }
 inline Package select_gemm_microkernel(GEMMProtocol protocol, HWInformation hw_info, SizeParams sizes, const GEMMProblem &problem,
         gemmstone::SelectionObserver *observer) {
-    return gemmstone::selectGEMMMicrokernel(protocol, hw_info, sizes, problem, {}, nullptr, observer);
+    return gemmstone::selectGEMMMicrokernel(protocol, hw_info, sizes, problem, {}, nullptr);
 }
 
 static inline int alignment_for_ld(int ld) {
