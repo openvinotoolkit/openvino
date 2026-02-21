@@ -644,6 +644,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::new_full", op::translate_new_full},
         {"aten::new_ones", op::translate_new_ones},
         {"aten::new_zeros", op::translate_new_zeros},
+        {"aten::find", op::translate_nonzero},
         {"aten::nonzero", op::translate_nonzero},
         // aten::nonzero_numpy - Supported in limited set of patterns
         {"aten::norm", op::translate_norm},
