@@ -110,6 +110,19 @@ public:
         }
     }
 
+    // Helper function to get per channel layout for both 4D and 5D with 1 less dimension
+    layout get_per_channel_layout_reduced(reduce_test_params& p) {
+        if (p.out_shape.size() == 5) {
+            // 5D case
+            return layout{{1, p.in_shape[1], 1, 1}, p.default_type, p.default_format};
+        } else if (p.out_shape.size() <= 4) {
+            // 4D or other cases
+            return layout{{1, p.in_shape[1], 1}, p.default_type, p.default_format};
+        } else {
+            OPENVINO_ASSERT(false, "NOT_IMPLEMENTED");
+        }
+    }
+
     layout get_single_element_layout(reduce_test_params& p) {
         if (p.out_shape.size() == 5) {
             // 5D case
@@ -314,6 +327,25 @@ TEST_P(reduce_scale_activation, per_channel) {
         activation("activation", input_info("scale"), activation_func::cos),
         reorder("output_reorder", input_info("activation"), p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support cos activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
+
+    tolerance = 1e-02f;
+    execute(p);
+}
+
+TEST_P(reduce_scale_activation, per_channel_reduced) {
+    auto p = GetParam();
+    if (p.out_shape.size() == 5) {
+        GTEST_SKIP();
+    }
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      data("scale_data", get_mem(get_per_channel_layout_reduced(p), -0.125f)),
+                      reduce("reduce", input_info("input"), p.reduce_mode, p.reduce_axes, p.keep_dims),
+                      eltwise("scale", {input_info("reduce"), input_info("scale_data")}, eltwise_mode::prod),
+                      activation("activation", input_info("scale"), activation_func::cos),
+                      reorder("output_reorder", input_info("activation"), p.default_format, data_types::f32));
     // Activation won't be fused because onednn doesn't support cos activation
     if (engine.get_device_info().supports_immad)
         p.expected_fused_primitives++;
