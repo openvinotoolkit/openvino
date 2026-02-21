@@ -323,11 +323,41 @@ OPSETS = [ov.opset12, ov.opset13]
     ],
 )
 def test_float_to_f8e5m2_constant(ov_type, numpy_dtype, opset):
-    data = np.array([
-        4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
-        0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
-        -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0, 0.0000152587890625, 448, 500, 512, 57344
-    ], dtype=numpy_dtype)
+    data = np.array(
+        [
+            4.75,
+            4.5,
+            -5.25,
+            0.0,
+            0.1,
+            0.2,
+            0.3,
+            0.4,
+            0.5,
+            0.6,
+            0.7,
+            0.8,
+            0.9,
+            1,
+            -0.0,
+            -0.1,
+            -0.2,
+            -0.3,
+            -0.4,
+            -0.5,
+            -0.6,
+            -0.7,
+            -0.8,
+            -0.9,
+            -1.0,
+            0.0000152587890625,
+            448,
+            500,
+            512,
+            57344,
+        ],
+        dtype=numpy_dtype,
+    )
 
     compressed_const = opset.constant(data, dtype=ov.Type.f8e5m2, name="f8e5m2_constant")
     convert = opset.convert(compressed_const, data.dtype)
@@ -339,10 +369,38 @@ def test_float_to_f8e5m2_constant(ov_type, numpy_dtype, opset):
     tensor = np.zeros(data.shape, dtype=numpy_dtype)
     result = compiled(tensor)[0]
 
-    target = [5.0, 4.0, -5.0, 0.0, 0.09375, 0.1875, 0.3125, 0.375, 0.5, 0.625, 0.75,
-              0.75, 0.875, 1.0, -0.0, -0.09375, -0.1875, -0.3125, -0.375,
-              -0.5, -0.625, -0.75, -0.75, -0.875, -1.0, 0.0000152587890625,
-              448, 512, 512, 57344]
+    target = [
+        5.0,
+        4.0,
+        -5.0,
+        0.0,
+        0.09375,
+        0.1875,
+        0.3125,
+        0.375,
+        0.5,
+        0.625,
+        0.75,
+        0.75,
+        0.875,
+        1.0,
+        -0.0,
+        -0.09375,
+        -0.1875,
+        -0.3125,
+        -0.375,
+        -0.5,
+        -0.625,
+        -0.75,
+        -0.75,
+        -0.875,
+        -1.0,
+        0.0000152587890625,
+        448,
+        512,
+        512,
+        57344,
+    ]
     target = np.array(target, dtype=numpy_dtype)
 
     assert np.allclose(result, target)
@@ -357,9 +415,38 @@ def test_float_to_f8e5m2_constant(ov_type, numpy_dtype, opset):
     ],
 )
 def test_float_to_f8e4m3_constant(ov_type, numpy_dtype, opset):
-    data = np.array([4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
-                     0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
-                     -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1, 448, 512], dtype=numpy_dtype)
+    data = np.array(
+        [
+            4.75,
+            4.5,
+            -5.25,
+            0.0,
+            0.1,
+            0.2,
+            0.3,
+            0.4,
+            0.5,
+            0.6,
+            0.7,
+            0.8,
+            0.9,
+            1,
+            -0.0,
+            -0.1,
+            -0.2,
+            -0.3,
+            -0.4,
+            -0.5,
+            -0.6,
+            -0.7,
+            -0.8,
+            -0.9,
+            -1,
+            448,
+            512,
+        ],
+        dtype=numpy_dtype,
+    )
 
     compressed_const = opset.constant(data, dtype=ov.Type.f8e4m3, name="f8e4m3_constant")
     convert = opset.convert(compressed_const, data.dtype)
@@ -371,10 +458,35 @@ def test_float_to_f8e4m3_constant(ov_type, numpy_dtype, opset):
     tensor = np.zeros(data.shape, dtype=numpy_dtype)
     result = compiled(tensor)[0]
 
-    target = [5.0, 4.5, -5.0, 0.0, 0.1015625, 0.203125, 0.3125,
-              0.40625, 0.5, 0.625, 0.6875, 0.8125, 0.875, 1,
-              -0, -0.1015625, -0.203125, -0.3125, -0.40625, -0.5, -0.625,
-              -0.6875, -0.8125, -0.875, -1, 448, np.nan]
+    target = [
+        5.0,
+        4.5,
+        -5.0,
+        0.0,
+        0.1015625,
+        0.203125,
+        0.3125,
+        0.40625,
+        0.5,
+        0.625,
+        0.6875,
+        0.8125,
+        0.875,
+        1,
+        -0,
+        -0.1015625,
+        -0.203125,
+        -0.3125,
+        -0.40625,
+        -0.5,
+        -0.625,
+        -0.6875,
+        -0.8125,
+        -0.875,
+        -1,
+        448,
+        np.nan,
+    ]
     target = np.array(target, dtype=numpy_dtype)
 
     assert np.allclose(result, target, equal_nan=True)
@@ -450,9 +562,39 @@ def test_float_to_f8e8m0_constant_single_nan(ov_type, numpy_dtype, opset):
 def test_float_to_f8e8m0_constant(ov_type, numpy_dtype, opset):
     pytest.skip("CVS-145281 BUG: nan to inf repro. [random - depends on the device]")
 
-    data = np.array([4.75, 4.5, 5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
-                     0.6, 0.7, 0.8, 0.9, 1, -0.0, 1.1, 1.2, 1.3,
-                     1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 448, 512, np.nan], dtype=numpy_dtype)
+    data = np.array(
+        [
+            4.75,
+            4.5,
+            5.25,
+            0.0,
+            0.1,
+            0.2,
+            0.3,
+            0.4,
+            0.5,
+            0.6,
+            0.7,
+            0.8,
+            0.9,
+            1,
+            -0.0,
+            1.1,
+            1.2,
+            1.3,
+            1.4,
+            1.5,
+            1.6,
+            1.7,
+            1.8,
+            1.9,
+            2.0,
+            448,
+            512,
+            np.nan,
+        ],
+        dtype=numpy_dtype,
+    )
 
     compressed_const = opset.constant(data, dtype=ov.Type.f8e8m0, name="f8e8m0_constant")
     convert = opset.convert(compressed_const, data.dtype)
@@ -464,10 +606,36 @@ def test_float_to_f8e8m0_constant(ov_type, numpy_dtype, opset):
     tensor = np.zeros(data.shape, dtype=numpy_dtype)
     result = compiled(tensor)[0]
 
-    target = [4.0, 4.0, 4.0, 0.0, 0.125, 0.25, 0.25,
-              0.5, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0,
-              0.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0,
-              2.0, 2.0, 2.0, 2.0, 512, 512, np.nan]
+    target = [
+        4.0,
+        4.0,
+        4.0,
+        0.0,
+        0.125,
+        0.25,
+        0.25,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        1.0,
+        1.0,
+        1.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        512,
+        512,
+        np.nan,
+    ]
     target = np.array(target, dtype=numpy_dtype)
 
     assert np.allclose(result, target, equal_nan=True)
@@ -482,11 +650,41 @@ def test_float_to_f8e8m0_constant(ov_type, numpy_dtype, opset):
     ],
 )
 def test_float_to_f8e5m2_convert(ov_type, numpy_dtype, opset):
-    data = np.array([
-        4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
-        0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
-        -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0, 0.0000152587890625, 448, 500, 512, 57344
-    ], dtype=numpy_dtype)
+    data = np.array(
+        [
+            4.75,
+            4.5,
+            -5.25,
+            0.0,
+            0.1,
+            0.2,
+            0.3,
+            0.4,
+            0.5,
+            0.6,
+            0.7,
+            0.8,
+            0.9,
+            1,
+            -0.0,
+            -0.1,
+            -0.2,
+            -0.3,
+            -0.4,
+            -0.5,
+            -0.6,
+            -0.7,
+            -0.8,
+            -0.9,
+            -1.0,
+            0.0000152587890625,
+            448,
+            500,
+            512,
+            57344,
+        ],
+        dtype=numpy_dtype,
+    )
 
     compressed_const = opset.constant(data, dtype=ov_type, name="fx_constant")
     convert_to_fp8 = opset.convert(compressed_const, Type.f8e5m2)
@@ -499,10 +697,38 @@ def test_float_to_f8e5m2_convert(ov_type, numpy_dtype, opset):
     tensor = np.zeros(data.shape, dtype=numpy_dtype)
     result = compiled(tensor)[0]
 
-    target = [5.0, 4.0, -5.0, 0.0, 0.09375, 0.1875, 0.3125, 0.375, 0.5, 0.625, 0.75,
-              0.75, 0.875, 1.0, -0.0, -0.09375, -0.1875, -0.3125, -0.375,
-              -0.5, -0.625, -0.75, -0.75, -0.875, -1.0, 0.0000152587890625,
-              448, 512, 512, 57344]
+    target = [
+        5.0,
+        4.0,
+        -5.0,
+        0.0,
+        0.09375,
+        0.1875,
+        0.3125,
+        0.375,
+        0.5,
+        0.625,
+        0.75,
+        0.75,
+        0.875,
+        1.0,
+        -0.0,
+        -0.09375,
+        -0.1875,
+        -0.3125,
+        -0.375,
+        -0.5,
+        -0.625,
+        -0.75,
+        -0.75,
+        -0.875,
+        -1.0,
+        0.0000152587890625,
+        448,
+        512,
+        512,
+        57344,
+    ]
     target = np.array(target, dtype=numpy_dtype)
 
     assert np.allclose(result, target)
@@ -517,9 +743,38 @@ def test_float_to_f8e5m2_convert(ov_type, numpy_dtype, opset):
     ],
 )
 def test_float_to_f8e4m3_convert(ov_type, numpy_dtype, opset):
-    data = np.array([4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
-                     0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
-                     -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1, 448, 512], dtype=numpy_dtype)
+    data = np.array(
+        [
+            4.75,
+            4.5,
+            -5.25,
+            0.0,
+            0.1,
+            0.2,
+            0.3,
+            0.4,
+            0.5,
+            0.6,
+            0.7,
+            0.8,
+            0.9,
+            1,
+            -0.0,
+            -0.1,
+            -0.2,
+            -0.3,
+            -0.4,
+            -0.5,
+            -0.6,
+            -0.7,
+            -0.8,
+            -0.9,
+            -1,
+            448,
+            512,
+        ],
+        dtype=numpy_dtype,
+    )
 
     compressed_const = opset.constant(data, dtype=ov_type, name="fx_constant")
     convert_to_fp8 = opset.convert(compressed_const, Type.f8e4m3)
@@ -532,10 +787,35 @@ def test_float_to_f8e4m3_convert(ov_type, numpy_dtype, opset):
     tensor = np.zeros(data.shape, dtype=numpy_dtype)
     result = compiled(tensor)[0]
 
-    target = [5.0, 4.5, -5.0, 0.0, 0.1015625, 0.203125, 0.3125,
-              0.40625, 0.5, 0.625, 0.6875, 0.8125, 0.875, 1,
-              -0, -0.1015625, -0.203125, -0.3125, -0.40625, -0.5, -0.625,
-              -0.6875, -0.8125, -0.875, -1, 448, np.nan]
+    target = [
+        5.0,
+        4.5,
+        -5.0,
+        0.0,
+        0.1015625,
+        0.203125,
+        0.3125,
+        0.40625,
+        0.5,
+        0.625,
+        0.6875,
+        0.8125,
+        0.875,
+        1,
+        -0,
+        -0.1015625,
+        -0.203125,
+        -0.3125,
+        -0.40625,
+        -0.5,
+        -0.625,
+        -0.6875,
+        -0.8125,
+        -0.875,
+        -1,
+        448,
+        np.nan,
+    ]
     target = np.array(target, dtype=numpy_dtype)
 
     assert np.allclose(result, target, equal_nan=True)
@@ -552,9 +832,39 @@ def test_float_to_f8e4m3_convert(ov_type, numpy_dtype, opset):
 def test_float_to_f8e8m0_convert(ov_type, numpy_dtype, opset):
     pytest.skip("CVS-145281 BUG: nan to inf repro. [random - depends on the device]")
 
-    data = np.array([4.75, 4.5, 5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
-                     0.6, 0.7, 0.8, 0.9, 1, -0.0, 1.1, 1.2, 1.3,
-                     1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 448, 512, np.nan], dtype=numpy_dtype)
+    data = np.array(
+        [
+            4.75,
+            4.5,
+            5.25,
+            0.0,
+            0.1,
+            0.2,
+            0.3,
+            0.4,
+            0.5,
+            0.6,
+            0.7,
+            0.8,
+            0.9,
+            1,
+            -0.0,
+            1.1,
+            1.2,
+            1.3,
+            1.4,
+            1.5,
+            1.6,
+            1.7,
+            1.8,
+            1.9,
+            2.0,
+            448,
+            512,
+            np.nan,
+        ],
+        dtype=numpy_dtype,
+    )
 
     compressed_const = opset.constant(data, dtype=ov_type, name="fx_constant")
     convert_to_fp8 = opset.convert(compressed_const, Type.f8e8m0)
@@ -567,10 +877,36 @@ def test_float_to_f8e8m0_convert(ov_type, numpy_dtype, opset):
     tensor = np.zeros(data.shape, dtype=numpy_dtype)
     result = compiled(tensor)[0]
 
-    target = [4.0, 4.0, 4.0, 0.0, 0.125, 0.25, 0.25,
-              0.5, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0,
-              0.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0,
-              2.0, 2.0, 2.0, 2.0, 512, 512, np.nan]
+    target = [
+        4.0,
+        4.0,
+        4.0,
+        0.0,
+        0.125,
+        0.25,
+        0.25,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        1.0,
+        1.0,
+        1.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        512,
+        512,
+        np.nan,
+    ]
     target = np.array(target, dtype=numpy_dtype)
 
     assert np.allclose(result, target, equal_nan=True)
@@ -796,3 +1132,90 @@ def test_const_from_tensor_with_shared_memory_by_default():
     arr += 1
     assert np.array_equal(ov_const.data, arr)
     assert np.shares_memory(arr, ov_const.data)
+
+
+def test_string_constant_basic():
+    """Test creating a string constant from numpy array."""
+    strings = np.array(["hello", "world", "test"])
+    ov_const = ops.constant(strings)
+
+    assert isinstance(ov_const, Constant)
+    assert ov_const.get_element_type() == Type.string
+    assert tuple(ov_const.shape) == (3,)
+
+    result = ov_const.get_value_strings()
+    assert result == ["hello", "world", "test"]
+
+
+def test_string_constant_2d():
+    """Test creating a 2D string constant."""
+    strings = np.array([["a", "b"], ["c", "d"]])
+    ov_const = ops.constant(strings)
+
+    assert isinstance(ov_const, Constant)
+    assert ov_const.get_element_type() == Type.string
+    assert tuple(ov_const.shape) == (2, 2)
+
+    result = ov_const.get_value_strings()
+    assert result == ["a", "b", "c", "d"]
+
+
+def test_string_constant_empty():
+    """Test creating an empty string constant."""
+    strings = np.array([], dtype="<U1")
+    ov_const = ops.constant(strings)
+
+    assert isinstance(ov_const, Constant)
+    assert ov_const.get_element_type() == Type.string
+    assert tuple(ov_const.shape) == (0,)
+
+    result = ov_const.get_value_strings()
+    assert result == []
+
+
+def test_string_constant_with_none():
+    """Test creating a string constant with None values (should convert to empty string)."""
+    strings = np.array(["hello", None, "world"], dtype=object)
+    ov_const = ops.constant(strings)
+
+    assert isinstance(ov_const, Constant)
+    assert ov_const.get_element_type() == Type.string
+    assert tuple(ov_const.shape) == (3,)
+
+    result = ov_const.get_value_strings()
+    assert result == ["hello", "", "world"]
+
+
+def test_string_constant_shared_memory_warning():
+    """Test that shared_memory flag generates a warning for string constants."""
+    strings = np.array(["hello", "world"])
+    with pytest.warns(
+        RuntimeWarning, match="Creating a String Constant with shared memory is not supported. Data will be copied."
+    ):
+        ops.constant(strings, shared_memory=True)
+
+
+def test_string_constant_unicode():
+    """Test creating a string constant with unicode characters."""
+    strings = np.array(["hello", "世界", "🌍"])
+    ov_const = ops.constant(strings)
+
+    assert isinstance(ov_const, Constant)
+    assert ov_const.get_element_type() == Type.string
+    assert tuple(ov_const.shape) == (3,)
+
+    result = ov_const.get_value_strings()
+    assert result == ["hello", "世界", "🌍"]
+
+
+def test_string_constant_mixed_types():
+    """Test creating a string constant from object array with mixed types."""
+    strings = np.array(["text", 123, 45.6, True], dtype=object)
+    ov_const = ops.constant(strings)
+
+    assert isinstance(ov_const, Constant)
+    assert ov_const.get_element_type() == Type.string
+    assert tuple(ov_const.shape) == (4,)
+
+    result = ov_const.get_value_strings()
+    assert result == ["text", "123", "45.6", "True"]
