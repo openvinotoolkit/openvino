@@ -33,6 +33,7 @@ OP_CONVERTER(translate_mul);
 OP_CONVERTER(translate_mul_);
 OP_CONVERTER(translate_addcmul);
 OP_CONVERTER(translate_addmm);
+OP_CONVERTER(translate_affine_grid_generator);
 OP_CONVERTER(translate_alias_copy);
 OP_CONVERTER(translate_all);
 OP_CONVERTER(translate_any);
@@ -543,6 +544,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::full_like", op::translate_full_like},
         {"aten::gather", op::translate_gather},
         {"aten::gcd", op::translate_gcd},
+        {"aten::affine_grid_generator", op::translate_affine_grid_generator},
         {"aten::ge", op::translate_1to1_match_2_inputs_align_types<opset10::GreaterEqual>},
         {"aten::gelu", op::translate_gelu},
         {"aten::glu", op::translate_glu},
