@@ -4770,6 +4770,15 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_dropout1_no_training_no_return_mask) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dropout1_preserves_input_tensor_name) {
+    auto model = convert_model("dropout1_no_training_no_return_mask.onnx");
+
+    // Verify that the input tensor name "x" is preserved through Dropout conversion
+    EXPECT_EQ(model->get_parameters().size(), 1);
+    const auto& input_names = model->get_parameters().front()->get_output_tensor(0).get_names();
+    EXPECT_TRUE(input_names.count("x")) << "Input tensor name 'x' was not preserved after Dropout conversion";
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_dropout1_no_training_return_mask) {
     auto model = convert_model("dropout1_no_training_return_mask.onnx");
 
