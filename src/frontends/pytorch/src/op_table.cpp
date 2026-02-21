@@ -241,6 +241,7 @@ OP_CONVERTER(translate_scaled_dot_product_attention);
 OP_CONVERTER(translate_scatter);
 OP_CONVERTER(translate_scatter_add);
 OP_CONVERTER(translate_scatter_reduce);
+OP_CONVERTER(translate_segment_mean_csr);
 OP_CONVERTER(translate_select);
 OP_CONVERTER(translate_set_item);
 OP_CONVERTER(translate_selu);
@@ -711,6 +712,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::scatter", op::translate_scatter},
         {"aten::scatter_add", op::translate_scatter_add},
         {"aten::scatter_reduce", op::translate_scatter_reduce},
+        {"torch_scatter::segment_mean_csr", op::translate_segment_mean_csr},
         {"aten::select", op::quantizable_op<op::translate_select>},
         {"aten::selu", op::translate_selu},
         {"aten::sigmoid",
