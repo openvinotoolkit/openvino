@@ -6,7 +6,6 @@
 
 #include "snippets_helpers.hpp"
 
-
 /* The file contains graphs with different MHA-patterns:
  * Skeleton on MHA-pattern is:
  *              \     /
@@ -24,6 +23,33 @@
 namespace ov {
 namespace test {
 namespace snippets {
+namespace detail {
+
+inline std::vector<size_t> get_mha_parameter_indices(const bool const_b_matmul0, const bool const_b_matmul1) {
+    std::vector<size_t> parameter_indices = {0};
+    if (!const_b_matmul0) {
+        parameter_indices.push_back(1);
+    }
+    parameter_indices.push_back(2);
+    if (!const_b_matmul1) {
+        parameter_indices.push_back(3);
+    }
+    return parameter_indices;
+}
+
+inline std::vector<size_t> get_mha_wo_transpose_parameter_indices(const bool const_b_matmul0,
+                                                                  const bool const_b_matmul1) {
+    std::vector<size_t> parameter_indices = {0};
+    if (!const_b_matmul0) {
+        parameter_indices.push_back(1);
+    }
+    if (!const_b_matmul1) {
+        parameter_indices.push_back(2);
+    }
+    return parameter_indices;
+}
+
+}  // namespace detail
 
 /* Graph:
  *       Transpose1[0,2,3,1]  Constant
@@ -42,45 +68,84 @@ namespace snippets {
  */
 class MHAFunction : public SnippetsFunctionBase {
 public:
-    explicit MHAFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions,
-                         bool with_mul = true, bool with_reshape = true)
-        : SnippetsFunctionBase(inputShapes), with_mul(with_mul), with_reshape(with_reshape), precisions(precisions) {
+    explicit MHAFunction(const std::vector<PartialShape>& inputShapes,
+                         const std::vector<ov::element::Type>& precisions,
+                         bool with_mul = true,
+                         bool with_reshape = true,
+                         bool const_b_matmul0 = false,
+                         bool const_b_matmul1 = false)
+        : SnippetsFunctionBase(inputShapes,
+                               ov::element::f32,
+                               detail::get_mha_parameter_indices(const_b_matmul0, const_b_matmul1)),
+          with_mul(with_mul),
+          with_reshape(with_reshape),
+          const_b_matmul0(const_b_matmul0),
+          const_b_matmul1(const_b_matmul1),
+          precisions(precisions) {
         OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
         OPENVINO_ASSERT(precisions.size() == 4, "Got invalid number of input precisions");
+        OPENVINO_ASSERT(!const_b_matmul0 || input_shapes[1].is_static(),
+                        "MHAFunction expects static shape for MatMul0 constant B");
+        OPENVINO_ASSERT(!const_b_matmul1 || input_shapes[3].is_static(),
+                        "MHAFunction expects static shape for MatMul1 constant B");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
 
     const bool with_mul = true;
     const bool with_reshape = true;
+    const bool const_b_matmul0 = false;
+    const bool const_b_matmul1 = false;
     const std::vector<ov::element::Type> precisions;
 };
 
 class MHA2DFunction : public SnippetsFunctionBase {
 public:
-    explicit MHA2DFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)
-        : SnippetsFunctionBase(inputShapes), precisions(precisions) {
+    explicit MHA2DFunction(const std::vector<PartialShape>& inputShapes,
+                           const std::vector<ov::element::Type>& precisions,
+                           bool const_b_matmul0 = false,
+                           bool const_b_matmul1 = false)
+        : SnippetsFunctionBase(inputShapes,
+                               ov::element::f32,
+                               detail::get_mha_parameter_indices(const_b_matmul0, const_b_matmul1)),
+          const_b_matmul0(const_b_matmul0),
+          const_b_matmul1(const_b_matmul1),
+          precisions(precisions) {
         OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
         OPENVINO_ASSERT(precisions.size() == 4, "Got invalid number of input precisions");
         for (const auto& shape : input_shapes) {
             OPENVINO_ASSERT(shape.rank().is_static() && shape.rank().get_length() == 2, "All input shapes must be 2D");
         }
+        OPENVINO_ASSERT(!const_b_matmul0 || input_shapes[1].is_static(),
+                        "MHA2DFunction expects static shape for MatMul0 constant B");
+        OPENVINO_ASSERT(!const_b_matmul1 || input_shapes[3].is_static(),
+                        "MHA2DFunction expects static shape for MatMul1 constant B");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
 
+    const bool const_b_matmul0 = false;
+    const bool const_b_matmul1 = false;
     const std::vector<ov::element::Type> precisions;
 };
 
 class MHASplitMFunction : public MHAFunction {
 public:
-    explicit MHASplitMFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions,
-                                       const std::vector<Shape>& reshapes, bool with_mul = true)
-            : MHAFunction(inputShapes, precisions, with_mul), reshapes(reshapes) {
+    explicit MHASplitMFunction(const std::vector<PartialShape>& inputShapes,
+                               const std::vector<ov::element::Type>& precisions,
+                               const std::vector<Shape>& reshapes,
+                               bool with_mul = true,
+                               bool const_b_matmul0 = false,
+                               bool const_b_matmul1 = false)
+        : MHAFunction(inputShapes, precisions, with_mul, true, const_b_matmul0, const_b_matmul1),
+          reshapes(reshapes) {
         OPENVINO_ASSERT(reshapes.size() == 5, "Got invalid number of Reshape shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initReference() const override;
 
@@ -102,11 +167,14 @@ protected:
  */
 class MHAWithDynamicMulFunction : public SnippetsFunctionBase {
 public:
-    explicit MHAWithDynamicMulFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)
-        : SnippetsFunctionBase(inputShapes), precisions(precisions) {
+    explicit MHAWithDynamicMulFunction(const std::vector<PartialShape>& inputShapes,
+                                       const std::vector<ov::element::Type>& precisions)
+        : SnippetsFunctionBase(inputShapes),
+          precisions(precisions) {
         OPENVINO_ASSERT(input_shapes.size() == 5, "Got invalid number of input shapes");
         OPENVINO_ASSERT(precisions.size() == 5, "Got invalid number of input precisions");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 
@@ -130,17 +198,33 @@ protected:
  */
 class MHAMatMul0TransposeFunction : public SnippetsFunctionBase {
 public:
-    explicit MHAMatMul0TransposeFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions,
-                                         bool with_reshape = true)
-            : SnippetsFunctionBase(inputShapes), with_reshape(with_reshape), precisions(precisions) {
+    explicit MHAMatMul0TransposeFunction(const std::vector<PartialShape>& inputShapes,
+                                         const std::vector<ov::element::Type>& precisions,
+                                         bool with_reshape = true,
+                                         bool const_b_matmul0 = false,
+                                         bool const_b_matmul1 = false)
+        : SnippetsFunctionBase(inputShapes,
+                               ov::element::f32,
+                               detail::get_mha_parameter_indices(const_b_matmul0, const_b_matmul1)),
+          with_reshape(with_reshape),
+          const_b_matmul0(const_b_matmul0),
+          const_b_matmul1(const_b_matmul1),
+          precisions(precisions) {
         OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
         OPENVINO_ASSERT(precisions.size() == 4, "Got invalid number of input precisions");
+        OPENVINO_ASSERT(!const_b_matmul0 || input_shapes[1].is_static(),
+                        "MHAMatMul0TransposeFunction expects static shape for MatMul0 constant B");
+        OPENVINO_ASSERT(!const_b_matmul1 || input_shapes[3].is_static(),
+                        "MHAMatMul0TransposeFunction expects static shape for MatMul1 constant B");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
 
     const bool with_reshape = true;
+    const bool const_b_matmul0 = false;
+    const bool const_b_matmul1 = false;
     const std::vector<ov::element::Type> precisions;
 };
 
@@ -161,11 +245,14 @@ protected:
  */
 class MHASelectFunction : public SnippetsFunctionBase {
 public:
-    explicit MHASelectFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)
-        : SnippetsFunctionBase(inputShapes), precisions(precisions) {
+    explicit MHASelectFunction(const std::vector<PartialShape>& inputShapes,
+                               const std::vector<ov::element::Type>& precisions)
+        : SnippetsFunctionBase(inputShapes),
+          precisions(precisions) {
         OPENVINO_ASSERT(input_shapes.size() == 6, "Got invalid number of input shapes");
         OPENVINO_ASSERT(precisions.size() == 6, "Got invalid number of input precisions");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 
@@ -177,10 +264,12 @@ protected:
 class MHASelectSplitMFunction : public SnippetsFunctionBase {
 public:
     explicit MHASelectSplitMFunction(const std::vector<PartialShape>& inputShapes, const std::vector<Shape>& reshapes)
-            : SnippetsFunctionBase(inputShapes), reshapes(reshapes) {
+        : SnippetsFunctionBase(inputShapes),
+          reshapes(reshapes) {
         OPENVINO_ASSERT(input_shapes.size() == 5, "Got invalid number of input shapes");
         OPENVINO_ASSERT(reshapes.size() == 6, "Got invalid number of input precisions");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
@@ -203,9 +292,11 @@ protected:
  */
 class MHAWOTransposeOnInputsFunction : public SnippetsFunctionBase {
 public:
-    explicit MHAWOTransposeOnInputsFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+    explicit MHAWOTransposeOnInputsFunction(const std::vector<PartialShape>& inputShapes)
+        : SnippetsFunctionBase(inputShapes) {
         OPENVINO_ASSERT(input_shapes.size() == 3, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
@@ -221,24 +312,44 @@ protected:
  */
 class MHAWOTransposeFunction : public SnippetsFunctionBase {
 public:
-    explicit MHAWOTransposeFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)
-        : SnippetsFunctionBase(inputShapes), precisions(precisions) {
+    explicit MHAWOTransposeFunction(const std::vector<PartialShape>& inputShapes,
+                                    const std::vector<ov::element::Type>& precisions,
+                                    bool const_b_matmul0 = false,
+                                    bool const_b_matmul1 = false)
+        : SnippetsFunctionBase(inputShapes,
+                               ov::element::f32,
+                               detail::get_mha_wo_transpose_parameter_indices(const_b_matmul0, const_b_matmul1)),
+          const_b_matmul0(const_b_matmul0),
+          const_b_matmul1(const_b_matmul1),
+          precisions(precisions) {
         OPENVINO_ASSERT(input_shapes.size() == 3, "Got invalid number of input shapes");
         OPENVINO_ASSERT(precisions.size() == 3, "Got invalid number of input precisions");
+        OPENVINO_ASSERT(!const_b_matmul0 || input_shapes[1].is_static(),
+                        "MHAWOTransposeFunction expects static shape for MatMul0 constant B");
+        OPENVINO_ASSERT(!const_b_matmul1 || input_shapes[2].is_static(),
+                        "MHAWOTransposeFunction expects static shape for MatMul1 constant B");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 
-     std::vector<ov::element::Type> precisions;
+    const bool const_b_matmul0 = false;
+    const bool const_b_matmul1 = false;
+    std::vector<ov::element::Type> precisions;
 };
 
 class MHAWOTransposeSplitMFunction : public MHAWOTransposeFunction {
 public:
-    explicit MHAWOTransposeSplitMFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions,
-                                          const std::vector<Shape>& reshapes)
-            : MHAWOTransposeFunction(inputShapes, precisions), reshapes(reshapes) {
+    explicit MHAWOTransposeSplitMFunction(const std::vector<PartialShape>& inputShapes,
+                                          const std::vector<ov::element::Type>& precisions,
+                                          const std::vector<Shape>& reshapes,
+                                          bool const_b_matmul0 = false,
+                                          bool const_b_matmul1 = false)
+        : MHAWOTransposeFunction(inputShapes, precisions, const_b_matmul0, const_b_matmul1),
+          reshapes(reshapes) {
         OPENVINO_ASSERT(reshapes.size() == 4, "Got invalid number of Reshape shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initReference() const override;
 
@@ -261,9 +372,10 @@ protected:
 class MHAFQAfterMatMulFunction : public SnippetsFunctionBase {
 public:
     explicit MHAFQAfterMatMulFunction(const std::vector<PartialShape>& inputShapes)
-            : SnippetsFunctionBase(inputShapes) {
+        : SnippetsFunctionBase(inputShapes) {
         OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
@@ -285,10 +397,10 @@ protected:
  */
 class MHAINT8MatMulFunction : public SnippetsFunctionBase {
 public:
-    explicit MHAINT8MatMulFunction(const std::vector<PartialShape>& inputShapes)
-            : SnippetsFunctionBase(inputShapes) {
+    explicit MHAINT8MatMulFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
         OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
@@ -308,14 +420,13 @@ protected:
  */
 class MHAQuantMatMul0Function : public SnippetsFunctionBase {
 public:
-    explicit MHAQuantMatMul0Function(const std::vector<PartialShape>& inputShapes)
-            : SnippetsFunctionBase(inputShapes) {
+    explicit MHAQuantMatMul0Function(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
         OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
-
 
 /* Graph:
  *                                          Constant
@@ -338,10 +449,10 @@ protected:
  */
 class MHAFQFunction : public SnippetsFunctionBase {
 public:
-    explicit MHAFQFunction(const std::vector<PartialShape>& inputShapes)
-            : SnippetsFunctionBase(inputShapes) {
+    explicit MHAFQFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
         OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
@@ -368,9 +479,10 @@ protected:
 class MHAINT8MatMulTypeRelaxedFunction : public SnippetsFunctionBase {
 public:
     explicit MHAINT8MatMulTypeRelaxedFunction(const std::vector<PartialShape>& inputShapes)
-            : SnippetsFunctionBase(inputShapes) {
+        : SnippetsFunctionBase(inputShapes) {
         OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
@@ -393,6 +505,7 @@ public:
     explicit MHAMulAddFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
         OPENVINO_ASSERT(input_shapes.size() == 3, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
@@ -433,7 +546,7 @@ protected:
  *           input0   input1
  *              \     /
  *              MatMul0   input2
- *                 |        | 
+ *                 |        |
  *              Reshape  Reshape (optional)
  *                 |    /
  *              Eltwise1  input3
@@ -450,12 +563,15 @@ protected:
 class MHAWithExtractedReshapeFunction : public SnippetsFunctionBase {
 public:
     explicit MHAWithExtractedReshapeFunction(const std::vector<PartialShape>& inputShapes, const bool add_2nd_reshape)
-        : SnippetsFunctionBase(inputShapes), add_2nd_reshape(add_2nd_reshape) {
+        : SnippetsFunctionBase(inputShapes),
+          add_2nd_reshape(add_2nd_reshape) {
         OPENVINO_ASSERT(input_shapes.size() == 5, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
+
 private:
     bool add_2nd_reshape = false;
 };

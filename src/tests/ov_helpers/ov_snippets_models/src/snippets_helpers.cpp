@@ -3,6 +3,7 @@
 //
 
 #include "snippets_helpers.hpp"
+
 #include "openvino/opsets/opset1.hpp"
 #include "snippets/op/subgraph.hpp"
 
@@ -11,30 +12,42 @@ namespace test {
 namespace snippets {
 
 void SnippetsFunctionBase::validate_params_shape(const std::vector<PartialShape>& input_shapes,
+                                                 const std::vector<size_t>& parameter_input_indices,
                                                  const ov::ParameterVector& params) {
-    OPENVINO_ASSERT(params.size() == input_shapes.size(),
+    OPENVINO_ASSERT(params.size() == parameter_input_indices.size(),
                     "Passed input shapes and produced function are inconsistent: number of params mismatch. Expected: ",
-                    input_shapes.size(), ", actual: ", params.size());
-    for (size_t i = 0; i < input_shapes.size(); i++) {
+                    parameter_input_indices.size(),
+                    ", actual: ",
+                    params.size());
+    for (size_t i = 0; i < parameter_input_indices.size(); i++) {
+        const auto input_idx = parameter_input_indices[i];
+        const auto& expected_shape = input_shapes[input_idx];
         const auto& cur_shape = params[i]->get_partial_shape();
-        OPENVINO_ASSERT(input_shapes[i] == cur_shape,
-                        "Passed input shapes (", input_shapes[i],
-                        ") and produced function shape(", cur_shape,
+        OPENVINO_ASSERT(expected_shape == cur_shape,
+                        "Passed input shape at index ",
+                        input_idx,
+                        " (",
+                        expected_shape,
+                        ") and produced function shape(",
+                        cur_shape,
                         ") are inconsistent.");
     }
 }
 
-void SnippetsFunctionBase::validate_function(const std::shared_ptr<Model> &f) const {
+void SnippetsFunctionBase::validate_function(const std::shared_ptr<Model>& f) const {
     OPENVINO_ASSERT(f != nullptr, "The test requires Model to be defined");
-    const auto &params = f->get_parameters();
-    validate_params_shape(input_shapes, params);
+    const auto& params = f->get_parameters();
+    validate_params_shape(input_shapes, parameter_input_indices, params);
 }
 
 SnippetsFunctionCustomizable::SnippetsFunctionCustomizable(const std::vector<PartialShape>& inputShapes,
                                                            const std::vector<std::shared_ptr<Node>>& customOps,
                                                            const std::vector<size_t>&& customOpsNumInputs)
-        : SnippetsFunctionBase(inputShapes), custom_ops{customOps}, custom_ops_num_inputs{customOpsNumInputs} {
-    OPENVINO_ASSERT(custom_ops_num_inputs.size() == custom_ops.size(), "Got inconsistent numbers of custom ops and custom ops inputs");
+    : SnippetsFunctionBase(inputShapes),
+      custom_ops{customOps},
+      custom_ops_num_inputs{customOpsNumInputs} {
+    OPENVINO_ASSERT(custom_ops_num_inputs.size() == custom_ops.size(),
+                    "Got inconsistent numbers of custom ops and custom ops inputs");
     // We need to set dummy inputs to increase input arguments count,
     // so clone_with_new_inputs() could pass without errors inside initOriginal() and initReference().
     ResetCustomOpsInputs();
