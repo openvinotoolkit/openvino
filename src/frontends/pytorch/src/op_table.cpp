@@ -164,6 +164,7 @@ OP_CONVERTER(translate_logsumexp);
 OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_while_loop_fx);
 OP_CONVERTER(translate_lstm);
+OP_CONVERTER(translate_lstm_cell);
 OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_masked_scatter);
 OP_CONVERTER(translate_masked_select);
@@ -611,6 +612,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::log10_", op::inplace_op<op::translate_log10>},
         {"aten::logsumexp", op::translate_logsumexp},
         {"aten::lstm", op::translate_lstm},
+        {"aten::lstm_cell", op::translate_lstm_cell},
         {"aten::lt", op::translate_1to1_match_2_inputs_align_types<opset10::Less>},
         {"aten::masked_fill", op::translate_masked_fill},
         {"aten::masked_scatter", op::translate_masked_scatter},
