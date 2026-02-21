@@ -186,6 +186,7 @@ void regclass_graph_NodeFactory(py::module m) {
 
     node_factory.def("add_extension", [](NodeFactory& self, const py::object& lib_path) {
         return self.add_extension(Common::utils::convert_path_to_string(lib_path));
+        // return self.add_extension(Common::utils::to_fs_path(lib_path));
     });
 
     node_factory.def("__repr__", [](const NodeFactory& self) {
