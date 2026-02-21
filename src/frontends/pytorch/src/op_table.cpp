@@ -180,7 +180,6 @@ OP_CONVERTER(translate_movedim);
 OP_CONVERTER(translate_multinomial);
 OP_CONVERTER(translate_narrow);
 OP_CONVERTER(translate_native_multi_head_attention);
-OP_CONVERTER(translate_neg);
 OP_CONVERTER(translate_new_full);
 OP_CONVERTER(translate_new_ones);
 OP_CONVERTER(translate_new_zeros);
@@ -639,7 +638,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::multinomial", op::translate_multinomial},
         {"aten::narrow", op::translate_narrow},
         {"aten::ne", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
-        {"aten::neg", op::translate_neg},
+        {"aten::neg", op::translate_1to1_match_1_inputs<opset10::Negative>},
         {"aten::new_empty", op::translate_new_zeros},
         {"aten::new_full", op::translate_new_full},
         {"aten::new_ones", op::translate_new_ones},
@@ -828,7 +827,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"<built-in function floordiv>", op::translate_floor_divide},
         {"<built-in function getitem>", op::translate_getitem},  // TODO: Check if there is any other way to handle this
         {"<built-in function mul>", op::translate_mul},
-        {"<built-in function neg>", op::translate_neg},
+        {"<built-in function neg>", op::translate_1to1_match_1_inputs<opset10::Negative>},
         {"<built-in function sub>", op::translate_sub},
         {"aten._adaptive_avg_pool1d.default", op::translate_adaptive_avg_pool1d},
         {"aten._adaptive_avg_pool2d.default", op::translate_adaptive_avg_pool2d},
@@ -1015,7 +1014,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.native_layer_norm.default", op::translate_layer_norm_fx},
         {"aten.ne.Scalar", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten.ne.Tensor", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
-        {"aten.neg.default", op::translate_neg},
+        {"aten.neg.default", op::translate_1to1_match_1_inputs<opset10::Negative>},
         {"aten.new_full.default", op::translate_new_full_fx},
         {"aten.new_ones.default", op::translate_new_ones_fx},
         {"aten.new_zeros.default", op::translate_new_zeros_fx},
