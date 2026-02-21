@@ -23,7 +23,9 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/acos.hpp"
 #include "openvino/op/acosh.hpp"
@@ -86,147 +88,173 @@ void Math::initSupportedPrimitiveDescriptors() {
         return;
     }
 
+    // Respect the original input precision to avoid precision mismatches
+    // that can cause numerical inconsistencies in FP16 mode
+    ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
+    if (none_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
+        precision = ov::element::f32;
+    }
+
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
     for (size_t i = 0; i < inputShapes.size(); ++i) {
-        inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
+        inDataConf.emplace_back(LayoutType::ncsp, precision);
     }
 
-    addSupportedPrimDesc(inDataConf, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
+    addSupportedPrimDesc(inDataConf, {{LayoutType::ncsp, precision}}, impl_desc_type::ref_any);
 }
 
 void Math::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Math::execute([[maybe_unused]] const dnnl::stream& strm) {
+template <typename T>
+void Math::executeImpl() {
     size_t dataSize = getChildEdgeAt(0)->getMemory().getShape().getElementsCount();
-    const auto* src_data = getSrcDataAtPortAs<const float>(0);
-    auto* dst_data = getDstDataAtPortAs<float>(0);
+    const auto* src_data = getSrcDataAtPortAs<const T>(0);
+    auto* dst_data = getDstDataAtPortAs<T>(0);
     const auto& cpu_parallel = context->getCpuParallel();
 
     switch (getAlgorithm()) {
     case Algorithm::MathAbs:
         cpu_parallel->parallel_for(dataSize, [&](size_t i) {
-            dst_data[i] = (std::abs)(src_data[i]);
+            dst_data[i] = static_cast<T>((std::abs)(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathAcos:
         cpu_parallel->parallel_for(dataSize, [&](size_t i) {
-            dst_data[i] = acosf(src_data[i]);
+            dst_data[i] = static_cast<T>(acosf(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathAcosh:
         cpu_parallel->parallel_for(dataSize, [&](size_t i) {
-            dst_data[i] = acoshf(src_data[i]);
+            dst_data[i] = static_cast<T>(acoshf(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathAsin:
         cpu_parallel->parallel_for(dataSize, [&](size_t i) {
-            dst_data[i] = asinf(src_data[i]);
+            dst_data[i] = static_cast<T>(asinf(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathAsinh:
         cpu_parallel->parallel_for(dataSize, [&](size_t i) {
-            dst_data[i] = asinhf(src_data[i]);
+            dst_data[i] = static_cast<T>(asinhf(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathAtan:
         cpu_parallel->parallel_for(dataSize, [&](size_t i) {
-            dst_data[i] = atanf(src_data[i]);
+            dst_data[i] = static_cast<T>(atanf(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathAtanh:
         cpu_parallel->parallel_for(dataSize, [&](size_t i) {
-            dst_data[i] = atanhf(src_data[i]);
+            dst_data[i] = static_cast<T>(atanhf(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathCeiling:
         cpu_parallel->parallel_for(dataSize, [&](size_t i) {
-            dst_data[i] = ceilf(src_data[i]);
+            dst_data[i] = static_cast<T>(ceilf(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathCos:
         cpu_parallel->parallel_for(dataSize, [&](size_t i) {
-            dst_data[i] = cosf(src_data[i]);
+            dst_data[i] = static_cast<T>(cosf(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathCosh:
         cpu_parallel->parallel_for(dataSize, [&](size_t i) {
-            dst_data[i] = coshf(src_data[i]);
+            dst_data[i] = static_cast<T>(coshf(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathFloor:
         cpu_parallel->parallel_for(dataSize, [&](size_t i) {
-            dst_data[i] = floorf(src_data[i]);
+            dst_data[i] = static_cast<T>(floorf(static_cast<float>(src_data[i])));
         });
         break;
-    case Algorithm::MathHardSigmoid:
-        alpha = (alpha == 0.0F) ? 0.2F : alpha;
-        beta = (beta == 0.0F) ? 0.5F : beta;
-        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
-            dst_data[i] = (std::max)(0.F, (std::min)(1.F, alpha * src_data[i] + beta));
+    case Algorithm::MathHardSigmoid: {
+        float a = (alpha == 0.0F) ? 0.2F : alpha;
+        float b = (beta == 0.0F) ? 0.5F : beta;
+        cpu_parallel->parallel_for(dataSize, [&, a, b](size_t i) {
+            float val = a * static_cast<float>(src_data[i]) + b;
+            dst_data[i] = static_cast<T>((std::max)(0.F, (std::min)(1.F, val)));
         });
         break;
+    }
     case Algorithm::MathNegative:
         cpu_parallel->parallel_for(dataSize, [&](size_t i) {
-            dst_data[i] = -src_data[i];
+            dst_data[i] = static_cast<T>(-static_cast<float>(src_data[i]));
         });
         break;
     case Algorithm::MathReciprocal:
         cpu_parallel->parallel_for(dataSize, [&](size_t i) {
-            dst_data[i] = 1.0F / src_data[i];
+            dst_data[i] = static_cast<T>(1.0F / static_cast<float>(src_data[i]));
         });
         break;
-    case Algorithm::MathSelu:
-        alpha = (alpha == 0.0F) ? 1.67326F : alpha;
-        gamma = (gamma == 0.0F) ? 1.0507F : gamma;
-        cpu_parallel->parallel_for(dataSize, [&](size_t i) {
-            float x = src_data[i];
-            dst_data[i] = (x > 0.0F) ? (gamma * x) : (gamma * alpha * (std::exp(x) - 1.0F));
+    case Algorithm::MathSelu: {
+        float a = (alpha == 0.0F) ? 1.67326F : alpha;
+        float g = (gamma == 0.0F) ? 1.0507F : gamma;
+        cpu_parallel->parallel_for(dataSize, [&, a, g](size_t i) {
+            float x = static_cast<float>(src_data[i]);
+            dst_data[i] = static_cast<T>((x > 0.0F) ? (g * x) : (g * a * (std::exp(x) - 1.0F)));
         });
         break;
+    }
     case Algorithm::MathSign:
         cpu_parallel->parallel_for(dataSize, [&](size_t i) {
-            if (src_data[i] > 0.0F) {
-                dst_data[i] = 1.0F;
-            } else if (src_data[i] < 0.0F) {
-                dst_data[i] = -1.0F;
-            } else if (std::isnan(src_data[i])) {
+            float val = static_cast<float>(src_data[i]);
+            if (val > 0.0F) {
+                dst_data[i] = static_cast<T>(1.0F);
+            } else if (val < 0.0F) {
+                dst_data[i] = static_cast<T>(-1.0F);
+            } else if (std::isnan(val)) {
                 dst_data[i] = src_data[i];
             } else {
-                dst_data[i] = 0.0F;
+                dst_data[i] = static_cast<T>(0.0F);
             }
         });
         break;
     case Algorithm::MathSin:
         cpu_parallel->parallel_for(dataSize, [&](size_t i) {
-            dst_data[i] = sinf(src_data[i]);
+            dst_data[i] = static_cast<T>(sinf(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathSinh:
         cpu_parallel->parallel_for(dataSize, [&](size_t i) {
-            dst_data[i] = sinhf(src_data[i]);
+            dst_data[i] = static_cast<T>(sinhf(static_cast<float>(src_data[i])));
         });
         break;
     case Algorithm::MathSoftPlus:
         cpu_parallel->parallel_for(dataSize, [&](size_t i) {
-            dst_data[i] = logf(expf(src_data[i]) + 1);
+            dst_data[i] = static_cast<T>(logf(expf(static_cast<float>(src_data[i])) + 1));
         });
         break;
     case Algorithm::MathSoftsign:
         cpu_parallel->parallel_for(dataSize, [&](size_t i) {
-            float x = src_data[i];
-            dst_data[i] = x / (1.F + (std::abs)(x));
+            float x = static_cast<float>(src_data[i]);
+            dst_data[i] = static_cast<T>(x / (1.F + (std::abs)(x)));
         });
         break;
     case Algorithm::MathTan:
         cpu_parallel->parallel_for(dataSize, [&](size_t i) {
-            dst_data[i] = tanf(src_data[i]);
+            dst_data[i] = static_cast<T>(tanf(static_cast<float>(src_data[i])));
         });
         break;
     default:
-        CPU_NODE_THROW("Incorrect Reduce layer type");
+        OPENVINO_THROW("Incorrect Math layer type");
+    }
+}
+
+void Math::execute([[maybe_unused]] const dnnl::stream& strm) {
+    auto precision = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
+
+    if (precision == ov::element::f32) {
+        executeImpl<float>();
+    } else if (precision == ov::element::bf16) {
+        executeImpl<ov::bfloat16>();
+    } else if (precision == ov::element::f16) {
+        executeImpl<ov::float16>();
+    } else {
+        OPENVINO_THROW("Unsupported precision: ", precision);
     }
 }
 
