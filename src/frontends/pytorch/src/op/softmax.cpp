@@ -5,6 +5,8 @@
 #include "openvino/op/softmax.hpp"
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -21,6 +23,17 @@ OutputVector translate_softmax_common(const NodeContext& context, const bool con
     if (convert_dtype && !context.input_is_none(2)) {
         x = apply_dtype(context, 2, x);
     }
+    // Handle scalar (rank-0) input: PyTorch reshapes scalars to 1D before softmax computation.
+    // Unsqueeze to rank 1, apply Softmax with axis=0, then squeeze back.
+    const auto& x_pshape = x.get_partial_shape();
+    if (x_pshape.rank().is_static() && x_pshape.rank().get_length() == 0) {
+        auto zero_const = v0::Constant::create(element::i32, Shape{}, {0});
+        x = context.mark_node(std::make_shared<v0::Unsqueeze>(x, zero_const));
+        auto softmax = context.mark_node(std::make_shared<v8::Softmax>(x, int64_t{0}));
+        auto result = context.mark_node(std::make_shared<v0::Squeeze>(softmax, zero_const));
+        return {result};
+    }
+
     return {context.mark_node(std::make_shared<v8::Softmax>(x, axis))};
 };
 

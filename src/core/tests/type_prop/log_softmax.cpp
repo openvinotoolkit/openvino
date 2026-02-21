@@ -49,3 +49,10 @@ TEST(type_prop, log_softmax_partial_static_rank) {
     ASSERT_TRUE(log_softmax_func->get_output_partial_shape(0).same_scheme((PartialShape{1, Dimension::dynamic(), 6})));
     ASSERT_TRUE(log_softmax_func->get_output_partial_shape(0).rank().is_static());
 }
+
+TEST(type_prop, log_softmax_scalar) {
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+    auto log_softmax_func = make_shared<op::v5::LogSoftmax>(data, -1);
+    EXPECT_EQ(log_softmax_func->get_element_type(), element::f32);
+    EXPECT_EQ(log_softmax_func->get_output_partial_shape(0), (PartialShape{}));
+}
