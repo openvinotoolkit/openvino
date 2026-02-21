@@ -1,0 +1,2 @@
+# Extra dependencies for test_edsr.py
+super-image==0.2.0

@@ -45,6 +45,7 @@ jobs:
       USE_SYSTEM_CACHE: False # Using remote HuggingFace cache
       HF_HUB_VERBOSITY: debug
       TRANSFORMERS_VERBOSITY: debug
+      UV_SYSTEM_PYTHON: "1"  # Allow uv to work with system Python in containers
     steps:
       - name: Fetch setup_python and install wheels actions
         uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
@@ -95,11 +96,25 @@ jobs:
           wheels-dir-path: ${{ env.INSTALL_DIR }}
           wheels-to-install: 'openvino openvino_tokenizers'
 
+      - name: Install uv
+        run: python3 -m pip install uv
+
       - name: Install PyTorch tests requirements
         run: |
-          python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_pytorch
+          uv pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/locks/base.lock \
+            --extra-index-url https://download.pytorch.org/whl/cpu \
+            --index-strategy unsafe-best-match \
+            --python "$(which python3)"
         env:
           CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
+
+      - name: Install deps for Timm/Torchvision/Edsr tests
+        if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope1' }}
+        run: |
+          uv pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/locks/timm_torchvision.lock \
+            --extra-index-url https://download.pytorch.org/whl/cpu \
+            --index-strategy unsafe-best-match \
+            --python "$(which python3)"
 
       - name: PyTorch Models Tests Timm and Torchvision
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope1' }}
@@ -111,15 +126,49 @@ jobs:
           TEST_DEVICE: CPU
           OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
 
+      - name: Install deps for HF Transformers/LLM and other model tests
+        if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope2' }}
+        run: |
+          uv pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/locks/hf_models.lock \
+            --extra-index-url https://download.pytorch.org/whl/cpu \
+            --index-strategy unsafe-best-match \
+            --python "$(which python3)"
+
       - name: PyTorch Models Tests Not Timm or Torchvision
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope2' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_"${TYPE}"_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel or TestEdsrConvertModel)"
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_"${TYPE}"_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel or TestEdsrConvertModel or TestLLMModel)"
         env:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU
           OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
+
+      - name: Install deps for LLM model tests
+        if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope2' }}
+        run: |
+          uv pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/locks/llm.lock \
+            --extra-index-url https://download.pytorch.org/whl/cpu \
+            --index-strategy unsafe-best-match \
+            --python "$(which python3)"
+
+      - name: PyTorch LLM Model Tests
+        if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope2' }}
+        run: |
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/test_llm.py -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_llm_"${TYPE}"_tests.html --self-contained-html -v
+        env:
+          TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
+          TEST_DEVICE: CPU
+          OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
+
+      - name: Install deps for transformation tests
+        if: ${{ inputs.model_scope == 'precommit' }}
+        run: |
+          uv pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/locks/hf_models.lock \
+            --extra-index-url https://download.pytorch.org/whl/cpu \
+            --index-strategy unsafe-best-match \
+            --python "$(which python3)"
 
       - name: PagedAttention Test
         if: ${{ inputs.model_scope == 'precommit' }}
@@ -147,10 +196,12 @@ jobs:
 
       - name: TorchFX GPTQ Pattern Test
         if: ${{ inputs.model_scope == 'precommit' }}
-        # install torch 2.3.1 as newer is not yet supported by openvino backend
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --upgrade --index-url https://download.pytorch.org/whl/cpu
+          uv pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/locks/compile_gptq.lock \
+            --extra-index-url https://download.pytorch.org/whl/cpu \
+            --index-strategy unsafe-best-match \
+            --python "$(which python3)"
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_gptq_torchfx_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_gptqpattern_tests.html --self-contained-html -v --tb=short
         env:
           TEST_DEVICE: CPU
@@ -159,7 +210,10 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pip install optimum-intel==1.25.2 transformers==4.53.3 --upgrade
+          uv pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/locks/moe.lock \
+            --extra-index-url https://download.pytorch.org/whl/cpu \
+            --index-strategy unsafe-best-match \
+            --python "$(which python3)"
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_moe_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_moe_tests.html --self-contained-html -vvv -s --tb=short -n 2
         env:
           TEST_DEVICE: CPU

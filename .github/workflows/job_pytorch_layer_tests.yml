@@ -109,7 +109,9 @@ jobs:
       - name: Install Pytorch Layer tests dependencies
         run: |
           # pytorch test requirements
-          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch.txt
+          # transformers needed by test_repeat.py (not in base to keep timm/torchvision envs slim)
+          python3 -m pip install transformers==4.47.1
 
       - name: PyTorch Layer Tests
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287, 142196
