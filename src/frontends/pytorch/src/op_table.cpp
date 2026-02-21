@@ -291,6 +291,7 @@ OP_CONVERTER(translate_where);
 OP_CONVERTER(translate_zeros);
 OP_CONVERTER(translate_zeros_like);
 OP_CONVERTER(translate_quantized_cat);
+OP_CONVERTER(translate_quantized_conv2d_prepack);
 OP_CONVERTER(translate_quantized_convnd);
 OP_CONVERTER(translate_quantized_convnd_relu);
 OP_CONVERTER(translate_quantized_linear);
@@ -812,6 +813,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"quantized::add_relu", op::translate_quantized_add_relu},
         {"quantized::cat", op::translate_quantized_cat},
         {"quantized::conv2d", op::translate_quantized_convnd},
+        {"quantized::conv2d_prepack", op::translate_quantized_conv2d_prepack},
         {"quantized::conv2d_relu", op::translate_quantized_convnd_relu},
         {"quantized::hardswish", op::translate_quantized_hardswish},
         {"quantized::linear", op::translate_quantized_linear},
