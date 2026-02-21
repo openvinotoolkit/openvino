@@ -29,7 +29,7 @@ public:
         , _last_barrier(other._last_barrier.load())
         , _last_barrier_ev(other._last_barrier_ev) {}
 
-    ~ocl_stream() = default;
+    ~ocl_stream();
 
     void flush() const override;
     void finish() const override;
