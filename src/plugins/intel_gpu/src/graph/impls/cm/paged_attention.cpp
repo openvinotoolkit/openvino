@@ -151,6 +151,37 @@ public:
 
         GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::execute():  stage = " << static_cast<int>(rt_params->stage) << std::endl;
         std::vector<event::ptr> res_event = events;
+                
+        if (false)
+        {
+            static int exec_count = 0;
+            static int last_q_len = -1;
+            static int same_qlen_count = 0;
+            exec_count++;
+
+            auto q_len = params.output_layouts[0].get_shape()[0];
+            if (q_len == last_q_len) {
+                same_qlen_count++;
+            } else {
+                same_qlen_count = 0;
+                last_q_len = q_len;
+            }
+            if (exec_count % 1000 == 1) {
+                std::cout << "[EXEC #" << exec_count << "] stage=" << static_cast<int>(rt_params->stage) << " q_len=" << q_len
+                          << " same_qlen_streak=" << same_qlen_count << std::endl;
+            }
+            if (same_qlen_count > 200000) {
+                std::cout << "[EMERGENCY] Infinite retry loop detected at stage=" << static_cast<int>(rt_params->stage) << " after " << exec_count
+                          << " iterations with q_len=" << q_len << std::endl;
+                std::cout << "[EMERGENCY] This indicates scheduler can_append_slots() failing - likely block allocation issue" << std::endl;
+                throw std::runtime_error("Infinite retry loop detected - scheduler block allocation problem");
+            }
+            if (exec_count % 1000 == 1) {
+                std::cout << "[POST_KV_UPDATE #" << exec_count << "] stage=" << static_cast<int>(rt_params->stage) 
+                          << " (0=GENERATE,1=PREFILL,2=MIXED) q_len=" << q_len << std::endl;
+            }
+        }
+        
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
 
         if (rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) {

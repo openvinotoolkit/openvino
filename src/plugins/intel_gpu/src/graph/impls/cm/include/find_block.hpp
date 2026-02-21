@@ -174,6 +174,30 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
     half s_causal = score_p[causal_start_index + m_block];
     float s_sum = s_0;
     if (causal_start_index + m_block) s_sum += s_causal;
+    
+    //{
+    //    // Debug: print raw scores BEFORE sorting - ONLY for first PREFILL (exec_count < 10)
+    //    static int global_call_count = 0;
+    //    global_call_count++;
+    //    if (m_block == 0 && global_call_count < 10) {
+    //        float total_sum = cm_sum<float>(sum_m_after_add);
+    //        printf("[PRE_SORT call=%d m=%d] total_sum=%.4f thresh=%.3f causal_idx=%d\n",
+    //               global_call_count,
+    //               m_block,
+    //               total_sum,
+    //               (float)thresh,
+    //               causal_start_index + m_block);
+    //        printf("  scores[0..4]: %.4f %.4f %.4f %.4f %.4f\n", (float)score_p[0], (float)score_p[1], (float)score_p[2], (float)score_p[3], (float)score_p[4]);
+    //        if (k_block_pad > 10) {
+    //            printf("  scores[10..14]: %.4f %.4f %.4f %.4f %.4f\n",
+    //                   (float)score_p[10],
+    //                   (float)score_p[11],
+    //                   (float)score_p[12],
+    //                   (float)score_p[13],
+    //                   (float)score_p[14]);
+    //        }
+    //    }
+    //}
     score_p[0] = -1;
     score_p[causal_start_index + m_block] = -1;
     sort<half>(slm, score, sorted_value + 2 * sizeof(half), sorted_index + 2 * sizeof(half), sorted_tmp, k_block_pad);
@@ -191,18 +215,29 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
     acc_score_p[1] = 0;
 #endif
     int j;
+    int blocks_selected = 2;
     for (j = 2; j < k_block_pad; j++) {
+        sum_cur += sorted_value_p[j];
 #if DEBUG_ACC == 1
         acc_score_p[j] = sum_cur;
 #endif
-        if (sum_cur < thresh_act) {
+        // Use <= to handle floating point rounding errors when sum_cur approaches thresh_act
+        if (sum_cur <= thresh_act) {
             auto k_idx = sorted_index_p[j];
-            if (k_idx <= causal_start_index + m_block)
+            if (k_idx <= causal_start_index + m_block) {
                 block_mask_p[k_idx] = 1;
+                blocks_selected++;
+            }
         } else {
             break;
         }
-        sum_cur += sorted_value_p[j];
+    }
+    
+    int causal_limit = causal_start_index + m_block;
+    if (blocks_selected == 2 && causal_limit > 2) {
+        for (int k = 1; k < causal_limit; k++) {
+            block_mask_p[k] = 1;
+        }
     }
 #if DEBUG_ACC == 1
     for (; j < k_block_pad; j++) {
