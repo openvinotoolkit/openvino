@@ -5,6 +5,7 @@
 #include "snippets/pass/fq_decomposition.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdlib>
 #include <memory>
@@ -77,13 +78,14 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         const Output<Node> output_low{fake_quantize_node->input_value(3)};
         const Output<Node> output_high{fake_quantize_node->input_value(4)};
         auto input_type = data.get_element_type();
+        const auto output_element_type = fake_quantize_node->get_output_element_type(0);
         auto broadcast_type = fake_quantize_node->get_auto_broadcast();
 
         std::vector<float> out_scales;
         std::vector<float> cl, ch, isc, ish, osc, osh;
         const bool status = getScalesAndShifts(fake_quantize_node, cl, ch, isc, ish, osc, osh);
         if (status) {
-            out_scales = calculateScales(fake_quantize_node->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
+            out_scales = calculateScales(output_element_type, cl, ch, isc, ish, osc, osh);
         }
         const bool do_dequantize = !status || ((!std::all_of(osc.cbegin(),
                                                              osc.cend(),
@@ -96,8 +98,8 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
                                                                  return val == 0.F;
                                                              })) &&
                                                out_scales.empty());
-        const bool do_rounding = do_dequantize || fake_quantize_node->get_output_element_type(0) == ov::element::f32 ||
-                                 fake_quantize_node->get_output_element_type(0) == ov::element::f16;
+        const bool do_rounding =
+            do_dequantize || utils::any_of(output_element_type, ov::element::f32, ov::element::f16);
 
         ov::NodeVector decomp_ops;
         if (input_type != input_low.get_element_type()) {
@@ -148,7 +150,9 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
             decomp_ops.push_back(result);
         }
 
-        if (do_rounding) {
+        const bool force_round_before_integer_convert =
+            !do_dequantize && !out_scales.empty() && output_element_type.is_integral_number();
+        if (do_rounding || out_scales.empty() || force_round_before_integer_convert) {
             // round(x * (levels-1) / (input_high - input_low) - input_low * (levels-1) / (input_high - input_low))
             result = std::make_shared<ov::op::v5::Round>(result, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
             decomp_ops.push_back(result);
@@ -176,9 +180,8 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
             decomp_ops.push_back(result);
         }
 
-        if (result->get_output_element_type(0) != fake_quantize_node->get_output_element_type(0)) {
-            result = std::make_shared<snippets::op::ConvertSaturation>(result,
-                                                                       fake_quantize_node->get_output_element_type(0));
+        if (result->get_output_element_type(0) != output_element_type) {
+            result = std::make_shared<snippets::op::ConvertSaturation>(result, output_element_type);
             decomp_ops.push_back(result);
         }
 
@@ -381,7 +384,16 @@ std::vector<float> ov::snippets::pass::FakeQuantizeDecomposition::calculateScale
             }
         }
 
-        if (is_crop_aligned) {
+        // Rounding can be avoided if scales are integer
+        bool is_scale_integer = true;
+        for (float s : isc) {
+            if (std::abs(s - std::round(s)) > thr) {
+                is_scale_integer = false;
+                break;
+            }
+        }
+
+        if (is_crop_aligned && is_scale_integer) {
             out_scales = isc;
         }
     }

@@ -220,7 +220,7 @@
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    include "low_precision/avg_pool.hpp"
 #    include "low_precision/convolution.hpp"
-#    include "low_precision/convolution_backprop_data.hpp"
+// #    include "low_precision/convolution_backprop_data.hpp"
 #    include "low_precision/fake_quantize.hpp"
 #    include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #    include "low_precision/fuse_subtract_to_fake_quantize.hpp"
@@ -1004,8 +1004,8 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
 
     CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
     // ConvolutionTransformation is disabled temporary until ACL issues are fixed: #1252, #1253
-    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
-    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionBackpropDataTransformation);
+    // CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
+    // CPU_DISABLE_PASS_ARM(lptManager, ConvolutionBackpropDataTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, MaxPoolTransformation);
@@ -1210,18 +1210,6 @@ void Transformations::PostLpt() {
 
 void Transformations::MainSnippets() {
     using namespace snippets::pass;
-// Disable MainSnippets for int8 models on arm platforms due to performance issues
-// Ticket: 163408
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    using namespace ov::pass::low_precision;
-    static const std::set<levels>& supported_fq_levels = {levels::int4,
-                                                          levels::int4_narrow_range,
-                                                          levels::int8,
-                                                          levels::int8_narrow_range};
-    if (LowPrecision::isFunctionQuantized(model, supported_fq_levels)) {
-        return;
-    }
-#endif
 
     auto is_supported_isa = []() {
 #if defined(OPENVINO_ARCH_X86_64)
@@ -1487,7 +1475,12 @@ void Transformations::MainSnippets() {
             if (!ignoreCallback) {
                 // Check for supported ranks
                 // todo: clarify whether we can evaluate snippets on inputs with larger ranks
+#if defined(OPENVINO_ARCH_ARM64)
+                const bool is_fq = ov::is_type<const ov::op::v0::FakeQuantize>(n);
+                if (t.get_partial_shape().rank().get_length() > 6 && !is_fq) {
+#else
                 if (t.get_partial_shape().rank().get_length() > 6) {
+#endif
                     return false;
                 }
             }
@@ -1562,11 +1555,34 @@ void Transformations::MainSnippets() {
             ExtractReshapesFromMHA);
     }
 
+    auto should_skip_snippets_tokenization = [&is_supported_op](const std::shared_ptr<const ov::Node>& n) {
+#if defined(OPENVINO_ARCH_ARM64)
+        // Keep Conv->Add->Mul->FQ chain outside snippets if it can be fused into int8 convolution
+        if (ov::is_type<const ov::op::v1::Multiply>(n)) {
+            for (const auto& child : n->get_output_target_inputs(0)) {
+                if (match_acl_int8_conv_fq_chain(child.get_node()->shared_from_this())) {
+                    return true;
+                }
+            }
+        }
+
+        // Keep dequantize FQ outside snippets is it can be fused into int8 convolution
+        if (ov::is_type<const ov::op::v0::FakeQuantize>(n) && match_acl_int8_conv_fq_chain(n)) {
+            return true;
+        }
+        // Keep dynamic FQ tokenizable on ARM
+        const bool is_dynamic_fq = n->is_dynamic() && ov::is_type<const ov::op::v0::FakeQuantize>(n);
+        return (n->is_dynamic() && !is_dynamic_fq) || !is_supported_op(n);
+#else
+        return n->is_dynamic() || !is_supported_op(n);
+#endif
+    };
+
     CPU_SET_CALLBACK_COMMON(
         snippetsManager,
         [&](const std::shared_ptr<const ov::Node>& n) -> bool {
             if (!ignoreCallback) {
-                if (n->is_dynamic() || !is_supported_op(n))
+                if (should_skip_snippets_tokenization(n))
                     return true;
             }
 
@@ -1618,8 +1634,8 @@ void Transformations::MainSnippets() {
 #elif defined(OPENVINO_ARCH_X86_64)
         return true;
 #else
-        OPENVINO_THROW("ExplicitTransposeMatMulInputs callback is not supported on this architecture");
-        return false;
+    OPENVINO_THROW("ExplicitTransposeMatMulInputs callback is not supported on this architecture");
+    return false;
 #endif
     };
 
@@ -1649,14 +1665,7 @@ void Transformations::PostSnippets() {
     CPU_SET_CALLBACK_ARM(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
-            if (ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
-                ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
-                // int8 ACL Convolution executor supports only same activation and output types
-                // if types are different, decompose FQ to avoid reference FQ
-                return match_conv_fq_same_types(node) ||
-                       match_fq_mul_conv_bias_same_types(node, FQMulAddPattern::ConvAddMul);
-            }
-            return false;
+            return match_acl_int8_conv_fq_chain(node);
         },
         ov::pass::FakeQuantizeDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeConvertDecomposition);

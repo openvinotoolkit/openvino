@@ -44,7 +44,8 @@ namespace ov::snippets::pass {
  * 2. If output element type of FQ is I8 and ish ~= 128, osc = 1, osh ~= -128, il * isc ~= -128, ih * isc ~= 127 there
  * is enough expression: x * isc
  * 3. If osc = 1, osh = 0, there isn't dequantization
- * 4. If there isn't dequantization and output element type of FQ isn't FP32, there isn't rounding
+ * 4. If there isn't dequantization, out_scales is found, and output type is a non-integer type other than FP32/FP16,
+ * there isn't rounding
  *
  * This transformation doesn't support following cases:
  * 1. At least one 'range' input is not Constant

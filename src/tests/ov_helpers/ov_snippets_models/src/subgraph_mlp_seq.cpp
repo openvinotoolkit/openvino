@@ -183,7 +183,7 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
         subgraph_nodes.push_back(B_const_trans);
 
         current = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(
-            current, ov::element::u8, onData.inputLowValues[0], onData.inputHighValues[0], 0.00346764503f);
+            current, ov::element::u8, onData.inputLowValues[0], onData.inputHighValues[0], 0.00346764503f, true, false);
 
         current = std::make_shared<op::TypeRelaxed<ov::op::v0::MatMul>>(
             std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
