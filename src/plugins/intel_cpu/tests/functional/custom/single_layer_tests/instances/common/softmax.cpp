@@ -1,8 +1,9 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "custom/single_layer_tests/classes/softmax.hpp"
+
 #include "utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
@@ -146,6 +147,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_Unsupported_CPU,
                          SoftMaxLayerCPUTest,
                          UnsupportedParams,
                          SoftMaxLayerCPUTest::getTestCaseName);
+
+const std::vector<SoftMaxConfig> configsFP16{
+    // Static shapes — various ranks to cover FP16 fallback branches
+    {ov::test::InputShape{ov::PartialShape{10, 10}, {ov::Shape{10, 10}}}, 1},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 5}, {ov::Shape{5, 5, 5}}}, 2},
+    {ov::test::InputShape{ov::PartialShape{5, 5, 5, 5}, {ov::Shape{5, 5, 5, 5}}}, 3},
+    // Shape from bug report #33381
+    {ov::test::InputShape{ov::PartialShape{7, 22, 1, 1, 63}, {ov::Shape{7, 22, 1, 1, 63}}}, 4},
+};
+
+const auto FP16Params = testing::Combine(testing::Values(ElementType::f16),
+                                         testing::ValuesIn(configsFP16),
+                                         testing::Values(ov::test::utils::DEVICE_CPU),
+                                         testing::Values(CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type}),
+                                         testing::Values(CPUTestUtils::empty_plugin_config));
+
+INSTANTIATE_TEST_SUITE_P(smoke_SoftMax_FP16_CPU, SoftMaxLayerCPUTest, FP16Params, SoftMaxLayerCPUTest::getTestCaseName);
 }  // namespace SoftMax
 }  // namespace test
 }  // namespace ov
