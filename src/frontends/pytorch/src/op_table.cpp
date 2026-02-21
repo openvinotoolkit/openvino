@@ -390,6 +390,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::_pad_packed_sequence", op::translate_pad_packed_sequence},
         {"aten::_set_item", op::translate_set_item},
         {"aten::_shape_as_tensor", op::translate_shape_as_tensor},
+        {"aten::_to_copy", op::translate_to},
         {"aten::_unique2", op::translate_unique2},
         {"aten::_upsample_bicubic2d_aa", op::translate_upsample_bicubic2d_aa},
         {"aten::_upsample_bilinear2d_aa", op::translate_upsample_bilinear2d_aa},

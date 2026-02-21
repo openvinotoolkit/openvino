@@ -228,3 +228,78 @@ class TestAtenToFromComplexTensor(PytorchLayerTest):
     def test_aten_to_from_complex(self, dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(dtype), ie_device, precision,
                    ir_version)
+
+
+class TestAtenToCopy(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.array([0.0, 1.5, 2.0, 3.0, 4.0], dtype=np.float32),)
+
+    def create_model(self, dtype):
+        import torch
+
+        class aten_to_copy(torch.nn.Module):
+            def __init__(self, dtype):
+                super(aten_to_copy, self).__init__()
+                self.dtype = dtype
+
+            def forward(self, x):
+                return torch.ops.aten._to_copy(x, dtype=self.dtype)
+
+        ref_net = None
+
+        return aten_to_copy(dtype), ref_net, "aten::_to_copy"
+
+    @pytest.mark.parametrize("output_type", [
+        torch.uint8, torch.int8, torch.int16, torch.int32,
+        torch.int64, torch.float16, torch.float32, torch.float64,
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_aten_to_copy(self, output_type, ie_device, precision, ir_version):
+        self.input_type = np.float32
+        self._test(*self.create_model(output_type),
+                   ie_device, precision, ir_version, trace_model=True)
+
+
+class TestAtenToCopyNoDtype(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.array([0.0, 1.5, 2.0], dtype=np.float32),)
+
+    def create_model(self):
+        import torch
+
+        class aten_to_copy_no_dtype(torch.nn.Module):
+            def forward(self, x):
+                return torch.ops.aten._to_copy(x)
+
+        ref_net = None
+
+        return aten_to_copy_no_dtype(), ref_net, "aten::_to_copy"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_aten_to_copy_no_dtype(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(),
+                   ie_device, precision, ir_version, trace_model=True)
+
+
+class TestAtenToCopyPrimDtype(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.array([0.0, 1.5, -2.0], dtype=np.float32),
+                np.array([0.0], dtype=np.float16))
+
+    def create_model(self):
+        import torch
+
+        class aten_to_copy_prim_dtype(torch.nn.Module):
+            def forward(self, x, d):
+                return torch.ops.aten._to_copy(x, dtype=d.dtype)
+
+        ref_net = None
+
+        return aten_to_copy_prim_dtype(), ref_net, "aten::_to_copy"
+
+    @pytest.mark.nightly
+    def test_aten_to_copy_prim_dtype(self, ie_device, precision, ir_version):
+        self._test(*self.create_model(),
+                   ie_device, precision, ir_version)
