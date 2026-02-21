@@ -57,6 +57,8 @@ To improve the parallelism performance of the OpenVINO™ library using OneTBB, 
   ```sh
   # Clone OneTBB™ repository 
   git clone --recursive https://github.com/oneapi-src/oneTBB $OPV_HOME_DIR/one-tbb
+  # Add following build option if stack protector compilation is required for libtbbmalloc_proxy.so
+  sed -i -e '/target_compile_options(tbbmalloc_proxy/,/)/ {' -e '/)/i \    -fstack-protector-all' -e '}' $OPV_HOME_DIR/one-tbb/src/tbbmalloc_proxy/CMakeLists.txt
   # Create build and install directory 
   mkdir $OPV_HOME_DIR/one-tbb-build $OPV_HOME_DIR/one-tbb-install
   # Configure OneTBB™ CMake project 
