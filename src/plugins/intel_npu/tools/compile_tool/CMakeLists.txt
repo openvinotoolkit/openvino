@@ -31,8 +31,10 @@ ov_add_target(TYPE EXECUTABLE
                       npu_tools_utils)
 
 set_target_properties(${TARGET_NAME} PROPERTIES
-                          FOLDER ${CMAKE_CURRENT_SOURCE_DIR}
-                          CXX_STANDARD 17)
+                      FOLDER intel_npu_tools
+                      # to ensure out of box LC_RPATH on macOS with SIP
+                      INSTALL_RPATH_USE_LINK_PATH ON
+                      CXX_STANDARD 17)
 
 # TODO: fix warnings and remove this exception
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
