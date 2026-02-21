@@ -931,6 +931,10 @@ void Gather::execReference() {
     const auto* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
     const auto* srcData = getSrcDataAtPortAs<const uint8_t>(GATHER_DATA);
     auto* dstData = getDstDataAtPortAs<uint8_t>(0);
+    const auto& srcMem = getParentEdgeAt(GATHER_DATA)->getMemory();
+    const auto& dstMem = getChildEdgeAt(0)->getMemory();
+    const size_t srcBufferSize = srcMem.getSize();
+    const size_t dstBufferSize = dstMem.getSize();
 
     const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSizeBOut;
     cpu_parallel->parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
@@ -951,6 +955,12 @@ void Gather::execReference() {
                 size_t dstIdx = c2 + specIdxAndAfterAxSizeBOut * i;
 
                 if (dataPrecision == outPrecision) {
+                    const size_t dstRemaining = dstBufferSize > dstIdx ? dstBufferSize - dstIdx : 0;
+                    const size_t srcRemaining = srcBufferSize > srcIdx ? srcBufferSize - srcIdx : 0;
+                    if (dstRemaining < afterAxisSizeInBytesOut || srcRemaining < afterAxisSizeInBytes) {
+                        memset(&dstData[dstIdx], 0, afterAxisSizeInBytesOut);
+                        continue;
+                    }
                     cpu_memcpy(&dstData[dstIdx], &srcData[srcIdx], afterAxisSizeInBytes);
                 } else {
                     cpu_convert(&srcData[srcIdx], &dstData[dstIdx], dataPrecision, outPrecision, afterAxisSize);
