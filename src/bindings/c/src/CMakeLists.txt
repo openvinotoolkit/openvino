@@ -5,7 +5,6 @@
 set(TARGET_NAME openvino_c)
 
 # Suppress warnings due to catch macro with legacy exception types
-ov_disable_deprecated_warnings()
 
 add_definitions(-DIN_OV_COMPONENT)
 
