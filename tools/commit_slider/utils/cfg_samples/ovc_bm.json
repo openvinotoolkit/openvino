@@ -1,0 +1,89 @@
+{
+    "appCmd":"source {venvName}/bin/activate && python3.10 -m pip install --upgrade pip && python3.10 -m pip install openvino=={wheelVersion} openvino_genai=={wheelVersion} openvino_tokenizers=={wheelVersion} --find-links={precommitPath}/wheels/ && echo '{convert_command}' | python3.10 && ls -la && echo '{bm_command}' | python3.10",
+    "venvCfg":{
+       "venvEnabled":true,
+       "venvDir":"{workPath}/venv/",
+       "venvName":"tempVenv"
+    },
+    "commandList":[
+ 
+    ],
+   "runConfig" : {
+      "commitList" : {
+            "getCommitListCmd" : "git log <start_commit>..<end_commit> --boundary --pretty=\"%h\""
+        },
+      "mode" : "bmPerf",
+      "traversal" : "firstFailedVersion",
+      "perfAppropriateDeviation" : 0.05,
+      "convertCommand" : "{convertCommand)",
+      "bmCommand" : "{bmCommand}"
+   },
+    "dlbConfig":{
+       "launchedAsJob":false,
+       "toolName":"",
+       "wheelVersionsMap":{
+ 
+       },
+       "commonPath":"{precommitPath}",
+       "subPath":"{subPath}",
+       "appPath":"",
+       "appCmd":""
+    },
+    "cachedPathConfig":{
+       "enabled":true,
+       "scheme":"mandatory",
+       "passCmdList":false,
+       "changeAppPath":false,
+       "commonPath":"{precommitPath}",
+       "subPath":"{subPath}",
+       "cashMap":{
+ 
+       }
+    },
+    "substitutionRules":[
+       {
+          "name":"precommitPath",
+          "enabled":true,
+          "type":"map",
+          "placeholder":"precommitPath",
+          "from":"$.cachedPathConfig.cashMap",
+          "to":"$.appCmd"
+       },
+       {
+          "name":"wheelVersion",
+          "enabled":true,
+          "type":"map",
+          "placeholder":"wheelVersion",
+          "from":"$.dlbConfig.wheelVersionsMap",
+          "to":"$.appCmd"
+       },
+       {
+          "name":"convert_command",
+          "enabled":true,
+          "type":"static",
+          "placeholder":"convert_command",
+          "from":"$.runConfig.convertCommand",
+          "to":"$.appCmd"
+       },
+      {
+          "name":"bm_command",
+          "enabled":true,
+          "type":"static",
+          "placeholder":"bm_command",
+          "from":"$.runConfig.bmCommand",
+          "to":"$.appCmd"
+       }
+    ],
+    "subscriptions":[
+       {
+          "name":"wheelPathsMap",
+          "enabled":true
+       },
+       {
+          "name":"wheelVersionsMap",
+          "enabled":true
+       }
+    ],
+    "verboseOutput" : true,
+    "checkIfBordersDiffer" : true
+ }

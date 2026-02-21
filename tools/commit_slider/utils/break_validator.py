@@ -35,16 +35,20 @@ def checkBreakLocality(leftInterval: list, rightInterval: list, dev: float):
     return realGap > dev, realGap
 
 def validateBMOutput(commitList: list, breakCommit: str, dev: float, isUpDownBreak: bool=True):
-    breakId = int(
+    try:
+        breakId = int(
         [item['id'] for item in commitList
             if item['hash'] == breakCommit][0]
         )
-
-    leftInterval = [float(item['throughput']) for item in commitList
-            if int(item['id']) < breakId]
-    rightInterval = [float(item['throughput']) for item in commitList
-            if int(item['id']) >= breakId]
-
+        leftInterval = [float(item['throughput']) for item in commitList
+                if int(item['id']) < breakId]
+        rightInterval = [float(item['throughput']) for item in commitList
+                if int(item['id']) >= breakId]
+    except Exception:
+        raise BmValidationError(
+            "Wrong list:" + " ".join(map(str, commitList)),
+            BmValidationError.BmValErrType.INCORRECT_COMMIT_PATH
+        )
     # first criterion: both intervals are stable
     isLeftStable = checkStability(leftInterval, dev)
     isRightStable = checkStability(rightInterval, dev)
@@ -121,8 +125,10 @@ class BmValidationError(Exception):
         # e.g. [1, 0, 1, 1, 1] doesn't majorize [0, 1, 0, 0, 0]
         LOW_GAP = 2,
         # real gap is less, than expected
-        LOW_LOCAL_GAP = 3
+        LOW_LOCAL_GAP = 3,
         # gap between pre-break and break is lower, than expected
+        INCORRECT_COMMIT_PATH = 4
+        # wrong structure of commit path
     def __init__(self, message, errType):
         self.message = message
         self.errType = errType
