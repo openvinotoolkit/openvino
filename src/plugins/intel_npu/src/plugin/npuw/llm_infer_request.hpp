@@ -78,21 +78,17 @@ protected:
     std::shared_ptr<ov::IAsyncInferRequest> m_lm_head_request;
     ov::SoPtr<ov::ITensor> m_logits;
 
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_in_ports;
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;
+    PortsMap m_prefill_in_ports;
+    PortsMap m_prefill_out_ports;
 
     // Ports for the currently selected generate model variant (set once per conversation in
     // prepare_for_new_conversation)
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_in_ports;
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_out_ports;
+    PortsMap m_kvcache_in_ports;
+    PortsMap m_kvcache_out_ports;
 
     // Ports for all generate model variants - maps from request pointer to its input/output ports
-    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>,
-                       std::unordered_map<std::string, ov::Output<const ov::Node>>>
-        m_generate_variant_in_ports;
-    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>,
-                       std::unordered_map<std::string, ov::Output<const ov::Node>>>
-        m_generate_variant_out_ports;
+    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap> m_generate_variant_in_ports;
+    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap> m_generate_variant_out_ports;
 
     ov::Output<const ov::Node> m_lm_head_logits_port;
 

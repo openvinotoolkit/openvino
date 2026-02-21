@@ -14,6 +14,7 @@
 #include "util.hpp"
 
 namespace {
+using ov::npuw::LLMInferRequest;
 
 void copy_columns_by_row_chunks_2d(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITensor>& dst) {
     const auto& src_shape = src->get_shape();
@@ -86,6 +87,21 @@ std::pair<uint32_t, uint32_t> get_lora_dims_by_name(const std::string& state_nam
     }
 
     return std::make_pair(low_rank_dim, full_rank_dim);
+}
+
+void process_longrope(const std::shared_ptr<ov::IAsyncInferRequest>& infer_req,
+                      const LLMInferRequest::PortsMap& ports,
+                      const ov::SoPtr<ov::ITensor>& position_ids) {
+    if (auto longrope_port_it = ports.find(LLMInferRequest::layer_names::longrope_input);
+        longrope_port_it != ports.end()) {
+        auto* pos_ids_data = position_ids->data<int64_t>();
+        // assuming position_ids are constantly non-deacreasing.
+        // this potentially could be not true. Alternative is to find max value in position_ids
+        auto max_pos_id = pos_ids_data[position_ids->get_size() - 1];
+
+        auto longrope_input = infer_req->get_tensor(longrope_port_it->second);
+        longrope_input->data<int64_t>()[0] = max_pos_id;
+    }
 }
 
 }  // anonymous namespace
@@ -811,6 +827,7 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
     prepare_for_new_conversation(prompt_length);
 
+    process_longrope(m_prefill_request, m_prefill_in_ports, position_ids);
     const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
     if (use_chunk_prefill) {
         OPENVINO_ASSERT(!token_type_ids,
@@ -879,6 +896,8 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     if (kvcache_desc.num_stored_tokens + input_tokens_len > kvcache_desc.total_size) {
         OPENVINO_THROW("KV-Cache is full.");
     }
+
+    process_longrope(m_kvcache_request, m_kvcache_in_ports, position_ids);
 
     // FIXME: these tensors should be shared between the parent & child models
     // NB: input_ids can be either fp32(VLM) or i64(LLM)

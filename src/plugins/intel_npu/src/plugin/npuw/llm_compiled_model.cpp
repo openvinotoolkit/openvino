@@ -1952,7 +1952,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
         if (!is_best || (max_prompt_len >= CACHE_ROPE_START)) {
             LOG_DEBUG("Enable RoPE Cache for prefill");
-            ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(max_prompt_len);
+            ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(
+                max_prompt_len,
+                ov::npuw::LLMInferRequest::layer_names::longrope_input);
             rope_prefill_cacher.run_on_model(prefill_model);
         }
 
@@ -1961,7 +1963,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             const uint32_t kv_size = m_kvcache_sizes[i];
             if (!is_best || (kv_size >= CACHE_ROPE_START)) {
                 LOG_DEBUG("Enable RoPE Cache for generate variant with size: " << kv_size);
-                ov::npuw::patterns::pre_compute::RopeCache rope_cacher(kv_size);
+                ov::npuw::patterns::pre_compute::RopeCache rope_cacher(
+                    kv_size,
+                    ov::npuw::LLMInferRequest::layer_names::longrope_input);
                 rope_cacher.run_on_model(generate_model_variants[i]);
             }
         }
