@@ -125,13 +125,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCommonClip, LSTMSequenceGPUTest,
 
 std::vector<size_t> seq_lengths_cm{2};
 std::vector<size_t> batch_cm{1};
-std::vector<size_t> hidden_size_cm{128};
+std::vector<size_t> hidden_size_cm{128, 256};
 std::vector<size_t> input_size_cm{64, 256};
 std::vector<std::vector<std::string>> activations_cm = {{"sigmoid", "tanh", "tanh"}};
 std::vector<float> clip_cm{0};
 std::vector<ov::element::Type> netPrecisions_cm = {ov::element::f16};
+std::vector<ov::op::RecurrentSequenceDirection> directions_cm = {ov::op::RecurrentSequenceDirection::BIDIRECTIONAL, ov::op::RecurrentSequenceDirection::FORWARD};
 
-INSTANTIATE_TEST_SUITE_P(LSTMSequenceCM, LSTMSequenceGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCM, LSTMSequenceGPUTest,
                         ::testing::Combine(
                                 ::testing::Values(ov::test::utils::SequenceTestsMode::PURE_SEQ),
                                 ::testing::ValuesIn(seq_lengths_cm),
@@ -140,7 +141,7 @@ INSTANTIATE_TEST_SUITE_P(LSTMSequenceCM, LSTMSequenceGPUTest,
                                 ::testing::ValuesIn(input_size_cm),
                                 ::testing::ValuesIn(activations_cm),
                                 ::testing::ValuesIn(clip_cm),
-                                ::testing::Values(ov::op::RecurrentSequenceDirection::BIDIRECTIONAL),
+                                ::testing::ValuesIn(directions_cm),
                                 ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                 ::testing::ValuesIn(netPrecisions_cm),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
