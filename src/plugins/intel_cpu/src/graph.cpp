@@ -74,7 +74,7 @@
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/node_dumper.h"
-#include "utils/verbose.h"
+#include "utils/verbose_helper.h"
 #include "weights_cache.hpp"
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE || \
@@ -1600,7 +1600,7 @@ public:
 /* group all the profiling macros into a single one
  * to avoid cluttering a core logic */
 #define VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(ittScope, node, config)        \
-    VERBOSE(node, (config).debugCaps.verbose);                         \
+    VERBOSE(node, (config).verbose);                                   \
     PERF(node, (config).collectPerfCounters);                          \
     DUMP(node, (config).debugCaps, infer_count);                       \
     OV_ITT_SCOPED_TASK_BASE(ittScope, (node)->perfCounters().execute); \

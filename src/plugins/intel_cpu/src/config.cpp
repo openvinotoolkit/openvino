@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
 #include <map>
 #include <memory>
 #include <set>
@@ -22,6 +23,7 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/weightless_properties_utils.hpp"
+#include "openvino/util/env_util.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/precision_support.h"
@@ -49,11 +51,15 @@ Config::Config() {
  */
 void Config::applyDebugCapsProperties() {
     // always enable perf counters for verbose, performance summary and average counters
-    if (!debugCaps.verbose.empty() || debugCaps.summaryPerf || !debugCaps.averageCountersPath.empty()) {
+    if (!verbose.empty() || debugCaps.summaryPerf || !debugCaps.averageCountersPath.empty()) {
         collectPerfCounters = true;
     }
 }
 #endif
+
+void Config::readEnvProperties() {
+    verbose = ov::util::getenv_string("OV_CPU_VERBOSE");
+}
 
 void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
     const auto streamExecutorConfigKeys =
@@ -558,6 +564,9 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
     this->modelType = modelType;
 
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
+
+    readEnvProperties();
+
     updateProperties();
 }
 
