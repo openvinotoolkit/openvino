@@ -22,38 +22,17 @@ class RefOptimizedTransposeExecutor : public TransposeExecutor {
 public:
     using TransposeExecutor::TransposeExecutor;
 
-    bool init(const TransposeParams& transposeParams,
-              const std::vector<MemoryDescPtr>& srcDescs,
-              const std::vector<MemoryDescPtr>& dstDescs,
-              const dnnl::primitive_attr& attr) override;
+    static bool supports(const TransposeConfig& config);
+    static ExecutorPtr create(const TransposeAttrs& attrs,
+                              [[maybe_unused]] const MemoryArgs& memory,
+                              const ExecutorContext::CPtr& context);
     void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) override;
     [[nodiscard]] impl_desc_type implType() const override {
         return impl_desc_type::ref;
     }
-};
 
-class RefOptimizedTransposeExecutorBuilder : public TransposeExecutorBuilder {
-public:
-    [[nodiscard]] bool isSupported(const TransposeParams& transposeParams,
-                                   const std::vector<MemoryDescPtr>& srcDescs,
-                                   [[maybe_unused]] const std::vector<MemoryDescPtr>& dstDescs) const override {
-        static const std::vector<std::vector<size_t>> optimizedOrders = {
-            std::vector<size_t>{0, 3, 1, 2},
-            std::vector<size_t>{0, 4, 1, 2, 3},
-            std::vector<size_t>{0, 5, 1, 2, 3, 4},
-        };
-        if (srcDescs[0]->hasLayoutType(LayoutType::ncsp) &&
-            std::find(optimizedOrders.begin(), optimizedOrders.end(), transposeParams.permuteParams.order) !=
-                optimizedOrders.end()) {
-            return true;
-        }
-        DEBUG_LOG("RefOptimizedTransposeExecutor is not supported, because passed order is not optimized");
-        return false;
-    }
-
-    [[nodiscard]] TransposeExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
-        return std::make_shared<RefOptimizedTransposeExecutor>(context);
-    }
+private:
+    bool init(const MemoryArgs& memory) override;
 };
 
 }  // namespace ov::intel_cpu

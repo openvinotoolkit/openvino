@@ -7,19 +7,25 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <numeric>
-#include <oneapi/dnnl/dnnl.hpp>
+#include <utility>
 #include <vector>
 
 #include "cpu_memory.h"
 #include "cpu_types.h"
-#include "memory_desc/cpu_memory_desc.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/permute_kernel.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/transpose.hpp"
+#include "nodes/executors/transpose_config.hpp"
 #include "openvino/core/parallel.hpp"
 
 namespace ov::intel_cpu {
+
+RefTransposeExecutor::RefTransposeExecutor(const TransposeAttrs& attrs, ExecutorContext::CPtr context)
+    : TransposeExecutor(attrs, std::move(context)) {}
 
 static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims& dims, VectorDims& indexes) {
     for (int j = nDims - 1; j >= 0; j--) {
@@ -88,12 +94,15 @@ void RefTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::v
     referenceExecute(src_data, dst_data, jcp, MB);
 }
 
-bool RefTransposeExecutor::init(const TransposeParams& transposeParams,
-                                [[maybe_unused]] const std::vector<MemoryDescPtr>& srcDescs,
-                                [[maybe_unused]] const std::vector<MemoryDescPtr>& dstDescs,
-                                [[maybe_unused]] const dnnl::primitive_attr& attr) {
-    jcp = TransposeExecutor::prepareParams(transposeParams.permuteParams);
+bool RefTransposeExecutor::init([[maybe_unused]] const MemoryArgs& memory) {
+    jcp = TransposeExecutor::prepareParams(permuteParams);
     return true;
+}
+
+ExecutorPtr RefTransposeExecutor::create(const TransposeAttrs& attrs,
+                                         [[maybe_unused]] const MemoryArgs& memory,
+                                         const ExecutorContext::CPtr& context) {
+    return std::make_shared<RefTransposeExecutor>(attrs, context);
 }
 
 }  // namespace ov::intel_cpu

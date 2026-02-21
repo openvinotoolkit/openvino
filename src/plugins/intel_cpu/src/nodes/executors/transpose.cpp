@@ -11,14 +11,54 @@
 #include <vector>
 
 #include "cpu_types.h"
+#include "memory_desc/blocked_memory_desc.h"
 #include "nodes/common/permute_kernel.h"
 #include "nodes/executors/executor.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "nodes/executors/transpose_config.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
-TransposeExecutor::TransposeExecutor(ExecutorContext::CPtr context) : context(std::move(context)) {}
+TransposeExecutor::TransposeExecutor(const TransposeAttrs& attrs, ExecutorContext::CPtr context)
+    : permuteParams(attrs.permuteParams),
+      context(std::move(context)) {}
+
+bool TransposeExecutor::update(const MemoryArgs& memory) {
+    const auto src = memory.at(ARG_SRC);
+    const auto dst = memory.at(ARG_DST);
+    OPENVINO_ASSERT(src, "Transpose source memory is undefined");
+    OPENVINO_ASSERT(dst, "Transpose destination memory is undefined");
+
+    PermuteParams updatedParams = permuteParams;
+    const auto srcDesc = src->getDescWithType<BlockedMemoryDesc>();
+    const auto dstDesc = dst->getDescWithType<BlockedMemoryDesc>();
+    updatedParams.src_block_order = srcDesc->getOrder();
+    updatedParams.src_block_dims = srcDesc->getBlockDims();
+    updatedParams.dst_block_order = dstDesc->getOrder();
+    updatedParams.dst_block_dims = dstDesc->getBlockDims();
+    if (updatedParams.data_size == 0) {
+        updatedParams.data_size = src->getDesc().getPrecision().size();
+    }
+
+    if (isInitialized && updatedParams == permuteParams) {
+        return true;
+    }
+
+    permuteParams = std::move(updatedParams);
+    isInitialized = init(memory);
+    return isInitialized;
+}
+
+void TransposeExecutor::execute(const MemoryArgs& memory) {
+    const auto src = memory.at(ARG_SRC);
+    const auto dst = memory.at(ARG_DST);
+    OPENVINO_ASSERT(src, "Transpose source memory is undefined");
+    OPENVINO_ASSERT(dst, "Transpose destination memory is undefined");
+    exec({src}, {dst});
+}
 
 jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& params) {
     jit_permute_config_params jcp = {};

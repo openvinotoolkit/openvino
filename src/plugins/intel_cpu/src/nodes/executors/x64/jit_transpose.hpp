@@ -19,29 +19,20 @@ namespace ov::intel_cpu {
 
 class JitTransposeExecutor : public TransposeExecutor {
 public:
-    using TransposeExecutor::TransposeExecutor;
+    JitTransposeExecutor(const TransposeAttrs& attrs, ExecutorContext::CPtr context);
 
-    bool init(const TransposeParams& transposeParams,
-              const std::vector<MemoryDescPtr>& srcDescs,
-              const std::vector<MemoryDescPtr>& dstDescs,
-              const dnnl::primitive_attr& attr) override;
+    static bool supports([[maybe_unused]] const TransposeConfig& config);
+    static ExecutorPtr create(const TransposeAttrs& attrs,
+                              [[maybe_unused]] const MemoryArgs& memory,
+                              const ExecutorContext::CPtr& context);
     void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) override;
     [[nodiscard]] impl_desc_type implType() const override {
         return impl_desc_type::jit;
     }
 
 private:
+    bool init(const MemoryArgs& memory) override;
     std::shared_ptr<PermuteKernel> pKernel;
-};
-
-class JitTransposeExecutorBuilder : public TransposeExecutorBuilder {
-public:
-    [[nodiscard]] bool isSupported(const TransposeParams& transposeParams,
-                                   const std::vector<MemoryDescPtr>& srcDescs,
-                                   const std::vector<MemoryDescPtr>& dstDescs) const override;
-    [[nodiscard]] TransposeExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
-        return std::make_shared<JitTransposeExecutor>(context);
-    }
 };
 
 }  // namespace ov::intel_cpu

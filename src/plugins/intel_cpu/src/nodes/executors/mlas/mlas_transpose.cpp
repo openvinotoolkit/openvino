@@ -9,7 +9,7 @@
 #include <cstring>
 #include <limits>
 #include <memory>
-#include <oneapi/dnnl/dnnl.hpp>
+#include <utility>
 #include <vector>
 
 #include "cpu_memory.h"
@@ -17,11 +17,20 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "mlas.h"
 #include "nodes/executors/executor.hpp"
+#include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/transpose.hpp"
+#include "nodes/executors/transpose_config.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
+
+MlasTransposeExecutor::MlasTransposeExecutor(const TransposeAttrs& attrs, ExecutorContext::CPtr context)
+    : TransposeExecutor(attrs, std::move(context)) {}
+
+bool MlasTransposeExecutor::init([[maybe_unused]] const MemoryArgs& memory) {
+    return IsTransposeMovingSingleAxis(permuteParams.order, from, to);
+}
 
 template <typename T>
 inline constexpr bool has_mlas_transpose = any_of_v<T, uint8_t, uint16_t, uint32_t>;
@@ -316,33 +325,30 @@ void MlasTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::
     }
 }
 
-bool MlasTransposeExecutor::init(const TransposeParams& transposeParams,
-                                 [[maybe_unused]] const std::vector<MemoryDescPtr>& srcDescs,
-                                 [[maybe_unused]] const std::vector<MemoryDescPtr>& dstDescs,
-                                 [[maybe_unused]] const dnnl::primitive_attr& attr) {
-    if (!IsTransposeMovingSingleAxis(transposeParams.permuteParams.order, from, to)) {
+bool MlasTransposeExecutor::supports(const TransposeConfig& config) {
+    const auto& srcDesc = config.descs.at(ARG_SRC);
+    const auto& dstDesc = config.descs.at(ARG_DST);
+    if (!srcDesc->hasLayoutType(LayoutType::ncsp) || !dstDesc->hasLayoutType(LayoutType::ncsp)) {
+        DEBUG_LOG("MLAS Transpose executor supports NCHW layout only");
+        return false;
+    }
+    if (none_of(srcDesc->getPrecision().size(), 1U, 2U, 4U, 8U)) {
+        DEBUG_LOG("MLAS Transpose executor supports 1, 2, 4, 8 byte precision sizes");
+        return false;
+    }
+    size_t localFrom = 0UL;
+    size_t localTo = 0UL;
+    if (!IsTransposeMovingSingleAxis(config.attrs.permuteParams.order, localFrom, localTo)) {
         DEBUG_LOG("MLAS Transpose executor supports moving single axis only");
         return false;
     }
     return true;
 }
 
-bool MlasTransposeExecutorBuilder::isSupported([[maybe_unused]] const TransposeParams& transposeParams,
-                                               const std::vector<MemoryDescPtr>& srcDescs,
-                                               const std::vector<MemoryDescPtr>& dstDescs) const {
-    if (!srcDescs[0]->hasLayoutType(LayoutType::ncsp) || !dstDescs[0]->hasLayoutType(LayoutType::ncsp)) {
-        DEBUG_LOG("MLAS Transpose executor supports NCHW layout only");
-        return false;
-    }
-    if (none_of(srcDescs[0]->getPrecision().size(), 1U, 2U, 4U, 8U)) {
-        DEBUG_LOG("MLAS Transpose executor supports 1, 2, 4, 8 byte precision sizes");
-        return false;
-    }
-    return true;
-}
-
-TransposeExecutorPtr MlasTransposeExecutorBuilder::makeExecutor(const ExecutorContext::CPtr context) const {
-    return std::make_shared<MlasTransposeExecutor>(context);
+ExecutorPtr MlasTransposeExecutor::create(const TransposeAttrs& attrs,
+                                          [[maybe_unused]] const MemoryArgs& memory,
+                                          const ExecutorContext::CPtr& context) {
+    return std::make_shared<MlasTransposeExecutor>(attrs, context);
 }
 
 }  // namespace ov::intel_cpu

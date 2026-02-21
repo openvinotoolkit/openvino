@@ -36,8 +36,8 @@
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/reorder_prim.h"
 #if defined(OPENVINO_ARCH_ARM)
+#    include "nodes/executors/executor_factory.hpp"
 #    include "nodes/executors/transpose.hpp"
-#    include "nodes/executors/transpose_list.hpp"
 #endif
 #if defined(OV_CPU_WITH_ACL)
 #    include <arm_compute/core/CoreTypes.h>
@@ -202,21 +202,21 @@ void Reorder::prepareReorderAsTranspose(const MemoryDescPtr& parentDesc, const M
     auto transposedDesc =
         std::make_shared<CpuBlockedMemoryDesc>(parentDesc->getPrecision(), Shape{transposedBlockDims});
 
-    TransposeParams transposeParams;
-    transposeParams.permuteParams.src_block_dims = parentDesc->as<BlockedMemoryDesc>()->getBlockDims();
-    transposeParams.permuteParams.src_block_order = parentDesc->as<BlockedMemoryDesc>()->getOrder();
-    transposeParams.permuteParams.dst_block_dims = transposedBlockDims;
-    transposeParams.permuteParams.dst_block_order = transposeParams.permuteParams.src_block_order;
-    transposeParams.permuteParams.order = transposeOrder;
-    transposeParams.permuteParams.data_size = parentDesc->getPrecision().size();
+    MemoryDescArgs descs{{ARG_SRC, parentDesc}, {ARG_DST, transposedDesc}};
+    MemoryArgs memory{{ARG_SRC, getSrcMemoryAtPort(0)}, {ARG_DST, getDstMemoryAtPort(0)}};
 
+    TransposeAttrs attrs;
+    attrs.permuteParams.src_block_dims = parentDesc->as<BlockedMemoryDesc>()->getBlockDims();
+    attrs.permuteParams.src_block_order = parentDesc->as<BlockedMemoryDesc>()->getOrder();
+    attrs.permuteParams.dst_block_dims = transposedBlockDims;
+    attrs.permuteParams.dst_block_order = attrs.permuteParams.src_block_order;
+    attrs.permuteParams.order = transposeOrder;
+    attrs.permuteParams.data_size = parentDesc->getPrecision().size();
     auto transpose_context = std::make_shared<ExecutorContext>(context, getImplPriority());
-    auto factory = std::make_shared<TransposeExecutorFactory>(transposeParams,
-                                                              std::vector<MemoryDescPtr>{parentDesc},
-                                                              std::vector<MemoryDescPtr>{transposedDesc},
-                                                              transpose_context);
-    dnnl::primitive_attr attr;
-    transposeExecutor = factory->makeExecutor(transposeParams, {parentDesc}, {transposedDesc}, attr);
+    auto factory = std::make_shared<ExecutorFactory<TransposeAttrs>>(attrs, transpose_context, descs);
+    transposeExecutor = factory->make(memory, false);
+    CPU_NODE_ASSERT(transposeExecutor, "Transpose executor is not initialized.");
+    CPU_NODE_ASSERT(transposeExecutor->update(memory), "Failed to update transpose executor.");
     getSelectedPrimitiveDescriptor()->setImplementationType(transposeExecutor->implType());
 }
 #endif
@@ -481,9 +481,8 @@ void Reorder::optimizedNspc2Ncsp() {
 void Reorder::execute(const dnnl::stream& strm) {
 #if defined(OPENVINO_ARCH_ARM)
     if (transposeExecutor) {
-        auto dstMemPtr = getDstMemoryAtPort(0);
-        auto srcMemPtr = getSrcMemoryAtPort(0);
-        transposeExecutor->exec({srcMemPtr}, {dstMemPtr});
+        MemoryArgs memory{{ARG_SRC, getSrcMemoryAtPort(0)}, {ARG_DST, getDstMemoryAtPort(0)}};
+        transposeExecutor->execute(memory);
         return;
     }
 #endif

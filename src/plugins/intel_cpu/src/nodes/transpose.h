@@ -52,19 +52,18 @@ protected:
     std::shared_ptr<ExecutorContext> transpose_context;
 
 private:
-    TransposeExecutorPtr execPtr = nullptr;
-    dnnl::primitive prim;
+    ExecutorPtr execPtr = nullptr;
     VectorDims order;
     ov::element::Type prec;
 
-    TransposeParams transposeParams;
+    MemoryArgs m_memory;
+    TransposeAttrs attrs;
 
     bool isInputOrderConst = false;
 
     static constexpr size_t INPUT_DATA_IDX = 0LU;
     static constexpr size_t INPUT_ORDER_IDX = 1LU;
 
-    bool performAsReorder = false;
     bool isOptimized = false;
 };
 

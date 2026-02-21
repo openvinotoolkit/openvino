@@ -19,35 +19,25 @@
 namespace ov::intel_cpu {
 class RefTransposeExecutor : public TransposeExecutor {
 public:
-    using TransposeExecutor::TransposeExecutor;
+    RefTransposeExecutor(const TransposeAttrs& attrs, ExecutorContext::CPtr context);
     static void referenceExecute(const uint8_t* src_data,
                                  uint8_t* dst_data,
                                  const jit_permute_config_params& jcp,
                                  int mb);
-    bool init(const TransposeParams& transposeParams,
-              const std::vector<MemoryDescPtr>& srcDescs,
-              const std::vector<MemoryDescPtr>& dstDescs,
-              const dnnl::primitive_attr& attr) override;
+    static bool supports([[maybe_unused]] const TransposeConfig& config) {
+        return true;
+    }
+    static ExecutorPtr create(const TransposeAttrs& attrs,
+                              [[maybe_unused]] const MemoryArgs& memory,
+                              const ExecutorContext::CPtr& context);
     void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) override;
     [[nodiscard]] impl_desc_type implType() const override {
         return impl_desc_type::ref;
     }
 
 private:
+    bool init(const MemoryArgs& memory) override;
     jit_permute_config_params jcp;
-};
-
-class RefTransposeExecutorBuilder : public TransposeExecutorBuilder {
-public:
-    [[nodiscard]] bool isSupported([[maybe_unused]] const TransposeParams& transposeParams,
-                                   [[maybe_unused]] const std::vector<MemoryDescPtr>& srcDescs,
-                                   [[maybe_unused]] const std::vector<MemoryDescPtr>& dstDescs) const override {
-        return true;
-    }
-
-    [[nodiscard]] TransposeExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
-        return std::make_shared<RefTransposeExecutor>(context);
-    }
 };
 
 }  // namespace ov::intel_cpu

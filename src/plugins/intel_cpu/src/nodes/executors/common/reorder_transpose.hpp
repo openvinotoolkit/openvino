@@ -4,29 +4,31 @@
 
 #pragma once
 
-#include "arm_compute/runtime/NEON/functions/NEPermute.h"
-#include "arm_compute/runtime/Tensor.h"
+#include <memory>
+
 #include "nodes/executors/transpose.hpp"
-#include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
 
-class ACLTransposeExecutor : public TransposeExecutor {
+class ReorderTransposeExecutor : public TransposeExecutor {
 public:
-    ACLTransposeExecutor(const TransposeAttrs& attrs, ExecutorContext::CPtr context);
+    ReorderTransposeExecutor(const TransposeAttrs& attrs, ExecutorContext::CPtr context);
+
     static bool supports(const TransposeConfig& config);
     static ExecutorPtr create(const TransposeAttrs& attrs,
                               const MemoryArgs& memory,
                               const ExecutorContext::CPtr& context);
-    void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) override;
+
+    void execute(const MemoryArgs& memory) override;
     [[nodiscard]] impl_desc_type implType() const override {
-        return impl_desc_type::acl;
+        return m_implType;
     }
 
 private:
     bool init(const MemoryArgs& memory) override;
-    arm_compute::Tensor srcTensor, dstTensor;
-    std::unique_ptr<arm_compute::NEPermute> acl_permute;
+
+    dnnl::reorder m_primitive;
+    impl_desc_type m_implType = impl_desc_type::undef;
 };
 
 }  // namespace ov::intel_cpu

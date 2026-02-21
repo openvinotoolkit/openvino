@@ -4,20 +4,23 @@
 
 #include "ref_opt_transpose.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <memory>
-#include <oneapi/dnnl/dnnl.hpp>
 #include <vector>
 
 #include "cpu_memory.h"
 #include "cpu_parallel.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/common/ref_opt_transpose.hpp"
-#include "nodes/executors/transpose.hpp"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "nodes/executors/transpose_config.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "selective_build.h"
+#include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
 namespace {
@@ -127,6 +130,35 @@ struct TransposeOptimizedEmitter {
     }
 };
 }  // namespace
+
+bool RefOptimizedTransposeExecutor::supports(const TransposeConfig& config) {
+    static const std::vector<std::vector<size_t>> optimizedOrders = {
+        std::vector<size_t>{0, 3, 1, 2},
+        std::vector<size_t>{0, 4, 1, 2, 3},
+        std::vector<size_t>{0, 5, 1, 2, 3, 4},
+    };
+
+    const auto& srcDesc = config.descs.at(ARG_SRC);
+    if (srcDesc->hasLayoutType(LayoutType::ncsp) &&
+        std::find(optimizedOrders.begin(), optimizedOrders.end(), config.attrs.permuteParams.order) !=
+            optimizedOrders.end()) {
+        return true;
+    }
+
+    DEBUG_LOG("RefOptimizedTransposeExecutor is not supported, because passed order is not optimized");
+    return false;
+}
+
+ExecutorPtr RefOptimizedTransposeExecutor::create(const TransposeAttrs& attrs,
+                                                  [[maybe_unused]] const MemoryArgs& memory,
+                                                  const ExecutorContext::CPtr& context) {
+    return std::make_shared<RefOptimizedTransposeExecutor>(attrs, context);
+}
+
+bool RefOptimizedTransposeExecutor::init([[maybe_unused]] const MemoryArgs& memory) {
+    return true;
+}
+
 void RefOptimizedTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
     const size_t dataSize = src[0]->getDesc().getPrecision().size();
     const int MB = src[0]->getStaticDims()[0];
@@ -138,13 +170,6 @@ void RefOptimizedTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, con
               OV_CASE(1U, element_type_traits<ov::element::u8>::value_type),
               OV_CASE(2U, element_type_traits<ov::element::u16>::value_type),
               OV_CASE(4U, element_type_traits<ov::element::i32>::value_type));
-}
-
-bool RefOptimizedTransposeExecutor::init([[maybe_unused]] const TransposeParams& transposeParams,
-                                         [[maybe_unused]] const std::vector<MemoryDescPtr>& srcDescs,
-                                         [[maybe_unused]] const std::vector<MemoryDescPtr>& dstDescs,
-                                         [[maybe_unused]] const dnnl::primitive_attr& attr) {
-    return true;
 }
 
 }  // namespace ov::intel_cpu

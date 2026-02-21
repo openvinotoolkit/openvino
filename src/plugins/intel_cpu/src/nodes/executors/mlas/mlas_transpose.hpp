@@ -20,11 +20,11 @@
 namespace ov::intel_cpu {
 class MlasTransposeExecutor : public TransposeExecutor {
 public:
-    using TransposeExecutor::TransposeExecutor;
-    bool init(const TransposeParams& transposeParams,
-              const std::vector<MemoryDescPtr>& srcDescs,
-              const std::vector<MemoryDescPtr>& dstDescs,
-              const dnnl::primitive_attr& attr) override;
+    MlasTransposeExecutor(const TransposeAttrs& attrs, ExecutorContext::CPtr context);
+    static bool supports(const TransposeConfig& config);
+    static ExecutorPtr create(const TransposeAttrs& attrs,
+                              [[maybe_unused]] const MemoryArgs& memory,
+                              const ExecutorContext::CPtr& context);
     void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) override;
 
     [[nodiscard]] impl_desc_type implType() const override {
@@ -32,6 +32,7 @@ public:
     }
 
 private:
+    bool init(const MemoryArgs& memory) override;
     static int64_t calcShapeSize(const Shape& shape, size_t start, size_t end);
     static bool IsTransposeMovingSingleAxis(VectorDims permutations, size_t& from, size_t& to);
     static void TransposeSingleAxisOutwards(const MemoryCPtr& input, const MemoryPtr& output, size_t from, size_t to);
@@ -39,15 +40,6 @@ private:
 
     size_t from = 0UL;
     size_t to = 0UL;
-};
-
-class MlasTransposeExecutorBuilder : public TransposeExecutorBuilder {
-public:
-    [[nodiscard]] bool isSupported(const TransposeParams& transposeParams,
-                                   const std::vector<MemoryDescPtr>& srcDescs,
-                                   const std::vector<MemoryDescPtr>& dstDescs) const override;
-
-    [[nodiscard]] TransposeExecutorPtr makeExecutor(ExecutorContext::CPtr context) const override;
 };
 
 }  // namespace ov::intel_cpu
