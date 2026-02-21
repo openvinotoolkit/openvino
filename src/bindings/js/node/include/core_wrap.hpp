@@ -5,9 +5,12 @@
 
 #include <napi.h>
 
+#include <istream>
+#include <memory>
 #include <thread>
 
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 
 class CoreWrap : public Napi::ObjectWrap<CoreWrap> {
 public:
@@ -135,15 +138,19 @@ struct TsfnContextPath {
 };
 
 struct ImportModelContext {
-    ImportModelContext(Napi::Env env, ov::Core& core) : deferred(Napi::Promise::Deferred::New(env)), _core{core} {};
+    ImportModelContext(Napi::Env env, ov::Core& core) : deferred(Napi::Promise::Deferred::New(env)), _core{core} {}
+
     std::thread nativeThread;
 
     Napi::Promise::Deferred deferred;
     Napi::ThreadSafeFunction tsfn;
 
-    std::stringstream _stream;
+    std::unique_ptr<ov::SharedStreamBuffer> _buffer;
+    std::unique_ptr<std::istream> _stream;
+
     std::string _device;
     std::map<std::string, ov::Any> _config = {};
+
     ov::Core& _core;
     ov::CompiledModel _compiled_model;
 };
