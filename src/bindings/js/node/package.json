@@ -43,6 +43,9 @@
   "engines": {
     "node": ">=21.0.0"
   },
+  "overrides": {
+    "diff": "8.0.3"
+  },
   "dependencies": {
     "gunzip-maybe": "^1.4.2",
     "https-proxy-agent": "^7.0.2",
