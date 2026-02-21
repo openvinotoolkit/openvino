@@ -20,6 +20,10 @@ namespace ov {
 
 class AlignedBuffer;
 
+namespace weight_sharing {
+struct Extension;
+}
+
 namespace op {
 namespace v0 {
 /// \brief Class for constants.
@@ -388,6 +392,8 @@ private:
     mutable std::atomic_bool m_all_elements_bitwise_identical{false};
     mutable std::atomic_bool m_all_elements_bitwise_identical_checked{false};
     bool m_alloc_buffer_on_visit_attributes{true};
+
+    friend struct ov::weight_sharing::Extension;
 };
 
 template <>
