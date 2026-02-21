@@ -632,6 +632,14 @@ bool ZeGraphExtWrappers::isOptionSupported(std::string optName, std::optional<st
     }
 #endif
 
+    if (optValue.has_value() && _zeroInitStruct->getCompilerVersion() < ZE_MAKE_VERSION(7, 28)) {
+        _logger.warning("Current version of compiler is not able to check if value {} is supported for property {}, "
+                        "returning false.",
+                        optValue.value().c_str(),
+                        optName.c_str());
+        return false;
+    }
+
     const char* optname_ch = optName.c_str();
     const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
     auto result = _zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
