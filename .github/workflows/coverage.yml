@@ -557,17 +557,20 @@ jobs:
 
           SRC_DIR="${{ github.workspace }}"
           BUILD_DIR="${{ github.workspace }}/build"
+          BUILD_JS_DIR="${{ github.workspace }}/build_js"
           REPORT_DIR="${{ github.workspace }}/coverage-report"
 
           echo "Capturing coverage from $BUILD_DIR (base=$SRC_DIR)..."
           lcov --capture \
                --directory "$BUILD_DIR" \
                --directory "$BUILD_DIR/gcov" \
+               --build-directory "$BUILD_DIR" \
+               --build-directory "$BUILD_JS_DIR" \
                --base-directory "$SRC_DIR" \
                --output-file coverage.info \
                --no-external \
                --rc geninfo_unexecuted_blocks=1 \
-               --ignore-errors mismatch,negative,unused
+               --ignore-errors mismatch,negative,unused,gcov
 
           echo "Applying exclude patterns (tests, thirdparty, protobuf generated)..."
           lcov --remove coverage.info \
