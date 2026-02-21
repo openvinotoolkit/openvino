@@ -61,6 +61,10 @@ static const char iterations_count_message[] =
 static const char cache_dir_message[] = "Optional. Enables caching of loaded models to specified directory. "
                                         "List of devices which support caching is shown at the end of this message.";
 
+// @brief message for exporting and importing compiled model
+static const char export_import_cache_message[] =
+    "Optional. Export compiled model to memory and import it back after compilation.";
+
 // @brief message for single load network
 static const char load_from_file_message[] = "Optional. Loads model from file directly without read_model."
                                              " All CNNNetwork options (like re-shape) will be ignored";
@@ -304,6 +308,9 @@ DEFINE_string(c, "", custom_cldnn_message);
 
 /// @brief Define parameter for cache model dir <br>
 DEFINE_string(cache_dir, "", cache_dir_message);
+
+/// @brief Export compiled model to memory and import it back after compilation <br>
+DEFINE_bool(export_import_cache, false, export_import_cache_message);
 
 /// @brief Define flag for load network from model file by name without ReadNetwork <br>
 DEFINE_bool(load_from_file, false, load_from_file_message);
