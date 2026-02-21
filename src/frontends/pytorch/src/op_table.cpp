@@ -282,6 +282,7 @@ OP_CONVERTER(translate_upsample_nearest1d);
 OP_CONVERTER(translate_upsample_nearest2d);
 OP_CONVERTER(translate_upsample_nearest3d);
 OP_CONVERTER(translate_upsample_trilinear3d);
+OP_CONVERTER(translate_values);
 OP_CONVERTER(translate_var);
 OP_CONVERTER(translate_var_mean);
 OP_CONVERTER(translate_view_as_complex);
@@ -663,6 +664,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::pixel_unshuffle", op::translate_pixel_unshuffle},
         {"aten::prelu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
         {"aten::polar", op::translate_polar},
+
         {"aten::pow", op::translate_pow},
         {"aten::pow_", op::translate_pow},
         {"aten::prod", op::translate_prod},
@@ -770,6 +772,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::upsample_nearest2d", op::translate_upsample_nearest2d},
         {"aten::upsample_nearest3d", op::translate_upsample_nearest3d},
         {"aten::upsample_trilinear3d", op::translate_upsample_trilinear3d},
+        {"aten::values", op::translate_values},
         {"aten::var", op::translate_var},
         {"aten::var_mean", op::translate_var_mean},
         {"aten::view", op::quantizable_op<op::translate_reshape>},
