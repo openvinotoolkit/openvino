@@ -153,7 +153,7 @@ RoPEFusionFlux::RoPEFusionFlux(bool num_heads_transposed) {
         new_args.push_back(pattern_map.at(t_cos));
         new_args.push_back(pattern_map.at(t_sin));
 
-        auto old_node = root;
+        auto old_node = std::move(root);
         auto new_node = std::make_shared<ov::op::internal::RoPE>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::copy_runtime_info({pattern_map.at(x1).get_node_shared_ptr(),
@@ -1164,7 +1164,7 @@ RoPEFusionGPTOSS::RoPEFusionGPTOSS() {
         pattern::wrap_type<v1::Add>({second_half_mul_cos, first_half_mul_sin}, {{"auto_broadcast", "numpy"}});
     auto concat_result = pattern::wrap_type<opset1::Concat>({sub_Subtract, add_Add}, {{"axis", -1}});
 
-    auto result = concat_result;
+    auto result = std::move(concat_result);
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
