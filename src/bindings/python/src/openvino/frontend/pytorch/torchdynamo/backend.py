@@ -30,7 +30,6 @@ from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, 
 from openvino import Core, Type, PartialShape
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
 
 """
     This is a preview feature in OpenVINO. This feature
@@ -67,6 +66,7 @@ if "openvino" not in torch.compiler.list_backends():
 
 def fx_openvino(subgraph, example_inputs, options=None):
     try:
+        logger.info("OpenVINO TorchDynamo backend initialized")
         if len(openvino_options) != 0:
             options = openvino_options
         executor_parameters = None
@@ -132,7 +132,7 @@ def fx_openvino(subgraph, example_inputs, options=None):
             _call._boxed_call = True  # type: ignore[attr-defined]
         return _call
     except Exception as e:
-        logger.debug(f"Failed in OpenVINO execution: {e}")
+        logger.warning(f"Failed in OpenVINO execution: {e}. Falling back to standard generic_backend compilation.")
         return compile_fx(subgraph, example_inputs)
 
 

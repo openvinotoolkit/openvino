@@ -143,6 +143,7 @@ class Partitioner:
         partitions = partitioner.propose_partitions()
         self.add_get_attr_inputs(partitions)
         fused_graph_module = partitioner.fuse_partitions(partitions)
+        logger.info(f"Completed partitioning. Delegated {len(partitions)} subgraphs to OpenVINO.")
         logger.debug(f"Graph module after partitioning {fused_graph_module}")
 
         return fused_graph_module
