@@ -65,6 +65,10 @@ KERNEL(pa_sdpa_opt)(
 #if HAS_SINK_INPUT
     const __global SINK_DATA_T* sink_ptr,
 #endif
+#if HAS_QQ_BIAS
+    const __global QQ_BIAS_DATA_T* qq_bias,
+    const __global QQ_BIAS_BEGINS_DATA_T* qq_bias_begins,
+#endif
     __global OUTPUT_TYPE* output,
 #if PAGED_ATTENTION_SCORES_OUTPUT
     __global SOFTMAX_ACCUMULATOR_TYPE* softmax_results,
@@ -97,7 +101,6 @@ KERNEL(pa_sdpa_opt)(
     // exp_sums: [sequences_num, HEADS_NUM, total_partitions_num]
     // max_logits: [sequences_num, HEADS_NUM, total_partitions_num]
     // tmp_out: [sequences_num, HEADS_NUM, total_partitions_num, V_HEAD_SIZE]
-
     const uint seq_idx = get_global_id(0);
 #if HEADS_PER_WI > 1
     const uint heads_group_idx = get_global_id(1);
@@ -129,6 +132,11 @@ KERNEL(pa_sdpa_opt)(
     const int subsequence_begin = subsequence_begins[subsequence_idx];
     const int subsequence_end = subsequence_begins[subsequence_idx + 1];
     const uint seq_len = past_lens[subsequence_idx] + 1 + (seq_idx - subsequence_begin);
+    const uint past_len = past_lens[subsequence_idx];
+    #if HAS_QQ_BIAS
+        const uint spec_num = qq_bias_begins[subsequence_idx + 1] - qq_bias_begins[subsequence_idx];
+        const uint cumulated_spec_num = qq_bias_begins[subsequence_idx];
+    #endif
 #else
     const uint subsequence_idx = seq_idx;
     const uint seq_len = past_lens[seq_idx] + 1;
@@ -308,11 +316,28 @@ KERNEL(pa_sdpa_opt)(
 #endif
 
 #if SLIDING_WINDOW_SIZE != 0
-            if (token_idx >= seq_len || (seq_len > SLIDING_WINDOW_SIZE && token_idx < (seq_len - SLIDING_WINDOW_SIZE)))
-#else
-            if (token_idx >= seq_len)
-#endif
+            if (token_idx >= seq_len || (seq_len > SLIDING_WINDOW_SIZE && token_idx < (seq_len - SLIDING_WINDOW_SIZE))) {
                 qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;
+            } else
+#else
+            if (token_idx >= seq_len) {
+                qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;
+            }
+#endif
+
+#if HAS_QQ_BIAS && MULTI_TOKENS_PROCESSING
+            // token_idx < seq_len, speculative tree mask
+            if (spec_num > 0 && token_idx >= past_len && token_idx < seq_len) {
+                const uint spec_offset = token_idx - past_len;
+                if (spec_offset < spec_num) {
+                    const uint qq_bias_base = cumulated_spec_num * spec_num + (seq_idx - subsequence_begin) * spec_num;
+                    const uint qq_bias_offset = qq_bias_base + spec_offset;
+                    if (qq_bias[qq_bias_offset] == 0) {
+                        qk_acc = SOFTMAX_ACCUMULATOR_VAL_MIN;
+                    }
+                }
+            }
+#endif
 
             qk_max = SOFTMAX_ACCUMULATOR_MAX_FUNC(qk_max, TO_SOFTMAX_ACCUMULATOR_VEC_TYPE(qk_acc));
 

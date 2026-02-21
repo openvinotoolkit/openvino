@@ -32,7 +32,6 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     bool use_gqa_kernel = false;
     size_t query_block_size = 16;
 };
-
 struct PagedAttentionOpt : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::paged_attention::opt")
     explicit PagedAttentionOpt(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}

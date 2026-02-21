@@ -46,6 +46,10 @@ struct PagedAttentionExecutor {
     static const size_t ID_ADAPTIVE_RKV_EVICTABLE_SIZES = 22;  // [B_seq], int32
     static const size_t ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES = 23;         // [num_adaptive_rkv_blocks], int32
     static const size_t ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS = 24;  // [B_seq + 1], int32
+    static const size_t ID_QQ_BIAS = 25;                      // [batch_mask_size_in_sequences], uint8
+    static const size_t ID_QQ_BIAS_BEGINS = 26;               // [B_seq + 1], int32
+    static const size_t ID_BLOCK_UPDATE_INDICES = 27;         // [num_update_slots], int32
+    static const size_t ID_BLOCK_UPDATE_INDICES_BEGINS = 28;  // [B_seq + 1], int32
     virtual void execute(const std::vector<ov::intel_cpu::MemoryPtr>& inputs,
                          std::vector<ov::intel_cpu::MemoryPtr> outputs) = 0;
     virtual ~PagedAttentionExecutor() = default;

@@ -15,6 +15,7 @@
 #include "ocl_v2/utils/jitter.hpp"
 #include "scaled_dot_product_attention_inst.h"
 #include "paged_attention_inst.h"
+#include "paged_attention_opt.hpp"
 #include "sdpa_base.hpp"
 #include "../utils/kernel_generator.hpp"
 // clang-format on
@@ -953,6 +954,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         const auto has_alibi = params.get_input_layout(paged_attention::PagedAttentionInputIdx::ALIBI).count() > 0;
         const auto has_scale_input = !desc->scale_val.has_value();
         const auto has_scores_output = desc->has_scores_output();
+        const auto has_qq_bias = desc->has_qq_bias;
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
         const auto& out_offsets_map = params.out_port_to_shape_info_offset;
@@ -979,6 +981,14 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
             jit.make("HAS_SINK_INPUT", 1);
         }
 
+        if (has_qq_bias && !m_is_prefill) {
+            jit.make("HAS_QQ_BIAS", 1);
+            const auto& qq_bias_layout = params.input_layouts[paged_attention::PagedAttentionInputIdx::QQ_BIAS];
+            jit.make("QQ_BIAS_DATA_T", to_ocl_type(qq_bias_layout.data_type));
+            const auto& qq_bias_begins_layout = params.input_layouts[paged_attention::PagedAttentionInputIdx::QQ_BIAS_BEGINS];
+            jit.make("QQ_BIAS_BEGINS_DATA_T", to_ocl_type(qq_bias_begins_layout.data_type));
+        }
+
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
         if (has_scores_output) {
             jit.add(make_layout_jit_constants("OUTPUT" + to_code_string(1), params.output_layouts[1], out_offsets_map.at(1)));
@@ -992,6 +1002,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
             jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
             jit.make("HAS_SINK_INPUT", 1);
         }
+
+        // QQ_BIAS is a paged-attention-only feature.
+        jit.make("HAS_QQ_BIAS", 0);
     }
     const auto& device_info = params.get_device_info();
 
@@ -1269,6 +1282,7 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
 
     if (config.is_paged_attention) {
         const auto desc = params.typed_desc<paged_attention>();
+        const auto has_qq_bias = desc->has_qq_bias;
         if (m_is_prefill) {
             args.push_back({ArgumentDescriptor::Types::INPUT, 1});  // Key
             args.push_back({ArgumentDescriptor::Types::INPUT, 0});  // Q
@@ -1293,6 +1307,12 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
 
         if (desc->has_sink_input)
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});  // sink
+
+        if (has_qq_bias && !m_is_prefill) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});  // qq_bias
+            args.push_back(
+                {ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins                              // qq_bias_num
+        }
 
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // blocked_indexes_start_and_gws_mapping
     } else {
@@ -1337,7 +1357,6 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
         auto& scalars = kd.params.scalars;
         scalars.clear();
         scalars.reserve(3);
-
         auto params = impl_param;
         if (!params.is_dynamic()) {
             const auto& device_info = params.get_device_info();

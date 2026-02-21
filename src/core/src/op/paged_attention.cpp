@@ -79,8 +79,8 @@ void PagedAttentionExtension::validate_and_infer_types() {
     OV_OP_SCOPE(PagedAttentionExtension_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == 25,
-                          "PagedAttensionExtension expects 25 inputs, but it has ",
+                          get_input_size() == 29,
+                          "PagedAttensionExtension expects 29 inputs, but it has ",
                           get_input_size());
 
     // format: Node*, input_idx, name, {rank_list}, {type_list}
@@ -105,10 +105,17 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 18, "xattention_block_size", {0}, {element::i32});
     input_check(this, 19, "xattention_stride", {0}, {element::i32});
     input_check(this, 20, "sinks", {1, 4}, {});
+
     input_check(this, 21, "adaptive_rkv_start_size", {0}, {element::i32});
     input_check(this, 22, "adaptive_rkv_evictable_sizes", {1}, {element::i32});
     input_check(this, 23, "adaptive_rkv_diversity_block_set_indices", {1}, {element::i32});
     input_check(this, 24, "adaptive_rkv_diversity_block_set_indices_begins", {1}, {element::i32});
+
+    // input to support query-query bias attention
+    input_check(this, 25, "qq_bias", {1}, {element::u8});
+    input_check(this, 26, "qq_bias_begins", {1}, {element::i32});
+    input_check(this, 27, "block_update_indices", {1}, {element::i32});
+    input_check(this, 28, "block_update_indices_begins", {1}, {element::i32});
 
     // value head_size may be not same with key
     auto out_ps = get_input_partial_shape(0);
