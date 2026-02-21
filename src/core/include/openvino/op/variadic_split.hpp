@@ -31,9 +31,6 @@ public:
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-    size_t get_default_output_index() const override {
-        return no_default_index();
-    }
 
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool evaluate_lower(TensorVector& outputs) const override;
