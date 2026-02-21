@@ -113,6 +113,7 @@ OP_CONVERTER(translate_flatten);
 OP_CONVERTER(translate_flip);
 OP_CONVERTER(translate_floor_divide);
 OP_CONVERTER(translate_fmod);
+OP_CONVERTER(translate_format);
 OP_CONVERTER(translate_frobenius_norm);
 OP_CONVERTER(translate_full);
 OP_CONVERTER(translate_full_like);
@@ -538,6 +539,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::floor_divide", op::translate_floor_divide},
         {"aten::floordiv", op::translate_floor_divide},
         {"aten::fmod", op::translate_fmod},
+        {"aten::format", op::translate_format},
         {"aten::frobenius_norm", op::translate_frobenius_norm},
         {"aten::full", op::translate_full},
         {"aten::full_like", op::translate_full_like},
