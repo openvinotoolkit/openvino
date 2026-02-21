@@ -5,6 +5,8 @@
 #include "openvino/op/slice.hpp"
 
 #include "common_op_table.hpp"
+#include "common_translators.hpp"
+#include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert_like.hpp"
@@ -22,8 +24,9 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_slice_op(const NodeContext& node) {
-    default_op_checks(node, 3, {"Slice", "SLICE"});
+    default_op_checks(node, 3, {"Slice", "SLICE"}, true);
     auto input = node.get_input(0);
+    auto complex_type_mark_node = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
     auto start = node.get_input(1);
     auto size = node.get_input(2);
 
@@ -31,13 +34,21 @@ OutputVector translate_slice_op(const NodeContext& node) {
     auto const_one = create_same_type_const_scalar<int32_t>(start, 1);
     auto const_zero = create_same_type_const_scalar<int32_t>(start, 0);
 
+    // Use real-part tensor for shape calculations when input is complex-tensor.
+    ov::Output<ov::Node> shape_source;
+    if (complex_type_mark_node) {
+        shape_source = complex_type_mark_node->get_real();
+    } else {
+        shape_source = input;
+    }
+
     // compute stop values in case non-negative sizes
     auto stop_pos = make_shared<v1::Add>(start, size);
 
     // compute stop values in case negative sizes
     // since TensorFlow supports only -1 among negative sizes
     // assign stop values to the data shape
-    Output<Node> stop_neg = make_shared<v3::ShapeOf>(input);
+    Output<Node> stop_neg = make_shared<v3::ShapeOf>(shape_source);
     stop_neg = make_shared<v1::ConvertLike>(stop_neg, size);
 
     // select the correct stop value based on a sign of size value
@@ -50,9 +61,22 @@ OutputVector translate_slice_op(const NodeContext& node) {
     auto start_shape = make_shared<v3::ShapeOf>(start);
     auto step = make_shared<v3::Broadcast>(const_one, start_shape);
 
-    auto res = make_shared<v8::Slice>(input, start, stop, step);
-    set_node_name(node.get_name(), res);
-    return res->outputs();
+    if (complex_type_mark_node) {
+        auto real = complex_type_mark_node->get_real();
+        auto imag = complex_type_mark_node->get_imag();
+
+        auto real_slice = make_shared<v8::Slice>(real, start, stop, step);
+        auto imag_slice = make_shared<v8::Slice>(imag, start, stop, step);
+
+        auto complex_tensor = node.mark_node(std::make_shared<ComplexTypeMark>(real_slice, imag_slice));
+
+        set_node_name(node.get_name(), complex_tensor);
+        return complex_tensor->outputs();
+    } else {
+        auto res = make_shared<v8::Slice>(input, start, stop, step);
+        set_node_name(node.get_name(), res);
+        return res->outputs();
+    }
 }
 }  // namespace op
 }  // namespace tensorflow
