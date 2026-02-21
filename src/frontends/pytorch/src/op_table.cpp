@@ -753,6 +753,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         // aten::tensor_split - Supported in limited set of patterns
         {"aten::tile", op::translate_1to1_match_2_inputs<opset10::Tile>},
         {"aten::to", op::translate_to},
+        {"aten::tolist", op::skip_node},
         {"aten::topk", op::translate_topk},
         {"aten::transpose", op::quantizable_op<op::translate_transpose>},
         {"aten::tril", op::translate_tril},
@@ -795,9 +796,11 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"prim::GetAttr", op::translate_get_attr},
         {"prim::If", op::translate_if},
         {"prim::is_cuda", op::return_false_scalar},
+        {"prim::is_nested", op::return_false_scalar},
         {"prim::ListConstruct", op::translate_list_construct},
         {"prim::ListUnpack", op::translate_list_unpack},
         {"prim::Loop", op::translate_loop},
+        {"prim::tolist", op::skip_node},
         // prim::max - Supported in limited set of patterns
         // prim::min - Supported in limited set of patterns
         {"prim::NumToTensor", op::skip_node},  // In openvino we already store number as tensor with shape []
