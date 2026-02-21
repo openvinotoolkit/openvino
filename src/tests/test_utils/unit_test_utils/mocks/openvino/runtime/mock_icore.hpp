@@ -53,7 +53,7 @@ public:
     MOCK_METHOD(std::shared_ptr<ov::Model>, read_model, (const std::string&, const ov::Tensor&, bool), (const));
     MOCK_METHOD(std::shared_ptr<ov::Model>,
                 read_model,
-                (const std::filesystem::path&, const std::filesystem::path&, const ov::AnyMap&),
+                (const std::string&, const std::string&, const ov::AnyMap&),
                 (const));
     MOCK_METHOD(std::shared_ptr<ov::Model>,
                 read_model,

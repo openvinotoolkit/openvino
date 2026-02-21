@@ -2,18 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "serialization.hpp"
+
 #include <gtest/gtest.h>
 
 #include <iostream>
 
+#include "compiled_model.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
+#include "model_builder/model_builder.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/openvino.hpp"
-#include "serialization.hpp"
-#include "compiled_model.hpp"
 #include "spatial.hpp"
-#include "model_generator/model_generator.hpp"
+
+using ov::test::npuw::ModelBuilder;
 
 // FIXME: parametrize all the tests below
 
@@ -79,7 +82,7 @@ TEST(SerializationTest, BasicTypes_streampos) {
 TEST(SerializationTest, OVTypes_Tensor) {
     using namespace ov::npuw::s11n;
 
-    std::vector<uint8_t> data {0, 1, 2, 3};
+    std::vector<uint8_t> data{0, 1, 2, 3};
     ov::Tensor var(ov::element::u8, ov::Shape({2, 2}), data.data());
     ov::Tensor res;
 
@@ -260,7 +263,7 @@ TEST(SerializationTest, BasicTypes_optional) {
 TEST(SerializationTest, OVTypes_Tensor_with_weights) {
     using namespace ov::npuw::s11n;
 
-    std::vector<uint8_t> data {0, 1, 2, 3};
+    std::vector<uint8_t> data{0, 1, 2, 3};
     ov::Tensor var(ov::element::u8, ov::Shape({2, 2}), data.data());
     std::vector<ov::Tensor> res;
 
@@ -269,7 +272,7 @@ TEST(SerializationTest, OVTypes_Tensor_with_weights) {
     std::unordered_map<const void*, std::size_t> const_offset;
     const_offset[nullptr] = 0;
     WeightsContext ctx(false, const_offset);
- 
+
     WeightsContext::ConstsCache consts_cache;
     consts_cache[{0, 0}] = nullptr;
     WeightsContext des_ctx(nullptr, "", consts_cache, {});
@@ -298,28 +301,26 @@ TEST(SerializationTest, Stress_ParallelImport) {
     const std::string device = "NPU";
 
     // Create model
-    ModelGenerator mg;
-    auto model1 = mg.get_model_with_repeated_blocks();
-    auto model2 = mg.get_model_with_repeated_blocks();
-    auto model3 = mg.get_model_with_repeated_blocks();
-    auto model4 = mg.get_model_with_repeated_blocks();
+    ModelBuilder mb;
+    auto model1 = mb.get_model_with_repeated_blocks();
+    auto model2 = mb.get_model_with_repeated_blocks();
+    auto model3 = mb.get_model_with_repeated_blocks();
+    auto model4 = mb.get_model_with_repeated_blocks();
 
     // NPUW config
-    ov::AnyMap config = {
-        {"NPU_USE_NPUW", "YES"},
-        {"NPUW_FUNCALL_FOR_ALL", "YES"},
-        {"NPUW_DEVICES", "NPU"},
-        {"NPUW_FOLD" , "YES"},
-        // FIXME: enable once proper model for weights sharing is available
-        // (go through LLMCompiledModel). Otherwise we hit a case
-        // where bank reads same weights several times, in which
-        // case an assert is triggered.
-        // {"NPUW_WEIGHTS_BANK", "shared"},
+    ov::AnyMap config = {{"NPU_USE_NPUW", "YES"},
+                         {"NPUW_FUNCALL_FOR_ALL", "YES"},
+                         {"NPUW_DEVICES", "NPU"},
+                         {"NPUW_FOLD", "YES"},
+                         // FIXME: enable once proper model for weights sharing is available
+                         // (go through LLMCompiledModel). Otherwise we hit a case
+                         // where bank reads same weights several times, in which
+                         // case an assert is triggered.
+                         // {"NPUW_WEIGHTS_BANK", "shared"},
 
-        // FIXME: test weightless mode once proper model with actual weights
-        // is available in tests.
-        {"CACHE_MODE", "OPTIMIZE_SPEED"}
-    };
+                         // FIXME: test weightless mode once proper model with actual weights
+                         // is available in tests.
+                         {"CACHE_MODE", "OPTIMIZE_SPEED"}};
 
     // Run stress test to check for data race
     for (size_t i = 0; i < 10; ++i) {

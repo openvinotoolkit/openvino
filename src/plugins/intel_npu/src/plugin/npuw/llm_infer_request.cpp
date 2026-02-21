@@ -631,6 +631,10 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         remaining_prompts = cache_context.remaining_prompts;
     }
 
+    if (m_eagle3_ext.is_eagle3_model()) {
+        m_eagle3_ext.reset_chunked_prefill_state();
+    }
+
     while (remaining_prompts > 0) {
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by
@@ -703,6 +707,14 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         m_prefill_base_request->update_history_size(kvcache_desc.num_stored_tokens);
 
         m_prefill_request->infer();
+
+        // Accumulate Eagle3 last_hidden_state from this chunk
+        if (m_eagle3_ext.is_eagle3_model()) {
+            m_eagle3_ext.accumulate_chunk_last_hidden_state(m_prefill_request,
+                                                            m_prefill_out_ports,
+                                                            static_cast<uint32_t>(current_prompts_len),
+                                                            static_cast<uint32_t>(input_prompt_len));
+        }
 
         if (enable_prefix_caching) {
             m_prefix_caching_helper->store_computed_blocks(current_prompts_len,
@@ -817,7 +829,9 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
         m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at(layer_names::logits));
     }
 
-    if (m_eagle3_ext.is_eagle3_model()) {
+    // Update last_hidden_state only for non-chunked prefill
+    // For chunked prefill, accumulate_chunk_last_hidden_state() already set the tensor
+    if (m_eagle3_ext.is_eagle3_model() && !use_chunk_prefill) {
         m_eagle3_ext.update_last_hidden_state(m_prefill_request, m_prefill_out_ports);
     }
 
