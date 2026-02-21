@@ -22,6 +22,7 @@
 #include "openvino/pass/visualize_tree.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "transformations/common_optimizations/compress_float_constants.hpp"
 #include "transformations/common_optimizations/fused_names_cleanup.hpp"
 
@@ -67,6 +68,7 @@ void clone_ov_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes,
 }  // namespace
 
 namespace ov {
+class MappedMemory;
 
 void traverse_nodes(const std::shared_ptr<const Model>& p, const std::function<void(const std::shared_ptr<Node>&)>& f) {
     traverse_nodes(p.get(), f);
@@ -245,6 +247,31 @@ std::shared_ptr<Model> clone_ov_model(const Model& func, std::unordered_map<Node
     result->get_rt_info() = func.get_rt_info();
     result->m_shared_object = func.m_shared_object;
     return result;
+}
+
+void force_unmap_file(std::shared_ptr<ov::Model>& model) {
+    std::cout << " release_model_constants_weights: " << model->m_data_src.size() << std::endl;
+
+    for (auto& [p, m] : model->m_data_src) {
+        std::cout << "Unmapping file: " << p << " size: " << m->size() << std::endl;
+        m->reset();
+    }
+}
+
+void release_model_constants_weights(const std::shared_ptr<ov::Model>& model) {
+    if (!model) {
+        return;
+    }
+
+    model->map_unordered_ops([](ov::Node* node) {
+        if (auto* constant = dynamic_cast<ov::op::v0::Constant*>(node)) {
+            if (constant->get_byte_size() == 0) {
+                return;
+            }
+
+            constant->release_data();
+        }
+    });
 }
 
 bool compare_constants(const std::shared_ptr<Node>& n1, const std::shared_ptr<Node>& n2) {
