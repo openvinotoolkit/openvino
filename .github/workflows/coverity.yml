@@ -45,7 +45,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
@@ -74,7 +74,7 @@ jobs:
       images: "${{ steps.handle_docker.outputs.images }}"
     steps:
       - name: Checkout
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
@@ -110,7 +110,7 @@ jobs:
 
     steps:
       - name: Clone OpenVINO
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
@@ -118,7 +118,7 @@ jobs:
           ref: ${{ inputs.openvinoRef }}
 
       - name: Clone OpenVINO Contrib
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           repository: 'openvinotoolkit/openvino_contrib'
