@@ -332,10 +332,8 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             return true;
         }
 
-        // Check for SequenceMark - if it is, we can directly use its elements
         if (auto seq_mark = ov::as_type_ptr<SequenceMark>(input_node)) {
             auto outputs = seq_mark->get_sequence();
-            copy_runtime_info_and_name(list_unpack, {seq_mark}, {input_node});
             replace_node(list_unpack, outputs);
             return true;
         }

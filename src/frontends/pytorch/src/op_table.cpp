@@ -40,7 +40,7 @@ OP_CONVERTER(translate_amax);
 OP_CONVERTER(translate_amin);
 OP_CONVERTER(translate_and);
 OP_CONVERTER(translate_arange);
-OP_CONVERTER(translate_argmax);
+OP_CONVERTER(translate_append);
 OP_CONVERTER(translate_argsort);
 OP_CONVERTER(translate_argmax);
 OP_CONVERTER(translate_argmin);
@@ -253,6 +253,7 @@ OP_CONVERTER(translate_sort);
 OP_CONVERTER(translate_split_with_sizes);
 OP_CONVERTER(translate_square);
 OP_CONVERTER(translate_squeeze);
+OP_CONVERTER(translate_stack);
 OP_CONVERTER(translate_std);
 OP_CONVERTER(translate_std_mean);
 OP_CONVERTER(translate_stft);
@@ -420,7 +421,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::aminmax", op::translate_aminmax},
         {"aten::angle", common_translators::translate_angle},
         {"aten::any", op::translate_any},
-        // aten::append - Supported in limited set of patterns
+        {"aten::append", op::translate_append},
         {"aten::arange", op::translate_arange},
         {"aten::argmax", op::translate_argmax},
         {"aten::argmin", op::translate_argmin},
@@ -734,7 +735,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::sqrt_", op::inplace_op<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sqrt>>},
         {"aten::square", op::translate_square},
         {"aten::squeeze", op::quantizable_op<op::translate_squeeze>},
-        // aten::stack - Supported in limited set of patterns
+        {"aten::stack", op::translate_stack},
         {"aten::std", op::translate_std},
         {"aten::std_mean", op::translate_std_mean},
         {"aten::stft", op::translate_stft},
