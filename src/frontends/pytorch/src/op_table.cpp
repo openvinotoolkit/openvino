@@ -212,6 +212,7 @@ OP_CONVERTER(translate_quantize_per_channel);
 OP_CONVERTER(translate_quantize_per_tensor);
 OP_CONVERTER(translate_quantized_add);
 OP_CONVERTER(translate_quantized_add_relu);
+OP_CONVERTER(translate_quantized_batch_norm);
 OP_CONVERTER(translate_quantized_hardswish);
 OP_CONVERTER(translate_quantized_mul);
 OP_CONVERTER(translate_range_length);
@@ -810,6 +811,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"prim::data", op::skip_node},
         {"quantized::add", op::translate_quantized_add},
         {"quantized::add_relu", op::translate_quantized_add_relu},
+        {"quantized::batch_norm2d", op::translate_quantized_batch_norm},
         {"quantized::cat", op::translate_quantized_cat},
         {"quantized::conv2d", op::translate_quantized_convnd},
         {"quantized::conv2d_relu", op::translate_quantized_convnd_relu},
