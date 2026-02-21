@@ -31,6 +31,7 @@
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tanh.hpp"
+#include "openvino/op/tile.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
@@ -224,49 +225,97 @@ std::shared_ptr<ov::Node> activation(const std::string& activation_name, const o
     }
 }
 
+// Checks if a node is a Gather that extracts dimension 1 from a ShapeOf output.
+// Pattern: ShapeOf -> Gather(indices=[1], axis=[0])
+// Returns the ShapeOf node if the pattern matches, nullptr otherwise.
+static std::shared_ptr<op_util::ShapeOfBase> get_shape_of_from_gather(const std::shared_ptr<Node>& node) {
+    auto gather = ov::as_type_ptr<op_util::GatherBase>(node);
+    if (!gather)
+        return nullptr;
+
+    if (!has_constant_value(gather->input_value(1).get_node_shared_ptr(), static_cast<int64_t>(1)) ||
+        !has_constant_value(gather->input_value(2).get_node_shared_ptr(), static_cast<int64_t>(0)))
+        return nullptr;
+
+    return ov::as_type_ptr<op_util::ShapeOfBase>(gather->input_value(0).get_node_shared_ptr());
+}
+
+// Checks if a node is a StridedSlice that extracts dimension 1 from a ShapeOf output.
+// Pattern: ShapeOf -> StridedSlice(begin=[1], end=[2], stride=[1])
+// Validates all masks to ensure begin/end values are used literally.
+// Returns the ShapeOf node if the pattern matches, nullptr otherwise.
+static std::shared_ptr<op_util::ShapeOfBase> get_shape_of_from_strided_slice(const std::shared_ptr<Node>& node) {
+    auto ss = ov::as_type_ptr<v1::StridedSlice>(node);
+    if (!ss)
+        return nullptr;
+
+    // Validate masks first: begin and end values must be used literally (mask bit = 0)
+    const auto& begin_mask = ss->get_begin_mask();
+    const auto& end_mask = ss->get_end_mask();
+    if (!begin_mask.empty() && begin_mask[0] != 0)
+        return nullptr;
+    if (!end_mask.empty() && end_mask[0] != 0)
+        return nullptr;
+
+    // new_axis_mask and ellipsis_mask must be all zeros or empty
+    auto is_all_zeros = [](const std::vector<int64_t>& v) {
+        return std::all_of(v.begin(), v.end(), [](int64_t x) {
+            return x == 0;
+        });
+    };
+    if (!is_all_zeros(ss->get_new_axis_mask()) || !is_all_zeros(ss->get_ellipsis_mask()))
+        return nullptr;
+
+    // shrink_axis_mask is acceptable in any state (scalar or 1-element output are both valid)
+
+    // Validate begin=1, end=2 (extracts dimension 1 = seq_len)
+    if (!has_constant_value(ss->input_value(1).get_node_shared_ptr(), static_cast<int64_t>(1)) ||
+        !has_constant_value(ss->input_value(2).get_node_shared_ptr(), static_cast<int64_t>(2)))
+        return nullptr;
+
+    // Validate strides if present (StridedSlice may have 3 or 4 inputs)
+    if (ss->get_input_size() > 3 &&
+        !has_constant_value(ss->input_value(3).get_node_shared_ptr(), static_cast<int64_t>(1)))
+        return nullptr;
+
+    return ov::as_type_ptr<op_util::ShapeOfBase>(ss->input_value(0).get_node_shared_ptr());
+}
+
 bool is_seq_len_provided(const std::shared_ptr<Node>& X, const std::shared_ptr<Node>& seq_len_input) {
     auto max_seq_dim = X->get_output_partial_shape(0)[1];
     if (max_seq_dim.is_dynamic()) {
-        // if values in seq_len input are equal to max_seq_len dim in X input
-        // then we don't need to insert Select operations
-        // supported seq_len_input:
-        // X -> ShapeOf -> Gather (max_seq_dim)  -> Optional (Broadcast)
+        // If values in seq_len input are equal to max_seq_len dim in X input
+        // then we don't need to insert Select operations.
+        // Supported seq_len_input patterns:
+        // X -> ShapeOf -> Gather(index=1, axis=0)           -> Optional(Broadcast/Tile)
+        // X -> ShapeOf -> StridedSlice(begin=1, end=2, s=1) -> Optional(Broadcast/Tile)
         std::shared_ptr<Node> input = seq_len_input;
-        auto broadcast = ov::as_type_ptr<v3::Broadcast>(input);
-        if (broadcast) {
+        if (ov::as_type_ptr<v3::Broadcast>(input) || ov::as_type_ptr<v0::Tile>(input)) {
             input = seq_len_input->input_value(0).get_node_shared_ptr();
         }
 
-        auto gather = ov::as_type_ptr<op_util::GatherBase>(input);
-        bool valid_gather = false;
-        if (gather) {
-            auto indices = gather->input_value(1).get_node_shared_ptr();
-            auto axis = gather->input_value(2).get_node_shared_ptr();
-            auto indices_const = ov::as_type_ptr<v0::Constant>(indices);
-            auto axis_const = ov::as_type_ptr<v0::Constant>(axis);
-            if (indices_const && axis_const) {
-                auto ind_values = indices_const->cast_vector<int64_t>();
-                auto axis_values = axis_const->cast_vector<int64_t>();
-                if (ind_values.size() == 1 && ind_values[0] == 1 && axis_values.size() == 1 && axis_values[0] == 0) {
-                    valid_gather = true;
-                }
-            }
+        auto shape_of = get_shape_of_from_gather(input);
+        if (!shape_of) {
+            shape_of = get_shape_of_from_strided_slice(input);
         }
-
-        if (!valid_gather) {
-            return true;
-        }
-
-        auto shape_of = ov::as_type_ptr<op_util::ShapeOfBase>(gather->input_value(0).get_node_shared_ptr());
         if (!shape_of) {
             return true;
         }
 
-        if (shape_of->input_value(0).get_node_shared_ptr() != X) {
-            return true;
+        // Exact match: ShapeOf reads directly from X
+        if (shape_of->input_value(0).get_node_shared_ptr() == X) {
+            return false;
         }
 
-        return false;
+        // Relaxed match: ShapeOf reads from a different node whose dimension 1
+        // matches X's dimension 1. This covers cases where the graph was transformed
+        // and ShapeOf now points to a node that represents the same tensor as X.
+        auto other_pshape = shape_of->input_value(0).get_partial_shape();
+        if (other_pshape.rank().is_static() && other_pshape.rank().get_length() > 1 && other_pshape[1] == max_seq_dim) {
+            return false;
+        }
+
+        return true;
     }
 
     auto max_seq_len_val = max_seq_dim.get_length();

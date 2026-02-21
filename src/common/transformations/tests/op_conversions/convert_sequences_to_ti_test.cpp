@@ -21,7 +21,9 @@
 #include "openvino/op/rnn_sequence.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
 #include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/tile.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/opsets/opset5_decl.hpp"
 #include "openvino/pass/manager.hpp"
@@ -956,4 +958,353 @@ TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenToTensorIterator) {
 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
+}
+
+// Creates: source -> ShapeOf -> StridedSlice(begin_val, end_val, stride=1)
+static std::shared_ptr<ov::Node> create_strided_slice_seq_len(const std::shared_ptr<ov::Node>& source,
+                                                              int64_t begin_val = 1,
+                                                              int64_t end_val = 2,
+                                                              const std::vector<int64_t>& begin_mask = {0},
+                                                              const std::vector<int64_t>& end_mask = {0},
+                                                              const std::vector<int64_t>& new_axis_mask = {},
+                                                              const std::vector<int64_t>& shrink_axis_mask = {}) {
+    auto shape_of = std::make_shared<opset5::ShapeOf>(source);
+    auto begin = opset5::Constant::create(element::i64, {1}, {begin_val});
+    auto end = opset5::Constant::create(element::i64, {1}, {end_val});
+    auto stride = opset5::Constant::create(element::i64, {1}, {1});
+    return std::make_shared<ov::op::v1::StridedSlice>(shape_of,
+                                                      begin,
+                                                      end,
+                                                      stride,
+                                                      begin_mask,
+                                                      end_mask,
+                                                      new_axis_mask,
+                                                      shrink_axis_mask);
+}
+
+// Creates: source -> ShapeOf -> Gather(indices=1, axis=0)
+static std::shared_ptr<ov::Node> create_gather_seq_len(const std::shared_ptr<ov::Node>& source) {
+    auto shape_of = std::make_shared<opset5::ShapeOf>(source);
+    auto indices = opset5::Constant::create(element::i32, {1}, {1});
+    auto axis = opset5::Constant::create(element::i32, {}, {0});
+    return std::make_shared<opset5::Gather>(shape_of, indices, axis);
+}
+
+// Verifies that the model contains TensorIterator and no LSTMSequence
+static void verify_ti_replacement(const std::shared_ptr<ov::Model>& model) {
+    bool has_ti = false;
+    bool has_lstm_seq = false;
+    for (const auto& op : model->get_ops()) {
+        if (ov::as_type_ptr<opset5::TensorIterator>(op))
+            has_ti = true;
+        if (ov::as_type_ptr<opset5::LSTMSequence>(op))
+            has_lstm_seq = true;
+    }
+    ASSERT_TRUE(has_ti) << "TensorIterator should be present after conversion";
+    ASSERT_FALSE(has_lstm_seq) << "LSTMSequence should be replaced by TensorIterator";
+}
+
+// LSTM with StridedSlice pattern instead of Gather for seq_len extraction.
+// Pattern: X -> ShapeOf -> StridedSlice(begin=1, end=2, stride=1) -> LSTMSequence.seq_lengths
+// Expected: converted to TI without masking (enable_mask=false).
+TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenStridedSliceToTI) {
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
+    {
+        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, -1, 16});
+        auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
+        auto Z = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
+        auto seq_lengths = create_strided_slice_seq_len(X);
+
+        auto w_val = std::vector<float>(512 * 16, 0);
+        auto r_val = std::vector<float>(512 * 128, 0);
+        auto b_val = std::vector<float>(512, 0);
+        auto W = opset5::Constant::create(element::f32, Shape{1, 512, 16}, w_val);
+        auto R = opset5::Constant::create(element::f32, Shape{1, 512, 128}, r_val);
+        auto B = opset5::Constant::create(element::f32, Shape{1, 512}, b_val);
+
+        auto rnn_sequence = std::make_shared<opset5::LSTMSequence>(X,
+                                                                   Y,
+                                                                   Z,
+                                                                   seq_lengths,
+                                                                   W,
+                                                                   R,
+                                                                   B,
+                                                                   128,
+                                                                   op::RecurrentSequenceDirection::FORWARD);
+        auto Y_out = std::make_shared<opset5::Result>(rnn_sequence->output(0));
+        auto Ho = std::make_shared<opset5::Result>(rnn_sequence->output(1));
+        auto Co = std::make_shared<opset5::Result>(rnn_sequence->output(2));
+        Y_out->set_friendly_name("Y_out");
+        Ho->set_friendly_name("Ho");
+        Co->set_friendly_name("Co");
+
+        f = std::make_shared<ov::Model>(OutputVector{Y_out, Ho, Co}, ParameterVector{X, Y, Z});
+
+        pass::Manager m;
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertLSTMSequenceToTensorIterator>();
+        m.run_passes(f);
+        OV_ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, -1, 16});
+        auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
+        auto Z = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
+        auto squeeze_pattern = opset5::Constant::create(element::i64, Shape{1}, {1});
+        auto squeeze_y = std::make_shared<opset5::Squeeze>(Y, squeeze_pattern);
+        auto squeeze_z = std::make_shared<opset5::Squeeze>(Z, squeeze_pattern);
+
+        auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Yi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
+        auto Zi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
+        auto seq_body_param = std::make_shared<opset5::Parameter>(element::i64, PartialShape{1});
+
+        auto squeeze_x = std::make_shared<opset5::Squeeze>(Xi, squeeze_pattern);
+
+        auto w_val = std::vector<float>(512 * 16, 0);
+        auto r_val = std::vector<float>(512 * 128, 0);
+        auto b_val = std::vector<float>(512, 0);
+        auto W = opset5::Constant::create(element::f32, Shape{512, 16}, w_val);
+        auto R = opset5::Constant::create(element::f32, Shape{512, 128}, r_val);
+        auto B = opset5::Constant::create(element::f32, Shape{512}, b_val);
+
+        auto rnn_cell = std::make_shared<opset5::LSTMCell>(squeeze_x, Yi, Zi, W, R, B, 128);
+
+        auto unsqueeze_pattern = opset5::Constant::create(element::i64, Shape{1}, {1});
+        auto Ho = std::make_shared<opset5::Result>(rnn_cell->output(0));
+        auto Co = std::make_shared<opset5::Result>(rnn_cell->output(1));
+        auto unsqueeze_y = std::make_shared<opset5::Unsqueeze>(rnn_cell->output(0), unsqueeze_pattern);
+        auto Y_out = std::make_shared<opset5::Result>(unsqueeze_y);
+
+        auto body = std::make_shared<Model>(OutputVector{Y_out, Ho, Co}, ParameterVector{Xi, Yi, Zi, seq_body_param});
+
+        auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
+        tensor_iterator->set_body(body);
+
+        tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 1);
+        tensor_iterator->get_concatenated_slices(Y_out, 0, 1, 1, -1, 1);
+
+        tensor_iterator->set_merged_input(Yi, squeeze_y, Ho);
+        tensor_iterator->set_merged_input(Zi, squeeze_z, Co);
+
+        tensor_iterator->set_invariant_input(seq_body_param, create_strided_slice_seq_len(X));
+
+        tensor_iterator->get_iter_value(Ho);
+        tensor_iterator->get_iter_value(Co);
+
+        auto res_ti_Y = std::make_shared<opset5::Result>(
+            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(0), unsqueeze_pattern));
+        auto res_ti_H = std::make_shared<opset5::Result>(
+            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(1), unsqueeze_pattern));
+        auto res_ti_C = std::make_shared<opset5::Result>(
+            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(2), unsqueeze_pattern));
+        res_ti_Y->set_friendly_name("Y_out");
+        res_ti_H->set_friendly_name("Ho");
+        res_ti_C->set_friendly_name("Co");
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_Y, res_ti_H, res_ti_C}, ParameterVector{X, Y, Z});
+    }
+
+    auto res_cmp = compare_functions(f, f_ref);
+    ASSERT_TRUE(res_cmp.first) << res_cmp.second;
+}
+
+// GRU with StridedSlice pattern for seq_len extraction.
+// Pattern: X -> ShapeOf -> StridedSlice(begin=1, end=2, stride=1) -> GRUSequence.seq_lengths
+// Expected: converted to TI without masking (enable_mask=false).
+TEST(TransformationTests, ConvertGRUSequenceWithDynSeqLenStridedSliceToTI) {
+    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
+    {
+        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, -1, 16});
+        auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
+        auto seq_lengths = create_strided_slice_seq_len(X);
+
+        auto w_val = std::vector<float>(384 * 16, 0);
+        auto r_val = std::vector<float>(384 * 128, 0);
+        auto b_val = std::vector<float>(384, 0);
+        auto W = opset5::Constant::create(element::f32, Shape{1, 384, 16}, w_val);
+        auto R = opset5::Constant::create(element::f32, Shape{1, 384, 128}, r_val);
+        auto B = opset5::Constant::create(element::f32, Shape{1, 384}, b_val);
+
+        auto rnn_sequence = std::make_shared<opset5::GRUSequence>(X,
+                                                                  Y,
+                                                                  seq_lengths,
+                                                                  W,
+                                                                  R,
+                                                                  B,
+                                                                  128,
+                                                                  op::RecurrentSequenceDirection::FORWARD);
+        auto Y_out = std::make_shared<opset5::Result>(rnn_sequence->output(0));
+        auto Ho = std::make_shared<opset5::Result>(rnn_sequence->output(1));
+        Y_out->set_friendly_name("Y_out");
+        Ho->set_friendly_name("Ho");
+
+        f = std::make_shared<ov::Model>(OutputVector{Y_out, Ho}, ParameterVector{X, Y});
+
+        pass::Manager m;
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertGRUSequenceToTensorIterator>();
+        m.run_passes(f);
+        OV_ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, -1, 16});
+        auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
+        auto squeeze_pattern = opset5::Constant::create(element::i64, Shape{1}, {1});
+        auto squeeze_y = std::make_shared<opset5::Squeeze>(Y, squeeze_pattern);
+
+        auto Xi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 16});
+        auto Yi = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 128});
+        auto seq_body_param = std::make_shared<opset5::Parameter>(element::i64, PartialShape{1});
+
+        auto squeeze_x = std::make_shared<opset5::Squeeze>(Xi, squeeze_pattern);
+
+        auto w_val = std::vector<float>(384 * 16, 0);
+        auto r_val = std::vector<float>(384 * 128, 0);
+        auto b_val = std::vector<float>(384, 0);
+        auto W = opset5::Constant::create(element::f32, Shape{384, 16}, w_val);
+        auto R = opset5::Constant::create(element::f32, Shape{384, 128}, r_val);
+        auto B = opset5::Constant::create(element::f32, Shape{384}, b_val);
+
+        auto rnn_cell = std::make_shared<opset5::GRUCell>(squeeze_x, Yi, W, R, B, 128);
+        auto Ho = std::make_shared<opset5::Result>(rnn_cell);
+        auto unsqueeze_pattern = opset5::Constant::create(element::i64, Shape{1}, {1});
+        auto unsqueeze = std::make_shared<opset5::Unsqueeze>(rnn_cell, unsqueeze_pattern);
+        auto Y_out = std::make_shared<opset5::Result>(unsqueeze);
+        auto body = std::make_shared<Model>(OutputVector{Y_out, Ho}, ParameterVector{Xi, Yi, seq_body_param});
+
+        auto tensor_iterator = std::make_shared<opset5::TensorIterator>();
+        tensor_iterator->set_body(body);
+
+        tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 1);
+        tensor_iterator->get_concatenated_slices(Y_out, 0, 1, 1, -1, 1);
+
+        tensor_iterator->set_merged_input(Yi, squeeze_y, Ho);
+
+        tensor_iterator->set_invariant_input(seq_body_param, create_strided_slice_seq_len(X));
+
+        tensor_iterator->get_iter_value(Ho);
+
+        auto res_ti_Y = std::make_shared<opset5::Result>(
+            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(0), unsqueeze_pattern));
+        auto res_ti_H = std::make_shared<opset5::Result>(
+            std::make_shared<opset5::Unsqueeze>(tensor_iterator->output(1), unsqueeze_pattern));
+        res_ti_Y->set_friendly_name("Y_out");
+        res_ti_H->set_friendly_name("Ho");
+
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_Y, res_ti_H}, ParameterVector{X, Y});
+    }
+
+    auto res_cmp = compare_functions(f, f_ref);
+    ASSERT_TRUE(res_cmp.first) << res_cmp.second;
+}
+
+// LSTM with Tile wrapping Gather for seq_len replication.
+// Pattern: X -> ShapeOf -> Gather(1,0) -> Tile -> LSTMSequence.seq_lengths
+TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenTileToTI) {
+    std::shared_ptr<ov::Model> f(nullptr);
+    auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, -1, 16});
+    auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
+    auto Z = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
+    auto tile_repeats = opset5::Constant::create(element::i64, {1}, {1});
+    auto seq_lengths = std::make_shared<ov::op::v0::Tile>(create_gather_seq_len(X), tile_repeats);
+
+    auto w_val = std::vector<float>(512 * 16, 0);
+    auto r_val = std::vector<float>(512 * 128, 0);
+    auto b_val = std::vector<float>(512, 0);
+    auto W = opset5::Constant::create(element::f32, Shape{1, 512, 16}, w_val);
+    auto R = opset5::Constant::create(element::f32, Shape{1, 512, 128}, r_val);
+    auto B = opset5::Constant::create(element::f32, Shape{1, 512}, b_val);
+
+    auto rnn_sequence = std::make_shared<opset5::LSTMSequence>(X,
+                                                               Y,
+                                                               Z,
+                                                               seq_lengths,
+                                                               W,
+                                                               R,
+                                                               B,
+                                                               128,
+                                                               op::RecurrentSequenceDirection::FORWARD);
+    f = std::make_shared<ov::Model>(rnn_sequence->outputs(), ParameterVector{X, Y, Z});
+
+    pass::Manager m;
+    m.register_pass<ov::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::ConvertLSTMSequenceToTensorIterator>();
+    m.run_passes(f);
+
+    verify_ti_replacement(f);
+}
+
+// LSTM with StridedSlice + Tile combination for seq_len.
+// Pattern: X -> ShapeOf -> StridedSlice(1,2,1) -> Tile -> LSTMSequence.seq_lengths
+TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenStridedSliceTileToTI) {
+    std::shared_ptr<ov::Model> f(nullptr);
+    auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, -1, 16});
+    auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
+    auto Z = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
+    auto tile_repeats = opset5::Constant::create(element::i64, {1}, {1});
+    auto seq_lengths = std::make_shared<ov::op::v0::Tile>(create_strided_slice_seq_len(X), tile_repeats);
+
+    auto w_val = std::vector<float>(512 * 16, 0);
+    auto r_val = std::vector<float>(512 * 128, 0);
+    auto b_val = std::vector<float>(512, 0);
+    auto W = opset5::Constant::create(element::f32, Shape{1, 512, 16}, w_val);
+    auto R = opset5::Constant::create(element::f32, Shape{1, 512, 128}, r_val);
+    auto B = opset5::Constant::create(element::f32, Shape{1, 512}, b_val);
+
+    auto rnn_sequence = std::make_shared<opset5::LSTMSequence>(X,
+                                                               Y,
+                                                               Z,
+                                                               seq_lengths,
+                                                               W,
+                                                               R,
+                                                               B,
+                                                               128,
+                                                               op::RecurrentSequenceDirection::FORWARD);
+    f = std::make_shared<ov::Model>(rnn_sequence->outputs(), ParameterVector{X, Y, Z});
+
+    pass::Manager m;
+    m.register_pass<ov::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::ConvertLSTMSequenceToTensorIterator>();
+    m.run_passes(f);
+
+    verify_ti_replacement(f);
+}
+
+// StridedSlice with shrink_axis_mask=[1] producing scalar output.
+// Test is_seq_len_provided directly since scalar seq_lengths may not be valid for LSTMSequence.
+TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenStridedSliceShrinkAxis) {
+    auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, -1, 16});
+    auto seq_lengths = create_strided_slice_seq_len(X, 1, 2, {0}, {0}, {}, {1});
+
+    // Pattern should be recognized (shrink_axis_mask is allowed)
+    ASSERT_FALSE(ov::op::util::is_seq_len_provided(X, seq_lengths));
+}
+
+// Negative test: StridedSlice extracting batch dimension (begin=0, end=1).
+// is_seq_len_provided should return true (pattern NOT recognized).
+TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenWrongStridedSlice) {
+    auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, -1, 16});
+    auto seq_lengths = create_strided_slice_seq_len(X, 0, 1);
+
+    ASSERT_TRUE(ov::op::util::is_seq_len_provided(X, seq_lengths));
+}
+
+// Relaxed ShapeOf match test.
+// ov::Dimension::operator== compares intervals, so two independent dynamic dims with the same
+// interval [0, MAX] ARE equal. The relaxed check matches when dimension 1 intervals are equal.
+TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenRelaxedShapeOf) {
+    auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, -1, 16});
+    auto X_alias = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, -1, 16});
+
+    // Different node with matching dimension 1 interval: relaxed check matches (returns false)
+    ASSERT_FALSE(ov::op::util::is_seq_len_provided(X, create_gather_seq_len(X_alias)));
+
+    // Exact match: ShapeOf from X itself - should return false
+    ASSERT_FALSE(ov::op::util::is_seq_len_provided(X, create_gather_seq_len(X)));
+
+    // Different dimension 1 interval: relaxed check should NOT match (returns true)
+    auto X_different = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 5, 16});
+    ASSERT_TRUE(ov::op::util::is_seq_len_provided(X, create_gather_seq_len(X_different)));
 }
