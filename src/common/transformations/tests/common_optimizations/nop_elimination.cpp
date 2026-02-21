@@ -2153,3 +2153,45 @@ TEST_F(TransformationTestsF, ScatterNDUpdates15Elimination) {
         model_ref = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{data, indices, updates});
     }
 }
+
+TEST_F(TransformationTestsF, EliminateIdentity) {
+    {
+        auto p0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+        auto p1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+
+        auto id0 = std::make_shared<ov::op::v16::Identity>(p0);
+        id0->set_friendly_name("I0");
+
+        auto id1 = std::make_shared<ov::op::v16::Identity>(p1);
+        id1->set_friendly_name("I1");
+
+        auto mul = std::make_shared<ov::op::v1::Multiply>(id0, id1);
+        mul->set_friendly_name("Multiply");
+
+        auto id2 = std::make_shared<ov::op::v16::Identity>(mul);
+        id2->set_friendly_name("I2");
+
+        auto res1 = std::make_shared<ov::op::v0::Result>(mul);
+        auto res2 = std::make_shared<ov::op::v0::Result>(id2);
+
+        model = std::make_shared<ov::Model>(ov::ResultVector{res1, res2}, ov::ParameterVector{p0, p1});
+
+        manager.register_pass<ov::pass::EliminateIdentity>();
+    }
+    {
+        auto p0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+        auto p1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+
+        auto mul = std::make_shared<ov::op::v1::Multiply>(p0, p1);
+        mul->set_friendly_name("Multiply");
+
+        // Tests the NPU workaround from ticket 177222
+        auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(mul, ov::element::i64);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(mul, shape_of, false);
+
+        auto res1 = std::make_shared<ov::op::v0::Result>(mul);
+        auto res2 = std::make_shared<ov::op::v0::Result>(reshape);
+
+        model_ref = std::make_shared<ov::Model>(ov::ResultVector{res1, res2}, ov::ParameterVector{p0, p1});
+    }
+}
