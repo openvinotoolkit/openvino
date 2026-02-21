@@ -845,16 +845,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         const auto compiled_config = create_compile_config(plugin, parsed.m_config);
         cache_content.m_blob_id = ModelCache::compute_hash(model, cache_content.m_model_path, compiled_config);
         cache_content.model = model;
-
-        const auto& cache_mode_it = config.find(cache_mode.name());
-        if (cache_mode_it != config.end() && cache_mode_it->second == CacheMode::OPTIMIZE_SIZE) {
-            const auto& rt_info = model->get_rt_info();
-            auto weights_path = rt_info.find("__weights_path");
-            if (weights_path != rt_info.end()) {
-                parsed.m_config[ov::weights_path.name()] = weights_path->second;
-            }
-        }
-
         const auto lock = m_cache_guard.get_hash_lock(cache_content.m_blob_id);
         res = load_model_from_cache(cache_content, plugin, parsed.m_config, {}, [&]() {
             return compile_model_and_cache(plugin, model, parsed.m_config, {}, cache_content);
