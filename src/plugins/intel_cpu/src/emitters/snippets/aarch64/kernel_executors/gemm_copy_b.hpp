@@ -4,13 +4,6 @@
 
 #pragma once
 
-#ifndef __ARM_FEATURE_FP16_SCALAR_ARITHMETIC
-#    define __ARM_FEATURE_FP16_SCALAR_ARITHMETIC  // NOLINT(bugprone-reserved-identifier)
-#endif
-#ifndef __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-#    define __ARM_FEATURE_FP16_VECTOR_ARITHMETIC  // NOLINT(bugprone-reserved-identifier)
-#endif
-
 #include <memory>
 
 #include "common/utils.hpp"
