@@ -144,6 +144,9 @@ class JaxprPythonDecoder(Decoder):
         return PartialShape(self.jaxpr.outvars[index].aval.shape)
 
     def visit_subgraph(self, node_visitor) -> None:
+        #Fix : clear the list to prevent accumalation of decoders on multiple calls
+        self.m_decoders.clear()
+        
         if isinstance(self.jaxpr, jex.core.JaxprEqn):
             return
         for _, decoder in self.params.items():
