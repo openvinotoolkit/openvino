@@ -2,124 +2,132 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/node_builders/constant.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/subtract.hpp"
+#include "ov_lpt_models/qdq_stripping.hpp"
+
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "shared_test_classes/base/utils/ranges.hpp"
 
 namespace {
-using namespace ov::test;
-using ov::test::InputShape;
+enum class PatternType { SharedDQ, NeedScalingMulMatMul, NeedScalingResidualBlock, NeedScalingMatMulWithBias, NeedScalingForwardBias };
 
-using QDQStrippingParams = std::tuple<ov::test::InputShape, ov::element::Type, ov::element::Type>;
-
-class QuantizationParams {
-public:
-    ov::Output<ov::Node> build_fq(const ov::Output<ov::Node>& input) const {
-        auto input_low = ov::op::v0::Constant::create(ov::element::f32, {}, {i_l});
-        auto input_high = ov::op::v0::Constant::create(ov::element::f32, {}, {i_h});
-        auto output_low = ov::op::v0::Constant::create(ov::element::f32, {}, {o_l});
-        auto output_high = ov::op::v0::Constant::create(ov::element::f32, {}, {o_h});
-        return std::make_shared<ov::op::v0::FakeQuantize>(input, input_low, input_high, output_low, output_high, 65536);
+inline std::ostream& operator<<(std::ostream& os, PatternType pattern_type) {
+    switch (pattern_type) {
+    case PatternType::SharedDQ:
+        os << "SharedDQ";
+        break;
+    case PatternType::NeedScalingMulMatMul:
+        os << "NeedScalingMulMatMul";
+        break;
+    case PatternType::NeedScalingResidualBlock:
+        os << "NeedScalingResidualBlock";
+        break;
+    case PatternType::NeedScalingMatMulWithBias:
+        os << "NeedScalingMatMulWithBias";
+        break;
+    case PatternType::NeedScalingForwardBias:
+        os << "NeedScalingForwardBias";
+        break;
+    default:
+        OPENVINO_THROW("Unknown PatternType");
     }
+    return os;
+}
 
-    ov::Output<ov::Node> build_dq(const ov::Output<ov::Node>& input, const ov::element::Type& quantization_precision) const {
-        auto act_zero_point = ov::op::v0::Constant::create(quantization_precision, {}, {zero_point});
-        auto act_zp_convert = std::make_shared<ov::op::v0::Convert>(act_zero_point, ov::element::f32);
-
-        auto act_subtract = std::make_shared<ov::op::v1::Subtract>(input, act_zp_convert);
-        auto act_scale = ov::op::v0::Constant::create(ov::element::f32, {}, {(i_h - i_l) / (o_h - o_l)});
-
-        return std::make_shared<ov::op::v1::Multiply>(act_subtract, act_scale);
-    }
-
-    float i_l;
-    float i_h;
-    float o_l;
-    float o_h;
-    int zero_point;
-};
+using QDQStrippingParams = std::tuple<ov::test::InputShape, ov::element::Type, ov::element::Type, ov::element::Type, PatternType>;
 
 class QDQStrippingTest : public testing::WithParamInterface<QDQStrippingParams>, virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<QDQStrippingParams>& obj) {
-        const auto& [input_shape, input_precision, quantization_precision] = obj.param;
+        using ov::test::operator<<;
+
+        const auto& [input_shape, input_precision, quantization_precision, inference_precision, pattern_type] = obj.param;
         std::ostringstream result;
-        result << "input_shape=" << input_shape << "_input_precision=" << input_precision << "_quantization_precision=" << quantization_precision;
+        result << "input_shape=" << input_shape << "_input_precision=" << input_precision << "_quantization_precision=" << quantization_precision
+               << "_inference_precision=" << inference_precision << "_pattern=" << pattern_type;
         return result.str();
     }
 
-protected:
-    std::shared_ptr<ov::Model> init_subgraph(const ov::PartialShape& input_shape, const ov::element::Type& quantization_precision) {
-        OPENVINO_ASSERT(quantization_precision == ov::element::i16 || quantization_precision == ov::element::u16,
-                        "Only i16 and u16 quantization precisions are supported in the test");
-        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape)};
-        // Note: these params are taken from the real cases
-        static const std::unordered_map<ov::element::Type_t, std::pair<QuantizationParams, QuantizationParams>> quantization_params{
-            {ov::element::Type_t::u16, {{0.f, 10.f, 0.f, 65535.f, 0}, {-6.244578838348389f, 6.347373962402344f, 0.f, 65535.f, 32500}}},
-            {ov::element::Type_t::i16,
-             {{-5.000076293945312f, 4.999923706054688f, -32768.f, 32767.f, 0}, {-6.296072483062744f, 6.295880317687988f, -32768.f, 32767.f, 0}}},
-        };
-
-        const auto& q_params = quantization_params.at(quantization_precision);
-        const auto& qp_1 = q_params.first;
-        auto input_fq = qp_1.build_fq(params[0]);
-
-        auto input_convert1 = std::make_shared<ov::op::v0::Convert>(input_fq, quantization_precision);
-        auto input_convert2 = std::make_shared<ov::op::v0::Convert>(input_convert1, ov::element::f32);
-
-        size_t seed = 1;
-        auto create_qdq_branch = [&](float weight_scale_value) {
-            auto input_dequantized = qp_1.build_dq(input_convert2, quantization_precision);
-            ov::test::utils::InputGenerateData weights_gen_data;
-            weights_gen_data.seed = seed;
-            auto weight_quantized = ov::test::utils::make_constant(ov::element::i8, ov::Shape{32, 3, 3, 3}, weights_gen_data);
-            auto weight_convert = std::make_shared<ov::op::v0::Convert>(weight_quantized, ov::element::f32);
-            auto weight_scale = ov::test::utils::make_constant(ov::element::f32, {}, std::vector<float>{weight_scale_value});
-            auto weight_dequantized = std::make_shared<ov::op::v1::Multiply>(weight_convert, weight_scale);
-
-            auto conv = std::make_shared<ov::op::v1::Convolution>(input_dequantized,
-                                                                  weight_dequantized,
-                                                                  ov::Strides{1, 1},
-                                                                  ov::CoordinateDiff{1, 1},
-                                                                  ov::CoordinateDiff{1, 1},
-                                                                  ov::Strides{1, 1});
-
-            ov::test::utils::InputGenerateData bias_gen_data(-2.0, 4, 100, seed++);
-            auto bias_const = ov::test::utils::make_constant(ov::element::f32, ov::Shape{1, 32, 1, 1}, bias_gen_data);
-            auto conv_biased = std::make_shared<ov::op::v1::Add>(conv, bias_const);
-
-            const auto& qp_2 = q_params.second;
-            auto fake_quantize = qp_2.build_fq(conv_biased);
-            auto act_quantized = std::make_shared<ov::op::v0::Convert>(fake_quantize, quantization_precision);
-            auto act_convert = std::make_shared<ov::op::v0::Convert>(act_quantized, ov::element::f32);
-            return qp_2.build_dq(act_convert, quantization_precision);
-        };
-
-        auto left_branch = create_qdq_branch(1e-3f);
-        auto right_branch = create_qdq_branch(1e-4f);
-        auto add_branches = std::make_shared<ov::op::v1::Add>(left_branch, right_branch);
-
-        auto model = std::make_shared<ov::Model>(ov::OutputVector{add_branches}, params, "QDQStripping");
-        return model;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        const auto& [input_shape, input_precision, quantization_precision, inference_precision, pattern_type] = GetParam();
+        // In "NeedScaling" cases we generate values which would cause overflow in f16 if quantization scales are not adjusted by FQStripping
+        if (pattern_type == PatternType::NeedScalingMulMatMul) {
+            inputs.clear();
+            auto itTargetShape = targetInputStaticShapes.begin();
+            for (const auto& param : function->get_parameters()) {
+                ov::test::utils::InputGenerateData gen_data(0, 1000, 1, 1);
+                auto tensor = ov::test::utils::create_and_fill_tensor(param->get_element_type(), *itTargetShape, gen_data);
+                inputs.insert({param, tensor});
+                itTargetShape++;
+            }
+        } else if (pattern_type == PatternType::NeedScalingResidualBlock) {
+            inputs.clear();
+            auto itTargetShape = targetInputStaticShapes.begin();
+            for (const auto& param : function->get_parameters()) {
+                auto gen_data = ov::test::utils::rangeByType.get_range(quantization_precision);
+                gen_data.range = 65000;
+                auto tensor = ov::test::utils::create_and_fill_tensor(param->get_element_type(), *itTargetShape, gen_data);
+                inputs.insert({param, tensor});
+                itTargetShape++;
+            }
+        } else if (pattern_type == PatternType::NeedScalingMatMulWithBias ||
+                   pattern_type == PatternType::NeedScalingForwardBias) {
+            inputs.clear();
+            auto itTargetShape = targetInputStaticShapes.begin();
+            for (const auto& param : function->get_parameters()) {
+                ov::test::utils::InputGenerateData gen_data(0, 100, 1, 1);
+                auto tensor = ov::test::utils::create_and_fill_tensor(param->get_element_type(), *itTargetShape, gen_data);
+                inputs.insert({param, tensor});
+                itTargetShape++;
+            }
+        } else {
+            SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
+        }
     }
 
+protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
-        const auto& [input_shape, input_precision, quantization_precision] = GetParam();
-        init_input_shapes({input_shape});
+        const auto& [input_shape, input_precision, quantization_precision, inference_precision, pattern_type] = GetParam();
+
+        if (pattern_type == PatternType::NeedScalingMulMatMul) {
+            init_input_shapes({input_shape, input_shape});
+        } else {
+            init_input_shapes({input_shape});
+        }
+
         inType = outType = input_precision;
 
-        // Since the FQ are not executed in a strictly 'fair' manner, and just replaced with clamp ops, a small accuracy deviation is expected.
-        abs_threshold = 1e-3f;
-        function = init_subgraph(input_shape.first, quantization_precision);
+        // FakeQuantize alters values slightly during computation (scaling, rounding to discrete
+        // levels), so when FQ is stripped, minor differences from the reference are expected.
+        abs_threshold = 0.05;
+
+        configuration[ov::hint::inference_precision.name()] = inference_precision.get_type_name();
+
+        OPENVINO_ASSERT(quantization_precision == ov::element::i16 || quantization_precision == ov::element::u16,
+                        "Only i16 and u16 quantization precisions are supported in the test");
+        switch (pattern_type) {
+            using ov::builder::subgraph::QDQStrippingFunction;
+        case PatternType::SharedDQ:
+            function = QDQStrippingFunction::build_shared_dq_pattern(input_shape.first, quantization_precision);
+            break;
+        case PatternType::NeedScalingMulMatMul:
+            function = QDQStrippingFunction::build_mul_matmul_pattern(input_shape.first, quantization_precision);
+            break;
+        case PatternType::NeedScalingResidualBlock:
+            function = QDQStrippingFunction::build_residual_block_pattern(input_shape.first, quantization_precision);
+            break;
+        case PatternType::NeedScalingMatMulWithBias:
+            function = QDQStrippingFunction::build_matmul_with_bias_pattern(input_shape.first, quantization_precision);
+            break;
+        case PatternType::NeedScalingForwardBias:
+            function = QDQStrippingFunction::build_forward_bias_pattern(input_shape.first, quantization_precision);
+            break;
+        default:
+            OPENVINO_THROW("Unknown PatternType");
+        }
     }
 
     void validate() override {
@@ -146,10 +154,29 @@ const std::vector<ov::test::InputShape> input_shapes = {{{-1, -1, -1, -1}, {{1, 
 const std::vector<ov::element::Type> input_precisions = {ov::element::f32};
 const std::vector<ov::element::Type> quantization_precisions = {ov::element::u16, ov::element::i16};
 
-INSTANTIATE_TEST_SUITE_P(smoke_QDQStripping,
+// NeedScalingMulMatMul is an artificial model designed to test f16 overflow handling via weight scaling.
+// For f16, weight scaling divides weights by scale_divisor, reducing MatMul output to fit
+// within the FQ range — so stripping the FQ is safe (no clamping effect lost).
+// For f32, weight scaling is unnecessary (no overflow risk), so MatMul output remains large
+// and exceeds the FQ range — stripping the FQ removes clamping and breaks Softmax accuracy.
+INSTANTIATE_TEST_SUITE_P(smoke_QDQStripping_f16Only,
                          QDQStrippingTest,
                          ::testing::Combine(::testing::ValuesIn(input_shapes),
                                             ::testing::ValuesIn(input_precisions),
-                                            ::testing::ValuesIn(quantization_precisions)),
+                                            ::testing::ValuesIn(quantization_precisions),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(PatternType::NeedScalingMulMatMul)),
+                         QDQStrippingTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_QDQStripping_BothPrecisions,
+                         QDQStrippingTest,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes),
+                                            ::testing::ValuesIn(input_precisions),
+                                            ::testing::ValuesIn(quantization_precisions),
+                                            ::testing::Values(ov::element::f16, ov::element::f32),
+                                            ::testing::Values(PatternType::SharedDQ,
+                                                              PatternType::NeedScalingResidualBlock,
+                                                              PatternType::NeedScalingMatMulWithBias,
+                                                              PatternType::NeedScalingForwardBias)),
                          QDQStrippingTest::getTestCaseName);
 }  // namespace
