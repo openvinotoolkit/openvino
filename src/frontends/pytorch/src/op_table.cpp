@@ -213,6 +213,7 @@ OP_CONVERTER(translate_quantize_per_tensor);
 OP_CONVERTER(translate_quantized_add);
 OP_CONVERTER(translate_quantized_add_relu);
 OP_CONVERTER(translate_quantized_hardswish);
+OP_CONVERTER(translate_quantized_lstm);
 OP_CONVERTER(translate_quantized_mul);
 OP_CONVERTER(translate_range_length);
 OP_CONVERTER(translate_rad2deg);
@@ -668,6 +669,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::prod", op::translate_prod},
         {"aten::quantize_per_channel", op::translate_quantize_per_channel},
         {"aten::quantize_per_tensor", op::translate_quantize_per_tensor},
+        {"aten::quantized_lstm",op::translate_quantized_lstm},
         {"aten::rad2deg", op::translate_rad2deg},
         {"aten::rand", op::translate_rand},
         {"aten::randperm", op::translate_randperm},
