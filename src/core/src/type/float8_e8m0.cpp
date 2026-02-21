@@ -24,7 +24,8 @@ namespace {
 constexpr uint8_t f32_mantissa_bits{23u};
 constexpr uint32_t f32_exponent_bits_mask{0x7f800000u};
 constexpr uint32_t f32_mantissa_bits_mask{0x007fffffu};
-constexpr uint32_t round_even{0x00400000u};
+constexpr uint32_t normal_boundary_value{0x00400000u};
+constexpr uint32_t subnormal_boundary_value{0x00600000u};
 
 uint8_t f32_to_f8e8m0_bits(const float value) {
     const auto input = util::f32_to_u32_bits(value);
@@ -34,12 +35,15 @@ uint8_t f32_to_f8e8m0_bits(const float value) {
         return 0b00000000;
     } else if (input_exponent_bits >= 0b11111110) {
         return input_exponent_bits - static_cast<uint8_t>(std::isinf(value));
+    } else if (const auto input_mantissa_bits = input & f32_mantissa_bits_mask; input_exponent_bits == 0b00000000) {
+        // subnormal values
+        return (input_mantissa_bits <= subnormal_boundary_value) ? 0b00000000 : 0b00000001;
     } else {
         // normal values
-        const auto input_mantissa_bits = input & f32_mantissa_bits_mask;
-        return input_exponent_bits + static_cast<uint8_t>((input_mantissa_bits > round_even) ||    // round to nearest
-                                                          ((input_mantissa_bits == round_even) &&  // round to even
-                                                           (input_exponent_bits & 0x1)));
+        return input_exponent_bits +
+               static_cast<uint8_t>((input_mantissa_bits > normal_boundary_value) ||    // round to nearest
+                                    ((input_mantissa_bits == normal_boundary_value) &&  // round tie to even
+                                     (input_exponent_bits & 0x1)));
     }
 }
 }  // namespace

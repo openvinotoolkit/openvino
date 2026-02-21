@@ -69,6 +69,60 @@ TEST(F8E8M0Test, f32_negative_zero) {
     EXPECT_EQ(f8.to_bits(), 0b00000000);
 }
 
+TEST(F8E8M0Test, f32_subnormal_to_lower) {
+    const auto f8 = ov::float8_e8m0(8.816206229868691984948453E-39f);
+
+    EXPECT_EQ(f8.to_bits(), 0b00000000);
+}
+
+TEST(F8E8M0Test, f32_subnormal_boundry_to_even) {
+    const auto f8 = ov::float8_e8m0(8.816207631167156309765524E-39f);
+
+    EXPECT_EQ(f8.to_bits(), 0b00000000);
+}
+
+TEST(F8E8M0Test, f32_subnormal_to_greater) {
+    const auto f8 = ov::float8_e8m0(8.816209032465620634582595E-39f);
+
+    EXPECT_EQ(f8.to_bits(), 0b00000001);
+}
+
+TEST(F8E8M0Test, f32_normal_to_lower) {
+    const auto f8 = ov::float8_e8m0(1.175494350822287507968737E-38);
+
+    EXPECT_EQ(f8.to_bits(), 0b00000001);
+}
+
+TEST(F8E8M0Test, f32_normal_boundry_to_even) {
+    const auto f8 = ov::float8_e8m0(1.763241526233431261953105E-38);
+
+    EXPECT_EQ(f8.to_bits(), 0b00000010);
+}
+
+TEST(F8E8M0Test, f32_normal_to_greater) {
+    const auto f8 = ov::float8_e8m0(1.763241666363277694434812E-38);
+
+    EXPECT_EQ(f8.to_bits(), 0b00000010);
+}
+
+TEST(F8E8M0Test, f32_normal_to_lower_2) {
+    const auto f8 = ov::float8_e8m0(3.526482772207169658942795E-38);
+
+    EXPECT_EQ(f8.to_bits(), 0b00000010);
+}
+
+TEST(F8E8M0Test, f32_normal_boundry_to_even_2) {
+    const auto f8 = ov::float8_e8m0(3.526483052466862523906210E-38);
+
+    EXPECT_EQ(f8.to_bits(), 0b00000010);
+}
+
+TEST(F8E8M0Test, f32_normal_to_greater_2) {
+    const auto f8 = ov::float8_e8m0(3.526483332726555388869624E-38);
+
+    EXPECT_EQ(f8.to_bits(), 0b00000011);
+}
+
 TEST(F8E8M0Test, f32_negative_one) {
     const auto f8 = ov::float8_e8m0(-1.0f);
 
