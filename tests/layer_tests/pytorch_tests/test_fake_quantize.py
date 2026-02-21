@@ -167,3 +167,60 @@ class TestFakeQuantizePerChannelAffine(PytorchLayerTest):
             freeze_model=False,
             fx_kind="aten.fake_quantize_per_channel_affine"
         )
+
+
+class TestFakeQuantizeLearnablePerTensorAffine(PytorchLayerTest):
+    rng = np.random.default_rng(seed=123)
+
+    def _prepare_input(self):
+        return (self.rng.standard_normal([3, 2, 2], dtype=np.float32),)
+
+    def create_model(self, scale, zero_point, quant_min, quant_max, grad_factor):
+        class fake_quantize_learnable_per_tensor_affine(torch.nn.Module):
+            def __init__(self, scale, zero_point, quant_min, quant_max, grad_factor):
+                super().__init__()
+                self.scale = torch.nn.Parameter(torch.tensor(scale))
+                self.zero_point = torch.nn.Parameter(torch.tensor(zero_point))
+                self.quant_min = quant_min
+                self.quant_max = quant_max
+                self.grad_factor = grad_factor
+
+            def forward(self, x):
+                return torch._fake_quantize_learnable_per_tensor_affine(
+                    x, self.scale, self.zero_point, self.quant_min, self.quant_max, self.grad_factor
+                )
+
+        return (
+            fake_quantize_learnable_per_tensor_affine(scale, zero_point, quant_min, quant_max, grad_factor),
+            None,
+            "aten::_fake_quantize_learnable_per_tensor_affine",
+        )
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
+    @pytest.mark.parametrize(
+        "scale, zero_point, quant_min, quant_max, grad_factor",
+        [
+            (1.0, 1, 0, 255, 1.0),
+            (0.01, 0, 0, 255, 1.0),
+            skip_check(-0.01, 0, 0, 255, 1.0, reason="Negative scale is not supported"),
+            (0.5, 0, -128, 127, 1.0),
+            (0.5, -1, -128, 127, 1.0),
+            (1.0, 0, 0, 127, 1.0),
+        ],
+    )
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
+    def test_fake_quantize_learnable_per_tensor_affine(
+        self, ie_device, precision, ir_version, scale, zero_point, quant_min, quant_max, grad_factor
+    ):
+        self._test(
+            *self.create_model(scale, zero_point, quant_min, quant_max, grad_factor),
+            ie_device,
+            precision,
+            ir_version,
+            freeze_model=False
+        )
+
