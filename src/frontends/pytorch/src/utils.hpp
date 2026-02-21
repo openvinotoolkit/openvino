@@ -263,6 +263,8 @@ inline OutputVector skip_node(const NodeContext& context) {
     return {context.get_input(0)};
 }
 
+OutputVector translate_uninitialized(const NodeContext& context);
+
 }  // namespace op
 
 class DummyDecoder : public TorchDecoder {

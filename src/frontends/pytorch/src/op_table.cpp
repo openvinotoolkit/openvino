@@ -808,6 +808,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"prim::TupleUnpack", op::translate_tuple_unpack},
         {"prim::type", op::skip_node},  // Used with prim::device, pass PtFrameworkNode.
         {"prim::data", op::skip_node},
+        {"prim::Uninitialized", op::translate_uninitialized},
         {"quantized::add", op::translate_quantized_add},
         {"quantized::add_relu", op::translate_quantized_add_relu},
         {"quantized::cat", op::translate_quantized_cat},

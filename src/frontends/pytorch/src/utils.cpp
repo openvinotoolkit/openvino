@@ -461,6 +461,16 @@ std::shared_ptr<SequenceMark> make_list_construct(const ov::OutputVector& inputs
     return std::make_shared<SequenceMark>(inputs);
 }
 
+OutputVector translate_uninitialized(const NodeContext& context) {
+    auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), OutputVector{});
+    auto attrs = fw_node->get_attrs();
+    attrs["none_value"] = "";
+    attrs[PtFrameworkNode::failed_conversion_key] =
+        "prim::Uninitialized represents undefined value and should be removed by consuming operation.";
+    fw_node->set_attrs(attrs);
+    return {context.mark_node(fw_node)};
+}
+
 bool is_none_node(const Output<Node>& node) {
     if (const auto& fw_node_inp = ov::as_type_ptr<ov::op::util::FrameworkNode>(node.get_node_shared_ptr())) {
         const auto& attrs = fw_node_inp->get_attrs();
