@@ -574,6 +574,7 @@ jobs:
 
           echo "Applying exclude patterns (tests, thirdparty, protobuf generated)..."
           lcov --remove coverage.info \
+               --ignore-errors unused,mismatch \
                "${SRC_DIR}/*.pb.cc" \
                "${SRC_DIR}/*.pb.h" \
                "${SRC_DIR}/*/tests/*" \
