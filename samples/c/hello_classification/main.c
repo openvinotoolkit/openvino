@@ -11,13 +11,16 @@
 // Uses windows.h must be before openvino/c/openvino.h
 #include "infer_result_util.h"
 #include "opencv_c_wrapper.h"
-#include "openvino/c/openvino.h"
+#include "ov_dynamic_loader.h"
+
+// Global OpenVINO API structure
+static ov_api_t g_api;
 
 void print_model_input_output_info(ov_model_t* model) {
     char* friendly_name = NULL;
-    ov_model_get_friendly_name(model, &friendly_name);
+    g_api.ov_model_get_friendly_name(model, &friendly_name);
     printf("[INFO] model name: %s \n", friendly_name);
-    ov_free(friendly_name);
+    g_api.ov_free(friendly_name);
 }
 
 #define CHECK_STATUS(return_status)                                                      \
@@ -29,8 +32,29 @@ void print_model_input_output_info(ov_model_t* model) {
 int main(int argc, char** argv) {
     // -------- Check input parameters --------
     if (argc != 4) {
-        printf("Usage : ./hello_classification_c <path_to_model> <path_to_image> "
-               "<device_name>\n");
+        printf("Usage : ./hello_classification_c <path_to_model> <path_to_image> <device_name>\n");
+        return EXIT_FAILURE;
+    }
+
+    // -------- Get executable directory and construct DLL path --------
+    char exe_dir[PATH_MAX];
+    if (!get_executable_dir(exe_dir, sizeof(exe_dir))) {
+        fprintf(stderr, "[ERROR] Failed to get executable directory\n");
+        return EXIT_FAILURE;
+    }
+
+    char dll_path[PATH_MAX];
+#ifdef _WIN32
+    snprintf(dll_path, sizeof(dll_path), "%s\\openvino_c.dll", exe_dir);
+#else
+    snprintf(dll_path, sizeof(dll_path), "%s/libopenvino_c.so", exe_dir);
+#endif
+
+    printf("[INFO] Loading OpenVINO C API from: %s\n", dll_path);
+
+    // -------- Load OpenVINO C API dynamically --------
+    if (!ov_api_load(dll_path, &g_api)) {
+        fprintf(stderr, "[ERROR] Failed to load OpenVINO C API from: %s\n", dll_path);
         return EXIT_FAILURE;
     }
 
@@ -58,11 +82,11 @@ int main(int argc, char** argv) {
 
     // -------- Get OpenVINO runtime version --------
     ov_version_t version;
-    CHECK_STATUS(ov_get_openvino_version(&version));
+    CHECK_STATUS(g_api.ov_get_openvino_version(&version));
     printf("---- OpenVINO INFO----\n");
     printf("Description : %s \n", version.description);
     printf("Build number: %s \n", version.buildNumber);
-    ov_version_free(&version);
+    g_api.ov_version_free(&version);
 
     // -------- Parsing and validation of input arguments --------
     const char* input_model = argv[1];
@@ -73,20 +97,20 @@ int main(int argc, char** argv) {
     const char* device_name = argv[3];
 
     // -------- Step 1. Initialize OpenVINO Runtime Core --------
-    CHECK_STATUS(ov_core_create(&core));
+    CHECK_STATUS(g_api.ov_core_create(&core));
 
     // -------- Step 2. Read a model --------
     printf("[INFO] Loading model files: %s\n", input_model);
-    CHECK_STATUS(ov_core_read_model(core, input_model, NULL, &model));
+    CHECK_STATUS(g_api.ov_core_read_model(core, input_model, NULL, &model));
     print_model_input_output_info(model);
 
-    CHECK_STATUS(ov_model_const_output(model, &output_port));
+    CHECK_STATUS(g_api.ov_model_const_output(model, &output_port));
     if (!output_port) {
         fprintf(stderr, "[ERROR] Sample supports models with 1 output only %d\n", __LINE__);
         goto err;
     }
 
-    CHECK_STATUS(ov_model_const_input(model, &input_port));
+    CHECK_STATUS(g_api.ov_model_const_input(model, &input_port));
     if (!input_port) {
         fprintf(stderr, "[ERROR] Sample supports models with 1 input only %d\n", __LINE__);
         goto err;
@@ -97,51 +121,51 @@ int main(int argc, char** argv) {
     image_read(input_image_path, &img);
     ov_element_type_e input_type = U8;
     int64_t dims[4] = {1, (size_t)img.mat_height, (size_t)img.mat_width, 3};
-    ov_shape_create(4, dims, &input_shape);
-    CHECK_STATUS(ov_tensor_create_from_host_ptr(input_type, input_shape, img.mat_data, &tensor));
+    g_api.ov_shape_create(4, dims, &input_shape);
+    CHECK_STATUS(g_api.ov_tensor_create_from_host_ptr(input_type, input_shape, img.mat_data, &tensor));
 
     // -------- Step 4. Configure preprocessing --------
-    CHECK_STATUS(ov_preprocess_prepostprocessor_create(model, &preprocess));
-    CHECK_STATUS(ov_preprocess_prepostprocessor_get_input_info_by_index(preprocess, 0, &input_info));
+    CHECK_STATUS(g_api.ov_preprocess_prepostprocessor_create(model, &preprocess));
+    CHECK_STATUS(g_api.ov_preprocess_prepostprocessor_get_input_info_by_index(preprocess, 0, &input_info));
 
-    CHECK_STATUS(ov_preprocess_input_info_get_tensor_info(input_info, &input_tensor_info));
-    CHECK_STATUS(ov_preprocess_input_tensor_info_set_from(input_tensor_info, tensor));
+    CHECK_STATUS(g_api.ov_preprocess_input_info_get_tensor_info(input_info, &input_tensor_info));
+    CHECK_STATUS(g_api.ov_preprocess_input_tensor_info_set_from(input_tensor_info, tensor));
 
     const char* input_layout_desc = "NHWC";
-    CHECK_STATUS(ov_layout_create(input_layout_desc, &input_layout));
-    CHECK_STATUS(ov_preprocess_input_tensor_info_set_layout(input_tensor_info, input_layout));
+    CHECK_STATUS(g_api.ov_layout_create(input_layout_desc, &input_layout));
+    CHECK_STATUS(g_api.ov_preprocess_input_tensor_info_set_layout(input_tensor_info, input_layout));
 
-    CHECK_STATUS(ov_preprocess_input_info_get_preprocess_steps(input_info, &input_process));
-    CHECK_STATUS(ov_preprocess_preprocess_steps_resize(input_process, RESIZE_LINEAR));
-    CHECK_STATUS(ov_preprocess_input_info_get_model_info(input_info, &p_input_model));
+    CHECK_STATUS(g_api.ov_preprocess_input_info_get_preprocess_steps(input_info, &input_process));
+    CHECK_STATUS(g_api.ov_preprocess_preprocess_steps_resize(input_process, RESIZE_LINEAR));
+    CHECK_STATUS(g_api.ov_preprocess_input_info_get_model_info(input_info, &p_input_model));
 
     const char* model_layout_desc = "NCHW";
-    CHECK_STATUS(ov_layout_create(model_layout_desc, &model_layout));
-    CHECK_STATUS(ov_preprocess_input_model_info_set_layout(p_input_model, model_layout));
+    CHECK_STATUS(g_api.ov_layout_create(model_layout_desc, &model_layout));
+    CHECK_STATUS(g_api.ov_preprocess_input_model_info_set_layout(p_input_model, model_layout));
 
-    CHECK_STATUS(ov_preprocess_prepostprocessor_get_output_info_by_index(preprocess, 0, &output_info));
-    CHECK_STATUS(ov_preprocess_output_info_get_tensor_info(output_info, &output_tensor_info));
-    CHECK_STATUS(ov_preprocess_output_set_element_type(output_tensor_info, F32));
+    CHECK_STATUS(g_api.ov_preprocess_prepostprocessor_get_output_info_by_index(preprocess, 0, &output_info));
+    CHECK_STATUS(g_api.ov_preprocess_output_info_get_tensor_info(output_info, &output_tensor_info));
+    CHECK_STATUS(g_api.ov_preprocess_output_set_element_type(output_tensor_info, F32));
 
-    CHECK_STATUS(ov_preprocess_prepostprocessor_build(preprocess, &new_model));
+    CHECK_STATUS(g_api.ov_preprocess_prepostprocessor_build(preprocess, &new_model));
 
     // -------- Step 5. Loading a model to the device --------
-    CHECK_STATUS(ov_core_compile_model(core, new_model, device_name, 0, &compiled_model));
+    CHECK_STATUS(g_api.ov_core_compile_model(core, new_model, device_name, 0, &compiled_model));
 
     // -------- Step 6. Create an infer request --------
-    CHECK_STATUS(ov_compiled_model_create_infer_request(compiled_model, &infer_request));
+    CHECK_STATUS(g_api.ov_compiled_model_create_infer_request(compiled_model, &infer_request));
 
     // -------- Step 7. Prepare input --------
-    CHECK_STATUS(ov_infer_request_set_input_tensor_by_index(infer_request, 0, tensor));
+    CHECK_STATUS(g_api.ov_infer_request_set_input_tensor_by_index(infer_request, 0, tensor));
 
     // -------- Step 8. Do inference synchronously --------
-    CHECK_STATUS(ov_infer_request_infer(infer_request));
+    CHECK_STATUS(g_api.ov_infer_request_infer(infer_request));
 
     // -------- Step 9. Process output
-    CHECK_STATUS(ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor));
+    CHECK_STATUS(g_api.ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor));
     // Print classification results
     size_t results_num;
-    results = tensor_to_infer_result(output_tensor, &results_num);
+    results = tensor_to_infer_result(&g_api, output_tensor, &results_num);
     infer_result_sort(results, results_num);
     size_t top = 10;
     if (top > results_num) {
@@ -154,40 +178,45 @@ int main(int argc, char** argv) {
 err:
     free(results);
     image_free(&img);
-    ov_shape_free(&input_shape);
-    ov_output_const_port_free(output_port);
-    ov_output_const_port_free(input_port);
+    g_api.ov_shape_free(&input_shape);
+    g_api.ov_output_const_port_free(output_port);
+    g_api.ov_output_const_port_free(input_port);
     if (output_tensor)
-        ov_tensor_free(output_tensor);
+        g_api.ov_tensor_free(output_tensor);
     if (infer_request)
-        ov_infer_request_free(infer_request);
+        g_api.ov_infer_request_free(infer_request);
     if (compiled_model)
-        ov_compiled_model_free(compiled_model);
+        g_api.ov_compiled_model_free(compiled_model);
     if (input_layout)
-        ov_layout_free(input_layout);
+        g_api.ov_layout_free(input_layout);
     if (model_layout)
-        ov_layout_free(model_layout);
+        g_api.ov_layout_free(model_layout);
     if (output_tensor_info)
-        ov_preprocess_output_tensor_info_free(output_tensor_info);
+        g_api.ov_preprocess_output_tensor_info_free(output_tensor_info);
     if (output_info)
-        ov_preprocess_output_info_free(output_info);
+        g_api.ov_preprocess_output_info_free(output_info);
     if (p_input_model)
-        ov_preprocess_input_model_info_free(p_input_model);
+        g_api.ov_preprocess_input_model_info_free(p_input_model);
     if (input_process)
-        ov_preprocess_preprocess_steps_free(input_process);
+        g_api.ov_preprocess_preprocess_steps_free(input_process);
     if (input_tensor_info)
-        ov_preprocess_input_tensor_info_free(input_tensor_info);
+        g_api.ov_preprocess_input_tensor_info_free(input_tensor_info);
     if (input_info)
-        ov_preprocess_input_info_free(input_info);
+        g_api.ov_preprocess_input_info_free(input_info);
     if (preprocess)
-        ov_preprocess_prepostprocessor_free(preprocess);
+        g_api.ov_preprocess_prepostprocessor_free(preprocess);
     if (new_model)
-        ov_model_free(new_model);
+        g_api.ov_model_free(new_model);
     if (tensor)
-        ov_tensor_free(tensor);
+        g_api.ov_tensor_free(tensor);
     if (model)
-        ov_model_free(model);
+        g_api.ov_model_free(model);
     if (core)
-        ov_core_free(core);
+        g_api.ov_core_free(core);
+    g_api.ov_shutdown();
+    
+    // Unload OpenVINO C API library
+    ov_api_unload(&g_api);
+    
     return EXIT_SUCCESS;
 }
