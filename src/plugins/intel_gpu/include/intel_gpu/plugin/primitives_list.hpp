@@ -285,6 +285,7 @@ REGISTER_FACTORY(v16, SparseFillEmptyRows);
 REGISTER_FACTORY(v16, AvgPool);
 REGISTER_FACTORY(v16, OneHot);
 REGISTER_FACTORY(v16, Identity);
+REGISTER_FACTORY(v16, SegmentMax);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
