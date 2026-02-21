@@ -62,7 +62,13 @@ class TestTransformersModel(TestTorchConvertModel):
     def load_model(self, name, type):
         name, _, name_suffix = name.partition(':')
 
-        model_cached = snapshot_download(name)  # required to avoid HF rate limits
+        # Download only essential files: model weights, config, tokenizer
+        # Excludes large unnecessary files like .gguf, datasets, etc.
+        model_cached = snapshot_download(
+            name,
+            allow_patterns=["*.json", "*.safetensors", "*.bin", "*.model", "*.txt", "*.py"],
+            ignore_patterns=["*.gguf", "*.ot", "*.msgpack", "original/*", "*.h5"]
+        )
         mi = model_info(name)
         auto_processor = None
         model = None
@@ -509,7 +515,12 @@ class TestTransformersModel(TestTorchConvertModel):
 
     @staticmethod
     def load_model_with_default_class(name, **kwargs):
-        model_cached = snapshot_download(name)  # required to avoid HF rate limits
+        # Download only essential files: model weights, config, tokenizer
+        model_cached = snapshot_download(
+            name,
+            allow_patterns=["*.json", "*.safetensors", "*.bin", "*.model", "*.txt", "*.py"],
+            ignore_patterns=["*.gguf", "*.ot", "*.msgpack", "original/*", "*.h5"]
+        )
         try:
             mi = model_info(name)
             assert len({"owlv2", "owlvit", "vit_mae"}.intersection(
