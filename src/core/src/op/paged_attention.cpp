@@ -4,10 +4,15 @@
 
 #include "openvino/op/paged_attention.hpp"
 
+#include <iostream>
+#include <sstream>
+
 #include "dimension_util.hpp"
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/op.hpp"
+#include "openvino/reference/utils/paged_cache_manager.hpp"
+#include "paged_attention_shape_inference.hpp"
 
 namespace {
 
@@ -31,7 +36,7 @@ inline void input_check(const ov::Node* node,
     };
 
     auto type_check = [&](const Type& type) {
-        auto it = std::find(allowed_types.begin(), allowed_types.end(), tp);
+        auto it = std::find(allowed_types.begin(), allowed_types.end(), type);
         return type.is_dynamic() || allowed_types.empty() || it != allowed_types.end();
     };
 
@@ -70,7 +75,6 @@ std::vector<ov::element::Type> get_real_types() {
 
 namespace ov {
 namespace op {
-
 PagedAttentionExtension::PagedAttentionExtension(const ov::OutputVector& args) : ov::op::Op(args) {
     constructor_validate_and_infer_types();
 }
@@ -93,7 +97,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 6, "subsequence_begins", {1}, {element::i32});
     input_check(this, 7, "block_indices", {1}, {element::i32});
     input_check(this, 8, "block_indices_begins", {1}, {element::i32});
-    input_check(this, 9, "scale", {0}, get_real_types());
+    input_check(this, 9, "scale", {0, 1}, get_real_types());
     input_check(this, 10, "sliding_window", {0}, {element::i32});
     input_check(this, 11, "alibi_slopes", {1}, get_real_types());
     input_check(this, 12, "max_context_len", {0}, {element::i32});
@@ -101,7 +105,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 14, "rotated_block_indices", {1}, {element::i32});
     input_check(this, 15, "rotation_deltas", {1, 2}, {element::i32});
     input_check(this, 16, "rotation_trig_lut", {1, 2}, {element::f16, element::f32});
-    input_check(this, 17, "xattention_threshold", {1}, {element::f16, element::f32});
+    input_check(this, 17, "xattention_threshold", {0, 1}, {element::f16, element::f32});
     input_check(this, 18, "xattention_block_size", {0}, {element::i32});
     input_check(this, 19, "xattention_stride", {0}, {element::i32});
     input_check(this, 20, "sinks", {1, 4}, {});
@@ -110,54 +114,47 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 23, "adaptive_rkv_diversity_block_set_indices", {1}, {element::i32});
     input_check(this, 24, "adaptive_rkv_diversity_block_set_indices_begins", {1}, {element::i32});
 
-    // value head_size may be not same with key
-    auto out_ps = get_input_partial_shape(0);
-    const auto& key_ps = get_input_partial_shape(1);
-    const auto& value_ps = get_input_partial_shape(2);
-    if (out_ps.rank().is_static()) {
-        if (key_ps.rank().is_static() && value_ps.rank().is_static() && key_ps[1].is_static()) {
-            // The dim of out_ps[1] should be `num_heads * v_head_size`, it can be got from:
-            // because:
-            //   q: query_ps[1] = num_heads * head_size
-            //   k: key_ps[1] = num_kv_heads * head_size
-            //   v: value_ps[1] = num_kv_heads * v_head_size
-            // therefore:
-            //   q * v / k = (num_heads * head_size) * (num_kv_heads * v_head_size) /
-            //               (num_kv_heads * head_size) = num_heads * v_head_size
-            out_ps[1] = out_ps[1] * value_ps[1] / key_ps[1].get_length();
-            NODE_VALIDATION_CHECK(this,
-                                  !ov::util::dim::is_empty(out_ps[1]),
-                                  "The last dimension of output should not be empty.");
-        } else {
-            out_ps[1] = Dimension::dynamic();
-        }
-    }
-    if (m_output_type[0].is_dynamic()) {
-        set_output_type(0, get_input_element_type(0), out_ps);
-    } else {
-        set_output_type(0, m_output_type[0], out_ps);
-    }
-
-    if (m_output_type[1].is_dynamic()) {
-        set_output_type(1, get_input_element_type(0), {Dimension::dynamic()});
-    } else {
-        set_output_type(1, m_output_type[1], {Dimension::dynamic()});
-    }
-    if (m_output_type[2].is_dynamic()) {
-        set_output_type(2, get_input_element_type(0), {Dimension::dynamic()});
-    } else {
-        set_output_type(2, m_output_type[2], {Dimension::dynamic()});
-    }
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
+    const auto output_shapes = shape_infer(this, input_shapes);
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
+    set_output_type(1, get_input_element_type(0), output_shapes[1]);
+    set_output_type(2, get_input_element_type(0), output_shapes[2]);
 }
 
 std::shared_ptr<ov::Node> PagedAttentionExtension::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    return std::make_shared<PagedAttentionExtension>(new_args);
+    OV_OP_SCOPE(PagedAttentionExtension_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    auto cloned = std::make_shared<PagedAttentionExtension>(new_args);
+    cloned->set_cache_manager(this->get_cache_manager());
+    return cloned;
+}
+
+const ov::element::Type PagedAttentionExtension::get_out_type(int index) const {
+    OPENVINO_ASSERT(index < 3, "Output index should be 0, 1 or 2, but got " + std::to_string(index));
+    return m_output_type[index];
 }
 
 void PagedAttentionExtension::set_out_type(int index, const ov::element::Type& output_type) {
-    OPENVINO_ASSERT(index < 2, "Output index should be 0 or 1, but got " + std::to_string(index));
+    OPENVINO_ASSERT(index < 3, "Output index should be 0, 1 or 2, but got " + std::to_string(index));
     m_output_type[index] = output_type;
 }
 
+PagedAttentionExtension::PagedCacheManagerHandle PagedAttentionExtension::get_cache_manager() const {
+    return m_cache_manager;
+}
+
+void PagedAttentionExtension::set_cache_manager(PagedAttentionExtension::PagedCacheManagerHandle cache_manager) {
+    m_cache_manager = std::move(cache_manager);
+}
+
+PagedAttentionExtension::PagedCacheManagerHandle make_paged_cache_handle(ov::element::Type et) {
+    using ov::reference::paged_attention_cache::PagedCacheManager;
+
+    auto* mgr = new PagedCacheManager(et);
+
+    return PagedAttentionExtension::PagedCacheManagerHandle(static_cast<void*>(mgr), [](void* p) {
+        delete static_cast<PagedCacheManager*>(p);
+    });
+}
 }  // namespace op
 }  // namespace ov
