@@ -208,7 +208,9 @@ class TestTransformersModel(TestTorchConvertModel):
 
             import requests
             image_url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/tasks/ai2d-demo.jpg"
-            image = Image.open(requests.get(image_url, stream=True).raw)
+            response = requests.get(image_url, stream=True)
+            response.raise_for_status()
+            image = Image.open(response.raw)
             question = "What does the label 15 represent? (1) lava (2) core (3) tunnel (4) ash cloud"
             inputs = processor(images=image, text=question,
                                return_tensors="pt")
