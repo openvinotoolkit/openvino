@@ -62,6 +62,7 @@ class TestConv2D(PytorchLayerTest):
     def test_convolution_mode_1d(self, params, bias, ie_device, precision, ir_version):
         self._test(*self.create_model(**params, bias=bias),
                    ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1,
+                   trace_model=True,
                    kwargs_to_prepare_input={'ndim': 3})
 
     @pytest.mark.parametrize("params",
@@ -104,7 +105,8 @@ class TestConv2D(PytorchLayerTest):
     @pytest.mark.precommit
     def test_convolution_mode_2d(self, params, bias, ie_device, precision, ir_version):
         self._test(*self.create_model(**params, bias=bias),
-                   ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1)
+                   ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1,
+                   trace_model=True)
 
     @pytest.mark.parametrize("params",
                              [
@@ -133,4 +135,5 @@ class TestConv2D(PytorchLayerTest):
     def test_convolution_mode_3d(self, params, bias, ie_device, precision, ir_version):
         self._test(*self.create_model(**params, bias=bias),
                    ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1,
+                   trace_model=True,
                    kwargs_to_prepare_input={'ndim': 5})
