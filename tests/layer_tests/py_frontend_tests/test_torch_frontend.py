@@ -978,14 +978,17 @@ def test_patched_8bit_model_converts_e4m3fn():
         res_ref = model_ref(*example)
     model_f8_e4m3 = model_ref.to(torch.float8_e4m3fn)
     patch_model.__make_16bit_traceable(model_f8_e4m3)
-    # the approach with patching only works for node with no grad
-    with torch.no_grad():
-        converted_model = convert_model(model_f8_e4m3, example_input=example)
-    assert converted_model
-    cm_f8_e4m3 = compile_model(converted_model, "CPU", default_cfg)
-    res_f8_e4m3 = cm_f8_e4m3([x.numpy() for x in example])
-    np.testing.assert_allclose(res_f8_e4m3[0], res_ref[0].numpy(), atol=1e-2)
-    np.testing.assert_allclose(res_f8_e4m3[1], res_ref[1].numpy(), atol=1e-2)
+    try:
+        # the approach with patching only works for node with no grad
+        with torch.no_grad():
+            converted_model = convert_model(model_f8_e4m3, example_input=example)
+        assert converted_model
+        cm_f8_e4m3 = compile_model(converted_model, "CPU", default_cfg)
+        res_f8_e4m3 = cm_f8_e4m3([x.numpy() for x in example])
+        np.testing.assert_allclose(res_f8_e4m3[0], res_ref[0].numpy(), atol=1e-2)
+        np.testing.assert_allclose(res_f8_e4m3[1], res_ref[1].numpy(), atol=1e-2)
+    finally:
+        patch_model._unpatch_torch_functions()
 
 
 @pytest.mark.skipif(
@@ -1024,14 +1027,17 @@ def test_patched_8bit_model_converts_e5m2():
         res_ref = model_ref(*example)
     model_f8_e5m2 = model_ref.to(torch.float8_e5m2)
     patch_model.__make_16bit_traceable(model_f8_e5m2)
-    # the approach with patching only works for node with no grad
-    with torch.no_grad():
-        converted_model = convert_model(model_f8_e5m2, example_input=example)
-    assert converted_model
-    cm_f8_e5m2 = compile_model(converted_model, "CPU", default_cfg)
-    res_f8_e5m2 = cm_f8_e5m2([x.numpy() for x in example])
-    np.testing.assert_allclose(res_f8_e5m2[0], res_ref[0].numpy(), atol=1e-2)
-    np.testing.assert_allclose(res_f8_e5m2[1], res_ref[1].numpy(), atol=1e-2)
+    try:
+        # the approach with patching only works for node with no grad
+        with torch.no_grad():
+            converted_model = convert_model(model_f8_e5m2, example_input=example)
+        assert converted_model
+        cm_f8_e5m2 = compile_model(converted_model, "CPU", default_cfg)
+        res_f8_e5m2 = cm_f8_e5m2([x.numpy() for x in example])
+        np.testing.assert_allclose(res_f8_e5m2[0], res_ref[0].numpy(), atol=1e-2)
+        np.testing.assert_allclose(res_f8_e5m2[1], res_ref[1].numpy(), atol=1e-2)
+    finally:
+        patch_model._unpatch_torch_functions()
 
 
 def test_patched_16bit_model_with_bmm():
