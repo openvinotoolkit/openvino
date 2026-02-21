@@ -42,6 +42,7 @@ struct moe_3gemm_fused_compressed : public primitive_base<moe_3gemm_fused_compre
     //                   9: w2_scale - expert scale for final projection for compressed experts,
     //                      shape [num_experts, hidden_size, group_num, 1]
     //                   10: w2_zp - expert zp for final projection for compressed experts,
+    //                   11: routing_bias (optional) - [1, num_experts] routing bias for sigmoid routing
     //
     moe_3gemm_fused_compressed(const primitive_id& id, const std::vector<input_info>& inputs, const MOE3GemmFusedCompressed::Config& config)
         : primitive_base(id, inputs, 1, {optional_data_type()}),

@@ -474,6 +474,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
             manager.register_pass<ov::intel_gpu::ConvertMOEToMOECompressed>(is_pa);
             manager.register_pass<ov::intel_gpu::FuseMOE3GemmCompressed>();
+            manager.register_pass<ov::intel_gpu::FuseMOE3GemmCompressedSigmoid>();
         }
 
         manager.register_pass<ov::pass::InitNodeInfo>();

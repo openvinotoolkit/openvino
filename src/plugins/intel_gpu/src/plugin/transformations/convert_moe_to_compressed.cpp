@@ -6,6 +6,7 @@
 
 #include <limits>
 #include <memory>
+#include <iostream>
 
 #include "intel_gpu/op/moe_compressed.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -178,6 +179,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
         if (!moe || transformation_callback(moe)) {
             return false;
         }
+
         if (moe->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU) {
             auto wei_partial_shape = pattern_map.at(gemm3_compressed_weights_m_up).get_partial_shape();
             if (!wei_partial_shape.is_static()) {
@@ -235,10 +237,18 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             config.top_k = topk_shape[1].get_length();
             config.out_type = ov::element::f16;
             config.has_batch_dim = is_pa ? 0 : 1;
-            auto moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(args, config);
+            std::shared_ptr<ov::Node> moe_compressed = std::make_shared<ov::intel_gpu::op::MOECompressed>(args, config);
 
             moe_compressed->set_friendly_name(moe->get_friendly_name());
             ov::copy_runtime_info(moe, moe_compressed);
+
+            // Since f16 precision is forced for MOECompressed output, we may need to insert Convert after MOECompressed
+            // in order not to break the model semantic. This Convert will be most likely optimized at ConvertPrecision stage
+            if (moe->get_output_element_type(0) != moe_compressed->get_output_element_type(0)) {
+                moe_compressed = std::make_shared<ov::op::v0::Convert>(moe_compressed, moe->get_output_element_type(0));
+                moe_compressed->set_friendly_name(moe_compressed->get_friendly_name() + "/Convert");
+                ov::copy_runtime_info(moe_compressed, moe_compressed);
+            }
             ov::replace_node(moe, moe_compressed);
         } else if (moe->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP) {
             OutputVector args;
@@ -260,7 +270,8 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
             ov::intel_gpu::op::MOECompressed::Config config(moe->get_config());
             config.num_expert = weight_shape[0];
             config.hidden_size = weight_shape[2];
-            if (weight_shape.size() == 4) config.hidden_size *= weight_shape[3];
+            if (weight_shape.size() == 4)
+                config.hidden_size *= weight_shape[3];
             config.inter_size = weight_shape[1];
             config.group_size = (weight_shape.size() == 3) ? config.hidden_size : scale_shape[3];
             config.top_k = topk_shape.rbegin()->get_length();
