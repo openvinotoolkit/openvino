@@ -241,26 +241,35 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 auto input_0_type = params.inputs[0].GetDType();
                 auto input_1_type = params.inputs[1].GetDType();
 
-                // input_0 == int
-                if (input_0_type == kernel_selector::Datatype::INT8 ||
-                    input_0_type == kernel_selector::Datatype::INT32 ||
-                    input_0_type == kernel_selector::Datatype::INT64) {
-                    // input_0 == int && input_1 == int
-                    if (input_1_type == kernel_selector::Datatype::INT8 ||
-                        input_1_type == kernel_selector::Datatype::INT32 ||
-                        input_1_type == kernel_selector::Datatype::INT64) {
-                        if (ew.mode == EltwiseMode::MODULU)
-                            op += input0_str + " % " + input1_str;
-                        else
-                            op += cast_type + mode + "(" + input0_str + ", " + input1_str + ")";
-                    } else {
-                        // input_0 == int && input_1 != int
-                        op += cast_type + "f" + mode + "(convert_float(" + input0_str + "), " + input1_str + ")";
-                    }
-                } else if (input_1_type == kernel_selector::Datatype::INT8 ||
-                           input_1_type == kernel_selector::Datatype::INT32 ||
-                           input_1_type == kernel_selector::Datatype::INT64) {
-                    // input_0 != int && input_1 == int
+                auto is_signed_int = [](kernel_selector::Datatype dt) {
+                    return dt == kernel_selector::Datatype::INT8 ||
+                           dt == kernel_selector::Datatype::INT32 ||
+                           dt == kernel_selector::Datatype::INT64;
+                };
+
+                auto is_uint8 = [](kernel_selector::Datatype dt) {
+                    return dt == kernel_selector::Datatype::UINT8;
+                };
+
+                auto is_any_int = [&is_signed_int, &is_uint8](kernel_selector::Datatype dt) {
+                    return is_signed_int(dt) || is_uint8(dt);
+                };
+
+                // signed int + signed int
+                if (is_signed_int(input_0_type) && is_signed_int(input_1_type)) {
+                    if (ew.mode == EltwiseMode::MODULU)
+                        op += input0_str + " % " + input1_str;
+                    else
+                        op += cast_type + mode + "(" + input0_str + ", " + input1_str + ")";
+                }
+                // uchar + uchar → integer min/max
+                else if (is_uint8(input_0_type) && is_uint8(input_1_type)) {
+                    op += cast_type + mode + "(" + input0_str + ", " + input1_str + ")";
+                }
+                // mixed int/float
+                else if (is_any_int(input_0_type)) {
+                    op += cast_type + "f" + mode + "(convert_float(" + input0_str + "), " + input1_str + ")";
+                } else if (is_any_int(input_1_type)) {
                     op += cast_type + "f" + mode + "(" + input0_str + ", convert_float(" + input1_str + "))";
                 } else {
                     // input_0 != int && input_1 != int
