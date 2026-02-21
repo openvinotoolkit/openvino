@@ -1,0 +1,30 @@
+include LICENSE
+include README.md
+include setup.py
+include pyproject.toml
+include CMakeLists.txt
+
+recursive-include cmake *
+recursive-include licensing *
+recursive-include src *
+recursive-include tools/ovc *
+recursive-include tools/benchmark_tool *
+recursive-include thirdparty *
+recursive-include docs/dev/pypi_publish *.md
+
+prune .git
+prune .github
+prune build
+prune build_*
+prune build_python*
+prune build_ut
+prune temp
+prune __pycache__
+
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude .git
+global-exclude .gitattributes
+global-exclude .gitignore
+global-exclude .gitmodules
+global-exclude .github

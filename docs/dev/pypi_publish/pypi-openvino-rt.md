@@ -78,6 +78,17 @@ python -c "from openvino import Core; print(Core().available_devices)"
 
 If installation was successful, you will see the list of available devices.
 
+### Source distribution (sdist) PoC
+
+For packaging validation purposes, the project may publish an sdist artifact alongside wheels.
+This is a proof-of-concept path to enable source-based installation workflows:
+
+```sh
+pip install --no-binary openvino openvino
+```
+
+Wheel packages remain the primary and fully validated distribution format.
+
 ## What's in the Package
 
 <table>
