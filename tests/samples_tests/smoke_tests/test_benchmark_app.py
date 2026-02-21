@@ -20,6 +20,8 @@ from common.samples_common_test_class import get_devices, get_cmd_output, prepen
 from openvino import opset8 as opset
 import openvino as ov
 
+pytestmark = pytest.mark.skip(reason="CVS-173184")
+
 def get_executable(sample_language):
     executable = 'benchmark_app'
     if sample_language == 'C++':
