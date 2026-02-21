@@ -53,6 +53,7 @@ OP_CONVERTER(translate_avg_pool3d);
 OP_CONVERTER(translate_bool);
 OP_CONVERTER(translate_batch_norm);
 OP_CONVERTER(translate_bernoulli);
+OP_CONVERTER(translate_binary_cross_entropy_with_logits);
 OP_CONVERTER(translate_bitwise_and);
 OP_CONVERTER(translate_bitwise_left_shift);
 OP_CONVERTER(translate_bitwise_not);
@@ -390,6 +391,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::_pad_packed_sequence", op::translate_pad_packed_sequence},
         {"aten::_set_item", op::translate_set_item},
         {"aten::_shape_as_tensor", op::translate_shape_as_tensor},
+        {"aten::_to_copy", op::translate_to},
         {"aten::_unique2", op::translate_unique2},
         {"aten::_upsample_bicubic2d_aa", op::translate_upsample_bicubic2d_aa},
         {"aten::_upsample_bilinear2d_aa", op::translate_upsample_bilinear2d_aa},
@@ -445,6 +447,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::baddbmm", op::translate_addmm},
         {"aten::batch_norm", op::translate_batch_norm},
         {"aten::bernoulli", op::translate_bernoulli},
+        {"aten::binary_cross_entropy_with_logits", op::translate_binary_cross_entropy_with_logits},
         {"aten::bitwise_and", op::translate_bitwise_and},
         {"aten::bitwise_left_shift", op::translate_bitwise_left_shift},
         {"aten::bitwise_not", op::translate_bitwise_not},
