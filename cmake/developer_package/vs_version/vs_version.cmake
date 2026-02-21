@@ -12,6 +12,14 @@ set(OV_VS_VER_PRODUCTNAME_STR "OpenVINO toolkit")
 set(OV_VS_VER_COPYRIGHT_STR "Copyright (C) 2018-${OpenVINO_VERSION_MAJOR}, Intel Corporation")
 set(OV_VS_VER_COMMENTS_STR "https://docs.openvino.ai/")
 
+###
+message("====> info from OV1: OV_VS_VER_FILEVERSION_QUAD is ${OV_VS_VER_FILEVERSION_QUAD}")
+message("====> info from OV2: OV_VS_VER_PRODUCTVERSION_QUAD is ${OV_VS_VER_PRODUCTVERSION_QUAD}")
+message("====> info from OV3: OV_VS_VER_FILEVERSION_STR is ${OV_VS_VER_FILEVERSION_STR}")
+
+message("====> info from OV4: OV_VS_VER_PRODUCTVERSION_STR is ${OV_VS_VER_PRODUCTVERSION_STR}")
+message("====> info from OV5: OV_VS_VER_COPYRIGHT_STR is ${OV_VS_VER_COPYRIGHT_STR}")
+
 #
 # ov_add_vs_version_file(NAME <name>
 #                        FILEDESCRIPTION <file description>
@@ -58,6 +66,7 @@ function(ov_add_vs_version_file)
         elseif(VS_VER_${name})
             set(OV_VS_VER_${name}_STR "${VS_VER_${name}}")
         endif()
+        message(" === > OV_VS_VER_${name}_STR = ${OV_VS_VER_${name}_STR}")
     endmacro()
 
     _vs_ver_update_str_variable(COMPANY_NAME)

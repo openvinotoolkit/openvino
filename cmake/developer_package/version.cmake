@@ -58,9 +58,11 @@ macro(ov_parse_ci_build_number repo_root)
     # 2. Otherwise, either:
     #  - parses openvino/core/version.hpp
     #  - takes from OpenVINOConfig-version.cmake in case of relocatable Developer package
+    message(STATUS "=====> in version.cmake1 CI_BUILD_NUMBER = ${CI_BUILD_NUMBER}")
     if (DEFINED ENV{CI_BUILD_NUMBER})
         set(CI_BUILD_NUMBER $ENV{CI_BUILD_NUMBER})
     endif()
+    message(STATUS "=====> in version.cmake2 CI_BUILD_NUMBER = ${CI_BUILD_NUMBER}")
 
     if(CI_BUILD_NUMBER MATCHES "^([0-9]+)\.([0-9]+)\.([0-9]+)(\.([0-9]+))?\-([0-9]+)\-.*")
         set(OpenVINO_VERSION_MAJOR ${CMAKE_MATCH_1})
@@ -76,6 +78,12 @@ macro(ov_parse_ci_build_number repo_root)
     elseif(CI_BUILD_NUMBER)
         message(FATAL_ERROR "Failed to parse CI_BUILD_NUMBER which is ${CI_BUILD_NUMBER}")
     endif()
+    message(STATUS "==111> OpenVINO_VERSION_MAJOR = ${OpenVINO_VERSION_MAJOR}")
+    message(STATUS "==> OpenVINO_VERSION_MINOR = ${OpenVINO_VERSION_MINOR}")
+    message(STATUS "==> OpenVINO_VERSION_PATCH = ${OpenVINO_VERSION_PATCH}")
+    message(STATUS "==> OpenVINO_VERSION_TWEAK = ${OpenVINO_VERSION_TWEAK}")
+    message(STATUS "==> OpenVINO_VERSION_BUILD = ${OpenVINO_VERSION_BUILD}")
+    message(STATUS "==> the_whole_version_is_defined_by_ci = ${the_whole_version_is_defined_by_ci}")
 
     function(ov_compare_version_with_headers)
         if(NOT DEFINED OpenVINO_SOURCE_DIR)
@@ -145,6 +153,7 @@ macro(ov_parse_ci_build_number repo_root)
         endif()
 
         set(CI_BUILD_NUMBER "${OpenVINO_VERSION}-${OpenVINO_VERSION_BUILD}-${GIT_COMMIT_HASH}${GIT_BRANCH_POSTFIX}")
+        message(STATUS "==111.0> CI_BUILD_NUMBER = ${CI_BUILD_NUMBER}")
 
         unset(GIT_BRANCH_POSTFIX)
         unset(GIT_BRANCH)
@@ -152,6 +161,7 @@ macro(ov_parse_ci_build_number repo_root)
     else()
         unset(the_whole_version_is_defined_by_ci)
     endif()
+    message(STATUS "==111.1> CI_BUILD_NUMBER = ${CI_BUILD_NUMBER}")
 endmacro()
 
 macro (ov_add_version_defines FILE TARGET)
