@@ -38,6 +38,6 @@ Make sure you use the most recent supported driver for your hardware setup.
       `Windows driver installation guide <https://support.microsoft.com/en-us/windows/update-drivers-manually-in-windows-ec62f46c-ff14-c91d-eead-d7126dc1f7b6>`__.
 
       If a driver has already been installed you should be able to find
-      'Intel(R) NPU Accelerator' in Windows Device Manager. If you
+      'Intel(R) NPU Accelerator' or 'Intel(R) AI Boost' device in Windows Device Manager. If you
       cannot find such a device, the NPU is most likely listed in "Other devices"
       as "Multimedia Video Controller."
