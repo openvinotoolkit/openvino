@@ -473,8 +473,9 @@ class OPENVINO_API Any {
 
     template <typename... Args>
     struct TupleToTypeIndex<std::tuple<Args...>> {
-        static std::vector<std::type_index> get() {
-            return {typeid(Args)...};
+        static const std::vector<std::type_index>& get() {
+            static const std::vector<std::type_index> types = {typeid(Args)...};
+            return types;
         }
     };
 
@@ -484,7 +485,7 @@ class OPENVINO_API Any {
 
         using Ptr = std::shared_ptr<Base>;
         virtual const std::type_info& type_info() const = 0;
-        virtual std::vector<std::type_index> base_type_info() const = 0;
+        virtual const std::vector<std::type_index>& base_type_info() const = 0;
         bool is_base_type_info(const std::type_info& type_info) const;
         virtual const void* addressof() const = 0;
         void* addressof() {
@@ -573,8 +574,9 @@ class OPENVINO_API Any {
             return typeid(T);
         }
 
-        std::vector<std::type_index> base_type_info() const override {
-            return {typeid(std::shared_ptr<RuntimeAttribute>)};
+        const std::vector<std::type_index>& base_type_info() const override {
+            static const std::vector<std::type_index> base_types = {typeid(std::shared_ptr<RuntimeAttribute>)};
+            return base_types;
         }
 
         const void* addressof() const override {
@@ -624,17 +626,18 @@ class OPENVINO_API Any {
         }
 
         template <class U>
-        static std::vector<std::type_index> base_type_info_impl(
+        static const std::vector<std::type_index>& base_type_info_impl(
             typename std::enable_if<HasBaseMemberType<U>::value, std::true_type>::type = {}) {
             return TupleToTypeIndex<typename T::Base>::get();
         }
         template <class U>
-        static std::vector<std::type_index> base_type_info_impl(
+        static const std::vector<std::type_index>& base_type_info_impl(
             typename std::enable_if<!HasBaseMemberType<U>::value, std::false_type>::type = {}) {
-            return {typeid(T)};
+            static const std::vector<std::type_index> base_types = {typeid(T)};
+            return base_types;
         }
 
-        std::vector<std::type_index> base_type_info() const override {
+        const std::vector<std::type_index>& base_type_info() const override {
             return base_type_info_impl<T>();
         }
 
