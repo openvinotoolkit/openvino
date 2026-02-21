@@ -859,7 +859,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertGather8ToGather7);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertBroadcastToTiles);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertReduceMeanToPooling);
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertReduceMaxToPooling);
+    // CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertReduceMaxToPooling);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertReduceSumToPooling);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::SliceToStridedSlice);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertDetectionOutput8ToDetectionOutput1);
