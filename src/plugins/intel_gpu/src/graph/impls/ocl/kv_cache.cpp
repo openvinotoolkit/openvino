@@ -386,7 +386,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         auto concat_axis = primitive->concat_axis;
         auto gather_axis = primitive->gather_axis;
 
-        auto kv_shape = kv_layout.get_partial_shape();
+        auto kv_shape = extend_shape_to_rank_from_end(kv_layout.get_partial_shape());
         auto beam_table_shape = ov::PartialShape(std::vector<size_t>(kv_shape.size(), 1));
         beam_table_shape[gather_axis] = kv_shape[gather_axis];
         beam_table_shape[concat_axis] = kv_shape[concat_axis];
@@ -506,7 +506,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         params.combine_scales_and_zp =
             primitive->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
 
-        const auto& past_kv_cache_shape = impl_param.input_layouts[0].get_partial_shape();
+        auto past_kv_cache_shape = extend_shape_to_rank_from_end(impl_param.input_layouts[0].get_partial_shape());
         params.axis_offset = past_kv_cache_shape[primitive->concat_axis].is_static() ? past_kv_cache_shape[primitive->concat_axis].get_length() : 0;
 
         auto inputs_count = 1;
