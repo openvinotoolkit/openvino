@@ -17,6 +17,7 @@
 #endif
 
 namespace cldnn {
+struct surfaces_lock;
 
 // Possible sync methods for kernels in stream
 enum class SyncMethods {
@@ -66,12 +67,12 @@ public:
     virtual void wait_for_events(const std::vector<event::ptr>& events) = 0;
     virtual event::ptr create_user_event(bool set) = 0;
     virtual event::ptr create_base_event() = 0;
+    virtual std::unique_ptr<surfaces_lock> create_surfaces_lock(const std::vector<memory::ptr> &mem) const = 0;
     virtual event::ptr aggregate_events(const std::vector<event::ptr>& events, bool group = false, bool is_output = false);
 
     QueueTypes get_queue_type() const { return m_queue_type; }
     SyncMethods get_sync_method() const { return m_sync_method; }
 
-    static QueueTypes detect_queue_type(engine_types engine_type, void* queue_handle);
     static SyncMethods get_expected_sync_method(const ExecutionConfig& config);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU

@@ -69,20 +69,6 @@ bool does_device_match_config(const cl::Device& device) {
     return true;
 }
 
-// The priority return by this function impacts the order of devices reported by GPU plugin and devices enumeration
-// Lower priority value means lower device ID
-// Current behavior is: Intel iGPU < Intel dGPU < any other GPU
-// Order of Intel dGPUs is undefined and depends on the OCL impl
-// Order of other vendor GPUs is undefined and depends on the OCL impl
-size_t get_device_priority(const cldnn::device_info& info) {
-    if (info.vendor_id == cldnn::INTEL_VENDOR_ID && info.dev_type == cldnn::device_type::integrated_gpu) {
-        return 0;
-    } else if (info.vendor_id == cldnn::INTEL_VENDOR_ID) {
-        return 1;
-    } else {
-        return std::numeric_limits<size_t>::max();
-    }
-}
 }  // namespace
 
 namespace cldnn {
@@ -131,15 +117,6 @@ static std::vector<cl::Device> getSubDevices(cl::Device& rootDevice) {
     rootDevice.createSubDevices(partitionProperty, &subDevices);
 
     return subDevices;
-}
-
-std::vector<device::ptr> ocl_device_detector::sort_devices(const std::vector<device::ptr>& devices_list) {
-    std::vector<device::ptr> sorted_list = devices_list;
-    std::stable_sort(sorted_list.begin(), sorted_list.end(), [](device::ptr d1,  device::ptr d2) {
-        return get_device_priority(d1->get_info()) < get_device_priority(d2->get_info());
-    });
-
-    return sorted_list;
 }
 
 std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(void* user_context,

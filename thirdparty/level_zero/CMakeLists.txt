@@ -30,7 +30,24 @@ endif()
 set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
 add_subdirectory(level-zero EXCLUDE_FROM_ALL)
 
-set_property(TARGET ze_loader APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/level-zero/include>)
+set(ZE_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include/")
+file(GLOB_RECURSE COMPUTE_RUNTIME_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/compute-runtime/*.h")
+file(GLOB_RECURSE LEVEL_ZERO_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/level-zero/include")
+add_custom_command(OUTPUT "${ZE_INCLUDE_DIR}"
+    COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/level-zero/include" "${ZE_INCLUDE_DIR}/level_zero"
+    COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/compute-runtime" "${ZE_INCLUDE_DIR}/level_zero"
+    DEPENDS "${COMPUTE_RUNTIME_HEADERS}" "${LEVEL_ZERO_HEADERS}"
+    COMMENT "Copying Level Zero and compute-runtime headers..."
+)
+add_custom_target(prepare_ze_headers ALL DEPENDS "${ZE_INCLUDE_DIR}")
+add_dependencies(ze_loader prepare_ze_headers)
+
+# Allow include patterns with and without level-zero/ prefix
+set_property(TARGET ze_loader APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+    $<BUILD_INTERFACE:${ZE_INCLUDE_DIR}>
+    $<BUILD_INTERFACE:${ZE_INCLUDE_DIR}/level_zero>
+)
+
 
 # This VERSION file created by L0 may cause compilation issue of oneTBB headers, so remove it
 file(REMOVE "${CMAKE_BINARY_DIR}/VERSION")

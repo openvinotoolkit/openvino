@@ -20,10 +20,6 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/file_util.hpp"
 
-#include "ocl/ocl_kernel.hpp"
-#include "ocl/ocl_common.hpp"
-#include "ocl/ocl_device.hpp"
-
 #ifdef WIN32
 #include <sdkddkver.h>
 #ifdef NTDDI_WIN10_RS5
@@ -48,47 +44,24 @@
 #ifndef NOMINMAX
 # define NOMINMAX
 #endif
-#include "gpu/intel/microkernels/fuser.hpp"
+#include "gpu/intel/gemm/jit/include/gemmstone/microkernel/fuser.hpp"
 #endif
 
 namespace {
 std::mutex cacheAccessMutex;
 
-static const cldnn::device::ptr get_target_device(const cldnn::engine& engine) {
-    using namespace cldnn;
-    if (engine.runtime_type() == runtime_types::ocl) {
-        return engine.get_device();
-    } else {
-        ocl::ocl_device_detector detector;
-        auto device_map = detector.get_available_devices(nullptr, nullptr);
-        auto original_device = engine.get_device();
-
-        for (auto& d : device_map) {
-            const auto& target_uuid = d.second->get_info().uuid;
-            const auto& original_uuid = original_device->get_info().uuid;
-            if (target_uuid.uuid == original_uuid.uuid)
-                return d.second;
-        }
+std::string join_strings(const std::vector<std::string> strings) {
+    size_t total_size = 0;
+    for (auto &str : strings) {
+        total_size += str.size();
     }
-
-    OPENVINO_THROW("[GPU] Couldn't find target device for kernels cache");
+    std::string acc_str;
+    acc_str.reserve(total_size);
+    for (auto &str : strings) {
+        acc_str.append(str);
+    }
+    return acc_str;
 }
-
-#ifdef ENABLE_ONEDNN_FOR_GPU
-cl::Program fuse_microkernels(const cl::Context& context, const cl::Device& device, cl::Program& program, const std::string& code) {
-    using namespace dnnl::impl::gpu::intel;
-    std::vector<std::vector<uint8_t>> binaries = program.getInfo<CL_PROGRAM_BINARIES>();
-    OPENVINO_ASSERT(binaries.size() == 1);
-    std::vector<uint8_t> binary = binaries[0];
-    micro::fuseMicrokernels(binary, code.c_str());
-
-    cl::Program::Binaries fused_binary = { binary };
-    cl::Program fused_program(context, {device}, fused_binary);
-    fused_program.build({device});
-
-    return fused_program;
-}
-#endif  // ENABLE_ONEDNN_FOR_GPU
 
 std::string reorder_options(const std::string& org_options) {
     std::stringstream ss(org_options);
@@ -308,41 +281,20 @@ kernels_cache::kernels_cache(engine& engine,
                              uint32_t prog_id,
                              std::shared_ptr<ov::threading::ITaskExecutor> task_executor,
                              const std::map<std::string, std::string>& batch_headers)
-    : _device(get_target_device(engine))
+    : _device(engine.get_device())
+    , _builder(engine.create_kernel_builder())
     , _task_executor(task_executor)
     , _config(config)
     , _prog_id(prog_id)
     , batch_headers(std::move(batch_headers)) { }
 
-static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
-    // Get the size of the program binary in bytes.
-    std::vector<size_t> binary_sizes = program.getInfo<CL_PROGRAM_BINARY_SIZES>();
-
-    if (binary_sizes.size() != 1)
-        throw std::runtime_error("Invalid binaries count");
-
-    size_t binary_size = binary_sizes.front();
-    // Binary is not available for the device.
-    if (binary_size == 0)
-        throw std::runtime_error("Binary is not avaliable after program build");
-
-    // Get program binary.
-    return program.getInfo<CL_PROGRAM_BINARIES>().front();
-}
-
-// TODO: This build_batch method should be backend specific
 void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& compiled_kernels) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::build_batch");
-
-    auto& cl_build_device = dynamic_cast<const ocl::ocl_device&>(*_device);
-
     bool dump_sources = batch.dump_custom_program;
     std::string dump_sources_dir = GPU_DEBUG_VALUE_OR(_config.get_dump_sources_path(), "");
     GPU_DEBUG_IF(!dump_sources_dir.empty()) {
         dump_sources = true;
     }
-
-    std::string err_log;  // accumulated build log from all program's parts (only contains messages from parts which
 
     std::string current_dump_file_name = "";
     if (dump_sources) {
@@ -364,128 +316,70 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
                 dump_file << s;
         }
     }
-
     std::string cached_bin_name = get_cache_path() + std::to_string(batch.hash_value) + ".cl_cache";
-    cl::Program::Binaries precompiled_kernels = {};
-
+    ///////////////////////////////////////////////////////////////////////////////////
+    std::vector<uint8_t> precompiled;
     if (is_cache_enabled()) {
-        // Try to load file with name ${hash_value}.cl_cache which contains precompiled kernels for current bucket
-        // If read is successful, then remove kernels from compilation bucket
-        std::vector<uint8_t> bin;
-        {
-            std::lock_guard<std::mutex> lock(cacheAccessMutex);
-            bin = ov::util::load_binary(ov::util::make_path(cached_bin_name));
-        }
-        if (!bin.empty()) {
-            precompiled_kernels.push_back(bin);
-        }
+        std::lock_guard<std::mutex> lock(cacheAccessMutex);
+        precompiled = ov::util::load_binary(ov::util::make_path(cached_bin_name));
     }
-    try {
-        cl::vector<cl::Kernel> kernels;
-
-        // Run compilation
-        if (precompiled_kernels.empty()) {
-            cl::Program program(cl_build_device.get_context(), batch.source);
-            {
-                OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildProgram::RunCompilation");
-                if (program.build({cl_build_device.get_device()}, batch.options.c_str()) != CL_SUCCESS)
-                    throw std::runtime_error("Failed in building program.");
+    std::vector<kernel::ptr> kernels;
+    if (!precompiled.empty()) {
+        _builder->build_kernels(precompiled.data(), precompiled.size(), KernelFormat::NATIVE_BIN, "", kernels);
+    } else {
+        auto combined_source = join_strings(batch.source);
+        _builder->build_kernels(combined_source.data(), combined_source.size(), KernelFormat::SOURCE, batch.options, kernels);
+        if (dump_sources && dump_file.good()) {
+            dump_file << "\n/* Build Log:\n";
+            // Retreive build log from the first kernel only
+            // It should be the same for all kernels in batch
+            if (kernels.size() > 1) {
+                dump_file << kernels[0]->get_build_log();
             }
-
-            if (dump_sources && dump_file.good()) {
-                dump_file << "\n/* Build Log:\n";
-                for (auto& p : program.getBuildInfo<CL_PROGRAM_BUILD_LOG>())
-                    dump_file << p.second << "\n";
-
-                dump_file << "*/\n";
-            }
-
-            if (batch.has_microkernels) {
+            dump_file << "\n*/\n";
+        }
+        if (batch.has_microkernels) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-                OPENVINO_ASSERT(batch.kernels_counter == 1);
-                // Do we need full source code here (with batch headers)?
-                program = fuse_microkernels(cl_build_device.get_context(), cl_build_device.get_device(), program, batch.source.back());
+            OPENVINO_ASSERT(batch.kernels_counter == 1 && kernels.size() == 1);
+            std::vector<uint8_t> binary = kernels[0]->get_binary();
+            kernels.clear();
+            // Update binary and rebuild kernel
+            gemmstone::microkernel::fuse(binary, combined_source.c_str());
+            _builder->build_kernels(binary.data(), binary.size(), KernelFormat::NATIVE_BIN, "", kernels);
 #else  // ENABLE_ONEDNN_FOR_GPU
-                OPENVINO_THROW("[GPU] Can't compile kernel w/ microkernels as onednn is not available");
+            OPENVINO_THROW("[GPU] Can't compile kernel w/ microkernels as onednn is not available");
 #endif  // ENABLE_ONEDNN_FOR_GPU
-            }
-
-
-            program.createKernels(&kernels);
-
-            if (is_cache_enabled()) {
+        }
+        if (is_cache_enabled()) {
                 // If kernels caching is enabled, then we save compiled bucket to binary file with name ${code_hash_value}.cl_cache
                 // Note: Bin file contains full bucket, not separate kernels, so kernels reuse across different models is quite limited
                 // Bucket size can be changed by max_kernels_per_batch config option, but forcing it to 1 will lead to much longer
                 // compile time.
+                std::vector<uint8_t> binary = kernels[0]->get_binary();
                 std::lock_guard<std::mutex> lock(cacheAccessMutex);
-                ov::intel_gpu::save_binary(cached_bin_name, getProgramBinaries(std::move(program)));
-            }
-        } else {
-            cl::Program program(cl_build_device.get_context(), {cl_build_device.get_device()}, precompiled_kernels);
-            if (program.build({cl_build_device.get_device()}, batch.options.c_str()) != CL_SUCCESS)
-                throw std::runtime_error("Failed in building program with a precompiled kernel.");
-
-            program.createKernels(&kernels);
+                ov::intel_gpu::save_binary(cached_bin_name, binary);
         }
-
-        {
-            std::lock_guard<std::mutex> lock(_mutex);
-            for (auto& k : kernels) {
-                const auto& entry_point = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
-                const auto& iter = batch.entry_point_to_id.find(entry_point);
-                if (iter != batch.entry_point_to_id.end()) {
-                    kernel::ptr kernel = std::make_shared<ocl::ocl_kernel>(ocl::ocl_kernel_type(k, cl_build_device.get_usm_helper()), entry_point);
-
-                    auto& params = iter->second.first;
-                    auto kernel_part_idx = iter->second.second;
-                    if (compiled_kernels.find(params) != compiled_kernels.end()) {
-                        compiled_kernels[params].push_back(std::make_pair(kernel, kernel_part_idx));
-                    } else {
-                        compiled_kernels[params] = { std::make_pair(kernel, kernel_part_idx) };
-                    }
-                    if (_kernel_batch_hash.find(params) == _kernel_batch_hash.end()) {
-                       _kernel_batch_hash[params] = batch.hash_value;
-                    }
-                } else {
-                    throw std::runtime_error("Could not find entry point");
-                }
-            }
-        }
-    } catch (const cl::BuildError& err) {
-        if (dump_sources && dump_file.good())
-            dump_file << "\n/* Build Log:\n";
-
-        for (auto& p : err.getBuildLog()) {
-            if (dump_sources && dump_file.good())
-                dump_file << p.second << "\n";
-            err_log += p.second + '\n';
-        }
-        if (dump_sources && dump_file.good())
-            dump_file << "*/\n";
     }
-    if (!err_log.empty()) {
-        GPU_DEBUG_INFO << "-------- OpenCL build error" << std::endl;
-        GPU_DEBUG_INFO << err_log << std::endl;
-        GPU_DEBUG_INFO << "-------- End of OpenCL build error" << std::endl;
-        std::stringstream err_ss(err_log);
-        std::string line;
-        std::stringstream err;
-        int cnt = 0;
-
-        while (std::getline(err_ss, line, '\n')) {
-            if (line.find("error") != std::string::npos)
-                cnt = 5;
-            cnt--;
-            if (cnt > 0)
-                err << line << std::endl;
-            else if (cnt == 0)
-                err << "...." << std::endl;
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        for (auto& k : kernels) {
+            auto entry_point = k->get_id();
+            const auto& iter = batch.entry_point_to_id.find(entry_point);
+            if (iter != batch.entry_point_to_id.end()) {
+                auto& params = iter->second.first;
+                auto kernel_part_idx = iter->second.second;
+                if (compiled_kernels.find(params) != compiled_kernels.end()) {
+                    compiled_kernels[params].push_back(std::make_pair(k, kernel_part_idx));
+                } else {
+                    compiled_kernels[params] = { std::make_pair(k, kernel_part_idx) };
+                }
+                if (_kernel_batch_hash.find(params) == _kernel_batch_hash.end()) {
+                   _kernel_batch_hash[params] = batch.hash_value;
+                }
+            } else {
+                throw std::runtime_error("Could not find entry point");
+            }
         }
-
-        throw std::runtime_error("Program build failed(" + std::to_string(batch.bucket_id) + + "_part_"
-                                 + std::to_string(batch.batch_id)
-                                 + "):\n" + err.str());
     }
 }
 
@@ -507,13 +401,11 @@ std::vector<kernel::ptr> kernels_cache::get_kernels(const kernel_impl_params& pa
     OPENVINO_ASSERT(_kernels.end() != res, "Kernel for {" + current_node_id + "} is not found in the kernel cache!");
     OPENVINO_ASSERT(res->second.size() != 0, "Number of kernels should not be zero for " + current_node_id);
 
-    auto& engine = params.get_program().get_engine();
-
     std::vector<kernel::ptr> kernels(res->second.size());
     for (auto& k : res->second) {
         auto& kernel_ptr = k.first;
         auto kernel_part_idx = k.second;
-        kernels[kernel_part_idx] = engine.prepare_kernel(kernel_ptr->clone(_reuse_kernels));
+        kernels[kernel_part_idx] = kernel_ptr->clone(_reuse_kernels);
     }
     return kernels;
 }
@@ -602,15 +494,12 @@ void kernels_cache::add_kernels_source(const kernel_impl_params& params,
 }
 
 std::string kernels_cache::get_cached_kernel_id(kernel::ptr kernel) const {
-    auto ocl_kernel = std::static_pointer_cast<cldnn::ocl::ocl_kernel>(kernel);
-    const auto& entry_point = ocl_kernel->get_handle().getInfo<CL_KERNEL_FUNCTION_NAME>();
-    auto program = ocl_kernel->get_handle().getInfo<CL_KERNEL_PROGRAM>();
-    cl::vector<unsigned char> program_binaries = getProgramBinaries(std::move(program));
+    auto program_binaries = kernel->get_binary();
 
     auto iter = _cached_binaries.find(program_binaries);
     OPENVINO_ASSERT(iter != _cached_binaries.end(), "[GPU] Not found cached kernel binaries");
 
-    return entry_point + "@" + std::to_string(iter->second);
+    return kernel->get_id() + "@" + std::to_string(iter->second);
 }
 
 std::vector<std::string> kernels_cache::get_cached_kernel_ids(const std::vector<kernel::ptr>& kernels) const {
@@ -628,9 +517,7 @@ void kernels_cache::add_to_cached_kernels(const std::vector<kernel::ptr>& kernel
     static std::atomic<uint32_t> id_gen{0};
 
     for (auto& kernel : kernels) {
-        auto ocl_kernel = std::static_pointer_cast<cldnn::ocl::ocl_kernel>(kernel);
-        auto program = ocl_kernel->get_handle().getInfo<CL_KERNEL_PROGRAM>();
-        cl::vector<unsigned char> program_binaries = getProgramBinaries(std::move(program));
+        auto program_binaries = kernel->get_binary();
 
         std::lock_guard<std::mutex> lock(_mutex);
         auto iter = _cached_binaries.find(program_binaries);
@@ -665,7 +552,7 @@ void kernels_cache::save(BinaryOutputBuffer& ob) const {
         ob << cached_binary.first;
         ob << is_zebin_binary;
         if (!is_zebin_binary) {
-            auto driver_version = downcast<ocl::ocl_device>(*_device).get_info().driver_version;
+            auto driver_version = _device->get_info().driver_version;
             ob << driver_version;
         }
     }
@@ -673,8 +560,6 @@ void kernels_cache::save(BinaryOutputBuffer& ob) const {
 
 void kernels_cache::load(BinaryInputBuffer& ib) {
     std::unordered_map<uint32_t, std::vector<unsigned char>> precompiled_kernels;
-
-    const auto& build_device = downcast<ocl::ocl_device>(*_device);
 
     size_t num_cached_binaries;
     ib >> num_cached_binaries;
@@ -689,7 +574,7 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
             // Legacy patchtoken path
             std::string driver_version, current_driver_version;
             ib >> driver_version;
-            current_driver_version = build_device.get_info().driver_version;
+            current_driver_version = _device->get_info().driver_version;
 
             if (driver_version != current_driver_version) {
                 OPENVINO_THROW("Driver version mismatch in cached patchtoken kernels");
@@ -697,31 +582,22 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
         }
     }
 
-    try {
+    {
         std::lock_guard<std::mutex> lock(_mutex);
         _cached_kernels.clear();
 
         for (auto& precompiled_kernel : precompiled_kernels) {
-            cl::vector<cl::Kernel> kernels;
-            cl::Program program(build_device.get_context(), {build_device.get_device()}, {precompiled_kernel.second});
-            program.build({build_device.get_device()});
-            program.createKernels(&kernels);
-
+            std::vector<kernel::ptr> kernels;
+            _builder->build_kernels(precompiled_kernel.second.data(), precompiled_kernel.second.size(), KernelFormat::NATIVE_BIN, "", kernels);
             for (auto& k : kernels) {
-                const auto& entry_point = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
+                const auto& entry_point = k->get_id();
                 std::string cached_kernel_id = entry_point + "@" + std::to_string(precompiled_kernel.first);
                 const auto& iter = _cached_kernels.find(cached_kernel_id);
                 if (iter == _cached_kernels.end()) {
-                    _cached_kernels[cached_kernel_id] = std::make_shared<ocl::ocl_kernel>(ocl::ocl_kernel_type(k, build_device.get_usm_helper()), entry_point);
+                    _cached_kernels[cached_kernel_id] = k;
                 }
             }
         }
-    } catch (const cl::BuildError& err) {
-        std::string err_log = "";
-        for (auto& p : err.getBuildLog()) {
-            err_log += p.second + '\n';
-        }
-        OPENVINO_THROW(err_log);
     }
 }
 

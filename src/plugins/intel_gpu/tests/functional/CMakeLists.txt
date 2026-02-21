@@ -32,11 +32,11 @@ ov_add_test_target(
         LINK_LIBRARIES
             openvino::reference
             funcSharedTests
-            OpenCL::NewHeaders # should come before OpenCL::OpenCL
-            OpenCL::OpenCL
         LABELS
             OV GPU
 )
+
+ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
 if(ENABLE_PROXY)
     target_compile_definitions(${TARGET_NAME} PUBLIC PROXY_PLUGIN_ENABLED)

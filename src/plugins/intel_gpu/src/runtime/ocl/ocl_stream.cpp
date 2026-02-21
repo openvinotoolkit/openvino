@@ -11,6 +11,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "ocl_kernel.hpp"
 #include "ocl_common.hpp"
+#include "ocl_memory.hpp"
 
 #include <cassert>
 #include <string>
@@ -239,7 +240,11 @@ dnnl::stream& ocl_stream::get_onednn_stream() {
     OPENVINO_ASSERT(m_queue_type == QueueTypes::in_order, "[GPU] Can't create onednn stream handle as onednn doesn't support out-of-order queue");
     OPENVINO_ASSERT(_engine.get_device_info().vendor_id == INTEL_VENDOR_ID, "[GPU] Can't create onednn stream handle as for non-Intel devices");
     if (!_onednn_stream) {
+#ifdef OV_GPU_WITH_ZE_RT
+        OPENVINO_THROW("[GPU] Using OCL OneDNN API with L0 runtime");
+#else
         _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ocl_interop::make_stream(_engine.get_onednn_engine(), _command_queue.get()));
+#endif
     }
 
     return *_onednn_stream;
@@ -360,6 +365,10 @@ event::ptr ocl_stream::create_user_event(bool set) {
 event::ptr ocl_stream::create_base_event() {
     cl::Event ret_ev;
     return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
+}
+
+std::unique_ptr<surfaces_lock> ocl_stream::create_surfaces_lock(const std::vector<memory::ptr> &mem) const {
+    return std::unique_ptr<ocl::ocl_surfaces_lock>(new ocl::ocl_surfaces_lock(mem, *this));
 }
 
 void ocl_stream::flush() const {

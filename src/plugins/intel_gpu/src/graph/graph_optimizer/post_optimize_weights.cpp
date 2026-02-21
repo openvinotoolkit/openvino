@@ -9,6 +9,7 @@
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
 #include "fully_connected_inst.h"
+#include "reorder_inst.h"
 #include "lstm_seq_inst.h"
 #include "gru_seq_inst.h"
 #include "intel_gpu/runtime/format.hpp"

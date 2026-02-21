@@ -46,7 +46,7 @@ public:
 
 class GRUSequenceTest : virtual public SerializeBaseTest {
 public:
-    void SetUp() {
+    void SetUp() override {
         std::string cacheDirName = "cache_gru";
         auto init_shape = ov::PartialShape({1, 30, 512});
         auto batch_size = static_cast<size_t>(init_shape[0].get_length());

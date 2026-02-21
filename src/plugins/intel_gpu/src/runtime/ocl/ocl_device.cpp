@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_WITH_OCL_RT)
 #ifndef NOMINMAX
 # define NOMINMAX
 #endif
 #include "gpu/intel/jit/generator.hpp"
-#endif  // ENABLE_ONEDNN_FOR_GPU
+#endif
 
 #include "ocl_device.hpp"
 #include "ocl_common.hpp"
@@ -51,7 +51,7 @@ namespace ocl {
 
 namespace {
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_WITH_OCL_RT)
 gpu_arch convert_ngen_arch(ngen::HW gpu_arch) {
     switch (gpu_arch) {
         case ngen::HW::Gen9: return gpu_arch::gen9;
@@ -344,8 +344,17 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
         info.num_ccs = std::max<uint32_t>(num_queues, info.num_ccs);
     }
 
+    info.supports_mutable_command_list = false;
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+    // Not supported
+    info.timer_resolution = 0;
+    info.kernel_timestamp_valid_bits = 0;
+    info.compute_queue_group_ordinal = 0;
+    info.device_memory_ordinal = 0;
+    info.supports_cp_offload = false;
+    info.supports_counter_based_events = false;
+
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_WITH_OCL_RT)
     using namespace dnnl::impl::gpu::intel::jit;
     if (context.get() != nullptr) {
         ngen::Product product = ngen::OpenCLCodeGenerator<ngen::HW::Unknown>::detectHWInfo(context.get(), device.get());
@@ -377,6 +386,7 @@ bool does_device_support(int32_t param, const cl::Device& device) {
 
 memory_capabilities init_memory_caps(const cl::Device& device, const device_info& info) {
     std::vector<allocation_type> memory_caps;
+    memory_caps.push_back(allocation_type::cl_mem);
     if (info.supports_usm) {
         if (does_device_support(CL_DEVICE_HOST_MEM_CAPABILITIES_INTEL, device)) {
             memory_caps.push_back(allocation_type::usm_host);
@@ -428,36 +438,7 @@ bool ocl_device::is_same(const device::ptr other) {
     // Short path if cl_device is the same
     if (_platform == casted->_platform && _device.get() && casted->_device.get() && _device == casted->_device)
         return true;
-
-    // Relying solely on the UUID is not reliable in all the cases (particularly on legacy platforms),
-    // where the UUID may be missing or incorrectly generated
-    // Therefore, we also validate other attributes
-    if (_info.uuid.uuid != casted->_info.uuid.uuid)
-        return false;
-
-    if (_info.pci_info != casted->_info.pci_info)
-        return false;
-
-    if (_info.sub_device_idx != casted->_info.sub_device_idx)
-        return false;
-
-    if (_info.vendor_id != casted->_info.vendor_id ||
-        _info.dev_name != casted->_info.dev_name ||
-        _info.driver_version != casted->_info.driver_version)
-        return false;
-
-    if (_info.dev_type != casted->_info.dev_type ||
-        _info.gfx_ver != casted->_info.gfx_ver ||
-        _info.arch != casted->_info.arch)
-        return false;
-
-    if (_info.ip_version != casted->_info.ip_version || _info.device_id != casted->_info.device_id)
-        return false;
-
-    if (_info.execution_units_count != casted->_info.execution_units_count || _info.max_global_mem_size != casted->_info.max_global_mem_size)
-        return false;
-
-    return true;
+    return _info.is_same_device(casted->_info);
 }
 
 void ocl_device::set_mem_caps(const memory_capabilities& memory_capabilities) {

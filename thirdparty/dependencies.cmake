@@ -72,7 +72,7 @@ endif()
 # LevelZero
 #
 
-if(ENABLE_INTEL_NPU)
+if(ENABLE_INTEL_GPU OR ENABLE_INTEL_NPU)
     if(ENABLE_SYSTEM_LEVEL_ZERO)
         pkg_search_module(level_zero QUIET
                           IMPORTED_TARGET

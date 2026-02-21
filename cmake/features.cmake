@@ -41,6 +41,12 @@ else()
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
 endif()
 
+# Set default GPU runtime to OCL
+set(OV_GPU_DEFAULT_RT "OCL")
+if (ENABLE_INTEL_GPU)
+    ov_option_enum (GPU_RT_TYPE "Type of GPU runtime. Supported value: OCL and L0" ${OV_GPU_DEFAULT_RT} ALLOWED_VALUES L0 OCL)
+endif()
+
 ov_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)
 
 ov_dependent_option (ENABLE_INTEL_NPU "NPU plugin for OpenVINO runtime" ON "X86_64;WIN32 OR LINUX OR ANDROID" OFF)

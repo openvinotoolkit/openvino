@@ -16,15 +16,26 @@ file(GLOB LIBRARY_SOURCES_OCL
     "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.cpp"
 )
 
-set(LIBRARY_SOURCES_ALL
-    ${LIBRARY_SOURCES_MAIN}
-    ${LIBRARY_SOURCES_OCL}
-  )
-
+file(GLOB LIBRARY_SOURCES_ZE
+    "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.cpp"
+)
 file(GLOB_RECURSE SYCL_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ocl/sycl_*.cpp")
 
 if(NOT OV_COMPILER_IS_INTEL_LLVM)
-    list(REMOVE_ITEM LIBRARY_SOURCES_ALL ${SYCL_SOURCES})
+    list(REMOVE_ITEM LIBRARY_SOURCES_OCL ${SYCL_SOURCES})
+endif()
+
+set(LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_MAIN})
+
+if(GPU_RT_TYPE STREQUAL "OCL")
+    list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_OCL})
+endif()
+
+if(GPU_RT_TYPE STREQUAL "L0")
+    list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_OCL})
+    list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_ZE})
 endif()
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SOURCES_ALL})
@@ -58,7 +69,9 @@ if(ENABLE_ONEDNN_FOR_GPU)
 endif()
 
 ov_set_threading_interface_for(${TARGET_NAME})
+ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
+# Requires OpenCL even for L0 builds because of kernel builder and OneDNN
 target_link_libraries(${TARGET_NAME} PRIVATE
     OpenCL::OpenCL
     openvino::itt

@@ -5,7 +5,6 @@
 #include "utils.hpp"
 #include <oneapi/dnnl/dnnl_debug.h>
 #include <numeric>
-#include <oneapi/dnnl/dnnl_ocl.hpp>
 
 namespace cldnn {
 namespace onednn {
