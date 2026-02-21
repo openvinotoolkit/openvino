@@ -16,6 +16,7 @@
 
 #include "config.h"
 #include "openvino/core/model.hpp"
+#include "openvino/runtime/performance_heuristics.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace ov::intel_cpu {
@@ -117,4 +118,42 @@ void get_num_streams(int streams, const std::shared_ptr<ov::Model>& model, Confi
  * @param[in]  proc_type_table summary table of number of processors per type
  */
 void sort_table_by_numa_node_id(int current_numa_node, std::vector<std::vector<int>>& proc_type_table);
+
+// Internal configure_* helpers are declared below and are publicly callable.
+#if defined(OPENVINO_ARCH_ARM) && defined(__linux__)
+void configure_arm_linux_threads(Config& config,
+                                 const std::vector<std::vector<int>>& proc_type_table,
+                                 const ov::MemBandwidthPressure& tolerance,
+                                 bool int8_intensive,
+                                 bool is_LLM);
+#endif
+
+#if (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
+void configure_apple_threads(Config& config,
+                             const std::vector<std::vector<int>>& proc_type_table,
+                             const ov::MemBandwidthPressure& tolerance,
+                             float memThresholdAssumeLimitedForISA,
+                             bool int8_intensive,
+                             bool is_LLM);
+#endif
+
+// Make internal hybrid configuration helper publicly callable
+void configure_x86_hybrid_threads(Config& config,
+                                  const std::vector<std::vector<int>>& proc_type_table,
+                                  const ov::MemBandwidthPressure& tolerance,
+                                  bool int8_intensive,
+                                  bool is_LLM);
+
+void configure_x86_hybrid_lp_threads(Config& config,
+                                     const std::vector<std::vector<int>>& proc_type_table,
+                                     const ov::MemBandwidthPressure& tolerance);
+
+// Make x86 non-hybrid helper publicly callable
+void configure_x86_non_hybrid_threads(Config& config, const std::vector<std::vector<int>>& proc_type_table);
+
+// Make x86 throughput helper publicly callable
+void configure_x86_throughput_threads(Config& config,
+                                      const std::vector<std::vector<int>>& proc_type_table,
+                                      const ov::MemBandwidthPressure& tolerance,
+                                      float memThresholdAssumeLimitedForISA);
 }  // namespace ov::intel_cpu
