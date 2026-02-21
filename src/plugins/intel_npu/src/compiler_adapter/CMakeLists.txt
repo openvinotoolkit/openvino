@@ -9,6 +9,8 @@ file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
+add_library(openvino::npu_compiler_adapter ALIAS ${TARGET_NAME})
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME npu_compiler_adapter)
 
 ov_build_target_faster(${TARGET_NAME}
     PCH_HEADER "src/precomp.hpp"
@@ -32,3 +34,6 @@ target_link_libraries(${TARGET_NAME}
 # targets install
 #
 ov_install_static_lib(${TARGET_NAME} ${NPU_INTERNAL_COMPONENT})
+ov_developer_package_export_targets(TARGET openvino::npu_compiler_adapter
+                                    INSTALL_INCLUDE_DIRECTORIES
+                                        ${CMAKE_CURRENT_SOURCE_DIR}/include/)
