@@ -1002,13 +1002,11 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         FuseMultiplyToFakeQuantizeTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
-    CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
     // ConvolutionTransformation is disabled temporary until ACL issues are fixed: #1252, #1253
     CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, ConvolutionBackpropDataTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
-    CPU_DISABLE_PASS_ARM(lptManager, MaxPoolTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, MVNTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, NormalizeL2Transformation);
     CPU_DISABLE_PASS_ARM(lptManager, RecurrentCellTransformation);
@@ -1644,13 +1642,17 @@ void Transformations::PostSnippets() {
             return node::FakeQuantize::isSupportedOperation(node, errMsg);
         },
         ov::pass::FakeQuantizeDecomposition);
-    // FQ node is not decomposed on ARM only if it is fused into Convolution node
+    // FQ node is not decomposed on ARM only if it is fused into nodes that support quantized output
     // Otherwise FQ node is decomposed because there is no native support of FQ on ARM
     CPU_SET_CALLBACK_ARM(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
             if (ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
                 ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
+                const auto parent = node->get_input_node_shared_ptr(0);
+                if (ov::is_type<const ov::op::v1::AvgPool>(parent)) {
+                    return true;
+                }
                 // int8 ACL Convolution executor supports only same activation and output types
                 // if types are different, decompose FQ to avoid reference FQ
                 return match_conv_fq_same_types(node) ||

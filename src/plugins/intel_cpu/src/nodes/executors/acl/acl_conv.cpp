@@ -186,23 +186,7 @@ std::shared_ptr<arm_compute::TensorInfo> ACLConvolutionExecutor::initTensorInfo(
     const arm_compute::TensorShape& tensorShape,
     const arm_compute::DataType& dataType,
     const arm_compute::DataLayout& dataLayout) {
-    arm_compute::DataType result = arm_compute::DataType::UNKNOWN;
-    switch (dataType) {
-    case arm_compute::DataType::S8: {
-        result = arm_compute::DataType::QASYMM8_SIGNED;
-        break;
-    }
-    case arm_compute::DataType::U8: {
-        result = arm_compute::DataType::QASYMM8;
-        break;
-    }
-    default: {
-        result = dataType;
-        break;
-    }
-    }
-
-    return ACLCommonExecutor::initTensorInfo(tensorShape, result, dataLayout);
+    return ACLCommonExecutor::initTensorInfo(tensorShape, convertToQuantizedType(dataType), dataLayout);
 }
 
 }  // namespace ov::intel_cpu

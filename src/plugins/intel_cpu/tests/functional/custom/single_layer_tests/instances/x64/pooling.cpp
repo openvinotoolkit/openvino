@@ -50,7 +50,6 @@ const auto avx2_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx2"}, "jit_avx2
 const auto avx2_ndhwc = CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_avx2"}, "jit_avx2"};
 
 const std::vector<CPUSpecificParams> vecCpuConfigsFusing_3D = {avx2_nwc, avx512_nwc};
-const std::vector<CPUSpecificParams> vecCpuConfigsFusing_4D = {avx2_nhwc, avx512_nhwc};
 const std::vector<CPUSpecificParams> vecCpuConfigsFusing_5D = {avx2_ndhwc, avx512_ndhwc};
 
 std::vector<fusingSpecificParams> fusingParamsSet {
@@ -58,47 +57,6 @@ std::vector<fusingSpecificParams> fusingParamsSet {
     fusingFakeQuantizePerTensor,
     fusingFakeQuantizePerChannel,
 };
-
-const std::vector<InputShape> inputShapes4D_int8 = {
-        { {}, {{3, 4, 64, 64}} },
-        { {}, {{2, 8, 8, 12}} },
-        { {}, {{1, 16, 16, 12}} },
-        { {}, {{1, 21, 8, 4}} },
-        { {}, {{1, 32, 8, 8}} },
-        {
-            // dynamic
-            {-1, 32, -1, -1},
-            // target
-            {
-                {1, 32, 8, 8},
-                {1, 32, 8, 4},
-                {2, 32, 8, 12},
-                {1, 32, 8, 8}
-            }
-        },
-        {
-            // dynamic
-            {{1, 5}, 16, {1, 64}, {1, 64}},
-            // target
-            {
-                {3, 16, 32, 32},
-                {1, 16, 16, 12},
-                {1, 16, 8, 8},
-                {3, 16, 32, 32},
-            }
-        }
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_I8, PoolingLayerCPUTest,
-                         ::testing::Combine(
-                              ::testing::ValuesIn(paramsAvg4D()),
-                              ::testing::ValuesIn(inputShapes4D_int8),
-                              ::testing::Values(ElementType::f32),
-                              ::testing::Values(true),
-                              ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing_4D)),
-                              ::testing::ValuesIn(fusingParamsSet),
-                              ::testing::Values(CPUTestUtils::empty_plugin_config)),
-                          PoolingLayerCPUTest::getTestCaseName);
 
 const std::vector<InputShape> inputShapes5D_int8 = {
         { {}, {{1, 4, 16, 16, 16}} },
@@ -144,10 +102,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D_I8, PoolingLayerCPUTest,
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_I8_FP16, PoolingLayerCPUTest,
                          ::testing::Combine(
                               ::testing::ValuesIn(paramsAvg4D()),
-                              ::testing::ValuesIn(inputShapes4D_int8),
+                              ::testing::ValuesIn(inputShapes4D_int8()),
                               ::testing::Values(ElementType::f32),
                               ::testing::Values(true),
-                              ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsFusing_4D)),
+                              ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsFusing_4D())),
                               ::testing::ValuesIn(fusingParamsSet),
                               ::testing::Values(cpu_f16_plugin_config)),
                           PoolingLayerCPUTest::getTestCaseName);
@@ -177,10 +135,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14_CPU_5D_I8, AvgPoolingV14LayerCPUTest,
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14_CPU_4D_I8_FP16, AvgPoolingV14LayerCPUTest,
                          ::testing::Combine(
                               ::testing::ValuesIn(paramsAvg4D()),
-                              ::testing::ValuesIn(inputShapes4D_int8),
+                              ::testing::ValuesIn(inputShapes4D_int8()),
                               ::testing::Values(ElementType::f32),
                               ::testing::Values(true),
-                              ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsFusing_4D)),
+                              ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsFusing_4D())),
                               ::testing::ValuesIn(fusingParamsSet),
                               ::testing::Values(cpu_f16_plugin_config)),
                           AvgPoolingV14LayerCPUTest::getTestCaseName);

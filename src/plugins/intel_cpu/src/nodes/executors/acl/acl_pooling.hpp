@@ -53,8 +53,16 @@ public:
     [[nodiscard]] bool isSupported([[maybe_unused]] const PoolingAttrs& poolingAttrs,
                                    const std::vector<MemoryDescPtr>& srcDescs,
                                    const std::vector<MemoryDescPtr>& dstDescs) const override {
-        if ((srcDescs[0]->getPrecision() != ov::element::f32 && dstDescs[0]->getPrecision() != ov::element::f32) &&
-            (srcDescs[0]->getPrecision() != ov::element::f16 && dstDescs[0]->getPrecision() != ov::element::f16)) {
+        if (none_of(srcDescs[0]->getPrecision(),
+                    ov::element::f32,
+                    ov::element::f16,
+                    ov::element::u8,
+                    ov::element::i8) ||
+            none_of(dstDescs[0]->getPrecision(),
+                    ov::element::f32,
+                    ov::element::f16,
+                    ov::element::u8,
+                    ov::element::i8)) {
             DEBUG_LOG("AclPoolingExecutor does not support precisions:",
                       " src[0]=",
                       srcDescs[0]->getPrecision(),
@@ -64,10 +72,21 @@ public:
         }
 
         if (srcDescs.size() == 2U &&
-            (srcDescs[1]->getPrecision() != ov::element::f32 && srcDescs[0]->getPrecision() != ov::element::f32 &&
-             dstDescs[0]->getPrecision() != ov::element::f32) &&
-            (srcDescs[1]->getPrecision() != ov::element::f16 && srcDescs[0]->getPrecision() != ov::element::f16 &&
-             dstDescs[0]->getPrecision() != ov::element::f16)) {
+            (none_of(srcDescs[0]->getPrecision(),
+                     ov::element::f32,
+                     ov::element::f16,
+                     ov::element::u8,
+                     ov::element::i8) ||
+             none_of(srcDescs[1]->getPrecision(),
+                     ov::element::f32,
+                     ov::element::f16,
+                     ov::element::u8,
+                     ov::element::i8) ||
+             none_of(dstDescs[0]->getPrecision(),
+                     ov::element::f32,
+                     ov::element::f16,
+                     ov::element::u8,
+                     ov::element::i8))) {
             DEBUG_LOG("AclPoolingExecutor does not support precisions:",
                       " src[0]=",
                       srcDescs[0]->getPrecision(),
