@@ -144,10 +144,10 @@ class OpenVINOGraphModule(torch.nn.Module):
                 partition_id=self.partition_id,
                 options=self.options,
             )
-            logger.debug("OpenVINO graph execution successful")
+            logger.info(f"OpenVINO partition {self.partition_id} executed successfully")
         except Exception as e:
-            logger.debug(
-                f"OpenVINO execution failed with {e}. Falling back to native PyTorch execution."
+            logger.warning(
+                f"OpenVINO partition {self.partition_id} execution failed, falling back to PyTorch. Reason: {str(e)}"
             )
             self.perm_fallback = True
             return self.gm(*args)

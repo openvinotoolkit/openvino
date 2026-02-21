@@ -145,4 +145,16 @@ class Partitioner:
         fused_graph_module = partitioner.fuse_partitions(partitions)
         logger.debug(f"Graph module after partitioning {fused_graph_module}")
 
+        # Count OpenVINO partitions and determine support level
+        num_partitions = 0
+        num_non_partition_nodes = 0
+        for node in fused_graph_module.graph.nodes:
+            if node.op == "call_module" and "fused_" in node.name:
+                num_partitions += 1
+            elif node.op != "placeholder" and node.op != "output":
+                num_non_partition_nodes += 1
+
+        support_level = "fully supported" if num_non_partition_nodes == 0 else "partially supported"
+        logger.info(f"Model partitioning complete: {num_partitions} OpenVINO partition(s) created ({support_level})")
+
         return fused_graph_module
