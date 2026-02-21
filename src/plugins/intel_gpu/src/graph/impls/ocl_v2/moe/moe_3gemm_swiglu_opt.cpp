@@ -7,9 +7,12 @@
 #include "moe_3gemm_swiglu_opt.hpp"
 // clang-format on
 
-#define DEBUG_MOE_LOG 0
+#define DEBUG_MOE_LOG          0
+#define GPU_MOE_DEBUG_TRACE    std::cout
+#define DEBUG_MOE_EXPERTS_INFO 0
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+#    include <algorithm>
 #    include <initializer_list>
 #    include <oneapi/dnnl/dnnl.hpp>
 #    include <oneapi/dnnl/dnnl_ocl.hpp>
@@ -1359,35 +1362,35 @@ public:
 
             intermediates_memories[MOE_INTERNAL_BUFFER_ACTUAL_USED_EXPERT_NUM]->copy_from(stream, &num_actually_used_experts, 0, 0, sizeof(int32_t), true);
 
-#    if DEBUG_MOE_LOG
+#    if DEBUG_MOE_EXPERTS_INFO
             {
-                GPU_DEBUG_TRACE_DETAIL << "\nstep 1: prefill_mask num_actually_used_experts=" << num_actually_used_experts << std::endl;
-                GPU_DEBUG_TRACE_DETAIL << "expert_id[" << num_actually_used_experts << "]: = ";
+                GPU_MOE_DEBUG_TRACE << "\nstep 1: prefill_mask num_actually_used_experts=" << num_actually_used_experts << std::endl;
+                GPU_MOE_DEBUG_TRACE << "expert_id[" << num_actually_used_experts << "]: = ";
                 for (int i = 0; i < num_actually_used_experts; i++) {
-                    GPU_DEBUG_TRACE_DETAIL << experts_id_cpu[i] << ", ";
+                    GPU_MOE_DEBUG_TRACE << experts_id_cpu[i] << ", ";
                 }
-                GPU_DEBUG_TRACE_DETAIL << std::endl;
-                GPU_DEBUG_TRACE_DETAIL << "experts_info_start_idx[" << num_actually_used_experts << "]: = ";
+                GPU_MOE_DEBUG_TRACE << std::endl;
+                GPU_MOE_DEBUG_TRACE << "experts_info_start_idx[" << num_actually_used_experts << "]: = ";
                 for (int i = 0; i < num_actually_used_experts; i++) {
-                    GPU_DEBUG_TRACE_DETAIL << experts_info_start_idx_cpu[i] << ", ";
+                    GPU_MOE_DEBUG_TRACE << experts_info_start_idx_cpu[i] << ", ";
                 }
-                GPU_DEBUG_TRACE_DETAIL << std::endl;
-                GPU_DEBUG_TRACE_DETAIL << "tokens_len_per_expert[" << num_actually_used_experts << "]: = ";
+                GPU_MOE_DEBUG_TRACE << std::endl;
+                GPU_MOE_DEBUG_TRACE << "tokens_len_per_expert[" << num_actually_used_experts << "]: = ";
                 for (int i = 0; i < num_actually_used_experts; i++) {
-                    GPU_DEBUG_TRACE_DETAIL << tokens_lens_per_expert_cpu[i] << ", ";
+                    GPU_MOE_DEBUG_TRACE << tokens_lens_per_expert_cpu[i] << ", ";
                 }
-                GPU_DEBUG_TRACE_DETAIL << std::endl;
-                GPU_DEBUG_TRACE_DETAIL << "tokens_per_expert[" << num_actually_used_experts << "]:" << std::endl;
+                GPU_MOE_DEBUG_TRACE << std::endl;
+                GPU_MOE_DEBUG_TRACE << "tokens_per_expert[" << num_actually_used_experts << "]:" << std::endl;
                 int token_idx = 0;
                 for (int i = 0; i < num_actually_used_experts; i++) {
-                    GPU_DEBUG_TRACE_DETAIL << "\texpert[" << i << "]: = ";
+                    GPU_MOE_DEBUG_TRACE << "\texpert[" << i << "]: = ";
                     for (int j = 0; j < tokens_lens_per_expert_cpu[i]; j++) {
-                        GPU_DEBUG_TRACE_DETAIL << tokens_per_expert_cpu[token_idx + j] << ", ";
+                        GPU_MOE_DEBUG_TRACE << tokens_per_expert_cpu[token_idx + j] << ", ";
                     }
                     token_idx += tokens_lens_per_expert_cpu[i];
-                    GPU_DEBUG_TRACE_DETAIL << std::endl;
+                    GPU_MOE_DEBUG_TRACE << std::endl;
                 }
-                GPU_DEBUG_TRACE_DETAIL << std::endl;
+                GPU_MOE_DEBUG_TRACE << std::endl;
             }
 #    endif
         }
