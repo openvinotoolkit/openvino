@@ -488,7 +488,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             switch (e) {
                 case ov::element::f16: return device_info.supports_fp16;
                 case ov::element::f32: return true; // assume that all GPUs support f32 data type
-                case ov::element::f64: return device_info.supports_fp64;
+                case ov::element::f64: return false; // pipeline is built for f32 
                 case ov::element::bf16: return false;
                 default: return false;
             }
@@ -570,7 +570,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<DisableFP16ComForGPTOSSROPEPattern>();
         manager.register_pass<DisableFP16ComSinGenPatternForHiFiGAN>();
         const bool keep_precision_sensitive_in_fp32_1 = true;
-        const bool convert_input_output_precision = false;
+        const bool convert_input_output_precision = true; // Changed to true to convert model inputs and outputs to infer precision
         const bool store_original_precision_as_rt_attribute = true;
         const auto add_precision_sensitive_convert = true;
 
