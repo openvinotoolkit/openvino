@@ -54,6 +54,9 @@ if hasattr(torch._dynamo.config, "inline_inbuilt_nn_modules"):
     torch._dynamo.config.inline_inbuilt_nn_modules=False
 
 @fake_tensor_unsupported
+logger.info(
+    "torch.compile(OpenVINO): OpenVINO backend selected for model compilation"
+)
 def openvino(subgraph, example_inputs, options=None):
     if _get_aot_autograd(options):
         global openvino_options
@@ -73,6 +76,9 @@ def fx_openvino(subgraph, example_inputs, options=None):
         inputs_reversed = False
         openvino_model_caching = _get_model_caching(options)
         if openvino_model_caching is not None and openvino_model_caching:
+            logger.debug(
+    "torch.compile(OpenVINO): Model caching enabled, checking for cached OpenVINO model"
+)
             # Create a hash to be used for caching
             model_hash_str = sha256(subgraph.code.encode("utf-8")).hexdigest()
             executor_parameters = {"model_hash_str": model_hash_str}
@@ -81,6 +87,9 @@ def fx_openvino(subgraph, example_inputs, options=None):
             inputs_reversed = True
             maybe_fs_cached_name = cached_model_name(model_hash_str + "_fs", _get_device(options), example_inputs, _get_cache_dir(options))
             if os.path.isfile(maybe_fs_cached_name + ".xml") and os.path.isfile(maybe_fs_cached_name + ".bin"):
+                logger.info(
+    "torch.compile(OpenVINO): Using cached OpenVINO model for execution"
+)
                 # Model is fully supported and already cached. Run the cached OV model directly.
                 compiled_model = openvino_compile_cached_model(maybe_fs_cached_name, options, *example_inputs)
 
@@ -94,6 +103,9 @@ def fx_openvino(subgraph, example_inputs, options=None):
 
         preserved_arg_indices = []
         if _get_aot_autograd(options):
+            logger.debug(
+    "torch.compile(OpenVINO): AOT Autograd enabled, using OpenVINO for forward and backward graphs"
+)
             if tracing_context := torch._guards.TracingContext.try_get():
                 fw_metadata = tracing_context.fw_metadata
                 params_flat = tracing_context.params_flat
@@ -113,11 +125,17 @@ def fx_openvino(subgraph, example_inputs, options=None):
                 model.eval()
         partitioner = Partitioner(options)
         compiled_model = partitioner.make_partitions(model, options)
+        logger.debug(
+    "torch.compile(OpenVINO): Partitioning PyTorch graph into OpenVINO-supported subgraphs"
+)
 
         if executor_parameters is not None and "model_hash_str" in executor_parameters:
             # Check if the model is fully supported.
             fully_supported = partitioner.check_fully_supported(compiled_model)
             if fully_supported:
+                logger.info(
+    "torch.compile(OpenVINO): Model fully supported by OpenVINO"
+)
                 executor_parameters["model_hash_str"] += "_fs"
 
         def _call(*args):
@@ -132,9 +150,12 @@ def fx_openvino(subgraph, example_inputs, options=None):
             _call._boxed_call = True  # type: ignore[attr-defined]
         return _call
     except Exception as e:
-        logger.debug(f"Failed in OpenVINO execution: {e}")
-        return compile_fx(subgraph, example_inputs)
-
+    logger.warning(
+        "torch.compile(OpenVINO): Falling back to native PyTorch execution. "
+        "Reason: %s",
+        str(e),
+    )
+    return compile_fx(subgraph, example_inputs)
 
 def reset():
     clear_caches()
