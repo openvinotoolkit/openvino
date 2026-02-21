@@ -7,12 +7,12 @@
 #include <fstream>
 
 #include "compiled_model.hpp"
-#include "compiler_adapter_factory.hpp"
-#include "driver_compiler_adapter.hpp"
+#include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/common/parser_factory.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -25,6 +25,7 @@
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/file_util.hpp"
 #include "remote_context.hpp"
 #include "transformations.hpp"
 
@@ -955,18 +956,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     // list of properties
     auto originalModel = exclude_model_ptr_from_map(localProperties);
 
-    ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
-    auto deviceId = _propertiesManager->determineDeviceId(localProperties);
+    std::shared_ptr<IDevice> device =
+        utils::getDeviceById(_backend, _propertiesManager->determineDeviceId(localProperties));
 
-    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, deviceId);
-
-    const auto compilationPlatform =
-        utils::getCompilationPlatform(_propertiesManager->determinePlatform(localProperties),
-                                      device == nullptr ? deviceId : device->getName(),
-                                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
-
-    CompilerAdapterFactory factory;
-    auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+    if (_backend == nullptr || device == nullptr) {
+        OPENVINO_THROW("Device not found.");
+    }
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
     auto copyPropertiesManager = std::make_unique<Properties>(*_propertiesManager);
@@ -1048,11 +1043,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     const std::optional<std::vector<ov::Tensor>> initBlobs =
         weightsSeparationEnabled ? std::make_optional(std::move(tensorsInits)) : std::nullopt;
 
-    auto graph =
-        compiler->parse(tensorMain,
-                        localConfig,
-                        initBlobs,
-                        weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt);
+    ParserFactory parserFactory;
+    auto parser = parserFactory.getParser(_backend);
+    auto graph = parser->parse(tensorMain,
+                               localConfig,
+                               initBlobs,
+                               weightsSeparationEnabled ? std::make_optional(std::move(originalModel)) : std::nullopt);
 
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
     const std::shared_ptr<ov::Model> modelDummy =

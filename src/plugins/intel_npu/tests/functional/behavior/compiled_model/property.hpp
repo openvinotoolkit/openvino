@@ -479,4 +479,137 @@ TEST_P(CheckCompilerTypeProperty, GetCompilerVersion) {
     logs.clear();
 }
 
+using CheckCompilerPropertyWhenImporting = ClassExecutableNetworkGetPropertiesTestNPU;
+
+TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerProperty) {
+    std::string logs;
+    std::mutex logs_mutex;
+    ov::Core core_for_compiler;
+    ov::Core core_for_importing;
+    ov::CompiledModel compiled_model;
+    std::stringstream export_stream;
+
+    OV_ASSERT_NO_THROW(compiled_model = core_for_compiler.compile_model(model, deviceName));
+    OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream));
+    compiled_model = {};
+
+    core_for_importing.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    ov::util::set_log_callback(log_cb);
+    OV_ASSERT_NO_THROW(
+        core_for_importing.import_model(export_stream,
+                                        deviceName,
+                                        {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+                                          ov::intel_npu::platform("5010"),
+                                          ov::intel_npu::qdq_optimization(true)}}));
+    ov::util::reset_log_callback();
+
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+    ASSERT_NE(logs.find("Config key 'NPU_PLATFORM' is recognized as a compiler option, will not be used for current "
+                        "configuration."),
+              std::string::npos);
+    ASSERT_NE(logs.find("Config key 'NPU_QDQ_OPTIMIZATION' is recognized as a compiler option, will not be used for "
+                        "current configuration."),
+              std::string::npos);
+}
+
+TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerPropertyAfterCompiling) {
+    std::string logs;
+    std::mutex logs_mutex;
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    std::stringstream export_stream;
+
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
+    OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream));
+    compiled_model = {};
+
+    core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    ov::util::set_log_callback(log_cb);
+    OV_ASSERT_NO_THROW(core.import_model(export_stream,
+                                         deviceName,
+                                         {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+                                           ov::intel_npu::platform("5010"),
+                                           ov::intel_npu::qdq_optimization(true)}}));
+    ov::util::reset_log_callback();
+
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+    ASSERT_NE(logs.find("Config key 'NPU_PLATFORM' is recognized as a compiler option, will not be used for current "
+                        "configuration."),
+              std::string::npos);
+    ASSERT_NE(logs.find("Config key 'NPU_QDQ_OPTIMIZATION' is recognized as a compiler option, will not be used for "
+                        "current configuration."),
+              std::string::npos);
+}
+
+TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerAndBothProperty) {
+    std::string logs;
+    std::mutex logs_mutex;
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    ov::CompiledModel imported_model;
+    std::stringstream export_stream;
+
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
+    OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream));
+    compiled_model = {};
+
+    // Keep this std::function alive while logging is active.
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    auto core_turbo = core.get_property(deviceName, ov::intel_npu::turbo);
+    ASSERT_FALSE(core_turbo);
+
+    core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
+
+    ov::util::set_log_callback(log_cb);
+    OV_ASSERT_NO_THROW(imported_model =
+                           core.import_model(export_stream,
+                                             deviceName,
+                                             {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+                                               ov::intel_npu::platform("5010"),
+                                               ov::intel_npu::qdq_optimization(true),
+                                               ov::intel_npu::turbo(true)}}));
+    ov::util::reset_log_callback();
+
+    ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
+    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+    ASSERT_NE(logs.find("Config key 'NPU_PLATFORM' is recognized as a compiler option, will not be used for current "
+                        "configuration."),
+              std::string::npos);
+    ASSERT_NE(logs.find("Config key 'NPU_QDQ_OPTIMIZATION' is recognized as a compiler option, will not be used for "
+                        "current configuration."),
+              std::string::npos);
+
+    auto supported_properties = imported_model.get_property(ov::supported_properties);
+    auto it = find(supported_properties.cbegin(), supported_properties.cend(), ov::intel_npu::turbo.name());
+    ASSERT_TRUE(it != supported_properties.cend());
+
+    auto turbo = imported_model.get_property(ov::intel_npu::turbo);
+    ASSERT_TRUE(turbo);
+    core_turbo = core.get_property(deviceName, ov::intel_npu::turbo);
+    ASSERT_FALSE(core_turbo);
+}
+
 }  // namespace

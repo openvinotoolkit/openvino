@@ -147,4 +147,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CheckCompilerType,
                                             ::testing::ValuesIn(valid_device_ids)),
                          CheckCompilerTypeProperty::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CheckCompilerType,
+                         CheckCompilerPropertyWhenImporting,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(valid_device_ids)),
+                         CheckCompilerTypeProperty::getTestCaseName);
+
 }  // namespace
