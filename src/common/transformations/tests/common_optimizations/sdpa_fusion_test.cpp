@@ -91,6 +91,14 @@ public:
         multiply_k(scale);
     }
 
+    void squeeze(InputType which, const vector<size_t>& axes) {
+        auto axes_const = op::v0::Constant::create(element::i64, {axes.size()}, axes);
+        nodes[which] = make_shared<op::v0::Squeeze>(nodes[which], axes_const);
+    }
+    void unsqueeze(InputType which, const vector<size_t>& axes) {
+        auto axes_const = op::v0::Constant::create(element::i64, {axes.size()}, axes);
+        nodes[which] = make_shared<op::v0::Unsqueeze>(nodes[which], axes_const);
+    }
     void reshape(InputType which, const Shape& shape) {
         auto shape_const = op::v0::Constant::create(element::i64, {shape.size()}, shape);
         nodes[which] = make_shared<op::v1::Reshape>(nodes[which], shape_const, false);
@@ -112,6 +120,33 @@ public:
     void reshape_sdpa(const Shape& shape) {
         reshape(InputType::SDPA, shape);
     }
+
+    void unsqueeze_q(const vector<size_t>& axes) {
+        unsqueeze(InputType::Q, axes);
+    }
+    void unsqueeze_k(const vector<size_t>& axes) {
+        unsqueeze(InputType::K, axes);
+    }
+    void unsqueeze_v(const vector<size_t>& axes) {
+        unsqueeze(InputType::V, axes);
+    }
+    void unsqueeze_sdpa(const vector<size_t>& axes) {
+        unsqueeze(InputType::SDPA, axes);
+    }
+
+    void squeeze_q(const vector<size_t>& axes) {
+        squeeze(InputType::Q, axes);
+    }
+    void squeeze_k(const vector<size_t>& axes) {
+        squeeze(InputType::K, axes);
+    }
+    void squeeze_v(const vector<size_t>& axes) {
+        squeeze(InputType::V, axes);
+    }
+    void squeeze_sdpa(const vector<size_t>& axes) {
+        squeeze(InputType::SDPA, axes);
+    }
+
     void transpose_q(const vector<size_t>& order) {
         transpose(InputType::Q, order);
     }
@@ -1192,6 +1227,85 @@ TEST_F(TransformationTestsF, SDPAFusionTest_ReshapeOptimizationWithMaskCausal) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
+
+class SDPASqueezeOutput : public TransformationTestsF, public ::testing::WithParamInterface<PartialShape> {};
+
+TEST_P(SDPASqueezeOutput, SDPAFusionTest_SqueezeOutput) {
+    // Parametrization
+    const auto& shape = GetParam();
+
+    SDPA sdpa(f16, shape, shape, shape);
+    SDPA sdpa_ref(f16, shape, shape, shape);
+
+    // SDPA model.
+    {
+        sdpa.create_pattern_sdpa(true);
+        sdpa.transpose_sdpa({1, 0});
+        model = sdpa.build_model();
+
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    // SDPA reference model.
+    {
+        sdpa_ref.unsqueeze_q({0});
+        sdpa_ref.unsqueeze_k({0});
+        sdpa_ref.unsqueeze_v({0});
+        sdpa_ref.create_reference_sdpa();
+        sdpa_ref.squeeze_sdpa({0});
+        sdpa_ref.transpose_sdpa({1, 0});
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+INSTANTIATE_TEST_SUITE_P(SDPAFusion,
+                         SDPASqueezeOutput,
+                         Values(PartialShape{55, 128},   // Static 2D
+                                PartialShape{-1, 128},   // Dynamic batch
+                                PartialShape{55, -1},    // Dynamic embedding
+                                PartialShape{-1, -1}));  // Fully dynamic
+
+class SDPAUnsqueezeOutput : public TransformationTestsF, public ::testing::WithParamInterface<PartialShape> {};
+
+TEST_P(SDPAUnsqueezeOutput, SDPAFusionTest_UnsqueezeOutput) {
+    // Parametrization
+    const auto& shape = GetParam();
+
+    SDPA sdpa(f16, shape, shape, shape);
+    SDPA sdpa_ref(f16, shape, shape, shape);
+
+    // SDPA model.
+    {
+        sdpa.set_mask({1, 1, shape[1], shape[1]});
+        sdpa.create_pattern_sdpa(true);
+        sdpa.transpose_sdpa({0, 1, 3, 2});
+        model = sdpa.build_model();
+
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    // SDPA reference model.
+    {
+        sdpa_ref.set_mask({1, 1, shape[1], shape[1]});
+        sdpa_ref.create_reference_sdpa();
+        sdpa_ref.unsqueeze_sdpa({0});
+        sdpa_ref.transpose_sdpa({0, 1, 3, 2});
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+INSTANTIATE_TEST_SUITE_P(SDPAFusion,
+                         SDPAUnsqueezeOutput,
+                         Values(PartialShape{1, 55, 128},   // Static
+                                PartialShape{1, -1, 128},   // Dynamic batch
+                                PartialShape{1, 55, -1},    // Dynamic embedding
+                                PartialShape{1, -1, -1}));  // Fully dynamic
 
 TEST_F(TransformationTestsF, SDPAFusionTest_4dAttentionMaskWithBatch2) {
     // Init.

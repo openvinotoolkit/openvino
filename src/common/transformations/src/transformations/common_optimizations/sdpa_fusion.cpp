@@ -97,6 +97,53 @@ ov::pass::pattern::op::Predicate check_layout(const std::string& layout) {
             return !order.empty();
         });
 };
+
+std::shared_ptr<ov::Node> try_align_outputs(const std::shared_ptr<ov::Node>& src,
+                                            const std::shared_ptr<ov::Node>& dst) {
+    // skip alignment if node connected to Reshape node
+    auto dst_inputs = dst->get_output_target_inputs(0);
+    if (dst_inputs.size() == 1 && ov::is_type<v1::Reshape>(dst_inputs.begin()->get_node())) {
+        return src;
+    }
+
+    auto src_shape = src->get_output_partial_shape(0);
+    auto dst_shape = dst->get_output_partial_shape(0);
+    if (src_shape.compatible(dst_shape)) {
+        return src;
+    }
+
+    // if shapes are not compatible, we can try to insert an Unsqueeze/Squeeze to align them
+    std::shared_ptr<ov::Node> reshape = nullptr;
+    auto src_rank = src_shape.rank();
+    auto dst_rank = dst_shape.rank();
+
+    int64_t rank_diff = dst_rank.get_length() - src_rank.get_length();
+    std::vector<int64_t> axes(std::abs(rank_diff));
+    std::iota(axes.begin(), axes.end(), 0);
+
+    if (rank_diff > 0) {
+        auto axes_const = v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
+        reshape = std::make_shared<v0::Unsqueeze>(src, axes_const);
+    } else if (rank_diff < 0) {
+        for (auto axis : axes) {
+            if (src_shape[axis].is_dynamic() || src_shape[axis] != 1) {
+                return nullptr;
+            }
+        }
+        auto axes_const = v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
+        reshape = std::make_shared<v0::Squeeze>(src, axes_const);
+    }
+
+    if (!reshape) {
+        return nullptr;
+    }
+
+    reshape->set_friendly_name(src->get_friendly_name() + "/Reshape");
+    ov::copy_runtime_info(src, {reshape});
+
+    return reshape;
+}
+
 }  // namespace
 
 namespace ov::pass {
@@ -473,7 +520,17 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
             std::make_shared<v13::ScaledDotProductAttention>(qkv[0], qkv[1], qkv[2], mask_input, scale_node, false);
         sdpa->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), sdpa);
+
+        // Align output shapes by inserting Squeeze/Unsqueeze nodes as needed when the fused SDPA output rank
+        // differs from the original output rank.
+
+        sdpa = try_align_outputs(sdpa, m.get_match_root());
+        if (!sdpa) {
+            return false;
+        }
+
         ov::replace_node(m.get_match_root(), sdpa);
+
         return true;
     };
 
