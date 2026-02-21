@@ -259,6 +259,8 @@ OP_CONVERTER(translate_std_mean);
 OP_CONVERTER(translate_stft);
 OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sub_);
+OP_CONVERTER(translate_sparse_mm);
+OP_CONVERTER(translate_sparse_coo_tensor);
 OP_CONVERTER(translate_sum);
 OP_CONVERTER(translate_t);
 OP_CONVERTER(translate_take_along_dim);
@@ -351,6 +353,7 @@ OP_CONVERTER(translate_sub_fx);
 OP_CONVERTER(translate_sum_fx);
 OP_CONVERTER(translate_std_fx);
 OP_CONVERTER(translate_topk_fx);
+OP_CONVERTER(translate_to_dense);
 OP_CONVERTER(translate_to_fx);
 OP_CONVERTER(translate_quantize_per_channel_fx);
 OP_CONVERTER(translate_quantize_per_tensor_fx);
@@ -390,6 +393,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::_pad_packed_sequence", op::translate_pad_packed_sequence},
         {"aten::_set_item", op::translate_set_item},
         {"aten::_shape_as_tensor", op::translate_shape_as_tensor},
+        {"aten::sparse_coo_tensor", op::translate_sparse_coo_tensor},
+        {"aten::_sparse_mm", op::translate_sparse_mm},
         {"aten::_unique2", op::translate_unique2},
         {"aten::_upsample_bicubic2d_aa", op::translate_upsample_bicubic2d_aa},
         {"aten::_upsample_bilinear2d_aa", op::translate_upsample_bilinear2d_aa},
@@ -753,6 +758,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         // aten::tensor_split - Supported in limited set of patterns
         {"aten::tile", op::translate_1to1_match_2_inputs<opset10::Tile>},
         {"aten::to", op::translate_to},
+        {"aten::to_dense", op::translate_to_dense},
         {"aten::topk", op::translate_topk},
         {"aten::transpose", op::quantizable_op<op::translate_transpose>},
         {"aten::tril", op::translate_tril},
