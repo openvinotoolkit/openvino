@@ -866,7 +866,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(
                 read(stream, model_str);
                 std::stringstream ss(model_str);
                 pyramid_attention->_compiled_models[i] =
-                    submodel_ctx.plugin->get_core()->import_model(ss, submodel_ctx.device);
+                    submodel_ctx.plugin->get_core()->import_model(ss, submodel_ctx.device, submodel_ctx.import_config);
             }
 
             // Reuse the already compiled model for the last pyramid attention model
@@ -894,7 +894,8 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(
                 std::string model_str;
                 read(stream, model_str);
                 std::stringstream ss(model_str);
-                auto compiled_model = submodel_ctx.plugin->get_core()->import_model(ss, submodel_ctx.device);
+                auto compiled_model =
+                    submodel_ctx.plugin->get_core()->import_model(ss, submodel_ctx.device, submodel_ctx.import_config);
                 moe_experts->_compiled_models[chunk_size] = compiled_model;
                 LOG_DEBUG("Imported MoE compiled model for chunk_size=" << chunk_size);
             }
@@ -913,7 +914,8 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(
             std::string model_str;
             read(stream, model_str);
             std::stringstream ss(model_str);
-            auto compiled_model = submodel_ctx.plugin->get_core()->import_model(ss, submodel_ctx.device);
+            auto compiled_model =
+                submodel_ctx.plugin->get_core()->import_model(ss, submodel_ctx.device, submodel_ctx.import_config);
             moe_experts_downstream->_compiled_model = compiled_model;
             LOG_DEBUG("Imported MoE downstream compiled model");
         }
@@ -929,7 +931,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(
             read(stream, model_str);
             std::stringstream ss(model_str);
             host_flash_attention->_compiled_tile_model =
-                submodel_ctx.plugin->get_core()->import_model(ss, submodel_ctx.device);
+                submodel_ctx.plugin->get_core()->import_model(ss, submodel_ctx.device, submodel_ctx.import_config);
             LOG_DEBUG("Imported compiled tile model for host flash attention");
         }
 
@@ -1427,6 +1429,17 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
 
             bool has_compiled_model = false;
             read(stream, has_compiled_model);
+
+            // Build import config for NPU device
+            ov::AnyMap import_config;
+            const auto& device = compiled->m_dev_list[device_idx];
+            if (ov::npuw::util::starts_with(device, "NPU")) {
+                // Pass NPU_RUN_INFERENCES_SEQUENTIALLY if NPUW_UNFOLD_IREQS is enabled
+                if (compiled->m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>()) {
+                    import_config["NPU_RUN_INFERENCES_SEQUENTIALLY"] = "YES";
+                }
+            }
+
             if (has_compiled_model) {
                 // Import model from the plugin
                 // FIXME: workaround for import/export model since import model seems to reset the file pointer
@@ -1434,15 +1447,16 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                 read(stream, buf);
                 std::stringstream buffer(buf);
                 compiled->m_compiled_submodels[i].compiled_model =
-                    plugin->get_core()->import_model(buffer, compiled->m_dev_list[device_idx]);
+                    plugin->get_core()->import_model(buffer, device, import_config);
             }
             compiled->m_compiled_submodels[i].device_it = compiled->m_dev_list.begin() + device_idx;
 
             // Create unified deserialization context for submodels with dynamic mechanisms
             // (Pyramid Attention, Host Flash Attention, etc.)
             ov::npuw::s11n::SubmodelDeserializeCtx submodel_ctx(plugin,
-                                                                compiled->m_dev_list[device_idx],
-                                                                compiled->m_compiled_submodels[i].compiled_model);
+                                                                device,
+                                                                compiled->m_compiled_submodels[i].compiled_model,
+                                                                import_config);
             compiled->m_compiled_submodels[i].deserialize(stream, compiled->m_import_weights_ctx, submodel_ctx);
         }
 
