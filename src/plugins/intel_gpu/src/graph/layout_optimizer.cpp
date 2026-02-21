@@ -504,6 +504,8 @@ bool should_use_winograd_2x3_s1(const convolution_node& node,
         || weights_layout.batch() % 64 != 0  // current algorithm is effective for ofm to be multiply of 64
         || any_not_one(prim->stride)               // stride has to be 1x1 by definition
         || any_not_one(prim->dilation)             // no support for dilation
+        || !all_zeroes(prim->padding_begin)        // no padding supported. padding could makes higher accuracy loss.
+        || !all_zeroes(prim->padding_end)          // no padding supported. padding could makes higher accuracy loss.
         || output_size_handling_enabled            // This condition is weird. Need to revise it and replace with something meaningful
         || (input_layout.count() > 3000000)        // limit max input size as winograd consumes more memory
         || (input_layout.count() < 50000)          // limit min input size as winograd is not effective for small input
