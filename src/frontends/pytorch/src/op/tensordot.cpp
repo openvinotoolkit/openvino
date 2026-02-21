@@ -36,7 +36,6 @@ struct AxesInfo {
 
 // Helper function to create a range [start, start+1, ..., start+count-1]
 Output<Node> create_range(const NodeContext& ctx, Output<Node> start, Output<Node> count) {
-    auto const_0 = v0::Constant::create(element::i32, Shape{}, {0});
     auto const_1 = v0::Constant::create(element::i32, Shape{}, {1});
     auto end = ctx.mark_node(std::make_shared<v1::Add>(start, count));
     return ctx.mark_node(std::make_shared<v4::Range>(start, end, const_1, element::i32));
