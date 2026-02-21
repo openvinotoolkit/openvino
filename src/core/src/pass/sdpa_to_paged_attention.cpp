@@ -151,6 +151,13 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     ResultVector score_results;
     ResultVector adaptive_rkv_diversity_results;
 
+    if (auto token_type_ids_param = get_parameter(model, "token_type_ids")) {
+        token_type_ids_param->set_partial_shape(PartialShape{1, -1});
+        token_type_ids_param->set_element_type(element::i64);
+        token_type_ids_param->validate_and_infer_types();
+        optional_model_wide_params["token_type_ids"] = token_type_ids_param;
+    }
+
     std::shared_ptr<v0::Parameter> position_ids;
     if (!get_parameter(model, "position_ids")) {
         position_ids = named_parameter(std::make_shared<v0::Parameter>(element::i64, PartialShape{-1}), "position_ids");

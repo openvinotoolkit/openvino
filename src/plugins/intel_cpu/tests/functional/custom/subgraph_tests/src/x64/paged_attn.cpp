@@ -159,6 +159,7 @@ public:
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
         auto adaptive_rkv_diversity_block_set_indices_begins =
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
+        auto token_type_ids = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{});
         ParameterVector params =
             {q, k, v, key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins};
         OutputVector paged_attn_inputs = {q,
@@ -185,7 +186,8 @@ public:
                                           adaptive_rkv_start_size,
                                           adaptive_rkv_evictable_sizes,
                                           adaptive_rkv_diversity_block_set_indices,
-                                          adaptive_rkv_diversity_block_set_indices_begins};
+                                          adaptive_rkv_diversity_block_set_indices_begins,
+                                          token_type_ids};
 
         auto paged_attn = std::make_shared<op::PagedAttentionExtension>(paged_attn_inputs);
 
