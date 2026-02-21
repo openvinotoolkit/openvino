@@ -147,6 +147,7 @@ OP_CONVERTER(translate_layer_norm);
 OP_CONVERTER(translate_len);
 OP_CONVERTER(translate_lerp);
 OP_CONVERTER(translate_linalg_cross);
+OP_CONVERTER(translate_linalg_det);
 OP_CONVERTER(translate_linalg_norm);
 OP_CONVERTER(translate_linalg_matrix_norm);
 OP_CONVERTER(translate_linalg_vector_norm);
@@ -490,6 +491,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::cosh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cosh>>},
         {"aten::cross", op::translate_cross},
         {"aten::cumsum", op::translate_cumsum},
+        {"aten::det", op::translate_linalg_det},
         {"aten::detach", op::skip_node},
         {"aten::dequantize", op::skip_node},  // we convert model to fp32 using FQ, so dequantization is not needed
         {"aten::dim", op::translate_dim},
@@ -588,6 +590,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::lift_fresh", op::skip_node},
         {"aten::lift_fresh_copy", op::skip_node},
         {"aten::linalg_cross", op::translate_linalg_cross},
+        {"aten::linalg_det", op::translate_linalg_det},
+        {"aten::linalg_det.out", op::translate_linalg_det},
         {"aten::linalg_inv", op::translate_inverse},
         {"aten::linalg_norm", op::translate_linalg_norm},
         {"aten::linalg_matrix_norm", op::translate_linalg_matrix_norm},
@@ -978,6 +982,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.leaky_relu.default", op::translate_leaky_relu_fx},
         {"aten.leaky_relu_.default", op::inplace_op<op::translate_leaky_relu_fx>},
         {"aten.lift_fresh_copy.default", op::skip_node},
+        {"aten.linalg_det.default", op::translate_linalg_det},
         {"aten.linalg_vector_norm.default", op::translate_linalg_vector_norm},
         {"aten.linear.default", op::translate_linear},
         {"aten.log.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Log>},
