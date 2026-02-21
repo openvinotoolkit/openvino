@@ -3,10 +3,14 @@
 //
 
 #include <stdint.h>
+#include <stdexcept>
 #include <string>
 #include <iostream>
 #include <fstream>
 #include <vector>
+
+#include "system_memory_sampling.hpp"
+#include "gpu_memory_sampling.hpp"
 
 
 #define _AS_STR(x) #x
@@ -22,97 +26,11 @@ struct MemoryCounters {
 
     int32_t thread_count = -1;
 
-    static MemoryCounters sample();
+    int64_t gpu_local_used = -1;
+    int64_t gpu_local_total = -1;
+    int64_t gpu_nonlocal_used = -1;
+    int64_t gpu_nonlocal_total = -1;
 };
-
-
-#ifdef _WIN32
-
-#include <windows.h>
-#include <tlhelp32.h>
-#include <psapi.h>
-
-static PROCESS_MEMORY_COUNTERS getMemoryInfo() {
-    static PROCESS_MEMORY_COUNTERS pmc;
-    pmc.cb = sizeof(PROCESS_MEMORY_COUNTERS);
-    if (!GetProcessMemoryInfo(GetCurrentProcess(), &pmc, pmc.cb))
-        throw std::runtime_error("Can't get system memory values");
-    return pmc;
-}
-
-static size_t getThreadsNum() {
-    // first determine the id of the current process
-    DWORD const id = GetCurrentProcessId();
-
-    // then get a process list snapshot.
-    HANDLE const snapshot = CreateToolhelp32Snapshot( TH32CS_SNAPALL, 0 );
-
-    // initialize the process entry structure.
-    PROCESSENTRY32 entry = { 0 };
-    entry.dwSize = sizeof( entry );
-
-    // get the first process info.
-    BOOL  ret = true;
-    ret = Process32First( snapshot, &entry );
-    while( ret && entry.th32ProcessID != id ) {
-        ret = Process32Next( snapshot, &entry );
-    }
-    CloseHandle( snapshot );
-    return ret
-        ?   entry.cntThreads
-        :   -1;
-}
-
-MemoryCounters MemoryCounters::sample() {
-    MemoryCounters out;
-    auto meminfo = getMemoryInfo();
-    out.virtual_size = meminfo.PagefileUsage / 1024;
-    out.virtual_peak = meminfo.PeakPagefileUsage / 1024;
-    out.resident_size = meminfo.WorkingSetSize / 1024;
-    out.resident_peak = meminfo.PeakWorkingSetSize / 1024;
-    out.thread_count = (int32_t) getThreadsNum();
-    return out;
-}
-
-#else
-
-MemoryCounters MemoryCounters::sample() {
-    MemoryCounters out;
-    std::ifstream file;
-    file.open("/proc/self/status");
-    std::string line;
-    while (true) {
-        if (!std::getline(file, line)) {
-            break;
-        }
-        auto delim_pos = line.find(':');
-        if (delim_pos == std::string::npos) {
-            continue;
-        }
-        auto prefix = line.substr(0, delim_pos);
-        auto value_start = line.find_first_not_of("\t ", delim_pos + 1);
-        auto value_end = line.find_first_of("\t ", value_start);
-        if (value_start == std::string::npos) {
-            continue;
-        }
-        auto value = line.substr(value_start, value_end - value_start);
-        long ivalue = std::atol(value.c_str());
-        if (prefix == "VmSize") {
-            out.virtual_size = ivalue;
-        } else if (prefix == "VmPeak") {
-            out.virtual_peak = ivalue;
-        } else if (prefix == "VmRSS") {
-            out.resident_size = ivalue;
-        } else if (prefix == "VmHWM") {
-            out.resident_peak = ivalue;
-        } else if (prefix == "Threads") {
-            out.thread_count = (int32_t) ivalue;
-        }
-    }
-    return out;
-}
-
-#endif
 
 
 inline std::string jsonescape(const std::string &str) {
@@ -160,6 +78,8 @@ static std::vector<std::string> registered_samples = registered_samples_init();
 struct TestContext {
     std::string model_path;
     std::string device;
+    bool gpu_ready = false;
+
     std::vector<std::pair<std::string, MemoryCounters>> samples;
 
     static TestContext from_args(int argc, char **argv) {
@@ -177,7 +97,16 @@ struct TestContext {
             device = argv[2];
         }
 
-        return {model_path, device};
+        bool gpu_ready = false;
+        if (device.find("GPU") != std::string::npos) {
+            // GPU is used -> initialize GPU sampling
+            gpu_ready = initGpuSampling() == InitGpuStatus::SUCCESS;
+            if (!gpu_ready) {
+                std::cerr << "GPU memory sampling will not be available" << std::endl;
+            }
+        }
+
+        return {model_path, device, gpu_ready};
     }
 
     bool is_sample_registered(std::string &sample_name) {
@@ -196,7 +125,22 @@ struct TestContext {
             std::string error_msg = "sample \"" + sample_name + "\" is not defined in registered_samples";
             throw std::runtime_error(error_msg);
         }
-        samples.emplace_back(std::move(sample_name), MemoryCounters::sample());
+        auto sys_sample = sampleSystemMemory();
+        auto sample = MemoryCounters{
+            .virtual_size = sys_sample.virtual_size,
+            .virtual_peak = sys_sample.virtual_peak,
+            .resident_size = sys_sample.resident_size,
+            .resident_peak = sys_sample.resident_peak,
+            .thread_count = sys_sample.thread_count
+        };
+        if (gpu_ready) {
+            auto gpu_sample = sampleGpuMemory();
+            sample.gpu_local_used = gpu_sample.local_used;
+            sample.gpu_local_total = gpu_sample.local_total;
+            sample.gpu_nonlocal_used = gpu_sample.nonlocal_used;
+            sample.gpu_nonlocal_total = gpu_sample.nonlocal_total;
+        }
+        samples.push_back({sample_name, sample});
     }
 
     void report() {
@@ -211,7 +155,11 @@ struct TestContext {
             << "\"vmpeak\": " << sample.second.virtual_peak << ", "
             << "\"vmrss\": " << sample.second.resident_size << ", "
             << "\"vmhwm\": " << sample.second.resident_peak << ", "
-            << "\"threads\": " << sample.second.thread_count << "}";
+            << "\"threads\": " << sample.second.thread_count << ", "
+            << "\"gpu_local_used\": " << sample.second.gpu_local_used << ", "
+            << "\"gpu_local_total\": " << sample.second.gpu_local_total << ", "
+            << "\"gpu_nonlocal_used\": " << sample.second.gpu_nonlocal_used << ", "
+            << "\"gpu_nonlocal_total\": " << sample.second.gpu_nonlocal_total << "}";
             if (&sample != &samples.back()) {
                 std::cout << ", ";
             }
