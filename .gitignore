@@ -66,3 +66,23 @@ coverage
 /tools/commit_slider/slider_cache/*
 /src/plugins/intel_cpu/thirdparty/ComputeLibrary/build/arm_compute_version.embed
 .github/GITHUB_OUTPUT
+# Local virtual env
+openvino-env/
+
+# Downloaded models
+public/
+examples/fastapi/public/
+
+# Local test scripts
+test_infer.py
+# Local Python environments
+openvino-env/
+
+# Downloaded models / runtime assets
+public/
+
+# Python cache
+__pycache__/
+*.pyc
+
+
