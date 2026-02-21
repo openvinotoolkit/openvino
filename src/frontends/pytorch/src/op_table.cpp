@@ -227,6 +227,7 @@ OP_CONVERTER(translate_reflection_pad_nd);
 OP_CONVERTER(translate_relu6);
 OP_CONVERTER(translate_remainder);
 OP_CONVERTER(translate_repeat_interleave);
+OP_CONVERTER(translate_replace);
 OP_CONVERTER(translate_replication_pad_nd);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_reshape_as);
@@ -687,6 +688,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::remainder", op::translate_remainder},
         {"aten::repeat", op::translate_1to1_match_2_inputs<opset10::Tile>},
         {"aten::repeat_interleave", op::translate_repeat_interleave},
+        {"aten::replace", op::translate_replace},
         {"aten::replication_pad1d", op::translate_replication_pad_nd},
         {"aten::replication_pad2d", op::translate_replication_pad_nd},
         {"aten::replication_pad3d", op::translate_replication_pad_nd},
