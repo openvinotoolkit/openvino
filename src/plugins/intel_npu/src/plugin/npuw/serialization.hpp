@@ -53,7 +53,7 @@ class IPlugin;
 class ICompiledModel;
 template <class>
 class Output;
-template <class>
+template <class, class>
 class SharedBuffer;
 template <class>
 struct SoPtr;
@@ -100,7 +100,7 @@ public:
 };
 
 using BF16Cache = std::unordered_set<std::pair<std::size_t, std::size_t>, ov::npuw::s11n::PairHash>;
-using Weights = ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>;
+using Weights = ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>, void>;
 using WeightsPtr = std::shared_ptr<Weights>;
 
 struct CompiledContext {
