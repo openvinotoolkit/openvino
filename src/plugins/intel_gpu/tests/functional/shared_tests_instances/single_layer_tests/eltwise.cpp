@@ -3,9 +3,17 @@
 //
 
 #include <vector>
+#include <cmath>        
+#include <iostream>     
+
 #include "single_op_tests/eltwise.hpp"
 #include "common_test_utils/test_constants.hpp"
-
+#include "openvino/op/ceiling.hpp"
+#include "openvino/runtime/tensor.hpp"
+#include "openvino/runtime/core.hpp"
+#include "openvino/op/floor.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace {
 using ov::test::EltwiseLayerTest;
@@ -13,7 +21,7 @@ using ov::test::utils::InputLayerType;
 using ov::test::utils::OpType;
 using ov::test::utils::EltwiseTypes;
 
-std::vector<std::vector<ov::Shape>>  inShapes = {
+std::vector<std::vector<ov::Shape>> inShapes = {
         {{2}},
         {{}, {34100}},
         {{2, 200}},
@@ -122,3 +130,45 @@ INSTANTIATE_TEST_SUITE_P(
     EltwiseLayerTest::getTestCaseName);
 
 }  // namespace
+
+namespace LayerTestsDefinitions {
+
+TEST(PrecisionTrapTest, GPU_HighPrecision_Floor_Check) {
+    // 1. Build Model: Input -> Floor -> Output
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+    auto floor_op = std::make_shared<ov::op::v0::Floor>(param);
+    auto result = std::make_shared<ov::op::v0::Result>(floor_op);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{param});
+
+    // 2. Compile on GPU
+    ov::Core core;
+    
+    // Check if GPU exists
+    std::vector<std::string> devices = core.get_available_devices();
+    bool gpu_found = false;
+    for(const auto& d : devices) { if (d.find("GPU") != std::string::npos) gpu_found = true; }
+    
+    if (!gpu_found) {
+        std::cout << "[SKIP] No GPU found.\n";
+        return;
+    }
+
+    auto compiled_model = core.compile_model(model, "GPU");
+    auto request = compiled_model.create_infer_request();
+
+    // 3. Set Trap Input: Largest float less than 1.0
+    // std::nextafter(1.0f, 0.0f) gives approx 0.99999994
+    request.get_input_tensor().data<float>()[0] = std::nextafter(1.0f, 0.0f);
+
+    // 4. Run Inference
+    request.infer();
+
+    // 5. Get Output
+    float output_val = request.get_output_tensor().data<float>()[0];
+    
+    std::cout << "\n[DEBUG] Input: nextafter(1.0f)  -->  Output: " << output_val << "\n";
+
+    // 6. Fail if it rounded up to 1.0
+    ASSERT_EQ(output_val, 0.0f) << "FAILURE: Kernel used FLOAT precision! (Output was 1.0)";
+}
+} // namespace LayerTestsDefinitions

@@ -1,7 +1,9 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
+#ifdef cl_khr_fp64
+#pragma OPENCL EXTENSION cl_khr_fp64 : enable
+#endif
 #include "include/batch_headers/fetch_data.cl"
 
 #ifdef PARAMETERIZED
@@ -113,15 +115,15 @@ KERNEL(activation)(
     #if PARAMS_NUM > 2
         #error Too many params
     #elif PARAMS_NUM == 2
-        #define NL_M_PARAMETERIZED (float)params[2*feature + 0]
-        #define NL_N_PARAMETERIZED (float)params[2*feature + 1]
+        #define NL_M_PARAMETERIZED (INPUT0_TYPE)params[2*feature + 0]
+        #define NL_N_PARAMETERIZED (INPUT0_TYPE)params[2*feature + 1]
     #elif PARAMS_NUM == 1
         const unsigned param_index = GET_INDEX(ADDITIONAL_PARAMS,,ORDER);
-        #define NL_M_PARAMETERIZED (float)params[param_index]
-        #define NL_N_PARAMETERIZED (float)NL_N
+        #define NL_M_PARAMETERIZED (INPUT0_TYPE)params[param_index]
+        #define NL_N_PARAMETERIZED (INPUT0_TYPE)NL_N
     #else
-        #define NL_M_PARAMETERIZED (float)NL_M
-        #define NL_N_PARAMETERIZED (float)NL_N
+        #define NL_M_PARAMETERIZED (INPUT0_TYPE)NL_M
+        #define NL_N_PARAMETERIZED (INPUT0_TYPE)NL_N
     #endif
     #define PARAMETERIZED_ACTIVATION_PARAMS NL_M_PARAMETERIZED, NL_N_PARAMETERIZED
 
