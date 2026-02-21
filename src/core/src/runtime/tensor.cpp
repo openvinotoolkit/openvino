@@ -18,9 +18,40 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/log.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 namespace ov {
+
+namespace {
+ov::util::TensorImplGenerator& custom_tensor_generator() {
+    static ov::util::TensorImplGenerator generator;
+    return generator;
+}
+
+std::shared_ptr<ITensor> make_tensor_with_custom_generator(const element::Type& element_type,
+                                                           const Shape& shape,
+                                                           const Allocator& allocator) {
+    auto& custom_generator = custom_tensor_generator();
+    if (custom_generator && allocator == Allocator{}) {
+        return custom_generator(element_type, shape);
+    }
+    return make_tensor(element_type, shape, allocator);
+}
+}  // namespace
+
+namespace util {
+void set_custom_tensor_impl_generator(const TensorImplGenerator& generator) {
+    custom_tensor_generator() = generator;
+    OPENVINO_DEBUG("Custom tensor implementation generator is set.");
+}
+
+void reset_custom_tensor_impl_generator() {
+    custom_tensor_generator() = nullptr;
+    OPENVINO_DEBUG("Custom tensor implementation generator is reset.");
+}
+
+}  // namespace util
 
 #define OV_TENSOR_STATEMENT(...)                                      \
     OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized."); \
@@ -49,7 +80,7 @@ Tensor::Tensor(const std::shared_ptr<ITensor>& impl, const std::shared_ptr<void>
 }
 
 Tensor::Tensor(const element::Type& element_type, const Shape& shape, const Allocator& allocator)
-    : _impl{make_tensor(element_type, shape, allocator)} {}
+    : _impl{make_tensor_with_custom_generator(element_type, shape, allocator)} {}
 
 Tensor::Tensor(const element::Type& element_type, const Shape& shape, void* host_ptr, const Strides& byte_strides)
     : _impl{make_tensor(element_type, shape, host_ptr, byte_strides)} {}

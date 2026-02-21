@@ -10,6 +10,7 @@
 #pragma once
 
 #include <filesystem>
+#include <functional>
 #include <type_traits>
 
 #include "openvino/core/coordinate.hpp"
@@ -26,8 +27,19 @@ class Tensor;
 class ITensor;
 
 namespace util {
+using TensorImplGenerator = std::function<std::shared_ptr<ITensor>(const element::Type&, const Shape&)>;
+
 ov::Tensor make_tensor(const std::shared_ptr<ov::ITensor>& tensor, const std::shared_ptr<void>& so);
 void get_tensor_impl(const ov::Tensor& tensor, std::shared_ptr<ov::ITensor>& tensor_impl, std::shared_ptr<void>& so);
+
+/// @brief Set default tensor implementation generator. This generator will be used in Tensor constructors.
+/// @param generator Tensor implementation generator or nullptr to reset to default behavior
+OPENVINO_API
+void set_custom_tensor_impl_generator(const TensorImplGenerator& generator);
+
+/// @brief Reset default tensor implementation generator to default behavior.
+OPENVINO_API
+void reset_custom_tensor_impl_generator();
 }  // namespace util
 
 namespace op {

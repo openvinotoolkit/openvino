@@ -23,6 +23,7 @@ OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_lora_operation, true, "Enab
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_large_allocations, false, "Enable/Disable large buffer allocations (>4gb). Enabling this option may lead to performance degradation")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, enable_loop_unrolling, true, "Enable/Disable Loop/TensorIterator operation unrolling")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, disable_winograd_convolution, false, "Enable/Disable winograd convolution implementation if available")
+OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, default_usm_host_tensor_allocation, false, "Force USM Host memory allocation for default tensors")
 OV_CONFIG_RELEASE_OPTION(ov::internal, exclusive_async_requests, false, "")
 OV_CONFIG_RELEASE_OPTION(ov::internal, query_model_ratio, 1.0f, "")
 OV_CONFIG_RELEASE_OPTION(ov, cache_mode, ov::CacheMode::OPTIMIZE_SPEED, "Cache mode defines the trade-off between the model compilation time and the disk space required for the cache")
