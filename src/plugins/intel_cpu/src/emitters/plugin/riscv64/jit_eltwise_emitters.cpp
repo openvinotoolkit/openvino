@@ -27,6 +27,7 @@
 #include "openvino/op/relu.hpp"
 #include "snippets/op/powerstatic.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
+#include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
 #include "xbyak_riscv/xbyak_riscv_csr.hpp"
@@ -3120,6 +3121,106 @@ std::set<std::vector<element::Type>> jit_tanh_emitter::get_supported_precisions(
 void jit_tanh_emitter::emit_data() const {
     jit_emitter::emit_data();
     sigmoid_emitter->emit_data();
+}
+
+/// SWISH ///
+jit_swish_emitter::jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                     ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                     float beta,
+                                     ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc),
+      beta(beta),
+      sigmoid_emitter(std::make_unique<jit_sigmoid_emitter>(host, host_isa, exec_prc)) {
+    prepare_table();
+}
+
+jit_swish_emitter::jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                     ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                     const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)),
+      beta(1.0F),
+      sigmoid_emitter(std::make_unique<jit_sigmoid_emitter>(host, host_isa, exec_prc_)) {
+    const auto swish = ov::as_type_ptr<ov::intel_cpu::SwishNode>(node);
+    if (!swish) {
+        OV_CPU_JIT_EMITTER_THROW("Expected SwishNode but got: ", node->get_type_name());
+    }
+    beta = swish->get_alpha();
+    prepare_table();
+}
+
+size_t jit_swish_emitter::get_inputs_num() const {
+    return 1;
+}
+
+size_t jit_swish_emitter::aux_gprs_count() const {
+    return sigmoid_emitter->aux_gprs_count();
+}
+
+size_t jit_swish_emitter::aux_vecs_count() const {
+    return sigmoid_emitter->aux_vecs_count() + 1;
+}
+
+size_t jit_swish_emitter::aux_fp_gprs_count() const {
+    return std::max(sigmoid_emitter->aux_fp_gprs_count(), beta != 1.0F ? 1LU : 0LU);
+}
+
+void jit_swish_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                  const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel for SWISH");
+    }
+}
+
+void jit_swish_emitter::register_table_entries() {
+    if (beta != 1.0F) {
+        push_arg_entry_of("beta", dnnl::impl::float2int(beta));
+    }
+}
+
+void jit_swish_emitter::emit_data() const {
+    jit_emitter::emit_data();
+    sigmoid_emitter->emit_data();
+}
+
+std::set<std::vector<element::Type>> jit_swish_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_swish_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                 const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == element::f32, "Unsupported precision: ", exec_prc_);
+
+    auto src = VReg(in_vec_idxs[0]);
+    auto dst = VReg(out_vec_idxs[0]);
+
+    auto src_copy = VReg(aux_vec_idxs[aux_vecs_count() - 1]);
+
+    h->vmv_v_v(src_copy, src);  // need since we are overwriting src
+
+    if (beta != 1.0F) {
+        auto beta_reg = FReg(aux_fp_gpr_idxs[0]);
+        load_table_val("beta", beta_reg);
+        h->vfmul_vf(dst, src, beta_reg);
+    } else {
+        // beta = 1.0f
+        h->vmv_v_v(dst, src);
+    }
+
+    // Sigmoid emitter expects aux_fp_gpr_idxs[0] to be zero
+    h->fmv_w_x(FReg(aux_fp_gpr_idxs[0]), zero);
+
+    const auto sigmoid_src_idxs = std::vector<size_t>{static_cast<size_t>(dst.getIdx())};
+    const auto sigmoid_dst_idxs = std::vector<size_t>{static_cast<size_t>(dst.getIdx())};
+    const auto sigmoid_aux_vec_idxs =
+        std::vector<size_t>{aux_vec_idxs.begin(), aux_vec_idxs.begin() + sigmoid_emitter->aux_vecs_count()};
+
+    sigmoid_emitter->emit_code(sigmoid_src_idxs, sigmoid_dst_idxs, sigmoid_aux_vec_idxs, aux_gpr_idxs, aux_fp_gpr_idxs);
+
+    h->vfmul_vv(dst, src_copy, dst);  // x * sigmoid(x)
 }
 
 #undef CONST_1_F
