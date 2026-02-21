@@ -65,7 +65,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-32-cores-128gb-build
+    runs-on: aks-win-32-cores-128gb-build-st
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
@@ -317,7 +317,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-16-cores-32gb-build
+    runs-on: aks-win-16-cores-32gb-build-st
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_TOOLCHAIN_FILE: "${{ github.workspace }}\\openvino\\cmake\\toolchains\\onecoreuap.toolchain.cmake"
@@ -398,7 +398,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-8-cores-16gb-test
+    runs-on: aks-win-8-cores-16gb-test-st
     env:
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"

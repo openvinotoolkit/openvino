@@ -38,7 +38,7 @@ jobs:
     name: Rerun Workflow
     # Run only for the failed workflows in openvinotoolkit org
     if: ${{ github.event.workflow_run.conclusion == 'failure' && github.repository_owner == 'openvinotoolkit' }}
-    runs-on: aks-linux-small
+    runs-on: aks-linux-small-st
     permissions:
       actions: write
       contents: read
@@ -78,7 +78,7 @@ jobs:
   rerunner_tests:
     name: Rerunner Tests
     if: ${{ github.event_name == 'pull_request' && github.repository_owner == 'openvinotoolkit' }}
-    runs-on: aks-linux-small
+    runs-on: aks-linux-small-st
     steps:
       - name: Checkout
         uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
