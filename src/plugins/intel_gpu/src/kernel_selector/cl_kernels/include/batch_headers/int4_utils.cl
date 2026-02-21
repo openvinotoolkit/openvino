@@ -14,6 +14,20 @@ typedef struct __attribute__ ((packed)) uint4x4_t { uint4x2_t s0; uint4x2_t s1; 
 typedef struct __attribute__ ((packed)) uint4x8_t { uint4x2_t s0; uint4x2_t s1; uint4x2_t s2; uint4x2_t s3; } uint4x8_t;
 typedef struct __attribute__ ((packed)) uint4x16_t { uint4x2_t s0; uint4x2_t s1; uint4x2_t s2; uint4x2_t s3; uint4x2_t s4; uint4x2_t s5; uint4x2_t s6; uint4x2_t s7; } uint4x16_t;
 
+inline uchar cvt_uint8x2_to_uint4x2(uchar2 v) __attribute__((overloadable)) {
+    uchar v0 = 0;
+    v0 = (v.s1 & 0x0F) << 4;
+    v0 = v0 | (v.s0 & 0x0F);
+    return v0;
+}
+
+inline char cvt_int8x2_to_uint4x2(char2 v) __attribute__((overloadable)) {
+    char v0 = 0;
+    v0 = (v.s1 & 0x0F) << 4;
+    v0 = v0 | (v.s0 & 0x0F);
+    return v0;
+}
+
 inline uchar2 cvt_uint4x2_to_uint8x2(uint4x2_t v) __attribute__((overloadable)) {
     const uchar v0 = v.s0 & 0x0F;
     const uchar v1 = (v.s0 & 0xF0) >> 4;
