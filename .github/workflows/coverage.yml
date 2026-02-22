@@ -409,9 +409,12 @@ jobs:
           set +e
 
           TESTS_DIR="${{ github.workspace }}/install_pkg/tests"
+          SRC_PY_TESTS_DIR="${{ github.workspace }}/src/bindings/python/tests"
+          ONNX_PY_TESTS_DIR="${{ github.workspace }}/src/frontends/onnx/tests/tests_python"
           PY_COV_CONFIG="${{ github.workspace }}/.python_coverage_ci.rc"
           PY_TOTAL_EXECUTED=0
           FAILED_PY_TESTS=()
+          SKIPPED_PY_TESTS=()
 
           python3 -m pip install -r "${TESTS_DIR}/bindings/python/requirements_test.txt"
           python3 -m pip install -r "${TESTS_DIR}/layer_tests/requirements.txt"
@@ -441,7 +444,31 @@ jobs:
             shift
             PY_TOTAL_EXECUTED=$((PY_TOTAL_EXECUTED + 1))
             echo "========== Running Python test: ${test_name} =========="
-            python3 -m pytest "$@"
+            python3 -m pytest -ra --durations=50 "$@"
+            local rc=$?
+            if [[ ${rc} -ne 0 ]]; then
+              FAILED_PY_TESTS+=("${test_name} (exit ${rc})")
+            fi
+          }
+
+          run_pytest_if_dir() {
+            local test_name="$1"
+            local test_dir="$2"
+            shift 2
+            if [[ -d "${test_dir}" ]]; then
+              run_pytest "${test_name}" -sv "${test_dir}" -n "${{ env.PYTEST_XDIST_WORKERS }}" "$@"
+            else
+              echo "Skipping Python test group '${test_name}' (missing: ${test_dir})"
+              SKIPPED_PY_TESTS+=("${test_name} (missing path)")
+            fi
+          }
+
+          run_python_cmd() {
+            local test_name="$1"
+            shift
+            PY_TOTAL_EXECUTED=$((PY_TOTAL_EXECUTED + 1))
+            echo "========== Running Python command test: ${test_name} =========="
+            "$@"
             local rc=$?
             if [[ ${rc} -ne 0 ]]; then
               FAILED_PY_TESTS+=("${test_name} (exit ${rc})")
@@ -451,18 +478,29 @@ jobs:
           run_pytest "pyopenvino" -sv "${TESTS_DIR}/pyopenvino" -n "${{ env.PYTEST_XDIST_WORKERS }}" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append --ignore="${TESTS_DIR}/pyopenvino/tests/test_utils/test_utils.py"
           run_pytest "onnx_python" -sv "${TESTS_DIR}/onnx" -n "${{ env.PYTEST_XDIST_WORKERS }}" -k "not cuda" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append --ignore="${TESTS_DIR}/onnx/test_python/test_zoo_models.py"
           run_pytest "ovc_unit" -sv "${TESTS_DIR}/ovc/unit_tests" -n "${{ env.PYTEST_XDIST_WORKERS }}" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
-          run_pytest "py_frontend" -sv "${TESTS_DIR}/layer_tests/py_frontend_tests" -n "${{ env.PYTEST_XDIST_WORKERS }}" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
-          TEST_DEVICE=CPU TEST_PRECISION=FP16 run_pytest "tensorflow_lite_layers" -sv "${TESTS_DIR}/layer_tests/tensorflow_lite_tests" -n "${{ env.PYTEST_XDIST_WORKERS }}" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
+          TEST_DEVICE=CPU TEST_PRECISION=FP16 run_pytest_if_dir "py_frontend" "${TESTS_DIR}/layer_tests/py_frontend_tests" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
+          TEST_DEVICE=CPU TEST_PRECISION=FP16 run_pytest_if_dir "tensorflow_lite_layers" "${TESTS_DIR}/layer_tests/tensorflow_lite_tests" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
+          TEST_DEVICE=CPU TEST_PRECISION=FP16 run_pytest_if_dir "tensorflow_layers" "${TESTS_DIR}/layer_tests/tensorflow_tests" -k "not gpu and not cuda and not npu" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
+          TEST_DEVICE=CPU TEST_PRECISION=FP16 run_pytest_if_dir "onnx_layers" "${TESTS_DIR}/layer_tests/onnx_tests" -k "not gpu and not cuda and not npu" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
+          TEST_DEVICE=CPU TEST_PRECISION=FP16 run_pytest_if_dir "pytorch_layers" "${TESTS_DIR}/layer_tests/pytorch_tests" -k "not gpu and not cuda and not npu" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
+          TEST_DEVICE=CPU TEST_PRECISION=FP16 run_pytest_if_dir "paddle_layers" "${TESTS_DIR}/layer_tests/paddle_tests" -k "not gpu and not cuda and not npu" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
+          run_pytest_if_dir "src_py_runtime" "${SRC_PY_TESTS_DIR}/test_runtime" -k "not gpu and not cuda and not npu" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
+          run_pytest_if_dir "src_py_graph" "${SRC_PY_TESTS_DIR}/test_graph" -k "not gpu and not cuda and not npu" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
+          run_pytest_if_dir "src_py_transformations" "${SRC_PY_TESTS_DIR}/test_transformations" -k "not gpu and not cuda and not npu" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
+          run_pytest_if_dir "src_onnx_frontend_python" "${ONNX_PY_TESTS_DIR}" -k "not gpu and not cuda and not npu and not zoo" --ignore="${ONNX_PY_TESTS_DIR}/test_zoo_models.py" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
+          run_pytest_if_dir "src_py_runtime_strict" "${SRC_PY_TESTS_DIR}/test_runtime" -q --maxfail=1 -k "not gpu and not cuda and not npu" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
+          run_python_cmd "ovc_cli_help" python3 -m openvino.tools.ovc --help
 
           coverage xml -o "${{ github.workspace }}/python-coverage.xml"
 
           PY_FAILED=${#FAILED_PY_TESTS[@]}
+          PY_SKIPPED=${#SKIPPED_PY_TESTS[@]}
           PY_PASSED=$((PY_TOTAL_EXECUTED - PY_FAILED))
           {
-            echo "PY_TESTS_TOTAL=${PY_TOTAL_EXECUTED}"
+            echo "PY_TESTS_TOTAL=$((PY_TOTAL_EXECUTED + PY_SKIPPED))"
             echo "PY_TESTS_PASSED=${PY_PASSED}"
             echo "PY_TESTS_FAILED=${PY_FAILED}"
-            echo "PY_TESTS_SKIPPED=0"
+            echo "PY_TESTS_SKIPPED=${PY_SKIPPED}"
           } >> "$GITHUB_ENV"
 
           {
@@ -471,7 +509,7 @@ jobs:
             echo "Python tests executed: ${PY_TOTAL_EXECUTED}"
             echo "Python tests passed: ${PY_PASSED}"
             echo "Python tests failed: ${PY_FAILED}"
-            echo "Python tests skipped: 0"
+            echo "Python tests skipped: ${PY_SKIPPED}"
             echo ""
             if [[ ${#FAILED_PY_TESTS[@]} -gt 0 ]]; then
               echo "Failed tests:"
@@ -480,6 +518,15 @@ jobs:
               done
             else
               echo "Failed tests: none"
+            fi
+            echo ""
+            if [[ ${#SKIPPED_PY_TESTS[@]} -gt 0 ]]; then
+              echo "Skipped tests:"
+              for item in "${SKIPPED_PY_TESTS[@]}"; do
+                echo "- ${item}"
+              done
+            else
+              echo "Skipped tests: none"
             fi
           } >> "${GITHUB_STEP_SUMMARY}"
 
@@ -499,26 +546,70 @@ jobs:
           npm i
           npm i --no-save c8
 
-          JS_TOTAL_EXECUTED=$((JS_TOTAL_EXECUTED + 1))
-          npm run lint
-          [[ $? -ne 0 ]] && FAILED_JS_TESTS+=("npm run lint")
+          run_js_cmd() {
+            local test_name="$1"
+            shift
+            JS_TOTAL_EXECUTED=$((JS_TOTAL_EXECUTED + 1))
+            echo "========== Running JS test: ${test_name} =========="
+            "$@"
+            local rc=$?
+            if [[ ${rc} -ne 0 ]]; then
+              FAILED_JS_TESTS+=("${test_name} (exit ${rc})")
+            fi
+          }
+
+          run_js_c8_unit() {
+            local test_name="$1"
+            local clean_mode="$2"
+            shift 2
+            JS_TOTAL_EXECUTED=$((JS_TOTAL_EXECUTED + 1))
+            echo "========== Running JS covered unit test group: ${test_name} =========="
+            npx c8 --reporter=lcov --reporter=text --report-dir "${{ github.workspace }}/js-coverage" \
+              --clean="${clean_mode}" \
+              --exclude "tests/**" \
+              --exclude "thirdparty/**" \
+              node --test --test-concurrency="${{ env.JS_TEST_CONCURRENCY }}" "$@"
+            local rc=$?
+            if [[ ${rc} -ne 0 ]]; then
+              FAILED_JS_TESTS+=("${test_name} (exit ${rc})")
+            fi
+          }
+
+          run_js_cmd "npm run lint" npm run lint
+          run_js_cmd "npm run tsc" npm run tsc
+          run_js_cmd "npm run test_setup" npm run test_setup
+
+          run_js_c8_unit "node unit group 1" true \
+            ./tests/unit/core.test.js \
+            ./tests/unit/model.test.js \
+            ./tests/unit/read_model.test.js \
+            ./tests/unit/basic.test.js
+
+          run_js_c8_unit "node unit group 2" false \
+            ./tests/unit/compiled_model.test.js \
+            ./tests/unit/infer_request.test.js \
+            ./tests/unit/async_infer_queue.test.js
+
+          run_js_c8_unit "node unit group 3" false \
+            ./tests/unit/tensor.test.js \
+            ./tests/unit/partial_shape.test.js \
+            ./tests/unit/pre_post_processor.test.js
 
           JS_TOTAL_EXECUTED=$((JS_TOTAL_EXECUTED + 1))
+          echo "========== Running JS covered e2e tests =========="
+          Xvfb :99 &
+          export DISPLAY=:99
           npx c8 --reporter=lcov --reporter=text --report-dir "${{ github.workspace }}/js-coverage" \
+            --clean=false \
             --exclude "tests/**" \
             --exclude "thirdparty/**" \
-            node --test --test-concurrency="${{ env.JS_TEST_CONCURRENCY }}" ./tests/unit/*.test.js
-          [[ $? -ne 0 ]] && FAILED_JS_TESTS+=("node unit tests")
+            npm run test:e2e --loglevel=silly
+          rc=$?
+          [[ ${rc} -ne 0 ]] && FAILED_JS_TESTS+=("npm run test:e2e (exit ${rc})")
 
           if [[ -f "${{ github.workspace }}/js-coverage/lcov.info" ]]; then
             cp "${{ github.workspace }}/js-coverage/lcov.info" "${{ github.workspace }}/js-lcov.info"
           fi
-
-          JS_TOTAL_EXECUTED=$((JS_TOTAL_EXECUTED + 1))
-          Xvfb :99 &
-          export DISPLAY=:99
-          npm run test:e2e --loglevel=silly
-          [[ $? -ne 0 ]] && FAILED_JS_TESTS+=("npm run test:e2e")
 
           JS_FAILED=${#FAILED_JS_TESTS[@]}
           JS_PASSED=$((JS_TOTAL_EXECUTED - JS_FAILED))
@@ -595,29 +686,45 @@ jobs:
 
       - name: Coverage summary
         run: |
-          echo "## Code coverage reports" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
           OVERALL_TOTAL=$(( ${CXX_TESTS_TOTAL:-0} + ${PY_TESTS_TOTAL:-0} + ${JS_TESTS_TOTAL:-0} ))
           OVERALL_PASSED=$(( ${CXX_TESTS_PASSED:-0} + ${PY_TESTS_PASSED:-0} + ${JS_TESTS_PASSED:-0} ))
           OVERALL_FAILED=$(( ${CXX_TESTS_FAILED:-0} + ${PY_TESTS_FAILED:-0} + ${JS_TESTS_FAILED:-0} ))
           OVERALL_SKIPPED=$(( ${CXX_TESTS_SKIPPED:-0} + ${PY_TESTS_SKIPPED:-0} + ${JS_TESTS_SKIPPED:-0} ))
-          echo "### Test Results (all suites)" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Total planned/executed units: ${OVERALL_TOTAL}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Passed: ${OVERALL_PASSED}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Failed: ${OVERALL_FAILED}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Skipped: ${OVERALL_SKIPPED}" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Per-suite:" >> "$GITHUB_STEP_SUMMARY"
-          echo "- C++: total=${CXX_TESTS_TOTAL:-0}, passed=${CXX_TESTS_PASSED:-0}, failed=${CXX_TESTS_FAILED:-0}, skipped=${CXX_TESTS_SKIPPED:-0}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Python: total=${PY_TESTS_TOTAL:-0}, passed=${PY_TESTS_PASSED:-0}, failed=${PY_TESTS_FAILED:-0}, skipped=${PY_TESTS_SKIPPED:-0}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- JS: total=${JS_TESTS_TOTAL:-0}, passed=${JS_TESTS_PASSED:-0}, failed=${JS_TESTS_FAILED:-0}, skipped=${JS_TESTS_SKIPPED:-0}" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "C/C++ lcov: \`coverage.info\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "Python coverage XML: \`python-coverage.xml\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "JS lcov: \`js-lcov.info\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [[ ${OVERALL_TOTAL} -gt 0 ]]; then
+            OVERALL_PASS_RATE=$(awk "BEGIN {printf \"%.1f\", (${OVERALL_PASSED}*100)/${OVERALL_TOTAL}}")
+          else
+            OVERALL_PASS_RATE="0.0"
+          fi
 
-          echo "### C/C++ Code coverage (lcov)" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "## Coverage Report Summary"
+            echo ""
+            echo "**Profile:** \`${TEST_PROFILE}\`  "
+            echo "**Overall pass rate:** \`${OVERALL_PASS_RATE}%\`"
+            echo ""
+            echo "### Overall"
+            echo "| Metric | Value |"
+            echo "| --- | ---: |"
+            echo "| Total test units | ${OVERALL_TOTAL} |"
+            echo "| Passed | ${OVERALL_PASSED} |"
+            echo "| Failed | ${OVERALL_FAILED} |"
+            echo "| Skipped | ${OVERALL_SKIPPED} |"
+            echo ""
+            echo "### By Suite"
+            echo "| Suite | Total | Passed | Failed | Skipped |"
+            echo "| --- | ---: | ---: | ---: | ---: |"
+            echo "| C++ | ${CXX_TESTS_TOTAL:-0} | ${CXX_TESTS_PASSED:-0} | ${CXX_TESTS_FAILED:-0} | ${CXX_TESTS_SKIPPED:-0} |"
+            echo "| Python | ${PY_TESTS_TOTAL:-0} | ${PY_TESTS_PASSED:-0} | ${PY_TESTS_FAILED:-0} | ${PY_TESTS_SKIPPED:-0} |"
+            echo "| JS | ${JS_TESTS_TOTAL:-0} | ${JS_TESTS_PASSED:-0} | ${JS_TESTS_FAILED:-0} | ${JS_TESTS_SKIPPED:-0} |"
+            echo ""
+            echo "### Coverage Files"
+            echo "- C/C++ lcov: \`coverage.info\`"
+            echo "- Python XML: \`python-coverage.xml\`"
+            echo "- JS lcov: \`js-lcov.info\`"
+            echo ""
+            echo "### C/C++ Coverage Details (lcov)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
           if [ -f coverage.info ]; then
             echo '```' >> "$GITHUB_STEP_SUMMARY"
             lcov --summary coverage.info >> "$GITHUB_STEP_SUMMARY" || true
