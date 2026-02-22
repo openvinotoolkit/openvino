@@ -23,7 +23,15 @@ permissions: read-all
 jobs:
   Coverage:
     continue-on-error: true
-    runs-on: ${{ matrix.config.os }}
+    runs-on:
+      group: Intel-GPU
+      labels: ${{ matrix.config.labels }}
+    container:
+      image: ubuntu:22.04
+      volumes:
+        - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
+        - ${{ github.workspace }}:${{ github.workspace }}
+      options: --group-add 44 --group-add 993 --device /dev/dri/card2:/dev/dri/card2 --device /dev/dri/renderD129:/dev/dri/renderD129
     env:
       CMAKE_BUILD_TYPE: 'Release'
       PARALLEL_JOBS: '16'
@@ -32,17 +40,29 @@ jobs:
       CXX_TEST_BINARY_PARALLELISM: '8'
       GTEST_PARALLEL_WORKERS: '2'
       TEST_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.test_profile || 'cpu' }}
+      NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
     strategy:
       fail-fast: false
       matrix:
         config:
-          - { name: "Linux-gcc-dgpu", os: [self-hosted, dgpu, Linux], cc: "gcc", cxx: "g++" }
+          - { name: "Linux-gcc-dgpu", labels: [self-hosted, dgpu, Linux], cc: "gcc", cxx: "g++" }
 
     steps:
+      - name: Verify CA certificate mount
+        run: |
+          if [[ -f "${NODE_EXTRA_CA_CERTS}" ]]; then
+            echo "Using extra CA cert: ${NODE_EXTRA_CA_CERTS}"
+            ls -l "${NODE_EXTRA_CA_CERTS}"
+          else
+            echo "Expected CA certificate is missing: ${NODE_EXTRA_CA_CERTS}"
+            echo "Ensure self-hosted runner provides this path and certificate."
+            exit 1
+          fi
+
       - name: Setup python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: '3.12'
+          python-version: '3.10.10'
           architecture: 'x64'
 
       - name: Setup Node.js
@@ -63,9 +83,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt --assume-yes update
-          sudo -E ${{ github.workspace }}/install_build_dependencies.sh
-          sudo apt --assume-yes install lcov wget pigz xvfb clang-14 libclang-14-dev clinfo
+          SUDO=""
+          if [[ $EUID -ne 0 ]]; then
+            SUDO="sudo"
+          fi
+          ${SUDO} apt --assume-yes update
+          ${SUDO} -E ${{ github.workspace }}/install_build_dependencies.sh
+          ${SUDO} apt --assume-yes install lcov wget pigz xvfb clang-14 libclang-14-dev clinfo
 
           python3 -m pip install --upgrade pip
           python3 -m pip install pytest pytest-cov pytest-xdist[psutil]
@@ -83,6 +107,10 @@ jobs:
         if: ${{ contains(env.TEST_PROFILE, 'gpu') }}
         run: |
           set -euo pipefail
+          SUDO=""
+          if [[ $EUID -ne 0 ]]; then
+            SUDO="sudo"
+          fi
           DRV_DIR="${{ runner.temp }}/dgpu-drivers"
           mkdir -p "${DRV_DIR}"
           cd "${DRV_DIR}"
@@ -93,23 +121,27 @@ jobs:
           wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd_24.05.28454.6_amd64.deb
           wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/libigdgmm12_22.3.11_amd64.deb
 
-          sudo dpkg -i ./*.deb || sudo apt-get -f install -y
+          ${SUDO} dpkg -i ./*.deb || ${SUDO} apt-get -f install -y
 
       - name: Install media & display runtimes
         if: ${{ contains(env.TEST_PROFILE, 'gpu') }}
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y \
+          SUDO=""
+          if [[ $EUID -ne 0 ]]; then
+            SUDO="sudo"
+          fi
+          ${SUDO} apt-get update
+          ${SUDO} apt-get install -y \
             libegl-mesa0 libegl1-mesa libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri \
             libglapi-mesa libgles2-mesa-dev libglx-mesa0 libxatracker2 mesa-va-drivers \
             mesa-vdpau-drivers mesa-vulkan-drivers va-driver-all
 
-          wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | sudo gpg --yes --dearmor --output /usr/share/keyrings/intel-graphics.gpg
-          echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | sudo tee /etc/apt/sources.list.d/intel-gpu-jammy.list
+          wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | ${SUDO} gpg --yes --dearmor --output /usr/share/keyrings/intel-graphics.gpg
+          echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | ${SUDO} tee /etc/apt/sources.list.d/intel-gpu-jammy.list
 
-          sudo apt-get update
-          sudo apt-get install -y libze-intel-gpu1 libze1 intel-opencl-icd libze-dev intel-ocloc intel-level-zero-gpu-raytracing
+          ${SUDO} apt-get update
+          ${SUDO} apt-get install -y libze-intel-gpu1 libze1 intel-opencl-icd libze-dev intel-ocloc intel-level-zero-gpu-raytracing
 
       - name: Verify GPU runtime
         if: ${{ contains(env.TEST_PROFILE, 'gpu') }}
