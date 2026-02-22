@@ -31,7 +31,8 @@ jobs:
       volumes:
         - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
         - ${{ github.workspace }}:${{ github.workspace }}
-      options: --group-add 44 --group-add 993 --device /dev/dri/card2:/dev/dri/card2 --device /dev/dri/renderD129:/dev/dri/renderD129
+        - /dev/dri:/dev/dri
+      options: --device /dev/dri:/dev/dri --group-add 109 --group-add 44
     env:
       CMAKE_BUILD_TYPE: 'Release'
       PARALLEL_JOBS: '16'
