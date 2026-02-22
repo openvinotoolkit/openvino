@@ -49,17 +49,6 @@ jobs:
           - { name: "Linux-gcc-dgpu", labels: [self-hosted, dgpu, Linux], cc: "gcc", cxx: "g++" }
 
     steps:
-      - name: Verify CA certificate mount
-        run: |
-          if [[ -f "${NODE_EXTRA_CA_CERTS}" ]]; then
-            echo "Using extra CA cert: ${NODE_EXTRA_CA_CERTS}"
-            ls -l "${NODE_EXTRA_CA_CERTS}"
-          else
-            echo "Expected CA certificate is missing: ${NODE_EXTRA_CA_CERTS}"
-            echo "Ensure self-hosted runner provides this path and certificate."
-            exit 1
-          fi
-
       - name: Setup python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -90,7 +79,7 @@ jobs:
           fi
           ${SUDO} apt --assume-yes update
           ${SUDO} -E ${{ github.workspace }}/install_build_dependencies.sh
-          ${SUDO} apt --assume-yes install lcov wget pigz xvfb clang-14 libclang-14-dev clinfo
+          ${SUDO} apt --assume-yes install lcov wget pigz xvfb clang-14 libclang-14-dev clinfo ca-certificates
 
           python3 -m pip install --upgrade pip
           python3 -m pip install pytest pytest-cov pytest-xdist[psutil]
