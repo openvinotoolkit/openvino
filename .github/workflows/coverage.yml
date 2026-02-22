@@ -5,7 +5,7 @@ on:
       test_profile:
         description: 'Hardware test profile'
         required: false
-        default: cpu
+        default: cpu_gpu
         type: choice
         options:
           - cpu
@@ -26,17 +26,17 @@ jobs:
     runs-on: ${{ matrix.config.os }}
     env:
       CMAKE_BUILD_TYPE: 'Release'
-      PARALLEL_JOBS: '64'
-      PYTEST_XDIST_WORKERS: '64'
-      JS_TEST_CONCURRENCY: '64'
-      CXX_TEST_BINARY_PARALLELISM: '16'
-      GTEST_PARALLEL_WORKERS: '4'
+      PARALLEL_JOBS: '16'
+      PYTEST_XDIST_WORKERS: '16'
+      JS_TEST_CONCURRENCY: '16'
+      CXX_TEST_BINARY_PARALLELISM: '8'
+      GTEST_PARALLEL_WORKERS: '2'
       TEST_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.test_profile || 'cpu' }}
     strategy:
       fail-fast: false
       matrix:
         config:
-          - { name: "Ubuntu-gcc", os: ubuntu-latest-64-cores, cc: "gcc", cxx: "g++" }
+          - { name: "Linux-gcc-dgpu", os: [self-hosted, dgpu, Linux], cc: "gcc", cxx: "g++" }
 
     steps:
       - name: Setup python
@@ -65,7 +65,7 @@ jobs:
         run: |
           sudo apt --assume-yes update
           sudo -E ${{ github.workspace }}/install_build_dependencies.sh
-          sudo apt --assume-yes install lcov wget pigz xvfb clang-14 libclang-14-dev
+          sudo apt --assume-yes install lcov wget pigz xvfb clang-14 libclang-14-dev clinfo
 
           python3 -m pip install --upgrade pip
           python3 -m pip install pytest pytest-cov pytest-xdist[psutil]
@@ -78,6 +78,42 @@ jobs:
           python3 -m pip install -r ${{ github.workspace }}/src/frontends/tensorflow/tests/requirements.txt
           # For running TensorFlow Lite frontend unit tests
           python3 -m pip install -r ${{ github.workspace }}/src/frontends/tensorflow_lite/tests/requirements.txt
+
+      - name: Install compute runtime drivers
+        if: ${{ contains(env.TEST_PROFILE, 'gpu') }}
+        run: |
+          set -euo pipefail
+          DRV_DIR="${{ runner.temp }}/dgpu-drivers"
+          mkdir -p "${DRV_DIR}"
+          cd "${DRV_DIR}"
+
+          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-core_1.0.15985.7_amd64.deb
+          wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-opencl_1.0.15985.7_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-level-zero-gpu_1.3.28454.6_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/intel-opencl-icd_24.05.28454.6_amd64.deb
+          wget https://github.com/intel/compute-runtime/releases/download/24.05.28454.6/libigdgmm12_22.3.11_amd64.deb
+
+          sudo dpkg -i ./*.deb || sudo apt-get -f install -y
+
+      - name: Install media & display runtimes
+        if: ${{ contains(env.TEST_PROFILE, 'gpu') }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y \
+            libegl-mesa0 libegl1-mesa libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri \
+            libglapi-mesa libgles2-mesa-dev libglx-mesa0 libxatracker2 mesa-va-drivers \
+            mesa-vdpau-drivers mesa-vulkan-drivers va-driver-all
+
+          wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | sudo gpg --yes --dearmor --output /usr/share/keyrings/intel-graphics.gpg
+          echo "deb [arch=amd64,i386 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | sudo tee /etc/apt/sources.list.d/intel-gpu-jammy.list
+
+          sudo apt-get update
+          sudo apt-get install -y libze-intel-gpu1 libze1 intel-opencl-icd libze-dev intel-ocloc intel-level-zero-gpu-raytracing
+
+      - name: Verify GPU runtime
+        if: ${{ contains(env.TEST_PROFILE, 'gpu') }}
+        run: clinfo
 
       - name: Configure OpenVINO with CMake
         run: |
