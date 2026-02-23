@@ -112,20 +112,13 @@ public:
                                           const std::string& bin_path = {},
                                           const ov::AnyMap& properties = {}) const;
 
-    std::shared_ptr<ov::Model> read_model(const std::filesystem::path& model_path,
-                                          const std::filesystem::path& bin_path = {},
-                                          const ov::AnyMap& properties = {}) const;
-
-    template <class Path>
-    std::shared_ptr<ov::Model> read_model(const Path& model_path,
-                                          const Path& bin_path = {},
-                                          const ov::AnyMap& properties = {}) const {
-        if constexpr (std::is_constructible_v<std::string, Path>) {
-            return read_model(std::string(model_path), std::string(bin_path), properties);
-        } else if constexpr (std::is_constructible_v<std::wstring, Path>) {
-            return read_model(std::wstring(model_path), std::wstring(bin_path), properties);
+    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
+    auto read_model(const Path& model_path, const Path& bin_path = {}, const ov::AnyMap& properties = {}) const {
+        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>) {
+            return read_model(model_path.wstring(), bin_path.wstring(), properties);
         } else {
-            return read_model(std::filesystem::path(model_path), std::filesystem::path(bin_path), properties);
+            // use string conversion as default
+            return read_model(model_path.string(), bin_path.string(), properties);
         }
     }
     /// @}
