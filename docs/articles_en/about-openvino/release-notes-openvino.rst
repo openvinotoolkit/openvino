@@ -27,22 +27,22 @@ What's new
 
 * More Gen AI coverage and frameworks integrations to minimize code changes
 
-  * New models supported on CPUs & GPUs: GPT-OSS-20B, MiniCPM-V-4_5-8B,  and MiniCPM-o-2.6​
-  * New models supported on NPUs: MiniCPM-o-2.6. In addition, NPU support is now available on Qwen2.5-1B-Instruct, Qwen3-Embedding-0.6B, Qwen-2.5-coder-0.5B.​
-  * OpenVINO™ GenAI now adds word-level timestamp functionality to the Whisper Pipeline on CPUs, GPUs, and NPUs, enabling more accurate transcriptions and subtitling in line with OpenAI and FasterWhisper implementations.​
+  * New models supported on CPUs & GPUs: GPT-OSS-20B, MiniCPM-V-4_5-8B, MiniCPM-o-2.6, and Qwen3-30B-A3B.
+  * New models supported on NPUs: MiniCPM-o-2.6. In addition, NPU support is now available on Qwen2.5-1B-Instruct, Qwen3-Embedding-0.6B, Qwen-2.5-coder-0.5B.
+  * OpenVINO™ GenAI now adds word-level timestamp functionality to the Whisper Pipeline on CPUs, GPUs, and NPUs, enabling more accurate transcriptions and subtitling in line with OpenAI and FasterWhisper implementations.
   * Phi-3-mini FastDraft model is now available on Hugging Face to accelerate LLM inference on NPUs. FastDraft optimizes speculative decoding for LLMs.
+
 
 * Broader LLM model support and more model compression techniques
 
-
-  * With the new int4 data-aware weight compression for 3D MatMuls, the Neural Network Compression Framework enables MoE LLMs to run with reduced memory, bandwidth, and improved accuracy compared to data-free schemes-delivering faster, more efficient deployment on resource-constrained devices.​
-  * The Neural Network Compression Framework now supports per-layer and per-group Look-Up Tables (LUT) for FP8-4BLUT quantization. This enables fine-grained, codebook-based compression that reduces model size and bandwidth while improving inference speed and accuracy for LLMs and transformer workloads.
+  * With the new int4 data-aware weight compression for 3D MatMuls, the Neural Network Compression Framework enables MoE LLMs to run with reduced memory, bandwidth, and improved accuracy compared to data-free schemes-delivering faster, more efficient deployment on resource-constrained devices.
+  * Preview: the Neural Network Compression Framework now supports per-layer and per-group Look-Up Tables (LUT) for FP8-4BLUT quantization. This enables fine-grained, codebook-based compression that reduces model size and bandwidth while improving inference speed and accuracy for LLMs and transformer workloads.
 
 * More portability and performance to run AI at the edge, in the cloud or locally
 
-  * OpenVINO™ GenAI adds VLM pipeline support to enhance Agentic AI framework integration.​
-  * OpenVINO GenAI now supports speculative decoding for NPUs, delivering improved performance and efficient text generation through a small draft model that is periodically validated by the full-size model.​
-  * Preview: NPU compiler integration with the NPU plugin enables ahead-of-time and on-device compilation without relying on OEM driver updates. Developers can enable this feature for a single, ready-to-ship package that reduces integration friction and accelerates time-to-value.​
+  * Preview: OpenVINO™ GenAI adds a VLM pipeline support to enhance Agentic AI framework integration.
+  * OpenVINO GenAI now supports speculative decoding for NPUs, delivering improved performance and efficient text generation through a small draft model that is periodically validated by the full-size model.
+  * Preview: NPU compiler integration with the NPU plugin enables ahead-of-time and on-device compilation without relying on OEM driver updates. Developers can enable this feature for a single, ready-to-ship package that reduces integration friction and accelerates time-to-value.
   * OpenVINO™ Model Server adds enhanced support for audio endpoint plus agentic continuous batching and concurrent runs for improved LLM performance in agentic workflows on Intel CPUs and GPUs.
 
 OpenVINO™ Runtime
@@ -245,24 +245,22 @@ Known Issues
 | phi-4-multimodal instruct model isn't functional when converted using optimum-cli as channel-wise one (with -group-size -1) with OpenVINO 2026.0. It's recommended to use for the conversion OV 2025.4/OV 2025.4.1
 
 | **Component: OpenVINO Runtime**
-| ID: 180693
-| Description:
-| Qwen3-30B-A3B converted with newer transformers doesn't work, recommend using transformers 4.55.4 for model conversion which was verified and worked.
-
-| **Component: OpenVINO GenAI**
-| ID: 179973
-| Description:
-| Qwen2-vl, Qwen-2.5VL, Qwen3-VL dense models may not work through GenAI API with GPU, due internal issue on model transformation level
-
-| **Component: OpenVINO Runtime**
-| ID: 180696
-| Description:
-| 2nd (and further) latency degradation for Qwen3-MOE family, including lack of ability to fit a model on iGPU, due high memory consumption and potential graph corruption. Problem affects only IRs generated with 2026.0, former IRs generated with 2025.4 will work properly.
-
-| **Component: OpenVINO Runtime**
 | ID: 179009
 | Description:
 | Memory leak for static builds with HybridCRT enabled; impacts Windows only
+
+| **Component: OpenVINO Runtime**
+| ID: 181161
+| Description:
+| gpt-oss-20b int4 on Intel Core Ultra iGPUs (Series 3) is validated for production use in
+  single-stream and low-concurrency text generation scenarios with short-to-medium context
+  lengths; support for high-concurrency serving with long contexts is being optimized and
+  will be available in an upcoming release. For production deployments requiring sustained
+  concurrent workloads, CPU-based serving is the recommended configuration today.
+
+
+
+
 
 
 
