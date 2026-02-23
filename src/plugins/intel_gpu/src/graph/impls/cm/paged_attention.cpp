@@ -40,7 +40,7 @@ public:
     explicit PagedAttentionCmImpl(const kernel_impl_params& params) : PagedAttentionCmImpl() {
         const auto desc = params.typed_desc<paged_attention>();
 
-        GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::PagedAttentionCmImpl()" << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "ov::intel_gpu::cm::PagedAttentionCmImpl::PagedAttentionCmImpl()" << std::endl;
         add_stage(kv_cache_update, params);
         add_stage(pa_single_token, params);
         add_stage(pa_single_token_finalization, params);
@@ -101,14 +101,14 @@ public:
         rt_params->stage = get_paged_attention_stage(params);
         const auto max_context_len = get_max_context_len(params);
         rt_params->max_context_len = max_context_len;
-        GPU_DEBUG_TRACE_DETAIL << "update_rt_params for stage: " << static_cast<size_t>(rt_params->stage) << "  max_context_len: " << rt_params->max_context_len
-                               << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "update_rt_params for stage: " << static_cast<size_t>(rt_params->stage) << "  max_context_len: " << rt_params->max_context_len
+        //                       << std::endl;
 
         if (rt_params->stage == PagedAttentionStage::GENERATE) {
             auto partition_size = get_partition_size(desc->has_xattention);
             rt_params->num_of_partitions = ceil_div(max_context_len, partition_size);
 
-            GPU_DEBUG_TRACE_DETAIL << "  partition_size: " << partition_size << "  num_of_partitions: " << rt_params->num_of_partitions << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "  partition_size: " << partition_size << "  num_of_partitions: " << rt_params->num_of_partitions << std::endl;
         } else {
             if (desc->has_xattention) {
                 update_xattn_rt_params(params);
@@ -130,7 +130,7 @@ public:
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         OPENVINO_ASSERT(rt_params != nullptr);
 
-        GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::execute():  stage = " << static_cast<int>(rt_params->stage) << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "ov::intel_gpu::cm::PagedAttentionCmImpl::execute():  stage = " << static_cast<int>(rt_params->stage) << std::endl;
         std::vector<event::ptr> res_event = events;
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
 
@@ -166,7 +166,7 @@ public:
         OPENVINO_ASSERT(rt_params != nullptr);
 
         const auto stage = rt_params->stage;
-        GPU_DEBUG_TRACE_DETAIL << " stage = " << static_cast<int>(stage) << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << " stage = " << static_cast<int>(stage) << std::endl;
         if (stage == PagedAttentionStage::GENERATE) {
             OPENVINO_ASSERT(rt_params->num_of_partitions != 0);
             size_t num_of_partitions = rt_params->num_of_partitions;
@@ -179,7 +179,7 @@ public:
             internal_buffers.emplace_back(tmp_out_elements_count, ov::element::f32);  // 0: intermediate partition output
             internal_buffers.emplace_back(buf_elements_count, ov::element::f32);      // 1: softmax exp_sums
 
-            GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: tmp_out=" << tmp_out_elements_count * 4 << "  exp_sums=" << buf_elements_count * 4 << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "  internal buffer sizes: tmp_out=" << tmp_out_elements_count * 4 << "  exp_sums=" << buf_elements_count * 4 << std::endl;
         } else {
             internal_buffers.emplace_back(16, ov::element::f32);  // 0: intermediate partition output
             internal_buffers.emplace_back(16, ov::element::f32);  // 1: softmax exp_sums
@@ -198,9 +198,9 @@ public:
                 auto count_elements_mask_merged = static_cast<int64_t>(desc->heads_num * rt_params->q_block_pad_merged * rt_params->k_block_pad);
                 internal_buffers.emplace_back(count_elements_mask_merged, ov::element::boolean);  // 5: sparse_block_mask_wg
 
-                GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: count_kq_max_wg=" << count_kq_max_wg * 4
-                                       << "  count_kq_exp_partial_sum=" << count_kq_exp_partial_sum * 4 << "  count_elements_mask=" << count_elements_mask * 1
-                                       << "  count_elements_mask_merged=" << count_elements_mask_merged * 1 << std::endl;
+                //GPU_DEBUG_TRACE_DETAIL(config) << "  internal buffer sizes: count_kq_max_wg=" << count_kq_max_wg * 4
+                //                       << "  count_kq_exp_partial_sum=" << count_kq_exp_partial_sum * 4 << "  count_elements_mask=" << count_elements_mask * 1
+                //                       << "  count_elements_mask_merged=" << count_elements_mask_merged * 1 << std::endl;
             }
         }
 

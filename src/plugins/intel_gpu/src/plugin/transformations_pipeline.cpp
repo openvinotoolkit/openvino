@@ -1433,13 +1433,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         if (fc_count != dyn_quan_single)
                             return true;
                         else
-                            GPU_DEBUG_COUT << "Try to apply dyn_quan only to " << root->get_friendly_name() << std::endl;
+                            GPU_DEBUG_COUT(config) << "Try to apply dyn_quan only to " << root->get_friendly_name() << std::endl;
                     }
                 }
 
                 for (size_t i = 0 ; i < root->get_input_node_shared_ptr(0)->get_output_size(); ++i) {
                     if (root->get_input_node_shared_ptr(0)->get_output_element_type(i) == ov::element::Type_t::f32) {
-                        GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: input type is not supported" << std::endl;
+                        //GPU_DEBUG_TRACE(config) << root->get_friendly_name() << "  dyn_quan is turned off: input type is not supported" << std::endl;
                         return true;
                     }
                 }
@@ -1452,7 +1452,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 const auto& input_shape = root->get_input_partial_shape(0);
                 const size_t input_rank = input_shape.size();
                 if (input_rank > 3) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: input rank is not supported" << std::endl;
+                    //GPU_DEBUG_TRACE(config) << root->get_friendly_name() << "  dyn_quan is turned off: input rank is not supported" << std::endl;
                     return true;
                 }
 
@@ -1460,32 +1460,32 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
                 const size_t simd = 16;
                 if (innermost_size < 32 || (innermost_size % (simd * 2) != 0)) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name()
-                                    << "  dyn_quan is turned off: inner shape is not supported. It is too small or not aligned with simd*2 "
-                                    << innermost_size << std::endl;
+                    //GPU_DEBUG_TRACE(config) << root->get_friendly_name()
+                    //                << "  dyn_quan is turned off: inner shape is not supported. It is too small or not aligned with simd*2 "
+                    //                << innermost_size << std::endl;
                     return true;
                 }
 
                 // AZP does not support grouped size dyn-quan
                 GPU_DEBUG_IF(asymmetric_dyn_quant && (adj_group_size != UINT64_MAX)) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: asym quantization does not support grouped quantization" <<
-                                                                   " ('DynamicQuantizeAsym' is enabled with grouped size dyn-quan)" << std::endl;
+                    //GPU_DEBUG_TRACE(config) << root->get_friendly_name() << "  dyn_quan is turned off: asym quantization does not support grouped quantization" <<
+                    //                                               " ('DynamicQuantizeAsym' is enabled with grouped size dyn-quan)" << std::endl;
                     return true;
                 }
 
                 bool has_wzp = root->get_input_size() > 4;
 
                 if (has_wzp && !cldnn::one_of(root->get_input_element_type(4), {ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4})) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
-                                                                    " unsupported weight zp type: " << root->get_input_element_type(4) << std::endl;
+                    //GPU_DEBUG_TRACE(config) << root->get_friendly_name() << "  dyn_quan is turned off:"
+                    //                                                " unsupported weight zp type: " << root->get_input_element_type(4) << std::endl;
                     return true;
                 }
 
                 const bool is_grouped = adj_group_size != UINT64_MAX;
                 // It should be either per-token or hardware should support grouped dyn_quan(through non-uniform-work-group)
                 if (is_grouped && !group_dyn_quan_allowed) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
-                                                                    " group_dyn_quan_allowed " << group_dyn_quan_allowed << std::endl;
+                    //GPU_DEBUG_TRACE(config) << root->get_friendly_name() << "  dyn_quan is turned off:"
+                    //                                                " group_dyn_quan_allowed " << group_dyn_quan_allowed << std::endl;
                     return true;
                 }
 
@@ -1494,8 +1494,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             const bool model_allows_group_size = dynamic_quantization_group_size_max >= dynamic_quantization_group_size;
             if (!model_allows_group_size) {
-                GPU_DEBUG_INFO << "dyn_quan is turned off because group_size is larger than max size "
-                               << dynamic_quantization_group_size << "/" << dynamic_quantization_group_size_max << std::endl;
+                //GPU_DEBUG_INFO << "dyn_quan is turned off because group_size is larger than max size "
+                //               << dynamic_quantization_group_size << "/" << dynamic_quantization_group_size_max << std::endl;
             } else {
                 manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size,
                                                                                     asymmetric_dyn_quant,

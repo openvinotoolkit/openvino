@@ -286,7 +286,7 @@ void primitive_inst::update_shape() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::shape_inference);
     if (_update_shape_done_by_other) {
         _update_shape_done_by_other = false; // reset
-        GPU_DEBUG_TRACE_DETAIL << id() << ": update shape is done by other: "
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": update shape is done by other: "
                                << _impl_params->output_layouts[0].to_short_string() << std::endl;
         return;
     }
@@ -295,7 +295,7 @@ void primitive_inst::update_shape() {
         auto idx = _deps[i].second;
         auto new_shape = _deps[i].first->_impl_params->get_output_layout(idx);
         if (_impl_params->get_input_layout(i) != new_shape) {
-            GPU_DEBUG_TRACE_DETAIL << id() << ": update shape dep [" << i << "] : " << _deps[i].first->id()
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": update shape dep [" << i << "] : " << _deps[i].first->id()
                                    << " was: " << _impl_params->get_input_layout(i).to_short_string()
                                    << " now: " << new_shape.to_short_string() << std::endl;
             _impl_params->input_layouts[i] = new_shape;
@@ -328,7 +328,7 @@ void primitive_inst::update_shape() {
 
             if (_impl_params->state_layouts[layout_idx] != new_layout) {
                 _impl_params->state_layouts[layout_idx] = new_layout;
-                GPU_DEBUG_TRACE_DETAIL << "Update " << layout_idx << " layout: " << new_layout.to_short_string() << "\n";
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "Update " << layout_idx << " layout: " << new_layout.to_short_string() << "\n";
                 input_shape_changed = true;
             }
         };
@@ -381,7 +381,7 @@ void primitive_inst::update_shape() {
         }
 
         if (!subgraph_input_changed) {
-            GPU_DEBUG_TRACE_DETAIL << id() << ": skip shape_update, because it is in shape_of_subgraph and input shape is not changed\n";
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": skip shape_update, because it is in shape_of_subgraph and input shape is not changed\n";
             unset_flag(ExecutionFlags::SHAPE_CHANGED);
             return;
         }
@@ -449,14 +449,14 @@ void primitive_inst::update_shape() {
             if (queue_type == QueueTypes::out_of_order && dep->get_impl_params()->out_event) {
                 dependencies_events.push_back(dep->get_impl_params()->out_event);
 
-                GPU_DEBUG_TRACE_DETAIL << id() << ": shape infer waits for " << i << " dependency\n";
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": shape infer waits for " << i << " dependency\n";
             }
         }
     }
 
     if (has_runtime_deps) {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("update_shape_sync: " + id()));
-        GPU_DEBUG_TRACE_DETAIL << "runtime synchronization for " << id() << " shape inference\n";
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "runtime synchronization for " << id() << " shape inference\n";
         if (!dependencies_events.empty() && queue_type == QueueTypes::out_of_order) {
             get_network().get_stream().wait_for_events(dependencies_events);
         } else if (queue_type == QueueTypes::in_order) {
@@ -477,7 +477,7 @@ void primitive_inst::update_shape() {
         }
 
         if (impl_layout != new_layout) {
-            GPU_DEBUG_TRACE_DETAIL << id() << ": update shape: was: " << impl_layout.to_short_string()
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": update shape: was: " << impl_layout.to_short_string()
                                     << " now: " << new_layout.to_short_string() << std::endl;
             set_flag(ExecutionFlags::SHAPE_CHANGED);
         }
@@ -545,7 +545,7 @@ void primitive_inst::update_shape() {
 kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(program_node const& node, kernel_impl_params const& orig_impl_param) {
     // disable if fake alignment is not necessary
     if (node.is_output()) {
-        GPU_DEBUG_TRACE_DETAIL << " Disable fake alignment : " << node.id() << " is output node" << std::endl;
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << " Disable fake alignment : " << node.id() << " is output node" << std::endl;
         return orig_impl_param;
     }
 
@@ -559,7 +559,7 @@ kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(program_n
         // i.e. predecessor node was supposed be increased already
         if (get_node().is_type<fully_connected>() && dependencies().size() > 0 && dep_memory(0).get_layout().is_static()
             && dep_memory(0).count() < updated_params.input_layouts[0].count()) {
-            GPU_DEBUG_TRACE_DETAIL << "Roll back fake_aligned params for " << id()
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "Roll back fake_aligned params for " << id()
                 << "  allocated: " << dep_memory(0).count()
                 << "  required: " << updated_params.input_layouts[0].count()
                 << std::endl;
@@ -646,6 +646,8 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("realloc_if_needed: " + id()));
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
 
+    const auto& config = _network.get_config();
+
     const auto& users = get_user_insts();
     if (users.size() == 1 && users.front()->get_node().is_type<concatenation>() && users.front()->get_node().is_runtime_skippable()) {
         auto concat_inst = users.front();
@@ -655,7 +657,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                 concat_inst->_allocation_done_by_other = true;
             }
             this->_outputs[0] = concat_inst->_outputs[0];
-            GPU_DEBUG_TRACE_DETAIL << id() << ": use concat user's memory " << this->_outputs[0]->buffer_ptr() << std::endl;
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": use concat user's memory " << this->_outputs[0]->buffer_ptr() << std::endl;
             return;
         }
     }
@@ -674,10 +676,10 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             && get_network().get_engine().is_the_same_buffer(get_network().get_output_remote_memory(reorder_inst->id()), reorder_inst->output_memory())) {
             if (actual_layouts[0].get_linear_size() <= reorder_inst->get_max_output_layout_count()) {
                 this->_outputs[0] = reorder_inst->_outputs[0];
-                GPU_DEBUG_TRACE_DETAIL << id() << ": use reorder user's remote tensor memory " << this->_outputs[0]->buffer_ptr() << std::endl;
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": use reorder user's remote tensor memory " << this->_outputs[0]->buffer_ptr() << std::endl;
                 return;
             } else {
-                GPU_DEBUG_TRACE_DETAIL << reorder_inst->id() << " cannot be optimized for the mismatch between input layout and output layout" << std::endl;
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << reorder_inst->id() << " cannot be optimized for the mismatch between input layout and output layout" << std::endl;
                 reorder_inst->set_can_be_optimized(false);
             }
         }
@@ -700,7 +702,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             // Reuse state memory as output for kv cache if possible
             // otherwise clear _outputs for the cases when mem was reused previously
             if (_impl_params->can_be_optimized()) {
-                GPU_DEBUG_TRACE_DETAIL << id() << " : realloc_if_needed: Set kvcache output memory as variable memory " << variable.get_memory()->buffer_ptr()
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << " : realloc_if_needed: Set kvcache output memory as variable memory " << variable.get_memory()->buffer_ptr()
                                     << " (ptr: " << variable.get_memory()->buffer_ptr()
                                     << ", actual_size: " << variable.get_actual_mem_size()/8 << " bytes"
                                     << ", variable layout " << variable.get_layout().to_short_string() << ")" << std::endl;
@@ -721,17 +723,17 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                 GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
                 return;
             } else if (_outputs[0] && variable.get_memory() && get_network().get_engine().is_the_same_buffer(*_outputs[0], *variable.get_memory())) {
-                GPU_DEBUG_TRACE_DETAIL << id() << " : realloc_if_needed: Reset output mem" << std::endl;
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << " : realloc_if_needed: Reset output mem" << std::endl;
                 for (size_t j = 0; j < _impl_params->output_layouts.size(); ++j) {
                     _outputs[j] = nullptr;
                     _max_output_layout_count[j] = 0;
                 }
             } else {
-                GPU_DEBUG_TRACE_DETAIL
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config())
                     << id() << " : realloc_if_needed: can_be_optimized = false and memories are not being shared"
                     << std::endl;
                 if (!get_network().is_reuse_variable_mem()) {
-                    GPU_DEBUG_TRACE_DETAIL << "Update output mem with new variable mem" << std::endl;
+                    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "Update output mem with new variable mem" << std::endl;
                     _outputs[0] = variable.get_memory();
                     _max_output_layout_count[0] = variable.get_actual_mem_size() / dt_sizes_in_B[0];
 
@@ -743,12 +745,12 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                         }
                     }
                 } else {
-                    GPU_DEBUG_TRACE_DETAIL << "Can reuse variable mem of prev request" << std::endl;
+                    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "Can reuse variable mem of prev request" << std::endl;
                 }
             }
         } else {
             variable.set_layout(_impl_params->output_layouts[0]);
-            GPU_DEBUG_TRACE_DETAIL << id() << ": Update variable (ptr: " << variable.get_memory()->buffer_ptr()
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": Update variable (ptr: " << variable.get_memory()->buffer_ptr()
                                    << ", actual_size:" << variable.get_actual_mem_size() << " bytes"
                                    << ", variable layout:" << variable.get_layout().to_short_string() << ")" << std::endl;
 
@@ -827,8 +829,8 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                         break;
                     }
                 }
-                GPU_DEBUG_TRACE_DETAIL << id() <<"'s " << dep_idx << "-th output is " << user->id() << "'s input" << std::endl;
-                GPU_DEBUG_TRACE_DETAIL << "Check fc user " << user->id() << "'s fake alignment-ed input size" << std::endl;
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() <<"'s " << dep_idx << "-th output is " << user->id() << "'s input" << std::endl;
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "Check fc user " << user->id() << "'s fake alignment-ed input size" << std::endl;
                 // Setting update_shape_done_by_other to false before running update_shape,
                 // since update_Shape is already called in realloc_if_needed of current node's dep node
                 // but current node's output layout is not updated to the this user node yet.
@@ -842,7 +844,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                 auto fc_impl_params = *user->_impl_params;
                 auto fc_input_layout = user->get_node().type()->get_fake_aligned_params(fc_impl_params).input_layouts[0];
                 if (fc_input_layout.bytes_count() > updated_layouts[dep_idx].bytes_count()) {
-                    GPU_DEBUG_TRACE_DETAIL << id() << ": increase output layout allocation size from "
+                    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": increase output layout allocation size from "
                                         << actual_layouts[dep_idx].to_short_string() << " -> "
                                         << fc_input_layout.to_short_string() << " to meet the input buffer alignment requirements for FC\n";
                     updated_layouts[dep_idx] = fc_input_layout;
@@ -855,7 +857,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                         dynamic_quantize_inst::__calc_output_layouts<ov::PartialShape>(get_node().as<dynamic_quantize>(),
                                                                                         updated_layouts[dep_idx],
                                                                                        desc->attrs);
-                    GPU_DEBUG_TRACE_DETAIL << "update layout of dynamic quantize scale parameter layout "
+                    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "update layout of dynamic quantize scale parameter layout "
                                         << dyn_quan_scale_layout[1].to_short_string() << std::endl;
                     updated_params.output_layouts[1] = dyn_quan_scale_layout[1];
                 }
@@ -961,7 +963,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             reclaim = true;
         }
         if (reclaim) {
-            GPU_DEBUG_TRACE_DETAIL << id() << ": Updated output[" << i << "] size " << updated_layouts[i].get_linear_size()
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": Updated output[" << i << "] size " << updated_layouts[i].get_linear_size()
                                    << " is much smaller than current memory size! " << _max_output_layout_count[i]
                                    << "Reset memory of output " << i << std::endl;
             _max_output_layout_count[i] = 0;
@@ -995,7 +997,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
         }
 
         if (can_reuse_buffer) {
-            GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer[" << i << "] - "
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": reuse previously allocated output buffer[" << i << "] - "
                                    << actual_layouts[i].get_linear_size() << "/" << _max_output_layout_count[i]
                                    << std::endl;
             if (get_node().is_type<kv_cache>() && i != 1) {
@@ -1012,19 +1014,20 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                                                           sequence_axis,
                                                           i == 0 ? "present_layout" : "present_scales_layout");
                 kv_cache_inst::update_pad(present_layout, max_pad, sequence_axis);
-                GPU_DEBUG_TRACE_DETAIL << i << ". " << _impl_params->output_layouts[i].to_string() << std::endl;
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << i << ". " << _impl_params->output_layouts[i].to_string() << std::endl;
                 set_flag(ExecutionFlags::SHAPE_CHANGED);
             } else {
                 _outputs[i] = get_network().get_engine().reinterpret_buffer(*_outputs[i], actual_layouts[i]);
             }
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("reuse_buffer");
         } else {
-            GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. " << std::endl;
-            GPU_DEBUG_TRACE_DETAIL << " outputs[" << i << "] " << get_node().id()
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": realloc output memory. " << std::endl;
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << " outputs[" << i << "] " << get_node().id()
                                    << " Current buffer_size=" << _max_output_layout_count[i]
                                    << " Requested buffer_size=" << updated_layouts[i].get_linear_size()
                                    << std::endl;
             _outputs[i] = allocate_output(get_network().get_engine(),
+			    		  config,
                                           get_network().get_memory_pool(),
                                           *_node,
                                           updated_params,
@@ -1053,7 +1056,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
         auto present_layout_rank = present_layout.get_partial_shape().size();
         const auto sequence_axis =
             kv_cache_inst::get_sequence_axis(desc->concat_axis, present_layout_rank);
-        GPU_DEBUG_TRACE_DETAIL << id() << " is kv_cache => set the variable with newly allocated output memory"
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << " is kv_cache => set the variable with newly allocated output memory"
                                << std::endl;
         bool axis_is_outer_most = true;
         for (auto dim = 0; dim < sequence_axis; ++dim) {
@@ -1092,21 +1095,21 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
 
                 kv_cache_inst::update_pad(present_layout, max_pad, sequence_axis);
                 if (!axis_is_outer_most) {
-                    GPU_DEBUG_TRACE_DETAIL << id() << ": Update impl with new output padding" << std::endl;
+                    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": Update impl with new output padding" << std::endl;
                     set_flag(ExecutionFlags::SHAPE_CHANGED);
                     _impl_params->output_layouts[0] = present_layout;
                     update_impl(use_async_compilation());
                 }
-                GPU_DEBUG_TRACE_DETAIL << id() << ": Update variable " << variable.get_name()
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": Update variable " << variable.get_name()
                                        << "'s memory with allocated kv cache output: "
                                        << present_layout.to_short_string() << " is_set  = " << variable.is_set()
                                        << std::endl;
                 variable.set_memory(_outputs[0], present_layout);
                 _impl_params->_can_be_optimized = true;
                 // No need to copy, still it can be optimized
-                GPU_DEBUG_TRACE_DETAIL << id() << ": Set can_be_optimized = true " << std::endl;
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": Set can_be_optimized = true " << std::endl;
             } else {
-                GPU_DEBUG_TRACE_DETAIL << id() << ": Update variable " << variable.get_name()
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": Update variable " << variable.get_name()
                                        << "'s layout with allocated kv cache output: " << present_layout.to_short_string()
                                        << " (is_set  = " << variable.is_set() << ") " << std::endl;
                 variable.set_memory(_outputs[0], present_layout);
@@ -1122,7 +1125,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                 }
             }
         } else {
-            GPU_DEBUG_TRACE_DETAIL << id() << ": Update variable " << variable.get_name()
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": Update variable " << variable.get_name()
                                    << "'s layout with allocated kv cache output: " << present_layout.to_short_string()
                                    << " (is_set  = " << variable.is_set() << ") " << std::endl;
             variable.set_layout(present_layout);
@@ -1232,7 +1235,7 @@ bool primitive_inst::use_async_compilation() {
 
 void primitive_inst::fill_shape_info_data(const layout& runtime_layout, const layout& node_layout, int32_t* shape_info_ptr, size_t& offset) {
     if (node_layout.is_static()) {
-        GPU_DEBUG_TRACE_DETAIL << "tensor is static. Skipping" << std::endl;
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "tensor is static. Skipping" << std::endl;
         return;
     }
     const auto& pshape = runtime_layout.get_partial_shape();
@@ -1241,7 +1244,7 @@ void primitive_inst::fill_shape_info_data(const layout& runtime_layout, const la
                                                  format::get_default_format(pshape.size()),
                                                  shape_info_fmt).to_shape();
     for (size_t j = 0; j < shape_with_max_rank.size(); ++j) {
-        GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << shape_with_max_rank[j] << std::endl;
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << " shape_info[" << offset << "] = " << shape_with_max_rank[j] << std::endl;
         shape_info_ptr[offset++] = static_cast<int32_t>(shape_with_max_rank[j]);
     }
     const auto& dynamic_pad = node_layout.data_padding._dynamic_dims_mask;
@@ -1250,10 +1253,10 @@ void primitive_inst::fill_shape_info_data(const layout& runtime_layout, const la
     const auto& upper_pads = data_padding._upper_size;
     for (size_t j = 0; j < shape_with_max_rank.size(); ++j) {
         if (dynamic_pad[j] == 1) {
-            GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << lower_pads[j]
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << " shape_info[" << offset << "] = " << lower_pads[j]
                                    << "(pad_before for " << j << "-th dim)" << std::endl;
             shape_info_ptr[offset++] = lower_pads[j];  // pad_before
-            GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << upper_pads[j]
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << " shape_info[" << offset << "] = " << upper_pads[j]
                                    << "(pad_after for " << j << "-th dim)" << std::endl;
             shape_info_ptr[offset++] = upper_pads[j];  // pad_after
         }
@@ -1278,13 +1281,13 @@ void primitive_inst::update_shape_info_tensor(const kernel_impl_params& params) 
     auto shape_info_ptr = lock.data();
     size_t offset = 0;
     for (size_t i = 0; i < get_node().get_dependencies().size(); i++) {
-        GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for input[" << i << "]" << std::endl;
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << " : update shape_info for input[" << i << "]" << std::endl;
         const auto& node_in_lay = get_node().get_input_layout(i);
         const auto& runtime_in_lay = params.input_layouts[i];
         fill_shape_info_data(runtime_in_lay, node_in_lay, shape_info_ptr, offset);
     }
     for (size_t i = 0; i < get_node().get_output_layouts().size(); i++) {
-        GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for output[" << i << "]" << std::endl;
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << " : update shape_info for output[" << i << "]" << std::endl;
         const auto& node_out_lay = get_node().get_output_layout(i);
         const auto& runtime_out_lay = params.output_layouts[i];
         fill_shape_info_data(runtime_out_lay, node_out_lay, shape_info_ptr, offset);
@@ -1298,14 +1301,14 @@ void primitive_inst::update_impl(bool use_async_compilation) {
 
     // no need to update impl for optimized out primitive
     if (_impl != nullptr && can_be_optimized()) {
-        GPU_DEBUG_TRACE_DETAIL << id() << " Skip impl update: primitive is optimized out" << std::endl;
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << " Skip impl update: primitive is optimized out" << std::endl;
         set_flag(ExecutionFlags::IMPL_CHANGED, get_flag(ExecutionFlags::SHAPE_CHANGED));
         return;
     }
 
     // Assume that we have already picked optimal impl
     if (!get_flag(ExecutionFlags::SHAPE_CHANGED) && _impl && _impl->is_dynamic() && !use_async_compilation) {
-        GPU_DEBUG_TRACE_DETAIL << id() << " Skip impl update: shape not changed, optimal static impl is used" << std::endl;
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << " Skip impl update: shape not changed, optimal static impl is used" << std::endl;
         unset_flag(ExecutionFlags::IMPL_CHANGED);
         return;
     }
@@ -1329,7 +1332,7 @@ void primitive_inst::update_impl(bool use_async_compilation) {
 #endif
 
         _impl = _impls_factory->get_primitive_impl_for_params(*this, *_impl_params, use_async_compilation);
-        GPU_DEBUG_TRACE_DETAIL << id() << " impl update: was: " << prev_impl_str << " now: " << _impl->get_kernel_name() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << " impl update: was: " << prev_impl_str << " now: " << _impl->get_kernel_name() << std::endl;
     }
 
     set_flag(ExecutionFlags::IMPL_CHANGED);
@@ -1409,11 +1412,11 @@ void primitive_inst::do_runtime_skip_reorder() {
                 }
                 if (alloc_type == allocation_type::usm_device && u->is_output()) {
                     u->set_can_be_optimized(false);
-                    GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] user " << u->id()
+                    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do runtime skip reorder] user " << u->id()
                                                 << " cannot be optimized for that " << u->id() << " is reorder and output node" << std::endl;
                     continue;
                 }
-                GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] update shape for user " << u->id() << std::endl;
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do runtime skip reorder] update shape for user " << u->id() << std::endl;
                 u->update_shape();
                 u->_update_shape_done_by_other = true;
 
@@ -1421,7 +1424,7 @@ void primitive_inst::do_runtime_skip_reorder() {
                     std::function<void(std::vector<primitive_inst*>)> update_memory_dependencies;
                     update_memory_dependencies = [&](std::vector<primitive_inst*> users) {
                         for (auto& user : users) {
-                            GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] add " << id() << " to restriction list of " << user->id() << std::endl;
+                            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do runtime skip reorder] add " << id() << " to restriction list of " << user->id() << std::endl;
                             user->_runtime_memory_dependencies.insert(static_cast<uint32_t>(get_node().get_unique_id()));
                             if (user->can_be_optimized())
                                 update_memory_dependencies(user->get_user_insts());
@@ -1430,14 +1433,14 @@ void primitive_inst::do_runtime_skip_reorder() {
 
                     update_memory_dependencies(u->get_user_insts());
                     u->set_can_be_optimized(true);
-                    GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] set user " << u->id() << " as can_be_optimized" << std::endl;
+                    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do runtime skip reorder] set user " << u->id() << " as can_be_optimized" << std::endl;
                 } else {
                     u->set_can_be_optimized(false);
-                    GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] user " << u->id()
+                    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do runtime skip reorder] user " << u->id()
                                                 << " cannot be optimized for the mismatch between input layout and output layout" << std::endl;
-                    GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder]  * input_layout  : "
+                    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do runtime skip reorder]  * input_layout  : "
                                                 << u->_impl_params->get_input_layout().to_short_string() << std::endl;
-                    GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder]  * output_layout : "
+                    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do runtime skip reorder]  * output_layout : "
                                                 << u->_impl_params->get_output_layout().to_short_string() << std::endl;
                 }
             }
@@ -1472,14 +1475,14 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
     if (present_layout.data_padding._dynamic_dims_mask[sequence_axis] != 1)
         return;
 
-    GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " initial present_layout : " << present_layout.to_string() << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " initial past_layout : " << past_layout.to_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do runtime kv_cache opt] " << id() << " initial present_layout : " << present_layout.to_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do runtime kv_cache opt] " << id() << " initial past_layout : " << past_layout.to_string() << std::endl;
     auto max_pad = kv_cache_inst::get_max_pad(past_layout, _deps[0].first->_max_output_layout_count[0], sequence_axis, "past_layout");
     const auto new_seq_len = static_cast<int64_t>(new_layout.get_shape()[sequence_axis]);
     // In chatbot scenario, when chat history must be stored in kvcache, new_seq_len may not be 1 even if max_pad is greater than 0
     if (max_pad - new_seq_len >= 0) {
         kv_cache_inst::update_pad(present_layout, max_pad - new_seq_len, sequence_axis);
-        GPU_DEBUG_TRACE_DETAIL << "[do runtime_in_place_kv_cache] " << id() << " Updated present_layout's pad : " << present_layout.to_string() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do runtime_in_place_kv_cache] " << id() << " Updated present_layout's pad : " << present_layout.to_string() << std::endl;
         auto& variable = get_network().get_variable(desc->variable_info.variable_id);
         variable.set_layout(present_layout);
 
@@ -1489,21 +1492,21 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
             auto& present_scales_layout = _impl_params->output_layouts[2];
             const auto sequence_axis = kv_cache_inst::get_scale_zp_sequence_axis();
             kv_cache_inst::update_pad(present_scales_layout, max_pad - new_seq_len, sequence_axis);
-            GPU_DEBUG_TRACE_DETAIL << "[do runtime_in_place_kv_cache] " << id()
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do runtime_in_place_kv_cache] " << id()
                                    << " Updated present_scale_layout's pad : " << present_scales_layout.to_string() << std::endl;
 
             compressed_cache_variable->get_compression_scale_state()->set_layout(present_scales_layout);
             if (desc->get_compression_zp_inputs_num() > 0) {
                 auto& present_zp_layout = _impl_params->output_layouts[3];
                 kv_cache_inst::update_pad(present_zp_layout, max_pad - new_seq_len, sequence_axis);
-                GPU_DEBUG_TRACE_DETAIL << "[do runtime_in_place_kv_cache] " << id()
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do runtime_in_place_kv_cache] " << id()
                                        << " Updated present_zp_layout's pad : " << present_scales_layout.to_string() << std::endl;
 
                 compressed_cache_variable->get_compression_zp_state()->set_layout(present_zp_layout);
             }
         }
 
-        GPU_DEBUG_TRACE_DETAIL << "[do_runtime_in_place_kv_cache] " << id() << "Updated variable with present_layout"
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do_runtime_in_place_kv_cache] " << id() << "Updated variable with present_layout"
                                << variable.get_layout().to_string() << " is_set  = " << variable.is_set() << std::endl;
         if (past_layout.data_padding._upper_size[sequence_axis] > 0 && variable.is_set()) {
             kv_cache_inst::update_pad(past_layout, max_pad, sequence_axis);
@@ -1519,10 +1522,10 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
                     kv_cache_inst::update_pad(past_zp_layout, max_pad, sequence_axis);
                 }
             }
-            GPU_DEBUG_TRACE_DETAIL << "[do_runtime_in_place_kv_cache] " << id() << " Updated past layout's pad : " << past_layout.to_string() << std::endl;
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do_runtime_in_place_kv_cache] " << id() << " Updated past layout's pad : " << past_layout.to_string() << std::endl;
         }
     }
-    GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " can be optimized: " << _impl_params->_can_be_optimized << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do runtime kv_cache opt] " << id() << " can be optimized: " << _impl_params->_can_be_optimized << std::endl;
 }
 
 void primitive_inst::do_runtime_skip_gather() {
@@ -1534,7 +1537,7 @@ void primitive_inst::do_runtime_skip_gather() {
         || get_node().get_dependency(1).is_constant() || get_node().get_dependency(1).is_type<data>())
         return;
 
-    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_gather] " << id() << " : check optimizability" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do_runtime_skip_gather] " << id() << " : check optimizability" << std::endl;
 
     auto input_shape = _impl_params->get_input_layout(0).get_shape();
     auto axis = _impl_params->typed_desc<gather>()->axis;
@@ -1543,13 +1546,13 @@ void primitive_inst::do_runtime_skip_gather() {
     auto idx_rank = idx_shape.size();
 
     if (_impl_params->get_input_layout(0).count() == 0) {
-        GPU_DEBUG_TRACE_DETAIL << "-- Cannot optimize because input is empty " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "-- Cannot optimize because input is empty " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
         set_can_be_optimized(false);
         return;
     }
 
     if (idx_rank != 1) {
-        GPU_DEBUG_TRACE_DETAIL << "-- Cannot optimize because of its indices rank " << idx_rank << std::endl;
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "-- Cannot optimize because of its indices rank " << idx_rank << std::endl;
         set_can_be_optimized(false);
         return;
     }
@@ -1557,14 +1560,14 @@ void primitive_inst::do_runtime_skip_gather() {
     // Check runtime shape (need to reset can_be_optimized)
     if (idx_shape[0] != input_shape[axis]) {
         set_can_be_optimized(false);
-        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because input shape[0] " << idx_shape[0] << " != input_shape[axis]" << input_shape[axis] << std::endl;
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "--- Cannot optimize because input shape[0] " << idx_shape[0] << " != input_shape[axis]" << input_shape[axis] << std::endl;
         return;
     }
 
     // If the overhead for checking the index is bigger than doing gather itself, it does not make sense for skipping
     const int MAX_INDICES_SIZE = 10*1024;
     if (input_shape[axis] > MAX_INDICES_SIZE) {
-        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because data length along with the axis is too big" << input_shape[axis] << std::endl;
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "--- Cannot optimize because data length along with the axis is too big" << input_shape[axis] << std::endl;
         set_can_be_optimized(false);
         return;
     }
@@ -1577,7 +1580,7 @@ void primitive_inst::do_runtime_skip_gather() {
         mem_lock<int32_t, mem_lock_type::read> idx_data(dep_memory_ptr(1), get_network().get_stream());
         for (int64_t i = 0; i < static_cast<int32_t>(idx_shape[0]); ++i) {
             if (idx_data[i] != i) {
-                GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because idx_data [" << i << "] (" << idx_data[i] << ") != " << i << std::endl;
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "--- Cannot optimize because idx_data [" << i << "] (" << idx_data[i] << ") != " << i << std::endl;
                 if (_impl_params->output_layouts[0].data_padding.is_dynamic())
                     _impl_params->output_layouts[0].data_padding = padding();
                 // for runtime skippable nodes, if previous iter is skipped while this iter not, its output memory needs to be revalidate
@@ -1592,11 +1595,11 @@ void primitive_inst::do_runtime_skip_gather() {
     }
     // propagate input layout including correct paddings.
     _impl_params->output_layouts[0] = _impl_params->input_layouts[0];
-    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_gather] " << id() << " : can_be_optimized" << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "            - Indices layout : " << _impl_params->get_input_layout(1).to_short_string() << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "            - Gather axis : " << axis << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do_runtime_skip_gather] " << id() << " : can_be_optimized" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "            - Indices layout : " << _impl_params->get_input_layout(1).to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "            - Gather axis : " << axis << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
     set_can_be_optimized(true);
 }
 
@@ -1610,7 +1613,7 @@ void primitive_inst::do_runtime_skip_permute() {
         || _impl_params->get_input_layout(0).data_type != _impl_params->get_output_layout().data_type)
         return;
 
-    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : check optimizability" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do_runtime_skip_permute] " << id() << " : check optimizability" << std::endl;
     auto desc = get_node().as<permute>().get_primitive();
     auto input_shape = _impl_params->get_input_layout(0).get_shape();
     const auto& permute_order = desc->permute_order;
@@ -1630,14 +1633,14 @@ void primitive_inst::do_runtime_skip_permute() {
             prev_dim = permute_dest[i];
         }
     }
-    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_permute] " << id() << " : can_be_optimized ? " << can_skip << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "            - permute order : ";
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do_runtime_skip_permute] " << id() << " : can_be_optimized ? " << can_skip << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "            - permute order : ";
     for (auto order : permute_order) {
-        GPU_DEBUG_TRACE_DETAIL << order << ",";
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << order << ",";
     }
-    GPU_DEBUG_TRACE_DETAIL << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << std::endl;
     set_can_be_optimized(can_skip);
 }
 
@@ -1647,21 +1650,21 @@ void primitive_inst::do_runtime_skip_strided_slice() {
     if (!get_node().is_type<strided_slice>() || !get_node().is_runtime_skippable())
         return;
 
-    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_strided_slice] " << id() << " : check optimizability" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do_runtime_skip_strided_slice] " << id() << " : check optimizability" << std::endl;
     auto input_layout = _impl_params->get_input_layout(0);
     auto output_layout = _impl_params->get_output_layout();
 
     // Check runtime shape (need to reset can_be_optimized)
     if (input_layout != output_layout) {
         set_can_be_optimized(false);
-        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because input layout(" << input_layout.to_short_string()
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "--- Cannot optimize because input layout(" << input_layout.to_short_string()
                                << ") != output layout(" << output_layout.to_short_string() << ")" << std::endl;
         return;
     }
 
-    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_strided_slice] " << id() << " : can_be_optimized" << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do_runtime_skip_strided_slice] " << id() << " : can_be_optimized" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
     set_can_be_optimized(true);
 }
 
@@ -1671,21 +1674,21 @@ void primitive_inst::do_runtime_skip_broadcast() {
     if (!get_node().is_type<broadcast>() || !get_node().is_runtime_skippable())
         return;
 
-    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_broadcast] " << id() << " : check optimizability" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do_runtime_skip_broadcast] " << id() << " : check optimizability" << std::endl;
     auto input_layout = _impl_params->get_input_layout(0);
     auto output_layout = _impl_params->get_output_layout();
 
     // Check runtime shape (need to reset can_be_optimized)
     if (input_layout != output_layout) {
         set_can_be_optimized(false);
-        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because input layout(" << input_layout.to_short_string()
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "--- Cannot optimize because input layout(" << input_layout.to_short_string()
                                << ") != output layout(" << output_layout.to_short_string() << ")" << std::endl;
         return;
     }
 
-    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_broadcast] " << id() << " : can_be_optimized" << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do_runtime_skip_broadcast] " << id() << " : can_be_optimized" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
     set_can_be_optimized(true);
 }
 
@@ -1722,16 +1725,16 @@ void primitive_inst::do_runtime_in_place_concat() {
         concat_preds.push_back(pred.first);
     }
 
-    GPU_DEBUG_TRACE_DETAIL << "[In place concat] Preparing for runtime buffer fusing" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[In place concat] Preparing for runtime buffer fusing" << std::endl;
     // Do shape_infer for all concat's preds and concat
     for (auto pred : concat_preds) {
         if (!pred->_update_shape_done_by_other) {
-            GPU_DEBUG_TRACE_DETAIL << "[In place concat] update shape for " << pred->id() << std::endl;
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[In place concat] update shape for " << pred->id() << std::endl;
             pred->update_shape();
             pred->_update_shape_done_by_other = true;
         }
     }
-    GPU_DEBUG_TRACE_DETAIL << "[In place concat] update shape for " << concat_inst->id() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[In place concat] update shape for " << concat_inst->id() << std::endl;
     concat_inst->update_shape();
     concat_inst->_update_shape_done_by_other = true;
     layout concat_layout = concat_inst->_impl_params->get_output_layout();
@@ -1752,7 +1755,7 @@ void primitive_inst::do_runtime_in_place_concat() {
 
     if (!concat_in_place_optimization::match(concat_inst->get_node(), *concat_inst->_impl_params, pred_params, true)) {
         concat_inst->set_can_be_optimized(false);
-        GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << concat_inst->id() << " cannot be optimized " << std::endl;
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[In place concat] " << concat_inst->id() << " cannot be optimized " << std::endl;
         return;
     }
 
@@ -1764,14 +1767,14 @@ void primitive_inst::do_runtime_in_place_concat() {
             dep.first->set_flag(ExecutionFlags::SHAPE_CHANGED);
             dep.first->_impl_params->output_layouts[0] = preds_layouts[i];
         }
-        GPU_DEBUG_TRACE_DETAIL << "[In place concat] Update padding of pred " << i << " : "
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[In place concat] Update padding of pred " << i << " : "
                                << dep.first->_impl_params->output_layouts[0].to_string() << std::endl;
         ++i;
     }
     concat_inst->_impl_params->output_layouts[0] = concat_layout; // TODO : Once this primitive_inst::can_be_optimized, consolidate it to impl_params->optimized
 
     concat_inst->set_can_be_optimized(true);
-    GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << concat_inst->id() << ": can_be_optimized " << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[In place concat] " << concat_inst->id() << ": can_be_optimized " << std::endl;
 }
 
 void primitive_inst::do_runtime_skip_scatter_update() {
@@ -1783,7 +1786,7 @@ void primitive_inst::do_runtime_skip_scatter_update() {
         || !get_node().is_runtime_skippable())
         return;
 
-    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_scatter_update] " << id() << " : check optimizability" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do_runtime_skip_scatter_update] " << id() << " : check optimizability" << std::endl;
     const auto& input_layout = _impl_params->get_input_layout(0);
     const auto& output_layout = _impl_params->get_output_layout(0);
     const auto& idx_layout = _impl_params->get_input_layout(1);
@@ -1795,17 +1798,17 @@ void primitive_inst::do_runtime_skip_scatter_update() {
             set_flag(ExecutionFlags::SHAPE_CHANGED);
         }
         set_can_be_optimized(false);
-        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because idx_layout (" << idx_layout.to_short_string()
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "--- Cannot optimize because idx_layout (" << idx_layout.to_short_string()
                         << ") and update_layout(" << update_layout.to_short_string() << ") are not zero"
                         "or input layout is different than output layout" << std::endl;
         return;
     }
 
-    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_scatter_update] " << id() << " : can_be_optimized" << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "            - Input layout  : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "            - Idx layout    : " << _impl_params->get_input_layout(1).to_short_string() << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "            - Update layout : " << _impl_params->get_input_layout(2).to_short_string() << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do_runtime_skip_scatter_update] " << id() << " : can_be_optimized" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "            - Input layout  : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "            - Idx layout    : " << _impl_params->get_input_layout(1).to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "            - Update layout : " << _impl_params->get_input_layout(2).to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
     // set shape_change to realloc memory for same input shapes
     if (!can_be_optimized()) {
         set_flag(ExecutionFlags::SHAPE_CHANGED);
@@ -1822,7 +1825,7 @@ void primitive_inst::do_runtime_in_place_crop() {
     for (auto u : get_user_insts()) {
         if (u->get_node().is_type<crop>()) {
             if (u->get_node().can_be_optimized()) {
-                GPU_DEBUG_TRACE_DETAIL << "[In place crop] update shape for " << u->id() << std::endl;
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[In place crop] update shape for " << u->id() << std::endl;
                 u->update_shape();
                 u->_update_shape_done_by_other = true;
 
@@ -1832,7 +1835,7 @@ void primitive_inst::do_runtime_in_place_crop() {
                     OPENVINO_ASSERT(crop_users.size() == 1, "[GPU] Expected number of reshape users is 1, but it is ", crop_users.size());
                     auto reshape_inst = crop_users.front();
                     if (!reshape_inst->_update_shape_done_by_other) {
-                        GPU_DEBUG_TRACE_DETAIL << "[In place crop] update shape for " << reshape_inst->id() << std::endl;
+                        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[In place crop] update shape for " << reshape_inst->id() << std::endl;
                         reshape_inst->update_shape();
                         reshape_inst->_update_shape_done_by_other = true;
                         user_info.first = &reshape_inst->get_node();
@@ -1844,7 +1847,7 @@ void primitive_inst::do_runtime_in_place_crop() {
                 auto pred_layout = _impl_params->get_output_layout();
                 if (!crop_in_place_optimization::match(u->get_node(), *u->_impl_params, pred_layout, true)) {
                     u->set_can_be_optimized(false);
-                    GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
+                    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
                     continue;
                 }
 
@@ -1855,7 +1858,7 @@ void primitive_inst::do_runtime_in_place_crop() {
                     // manual dynamic padding update to reshape output layout is not currently supported
                     if (user_info.first) {
                         u->set_can_be_optimized(false);
-                        GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
+                        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
                         continue;
                     }
                     crop_in_place_optimization::update_in_place_crop_padding_along_feature(u->get_node(), crop_layout, pred_layout, offsets, crop_axis, true);
@@ -1868,12 +1871,12 @@ void primitive_inst::do_runtime_in_place_crop() {
                     }
                 } else {
                     u->set_can_be_optimized(false);
-                    GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
+                    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
                     continue;
                 }
                 u->_impl_params->output_layouts[0] = crop_layout;
                 u->set_can_be_optimized(true);
-                GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << ": can_be_optimized " << std::endl;
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[In place crop] " << u->id() << ": can_be_optimized " << std::endl;
             }
         }
     }
@@ -1891,10 +1894,10 @@ void primitive_inst::do_runtime_skip_lora() {
 
     if (is_empty_lora) {
         set_can_be_optimized(true);
-        GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_lora] " << id() << " : can be optimized due to empty adapters" << std::endl;
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do_runtime_skip_lora] " << id() << " : can be optimized due to empty adapters" << std::endl;
     } else {
         set_can_be_optimized(false);
-        GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_lora] " << id() << " cannot be optimized " << std::endl;
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do_runtime_skip_lora] " << id() << " cannot be optimized " << std::endl;
     }
 }
 
@@ -1908,10 +1911,10 @@ void primitive_inst::do_runtime_skip_resample() {
     bool is_unchanged = input_layout == output_layout;
     if (is_unchanged) {
         set_can_be_optimized(true);
-        GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_resample] " << id() << " can be optimized due to same input/output" << std::endl;
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do_runtime_skip_resample] " << id() << " can be optimized due to same input/output" << std::endl;
     } else {
         set_can_be_optimized(false);
-        GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_resample] " << id() << " cannot be optimized, input: " << input_layout.to_short_string()
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[do_runtime_skip_resample] " << id() << " cannot be optimized, input: " << input_layout.to_short_string()
                                << " , output: " << output_layout.to_short_string() << std::endl;
     }
 }
@@ -1959,15 +1962,15 @@ void primitive_inst::prepare_primitive() {
     const auto& primitive_id = id();
     if (!_has_valid_input) {
         // For unfused network with dynamic_quantization, we may have empty/unused input
-        GPU_DEBUG_TRACE_DETAIL << primitive_id << " does not have valid input. do nothing" << std::endl;
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << primitive_id << " does not have valid input. do nothing" << std::endl;
         return;
     }
-    GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "Execute " << id() << " (type: " << _impl_params->desc->type_string() << ") " << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "-----------------------------------------------------------------" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "Execute " << id() << " (type: " << _impl_params->desc->type_string() << ") " << std::endl;
     for (size_t i = 0; i < _deps.size(); ++i) {
-        GPU_DEBUG_TRACE_DETAIL << "- inputs[" << i << "] : " <<  _deps[i].first->id() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "- inputs[" << i << "] : " <<  _deps[i].first->id() << std::endl;
     }
-    GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "-----------------------------------------------------------------" << std::endl;
 
     // If it is optimized out or skipped for zero dimension at the previous iteration,
     // Set this flag true to reset output memory in realloc_if_needed.
@@ -1979,7 +1982,7 @@ void primitive_inst::prepare_primitive() {
         update_shape();
 
         if (_impl_params->output_layouts[0].count() == 0) {
-            GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << " : Skipping because output data is empty " << std::endl;
             set_flag(ExecutionFlags::SKIP);
         }
 
@@ -1994,7 +1997,7 @@ void primitive_inst::prepare_primitive() {
                 }
             }
             if (!subgraph_input_changed) {
-                GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping execution because dependent shapeof node is not changed " << std::endl;
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << " : Skipping execution because dependent shapeof node is not changed " << std::endl;
                 set_flag(ExecutionFlags::SKIP);
             }
         }
@@ -2101,7 +2104,7 @@ void primitive_inst::prepare_primitive() {
             }
         }
     }
-    GPU_DEBUG_TRACE << id() << ": execute " << _impl->get_kernel_name() << " (is_dynamic=" << _impl->is_dynamic()
+    GPU_DEBUG_TRACE(_network.get_config()) << id() << ": execute " << _impl->get_kernel_name() << " (is_dynamic=" << _impl->is_dynamic()
                     << ", "
                     << "can_be_optimized=" << can_be_optimized() << ")" << std::endl;
 
@@ -2127,7 +2130,7 @@ void primitive_inst::prepare_primitive() {
         if (!skip_reset) {
             for (const auto& output : _outputs) {
                 if (output != nullptr) {
-                    GPU_DEBUG_TRACE_DETAIL << id() << " : Resetting output memory (" << output->buffer_ptr() << ")" << std::endl;
+                    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << " : Resetting output memory (" << output->buffer_ptr() << ")" << std::endl;
                     // Use marker to ensure proper synchronization for both events and barriers
                     auto dep_events = out_of_order_queue ? std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)}
                                                          : std::vector<event::ptr>{};
@@ -2153,7 +2156,7 @@ void primitive_inst::execute() {
     }
 
     if (_unfused_subgraph != nullptr) {
-        GPU_DEBUG_TRACE << "Now execute unfused subgraph  " << _node->id() << std::endl;
+        GPU_DEBUG_TRACE(_network.get_config()) << "Now execute unfused subgraph  " << _node->id() << std::endl;
         for (auto& d : _deps) {
             if (!d.first->get_node().is_type<data>()) {
                 auto allocated_mem = d.first->output_memory_ptr(d.second);
@@ -2167,14 +2170,14 @@ void primitive_inst::execute() {
                     actual_mem = engine.allocate_memory(actual_input_layout);
                 }
                 auto port_id = tag_port_number(d.first->id(), d.second);
-                GPU_DEBUG_TRACE_DETAIL << "set_input_data " << port_id << "  " << actual_mem << std::endl;
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "set_input_data " << port_id << "  " << actual_mem << std::endl;
                 if (actual_mem)
                     _unfused_subgraph->set_input_data(port_id, std::move(actual_mem));
             }
         }
-        GPU_DEBUG_TRACE_DETAIL << "[Start] Executing unfused subgraph of " << id() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[Start] Executing unfused subgraph of " << id() << std::endl;
         auto outputs = _unfused_subgraph->execute(_impl_params->dep_events);
-        GPU_DEBUG_TRACE_DETAIL << "[End] Finished executing unfused subgraph of " << id() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "[End] Finished executing unfused subgraph of " << id() << std::endl;
 
         auto last_fd = _impl_params->fused_desc.back();
         auto last_prim_id = last_fd.desc->id;
@@ -2315,7 +2318,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
         }
     }
     if (_node) {
-        GPU_DEBUG_TRACE_DETAIL << get_node().type()->to_string(*_node) << "\n";
+        GPU_DEBUG_TRACE_DETAIL(network.get_config()) << get_node().type()->to_string(*_node) << "\n";
     }
     _impls_factory = std::make_shared<ImplementationsFactory>(_node);
     _impl_params->strm = get_network().get_stream_ptr();
@@ -2373,20 +2376,20 @@ memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_
     }
     // allocate intermediate memory for the updated layout of buffer
     auto alloc_type = allocation_type::unknown;
-    GPU_DEBUG_LOG << "[" << get_node().id() << ": internal buf " << idx << "] "
+    GPU_DEBUG_LOG(_network.get_config()) << "[" << get_node().id() << ": internal buf " << idx << "] "
                   << layout.to_short_string() << " lockable=" << lockable << std::endl;
     if ((int64_t)available_device_mem_size - (int64_t)layout.bytes_count() >= 0 &&
         (input_device_mem || get_node().get_preferred_impl_type() == impl_types::onednn) && !lockable) {
         // scratchpad memory type enforces to device mem.
-        GPU_DEBUG_LOG << " input is device mem and available device mem size (" << available_device_mem_size
+        GPU_DEBUG_LOG(_network.get_config()) << " input is device mem and available device mem size (" << available_device_mem_size
                       << ") > requested memory (" << layout.bytes_count() << " )" << std::endl;
         alloc_type = engine.get_preferred_memory_allocation_type();
     } else {
-        GPU_DEBUG_LOG << " input is not device mem or available device mem size ("
+        GPU_DEBUG_LOG(_network.get_config()) << " input is not device mem or available device mem size ("
                       << available_device_mem_size << ") <= requested memory (" << layout.bytes_count() << " )" << std::endl;
         alloc_type = engine.get_lockable_preferred_memory_allocation_type();
     }
-    GPU_DEBUG_LOG << "=> allocate to " << alloc_type << std::endl;
+    GPU_DEBUG_LOG(_network.get_config()) << "=> allocate to " << alloc_type << std::endl;
 
     auto ret_mem =
         get_memory_from_pool(get_network().get_engine(),
@@ -2399,7 +2402,7 @@ memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_
                              _runtime_memory_dependencies,
                              reset,
                              _intermediates_memory.size() > idx ? _intermediates_memory[idx].get() : nullptr);
-    GPU_DEBUG_LOG << " [" << get_network().get_id() << ":" << get_node().id() << ": internal buf " << idx << "] " << alloc_type
+    GPU_DEBUG_LOG(_network.get_config()) << " [" << get_network().get_id() << ":" << get_node().id() << ": internal buf " << idx << "] " << alloc_type
                   << " " << ret_mem->buffer_ptr() << std::endl;
     return ret_mem;
 }
@@ -2447,7 +2450,7 @@ void primitive_inst::update_weights() {
         // incorrect memory buffer may be assigned, so reset cached weights for such case
         _reordered_weights_cache.add(original_layout, original_weights_memory);
         _impl_params->weights_layout = optional_layout(original_layout);
-        GPU_DEBUG_TRACE_DETAIL << id() << ": add original weights memory " << original_layout.to_short_string() << " to weights cache; "
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": add original weights memory " << original_layout.to_short_string() << " to weights cache; "
                                        << "cache_size=" << _reordered_weights_cache.size() << "/" << _reordered_weights_cache.capacity() << std::endl;
     } else {
         // Set original partial shape, because it may be lost during kernel_selector::weights_tensor -> layout conversion
@@ -2460,11 +2463,11 @@ void primitive_inst::update_weights() {
             (expected_layout.format != cldnn::format::custom ||
             expected_layout.format.traits() == _reordered_weights_cache.get(expected_layout)->get_layout().format.traits())) {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
-            GPU_DEBUG_TRACE_DETAIL << id() << ": reuse weights for " << expected_layout.to_short_string() << std::endl;
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": reuse weights for " << expected_layout.to_short_string() << std::endl;
             return;
         } else if (original_layout.compatible(expected_layout)) {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
-            GPU_DEBUG_TRACE_DETAIL << id() << ": reinterpret original weights memory from " << original_layout.to_short_string()
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": reinterpret original weights memory from " << original_layout.to_short_string()
                                            << " to " << expected_layout.to_short_string() << std::endl;
             _reordered_weights_cache.add(expected_layout, engine.reinterpret_buffer(*original_weights_memory, expected_layout));
             return;
@@ -2474,11 +2477,11 @@ void primitive_inst::update_weights() {
             auto reorder_inst = std::make_shared<cldnn::reorder_inst>(get_network());
 
             if (auto cached_impl = cache.get(*reorder_kernel_params)) {
-                GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights (cached) from " << original_layout.to_short_string()
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": reorder weights (cached) from " << original_layout.to_short_string()
                                        << " to " << expected_layout.to_short_string() << std::endl;
                 reorder_inst->set_impl(cached_impl->clone());
             } else {
-                GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights from " << original_layout.to_short_string()
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": reorder weights from " << original_layout.to_short_string()
                                        << " to " << expected_layout.to_short_string() << std::endl;
 
                 auto impl_type = (reorder_kernel_params->get_output_layout(0).format == format::custom) ? impl_types::onednn : impl_types::ocl;
@@ -2507,16 +2510,16 @@ void primitive_inst::update_weights() {
             }
 
             if (can_reuse) {
-                GPU_DEBUG_TRACE_DETAIL << id() << ": reuse weights memory for new layout " << expected_layout.to_short_string() << std::endl;
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": reuse weights memory for new layout " << expected_layout.to_short_string() << std::endl;
                 weights_memory = engine.reinterpret_buffer(*weights_memory, expected_layout);
             } else {
-                GPU_DEBUG_TRACE_DETAIL << id() << ": allocate weights memory" << std::endl;
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": allocate weights memory" << std::endl;
                 auto alloc_type = engine.get_preferred_memory_allocation_type();
                 weights_memory = engine.allocate_memory(expected_layout, alloc_type);
             }
 
             _reordered_weights_cache.add(expected_layout, weights_memory);
-            GPU_DEBUG_TRACE_DETAIL << id() << ": update weights cache: " << expected_layout.to_short_string() << " cache_size="
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": update weights cache: " << expected_layout.to_short_string() << " cache_size="
                                    << _reordered_weights_cache.size() << "/" << _reordered_weights_cache.capacity() << std::endl;
 
             kernel_arguments_data args;
@@ -2557,6 +2560,7 @@ static bool user_requesting_mem_reuse_false(const program_node& node) {
 }
 
 memory::ptr primitive_inst::allocate_output(engine& _engine,
+					    const ExecutionConfig& config,
                                             memory_pool& pool,
                                             const program_node& node,
                                             const kernel_impl_params& impl_params,
@@ -2605,7 +2609,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
 
     auto total_output_bytes = layout.bytes_count();
     auto use_lockable_memory =
-        (is_output_buffer && ov::intel_gpu::can_use_usm_host(_engine, total_output_bytes)) ||
+        (is_output_buffer && ov::intel_gpu::can_use_usm_host(_engine, config, total_output_bytes)) ||
         is_cpu || has_any_cpu_user_not_shape_of(node.get_users()) ||
         !_engine.supports_allocation(allocation_type::usm_device) ||
         (node.is_shape_infer_dep() && device_info.dev_type == device_type::integrated_gpu);
@@ -2617,7 +2621,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     if (is_internal) {
         bool is_reorder_weights = node.is_type<reorder>() && node.as<reorder>().get_primitive()->weights_reorder_params;
         if (node.can_be_optimized() || is_reorder_weights) {
-            GPU_DEBUG_LOG << "[" << node.id() << ": output]" << std::endl;
+            //GPU_DEBUG_LOG(_network.get_config()) << "[" << node.id() << ": output]" << std::endl;
             // Use usm_device memory for weights reordering
             if (is_internal && is_reorder_weights &&
                 _engine.supports_allocation(allocation_type::usm_device))
@@ -2635,11 +2639,11 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
         } else {
             if ((node.is_output() && is_reorder_weights) || (!node.is_output() && node.is_type<input_layout>()))
                 reset = false;
-            GPU_DEBUG_LOG << "[" << node.id() << ": constant]" << std::endl;
+            //GPU_DEBUG_LOG(_network.get_config()) << "[" << node.id() << ": constant]" << std::endl;
             return _engine.allocate_memory(layout, alloc_type, reset);
         }
     } else if (!node.can_share_buffer() || impl_params.can_be_optimized() || node.is_output()) {
-        GPU_DEBUG_LOG << "[" << node.id() << ": output]" << std::endl;
+        //GPU_DEBUG_LOG(_network.get_config()) << "[" << node.id() << ": output]" << std::endl;
         return _engine.allocate_memory(layout, alloc_type, reset);
     } else {
         return get_memory_from_pool(_engine,
@@ -2669,6 +2673,7 @@ std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* up
             auto is_output = is_output_buffer(this, runtime_alloc);
 
             outputs.push_back(allocate_output(get_network().get_engine(),
+                                            get_network().get_config(),
                                             get_network().get_memory_pool(),
                                             get_node(),
                                             impl_params,
@@ -2720,9 +2725,9 @@ std::string primitive_inst::generic_to_string(program_node const& node, const ch
 }
 
 cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
-    GPU_DEBUG_TRACE_DETAIL << id() << ": Use unfused subgraph due to unexpected fusions\n";
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << id() << ": Use unfused subgraph due to unexpected fusions\n";
     if (!_unfused_subgraph) {
-        GPU_DEBUG_INFO << id() << ": [WARNING] Create unfused subgraph due to unexpected fusions\n";
+        //GPU_DEBUG_INFO << id() << ": [WARNING] Create unfused subgraph due to unexpected fusions\n";
         const auto has_primitive_id = [](std::vector<primitive_id> arr, const auto& target_pid) {
             return std::any_of(arr.cbegin(), arr.cend(), [&](const auto& pid) {
                 return pid == target_pid;
@@ -2748,7 +2753,7 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
             if (dep_idx < prim_of_fused_node->dependencies().size())
                 prim_of_fused_node->get_dependency(dep_idx) = {port_dep_id, 0};
 
-            GPU_DEBUG_TRACE_DETAIL << "  add primitive for outer_dep: " << port_dep_id << "\n";
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "  add primitive for outer_dep: " << port_dep_id << "\n";
 
             if (dep.first->is_type<data>()) {
                 auto& data_node = dep.first->as<data>();
@@ -2766,14 +2771,14 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
         }
 
         // Create the primitive itself
-        GPU_DEBUG_TRACE_DETAIL << "  add main primitive  " << prim_of_fused_node->id << "\n";
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "  add main primitive  " << prim_of_fused_node->id << "\n";
         for (auto& in : prim_of_fused_node->dependencies()) {
-            GPU_DEBUG_TRACE_DETAIL << "    input" << in.idx << " - " << in.pid << "\n";
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "    input" << in.idx << " - " << in.pid << "\n";
         }
         t.add_primitive(prim_of_fused_node);
         added_prim_ids.push_back(get_node().id());
 
-        GPU_DEBUG_TRACE_DETAIL << "  Add fused primitives of " << get_node().id() << "\n";
+        GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "  Add fused primitives of " << get_node().id() << "\n";
         // Add primitives for fused-ops
         for (auto& fd : _impl_params->fused_desc) {
             auto prim = fd.desc->clone();
@@ -2793,7 +2798,7 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                 // And when we construct unfused subgraph for prim2, we take original eltwise2 primitive which expects eltwise1 primitive as input
                 // which doesn't exist anymore in the graph
                 // Thus we update dependency name used dependencies idx stored in fused descriptor.
-                GPU_DEBUG_TRACE_DETAIL << "    input of prim " << prim->id << "  - idx" << i << "  " << in << std::endl;
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "    input of prim " << prim->id << "  - idx" << i << "  " << in << std::endl;
                 if (!has_primitive_id(added_prim_ids, in.pid)) {
                     if (fd.has_outer_dep()) {
                         size_t dep_id = fd.outer_dep_start_idx;
@@ -2814,9 +2819,9 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                 if (has_primitive_id(outer_dep_ids_with_port, in.pid))
                     in = tag_port_number(in.pid, in.idx);
 
-                GPU_DEBUG_TRACE_DETAIL << "    input of prim " << prim->id << "  - idx" << i << "  " << in << "\n";
+                GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "    input of prim " << prim->id << "  - idx" << i << "  " << in << "\n";
             }
-            GPU_DEBUG_TRACE_DETAIL << "  add fused_primitive " << prim->id << "\n";
+            GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << "  add fused_primitive " << prim->id << "\n";
             t.add_primitive(prim);
             added_prim_ids.push_back(prim->id);
         }
@@ -2841,7 +2846,7 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
 }
 
 #define LOG_AND_RETURN_FALSE(node) do {                                         \
-    GPU_DEBUG_TRACE_DETAIL << (node)->id() << " : it is an invalid fusion" << std::endl;  \
+    GPU_DEBUG_TRACE_DETAIL(_network.get_config()) << (node)->id() << " : it is an invalid fusion" << std::endl;  \
     return false;                                                               \
 } while (0)
 
@@ -2862,12 +2867,12 @@ bool primitive_inst::is_valid_fusion() const {
             if (fd.is_type<swiglu>()) {
                 OPENVINO_ASSERT(get_node().is_type<fully_connected>() && get_node().get_preferred_impl_type() == impl_types::ocl);
                 if (!get_node().get_selected_impl())
-                    LOG_AND_RETURN_FALSE(_node);
+                    //LOG_AND_RETURN_FALSE(_node);
                 // TODO : support ref kernel too
                 if (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bf_tiled") != std::string::npos)
                     return true;
-                else
-                    LOG_AND_RETURN_FALSE(_node);
+                //else
+                    //LOG_AND_RETURN_FALSE(_node);
             }
 
             OPENVINO_THROW("[GPU] Unsupported fused operation in dynamic shape: type=", fd.desc->type_string(), ", id=", fd.desc->id);
@@ -2880,18 +2885,18 @@ bool primitive_inst::is_valid_fusion() const {
     if (get_node().is_type<fully_connected>() || get_node().is_type<gemm>() || get_node().is_type<convolution>()) {
         if (_impl_params->input_layouts[0].count() == 0 ||
             _impl_params->input_layouts[1].count() == 0) {
-            LOG_AND_RETURN_FALSE(_node);
+            //LOG_AND_RETURN_FALSE(_node);
         }
     }
 
     if (get_node().is_type<fully_connected>() && get_node().get_preferred_impl_type() == impl_types::ocl) {
         // TODO: Only fc_bf_tiled_kernel & ref kernel are verified for fused eltwise. To support more fc kernels for eltwise fusion
         if (!get_node().get_selected_impl())
-            LOG_AND_RETURN_FALSE(_node);
+            //LOG_AND_RETURN_FALSE(_node);
         if (!data_type_traits::is_i8_u8(get_node().get_input_layout(0).data_type) &&
             (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bf_tiled") == std::string::npos) &&
             (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bfyx_ref") == std::string::npos)) {
-            LOG_AND_RETURN_FALSE(_node);
+            //LOG_AND_RETURN_FALSE(_node);
         }
     }
 
@@ -2906,11 +2911,11 @@ bool primitive_inst::is_valid_fusion() const {
         OPENVINO_ASSERT(outer_dep_idx < 0 || static_cast<int32_t>(_deps.size()) > outer_dep_idx, "[GPU] Invalid fused dependency idx");
         const auto& outer_dep = _deps[outer_dep_idx];
 
-        const auto& outer_dep_pshape = outer_dep.first->_impl_params->get_output_layout().get_partial_shape();
+        //const auto& outer_dep_pshape = outer_dep.first->_impl_params->get_output_layout().get_partial_shape();
         auto merged_shape = out_pshape;
-        bool can_broadcast = true;
-        if (fd.is_type<eltwise>())
-            can_broadcast = ov::PartialShape::broadcast_merge_into(merged_shape, outer_dep_pshape, fd.typed_desc<eltwise>()->broadcast_spec);
+        //bool can_broadcast = true;
+        //if (fd.is_type<eltwise>())
+        //    can_broadcast = ov::PartialShape::broadcast_merge_into(merged_shape, outer_dep_pshape, fd.typed_desc<eltwise>()->broadcast_spec);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
         // WA for OneDNN binary add fusions: we need to broadcast batch dimension to avoid situation with
@@ -2929,15 +2934,15 @@ bool primitive_inst::is_valid_fusion() const {
                                                          cldnn::format::dimension(data_layout.format),
                                                          false);
 
-            if (gemm_dims[0] != data_dims[0] && gemm_dims[1] != 1)
-                LOG_AND_RETURN_FALSE(_node);
+            //if (gemm_dims[0] != data_dims[0] && gemm_dims[1] != 1)
+                //LOG_AND_RETURN_FALSE(_node);
         }
 #endif
 
         // We check that broadcasting of extra input is possible and it doesn't change output shape. If it output shape is changed, then
         // some dimension of dep_pshape is greater than out_pshape
-        if (!can_broadcast || merged_shape != out_pshape)
-            LOG_AND_RETURN_FALSE(_node);
+        //if (!can_broadcast || merged_shape != out_pshape)
+            //LOG_AND_RETURN_FALSE(_node);
     }
 
     return true;

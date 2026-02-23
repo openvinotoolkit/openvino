@@ -162,7 +162,7 @@ program::program(engine& engine_ref,
     init_primitives();
     _config.finalize(_engine);
     _engine.set_enable_large_allocations(_config.get_enable_large_allocations());
-    GPU_DEBUG_INFO << "Program config\n" << _config.to_string();
+    //GPU_DEBUG_INFO << "Program config\n" << _config.to_string();
     init_program();
     prepare_nodes(topology);
     program_node::reset_unique_id();
@@ -723,12 +723,12 @@ void program::transfer_memory_to_device() {
                     return;
                 }
 
-                GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
+                //GPU_DEBUG_LOG(config) << "[" << data_node.id() << ": constant]" << std::endl;
                 // Allocate and transfer memory
                 auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
                 device_mem->copy_from(get_stream(), mem);
                 data_node.attach_memory(device_mem);
-                GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
+                //GPU_DEBUG_LOG(config) << "[" << data_node.id() << ": constant]" << std::endl;
                 const_cast<memory::ptr&>(data_node.get_primitive()->mem).reset();
                 // TODO: Do we need finish call here? Maybe call it in network::execute() ?
                 get_stream().finish();
@@ -1772,8 +1772,8 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         if (engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu)
             total_host_alloc_size += engine.get_used_device_memory(allocation_type::usm_device);
         if ((cur_vmem != -1 && total_host_alloc_size > cur_vmem * 0.5) || (total_host_alloc_size >= max_global_mem_size)) {
-            GPU_DEBUG_INFO << "Estimated host mem usage calculated with default base batch size(16) exceeds the available memory ("
-                           << cur_vmem << ")" << std::endl;
+            //GPU_DEBUG_INFO << "Estimated host mem usage calculated with default base batch size(16) exceeds the available memory ("
+            //               << cur_vmem << ")" << std::endl;
             return {-1L, -1L};
         }
         #endif
@@ -1788,6 +1788,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
             continue;
         } else {
             allocated_mem_ptrs.insert(primitive_inst::allocate_output(engine,
+                                                                      get_config(),
                                                                       pool,
                                                                       *node,
                                                                       *node->get_kernel_impl_params(),

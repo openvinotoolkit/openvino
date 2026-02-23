@@ -270,14 +270,14 @@ bool support_opt_kernel(const kernel_impl_params& params) {
 
     for (size_t i = 0; i < std::min(updates_shape.size(), expected_update_shape.size()); ++i) {
         if (updates_shape[i] != expected_update_shape[i]) {
-            GPU_DEBUG_TRACE << "Diff updates shape's rank::updates_shape: " << updates_shape.to_string()
-                            << ", expected updates_shape: " << expected_update_shape.to_string() << std::endl;
+            //GPU_DEBUG_TRACE(config) << "Diff updates shape's rank::updates_shape: " << updates_shape.to_string()
+            //                << ", expected updates_shape: " << expected_update_shape.to_string() << std::endl;
             return false;
         }
     }
     if (ov::shape_size(updates_shape) != ov::shape_size(expected_update_shape)) {
-        GPU_DEBUG_TRACE << "Diff updates shape element num::updates_shape: " << updates_shape.to_string()
-                        << ", expected updates_shape: " << expected_update_shape.to_string() << std::endl;
+        //GPU_DEBUG_TRACE(config) << "Diff updates shape element num::updates_shape: " << updates_shape.to_string()
+        //                << ", expected updates_shape: " << expected_update_shape.to_string() << std::endl;
         return false;
     }
     return true;

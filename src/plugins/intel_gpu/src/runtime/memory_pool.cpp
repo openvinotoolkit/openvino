@@ -177,7 +177,7 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
             ++it;
         }
     }
-    GPU_DEBUG_LOG << "[" << prim_id << "(" << unique_id << "): output]" << std::endl;
+    //GPU_DEBUG_LOG(config) << "[" << prim_id << "(" << unique_id << "): output]" << std::endl;
     // didn't find anything for you? create new resource
     auto mem = alloc_memory(layout, type, reset);
     {
@@ -236,7 +236,7 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
 #endif
         return mem;
     }
-    GPU_DEBUG_LOG << "[" << prim_id << "(" << unique_id << ")" << ": output]" << std::endl;
+    //GPU_DEBUG_LOG(config) << "[" << prim_id << "(" << unique_id << ")" << ": output]" << std::endl;
     auto mem = alloc_memory(layout, type);
     std::list<memory_record> list = {memory_record({{MEM_USER(unique_id, network_id, prim_id, mem->size())}}, mem, network_id, type)};
     _padded_pool.emplace(layout, std::move(list));
@@ -378,10 +378,10 @@ memory_pool::memory_pool(engine& engine, const ExecutionConfig& config) : _engin
     _mem_pool_util_threshold = _config.get_mem_pool_util_threshold();
     if (_mem_pool_util_threshold < 0.f || _mem_pool_util_threshold > 1.f) {
         _mem_pool_util_threshold = std::clamp(_mem_pool_util_threshold, 0.f, 1.f);
-        GPU_DEBUG_INFO << "[WARNING] mem_pool_util_threshold should be in range [0.f, 1.f]. Reset to "
-            << _mem_pool_util_threshold << std::endl;
+        //GPU_DEBUG_INFO << "[WARNING] mem_pool_util_threshold should be in range [0.f, 1.f]. Reset to "
+        //    << _mem_pool_util_threshold << std::endl;
     }
-    GPU_DEBUG_TRACE_DETAIL << "mem_pool_util_threshold set to " << _mem_pool_util_threshold << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "mem_pool_util_threshold set to " << _mem_pool_util_threshold << std::endl;
 }
 
 #ifdef GPU_DEBUG_CONFIG
@@ -453,15 +453,15 @@ void memory_pool::dump_to_file(uint32_t net_id, uint32_t iter, std::string dump_
 
 void memory_pool::dump_to_screen(uint32_t net_id, uint32_t iter) {
 #ifdef GPU_DEBUG_CONFIG
-    GPU_DEBUG_COUT << "Dump memory pool of network (net_id : " << net_id << ", iter : " << iter << ")" << std::endl;
+    //GPU_DEBUG_COUT(config) << "Dump memory pool of network (net_id : " << net_id << ", iter : " << iter << ")" << std::endl;
     float total_requested_mem_non_padded_pool    = 0.f;
     float total_requested_mem_padded_pool        = 0.f;
 
     {
-        GPU_DEBUG_COUT << "========== non-padded pool ( " << _non_padded_pool.size() << " records) ==========" << std::endl;
+        //GPU_DEBUG_COUT(config) << "========== non-padded pool ( " << _non_padded_pool.size() << " records) ==========" << std::endl;
         for (auto mem : _non_padded_pool) {
-            GPU_DEBUG_COUT << mem.second._memory->buffer_ptr() << " (size: " << get_mb_size(mem.first)
-                << ", type: " << mem.second._type << ")'s users: " << std::endl;
+            //GPU_DEBUG_COUT(config) << mem.second._memory->buffer_ptr() << " (size: " << get_mb_size(mem.first)
+            //    << ", type: " << mem.second._type << ")'s users: " << std::endl;
             float min_utilization = 100.0f;
             float max_utilization = 0.f;
             for (auto user : mem.second._users) {
@@ -469,22 +469,22 @@ void memory_pool::dump_to_screen(uint32_t net_id, uint32_t iter) {
                 min_utilization = std::min(utilization, min_utilization);
                 max_utilization = std::max(utilization, max_utilization);
                 total_requested_mem_non_padded_pool += static_cast<float>(user._mem_size);
-                GPU_DEBUG_COUT << "    --- " << user._prim_id << " (" << user._unique_id << "), "
-                    << get_mb_size(user._mem_size) << ", " << utilization << "%" << std::endl;
+                //GPU_DEBUG_COUT(config) << "    --- " << user._prim_id << " (" << user._unique_id << "), "
+                //    << get_mb_size(user._mem_size) << ", " << utilization << "%" << std::endl;
             }
-            GPU_DEBUG_COUT <<  "   - min utilization of the memory pool entry: " << min_utilization << " %" << std::endl;
-            GPU_DEBUG_COUT <<  "   - max utilization of the memory pool entry: " << max_utilization << " %" << std::endl;
+            //GPU_DEBUG_COUT(config) <<  "   - min utilization of the memory pool entry: " << min_utilization << " %" << std::endl;
+            //GPU_DEBUG_COUT(config) <<  "   - max utilization of the memory pool entry: " << max_utilization << " %" << std::endl;
         }
     }
 
     {
-        GPU_DEBUG_COUT << "========== padded pool (" << _padded_pool.size() << " records) ==========" << std::endl;
+        //GPU_DEBUG_COUT(config) << "========== padded pool (" << _padded_pool.size() << " records) ==========" << std::endl;
         for (auto mem : _padded_pool) {
-            GPU_DEBUG_COUT << " layout: " << mem.first.to_short_string() << ", records(" << mem.second.size() << ")" << std::endl;
+            //GPU_DEBUG_COUT(config) << " layout: " << mem.first.to_short_string() << ", records(" << mem.second.size() << ")" << std::endl;
             for (auto record : mem.second) {
                 size_t mem_size = record._memory->size();
-                GPU_DEBUG_COUT << "  " << record._memory->buffer_ptr() << " (size:" << get_mb_size(mem_size)
-                                << "MB, type: " << record._type << ")'s users : " << std::endl;
+                //GPU_DEBUG_COUT(config) << "  " << record._memory->buffer_ptr() << " (size:" << get_mb_size(mem_size)
+                //                << "MB, type: " << record._type << ")'s users : " << std::endl;
                 float min_utilization = 100.0f;
                 float max_utilization = 0.f;
                 for (auto user : record._users) {
@@ -492,53 +492,53 @@ void memory_pool::dump_to_screen(uint32_t net_id, uint32_t iter) {
                     min_utilization = std::min(utilization, min_utilization);
                     max_utilization = std::max(utilization, max_utilization);
                     total_requested_mem_padded_pool += static_cast<float>(user._mem_size);
-                    GPU_DEBUG_COUT << "    --- " << user._prim_id << " (" << user._unique_id << "), "
-                        << get_mb_size(user._mem_size) << ", " << utilization << "%" << std::endl;
+                    //GPU_DEBUG_COUT(config) << "    --- " << user._prim_id << " (" << user._unique_id << "), "
+                    //    << get_mb_size(user._mem_size) << ", " << utilization << "%" << std::endl;
                 }
-                GPU_DEBUG_COUT << "   - min of the memory pool entry: " << min_utilization << std::endl;
-                GPU_DEBUG_COUT << "   - max of the memory pool entry: " << max_utilization << std::endl;
+                //GPU_DEBUG_COUT(config) << "   - min of the memory pool entry: " << min_utilization << std::endl;
+                //GPU_DEBUG_COUT(config) << "   - max of the memory pool entry: " << max_utilization << std::endl;
             }
         }
     }
 
     {
-        GPU_DEBUG_COUT << "========== no reusable memory (" << _no_reusable_mems.size() << " records) ==========" << std::endl;
+        //GPU_DEBUG_COUT(config) << "========== no reusable memory (" << _no_reusable_mems.size() << " records) ==========" << std::endl;
         for (auto mem : _no_reusable_mems) {
-            GPU_DEBUG_COUT << mem._memory->buffer_ptr() << " (type: " << mem._type << ")'s user: " << std::endl;
+            //GPU_DEBUG_COUT(config) << mem._memory->buffer_ptr() << " (type: " << mem._type << ")'s user: " << std::endl;
             for (auto user : mem._users) {
-                GPU_DEBUG_COUT << "    --- " << user._prim_id << " (" << user._unique_id << "), "
-                    << get_mb_size(user._mem_size) << std::endl;
+                //GPU_DEBUG_COUT(config) << "    --- " << user._prim_id << " (" << user._unique_id << "), "
+                //    << get_mb_size(user._mem_size) << std::endl;
             }
         }
     }
 
-    GPU_DEBUG_COUT << "************************************************************************" << std::endl;
-    GPU_DEBUG_COUT << "Memory pool footprint of the network (net_id : " << net_id << ", iter : " << iter << ")" << std::endl;
-    GPU_DEBUG_COUT << "Total memory size of non_padded_pool     : " << get_mb_size(total_mem_size_non_padded_pool) << std::endl;
+    //GPU_DEBUG_COUT(config) << "************************************************************************" << std::endl;
+    //GPU_DEBUG_COUT(config) << "Memory pool footprint of the network (net_id : " << net_id << ", iter : " << iter << ")" << std::endl;
+    //GPU_DEBUG_COUT(config) << "Total memory size of non_padded_pool     : " << get_mb_size(total_mem_size_non_padded_pool) << std::endl;
     if (total_mem_size_non_padded_pool > 0.f) {
-        GPU_DEBUG_COUT << " * Efficiency        : "
-            << std::to_string(static_cast<float>(total_requested_mem_non_padded_pool / total_mem_size_non_padded_pool))
-            << " (total mem requested : " << get_mb_size(total_requested_mem_non_padded_pool)
-            << " / total mem pool size : " << get_mb_size(total_mem_size_non_padded_pool) << ")" << std::endl;
-        GPU_DEBUG_COUT << " * host mem size     : " << get_mb_size(mem_size_non_padded_pool_host) << std::endl;
-        GPU_DEBUG_COUT << " * device mem size   : "
-                            << get_mb_size(total_mem_size_non_padded_pool - mem_size_non_padded_pool_host) << std::endl;
+        //GPU_DEBUG_COUT(config) << " * Efficiency        : "
+        //    << std::to_string(static_cast<float>(total_requested_mem_non_padded_pool / total_mem_size_non_padded_pool))
+        //    << " (total mem requested : " << get_mb_size(total_requested_mem_non_padded_pool)
+        //    << " / total mem pool size : " << get_mb_size(total_mem_size_non_padded_pool) << ")" << std::endl;
+        //GPU_DEBUG_COUT(config) << " * host mem size     : " << get_mb_size(mem_size_non_padded_pool_host) << std::endl;
+        //GPU_DEBUG_COUT(config) << " * device mem size   : "
+        //                    << get_mb_size(total_mem_size_non_padded_pool - mem_size_non_padded_pool_host) << std::endl;
     }
-    GPU_DEBUG_COUT << "Total memory size of padded_pool memory  : " << get_mb_size(total_mem_size_padded_pool) << std::endl;
+    //GPU_DEBUG_COUT(config) << "Total memory size of padded_pool memory  : " << get_mb_size(total_mem_size_padded_pool) << std::endl;
     if (total_mem_size_padded_pool > 0.f) {
-        GPU_DEBUG_COUT << " * Efficiency        : "
-            << std::to_string(static_cast<float>(total_requested_mem_padded_pool / total_mem_size_padded_pool))
-            << " (total mem requested : " << get_mb_size(total_requested_mem_padded_pool)
-            << " / total mem pool size : " << get_mb_size(total_mem_size_padded_pool) << ")" << std::endl;
-        GPU_DEBUG_COUT << " * host mem size     : " << get_mb_size(mem_size_padded_pool_host) << std::endl;
-        GPU_DEBUG_COUT << " * device mem size   : " << get_mb_size((total_mem_size_padded_pool - mem_size_padded_pool_host)) << std::endl;
+        //GPU_DEBUG_COUT(config) << " * Efficiency        : "
+        //    << std::to_string(static_cast<float>(total_requested_mem_padded_pool / total_mem_size_padded_pool))
+        //    << " (total mem requested : " << get_mb_size(total_requested_mem_padded_pool)
+        //    << " / total mem pool size : " << get_mb_size(total_mem_size_padded_pool) << ")" << std::endl;
+        //GPU_DEBUG_COUT(config) << " * host mem size     : " << get_mb_size(mem_size_padded_pool_host) << std::endl;
+        //GPU_DEBUG_COUT(config) << " * device mem size   : " << get_mb_size((total_mem_size_padded_pool - mem_size_padded_pool_host)) << std::endl;
     }
-    GPU_DEBUG_COUT << "Total memory size of no reusable memory  : " << get_mb_size(total_mem_size_no_reusable) << std::endl;
+    //GPU_DEBUG_COUT(config) << "Total memory size of no reusable memory  : " << get_mb_size(total_mem_size_no_reusable) << std::endl;
     if (total_mem_size_no_reusable > 0.f) {
-        GPU_DEBUG_COUT << " * host mem size     : " << get_mb_size(mem_size_no_reusable_host) << std::endl;
-        GPU_DEBUG_COUT << " * device mem size   : " << get_mb_size((total_mem_size_no_reusable - mem_size_no_reusable_host)) << std::endl;
+        //GPU_DEBUG_COUT(config) << " * host mem size     : " << get_mb_size(mem_size_no_reusable_host) << std::endl;
+        //GPU_DEBUG_COUT(config) << " * device mem size   : " << get_mb_size((total_mem_size_no_reusable - mem_size_no_reusable_host)) << std::endl;
     }
-    GPU_DEBUG_COUT << "************************************************************************" << std::endl;
+    //GPU_DEBUG_COUT(config) << "************************************************************************" << std::endl;
 #endif
 }
 }  // namespace cldnn

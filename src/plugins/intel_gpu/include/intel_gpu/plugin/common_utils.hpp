@@ -33,7 +33,7 @@ enum class TensorType {
 
 #define TensorValue(val) static_cast<cldnn::tensor::value_type>(val)
 
-inline bool can_use_usm_host(cldnn::engine& engine, const uint64_t total_output_bytes) {
+inline bool can_use_usm_host(cldnn::engine& engine, const ExecutionConfig& config, const uint64_t total_output_bytes) {
     GPU_DEBUG_IF(ExecutionConfig::get_usm_policy() == 1) { return true; }
     GPU_DEBUG_IF(ExecutionConfig::get_usm_policy() == 2) { return false; }
 
@@ -48,7 +48,7 @@ inline bool can_use_usm_host(cldnn::engine& engine, const uint64_t total_output_
         // WA: Disable USM host memory for infer request`s tensors for PVC and subsequent dGPUs, as kernel access
         // to system memory is slower than using an explicit memcpy (Host <-> Device) call with the copy engine
         // Driver tickets with additional details: 6155, 10054
-        GPU_DEBUG_TRACE << "Do not use usm_host for performance issue" << std::endl;
+        GPU_DEBUG_TRACE(config) << "Do not use usm_host for performance issue" << std::endl;
         can_use_usm = false;
     }
 

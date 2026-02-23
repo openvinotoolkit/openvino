@@ -194,7 +194,7 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
 
     auto jit = make_base_jit_constants(params);
     auto [broadcast_axis, group_size] = get_gqa_params(params);
-    GPU_DEBUG_TRACE_DETAIL << "broadcast_axis = " << broadcast_axis << ", group_size = " << group_size << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "broadcast_axis = " << broadcast_axis << ", group_size = " << group_size << std::endl;
     if (broadcast_axis != -1) {
         jit.make("BROADCAST_GROUP_SIZE", group_size);
         jit.make("DO_BROADCAST_KEY_VALUE", get_broadcast_input_str(params.input_layouts[0].get_rank(), broadcast_axis, group_size));
@@ -212,7 +212,7 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
             jit.make("HAS_SINK_INPUT", 1);
         }
         jit.make("IS_KV_COMPRESSED", desc->is_kv_compressed);
-        GPU_DEBUG_TRACE_DETAIL << "desc->is_kv_compressed = " << desc->is_kv_compressed << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "desc->is_kv_compressed = " << desc->is_kv_compressed << std::endl;
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
         if (desc->is_kv_compressed) {

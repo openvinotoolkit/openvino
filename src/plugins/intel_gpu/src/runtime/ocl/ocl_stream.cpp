@@ -52,7 +52,7 @@ cl_int set_kernel_arg(ocl_kernel_type& kernel, uint32_t idx, uint32_t size) {
     if (size == 0)
         return CL_INVALID_ARG_VALUE;
 
-    GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set arg " << idx << " local memory size : " << size << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(_config) << "kernel: " << kernel.get() << " set arg " << idx << " local memory size : " << size << std::endl;
     return kernel.setArg(idx, size, NULL);
 }
 
@@ -62,17 +62,17 @@ cl_int set_kernel_arg(ocl_kernel_type& kernel, uint32_t idx, cldnn::memory::cptr
 
     if (mem->get_layout().format.is_image_2d()) {
         auto buf = std::dynamic_pointer_cast<const ocl::gpu_image2d>(mem)->get_buffer();
-        GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set arg (image) " << idx << " mem: " << buf.get() << " size: " << mem->size() << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(_config) << "kernel: " << kernel.get() << " set arg (image) " << idx << " mem: " << buf.get() << " size: " << mem->size() << std::endl;
         return kernel.setArg(idx, buf);
     } else if (memory_capabilities::is_usm_type(mem->get_allocation_type())) {
         auto buf = std::dynamic_pointer_cast<const ocl::gpu_usm>(mem)->get_buffer();
-        auto mem_type = std::dynamic_pointer_cast<const ocl::gpu_usm>(mem)->get_allocation_type();
-        GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set arg (" << mem_type << ") " << idx
-                               << " mem: " << buf.get() << " size: " << mem->size() << std::endl;
+        //auto mem_type = std::dynamic_pointer_cast<const ocl::gpu_usm>(mem)->get_allocation_type();
+        //GPU_DEBUG_TRACE_DETAIL(_config) << "kernel: " << kernel.get() << " set arg (" << mem_type << ") " << idx
+        //                       << " mem: " << buf.get() << " size: " << mem->size() << std::endl;
         return kernel.setArgUsm(idx, buf);
     } else {
         auto buf = std::dynamic_pointer_cast<const ocl::gpu_buffer>(mem)->get_buffer();
-        GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set arg (buffer) " << idx << " mem: " << buf.get() << " size: " << mem->size() << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(_config) << "kernel: " << kernel.get() << " set arg (buffer) " << idx << " mem: " << buf.get() << " size: " << mem->size() << std::endl;
         return kernel.setArg(idx, buf);
     }
 
@@ -134,43 +134,43 @@ void set_arguments_impl(ocl_kernel_type& kernel,
                     switch (scalar.t) {
                         case scalar_t::UINT8:
                             status = kernel.setArg(i, scalar.v.u8);
-                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (u8): " << static_cast<int>(scalar.v.u8) << "\n";
+                            //GPU_DEBUG_TRACE_DETAIL(_config) << "kernel: " << kernel.get() << " set scalar " << i << " (u8): " << static_cast<int>(scalar.v.u8) << "\n";
                             break;
                         case scalar_t::UINT16:
                             status = kernel.setArg(i, scalar.v.u16);
-                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (u16): " << scalar.v.u16 << "\n";
+                            //GPU_DEBUG_TRACE_DETAIL(_config) << "kernel: " << kernel.get() << " set scalar " << i << " (u16): " << scalar.v.u16 << "\n";
                             break;
                         case scalar_t::UINT32:
                             status = kernel.setArg(i, scalar.v.u32);
-                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (u32): " << scalar.v.u32 << "\n";
+                            //GPU_DEBUG_TRACE_DETAIL(_config) << "kernel: " << kernel.get() << " set scalar " << i << " (u32): " << scalar.v.u32 << "\n";
                             break;
                         case scalar_t::UINT64:
                             status = kernel.setArg(i, scalar.v.u64);
-                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (u64): " << scalar.v.u64 << "\n";
+                            //GPU_DEBUG_TRACE_DETAIL(_config) << "kernel: " << kernel.get() << " set scalar " << i << " (u64): " << scalar.v.u64 << "\n";
                             break;
                         case scalar_t::INT8:
                             status = kernel.setArg(i, scalar.v.s8);
-                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (s8): " << static_cast<int>(scalar.v.s8) << "\n";
+                            //GPU_DEBUG_TRACE_DETAIL(_config) << "kernel: " << kernel.get() << " set scalar " << i << " (s8): " << static_cast<int>(scalar.v.s8) << "\n";
                             break;
                         case scalar_t::INT16:
                             status = kernel.setArg(i, scalar.v.s16);
-                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (s16): " << scalar.v.s16 << "\n";
+                            //GPU_DEBUG_TRACE_DETAIL(_config) << "kernel: " << kernel.get() << " set scalar " << i << " (s16): " << scalar.v.s16 << "\n";
                             break;
                         case scalar_t::INT32:
                             status = kernel.setArg(i, scalar.v.s32);
-                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (s32): " << scalar.v.s32 << "\n";
+                            //GPU_DEBUG_TRACE_DETAIL(_config) << "kernel: " << kernel.get() << " set scalar " << i << " (s32): " << scalar.v.s32 << "\n";
                             break;
                         case scalar_t::INT64:
                             status = kernel.setArg(i, scalar.v.s64);
-                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (s64): " << scalar.v.s64 << "\n";
+                            //GPU_DEBUG_TRACE_DETAIL(_config) << "kernel: " << kernel.get() << " set scalar " << i << " (s64): " << scalar.v.s64 << "\n";
                             break;
                         case scalar_t::FLOAT32:
                             status = kernel.setArg(i, scalar.v.f32);
-                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (f32): " << scalar.v.f32 << "\n";
+                            //GPU_DEBUG_TRACE_DETAIL(_config) << "kernel: " << kernel.get() << " set scalar " << i << " (f32): " << scalar.v.f32 << "\n";
                             break;
                         case scalar_t::FLOAT64:
                             status = kernel.setArg(i, scalar.v.f64);
-                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (f64): " << scalar.v.f64 << "\n";
+                            //GPU_DEBUG_TRACE_DETAIL(_config) << "kernel: " << kernel.get() << " set scalar " << i << " (f64): " << scalar.v.f64 << "\n";
                             break;
                         default:
                             break;
@@ -205,7 +205,7 @@ void set_arguments_impl(ocl_kernel_type& kernel,
 
 ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config)
     : stream(config.get_queue_type(), stream::get_expected_sync_method(config))
-    , _engine(engine) {
+    , _engine(engine), _config(config) {
     auto context = engine.get_cl_context();
     auto device = engine.get_cl_device();
     ocl::command_queues_builder queue_builder;
@@ -229,7 +229,7 @@ ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config)
 
 ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config, void *handle)
     : stream(ocl_stream::detect_queue_type(handle), stream::get_expected_sync_method(config))
-    , _engine(engine) {
+    , _engine(engine), _config(config) {
     auto casted_handle = static_cast<cl_command_queue>(handle);
     _command_queue = ocl_queue_type(casted_handle, true);
 }
@@ -266,7 +266,7 @@ void ocl_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args
     auto& kern = ocl_kernel.get_handle();
 
     try {
-        GPU_DEBUG_TRACE_DETAIL << "Set arguments for primitive: " << args_desc.layerID << " (" << kernel.get_id() << " = " << kern.get() << ")\n";
+        //GPU_DEBUG_TRACE_DETAIL(_config) << "Set arguments for primitive: " << args_desc.layerID << " (" << kernel.get_id() << " = " << kern.get() << ")\n";
         set_arguments_impl(kern, args_desc.arguments, args);
     } catch (cl::Error const& err) {
         OPENVINO_THROW(OCL_ERR_MSG_FMT(err));

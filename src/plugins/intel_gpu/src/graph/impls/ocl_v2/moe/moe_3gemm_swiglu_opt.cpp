@@ -501,9 +501,9 @@ protected:
         jit.make("OUTPUT_TYPE", "half");
         jit.make("OPTIONAL_SHAPE_INFO_ARG", "");
 
-        GPU_DEBUG_TRACE_DETAIL << "MoE3GemmSwigluPrefillGather::get_jit_constants():  hidden_size: " << hidden_size << ", block_size: " << block_size
-                               << ", local_threads_count: " << local_threads_count << ", batches_per_thread: " << batches_per_thread
-                               << ", unaligned_elements: " << unaligned_elements << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "MoE3GemmSwigluPrefillGather::get_jit_constants():  hidden_size: " << hidden_size << ", block_size: " << block_size
+        //                       << ", local_threads_count: " << local_threads_count << ", batches_per_thread: " << batches_per_thread
+        //                       << ", unaligned_elements: " << unaligned_elements << std::endl;
 
         return jit;
     }
@@ -633,8 +633,8 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
         down_group_size = desc->_config.inter_size;
     }
 
-    GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt: group_size=" << desc->_config.group_size << ", gate_up_group_size=" << gate_up_group_size
-                           << ", down_group_size=" << down_group_size << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "[DEBUG] moe_3gemm_swiglu_opt: group_size=" << desc->_config.group_size << ", gate_up_group_size=" << gate_up_group_size
+    //                       << ", down_group_size=" << down_group_size << std::endl;
     jit.make("MAX_TOPK", desc->_config.top_k);
     jit.make("EXPERT_NUM", desc->_config.num_expert);
     jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
@@ -811,7 +811,7 @@ public:
 
         auto use_micro_gemm_prefill_str = std::getenv("MOE_USE_MICRO_GEMM_PREFILL");
         if (use_micro_gemm_prefill_str) {
-            GPU_DEBUG_TRACE_DETAIL << "MOE_USE_MICRO_GEMM_PREFILL = " << use_micro_gemm_prefill_str << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "MOE_USE_MICRO_GEMM_PREFILL = " << use_micro_gemm_prefill_str << std::endl;
             use_micro_gemm_prefill = std::stoi(use_micro_gemm_prefill_str);
         } else {
             // micro_gemm is better than gemm, default to use it
@@ -820,7 +820,7 @@ public:
 
         auto use_gpu_mask_gen_prefill_str = std::getenv("MOE_USE_GPU_MASK_PREFILL");
         if (use_gpu_mask_gen_prefill_str) {
-            GPU_DEBUG_TRACE_DETAIL << "MOE_USE_GPU_MASK_PREFILL = " << use_gpu_mask_gen_prefill_str << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "MOE_USE_GPU_MASK_PREFILL = " << use_gpu_mask_gen_prefill_str << std::endl;
             use_gpu_mask_gen_prefill = std::stoi(use_gpu_mask_gen_prefill_str);
         } else {
             // gpu mask gen kernel performace is worse than cpu mask gen, default is off
@@ -831,11 +831,11 @@ public:
         const auto& info = engine.get_device_info();
         if (info.arch < gpu_arch::xe2) {
             use_micro_gemm_prefill = false;
-            GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): use_micro_gemm_prefill=" << use_micro_gemm_prefill
-                                   << ", arch=" << static_cast<int>(info.arch) << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "[DEBUG] moe_3gemm_swiglu_opt_impl(): use_micro_gemm_prefill=" << use_micro_gemm_prefill
+            //                       << ", arch=" << static_cast<int>(info.arch) << std::endl;
         } else {
-            GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): use_micro_gemm_prefill=" << use_micro_gemm_prefill
-                                   << ", arch=" << static_cast<int>(info.arch) << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "[DEBUG] moe_3gemm_swiglu_opt_impl(): use_micro_gemm_prefill=" << use_micro_gemm_prefill
+            //                       << ", arch=" << static_cast<int>(info.arch) << std::endl;
         }
 
         // Don't change the order of stages
@@ -866,8 +866,8 @@ public:
             _gate_up_group_size = static_cast<int>(cur_moe->_config.hidden_size);
             _down_group_size = static_cast<int>(cur_moe->_config.inter_size);
         }
-        GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt prefill: group_size=" << cur_moe->_config.group_size
-                               << ", gate_up_group_size=" << _gate_up_group_size << ", down_group_size=" << _down_group_size << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "[DEBUG] moe_3gemm_swiglu_opt prefill: group_size=" << cur_moe->_config.group_size
+        //                       << ", gate_up_group_size=" << _gate_up_group_size << ", down_group_size=" << _down_group_size << std::endl;
     }
 
     void init_dnnl_weights(const std::shared_ptr<const moe_3gemm_fused_compressed>& cur_moe,
@@ -965,7 +965,7 @@ public:
         internal_buffers.emplace_back(index_layout, true);  // 7: expert_mask_batch
         internal_buffers.emplace_back(index_layout, true);  // 8: expert_mask_topk
 
-        GPU_DEBUG_TRACE_DETAIL << "[DEBUG] get_internal_buffer_descs(): use_micro_gemm_prefill=" << use_micro_gemm_prefill << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "[DEBUG] get_internal_buffer_descs(): use_micro_gemm_prefill=" << use_micro_gemm_prefill << std::endl;
         // for micro_gemm
         if (use_micro_gemm_prefill && batch > 1) {
             layout layout_micro_gemm(ov::Shape{expert_num, batch}, ov::element::i32, cldnn::format::bfyx);
@@ -1101,17 +1101,17 @@ public:
         cldnn::kernel_arguments_data args;
         cldnn::kernel_arguments_desc desc;
 
-        GPU_DEBUG_TRACE_DETAIL << "moe::execute_stage: " << stage.kernel->get_id() << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "moe::execute_stage: " << stage.kernel->get_id() << std::endl;
         for (uint32_t i = 0; i < inputs.size(); i++) {
             desc.arguments.push_back({ArgumentDescriptor::Types::INPUT, i});
             args.inputs.push_back(inputs[i]);
-            GPU_DEBUG_TRACE_DETAIL << "\tinput[" << i << "]: " << inputs[i]->get_layout().to_short_string() << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "\tinput[" << i << "]: " << inputs[i]->get_layout().to_short_string() << std::endl;
         }
 
         for (uint32_t i = 0; i < outputs.size(); i++) {
             desc.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, i});
             args.outputs.push_back(outputs[i]);
-            GPU_DEBUG_TRACE_DETAIL << "\toutput[" << i << "]: " << outputs[i]->get_layout().to_short_string() << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "\toutput[" << i << "]: " << outputs[i]->get_layout().to_short_string() << std::endl;
         }
 
         cldnn::scalars_desc scalar_desc;
@@ -1123,11 +1123,11 @@ public:
                 scalar_desc[i].v.s32 = scalar_inputs[i];
             }
             args.scalars = &scalar_desc;
-            GPU_DEBUG_TRACE_DETAIL << "\tscalar_inputs: ";
-            for (const auto& scalar : scalar_inputs) {
-                GPU_DEBUG_TRACE_DETAIL << scalar << " ";
-            }
-            GPU_DEBUG_TRACE_DETAIL << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "\tscalar_inputs: ";
+            //for (const auto& scalar : scalar_inputs) {
+                //GPU_DEBUG_TRACE_DETAIL(config) << scalar << " ";
+            //}
+            //GPU_DEBUG_TRACE_DETAIL(config) << std::endl;
         }
 
         stream.set_arguments(*stage.kernel, desc, args);
@@ -1135,11 +1135,11 @@ public:
         desc.workGroups.local = local;
 
         if (global.size() == 2) {
-            GPU_DEBUG_TRACE_DETAIL << "\tgws = {" << global[0] << ", " << global[1] << "}" << std::endl;
-            GPU_DEBUG_TRACE_DETAIL << "\tlws = {" << local[0] << ", " << local[1] << "}" << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "\tgws = {" << global[0] << ", " << global[1] << "}" << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "\tlws = {" << local[0] << ", " << local[1] << "}" << std::endl;
         } else if (global.size() == 3) {
-            GPU_DEBUG_TRACE_DETAIL << "\tgws = {" << global[0] << ", " << global[1] << ", " << global[2] << "}" << std::endl;
-            GPU_DEBUG_TRACE_DETAIL << "\tlws = {" << local[0] << ", " << local[1] << ", " << local[2] << "}" << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "\tgws = {" << global[0] << ", " << global[1] << ", " << global[2] << "}" << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "\tlws = {" << local[0] << ", " << local[1] << ", " << local[2] << "}" << std::endl;
         }
 
         return stream.enqueue_kernel(*stage.kernel, desc, {}, events, needs_completion_event);
@@ -1718,8 +1718,8 @@ public:
             topk_event->wait();
         }
 
-        GPU_DEBUG_TRACE_DETAIL << "\nMoE3GemmFusedCompressed exec(): batch=" << batch << ", max_topk=" << static_cast<int>(config.top_k)
-                               << ", use_micro_gemm_prefill=" << use_micro_gemm_prefill << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "\nMoE3GemmFusedCompressed exec(): batch=" << batch << ", max_topk=" << static_cast<int>(config.top_k)
+        //                       << ", use_micro_gemm_prefill=" << use_micro_gemm_prefill << std::endl;
         update_rt_params(instance);
         if (use_micro_gemm_prefill) {
             ret_env = exec_prefill_micro_gemm({topk_event}, instance, scratch, use_gpu_mask_gen);

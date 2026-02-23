@@ -63,7 +63,7 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
         auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
         k_head_size = get_head_size(k_layout, extended_input_k_transpose_order);
         v_head_size = get_head_size(v_layout, extended_input_v_transpose_order);
-        GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", v_head_size = " << v_head_size << "\n";
+        //GPU_DEBUG_TRACE_DETAIL(config) << "k_head_size = " << k_head_size << ", v_head_size = " << v_head_size << "\n";
 
         size_t data_inputs_num = get_data_inputs_num(*desc);
         size_t attn_mask_idx = ScaledDotProductAttentionInputIdx::ATTN_MASK;
@@ -190,9 +190,9 @@ DispatchDataFunc SDPAOptGeneratorSingleToken::get_dispatch_data_func() const {
             const size_t num_of_partitions = get_partitions_num(params, SDPAStage::SINGLE_TOKEN);
             const auto head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
             const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::SINGLE_TOKEN);
-            GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
-            GPU_DEBUG_TRACE_DETAIL << "head_size = " << head_size << ", num_of_partitions = " << num_of_partitions << "\n";
-            GPU_DEBUG_TRACE_DETAIL << "sg_num_scale = " << sg_num_scale << "\n";
+            //GPU_DEBUG_TRACE_DETAIL(config) << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
+            //GPU_DEBUG_TRACE_DETAIL(config) << "head_size = " << head_size << ", num_of_partitions = " << num_of_partitions << "\n";
+            //GPU_DEBUG_TRACE_DETAIL(config) << "sg_num_scale = " << sg_num_scale << "\n";
 
             wgs.global = {batch_size * heads_num, target_seq_len, head_size * num_of_partitions * sg_num_scale};
             wgs.local = {1, 1, head_size * sg_num_scale};
@@ -230,8 +230,8 @@ DispatchDataFunc SDPAOptGeneratorMultiToken::get_dispatch_data_func() const {
             const size_t head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
             const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS);
 
-            GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
-            GPU_DEBUG_TRACE_DETAIL << "head_size = " << head_size << ", sg_num_scale = " << sg_num_scale << "\n";
+            //GPU_DEBUG_TRACE_DETAIL(config) << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
+            //GPU_DEBUG_TRACE_DETAIL(config) << "head_size = " << head_size << ", sg_num_scale = " << sg_num_scale << "\n";
 
             const size_t subgroup_size = 16;
             wgs.global = {batch_size * heads_num, ceil_div(target_seq_len, target_seq_len_block_size), align_to(head_size * sg_num_scale, subgroup_size)};
@@ -272,8 +272,8 @@ DispatchDataFunc SDPAOptGeneratorFinalization::get_dispatch_data_func() const {
             const size_t num_of_partitions = get_partitions_num(params, SDPAStage::FINALIZATION);
             const size_t head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
 
-            GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
-            GPU_DEBUG_TRACE_DETAIL << "head_size = " << head_size << ", num_of_partitions = " << num_of_partitions << "\n";
+            //GPU_DEBUG_TRACE_DETAIL(config) << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
+            //GPU_DEBUG_TRACE_DETAIL(config) << "head_size = " << head_size << ", num_of_partitions = " << num_of_partitions << "\n";
 
             wgs.global = {batch_size * heads_num, target_seq_len, head_size};
             wgs.local = {1, 1, head_size};

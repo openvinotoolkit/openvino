@@ -134,17 +134,17 @@ Graph::~Graph() {
 
         auto print_entry = [this, &get_time_str, &log_level](std::string name, HostTimeProfilingEntry& entry, int64_t iters_num = 1) {
             if (log_level == 1) {
-                GPU_DEBUG_COUT << "[stream_id=" << m_stream_id << "] " << name << " infer enqueue host time: "
-                               << get_time_str(entry.enqueue, iters_num) << std::endl;
+                //GPU_DEBUG_COUT(config) << "[stream_id=" << m_stream_id << "] " << name << " infer enqueue host time: "
+                //               << get_time_str(entry.enqueue, iters_num) << std::endl;
             } else if (log_level >= 2) {
-                auto total_time = entry.inputs_processing + entry.enqueue + entry.wait + entry.outputs_processing;
+                //auto total_time = entry.inputs_processing + entry.enqueue + entry.wait + entry.outputs_processing;
 
-                GPU_DEBUG_COUT << "[stream_id=" << m_stream_id << "] " << name << " infer host time: "
-                               << get_time_str(total_time, iters_num) << std::endl;
-                GPU_DEBUG_COUT << " - " << " Inputs processing: " << get_time_str(entry.inputs_processing, iters_num) << std::endl;
-                GPU_DEBUG_COUT << " - " << " Enqueue: " << get_time_str(entry.enqueue, iters_num) << std::endl;
-                GPU_DEBUG_COUT << " - " << " Wait: " << get_time_str(entry.wait, iters_num) << std::endl;
-                GPU_DEBUG_COUT << " - " << " Outputs processing: " << get_time_str(entry.outputs_processing, iters_num) << std::endl;
+                //GPU_DEBUG_COUT(config) << "[stream_id=" << m_stream_id << "] " << name << " infer host time: "
+                //               << get_time_str(total_time, iters_num) << std::endl;
+                //GPU_DEBUG_COUT(config) << " - " << " Inputs processing: " << get_time_str(entry.inputs_processing, iters_num) << std::endl;
+                //GPU_DEBUG_COUT(config) << " - " << " Enqueue: " << get_time_str(entry.enqueue, iters_num) << std::endl;
+                //GPU_DEBUG_COUT(config) << " - " << " Wait: " << get_time_str(entry.wait, iters_num) << std::endl;
+                //GPU_DEBUG_COUT(config) << " - " << " Outputs processing: " << get_time_str(entry.outputs_processing, iters_num) << std::endl;
             }
         };
 

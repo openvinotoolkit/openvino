@@ -250,13 +250,14 @@ void condition_inst::update_output_layout() {
 void condition_inst::postprocess_output_memory(network::ptr executed_net, cldnn::condition::branch& branch) {
     _outputs.clear();
     _outputs.resize(outputs_memory_count());
+    const auto& config = executed_net->get_config();
     for (auto out_mem_map : branch.output_map) {
         auto out_mem_idx = out_mem_map.first;
         auto inner_out_id = out_mem_map.second;
         auto mem_ptr = executed_net->get_output_memory(inner_out_id);
         if (mem_ptr) {
             auto layout = _impl_params->get_output_layout(out_mem_idx);
-            GPU_DEBUG_LOG << "Reshape output from " << mem_ptr->get_layout().to_short_string()
+            GPU_DEBUG_LOG(config) << "Reshape output from " << mem_ptr->get_layout().to_short_string()
                         << " to " << layout.to_short_string() << std::endl;
             // Preallocation logic may allocate more memory than actually produced on current iteration, so we need to adjust output buffers layout
             mem_ptr = get_network().get_engine().reinterpret_buffer(*mem_ptr, layout);
@@ -264,7 +265,7 @@ void condition_inst::postprocess_output_memory(network::ptr executed_net, cldnn:
 
         _outputs[out_mem_idx] = mem_ptr;
         if (mem_ptr)
-            GPU_DEBUG_LOG << "Inner net - Outputs[" << out_mem_idx << "]" << mem_ptr->get_layout().to_short_string() << std::endl;
+            GPU_DEBUG_LOG(config) << "Inner net - Outputs[" << out_mem_idx << "]" << mem_ptr->get_layout().to_short_string() << std::endl;
     }
 }
 }  // namespace cldnn

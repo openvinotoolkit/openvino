@@ -121,7 +121,7 @@ std::vector<layout> loop_inst::calc_output_layouts(loop_node const& /*node*/, ke
         OPENVINO_ASSERT(memory_deps.count(current_iteration_idx) > 0, "The count of memory deps(current_iteration) should not be zero");
         cldnn::mem_lock<int64_t, mem_lock_type::read> current_iterations_lock(memory_deps.at(current_iteration_idx), impl_param.get_stream());
         int64_t current_iteration = static_cast<int64_t>(*current_iterations_lock.data());
-        GPU_DEBUG_LOG << "* current_iteration(" << memory_deps.at(current_iteration_idx) << ")  : " << current_iteration << std::endl;
+        //GPU_DEBUG_LOG(config) << "* current_iteration(" << memory_deps.at(current_iteration_idx) << ")  : " << current_iteration << std::endl;
 
         OPENVINO_ASSERT(impl_param.inner_nets.size() == 1, "Loop(", prim->id, ") should have only one inner program");
         const auto& body_outputs = impl_param.inner_nets.front()->get_outputs();
@@ -392,9 +392,9 @@ loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(
                     }
                 }
             }
-            GPU_DEBUG_LOG << "output pshape for [" << intern_prim->id() << "] is changed from "
-                            << sliced_layout.get_partial_shape().to_string()
-                            << " to " << updated_sliced_layout.to_string() << std::endl;
+            //GPU_DEBUG_LOG(config) << "output pshape for [" << intern_prim->id() << "] is changed from "
+            //                << sliced_layout.get_partial_shape().to_string()
+            //                << " to " << updated_sliced_layout.to_string() << std::endl;
             sliced_layout.set_partial_shape(updated_sliced_layout);
             inter_mem_ptr = engine.allocate_memory(sliced_layout);
             intern_prim->set_output_layout(sliced_layout, internal_id.idx);
@@ -426,8 +426,8 @@ void loop_inst::preprocess_output_memory(const int64_t num_iterations) {
         const auto& output_mapping = _output_primitive_maps.at(i);
         const auto& external_id = output_mapping.external_id;
         const auto& internal_id = output_mapping.internal_id;
-        GPU_DEBUG_LOG << i << ") output mapping - external " << external_id.to_string() << std::endl;
-        GPU_DEBUG_LOG << i << ") output mapping - internal " << internal_id.to_string() << std::endl;
+        //GPU_DEBUG_LOG(config) << i << ") output mapping - external " << external_id.to_string() << std::endl;
+        //GPU_DEBUG_LOG(config) << i << ") output mapping - internal " << internal_id.to_string() << std::endl;
 
         memory::ptr memory = get_external_memory(external_id.pid, external_id.idx);
         if (output_mapping.axis < 0) {
@@ -443,9 +443,9 @@ void loop_inst::preprocess_output_memory(const int64_t num_iterations) {
             if (iter == concatenated_output_mem_mappings.end()) {
                 auto memory_mapping_info = create_concat_memory_map(output_mapping, memory, num_iterations);
                 concatenated_output_mem_mappings.push_back(memory_mapping_info);
-                GPU_DEBUG_LOG << i << ") generate concat output memory mapping: " << memory_mapping_info->to_string() << std::endl;
+                //GPU_DEBUG_LOG(config) << i << ") generate concat output memory mapping: " << memory_mapping_info->to_string() << std::endl;
             } else {
-                GPU_DEBUG_LOG << i << ") memory_mapping_info is already existed : " << (*iter)->to_string() << std::endl;
+                //GPU_DEBUG_LOG(config) << i << ") memory_mapping_info is already existed : " << (*iter)->to_string() << std::endl;
             }
         }
     }
@@ -470,10 +470,10 @@ void loop_inst::preprocess_input_memory(const int64_t num_iterations) {
         auto memory = input_memory_ptr(memory_num);
         for (size_t i = 0; i < input_map_ptrs.size(); ++i) {
             const auto input_map = input_map_ptrs.at(i);
-            const auto& external_id = input_map->external_id;
+            //const auto& external_id = input_map->external_id;
             const auto& internal_id = input_map->internal_id;
-            GPU_DEBUG_LOG << i << ") input mapping - external " << external_id.to_string() << std::endl;
-            GPU_DEBUG_LOG << i << ") input mapping - internal " << internal_id.to_string() << std::endl;
+            //GPU_DEBUG_LOG(config) << i << ") input mapping - external " << external_id.to_string() << std::endl;
+            //GPU_DEBUG_LOG(config) << i << ") input mapping - internal " << internal_id.to_string() << std::endl;
 
             if (input_map->axis < 0) {
                 auto input_inst = body_network->get_primitive(internal_id.pid);
@@ -486,9 +486,9 @@ void loop_inst::preprocess_input_memory(const int64_t num_iterations) {
                                     "input layout size(", input_inst->get_output_layout().to_short_string(),
                                     ") should not exceed memory size(", memory->get_layout().to_short_string(), ")");
                     memory = body_network->get_engine().reinterpret_buffer(*memory, input_inst->get_output_layout());
-                    GPU_DEBUG_LOG << input_inst->id() << " is changed memory because layout is changed from "
-                                        << memory->get_layout().to_short_string()
-                                        << " to " << input_inst->get_output_layout().to_short_string() << std::endl;
+                    //GPU_DEBUG_LOG(config) << input_inst->id() << " is changed memory because layout is changed from "
+                    //                    << memory->get_layout().to_short_string()
+                    //                    << " to " << input_inst->get_output_layout().to_short_string() << std::endl;
                 }
 
                 auto internal_input_memory = memory;
@@ -500,10 +500,10 @@ void loop_inst::preprocess_input_memory(const int64_t num_iterations) {
                 if (iter != _back_edges.end()) {
                     internal_input_memory = body_network->get_engine().allocate_memory(memory->get_layout(), false);
                     internal_input_memory->copy_from(body_network->get_stream(), *memory);
-                    GPU_DEBUG_LOG << "Input memory of internal node(" << internal_id.to_string() << ") is set to new memory("
-                                    << internal_input_memory << ", " << internal_input_memory->get_layout().to_short_string()
-                                    << ") instead of external node(" << external_id.to_string()
-                                    <<")'s memory(" << memory << "," << memory->get_layout().to_short_string() << ")" << std::endl;
+                    //GPU_DEBUG_LOG(config) << "Input memory of internal node(" << internal_id.to_string() << ") is set to new memory("
+                    //                << internal_input_memory << ", " << internal_input_memory->get_layout().to_short_string()
+                    //                << ") instead of external node(" << external_id.to_string()
+                    //                <<")'s memory(" << memory << "," << memory->get_layout().to_short_string() << ")" << std::endl;
                 }
 
                 body_network->set_input_data(internal_id.pid, internal_input_memory);
@@ -511,7 +511,7 @@ void loop_inst::preprocess_input_memory(const int64_t num_iterations) {
                 OPENVINO_ASSERT(memory != nullptr, "In preprocessing concat input mapping, concat memory should be allocated");
                 auto memory_mapping_info = create_concat_memory_map(*input_map, memory, num_iterations);
                 concatenated_input_mem_mappings.push_back(memory_mapping_info);
-                GPU_DEBUG_LOG << i << ") generate concat input memory mapping: " << memory_mapping_info->to_string() << std::endl;
+                //GPU_DEBUG_LOG(config) << i << ") generate concat input memory mapping: " << memory_mapping_info->to_string() << std::endl;
             }
         }
     }
@@ -542,8 +542,8 @@ void loop_inst::preprocess_backedge_memory() {
             initial_mem = body_network->get_engine().reinterpret_buffer(*initial_mem, initial_layout);
         }
 
-        GPU_DEBUG_LOG << idx << ") back_edge mapping - back_edge.from " << back_edge.from << std::endl;
-        GPU_DEBUG_LOG << idx << ") back_edge mapping - back_edge.to   " << back_edge.to << std::endl;
+        //GPU_DEBUG_LOG(config) << idx << ") back_edge mapping - back_edge.from " << back_edge.from << std::endl;
+        //GPU_DEBUG_LOG(config) << idx << ") back_edge mapping - back_edge.to   " << back_edge.to << std::endl;
 
         auto backedged_sliced_output = get_sliced_mem(back_edge.from);
         const auto output_mapping = find_io_primitive_maps(_input_primitive_maps,
@@ -552,15 +552,15 @@ void loop_inst::preprocess_backedge_memory() {
             // CONCAT_OUTPUT mode, backedge output which needs concatenation
             backedge_memory_mappings.emplace_back(
                 backedge_from_prim, backedge_to_prim, backedged_sliced_output, initial_mem, body_network->get_stream());
-            GPU_DEBUG_LOG << idx << ") add back_edge mapping with CONCAT_OUTPUT type, backedged_sliced_output("
-                            << backedged_sliced_output << "), initial_mem(" << initial_mem << ")" << std::endl;
+            //GPU_DEBUG_LOG(config) << idx << ") add back_edge mapping with CONCAT_OUTPUT type, backedged_sliced_output("
+            //                << backedged_sliced_output << "), initial_mem(" << initial_mem << ")" << std::endl;
         // Set backedge mode to SINGLE when backedge_from_prim has multiple users.
         } else if ((output_mapping.empty() && backedge_to_prim.get() == backedge_from_prim->dependencies().front().first)
                 || (backedge_to_prim->get_users().size() > 1) ) {
             // SINGLE mode, from and to primitives in backedge are connected directly
             backedge_memory_mappings.emplace_back(
                 backedge_from_prim, backedge_to_prim, initial_mem, body_network->get_stream());
-            GPU_DEBUG_LOG << idx << ") add back_edge mapping with SINGLE type, initial_mem(" << initial_mem << ")" << std::endl;
+            //GPU_DEBUG_LOG(config) << idx << ") add back_edge mapping with SINGLE type, initial_mem(" << initial_mem << ")" << std::endl;
         } else {
             // SINGLE_SHARED mode
             memory::ptr backedge_mem;
@@ -572,33 +572,33 @@ void loop_inst::preprocess_backedge_memory() {
                     if (internal_output_prim_mem->get_layout() == initial_mem->get_layout()) {
                         backedge_mem = internal_output_prim_mem;
                         body_network->set_input_data(back_edge.to, backedge_mem);
-                        GPU_DEBUG_LOG << idx << ") Get backedge_mem(" << backedge_mem
-                                    << ") from back_edge.from(" << back_edge.from << ")" << std::endl;
+                        //GPU_DEBUG_LOG(config) << idx << ") Get backedge_mem(" << backedge_mem
+                        //            << ") from back_edge.from(" << back_edge.from << ")" << std::endl;
                     } else {
                         // When input layout is changed or backedge_mem is null
                         // because output layout of body network is not calculated yet,
                         // Set backedge_mem to nullptr and update it after first execution.
                         body_network->set_input_data(back_edge.to, initial_mem);
-                        GPU_DEBUG_LOG << idx << ") Just set input data using initial_mem because back_edge.from("
-                                                << back_edge.from << ") layout is changed or backedge_mem is nullptr" << std::endl;
+                        //GPU_DEBUG_LOG(config) << idx << ") Just set input data using initial_mem because back_edge.from("
+                        //                        << back_edge.from << ") layout is changed or backedge_mem is nullptr" << std::endl;
                     }
                 } else {
                     body_network->set_input_data(back_edge.to, initial_mem);
-                    GPU_DEBUG_LOG << idx << ") Just set input data using initial_mem because back_edge.from("
-                                            << back_edge.from << ") has dynamic layout now" << std::endl;
+                    //GPU_DEBUG_LOG(config) << idx << ") Just set input data using initial_mem because back_edge.from("
+                    //                        << back_edge.from << ") has dynamic layout now" << std::endl;
                 }
             } else {
                 if (output_mapping.empty()) {
                     backedge_mem = output_prim->output_memory_ptr();
                     body_network->set_input_data(back_edge.to, backedge_mem);
-                    GPU_DEBUG_LOG << idx << ") Get backedge_mem(" << backedge_mem
-                                    << ") from back_edge.from(" << back_edge.from << ")" << std::endl;
+                    //GPU_DEBUG_LOG(config) << idx << ") Get backedge_mem(" << backedge_mem
+                    //                << ") from back_edge.from(" << back_edge.from << ")" << std::endl;
                 } else {
                     // Set input and output memory for body_network using external output memory of loop op
                     auto& out_mapping_ext_id = output_mapping.front()->external_id;
                     backedge_mem = get_external_memory(out_mapping_ext_id.pid, out_mapping_ext_id.idx);
-                    GPU_DEBUG_LOG << idx << ") Get backedge_mem(" << backedge_mem << ") from output_mapping_external_id.pid("
-                                    << out_mapping_ext_id.pid << ")" << std::endl;
+                    //GPU_DEBUG_LOG(config) << idx << ") Get backedge_mem(" << backedge_mem << ") from output_mapping_external_id.pid("
+                    //                << out_mapping_ext_id.pid << ")" << std::endl;
 
                     body_network->set_input_data(back_edge.to, backedge_mem);
                     body_network->set_output_memory(back_edge.from, backedge_mem);
@@ -607,8 +607,8 @@ void loop_inst::preprocess_backedge_memory() {
 
             backedge_memory_mappings.emplace_back(
                 backedge_from_prim, backedge_to_prim, backedge_mem, initial_mem, body_network->get_stream());
-            GPU_DEBUG_LOG << idx << ") add back_edge mapping with SINGLE_SHARED type, backedge_mem("
-                            << backedge_mem << "), initial_mem(" << initial_mem << ")" << std::endl;
+            //GPU_DEBUG_LOG(config) << idx << ") add back_edge mapping with SINGLE_SHARED type, backedge_mem("
+            //                << backedge_mem << "), initial_mem(" << initial_mem << ")" << std::endl;
         }
     }
 }
@@ -696,26 +696,26 @@ void loop_inst::postprocess_output_memory(bool is_dynamic, int64_t current_itera
                 OPENVINO_ASSERT(internal_mem != nullptr, "internal_mem should not be nullptr");
                 if (!output_allocated) {
                     external_outputs[external_id.idx] = internal_mem;
-                    GPU_DEBUG_LOG << "[Internal: " << internal_id.to_string() << ", External: " << external_id.to_string() << " ] "
-                                    << "Set internal memory(" << internal_mem << ") to external output because external output memory is nullptr." << std::endl;
+                    //GPU_DEBUG_LOG(config) << "[Internal: " << internal_id.to_string() << ", External: " << external_id.to_string() << " ] "
+                    //                << "Set internal memory(" << internal_mem << ") to external output because external output memory is nullptr." << std::endl;
                 } else {
                     auto external_mem = _outputs[external_id.idx];
                     if (external_mem != internal_mem) {
                         if (external_mem->get_layout() != internal_mem->get_layout()) {
                             external_outputs[external_id.idx] = internal_mem;
-                            GPU_DEBUG_LOG << "[Internal: " << internal_id.to_string() << ", External: " << external_id.to_string() << " ] "
-                                            << "Set internal memory(" << internal_mem
-                                            << ") to external output for different layout between external_mem and internal_mem." << std::endl;
+                            //GPU_DEBUG_LOG(config) << "[Internal: " << internal_id.to_string() << ", External: " << external_id.to_string() << " ] "
+                            //                << "Set internal memory(" << internal_mem
+                            //                << ") to external output for different layout between external_mem and internal_mem." << std::endl;
                         } else {
                             external_mem->copy_from(get_network().get_stream(), *internal_mem);
                             external_outputs[external_id.idx] = external_mem;
-                            GPU_DEBUG_LOG << "[Internal: " << internal_id.to_string() << ", External: " << external_id.to_string() << " ] "
-                                            << "Copy internal memory data to external memory data." << std::endl;
+                            //GPU_DEBUG_LOG(config) << "[Internal: " << internal_id.to_string() << ", External: " << external_id.to_string() << " ] "
+                            //                << "Copy internal memory data to external memory data." << std::endl;
                         }
                     } else {
                         external_outputs[external_id.idx] = external_mem;
-                        GPU_DEBUG_LOG << "[Internal: " << internal_id.to_string() << ", External: " << external_id.to_string() << " ] "
-                                        << " Have same memory pointer." << std::endl;
+                        //GPU_DEBUG_LOG(config) << "[Internal: " << internal_id.to_string() << ", External: " << external_id.to_string() << " ] "
+                        //                << " Have same memory pointer." << std::endl;
                     }
                 }
             } else {
@@ -730,17 +730,17 @@ void loop_inst::postprocess_output_memory(bool is_dynamic, int64_t current_itera
                                                 });
                     if (iter != concatenated_output_mem_mappings.end()) {
                         (*iter)->update_concatenated_mem(concat_mem);
-                        GPU_DEBUG_LOG << "[Internal: " << internal_id.to_string() << ", External: " << external_id.to_string() << " ]"
-                                        << " Update concat_mem" << std::endl;
+                        //GPU_DEBUG_LOG(config) << "[Internal: " << internal_id.to_string() << ", External: " << external_id.to_string() << " ]"
+                        //                << " Update concat_mem" << std::endl;
                     }
                     GPU_DEBUG_IF(iter == concatenated_output_mem_mappings.end()) {
-                        GPU_DEBUG_LOG << "[Internal: " << internal_id.to_string() << ", External: " << external_id.to_string() << " ]"
-                                        << " Can't find concatenated_memory_mapping" << std::endl;
+                        //GPU_DEBUG_LOG(config) << "[Internal: " << internal_id.to_string() << ", External: " << external_id.to_string() << " ]"
+                        //                << " Can't find concatenated_memory_mapping" << std::endl;
                     }
                 } else {
                     external_outputs[external_id.idx] = _outputs[external_id.idx];
-                    GPU_DEBUG_LOG << "[Internal: " << internal_id.to_string() << ", External: " << external_id.to_string() << " ]"
-                                    << " No update concat_mem" << std::endl;
+                    //GPU_DEBUG_LOG(config) << "[Internal: " << internal_id.to_string() << ", External: " << external_id.to_string() << " ]"
+                    //                << " No update concat_mem" << std::endl;
                 }
             }
         }
@@ -754,7 +754,7 @@ void loop_inst::postprocess_output_memory(bool is_dynamic, int64_t current_itera
 }
 
 void loop_inst::reset_memory() {
-    GPU_DEBUG_LOG << "Reset memory" << std::endl;
+    //GPU_DEBUG_LOG(config) << "Reset memory" << std::endl;
     backedge_memory_mappings.clear();
     concatenated_input_mem_mappings.clear();
     for (auto concat_mem_map : concatenated_output_mem_mappings) {
@@ -871,10 +871,10 @@ void loop_inst::concatenated_memory_mapping::slice_mem(const int64_t num_iterati
     }
     concatenated_mem->unlock(stream);
 
-    GPU_DEBUG_LOG << "slice memory [" << io_prim_map.to_short_string() << "] from concat_mem["
-                    << concatenated_mem->get_layout().to_short_string()
-                    << "], current_iteration: " << num_iterations << ", stride: " << stride
-                    << " to sliced_mems[" << sliced_mems.front()->get_layout().to_short_string() << "]" << std::endl;
+    //GPU_DEBUG_LOG(config) << "slice memory [" << io_prim_map.to_short_string() << "] from concat_mem["
+    //                << concatenated_mem->get_layout().to_short_string()
+    //                << "], current_iteration: " << num_iterations << ", stride: " << stride
+    //                << " to sliced_mems[" << sliced_mems.front()->get_layout().to_short_string() << "]" << std::endl;
 }
 
 void loop_inst::concatenated_memory_mapping::concat_mem(const int64_t curent_iterations) const {
@@ -910,10 +910,10 @@ void loop_inst::concatenated_memory_mapping::concat_mem(const int64_t curent_ite
         sliced_mems[i]->unlock(stream);
     }
     concatenated_mem->unlock(stream);
-    GPU_DEBUG_LOG << "concatenate memory [" << io_prim_map.to_short_string() << "] from sliced_mems["
-                    << sliced_mems.front()->get_layout().to_short_string() << "], current_iteration: "
-                    << curent_iterations << ", stride: " << stride << " to concat_mem["
-                    << concatenated_mem->get_layout().to_short_string() << "]" << std::endl;
+    //GPU_DEBUG_LOG(config) << "concatenate memory [" << io_prim_map.to_short_string() << "] from sliced_mems["
+    //                << sliced_mems.front()->get_layout().to_short_string() << "], current_iteration: "
+    //                << curent_iterations << ", stride: " << stride << " to concat_mem["
+    //                << concatenated_mem->get_layout().to_short_string() << "]" << std::endl;
 }
 
 int64_t loop_inst::calculate_num_iterations(const cldnn::loop::io_primitive_map& io_prim_map,
@@ -935,18 +935,18 @@ int64_t loop_inst::calculate_num_iterations(const cldnn::loop::io_primitive_map&
     OPENVINO_ASSERT(len % step == 0, "Each iteration should have same size: length(", len, ") % step(", step, ")");
     int64_t num_iterations = static_cast<int64_t>(len / step);
     {
-        GPU_DEBUG_LOG << "Caculate num_iterations ..." << std::endl;
-        GPU_DEBUG_LOG << "* io_prim_map.{start:" << io_prim_map.start << ", end:" << io_prim_map.end
-                << ", stride: " << io_prim_map.stride << ", axis: " << io_prim_map.axis << "}" << std::endl;
-        GPU_DEBUG_LOG << "* pshape : " << pshape.to_string() << std::endl;
-        GPU_DEBUG_LOG << "* space  : " << space    << std::endl;
-        GPU_DEBUG_LOG << "* start  : " << start    << std::endl;
-        GPU_DEBUG_LOG << "* end    : " << end      << std::endl;
-        GPU_DEBUG_LOG << "* step   : " << step     << std::endl;
-        GPU_DEBUG_LOG << "* src    : " << src      << std::endl;
-        GPU_DEBUG_LOG << "* dst    : " << dst      << std::endl;
-        GPU_DEBUG_LOG << "* len    : " << len      << std::endl;
-        GPU_DEBUG_LOG << "* num_iterations    : " << num_iterations << std::endl;
+        //GPU_DEBUG_LOG(config) << "Caculate num_iterations ..." << std::endl;
+        //GPU_DEBUG_LOG(config) << "* io_prim_map.{start:" << io_prim_map.start << ", end:" << io_prim_map.end
+        //        << ", stride: " << io_prim_map.stride << ", axis: " << io_prim_map.axis << "}" << std::endl;
+        //GPU_DEBUG_LOG(config) << "* pshape : " << pshape.to_string() << std::endl;
+        //GPU_DEBUG_LOG(config) << "* space  : " << space    << std::endl;
+        //GPU_DEBUG_LOG(config) << "* start  : " << start    << std::endl;
+        //GPU_DEBUG_LOG(config) << "* end    : " << end      << std::endl;
+        //GPU_DEBUG_LOG(config) << "* step   : " << step     << std::endl;
+        //GPU_DEBUG_LOG(config) << "* src    : " << src      << std::endl;
+        //GPU_DEBUG_LOG(config) << "* dst    : " << dst      << std::endl;
+        //GPU_DEBUG_LOG(config) << "* len    : " << len      << std::endl;
+        //GPU_DEBUG_LOG(config) << "* num_iterations    : " << num_iterations << std::endl;
     }
     return num_iterations;
 }
@@ -1025,8 +1025,8 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
     if (mapping.type == loop_inst::backedge_memory_mapping::CONCAT_OUTPUT) {
         if (iter == 0) {
             set_memory_in_body_network(body_network, mapping.to_primitive, mapping.initial_mem);
-            GPU_DEBUG_LOG << iter << ") [CONCAT_OUTPUT] Copy data from inintal_mem(" << mapping.initial_mem
-                            << ") to " << mapping.to_primitive->id() << std::endl;
+            //GPU_DEBUG_LOG(config) << iter << ") [CONCAT_OUTPUT] Copy data from inintal_mem(" << mapping.initial_mem
+            //                << ") to " << mapping.to_primitive->id() << std::endl;
         } else if (iter > 0) {
             if (is_dynamic()) {
                 auto from_id = mapping.from_primitive->id();
@@ -1039,13 +1039,13 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
                 memory::ptr from_mem = mapping.from_primitive->output_memory_ptr();
                 auto ev = to_mem->copy_from(body_network->get_stream(), *(from_mem));
                 if (ev) event_vec = {ev};
-                GPU_DEBUG_LOG << iter << ") [CONCAT_OUTPUT] Copy data from [" << mapping.from_primitive->id() << "(" << from_mem
-                                << ")] to [" << mapping.to_primitive->id() << "(" << to_mem << ")]" << std::endl;
+                //GPU_DEBUG_LOG(config) << iter << ") [CONCAT_OUTPUT] Copy data from [" << mapping.from_primitive->id() << "(" << from_mem
+                //                << ")] to [" << mapping.to_primitive->id() << "(" << to_mem << ")]" << std::endl;
             } else {
                 auto mem = mapping.concat_mem_mapping->get_sliced_mems().at(iter - 1);
                 set_memory_in_body_network(body_network, mapping.to_primitive, mem);
-                GPU_DEBUG_LOG << iter << ") [CONCAT_OUTPUT] Set memory from concat_mem[" << (iter - 1) << "](" << mem
-                                << ") to " << mapping.to_primitive->id() << ")" << std::endl;
+                //GPU_DEBUG_LOG(config) << iter << ") [CONCAT_OUTPUT] Set memory from concat_mem[" << (iter - 1) << "](" << mem
+                //                << ") to " << mapping.to_primitive->id() << ")" << std::endl;
             }
         }
     } else if (mapping.type ==  loop_inst::backedge_memory_mapping::SINGLE_SHARED) {
@@ -1053,7 +1053,7 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
             if (mapping.from_mem != nullptr) {
                 auto ev = mapping.from_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
                 if (ev) event_vec = {ev};
-                GPU_DEBUG_LOG << iter << ") [SINGLE_SHARED] Copy data from inintal_mem(" << mapping.initial_mem << ")" << std::endl;
+                //GPU_DEBUG_LOG(config) << iter << ") [SINGLE_SHARED] Copy data from inintal_mem(" << mapping.initial_mem << ")" << std::endl;
             }
         } else {
             // In dynamic model, output memory is not defined before execution.
@@ -1062,8 +1062,8 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
                 mapping.from_mem = mapping.from_primitive->output_memory_ptr();
                 OPENVINO_ASSERT(mapping.from_mem != nullptr, "from_mem should not be null");
                 set_memory_in_body_network(body_network, mapping.to_primitive, mapping.from_mem);
-                GPU_DEBUG_LOG << iter << ") [SINGLE_SHARED] Set memory from from_mem(" << mapping.from_mem
-                                << ") to " << mapping.to_primitive->id() << ")" << std::endl;
+                //GPU_DEBUG_LOG(config) << iter << ") [SINGLE_SHARED] Set memory from from_mem(" << mapping.from_mem
+                //                << ") to " << mapping.to_primitive->id() << ")" << std::endl;
             }
         }
     } else if (mapping.type == loop_inst::backedge_memory_mapping::SINGLE) {
@@ -1084,13 +1084,13 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
 
                     body_network->set_input_data(to_id, to_mem);
                     ev = to_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
-                    GPU_DEBUG_LOG << iter << ") [SINGLE] Backedge_to node(" << to_id << ") is set to new memory("
-                                    << to_mem << ", " << to_mem->get_layout().to_short_string()
-                                    << ") because of shape update from initial memory("
-                                    << mapping.initial_mem << "," << mapping.initial_mem->get_layout().to_short_string() << ")" << std::endl;
+                    //GPU_DEBUG_LOG(config) << iter << ") [SINGLE] Backedge_to node(" << to_id << ") is set to new memory("
+                    //                << to_mem << ", " << to_mem->get_layout().to_short_string()
+                    //                << ") because of shape update from initial memory("
+                    //                << mapping.initial_mem << "," << mapping.initial_mem->get_layout().to_short_string() << ")" << std::endl;
                 } else {
                     ev = to_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
-                    GPU_DEBUG_LOG << iter << ") [SINGLE] Copy data from inintal_mem(" << mapping.initial_mem << ")" << std::endl;
+                    //GPU_DEBUG_LOG(config) << iter << ") [SINGLE] Copy data from inintal_mem(" << mapping.initial_mem << ")" << std::endl;
                 }
             } else {
                 auto from_id = mapping.from_primitive->id();
@@ -1104,35 +1104,35 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
                 // Check backedge_to shape needs to be updated by backedge_from
                 if (!from_mem->get_layout().identical(to_mem->get_layout())) {
                     to_mem = body_network->get_engine().allocate_memory(from_mem->get_layout(), false);
-                    GPU_DEBUG_LOG << iter << ") [SINGLE] Backedge_to node(" << to_id << ") is set to new memory("
-                                    << to_mem << ", " << to_mem->get_layout().to_short_string()
-                                    << ") because of shape update from backedge_from()" << from_id
-                                    <<")'s memory(" << from_mem << "," << from_mem->get_layout().to_short_string() << ")" << std::endl;
+                    //GPU_DEBUG_LOG(config) << iter << ") [SINGLE] Backedge_to node(" << to_id << ") is set to new memory("
+                    //                << to_mem << ", " << to_mem->get_layout().to_short_string()
+                    //                << ") because of shape update from backedge_from()" << from_id
+                    //                <<")'s memory(" << from_mem << "," << from_mem->get_layout().to_short_string() << ")" << std::endl;
                     body_network->set_input_data(to_id, to_mem);
                     ev = to_mem->copy_from(body_network->get_stream(), *(from_mem));
                 } else {
                     ev = to_mem->copy_from(body_network->get_stream(), *(from_mem));
                 }
-                GPU_DEBUG_LOG << iter << ") [SINGLE] Copy data from [" << mapping.from_primitive->id()
-                            << "(" << from_mem << ")] to [" << mapping.to_primitive->id() << "(" << to_mem << ")]" << std::endl;
+                //GPU_DEBUG_LOG(config) << iter << ") [SINGLE] Copy data from [" << mapping.from_primitive->id()
+                //            << "(" << from_mem << ")] to [" << mapping.to_primitive->id() << "(" << to_mem << ")]" << std::endl;
             }
             if (ev) event_vec = {ev};
         } else {
             if (iter == 0) {
                 auto ev = to_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
                 if (ev) event_vec = {ev};
-                GPU_DEBUG_LOG << iter << ") [SINGLE] Copy data from inintal_mem(" << mapping.initial_mem << ")" << std::endl;
+                //GPU_DEBUG_LOG(config) << iter << ") [SINGLE] Copy data from inintal_mem(" << mapping.initial_mem << ")" << std::endl;
             } else {
                 // In static model, swap memory buffer between output and input in inner body network
                 memory::ptr from_mem = mapping.from_primitive->output_memory_ptr();
-                GPU_DEBUG_LOG << iter << ") [SINGLE] Before swap between [" << mapping.from_primitive->id()
-                            << "(" << mapping.from_primitive->output_memory_ptr() << ")] and [" << mapping.to_primitive->id()
-                            << "(" << mapping.to_primitive->output_memory_ptr() << ")]" << std::endl;
+                //GPU_DEBUG_LOG(config) << iter << ") [SINGLE] Before swap between [" << mapping.from_primitive->id()
+                //            << "(" << mapping.from_primitive->output_memory_ptr() << ")] and [" << mapping.to_primitive->id()
+                //            << "(" << mapping.to_primitive->output_memory_ptr() << ")]" << std::endl;
                 set_memory_in_body_network(body_network, mapping.to_primitive, std::move(from_mem));
                 set_memory_in_body_network(body_network, mapping.from_primitive, std::move(to_mem));
-                GPU_DEBUG_LOG << iter << ") [SINGLE] After  swap between [" << mapping.from_primitive->id()
-                            << "(" << mapping.from_primitive->output_memory_ptr() << ")] and [" << mapping.to_primitive->id()
-                            << "(" << mapping.to_primitive->output_memory_ptr() << ")]" << std::endl;
+                //GPU_DEBUG_LOG(config) << iter << ") [SINGLE] After  swap between [" << mapping.from_primitive->id()
+                //            << "(" << mapping.from_primitive->output_memory_ptr() << ")] and [" << mapping.to_primitive->id()
+                //            << "(" << mapping.to_primitive->output_memory_ptr() << ")]" << std::endl;
             }
         }
     }

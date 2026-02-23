@@ -20,7 +20,7 @@
 
 #include <fstream>
 
-#define GPU_DEBUG_LOG_PASS    GPU_DEBUG_LOG << "[" << get_name() << "] "
+#define GPU_DEBUG_LOG_PASS    GPU_DEBUG_LOG(config) << "[" << get_name() << "] "
 
 namespace cldnn {
 class base_pass {

@@ -277,7 +277,7 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
     if (node.is_dynamic()) {
         node.set_runtime_skippable(true);
     }
-    GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
 }
 
 void concat_in_place_optimization::update_in_place_concat_paddings(
@@ -607,7 +607,7 @@ bool crop_in_place_optimization::optimize(crop_node& node) {
     node.set_output_layout(crop_layout);
     node.can_be_optimized(true);
     propagate_padding_to_opt_out_users(node, node.get_output_layout().data_padding);
-    GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
     return false;
 }
 
@@ -887,7 +887,7 @@ void prepare_buffer_fusing::run(program& p) {
             node.set_output_layout(crop_layout);
             node.can_be_optimized(true);
             propagate_padding_to_opt_out_users(node, node.get_output_layout().data_padding);
-            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
         });
     }
 
@@ -911,7 +911,7 @@ void prepare_buffer_fusing::run(program& p) {
                 node.adjust_output_padding();
 
             node.can_be_optimized(can_reshape_be_optimized(node));
-            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
         });
         program_helpers::do_for_types<kv_cache>(*node, [](kv_cache_node& node) {
             auto kv_out_layout = node.get_output_layout();
@@ -1014,7 +1014,7 @@ void prepare_buffer_fusing::run(program& p) {
             // TODO: Allow optimizations for the case above too. Looks like it can be achieved by more careful
             // topological sort (i.e. if we ensure that all read_value users are completed before assign is run)
             node.can_be_optimized(can_read_value_be_optimize(node));
-            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized = " << node.can_be_optimized() << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "[prepare_buffer_fusing] : " << node.id() << " can be optimized = " << node.can_be_optimized() << std::endl;
         });
         program_helpers::do_for_types<reorder>(*node, [](reorder_node& node) {
             // Allow optimization of reorder -> permute if input dimension order is same as the permute order
@@ -1049,8 +1049,8 @@ void prepare_buffer_fusing::run(program& p) {
             }
             node.can_be_optimized(true);
             permute_node.can_be_optimized(true);
-            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
-            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << permute_node.id() << " can be optimized" << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "[prepare_buffer_fusing] : " << permute_node.id() << " can be optimized" << std::endl;
         });
     }
 }

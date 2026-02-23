@@ -30,7 +30,7 @@ void mark_state_init_subgraphs::mark_init_subgraph(program& p, read_value_node& 
             else
                 return false;
         }
-        GPU_DEBUG_TRACE_DETAIL << "marked " << dep_node->id() << " as node in a init_subgraph for " << node.id() << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "marked " << dep_node->id() << " as node in a init_subgraph for " << node.id() << std::endl;
         return true;
     };
 

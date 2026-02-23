@@ -43,7 +43,7 @@ public:
     explicit MoEGemmImpl() : PrimitiveImplOCL(MoEGemm::get_type_info_static()) {}
     explicit MoEGemmImpl(const RuntimeParams& impl_param) : MoEGemmImpl() {
         auto params = impl_param;
-        GPU_DEBUG_TRACE_DETAIL << "create stages for dynamic = " << params.is_dynamic() << "\n";
+        //GPU_DEBUG_TRACE_DETAIL(config) << "create stages for dynamic = " << params.is_dynamic() << "\n";
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
         add_stage(regular_micro_multi_tokens, params);
@@ -62,7 +62,7 @@ public:
         update_stages_flags(instance);
         auto rtp = static_cast<MoEGemmRuntimeParams*>(m_rt_params.get());
         rtp->num_actually_used_experts = instance.get_input_layout(moe_gemm::MoEGemmInputIdx::EXPERTS_IDS).get_shape()[0];
-        GPU_DEBUG_TRACE_DETAIL << "moe_gemm :: num_actually_used_experts = " << rtp->num_actually_used_experts << "\n";
+        //GPU_DEBUG_TRACE_DETAIL(config) << "moe_gemm :: num_actually_used_experts = " << rtp->num_actually_used_experts << "\n";
     }
 
     void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
@@ -78,7 +78,7 @@ public:
         update_rt_params(instance);
         if (is_prefill) {
             if (has_stage(regular_micro_multi_tokens)) {
-                GPU_DEBUG_TRACE_DETAIL << "Execute prefill micro_multi_tokens stage" << std::endl;
+                //GPU_DEBUG_TRACE_DETAIL(config) << "Execute prefill micro_multi_tokens stage" << std::endl;
                 return execute_stage(events, instance, regular_micro_multi_tokens);
             } else {
                 OPENVINO_THROW("Prefill stage is not available");

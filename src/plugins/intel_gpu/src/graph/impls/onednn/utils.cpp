@@ -210,7 +210,7 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
             [fmt](std::pair<cldnn::format, dnnl::memory::format_tag> &e) {
                     return e.first == fmt; });
     if (ret == format_map.end()) {
-        GPU_DEBUG_INFO << "[clDNN] Unsupported conversion from "+ fmt.to_string() + " to onednn format_tag. Any tag will be used instead." << std::endl;
+        //GPU_DEBUG_INFO << "[clDNN] Unsupported conversion from "+ fmt.to_string() + " to onednn format_tag. Any tag will be used instead." << std::endl;
         return dnnl::memory::format_tag::any;
     }
 

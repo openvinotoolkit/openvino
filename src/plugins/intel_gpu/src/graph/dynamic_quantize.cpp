@@ -34,7 +34,7 @@ static bool should_skip_execution(dynamic_quantize_node const& node, const layou
     }
 
     if (node.get_program().get_config().get_dynamic_quantization_threshold() >= input_batch) {
-        GPU_DEBUG_TRACE << node.id() << "  dyn_quan is turned off: input batch size is too small - " << input_batch << " / "
+        GPU_DEBUG_TRACE(node.get_program().get_config()) << node.id() << "  dyn_quan is turned off: input batch size is too small - " << input_batch << " / "
                         << node.get_program().get_config().get_dynamic_quantization_threshold() << std::endl;
         return true;
     }
@@ -71,7 +71,7 @@ std::vector<layout> dynamic_quantize_inst::__calc_output_layouts(const dynamic_q
 
     auto flag_skip_execution = should_skip_execution(node, act_layout);
 
-    GPU_DEBUG_TRACE_DETAIL << node.id() << "  should_skip_execution " << flag_skip_execution << std::endl;
+    GPU_DEBUG_TRACE_DETAIL(node.get_program().get_config()) << node.id() << "  should_skip_execution " << flag_skip_execution << std::endl;
 
     if (attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
         attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {

@@ -24,6 +24,7 @@ public:
     ocl_stream(ocl_stream&& other)
         : stream(other.m_queue_type, other.m_sync_method)
         , _engine(other._engine)
+        , _config(other._config)
         , _command_queue(other._command_queue)
         , _queue_counter(other._queue_counter.load())
         , _last_barrier(other._last_barrier.load())
@@ -60,6 +61,7 @@ private:
     void sync_events(std::vector<event::ptr> const& deps, bool is_output = false);
 
     const ocl_engine& _engine;
+    const ExecutionConfig& _config;
     ocl_queue_type _command_queue;
     std::atomic<uint64_t> _queue_counter{0};
     std::atomic<uint64_t> _last_barrier{0};

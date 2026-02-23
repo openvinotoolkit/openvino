@@ -210,8 +210,8 @@ void propagate_constants::add_constant(program& prog, program_node& node) {
             prog.add_intermediate(rotate_node, node, 0);
             prog.get_or_create(rotate_prim).recalc_output_layouts(false);
             nodes.insert(prog.get_node_ptr(rotate_node.id()));
-            GPU_DEBUG_LOG << "Added " << rotate_reorder_id << " for transposing weights before "
-                << node.id() << std::endl;
+            //GPU_DEBUG_LOG(config) << "Added " << rotate_reorder_id << " for transposing weights before "
+            //    << node.id() << std::endl;
         }
     }
 #endif // ENABLE_ONEDNN_FOR_GPU

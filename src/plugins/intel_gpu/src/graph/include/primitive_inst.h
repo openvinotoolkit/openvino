@@ -329,6 +329,7 @@ public:
     void allocate_internal_buffers(bool reset = true);
 
     static memory::ptr allocate_output(engine& engine,
+		    		       const ExecutionConfig& config,
                                        memory_pool& pool,
                                        const program_node& node,
                                        const kernel_impl_params& impl_params,

@@ -50,8 +50,8 @@ void mark_runtime_skippable_nodes::run(program& p) {
             !node->is_type<non_max_suppression_gather>()) {
             // always to skip, no runtime execution
             node->can_be_optimized(true);
-            GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node->id() << " has only shape_of as users. Set can_be_optimized always"
-                                   << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "[mark_runtime_skippable_nodes] : " << node->id() << " has only shape_of as users. Set can_be_optimized always"
+            //                       << std::endl;
             continue;
         }
 
@@ -76,7 +76,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
                     node.can_be_optimized(true);
                     // Set runtime skippable only when the node is set as can_be_optimized finally.
                     node.set_runtime_skippable(true);
-                    GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+                    //GPU_DEBUG_TRACE_DETAIL(config) << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
                 }
             }
         });
@@ -103,7 +103,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 node.can_be_optimized(true);
                 // Set runtime skippable only when the node is set as can_be_optimized finally.
                 node.set_runtime_skippable(true);
-                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+                //GPU_DEBUG_TRACE_DETAIL(config) << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
         });
 
@@ -144,7 +144,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
             node.can_be_optimized(true);
             // Set runtime skippable only when the node is set as can_be_optimized finally.
             node.set_runtime_skippable(true);
-            GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
         });
 
         program_helpers::do_for_types<broadcast>(*node, [](broadcast_node& node) {
@@ -185,7 +185,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 node.can_be_optimized(true);
                 // Set runtime skippable only when the node is set as can_be_optimized finally.
                 node.set_runtime_skippable(true);
-                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+                //GPU_DEBUG_TRACE_DETAIL(config) << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
         });
 
@@ -210,7 +210,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 node.can_be_optimized(true);
                 // Set runtime skippable only when the node is set as can_be_optimized finally.
                 node.set_runtime_skippable(true);
-                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+                //GPU_DEBUG_TRACE_DETAIL(config) << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
         });
 
@@ -227,7 +227,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 node.can_be_optimized(true);
                 // Set runtime skippable only when the node is set as can_be_optimized finally.
                 node.set_runtime_skippable(true);
-                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+                //GPU_DEBUG_TRACE_DETAIL(config) << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
         });
 
@@ -244,7 +244,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 node.can_be_optimized(true);
                 // Set runtime skippable only when the node is set as can_be_optimized finally.
                 node.set_runtime_skippable(true);
-                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+                //GPU_DEBUG_TRACE_DETAIL(config) << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
         });
 
@@ -261,7 +261,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 node.can_be_optimized(true);
                 // Set runtime skippable only when the node is set as can_be_optimized finally.
                 node.set_runtime_skippable(true);
-                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+                //GPU_DEBUG_TRACE_DETAIL(config) << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
         });
 
@@ -277,7 +277,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 node.can_be_optimized(true);
                 // Set runtime skippable only when the node is set as can_be_optimized finally.
                 node.set_runtime_skippable(true);
-                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+                //GPU_DEBUG_TRACE_DETAIL(config) << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
         });
 
@@ -286,7 +286,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
             if (node.is_dynamic() && !node.has_fused_primitives()) {
                 node.can_be_optimized(true);
                 node.set_runtime_skippable(true);
-                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+                //GPU_DEBUG_TRACE_DETAIL(config) << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
         });
 
@@ -303,7 +303,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
             if (!node.has_fused_primitives() && can_be_optimized) {
                 node.can_be_optimized(true);
                 node.set_runtime_skippable(true);
-                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+                //GPU_DEBUG_TRACE_DETAIL(config) << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
         });
     }

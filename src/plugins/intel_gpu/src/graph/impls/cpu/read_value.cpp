@@ -74,7 +74,7 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
         }
 
         if (!instance.can_be_optimized()) {
-            GPU_DEBUG_TRACE_DETAIL << "Copy variable's memory to new read_value's output buffer\n";
+            //GPU_DEBUG_TRACE_DETAIL(config) << "Copy variable's memory to new read_value's output buffer\n";
             std::vector<cldnn::event::ptr> res_events;
             res_events.push_back(instance.output_memory(0).copy_from(stream, *variable.get_memory(), false));
 

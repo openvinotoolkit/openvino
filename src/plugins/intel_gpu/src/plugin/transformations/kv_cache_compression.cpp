@@ -140,11 +140,11 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
     const auto output_storage_type = supports_immad ? ov::op::internal::DynamicQuantize::OutputStorageType::Planar
                                                     : ov::op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP;
 
-    bool combine_scales_and_zp = output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP;
-    GPU_DEBUG_LOG << "KV-cache compression configuration: "
-                  << "dt=" << compression_dt << ", "
-                  << "asym=" << (quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric) << ", "
-                  << "single_buffer_for_scales_and_zp=" << combine_scales_and_zp << "\n";
+    //bool combine_scales_and_zp = output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::InterleavedScalesZP;
+    //GPU_DEBUG_LOG(config) << "KV-cache compression configuration: "
+    //              << "dt=" << compression_dt << ", "
+    //              << "asym=" << (quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric) << ", "
+    //              << "single_buffer_for_scales_and_zp=" << combine_scales_and_zp << "\n";
 
     auto query = any_input();
 

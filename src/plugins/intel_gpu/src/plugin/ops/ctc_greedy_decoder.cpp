@@ -20,6 +20,7 @@ namespace ov::intel_gpu {
 static void CreateCommonCTCGreedyDecoderOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, bool ctc_merge_repeated) {
     validate_inputs_count(op, {2, 3});
     auto inputs = p.GetInputInfo(op);
+    const auto& config = p.get_config();
 
     std::vector<cldnn::input_info> reordered_inputs;
     reordered_inputs.resize(inputs.size());
@@ -95,7 +96,7 @@ static void CreateCommonCTCGreedyDecoderOp(ProgramBuilder& p, const std::shared_
                 cldnn::format::get_default_format(op->get_output_shape(1).size()),
                 tensor_from_dims(op->get_output_shape(1)));
 
-            GPU_DEBUG_LOG << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
+            GPU_DEBUG_LOG(config) << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
             shared_memory.emplace_back(p.get_engine().allocate_memory(mutableLayout));
 
             cldnn::primitive_id ctc_gd_mutable_id_w = layer_type_name_ID(op) + "_md_write";

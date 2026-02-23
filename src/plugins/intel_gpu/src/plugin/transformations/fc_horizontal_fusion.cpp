@@ -191,8 +191,8 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 for (size_t i = 0; i < fc_nodes.size(); ++i) {
                     auto orig_fc = fc_nodes[i];
                     auto bias_node = orig_fc->get_users()[0];
-                    GPU_DEBUG_TRACE_DETAIL << "Set Add op user " << bias_node->get_friendly_name() << " as the FC "
-                                           << orig_fc->get_friendly_name() << "'s bias input" << std::endl;
+                    //GPU_DEBUG_TRACE_DETAIL(config) << "Set Add op user " << bias_node->get_friendly_name() << " as the FC "
+                    //                       << orig_fc->get_friendly_name() << "'s bias input" << std::endl;
                     auto bias_const = orig_fc->get_users()[0]->input_value(1);
                     auto orig_users_of_bias_user = bias_node->get_users();
                     ov::OutputVector fc_inputs = orig_fc->input_values();
@@ -373,7 +373,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             ov::copy_runtime_info(fused_mul_nodes, new_mul);
         }
 
-        GPU_DEBUG_TRACE_DETAIL << "Created a new fused FC " << new_fc_name << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "Created a new fused FC " << new_fc_name << std::endl;
         return true;
     };
 

@@ -264,10 +264,10 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
                                                           size_t{1},
                                                           std::multiplies<size_t>());
                 if (fuse_op_batch_size > 1) {
-                    GPU_DEBUG_TRACE_DETAIL << "unable to apply fake-alignment: "
-                                           << orig_impl_param.typed_desc<fully_connected>()->id
-                                           << " " << input_shape
-                                           << " + " << fuse_op_input_shape << std::endl;
+                    //GPU_DEBUG_TRACE_DETAIL(config) << "unable to apply fake-alignment: "
+                    //                       << orig_impl_param.typed_desc<fully_connected>()->id
+                    //                       << " " << input_shape
+                    //                       << " + " << fuse_op_input_shape << std::endl;
                     can_apply_fake_alignment = false;
                     break;
                 }
@@ -314,11 +314,11 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         updated_param.input_layouts[0] = orig_input_layout.clone_with_other_shape(input_shape);
         updated_param.output_layouts[0] = orig_output_layout.clone_with_other_shape(output_shape);
 
-        GPU_DEBUG_TRACE_DETAIL << "Apply fake alignment to " << orig_impl_param.desc->id << std::endl;
-        GPU_DEBUG_TRACE_DETAIL << "Apply fake alignment: input(" << orig_input_layout.to_short_string() << " -> "
-                               << updated_param.input_layouts[0].to_short_string() << "), output("
-                               << orig_output_layout.to_short_string() << " -> "
-                               << updated_param.output_layouts[0].to_short_string() << ")\n";
+        //GPU_DEBUG_TRACE_DETAIL(config) << "Apply fake alignment to " << orig_impl_param.desc->id << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "Apply fake alignment: input(" << orig_input_layout.to_short_string() << " -> "
+        //                       << updated_param.input_layouts[0].to_short_string() << "), output("
+        //                       << orig_output_layout.to_short_string() << " -> "
+        //                       << updated_param.output_layouts[0].to_short_string() << ")\n";
 
         return updated_param;
     }

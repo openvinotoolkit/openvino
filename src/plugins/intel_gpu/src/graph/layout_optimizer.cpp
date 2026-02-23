@@ -662,7 +662,7 @@ static bool has_reorder_before_mvn(const program_node& node, size_t cur_depth, s
             if (reorder_first_user->is_type<reshape>()) {
                 for (auto& reshape_user : reorder_first_user->get_users()) {
                     if (reshape_user->is_type<mvn>() && node.get_output_layout().get_linear_size() > reorder_size_threshold) {
-                        GPU_DEBUG_LOG << node.id() << ": " << node.get_output_layout().to_short_string() << " : heavy reorder" << std::endl;
+                        //GPU_DEBUG_LOG(config) << node.id() << ": " << node.get_output_layout().to_short_string() << " : heavy reorder" << std::endl;
                         return true;
                     }
                 }

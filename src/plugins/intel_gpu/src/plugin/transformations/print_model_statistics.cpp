@@ -45,7 +45,7 @@ bool PrintModelStatistics::run_on_model(const std::shared_ptr<ov::Model>& m) {
 
     ss << "\tTotal: " << total;
 
-    GPU_DEBUG_INFO << ss.str() << std::endl;;
+    //GPU_DEBUG_INFO << ss.str() << std::endl;;
     return false;
 }
 

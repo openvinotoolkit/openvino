@@ -231,10 +231,10 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
             if (swiglu_prim->glu_type != ov::op::internal::GLU::GluType::Swish ||
                !(swiglu_prim->axis == -1 || swiglu_prim->axis == static_cast<int64_t>(node->get_output_layout(0).get_partial_shape().size()) - 1))
                 continue;
-            GPU_DEBUG_TRACE_DETAIL << node->id() << " : fuse swiglu to " << fc_node.id() << std::endl;
-            GPU_DEBUG_TRACE_DETAIL << " - split axis : " << swiglu_prim->axis << std::endl;
-            GPU_DEBUG_TRACE_DETAIL << " - glu stride : " << swiglu_prim->glu_stride << std::endl;
-            GPU_DEBUG_TRACE_DETAIL << " - gate idx : " << swiglu_prim->gate_idx << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << node->id() << " : fuse swiglu to " << fc_node.id() << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << " - split axis : " << swiglu_prim->axis << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << " - glu stride : " << swiglu_prim->glu_stride << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << " - gate idx : " << swiglu_prim->gate_idx << std::endl;
             p.fuse_nodes(fc_node, *node, &fusing_history);
         }
     }
@@ -268,8 +268,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             if (std::any_of(fused_prims.begin(), fused_prims.end(), [](const fused_primitive_desc& f_desc) {
                 return f_desc.is_type<swiglu>();
             })) {
-                GPU_DEBUG_TRACE_DETAIL << "Skip fusing " << eltw_node.id() << " to " << dep.first->id() << " because "
-                                       << dep.first->id() << " has fused swiglu." << std::endl;
+                //GPU_DEBUG_TRACE_DETAIL(config) << "Skip fusing " << eltw_node.id() << " to " << dep.first->id() << " because "
+                //                       << dep.first->id() << " has fused swiglu." << std::endl;
                 continue;
             }
         }
@@ -582,7 +582,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (std::any_of(fused_prims.begin(), fused_prims.end(), [](const fused_primitive_desc& f_desc) {
                     return f_desc.is_type<swiglu>();
                 })) {
-                GPU_DEBUG_TRACE_DETAIL << node.id() << " has fused swiglu. Skip fusing more primitives" << std::endl;
+                //GPU_DEBUG_TRACE_DETAIL(config) << node.id() << " has fused swiglu. Skip fusing more primitives" << std::endl;
                 return false;
             }
             if (lo.has_all_enabled_onednn_impls_optimization_attribute() &&
@@ -891,7 +891,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                   input.is_type<extract_image_patches>());
 
             if (!should_fuse && legacy_fusion) {
-                GPU_DEBUG_LOG << activation_node.id() << " is fused by legacy conditions! Consider adding selected kernel with fused ops support\n";
+                //GPU_DEBUG_LOG(config) << activation_node.id() << " is fused by legacy conditions! Consider adding selected kernel with fused ops support\n";
             }
 
             should_fuse |= legacy_fusion;

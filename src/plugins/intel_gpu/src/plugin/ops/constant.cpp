@@ -110,8 +110,8 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
             mem = p.get_engine().reinterpret_buffer(*one_dim_mem, constLayout);
         }
 
-        GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] layout: "
-                        << constLayout.to_short_string() << ", mem_ptr(" << mem << ", " << mem->size() << " bytes)"<< std::endl;
+        //GPU_DEBUG_LOG(config) << "[" << initialconstPrimID << ": constant] layout: "
+        //                << constLayout.to_short_string() << ", mem_ptr(" << mem << ", " << mem->size() << " bytes)"<< std::endl;
         auto& stream = p.get_engine().get_service_stream();
         cldnn::mem_lock<char> lock{mem, stream};
         auto buf = lock.data();

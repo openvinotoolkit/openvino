@@ -139,7 +139,7 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params, 
     size_t m = weight_shape[1];
     size_t n = is_prefill ? 32 : 8;
     size_t k = weight_shape.size() == 4 ? weight_shape[2] * weight_shape[3] : weight_shape[2];
-    GPU_DEBUG_TRACE_DETAIL << "init_microkernels for " << (is_prefill ? "prefill" : "generate") << " : Seq_len:" << n << " Ofm:" << m << " K:" << k << "\n";
+    //GPU_DEBUG_TRACE_DETAIL(config) << "init_microkernels for " << (is_prefill ? "prefill" : "generate") << " : Seq_len:" << n << " Ofm:" << m << " K:" << k << "\n";
 
     micro::GEMMProblem problem_moe;
     micro::GEMMProtocol::Options opts_moe;
@@ -194,8 +194,8 @@ void MoEGemmMicroGenerator::init_microkernels(const kernel_impl_params& params, 
     sizes.k = static_cast<int32_t>(k);
     sizes.batch = static_cast<int32_t>(1);
 
-    GPU_DEBUG_TRACE_DETAIL << "problem_moe:" << problem_moe.toString() << "\n";
-    GPU_DEBUG_TRACE_DETAIL << "sizes to select gemm : m : " << m << " n : " << n << " k : " << k << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "problem_moe:" << problem_moe.toString() << "\n";
+    //GPU_DEBUG_TRACE_DETAIL(config) << "sizes to select gemm : m : " << m << " n : " << n << " k : " << k << std::endl;
     try {
         /* Ask microkernel provider for microkernel */
         gemm_moe = micro::select_gemm_microkernel(opts_moe, hw_info, sizes, problem_moe);

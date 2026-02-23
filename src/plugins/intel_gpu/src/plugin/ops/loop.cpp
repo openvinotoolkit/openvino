@@ -78,17 +78,17 @@ static void SetLoopInputOutputMap(ProgramBuilder& p,
             // sliced input
             input_primitive_maps.emplace_back(external_id, internal_id, sliceInfo->m_axis,
                 sliceInfo->m_start, sliceInfo->m_end, sliceInfo->m_stride);
-            GPU_DEBUG_LOG << "loop_input_descs[" << layerName << "][SliceInputDescription] = {m_input_index:"
-                        << loop_input_desc->m_input_index << "(external_id: "
-                        << external_id << "), m_body_parameter_index:" << loop_input_desc->m_body_parameter_index
-                        << "(internal_id: " << internal_id << ")}" << std::endl;
+            //GPU_DEBUG_LOG(config) << "loop_input_descs[" << layerName << "][SliceInputDescription] = {m_input_index:"
+            //            << loop_input_desc->m_input_index << "(external_id: "
+            //            << external_id << "), m_body_parameter_index:" << loop_input_desc->m_body_parameter_index
+            //            << "(internal_id: " << internal_id << ")}" << std::endl;
         } else {
             // input without slicing
             input_primitive_maps.emplace_back(external_id, internal_id);
-            GPU_DEBUG_LOG << "loop_input_descs[" << layerName << "][InputDescription] = {m_input_index:"
-                        << loop_input_desc->m_input_index << "(external_id: "
-                        << external_id << "), m_body_parameter_index:" << loop_input_desc->m_body_parameter_index
-                        << "(internal_id: " << internal_id << ")}" << std::endl;
+            //GPU_DEBUG_LOG(config) << "loop_input_descs[" << layerName << "][InputDescription] = {m_input_index:"
+            //            << loop_input_desc->m_input_index << "(external_id: "
+            //            << external_id << "), m_body_parameter_index:" << loop_input_desc->m_body_parameter_index
+            //            << "(internal_id: " << internal_id << ")}" << std::endl;
         }
 
         // set back edges
@@ -102,7 +102,7 @@ static void SetLoopInputOutputMap(ProgramBuilder& p,
             cldnn::primitive_id from_id = layer_type_name_ID(from);
 
             back_edges_maps.emplace_back(from_id, to_id);
-            GPU_DEBUG_LOG << "back_edge = {" << from_id << " => " << to_id << "}" << std::endl;
+            //GPU_DEBUG_LOG(config) << "back_edge = {" << from_id << " => " << to_id << "}" << std::endl;
         }
     }
 
@@ -121,17 +121,17 @@ static void SetLoopInputOutputMap(ProgramBuilder& p,
                 // output which requires concatenation
                 output_primitive_maps.emplace_back(external_input_info, internal_id, concatOutput->m_axis,
                     concatOutput->m_start, concatOutput->m_end, concatOutput->m_stride);
-                GPU_DEBUG_LOG << "loop_output_descs[" << layerName << "][ConcatOutputDescription] external:"
-                        << external_input_info << ", internal:"
-                        << internal_id << "(axis, start, end, stride)={"
-                        << concatOutput->m_axis << "," << concatOutput->m_start << ","
-                        << concatOutput->m_end << "," << concatOutput->m_stride << "}" << std::endl;
+                //GPU_DEBUG_LOG(config) << "loop_output_descs[" << layerName << "][ConcatOutputDescription] external:"
+                //        << external_input_info << ", internal:"
+                //        << internal_id << "(axis, start, end, stride)={"
+                //        << concatOutput->m_axis << "," << concatOutput->m_start << ","
+                //        << concatOutput->m_end << "," << concatOutput->m_stride << "}" << std::endl;
             }
             if (ov::as_type_ptr<ov::op::util::MultiSubGraphOp::BodyOutputDescription>(loop_output_desc)) {
                 // output which requires no concatenation
                 output_primitive_maps.emplace_back(external_input_info, internal_id);
-                GPU_DEBUG_LOG << "loop_output_descs[" << layerName << "][BodyOutputDescription] external:"
-                        << external_input_info << ", internal:" << internal_id << std::endl;
+                //GPU_DEBUG_LOG(config) << "loop_output_descs[" << layerName << "][BodyOutputDescription] external:"
+                //        << external_input_info << ", internal:" << internal_id << std::endl;
             }
         }
     } else {
@@ -161,17 +161,17 @@ static void SetLoopInputOutputMap(ProgramBuilder& p,
                 // output which requires concatenation
                 output_primitive_maps.emplace_back(external_id, internal_id, concatOutput->m_axis,
                     concatOutput->m_start, concatOutput->m_end, concatOutput->m_stride);
-                GPU_DEBUG_LOG << "loop_output_descs[" << layerName << "][ConcatOutputDescription] external:"
-                        << external_id << ", internal:"
-                        << internal_id << "(axis, start, end, stride)={"
-                        << concatOutput->m_axis << "," << concatOutput->m_start << ","
-                        << concatOutput->m_end << "," << concatOutput->m_stride << "}" << std::endl;
+                //GPU_DEBUG_LOG(config) << "loop_output_descs[" << layerName << "][ConcatOutputDescription] external:"
+                //        << external_id << ", internal:"
+                //        << internal_id << "(axis, start, end, stride)={"
+                //        << concatOutput->m_axis << "," << concatOutput->m_start << ","
+                //        << concatOutput->m_end << "," << concatOutput->m_stride << "}" << std::endl;
             }
             if (ov::as_type_ptr<ov::op::util::MultiSubGraphOp::BodyOutputDescription>(loop_output_desc)) {
                 // output which requires no concatenation
                 output_primitive_maps.emplace_back(external_id, internal_id);
-                GPU_DEBUG_LOG << "loop_output_descs[" << layerName << "][BodyOutputDescription] external:"
-                        << external_id << ", internal:" << internal_id << std::endl;
+                //GPU_DEBUG_LOG(config) << "loop_output_descs[" << layerName << "][BodyOutputDescription] external:"
+                //        << external_id << ", internal:" << internal_id << std::endl;
             }
         }
     }
@@ -305,11 +305,11 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     ProgramBuilder prog(ov_model, p.get_engine(), config, p.get_task_executor(), p.get_compilation_context(), true);
     auto body_program = prog.get_compiled_program();
 
-    GPU_DEBUG_LOG << "* trip_count_id                 : " << trip_count_id << std::endl;
-    GPU_DEBUG_LOG << "* num_iteration_id              : " << num_iteration_id << std::endl;
-    GPU_DEBUG_LOG << "* body_current_iteration_id     : " << body_current_iteration_id << std::endl;
-    GPU_DEBUG_LOG << "* first_execution_condition_id  : " << first_execution_condition_id << std::endl;
-    GPU_DEBUG_LOG << "* body_execution_condition_id   : " << body_execution_condition_id << std::endl;
+    //GPU_DEBUG_LOG(config) << "* trip_count_id                 : " << trip_count_id << std::endl;
+    //GPU_DEBUG_LOG(config) << "* num_iteration_id              : " << num_iteration_id << std::endl;
+    //GPU_DEBUG_LOG(config) << "* body_current_iteration_id     : " << body_current_iteration_id << std::endl;
+    //GPU_DEBUG_LOG(config) << "* first_execution_condition_id  : " << first_execution_condition_id << std::endl;
+    //GPU_DEBUG_LOG(config) << "* body_execution_condition_id   : " << body_execution_condition_id << std::endl;
 
     const cldnn::loop loopPrimitive(
         layerName,                      /* layer name of this primitive (output id) */

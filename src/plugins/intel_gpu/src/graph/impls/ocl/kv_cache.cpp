@@ -164,12 +164,12 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
             stream.set_arguments(*_kernels[idx_final], _kernels_data[stage].kernels[kd_idx].params, args);
 
-            const auto& gws = params.workGroups.global;
-            const auto& lws = params.workGroups.local;
+            //const auto& gws = params.workGroups.global;
+            //const auto& lws = params.workGroups.local;
 
-            GPU_DEBUG_TRACE_DETAIL << "Enqueue stage " << stage << " kernel " << idx_final << ": gws=[" << gws[0] << ", " << gws[1] << ", " << gws[2] << "] "
-                                   << "lws=[" << lws[0] << ", " << lws[1] << ", " << lws[2] << "]"
-                                   << (needs_completion_event ? " has_completion_event=true" : "") << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "Enqueue stage " << stage << " kernel " << idx_final << ": gws=[" << gws[0] << ", " << gws[1] << ", " << gws[2] << "] "
+            //                       << "lws=[" << lws[0] << ", " << lws[1] << ", " << lws[2] << "]"
+            //                       << (needs_completion_event ? " has_completion_event=true" : "") << std::endl;
 
             auto ev = stream.enqueue_kernel(*_kernels[idx_final], params, args, tmp_events, needs_completion_event);
             if (_kernels_data[stage].needs_sub_kernels_sync) {
@@ -205,7 +205,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             if (!beam_table_new || beam_table_new->count() < ov::shape_size(bt_shape)) {
                 bt_shape[desc->concat_axis] += instance.get_prealloc_iter_num();
                 const layout bt_alloc_layout = {bt_shape, bt_layout.data_type, bt_layout.format};
-                GPU_DEBUG_TRACE_DETAIL << "Realloc beam table to " << bt_alloc_layout.to_short_string() << std::endl;
+                //GPU_DEBUG_TRACE_DETAIL(config) << "Realloc beam table to " << bt_alloc_layout.to_short_string() << std::endl;
                 beam_table_new = engine.allocate_memory(bt_alloc_layout, bt_alloc_type, false);
 
                 // Alloc prev mem too as it will be needed in the future
@@ -250,12 +250,12 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
         variable.set();
         if (can_be_optimized) {
-            GPU_DEBUG_TRACE_DETAIL << desc->id  << " : Output is same as variable memory! Skip copying " << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << desc->id  << " : Output is same as variable memory! Skip copying " << std::endl;
             // When primitive is optimized, concat kernel writes directly to variable memory
             return stream.aggregate_events(res_events, res_events.size() > 1);
         } else {
             // Otherwise, we need to copy result from out buffer to state memory
-            GPU_DEBUG_TRACE_DETAIL << desc->id  << " : Copying output to variable memory" << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << desc->id  << " : Copying output to variable memory" << std::endl;
 
             stream.enqueue_barrier();
 

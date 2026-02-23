@@ -142,7 +142,9 @@ void broadcast_inst::update_output_memory() {
 
     build_deps();
 
-    GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
+    const auto& config = get_network().get_config();
+
+    GPU_DEBUG_TRACE_DETAIL(config) << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
                            << " : " << input_memory_ptr()->buffer_ptr() << std::endl;
     // Can_be_optimized nodes are allocating from memory_pool too. In this case,
     // we need release the legacy output memory from memory pool explicitly.

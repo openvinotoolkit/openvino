@@ -229,9 +229,9 @@ public:
     }
 
     void print_mem_usage_info() {
-        auto mem_usage = get_elapsed_mem_usage();
-        GPU_DEBUG_LOG << "Memory usage for " << _stage_name << ": " << mem_usage.rss << " KB (current RSS: "
-                      << _after.rss << " KB; peak RSS: " << _after.peak_rss << " KB)" << std::endl;
+        //auto mem_usage = get_elapsed_mem_usage();
+        //GPU_DEBUG_LOG << "Memory usage for " << _stage_name << ": " << mem_usage.rss << " KB (current RSS: "
+        //              << _after.rss << " KB; peak RSS: " << _after.peak_rss << " KB)" << std::endl;
     }
 
 private:

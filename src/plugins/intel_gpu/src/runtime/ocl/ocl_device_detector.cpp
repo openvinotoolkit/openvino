@@ -229,8 +229,8 @@ std::vector<device::ptr> ocl_device_detector::create_device_list() const {
                 }
             }
         } catch (std::exception& ex) {
-            GPU_DEBUG_LOG << "Devices query/creation failed for " << platform.getInfo<CL_PLATFORM_NAME>() << ": " << ex.what() << std::endl;
-            GPU_DEBUG_LOG << "Platform is skipped" << std::endl;
+            //GPU_DEBUG_LOG(config) << "Devices query/creation failed for " << platform.getInfo<CL_PLATFORM_NAME>() << ": " << ex.what() << std::endl;
+            //GPU_DEBUG_LOG(config) << "Platform is skipped" << std::endl;
             continue;
         }
     }

@@ -12,7 +12,7 @@
 #include <cmath>
 
 #define LOG_AND_RETURN_FALSE(node) do {                                         \
-    GPU_DEBUG_TRACE << (node).id() << " :  Do not select onednn" << std::endl;  \
+    GPU_DEBUG_TRACE(config) << (node).id() << " :  Do not select onednn" << std::endl;  \
     return false;                                                               \
 } while (0)
 

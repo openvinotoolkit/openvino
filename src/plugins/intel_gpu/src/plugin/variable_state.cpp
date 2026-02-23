@@ -39,8 +39,8 @@ const cldnn::layout& VariableState::get_layout() const {
 }
 
 void VariableState::set_memory(const cldnn::memory::ptr& new_mem, const cldnn::layout& actual_layout) {
-    GPU_DEBUG_TRACE_DETAIL << m_name << " : Update memory (Ptr : " << new_mem->buffer_ptr()
-                           << ", layout : " << actual_layout.to_short_string() << ")" << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << m_name << " : Update memory (Ptr : " << new_mem->buffer_ptr()
+    //                       << ", layout : " << actual_layout.to_short_string() << ")" << std::endl;
     m_memory = new_mem;
     m_layout = actual_layout;
     actual_size = m_memory->size();
@@ -51,7 +51,7 @@ void VariableState::set_layout(const cldnn::layout& new_layout) {
     if (m_layout == new_layout)
         return;
     m_layout = new_layout;
-    GPU_DEBUG_TRACE_DETAIL << m_name << " : " << "Update state layout to " << new_layout.to_short_string() << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << m_name << " : " << "Update state layout to " << new_layout.to_short_string() << std::endl;
     update_device_buffer();
 }
 

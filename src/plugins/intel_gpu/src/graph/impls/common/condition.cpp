@@ -49,8 +49,8 @@ struct condition_impl : typed_primitive_impl<condition> {
         if (!can_skip_subgraph)
             executed_net->set_shape_predictor(instance.get_network().get_shape_predictor());
 
-        GPU_DEBUG_LOG << "predicate: " << (pred ? "True" : "False") << std::endl;
-        GPU_DEBUG_LOG << "can_skip_subgraph: " << (can_skip_subgraph ? "True" : "False") << std::endl;
+        //GPU_DEBUG_LOG(config) << "predicate: " << (pred ? "True" : "False") << std::endl;
+        //GPU_DEBUG_LOG(config) << "can_skip_subgraph: " << (can_skip_subgraph ? "True" : "False") << std::endl;
 
         std::vector<event::ptr> output_events;
         if (can_skip_subgraph) {
@@ -59,12 +59,12 @@ struct condition_impl : typed_primitive_impl<condition> {
                 layout output_layout = output_internal_node.get_output_layout();
                 cldnn::memory::ptr output_mem_ptr = nullptr;
                 if (output_internal_node.is_type<data>()) {
-                    GPU_DEBUG_LOG << "- body output[" << out_idx << "] is constant" << std::endl;
+                    //GPU_DEBUG_LOG(config) << "- body output[" << out_idx << "] is constant" << std::endl;
                     output_mem_ptr = output_internal_node.as<data>().get_attached_memory_ptr();
                 } else {
                     const auto& input_internal_node = output_internal_node.get_dependency(0);
                     if (input_internal_node.is_type<data>()) {
-                        GPU_DEBUG_LOG << "- body output[" << out_idx << "] is from constant" << std::endl;
+                        //GPU_DEBUG_LOG(config) << "- body output[" << out_idx << "] is from constant" << std::endl;
                         output_mem_ptr = input_internal_node.as<data>().get_attached_memory_ptr();
                     } else {
                         // look for corresponding external input for body input parameter
@@ -73,9 +73,9 @@ struct condition_impl : typed_primitive_impl<condition> {
                             std::find_if(branch.input_map.begin(), branch.input_map.end(), [&](const in_map_type& m) {
                                 return input_internal_node.id() == m.second;
                             });
-                        GPU_DEBUG_LOG << "- body output[" << out_idx
-                                      << "] is from parameter (internal: " << input_internal_node.id()
-                                      << ", external: " << input_external_node->first << ")" << std::endl;
+                        //GPU_DEBUG_LOG(config) << "- body output[" << out_idx
+                        //              << "] is from parameter (internal: " << input_internal_node.id()
+                        //              << ", external: " << input_external_node->first << ")" << std::endl;
                         for (size_t dep_idx = 0; dep_idx < instance.dependencies().size(); ++dep_idx) {
                             if (instance.dependencies()[dep_idx].first->id() == input_external_node->first) {
                                 if (events.size() > dep_idx)
@@ -94,9 +94,9 @@ struct condition_impl : typed_primitive_impl<condition> {
                     output_layout = condition_inst::adjust_scalar_to_1d_layout(output_layout, other_layout);
                     OPENVINO_ASSERT(output_mem_ptr != nullptr, "output_mem_ptr should not be null.");
                     output_mem_ptr = instance.get_network().get_engine().reinterpret_buffer(*output_mem_ptr, output_layout);
-                    GPU_DEBUG_LOG << "    output layout is updated to " << output_layout.to_short_string() << std::endl;
+                    //GPU_DEBUG_LOG(config) << "    output layout is updated to " << output_layout.to_short_string() << std::endl;
                 }
-                GPU_DEBUG_LOG << "    set output layout : " << output_layout.to_short_string() << std::endl;
+                //GPU_DEBUG_LOG(config) << "    set output layout : " << output_layout.to_short_string() << std::endl;
                 instance.set_output_layout(output_layout, out_idx);
                 instance.set_output_memory(output_mem_ptr, out_idx);
                 instance.set_flag(ExecutionFlags::MEMORY_CHANGED);
@@ -113,8 +113,8 @@ struct condition_impl : typed_primitive_impl<condition> {
                     auto dep = instance.dependencies()[mem_idx];
                     auto layout = dep.first->get_impl_params()->get_output_layout(dep.second);
                     if (mem_ptr) {
-                        GPU_DEBUG_LOG << "Reshape input from " << mem_ptr->get_layout().to_short_string() << " to "
-                                      << layout.to_short_string() << std::endl;
+                        //GPU_DEBUG_LOG(config) << "Reshape input from " << mem_ptr->get_layout().to_short_string() << " to "
+                        //              << layout.to_short_string() << std::endl;
                         // Preallocation logic may allocate more memory than actually produced on current iteration, so
                         // we need to adjust input buffers layout
                         mem_ptr = instance.get_network().get_engine().reinterpret_buffer(*mem_ptr, layout);
@@ -127,8 +127,8 @@ struct condition_impl : typed_primitive_impl<condition> {
                                                         "external_id=", input_external_id, ", "
                                                         "internal_id=", input_internal_id, ")");
                     executed_net->set_input_data(input_internal_id, mem_ptr);
-                    GPU_DEBUG_LOG << "Inner net - Inputs[" << mem_idx << "]: layout=" << mem_ptr->get_layout().to_short_string() << ", "
-                                  << "allocation_type=" << mem_ptr->get_allocation_type() << std::endl;
+                    //GPU_DEBUG_LOG(config) << "Inner net - Inputs[" << mem_idx << "]: layout=" << mem_ptr->get_layout().to_short_string() << ", "
+                    //              << "allocation_type=" << mem_ptr->get_allocation_type() << std::endl;
                 }
             }
         }

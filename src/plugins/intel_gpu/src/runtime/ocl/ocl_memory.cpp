@@ -53,7 +53,7 @@ static inline void check_boundaries(size_t src_size,
 
 static inline cldnn::event::ptr create_event(stream& stream, size_t bytes_count, bool need_user_event) {
     if (bytes_count == 0) {
-        GPU_DEBUG_TRACE_DETAIL << "Skip memory operation for 0 size tensor" << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "Skip memory operation for 0 size tensor" << std::endl;
         return nullptr;
     }
 
@@ -121,7 +121,7 @@ event::ptr gpu_buffer::fill(stream& stream, const std::vector<event::ptr>& dep_e
 
 event::ptr gpu_buffer::fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events, bool blocking) {
     if (_bytes_count == 0) {
-        GPU_DEBUG_TRACE_DETAIL << "Skip EnqueueMemcpy for 0 size tensor" << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "Skip EnqueueMemcpy for 0 size tensor" << std::endl;
         return nullptr;
     }
     auto& cl_stream = downcast<ocl_stream>(stream);
@@ -313,7 +313,7 @@ event::ptr gpu_image2d::fill(stream& stream, const std::vector<event::ptr>& dep_
 
 event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events, bool blocking) {
     if (_bytes_count == 0) {
-        GPU_DEBUG_TRACE_DETAIL << "Skip EnqueueMemcpy for 0 size tensor" << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "Skip EnqueueMemcpy for 0 size tensor" << std::endl;
         return nullptr;
     }
     auto& cl_stream = downcast<ocl_stream>(stream);
@@ -530,7 +530,7 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
             if (type != mem_lock_type::read) {
                 throw std::runtime_error("Unable to lock allocation_type::usm_device with write lock_type.");
             }
-            GPU_DEBUG_LOG << "Copy usm_device buffer to host buffer." << std::endl;
+            //GPU_DEBUG_LOG(config) << "Copy usm_device buffer to host buffer." << std::endl;
             _host_buffer.allocateHost(_bytes_count);
             try {
                 cl_stream.get_usm_helper().enqueue_memcpy(cl_stream.get_cl_queue(), _host_buffer.get(), _buffer.get(), _bytes_count, CL_TRUE);
@@ -562,7 +562,7 @@ void gpu_usm::unlock(const stream& /* stream */) {
 
 event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events, bool blocking) {
     if (_bytes_count == 0) {
-        GPU_DEBUG_TRACE_DETAIL << "Skip gpu_usm::fill for 0 size tensor" << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "Skip gpu_usm::fill for 0 size tensor" << std::endl;
         return nullptr;
     }
     auto& cl_stream = downcast<ocl_stream>(stream);
@@ -634,7 +634,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
         tmp_buf.resize(size);
         src_mem.copy_to(stream, tmp_buf.data(), src_offset, 0, size, true);
 
-        GPU_DEBUG_TRACE_DETAIL << "Suboptimal copy call from " << src_mem.get_allocation_type() << " to " << get_allocation_type() << "\n";
+        //GPU_DEBUG_TRACE_DETAIL(config) << "Suboptimal copy call from " << src_mem.get_allocation_type() << " to " << get_allocation_type() << "\n";
         return copy_from(stream, tmp_buf.data(), 0, 0, size, blocking);
     }
 

@@ -138,7 +138,7 @@ void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionC
 
     auto start = Time::now();
     transformations.apply(model);
-    GPU_DEBUG_LOG << "Transformations time: " << std::chrono::duration_cast<ms>(Time::now() - start).count() << " ms" << std::endl;
+    GPU_DEBUG_LOG(config) << "Transformations time: " << std::chrono::duration_cast<ms>(Time::now() - start).count() << " ms" << std::endl;
 }
 
 std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_ptr<const ov::Model>& model,
@@ -702,6 +702,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::intel_gpu::memory_statistics.name(), PropertyMutability::RO},
 
         // Configs
+	ov::PropertyName{ov::log::level.name(), PropertyMutability::RW},
+	//ov::PropertyName{"LOG_LEVEL", PropertyMutability::RW},
         ov::PropertyName{ov::enable_profiling.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::model_priority.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::hint::host_task_priority.name(), PropertyMutability::RW},
@@ -781,13 +783,13 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
     }
 
     int64_t available_device_mem = device_info.max_global_mem_size - occupied_device_mem;
-    GPU_DEBUG_LOG << "[GPU_MAX_BATCH_SIZE] available memory is " << available_device_mem
+    GPU_DEBUG_LOG(config) << "[GPU_MAX_BATCH_SIZE] available memory is " << available_device_mem
                   << " (occupied: " << occupied_device_mem << ")" << std::endl;
 
     int64_t max_batch_size = 1;
 
     if (options.find(ov::hint::model.name()) == options.end()) {
-        GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] MODELS_PTR is not set: return 1" << std::endl;
+        GPU_DEBUG_INFO(config) << "[GPU_MAX_BATCH_SIZE] MODELS_PTR is not set: return 1" << std::endl;
         return static_cast<uint32_t>(max_batch_size);
     }
 
@@ -801,13 +803,13 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
         }
     }
 
-    GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] n_streams : " << n_streams << std::endl;
+    GPU_DEBUG_INFO(config) << "[GPU_MAX_BATCH_SIZE] n_streams : " << n_streams << std::endl;
 
     auto available_device_mem_it = options.find(ov::intel_gpu::hint::available_device_mem.name());
     if (available_device_mem_it != options.end()) {
         if (available_device_mem_it->second.is<int64_t>()) {
             available_device_mem = std::min(static_cast<int64_t>(available_device_mem), available_device_mem_it->second.as<int64_t>());
-            GPU_DEBUG_LOG << "[GPU_MAX_BATCH_SIZE] available memory is reset by user " << available_device_mem << std::endl;
+            GPU_DEBUG_LOG(config) << "[GPU_MAX_BATCH_SIZE] available memory is reset by user " << available_device_mem << std::endl;
         } else {
             OPENVINO_THROW("[GPU_MAX_BATCH_SIZE] bad casting: ov::intel_gpu::hint::available_device_mem should be int64_t type");
         }
@@ -851,7 +853,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
             const auto& shape = input->get_partial_shape();
             // currently no plugin support batched execution for dynamic networks
             if (shape.is_dynamic()) {
-                GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] does not support dynamic networks" << std::endl;
+                GPU_DEBUG_LOG(config) << "[MAX_BATCH_SIZE] does not support dynamic networks" << std::endl;
                 return static_cast<uint32_t>(max_batch_size);
             }
 
@@ -859,7 +861,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
                 for (size_t s = 0; s < shape.size(); s++) {
                     if (const auto& symbol = shape[s].get_symbol()) {
                         batched_inputs.insert(std::make_pair(input_id, s));
-                        GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] detected batched input " << input->get_friendly_name()
+                        GPU_DEBUG_LOG(config) << "[MAX_BATCH_SIZE] detected batched input " << input->get_friendly_name()
                                       << " with index " << symbol
                                       << "[" << s << "]" << std::endl;
                     }
@@ -868,7 +870,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
         }
 
         if (!batched_inputs.size()) {
-            GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] MAX_BATCH_SIZE supports only networks with inputs/outputs featuring batched dim." << std::endl;
+            GPU_DEBUG_LOG(config) << "[MAX_BATCH_SIZE] MAX_BATCH_SIZE supports only networks with inputs/outputs featuring batched dim." << std::endl;
             return static_cast<uint32_t>(max_batch_size);
         }
 
@@ -883,7 +885,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
                 shapes[input.first][input.second] = base_batch_size;
             cloned_model->reshape(shapes);
         } catch (...) {
-            GPU_DEBUG_INFO << "[MAX_BATCH_SIZE] Error at reshape to " << base_batch_size << std::endl;
+            GPU_DEBUG_INFO(config) << "[MAX_BATCH_SIZE] Error at reshape to " << base_batch_size << std::endl;
             return static_cast<uint32_t>(max_batch_size);
         }
 
@@ -897,11 +899,11 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
         int64_t mem_for_general = std::max<int64_t>(1, available_device_mem - device_memory_usage.first);
         int64_t mem_per_batch = std::max<int64_t>(1, device_memory_usage.second / static_cast<int64_t>(base_batch_size));
         max_batch_size = mem_for_general / (mem_per_batch * static_cast<int64_t>(n_streams));
-        GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] Base batch size: " << base_batch_size  << std::endl;
-        GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] Const mem usage: " << device_memory_usage.first  << std::endl;
-        GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] General mem usage: " << device_memory_usage.second  << std::endl;
+        GPU_DEBUG_INFO(config) << "[GPU_MAX_BATCH_SIZE] Base batch size: " << base_batch_size  << std::endl;
+        GPU_DEBUG_INFO(config) << "[GPU_MAX_BATCH_SIZE] Const mem usage: " << device_memory_usage.first  << std::endl;
+        GPU_DEBUG_INFO(config) << "[GPU_MAX_BATCH_SIZE] General mem usage: " << device_memory_usage.second  << std::endl;
     } catch (std::exception& e) {
-        GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] Failed in reshape or build program " << e.what() << std::endl;
+        GPU_DEBUG_INFO(config) << "[GPU_MAX_BATCH_SIZE] Failed in reshape or build program " << e.what() << std::endl;
     }
 
     return static_cast<uint32_t>(max_batch_size);
@@ -909,6 +911,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
 
 uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     auto device_id = get_property(ov::device::id.name(), options).as<std::string>();
+    auto config = m_configs_map.at(device_id);
     auto context = get_default_contexts().at(device_id);
     const auto& device_info = context->get_device().get_info();
 
@@ -931,7 +934,7 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
 
     auto model_param = options.find(ov::hint::model.name());
     if (model_param == options.end()) {
-        GPU_DEBUG_INFO << "[OPTIMAL_BATCH_SIZE] ov::hint::model is not set: return 1" << std::endl;
+        GPU_DEBUG_INFO(config) << "[OPTIMAL_BATCH_SIZE] ov::hint::model is not set: return 1" << std::endl;
         return static_cast<uint32_t>(1);
     }
     std::shared_ptr<const ov::Model> model;
@@ -940,7 +943,7 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     } catch (...) {
         OPENVINO_THROW("[OPTIMAL_BATCH_SIZE] ov::hint::model should be std::shared_ptr<const ov::Model> type");
     }
-    GPU_DEBUG_INFO << "DEVICE_INFO:"
+    GPU_DEBUG_INFO(config) << "DEVICE_INFO:"
                    << "gfx_version.major, " << device_info.gfx_ver.major
                    << "gfx_version.minor " << std::to_string(device_info.gfx_ver.minor)
                    << "Cache size " << std::to_string(device_info.max_global_cache_size) << std::endl;
@@ -949,7 +952,6 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     context->initialize();
 
     size_t L3_cache_size = device_info.max_global_cache_size;
-    auto config = m_configs_map.at(device_id);
     auto cloned_model = clone_and_transform_model(model, config, context);
     ov::MemBandwidthPressure memPressure = ov::mem_bandwidth_pressure_tolerance(cloned_model, L3_cache_size);
     uint32_t batch = 1;
@@ -962,9 +964,9 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     uint32_t closest = closest_pow_of_2(max_batch_size);
     batch = std::min(closest, batch);
     batch = std::min(256u, batch); //batch 256 is a max
-    GPU_DEBUG_INFO << memPressure.max_mem_tolerance << std::endl;
-    GPU_DEBUG_INFO << "MAX_BATCH: " << max_batch_size << std::endl;
-    GPU_DEBUG_INFO << "ACTUAL OPTIMAL BATCH: " << batch << std::endl;
+    GPU_DEBUG_INFO(config) << memPressure.max_mem_tolerance << std::endl;
+    GPU_DEBUG_INFO(config) << "MAX_BATCH: " << max_batch_size << std::endl;
+    GPU_DEBUG_INFO(config) << "ACTUAL OPTIMAL BATCH: " << batch << std::endl;
 
     return batch;
 }

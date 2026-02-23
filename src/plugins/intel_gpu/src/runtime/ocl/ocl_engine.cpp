@@ -133,9 +133,9 @@ bool ocl_engine::check_allocatable(const layout& layout, allocation_type type) {
                     "but available memory size is ", get_max_memory_size(), " bytes");
 #else
     if (exceed_available_mem_size) {
-        GPU_DEBUG_COUT << "[Warning] [GPU] Exceeded max size of memory allocation: " << "Required " << layout.bytes_count() << " bytes, already occupied : "
+        GPU_DEBUG_COUT(config) << "[Warning] [GPU] Exceeded max size of memory allocation: " << "Required " << layout.bytes_count() << " bytes, already occupied : "
                        << used_mem << " bytes, but available memory size is " << get_max_memory_size() << " bytes" << std::endl;
-        GPU_DEBUG_COUT << "Please note that performance might drop due to memory swap." << std::endl;
+        GPU_DEBUG_COUT(config) << "Please note that performance might drop due to memory swap." << std::endl;
     }
 #endif
 
@@ -144,6 +144,8 @@ bool ocl_engine::check_allocatable(const layout& layout, allocation_type type) {
 
 memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type type, bool reset) {
     OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU] Can't allocate memory for dynamic layout");
+
+    //GPU_DEBUG_LOG(config) << "Hello from GPU plugin" << std::endl;
 
     check_allocatable(layout, type);
 

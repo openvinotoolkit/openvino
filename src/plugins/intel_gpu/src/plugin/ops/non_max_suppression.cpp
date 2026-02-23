@@ -121,7 +121,7 @@ static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::sh
                     cldnn::format::get_default_format(op->get_output_shape(2).size()),
                     tensor_from_dims(op->get_output_shape(2)));
 
-                GPU_DEBUG_LOG << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
+                //GPU_DEBUG_LOG(config) << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
                 shared_memory.emplace_back(p.get_engine().allocate_memory(mutableLayoutSecond));
 
                 cldnn::primitive_id non_max_suppression_mutable_id_w_second = layer_type_name_ID(op) + "_md_write_second";
@@ -137,7 +137,7 @@ static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::sh
                     cldnn::format::bfyx,
                     cldnn::tensor(static_cast<int32_t>(outputIndices), 3, 1, 1));
 
-                GPU_DEBUG_LOG << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
+                //GPU_DEBUG_LOG(config) << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
                 shared_memory.emplace_back(p.get_engine().allocate_memory(mutableLayoutFirst));
 
                 cldnn::primitive_id non_max_suppression_mutable_id_w_first = layer_type_name_ID(op) + "_md_write_first";

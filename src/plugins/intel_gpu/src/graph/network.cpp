@@ -317,7 +317,7 @@ void network::reset_execution(bool wait) {
 }
 
 event::ptr network::set_input_data(const primitive_id& id, memory::ptr data, bool need_to_check_memory_to_set) {
-    GPU_DEBUG_TRACE_DETAIL << "Set input " << id << " " << data->get_layout().to_short_string() << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "Set input " << id << " " << data->get_layout().to_short_string() << std::endl;
     auto primitive_inst = find_primitive(id);
 
     if (primitive_inst->type() != input_layout::type_id()) {
@@ -460,7 +460,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
 }
 
 std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memory::ptr mem_new, bool is_remote) {
-    GPU_DEBUG_TRACE_DETAIL << "Set output " << id << " " << mem_new->get_layout().to_short_string() << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "Set output " << id << " " << mem_new->get_layout().to_short_string() << std::endl;
     std::vector<event::ptr> ret_ev;
     std::shared_ptr<primitive_inst> p_inst = find_primitive(id);
 
@@ -890,7 +890,7 @@ void network::allocate_primitive_instance(program_node const& node) {
     if (_primitives.count(node.id()))
         return;
 
-    GPU_DEBUG_TRACE_DETAIL << node.id() << ": allocate primitive instance" << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << node.id() << ": allocate primitive instance" << std::endl;
 
     auto inst = node.type()->create_instance(*this, node);
 
@@ -1013,14 +1013,14 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         // Allocate and transfer memory
         auto device_mem = inst_mem.get_engine()->allocate_memory(inst_mem.get_layout(), allocation_type::usm_device, false);
         device_mem->copy_from(get_stream(), inst_mem);
-        GPU_DEBUG_LOG << "[" << node.id() << ": constant]" << std::endl;
+        //GPU_DEBUG_LOG(config) << "[" << node.id() << ": constant]" << std::endl;
         _memory_pool->release_memory(&inst_mem, node.get_unique_id(), node.id(), get_id());
         instance->set_output_memory(device_mem);
     }
 }
 
 void network::set_variable(const std::string& name, const std::shared_ptr<ov::intel_gpu::VariableStateBase>& variable) {
-    GPU_DEBUG_TRACE_DETAIL << "Set variable " << name << " " << variable->get_layout().to_short_string() << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "Set variable " << name << " " << variable->get_layout().to_short_string() << std::endl;
     _variables_states[name] = variable;
 }
 

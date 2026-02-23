@@ -61,7 +61,7 @@ std::map<program_node*, format::type> get_preferred_formats(program& p, layout_o
     if (!lo.is_empty_onednn_impls_optimization_attribute() && onednn_impls_counter < 1) {
         should_update_fmt_map = true;
         lo.clear_onednn_impls_optimization_attribute();
-        GPU_DEBUG_LOG << "Disable oneDNN implementations globally" << std::endl;
+        //GPU_DEBUG_LOG(config) << "Disable oneDNN implementations globally" << std::endl;
     }
 
     if (should_update_fmt_map)
@@ -225,7 +225,7 @@ void propagate_formats_rec(std::map<program_node*, format::type>& fmt_map,
 
     fmt = travel_direction_wrapper<dir>::first(first_fmt, second_fmt);
     fmt_map.at(node) = fmt;
-    GPU_DEBUG_LOG << "Propagate_formats_rec: " << node->id() << " - " << fmt_to_str(fmt) << std::endl;
+    //GPU_DEBUG_LOG(config) << "Propagate_formats_rec: " << node->id() << " - " << fmt_to_str(fmt) << std::endl;
 
     for (auto next : travel_direction_wrapper<dir>::next_nodes(node)) {
         if (!get_node(next)->is_in_data_flow())
@@ -397,12 +397,14 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
 }
 
 
+/*
 const char *dir_msg(direction_e dir) {
     if (dir == direction_e::forwards)
         return "forward";
     else
         return "backward";
 }
+*/
 
 static bool is_weights_dependency(program_node* predecessor, program_node* successor) {
     bool is_weights_dep = false;
@@ -417,8 +419,8 @@ static bool need_align_shape_for_numpy_broadcast(program_node* predecessor, prog
     if (successor->is_type<eltwise>()) {
         auto& elt_suc = successor->as<eltwise>();
         if (elt_suc.need_align_for_numpy_broadcast(predecessor->get_output_layout())) {
-            GPU_DEBUG_TRACE_DETAIL << " Skip add reorder in reorder_in_dir for numpy broadcast " << successor->id()
-                                    << output_format.to_string() << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << " Skip add reorder in reorder_in_dir for numpy broadcast " << successor->id()
+            //                        << output_format.to_string() << std::endl;
             return true;
         }
     }
@@ -455,8 +457,8 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         if (need_align_shape_for_numpy_broadcast(predecessor, successor, out_layout.format))
             continue;
 
-        GPU_DEBUG_LOG << dir_msg(dir) << "  " << node->id() << " --> " << get_node(next)->id() << " ## "
-                      << fmt_to_str(in_layout.format) << " --> " << fmt_to_str(out_layout.format) << std::endl;
+        //GPU_DEBUG_LOG(config) << dir_msg(dir) << "  " << node->id() << " --> " << get_node(next)->id() << " ## "
+        //              << fmt_to_str(in_layout.format) << " --> " << fmt_to_str(out_layout.format) << std::endl;
 
         if (in_layout.format == format::any || out_layout.format == format::any ||
             in_layout.format == format::custom || out_layout.format == format::custom)
@@ -470,7 +472,7 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         auto reorder = reorder_pair.first;
         if (reorder && (in_layout.format != format::any && out_layout.format != format::any)) {
             auto& reorder_node = p.get_or_create(reorder);
-            GPU_DEBUG_LOG << dir_msg(dir) << "  " << reorder_node.id() << "  Reorder is added" << std::endl;
+            //GPU_DEBUG_LOG(config) << dir_msg(dir) << "  " << reorder_node.id() << "  Reorder is added" << std::endl;
             p.add_intermediate(reorder_node,
                                *travel_direction_wrapper<dir>::second(node, get_node(next)),
                                *travel_direction_wrapper<dir>::first(node, get_node(next)),
@@ -516,39 +518,39 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
 
     auto fmt_map = get_preferred_formats(p, lo);
 
-    GPU_DEBUG_LOG_PASS << "Preferred formats:" << std::endl;
+    //GPU_DEBUG_LOG(config)_PASS << "Preferred formats:" << std::endl;
     for (auto& node_fmt : fmt_map) {
         if (node_fmt.second != format::any) {
-            GPU_DEBUG_LOG_PASS << "  " << node_fmt.first->id() << " " << fmt_to_str(node_fmt.second) << std::endl;
+            //GPU_DEBUG_LOG(config)_PASS << "  " << node_fmt.first->id() << " " << fmt_to_str(node_fmt.second) << std::endl;
         }
     }
 
     propagate_formats(p, fmt_map, lo);
     minimize_local_reorders(p, fmt_map, lo);
 
-    GPU_DEBUG_LOG_PASS << "Selected formats:" << std::endl;
+    //GPU_DEBUG_LOG(config)_PASS << "Selected formats:" << std::endl;
     for (auto node_ptr : p.get_processing_order()) {
         if (fmt_map.count(node_ptr) == 0)
             continue;
 
-        auto fmt = fmt_map.at(node_ptr);
-        GPU_DEBUG_LOG_PASS << "  " << node_ptr->id() << " " << fmt_to_str(fmt) << std::endl;
+        //auto fmt = fmt_map.at(node_ptr);
+        //GPU_DEBUG_LOG(config)_PASS << "  " << node_ptr->id() << " " << fmt_to_str(fmt) << std::endl;
     }
 
     GPU_DEBUG_IF(p.get_config().get_verbose() >= 2) {
-        reorder_cnt total_reorder_count =
-            std::accumulate(p.get_processing_order().begin(),
-                            p.get_processing_order().end(),
-                            reorder_cnt{0, 0},
-                            [&](reorder_cnt total, program_node* node) {
-                                if (fmt_map.count(node) == 0 || fmt_map.at(node) == format::any)
-                                    return total;
-                                auto count = count_reorders(fmt_map, lo, node);
-                                return reorder_cnt{total.number + count.number, total.total_sizes + count.total_sizes};
-                            });
+        //reorder_cnt total_reorder_count =
+        //    std::accumulate(p.get_processing_order().begin(),
+        //                    p.get_processing_order().end(),
+        //                    reorder_cnt{0, 0},
+        //                    [&](reorder_cnt total, program_node* node) {
+        //                        if (fmt_map.count(node) == 0 || fmt_map.at(node) == format::any)
+        //                            return total;
+        //                        auto count = count_reorders(fmt_map, lo, node);
+        //                        return reorder_cnt{total.number + count.number, total.total_sizes + count.total_sizes};
+        //                    });
         // Divide results by two as above function will each reorder from both sides
-        GPU_DEBUG_LOG_PASS << "Total number of reorders: " << total_reorder_count.number / 2 << std::endl;
-        GPU_DEBUG_LOG_PASS << "Total elements count of all reorders: " << total_reorder_count.total_sizes / 2 << std::endl;
+        //GPU_DEBUG_LOG(config)_PASS << "Total number of reorders: " << total_reorder_count.number / 2 << std::endl;
+        //GPU_DEBUG_LOG(config)_PASS << "Total elements count of all reorders: " << total_reorder_count.total_sizes / 2 << std::endl;
 
         // Count number of reorders that will be fused
         size_t nodes_with_fusing = 0;
@@ -564,8 +566,8 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                 }
             }
         }
-        GPU_DEBUG_LOG_PASS << "Number of nodes with fused reorders: " << nodes_with_fusing << std::endl;
-        GPU_DEBUG_LOG_PASS << "----------------------------------------------" << std::endl;
+        //GPU_DEBUG_LOG(config)_PASS << "Number of nodes with fused reorders: " << nodes_with_fusing << std::endl;
+        //GPU_DEBUG_LOG(config)_PASS << "----------------------------------------------" << std::endl;
     }
 
     insert_reorders(p, fmt_map, rf, lo);

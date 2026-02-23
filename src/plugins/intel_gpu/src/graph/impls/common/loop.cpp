@@ -146,7 +146,7 @@ struct loop_impl : typed_primitive_impl<loop> {
         }
 
         auto num_iterations = instance.get_num_iterations();
-        GPU_DEBUG_LOG << "num_iterations : " << num_iterations << std::endl;
+        //GPU_DEBUG_LOG(config) << "num_iterations : " << num_iterations << std::endl;
 
         // read trip_count from outer network
         int64_t trip_count = -1;
@@ -163,7 +163,7 @@ struct loop_impl : typed_primitive_impl<loop> {
             // TensorIterator has no ending condition. So it cannot terminate inner body execution loop.
             trip_count = num_iterations > 0 ? num_iterations : primitive->max_num_iterations;
         }
-        GPU_DEBUG_LOG << "trip_count : " << trip_count << std::endl;
+        //GPU_DEBUG_LOG(config) << "trip_count : " << trip_count << std::endl;
 
         // read initial execution condition from outer network
         int64_t execution_condition = 1;
@@ -174,7 +174,7 @@ struct loop_impl : typed_primitive_impl<loop> {
             memory::ptr first_execution_condition_mem = outer_network.get_primitive(instance.get_initial_execution_id())->output_memory_ptr();
             execution_condition = read_scalar_value(first_execution_condition_mem, stream);
         }
-        GPU_DEBUG_LOG << "execution_condition: " << execution_condition << std::endl;
+        //GPU_DEBUG_LOG(config) << "execution_condition: " << execution_condition << std::endl;
 
         // When execution_condition is false or trip_count is zero, return execute_impl without any body_network execution.
         if (!execution_condition || trip_count == 0) {
@@ -261,9 +261,9 @@ struct loop_impl : typed_primitive_impl<loop> {
                 }
                 execution_condition = read_scalar_value(body_execution_condition_mem, body_network->get_stream());
             }
-            GPU_DEBUG_IF(!execution_condition) {
-                GPU_DEBUG_LOG << "body_exec_condition is false at "<< current_iteration_idx << " iteration idx" << std::endl;
-            }
+            //GPU_DEBUG_IF(!execution_condition) {
+            //    GPU_DEBUG_LOG(config) << "body_exec_condition is false at "<< current_iteration_idx << " iteration idx" << std::endl;
+            //}
 
             current_iteration_idx++;
         }
@@ -276,8 +276,8 @@ struct loop_impl : typed_primitive_impl<loop> {
         // update num_iterations (actual number of iterations)
         memory::ptr num_actual_iterations_mem = outer_network.get_primitive(instance.get_num_iterations_id())->output_memory_ptr();
         write_scalar_value(num_actual_iterations_mem, stream, current_iteration_idx);
-        GPU_DEBUG_LOG << "current_iteration_idx(" << instance.get_num_iterations_id() << ", "
-                        << num_actual_iterations_mem << ")  : " << current_iteration_idx << std::endl;
+        //GPU_DEBUG_LOG(config) << "current_iteration_idx(" << instance.get_num_iterations_id() << ", "
+        //                << num_actual_iterations_mem << ")  : " << current_iteration_idx << std::endl;
 
         if (is_dynamic)
             instance.update_output_layout();

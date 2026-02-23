@@ -50,7 +50,7 @@ struct PagedAttentionOpt : public ImplementationManager {
 
         auto desc = node.as<paged_attention>().get_primitive();
         if (desc->has_xattention) {
-            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because XAttention is not supported with ocl. " << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "validate_impl() - false because XAttention is not supported with ocl. " << std::endl;
             return false;
         }
 

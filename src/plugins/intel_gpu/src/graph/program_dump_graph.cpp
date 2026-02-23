@@ -151,7 +151,7 @@ void dump_full_node(std::ofstream& out, const program_node* node) {
         node_info->dump(emtpy_desc);
         out << emtpy_desc.str();
 
-        GPU_DEBUG_INFO << node->id() << " to_string() error: " << e.what() << '\n';
+        //GPU_DEBUG_INFO << node->id() << " to_string() error: " << e.what() << '\n';
     }
 }
 }  // namespace

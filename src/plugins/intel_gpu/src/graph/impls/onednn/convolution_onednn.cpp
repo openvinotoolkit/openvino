@@ -181,8 +181,8 @@ protected:
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(a_zp->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, a_zp->get_onednn_memory(desc)});
 
-            GPU_DEBUG_TRACE_DETAIL << instance.id() << " activations_zero_points: "
-                << " " << a_zp->get_layout().to_short_string() << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << instance.id() << " activations_zero_points: "
+            //    << " " << a_zp->get_layout().to_short_string() << std::endl;
         }
 
         if (instance.weights_zero_points_term()) {
@@ -190,8 +190,8 @@ protected:
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
 
-            GPU_DEBUG_TRACE_DETAIL << instance.id() << " weights_zero_points: "
-                << " " << w_zp->get_layout().to_short_string() << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << instance.id() << " weights_zero_points: "
+            //    << " " << w_zp->get_layout().to_short_string() << std::endl;
         }
 
         return args;

@@ -194,18 +194,18 @@ void RemoteTensorImpl::copy_to(const std::shared_ptr<ov::ITensor>& dst,
 
     ov::Strides roi_strides = calculate_strides(shape, m_element_type);
     if (dst_remote_tensor != nullptr) {
-        GPU_DEBUG_TRACE_DETAIL << "Copying from RemoteTensor (" << get_memory()->get_allocation_type() << ") to RemoteTensor ("
-                               << dst_remote_tensor->get_memory()->get_allocation_type() << "), src_offset=" << src_offset << ", dst_offset="
-                               << dst_offset << ", roi_shape=" << shape << ", src_shape=" << get_shape() << ", dst_shape=" << dst->get_shape() << "\n";
+        //GPU_DEBUG_TRACE_DETAIL(config) << "Copying from RemoteTensor (" << get_memory()->get_allocation_type() << ") to RemoteTensor ("
+        //                       << dst_remote_tensor->get_memory()->get_allocation_type() << "), src_offset=" << src_offset << ", dst_offset="
+        //                       << dst_offset << ", roi_shape=" << shape << ", src_shape=" << get_shape() << ", dst_shape=" << dst->get_shape() << "\n";
 
         auto src_mem = MemWrapper(stream, get_memory(), nullptr);
         auto dst_mem = MemWrapper(stream, dst_remote_tensor->get_memory(), nullptr);
 
         copy_roi(src_mem, dst_mem, src_offset, dst_offset, get_strides(), dst->get_strides(), roi_strides, get_shape(), dst->get_shape(), shape);
     } else {
-        GPU_DEBUG_TRACE_DETAIL << "Copying from RemoteTensor (" << get_memory()->get_allocation_type() << ") to host tensor, src_offset="
-                               << src_offset << ", dst_offset=" << dst_offset << ", roi_shape=" << shape << ", src_shape=" << get_shape()
-                               << ", dst_shape=" << dst->get_shape() << "\n";
+        //GPU_DEBUG_TRACE_DETAIL(config) << "Copying from RemoteTensor (" << get_memory()->get_allocation_type() << ") to host tensor, src_offset="
+        //                       << src_offset << ", dst_offset=" << dst_offset << ", roi_shape=" << shape << ", src_shape=" << get_shape()
+        //                       << ", dst_shape=" << dst->get_shape() << "\n";
 
         OPENVINO_ASSERT(!std::dynamic_pointer_cast<ov::IRemoteTensor>(dst), "[GPU] Unsupported Remote Tensor type");
 
@@ -228,18 +228,18 @@ void RemoteTensorImpl::copy_from(const std::shared_ptr<const ov::ITensor>& src,
 
     ov::Strides roi_strides = calculate_strides(shape, m_element_type);
     if (src_remote_tensor != nullptr) {
-        GPU_DEBUG_TRACE_DETAIL << "Copying from RemoteTensor (" << src_remote_tensor->get_memory()->get_allocation_type() << ") to RemoteTensor ("
-                               << get_memory()->get_allocation_type() << "), src_offset=" << src_offset << ", dst_offset="
-                               << dst_offset << ", roi_shape=" << shape << ", src_shape" << src->get_shape() << ", dst_shape=" << get_shape() << "\n";
+        //GPU_DEBUG_TRACE_DETAIL(config) << "Copying from RemoteTensor (" << src_remote_tensor->get_memory()->get_allocation_type() << ") to RemoteTensor ("
+        //                       << get_memory()->get_allocation_type() << "), src_offset=" << src_offset << ", dst_offset="
+        //                       << dst_offset << ", roi_shape=" << shape << ", src_shape" << src->get_shape() << ", dst_shape=" << get_shape() << "\n";
 
         auto src_mem = MemWrapper(stream, src_remote_tensor->get_memory(), nullptr);
         auto dst_mem = MemWrapper(stream, get_memory(), nullptr);
 
         copy_roi(src_mem, dst_mem, src_offset, dst_offset, src->get_strides(), get_strides(), roi_strides, src->get_shape(), get_shape(), shape);
     } else {
-        GPU_DEBUG_TRACE_DETAIL << "Copying from host tensor to RemoteTensor (" << get_memory()->get_allocation_type() << "), src_offset="
-                               << src_offset << ", dst_offset=" << dst_offset << ", roi_shape=" << shape << ", src_shape" << src->get_shape()
-                               << ", dst_shape=" << get_shape() << "\n";
+        //GPU_DEBUG_TRACE_DETAIL(config) << "Copying from host tensor to RemoteTensor (" << get_memory()->get_allocation_type() << "), src_offset="
+        //                       << src_offset << ", dst_offset=" << dst_offset << ", roi_shape=" << shape << ", src_shape" << src->get_shape()
+        //                       << ", dst_shape=" << get_shape() << "\n";
 
         OPENVINO_ASSERT(!std::dynamic_pointer_cast<const ov::IRemoteTensor>(src), "[GPU] Unsupported Remote Tensor type");
 
@@ -260,7 +260,7 @@ void RemoteTensorImpl::set_shape(ov::Shape shape) {
     m_shape = shape;
 
     if (ov::shape_size(shape) > m_memory_object->count()) {
-        GPU_DEBUG_TRACE_DETAIL << "Remote realloc" << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "Remote realloc" << std::endl;
         OPENVINO_ASSERT(!is_shared(), "Cannot call set_shape for Tensor created on top of preallocated memory if shape was increased.");
         if (!deallocate()) {
             OPENVINO_THROW("Cannot deallocate tensor while an attempt to enlarge tensor area in set_shape.");

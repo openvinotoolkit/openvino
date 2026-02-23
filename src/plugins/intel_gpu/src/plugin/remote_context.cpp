@@ -241,7 +241,7 @@ void RemoteContextImpl::check_if_shared() const {
 
 void RemoteContextImpl::initialize() {
     std::call_once(m_initialize_flag, [this]() {
-        GPU_DEBUG_INFO << "Initialize RemoteContext for " << m_device_name << " (" << m_device->get_info().dev_name << ")" << std::endl;
+        //GPU_DEBUG_INFO << "Initialize RemoteContext for " << m_device_name << " (" << m_device->get_info().dev_name << ")" << std::endl;
 
 #ifdef OV_GPU_WITH_SYCL
         const auto engine_type = cldnn::engine_types::sycl;

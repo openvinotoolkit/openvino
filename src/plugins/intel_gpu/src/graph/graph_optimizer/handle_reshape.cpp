@@ -152,8 +152,8 @@ void handle_reshape::run(program& p) {
                         auto new_reshape = std::make_shared<reshape>("reorder:_reshape_split_" + user->id() + "_" + node->id(),
                                                                      cldnn::input_info(input_node.id(), input_port),
                                                                      output_shape);
-                        GPU_DEBUG_LOG << "reshape_handler: " << new_reshape->id
-                            << " input_info : " << new_reshape->dependencies().front().to_string() << std::endl;
+                        //GPU_DEBUG_LOG(config) << "reshape_handler: " << new_reshape->id
+                        //    << " input_info : " << new_reshape->dependencies().front().to_string() << std::endl;
                         new_reshape->special_zero = prim->special_zero;
                         new_reshape->output_partial_shape = prim->output_partial_shape;
                         new_reshape->output_pattern = prim->output_pattern;
@@ -187,8 +187,8 @@ void handle_reshape::run(program& p) {
                         cldnn::input_info(input_node.id(), input_port),
                         format,
                         reshape_in_layout.data_type);
-                    GPU_DEBUG_LOG << "reshape_handler: " << reshape_input->id
-                        << " input_info : " << reshape_input->dependencies().front().to_string() << std::endl;
+                    //GPU_DEBUG_LOG(config) << "reshape_handler: " << reshape_input->id
+                    //    << " input_info : " << reshape_input->dependencies().front().to_string() << std::endl;
 
                     auto& reshape_input_node = p.get_or_create(reshape_input);
                     p.add_intermediate(reshape_input_node,
@@ -218,8 +218,8 @@ void handle_reshape::run(program& p) {
                                                                 cldnn::input_info(input_node.id(), input_port),
                                                                 preferred_input_format,
                                                                 reshape_layout.data_type);
-                    GPU_DEBUG_LOG << "reshape_handler: " << reshape_input->id
-                        << " input_info : " << reshape_input->dependencies().front().to_string() << std::endl;
+                    //GPU_DEBUG_LOG(config) << "reshape_handler: " << reshape_input->id
+                    //    << " input_info : " << reshape_input->dependencies().front().to_string() << std::endl;
                     auto& reshape_input_node = p.get_or_create(reshape_input);
                     p.add_intermediate(reshape_input_node, *node, 0, reshape_input_node.get_dependencies().empty());
                     reshape_input_node.recalc_output_layouts(false);
@@ -234,8 +234,8 @@ void handle_reshape::run(program& p) {
                                                                         node->id(),
                                                                         reshape_layout.format,
                                                                         reshape_layout.data_type);
-                        GPU_DEBUG_LOG << "reshape_handler: " << reshape_output->id
-                            << " input_info : " << reshape_output->dependencies().front().to_string() << std::endl;
+                        //GPU_DEBUG_LOG(config) << "reshape_handler: " << reshape_output->id
+                        //    << " input_info : " << reshape_output->dependencies().front().to_string() << std::endl;
                         auto& reshape_output_node = p.get_or_create(reshape_output);
                         p.add_intermediate(reshape_output_node,
                                         *user,

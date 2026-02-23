@@ -91,7 +91,7 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const KernelList& all_impls
         } catch (std::runtime_error& ex) {
             // we have to handle it in order to avoid exception in KernelSelector as much we can
             kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
-            GPU_DEBUG_TRACE << "layerID: " << params.layerID << " kernel: " << kernelName << " - " << ex.what() << std::endl;
+            //GPU_DEBUG_TRACE(config) << "layerID: " << params.layerID << " kernel: " << kernelName << " - " << ex.what() << std::endl;
         }
     }
 
@@ -189,7 +189,7 @@ KernelList kernel_selector_base::GetAllImplementations(const Params& params, Ker
                 return std::move(impl.second);
             });
     } else {
-        GPU_DEBUG_COUT << "No implementation for " << params.layerID << " because of kernel type mismatch" << std::endl;
+        //GPU_DEBUG_COUT(config) << "No implementation for " << params.layerID << " because of kernel type mismatch" << std::endl;
     }
 
     return result;

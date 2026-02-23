@@ -63,7 +63,7 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
                     stage->kd = stage->codegen->get_kernel_data(params);
                     _order.push_back(i);
                 } catch (const std::exception& e) {
-                    GPU_DEBUG_TRACE_DETAIL << "Failed to get kernel data for stage: " << e.what() << "\n";
+                    //GPU_DEBUG_TRACE_DETAIL(config) << "Failed to get kernel data for stage: " << e.what() << "\n";
                 }
                 break;
             }
@@ -246,24 +246,24 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
             args.scalars = &params.scalars;
             args.local_memory_args = &params.local_memory_args;
 
-            GPU_DEBUG_TRACE_DETAIL << "\nExecute stage = " << stage.kernel->get_id() << '\n';
-            GPU_DEBUG_TRACE_DETAIL << "Configured kernel arguments:" << params.arguments.size() << '\n';
+            //GPU_DEBUG_TRACE_DETAIL(config) << "\nExecute stage = " << stage.kernel->get_id() << '\n';
+            //GPU_DEBUG_TRACE_DETAIL(config) << "Configured kernel arguments:" << params.arguments.size() << '\n';
             for (size_t i = 0; i < params.arguments.size(); i++) {
-                GPU_DEBUG_TRACE_DETAIL << "\t" << i << ": type = " << static_cast<size_t>(params.arguments[i].t) << ", index = " << params.arguments[i].index
-                                       << '\n';
+                //GPU_DEBUG_TRACE_DETAIL(config) << "\t" << i << ": type = " << static_cast<size_t>(params.arguments[i].t) << ", index = " << params.arguments[i].index
+                //                       << '\n';
             }
-            GPU_DEBUG_TRACE_DETAIL << "Memory buffers:" << "shape_info=" << args.shape_info << " " << "inputs=" << args.inputs.size() << " "
-                                   << "outputs=" << args.outputs.size() << " " << "intermediates=" << args.intermediates.size() << " "
-                                   << "weights=" << args.weights << " " << "scalars=" << (args.scalars ? args.scalars->size() : 0) << "\n";
+            //GPU_DEBUG_TRACE_DETAIL(config) << "Memory buffers:" << "shape_info=" << args.shape_info << " " << "inputs=" << args.inputs.size() << " "
+            //                       << "outputs=" << args.outputs.size() << " " << "intermediates=" << args.intermediates.size() << " "
+            //                       << "weights=" << args.weights << " " << "scalars=" << (args.scalars ? args.scalars->size() : 0) << "\n";
             stream.set_arguments(*stage.kernel, params, args);
             kd.need_args_update = false;
         }
 
-        const auto& gws = params.workGroups.global;
-        const auto& lws = params.workGroups.local;
+        //const auto& gws = params.workGroups.global;
+        //const auto& lws = params.workGroups.local;
 
-        GPU_DEBUG_TRACE_DETAIL << "Enqueue stage " << stage.kernel->get_id() << " : gws=[" << gws[0] << ", " << gws[1] << ", " << gws[2] << "] " << "lws=["
-                               << lws[0] << ", " << lws[1] << ", " << lws[2] << "]" << (needs_completion_event ? " has_completion_event=true" : "") << '\n';
+        //GPU_DEBUG_TRACE_DETAIL(config) << "Enqueue stage " << stage.kernel->get_id() << " : gws=[" << gws[0] << ", " << gws[1] << ", " << gws[2] << "] " << "lws=["
+        //                       << lws[0] << ", " << lws[1] << ", " << lws[2] << "]" << (needs_completion_event ? " has_completion_event=true" : "") << '\n';
 
         return stream.enqueue_kernel(*stage.kernel, params, {}, events, needs_completion_event);
     }

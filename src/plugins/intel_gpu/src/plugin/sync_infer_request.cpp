@@ -288,7 +288,7 @@ void SyncInferRequest::enqueue() {
 
     // If dump layers path is set, only runs first inference.
     GPU_DEBUG_IF(!config.get_dump_tensors_path().empty() && config.get_dump_iterations().empty()) {
-        GPU_DEBUG_INFO << "Only run first inference to dump layers." << std::endl;
+        //GPU_DEBUG_INFO << "Only run first inference to dump layers." << std::endl;
         exit(0);
     }
 
@@ -348,7 +348,7 @@ void SyncInferRequest::wait() {
             OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::wait::reinterpret_memory");
             OPENVINO_ASSERT(!output_memory->get_layout().data_padding, "[GPU] Unexpected padding in output buffer");
             output_memory = m_graph->get_engine().reinterpret_buffer(*output_memory, output_layout);
-            GPU_DEBUG_TRACE_DETAIL << internal_name << " model output with index " << port_idx << ": " << output_memory->buffer_ptr() << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << internal_name << " model output with index " << port_idx << ": " << output_memory->buffer_ptr() << std::endl;
         }
 
         OPENVINO_ASSERT(m_user_outputs.count(port_idx) > 0, "[GPU] Output index ", port_idx, " is not found in output tensors map");
@@ -361,11 +361,11 @@ void SyncInferRequest::wait() {
         bool is_dynamic = port.get_partial_shape().is_dynamic();
 
         if (is_remote_tensor_impl || is_generic_remote) {
-            GPU_DEBUG_TRACE_DETAIL << internal_name << " handle output tensor (remote) with index: " << port_idx << ": "
-                                   << remote_tensor_impl_ptr->get_original_memory_buf_ptr() << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << internal_name << " handle output tensor (remote) with index: " << port_idx << ": "
+            //                       << remote_tensor_impl_ptr->get_original_memory_buf_ptr() << std::endl;
         } else {
-            GPU_DEBUG_TRACE_DETAIL << internal_name << " handle output tensor (host) with index: " << port_idx << ": "
-                                   << output_tensor->data() << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << internal_name << " handle output tensor (host) with index: " << port_idx << ": "
+            //                       << output_tensor->data() << std::endl;
         }
 
         OPENVINO_ASSERT(output_tensor_wrapper.owner == TensorOwner::PLUGIN || is_dynamic || output_tensor_wrapper.actual_size >= output_memory->size(),
@@ -425,8 +425,8 @@ void SyncInferRequest::wait() {
                 auto dst_ptr = static_cast<uint8_t*>(output_tensor->data());
                 bool same_mem = same_host_mem(output_memory, dst_ptr);
                 if (!same_mem && output_memory->size()) {
-                    GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << port_idx << " copy from: " << output_memory->buffer_ptr() << " to "
-                        << (!is_remote_tensor_impl ? output_tensor->data() : remote_tensor_impl_ptr->get_original_memory_buf_ptr()) << std::endl;
+                    //GPU_DEBUG_TRACE_DETAIL(config) << internal_name << " with index " << port_idx << " copy from: " << output_memory->buffer_ptr() << " to "
+                    //    << (!is_remote_tensor_impl ? output_tensor->data() : remote_tensor_impl_ptr->get_original_memory_buf_ptr()) << std::endl;
                     if (auto ev = copy_output_data(output_memory, *output_tensor)) {
                         copy_events.push_back(ev);
                     }
@@ -509,7 +509,7 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::create_device_tensor(const ov::Pa
     }
 
     // Create OpenCL buffer for PVC if lockable memory is needed due to performance issue with usm host
-    if (!can_use_usm_host(m_graph->get_engine(), total_output_bytes) && need_lockable_memory)
+    if (!can_use_usm_host(m_graph->get_engine(), m_graph->get_config(), total_output_bytes) && need_lockable_memory)
         tensor_type = TensorType::BT_BUF_INTERNAL;
 
     return std::make_shared<RemoteTensorImpl>(m_context,
@@ -538,7 +538,7 @@ TensorWrapper SyncInferRequest::create_or_share_device_tensor(const TensorWrappe
                             user_tensor_mem_type == cldnn::allocation_type::usm_host;
 
     bool can_share = !is_convert_required(user_tensor->get_element_type(), element_type)
-                     && can_use_usm_host(engine, total_output_bytes)
+                     && can_use_usm_host(engine, m_graph->get_config(), total_output_bytes)
                      && !generic_remote_tensor;
 
     if (usm_host_tensor && can_share && m_context == usm_host_tensor->get_impl()->get_context()) {
@@ -608,7 +608,7 @@ void SyncInferRequest::allocate_inputs() {
     for (const auto& it : m_input_ports_map) {
         size_t input_idx = it.first;
         const auto& port = it.second;
-        GPU_DEBUG_LOG << "[init input blob with index: " << input_idx << "]" << std::endl;
+        //GPU_DEBUG_LOG(config) << "[init input blob with index: " << input_idx << "]" << std::endl;
 
         bool is_nv12_input = false;
         if (port.get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static())) {
@@ -633,7 +633,7 @@ void SyncInferRequest::allocate_outputs() {
     for (const auto& it : m_output_ports_map) {
         size_t output_idx = it.first;
         const auto& port = it.second;
-        GPU_DEBUG_LOG << "[init output blob with index: " << output_idx << "]" << std::endl;
+        //GPU_DEBUG_LOG(config) << "[init output blob with index: " << output_idx << "]" << std::endl;
 
         allocate_output(port, output_idx);
         total_output_bytes += ov::ISyncInferRequest::get_tensor(port)->get_byte_size();
@@ -752,12 +752,12 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     bool is_remote_tensor_impl = remote_tensor_impl_ptr != nullptr;
     bool is_usm_host_tensor = usm_host_ptr != nullptr && usm_host_ptr->get_impl()->get_context() == m_context;
 
-    GPU_DEBUG_TRACE_DETAIL << "Prepare input for " << internal_name
-                           << " (is_remote_tensor_impl ? " << is_remote_tensor_impl
-                           << ", is_usm_host_tensor ? " << is_usm_host_tensor
-                           << ", is_generic_remote ? " << is_generic_remote << ")" << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "    port shape       : " << pshape.to_string() << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "    user_tensor shape: " << user_tensor->get_shape().to_string() << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "Prepare input for " << internal_name
+    //                       << " (is_remote_tensor_impl ? " << is_remote_tensor_impl
+    //                       << ", is_usm_host_tensor ? " << is_usm_host_tensor
+    //                       << ", is_generic_remote ? " << is_generic_remote << ")" << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "    port shape       : " << pshape.to_string() << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "    user_tensor shape: " << user_tensor->get_shape().to_string() << std::endl;
 
     auto network = m_graph->get_network();
     auto& engine = m_graph->get_engine();
@@ -831,7 +831,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
                                                                                element_type,
                                                                                cldnn::format::get_default_format(user_tensor->get_shape().size())),
                                                   *m_shape_predictor);
-                GPU_DEBUG_TRACE_DETAIL << "    actual memory shape: " << actual_shape.to_string() << std::endl;
+                //GPU_DEBUG_TRACE_DETAIL(config) << "    actual memory shape: " << actual_shape.to_string() << std::endl;
                 auto new_tensor = create_device_tensor(actual_shape, device_tensor_et, need_lockable_mem);
                 new_tensor->set_shape(user_tensor->get_shape());
                 m_plugin_inputs[input_idx] = { new_tensor, TensorOwner::PLUGIN };
@@ -889,8 +889,8 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
         }
     }
 
-    GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << input_idx << " prepare input: " << memory->buffer_ptr()
-                           << " alloc_type: " << memory->get_allocation_type() << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << internal_name << " with index " << input_idx << " prepare input: " << memory->buffer_ptr()
+    //                       << " alloc_type: " << memory->get_allocation_type() << std::endl;
     network->set_input_data(internal_name, memory);
 
     if (ret_event && !ret_event->is_set())
@@ -913,9 +913,9 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     bool is_remote_tensor_impl = remote_tensor_impl_ptr != nullptr;
     bool is_generic_remote = iremote_tensor_ptr != nullptr && remote_tensor_impl_ptr == nullptr;
 
-    GPU_DEBUG_TRACE_DETAIL << "Prepare output for " << internal_name << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "    port shape       : " << pshape.to_string() << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "    user_tensor shape: " << user_tensor->get_shape().to_string() << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "Prepare output for " << internal_name << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "    port shape       : " << pshape.to_string() << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "    user_tensor shape: " << user_tensor->get_shape().to_string() << std::endl;
 
     if (user_tensor->get_size() > 0) {
         OPENVINO_ASSERT(pshape.compatible(ov::PartialShape(user_tensor->get_shape())),
@@ -959,7 +959,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
 
     auto output_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(m_plugin_outputs.at(output_idx).ptr);
     auto output_memory = output_tensor->get_memory();
-    GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << output_idx << " prepare output: " << output_memory->buffer_ptr() << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << internal_name << " with index " << output_idx << " prepare output: " << output_memory->buffer_ptr() << std::endl;
     return network->set_output_memory(internal_name, output_memory, is_dynamic && (is_remote_tensor_impl || user_tensor));
 }
 

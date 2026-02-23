@@ -42,7 +42,7 @@ void vl_sdpa_inst::get_mask_seqlens_from_memory(std::vector<int32_t>& cu_seqlens
     cu_seqlens.resize(size);
     cu_seqlens_mem->copy_to(stream, cu_seqlens.data(), 0, 0, size * sizeof(int32_t), true);
 
-    GPU_DEBUG_TRACE_DETAIL << " get_mask_seqlens_from_memory " << cu_seqlens << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << " get_mask_seqlens_from_memory " << cu_seqlens << std::endl;
 }
 
 }  // namespace cldnn

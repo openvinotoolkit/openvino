@@ -43,29 +43,29 @@ void read_value_inst::update_output_memory() {
         return;
 
     const auto& variable = get_network().get_variable(variable_id());
-    GPU_DEBUG_TRACE_DETAIL << id() << " Update output memory with variable " << variable_id() << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << " - ptr : " << variable.get_memory()->buffer_ptr() << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << " - layout " << variable.get_layout().to_string() << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << " - actual_size " << variable.get_actual_mem_size() << " bytes" << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << id() << " Update output memory with variable " << variable_id() << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << " - ptr : " << variable.get_memory()->buffer_ptr() << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << " - layout " << variable.get_layout().to_string() << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << " - actual_size " << variable.get_actual_mem_size() << " bytes" << std::endl;
     set_output_memory(variable.get_memory(), false, 0);
 
     if (auto compressed_cache_variable = dynamic_cast<const ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
         auto scales_state = compressed_cache_variable->get_compression_scale_state();
         set_output_memory(scales_state->get_memory(), false, 1);
 
-        GPU_DEBUG_TRACE_DETAIL << id() << " Update output memory with variable " << scales_state->get_name() << std::endl;
-        GPU_DEBUG_TRACE_DETAIL << " - ptr : " << scales_state->get_memory()->buffer_ptr() << std::endl;
-        GPU_DEBUG_TRACE_DETAIL << " - layout " << scales_state->get_layout().to_string() << std::endl;
-        GPU_DEBUG_TRACE_DETAIL << " - actual_size " << scales_state->get_actual_mem_size() << " bytes" << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << id() << " Update output memory with variable " << scales_state->get_name() << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << " - ptr : " << scales_state->get_memory()->buffer_ptr() << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << " - layout " << scales_state->get_layout().to_string() << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << " - actual_size " << scales_state->get_actual_mem_size() << " bytes" << std::endl;
 
         if (compressed_cache_variable->has_zp_state()) {
             auto zp_state = compressed_cache_variable->get_compression_zp_state();
             set_output_memory(zp_state->get_memory(), false, 2);
 
-            GPU_DEBUG_TRACE_DETAIL << id() << " Update output memory with variable " << zp_state->get_name() << std::endl;
-            GPU_DEBUG_TRACE_DETAIL << " - ptr : " << zp_state->get_memory()->buffer_ptr() << std::endl;
-            GPU_DEBUG_TRACE_DETAIL << " - layout " << zp_state->get_layout().to_string() << std::endl;
-            GPU_DEBUG_TRACE_DETAIL << " - actual_size " << zp_state->get_actual_mem_size() << " bytes" << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << id() << " Update output memory with variable " << zp_state->get_name() << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << " - ptr : " << zp_state->get_memory()->buffer_ptr() << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << " - layout " << zp_state->get_layout().to_string() << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << " - actual_size " << zp_state->get_actual_mem_size() << " bytes" << std::endl;
         }
     }
 }

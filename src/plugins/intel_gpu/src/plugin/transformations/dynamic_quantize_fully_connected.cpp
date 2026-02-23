@@ -64,8 +64,8 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
             const size_t wei_scale_group_size = innermost_size / weight_scale_shape[weight_scale_shape.size() - 1].get_length();
             const size_t required_group_size = std::min(wei_zp_group_size, wei_scale_group_size);
             if (adj_group_size > required_group_size) {
-                GPU_DEBUG_LOG << "Dynamic quantization: adjusting group_size " << adj_group_size
-                               << " to wei_zp_group_size " << wei_zp_group_size << " and wei_scale_group_size " << wei_scale_group_size << std::endl;
+                //GPU_DEBUG_LOG(config) << "Dynamic quantization: adjusting group_size " << adj_group_size
+                //               << " to wei_zp_group_size " << wei_zp_group_size << " and wei_scale_group_size " << wei_scale_group_size << std::endl;
                 adj_group_size = required_group_size;
             }
             const bool is_per_token = adj_group_size == innermost_size;
@@ -73,20 +73,20 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
                 config.precomputed_reduction_dt = element::i32; // it supports i32 only now
                 config.precomputed_reduction = true;
             } else {
-                GPU_DEBUG_LOG << "Dynamic quantization: precompute is turned off because group_size " << adj_group_size
-                               << " is not aligned with required_group_size " << required_group_size << std::endl;
+                //GPU_DEBUG_LOG(config) << "Dynamic quantization: precompute is turned off because group_size " << adj_group_size
+                //               << " is not aligned with required_group_size " << required_group_size << std::endl;
             }
         }
 
         if (adj_group_size != UINT64_MAX &&
             (adj_group_size == 0 || (innermost_size % adj_group_size != 0 && innermost_size > adj_group_size))) {
-            GPU_DEBUG_TRACE << "Dynamic quantization: shape is not aligned with group size " << innermost_size << " / " << adj_group_size << std::endl;
+            //GPU_DEBUG_TRACE(config) << "Dynamic quantization: shape is not aligned with group size " << innermost_size << " / " << adj_group_size << std::endl;
             return false;
         }
 
         if (adj_group_size < 32) {
-            GPU_DEBUG_LOG << "Dynamic quantization: quantized activation by group size " << adj_group_size
-                            << " is not supported by onednn matmul if it is less than 32" << std::endl;
+            //GPU_DEBUG_LOG(config) << "Dynamic quantization: quantized activation by group size " << adj_group_size
+            //                << " is not supported by onednn matmul if it is less than 32" << std::endl;
             return false;
         }
 

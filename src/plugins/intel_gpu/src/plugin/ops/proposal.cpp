@@ -95,7 +95,7 @@ static void CreateProposalOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
                                                         cldnn::format::get_default_format(op->get_output_shape(1).size()),
                                                         tensor_from_dims(op->get_output_shape(1)));
 
-            GPU_DEBUG_LOG << "[" << layerName << ": mutable data]" << std::endl;
+            //GPU_DEBUG_LOG(config) << "[" << layerName << ": mutable data]" << std::endl;
             auto shared_memory = p.get_engine().allocate_memory(mutableLayout);
 
             cldnn::primitive_id proposal_mutable_id_w = layerName + "_md_write";

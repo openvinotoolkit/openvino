@@ -67,9 +67,9 @@ protected:
         const size_t kernel_product = (size_t)(desc->kernel_shape[0] * desc->kernel_shape[1]);
         const size_t num_channels = std::max(num_elements_for_block / kernel_product, (size_t)1);
 
-        GPU_DEBUG_TRACE << "  Col2im Batched " << (is_batched ? "true " : "false ") << " num_elements_for_block : " << num_elements_for_block
-                        << ", num_channels : " << num_channels << ", num_blocks : " << num_blocks << " to " << desc->kernel_shape[0] << ", "
-                        << desc->kernel_shape[1] << std::endl;
+        //GPU_DEBUG_TRACE(config) << "  Col2im Batched " << (is_batched ? "true " : "false ") << " num_elements_for_block : " << num_elements_for_block
+        //                << ", num_channels : " << num_channels << ", num_blocks : " << num_blocks << " to " << desc->kernel_shape[0] << ", "
+        //                << desc->kernel_shape[1] << std::endl;
 
         jit.add({
             make_jit_constant("ORIG_HEIGHT", orig_size[0]),

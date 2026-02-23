@@ -78,11 +78,11 @@ static constexpr const char* prefix = "GPU_Debug: ";
                                    << color::purple << std::to_string(__LINE__) << ":" \
                                    << color::cyan << __func__ << ": " << color::reset
 
-#define GPU_DEBUG_LOG_RAW_INT(min_verbose_level) if (ov::intel_gpu::ExecutionConfig::get_verbose() >= min_verbose_level) \
+#define GPU_DEBUG_LOG_RAW_INT(config, min_verbose_level) if ((config).get_level() >= min_verbose_level) \
     (ov::intel_gpu::ExecutionConfig::get_verbose_color() ? GPU_DEBUG_LOG_COLOR_PREFIX : GPU_DEBUG_LOG_PREFIX)
 
-#define GPU_DEBUG_LOG_RAW(min_verbose_level) \
-    GPU_DEBUG_LOG_RAW_INT(static_cast<std::underlying_type_t<ov::intel_gpu::LogLevel>>(min_verbose_level))
+#define GPU_DEBUG_LOG_RAW(config, min_verbose_level) \
+    GPU_DEBUG_LOG_RAW_INT(config, min_verbose_level)
 #else
 #define GPU_DEBUG_IF(cond) if (0)
 #define GPU_DEBUG_VALUE_OR(debug_value, release_value) release_value
@@ -91,11 +91,11 @@ static constexpr const char* prefix = "GPU_Debug: ";
 #define GPU_DEBUG_PROFILED_STAGE(stage)
 #define GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(val)
 #define GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(info)
-#define GPU_DEBUG_LOG_RAW(min_verbose_level) if (0) ov::intel_gpu::get_verbose_stream()
+#define GPU_DEBUG_LOG_RAW(config, min_verbose_level) if (0) ov::intel_gpu::get_verbose_stream()
 #endif
 
-#define GPU_DEBUG_COUT              GPU_DEBUG_LOG_RAW(ov::intel_gpu::LogLevel::DISABLED)
-#define GPU_DEBUG_INFO              GPU_DEBUG_LOG_RAW(ov::intel_gpu::LogLevel::INFO)
-#define GPU_DEBUG_LOG               GPU_DEBUG_LOG_RAW(ov::intel_gpu::LogLevel::LOG)
-#define GPU_DEBUG_TRACE             GPU_DEBUG_LOG_RAW(ov::intel_gpu::LogLevel::TRACE)
-#define GPU_DEBUG_TRACE_DETAIL      GPU_DEBUG_LOG_RAW(ov::intel_gpu::LogLevel::TRACE_DETAIL)
+#define GPU_DEBUG_COUT(config)              GPU_DEBUG_LOG_RAW(config, ov::log::Level::NO)
+#define GPU_DEBUG_INFO(config)              GPU_DEBUG_LOG_RAW(config, ov::log::Level::INFO)
+#define GPU_DEBUG_LOG(config)               GPU_DEBUG_LOG_RAW(config, ov::log::Level::INFO)
+#define GPU_DEBUG_TRACE(config)             GPU_DEBUG_LOG_RAW(config, ov::log::Level::TRACE)
+#define GPU_DEBUG_TRACE_DETAIL(config)      GPU_DEBUG_LOG_RAW(config, ov::log::Level::DEBUG)

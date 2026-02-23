@@ -1383,7 +1383,7 @@ public:
         if (stage == PagedAttentionStage::GENERATE && rt_params->use_gqa_kernel == false)
             can_use_micro_sdpa = false;
 #endif
-        GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: stage = " << static_cast<size_t>(stage) << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "get_internal_buffer_descs: stage = " << static_cast<size_t>(stage) << std::endl;
         int64_t paged_attention_aligned_seq_len = -1;
         if ((stage == PagedAttentionStage::PREFILL || stage == PagedAttentionStage::MIXED) && !params.is_dynamic()) {
             auto block_size = get_query_block_size(stage, can_use_micro_sdpa);
@@ -1472,9 +1472,9 @@ public:
             internal_buffers.emplace_back(indexes_buf_size * 4, indexes_dt, lockable);
         }
 #endif
-        GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: internal_buffers.size = " << internal_buffers.size() << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "get_internal_buffer_descs: internal_buffers.size = " << internal_buffers.size() << std::endl;
         for (size_t i = 0; i < internal_buffers.size(); i++) {
-            GPU_DEBUG_TRACE_DETAIL << "\tinternal_buffers[" << i << "] = " << internal_buffers[i].m_layout.to_short_string() << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "\tinternal_buffers[" << i << "] = " << internal_buffers[i].m_layout.to_short_string() << std::endl;
         }
         return internal_buffers;
     }

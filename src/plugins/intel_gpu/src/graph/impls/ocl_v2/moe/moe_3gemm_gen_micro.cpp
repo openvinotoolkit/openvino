@@ -76,23 +76,23 @@ JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params&
     jit.make("INPUT_SEQ_LEN", 4);  // prefill not use it
     jit.make("SCALE_ZP_NO_TRANSPOSE", 1);
 
-    GPU_DEBUG_TRACE_DETAIL << "\t m_wei_idx: " << m_wei_idx << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "\t m_wei_idx.get_shape(): " << weight_layout.to_short_string() << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "\t m_wei_idx: " << m_wei_idx << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "\t m_wei_idx.get_shape(): " << weight_layout.to_short_string() << std::endl;
     const auto& weight_shape = weight_layout.get_shape();
     // weight layout: u4:bfyx:4x3072x8x128:nopad
     size_t expert_stride = weight_shape.size() == 4 ? (weight_shape[1] * weight_shape[2] * weight_shape[3]) : (weight_shape[1] * weight_shape[2]);
     jit.make("EXPERT_STRIDE", expert_stride / 2);
-    GPU_DEBUG_TRACE_DETAIL << "\t expert_stride: " << expert_stride / 2 << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "\t expert_stride: " << expert_stride / 2 << std::endl;
 
-    GPU_DEBUG_TRACE_DETAIL << "\t m_scale_idx: " << m_scale_idx << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "\t m_scale_idx.get_shape(): " << scale_layout.to_short_string() << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "\t m_scale_idx: " << m_scale_idx << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "\t m_scale_idx.get_shape(): " << scale_layout.to_short_string() << std::endl;
     if (cfg.weight_group_size > 0) {
         const auto scale_shape = scale_layout.get_shape();
         jit.make("NUM_GROUPS", scale_shape[1]);
-        GPU_DEBUG_TRACE_DETAIL << "\t NUM_GROUPS: " << scale_shape[1] << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "\t NUM_GROUPS: " << scale_shape[1] << std::endl;
     } else {
         jit.make("NUM_GROUPS", 1);
-        GPU_DEBUG_TRACE_DETAIL << "\t NUM_GROUPS: 1" << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "\t NUM_GROUPS: 1" << std::endl;
     }
 
     auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
@@ -199,11 +199,11 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     size_t n = is_prefill ? 32 : 8;
     size_t k = weight_shape.size() == 4 ? weight_shape[2] * weight_shape[3] : weight_shape[2];
 
-    GPU_DEBUG_TRACE_DETAIL << "MoE3GemmMicroGenerator::init_microkernels: " << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "\t m = " << m << ", n = " << n << ", k = " << k << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "MoE3GemmMicroGenerator::init_microkernels: " << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "\t m = " << m << ", n = " << n << ", k = " << k << std::endl;
 
     size_t group_size = weight_shape.size() == 4 ? weight_shape[3] : weight_shape[2];
-    GPU_DEBUG_TRACE_DETAIL << "\t weight group size: " << group_size << "\n";
+    //GPU_DEBUG_TRACE_DETAIL(config) << "\t weight group size: " << group_size << "\n";
 
     micro::GEMMProblem problem_moe;
     micro::GEMMProtocol::Options opts_moe;
@@ -259,14 +259,14 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     sizes.k = static_cast<int32_t>(k);
     sizes.batch = static_cast<int32_t>(1);
 
-    GPU_DEBUG_TRACE_DETAIL << "problem_moe:" << problem_moe.toString() << "\n";
-    GPU_DEBUG_TRACE_DETAIL << "sizes to select gemm : m : " << m << " n : " << n << " k : " << k << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "problem_moe:" << problem_moe.toString() << "\n";
+    //GPU_DEBUG_TRACE_DETAIL(config) << "sizes to select gemm : m : " << m << " n : " << n << " k : " << k << std::endl;
     try {
         /* Ask microkernel provider for microkernel */
         micro::Package pkg = micro::select_gemm_microkernel(opts_moe, hw_info, sizes, problem_moe);
         s_gemm_cache.emplace(key, pkg);
         gemm_moe = std::move(pkg);
-        GPU_DEBUG_TRACE_DETAIL << "MoE3GemmMicroGenerator::init_microkernels: create and cache new micro kernel" << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "MoE3GemmMicroGenerator::init_microkernels: create and cache new micro kernel" << std::endl;
     } catch (const std::runtime_error& ex) {
         OPENVINO_THROW("Can't create moe micro kernel: ", ex.what());
     }
@@ -292,16 +292,16 @@ DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
         auto input_layout = params.get_input_layout(0);
         auto experts_weight_layout = params.get_input_layout(wei_idx);
 
-        GPU_DEBUG_TRACE_DETAIL << "\t input_layout: " << input_layout.to_short_string() << std::endl;
-        GPU_DEBUG_TRACE_DETAIL << "\t wei_idx = " << wei_idx << std::endl;
-        GPU_DEBUG_TRACE_DETAIL << "\t experts_weight_layout: " << experts_weight_layout.to_short_string() << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "\t input_layout: " << input_layout.to_short_string() << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "\t wei_idx = " << wei_idx << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "\t experts_weight_layout: " << experts_weight_layout.to_short_string() << std::endl;
 
         // has_batch_dim indicates whether the input tensor has batch dimension
         size_t n = input_layout.get_shape().size() == 3 ? input_layout.get_shape()[1] : input_layout.get_shape()[0];
         auto cur_moe = params.typed_desc<moe_3gemm_fused_compressed>();
         const auto& config = cur_moe->_config;
         n = n * config.top_k;
-        GPU_DEBUG_TRACE_DETAIL << "\t n = " << n << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "\t n = " << n << std::endl;
 
         const auto& experts_weight_shape = experts_weight_layout.get_shape();
         const size_t subgroup_size = get_subgroup_size(device_info.arch);
@@ -318,7 +318,7 @@ DispatchDataFunc MoE3GemmMicroGenerator::get_dispatch_data_func() const {
         s_k.v.s32 = static_cast<int32_t>(k);
         scalars.push_back(s_k);
 
-        GPU_DEBUG_TRACE_DETAIL << "\t m = " << m << ", k = " << k << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "\t m = " << m << ", k = " << k << std::endl;
     }};
 }
 
@@ -402,8 +402,8 @@ KernelData MoE3GemmMicroGenerator::get_kernel_data(const kernel_impl_params& par
     kd.code->has_microkernels = true;
 
     try {
-        GPU_DEBUG_TRACE_DETAIL << "\t get_kernel_name(): " << get_kernel_name() << std::endl;
-        GPU_DEBUG_TRACE_DETAIL << "\t kd.code->entry_point: " << kd.code->entry_point << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "\t get_kernel_name(): " << get_kernel_name() << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "\t kd.code->entry_point: " << kd.code->entry_point << std::endl;
         kd.code->str = build_code(get_kernel_name(), jit, kd.code->entry_point);
     } catch (const std::runtime_error& ex) {
         OPENVINO_THROW("MoE3GemmMicroGenerator::get_kernel_data() - can't build code: ", ex.what());
@@ -436,7 +436,7 @@ KernelData MoE3GemmMicroGenerator::get_kernel_data(const kernel_impl_params& par
         kd.params.arguments.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, slm_size});
     }
 
-    GPU_DEBUG_TRACE_DETAIL << "MoE3GemmMicroGenerator::get_kernel_data() completed\n";
+    //GPU_DEBUG_TRACE_DETAIL(config) << "MoE3GemmMicroGenerator::get_kernel_data() completed\n";
     return kd;
 }
 }  // namespace ov::intel_gpu::ocl

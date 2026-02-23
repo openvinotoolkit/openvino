@@ -56,8 +56,8 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                     static std::atomic_llong total{0};
                     int64_t size = _scratchpad_md.get_size() / 1048576;
                     total += size;
-                    GPU_DEBUG_TRACE_DETAIL << " [scratchpad] kind: " << static_cast<int>(_pd.get_kind())
-                        << ", " << size << "MB, total " << total << "MB" << std::endl;
+                    //GPU_DEBUG_TRACE_DETAIL(config) << " [scratchpad] kind: " << static_cast<int>(_pd.get_kind())
+                    //    << ", " << size << "MB, total " << total << "MB" << std::endl;
                 }
             }
 

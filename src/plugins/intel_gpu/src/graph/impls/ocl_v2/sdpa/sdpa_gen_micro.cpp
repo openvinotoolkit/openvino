@@ -1406,9 +1406,9 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     const ov::Dimension n_values = ov::Dimension(v_head_size);
     const auto batch = out_ps[0] * out_ps[1];
 
-    GPU_DEBUG_TRACE_DETAIL << "\nconfiguration.is_kv_compressed = " << configuration.is_kv_compressed << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", v_head_size = " << v_head_size << ", d_max = " << d_max << ", batch = " << batch << "\n";
-    GPU_DEBUG_TRACE_DETAIL << "n_keys = " << n_keys.to_string() << ", n_queries = " << n_queries.to_string() << ", n_values = " << n_values.to_string() << "\n";
+    //GPU_DEBUG_TRACE_DETAIL(config) << "\nconfiguration.is_kv_compressed = " << configuration.is_kv_compressed << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "k_head_size = " << k_head_size << ", v_head_size = " << v_head_size << ", d_max = " << d_max << ", batch = " << batch << "\n";
+    //GPU_DEBUG_TRACE_DETAIL(config) << "n_keys = " << n_keys.to_string() << ", n_queries = " << n_queries.to_string() << ", n_values = " << n_values.to_string() << "\n";
 
     /* Retrieve pre-tuned kernel configuration */
     sdpa_config_t* config = nullptr;
@@ -1421,8 +1421,8 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         (K.data_type == ov::element::u8 || K.data_type == ov::element::i8) || (V.data_type == ov::element::u8 || V.data_type == ov::element::i8);
     int32_t nkeys_v = n_keys.is_dynamic() ? 0 : n_keys.get_length();
 
-    GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", nkeys_v = " << nkeys_v << "\n";
-    GPU_DEBUG_TRACE_DETAIL << "thin_q = " << thin_q << ", is_quantized = " << is_quantized << "\n";
+    //GPU_DEBUG_TRACE_DETAIL(config) << "k_head_size = " << k_head_size << ", nkeys_v = " << nkeys_v << "\n";
+    //GPU_DEBUG_TRACE_DETAIL(config) << "thin_q = " << thin_q << ", is_quantized = " << is_quantized << "\n";
     switch (device_info.arch) {
     case gpu_arch::xe_hpg: {
         config = choose_config_xehpg(static_cast<int32_t>(k_head_size), static_cast<int32_t>(nkeys_v), thin_q, is_quantized, is_paged_attention, is_prefill);
@@ -1515,7 +1515,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
             problem_kq.A_scale.setAlignment(scale_dt.size());
             problem_kq.A_scale.layout = micro::MatrixLayout::N;
             problem_kq.asPtrDims = 2;
-            GPU_DEBUG_TRACE_DETAIL << "kq: key_cache_id = " << key_cache_id << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "kq: key_cache_id = " << key_cache_id << std::endl;
         }
 
         if (configuration.is_kv_compressed && use_asymmetric_quantization) {
@@ -1560,9 +1560,9 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     sizes.k = static_cast<int64_t>(k_head_size);
     sizes.batch = batch.is_dynamic() ? 0 : batch.get_length();
 
-    GPU_DEBUG_TRACE_DETAIL << "kq: sizes = {" << sizes.m << ", " << sizes.n << ", " << sizes.k << ", " << sizes.batch << "}\n";
-    GPU_DEBUG_TRACE_DETAIL << "config->wg_m_kq = " << config->wg_m_kq << ", config->wg_n_kq = " << config->wg_n_kq << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "config->unroll_m_kq = " << config->unroll_m_kq << ", config->unroll_n_kq = " << config->unroll_n_kq << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "kq: sizes = {" << sizes.m << ", " << sizes.n << ", " << sizes.k << ", " << sizes.batch << "}\n";
+    //GPU_DEBUG_TRACE_DETAIL(config) << "config->wg_m_kq = " << config->wg_m_kq << ", config->wg_n_kq = " << config->wg_n_kq << std::endl;
+    //GPU_DEBUG_TRACE_DETAIL(config) << "config->unroll_m_kq = " << config->unroll_m_kq << ", config->unroll_n_kq = " << config->unroll_n_kq << std::endl;
 
     /* Set up microkernel requirements */
     std::vector<micro::StrategyRequirement> reqs_kq;
@@ -1575,7 +1575,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     try {
         gemm_kq = micro::select_gemm_microkernel(opts_kq, hw_info, sizes, problem_kq, reqs_kq);
     } catch (const std::runtime_error& ex) {
-        GPU_DEBUG_TRACE_DETAIL << "Can't create KQ sdpa_micro kernel: " << ex.what() << "\n";
+        //GPU_DEBUG_TRACE_DETAIL(config) << "Can't create KQ sdpa_micro kernel: " << ex.what() << "\n";
         throw;
     }
 
@@ -1617,7 +1617,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
             problem_vs.A_scale.setAlignment(scale_dt.size());
             problem_vs.A_scale.layout = micro::MatrixLayout::N;
             problem_vs.asPtrDims = 2;
-            GPU_DEBUG_TRACE_DETAIL << "vs: value_cache_id = " << value_cache_id << std::endl;
+            //GPU_DEBUG_TRACE_DETAIL(config) << "vs: value_cache_id = " << value_cache_id << std::endl;
         }
 
         if (configuration.is_kv_compressed && use_asymmetric_quantization) {
@@ -1648,7 +1648,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     sizes.n = gemm_kq.getSetting("wg_tile_n");
     sizes.k = gemm_kq.getSetting("wg_tile_m");
 
-    GPU_DEBUG_TRACE_DETAIL << "vs: sizes = {" << sizes.m << ", " << sizes.n << ", " << sizes.k << ", " << sizes.batch << "}\n";
+    //GPU_DEBUG_TRACE_DETAIL(config) << "vs: sizes = {" << sizes.m << ", " << sizes.n << ", " << sizes.k << ", " << sizes.batch << "}\n";
 
     /* Set up special kernel requirements */
     std::vector<micro::StrategyRequirement> reqs_vs;
@@ -1665,7 +1665,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     try {
         gemm_vs = micro::select_gemm_microkernel(opts_vs, hw_info, sizes, problem_vs, reqs_vs, adjust_vs);
     } catch (const std::runtime_error& ex) {
-        GPU_DEBUG_TRACE_DETAIL << "Can't create VS sdpa_micro kernel: " << ex.what() << "\n";
+        //GPU_DEBUG_TRACE_DETAIL(config) << "Can't create VS sdpa_micro kernel: " << ex.what() << "\n";
         throw;
     }
 }

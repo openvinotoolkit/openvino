@@ -147,8 +147,8 @@ void DynamicQuantizeKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
         kd.kernels[0].skip_execution = false;
 
-        GPU_DEBUG_TRACE_DETAIL << "Update Dispatch data DynamicQuantizeKernelOpt gws : " << dispatchData.gws[0] << ", "
-                << dispatchData.gws[1] << ", " << dispatchData.gws[2] << std::endl;
+        //GPU_DEBUG_TRACE_DETAIL(config) << "Update Dispatch data DynamicQuantizeKernelOpt gws : " << dispatchData.gws[0] << ", "
+        //        << dispatchData.gws[1] << ", " << dispatchData.gws[2] << std::endl;
     };
 }
 

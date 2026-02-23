@@ -36,7 +36,7 @@ void print_selected_formats(const program_node& n) {
     for (size_t i = 0; i < out_fmts.size(); i++) {
         ss << "\tOut " << i << ": " << fmt_to_str(out_fmts[i]) << std::endl;
     }
-    GPU_DEBUG_LOG << ss.str() << std::endl;
+    //GPU_DEBUG_LOG(config) << ss.str() << std::endl;
 }
 
 static void optimize_conv_permute(program_node& node) {
@@ -121,7 +121,7 @@ void select_preferred_formats::run(program& p) {
                     optimize_conv_permute(*n);
                 }
             } catch (std::exception& exception) {
-                GPU_DEBUG_LOG << "WARNING(select_preferred_formats): " << exception.what() << std::endl;
+                //GPU_DEBUG_LOG(config) << "WARNING(select_preferred_formats): " << exception.what() << std::endl;
             }
             print_selected_formats(*n);
         }

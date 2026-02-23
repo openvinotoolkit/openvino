@@ -198,8 +198,8 @@ bool ProgramBuilder::is_op_supported(const std::shared_ptr<ov::Node>& op) {
 
 void ProgramBuilder::CreateSingleLayerPrimitive(const std::shared_ptr<ov::Node>& op) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "ProgramBuilder::CreateSingleLayerPrimitive");
-    GPU_DEBUG_LOG << "Process " << "op::" << op->get_type_info().version_id << "::" << op->get_type_name() << " operation "
-                  << "(friendly_name=" << op->get_friendly_name() << ")" << std::endl;
+    //GPU_DEBUG_LOG(config)(m_config) << "Process " << "op::" << op->get_type_info().version_id << "::" << op->get_type_name() << " operation "
+    //              << "(friendly_name=" << op->get_friendly_name() << ")" << std::endl;
 
     bool is_created = false;
     const ov::NodeTypeInfo* op_type_info = &op->get_type_info();
