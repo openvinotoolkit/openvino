@@ -36,6 +36,17 @@ Give high-signal review comments that help maintainers merge safely with minimal
 - Review only when explicitly triggered by a user.
 - If the label is removed after prior review results were published: perform a new review but do not duplicate previously reported observations; focus exclusively on areas not covered by prior reviews.
 
+### Revert PRs
+A revert PR restores a previously merged change. It is identified by the word "Revert" in the PR title or description, and typically references the original PR being reverted (e.g., `Reverts openvinotoolkit/openvino#NNNNN`).
+
+- **Treat revert PRs with a lighter review posture.** A revert is not new code — it restores a prior known state. Do not evaluate it as a new change.
+- **Focus the review on regression risk:** determine what the original PR fixed and whether reverting it re-introduces those issues (bugs, regressions, security fixes).
+- Identify the original PR from the description or title. If possible, review its description and linked tickets to understand what it addressed.
+- If the revert re-introduces a known prior issue, add a `[MEDIUM]` reminder comment noting the risk. Do **not** use `[BLOCKER]` — the author is likely aware, but a reminder is valuable.
+- Do not request new tests, refactors, or style changes on revert PRs unless there is a clear correctness or security concern.
+- Keep the comment budget minimal (1–2 comments). Prefer a concise review summary over line-level comments.
+- If CI checks pass and no prior regression risk is identified, approve with a brief note.
+
 ## Review Protocol
 When reviewing a PR, always:
 1. Determine changed component(s) by paths and labels (see `.github/labeler.yml`).
@@ -129,6 +140,18 @@ Before posting any comment, apply this gate:
 - If tests are skipped/disabled, require explicit rationale and limited scope.
 - If required validation jobs fail, cite the exact failing job(s) and explain impact on merge readiness.
 - For PRs labeled `ExternalPR`, include `ExternalPR Build Smoke` status in review summary when available.
+
+### CI Failure Log Analysis
+When CI/GitHub Actions results are available and a job has failed:
+- Inspect the available failure logs to determine the root cause.
+- Classify the failure into one of three categories:
+  1. **Infrastructure/environment issue** — flaky runner, network timeout, resource exhaustion, dependency mirror outage, or similar non-code problems.
+  2. **Test issue** — pre-existing flaky or broken test unrelated to the PR's changes (e.g., known intermittent failure, test environment mismatch).
+  3. **Change-induced failure** — the PR's code changes directly cause the build or test failure.
+- Post a follow-up review comment summarizing the failure analysis with the identified category, the failing job name, and a concise explanation of what went wrong.
+- For change-induced failures, provide actionable guidance on what in the diff likely caused it and how to fix it.
+- For infrastructure or pre-existing test issues, note that the failure appears unrelated to the PR to help the author avoid unnecessary debugging.
+- This analysis significantly reduces author turnaround time and should be provided whenever log data is accessible.
 
 ## How to Write Review Comments
 - Use this severity prefix:
