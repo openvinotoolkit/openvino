@@ -9,6 +9,7 @@
 #include "tensor_utils.hpp"
 #include "yolo_helpers.hpp"
 #include "tools_helpers.hpp"
+#include "argument_parse_helpers.hpp"
 
 #include <openvino/core/parallel.hpp>
 #include <openvino/openvino.hpp>
@@ -138,21 +139,21 @@ DEFINE_string(ref_results, "", ref_results_message);
 DEFINE_string(mode, "", "Comparison mode to use");
 
 DEFINE_uint32(top_k, 1, "Top K parameter for 'classification' mode");
-DEFINE_double(prob_tolerance, 1e-4, "Probability tolerance for 'classification/ssd/yolo' mode");
+DEFINE_string(prob_tolerance, std::to_string(metric_defaults::prob_tolerance), "Probability tolerance for 'classification/ssd/yolo' mode. Can be a single value or per-layer: 'layer1:0.01;layer2:0.02'");
 
-DEFINE_double(raw_tolerance, 1e-4, "Tolerance for 'raw' mode (absolute diff)");
-DEFINE_double(cosim_threshold, 0.90, "Threshold for 'cosim' mode");
-DEFINE_double(rrmse_loss_threshold, std::numeric_limits<double>::max(), "Threshold for 'rrmse' mode");
-DEFINE_double(nrmse_loss_threshold, 1.0, "Threshold for 'nrmse' mode");
-DEFINE_double(l2norm_threshold, 1.0, "Threshold for 'l2norm' mode");
-DEFINE_double(overlap_threshold, 0.50, "IoU threshold for 'map' mode (detection matching)");
-DEFINE_double(map_threshold, 0.50, "mAP score threshold for 'map' mode validation");
-DEFINE_double(confidence_threshold, 1e-4, "Confidence threshold for Detection mode");
-DEFINE_double(box_tolerance, 1e-4, "Box tolerance for 'detection' mode");
+DEFINE_string(raw_tolerance, std::to_string(metric_defaults::raw_tolerance), "Tolerance for 'raw' mode (absolute diff). Can be a single value or per-layer: 'layer1:0.01;layer2:0.02'");
+DEFINE_string(cosim_threshold, std::to_string(metric_defaults::cosim_threshold), "Threshold for 'cosim' mode. Can be a single value or per-layer: 'layer1:0.95;layer2:0.90'");
+DEFINE_string(rrmse_loss_threshold, std::to_string(metric_defaults::rrmse_loss_threshold), "Threshold for 'rrmse' mode. Can be a single value or per-layer: 'layer1:0.1;layer2:0.2'");
+DEFINE_string(nrmse_loss_threshold, std::to_string(metric_defaults::nrmse_loss_threshold), "Threshold for 'nrmse' mode. Can be a single value or per-layer: 'logits:0.03;pred_boxes:0.05'");
+DEFINE_string(l2norm_threshold, std::to_string(metric_defaults::l2norm_threshold), "Threshold for 'l2norm' mode. Can be a single value or per-layer: 'layer1:1.0;layer2:2.0'");
+DEFINE_string(overlap_threshold, std::to_string(metric_defaults::overlap_threshold), "IoU threshold for 'map' mode (detection matching). Can be a single value or per-layer: 'layer1:0.5;layer2:0.6'");
+DEFINE_string(map_threshold, std::to_string(metric_defaults::map_threshold), "mAP score threshold for 'map' mode validation. Can be a single value or per-layer: 'layer1:0.5;layer2:0.6'");
+DEFINE_string(confidence_threshold, std::to_string(metric_defaults::confidence_threshold), "Confidence threshold for Detection mode. Can be a single value or per-layer: 'layer1:0.5;layer2:0.3'");
+DEFINE_string(box_tolerance, std::to_string(metric_defaults::box_tolerance), "Box tolerance for 'detection' mode. Can be a single value or per-layer: 'layer1:0.01;layer2:0.02'");
 DEFINE_bool(apply_soft_max, false, "Apply SoftMax for 'nrmse' mode");
 
-DEFINE_double(psnr_reference, 30.0, "PSNR reference value in dB");
-DEFINE_double(psnr_tolerance, 1e-4, "Tolerance for 'psnr' mode");
+DEFINE_string(psnr_reference, std::to_string(metric_defaults::psnr_reference), "PSNR reference value in dB. Can be a single value or per-layer: 'layer1:30.0;layer2:35.0'");
+DEFINE_string(psnr_tolerance, std::to_string(metric_defaults::psnr_tolerance), "Tolerance for 'psnr' mode. Can be a single value or per-layer: 'layer1:0.01;layer2:0.02'");
 
 DEFINE_string(log_level, "", "IE logger level (optional)");
 DEFINE_string(color_format, "BGR", "Color format for input: RGB or BGR");
@@ -169,7 +170,7 @@ typedef std::chrono::high_resolution_clock Time;
 // for Semantic Segmentation
 DEFINE_bool(skip_arg_max, false, "Skip ArgMax post processing step");
 DEFINE_uint32(sem_seg_classes, 12, "Number of classes for semantic segmentation");
-DEFINE_double(sem_seg_threshold, 0.98, "Threshold for 'semantic segmentation' mode");
+DEFINE_string(sem_seg_threshold, "0.98", "Threshold for 'semantic segmentation' mode. Can be a single value or per-layer: 'layer1:0.98;layer2:0.95'");
 DEFINE_uint32(sem_seg_ignore_label, std::numeric_limits<uint32_t>::max(), "The number of the label to be ignored");
 DEFINE_string(dataset, "NONE",
               "The dataset used to train the model. Useful for instances such as semantic segmentation to visualize "
@@ -1417,6 +1418,10 @@ bool testClassification(const TensorMap& outputs, const TensorMap& references, c
         refProbsBatch[i].resize(FLAGS_top_k);
     }
 
+    // Parse prob_tolerance (can be per-layer or global)
+    auto toleranceMap = utils::parsePerLayerValues(FLAGS_prob_tolerance, metric_defaults::prob_tolerance);
+    double probTolerance = utils::getValueForLayer(toleranceMap, outputs.begin()->first);
+
     bool result = true;
     for (size_t i = 0; i < probsBatch.size(); i++) {
         if (batch_size != 1) {
@@ -1452,7 +1457,7 @@ bool testClassification(const TensorMap& outputs, const TensorMap& references, c
 
             if (refElem.second > actualElem.second) {
                 const auto probDiff = std::fabs(refElem.second - actualElem.second);
-                if (probDiff > FLAGS_prob_tolerance) {
+                if (probDiff > probTolerance) {
                     std::cout << "Probability value mismatch for " << refElem.first << " : " << refElem.second << " vs "
                               << actualElem.second << std::endl;
                     result = result && false;
@@ -1466,9 +1471,10 @@ bool testClassification(const TensorMap& outputs, const TensorMap& references, c
 
 //
 // RAW mode
+// e.g. '--mode raw --raw_tolerance "layer1:0.01;layer2:0.02"'
 //
 
-bool compareTensors(const ov::Tensor& output, const ov::Tensor& reference) {
+bool compareRAW(const ov::Tensor& output, const ov::Tensor& reference, double tolerance) {
     if (output.get_shape() != reference.get_shape()) {
         std::cout << "Output and reference tensors have different shapes" << std::endl;
         return false;
@@ -1494,7 +1500,7 @@ bool compareTensors(const ov::Tensor& output, const ov::Tensor& reference) {
                       << " absdiff : " << std::setw(10) << absDiff << std::endl;
         }
 
-        if (absDiff > FLAGS_raw_tolerance) {
+        if (absDiff > tolerance) {
             std::cout << "Absolute difference between output value " << outputValue << " and reference value "
                       << referenceValue << " at index " << i << " larger then tolerance" << std::endl;
             return false;
@@ -1510,15 +1516,25 @@ bool testRAW(const TensorMap& outputTensors, const TensorMap& referenceTensors, 
         return false;
     }
 
+    // Parse per-layer thresholds
+    auto toleranceMap = utils::parsePerLayerValues(FLAGS_raw_tolerance, metric_defaults::raw_tolerance);
+
     bool allPassed = true;
     for (const auto& [tensorName, outputTensor] : outputTensors) {
         auto referenceTensorIterator = referenceTensors.find(tensorName);
         OPENVINO_ASSERT(referenceTensorIterator != referenceTensors.end());
 
+        // Get tolerance for this specific layer
+        double layerTolerance = utils::getValueForLayer(toleranceMap, tensorName);
+
+        BlobTestMethod blobComparator = [layerTolerance](ov::Tensor outputTensor, ov::Tensor referenceTensor) {
+            return compareRAW(outputTensor, referenceTensor, layerTolerance);
+        };
+
         if (!test_blobs_in_batch(tensorName,
                                  splitBatchedTensor(outputTensor, tensorName, outputLayouts),
                                  splitBatchedTensor(referenceTensorIterator->second, tensorName, outputLayouts),
-                                 compareTensors)) {
+                                 blobComparator)) {
             allPassed = false;
         }
     }
@@ -1530,9 +1546,10 @@ bool testRAW(const TensorMap& outputTensors, const TensorMap& referenceTensors, 
 // Cosine-Similarity mode
 // (using 'cosim_threshold' flag, with expected value in range [0.0 -> 1.0])
 // e.g. '--mode cosim --cosim_threshold 0.98'
+// e.g. '--mode cosim --cosim_threshold "layer1:0.98;layer2:0.95"'
 //
 
-bool compareCoSim(const ov::Tensor& output, const ov::Tensor& reference) {
+bool compareCoSim(const ov::Tensor& output, const ov::Tensor& reference, double threshold) {
     if (output.get_shape() != reference.get_shape()) {
         std::cout << "Actual and reference blobs has different shape" << std::endl;
         return false;
@@ -1570,7 +1587,7 @@ bool compareCoSim(const ov::Tensor& output, const ov::Tensor& reference) {
     }
 
     std::cout << "Cosine similarity : " << similarity * 100 << "%" << std::endl;
-    return similarity > FLAGS_cosim_threshold;
+    return similarity > threshold;
 }
 
 bool testCoSim(const TensorMap& outputs, const TensorMap& references, const LayoutMap& outputLayouts) {
@@ -1579,15 +1596,25 @@ bool testCoSim(const TensorMap& outputs, const TensorMap& references, const Layo
         return false;
     }
 
+    // Parse per-layer thresholds
+    auto thresholdMap = utils::parsePerLayerValues(FLAGS_cosim_threshold, metric_defaults::cosim_threshold);
+
     bool allPassed = true;
     for (const auto& [tensorName, output] : outputs) {
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
 
+        // Get threshold for this specific layer
+        double layerThreshold = utils::getValueForLayer(thresholdMap, tensorName);
+
+        BlobTestMethod blobComparator = [layerThreshold](ov::Tensor outputTensor, ov::Tensor referenceTensor) {
+            return compareCoSim(outputTensor, referenceTensor, layerThreshold);
+        };
+
         if (!test_blobs_in_batch(tensorName,
                                  splitBatchedTensor(output, tensorName, outputLayouts),
                                  splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
-                                 compareCoSim)) {
+                                 blobComparator)) {
             allPassed = false;
         }
     }
@@ -1599,9 +1626,10 @@ bool testCoSim(const TensorMap& outputs, const TensorMap& references, const Layo
 // Relative Root Mean Squared Error mode
 // (using 'rrmse_loss_threshold' flag, with expected value in range [0.0 -> infinity))
 // e.g. '--mode rrmse --rrmse_loss_threshold 0.1'
+// e.g. '--mode rrmse --rrmse_loss_threshold "logits:0.1;pred_boxes:0.2"'
 //
 
-bool computeRRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
+bool computeRRMSE(const ov::Tensor& output, const ov::Tensor& reference, double threshold) {
     if (output.get_shape() != reference.get_shape()) {
         std::cout << "Output and reference tensors have different shapes" << std::endl;
         return false;
@@ -1635,8 +1663,8 @@ bool computeRRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
     double rrmseLoss = sqrt(error / sum);
 
     std::cout << "RRMSE loss : " << std::fixed << std::setprecision(4) << rrmseLoss
-              << "   RRMSE threshold : " << std::defaultfloat << FLAGS_rrmse_loss_threshold << std::endl;
-    return rrmseLoss <= FLAGS_rrmse_loss_threshold;
+              << "   RRMSE threshold : " << std::defaultfloat << threshold << std::endl;
+    return rrmseLoss <= threshold;
 }
 
 bool testRRMSE(const TensorMap& outputs, const TensorMap& references, const LayoutMap& outputLayouts) {
@@ -1645,15 +1673,25 @@ bool testRRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
         return false;
     }
 
+    // Parse per-layer thresholds
+    auto thresholdMap = utils::parsePerLayerValues(FLAGS_rrmse_loss_threshold, metric_defaults::rrmse_loss_threshold);
+
     bool allPassed = true;
     for (const auto& [tensorName, output] : outputs) {
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
 
+        // Get threshold for this specific layer
+        double layerThreshold = utils::getValueForLayer(thresholdMap, tensorName);
+
+        BlobTestMethod blobComparator = [layerThreshold](ov::Tensor outputTensor, ov::Tensor referenceTensor) {
+            return computeRRMSE(outputTensor, referenceTensor, layerThreshold);
+        };
+
         if (!test_blobs_in_batch(tensorName,
                                  splitBatchedTensor(output, tensorName, outputLayouts),
                                  splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
-                                 computeRRMSE)) {
+                                 blobComparator)) {
             allPassed = false;
         }
     }
@@ -1665,9 +1703,10 @@ bool testRRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
 // Normalized Mean Squared Error mode
 // (using 'nrmse_loss_threshold' flag, with expected value in range [0.0 -> infinity))
 // e.g. '--mode nrmse --nrmse_loss_threshold 0.01'
+// e.g. '--mode nrmse --nrmse_loss_threshold "logits:0.03;pred_boxes:0.05"'
 //
 
-bool computeNRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
+bool computeNRMSE(const ov::Tensor& output, const ov::Tensor& reference, double threshold) {
     if (output.get_shape() != reference.get_shape()) {
         std::cout << "Output and reference tensors have different shapes" << std::endl;
         return false;
@@ -1701,8 +1740,8 @@ bool computeNRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
             sqrt(error / size) / std::max(0.001f, std::max(maxOutput - minOutput, maxReference - minReference));
 
     std::cout << "NRMSE loss : " << std::fixed << std::setprecision(4) << nrmseLoss
-              << "   NRMSE threshold : " << std::defaultfloat << FLAGS_nrmse_loss_threshold << std::endl;
-    return nrmseLoss <= FLAGS_nrmse_loss_threshold;
+              << "   NRMSE threshold : " << std::defaultfloat << threshold << std::endl;
+    return nrmseLoss <= threshold;
 }
 
 //
@@ -1759,6 +1798,13 @@ std::vector<Detection> parseDetectionsFromOutputs(const TensorMap& outputs, floa
     // Find the pred_boxes and logits tensors
     auto pred_boxes_it = outputs.find("pred_boxes");
     auto logits_it = outputs.find("logits");
+
+    // Parse confidence_threshold (can be per-layer or global)
+    auto confMap = utils::parsePerLayerValues(FLAGS_confidence_threshold, metric_defaults::confidence_threshold);
+    float confThresh = static_cast<float>(utils::getValueForLayer(confMap, "logits"));
+    if (confidence_threshold > 0.0f) {
+        confThresh = confidence_threshold;  // Use passed parameter if provided
+    }
 
     if (pred_boxes_it == outputs.end()) {
         std::cout << "Warning: 'pred_boxes' output not found" << std::endl;
@@ -1990,8 +2036,12 @@ double calculateAveragePrecision(const std::vector<float>& precision, const std:
 }
 
 bool computeMAP(const TensorMap& outputs, const TensorMap& references) {
-    auto confThresh = FLAGS_confidence_threshold;
-    auto overlapThresh = FLAGS_overlap_threshold;
+    // Parse confidence_threshold and overlap_threshold
+    auto confMap = utils::parsePerLayerValues(FLAGS_confidence_threshold, metric_defaults::confidence_threshold);
+    auto overlapMap = utils::parsePerLayerValues(FLAGS_overlap_threshold, metric_defaults::overlap_threshold);
+
+    double confThresh = utils::getValueForLayer(confMap, "*");
+    double overlapThresh = utils::getValueForLayer(overlapMap, "*");
 
     std::vector<Detection> predictions = parseDetectionsFromOutputs(outputs, static_cast<float>(confThresh));
     std::vector<Detection> ground_truth = parseDetectionsFromOutputs(references, static_cast<float>(confThresh));
@@ -2085,13 +2135,17 @@ bool computeMAP(const TensorMap& outputs, const TensorMap& references) {
         mean_ap /= average_precisions.size();
     }
 
+    // Parse map_threshold
+    auto mapThreshMap = utils::parsePerLayerValues(FLAGS_map_threshold, metric_defaults::map_threshold);
+    double mapThreshold = utils::getValueForLayer(mapThreshMap, "*");
+
     std::cout << "\n=== Mean Average Precision (mAP) ===" << std::endl;
-    std::cout << "  mAP@" << FLAGS_overlap_threshold << " = " << std::fixed << std::setprecision(4)
+    std::cout << "  mAP@" << overlapThresh << " = " << std::fixed << std::setprecision(4)
               << (mean_ap * 100.0) << "%" << std::defaultfloat << std::endl;
     std::cout << "  Number of classes: " << class_ids.size() << std::endl;
-    std::cout << "  mAP threshold: " << (FLAGS_map_threshold * 100.0) << "%" << std::endl;
+    std::cout << "  mAP threshold: " << (mapThreshold * 100.0) << "%" << std::endl;
 
-    return mean_ap >= FLAGS_map_threshold;
+    return mean_ap >= mapThreshold;
 }
 
 bool testMAP(const TensorMap& outputs, const TensorMap& references, const LayoutMap& outputLayouts) {
@@ -2147,13 +2201,19 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
         return false;
     }
 
+    // Parse per-layer thresholds
+    auto thresholdMap = utils::parsePerLayerValues(FLAGS_nrmse_loss_threshold, metric_defaults::nrmse_loss_threshold);
+
     bool allPassed = true;
     for (auto& [tensorName, output] : outputs) {
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
         bool applySoftMax = FLAGS_apply_soft_max;
 
-        BlobTestMethod blobComparator = [applySoftMax](ov::Tensor outputTensor, ov::Tensor referenceTensor) {
+        // Get threshold for this specific layer
+        double layerThreshold = utils::getValueForLayer(thresholdMap, tensorName);
+
+        BlobTestMethod blobComparator = [applySoftMax, layerThreshold](ov::Tensor outputTensor, ov::Tensor referenceTensor) {
             if (applySoftMax) {
                 std::vector<float> actOutput;
                 std::vector<float> refOutput;
@@ -2174,7 +2234,7 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
                             referenceTensor.get_size(),
                             const_cast<float*>(referenceTensor.data<float>()));
             }
-            return computeNRMSE(outputTensor, referenceTensor);
+            return computeNRMSE(outputTensor, referenceTensor, layerThreshold);
         };
 
         if (!test_blobs_in_batch(tensorName,
@@ -2196,7 +2256,7 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
 // Direction of metric’s growth is lower-better. If the inputs are identical, the L2NORM is zero.
 //
 
-bool computeL2Norm(const ov::Tensor& output, const ov::Tensor& reference) {
+bool computeL2Norm(const ov::Tensor& output, const ov::Tensor& reference, double threshold) {
     if (output.get_size() != reference.get_size()) {
         std::cout << "Output and reference tensors have different sizes" << std::endl;
         return false;
@@ -2218,9 +2278,9 @@ bool computeL2Norm(const ov::Tensor& output, const ov::Tensor& reference) {
     const double l2norm = std::sqrt(sumSquares);
 
     std::cout << "L2Norm : " << std::fixed << std::setprecision(4) << l2norm
-              << "   L2Norm threshold : " << std::defaultfloat << FLAGS_l2norm_threshold << std::endl;
+              << "   L2Norm threshold : " << std::defaultfloat << threshold << std::endl;
 
-    return l2norm <= FLAGS_l2norm_threshold;
+    return l2norm <= threshold;
 }
 
 bool testL2Norm(const TensorMap& outputs, const TensorMap& references, const LayoutMap& outputLayouts) {
@@ -2229,15 +2289,25 @@ bool testL2Norm(const TensorMap& outputs, const TensorMap& references, const Lay
         return false;
     }
 
+    // Parse per-layer thresholds
+    auto thresholdMap = utils::parsePerLayerValues(FLAGS_l2norm_threshold, metric_defaults::l2norm_threshold);
+
     bool allPassed = true;
     for (auto& [tensorName, output] : outputs) {
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
 
+        // Get threshold for this specific layer
+        double layerThreshold = utils::getValueForLayer(thresholdMap, tensorName);
+
+        BlobTestMethod blobComparator = [layerThreshold](ov::Tensor outputTensor, ov::Tensor referenceTensor) {
+            return computeL2Norm(outputTensor, referenceTensor, layerThreshold);
+        };
+
         if (!test_blobs_in_batch(tensorName,
                                  splitBatchedTensor(output, tensorName, outputLayouts),
                                  splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
-                                 computeL2Norm)) {
+                                 blobComparator)) {
             allPassed = false;
         }
     }
@@ -2256,21 +2326,62 @@ bool testPSNR(const TensorMap& outputs, const TensorMap& references, const int d
     OPENVINO_ASSERT(outputs.size() == references.size(),
                     "Mismatch between the number of model outputs and the number of references");
 
+    // Parse per-layer reference values and tolerances
+    auto referenceMap = utils::parsePerLayerValues(FLAGS_psnr_reference, metric_defaults::psnr_reference);
+    auto toleranceMap = utils::parsePerLayerValues(FLAGS_psnr_tolerance, metric_defaults::psnr_tolerance);
+
     int scaleBorder = FLAGS_scale_border;
     bool normalizedImage = FLAGS_normalized_image;
 
-    auto refOutput = npu::utils::parseTensorsAsFP32(references);
-    auto actOutput = npu::utils::parseTensorsAsFP32(outputs);
+    bool allPassed = true;
 
-    auto result = utils::runPSNRMetric(actOutput, refOutput, dstHeight, dstWidth, scaleBorder, normalizedImage);
+    // If there's only one output, use the global PSNR metric
+    if (outputs.size() == 1) {
+        auto refOutput = npu::utils::parseTensorsAsFP32(references);
+        auto actOutput = npu::utils::parseTensorsAsFP32(outputs);
 
-    if (FLAGS_psnr_reference - result > FLAGS_psnr_tolerance) {
-        std::cout << "Absolute difference between actual value " << result << " and reference value "
-                  << FLAGS_psnr_reference << " larger then tolerance " << FLAGS_psnr_tolerance << std::endl;
-        return false;
+        auto result = utils::runPSNRMetric(actOutput, refOutput, dstHeight, dstWidth, scaleBorder, normalizedImage);
+
+        // Get per-layer or global values
+        std::string layerName = outputs.begin()->first;
+        double psnrReference = utils::getValueForLayer(referenceMap, layerName);
+        double psnrTolerance = utils::getValueForLayer(toleranceMap, layerName);
+
+        if (psnrReference - result > psnrTolerance) {
+            std::cout << "Absolute difference between actual value " << result << " and reference value "
+                      << psnrReference << " larger then tolerance " << psnrTolerance << std::endl;
+            return false;
+        }
+    } else {
+        // For multiple outputs, compute PSNR per layer
+        for (const auto& [layerName, outputTensor] : outputs) {
+            auto refIterator = references.find(layerName);
+            OPENVINO_ASSERT(refIterator != references.end());
+
+            TensorMap singleOutput = {{layerName, outputTensor}};
+            TensorMap singleReference = {{layerName, refIterator->second}};
+
+            auto refOutput = npu::utils::parseTensorsAsFP32(singleReference);
+            auto actOutput = npu::utils::parseTensorsAsFP32(singleOutput);
+
+            auto result = utils::runPSNRMetric(actOutput, refOutput, dstHeight, dstWidth, scaleBorder, normalizedImage);
+
+            // Get per-layer values
+            double psnrReference = utils::getValueForLayer(referenceMap, layerName);
+            double psnrTolerance = utils::getValueForLayer(toleranceMap, layerName);
+
+            std::cout << "Layer: " << layerName << " - ";
+            if (psnrReference - result > psnrTolerance) {
+                std::cout << "Absolute difference between actual value " << result << " and reference value "
+                          << psnrReference << " larger then tolerance " << psnrTolerance << std::endl;
+                allPassed = false;
+            } else {
+                std::cout << "PASSED (PSNR: " << result << ", Reference: " << psnrReference << ")" << std::endl;
+            }
+        }
     }
 
-    return true;
+    return allPassed;
 }
 
 static void printPerformanceCountsAndLatency(size_t numberOfTestCase, const ProfVec& profilingData,
@@ -2408,11 +2519,17 @@ bool testSSDDetection(const TensorMap& outputs, const TensorMap& references,
     const auto imgWidth = inputDescriptor.dataShape.at(ov::layout::width_idx(inputDescriptor.layout));
     const auto imgHeight = inputDescriptor.dataShape.at(ov::layout::height_idx(inputDescriptor.layout));
 
-    auto confThresh = FLAGS_confidence_threshold;
-    auto probTolerance = FLAGS_prob_tolerance;
-    auto boxTolerance = FLAGS_box_tolerance;
+    // Parse per-layer thresholds
+    auto confMap = utils::parsePerLayerValues(FLAGS_confidence_threshold, metric_defaults::confidence_threshold);
+    auto probMap = utils::parsePerLayerValues(FLAGS_prob_tolerance, metric_defaults::prob_tolerance);
+    auto boxMap = utils::parsePerLayerValues(FLAGS_box_tolerance, metric_defaults::box_tolerance);
 
     const auto& [tensorName, output] = *outputs.begin();
+
+    double confThresh = utils::getValueForLayer(confMap, tensorName);
+    double probTolerance = utils::getValueForLayer(probMap, tensorName);
+    double boxTolerance = utils::getValueForLayer(boxMap, tensorName);
+
     auto referencesIterator = references.find(tensorName);
     OPENVINO_ASSERT(referencesIterator != references.end());
 
@@ -2452,12 +2569,19 @@ bool testYoloV2(const TensorMap& outputs, const TensorMap& references, const Ten
 
     const auto imgWidth = inputDescriptor.dataShape.at(ov::layout::width_idx(inputDescriptor.layout));
     const auto imgHeight = inputDescriptor.dataShape.at(ov::layout::height_idx(inputDescriptor.layout));
-    double confThresh = FLAGS_confidence_threshold;
-    double probTolerance = FLAGS_prob_tolerance;
-    double boxTolerance = FLAGS_box_tolerance;
+
+    // Parse per-layer thresholds
+    auto confMap = utils::parsePerLayerValues(FLAGS_confidence_threshold, metric_defaults::confidence_threshold);
+    auto probMap = utils::parsePerLayerValues(FLAGS_prob_tolerance, metric_defaults::prob_tolerance);
+    auto boxMap = utils::parsePerLayerValues(FLAGS_box_tolerance, metric_defaults::box_tolerance);
     bool isTiny = FLAGS_is_tiny_yolo;
 
     const auto& [tensorName, output] = *outputs.begin();
+
+    double confThresh = utils::getValueForLayer(confMap, tensorName);
+    double probTolerance = utils::getValueForLayer(probMap, tensorName);
+    double boxTolerance = utils::getValueForLayer(boxMap, tensorName);
+
     auto referencesIterator = references.find(tensorName);
     OPENVINO_ASSERT(referencesIterator != references.end());
 
@@ -2501,9 +2625,15 @@ bool testYoloV3(const TensorMap& outputs, const TensorMap& references, const Ten
     const auto imgWidth = inputDescriptor.dataShape.at(ov::layout::width_idx(inputDescriptor.layout));
     const auto imgHeight = inputDescriptor.dataShape.at(ov::layout::height_idx(inputDescriptor.layout));
 
-    double confThresh = FLAGS_confidence_threshold;
-    double probTolerance = FLAGS_prob_tolerance;
-    double boxTolerance = FLAGS_box_tolerance;
+    // Parse per-layer thresholds (use global values for Yolo V3 as it processes all outputs together)
+    auto confMap = utils::parsePerLayerValues(FLAGS_confidence_threshold, metric_defaults::confidence_threshold);
+    auto probMap = utils::parsePerLayerValues(FLAGS_prob_tolerance, metric_defaults::prob_tolerance);
+    auto boxMap = utils::parsePerLayerValues(FLAGS_box_tolerance, metric_defaults::box_tolerance);
+
+    double confThresh = utils::getValueForLayer(confMap, "*");
+    double probTolerance = utils::getValueForLayer(probMap, "*");
+    double boxTolerance = utils::getValueForLayer(boxMap, "*");
+
     int classes = FLAGS_classes;
     int coords = FLAGS_coords;
     int num = FLAGS_num;
@@ -2535,9 +2665,15 @@ bool testYoloV4(const TensorMap& outputs, const TensorMap& references, const Ten
     const auto imgWidth = inputDescriptor.dataShape.at(ov::layout::width_idx(inputDescriptor.layout));
     const auto imgHeight = inputDescriptor.dataShape.at(ov::layout::height_idx(inputDescriptor.layout));
 
-    double confThresh = FLAGS_confidence_threshold;
-    double probTolerance = FLAGS_prob_tolerance;
-    double boxTolerance = FLAGS_box_tolerance;
+    // Parse per-layer thresholds (use global values for Yolo V4 as it processes all outputs together)
+    auto confMap = utils::parsePerLayerValues(FLAGS_confidence_threshold, metric_defaults::confidence_threshold);
+    auto probMap = utils::parsePerLayerValues(FLAGS_prob_tolerance, metric_defaults::prob_tolerance);
+    auto boxMap = utils::parsePerLayerValues(FLAGS_box_tolerance, metric_defaults::box_tolerance);
+
+    double confThresh = utils::getValueForLayer(confMap, "*");
+    double probTolerance = utils::getValueForLayer(probMap, "*");
+    double boxTolerance = utils::getValueForLayer(boxMap, "*");
+
     int classes = FLAGS_classes;
     int coords = FLAGS_coords;
     int num = FLAGS_num;
@@ -2597,11 +2733,14 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
 
     bool skipArgMax = FLAGS_skip_arg_max;
     unsigned int classes = FLAGS_sem_seg_classes;
-    auto semSegThreshold = static_cast<float>(FLAGS_sem_seg_threshold);
+
+    // Parse sem_seg_threshold (can be per-layer or global)
+    auto thresholdMap = utils::parsePerLayerValues(FLAGS_sem_seg_threshold, metric_defaults::sem_seg_threshold);
+    const auto& [tensorName, output] = *outputs.begin();
+    float semSegThreshold = static_cast<float>(utils::getValueForLayer(thresholdMap, tensorName));
 
     std::vector<std::pair<bool, float>> iou(classes, {false, 0.0f});
 
-    const auto& [tensorName, output] = *outputs.begin();
     const auto referencesIterator = references.find(tensorName);
     OPENVINO_ASSERT(referencesIterator != references.end());
     const auto outputLayoutIterator = outputLayouts.find(tensorName);
