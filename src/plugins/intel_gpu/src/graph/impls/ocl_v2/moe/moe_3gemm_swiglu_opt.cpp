@@ -460,7 +460,8 @@ protected:
 static size_t get_seq_len(cldnn::layout& layout) {
     auto shape = layout.get_shape();
     size_t seq_len = static_cast<size_t>(shape[0]);
-    if (shape.size() == 4) {
+    // Note: this change may be not safe in general case
+    if (shape.size() >= 3) {
         seq_len = static_cast<size_t>(shape[0] * shape[1]);
     }
     return seq_len;
