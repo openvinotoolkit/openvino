@@ -947,6 +947,7 @@ void Properties::filterPropertiesByCompilerSupport(const ICompilerAdapter* compi
     // LOG_LEVEL and PERFORMANCE_HINT are needed also by runtime options
     _config.enable(ov::log::level.name(), true);
     _config.enable(ov::hint::performance_mode.name(), true);
+    _config.enable(ov::enable_profiling.name(), true);
 
     // reset properties for the new options
     registerProperties();
@@ -976,6 +977,7 @@ void Properties::disableCompilerProperties() {
     // LOG_LEVEL and PERFORMANCE_HINT are needed also by runtime options
     _config.enable(ov::log::level.name(), true);
     _config.enable(ov::hint::performance_mode.name(), true);
+    _config.enable(ov::enable_profiling.name(), true);
 
     // reset properties for the new options
     registerProperties();

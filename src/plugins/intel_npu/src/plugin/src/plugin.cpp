@@ -398,6 +398,7 @@ void Plugin::init_options(FilteredConfig& filteredConfig) {
     // LOG_LEVEL and PERFORMANCE_HINT are needed by runtime options
     filteredConfig.enable(ov::log::level.name(), true);
     filteredConfig.enable(ov::hint::performance_mode.name(), true);
+    filteredConfig.enable(ov::enable_profiling.name(), true);
 
     if (filteredConfig.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
         if (_backend) {
