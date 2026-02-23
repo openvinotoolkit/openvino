@@ -4,8 +4,6 @@
 
 set(TARGET_NAME openvino_c)
 
-# Suppress warnings due to catch macro with legacy exception types
-
 add_definitions(-DIN_OV_COMPONENT)
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.h ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)

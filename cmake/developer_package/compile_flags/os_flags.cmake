@@ -143,12 +143,7 @@ elseif(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
     #
     # Warnings as errors
     #
-
     ov_add_compiler_flags(/WX)
-
-    #
-    # Disable noisy warnings
-    #
 else()
     #
     # Common enabled warnings
