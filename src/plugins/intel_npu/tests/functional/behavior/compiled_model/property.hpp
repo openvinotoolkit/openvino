@@ -612,4 +612,17 @@ TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerAndBothPropert
     ASSERT_FALSE(core_turbo);
 }
 
+TEST_P(CheckCompilerPropertyWhenImporting, EcpectedThrowFromImportWithUnsupportedProperty) {
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    std::stringstream export_stream;
+
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
+    OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream));
+    compiled_model = {};
+
+    ASSERT_THROW(core.import_model(export_stream, deviceName, {{{"DUMMY_PROPERTY", ov::Any("DUMMY_VALUE")}}}),
+                 ov::Exception);  // Expect to throw due to unimplemented method
+}
+
 }  // namespace

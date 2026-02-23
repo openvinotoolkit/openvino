@@ -392,7 +392,7 @@ void Plugin::init_options(FilteredConfig& filteredConfig) {
     // Special cases
     // NPU_TURBO might be supported by the driver
     if (_backend && _backend->isCommandQueueExtSupported()) {
-        _config.enable(ov::intel_npu::turbo.name(), true);
+        filteredConfig.enable(ov::intel_npu::turbo.name(), true);
     }
 
     // LOG_LEVEL and PERFORMANCE_HINT are needed by runtime options
