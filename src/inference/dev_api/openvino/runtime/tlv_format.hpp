@@ -11,19 +11,57 @@
 #include <vector>
 
 namespace ov {
+/// @brief Utility for reading and writing data in TLV (Tag-Length-Value) format to/from streams. TLV format allows to
+/// store multiple entries in a single stream with each entry having a tag to identify the type of the entry and length
+/// to identify the size of the entry value. This format is useful for storing multiple pieces of data in a single file
+/// or stream without requiring a predefined structure, as each entry can be read independently based on its tag and
+/// length.
 struct TLVFormat {
+    /// @brief Type of the tag field in TLV entry.
     using tag_type = uint32_t;
+
+    /// @brief Type of the length field in TLV entry.
     using length_type = uint64_t;
 
+    /// @brief Write a TLV entry to the stream.
+    /// @param stream Output stream to write the entry to.
+    /// @param tag Tag of the entry.
+    /// @param size Size of the entry value.
+    /// @param data Pointer to the entry value data.
+    static void write_entry(std::ostream& stream, tag_type tag, length_type size, const uint8_t* data);
+
+    /// @brief Type of callable for writing TLV entry values based on their tag.
+    /// The callable takes an output stream to write the entry value to as a parameter.
     using value_writer_callable = std::function<void(std::ostream&)>;
 
-    static void write_entry(std::ostream& stream, tag_type tag, length_type size, const uint8_t* data);
+    /// @brief Write a TLV entry to the stream using a value writer callable.
+    /// @param stream Output stream to write the entry to.
+    /// @param tag Tag of the entry.
+    /// @param writer Callable that writes the entry value to the stream.
     static void write_entry(std::ostream& stream, tag_type tag, const value_writer_callable& writer);
 
+    /// @brief Read a TLV entry from the stream into a container.
+    /// @param stream Input stream to read the entry from. It should be positioned at the beginning of an entry.
+    /// @param tag Output parameter to store the tag of the read entry.
+    /// @param size Output parameter to store the size of the read entry value.
+    /// @param data Output parameter to store the read entry value.
+    /// @return True if the entry was successfully read, false otherwise.
     static bool read_entry(std::istream& stream, tag_type& tag, length_type& size, std::vector<uint8_t>& data);
+
+    /// @brief Read a TLV entry from the stream into a string.
+    /// @param stream Input stream to read the entry from. It should be positioned at the beginning of an entry.
+    /// @param tag Output parameter to store the tag of the read entry.
+    /// @param size Output parameter to store the size of the read entry value.
+    /// @param data Output parameter to store the read entry value.
+    /// @return True if the entry was successfully read, false otherwise.
     static bool read_entry(std::istream& stream, tag_type& tag, length_type& size, std::string& data);
 
+    /// @brief Type of callable for reading TLV entry values based on their tag.
+    /// The callable takes an input stream positioned at the beginning of the entry value and the size of the value as
+    /// parameters.
     using value_reader_callable = std::function<void(std::istream& stream, length_type size)>;
+
+    /// @brief Map of tag to value reader callable.
     using value_scanners = std::unordered_map<tag_type, value_reader_callable>;
 
     /// @brief Scan entries in the stream and call corresponding reader from scanners for each entry with matching tag.

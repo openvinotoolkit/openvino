@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_file_storage.hpp"
+#include "openvino/runtime/single_file_storage.hpp"
 
 #include "openvino/util/file_util.hpp"
 #include "storage_codecs.hpp"

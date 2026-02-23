@@ -28,6 +28,7 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/runtime/single_file_storage.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
@@ -37,7 +38,6 @@
 #include "openvino/util/variant_visitor.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "ov_plugins.hpp"
-#include "single_file_storage.hpp"
 #ifdef PROXY_PLUGIN_ENABLED
 #    include "openvino/proxy/plugin.hpp"
 #    include "openvino/proxy/properties.hpp"
