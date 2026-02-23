@@ -116,6 +116,7 @@ Before posting any comment, apply this gate:
 - Ensure branch/commit policy checks remain satisfied (`.github/workflows/check_pr_commits.yml`).
 
 ## Code Quality Rules to Enforce
+- Flag debug/diagnostic print statements (`std::cout`, `std::cerr`, `printf`, `print()`, `LOG_DEBUG` used for temporary tracing) left in production or test code. This does not apply to PRs in Draft state or with titles/labels indicating WIP, POC, or "do not merge."
 - For new or modified code, do not introduce `using namespace` in headers or in global/namespace scope of source files.
 - Function-local `using` is acceptable when narrowly scoped and clearly improves readability (for example, `using std::swap; swap(a, b);` at the top of a function).
 - Avoid unnecessary copying of large objects/tensors; prefer references or move semantics.
