@@ -161,7 +161,7 @@ void ReadIRTest::SetUp() {
     if (targetDevice == "TEMPLATE"&&
 	hasDynamic &&
 	path_to_model.find("Multiply") != std::string::npos){
-	GTEST_SKIP()<<"Dynamic Multiply conformance is not supported for Template device";
+	GTEST_SKIP()<<"Dynamic Multiply conformance is not supported for TEMPLATE device";
     }
     if (targetDevice == "TEMPLATE" &&
 	hasDynamic &&
