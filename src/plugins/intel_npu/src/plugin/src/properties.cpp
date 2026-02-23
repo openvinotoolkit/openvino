@@ -864,12 +864,11 @@ bool Properties::isPropertyRegistered(const std::string& propertyName) const {
 }
 
 void Properties::filterPropertiesByCompilerSupport(const ICompilerAdapter* compiler,
-                                                   const std::optional<ov::intel_npu::CompilerType> compilerType,
+                                                   const ov::intel_npu::CompilerType compilerType,
                                                    const std::string compilationPlatform) {
     // In case properties are not initialized or the compiler/platform was changed since last call -
     // filter out options again
-    if (_initialized && compilerType.has_value() && compilerType.value() == _currentlyUsedCompiler &&
-        !compilationPlatform.empty() && compilationPlatform == _currentlyUsedPlatform) {
+    if (_initialized && compilerType == _currentlyUsedCompiler && compilationPlatform == _currentlyUsedPlatform) {
         return;
     }
 
@@ -951,14 +950,41 @@ void Properties::filterPropertiesByCompilerSupport(const ICompilerAdapter* compi
 
     // reset properties for the new options
     registerProperties();
-    _initialized = true;
 
-    if (compilerType.has_value()) {
-        _currentlyUsedCompiler = compilerType.value();
+    _initialized = true;
+    _currentlyUsedCompiler = compilerType;
+    _currentlyUsedPlatform = compilationPlatform;
+}
+
+void Properties::disableCompilerProperties() {
+    // Parse enables
+    _config.walkEnables([&](const std::string& key) {
+        auto opt = _config.getOpt(key);
+        // Runtime (plugin-only) options are always enabled
+        if (opt.mode() != OptionMode::RunTime) {  // Compiler and common options
+            // Disable all compiler options
+            _config.enable(key, false);
+        }
+    });
+
+    // Special cases
+    // NPU_TURBO might be supported by the driver
+    if (_backend && _backend->isCommandQueueExtSupported()) {
+        _config.enable(ov::intel_npu::turbo.name(), true);
     }
-    if (!compilationPlatform.empty()) {
-        _currentlyUsedPlatform = compilationPlatform;
-    }
+
+    // LOG_LEVEL and PERFORMANCE_HINT are needed also by runtime options
+    _config.enable(ov::log::level.name(), true);
+    _config.enable(ov::hint::performance_mode.name(), true);
+
+    // reset properties for the new options
+    registerProperties();
+
+    // re-set compiler and platform tracking to make sure properties are re-filtered on next updateConfig call with
+    // compiler
+    _initialized = false;
+    _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;
+    _currentlyUsedPlatform = "";
 }
 
 void Properties::updateConfig(const ov::AnyMap& properties, const ICompilerAdapter* compiler, OptionMode mode) {
@@ -979,7 +1005,7 @@ void Properties::updateConfig(const ov::AnyMap& properties, const ICompilerAdapt
 
         // filter out unsupported options
         filterPropertiesByCompilerSupport(compiler,
-                                          propertiesCompilerType,
+                                          propertiesCompilerType.value_or(_currentlyUsedCompiler),
                                           propertiesPlatform.value_or(_currentlyUsedPlatform));
     }
 
@@ -1007,9 +1033,8 @@ void Properties::updateConfig(const ov::AnyMap& properties, OptionMode mode) {
 
         // Special case for NPU_COMPILER_TYPE - don't need it in the config for this case.
         _config.enable(ov::intel_npu::compiler_type.name(), false);
-
         // Make sure all options are re-filtered based on a config with no compiler
-        filterPropertiesByCompilerSupport(nullptr);
+        disableCompilerProperties();
     }
 
     const std::map<std::string, std::string> rawConfig = any_copy(properties);
