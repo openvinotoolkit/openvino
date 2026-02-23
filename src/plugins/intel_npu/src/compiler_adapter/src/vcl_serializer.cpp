@@ -592,8 +592,8 @@ std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const
 }
 
 std::string serializeConfig(const Config& config,
-                            ze_graph_compiler_version_info_t compilerVersion,
-                            bool turboSupported) {
+                            const ze_graph_compiler_version_info_t& compilerVersion,
+                            const std::function<bool(const std::string&)>& isOptionSupportedByCompiler) {
     Logger logger("serializeConfig", Logger::global().level());
 
     std::string content = {};
@@ -678,20 +678,31 @@ std::string serializeConfig(const Config& config,
                                      getStringReplacement(ov::intel_npu::LegacyPriority::HIGH));
     }
 
-    // Special case for compiler Turbo
+    // Special cases
+    const auto& removeOptionIfUnsupported = [&](const std::string& optionName) {
+        if (std::regex_search(content, std::regex(optionName))) {
+            const bool optionSupported =
+                isOptionSupportedByCompiler != nullptr ? isOptionSupportedByCompiler(optionName) : false;
+            if (!optionSupported) {
+                std::ostringstream optionStr;
+                optionStr << optionName << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
+                logger.info("%s property is not supported by this compiler. Removing from parameters",
+                            optionName.c_str());
+                content = std::regex_replace(content, std::regex(optionStr.str()), "");
+            }
+        }
+    };
+
     // NPU_TURBO is a special option in the sense that by default it is a driver-setting, but certain compilers
     // support and make use of it too If we have turbo in the config string, we check if compiler supports it. If it
     // doesn't support it, we remove it
-    if (std::regex_search(content, std::regex("NPU_TURBO"))) {
-        if (!turboSupported) {
-            std::ostringstream turbostr;
-            turbostr << ov::intel_npu::turbo.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
-                     << VALUE_DELIMITER;
-            logger.info("NPU_TURBO property is not supported by this compiler. Removing from "
-                        "parameters");
-            content = std::regex_replace(content, std::regex(turbostr.str()), "");
-        }
-    }
+    removeOptionIfUnsupported(ov::intel_npu::turbo.name());
+    // LOG_LEVEL must not be sent to the compiler if not supported
+    removeOptionIfUnsupported(ov::log::level.name());
+    // PERFORMANCE_HINT must not be sent to the compiler if not supported
+    removeOptionIfUnsupported(ov::hint::performance_mode.name());
+    // PERF_COUNT must not be sent to the compiler if not supported
+    removeOptionIfUnsupported(ov::enable_profiling.name());
 
     // FINAL step to convert prefixes of remaining params, to ensure backwards compatibility
     // From 5.0.0, driver compiler start to use NPU_ prefix, the old version uses VPU_ prefix

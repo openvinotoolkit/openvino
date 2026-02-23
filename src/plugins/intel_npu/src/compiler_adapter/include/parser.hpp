@@ -9,6 +9,7 @@
 #include "intel_npu/common/iparser.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "openvino/core/model.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
 namespace intel_npu {

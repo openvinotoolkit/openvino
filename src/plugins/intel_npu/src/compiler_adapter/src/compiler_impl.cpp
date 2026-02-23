@@ -421,12 +421,14 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
                                                            storeWeightlessCacheAttributeFlag);
 
     std::string buildFlags;
+    const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
+        return is_option_supported(optionName);
+    };
+
     _logger.debug("create build flags");
     buildFlags += driver_compiler_utils::serializeIOInfo(model, true);
     buildFlags += " ";
-    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig,
-                                                         compilerVersion,
-                                                         is_option_supported(ov::intel_npu::turbo.name()));
+    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
     vcl_executable_desc_t exeDesc = {serializedIR.buffer.get(),
@@ -503,12 +505,14 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
                                                            true);
 
     std::string buildFlags;
+    const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
+        return is_option_supported(optionName);
+    };
+
     _logger.debug("create build flags");
     buildFlags += driver_compiler_utils::serializeIOInfo(model, true);
     buildFlags += " ";
-    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig,
-                                                         compilerVersion,
-                                                         is_option_supported(ov::intel_npu::turbo.name()));
+    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
     vcl_executable_desc_t exeDesc = {serializedIR.buffer.get(),
@@ -633,9 +637,10 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
         driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
 
     std::string buildFlags;
-    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig,
-                                                         compilerVersion,
-                                                         is_option_supported(ov::intel_npu::turbo.name()));
+    const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
+        return is_option_supported(optionName);
+    };
+    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     vcl_query_handle_t queryHandle;

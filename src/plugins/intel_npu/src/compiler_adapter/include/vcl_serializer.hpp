@@ -5,6 +5,7 @@
 #pragma once
 #include <ze_graph_ext.h>
 
+#include <functional>
 #include <iostream>
 #include <string>
 
@@ -12,7 +13,6 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/pass/manager.hpp"
-#include "ze_graph_ext.h"
 
 namespace intel_npu {
 
@@ -66,8 +66,8 @@ SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
 std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices);
 
 std::string serializeConfig(const Config& config,
-                            ze_graph_compiler_version_info_t compilerVersion,
-                            bool turboSupported = false);
+                            const ze_graph_compiler_version_info_t& compilerVersion,
+                            const std::function<bool(const std::string&)>& isOptionSupportedByCompiler);
 
 }  // namespace driver_compiler_utils
 }  // namespace intel_npu

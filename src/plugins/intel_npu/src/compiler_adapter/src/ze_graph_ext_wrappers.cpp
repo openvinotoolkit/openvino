@@ -649,9 +649,17 @@ bool ZeGraphExtWrappers::isOptionSupported(std::string optName, std::optional<st
     return false;
 }
 
-bool ZeGraphExtWrappers::isTurboOptionSupported(const ze_graph_compiler_version_info_t& compilerVersion) const {
-    auto checkCompilerVersion = [](const ze_graph_compiler_version_info_t& compilerVersion) {
-        if ((compilerVersion.major < 7) || (compilerVersion.major == 7 && compilerVersion.minor < 21)) {
+bool ZeGraphExtWrappers::isOptionSupportedBasedOnCompilerVersion(
+    const ze_graph_compiler_version_info_t& compilerVersion,
+    const std::string& optName,
+    uint32_t compilerOptSupportValue) const {
+    auto checkCompilerVersion = [](const ze_graph_compiler_version_info_t& compilerVersion,
+                                   const uint32_t compilerOptSupportValue) {
+        uint32_t majorCompilerOptSupportValue = ZE_MAJOR_VERSION(compilerOptSupportValue);
+        uint32_t minorCompilerOptSupportValue = ZE_MINOR_VERSION(compilerOptSupportValue);
+        if ((compilerVersion.major < majorCompilerOptSupportValue) ||
+            (compilerVersion.major == majorCompilerOptSupportValue &&
+             compilerVersion.minor < minorCompilerOptSupportValue)) {
             return false;
         }
 
@@ -659,7 +667,7 @@ bool ZeGraphExtWrappers::isTurboOptionSupported(const ze_graph_compiler_version_
     };
 
     if (_graphExtVersion < ZE_MAKE_VERSION(1, 11)) {
-        return checkCompilerVersion(compilerVersion);
+        return checkCompilerVersion(compilerVersion, compilerOptSupportValue);
     }
 
 #ifdef _WIN32
@@ -668,19 +676,19 @@ bool ZeGraphExtWrappers::isTurboOptionSupported(const ze_graph_compiler_version_
                                                                          ZE_NPU_DRIVER_OPTIONS,
                                                                          "NO_THROW_ON_UNSUPPORTED_FEATURE",
                                                                          nullptr) != ZE_RESULT_SUCCESS) {
-        return checkCompilerVersion(compilerVersion);
+        return checkCompilerVersion(compilerVersion, compilerOptSupportValue);
     }
 #endif
 
-    bool is_supported = false;
+    bool isSupported = false;
     try {
-        is_supported = isOptionSupported("NPU_TURBO");
+        isSupported = isOptionSupported(optName);
     } catch (...) {
         // mute it, not critical
-        is_supported = false;
+        isSupported = false;
     }
 
-    return is_supported;
+    return isSupported;
 }
 
 bool ZeGraphExtWrappers::isPluginModelHashSupported() const {

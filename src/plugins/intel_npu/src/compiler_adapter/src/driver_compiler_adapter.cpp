@@ -74,13 +74,18 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
+    const auto isOptionSupportedByCompiler = [this, &config, &compilerVersion](const std::string& optionName) {
+        return config.hasOpt(optionName) ? _zeGraphExt->isOptionSupportedBasedOnCompilerVersion(
+                                               compilerVersion,
+                                               optionName,
+                                               config.getOpt(optionName).compilerSupportVersion())
+                                         : false;
+    };
 
     _logger.debug("build flags");
     buildFlags += driver_compiler_utils::serializeIOInfo(model, useIndices);
     buildFlags += " ";
-    buildFlags += driver_compiler_utils::serializeConfig(config,
-                                                         compilerVersion,
-                                                         _zeGraphExt->isTurboOptionSupported(compilerVersion));
+    buildFlags += driver_compiler_utils::serializeConfig(config, compilerVersion, isOptionSupportedByCompiler);
 
     _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
 
@@ -154,6 +159,15 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     if (_logger.level() >= ov::log::Level::INFO) {
         compile_model_mem_start = get_peak_memory_usage();
     }
+
+    const auto isOptionSupportedByCompiler = [this, &updatedConfig, &compilerVersion](const std::string& optionName) {
+        return updatedConfig.hasOpt(optionName) ? _zeGraphExt->isOptionSupportedBasedOnCompilerVersion(
+                                                      compilerVersion,
+                                                      optionName,
+                                                      updatedConfig.getOpt(optionName).compilerSupportVersion())
+                                                : false;
+    };
+
     while (true) {
         _logger.debug("compileWS iteration %d", callNumber);
         updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber++)}});
@@ -161,9 +175,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         _logger.debug("build flags");
         buildFlags = serializedIOInfo;
         buildFlags += " ";
-        buildFlags += driver_compiler_utils::serializeConfig(updatedConfig,
-                                                             compilerVersion,
-                                                             _zeGraphExt->isTurboOptionSupported(compilerVersion));
+        buildFlags +=
+            driver_compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
 
         _logger.debug("compile start");
         // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
@@ -219,9 +232,16 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
     _logger.debug("serialize IR");
     auto serializedIR =
         driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
+    const auto isOptionSupportedByCompiler = [this, &config, &compilerVersion](const std::string& optionName) {
+        return config.hasOpt(optionName) ? _zeGraphExt->isOptionSupportedBasedOnCompilerVersion(
+                                               compilerVersion,
+                                               optionName,
+                                               config.getOpt(optionName).compilerSupportVersion())
+                                         : false;
+    };
 
     std::string buildFlags;
-    buildFlags += driver_compiler_utils::serializeConfig(config, compilerVersion);
+    buildFlags += driver_compiler_utils::serializeConfig(config, compilerVersion, isOptionSupportedByCompiler);
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     ov::SupportedOpsMap result;

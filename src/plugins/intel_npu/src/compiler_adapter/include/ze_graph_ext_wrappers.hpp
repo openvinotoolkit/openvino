@@ -46,7 +46,9 @@ public:
     std::string getCompilerSupportedOptions() const;
 
     bool isOptionSupported(std::string optName, std::optional<std::string> optValue = std::nullopt) const;
-    bool isTurboOptionSupported(const ze_graph_compiler_version_info_t& compilerVersion) const;
+    bool isOptionSupportedBasedOnCompilerVersion(const ze_graph_compiler_version_info_t& compilerVersion,
+                                                 const std::string& optName,
+                                                 uint32_t compilerOptSupportValue) const;
 
     /**
      * @brief Tells us whether or not the driver is able to receive and take into account a hash of the model instead of
