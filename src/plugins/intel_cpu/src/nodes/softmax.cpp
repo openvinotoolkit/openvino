@@ -136,13 +136,10 @@ void SoftMax::getSupportedDescriptors() {
         }
 
         for (auto format : getAvailableFormatsForDims(inShape)) {
-            auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inShape, fallbackType, format);
-
-            if (in_candidate->blocksExtended()) {
-                continue;
+            VecMemoryDescs inputDescs{std::make_shared<DnnlBlockedMemoryDesc>(inShape, fallbackType, format)};
+            if (!inputDescs.back()->blocksExtended()) {
+                createDescriptor(inputDescs, {});
             }
-
-            createDescriptor({in_candidate}, {});
         }
     }
 }
