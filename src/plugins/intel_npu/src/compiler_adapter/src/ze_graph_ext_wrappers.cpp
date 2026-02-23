@@ -402,7 +402,17 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(SerializedIR serializedIR
                                                                  _zeroInitStruct->getDevice(),
                                                                  &desc,
                                                                  &graphHandle);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate2", result, _zeroInitStruct->getGraphDdiTable());
+    if (result != ZE_RESULT_SUCCESS) {
+        OPENVINO_THROW("Compilation failed. Level0 pfnCreate2 result: ",
+                       ze_result_to_string(result),
+                       ", code 0x",
+                       std::hex,
+                       uint64_t(result),
+                       " - ",
+                       ze_result_to_description(result),
+                       " . ",
+                       intel_npu::zeroUtils::getLatestBuildError(_zeroInitStruct->getGraphDdiTable()));
+    }
 
     return GraphDescriptor{graphHandle};
 }
