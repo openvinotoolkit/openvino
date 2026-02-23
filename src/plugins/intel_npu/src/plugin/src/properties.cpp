@@ -735,8 +735,12 @@ ov::Any Properties::getProperty(const std::string& name) {
         } else {
             // Property is already registered but need to re-check if the CompilerTime config is still supported by the
             // current compiler.
-            if (_config.hasOpt(name) && name != ov::log::level.name()) {
+            // Special case for some both configs. Don't need to check compiler support for these Both properties.
+            const bool isBothConfigProperty = name != ov::hint::performance_mode.name() &&
+                                              name != ov::enable_profiling.name() && name != ov::log::level.name();
+            if (_config.hasOpt(name) && isBothConfigProperty) {
                 auto opt = _config.getOpt(name);
+
                 if (opt.mode() != OptionMode::RunTime) {
                     propertyIsCompilerConfig = true;
                 }
@@ -759,21 +763,21 @@ ov::Any Properties::getProperty(const std::string& name) {
             try {
                 compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
             } catch (const std::exception& ex) {
-                if (name == ov::supported_properties.name() || name == ov::internal::supported_properties.name()) {
-                    // In case of supported_properties query, we want to return at least the runtime properties even if
-                    // compiler creation failed
-                    _logger.warning("Failed to create compiler for getting supported properties with error: %s."
-                                    "Returning only runtime supported properties.",
-                                    ex.what());
-                    auto&& configIterator = _properties.find(name);
-                    if (configIterator != _properties.cend()) {
-                        return std::get<2>(configIterator->second)(_config);
+                if (_config.hasOpt(name)) {
+                    auto opt = _config.getOpt(name);
+                    if (opt.mode() == OptionMode::CompileTime) {
+                        OPENVINO_THROW("Failed to create compiler for getting property ",
+                                       name,
+                                       " with error: ",
+                                       ex.what());
                     }
                 }
-                OPENVINO_THROW("Failed to create compiler for getting property ", name, " with error: ", ex.what());
-            }
 
-            compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+                _logger.warning("Failed to create compiler for getting property %s with error: %s."
+                                "Returning only runtime properties and metrics that do not require compiler support.",
+                                name.c_str(),
+                                ex.what());
+            }
 
             filterPropertiesByCompilerSupport(compiler.get(), compilerType, compilationPlatform);
         }
@@ -801,7 +805,11 @@ void Properties::setProperty(const ov::AnyMap& properties) {
                 propertyIsRegistered = false;
                 break;
             }
-            if (_config.hasOpt(property.first) && property.first != ov::log::level.name()) {
+            // Special case for some both configs. Don't need to check compiler support for these Both properties.
+            const bool isBothConfigProperty = property.first != ov::hint::performance_mode.name() &&
+                                              property.first != ov::enable_profiling.name() &&
+                                              property.first != ov::log::level.name();
+            if (_config.hasOpt(property.first) && isBothConfigProperty) {
                 auto opt = _config.getOpt(property.first);
                 if (opt.mode() != OptionMode::RunTime) {
                     propertyIsCompilerConfig = true;
@@ -944,7 +952,7 @@ void Properties::filterPropertiesByCompilerSupport(const ICompilerAdapter* compi
         _config.enable(ov::intel_npu::turbo.name(), true);
     }
 
-    // LOG_LEVEL and PERFORMANCE_HINT are needed also by runtime options
+    // LOG_LEVEL, PERFORMANCE_HINT and PERF_COUNT are needed by runtime options
     _config.enable(ov::log::level.name(), true);
     _config.enable(ov::hint::performance_mode.name(), true);
     _config.enable(ov::enable_profiling.name(), true);
@@ -961,8 +969,12 @@ void Properties::disableCompilerProperties() {
     // Parse enables
     _config.walkEnables([&](const std::string& key) {
         auto opt = _config.getOpt(key);
+
+        // Special case for some both configs. Don't need compiler for these Both properties.
+        const bool isBothConfigProperty = key != ov::hint::performance_mode.name() &&
+                                          key != ov::enable_profiling.name() && key != ov::log::level.name();
         // Runtime (plugin-only) options are always enabled
-        if (opt.mode() != OptionMode::RunTime) {  // Compiler and common options
+        if (opt.mode() != OptionMode::RunTime && isBothConfigProperty) {  // Compiler and common options
             // Disable all compiler options
             _config.enable(key, false);
         }
@@ -973,11 +985,6 @@ void Properties::disableCompilerProperties() {
     if (_backend && _backend->isCommandQueueExtSupported()) {
         _config.enable(ov::intel_npu::turbo.name(), true);
     }
-
-    // LOG_LEVEL and PERFORMANCE_HINT are needed also by runtime options
-    _config.enable(ov::log::level.name(), true);
-    _config.enable(ov::hint::performance_mode.name(), true);
-    _config.enable(ov::enable_profiling.name(), true);
 
     // reset properties for the new options
     registerProperties();

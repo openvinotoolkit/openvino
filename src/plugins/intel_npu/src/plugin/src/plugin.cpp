@@ -395,7 +395,7 @@ void Plugin::init_options(FilteredConfig& filteredConfig) {
         filteredConfig.enable(ov::intel_npu::turbo.name(), true);
     }
 
-    // LOG_LEVEL and PERFORMANCE_HINT are needed by runtime options
+    // LOG_LEVEL, PERFORMANCE_HINT and PERF_COUNT are needed by runtime options
     filteredConfig.enable(ov::log::level.name(), true);
     filteredConfig.enable(ov::hint::performance_mode.name(), true);
     filteredConfig.enable(ov::enable_profiling.name(), true);
