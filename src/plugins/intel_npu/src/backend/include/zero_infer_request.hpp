@@ -60,11 +60,15 @@ protected:
      * @param isInput Determines the containers in which the newly allocated tensors will be stored.
      * @param allocator If provided, the tensor uses the custom allocator instead of using the default one.
      * @param batchSize If provided, the value of the shape on the 0th axis is overriden with this value.
+     * @param precision If provided, the tensor will be created having this precision, otherwise precision will be
+     * picked from descriptor. Useful for corner cases with older compilers that don't support new OV precisions e.g.
+     * `ov::element::boolean`
      * @return Pointer towards the allocated tensor
      */
     std::shared_ptr<ZeroTensor> allocate_tensor(const size_t index,
                                                 const bool isInput,
-                                                const std::optional<std::size_t> batchSize = std::nullopt) const;
+                                                const std::optional<std::size_t>& batchSize = std::nullopt,
+                                                const std::optional<ov::element::Type>& precision = std::nullopt) const;
 
     void add_state(const IODescriptor& descriptor, size_t tensorIndex) const;
 

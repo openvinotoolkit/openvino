@@ -374,7 +374,8 @@ void ZeroInferRequest::update_command_list_for_tensor(SyncInferRequest::FoundPor
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate tensor");
 
                 auto batch = _graph->get_batch_size();
-                levelZeroTensor = allocate_tensor(foundPort.idx, foundPort.is_input(), batch);
+                levelZeroTensor =
+                    allocate_tensor(foundPort.idx, foundPort.is_input(), batch, tensor->get_element_type());
                 updateCommandListArg = true;
             } else {
                 _logger.debug("ZeroInferRequest::set_tensor - reusing the level zero tensor since it is not shared "
@@ -470,7 +471,8 @@ void ZeroInferRequest::update_command_list_for_tensors(SyncInferRequest::FoundPo
 
                 _logger.debug("ZeroInferRequest::set_tensors - allocate locally L0 tensor");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "allocate tensor");
-                get_level_zero_input(foundPort.idx, i) = allocate_tensor(foundPort.idx, INPUT, batchSizeCandidate);
+                get_level_zero_input(foundPort.idx, i) =
+                    allocate_tensor(foundPort.idx, INPUT, batchSizeCandidate, tensors.at(i)->get_element_type());
             }
 
             if (_pipelineIsCreated && !_dynamicBatchValueChanged) {
@@ -553,9 +555,11 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
 
 std::shared_ptr<ZeroTensor> ZeroInferRequest::allocate_tensor(const size_t index,
                                                               const bool isInput,
-                                                              const std::optional<std::size_t> batchSize) const {
+                                                              const std::optional<std::size_t>& batchSize,
+                                                              const std::optional<ov::element::Type>& precision) const {
     const auto& descriptor = isInput ? _metadata.inputs.at(index) : _metadata.outputs.at(index);
-    check_network_precision(descriptor.precision);
+    const auto& prc = precision != std::nullopt ? *precision : descriptor.precision;
+    check_network_precision(prc);
 
     ov::Shape allocatedTensorShape = descriptor.shapeFromCompiler.get_max_shape();
 
@@ -563,8 +567,7 @@ std::shared_ptr<ZeroTensor> ZeroInferRequest::allocate_tensor(const size_t index
         allocatedTensorShape[utils::BATCH_AXIS] = *batchSize;
     }
 
-    auto tensor =
-        std::make_shared<ZeroTensor>(_initStructs, _config, descriptor.precision, allocatedTensorShape, isInput);
+    auto tensor = std::make_shared<ZeroTensor>(_initStructs, _config, prc, allocatedTensorShape, isInput);
 
     if (isInput) {
         if (get_user_input(index) == nullptr) {
