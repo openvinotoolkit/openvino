@@ -36,7 +36,7 @@ Give high-signal review comments that help maintainers merge safely with minimal
 - Review only when explicitly triggered by a user.
 - If the label is removed after prior review results were published: perform a new review but do not duplicate previously reported observations; focus exclusively on areas not covered by prior reviews.
 
-### Revert PRs
+## Revert PRs
 A revert PR restores a previously merged change. It is identified by the word "Revert" in the PR title or description, and typically references the original PR being reverted (e.g., `Reverts openvinotoolkit/openvino#NNNNN`).
 
 - **Treat revert PRs with a lighter review posture.** A revert is not new code — it restores a prior known state. Do not evaluate it as a new change.
@@ -48,6 +48,9 @@ A revert PR restores a previously merged change. It is identified by the word "R
 - If CI checks pass and no prior regression risk is identified, approve with a brief note.
 
 ## Review Protocol
+
+For revert PRs, apply the lightweight protocol in the Revert PRs section instead of the full protocol below.
+
 When reviewing a PR, always:
 1. Determine changed component(s) by paths and labels (see `.github/labeler.yml`).
 2. Validate that the change scope is focused and matches PR description/ticket.
@@ -59,13 +62,10 @@ When reviewing a PR, always:
 For PRs labeled `ExternalPR`, apply stricter evidence-based checks while keeping noise low:
 1. Treat `ExternalPR` as a risk signal, not as proof of low quality.
 2. Prioritize objective quality gates first: required CI status, build/test failures, and changed-path risk.
-3. Treat `ExternalPR Build Smoke` as important only when the PR has `ExternalPR` label.
-4. For PRs without `ExternalPR` label, do not treat `ExternalPR Build Smoke` as a required gate.
-5. Wait for `ExternalPR Build Smoke` results before starting review. If the job does not exist or cannot execute, proceed with static-analysis-only review.
-6. If other validation checks have started, incorporate their results to increase review precision and value.
-7. If buildability is in question, reference failing required checks and concrete failure symptoms; do not speculate.
-8. Do not request extra local validation steps when required CI checks are green.
-9. Keep comments focused on merge blockers, regressions, and security/performance risks; avoid style-only expansion.
+3. If validation checks have started, incorporate their results to increase review precision and value.
+4. If buildability is in question, reference failing required checks and concrete failure symptoms; do not speculate.
+5. Do not request extra local validation steps when required CI checks are green.
+6. Keep comments focused on merge blockers, regressions, and security/performance risks; avoid style-only expansion.
 
 Before posting any comment, apply this gate:
 - **Evidence gate**: point to exact changed code and explain the failure mode.
@@ -80,7 +80,6 @@ Before posting any comment, apply this gate:
 - Avoid review comments on unrelated legacy code not touched by the PR.
 - Do not request large refactors in bug-fix PRs unless needed to prevent correctness/security regression.
 - Highlight out-of-scope or accidental changes and request revert when they are not required for the stated fix.
-- For `ExternalPR`, require stronger evidence before posting comments and prefer one high-confidence issue over multiple speculative ones.
 
 ## Ignore List for Automated Reviews
 - Do not review vendored/third-party sources under `thirdparty/` unless the PR explicitly modifies integration or patch logic.
@@ -139,7 +138,6 @@ Before posting any comment, apply this gate:
 - For architecture-specific changes (x64/ARM64/RISCV, CPU/GPU/NPU), verify appropriate platform/test gating.
 - If tests are skipped/disabled, require explicit rationale and limited scope.
 - If required validation jobs fail, cite the exact failing job(s) and explain impact on merge readiness.
-- For PRs labeled `ExternalPR`, include `ExternalPR Build Smoke` status in review summary when available.
 
 ### CI Failure Log Analysis
 When CI/GitHub Actions results are available and a job has failed:
@@ -148,10 +146,10 @@ When CI/GitHub Actions results are available and a job has failed:
   1. **Infrastructure/environment issue** — flaky runner, network timeout, resource exhaustion, dependency mirror outage, or similar non-code problems.
   2. **Test issue** — pre-existing flaky or broken test unrelated to the PR's changes (e.g., known intermittent failure, test environment mismatch).
   3. **Change-induced failure** — the PR's code changes directly cause the build or test failure.
-- Post a follow-up review comment summarizing the failure analysis with the identified category, the failing job name, and a concise explanation of what went wrong.
-- For change-induced failures, provide actionable guidance on what in the diff likely caused it and how to fix it.
+- Post a follow-up review comment with the identified category, the failing job name, and a concise explanation of what went wrong.
+- For change-induced failures, provide actionable guidance on what in the diff likely caused it and how to fix it. Use the changed files and neighboring code context to build confidence in proposed solutions; only post fix suggestions at high confidence.
 - For infrastructure or pre-existing test issues, note that the failure appears unrelated to the PR to help the author avoid unnecessary debugging.
-- This analysis significantly reduces author turnaround time and should be provided whenever log data is accessible.
+- Apply the same evidence/impact/fix gate as for code review comments. Do not post low-confidence CI analysis.
 
 ## How to Write Review Comments
 - Use this severity prefix:
