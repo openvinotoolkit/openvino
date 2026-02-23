@@ -37,3 +37,55 @@ bool ov::is_fp16_compression_postponed(const ov::RTMap& rt_info) {
 void ov::do_not_postpone_fp16_compression(ov::RTMap& rt_info) {
     rt_info.erase(get_postponed_fp16_compression_tag());
 }
+
+void ov::disable_compression_to(const std::shared_ptr<Node>& node, element::Type to) {
+    return disable_compression_from_to(node, element::dynamic, to);
+}
+
+void ov::disable_compression_from_to(const std::shared_ptr<Node>& node, element::Type from, element::Type to) {
+    auto& rt_info = node->get_rt_info();
+    if (rt_info.count(DisablePrecisionConversion::get_type_info_static())) {
+        auto& dpc_attribute = rt_info.at(DisablePrecisionConversion::get_type_info_static()).as<DisablePrecisionConversion>();
+        dpc_attribute.m_disabled_precisions[from].insert(to);
+    } else {
+        rt_info[DisablePrecisionConversion::get_type_info_static()] = DisablePrecisionConversion(from, to);
+    }
+}
+
+bool ov::is_compression_disabled_to(const std::shared_ptr<Node>& node, element::Type to) {
+    return is_compression_disabled_from_to(node, element::dynamic, to);
+}
+
+bool ov::is_compression_disabled_from_to(const std::shared_ptr<Node>& node, element::Type from, element::Type to) {
+    auto& rt_info = node->get_rt_info();
+    if (rt_info.count(DisablePrecisionConversion::get_type_info_static())) {
+        auto& dpc_attribute = rt_info.at(DisablePrecisionConversion::get_type_info_static()).as<DisablePrecisionConversion>();
+
+        if (dpc_attribute.m_disabled_precisions.at(element::dynamic).count(element::dynamic) ||
+            dpc_attribute.m_disabled_precisions.at(element::dynamic).count(to)) {
+            return true;
+        }
+
+        if (dpc_attribute.m_disabled_precisions.count(from) &&
+            dpc_attribute.m_disabled_precisions.at(from).count(to)) {
+            return true;
+        }
+
+        return false;
+    }
+    return false;
+}
+
+void ov::enable_keep_const_precision_new(const std::shared_ptr<Node>& node) {
+    auto& rt_info = node->get_rt_info();
+    rt_info[DisablePrecisionConversion::get_type_info_static()] = DisablePrecisionConversion(element::dynamic, element::dynamic);
+}
+
+void ov::disable_keep_const_precision_new(const std::shared_ptr<Node>& node) {
+    auto& rt_info = node->get_rt_info();
+    // rt_info.erase(KeepConstPrecision::get_type_info_static());
+}
+
+bool ov::is_keep_const_precision_new(const std::shared_ptr<Node>& node) {
+    return ov::is_compression_disabled_from_to(node, element::dynamic, element::dynamic);
+}
