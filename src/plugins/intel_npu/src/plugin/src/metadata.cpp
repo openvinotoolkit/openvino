@@ -333,37 +333,9 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
     stream.read(reinterpret_cast<char*>(&metaVersion), sizeof(metaVersion));
 
     std::unique_ptr<MetadataBase> storedMeta;
-    storedMeta = create_metadata(metaVersion, blobDataSize);
-    storedMeta->read(stream);
-
-    stream.seekg(-stream.tellg() + currentStreamPos, std::ios::cur);
-
-    return storedMeta;
-}
-
-std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
-    size_t magicBytesSize = MAGIC_BYTES.size();
-    std::string_view blobMagicBytes(tensor.data<const char>() + tensor.get_byte_size() - magicBytesSize,
-                                    magicBytesSize);
-
-    if (MAGIC_BYTES != blobMagicBytes) {
-        OPENVINO_THROW("Blob is missing NPU metadata!");
-    }
-
-    uint64_t blobDataSize;
-    blobDataSize = *reinterpret_cast<const decltype(blobDataSize)*>(tensor.data<const char>() + tensor.get_byte_size() -
-                                                                    magicBytesSize - sizeof(blobDataSize));
-
-    uint32_t metaVersion;
-    metaVersion = *reinterpret_cast<const decltype(metaVersion)*>(tensor.data<const char>() + blobDataSize);
-
-    std::unique_ptr<MetadataBase> storedMeta;
     try {
-        auto roiTensor = ov::Tensor(tensor,
-                                    ov::Coordinate{blobDataSize + sizeof(metaVersion)},
-                                    ov::Coordinate{tensor.get_byte_size()});
         storedMeta = create_metadata(metaVersion, blobDataSize);
-        storedMeta->read(roiTensor);
+        storedMeta->read(stream);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't read NPU metadata: ", ex.what());
     } catch (...) {

@@ -283,9 +283,6 @@ private:
     ze_graph_profiling_dditable_ext_decorator& operator=(const ze_graph_profiling_dditable_ext_decorator&) = delete;
     ze_graph_profiling_dditable_ext_decorator& operator=(ze_graph_profiling_dditable_ext_decorator&&) = delete;
 
-    ze_graph_profiling_ddi_table_ext_decorator& operator=(const ze_graph_profiling_ddi_table_ext_decorator&) = delete;
-    ze_graph_profiling_ddi_table_ext_decorator& operator=(ze_graph_profiling_ddi_table_ext_decorator&&) = delete;
-
 public:
     ze_graph_profiling_dditable_ext_decorator(ze_graph_profiling_dditable_ext_t* impl)
         : _impl(impl),

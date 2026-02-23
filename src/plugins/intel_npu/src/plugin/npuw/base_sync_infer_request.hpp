@@ -125,11 +125,6 @@ protected:
     };
     QuantGatherTensors m_quant_gather_tensors;
 
-    struct QuantGatherTensors {
-        ov::Tensor w, z, s;
-    };
-    QuantGatherTensors m_quant_gather_tensors;
-
     // FIXME: Currently is initialized/managed by subclass as well.
     // Moved here dumping purposes only
     // Another sparse vector. Represents populated spatial I/O parameters
@@ -194,9 +189,6 @@ protected:
     TensorPtr allocOut(const ov::Output<const ov::Node>& node, const std::string& device) const;
     virtual void alloc_quant_gather();
     virtual TensorPtr alloc_global_out(std::size_t out_idx) const;
-
-    std::string global_input_mem_device(std::size_t idx) const;
-    std::string global_output_mem_device(std::size_t idx) const;
 
     std::string global_input_mem_device(std::size_t idx) const;
     std::string global_output_mem_device(std::size_t idx) const;

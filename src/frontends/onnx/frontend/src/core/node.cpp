@@ -258,11 +258,6 @@ std::shared_ptr<ov::Model> Node::Impl::get_attribute_value(const std::string& na
     return get_subgraph(name);
 }
 
-template <>
-std::shared_ptr<ov::Model> Node::Impl::get_attribute_value(const std::string& name) const {
-    return get_subgraph(name);
-}
-
 ov::OutputVector Node::Impl::get_ov_inputs() const {
     ov::OutputVector result;
     for (const auto& name : m_node_proto->input()) {

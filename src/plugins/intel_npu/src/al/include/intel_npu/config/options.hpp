@@ -250,10 +250,13 @@ struct PLATFORM final : OptionBase<PLATFORM, std::string> {
 
     static bool isPublic() {
         return true;
+<<<<<<< HEAD
     }
 
     static uint32_t compilerSupportVersion() {
         return ONEAPI_MAKE_VERSION(0, 0);
+=======
+>>>>>>> real_origin/main
     }
 
     static uint32_t compilerSupportVersion() {
@@ -1448,10 +1451,6 @@ struct USE_BASE_MODEL_SERIALIZER final : OptionBase<USE_BASE_MODEL_SERIALIZER, b
     static bool defaultValue() {
         return true;
     }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
 };
 
 struct MODEL_SERIALIZER_VERSION final : OptionBase<MODEL_SERIALIZER_VERSION, ov::intel_npu::ModelSerializerVersion> {
@@ -1514,79 +1513,6 @@ struct DISABLE_IDLE_MEMORY_PRUNING final : OptionBase<DISABLE_IDLE_MEMORY_PRUNIN
 
     static OptionMode mode() {
         return OptionMode::CompileTime;
-    }
-};
-
-struct SEPARATE_WEIGHTS_VERSION final : OptionBase<SEPARATE_WEIGHTS_VERSION, ov::intel_npu::WSVersion> {
-    static std::string_view key() {
-        return ov::intel_npu::separate_weights_version.name();
-    }
-
-    static constexpr std::string_view getTypeName() {
-        return "ov::intel_npu::WSVersion";
-    }
-
-    static ov::intel_npu::WSVersion defaultValue() {
-        return ov::intel_npu::WSVersion::ITERATIVE;
-    }
-
-    static ov::intel_npu::WSVersion parse(std::string_view val) {
-        std::istringstream stringStream = std::istringstream(std::string(val));
-        ov::intel_npu::WSVersion wsVersion;
-        stringStream >> wsVersion;
-        return wsVersion;
-    }
-
-    static std::string toString(const ov::intel_npu::WSVersion& val) {
-        std::stringstream strStream;
-        strStream << val;
-        return strStream.str();
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-};
-
-struct WS_COMPILE_CALL_NUMBER final : OptionBase<WS_COMPILE_CALL_NUMBER, uint32_t> {
-    static std::string_view key() {
-        return ov::intel_npu::ws_compile_call_number.name();
-    }
-
-    static uint32_t defaultValue() {
-        return 0;
-    }
-
-    static uint32_t parse(std::string_view val) {
-        int val_i = -1;
-        try {
-            val_i = std::stoi(val.data());
-            if (val_i >= 0) {
-                return val_i;
-            } else {
-                throw std::logic_error("wrong val");
-            }
-        } catch (const std::exception&) {
-            OPENVINO_THROW("Wrong value of ",
-                           val.data(),
-                           " for property key ",
-                           ov::intel_npu::ws_compile_call_number.name(),
-                           ". Expected only positive integer numbers");
-        }
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-};
-
-struct USE_BASE_MODEL_SERIALIZER final : OptionBase<USE_BASE_MODEL_SERIALIZER, bool> {
-    static std::string_view key() {
-        return ov::intel_npu::use_base_model_serializer.name();
-    }
-
-    static bool defaultValue() {
-        return true;
     }
 };
 

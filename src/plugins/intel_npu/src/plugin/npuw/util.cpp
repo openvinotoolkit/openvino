@@ -140,33 +140,6 @@ void unpack_f16f16(const ov::SoPtr<ov::ITensor>& from,
     });
 }
 
-void unpack_f16f16(const ov::SoPtr<ov::ITensor>& from,
-                   const ov::SoPtr<ov::ITensor>& scale,
-                   const ov::SoPtr<ov::ITensor>& to,
-                   const ov::npuw::util::UnpackOptions& unpack_options) {
-    auto from_shape = from->get_shape();
-    auto scale_shape = scale->get_shape();
-
-    NPUW_ASSERT(from->is_continuous());
-    NPUW_ASSERT(to->is_continuous());
-    NPUW_ASSERT(scale->is_continuous());
-    NPUW_ASSERT(from->get_size() == to->get_size());
-    NPUW_ASSERT(from_shape[0] == scale_shape[0]);
-    NPUW_ASSERT(scale_shape[1] == 1);
-    NPUW_ASSERT(from->get_element_type() == ov::element::f16);
-    NPUW_ASSERT(scale->get_element_type() == ov::element::f16);
-    NPUW_ASSERT(to->get_element_type() == ov::element::f16);
-
-    const auto* from_ptr = from->data<ov::float16>();
-    const auto* scale_ptr = scale->data<ov::float16>();
-    auto* to_ptr = to->data<ov::float16>();
-    const auto size = to->get_size();
-
-    ov::parallel_for(size, [&](size_t idx) {
-        to_ptr[idx] = from_ptr[idx] * scale_ptr[idx / from_shape[1]];
-    });
-}
-
 }  // namespace
 
 ov::Tensor ov::npuw::util::tensor_from_const(const std::shared_ptr<ov::Node>& node) {

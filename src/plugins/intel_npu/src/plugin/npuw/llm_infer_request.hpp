@@ -19,23 +19,6 @@ namespace npuw {
 
 class LLMInferRequest : public ov::npuw::LLMInferBaseRequest {
 public:
-    struct layer_names {
-        static constexpr const char* input_ids = "input_ids";
-        static constexpr const char* inputs_embeds = "inputs_embeds";
-        static constexpr const char* attention_mask = "attention_mask";
-        static constexpr const char* position_ids = "position_ids";
-        static constexpr const char* past_key_values = "past_key_values";
-        static constexpr const char* output_embeds = "npuw_output_embed";
-        static constexpr const char* logits = "logits";
-        static constexpr const char* token_type_ids = "token_type_ids";
-        static constexpr const char* gemma_sliding_mask = "npuw_gemma_sliding_mask";
-    };
-
-    struct layer_ids {
-        static constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
-        static constexpr std::size_t kStartOutputKVCacheLayers = 1;
-    };
-
     explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
 
     void infer() override;
@@ -102,6 +85,15 @@ protected:
     // prepare_for_new_conversation)
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_out_ports;
+
+    // Ports for all generate model variants - maps from request pointer to its input/output ports
+    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>,
+                       std::unordered_map<std::string, ov::Output<const ov::Node>>>
+        m_generate_variant_in_ports;
+    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>,
+                       std::unordered_map<std::string, ov::Output<const ov::Node>>>
+        m_generate_variant_out_ports;
+
     ov::Output<const ov::Node> m_lm_head_logits_port;
 
     // Cache past_key_values ports for efficient clearing in prepare_for_new_conversation

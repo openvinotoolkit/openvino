@@ -123,10 +123,6 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const Config& config) {
             if (transformation_callback(matmul0)) {
                 return false;
             }
-            const auto& out_shape = matmul0->get_output_partial_shape(0);
-            OPENVINO_ASSERT(out_shape.rank().is_static() && out_shape.size() >= 2,
-                            "MatMul out shape must be 2D at least");
-            const auto& m_dim = *(out_shape.rbegin() + 1);
 
             bool is_dynamic = matmul0->is_dynamic();
             // Add possible FQ before matmul0

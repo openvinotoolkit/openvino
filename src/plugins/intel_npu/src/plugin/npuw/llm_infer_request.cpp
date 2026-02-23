@@ -251,65 +251,6 @@ void ov::npuw::LLMInferRequest::bind_past_kv() {
         // ensure correct data layout
         m_past_kv_bound = true;
     }
-
-    init_lora_states();
-
-    const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
-    if (use_chunk_prefill) {
-        clear_chunk_prefill_kv_cache();
-    }
-
-    if (m_npuw_llm_compiled_model->m_enable_prefix_caching) {
-        m_prefix_caching_helper = std::make_unique<PrefixCachingHelper>(*this);
-    }
-
-    if (compiled_model->m_lm_head_compiled) {
-        m_lm_head_request = compiled_model->m_lm_head_compiled->create_infer_request();
-        OPENVINO_ASSERT(m_lm_head_request);
-        const ov::Output<const ov::Node> lm_head_embed_port = m_lm_head_request->get_inputs()[0];
-        m_lm_head_logits_port = m_lm_head_request->get_outputs()[0];
-        m_prefill_request->set_tensor(m_prefill_out_ports.at(layer_names::output_embeds),
-                                      m_lm_head_request->get_tensor(lm_head_embed_port));
-        m_kvcache_request->set_tensor(m_kvcache_out_ports.at(layer_names::output_embeds),
-                                      m_lm_head_request->get_tensor(lm_head_embed_port));
-    }
-
-    // FIXME: E-177589
-    // FIXME: "fixes"/workarounds caching import on CPU (also might be related to bf16 weights).
-    // Unclear how it's related. Previously fill_tensor()
-    // was in copy_kvcache() call. When it was removed, it broke the import accuracy.
-    bool enable_cpu_wa = false;
-    const auto& kvcache_compiled = m_npuw_llm_compiled_model->m_kvcache_compiled;
-    for (std::size_t idx = 0; idx < kvcache_compiled->m_compiled_submodels.size(); ++idx) {
-        if (kvcache_compiled->submodel_device(idx) == "CPU") {
-            enable_cpu_wa = true;
-            break;
-        }
-    }
-
-    ov::Any kvcache_weight_bank_alloc =
-        compiled_model->m_kvcache_compiled->get_property(ov::intel_npu::npuw::weights_bank_alloc.name());
-    if (kvcache_weight_bank_alloc.as<std::string>() == "CPU") {
-        enable_cpu_wa = true;
-    }
-
-    if (enable_cpu_wa) {
-        const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
-        // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
-        for (std::size_t i = layer_ids::kStartOutputKVCacheLayers; i < kvcache_compiled->outputs().size(); ++i) {
-            const auto& output_name = kvcache_compiled->outputs()[i].get_any_name();
-            const auto& input_name =
-                std::regex_replace(output_name, std::regex("present"), layer_names::past_key_values);
-            if (m_kvcache_in_ports.find(input_name) == m_kvcache_in_ports.end()) {
-                continue;
-            }
-            auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
-            ov::npuw::util::fill_tensor<ov::float16>(kvcache_in_tensor, 0);
-        }
-    }
-
-    m_generate_initialized = false;
-    m_gemma_sliding_window_size = compiled_model->m_gemma_sliding_window_size;
 }
 
 void ov::npuw::LLMInferRequest::create_generate_request_variants(
