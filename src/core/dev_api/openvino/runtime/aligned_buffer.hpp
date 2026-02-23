@@ -15,7 +15,15 @@ namespace ov {
 /// byte
 /// on 64 byte alignment will allocate 65 bytes.
 
-class IBufferDescriptor;
+class AlignedBuffer;
+
+class OPENVINO_API IBufferDescriptor {
+public:
+    virtual size_t get_id() const = 0;
+    virtual size_t get_offset() const = 0;
+    virtual std::shared_ptr<ov::AlignedBuffer> get_source_buffer() const = 0;
+    virtual ~IBufferDescriptor() = default;
+};
 
 class OPENVINO_API AlignedBuffer {
 public:

@@ -11,42 +11,25 @@
 #include "openvino/util/mmap_object.hpp"
 
 namespace ov {
-class OPENVINO_API IBufferDescriptor {
-public:
-    virtual size_t get_id() const = 0;
-    virtual size_t get_offset() const = 0;
-    virtual std::shared_ptr<ov::AlignedBuffer> get_source_buffer() const = 0;
-    virtual ~IBufferDescriptor() = default;
-};
+OPENVINO_API std::shared_ptr<IBufferDescriptor> create_base_descriptor(size_t id,
+                                                                       size_t offset,
+                                                                       const std::shared_ptr<ov::AlignedBuffer>& source_buffer);
 
 template <typename T>
 class SharedBufferBase : public ov::AlignedBuffer {
-    class SharedBufferDescriptor : public IBufferDescriptor {
-    public:
-        SharedBufferDescriptor(size_t id, size_t offset, const std::shared_ptr<ov::AlignedBuffer>& source_buffer)
-            : m_id(id),
-              m_offset(offset),
-              m_source_buffer(source_buffer) {}
-
-        size_t get_id() const override {
-            return m_id;
-        }
-
-        size_t get_offset() const override {
-            return m_offset;
-        }
-
-        std::shared_ptr<ov::AlignedBuffer> get_source_buffer() const override {
-            return m_source_buffer.lock();
-        }
-
-    private:
-        size_t m_id = 0;
-        size_t m_offset = 0;
-        std::weak_ptr<ov::AlignedBuffer> m_source_buffer;
-    };
-
 public:
+    std::shared_ptr<IBufferDescriptor> get_descriptor() const override {
+        return m_descriptor;
+    }
+
+    virtual ~SharedBufferBase() {
+        m_aligned_buffer = nullptr;
+        m_allocated_buffer = nullptr;
+        m_byte_size = 0;
+    }
+
+protected:
+    // protected to not create SharedBufferBase directly
     SharedBufferBase(char* data,
                      size_t size,
                      const T& shared_object,
@@ -57,8 +40,7 @@ public:
         m_aligned_buffer = data;
         m_byte_size = size;
         if (descriptor) {
-            m_descriptor =
-                std::make_shared<SharedBufferDescriptor>(descriptor->get_id(), get_offset(), m_source_buffer);
+            m_descriptor = create_base_descriptor(descriptor->get_id(), get_offset(), m_source_buffer);
         }
     }
 
@@ -70,27 +52,16 @@ public:
         m_byte_size = size;
     }
 
-    virtual ~SharedBufferBase() {
-        m_aligned_buffer = nullptr;
-        m_allocated_buffer = nullptr;
-        m_byte_size = 0;
-    }
-
-    std::shared_ptr<IBufferDescriptor> get_descriptor() const override {
-        return m_descriptor;
-    }
-
-protected:
-    T _shared_object;
-    std::shared_ptr<ov::AlignedBuffer> m_source_buffer;
-    mutable std::shared_ptr<IBufferDescriptor> m_descriptor;
-
-    virtual size_t get_offset() const {
+    size_t get_offset() const {
         if (m_source_buffer) {
             return std::distance(static_cast<char*>(m_source_buffer->get_ptr()), m_aligned_buffer);
         }
         return 0;
     }
+
+    T _shared_object;
+    std::shared_ptr<ov::AlignedBuffer> m_source_buffer;
+    std::shared_ptr<IBufferDescriptor> m_descriptor;
 };
 
 template <typename T, typename = void>
@@ -100,39 +71,6 @@ public:
         : SharedBufferBase<T>(data, size, shared_object, descriptor) {}
 
     SharedBuffer(char* data, size_t size, const T& shared_object) : SharedBufferBase<T>(data, size, shared_object) {}
-};
-
-template <>
-class SharedBuffer<std::shared_ptr<ov::MappedMemory>> : public SharedBufferBase<std::shared_ptr<ov::MappedMemory>> {
-    class MMapDescriptor : public IBufferDescriptor {
-    public:
-        MMapDescriptor(const std::weak_ptr<ov::MappedMemory>& mem, uint64_t id) : m_mem(mem), m_id(id) {}
-        uint64_t get_id() const override {
-            return m_id;
-        }
-        size_t get_offset() const override {
-            return 0;
-        }
-        std::shared_ptr<AlignedBuffer> get_source_buffer() const override {
-            if (auto mmap = m_mem.lock()) {
-                // Use 3-arg constructor (no descriptor) to avoid infinite recursion:
-                return std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(mmap->data(), mmap->size(), mmap);
-            }
-            return nullptr;
-        }
-
-    protected:
-        std::weak_ptr<ov::MappedMemory> m_mem;
-        uint64_t m_id;
-    };
-
-public:
-    SharedBuffer(char* data, size_t size, const std::shared_ptr<ov::MappedMemory>& shared_object)
-        : SharedBufferBase<std::shared_ptr<ov::MappedMemory>>(
-              data,
-              size,
-              shared_object,
-              std::make_shared<MMapDescriptor>(shared_object, shared_object->get_id())) {}
 };
 
 template <typename T>
@@ -151,11 +89,25 @@ public:
                                                shared_object,
                                                shared_object ? shared_object->get_descriptor() : nullptr) {}
 
+    // subbuffer constructor
     SharedBuffer(const std::shared_ptr<T>& shared_object, size_t offset, size_t size)
         : SharedBufferBase<std::shared_ptr<T>>(static_cast<char*>(shared_object->get_ptr()) + offset,
                                                size,
                                                shared_object,
                                                shared_object->get_descriptor()) {}
+};
+
+template <>
+class SharedBuffer<std::shared_ptr<ov::MappedMemory>> : public SharedBufferBase<std::shared_ptr<ov::MappedMemory>> {
+public:
+    SharedBuffer(char* data, size_t size, const std::shared_ptr<ov::MappedMemory>& shared_object)
+        : SharedBufferBase<std::shared_ptr<ov::MappedMemory>>(
+              data,
+              size,
+              shared_object,
+              create_mmap_descriptor(shared_object)) {}
+protected:
+    OPENVINO_API std::shared_ptr<IBufferDescriptor> create_mmap_descriptor(const std::shared_ptr<ov::MappedMemory>&) const;
 };
 
 /// \brief SharedStreamBuffer class to store pointer to pre-allocated buffer and provide streambuf interface.
