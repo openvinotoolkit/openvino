@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,10 +18,13 @@ HorizonMax::HorizonMax(const Output<Node>& x) : Op({x}) {
     constructor_validate_and_infer_types();
 }
 
+HorizonMax::HorizonMax(const OutputVector& x) : Op(x) {
+    constructor_validate_and_infer_types();
+}
+
 std::shared_ptr<Node> HorizonMax::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(HorizonMax_clone_with_new_inputs);
-    check_new_args_count(this, new_args);
-    return std::make_shared<HorizonMax>(new_args.at(0));
+    return std::make_shared<HorizonMax>(new_args);
 }
 
 void HorizonMax::validate_and_infer_types() {

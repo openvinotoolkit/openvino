@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -801,7 +801,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     uint output_offset = out_f * TILE_OUT_F_PITCH + out_b * TILE_OUT_B_PITCH + OUTPUT_OFFSET;
 
     if (USE_BLOCK_WRITE && (TILE_OUT_F_NUM % (OUTER_OFM * TILE_OFM * SIMD) == 0 || out_f + (OUTER_OFM * TILE_OFM * SIMD) <= TILE_OUT_F_NUM)) {
-#if IS_DYNAMIC
+#if IS_DYNAMIC || BATCH_LEFTOVER
         #define WRITE_OUTPUT(bi) do {                                       \
                 if (bi + out_b < BATCH_SIZE)                                \
                     OUTPUT_BLOCK_WRITE(output, output_offset, result[bi]);  \
@@ -820,7 +820,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         for (uint bi = 0; bi < TILE_B; ++bi) {
             for (uint fi = 0; fi < TILE_OFM; ++fi) {
                 const bool should_write =
-#if IS_DYNAMIC
+#if IS_DYNAMIC || BATCH_LEFTOVER
                     bi + out_b < BATCH_SIZE &&
 #endif
                     (TILE_OUT_F_NUM % (OUTER_OFM * TILE_OFM * SIMD) == 0 ||
@@ -1002,7 +1002,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     // =====================================================================================================================================
     // Main computation loop
     const uint iterations = MAIN_LOOP_ELEMENTS_COUNT / TILE_IFM_ELEMENTS_SIZE;  // TILE_IFM_ELEMENTS_SIZE : (TILE_IFM * SIMD)
-    // Each sub-group loads 2 Batch 
+    // Each sub-group loads 2 Batch
     const uint idx_sglid = (sglid * TILE_K) % TILE_IFM_ELEMENTS_SIZE;       // same index for sglid 0~7 : to tile_k direction
     const uint batch_sglid = (sglid * TILE_K) / TILE_IFM_ELEMENTS_SIZE;     // 0 to 1 : to batch direction
     const uint scale_pitch = (TILE_IN_B_PITCH / QUANTIZE_GROUP_SIZE);
@@ -1378,7 +1378,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     uint output_offset = out_f * TILE_OUT_F_PITCH + out_b * TILE_OUT_B_PITCH + OUTPUT_OFFSET;
 
     if (USE_BLOCK_WRITE && (TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0 || out_f + (TILE_OFM * SIMD) <= TILE_OUT_F_NUM)) {
-#if IS_DYNAMIC
+#if IS_DYNAMIC || BATCH_LEFTOVER
         #define WRITE_OUTPUT(bi) do {                                       \
                 if (bi + out_b < BATCH_SIZE)                                \
                     OUTPUT_BLOCK_WRITE(output, output_offset, result[bi]);  \
@@ -1398,7 +1398,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
         for (uint bi = 0; bi < TILE_B; ++bi) {
             for (uint fi = 0; fi < TILE_OFM; ++fi) {
                 const bool should_write =
-#if IS_DYNAMIC
+#if IS_DYNAMIC || BATCH_LEFTOVER
                     bi + out_b < BATCH_SIZE &&
 #endif
                     (TILE_OUT_F_NUM % (TILE_OFM * SIMD) == 0 ||

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,7 @@ public:
         bool is_qwen = false;           // Qwen is special which overrides other setting
         bool use_rope_cache = false;    // use precomputed RoPE cache for trigonometric values (cosine and sine)
         bool support_3d_rope = false;   // use same logic as RoPEFusionGPTNEOX(4), used by gpu plugin
+        size_t cos_sin_ndims = 0;       // last dimension of con/sin table
         size_t head_cnt = 0;
         size_t head_size = 0;
         int gather_position_arg_id =

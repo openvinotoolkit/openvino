@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -239,6 +239,6 @@ TEST(post_optimize_weights, onednn_group_conv_weights_reorder_test) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
     // Check onednn_weights_params->_out_desc.get_size() with reorder output_layout bytes_count
     auto onednn_weights_params = std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(weights_param);
-    ASSERT_TRUE(onednn_weights_params->_out_desc.get_size() == prog->get_node("weights_weights_reorder_0").get_output_layout().bytes_count());
+    ASSERT_TRUE(onednn_weights_params->_out_desc->get_size() == prog->get_node("weights_weights_reorder_0").get_output_layout().bytes_count());
 #endif
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -120,7 +120,7 @@ element::Type evaluate_common_type(const v14::ConvertPromoteTypes* op) {
                 // For pytorch mode, when number formats are same, promote to type of non-scalar input.
                 const auto& target = is_input_0_scalar ? input_1_type : input_0_type;
                 if (!promote_unsafe) {
-                    // For safe mode, check wether target type has bitwidth able to hold data from scalar type.
+                    // For safe mode, check whether target type has bitwidth able to hold data from scalar type.
                     const auto& scalar = is_input_0_scalar ? input_0_type : input_1_type;
                     const auto is_pytorch_promote_safe =
                         ((target.is_signed() == scalar.is_signed() && target.bitwidth() >= scalar.bitwidth()) ||

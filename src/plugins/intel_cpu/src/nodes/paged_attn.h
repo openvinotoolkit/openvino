@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,6 +61,7 @@ private:
     friend struct PagedAttentionKey;
 
     bool m_hasScore = false;
+    bool m_has_adaptive_rkv_diversity_output = false;
 };
 
 }  // namespace ov::intel_cpu::node

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,20 +41,19 @@ TensorExternalData::TensorExternalData(const std::string& location, size_t offse
 
 Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::string& model_dir,
                                                                      MappedMemoryHandles cache) const {
-    const auto full_path =
-        model_dir == "" ? m_data_location
-                        : ov::util::get_absolute_file_path(ov::util::path_join({model_dir, m_data_location}).string());
+    const auto full_path = model_dir.empty() ? ov::util::make_path(m_data_location)
+                                             : ov::util::make_path(ov::util::path_join({model_dir, m_data_location}));
     const int64_t file_size = ov::util::file_size(full_path);
     if (file_size <= 0 || m_offset + m_data_length > static_cast<uint64_t>(file_size)) {
         throw error::invalid_external_data{*this};
     }
-    auto cached_mapped_memory = cache->find(full_path);
+    auto cached_mapped_memory = cache->find(ov::util::path_to_string(full_path));
     std::shared_ptr<ov::MappedMemory> mapped_memory;
     if (cached_mapped_memory != cache->end()) {
         mapped_memory = cached_mapped_memory->second;
     } else {
         mapped_memory = ov::load_mmap_object(full_path);
-        (*cache)[full_path] = mapped_memory;
+        (*cache)[ov::util::path_to_string(full_path)] = mapped_memory;
     }
     if (m_data_length > mapped_memory->size() || mapped_memory->size() == 0) {
         throw error::invalid_external_data{*this};
@@ -66,16 +65,10 @@ Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::
 }
 
 Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::string& model_dir) const {
-    auto full_path = model_dir == ""
-                         ? m_data_location
-                         : ov::util::get_absolute_file_path(ov::util::path_join({model_dir, m_data_location}).string());
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    ov::util::convert_path_win_style(full_path);
-    std::ifstream external_data_stream(ov::util::string_to_wstring(full_path).c_str(),
-                                       std::ios::binary | std::ios::in | std::ios::ate);
-#else
+    const auto full_path = model_dir.empty() ? ov::util::make_path(m_data_location)
+                                             : std::filesystem::absolute(std::filesystem::weakly_canonical(
+                                                   ov::util::path_join({model_dir, m_data_location})));
     std::ifstream external_data_stream(full_path, std::ios::binary | std::ios::in | std::ios::ate);
-#endif
 
     if (external_data_stream.fail()) {
         throw error::invalid_external_data{*this};

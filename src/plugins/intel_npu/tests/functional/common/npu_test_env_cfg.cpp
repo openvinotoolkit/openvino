@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -173,6 +173,10 @@ std::string getDeviceName() {
 std::string getDeviceNameID(const std::string& str) {
     ov::DeviceIDParser parser = ov::DeviceIDParser(str);
     return parser.get_device_id();
+}
+
+std::string getTestPlatform() {
+    return ov::intel_npu::Platform::standardize(NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM);
 }
 
 }  // namespace ov::test::utils

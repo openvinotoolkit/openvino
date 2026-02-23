@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,6 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/shape_util.hpp"
-#include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"

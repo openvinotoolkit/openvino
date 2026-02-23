@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,7 +77,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             } else {
                 OPENVINO_ASSERT(current_shape.size() == 4 && is_weight_3d);
                     new_shape = (has_transpose || !grouped) ? ov::Shape{current_shape[0], current_shape[1] * current_shape[2], current_shape[3]}
-                                                            : ov::Shape{current_shape[0], current_shape[1], current_shape[3] * current_shape[1]};
+                                                            : ov::Shape{current_shape[0], current_shape[1], current_shape[3] * current_shape[2]};
             }
             auto new_constant = std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
 

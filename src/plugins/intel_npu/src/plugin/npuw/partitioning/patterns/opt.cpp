@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1531,7 +1531,8 @@ HostGather::HostGather(Context::Ref ctx) {
     auto cvtids = opp::optional<ov::op::v0::Convert>({pids->output(0)});
 
     auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
-    auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qweight, cvtids, opp::any_input()});
+    auto qweight_cvt = opp::optional<ov::op::v0::Convert>({qweight->output(0)});
+    auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qweight_cvt, cvtids, opp::any_input()});
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();

@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,10 +12,12 @@
 #include <vector>
 
 #include "attention.hpp"
+#include "host_flash_attention.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "perf.hpp"
+#include "pyramid_attention.hpp"
 #include "spatial.hpp"
 #include "util.hpp"
 
@@ -109,7 +111,14 @@ protected:
                                        // reset to 0 before every new execution
     };
     // FROM(Every subrequests' output port) TO(Its output tensor)
-    std::map<ov::Output<const ov::Node>, TensorStorage> m_port_to_tensor;
+    // mutable due to lazy I/O allocation in get_tensor()
+    mutable std::map<ov::Output<const ov::Node>, TensorStorage> m_port_to_tensor;
+
+    // FIXME: need to lock internal storages (e.g. accessed within get_tensor())
+    mutable std::mutex m_io_storages_mutex;
+
+    // Check that m_port_to_tensor does have a tensor stored at the port
+    bool is_stored(const ov::Output<const ov::Node>& port) const;
 
     struct QuantGatherTensors {
         ov::Tensor w, z, s;
@@ -138,6 +147,14 @@ protected:
     };
     std::vector<AttentionIO> m_attention_io;
 
+    // Host Flash Attention I/O structure
+    // Stores input and output tensors for HFA tiled inference
+    struct HostFlashAttentionIO {
+        std::vector<ov::SoPtr<ov::ITensor>> inputs;   // # of elements - # of original SDPA model inputs
+        std::vector<ov::SoPtr<ov::ITensor>> outputs;  // # of elements - # of original SDPA model outputs
+    };
+    std::vector<HostFlashAttentionIO> m_hfa_io;
+
     // FIXME: Currently is initialized/managed by subclass as well.
     // Moved here dumping purposes only
     // Represents spatial run-time info
@@ -145,6 +162,12 @@ protected:
 
     // Same thing about this one
     runtime::attention::Selector::Ptr m_attention_selector;
+
+    // Separate selector for pyramid attention
+    runtime::pyramid_attention::Selector::Ptr m_pyramid_selector;
+
+    // Host flash attention selector for dynamic execution
+    runtime::host_flash_attention::Selector::Ptr m_hfa_selector;
 
     // This structure tracks how every individual subrequest
     // access the model's top-level (global, public, etc) parameters
@@ -157,15 +180,15 @@ protected:
     std::vector<GlobalIO> m_subrequests_gio;
 
     // Tracks tensors we allocated on our own - to recognize and avoid copies
-    std::unordered_set<void*> m_input_allocated;
+    mutable std::unordered_set<void*> m_input_allocated;  // mutable due to lazy I/O allocation in get_tensor()
 
     // Common functionality - shared for subclasses
     const std::size_t m_num_submodels;
 
-    TensorPtr allocMem(const ov::element::Type type, const ov::Shape& shape, const std::string& device);
-    TensorPtr allocOut(const ov::Output<const ov::Node>& node, const std::string& device);
-    virtual void alloc_io();
-    virtual TensorPtr alloc_global_out(std::size_t out_idx);
+    TensorPtr allocMem(const ov::element::Type type, const ov::Shape& shape, const std::string& device) const;
+    TensorPtr allocOut(const ov::Output<const ov::Node>& node, const std::string& device) const;
+    virtual void alloc_quant_gather();
+    virtual TensorPtr alloc_global_out(std::size_t out_idx) const;
 
     std::string global_input_mem_device(std::size_t idx) const;
     std::string global_output_mem_device(std::size_t idx) const;
@@ -178,6 +201,7 @@ protected:
     void handle_quant_host_gather(std::size_t idx, RqPtr request);
 
     void bind_attention_inputs(std::size_t idx, RqPtr request);
+    void bind_pyramid_attention_inputs(std::size_t idx, RqPtr request);
 
     void dump_input_tensors(std::size_t idx);
     void dump_output_tensors(std::size_t idx);
@@ -188,7 +212,7 @@ protected:
 
     MS m_ms_unpack;
     ov::npuw::perf::Profile<MS> m_profile;
-    ov::npuw::perf::Profile<B> m_footprint;
+    mutable ov::npuw::perf::Profile<B> m_footprint;  // mutable due to lazy I/O allocation in get_tensor()
 
     std::string profile_tag(std::size_t idx) const;
 

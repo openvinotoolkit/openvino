@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <onnx/onnx_pb.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <utility>
 #include <vector>
 
@@ -141,6 +142,7 @@ public:
 
     detail::MappedMemoryHandles get_mmap_cache();
     detail::LocalStreamHandles get_stream_cache();
+    std::filesystem::path get_model_dir() const;
 
 protected:
     int64_t m_input_idx = -1, m_output_idx = -1;
@@ -179,7 +181,7 @@ public:
     };
 
     Tensor() = delete;
-    Tensor(const TensorProto& tensor, const std::string& model_dir, detail::MappedMemoryHandles mmap_cache)
+    Tensor(const TensorProto& tensor, const std::filesystem::path& model_dir, detail::MappedMemoryHandles mmap_cache)
         : m_tensor_proto{&tensor},
           m_tensor_place(nullptr),
           m_shape{std::begin(tensor.dims()), std::end(tensor.dims())},
@@ -315,9 +317,9 @@ private:
         if (ext_data.data_location() == detail::ORT_MEM_ADDR) {
             buffer = ext_data.load_external_mem_data();
         } else if (m_mmap_cache) {
-            buffer = ext_data.load_external_mmap_data(m_model_dir, m_mmap_cache);
+            buffer = ext_data.load_external_mmap_data(m_model_dir.string(), m_mmap_cache);
         } else {
-            buffer = ext_data.load_external_data(m_model_dir);
+            buffer = ext_data.load_external_data(m_model_dir.string());
         }
         return std::vector<T>(buffer->get_ptr<T>(), buffer->get_ptr<T>() + (buffer->size() / sizeof(T)));
     }
@@ -340,12 +342,14 @@ private:
             return m_tensor_proto->int32_data().data();
         case TensorProto_DataType::TensorProto_DataType_INT64:
             return m_tensor_proto->int64_data().data();
+        case TensorProto_DataType::TensorProto_DataType_UINT32:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_UINT64:
             return m_tensor_proto->uint64_data().data();
         case TensorProto_DataType::TensorProto_DataType_DOUBLE:
             return m_tensor_proto->double_data().data();
         }
-        ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "FLOAT, INT32, INT64, UINT64, DOUBLE");
+        ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "FLOAT, INT32, INT64, UINT32, UINT64, DOUBLE");
     }
 
     size_t get_data_size() const {
@@ -367,10 +371,10 @@ private:
         switch (m_tensor_proto->data_type()) {
         case TensorProto_DataType::TensorProto_DataType_FLOAT:
             return m_tensor_proto->float_data_size();
-        case TensorProto_DataType::TensorProto_DataType_INT32:
-            return m_tensor_proto->int32_data_size();
         case TensorProto_DataType::TensorProto_DataType_INT64:
             return m_tensor_proto->int64_data_size();
+        case TensorProto_DataType::TensorProto_DataType_UINT32:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_UINT64:
             return m_tensor_proto->uint64_data_size();
         case TensorProto_DataType::TensorProto_DataType_DOUBLE:
@@ -378,28 +382,42 @@ private:
         case TensorProto_DataType::TensorProto_DataType_STRING:
             return m_tensor_proto->string_data_size();
         case TensorProto_DataType::TensorProto_DataType_INT4:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_INT8:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_INT16:
+            [[fallthrough]];
+        case TensorProto_DataType::TensorProto_DataType_INT32:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_UINT4:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_UINT8:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_UINT16:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_BOOL:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_FLOAT16:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
             return m_tensor_proto->int32_data_size();
+        default: {
+            ONNX_INVALID_DATA_TYPE(
+                m_tensor_proto->data_type(),
+                "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, INT32, INT64, "
+                "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
         }
-        ONNX_INVALID_DATA_TYPE(
-            m_tensor_proto->data_type(),
-            "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, INT32, INT64, "
-            "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
+        }
     }
 
     const TensorProto* m_tensor_proto;
     std::shared_ptr<TensorONNXPlace> m_tensor_place;
     ov::Shape m_shape;
-    std::string m_model_dir;
+    std::filesystem::path m_model_dir;
     detail::MappedMemoryHandles m_mmap_cache;
 };
 

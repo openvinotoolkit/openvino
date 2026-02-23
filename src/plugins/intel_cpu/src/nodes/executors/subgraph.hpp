@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -240,7 +240,7 @@ protected:
     }
 
     std::vector<size_t> m_buffer_offsets;
-    std::vector<VectorDims> m_data_offsets;
+    std::vector<std::vector<size_t>> m_data_offsets;
     std::vector<jit_snippets_call_args::loop_args_t> m_loop_args;
     std::function<void()> m_reset_exec_table_state;
 };

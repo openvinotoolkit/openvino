@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/allocator.hpp"
+#include "openvino/runtime/file_handle.hpp"
 
 namespace ov {
 
@@ -219,29 +220,25 @@ public:
 
     /**
      * @brief Provides an access to the underlying host memory
+     * @note The method throws an exception:
+     * - if tensor implementation does not allow non-const access to memory.
      * @return A host pointer to tensor memory
      * @{
      */
-
-#ifndef IN_OV_COMPONENT
-    OPENVINO_DEPRECATED("This function will return const void* in 2026.0. Check if used correctly")
-#endif
-    void* data() const;
+    const void* data() const;
     void* data();
-/// @}
+    /// @}
 
-/**
- * @brief Provides an access to the underlying host memory
- * @param type Optional type parameter.
- * @note The method throws an exception
- * if specified type's fundamental type does not match with tensor element type's fundamental type
- * @return A host pointer to tensor memory
- * @{
- */
-#ifndef IN_OV_COMPONENT
-    OPENVINO_DEPRECATED("This function will return const void* in 2026.0. Check if used correctly")
-#endif
-    void* data(const element::Type& type) const;
+    /**
+     * @brief Provides an access to the underlying host memory
+     * @param type Optional type parameter.
+     * @note The method throws an exception:
+     * - if specified type's fundamental type does not match with tensor element type's fundamental type
+     * - if tensor implementation does not allow non-const access to memory.
+     * @return A host pointer to tensor memory
+     * @{
+     */
+    const void* data(const element::Type& type) const;
     void* data(const element::Type& type);
     /// @}
 
@@ -252,22 +249,14 @@ public:
      * @{
      */
     template <typename T, typename datatype = std::decay_t<T>>
-#ifndef IN_OV_COMPONENT
-    OPENVINO_DEPRECATED("This function will return const T* in 2026.0. Check if used correctly")
-#endif
-    T* data() const {
-        OPENVINO_SUPPRESS_DEPRECATED_START  // keep until 2026.0 release
-            return static_cast<T*>(data(element::from<datatype>()));
-        OPENVINO_SUPPRESS_DEPRECATED_END  // keep until 2026.0 release
+    const T* data() const {
+        return static_cast<const T*>(data(element::from<datatype>()));
     }
 
     template <typename T, typename datatype = std::decay_t<T>>
     T* data() {
         if constexpr (std::is_const_v<T>) {
-            OPENVINO_SUPPRESS_DEPRECATED_START  // keep until 2026.0 release
-                return std::as_const(*this)
-                    .data<T>();
-            OPENVINO_SUPPRESS_DEPRECATED_END  // keep until 2026.0 release
+            return std::as_const(*this).data<T>();
         } else {
             return static_cast<T*>(data(element::from<datatype>()));
         }
@@ -337,4 +326,18 @@ Tensor read_tensor_data(const std::filesystem::path& file_name,
                         const PartialShape& shape = PartialShape::dynamic(1),
                         std::size_t offset_in_bytes = 0,
                         bool mmap = true);
+
+/// \brief Read a tensor content from an externally provided file handle. Only raw data is loaded.
+/// \param file_handle File handle to read. File handle should be opened by the caller OpenVINO takes ownership of the
+/// file
+///                    handle and is responsible for closing it. File should be opened with GENERIC_READ,
+///                    FILE_SHARE_READ flags on Windows and O_RDONLY on Linux.
+/// \param element_type Element type, when not specified the it is assumed as element::u8.
+/// \param shape Shape for resulting tensor.
+/// \param offset_in_bytes Read file starting from specified offset.
+OPENVINO_API
+Tensor read_tensor_data(ov::FileHandle file_handle,
+                        const element::Type& element_type = element::u8,
+                        const PartialShape& shape = PartialShape::dynamic(1),
+                        std::size_t offset_in_bytes = 0);
 }  // namespace ov

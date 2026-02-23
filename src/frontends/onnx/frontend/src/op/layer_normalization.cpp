@@ -1,22 +1,27 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "utils/common.hpp"
 using namespace ov::op;
 using namespace ov::op::v0;
 using namespace ov::op::v1;
+using namespace ov::util;
 using ::ONNX_NAMESPACE::TensorProto_DataType;
 using ov::Shape;
 
@@ -76,9 +81,36 @@ ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
     if (needs_type_casting)
         normalized = std::make_shared<ConvertLike>(normalized, inputs.at(0));
 
-    auto scaled = std::make_shared<Multiply>(normalized, inputs.at(1));
-    auto biased = (num_inputs == 3 ? std::make_shared<Add>(scaled, inputs.at(2))->output(0) : scaled->output(0));
-    return ov::OutputVector{biased};
+    ov::Output<ov::Node> normalized_shape = std::make_shared<v0::ShapeOf>(normalized);
+    ov::Output<ov::Node> sub_shape = std::make_shared<v8::Slice>(normalized_shape,
+                                                                 Constant::create(element::i64, {1}, {axis}),
+                                                                 Constant::create(element::i64, {1}, {INT_MAX}),
+                                                                 Constant::create(element::i64, {1}, {1}));
+    auto normalized_rank = normalized.get_partial_shape().rank();
+
+    auto scale = inputs.at(1);
+    auto scale_rank = scale.get_partial_shape().rank();
+    if ((scale_rank.is_dynamic() && normalized_rank.is_dynamic()) ||
+        ((scale_rank.is_static() && normalized_rank.is_static()) &&
+         scale_rank.get_length() + normalize_axis(axis, normalized_rank.get_length()) !=
+             static_cast<size_t>(normalized_rank.get_length()))) {
+        scale = std::make_shared<v1::Reshape>(scale, sub_shape, false);
+    }
+    auto scaled = std::make_shared<Multiply>(normalized, scale);
+
+    if (common::is_input_valid(node, 2)) {
+        auto bias = inputs.at(2);
+        auto bias_rank = bias.get_partial_shape().rank();
+        if ((bias_rank.is_dynamic() && normalized_rank.is_dynamic()) ||
+            ((bias_rank.is_static() && normalized_rank.is_static()) &&
+             bias_rank.get_length() + normalize_axis(axis, normalized_rank.get_length()) !=
+                 static_cast<size_t>(normalized_rank.get_length()))) {
+            bias = std::make_shared<v1::Reshape>(bias, sub_shape, false);
+        }
+        return {std::make_shared<Add>(scaled, bias)->output(0)};
+    } else {
+        return {scaled->output(0)};
+    }
 }
 
 ONNX_OP("LayerNormalization", OPSET_SINCE(1), ai_onnx::opset_1::layer_normalization);

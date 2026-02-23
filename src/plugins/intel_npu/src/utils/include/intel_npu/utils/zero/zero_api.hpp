@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,7 +65,8 @@ namespace intel_npu {
 #define weak_symbols_list()                                   \
     symbol_statement(zeCommandListGetNextCommandIdExp)        \
     symbol_statement(zeCommandListUpdateMutableCommandsExp)   \
-    symbol_statement(zeInitDrivers)
+    symbol_statement(zeInitDrivers)                           \
+    symbol_statement(zelGetLoaderVersion)
 // clang-format on
 
 class ZeroApi {
@@ -78,7 +79,7 @@ public:
 
     ~ZeroApi() = default;
 
-    static const std::shared_ptr<ZeroApi>& getInstance();
+    static const std::shared_ptr<ZeroApi> getInstance();
 
 #define symbol_statement(symbol) decltype(&::symbol) symbol;
     symbols_list();

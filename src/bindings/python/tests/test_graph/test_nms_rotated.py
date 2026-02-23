@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -14,13 +14,24 @@ from openvino.utils.types import make_constant_node
 @pytest.mark.parametrize(
     ("boxes_shape", "scores_shape", "max_output_boxes", "iou_threshold", "score_threshold", "expected_shape"),
     [
-        ([1, 100, 5], [1, 1, 100], [100], 0.1, 0.4, [PartialShape([Dimension(0, 100), Dimension(3)]), PartialShape([Dimension(0, 100), Dimension(3)])]),
-        ([1, 700, 5], [1, 1, 700], [600], 0.1, 0.4, [PartialShape([Dimension(0, 600), Dimension(3)]), PartialShape([Dimension(0, 600), Dimension(3)])]),
-        ([1, 300, 5], [1, 1, 300], [300], 0.1, 0.4, [PartialShape([Dimension(0, 300), Dimension(3)]), PartialShape([Dimension(0, 300), Dimension(3)])]),
+        (
+            [1, 100, 5], [1, 1, 100], [100], 0.1, 0.4,
+            [PartialShape([Dimension(0, 100), Dimension(3)]), PartialShape([Dimension(0, 100), Dimension(3)])]
+        ),
+        (
+            [1, 700, 5], [1, 1, 700], [600], 0.1, 0.4,
+            [PartialShape([Dimension(0, 600), Dimension(3)]), PartialShape([Dimension(0, 600), Dimension(3)])]
+        ),
+        (
+            [1, 300, 5], [1, 1, 300], [300], 0.1, 0.4,
+            [PartialShape([Dimension(0, 300), Dimension(3)]), PartialShape([Dimension(0, 300), Dimension(3)])]
+        ),
     ],
 )
 @pytest.mark.parametrize("op_name", ["nms_rotated", "nmsRotated", "nmsRotatedOpset13"])
-def test_nms_rotated_default_attrs(boxes_shape, scores_shape, max_output_boxes, iou_threshold, score_threshold, expected_shape, op_name):
+def test_nms_rotated_default_attrs(
+    boxes_shape, scores_shape, max_output_boxes, iou_threshold, score_threshold, expected_shape, op_name
+):
     boxes_parameter = ov_opset13.parameter(boxes_shape, name="Boxes", dtype=np.float32)
     scores_parameter = ov_opset13.parameter(scores_shape, name="Scores", dtype=np.float32)
 

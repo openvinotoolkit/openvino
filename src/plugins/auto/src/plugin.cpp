@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -186,7 +186,7 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
         }
     };
     auto check_priority_config = [&] (const std::string& pri_string) {
-        if (pri_string.empty())
+        if (pri_string.empty() || pri_string.find(",") == std::string::npos)
             return false;
         std::string::size_type pos = 0;
         std::string::size_type endpos = 0;
@@ -326,7 +326,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
                                                    : get_core()->get_available_devices();
 
         std::vector<std::string> capabilities;
-        for (auto const& device : device_list) {
+        for (const auto& device : device_list) {
             try {
                 auto dev_capabilities = get_core()->get_property(device, ov::device::capabilities);
                 capabilities.insert(capabilities.end(), dev_capabilities.begin(), dev_capabilities.end());
@@ -487,6 +487,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto_s_context->m_device_priorities = support_devices;
     auto_s_context->m_device_priorities_initial = std::move(support_devices);
     auto_s_context->m_str_devices = std::move(str_devices);
+    auto_s_context->m_str_devices_initial = m_plugin_config.parse_priorities_devices(priorities);
+    LOG_INFO_TAG("Original device list(%s) size to load the model: %d",
+                 priorities.c_str(),
+                 auto_s_context->m_str_devices_initial.size());
     auto_s_context->m_plugin = shared_from_this();
     auto_s_context->m_ov_core = get_core();
     OPENVINO_ASSERT(auto_s_context->m_ov_core);
@@ -766,17 +770,16 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                 std::string blobId;
 
                 if (model)
-                    blobId = ov::ModelCache::compute_hash(std::const_pointer_cast<const ov::Model>(model),
-                                                          dev_properties);
+                    blobId = ov::ModelCache::compute_hash(model, dev_properties);
                 else
-                    blobId = ov::ModelCache::compute_hash(model_path, dev_properties);
-                std::string cached_model_path = ov::util::make_path(cache_dir, blobId + ".blob");
+                    blobId = ov::ModelCache::compute_hash(util::make_path(model_path), dev_properties);
+                const auto cached_model_path = ov::util::make_path(cache_dir) / (blobId + ".blob");
                 bool is_blob_file_exist = ov::util::file_exists(cached_model_path);
                 num_blob_files += is_blob_file_exist;
                 LOG_DEBUG_TAG("device: %s %s cached blob: %s ",
                               device.c_str(),
                               is_blob_file_exist ? "found" : "not found",
-                              cached_model_path.c_str());
+                              ov::util::path_to_string(cached_model_path).c_str());
             }
 
             if (enable_startup_cpu && num_blob_files) {

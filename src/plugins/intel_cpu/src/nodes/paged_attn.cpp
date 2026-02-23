@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,11 +24,16 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_ARM64)
+#    include "openvino/core/shape.hpp"
+#endif
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
 #    include "kernels/scaled_attn/executor_pa.hpp"
@@ -70,6 +75,7 @@ PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphC
     }
     // output score may have no child
     m_hasScore = !op->get_output_target_inputs(1).empty();
+    m_has_adaptive_rkv_diversity_output = !op->get_output_target_inputs(2).empty();
 }
 
 void PagedAttention::initSupportedPrimitiveDescriptors() {
@@ -93,7 +99,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    CPU_NODE_ASSERT(orgInputNumber == 21U, "The input number of PagedAttention should be 21.");
+    CPU_NODE_ASSERT(orgInputNumber == 25U, "The input number of PagedAttention should be 25.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
     auto past_value_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
@@ -176,7 +182,33 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     // sinks, float, [1, H, 1, 1]
     config.inConfs[PagedAttentionExecutor::ID_SINKS].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)
-            ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_SINKS)));
+            ->createSharedDesc(ov::element::f32, getInputShapeAtPort(PagedAttentionExecutor::ID_SINKS)));
+
+    // adaptive_rkv_start_size, int32, []
+    config.inConfs[PagedAttentionExecutor::ID_ADAPTIVE_RKV_START_SIZE].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32,
+                               getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_START_SIZE)));
+    // adaptive_rkv_evictable_sizes, int32, [B_seq]
+    config.inConfs[PagedAttentionExecutor::ID_ADAPTIVE_RKV_EVICTABLE_SIZES].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32,
+                               getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_EVICTABLE_SIZES)));
+    // adaptive_rkv_diversity_block_set_indices, int32, [num_adaptive_rkv_diversity_blocks]
+    config.inConfs[PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(
+                ov::element::i32,
+                getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES)));
+    // adaptive_rkv_diversity_block_set_indices_begins, int32, [B_seq + 1]
+    config.inConfs[PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(
+                ov::element::i32,
+                getInputShapeAtPort(PagedAttentionExecutor::ID_ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS)));
+
+    config.outConfs[2].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getOutputShapeAtPort(2)));
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
@@ -218,7 +250,7 @@ void PagedAttention::createPrimitive() {
                                     quantKeybyChannel,
                                     quantValuebyChannel,
                                     cpuConfig.enableSageAttn};
-        return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision, params);
+        return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision, params, context->getCpuParallel());
 #else
         return nullptr;
 #endif
@@ -235,7 +267,12 @@ void PagedAttention::createPrimitive() {
 void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto orginInputNumber = getOriginalInputsNumber();
     std::vector<MemoryPtr> inputs(orginInputNumber);
-    std::vector<MemoryPtr> outputs(m_hasScore ? 2 : 1);
+    size_t num_outputs = 1;
+    if (m_hasScore) {
+        num_outputs = m_has_adaptive_rkv_diversity_output ? 3 : 2;
+    }
+
+    std::vector<MemoryPtr> outputs(num_outputs);
 
     for (size_t i = 0; i < orginInputNumber; i++) {
         inputs[i] = getSrcMemoryAtPort(i);
@@ -256,6 +293,9 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
         //               (num_kv_heads * head_size) = num_heads * v_head_size
         outDims[1] = outDims[1] * valueDims[1] / keyDims[1];
     }
+
+    std::vector<VectorDims> output_dims = {outDims};
+
     if (m_hasScore) {
         size_t len = 0;
         const auto& pastLensDims = inputs[5]->getStaticDims();
@@ -265,14 +305,41 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
         }
         len += outDims[0];
         VectorDims scoreDims{len};
-        redefineOutputMemory({outDims, scoreDims});
+        output_dims.push_back(scoreDims);
+
     } else {
-        redefineOutputMemory({outDims, {0}});
+        output_dims.push_back({0});
     }
+
+    if (m_has_adaptive_rkv_diversity_output) {
+        size_t num_elements_in_output = 0;
+
+        const size_t K_CACHE_IDX = PagedAttentionExecutor::ID_KCACHE;
+        const size_t block_size = inputs[K_CACHE_IDX]->getStaticDims()[2];
+
+        const size_t ADAPTIVE_RKV_EVICTABLE_SIZES_IDX = PagedAttentionExecutor::ID_ADAPTIVE_RKV_EVICTABLE_SIZES;
+        auto evictable_sizes_dims = inputs[ADAPTIVE_RKV_EVICTABLE_SIZES_IDX]->getStaticDims();
+        const auto* evictable_sizes_data = inputs[ADAPTIVE_RKV_EVICTABLE_SIZES_IDX]->getDataAs<const int32_t>();
+        if (!evictable_sizes_dims.empty()) {
+            for (size_t i = 0; i < evictable_sizes_dims[0]; i++) {
+                // for each sequence the Adaptive R-KV similarity output has shape [ evictable_size / block_size,
+                // evictable_size ] where evictable_size is in general different for different subsequences
+                num_elements_in_output += evictable_sizes_data[i] * evictable_sizes_data[i] / block_size;
+            }
+        }
+        output_dims.push_back({num_elements_in_output});
+    } else {
+        output_dims.push_back({0});
+    }
+
+    redefineOutputMemory(output_dims);
 
     outputs[0] = getDstMemoryAtPort(0);
     if (m_hasScore) {
         outputs[1] = getDstMemoryAtPort(1);
+        if (m_has_adaptive_rkv_diversity_output) {
+            outputs[2] = getDstMemoryAtPort(2);
+        }
     }
 
     m_executor->execute(inputs, outputs);
@@ -301,13 +368,23 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
                 return false;
             }
         }
-        if (ov::shape_size(op->get_input_shape(PagedAttentionExecutor::ID_SINKS)) != 0) {
-            errorMessage = "PageAttn sinks input is not supported yet";
-            return false;
-        }
         auto orgInput = static_cast<int>(op->get_input_size());
         if (op->get_type_name() == std::string("PagedAttentionExtension") &&
-            orgInput == PagedAttentionExecutor::ID_SLIDING_WINDOW + 1) {
+            orgInput == PagedAttentionExecutor::ID_SINKS + 1) {
+            if (!ov::op::util::is_on_path<ov::op::v0::Constant>(op->input_value(PagedAttentionExecutor::ID_SINKS))) {
+                errorMessage = "Only Constant operation on sink input is supported";
+                return false;
+            }
+#ifndef OPENVINO_ARCH_X86_64
+            // Non-x86_64 platforms do not support non-empty sink tensors yet
+            // Fail fast if the sink input shape has any elements
+            const auto& sink_shape = op->get_input_partial_shape(PagedAttentionExecutor::ID_SINKS);
+            if (sink_shape.is_static() && ov::shape_size(sink_shape.to_shape()) > 0) {
+                errorMessage =
+                    "PagedAttentionExtension with non-empty sink input is not supported on non-x86_64 platforms";
+                return false;
+            }
+#endif
             return true;
         }
     } catch (...) {

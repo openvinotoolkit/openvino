@@ -1,0 +1,122 @@
+ir_version: 7
+producer_name: "OpenVINO LSTM Test"
+graph {
+  node {
+    input: "X"
+    input: "W"
+    input: "R"
+    input: "B"
+    output: "Y"
+    output: "Y_h"
+    output: "Y_c"
+    op_type: "LSTM"
+    attribute {
+      name: "direction"
+      s: "forward"
+      type: STRING
+    }
+    attribute {
+      name: "hidden_size"
+      i: 2
+      type: INT
+    }
+  }
+  name: "lstm_rank5_squeeze"
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 1 }
+          dim { dim_value: 3 }
+          dim { dim_value: 2 }
+          dim { dim_value: 4 }
+        }
+      }
+    }
+  }
+  input {
+    name: "W"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 8 }
+          dim { dim_value: 4 }
+        }
+      }
+    }
+  }
+  input {
+    name: "R"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 8 }
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+  input {
+    name: "B"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 16 }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 3 }
+          dim { dim_value: 1 }
+          dim { dim_value: 2 }
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y_h"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 2 }
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y_c"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 2 }
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 14
+}
