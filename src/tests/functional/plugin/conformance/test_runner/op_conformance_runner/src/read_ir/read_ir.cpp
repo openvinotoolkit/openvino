@@ -158,7 +158,7 @@ void ReadIRTest::SetUp() {
     }
 
     bool hasDynamic = ov::util::is_dynamic_model(function);
-    if (targetDevice == "TEMPLATE"&&
+    if (targetDevice == "TEMPLATE" &&
         hasDynamic &&
         path_to_model.find("Multiply") != std::string::npos){
         GTEST_SKIP()<<"Dynamic Multiply conformance is not supported for Template device";
