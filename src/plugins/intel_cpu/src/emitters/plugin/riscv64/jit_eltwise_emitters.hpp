@@ -99,6 +99,42 @@ private:
     float max{0.F};
 };
 
+class jit_convert_saturation_emitter : public jit_emitter {
+public:
+    jit_convert_saturation_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                   ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                   const std::shared_ptr<ov::Node>& node);
+
+    size_t get_inputs_num() const override;
+    size_t aux_gprs_count() const override;
+
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+
+    ov::element::Type input_type;
+    ov::element::Type output_type;
+};
+
+class jit_convert_truncation_emitter : public jit_emitter {
+public:
+    jit_convert_truncation_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                   ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                   const std::shared_ptr<ov::Node>& node);
+
+    size_t get_inputs_num() const override;
+    size_t aux_gprs_count() const override;
+
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+
+    ov::element::Type input_type;
+    ov::element::Type output_type;
+};
+
 class jit_divide_emitter : public jit_emitter {
 public:
     jit_divide_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,

@@ -11,44 +11,52 @@ using namespace std;
 using namespace ov;
 using namespace ov::frontend;
 
-TEST(FrontEndConvertModelTest, test_zerolen) {
-    FrontEndManager fem;
-    FrontEnd::Ptr frontEnd;
+// Tests where load() succeeds but convert() throws an exception
+class MalformedModelConvertTest : public ::testing::TestWithParam<std::string> {
+protected:
+    void SetUp() override {
+        FrontEndManager fem;
+        OV_ASSERT_NO_THROW(m_frontEnd = fem.load_by_framework(TF_LITE_FE));
+        ASSERT_NE(m_frontEnd, nullptr);
+    }
+    FrontEnd::Ptr m_frontEnd;
+};
+
+TEST_P(MalformedModelConvertTest, convert_throws) {
+    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) + GetParam());
     InputModel::Ptr inputModel;
-    OV_ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_LITE_FE));
-    ASSERT_NE(frontEnd, nullptr);
-    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) +
-                                                             string("bad_header/zerolen.tflite"));
-    OV_ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
+    OV_ASSERT_NO_THROW(inputModel = m_frontEnd->load(model_filename));
     ASSERT_NE(inputModel, nullptr);
     shared_ptr<ov::Model> model;
-    ASSERT_THROW(model = frontEnd->convert(inputModel), std::exception);
+    ASSERT_THROW(model = m_frontEnd->convert(inputModel), std::exception);
 }
 
-TEST(FrontEndConvertModelTest, test_wrong_len) {
-    FrontEndManager fem;
-    FrontEnd::Ptr frontEnd;
-    InputModel::Ptr inputModel;
-    OV_ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_LITE_FE));
-    ASSERT_NE(frontEnd, nullptr);
-    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) +
-                                                             string("bad_header/wrong_len_3.tflite"));
-    OV_ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
-    ASSERT_NE(inputModel, nullptr);
-    shared_ptr<ov::Model> model;
-    ASSERT_THROW(model = frontEnd->convert(inputModel), std::exception);
+INSTANTIATE_TEST_SUITE_P(BadHeader,
+                         MalformedModelConvertTest,
+                         ::testing::Values("bad_header/zerolen.tflite",
+                                           "bad_header/wrong_len_3.tflite",
+                                           "bad_header/wrong_pos.tflite"));
+
+// Tests where load() itself throws an exception (malformed indices)
+class MalformedModelLoadTest : public ::testing::TestWithParam<std::string> {
+protected:
+    void SetUp() override {
+        FrontEndManager fem;
+        OV_ASSERT_NO_THROW(m_frontEnd = fem.load_by_framework(TF_LITE_FE));
+        ASSERT_NE(m_frontEnd, nullptr);
+    }
+    FrontEnd::Ptr m_frontEnd;
+};
+
+TEST_P(MalformedModelLoadTest, load_throws) {
+    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) + GetParam());
+    ASSERT_THROW(m_frontEnd->load(model_filename), std::exception);
 }
 
-TEST(FrontEndConvertModelTest, test_wrong_pos) {
-    FrontEndManager fem;
-    FrontEnd::Ptr frontEnd;
-    InputModel::Ptr inputModel;
-    OV_ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_LITE_FE));
-    ASSERT_NE(frontEnd, nullptr);
-    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) +
-                                                             string("bad_header/wrong_pos.tflite"));
-    OV_ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
-    ASSERT_NE(inputModel, nullptr);
-    shared_ptr<ov::Model> model;
-    ASSERT_THROW(model = frontEnd->convert(inputModel), std::exception);
-}
+INSTANTIATE_TEST_SUITE_P(OobIndices,
+                         MalformedModelLoadTest,
+                         ::testing::Values("malformed_indices/oob_output_tensor_index.tflite",
+                                           "malformed_indices/oob_input_tensor_index.tflite",
+                                           "malformed_indices/oob_opcode_index.tflite",
+                                           "malformed_indices/oob_graph_io_tensor_index.tflite",
+                                           "malformed_indices/oob_buffer_index.tflite"));
