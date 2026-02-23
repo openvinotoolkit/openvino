@@ -35,6 +35,7 @@ Give high-signal review comments that help maintainers merge safely with minimal
 - Do not initiate automatic review.
 - Review only when explicitly triggered by a user.
 - If the label is removed after prior review results were published: perform a new review but do not duplicate previously reported observations; focus exclusively on areas not covered by prior reviews.
+- When review is explicitly triggered on a Draft or `do_not_review` PR, apply the same review protocol, quality criteria, and comment budget as for any regular PR. The activation override does not relax any other rules in this document.
 
 ## Revert PRs
 A revert PR restores a previously merged change. It is identified by the word "Revert" in the PR title or description, and typically references the original PR being reverted (e.g., `Reverts openvinotoolkit/openvino#NNNNN`).
@@ -170,7 +171,7 @@ Comment quality constraints:
 - If confidence is low, ask one targeted question instead of asserting.
 
 ## Comment Budget
-- Prefer at most 5 substantive comments per review pass.
+- Do not exceed 5 comments per review pass. All severity levels (`[BLOCKER]`, `[HIGH]`, `[MEDIUM]`, `[LOW]`) count toward this limit.
 - Rank by severity and likely merge-blocking impact.
 - Skip low-value nits when BLOCKER/HIGH issues are present.
 - For `ExternalPR`, bias toward fewer, higher-confidence comments to avoid misleading contributors.
