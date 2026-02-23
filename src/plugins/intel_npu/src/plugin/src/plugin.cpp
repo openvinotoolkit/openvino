@@ -390,7 +390,14 @@ void Plugin::init_options(FilteredConfig& filteredConfig) {
     filteredConfig.enableRuntimeOptions();
 
     // Special cases
-    filteredConfig.enable(ov::log::level.name(), true);  // needed also by runtime options
+    // NPU_TURBO might be supported by the driver
+    if (_backend && _backend->isCommandQueueExtSupported()) {
+        _config.enable(ov::intel_npu::turbo.name(), true);
+    }
+
+    // LOG_LEVEL and PERFORMANCE_HINT are needed by runtime options
+    filteredConfig.enable(ov::log::level.name(), true);
+    filteredConfig.enable(ov::hint::performance_mode.name(), true);
 
     if (filteredConfig.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
         if (_backend) {

@@ -936,13 +936,18 @@ void Properties::filterPropertiesByCompilerSupport(const ICompilerAdapter* compi
         }
     });
 
-    // Special case for NPU_TURBO which might not be supported by compiler, but driver will still use it
+    // Special cases
+    // NPU_TURBO which might not be supported by compiler, but driver will still use it
     // if it exists in config = driver supports it
     // if compiler->is_option_suported is false = compiler doesn't support it and gets marked disabled by default logic
     // however, if driver supports it, we still need it (and will skip giving it to compiler) = force-enable
     if (_backend && _backend->isCommandQueueExtSupported()) {
         _config.enable(ov::intel_npu::turbo.name(), true);
     }
+
+    // LOG_LEVEL and PERFORMANCE_HINT are needed also by runtime options
+    _config.enable(ov::log::level.name(), true);
+    _config.enable(ov::hint::performance_mode.name(), true);
 
     // reset properties for the new options
     registerProperties();
