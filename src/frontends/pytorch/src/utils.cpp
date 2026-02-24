@@ -651,32 +651,18 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool uns
         !ov::as_type_ptr<v5::Loop>(current_output.get_node_shared_ptr()),
         "List is concatenated using loop. This case should be handled by a specific transformation.");
 
-    // Helper to prepend SequenceMark inputs - iterate in reverse with push_front to preserve order
-    auto prepend_seq_mark_inputs = [&res, &zero, unsqueeze_for_concat](const std::shared_ptr<SequenceMark>& seq_mark) {
-        const auto& inputs = seq_mark->inputs();
-        for (auto it = inputs.rbegin(); it != inputs.rend(); ++it) {
-            auto elem = it->get_source_output();
-            if (unsqueeze_for_concat) {
-                elem = std::make_shared<v0::Unsqueeze>(elem, zero);
-            }
-            res.push_front(elem);
-        }
-    };
-
-    // First check if it's a SequenceMark - just return its inputs in order
+    // Fast path: SequenceMark with get_sequence() handles SequenceInsert chains internally
     if (auto seq_mark = ov::as_type_ptr<SequenceMark>(current_output.get_node_shared_ptr())) {
-        // For direct SequenceMark, iterate in reverse with push_front to preserve order
-        const auto& inputs = seq_mark->inputs();
-        for (auto it = inputs.rbegin(); it != inputs.rend(); ++it) {
-            auto elem = it->get_source_output();
+        for (auto& elem : seq_mark->get_sequence()) {
             if (unsqueeze_for_concat) {
                 elem = std::make_shared<v0::Unsqueeze>(elem, zero);
             }
-            res.push_front(elem);
+            res.push_back(elem);
         }
         return res;
     }
 
+    // Legacy path: walk aten::append / aten::add FrameworkNodes
     while (const auto& fw_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(current_output.get_node_shared_ptr())) {
         const auto& attrs = fw_node->get_attrs();
         const auto op_type_it = attrs.find(PtFrameworkNode::op_type_key);
@@ -704,7 +690,14 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool uns
 
     // Check for SequenceMark at the end of chain - prepend its elements
     if (auto seq_mark = ov::as_type_ptr<SequenceMark>(current_output.get_node_shared_ptr())) {
-        prepend_seq_mark_inputs(seq_mark);
+        const auto& inputs = seq_mark->inputs();
+        for (auto it = inputs.rbegin(); it != inputs.rend(); ++it) {
+            auto elem = it->get_source_output();
+            if (unsqueeze_for_concat) {
+                elem = std::make_shared<v0::Unsqueeze>(elem, zero);
+            }
+            res.push_front(elem);
+        }
     } else {
         res.push_front(current_output);
     }
