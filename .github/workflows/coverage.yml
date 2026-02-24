@@ -27,8 +27,8 @@ jobs:
     env:
       CMAKE_BUILD_TYPE: 'Release'
       PARALLEL_JOBS: '64'
-      PYTEST_XDIST_WORKERS: '16'
-      JS_TEST_CONCURRENCY: '16'
+      PYTEST_XDIST_WORKERS: '1'
+      JS_TEST_CONCURRENCY: '1'
       TEST_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.test_profile || 'cpu' }}
       NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
     strategy:
@@ -172,14 +172,22 @@ jobs:
         run: ls -la ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Run selected C++ coverage tests
+        continue-on-error: true
         run: |
           set +e
 
           BIN_DIR="${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}"
+          BUILD_DIR="${{ github.workspace }}/build"
+          BUILD_JS_DIR="${{ github.workspace }}/build_js"
           MODEL_PATH="${{ github.workspace }}/src/core/tests/models/ir/add_abc.xml"
           FAILED_FILE="$(mktemp)"
           SKIPPED_FILE="$(mktemp)"
           EXECUTED_FILE="$(mktemp)"
+
+          # Prevent stale counters from previous runs contaminating current coverage.
+          find "${BUILD_DIR}" -name '*.gcda' -delete || true
+          find "${BUILD_JS_DIR}" -name '*.gcda' -delete || true
+          rm -rf "${BUILD_DIR}/gcov" || true
 
           run_test() {
             local test_name="$1"
@@ -385,7 +393,8 @@ jobs:
             echo "One or more C++ tests failed; continuing to coverage generation."
           fi
 
-      - name: Run Python bindings tests with coverage
+      - name: Run Python API/Frontend/Layer/OVC tests with coverage
+        continue-on-error: true
         run: |
           set +e
 
@@ -470,7 +479,9 @@ jobs:
           run_pytest_if_dir "src_py_transformations" "${SRC_PY_TESTS_DIR}/test_transformations" -k "not gpu and not cuda and not npu" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
           run_pytest_if_dir "src_onnx_frontend_python" "${ONNX_PY_TESTS_DIR}" -k "not gpu and not cuda and not npu and not zoo" --ignore="${ONNX_PY_TESTS_DIR}/test_zoo_models.py" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
           run_pytest_if_dir "src_py_runtime_strict" "${SRC_PY_TESTS_DIR}/test_runtime" -q --maxfail=1 -k "not gpu and not cuda and not npu" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
-          run_python_cmd "ovc_cli_help" python3 -m openvino.tools.ovc --help
+          run_pytest_if_dir "src_py_utils" "${SRC_PY_TESTS_DIR}/test_utils" -k "not gpu and not cuda and not npu" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
+          run_pytest "src_py_package_versions" -sv "${SRC_PY_TESTS_DIR}/test_package_versions.py" -n "${{ env.PYTEST_XDIST_WORKERS }}" --cov=openvino --cov-config="${PY_COV_CONFIG}" --cov-append
+          run_python_cmd "ovc_cli_help" coverage run -a -m openvino.tools.ovc --help
 
           coverage xml -o "${{ github.workspace }}/python-coverage.xml"
 
@@ -515,7 +526,8 @@ jobs:
             echo "One or more Python tests failed; continuing to coverage generation."
           fi
 
-      - name: Run JS bindings tests with coverage
+      - name: Run Node.js bindings unit/e2e tests with coverage
+        continue-on-error: true
         run: |
           set +e
 
@@ -624,24 +636,42 @@ jobs:
           fi
 
       - name: Generate C/C++ coverage report
+        continue-on-error: true
         run: |
           set -euo pipefail
 
           SRC_DIR="${{ github.workspace }}"
           BUILD_DIR="${{ github.workspace }}/build"
+          BUILD_JS_DIR="${{ github.workspace }}/build_js"
           REPORT_DIR="${{ github.workspace }}/coverage-report"
+          MAIN_CPP_INFO="${{ github.workspace }}/coverage-cpp-main.info"
+          JS_CPP_INFO="${{ github.workspace }}/coverage-cpp-js.info"
 
           echo "Capturing coverage from $BUILD_DIR (base=$SRC_DIR)..."
-
           lcov --capture \
                 --directory "$BUILD_DIR" \
-                --directory "$BUILD_DIR/gcov" \
                 --build-directory "$BUILD_DIR" \
                 --base-directory "$SRC_DIR" \
-                --output-file coverage.info \
+                --output-file "${MAIN_CPP_INFO}" \
                 --no-external \
                 --rc geninfo_unexecuted_blocks=1 \
                 --ignore-errors mismatch,negative,unused,gcov
+
+          if find "${BUILD_JS_DIR}" -name '*.gcda' -print -quit | grep -q .; then
+            echo "Capturing C/C++ coverage from $BUILD_JS_DIR..."
+            lcov --capture \
+                  --directory "$BUILD_JS_DIR" \
+                  --build-directory "$BUILD_JS_DIR" \
+                  --base-directory "$SRC_DIR" \
+                  --output-file "${JS_CPP_INFO}" \
+                  --no-external \
+                  --rc geninfo_unexecuted_blocks=1 \
+                  --ignore-errors mismatch,negative,unused,gcov
+            lcov -a "${MAIN_CPP_INFO}" -a "${JS_CPP_INFO}" -o coverage.info
+          else
+            echo "No .gcda files found in $BUILD_JS_DIR, skipping JS native C++ capture."
+            cp "${MAIN_CPP_INFO}" coverage.info
+          fi
 
           echo "Applying exclude patterns (tests, thirdparty, protobuf generated)..."
           lcov --remove coverage.info \
@@ -657,6 +687,7 @@ jobs:
                "${SRC_DIR}/src/bindings/python/tests/*" \
                "${SRC_DIR}/thirdparty/*" \
                -o coverage.info
+          rm -f "${MAIN_CPP_INFO}" "${JS_CPP_INFO}" || true
 
           mkdir -p "$REPORT_DIR"
           genhtml coverage.info \
@@ -665,6 +696,8 @@ jobs:
                   --synthesize-missing
 
       - name: Coverage summary
+        if: ${{ always() }}
+        continue-on-error: true
         run: |
           OVERALL_TOTAL=$(( ${CXX_TESTS_TOTAL:-0} + ${PY_TESTS_TOTAL:-0} + ${JS_TESTS_TOTAL:-0} ))
           OVERALL_PASSED=$(( ${CXX_TESTS_PASSED:-0} + ${PY_TESTS_PASSED:-0} + ${JS_TESTS_PASSED:-0} ))
@@ -702,6 +735,13 @@ jobs:
             echo "- Python XML: \`python-coverage.xml\`"
             echo "- JS lcov: \`js-lcov.info\`"
             echo ""
+            if [[ ! -f python-coverage.xml ]]; then
+              echo ":warning: Python coverage file is missing (\`python-coverage.xml\`)."
+            fi
+            if [[ ! -f js-lcov.info ]]; then
+              echo ":warning: JS coverage file is missing (\`js-lcov.info\`)."
+            fi
+            echo ""
             echo "### C/C++ Coverage Details (lcov)"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -714,6 +754,8 @@ jobs:
           fi
 
       - name: Package coverage report
+        if: ${{ always() }}
+        continue-on-error: true
         run: |
           set -euo pipefail
           if [ -d "${{ github.workspace }}/coverage-report" ] && [ -f coverage.info ]; then
@@ -726,6 +768,8 @@ jobs:
           fi
 
       - name: Upload coverage artifact
+        if: ${{ always() }}
+        continue-on-error: true
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: coverage-report-${{ matrix.config.name }}
@@ -739,31 +783,34 @@ jobs:
           compression-level: 0
 
       - name: Collect coverage (C++)
-        if: ${{ hashFiles('coverage.info') != '' }}
+        if: ${{ always() && hashFiles('coverage.info') != '' }}
+        continue-on-error: true
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: coverage.info
           disable_search: true
-          flags: cpp-runtime
+          flags: cpp-runtime-tests
           fail_ci_if_error: false
           verbose: true
 
       - name: Collect coverage (Python)
-        if: ${{ hashFiles('python-coverage.xml') != '' }}
+        if: ${{ always() && hashFiles('python-coverage.xml') != '' }}
+        continue-on-error: true
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: python-coverage.xml
           disable_search: true
-          flags: python-bindings
+          flags: python-api-frontend-layer-ovc
           fail_ci_if_error: false
           verbose: true
 
       - name: Collect coverage (JS)
-        if: ${{ hashFiles('js-lcov.info') != '' }}
+        if: ${{ always() && hashFiles('js-lcov.info') != '' }}
+        continue-on-error: true
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: js-lcov.info
           disable_search: true
-          flags: js-bindings
+          flags: nodejs-bindings-unit-e2e
           fail_ci_if_error: false
           verbose: true
