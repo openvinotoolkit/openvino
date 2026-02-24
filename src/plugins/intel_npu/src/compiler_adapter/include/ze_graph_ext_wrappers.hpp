@@ -7,6 +7,12 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
+#include <memory>
+#include <optional>
+#include <string>
+#include <unordered_set>
+#include <vector>
+
 #include "intel_npu/network_metadata.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"

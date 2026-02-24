@@ -4,6 +4,7 @@
 
 #include "driver_compiler_adapter.hpp"
 
+#include <functional>
 #include <string_view>
 
 #include "graph.hpp"
@@ -74,28 +75,11 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
-    const auto isOptionSupportedByCompiler = [this, &config, &compilerVersion](const std::string& optionName) {
-        if (!config.hasOpt(optionName)) {
-            return false;
-        }
-
-        std::optional<bool> isSupported = _zeGraphExt->isOptionSupported(optionName);
-
-        if (isSupported.has_value()) {
-            return isSupported.value();
-        }
-
-        uint32_t compilerOptSupportValue = config.getOpt(optionName).compilerSupportVersion();
-        uint32_t majorCompilerOptSupportValue = ZE_MAJOR_VERSION(compilerOptSupportValue);
-        uint32_t minorCompilerOptSupportValue = ZE_MINOR_VERSION(compilerOptSupportValue);
-        if ((compilerVersion.major < majorCompilerOptSupportValue) ||
-            (compilerVersion.major == majorCompilerOptSupportValue &&
-             compilerVersion.minor < minorCompilerOptSupportValue)) {
-            return false;
-        }
-
-        return true;
-    };
+    const auto isOptionSupportedByCompiler = std::bind(&DriverCompilerAdapter::isCompilerOptionSupported,
+                                                       this,
+                                                       std::cref(config),
+                                                       std::cref(compilerVersion),
+                                                       std::placeholders::_1);
 
     _logger.debug("build flags");
     buildFlags += compiler_utils::serializeIOInfo(model, useIndices);
@@ -172,28 +156,11 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         compile_model_mem_start = get_peak_memory_usage();
     }
 
-    const auto isOptionSupportedByCompiler = [this, &updatedConfig, &compilerVersion](const std::string& optionName) {
-        if (!updatedConfig.hasOpt(optionName)) {
-            return false;
-        }
-
-        std::optional<bool> isSupported = _zeGraphExt->isOptionSupported(optionName);
-
-        if (isSupported.has_value()) {
-            return isSupported.value();
-        }
-
-        uint32_t compilerOptSupportValue = updatedConfig.getOpt(optionName).compilerSupportVersion();
-        uint32_t majorCompilerOptSupportValue = ZE_MAJOR_VERSION(compilerOptSupportValue);
-        uint32_t minorCompilerOptSupportValue = ZE_MINOR_VERSION(compilerOptSupportValue);
-        if ((compilerVersion.major < majorCompilerOptSupportValue) ||
-            (compilerVersion.major == majorCompilerOptSupportValue &&
-             compilerVersion.minor < minorCompilerOptSupportValue)) {
-            return false;
-        }
-
-        return true;
-    };
+    const auto isOptionSupportedByCompiler = std::bind(&DriverCompilerAdapter::isCompilerOptionSupported,
+                                                       this,
+                                                       std::cref(updatedConfig),
+                                                       std::cref(compilerVersion),
+                                                       std::placeholders::_1);
 
     while (true) {
         _logger.debug("compileWS iteration %d", callNumber);
@@ -312,28 +279,11 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
     _logger.debug("serialize IR");
     auto serializedIR =
         compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
-    const auto isOptionSupportedByCompiler = [this, &config, &compilerVersion](const std::string& optionName) {
-        if (!config.hasOpt(optionName)) {
-            return false;
-        }
-
-        std::optional<bool> isSupported = _zeGraphExt->isOptionSupported(optionName);
-
-        if (isSupported.has_value()) {
-            return isSupported.value();
-        }
-
-        uint32_t compilerOptSupportValue = config.getOpt(optionName).compilerSupportVersion();
-        uint32_t majorCompilerOptSupportValue = ZE_MAJOR_VERSION(compilerOptSupportValue);
-        uint32_t minorCompilerOptSupportValue = ZE_MINOR_VERSION(compilerOptSupportValue);
-        if ((compilerVersion.major < majorCompilerOptSupportValue) ||
-            (compilerVersion.major == majorCompilerOptSupportValue &&
-             compilerVersion.minor < minorCompilerOptSupportValue)) {
-            return false;
-        }
-
-        return true;
-    };
+    const auto isOptionSupportedByCompiler = std::bind(&DriverCompilerAdapter::isCompilerOptionSupported,
+                                                       this,
+                                                       std::cref(config),
+                                                       std::cref(compilerVersion),
+                                                       std::placeholders::_1);
 
     std::string buildFlags;
     buildFlags += compiler_utils::serializeConfig(config, compilerVersion, isOptionSupportedByCompiler);
@@ -376,6 +326,26 @@ std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
 bool DriverCompilerAdapter::is_option_supported(std::string optName, std::optional<std::string> optValue) const {
     auto isOptionSupported = _zeGraphExt->isOptionSupported(std::move(optName), std::move(optValue));
     return isOptionSupported.value_or(false);
+}
+
+bool DriverCompilerAdapter::isCompilerOptionSupported(const FilteredConfig& config,
+                                                      const ze_graph_compiler_version_info_t& compilerVersion,
+                                                      const std::string& optionName) const {
+    if (!config.hasOpt(optionName)) {
+        return false;
+    }
+
+    const std::optional<bool> isSupported = _zeGraphExt->isOptionSupported(optionName);
+    if (isSupported.has_value()) {
+        return isSupported.value();
+    }
+
+    uint32_t compilerOptSupportValue = config.getOpt(optionName).compilerSupportVersion();
+    uint32_t majorCompilerOptSupportValue = ZE_MAJOR_VERSION(compilerOptSupportValue);
+    uint32_t minorCompilerOptSupportValue = ZE_MINOR_VERSION(compilerOptSupportValue);
+    return (compilerVersion.major > majorCompilerOptSupportValue) ||
+           ((compilerVersion.major == majorCompilerOptSupportValue) &&
+            (compilerVersion.minor >= minorCompilerOptSupportValue));
 }
 
 }  // namespace intel_npu

@@ -39,6 +39,10 @@ public:
     uint32_t get_version() const override;
 
 private:
+    bool isCompilerOptionSupported(const FilteredConfig& config,
+                                   const ze_graph_compiler_version_info_t& compilerVersion,
+                                   const std::string& optionName) const;
+
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
 
