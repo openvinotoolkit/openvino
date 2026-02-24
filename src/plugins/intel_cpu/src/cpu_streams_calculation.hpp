@@ -42,7 +42,7 @@ namespace ov::intel_cpu {
  * @param[in]  input_perf_hint is performance hint set by user via ov::hint::performance_mode or the default value.
  * @param[in]  hint_llm_distribution_policy is the distribution policy for Large language models
  * @param[in]  proc_type_table is currently available candidate processors.
- *               - candidate processors have benn updated based on user input hints like ov::hint::scheduling_core_type
+ *               - candidate processors have been updated based on user input hints like ov::hint::scheduling_core_type
  * in previous function.
  * @return     streams information table which will be used by StreamsExecutor.
  */
@@ -74,7 +74,7 @@ std::vector<std::vector<int>> get_streams_rank_table(const std::vector<std::vect
  *               - input "0" mean function generate the optimal number of streams
  *               - LATENCY hint equals 1 stream.
  * @param[in]  proc_type_table candidate processors available at this time
- *               - candidate processors have benn updated based on properties like "Ecore only" in previous function
+ *               - candidate processors have been updated based on properties like "Ecore only" in previous function
  * @param[in]  model model
  * @param[in]  config intel cpu configuration
  * @param[in]  num_sockets number of sockets for test case
@@ -97,7 +97,7 @@ int get_model_prefer_threads(int num_streams,
  * @param[in]  config intel cpu configuration
  * @param[in]  proc_type_table candidate processors available at current platform
  * @param[in]  preferred_nthreads_per_stream is initial preferred number of threads per stream
- * @return     candidate processors have benn updated based on user input hints like ov::hint::scheduling_core_type and
+ * @return     candidate processors have been updated based on user input hints like ov::hint::scheduling_core_type and
  * ov::hint::enable_hyper_threading
  */
 std::vector<std::vector<int>> generate_stream_info(int streams,

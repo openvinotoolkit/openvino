@@ -524,6 +524,7 @@ std::vector<std::vector<int>> get_streams_info_table(
                         proc_type_table[0][EFFICIENT_CORE_PROC] == 0) {
                         n_threads_per_stream =
                             model_prefer_threads > n_threads_per_stream ? model_prefer_threads : n_threads_per_stream;
+                        n_threads_per_stream = std::min(n_threads_per_stream, proc_type_table[0][ALL_PROC]);
                     }
                 }
             } else {
