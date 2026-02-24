@@ -23,9 +23,6 @@ TEST_P(OVCompileModelLoadFromFileTestBaseNPU, BlobWithOVHeaderAligmentCanBeImpor
     ze_device_external_memory_properties_t externalMemorydDesc = {};
     externalMemorydDesc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
 
-    auto res =
-        intel_npu::zeDeviceGetExternalMemoryProperties(intel_npu::ZeroInitStructsHolder::getInstance()->getDevice(),
-                                                       &externalMemorydDesc);
     if (!intel_npu::ZeroInitStructsHolder::getInstance()->isExternalMemoryStandardAllocationSupported()) {
         GTEST_SKIP() << "Standard allocation is not supported by the current configuration.";
     }
