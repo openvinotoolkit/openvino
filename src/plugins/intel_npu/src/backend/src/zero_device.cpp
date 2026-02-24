@@ -7,6 +7,7 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
+#include "zero_dynamic_infer_request.hpp"
 #include "zero_infer_request.hpp"
 
 using namespace intel_npu;
@@ -67,6 +68,7 @@ std::string ZeroDevice::getName() const {
 #define NPU_3720_P_DEVICE_ID 0x7D1D
 #define NPU_3720_S_DEVICE_ID 0xAD1D
 #define NPU_4000_DEVICE_ID   0x643E
+#define NPU_5010_DEVICE_ID   0xB03E
 
     std::string name;
     switch (_device_properties.deviceId) {
@@ -76,6 +78,9 @@ std::string ZeroDevice::getName() const {
         break;
     case NPU_4000_DEVICE_ID:
         name = ov::intel_npu::Platform::NPU4000;
+        break;
+    case NPU_5010_DEVICE_ID:
+        name = ov::intel_npu::Platform::NPU5010;
         break;
     default:
         name = ov::intel_npu::Platform::AUTO_DETECT;
@@ -172,6 +177,9 @@ ov::device::Type ZeroDevice::getDeviceType() const {
 std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
     const std::shared_ptr<const ICompiledModel>& compiledModel,
     const Config& config) {
+    if (dynamic_cast<IDynamicGraph*>(compiledModel->get_graph().get())) {
+        return std::make_shared<ZeroDynamicInferRequest>(_initStructs, compiledModel, config);
+    }
     return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, config);
 }
 

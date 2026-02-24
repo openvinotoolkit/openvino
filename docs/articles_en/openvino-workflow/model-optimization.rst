@@ -21,7 +21,7 @@ In OpenVINO, the default optimization tool is NNCF (Neural Network Compression F
 It is a `set of compression algorithms <https://github.com/openvinotoolkit/nncf/blob/develop/README.md>`__,
 organized as a Python package, that make your models smaller and faster. Note that NNCF
 is **not part of the OpenVINO package**, so it needs to be installed separately. It supports
-models in **OpenVINO IR**, **PyTorch**, **ONNX**, and **TensorFlow** formats, offering
+models in **OpenVINO IR**, **PyTorch** and **ONNX** formats, offering
 the following main optimizations:
 
 .. image:: ../assets/images/WHAT_TO_USE.svg
@@ -38,9 +38,8 @@ the following main optimizations:
        acceptable, Training-time Optimization may be a better option.
 
 | :doc:`Training-time Optimization <model-optimization-guide/compressing-models-during-training>`:
-|      Involves a suite of advanced methods such as Structured or Unstructured Pruning, as well
-       as Quantization-aware Training. This kind of optimization requires the use of the model's
-       original framework, for NNCF, it is either PyTorch or TensorFlow.
+|      Involves a suite of advanced methods such as Sparsity, as well
+       as Quantization-aware Training. This kind of optimization requires the use of the PyTorch framework.
 
 
 
@@ -50,8 +49,7 @@ Recommended workflows
 * A common approach for most cases is to:
 
   1. Perform post-training quantization first, as it is the easiest option.
-  2. For even better results, combine post-training quantization with filter pruning.
-  3. If the accuracy drop is unacceptable, use quantization-aware training instead. It will give
+  2. If the accuracy drop is unacceptable, use quantization-aware training instead. It will give
      you the same level of performance boost, with a smaller impact on accuracy.
 
 * **Weight compression** works with **LLMs**, **VLMs** and other Transformer-based models.
@@ -113,7 +111,7 @@ both `the NNCF repository <https://github.com/openvinotoolkit/nncf?tab=readme-ov
    no additional changes to the inference code are required.
 
    This is true for models optimized using NNCF, as well as those pre-optimized in their source
-   frameworks, such as PyTorch, TensorFlow, and ONNX (in Q/DQ; Quantize/DeQuantize format).
+   frameworks, such as PyTorch, and ONNX (in Q/DQ; Quantize/DeQuantize format).
    The latter may be easily converted to the
    :doc:`OpenVINO Intermediate Representation format (IR) <../../documentation/openvino-ir-format>`
    right away.
