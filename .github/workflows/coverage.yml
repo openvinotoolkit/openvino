@@ -782,35 +782,45 @@ jobs:
           retention-days: 30
           compression-level: 0
 
-      - name: Collect coverage (C++)
-        if: ${{ always() && hashFiles('coverage.info') != '' }}
+  UploadCoverage:
+    if: ${{ always() }}
+    continue-on-error: true
+    needs: Coverage
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        upload:
+          - { name: "C++", file: "coverage.info", flag: "cpp-runtime-tests" }
+          - { name: "Python", file: "python-coverage.xml", flag: "python-api-frontend-layer-ovc" }
+          - { name: "JS", file: "js-lcov.info", flag: "nodejs-bindings-unit-e2e" }
+    steps:
+      - name: Download coverage artifacts
         continue-on-error: true
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          files: coverage.info
-          disable_search: true
-          flags: cpp-runtime-tests
-          fail_ci_if_error: false
-          verbose: true
+          pattern: coverage-report-*
+          path: ${{ github.workspace }}
+          merge-multiple: true
 
-      - name: Collect coverage (Python)
-        if: ${{ always() && hashFiles('python-coverage.xml') != '' }}
+      - name: Check coverage file exists
+        id: check_file
         continue-on-error: true
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
-        with:
-          files: python-coverage.xml
-          disable_search: true
-          flags: python-api-frontend-layer-ovc
-          fail_ci_if_error: false
-          verbose: true
+        run: |
+          if [[ -f "${{ github.workspace }}/${{ matrix.upload.file }}" ]]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Coverage file missing: ${{ matrix.upload.file }}"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Collect coverage (JS)
-        if: ${{ always() && hashFiles('js-lcov.info') != '' }}
+      - name: Collect coverage (${{ matrix.upload.name }})
+        if: ${{ steps.check_file.outputs.exists == 'true' }}
         continue-on-error: true
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          files: js-lcov.info
+          files: ${{ matrix.upload.file }}
           disable_search: true
-          flags: nodejs-bindings-unit-e2e
+          flags: ${{ matrix.upload.flag }}
           fail_ci_if_error: false
           verbose: true
