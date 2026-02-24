@@ -85,8 +85,8 @@ int get_model_prefer_threads(int num_streams,
                              const std::vector<std::vector<int>>& proc_type_table,
                              const std::shared_ptr<ov::Model>& model,
                              Config& config,
-                             int num_sockets,
-                             float isaSpecificThreshold);
+                             int num_sockets = -1,
+                             float isaSpecificThreshold = -1.0f);
 
 /**
  * @brief      Generate streams information according to processors type table

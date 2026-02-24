@@ -27,8 +27,6 @@
 #if (defined(OPENVINO_ARCH_ARM64) && defined(__linux__))
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
 #else
-#    include <oneapi/dnnl/dnnl.hpp>
-
 #    include "openvino/runtime/performance_heuristics.hpp"
 #endif
 #include "cpu_map_scheduling.hpp"
@@ -1043,8 +1041,8 @@ int get_model_prefer_threads(const int num_streams,
                              const std::vector<std::vector<int>>& proc_type_table,
                              const std::shared_ptr<ov::Model>& model,
                              Config& config,
-                             int num_sockets = -1,
-                             float isaSpecificThreshold = -1) {
+                             int num_sockets,
+                             float isaSpecificThreshold) {
     if (num_sockets == -1) {
         num_sockets = get_num_sockets();
     }
