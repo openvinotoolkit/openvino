@@ -87,3 +87,20 @@ if any("GPU" in device for device in core.available_devices):
     config_cache["CACHE_MODE"] = "OPTIMIZE_SIZE"
     compiled_model = core.compile_model(model=model_path, device_name='GPU', config=config_cache)
 # ! [ov:caching:part6]
+
+# ! [ov:caching:part7]
+import numpy as np
+
+core = ov.Core()
+model = core.read_model(model=model_path)
+compiled_model = core.compile_model(model=model, device_name=device_name)
+
+# Export the compiled model to bytes
+user_stream = compiled_model.export_model()
+
+# Wrap the exported bytes in an ov.Tensor
+compiled_blob = ov.Tensor(np.frombuffer(user_stream, dtype=np.uint8))
+
+# Import the compiled model back from the Tensor
+imported_model = core.import_model(compiled_blob, device_name)
+# ! [ov:caching:part7]

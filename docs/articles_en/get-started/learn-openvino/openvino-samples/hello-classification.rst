@@ -18,7 +18,9 @@ Synchronous Inference Request API. Before using the sample, refer to the followi
 How It Works
 ####################
 
-At startup, the sample application sets log message capturing callback and reads command-line parameters.
+At startup, the sample application sets log message capturing callback
+(using ``ov::util::set_log_callback`` — see :doc:`Logging Configuration <../../../openvino-workflow/running-inference/logging>`)
+and reads command-line parameters.
 Then it prepares input data, loads a specified model and image to the OpenVINO™ Runtime plugin, performs synchronous
 inference, and processes output data, logging each step in a standard output stream.
 

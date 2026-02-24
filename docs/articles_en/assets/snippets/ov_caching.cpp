@@ -149,6 +149,29 @@ auto compiled = core.compile_model(modelPath,
     }
 }
 
+void part7() {
+    std::string modelPath = "/tmp/myModel.xml";
+    std::string device = "CPU";
+    ov::Core core;
+    auto model = core.read_model(modelPath);
+    auto compiled = core.compile_model(model, device);
+//! [ov:caching:part7]
+// Export the compiled model to a stream
+std::stringstream model_stream;
+compiled.export_model(model_stream);
+
+// Get the exported data as a string, then wrap it in a Tensor
+std::string model_data = model_stream.str();
+ov::Tensor compiled_blob(ov::element::u8, {model_data.size()}, model_data.data());
+
+// Import the compiled model back from the Tensor
+auto imported = core.import_model(compiled_blob, device);
+//! [ov:caching:part7]
+    if (!imported) {
+        throw std::runtime_error("error");
+    }
+}
+
 int main() {
     try {
         part0();
@@ -158,6 +181,7 @@ int main() {
         part4();
         part5();
         part6();
+        part7();
     } catch (...) {
     }
     return 0;
