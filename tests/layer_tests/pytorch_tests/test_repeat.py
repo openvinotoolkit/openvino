@@ -8,8 +8,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestRepeat(PytorchLayerTest):
     def _prepare_input(self):
-        import numpy as np
-        return (np.random.randn(2, 10).astype(np.float32),)
+        return (self.random.randn(2, 10),)
 
     def create_model(self, repeats):
         import torch
@@ -22,9 +21,8 @@ class TestRepeat(PytorchLayerTest):
             def forward(self, x):
                 return x.repeat(self.repeats)
 
-        ref_net = None
 
-        return aten_repeat(repeats), ref_net, "aten::repeat"
+        return aten_repeat(repeats), "aten::repeat"
 
     @pytest.mark.parametrize("repeats", [(4, 3), (1, 1), (1, 2, 3), (1, 2, 2, 3)])
     @pytest.mark.nightly
@@ -37,8 +35,7 @@ class TestRepeat(PytorchLayerTest):
 
 class TestRepeatList(PytorchLayerTest):
     def _prepare_input(self, repeats_shape):
-        import numpy as np
-        return (np.random.randn(2, 10).astype(np.float32), np.random.randn(*repeats_shape).astype(np.float32),)
+        return (self.random.randn(2, 10), self.random.randn(*repeats_shape),)
 
     def create_model(self):
         import torch
@@ -49,9 +46,8 @@ class TestRepeatList(PytorchLayerTest):
                 y_shape = y.shape
                 return x.repeat([y_shape[0], y_shape[1]])
 
-        ref_net = None
 
-        return aten_repeat(), ref_net, ["aten::repeat", "prim::ListConstruct"]
+        return aten_repeat(), ["aten::repeat", "prim::ListConstruct"]
 
     @pytest.mark.parametrize("repeats", [(4, 3), (1, 1), (1, 3, 3), (1, 2, 2, 3)])
     @pytest.mark.nightly
@@ -65,8 +61,7 @@ class TestRepeatList(PytorchLayerTest):
 
 class TestRepeatFromFlanT5(PytorchLayerTest):
     def _prepare_input(self):
-        import numpy as np
-        return (np.random.randn(1, 15).astype(np.float32),)
+        return (self.random.randn(1, 15),)
 
     def create_model(self):
         import torch
@@ -76,7 +71,7 @@ class TestRepeatFromFlanT5(PytorchLayerTest):
             def forward(self, x):
                 return ModuleUtilsMixin.create_extended_attention_mask_for_decoder(x.size(), x)
 
-        return aten_repeat(), None, "aten::repeat"
+        return aten_repeat(), "aten::repeat"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
