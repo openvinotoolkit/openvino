@@ -220,7 +220,7 @@
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    include "low_precision/avg_pool.hpp"
 #    include "low_precision/convolution.hpp"
-// #    include "low_precision/convolution_backprop_data.hpp"
+#    include "low_precision/convolution_backprop_data.hpp"
 #    include "low_precision/fake_quantize.hpp"
 #    include "low_precision/fuse_multiply_to_fake_quantize.hpp"
 #    include "low_precision/fuse_subtract_to_fake_quantize.hpp"
@@ -1004,8 +1004,8 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
 
     CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
     // ConvolutionTransformation is disabled temporary until ACL issues are fixed: #1252, #1253
-    // CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
-    // CPU_DISABLE_PASS_ARM(lptManager, ConvolutionBackpropDataTransformation);
+    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
+    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionBackpropDataTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, MaxPoolTransformation);
@@ -1475,12 +1475,7 @@ void Transformations::MainSnippets() {
             if (!ignoreCallback) {
                 // Check for supported ranks
                 // todo: clarify whether we can evaluate snippets on inputs with larger ranks
-#if defined(OPENVINO_ARCH_ARM64)
-                const bool is_fq = ov::is_type<const ov::op::v0::FakeQuantize>(n);
-                if (t.get_partial_shape().rank().get_length() > 6 && !is_fq) {
-#else
                 if (t.get_partial_shape().rank().get_length() > 6) {
-#endif
                     return false;
                 }
             }
