@@ -77,12 +77,16 @@ std::vector<std::vector<int>> get_streams_rank_table(const std::vector<std::vect
  *               - candidate processors have benn updated based on properties like "Ecore only" in previous function
  * @param[in]  model model
  * @param[in]  config intel cpu configuration
+ * @param[in]  num_sockets number of sockets for test case
+ * @param[in]  isaSpecificThreshold ISA parameter for test case
  * @return     model_prefer_threads "0" means generating the optimal threads per stream based on platform
  */
 int get_model_prefer_threads(int num_streams,
                              const std::vector<std::vector<int>>& proc_type_table,
                              const std::shared_ptr<ov::Model>& model,
-                             Config& config);
+                             Config& config,
+                             int num_sockets,
+                             float isaSpecificThreshold);
 
 /**
  * @brief      Generate streams information according to processors type table
