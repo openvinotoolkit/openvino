@@ -40,17 +40,6 @@ private:
     void write_blob_entry(TLVStorage::blob_id_type blob_id, StreamWriter& writer, std::ofstream& stream);
     bool has_blob_id(TLVStorage::blob_id_type blob_id) const;
 
-    weight_sharing::Context m_shared_context_new;  // todo Remove _new suffix after refactor
-
-    // todo Below parts are for refactor and might be removed. Don't leave it - reuse or remove.
-private:
-    void update_shared_ctx(const SharedContext& new_ctx);
-    void update_shared_ctx_from_file();
-    // rename to append or sth??
-    void write_ctx_diff(std::ostream& stream);
-
-    SharedContext m_shared_context;
-    SharedContext m_context_diff;
-    std::streampos m_context_end;
+    weight_sharing::Context m_shared_context;
 };
 }  // namespace ov

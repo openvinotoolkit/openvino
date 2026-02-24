@@ -53,7 +53,7 @@ TEST_F(SingleFileStorageTest, FileHeader) {
     EXPECT_EQ(read_version, SingleFileStorage::m_version);
 }
 
-TEST_F(SingleFileStorageTest, WriteReadCacheEntry) {
+TEST_F(SingleFileStorageTest, CacheEntryWriteRead) {
     const std::vector<std::pair<std::string, std::vector<uint8_t>>> test_blobs{
         {"12", std::vector<uint8_t>(124, 0xAB)},
         {"0345", std::vector<uint8_t>(481, 0xCD)},
@@ -67,7 +67,7 @@ TEST_F(SingleFileStorageTest, WriteReadCacheEntry) {
         });
     }
 
-    const auto test_storage_read = [&](SingleFileStorage& storage) {
+    const auto blob_read_test = [&](SingleFileStorage& storage) {
         size_t read_count = 0;
         for (const auto& [blob_id, blob_data] : test_blobs) {
             storage.read_cache_entry(blob_id, false, [&](const ICacheManager::CompiledBlobVariant& compiled_blob) {
@@ -93,13 +93,13 @@ TEST_F(SingleFileStorageTest, WriteReadCacheEntry) {
         EXPECT_EQ(read_count, 2 * test_blobs.size());
     };
 
-    test_storage_read(*m_storage);
+    blob_read_test(*m_storage);
     m_storage.reset();
     SingleFileStorage reopened_storage(m_file_path);
-    test_storage_read(reopened_storage);
+    blob_read_test(reopened_storage);
 }
 
-TEST_F(SingleFileStorageTest, Alignement) {
+TEST_F(SingleFileStorageTest, BlobAlignement) {
     const std::unordered_map<uint64_t, std::vector<uint8_t>> test_blobs{{1, std::vector<uint8_t>(4099, 0xAB)},
                                                                         {2, std::vector<uint8_t>(400, 0xCD)},
                                                                         {3, std::vector<uint8_t>(5, 0xEF)}};
@@ -146,7 +146,7 @@ TEST_F(SingleFileStorageTest, Alignement) {
     }
 }
 
-TEST_F(SingleFileStorageTest, AppendOnly) {
+TEST_F(SingleFileStorageTest, AppendOnlyCacheEntry) {
     const auto blob_id = std::string{"123"};
     m_storage->write_cache_entry(blob_id, [&](std::ostream& s) {
         // Although pointless it shell be harmless to write nothing
@@ -180,8 +180,87 @@ TEST_F(SingleFileStorageTest, AppendOnly) {
     EXPECT_TRUE(read_called);
 }
 
-// TEST_F(SingleFileStorageTest, SharedContext__) {
-//     void write_context_entry(const SharedContext& context) override;
-//     SharedContext get_shared_context() const override;
-// }
+TEST_F(SingleFileStorageTest, ContextMetaWriteRead) {
+    weight_sharing::Context test_context;
+    test_context.m_constants_meta_data[1][11] = {100, 200, element::Type_t::f32};
+    test_context.m_constants_meta_data[1][12] = {300, 400, element::Type_t::i8};
+    test_context.m_constants_meta_data[2][21] = {500, 600, element::Type_t::u8};
+    m_storage->write_context_entry(test_context);
+
+    const auto meta_read_test = [&](SingleFileStorage& storage) {
+        auto got_context = storage.get_context();
+        EXPECT_EQ(got_context.m_constants_meta_data.size(), 2);
+
+        for (const auto& [source_id, const_meta] : test_context.m_constants_meta_data) {
+            auto& got_meta_data = got_context.m_constants_meta_data;
+            ASSERT_EQ(got_meta_data.count(source_id), 1);
+            EXPECT_EQ(got_context.m_constants_meta_data[source_id].size(),
+                      test_context.m_constants_meta_data[source_id].size());
+            for (const auto& [const_id, expected_props] : const_meta) {
+                ASSERT_EQ(got_meta_data[source_id].count(const_id), 1);
+
+                auto& got_props = got_meta_data[source_id][const_id];
+                EXPECT_EQ(got_props.m_offset, expected_props.m_offset);
+                EXPECT_EQ(got_props.m_size, expected_props.m_size);
+                EXPECT_EQ(got_props.m_type, expected_props.m_type);
+            }
+        }
+    };
+
+    meta_read_test(*m_storage);
+    m_storage.reset();
+
+    auto stream = std::ifstream(m_file_path, std::ios_base::binary);
+
+    SingleFileStorage reopened_storage(m_file_path);
+    meta_read_test(reopened_storage);
+}
+
+TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
+    weight_sharing::Context test_context;
+    const auto buffer = std::make_shared<ov::AlignedBuffer>(1024);
+    for (size_t i = 0; i < buffer->size(); i += 2) {
+        buffer->get_ptr<uint8_t>()[i] = 0xAB;
+        buffer->get_ptr<uint8_t>()[i + 1] = 0xCD;
+    }
+    test_context.m_weight_sources[1] = std::weak_ptr<ov::AlignedBuffer>{buffer};
+    m_storage->write_context_entry(test_context);
+
+    std::ifstream stream(m_file_path, std::ios_base::binary);
+    stream.seekg(0, std::ios::end);
+    const auto stream_end = stream.tellg();
+    stream.seekg(version_size(), std::ios_base::beg);
+
+    // todo Make it configurable and/or detect actual file system page size
+    constexpr std::streamoff alignment = 4096;
+
+    while (stream.good() && stream.tellg() < stream_end) {
+        TLVStorage::Tag tag{};
+        TLVFormat::length_type entry_size{};
+        stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
+        ASSERT_TRUE(stream.good());
+        stream.read(reinterpret_cast<char*>(&entry_size), sizeof(entry_size));
+        ASSERT_TRUE(stream.good());
+        if (tag == TLVStorage::Tag::WeightSource) {
+            TLVStorage::data_id_type device_id, source_id;
+            TLVStorage::pad_size_type padding_size;
+            stream.read(reinterpret_cast<char*>(&device_id), sizeof(device_id));
+            stream.read(reinterpret_cast<char*>(&source_id), sizeof(source_id));
+            stream.read(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
+            ASSERT_TRUE(stream.good());
+
+            stream.seekg(padding_size, std::ios_base::cur);
+            const auto weight_pos = stream.tellg();
+            ASSERT_EQ(weight_pos % alignment, 0);
+            const auto weight_size =
+                entry_size - sizeof(device_id) - sizeof(source_id) - sizeof(padding_size) - padding_size;
+            ASSERT_EQ(weight_size, buffer->size());
+            std::vector<uint8_t> read_data(weight_size);
+            stream.read(reinterpret_cast<char*>(read_data.data()), read_data.size());
+            EXPECT_EQ(std::memcmp(read_data.data(), buffer->get_ptr(), buffer->size()), 0);
+        } else {
+            stream.seekg(entry_size, std::ios_base::cur);
+        }
+    }
+}
 }  // namespace ov::test

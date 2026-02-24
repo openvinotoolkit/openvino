@@ -18,6 +18,7 @@ namespace ov {
 // todo Separate CacheManager and TLV format traits
 struct TLVStorage {
     using blob_id_type = uint64_t;
+    using data_id_type = uint64_t;
     using pad_size_type = uint64_t;
 
     struct blob_info {
