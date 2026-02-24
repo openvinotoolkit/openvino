@@ -11,6 +11,20 @@
 
 namespace cldnn {
 using MOE3GemmFusedCompressed = ov::intel_gpu::op::MOE3GemmFusedCompressed;
+extern std::string file_path;
+extern size_t lru_expert_num;
+
+struct moe_weights {
+    cldnn::memory::ptr gate_w = nullptr;
+    cldnn::memory::ptr gate_s = nullptr;
+    cldnn::memory::ptr gate_z = nullptr;
+    cldnn::memory::ptr up_w = nullptr;
+    cldnn::memory::ptr up_s = nullptr;
+    cldnn::memory::ptr up_z = nullptr;
+    cldnn::memory::ptr down_w = nullptr;
+    cldnn::memory::ptr down_s = nullptr;
+    cldnn::memory::ptr down_z = nullptr;
+};
 
 /// @brief moe compressed primitive
 /// @details Performs moe compressed
@@ -43,11 +57,12 @@ struct moe_3gemm_fused_compressed : public primitive_base<moe_3gemm_fused_compre
     //                      shape [num_experts, hidden_size, group_num, 1]
     //                   10: w2_zp - expert zp for final projection for compressed experts,
     //
-    moe_3gemm_fused_compressed(const primitive_id& id, const std::vector<input_info>& inputs, const MOE3GemmFusedCompressed::Config& config)
+    moe_3gemm_fused_compressed(const primitive_id& id, const std::vector<input_info>& inputs, const MOE3GemmFusedCompressed::Config& config, const std::shared_ptr<ov::intel_gpu::op::MOE3GemmFusedCompressed>& op)
         : primitive_base(id, inputs, 1, {optional_data_type()}),
-          _config(config) {}
+          _config(config), _op(op) {}
 
     MOE3GemmFusedCompressed::Config _config;
+    std::shared_ptr<ov::intel_gpu::op::MOE3GemmFusedCompressed> _op;
 
     bool operator==(const primitive& rhs) const override {
         if (!compare_common_params(rhs))
