@@ -29,7 +29,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          ZeroGraphTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
-                         IsOptionSupportedWithVersionFallbackTests,
+                         IsOptionSupported,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(emptyConfigsTests),
                                             graphExtVersions),

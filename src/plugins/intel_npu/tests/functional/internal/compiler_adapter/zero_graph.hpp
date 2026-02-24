@@ -370,21 +370,28 @@ TEST_P(ZeroGraphTest, CheckNoThrowOnUnsupportedFeature) {
 }
 #endif
 
-using IsOptionSupportedWithVersionFallbackTests = ZeroGraphTest;
+using IsOptionSupported = ZeroGraphTest;
 
-TEST_P(IsOptionSupportedWithVersionFallbackTests, PropertyNotSupportedBeforeCertainCompilerVersionOrByDriver) {
-    auto dummyCompilerVersion = ze_graph_compiler_version_info_t{1, 2};
-
-    ASSERT_FALSE(
-        zeGraphExt->isOptionSupportedWithVersionFallback(dummyCompilerVersion, "FAKE_OPTION", ZE_MAKE_VERSION(1, 3)));
+TEST_P(IsOptionSupported, PropertyNotSupportedByDriver) {
+    std::optional<bool> isOptionSupportedResult;
+    OV_ASSERT_NO_THROW(isOptionSupportedResult = zeGraphExt->isOptionSupported("FAKE_OPTION"));
+    if (zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 11)) {
+        ASSERT_FALSE(isOptionSupportedResult.has_value());
+    } else {
+        ASSERT_TRUE(isOptionSupportedResult.has_value());
+        ASSERT_FALSE(isOptionSupportedResult.value());
+    }
 }
 
-TEST_P(IsOptionSupportedWithVersionFallbackTests, PropertySupportedBeforeCertainCompilerVersionOrByDriver) {
-    auto dummyCompilerVersion = ze_graph_compiler_version_info_t{1, 5};
-
-    ASSERT_TRUE(zeGraphExt->isOptionSupportedWithVersionFallback(dummyCompilerVersion,
-                                                                 "PERFORMANCE_HINT",
-                                                                 ZE_MAKE_VERSION(1, 3)));
+TEST_P(IsOptionSupported, PropertySupportedByDriver) {
+    std::optional<bool> isOptionSupportedResult;
+    OV_ASSERT_NO_THROW(isOptionSupportedResult = zeGraphExt->isOptionSupported("PERFORMANCE_HINT"));
+    if (zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 11)) {
+        ASSERT_FALSE(isOptionSupportedResult.has_value());
+    } else {
+        ASSERT_TRUE(isOptionSupportedResult.has_value());
+        ASSERT_TRUE(isOptionSupportedResult.value());
+    }
 }
 
 }  // namespace ov::test::behavior

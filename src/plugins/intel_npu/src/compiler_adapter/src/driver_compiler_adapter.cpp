@@ -75,11 +75,26 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
     const auto isOptionSupportedByCompiler = [this, &config, &compilerVersion](const std::string& optionName) {
-        return config.hasOpt(optionName) ? _zeGraphExt->isOptionSupportedWithVersionFallback(
-                                               compilerVersion,
-                                               optionName,
-                                               config.getOpt(optionName).compilerSupportVersion())
-                                         : false;
+        if (!config.hasOpt(optionName)) {
+            return false;
+        }
+
+        std::optional<bool> isSupported = _zeGraphExt->isOptionSupported(optionName);
+
+        if (isSupported.has_value()) {
+            return isSupported.value();
+        }
+
+        uint32_t compilerOptSupportValue = config.getOpt(optionName).compilerSupportVersion();
+        uint32_t majorCompilerOptSupportValue = ZE_MAJOR_VERSION(compilerOptSupportValue);
+        uint32_t minorCompilerOptSupportValue = ZE_MINOR_VERSION(compilerOptSupportValue);
+        if ((compilerVersion.major < majorCompilerOptSupportValue) ||
+            (compilerVersion.major == majorCompilerOptSupportValue &&
+             compilerVersion.minor < minorCompilerOptSupportValue)) {
+            return false;
+        }
+
+        return true;
     };
 
     _logger.debug("build flags");
@@ -119,6 +134,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                        compilerVersion.minor);
     }
 
+    FilteredConfig updatedConfig = config;
+
     const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
@@ -132,7 +149,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     auto serializedIR = compiler_utils::serializeIR(model,
                                                     compilerVersion,
                                                     maxOpsetVersion,
-                                                    useBaseModelSerializer(config),
+                                                    useBaseModelSerializer(updatedConfig),
                                                     true,
                                                     _zeGraphExt->isPluginModelHashSupported());
 
@@ -140,11 +157,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
 
     const std::string serializedIOInfo = compiler_utils::serializeIOInfo(model, useIndices);
-    const FilteredConfig* plgConfig = dynamic_cast<const FilteredConfig*>(&config);
-    if (plgConfig == nullptr) {
-        OPENVINO_THROW("config is not FilteredConfig");
-    }
-    FilteredConfig updatedConfig = *plgConfig;
 
     // WS v3 is based on a stateless compiler. We'll use a separate config entry for informing the compiler the index of
     // the current call iteration.
@@ -161,11 +173,26 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     }
 
     const auto isOptionSupportedByCompiler = [this, &updatedConfig, &compilerVersion](const std::string& optionName) {
-        return updatedConfig.hasOpt(optionName) ? _zeGraphExt->isOptionSupportedWithVersionFallback(
-                                                      compilerVersion,
-                                                      optionName,
-                                                      updatedConfig.getOpt(optionName).compilerSupportVersion())
-                                                : false;
+        if (!updatedConfig.hasOpt(optionName)) {
+            return false;
+        }
+
+        std::optional<bool> isSupported = _zeGraphExt->isOptionSupported(optionName);
+
+        if (isSupported.has_value()) {
+            return isSupported.value();
+        }
+
+        uint32_t compilerOptSupportValue = updatedConfig.getOpt(optionName).compilerSupportVersion();
+        uint32_t majorCompilerOptSupportValue = ZE_MAJOR_VERSION(compilerOptSupportValue);
+        uint32_t minorCompilerOptSupportValue = ZE_MINOR_VERSION(compilerOptSupportValue);
+        if ((compilerVersion.major < majorCompilerOptSupportValue) ||
+            (compilerVersion.major == majorCompilerOptSupportValue &&
+             compilerVersion.minor < minorCompilerOptSupportValue)) {
+            return false;
+        }
+
+        return true;
     };
 
     while (true) {
@@ -286,11 +313,26 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
     auto serializedIR =
         compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
     const auto isOptionSupportedByCompiler = [this, &config, &compilerVersion](const std::string& optionName) {
-        return config.hasOpt(optionName) ? _zeGraphExt->isOptionSupportedWithVersionFallback(
-                                               compilerVersion,
-                                               optionName,
-                                               config.getOpt(optionName).compilerSupportVersion())
-                                         : false;
+        if (!config.hasOpt(optionName)) {
+            return false;
+        }
+
+        std::optional<bool> isSupported = _zeGraphExt->isOptionSupported(optionName);
+
+        if (isSupported.has_value()) {
+            return isSupported.value();
+        }
+
+        uint32_t compilerOptSupportValue = config.getOpt(optionName).compilerSupportVersion();
+        uint32_t majorCompilerOptSupportValue = ZE_MAJOR_VERSION(compilerOptSupportValue);
+        uint32_t minorCompilerOptSupportValue = ZE_MINOR_VERSION(compilerOptSupportValue);
+        if ((compilerVersion.major < majorCompilerOptSupportValue) ||
+            (compilerVersion.major == majorCompilerOptSupportValue &&
+             compilerVersion.minor < minorCompilerOptSupportValue)) {
+            return false;
+        }
+
+        return true;
     };
 
     std::string buildFlags;

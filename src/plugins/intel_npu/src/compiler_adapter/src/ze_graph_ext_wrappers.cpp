@@ -644,26 +644,6 @@ std::optional<bool> ZeGraphExtWrappers::isOptionSupported(std::string optName,
     return false;
 }
 
-bool ZeGraphExtWrappers::isOptionSupportedWithVersionFallback(const ze_graph_compiler_version_info_t& compilerVersion,
-                                                              const std::string& optName,
-                                                              uint32_t compilerOptSupportValue) const {
-    std::optional<bool> isSupported = isOptionSupported(optName);
-
-    if (!isSupported.has_value()) {
-        uint32_t majorCompilerOptSupportValue = ZE_MAJOR_VERSION(compilerOptSupportValue);
-        uint32_t minorCompilerOptSupportValue = ZE_MINOR_VERSION(compilerOptSupportValue);
-        if ((compilerVersion.major < majorCompilerOptSupportValue) ||
-            (compilerVersion.major == majorCompilerOptSupportValue &&
-             compilerVersion.minor < minorCompilerOptSupportValue)) {
-            return false;
-        }
-
-        return true;
-    }
-
-    return isSupported.value();
-}
-
 bool ZeGraphExtWrappers::isPluginModelHashSupported() const {
     return _graphExtVersion > ZE_MAKE_VERSION(1, 13);
 }
