@@ -10,6 +10,7 @@ namespace ov ::npuw ::util {
 
 class PrepareTextEmbeddingModel : public ov::pass::ModelPass {
     uint32_t m_seq_len_dim;
+
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::PrepareTextEmbeddingModel");
 

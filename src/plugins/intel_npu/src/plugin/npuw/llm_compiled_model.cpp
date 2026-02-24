@@ -825,6 +825,7 @@ bool is_aligned_to(uint32_t value, uint32_t alignment) {
 
 class ConvertKVCacheToPrecision : public ov::pass::ModelPass {
     ov::element::Type m_lp_type;
+
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::ConvertKVCacheToPrecision");
     ConvertKVCacheToPrecision(const ov::element::Type lptype) : m_lp_type(lptype) {}
@@ -847,10 +848,10 @@ public:
         auto ppp_result = ppp.build();
         // PrePostProcessor is expected to modify the model in-place, so it should return the same model instance.
         // If it returns a different instance, it means that a new model was created and we are not supporting that.
-        OPENVINO_ASSERT(ppp_result == model, "PrePostProcessor should not create a new model, but returned a different one.");
+        OPENVINO_ASSERT(ppp_result == model,
+                        "PrePostProcessor should not create a new model, but returned a different one.");
 
         return true;
-
     }
 };
 
@@ -926,6 +927,7 @@ public:
 
 class DecomposeGQA : public ov::pass::ModelPass {
     bool m_is_prefill_model;
+
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::DecomposeGQA");
     DecomposeGQA(bool is_prefill_model) : m_is_prefill_model(is_prefill_model) {}
@@ -1094,8 +1096,8 @@ public:
                 // The first dimension (3) represents the three components of position encoding: time, height, and width
                 // enabling alignment across multimodal inputs like text, audio, and video
                 NPUW_ASSERT(partial_shape_size == 3u || partial_shape_size == 2u);
-                new_shape =
-                    partial_shape_size == 3u ? ov::PartialShape({3, 1, m_input_size}) : ov::PartialShape({1, m_input_size});
+                new_shape = partial_shape_size == 3u ? ov::PartialShape({3, 1, m_input_size})
+                                                     : ov::PartialShape({1, m_input_size});
             } else if (input_name.find("cache_position") != std::string::npos) {
                 // NB: Whisper case
                 new_shape = ov::PartialShape({1});
@@ -1117,10 +1119,11 @@ public:
                 new_shape = partial_shape;
                 new_shape[m_kv_axes_position.batch] = 1;
                 if (m_lhs_seq_size) {  // Whisper model
-                    new_shape[m_kv_axes_position.seq_len] = (input_name.find(".decoder") != std::string::npos)
-                                                            ? m_kvcache_size - m_input_size  // kv_size for decoder
-                                                            : m_lhs_seq_size;  // sequence size for encoder hidden states
-                } else {                                                       // LLM/VLM
+                    new_shape[m_kv_axes_position.seq_len] =
+                        (input_name.find(".decoder") != std::string::npos)
+                            ? m_kvcache_size - m_input_size  // kv_size for decoder
+                            : m_lhs_seq_size;                // sequence size for encoder hidden states
+                } else {                                     // LLM/VLM
                     new_shape[m_kv_axes_position.seq_len] = m_kvcache_size - m_input_size;
                 }
             }
@@ -1135,9 +1138,12 @@ public:
 class ReshapeSlicedHeadToStatic : public ov::pass::ModelPass {
     uint32_t m_batch_dim;
     std::size_t m_max_generation_token_len;
+
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::ReshapeSlicedHeadToStatic");
-    ReshapeSlicedHeadToStatic(uint32_t batch_dim, std::size_t max_generation_token_len) : m_batch_dim(batch_dim), m_max_generation_token_len(max_generation_token_len) {}
+    ReshapeSlicedHeadToStatic(uint32_t batch_dim, std::size_t max_generation_token_len)
+        : m_batch_dim(batch_dim),
+          m_max_generation_token_len(max_generation_token_len) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
         // We have only one input with dynamic shapes: output embeds.
@@ -1169,9 +1175,12 @@ public:
 class SliceOutEmbeds : public ov::pass::ModelPass {
     uint32_t m_batch_dim;
     std::size_t m_max_generation_token_len;
+
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::SliceOutEmbeds");
-    SliceOutEmbeds(uint32_t batch_dim, std::size_t max_generation_token_len) : m_batch_dim(batch_dim), m_max_generation_token_len(max_generation_token_len) {}
+    SliceOutEmbeds(uint32_t batch_dim, std::size_t max_generation_token_len)
+        : m_batch_dim(batch_dim),
+          m_max_generation_token_len(max_generation_token_len) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
         std::shared_ptr<ov::Node> embed_result;
@@ -1197,14 +1206,15 @@ public:
                         static_cast<int32_t>(m_batch_dim * (shape[num_embeds_dim] - m_max_generation_token_len)),
                         static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - m_max_generation_token_len)),
                         0};
-                    std::vector<int32_t> stop_pos{static_cast<int32_t>(m_batch_dim * (shape[num_embeds_dim] - 1)) + 1,
-                                                static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - 1)) + 1,
-                                                static_cast<int32_t>(shape[2])};
+                    std::vector<int32_t> stop_pos{
+                        static_cast<int32_t>(m_batch_dim * (shape[num_embeds_dim] - 1)) + 1,
+                        static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - 1)) + 1,
+                        static_cast<int32_t>(shape[2])};
                     auto start = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, start_pos);
                     auto stop = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, stop_pos);
                     auto step = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
-                                                                    ov::Shape{3},
-                                                                    std::vector<int32_t>{1, 1, 1});
+                                                                       ov::Shape{3},
+                                                                       std::vector<int32_t>{1, 1, 1});
 
                     auto slice = std::make_shared<ov::op::v8::Slice>(embed_result->input_value(0), start, stop, step);
 
@@ -1487,7 +1497,9 @@ public:
     }
 };
 
-ov::element::Type choose_kv_cache_storage_type(const std::shared_ptr<ov::Model>& model, const ::intel_npu::Config& cfg, ov::AnyMap& other_props) {
+ov::element::Type choose_kv_cache_storage_type(const std::shared_ptr<ov::Model>& model,
+                                               const ::intel_npu::Config& cfg,
+                                               ov::AnyMap& other_props) {
     auto kv_kache_storage_type = ov::element::f16;
 
     // kv-cache-precision changes to fp8 does make sense unconditionally only if LPT passes succesfully applied
@@ -1509,7 +1521,10 @@ ov::element::Type choose_kv_cache_storage_type(const std::shared_ptr<ov::Model>&
     return kv_kache_storage_type;
 }
 
-std::tuple<bool, bool, bool, bool> detect_model_type(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg, ov::AnyMap& other_props, ov::AnyMap& npuw_llm_props) {
+std::tuple<bool, bool, bool, bool> detect_model_type(const std::shared_ptr<ov::Model>& model,
+                                                     ::intel_npu::Config& cfg,
+                                                     ov::AnyMap& other_props,
+                                                     ov::AnyMap& npuw_llm_props) {
     auto use_whisper_key = pop_option(other_props, std::string("NPUW_WHISPER"));
     auto use_eagle_key = pop_option(other_props, std::string("NPUW_EAGLE"));
 
@@ -1558,7 +1573,6 @@ uint32_t get_prefill_chunk_size(const ::intel_npu::Config& cfg, uint32_t max_pro
         if (prefill_chunk_size >= max_prompt_len) {
             prefill_chunk_size = max_prompt_len;
         } else {
-
             const auto is_power_of_two = [](uint64_t n) {
                 return n > 0 && (n & (n - 1)) == 0;
             };
@@ -1573,7 +1587,9 @@ uint32_t get_prefill_chunk_size(const ::intel_npu::Config& cfg, uint32_t max_pro
     return prefill_chunk_size;
 }
 
-std::tuple<uint32_t, uint32_t> get_prefix_caching_params(const ::intel_npu::Config& cfg, bool use_chunk_prefill, uint32_t prefill_chunk_size) {
+std::tuple<uint32_t, uint32_t> get_prefix_caching_params(const ::intel_npu::Config& cfg,
+                                                         bool use_chunk_prefill,
+                                                         uint32_t prefill_chunk_size) {
     uint32_t prefix_caching_max_num_blocks = 0;
     uint32_t prefix_caching_block_size = 0;
     if (use_chunk_prefill) {
@@ -1731,12 +1747,8 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
                              << "): reshaping to static");
 
         // Reshape to target size
-        ReshapeToStatic(max_generation_token_len,
-                        kv_size,
-                        axes,
-                        m_max_lora_rank,
-                        whisper_lhs_seq_size).run_on_model(generate_variant);
-
+        ReshapeToStatic(max_generation_token_len, kv_size, axes, m_max_lora_rank, whisper_lhs_seq_size)
+            .run_on_model(generate_variant);
 
         // Set unique name for this variant
         generate_variant->set_friendly_name(generate_model->get_friendly_name() + "_kv" + std::to_string(kv_size));
@@ -1810,7 +1822,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto kv_kache_storage_type = choose_kv_cache_storage_type(model, m_cfg, other_props);
 
     bool is_moe = false;
-    std::tie(m_is_whisper, m_is_eagle, is_moe, m_is_embedding) = detect_model_type(model, m_cfg, other_props, npuw_llm_props);
+    std::tie(m_is_whisper, m_is_eagle, is_moe, m_is_embedding) =
+        detect_model_type(model, m_cfg, other_props, npuw_llm_props);
     auto [max_prompt_len, min_response_len, max_generation_token_len] = get_context_limits(m_cfg);
 
     // Solely used for serialization at the moment
@@ -1820,13 +1833,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_use_chunk_prefill = max_prompt_len > m_prefill_chunk_size;
     max_prompt_len = align_to(max_prompt_len, static_cast<uint32_t>(m_prefill_chunk_size));
 
-    std::tie(m_prefix_caching_max_num_blocks, m_prefix_caching_block_size) = get_prefix_caching_params(m_cfg, m_use_chunk_prefill, m_prefill_chunk_size);
+    std::tie(m_prefix_caching_max_num_blocks, m_prefix_caching_block_size) =
+        get_prefix_caching_params(m_cfg, m_use_chunk_prefill, m_prefill_chunk_size);
     m_enable_prefix_caching = m_prefix_caching_max_num_blocks > 0;
 
-    OPENVINO_ASSERT(
-        !m_use_chunk_prefill || !ov::npuw::util::has_input(model, "token_type_ids") || !ov::npuw::util::has_input(model, "inputs_embeds"),
-        "Chunking is not implemented for Gemma model family yet. "
-        "Please set NPUW_LLM_PREFILL_HINT to 'STATIC'");
+    OPENVINO_ASSERT(!m_use_chunk_prefill || !ov::npuw::util::has_input(model, "token_type_ids") ||
+                        !ov::npuw::util::has_input(model, "inputs_embeds"),
+                    "Chunking is not implemented for Gemma model family yet. "
+                    "Please set NPUW_LLM_PREFILL_HINT to 'STATIC'");
 
     LOG_VERB("Enabled prefill chunking: " << m_use_chunk_prefill);
     LOG_VERB("Prefill chunk size: " << m_prefill_chunk_size);
@@ -1877,8 +1891,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             static_cast<uint32_t>(prefill_model->input("encoder_hidden_states").get_partial_shape()[1].get_length());
 
         ov::npuw::util::PrepareWhisperPrefillModel(m_kvcache_desc.max_prompt_size,
-                                                   whisper_lhs_seq_size).run_on_model(prefill_model);  // Whisper decoder model
-        ov::npuw::util::PrepareWhisperKVCacheModel().run_on_model(kvcache_model); // Whisper decoder_with_past model
+                                                   whisper_lhs_seq_size)
+            .run_on_model(prefill_model);                                          // Whisper decoder model
+        ov::npuw::util::PrepareWhisperKVCacheModel().run_on_model(kvcache_model);  // Whisper decoder_with_past model
     }
 
     LOG_DEBUG("Make prefill model with static shapes");
@@ -1887,13 +1902,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ReshapeToStatic(static_cast<uint32_t>(m_prefill_chunk_size),
                         m_kvcache_desc.max_prompt_size,
                         axes,
-                        m_max_lora_rank).run_on_model(prefill_model);
+                        m_max_lora_rank)
+            .run_on_model(prefill_model);
     } else {
         ReshapeToStatic(m_kvcache_desc.max_prompt_size,
                         m_kvcache_desc.max_prompt_size,
                         axes,
                         m_max_lora_rank,
-                        whisper_lhs_seq_size).run_on_model(prefill_model);
+                        whisper_lhs_seq_size)
+            .run_on_model(prefill_model);
     }
     LOG_DEBUG("Make kvcache model with static shapes");
 
@@ -2100,9 +2117,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Regularize models for the better partitioning assuming it is a transformer
     // Apply these transformations to all variant models
     {
-        ov::npuw::patterns::regularize::RegularizeSDPA(prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_hfa).run_on_model(prefill_model);
+        ov::npuw::patterns::regularize::RegularizeSDPA(prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_hfa)
+            .run_on_model(prefill_model);
         for (auto& model_variant : generate_model_variants) {
-            ov::npuw::patterns::regularize::RegularizeSDPA(generate_attn_dyn || generate_attn_pyramid || generate_attn_hfa).run_on_model(model_variant);
+            ov::npuw::patterns::regularize::RegularizeSDPA(generate_attn_dyn || generate_attn_pyramid ||
+                                                           generate_attn_hfa)
+                .run_on_model(model_variant);
         }
     }
 
