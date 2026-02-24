@@ -56,7 +56,7 @@ static std::shared_ptr<ov::Model> make_dummy_model(bool with_fakequantize = fals
 
 class ModelPreferThreadsIntegrationTest : public ov::test::TestsCommon {};
 
-TEST_F(ModelPreferThreadsIntegrationTest, INT8_Model_UseAllCores) {
+TEST_F(ModelPreferThreadsIntegrationTest, int8_model_use_all_cores) {
     std::vector<std::vector<int>> proc_type_table = {{10, 2, 8, 0, 0, 0, 0}};
     auto model = make_dummy_model(true);
     Config config;
@@ -71,8 +71,8 @@ TEST_F(ModelPreferThreadsIntegrationTest, INT8_Model_UseAllCores) {
     EXPECT_EQ(result, config.modelPreferThreadsLatency);
 }
 
-TEST_F(ModelPreferThreadsIntegrationTest, LLM_Model_ECoresRatio) {
-    std::vector<std::vector<int>> proc_type_table = {{14, 4, 10, 0, 0, 0, 0, 0}};
+TEST_F(ModelPreferThreadsIntegrationTest, llm_model_ecores_ratio) {
+    std::vector<std::vector<int>> proc_type_table = {{14, 4, 10, 0, 0, 0, 0}};
     auto model = make_dummy_model();
     Config config;
     config.modelType = Config::ModelType::LLM;
@@ -86,7 +86,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, LLM_Model_ECoresRatio) {
     EXPECT_EQ(result, config.modelPreferThreadsLatency);
 }
 
-TEST_F(ModelPreferThreadsIntegrationTest, ZeroCoresEdgeCase) {
+TEST_F(ModelPreferThreadsIntegrationTest, zero_cores_edge_case) {
     std::vector<std::vector<int>> proc_type_table = {{0, 0, 0, 0, 0, 0, 0}};
     auto model = make_dummy_model();
     Config config;
@@ -101,7 +101,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, ZeroCoresEdgeCase) {
     EXPECT_EQ(result, 0);
 }
 
-TEST_F(ModelPreferThreadsIntegrationTest, UnknownMemToleranceEdgeCase) {
+TEST_F(ModelPreferThreadsIntegrationTest, unknown_memtolerance_edge_case) {
     std::vector<std::vector<int>> proc_type_table = {{8, 8, 0, 0, 0, 0, 0}};
     auto model = make_dummy_model();
     Config config;
@@ -117,7 +117,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, UnknownMemToleranceEdgeCase) {
 }
 
 #if defined(OPENVINO_ARCH_ARM64) && defined(__linux__)
-TEST_F(ModelPreferThreadsIntegrationTest, ARM64_Linux_DefaultThreads) {
+TEST_F(ModelPreferThreadsIntegrationTest, arm64_linux_default_threads) {
     std::vector<std::vector<int>> proc_type_table = {{8, 8, 0, 0, 0, 0, 0}};
     auto model = make_dummy_model();
     Config config;
@@ -130,7 +130,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, ARM64_Linux_DefaultThreads) {
 }
 #endif
 
-TEST_F(ModelPreferThreadsIntegrationTest, NumStreamsVsSocketsBoundary) {
+TEST_F(ModelPreferThreadsIntegrationTest, num_streams_vs_sockets_boundary) {
     std::vector<std::vector<int>> proc_type_table = {{8, 8, 0, 0, 0, 0, 0}};
     auto model = make_dummy_model();
     Config config;
@@ -151,7 +151,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, NumStreamsVsSocketsBoundary) {
     EXPECT_EQ(result, config.modelPreferThreadsThroughput);
 }
 
-TEST_F(ModelPreferThreadsIntegrationTest, IsaSpecificThreshold_DefaultAndCustomCoverage) {
+TEST_F(ModelPreferThreadsIntegrationTest, isaspecificthreshold_default_and_custom_coverage) {
     std::vector<std::vector<int>> proc_type_table = {{8, 8, 0, 0, 0, 0, 0}};
     auto model = make_dummy_model();
 
@@ -177,7 +177,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, IsaSpecificThreshold_DefaultAndCustomC
     EXPECT_LE(custom_isa_config_high.modelPreferThreadsThroughput, custom_isa_config_low.modelPreferThreadsThroughput);
 }
 
-TEST_F(ModelPreferThreadsIntegrationTest, NumSockets_DefaultAndCustomCoverage) {
+TEST_F(ModelPreferThreadsIntegrationTest, num_sockets_default_and_custom_coverage) {
     std::vector<std::vector<int>> proc_type_table = {{8, 8, 0, 0, 0, 0, 0}};
     auto model = make_dummy_model();
 
@@ -200,14 +200,14 @@ TEST_F(ModelPreferThreadsIntegrationTest, NumSockets_DefaultAndCustomCoverage) {
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 
-TEST_F(ModelPreferThreadsIntegrationTest, Direct_X86_NonHybrid_ZeroMain) {
+TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_non_hybrid_zero_main) {
     Config config;
     std::vector<std::vector<int>> proc_type_table = {{4, 0, 4, 0, 0, 0, 0}};
     configure_x86_non_hybrid_threads(config, proc_type_table);
     EXPECT_EQ(config.modelPreferThreadsLatency, 4);
 }
 
-TEST_F(ModelPreferThreadsIntegrationTest, Direct_X86_Hybrid_LLM_MainOnly) {
+TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_llm_main_only) {
     Config config;
     std::vector<std::vector<int>> proc_type_table = {{13, 4, 8, 1, 0, 0, 0}};
     ov::MemBandwidthPressure tolerance;
@@ -215,7 +215,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, Direct_X86_Hybrid_LLM_MainOnly) {
     EXPECT_EQ(config.modelPreferThreadsLatency, 4);
 }
 
-TEST_F(ModelPreferThreadsIntegrationTest, Direct_X86_Hybrid_Fallback_UseAll) {
+TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_fallback_use_all) {
     Config config;
     config.threads = 0;
     std::vector<std::vector<int>> proc_type_table = {{12, 4, 8, 0, 0, 0, 0}};
@@ -224,7 +224,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, Direct_X86_Hybrid_Fallback_UseAll) {
     EXPECT_EQ(config.modelPreferThreadsLatency, 12);
 }
 
-TEST_F(ModelPreferThreadsIntegrationTest, Direct_X86_Throughput_HT_Adjustment) {
+TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_throughput_ht_adjustment) {
     Config config;
     std::vector<std::vector<int>> proc_type_table = {{16, 8, 0, 0, 8, 0, 0}};
     ov::MemBandwidthPressure tolerance;
@@ -235,7 +235,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, Direct_X86_Throughput_HT_Adjustment) {
     EXPECT_GE(config.modelPreferThreadsThroughput, 1);
 }
 
-TEST_F(ModelPreferThreadsIntegrationTest, Direct_X86_Hybrid_LP_AutoCase) {
+TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_lp_auto_case) {
     Config config;
     std::vector<std::vector<int>> proc_type_table = {{12, 4, 0, 8, 0, 0, 0}};
     ov::MemBandwidthPressure tolerance;
@@ -246,7 +246,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, Direct_X86_Hybrid_LP_AutoCase) {
     EXPECT_EQ(config.modelPreferThreadsLatency, 12);
 }
 
-TEST_F(ModelPreferThreadsIntegrationTest, X86_NonHybrid_ZeroMainUsesEfficient) {
+TEST_F(ModelPreferThreadsIntegrationTest, x86_non_hybrid_zero_main_use_efficient) {
     std::vector<std::vector<int>> proc_type_table = {{4, 0, 4, 0, 0, 0, 0}};
     auto model = make_dummy_model();
     Config config;
@@ -261,7 +261,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, X86_NonHybrid_ZeroMainUsesEfficient) {
     EXPECT_EQ(result, 4);
 }
 
-TEST_F(ModelPreferThreadsIntegrationTest, X86_Hybrid_HybridApplicable_IsLLM_MainOnly) {
+TEST_F(ModelPreferThreadsIntegrationTest, x86_hybrid_applicable_is_llm_main_only) {
     std::vector<std::vector<int>> proc_type_table = {{16, 4, 8, 4, 0, 0, 0}};
     auto model = make_dummy_model();
     Config config;
@@ -276,7 +276,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, X86_Hybrid_HybridApplicable_IsLLM_Main
     EXPECT_EQ(result, 4);
 }
 
-TEST_F(ModelPreferThreadsIntegrationTest, X86_Hybrid_Fallback_UseAllCores) {
+TEST_F(ModelPreferThreadsIntegrationTest, x86_hybrid_fallback_use_all_cores) {
     std::vector<std::vector<int>> proc_type_table = {{12, 4, 8, 0, 0, 0, 0}};
     auto model = make_dummy_model();
     Config config;
@@ -292,7 +292,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, X86_Hybrid_Fallback_UseAllCores) {
     EXPECT_EQ(result, 12);
 }
 
-TEST_F(ModelPreferThreadsIntegrationTest, X86_Throughput_HyperThreadingAdjustment) {
+TEST_F(ModelPreferThreadsIntegrationTest, x86_throughput_hyper_threading_adjustment) {
     std::vector<std::vector<int>> proc_type_table = {{16, 8, 0, 0, 8, 0, 0}};
     auto model = make_dummy_model();
     Config config;
@@ -307,7 +307,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, X86_Throughput_HyperThreadingAdjustmen
     EXPECT_EQ(result, config.modelPreferThreadsThroughput);
 }
 
-TEST_F(ModelPreferThreadsIntegrationTest, X86_NonHybrid_MainCoresOnly) {
+TEST_F(ModelPreferThreadsIntegrationTest, x86_non_hybrid_main_cores_only) {
     std::vector<std::vector<int>> proc_type_table = {{8, 8, 0, 0, 0, 0, 0}};
     auto model = make_dummy_model();
     Config config;
@@ -322,7 +322,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, X86_NonHybrid_MainCoresOnly) {
     EXPECT_EQ(result, config.modelPreferThreadsLatency);
 }
 
-TEST_F(ModelPreferThreadsIntegrationTest, X86_Hybrid_INT8_UseAllCores) {
+TEST_F(ModelPreferThreadsIntegrationTest, x86_hybrid_int8_use_all_cores) {
     std::vector<std::vector<int>> proc_type_table = {{12, 4, 8, 0, 0, 0, 0}};
     auto model = make_dummy_model();
     Config config;
@@ -337,7 +337,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, X86_Hybrid_INT8_UseAllCores) {
     EXPECT_EQ(result, config.modelPreferThreadsLatency);
 }
 
-TEST_F(ModelPreferThreadsIntegrationTest, X86_Hybrid_FP32_MainCoresOnly) {
+TEST_F(ModelPreferThreadsIntegrationTest, x86_hybrid_fp32_main_cores_only) {
     std::vector<std::vector<int>> proc_type_table = {{8, 4, 4, 0, 0, 0, 0}};
     auto model = make_dummy_model();
     Config config;
@@ -355,7 +355,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, X86_Hybrid_FP32_MainCoresOnly) {
 #endif
 
 #if defined(OPENVINO_ARCH_ARM) && defined(__linux__)
-TEST_F(ModelPreferThreadsIntegrationTest, ARM_Linux_Throughput_UnknownAndMemLimited) {
+TEST_F(ModelPreferThreadsIntegrationTest, arm_linux_throughput_unknown_and_mem_limited) {
     std::vector<std::vector<int>> proc_type_table = {{8, 4, 4, 0, 0, 0, 0}};
     auto model = make_dummy_model();
     Config config;
@@ -367,7 +367,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, ARM_Linux_Throughput_UnknownAndMemLimi
     EXPECT_EQ(result, config.modelPreferThreadsThroughput);
 }
 
-TEST_F(ModelPreferThreadsIntegrationTest, Direct_ARM_Linux_ThroughputBranches) {
+TEST_F(ModelPreferThreadsIntegrationTest, direct_arm_linux_throughput_branches) {
     Config config;
     std::vector<std::vector<int>> proc_type_table = {{8, 4, 4, 0, 0, 0, 0}};
     ov::MemBandwidthPressure tolerance;
@@ -379,7 +379,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, Direct_ARM_Linux_ThroughputBranches) {
 #endif
 
 #if (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
-TEST_F(ModelPreferThreadsIntegrationTest, AppleSilicon_SizeOne_SpecialLatencyChoice) {
+TEST_F(ModelPreferThreadsIntegrationTest, apple_size_one_special_latency_choice) {
     std::vector<std::vector<int>> proc_type_table = {{10, 6, 4, 0, 0, 0, 0}};
     auto model = make_dummy_model();
     Config config;
@@ -390,7 +390,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, AppleSilicon_SizeOne_SpecialLatencyCho
     EXPECT_EQ(result, 6);
 }
 
-TEST_F(ModelPreferThreadsIntegrationTest, AppleSilicon_LatencyAndThroughput) {
+TEST_F(ModelPreferThreadsIntegrationTest, apple_latency_and_throughput) {
     std::vector<std::vector<int>> proc_type_table = {{8, 4, 4, 0, 0, 0, 0}};
     auto model = make_dummy_model();
     Config config;
@@ -402,7 +402,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, AppleSilicon_LatencyAndThroughput) {
     EXPECT_EQ(result, config.modelPreferThreadsLatency);
 }
 
-TEST_F(ModelPreferThreadsIntegrationTest, Direct_Apple_SpecialLatencyAndThroughput) {
+TEST_F(ModelPreferThreadsIntegrationTest, direct_apple_special_latency_and_throughput) {
     Config config;
     std::vector<std::vector<int>> proc_type_table = {{10, 6, 4, 0, 0, 0, 0}};
     ov::MemBandwidthPressure tolerance;
