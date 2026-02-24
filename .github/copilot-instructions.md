@@ -27,15 +27,24 @@ Give high-signal review comments that help maintainers merge safely with minimal
 
 ## Review Activation Rules
 
-### PRs in Draft state
-- Do not initiate automatic review.
-- Review only when explicitly triggered by a user.
+### Default behavior
+- Initiate automatic review for every non-suppressed PR upon opening and on each new push.
 
-### PRs labeled `do_not_review`
+### Suppressed PRs
+Automatic review is suppressed when **any** of the following conditions apply:
+- PR is in **Draft** state.
+- PR title contains **WIP** or **POC** (case-insensitive).
+- PR carries the `do_not_review` label.
+
+For suppressed PRs:
 - Do not initiate automatic review.
 - Review only when explicitly triggered by a user.
-- If the label is removed after prior review results were published: perform a new review but do not duplicate previously reported observations; focus exclusively on areas not covered by prior reviews.
-- When review is explicitly triggered on a Draft or `do_not_review` PR, apply the same review protocol, quality criteria, and comment budget as for any regular PR. The activation override does not relax any other rules in this document.
+- Apply the same review protocol, quality criteria, and comment budget as for any regular PR. Suppression affects only activation timing, not review rigor.
+
+### Re-activation on suppression removal
+When a suppression condition is lifted (Draft → Ready for review, WIP/POC removed from title, or `do_not_review` label removed):
+- Automatically initiate a full review as if the PR were newly opened.
+- If prior review results exist from a manual trigger, do not duplicate previously reported observations; focus on areas not yet covered and on changes made since the prior review.
 
 ## Revert PRs
 A revert PR restores a previously merged change. It is identified by the word "Revert" in the PR title or description, and typically references the original PR being reverted (e.g., `Reverts openvinotoolkit/openvino#NNNNN`).
@@ -141,17 +150,25 @@ Before posting any comment, apply this gate:
 - If tests are skipped/disabled, require explicit rationale and limited scope.
 - If required validation jobs fail, cite the exact failing job(s) and explain impact on merge readiness.
 
-### CI Failure Log Analysis
-When CI/GitHub Actions results are available and a job has failed:
-- Inspect the available failure logs to determine the root cause.
-- Classify the failure into one of three categories:
-  1. **Infrastructure/environment issue** — flaky runner, network timeout, resource exhaustion, dependency mirror outage, or similar non-code problems.
-  2. **Test issue** — pre-existing flaky or broken test unrelated to the PR's changes (e.g., known intermittent failure, test environment mismatch).
-  3. **Change-induced failure** — the PR's code changes directly cause the build or test failure.
-- Post a follow-up review comment with the identified category, the failing job name, and a concise explanation of what went wrong.
-- For change-induced failures, provide actionable guidance on what in the diff likely caused it and how to fix it. Use the changed files and neighboring code context to build confidence in proposed solutions; only post fix suggestions at high confidence.
-- For infrastructure or pre-existing test issues, note that the failure appears unrelated to the PR to help the author avoid unnecessary debugging.
-- Apply the same evidence/impact/fix gate as for code review comments. Do not post low-confidence CI analysis.
+### CI Monitoring and Iterative Feedback
+Proactively track GitHub Actions CI pipeline status for the PR under review. Deliver follow-up review iterations as new CI results become available.
+
+**Continuous tracking rules:**
+- When new CI results arrive after an initial review, post follow-up comments reflecting the latest CI state.
+- If a prior CI analysis comment is outdated (e.g., a re-run resolved the failure), note the updated status concisely rather than leaving stale analysis.
+- CI follow-up comments do not count toward the 5-comment review budget but must still pass the evidence/impact/fix gate.
+
+**Failure analysis protocol:**
+When a GitHub Actions job has failed:
+- Inspect available failure logs to determine root cause.
+- Classify the failure:
+  1. **Infrastructure/environment** — flaky runner, network timeout, resource exhaustion, dependency mirror outage.
+  2. **Pre-existing test issue** — known intermittent or broken test unrelated to the PR.
+  3. **Change-induced** — the PR's code changes directly cause the failure.
+- Post a follow-up comment with the category, failing job name, and concise root-cause explanation.
+- For change-induced failures, provide actionable fix guidance tied to the diff; only post fix suggestions at high confidence.
+- For infrastructure or pre-existing test issues, note that the failure appears unrelated to the PR.
+- Apply the evidence/impact/fix gate. Do not post low-confidence CI analysis.
 
 ## How to Write Review Comments
 - Use this severity prefix:
