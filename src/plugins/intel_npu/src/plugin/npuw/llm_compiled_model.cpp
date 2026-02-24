@@ -823,38 +823,6 @@ bool is_aligned_to(uint32_t value, uint32_t alignment) {
     return value % alignment == 0;
 }
 
-class ConvertKVCacheToPrecision : public ov::pass::ModelPass {
-    ov::element::Type m_lp_type;
-
-public:
-    OPENVINO_MODEL_PASS_RTTI("ov::npuw::ConvertKVCacheToPrecision");
-    ConvertKVCacheToPrecision(const ov::element::Type lptype) : m_lp_type(lptype) {}
-
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
-        ov::preprocess::PrePostProcessor ppp(model);
-
-        for (const auto& tensor : model->inputs()) {
-            if (tensor.get_any_name().find("past_key") != std::string::npos) {
-                ppp.input(tensor.get_any_name()).tensor().set_element_type(m_lp_type);
-            }
-        }
-
-        for (const auto& tensor : model->outputs()) {
-            if (tensor.get_any_name().find("present") != std::string::npos) {
-                ppp.output(tensor.get_any_name()).tensor().set_element_type(m_lp_type);
-            }
-        }
-
-        auto ppp_result = ppp.build();
-        // PrePostProcessor is expected to modify the model in-place, so it should return the same model instance.
-        // If it returns a different instance, it means that a new model was created and we are not supporting that.
-        OPENVINO_ASSERT(ppp_result == model,
-                        "PrePostProcessor should not create a new model, but returned a different one.");
-
-        return true;
-    }
-};
-
 ov::element::Type optimize_kv_cache_storage(const std::shared_ptr<ov::Model>& model) {
     LOG_DEBUG("Running FP8 static quantization on model: " << model->get_name());
 
@@ -891,6 +859,40 @@ ov::element::Type optimize_kv_cache_storage(const std::shared_ptr<ov::Model>& mo
     }
     return kv_kache_storage_type;
 }
+
+}  // namespace
+
+class ConvertKVCacheToPrecision : public ov::pass::ModelPass {
+    ov::element::Type m_lp_type;
+
+public:
+    OPENVINO_MODEL_PASS_RTTI("ov::npuw::ConvertKVCacheToPrecision");
+    ConvertKVCacheToPrecision(const ov::element::Type lptype) : m_lp_type(lptype) {}
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        ov::preprocess::PrePostProcessor ppp(model);
+
+        for (const auto& tensor : model->inputs()) {
+            if (tensor.get_any_name().find("past_key") != std::string::npos) {
+                ppp.input(tensor.get_any_name()).tensor().set_element_type(m_lp_type);
+            }
+        }
+
+        for (const auto& tensor : model->outputs()) {
+            if (tensor.get_any_name().find("present") != std::string::npos) {
+                ppp.output(tensor.get_any_name()).tensor().set_element_type(m_lp_type);
+            }
+        }
+
+        auto ppp_result = ppp.build();
+        // PrePostProcessor is expected to modify the model in-place, so it should return the same model instance.
+        // If it returns a different instance, it means that a new model was created and we are not supporting that.
+        OPENVINO_ASSERT(ppp_result == model,
+                        "PrePostProcessor should not create a new model, but returned a different one.");
+
+        return true;
+    }
+};
 
 class RedirectNewKvToOutput : public ov::pass::ModelPass {
 public:
@@ -950,8 +952,6 @@ public:
         return manager.run_passes(model);
     }
 };
-
-}  // namespace
 
 class CutLMHead : public ov::pass::MatcherPass {
 public:
