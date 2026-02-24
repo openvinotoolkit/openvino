@@ -76,8 +76,19 @@ public:
     void update_last_hidden_state(const std::shared_ptr<ov::IAsyncInferRequest>& request,
                                   const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports);
 
-    ov::SoPtr<ov::ITensor> get_hidden_states() const {
-        return m_hidden_states;
+    // Accumulate last_hidden_state from current chunk during chunked prefill
+    void accumulate_chunk_last_hidden_state(
+        const std::shared_ptr<ov::IAsyncInferRequest>& request,
+        const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports,
+        uint32_t chunk_token_count,
+        uint32_t total_seq_len);
+
+    // Reset chunked prefill state before starting a new chunked prefill session
+    // NOTE: m_last_hidden_state holds tensors of different sizes in prefill vs generation phases
+    // Must reset to avoid size mismatch when starting a new prefill after previous generations
+    void reset_chunked_prefill_state() {
+        m_last_hidden_state = {};
+        m_chunked_seq_offset = 0;
     }
 
     ov::SoPtr<ov::ITensor> get_last_hidden_state() const {
@@ -91,6 +102,9 @@ private:
 
     ov::SoPtr<ov::ITensor> m_hidden_states;      ///< Draft model input: hidden_states
     ov::SoPtr<ov::ITensor> m_last_hidden_state;  ///< Draft/Target model output: last_hidden_state
+
+    // For chunked prefill: track the write offset in the pre-allocated tensor
+    uint32_t m_chunked_seq_offset = 0;
 };
 
 }  // namespace npuw
