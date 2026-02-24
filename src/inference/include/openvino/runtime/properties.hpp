@@ -164,7 +164,7 @@ class Property : public util::BaseProperty<T, mutability_> {
                         OPENVINO_THROW("Value ", value, " exceeds maximum for target unsigned type");
                     }
                 }
-            
+
                 return static_cast<U>(static_cast<std::make_unsigned_t<VType>>(value));
             } else {
                 return static_cast<U>(value);
