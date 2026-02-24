@@ -3,11 +3,8 @@
 //
 #pragma once
 
-#include <algorithm>
-#include <set>
-
-#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -22,28 +19,8 @@ public:
     SnippetsFunctionBase() = delete;
     virtual ~SnippetsFunctionBase() = default;
 
-    explicit SnippetsFunctionBase(const std::vector<PartialShape>& inputShapes,
-                                  ov::element::Type_t precision = element::f32,
-                                  std::vector<size_t> parameterInputIndices = {})
-        : precision{precision},
-          input_shapes{inputShapes} {
-        if (parameterInputIndices.empty()) {
-            for (size_t i = 0; i < input_shapes.size(); ++i) {
-                parameter_input_indices.insert(i);
-            }
-        } else {
-            parameter_input_indices.insert(parameterInputIndices.begin(), parameterInputIndices.end());
-            OPENVINO_ASSERT(parameter_input_indices.size() == parameterInputIndices.size(),
-                            "Expected unique parameter input indices");
-        }
-
-        OPENVINO_ASSERT(std::all_of(parameter_input_indices.begin(),
-                                    parameter_input_indices.end(),
-                                    [this](size_t idx) {
-                                        return idx < input_shapes.size();
-                                    }),
-                        "Parameter input index is out of range for the provided input shapes");
-    }
+    explicit SnippetsFunctionBase(const std::vector<PartialShape>& inputShapes, ov::element::Type_t precision = element::f32)
+                : precision{precision}, input_shapes{inputShapes} {}
 
     std::shared_ptr<Model> getReference() const {
         std::shared_ptr<Model> function_ref = initReference();
@@ -63,9 +40,7 @@ public:
         return function_low;
     }
 
-    size_t getNumInputs() const {
-        return parameter_input_indices.size();
-    }
+    size_t getNumInputs() const { return input_shapes.size(); }
 
 protected:
     virtual std::shared_ptr<Model> initOriginal() const = 0;
@@ -80,21 +55,17 @@ protected:
 
     const ov::element::Type_t precision;
     const std::vector<PartialShape> input_shapes;
-    std::set<size_t> parameter_input_indices;
 
-    virtual void validate_function(const std::shared_ptr<Model>& f) const;
-    static void validate_params_shape(const std::vector<PartialShape>& input_shapes,
-                                      const std::set<size_t>& parameter_input_indices,
-                                      const ov::ParameterVector& params);
+    virtual void validate_function(const std::shared_ptr<Model> &f) const;
+    static void validate_params_shape(const std::vector<PartialShape>& input_shapes, const ov::ParameterVector& params);
 };
 
-/// \brief Base class for snippets subgraphs with customizable embedded op sequences. Note that the custom_ops allowed
-/// types are model-specific and expected to be checked inside a child class constructor.
-/// \param  custom_ops  vector of ops to be inserted in the graph. Required vector size and acceptable op types are
-/// subgraph-specific. The ops are expected to be default-constructed to facilitate test development, the class will
-/// take care of the ops inputs for you.
-/// \param  customOpsNumInputs  size_t vector that specifies the number of inputs for each of the custom_ops. Not that
-/// an rvalue is expected, since it should be hard-coded along with the Original and Reference functions.
+/// \brief Base class for snippets subgraphs with customizable embedded op sequences. Note that the custom_ops allowed types are
+/// model-specific and expected to be checked inside a child class constructor.
+/// \param  custom_ops  vector of ops to be inserted in the graph. Required vector size and acceptable op types are subgraph-specific.
+/// The ops are expected to be default-constructed to facilitate test development, the class will take care of the ops inputs for you.
+/// \param  customOpsNumInputs  size_t vector that specifies the number of inputs for each of the custom_ops. Not that an rvalue is expected,
+/// since it should be hard-coded along with the Original and Reference functions.
 class SnippetsFunctionCustomizable : public SnippetsFunctionBase {
 public:
     SnippetsFunctionCustomizable() = delete;
