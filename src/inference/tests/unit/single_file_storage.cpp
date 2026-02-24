@@ -13,7 +13,8 @@ namespace ov::test {
 
 namespace {
 constexpr uint64_t version_size() {
-    return sizeof(TLVStorage::Version::major) + sizeof(TLVStorage::Version::minor) + sizeof(TLVStorage::Version::patch);
+    return sizeof(SingleFileStorage::Version::major) + sizeof(SingleFileStorage::Version::minor) +
+           sizeof(SingleFileStorage::Version::patch);
 }
 }  // namespace
 
@@ -35,21 +36,19 @@ protected:
 };
 
 TEST_F(SingleFileStorageTest, FileHeader) {
+    ASSERT_EQ(version_size(), 6);
     m_storage.reset();
     std::ifstream stream(m_file_path, std::ios_base::binary);
 
-    std::vector<char> header_data(version_size());
-    stream.read(header_data.data(), header_data.size());
+    std::vector<uint16_t> header_data(version_size() / sizeof(uint16_t));
+    stream.read(reinterpret_cast<char*>(header_data.data()), version_size());
     const auto last_pos = stream.tellg();
     ASSERT_NE(last_pos, std::streampos(-1));
     stream.seekg(0, std::ios_base::end);
     const auto end_pos = stream.tellg();
     EXPECT_EQ(last_pos, end_pos);  // No more data after header in just created file
 
-    const auto major_p = reinterpret_cast<const uint16_t*>(header_data.data());
-    const auto minor_p = major_p + sizeof(TLVStorage::Version::major) / sizeof(uint16_t);
-    const auto patch_p = minor_p + sizeof(TLVStorage::Version::minor) / sizeof(uint16_t);
-    TLVStorage::Version read_version{*major_p, *minor_p, *patch_p};
+    SingleFileStorage::Version read_version{header_data[0], header_data[1], header_data[2]};
     EXPECT_EQ(read_version, SingleFileStorage::m_version);
 }
 
@@ -118,18 +117,18 @@ TEST_F(SingleFileStorageTest, BlobAlignement) {
     constexpr std::streamoff alignment = 4096;
 
     while (stream.good() && stream.tellg() < stream_end) {
-        TLVStorage::Tag tag{};
-        TLVFormat::length_type entry_size{};
+        SingleFileStorage::Tag tag;
+        TLVFormat::length_type entry_size;
         stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
         ASSERT_TRUE(stream.good());
         stream.read(reinterpret_cast<char*>(&entry_size), sizeof(entry_size));
         ASSERT_TRUE(stream.good());
         const auto blob_id_pos = stream.tellg();
-        if (tag == TLVStorage::Tag::Blob) {
-            TLVStorage::blob_id_type id;
+        if (tag == SingleFileStorage::Tag::Blob) {
+            SingleFileStorage::blob_id_type id;
             stream.read(reinterpret_cast<char*>(&id), sizeof(id));
             ASSERT_TRUE(stream.good());
-            TLVStorage::pad_size_type padding_size{};
+            SingleFileStorage::pad_size_type padding_size;
             stream.read(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
             ASSERT_TRUE(stream.good());
 
@@ -235,15 +234,15 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
     constexpr std::streamoff alignment = 4096;
 
     while (stream.good() && stream.tellg() < stream_end) {
-        TLVStorage::Tag tag{};
-        TLVFormat::length_type entry_size{};
+        SingleFileStorage::Tag tag;
+        TLVFormat::length_type entry_size;
         stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
         ASSERT_TRUE(stream.good());
         stream.read(reinterpret_cast<char*>(&entry_size), sizeof(entry_size));
         ASSERT_TRUE(stream.good());
-        if (tag == TLVStorage::Tag::WeightSource) {
-            TLVStorage::data_id_type device_id, source_id;
-            TLVStorage::pad_size_type padding_size;
+        if (tag == SingleFileStorage::Tag::WeightSource) {
+            SingleFileStorage::data_id_type device_id, source_id;
+            SingleFileStorage::pad_size_type padding_size;
             stream.read(reinterpret_cast<char*>(&device_id), sizeof(device_id));
             stream.read(reinterpret_cast<char*>(&source_id), sizeof(source_id));
             stream.read(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));

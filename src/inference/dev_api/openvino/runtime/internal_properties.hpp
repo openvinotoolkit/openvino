@@ -170,12 +170,4 @@ static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quan
 
 static constexpr Property<CacheQuantMode, PropertyMutability::RW> value_cache_quant_mode{"VALUE_CACHE_QUANT_MODE"};
 }  // namespace internal
-
-// todo Remove this
-using SharedConst = std::unordered_map<size_t, std::tuple<size_t, size_t>>;
-using SharedContext = std::unordered_map<size_t, SharedConst>;
-
-namespace internal {
-static constexpr Property<SharedContext, PropertyMutability::RW> shared_context{"SHARED_CONTEXT"};
-}
 }  // namespace ov
