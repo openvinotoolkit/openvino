@@ -636,33 +636,7 @@ TEST_F(FileUtilTest, androidWithCutFileSizeTest) {
 }
 #endif
 
-using FileUtilTestP = UnicodePathTest;
-
-INSTANTIATE_TEST_SUITE_P(string_paths,
-                         FileUtilTestP,
-                         testing::Values("test_encoder/test_encoder.encrypted/",
-                                         "test_encoder/test_encoder.encrypted"));
-INSTANTIATE_TEST_SUITE_P(u16_paths,
-                         FileUtilTestP,
-                         testing::Values(u"test_encoder/dot.folder", u"test_encoder/dot.folder/"));
-
-INSTANTIATE_TEST_SUITE_P(u32_paths,
-                         FileUtilTestP,
-                         testing::Values(U"test_encoder/dot.folder", U"test_encoder/dot.folder/"));
-
-INSTANTIATE_TEST_SUITE_P(wstring_paths,
-                         FileUtilTestP,
-                         testing::Values(L"test_encoder/test_encoder.encrypted",
-                                         L"test_encoder/test_encoder.encrypted/"));
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-INSTANTIATE_TEST_SUITE_P(
-    unicode_paths,
-    FileUtilTestP,
-    testing::Values("这是.folder", L"这是_folder", L"这是_folder/", u"这是_folder/", U"这是_folder/"));
-#endif
-
-TEST_P(FileUtilTestP, create_directories) {
+TEST_P(UnicodePathTest, create_directories) {
     const auto test_dir = utils::generateTestFilePrefix();
     const auto path = std::filesystem::path(test_dir) / get_path_param();
     const auto exp_path = std::filesystem::path(test_dir) / utils::to_fs_path(GetParam());

@@ -103,21 +103,48 @@ jobs:
   #   env:
   #     CCACHE_PATH: /mount/caches/ccache
 
-  #   steps:
-  #     - name: Checkout cache action
-  #       uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
-  #       timeout-minutes: 15
-  #       with:
-  #         sparse-checkout: .github/actions/cache
+    # steps:
+    #   - name: Checkout cache action
+    #     uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+    #     timeout-minutes: 15
+    #     with:
+    #       sparse-checkout: .github/actions/cache
 
-  #     - name: Cleanup ccache
-  #       uses: ./.github/actions/cache/cleanup
-  #       with:
-  #         cache-size: 300
-  #         max-cache-size: 750
-  #         cache-path: ${{ env.CCACHE_PATH }}
-  #         recursive: true
-  #         key: '.'
+    #   - name: Cleanup HF cache
+    #     uses: ./.github/actions/cache/cleanup
+    #     with:
+    #       cache-size: 1700
+    #       max-cache-size: 2000
+    #       cache-path: ${{ env.HF_CACHE_PATH }}
+    #       recursive: true
+    #       key: '.'
+
+  Cleanup_ccache_lin:
+    name: Cleanup Linux ccache
+    runs-on: aks-linux-medium
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
+      volumes:
+        - /mount:/mount
+    env:
+      CCACHE_PATH: /mount/caches/ccache
+
+    steps:
+      - name: Checkout cache action
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          sparse-checkout: .github/actions/cache
+
+      - name: Cleanup ccache
+        uses: ./.github/actions/cache/cleanup
+        with:
+          cache-size: 300
+          max-cache-size: 750
+          cache-path: ${{ env.CCACHE_PATH }}
+          recursive: true
+          key: '.'
 
 
   # Cleanup_ccache_win:
@@ -126,12 +153,21 @@ jobs:
   #   env:
   #     CCACHE_PATH: C:\\mount\\caches\\ccache
 
+<<<<<<< HEAD
   #   steps:
   #     - name: Checkout cache action
   #       uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
   #       timeout-minutes: 15
   #       with:
   #         sparse-checkout: .github/actions/cache
+=======
+    steps:
+      - name: Checkout cache action
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          sparse-checkout: .github/actions/cache
+>>>>>>> upstream/master
 
   #     - name: Cleanup ccache
   #       uses: ./.github/actions/cache/cleanup
