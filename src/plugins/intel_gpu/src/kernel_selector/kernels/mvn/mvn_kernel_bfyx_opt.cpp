@@ -77,6 +77,7 @@ MVNKernelBfyxOpt::Parent::DispatchData MVNKernelBfyxOpt::SetDefault(const mvn_pa
 
 JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKernelBase::DispatchData dispatchData) const {
     auto jit = MVNKernelBase::GetJitConstants(params, dispatchData);
+    const int use_work_group_collectives = static_cast<int>(params.engineInfo.supports_work_group_collective_functions);
 
     if (params.has_dynamic_tensors()) {
         const auto& input = params.inputs[0];
@@ -92,13 +93,17 @@ JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKern
         }
         const std::string lws_0 = "get_local_size(0)";
         jit.AddConstants({
+            MakeJitConstant("USE_WORK_GROUP_COLLECTIVES", use_work_group_collectives),
             MakeJitConstant("LWS", lws_0),
+            MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
             MakeJitConstant("DATA_SET_SIZE", data_set_size),
             MakeJitConstant("DATA_SETS_COUNT", data_set_count),
         });
     } else {
         jit.AddConstants({
+            MakeJitConstant("USE_WORK_GROUP_COLLECTIVES", use_work_group_collectives),
             MakeJitConstant("LWS", dispatchData.lws[0]),
+            MakeJitConstant("SLM_SIZE", dispatchData.lws[0]),
             MakeJitConstant("DATA_SETS_COUNT", dispatchData.dataSetsCount),
             MakeJitConstant("DATA_SET_SIZE", dispatchData.dataSetSize),
         });
