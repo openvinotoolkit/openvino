@@ -297,6 +297,7 @@ void IStreamsExecutor::Config::update_executor_config() {
     OPENVINO_DEBUG("[ threading ] proc_type_table:");
     for (size_t i = 0; i < proc_type_table.size(); i++) {
         OPENVINO_DEBUG(proc_type_table[i][ALL_PROC],
+                       " ",
                        proc_type_table[i][MAIN_CORE_PROC],
                        " ",
                        proc_type_table[i][EFFICIENT_CORE_PROC],
