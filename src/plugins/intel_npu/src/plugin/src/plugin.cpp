@@ -406,7 +406,7 @@ void Plugin::init_options(FilteredConfig& filteredConfig) {
             if (device) {
                 auto platformName = device->getName();
                 CompilerAdapterFactory compilerFactory;
-                auto compileType = compilerFactory.determinteAppropriateCompilerTypeBasedOnPlatform(platformName);
+                auto compileType = compilerFactory.determineAppropriateCompilerTypeBasedOnPlatform(platformName);
                 if (compileType == ov::intel_npu::CompilerType::DRIVER) {
                     filteredConfig.update(
                         {{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compileType)}});

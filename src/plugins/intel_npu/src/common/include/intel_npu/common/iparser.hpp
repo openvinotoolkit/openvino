@@ -15,7 +15,6 @@ public:
      * @brief Parses the provided binary objects and returns a wrapper over the resulted L0 handles. The model may also
      * be loaded on the device depending on the provided configuration (if "NPU_DEFER_WEIGHTS_LOAD" is off).
      *
-     * @param zeroInitStruct The level zero structures.
      * @param mainBlob The core binary object to be parsed and used to build the "Graph" object.
      * @param config Used to influence the downstream flow of the implementation based on preferences.
      * @param initBlobs Optional. If provided, the "weights separation" flow is enabled and the binary objects

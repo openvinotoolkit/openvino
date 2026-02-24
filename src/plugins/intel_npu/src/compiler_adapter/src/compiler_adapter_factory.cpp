@@ -10,7 +10,7 @@
 
 namespace intel_npu {
 
-ov::intel_npu::CompilerType CompilerAdapterFactory::determinteAppropriateCompilerTypeBasedOnPlatform(
+ov::intel_npu::CompilerType CompilerAdapterFactory::determineAppropriateCompilerTypeBasedOnPlatform(
     std::string_view platform) const {
     if (platform == ov::intel_npu::Platform::NPU4000 || platform == ov::intel_npu::Platform::NPU5010) {
         return ov::intel_npu::CompilerType::PLUGIN;
@@ -24,7 +24,7 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(const ov::
                                                                       std::string_view platform) const {
     if (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
         if (engineBackend != nullptr) {
-            compilerType = determinteAppropriateCompilerTypeBasedOnPlatform(platform);
+            compilerType = determineAppropriateCompilerTypeBasedOnPlatform(platform);
             if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
                 if (_pluginCompilerIsPresent) {
                     try {
@@ -52,9 +52,8 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(const ov::
         return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs());
     } else if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
         if (engineBackend == nullptr || engineBackend->getDevice() == nullptr) {
-            OPENVINO_THROW(
-                "Could not find a NPU device. Using driver compiler requires a valid device to be present in "
-                "the system.");
+            OPENVINO_THROW("Could not find an NPU device. The driver compiler requires a valid device to be present in "
+                           "the system.");
         }
 
         // It is required to check if the device is compatible with the provided platform, as the driver compiler

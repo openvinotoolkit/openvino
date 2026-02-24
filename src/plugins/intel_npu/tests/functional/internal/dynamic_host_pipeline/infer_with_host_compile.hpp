@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
 
 #    include <common_test_utils/ov_tensor_utils.hpp>

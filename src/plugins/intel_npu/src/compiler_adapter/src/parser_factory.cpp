@@ -9,8 +9,9 @@
 namespace intel_npu {
 
 std::unique_ptr<IParser> ParserFactory::getParser(const ov::SoPtr<IEngineBackend>& engineBackend) const {
-    OPENVINO_ASSERT(engineBackend != nullptr,
-                    "Could not find a NPU device. Using parser requires a valid device to be present in the system.");
+    OPENVINO_ASSERT(
+        engineBackend != nullptr,
+        "Could not find an NPU device. The driver compiler requires a valid device to be present in the system.");
 
     return std::make_unique<Parser>(engineBackend->getInitStructs());
 }
