@@ -1,53 +1,51 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "gathermatmul.h"
+
+#include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <bitset>
+#include <common/primitive_hashing_utils.hpp>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <tuple>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include "common/blocked_desc_creator.h"
+#include "config.h"
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "dnnl_extension_utils.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_desc/dnnl_memory_desc.h"
+#include "node.h"
+#include "node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "shape_inference/custom/gathermatmul.hpp"
+#include "transformations/cpu_opset/common/op/batch_gather_matmul.hpp"
+#include "transformations/cpu_opset/common/op/batch_gather_matmul_compressed.hpp"
+#include "transformations/utils/utils.hpp"
+#include "utils/general_utils.h"
 #ifdef OPENVINO_ARCH_X86_64
-#    include "gathermatmul.h"
-
-#    include <oneapi/dnnl/dnnl_common_types.h>
-#    include <oneapi/dnnl/dnnl_types.h>
-
-#    include <bitset>
-#    include <common/primitive_hashing_utils.hpp>
-#    include <common/utils.hpp>
-#    include <cstddef>
-#    include <cstdint>
-#    include <cstring>
-#    include <memory>
-#    include <oneapi/dnnl/dnnl.hpp>
-#    include <oneapi/dnnl/dnnl_common.hpp>
-#    include <string>
-#    include <tuple>
-#    include <unordered_map>
-#    include <utility>
-#    include <vector>
-
-#    include "common/blocked_desc_creator.h"
-#    include "config.h"
-#    include "cpu/x64/cpu_isa_traits.hpp"
-#    include "cpu_memory.h"
-#    include "cpu_types.h"
-#    include "dnnl_extension_utils.h"
-#    include "graph_context.h"
-#    include "memory_desc/blocked_memory_desc.h"
-#    include "memory_desc/cpu_memory_desc.h"
-#    include "memory_desc/cpu_memory_desc_utils.h"
-#    include "memory_desc/dnnl_memory_desc.h"
-#    include "node.h"
-#    include "node_config.h"
-#    include "onednn/iml_type_mapper.h"
-#    include "openvino/core/except.hpp"
-#    include "openvino/core/node.hpp"
-#    include "openvino/core/parallel.hpp"
-#    include "openvino/core/type.hpp"
-#    include "openvino/core/type/element_type.hpp"
-#    include "openvino/op/constant.hpp"
-#    include "shape_inference/custom/gathermatmul.hpp"
-#    include "transformations/cpu_opset/common/op/batch_gather_matmul.hpp"
-#    include "transformations/cpu_opset/common/op/batch_gather_matmul_compressed.hpp"
-#    include "transformations/utils/utils.hpp"
-#    include "utils/general_utils.h"
-
 namespace ov::intel_cpu::node {
 
 struct onednn_matmul_key {
