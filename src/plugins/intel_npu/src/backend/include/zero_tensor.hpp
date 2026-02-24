@@ -7,6 +7,7 @@
 #include <memory>
 #include <mutex>
 
+#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_mem.hpp"
@@ -32,7 +33,7 @@ public:
      * @param is_input Indicates if the tensor is used as a network input ( true) or output (false)
      */
     ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-               const Config& config,
+               const FilteredConfig& config,
                const ov::element::Type element_type,
                const ov::Shape& shape,
                const bool is_input);
@@ -46,7 +47,7 @@ public:
      * @param user_tensor Tensor to create ZeroTensor from
      */
     ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-               const Config& config,
+               const FilteredConfig& config,
                const ov::SoPtr<ov::ITensor>& user_tensor);
 
     void* data() override;

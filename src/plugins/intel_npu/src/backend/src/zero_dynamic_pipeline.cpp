@@ -40,7 +40,7 @@ std::vector<size_t> get_strides(const std::vector<size_t>& strides_in_bytes, siz
 }  // namespace
 
 namespace intel_npu {
-DynamicPipeline::DynamicPipeline(const Config& config,
+DynamicPipeline::DynamicPipeline(const FilteredConfig& config,
                                  const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                  const std::shared_ptr<IGraph>& graph,
                                  const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,

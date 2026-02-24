@@ -6,6 +6,7 @@
 
 #include <cstdint>
 
+#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/icompiled_model.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/sync_infer_request.hpp"
@@ -75,7 +76,7 @@ public:
 
     virtual std::shared_ptr<SyncInferRequest> createInferRequest(
         const std::shared_ptr<const ICompiledModel>& compiledModel,
-        const Config& config) = 0;
+        const FilteredConfig& config) = 0;
 
     virtual void updateInfo(const ov::AnyMap& properties) = 0;
 

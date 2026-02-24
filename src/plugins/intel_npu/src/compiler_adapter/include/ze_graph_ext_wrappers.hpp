@@ -10,7 +10,7 @@
 #include "intel_npu/network_metadata.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "vcl_serializer.hpp"
+#include "model_serializer.hpp"
 
 namespace intel_npu {
 
@@ -46,8 +46,9 @@ public:
     std::string getCompilerSupportedOptions() const;
 
     bool isOptionSupported(std::string optName, std::optional<std::string> optValue = std::nullopt) const;
-    bool isTurboOptionSupported(const ze_graph_compiler_version_info_t& compilerVersion) const;
-
+    bool isOptionSupportedWithVersionFallback(const ze_graph_compiler_version_info_t& compilerVersion,
+                                              const std::string& optName,
+                                              uint32_t compilerOptSupportValue) const;
     /**
      * @brief Tells us whether or not the driver is able to receive and take into account a hash of the model instead of
      * computing its own within the UMD.

@@ -404,7 +404,7 @@ void DynamicGraphImpl::predictOutputShape(std::vector<MemRefType>& inputDescript
 DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                            std::optional<ov::Tensor> blob,
                            bool blobAllocatedByPlugin,
-                           const Config& config,
+                           const FilteredConfig& config,
                            const ov::SoPtr<VCLCompilerImpl>& compiler)
     : _zeroInitStruct(zeroInitStruct),
       _blob(std::move(blob)),
@@ -519,7 +519,7 @@ void DynamicGraph::set_workload_type(const ov::WorkloadType workloadType) const 
 }
 
 std::vector<ov::ProfilingInfo> DynamicGraph::process_profiling_output(const std::vector<uint8_t>& profData,
-                                                                      const Config& config) const {
+                                                                      const FilteredConfig& config) const {
     if (_compiler == nullptr) {
         OPENVINO_THROW("Profiling post-processing is not supported.");
     }
@@ -555,7 +555,7 @@ ze_graph_handle_t DynamicGraph::get_handle() const {
     return nullptr;
 }
 
-void DynamicGraph::initialize(const Config& config) {
+void DynamicGraph::initialize(const FilteredConfig& config) {
     _logger.debug("Graph initialize start");
 
     if (!_impl) {
@@ -616,7 +616,7 @@ void DynamicGraph::initialize(const Config& config) {
     _init_completed = true;
 }
 
-bool DynamicGraph::release_blob(const Config& config) {
+bool DynamicGraph::release_blob(const FilteredConfig& config) {
     _logger.warning("Release blob is skipped, no handle for DynamicGraph");
     return false;
 };

@@ -13,7 +13,7 @@ using namespace intel_npu;
 
 ZeroDynamicInferRequest::ZeroDynamicInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                                                  const std::shared_ptr<const ICompiledModel>& compiledModel,
-                                                 const Config& config)
+                                                 const FilteredConfig& config)
     : ZeroInferRequest(initStructs, compiledModel, config) {
     _logger.setName("ZeroDynamicInferRequest");
 }
