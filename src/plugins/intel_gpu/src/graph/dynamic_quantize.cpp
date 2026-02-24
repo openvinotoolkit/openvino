@@ -17,7 +17,7 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(dynamic_quantize);
 // can_be_optimized flag will be turned on from primitive_inst::update_shape function
 static bool should_skip_execution(const dynamic_quantize_node& node, const layout& act_layout, const dynamic_quantize::Attributes& attrs) {
     if (cldnn::data_type_traits::is_floating_point(attrs.quantization_dt)) {
-        return false; // TODO: Skipping is disabled because OCL kernels don't support low precision floating point types. Remove this when they do.
+        return false; // Execute unconditionally for floating point types.
     }
 
     if (!node.is_runtime_skippable()

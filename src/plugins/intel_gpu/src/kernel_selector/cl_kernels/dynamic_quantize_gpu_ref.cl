@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT)
+
+#include "include/batch_headers/fetch_data.cl"
+#if IS_F8
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/f8_utils.cl"
-#include "include/batch_headers/fetch_data.cl"
+#endif
 
 #define UINT64_MAX 0xFFFFFFFFFFFFFFFF
-
-#define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT)
 
 #if IS_F8
     #define SCALE_TYPE float
@@ -184,7 +186,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #if IS_F8
             vstore8(TO_OUTPUT_VEC_TYPE_CUSTOM(val).data, 0, (char*)(&output[out_offset + x * 8]));
 #else
-            MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8) ival = TO_OUTPUT_VEC_TYPE_RTE(val);
+            MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8) ival = TO_OUTPUT_VEC_TYPE_CUSTOM(val);
             vstore8(ival, 0, output + out_offset + x * 8);
             FOR_PRECOMPUTED_REDUCTION(precomputed_reduction += ((int)ival[0]) + ival[1] + ival[2] + ival[3] + ival[4] + ival[5] + ival[6] + ival[7]);
 #endif

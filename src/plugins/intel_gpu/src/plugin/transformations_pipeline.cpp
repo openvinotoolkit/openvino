@@ -1570,7 +1570,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                                                     asymmetric_dyn_quant,
                                                                                     precomputed_reduction,
                                                                                     use_gs128_for_int8_per_token);
-                manager.register_pass<ov::intel_gpu::MergeDynamicQuantize>();
             }
         }
 

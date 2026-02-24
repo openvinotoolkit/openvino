@@ -412,36 +412,6 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
     }
 
     check_batched_tensors(port, tensors, _metadata.inputs.at(foundPort.idx).supportsStridedLayout);
-<<<<<<< HEAD
-
-    _logger.debug("ZeroInferRequest::set_tensors: %zu", tensors.size());
-
-    const auto& ioShape = _compiledModel->inputs()[foundPort.idx].get_partial_shape();
-    auto batchSizeCandidate =
-        determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), ioShape, nullptr, tensors.size());
-
-    // Check if batch has been changed
-    if (batchSizeCandidate.has_value()) {
-        if (!_dynamicBatchValueChanged) {
-            if (get_user_inputs(foundPort.idx).size() != tensors.size()) {
-                _dynamicBatchValueChanged = true;
-                _graph->set_batch_size(batchSizeCandidate.value());
-            } else if (_graph->get_batch_size().has_value()) {
-                if (batchSizeCandidate.value() != _graph->get_batch_size().value()) {
-                    _dynamicBatchValueChanged = true;
-                    _graph->set_batch_size(batchSizeCandidate.value());
-                }
-            } else {
-                _graph->set_batch_size(batchSizeCandidate.value());
-            }
-        } else if (batchSizeCandidate.value() != _graph->get_batch_size().value()) {
-            OPENVINO_THROW("Batching size is not matching all the tensors.");
-        }
-    } else {
-        batchSizeCandidate = _graph->get_batch_size();
-    }
-=======
->>>>>>> real_origin/main
 
     _logger.debug("ZeroInferRequest::set_tensors: %zu", tensors.size());
 

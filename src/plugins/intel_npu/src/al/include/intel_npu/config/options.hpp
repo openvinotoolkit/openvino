@@ -250,13 +250,6 @@ struct PLATFORM final : OptionBase<PLATFORM, std::string> {
 
     static bool isPublic() {
         return true;
-<<<<<<< HEAD
-    }
-
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(0, 0);
-=======
->>>>>>> real_origin/main
     }
 
     static uint32_t compilerSupportVersion() {

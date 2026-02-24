@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT)
+
+#include "include/batch_headers/fetch_data.cl"
+#if IS_F8
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/f8_utils.cl"
-#include "include/batch_headers/fetch_data.cl"
+#endif
 
 #if OUTPUT_DIMS != 4 && OUTPUT_DIMS != 2
 #error "dynamic_quantize_gpu_opt.cl: Unsupported output dimension"
 #endif
-
-#define IS_F8 (F8E5M2_OUTPUT || F8E4M3_OUTPUT)
 
 #define VLOAD_N CAT(vload, VEC_SIZE)
 #define VSTORE_N CAT(vstore, VEC_SIZE)
@@ -220,17 +222,15 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #endif
 
     val = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, TO_TYPE_N(SCALE_TYPE, VEC_SIZE, val) * (MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE))scale);
-#if ASYMMETRIC_QUANTIZATION
-    val += zp;
-    VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val), 0, output + output_offset + (local_id * block_size));
-#else // ASYMMETRIC_QUANTIZATION
 #if IS_F8
     MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val);
     VSTORE_N(out.data, 0, (char*)(&output[output_offset + (local_id * block_size)]));
-#else // IS_F8
+#elif ASYMMETRIC_QUANTIZATION
+    val += zp;
+    VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val), 0, output + output_offset + (local_id * block_size));
+#else // i8 symmetric
     VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val), 0, output + output_offset + (local_id * block_size));
-#endif // IS_F8
-#endif // ASYMMETRIC_QUANTIZATION
+#endif
 
 #if GENERATE_PRECOMPUTED_REDUCTION
     // TODO: Optimize this part
@@ -356,17 +356,15 @@ KERNEL(dynamic_quantize_gpu_opt)(
             continue;
 
         val[i] = TO_TYPE_N(INPUT0_TYPE, VEC_SIZE, TO_TYPE_N(SCALE_TYPE, VEC_SIZE, val[i]) * (MAKE_VECTOR_TYPE(SCALE_TYPE, VEC_SIZE))scale);
-#if ASYMMETRIC_QUANTIZATION
-        val[i] += zp;
-        VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val[i]), 0, output + offset + ((local_id * iteration + i) * block_size));
-#else // ASYMMETRIC_QUANTIZATION
 #if IS_F8
         MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE) out = TO_TYPE_N_SAT(OUTPUT_TYPE, VEC_SIZE, val[i]);
         VSTORE_N(out.data, 0, (char*)(&output[offset + ((local_id * iteration + i) * block_size)]));
-#else // IS_F8
+#elif ASYMMETRIC_QUANTIZATION
+        val[i] += zp;
+        VSTORE_N(CAT(CONVERT_UCHAR_N, _rte)(val[i]), 0, output + offset + ((local_id * iteration + i) * block_size));
+#else // i8 symmetric
         VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val[i]), 0, output + offset + ((local_id * iteration + i) * block_size));
-#endif // IS_F8
-#endif // ASYMMETRIC_QUANTIZATION
+#endif
     }
 
     if (sglid == 0 && local_id == 0) {
