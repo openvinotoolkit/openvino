@@ -41,13 +41,13 @@ namespace intel_npu {
 DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
     : _zeroInitStruct(zeroInitStruct),
       _logger("DriverCompilerAdapter", Logger::global().level()) {
-    _logger.debug("initialize DriverCompilerAdapter start");
+    _logger.info("initialize DriverCompilerAdapter start");
 
     uint32_t graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
 
     _compilerProperties = _zeroInitStruct->getCompilerProperties();
 
-    _logger.info("DriverCompilerAdapter creating adapter using graphExtVersion");
+    _logger.debug("DriverCompilerAdapter creating adapter using graphExtVersion");
 
     _zeGraphExt = std::make_shared<ZeGraphExtWrappers>(_zeroInitStruct);
 
