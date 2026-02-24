@@ -31,7 +31,9 @@ SequenceMarkReplacer::SequenceMarkReplacer() {
             return false;
         }
 
-        if (seq_mark_node->get_input_size() == 0) {
+        const auto inputs = seq_mark_node->get_sequence();
+
+        if (inputs.empty()) {
             return false;
         }
 
@@ -41,7 +43,7 @@ SequenceMarkReplacer::SequenceMarkReplacer() {
         // Concatenate all inputs reshaped to 1D
         OutputVector inputs_to_concat;
 
-        for (const auto& input : seq_mark_node->input_values()) {
+        for (const auto& input : inputs) {
             const auto& input_rank = input.get_partial_shape().rank();
 
             if (input_rank.is_static() && input_rank.get_length() > 1) {

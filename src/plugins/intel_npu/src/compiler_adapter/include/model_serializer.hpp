@@ -5,14 +5,14 @@
 #pragma once
 #include <ze_graph_ext.h>
 
+#include <functional>
 #include <iostream>
 #include <string>
 
-#include "intel_npu/config/config.hpp"
+#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/pass/manager.hpp"
-#include "ze_graph_ext.h"
 
 namespace intel_npu {
 
@@ -23,10 +23,10 @@ struct SerializedIR {
 };
 
 /**
- * @brief Contain all required transformation on OpenVINO model in case for external compiler usage and
- *  providing forward compatibility (OV model with opset N+M, external compiler with opset N)
+ * @brief Contain all required transformation on OpenVINO model and providing forward compatibility (OV model with opset
+ * N+M, external compiler with opset N)
  */
-namespace driver_compiler_utils {
+namespace compiler_utils {
 
 /**
  * @brief Serializes the model using a format supported by the "VCL" interface.
@@ -65,9 +65,9 @@ SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
  */
 std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices);
 
-std::string serializeConfig(const Config& config,
-                            ze_graph_compiler_version_info_t compilerVersion,
-                            bool turboSupported = false);
+std::string serializeConfig(const FilteredConfig& config,
+                            const ze_graph_compiler_version_info_t& compilerVersion,
+                            const std::function<bool(const std::string&)>& isOptionSupportedByCompiler);
 
-}  // namespace driver_compiler_utils
+}  // namespace compiler_utils
 }  // namespace intel_npu

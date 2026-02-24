@@ -3100,3 +3100,94 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_layer_normalization_with_default_
 
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_group_norm) {
+    const auto model = convert_model("com.microsoft/group_norm.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    Shape shape{2, 8, 2, 2};
+    const auto size = shape_size(shape);
+    std::vector<float> data(size);
+    std::iota(data.begin(), data.end(), 0.f);
+    std::vector<float> scale(shape[1]), bias(shape[1]);
+    std::iota(scale.begin(), scale.end(), 1.f);
+    std::iota(bias.begin(), bias.end(), 1.f);
+    std::vector<float> output = {
+        -0.52752507f, -0.09108937f, 0.3453464f, 0.78178215f, 2.4364357f, 3.309307f,  4.1821785f, 5.05505f,
+        -1.5825753f,  -0.27326822f, 1.0360391f, 2.3453465f,  4.8728714f, 6.618614f,  8.364357f,  10.1101f,
+        -2.6376252f,  -0.45544672f, 1.726732f,  3.9089108f,  7.309307f,  9.927921f,  12.546536f, 15.165151f,
+        -3.6926756f,  -0.6376257f,  2.4174247f, 5.472475f,   9.745743f,  13.237228f, 16.728714f, 20.2202f,
+        -0.52752507f, -0.09108937f, 0.3453464f, 0.78178215f, 2.4364357f, 3.309307f,  4.1821785f, 5.05505f,
+        -1.5825753f,  -0.27326822f, 1.0360391f, 2.3453465f,  4.8728714f, 6.618614f,  8.364357f,  10.1101f,
+        -2.6376252f,  -0.45544672f, 1.726732f,  3.9089108f,  7.309307f,  9.927921f,  12.546536f, 15.165151f,
+        -3.6926756f,  -0.6376257f,  2.4174247f, 5.472475f,   9.745743f,  13.237228f, 16.728714f, 20.2202f,
+    };
+
+    test_case.add_input<float>(data);
+    test_case.add_input<float>(scale);
+    test_case.add_input<float>(bias);
+    test_case.add_expected_output<float>(shape, output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_group_norm_silu) {
+    const auto model = convert_model("com.microsoft/group_norm_silu.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    Shape shape{2, 8, 2, 2};
+    const auto size = shape_size(shape);
+    std::vector<float> data(size);
+    std::iota(data.begin(), data.end(), 0.f);
+    std::vector<float> scale(shape[1]), bias(shape[1]);
+    std::iota(scale.begin(), scale.end(), 1.f);
+    std::iota(bias.begin(), bias.end(), 1.f);
+    std::vector<float> output = {
+        -0.19576156f, -0.0434718f,  0.20219637f, 0.53635263f, 2.2404583f, 3.1926432f, 4.1192966f, 5.0230174f,
+        -0.26972f,    -0.11808054f, 0.764685f,   2.1402779f,  4.8358707f, 6.6097884f, 8.362408f,  10.109689f,
+        -0.17607686f, -0.17674364f, 1.465985f,   3.8320312f,  7.3044186f, 9.927437f,  12.546492f, 15.165147f,
+        -0.0897323f,  -0.2204804f,  2.21955f,    5.4495826f,  9.7451725f, 13.237205f, 16.728714f, 20.2202f,
+        -0.19576156f, -0.0434718f,  0.20219637f, 0.53635263f, 2.2404583f, 3.1926432f, 4.1192966f, 5.0230174f,
+        -0.26972f,    -0.11808054f, 0.764685f,   2.1402779f,  4.8358707f, 6.6097884f, 8.362408f,  10.109689f,
+        -0.17607686f, -0.17674364f, 1.465985f,   3.8320312f,  7.3044186f, 9.927437f,  12.546492f, 15.165147f,
+        -0.0897323f,  -0.2204804f,  2.21955f,    5.4495826f,  9.7451725f, 13.237205f, 16.728714f, 20.2202f,
+    };
+
+    test_case.add_input<float>(data);
+    test_case.add_input<float>(scale);
+    test_case.add_input<float>(bias);
+    test_case.add_expected_output<float>(shape, output);
+    test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_group_norm_channels_last) {
+    const auto model = convert_model("com.microsoft/group_norm_channels_last.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    Shape shape{2, 2, 2, 8};
+    const auto size = shape_size(shape);
+    std::vector<float> data(size);
+    float value = 0.f;
+    for (size_t b = 0; b < shape[0]; b++)
+        for (size_t f = 0; f < shape[3]; f++)
+            for (size_t y = 0; y < shape[1]; y++)
+                for (size_t x = 0; x < shape[2]; x++) {
+                    data[b * shape[1] * shape[2] * shape[3] + y * shape[2] * shape[3] + x * shape[3] + f] = value;
+                    value += 1.f;
+                }
+    std::vector<float> scale(shape[3]), bias(shape[3]);
+    std::iota(scale.begin(), scale.end(), 1.f);
+    std::iota(bias.begin(), bias.end(), 1.f);
+    std::vector<float> output = {
+        -0.52752507f, 2.4364357f, -1.5825753f,  4.8728714f, -2.6376252f,  7.309307f,  -3.6926756f, 9.745743f,
+        -0.09108937f, 3.309307f,  -0.27326822f, 6.618614f,  -0.45544672f, 9.927921f,  -0.6376257f, 13.237228f,
+        0.3453464f,   4.1821785f, 1.0360391f,   8.364357f,  1.726732f,    12.546536f, 2.4174247f,  16.728714f,
+        0.78178215f,  5.05505f,   2.3453465f,   10.1101f,   3.9089108f,   15.165151f, 5.472475f,   20.2202f,
+        -0.52752507f, 2.4364357f, -1.5825753f,  4.8728714f, -2.6376252f,  7.309307f,  -3.6926756f, 9.745743f,
+        -0.09108937f, 3.309307f,  -0.27326822f, 6.618614f,  -0.45544672f, 9.927921f,  -0.6376257f, 13.237228f,
+        0.3453464f,   4.1821785f, 1.0360391f,   8.364357f,  1.726732f,    12.546536f, 2.4174247f,  16.728714f,
+        0.78178215f,  5.05505f,   2.3453465f,   10.1101f,   3.9089108f,   15.165151f, 5.472475f,   20.2202f,
+    };
+
+    test_case.add_input<float>(data);
+    test_case.add_input<float>(scale);
+    test_case.add_input<float>(bias);
+    test_case.add_expected_output<float>(shape, output);
+    test_case.run();
+}
