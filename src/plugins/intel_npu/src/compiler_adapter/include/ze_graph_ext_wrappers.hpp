@@ -84,7 +84,7 @@ private:
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     uint32_t _graphExtVersion;
-    bool _isCompilerOptionQuerySupported;
+    std::optional<bool> _isCompilerOptionQuerySupported = std::nullopt;
 
     Logger _logger;
 };

@@ -176,7 +176,7 @@ ov::device::Type ZeroDevice::getDeviceType() const {
 
 std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
     const std::shared_ptr<const ICompiledModel>& compiledModel,
-    const FilteredConfig& config) {
+    const Config& config) {
     if (dynamic_cast<IDynamicGraph*>(compiledModel->get_graph().get())) {
         return std::make_shared<ZeroDynamicInferRequest>(_initStructs, compiledModel, config);
     }

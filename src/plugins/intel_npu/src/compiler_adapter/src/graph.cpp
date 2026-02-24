@@ -138,8 +138,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
     return std::make_pair(size, std::nullopt);
 }
 
-std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData,
-                                                               const FilteredConfig& config) const {
+std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData) const {
     if (_compiler == nullptr) {
         OPENVINO_THROW("Profiling post-processing is not supported.");
     }
@@ -147,7 +146,7 @@ std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector
     std::vector<uint8_t> blob(_blob->get_byte_size());
     blob.assign(reinterpret_cast<const uint8_t*>(_blob->data()),
                 reinterpret_cast<const uint8_t*>(_blob->data()) + _blob->get_byte_size());
-    return _compiler->process_profiling_output(profData, blob, config);
+    return _compiler->process_profiling_output(profData, blob);
 }
 
 void Graph::set_argument_value(uint32_t id, const void* data) const {

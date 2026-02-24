@@ -66,7 +66,7 @@ void* get_tensor_data_ptr(const std::shared_ptr<ov::ITensor>& tensor) {
 //------------------------------------------------------------------------------
 ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                                    const std::shared_ptr<const ICompiledModel>& compiledModel,
-                                   const FilteredConfig& config)
+                                   const Config& config)
     : SyncInferRequest(compiledModel, config),
       _initStructs(initStructs),
       _graph(compiledModel->get_graph()),

@@ -12,8 +12,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> IGraph::export_blob(st
     OPENVINO_THROW("export_blob not implemented");
 }
 
-std::vector<ov::ProfilingInfo> IGraph::process_profiling_output(const std::vector<uint8_t>&,
-                                                                const FilteredConfig&) const {
+std::vector<ov::ProfilingInfo> IGraph::process_profiling_output(const std::vector<uint8_t>&) const {
     OPENVINO_THROW("process_profiling_output not implemented");
 }
 

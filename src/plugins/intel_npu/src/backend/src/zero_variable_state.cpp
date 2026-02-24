@@ -17,7 +17,7 @@ ZeroVariableState::ZeroVariableState(const std::shared_ptr<ZeroInitStructsHolder
                                      const std::shared_ptr<ZeroTensor>& zero_tensor,
                                      size_t tensor_index,
                                      size_t related_tensor_index,
-                                     const FilteredConfig& config)
+                                     const Config& config)
     : ov::IVariableState(name),
       _init_structs(init_structs),
       _tensor_index(tensor_index),

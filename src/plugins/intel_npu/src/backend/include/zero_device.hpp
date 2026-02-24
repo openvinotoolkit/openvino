@@ -33,7 +33,7 @@ public:
     ov::device::Type getDeviceType() const override;
 
     std::shared_ptr<SyncInferRequest> createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
-                                                         const FilteredConfig& config) override;
+                                                         const Config& config) override;
 
     void updateInfo(const ov::AnyMap& properties) override;
 

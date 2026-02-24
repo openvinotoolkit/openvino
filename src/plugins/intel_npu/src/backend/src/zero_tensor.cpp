@@ -30,7 +30,7 @@ bool is_pointer_representable(const ov::element::Type& tensor_type, const ov::el
 namespace intel_npu {
 
 ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                       const FilteredConfig& config,
+                       const Config& config,
                        const ov::element::Type element_type,
                        const ov::Shape& shape,
                        const bool is_input)
@@ -58,7 +58,7 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
 }
 
 ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                       const FilteredConfig& config,
+                       const Config& config,
                        const ov::SoPtr<ov::ITensor>& user_tensor)
     : _init_structs(init_structs),
       _logger("ZeroTensor", config.get<LOG_LEVEL>()),

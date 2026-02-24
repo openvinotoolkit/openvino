@@ -18,8 +18,8 @@
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
-#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/npu.hpp"
+#include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -52,7 +52,7 @@ protected:
     ov::element::Type element_type;
     std::shared_ptr<::intel_npu::ZeroInitStructsHolder> init_struct;
     std::shared_ptr<::intel_npu::OptionsDesc> options = std::make_shared<::intel_npu::OptionsDesc>();
-    ::intel_npu::FilteredConfig npu_config = ::intel_npu::FilteredConfig(options);
+    ::intel_npu::Config npu_config = ::intel_npu::Config(options);
 
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<CompilationParamsAndTensorDataType>& obj) {

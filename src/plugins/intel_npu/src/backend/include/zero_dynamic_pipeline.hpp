@@ -99,7 +99,7 @@ struct DynamicPipeline : public Pipeline {
     };
 
 public:
-    DynamicPipeline(const FilteredConfig& config,
+    DynamicPipeline(const Config& config,
                     const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                     const std::shared_ptr<IGraph>& graph,
                     const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,

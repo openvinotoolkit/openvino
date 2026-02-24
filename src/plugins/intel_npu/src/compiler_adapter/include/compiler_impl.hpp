@@ -84,8 +84,7 @@ public:
     uint32_t get_version() const;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
-                                                            const std::vector<uint8_t>& network,
-                                                            const FilteredConfig& config) const;
+                                                            const std::vector<uint8_t>& network) const;
 
     bool get_supported_options(std::vector<char>& options) const;
 

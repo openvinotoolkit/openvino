@@ -7,7 +7,6 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
-#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/common/sync_infer_request.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -33,7 +32,7 @@ class ZeroInferRequest : public SyncInferRequest {
 public:
     explicit ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                               const std::shared_ptr<const ICompiledModel>& compiledModel,
-                              const FilteredConfig& config);
+                              const Config& config);
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
@@ -83,7 +82,7 @@ protected:
 
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
     const std::shared_ptr<IGraph> _graph;
-    const FilteredConfig _config;
+    const Config _config;
     Logger _logger;
 
     // A copy of each tensor is needed to maintain the original L0 memory allocation in case the user provides another

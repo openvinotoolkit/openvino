@@ -546,10 +546,8 @@ intel_npu::NetworkMetadata VCLCompilerImpl::parse(const std::vector<uint8_t>& ne
     OPENVINO_THROW_NOT_IMPLEMENTED("VCL does not support parse.");
 }
 
-std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(
-    const std::vector<uint8_t>& profData,
-    const std::vector<uint8_t>& network,
-    const intel_npu::FilteredConfig& config) const {
+std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const std::vector<uint8_t>& profData,
+                                                                         const std::vector<uint8_t>& network) const {
     _logger.debug("process_profiling_output start");
 
     vcl_profiling_handle_t profilingHandle;

@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "zero_profiling.hpp"
@@ -14,14 +13,14 @@ namespace intel_npu {
 
 struct Pipeline {
 public:
-    Pipeline(const FilteredConfig& config,
+    Pipeline(const Config& config,
              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
              const std::shared_ptr<IGraph>& graph,
              const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
              const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
              size_t batch_size = 1);
 
-    Pipeline(const FilteredConfig& config,
+    Pipeline(const Config& config,
              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
              const std::shared_ptr<IGraph>& graph,
              const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
@@ -50,7 +49,7 @@ public:
 protected:
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
     std::shared_ptr<IGraph> _graph;
-    const FilteredConfig _config;
+    const Config _config;
     const uint32_t _id;
 
     std::unique_ptr<zeroProfiling::ProfilingQuery> _profiling_query;

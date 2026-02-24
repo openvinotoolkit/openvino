@@ -35,7 +35,7 @@ std::vector<size_t> get_strides(const std::vector<size_t>& strides_in_bytes, siz
 }  // namespace
 
 namespace intel_npu {
-Pipeline::Pipeline(const FilteredConfig& config,
+Pipeline::Pipeline(const Config& config,
                    const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                    const std::shared_ptr<IGraph>& graph,
                    const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
@@ -220,7 +220,7 @@ Pipeline::Pipeline(const FilteredConfig& config,
     _logger.debug("Pipeline - initialize completed");
 }
 
-Pipeline::Pipeline(const FilteredConfig& config,
+Pipeline::Pipeline(const Config& config,
                    const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                    const std::shared_ptr<IGraph>& graph,
                    const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
@@ -358,7 +358,7 @@ std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
         // For plugin compiler retreive raw profiling data from backend and delegate
         // processing to the compiler
         _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
-        return _graph->process_profiling_output(_profiling_query->getData<uint8_t>(), _config);
+        return _graph->process_profiling_output(_profiling_query->getData<uint8_t>());
     } else {
         _logger.debug("InferRequest::get_profiling_info complete with _profiling_query.getLayerStatistics().");
         return _profiling_query->getLayerStatistics();

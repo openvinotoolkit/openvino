@@ -14,7 +14,7 @@ class ZeroDynamicInferRequest final : public ZeroInferRequest {
 public:
     explicit ZeroDynamicInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                                      const std::shared_ptr<const ICompiledModel>& compiledModel,
-                                     const FilteredConfig& config);
+                                     const Config& config);
 
     void infer_async() override;
 
