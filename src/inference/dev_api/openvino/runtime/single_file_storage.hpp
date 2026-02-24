@@ -5,7 +5,12 @@
 #pragma once
 
 #include "icache_manager.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "storage_traits.hpp"
+
+// todo Remove this inclusion and use weight_sharing::Context instead of SharedContext in ISharedContextStore and
+// SingleFileStorage.
+#include "openvino/runtime/internal_properties.hpp"
 
 namespace ov {
 class SingleFileStorage final : public ICacheManager, public ISharedContextStore {
@@ -19,20 +24,23 @@ public:
     void read_cache_entry(const std::string& blob_id, bool mmap_enabled, StreamReader reader) override;
     void remove_cache_entry(const std::string& blob_id) override;
 
-    void write_context_entry(const SharedContext& context) override;
-    SharedContext get_shared_context() const override;
+    void write_context_entry(const weight_sharing::Context& context) override;
+    weight_sharing::Context get_context() const override;
 
 private:
+    // todo Make it configurable and/or detect actual file system page size
+    static constexpr uint64_t m_alignment = 4096;
+
     std::filesystem::path m_file_path;
     TLVStorage::blob_map_type m_blob_map;
     void scan_blob_map(std::ifstream& stream);
+    void scan_context(std::ifstream& stream);
 
     static TLVStorage::blob_id_type convert_blob_id(const std::string& blob_id);
     void write_blob_entry(TLVStorage::blob_id_type blob_id, StreamWriter& writer, std::ofstream& stream);
     bool has_blob_id(TLVStorage::blob_id_type blob_id) const;
 
-    // todo Make it configurable and/or detect actual file system page size
-    static constexpr uint64_t m_alignment = 4096;
+    weight_sharing::Context m_shared_context_new;  // todo Remove _new suffix after refactor
 
     // todo Below parts are for refactor and might be removed. Don't leave it - reuse or remove.
 private:

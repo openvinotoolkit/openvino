@@ -9,7 +9,7 @@
 #include <string>
 #include <variant>
 
-#include "openvino/runtime/internal_properties.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
@@ -75,8 +75,8 @@ public:
 
 class ISharedContextStore {
 public:
-    virtual void write_context_entry(const SharedContext&) = 0;
-    virtual SharedContext get_shared_context() const = 0;
+    virtual void write_context_entry(const ov::weight_sharing::Context&) = 0;
+    virtual ov::weight_sharing::Context get_context() const = 0;
 };
 
 /**

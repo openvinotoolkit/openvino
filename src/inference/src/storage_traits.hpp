@@ -33,6 +33,8 @@ struct TLVStorage {
         String = 0x02,
         Blob = 0x03,
         BlobMap = 0x04,
+        ConstantMeta = 0x10,
+        WeightSource = 0x11,
     };
 
     struct Version {
