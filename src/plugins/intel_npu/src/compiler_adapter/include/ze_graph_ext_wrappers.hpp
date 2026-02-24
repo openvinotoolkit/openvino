@@ -45,7 +45,8 @@ public:
 
     std::string getCompilerSupportedOptions() const;
 
-    bool isOptionSupported(std::string optName, std::optional<std::string> optValue = std::nullopt) const;
+    std::optional<bool> isOptionSupported(std::string optName,
+                                          std::optional<std::string> optValue = std::nullopt) const;
     bool isOptionSupportedWithVersionFallback(const ze_graph_compiler_version_info_t& compilerVersion,
                                               const std::string& optName,
                                               uint32_t compilerOptSupportValue) const;
@@ -83,6 +84,7 @@ private:
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     uint32_t _graphExtVersion;
+    bool _isCompilerOptionQuerySupported;
 
     Logger _logger;
 };

@@ -135,6 +135,18 @@ ZeGraphExtWrappers::ZeGraphExtWrappers(const std::shared_ptr<ZeroInitStructsHold
     _logger.info("Graph ext version used by zero wrapper: %d.%d",
                  ZE_MAJOR_VERSION(_graphExtVersion),
                  ZE_MINOR_VERSION(_graphExtVersion));
+
+    _isCompilerOptionQuerySupported = (_graphExtVersion >= ZE_MAKE_VERSION(1, 11));
+#ifdef _WIN32
+    if (_isCompilerOptionQuerySupported) {
+        // Windows driver shall return NO_THROW_ON_UNSUPPORTED_FEATURE as supported to go further here
+        _isCompilerOptionQuerySupported =
+            _zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
+                                                                             ZE_NPU_DRIVER_OPTIONS,
+                                                                             "NO_THROW_ON_UNSUPPORTED_FEATURE",
+                                                                             nullptr) == ZE_RESULT_SUCCESS;
+    }
+#endif
 }
 
 ZeGraphExtWrappers::~ZeGraphExtWrappers() {
@@ -559,19 +571,10 @@ NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(GraphDescriptor& graphDescrip
 
 std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
     // Early exit if api is not supported
-    if (_graphExtVersion < ZE_MAKE_VERSION(1, 11)) {
+    if (!_isCompilerOptionQuerySupported) {
+        _logger.debug("Compiler options query is not supported by the driver - skipping!");
         return {};
     }
-
-#ifdef _WIN32
-    // Driver shall return NO_THROW_ON_UNSUPPORTED_FEATURE as supported to go further here
-    if (_zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
-                                                                         ZE_NPU_DRIVER_OPTIONS,
-                                                                         "NO_THROW_ON_UNSUPPORTED_FEATURE",
-                                                                         nullptr) != ZE_RESULT_SUCCESS) {
-        return {};
-    }
-#endif
 
     // 1. ask driver for size of compiler supported options list
     _logger.debug("pfnCompilerGetSupportedOptions - obtain string size");
@@ -616,21 +619,13 @@ std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
     return {};
 }
 
-bool ZeGraphExtWrappers::isOptionSupported(std::string optName, std::optional<std::string> optValue) const {
+std::optional<bool> ZeGraphExtWrappers::isOptionSupported(std::string optName,
+                                                          std::optional<std::string> optValue) const {
     // Early exit if api is not supported
-    if (_graphExtVersion < ZE_MAKE_VERSION(1, 11)) {
-        return false;
+    if (!_isCompilerOptionQuerySupported) {
+        _logger.debug("Compiler option query is not supported by the driver - skipping!");
+        return std::nullopt;
     }
-
-#ifdef _WIN32
-    // Driver shall return NO_THROW_ON_UNSUPPORTED_FEATURE as supported to go further here
-    if (_zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
-                                                                         ZE_NPU_DRIVER_OPTIONS,
-                                                                         "NO_THROW_ON_UNSUPPORTED_FEATURE",
-                                                                         nullptr) != ZE_RESULT_SUCCESS) {
-        return false;
-    }
-#endif
 
     const char* optname_ch = optName.c_str();
     const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
@@ -652,8 +647,9 @@ bool ZeGraphExtWrappers::isOptionSupported(std::string optName, std::optional<st
 bool ZeGraphExtWrappers::isOptionSupportedWithVersionFallback(const ze_graph_compiler_version_info_t& compilerVersion,
                                                               const std::string& optName,
                                                               uint32_t compilerOptSupportValue) const {
-    auto checkCompilerVersion = [](const ze_graph_compiler_version_info_t& compilerVersion,
-                                   const uint32_t compilerOptSupportValue) {
+    std::optional<bool> isSupported = isOptionSupported(optName);
+
+    if (!isSupported.has_value()) {
         uint32_t majorCompilerOptSupportValue = ZE_MAJOR_VERSION(compilerOptSupportValue);
         uint32_t minorCompilerOptSupportValue = ZE_MINOR_VERSION(compilerOptSupportValue);
         if ((compilerVersion.major < majorCompilerOptSupportValue) ||
@@ -663,31 +659,9 @@ bool ZeGraphExtWrappers::isOptionSupportedWithVersionFallback(const ze_graph_com
         }
 
         return true;
-    };
-
-    if (_graphExtVersion < ZE_MAKE_VERSION(1, 11)) {
-        return checkCompilerVersion(compilerVersion, compilerOptSupportValue);
     }
 
-#ifdef _WIN32
-    // Driver shall return NO_THROW_ON_UNSUPPORTED_FEATURE as supported to go further here
-    if (_zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
-                                                                         ZE_NPU_DRIVER_OPTIONS,
-                                                                         "NO_THROW_ON_UNSUPPORTED_FEATURE",
-                                                                         nullptr) != ZE_RESULT_SUCCESS) {
-        return checkCompilerVersion(compilerVersion, compilerOptSupportValue);
-    }
-#endif
-
-    bool isSupported = false;
-    try {
-        isSupported = isOptionSupported(optName);
-    } catch (...) {
-        // mute it, not critical
-        isSupported = false;
-    }
-
-    return isSupported;
+    return isSupported.value();
 }
 
 bool ZeGraphExtWrappers::isPluginModelHashSupported() const {
