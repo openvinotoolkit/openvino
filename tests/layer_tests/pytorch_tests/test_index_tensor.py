@@ -8,8 +8,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestIndexTensor(PytorchLayerTest):
     def _prepare_input(self, input_shape):
-        import numpy as np
-        return (np.random.randn(*input_shape).astype(np.float32),)
+        return (self.random.randn(*input_shape),)
 
     def create_model(self, indices_list, safe: bool):
         import torch
@@ -31,7 +30,7 @@ class TestIndexTensor(PytorchLayerTest):
                 continue
             adjusted_indices_list.append(None)
 
-        return aten_index_tensor(adjusted_indices_list), None, None
+        return aten_index_tensor(adjusted_indices_list), None
 
     @pytest.mark.nightly
     @pytest.mark.precommit_torch_export
