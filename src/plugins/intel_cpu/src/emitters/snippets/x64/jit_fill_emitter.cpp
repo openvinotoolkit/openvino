@@ -15,6 +15,7 @@
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
@@ -79,15 +80,12 @@ void jit_fill_emitter::emit_isa(const std::vector<size_t>& in, const std::vector
 
     const size_t supported_et_size = 4;
     const auto register_capacity = (src_vmm.getBit() / 8) / supported_et_size;
-    if (offset == register_capacity) {
-        // WA: since AssignRegisters doesn't support inplace logic, Fill ops with offset = register_capacity can't be
-        // removed from the LIR
-        // TODO: when inplace is supported, remove such Fill ops from the LIR and remove this logic.
-        // Ticket: 126270
-        if (src_vmm.getIdx() != dst_vmm.getIdx()) {
-            h->uni_vmovups(dst_vmm, src_vmm);
-        }
-    } else if (is_full_reg()) {
+    OPENVINO_ASSERT(offset < register_capacity,
+                    "Fill emitter offset ",
+                    offset,
+                    " exceeds register capacity ",
+                    register_capacity);
+    if (is_full_reg()) {
         fill_full<Vmm>(dst_vmm);
     } else {
         fill_tail<Vmm>(src_vmm, dst_vmm);

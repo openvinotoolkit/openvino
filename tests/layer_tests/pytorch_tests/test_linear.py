@@ -8,18 +8,17 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestMatMul(PytorchLayerTest):
     def _prepare_input(self, m1_shape=(2, 2), m2_shape=(2, 2), bias_shape=None):
-        import numpy as np
         if bias_shape is None:
-            return (np.random.randn(*m1_shape).astype(np.float32), np.random.randn(*m2_shape).astype(np.float32))
+            return (self.random.randn(*m1_shape), self.random.randn(*m2_shape))
         else:
-            return (np.random.randn(*m1_shape).astype(np.float32), np.random.randn(*m2_shape).astype(np.float32), np.random.randn(*bias_shape).astype(np.float32))
+            return (self.random.randn(*m1_shape), self.random.randn(*m2_shape), self.random.randn(*bias_shape))
 
     def create_model(self, is_bias):
         import torch
 
         class aten_mm(torch.nn.Module):
             def __init__(self, is_bias):
-                super(aten_mm, self).__init__()
+                super().__init__()
                 self.forward = self.forward2 if is_bias else self.forward1
 
             def forward1(self, m1, m2):
@@ -28,9 +27,8 @@ class TestMatMul(PytorchLayerTest):
             def forward2(self, m1, m2, bias):
                 return torch.nn.functional.linear(m1, m2, bias)
 
-        ref_net = None
 
-        return aten_mm(is_bias), ref_net, "aten::linear"
+        return aten_mm(is_bias), "aten::linear"
 
     @pytest.mark.parametrize("kwargs_to_prepare_input", [
         {'m1_shape': [9], 'm2_shape': [10, 9]},
@@ -53,24 +51,23 @@ class TestMatMul(PytorchLayerTest):
 
 class TestLinearBiasList(PytorchLayerTest):
     def _prepare_input(self):
-        import numpy as np
-        return (np.random.randn(1, 15, 10).astype(np.float32), np.random.randn(66, 10).astype(np.float32))
+        return (self.random.randn(1, 15, 10), self.random.randn(66, 10))
 
     def create_model(self):
         import torch
 
         class aten_mm(torch.nn.Module):
-            def __init__(self):
-                super(aten_mm, self).__init__()
-                self.bias = [torch.randn(22),
-                             torch.randn(22),
-                             torch.randn(22)]
+            def __init__(self, rng):
+                super().__init__()
+                self.bias = [rng.torch_randn(22),
+                             rng.torch_randn(22),
+                             rng.torch_randn(22)]
 
             def forward(self, m1, m2):
                 m2 = m2.reshape([66, -1])
                 return torch.nn.functional.linear(m1, m2, torch.cat(self.bias, 0))
 
-        return aten_mm(), None, "aten::linear"
+        return aten_mm(self.random), "aten::linear"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

@@ -14,13 +14,17 @@
 
 #include <any>
 #include <cmath>
+#include <cstddef>
+#include <limits>
 #include <memory>
+#include <vector>
 
 #include "acl_utils.hpp"
 #include "cpu_shape.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/executors/acl/acl_common_executor.hpp"
+#include "nodes/executors/common/common_utils.hpp"
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/executor.hpp"
@@ -36,6 +40,8 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
                                                const MemoryArgs& memory,
                                                [[maybe_unused]] const ExecutorContext::CPtr& context)
     : weightScale(attrs.dqScales) {
+    aclTensorAttrs.hasLayoutTypeNHWC = memory.at(ARG_SRC)->getDescPtr()->hasLayoutType(LayoutType::nspc);
+
     MemoryDescPtr srcMemPtr = memory.at(ARG_SRC_0)->getDescPtr();
     MemoryDescPtr weiMemPtr = memory.at(ARG_WEI)->getDescPtr();
     MemoryDescPtr dstMemPtr = memory.at(ARG_DST)->getDescPtr();
@@ -74,6 +80,28 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
             fqInputShift = fq->inputShift();
             fqOutputScale = fq->outputScale();
             fqOutputShift = fq->outputShift();
+
+            // ACL destination quantization supports only per-tensor scale/shift.
+            // For per-channel FQ input scales, move channel-wise ratios to weights scales.
+            if (fqInputScale.size() > 1) {
+                const auto baseScale = fqInputScale.front();
+                const bool hasValidBaseScale = std::fabs(baseScale) > std::numeric_limits<float>::epsilon();
+                const bool hasUniformShift = isPerTensorDataWithTolerance(fqInputShift, 0.00005F);
+
+                if (hasValidBaseScale && hasUniformShift) {
+                    std::vector<float> scaleRatios(fqInputScale.size(), 1.0F);
+                    for (std::size_t i = 0; i < fqInputScale.size(); i++) {
+                        scaleRatios[i] = fqInputScale[i] / baseScale;
+                    }
+
+                    multiplyAndBroadcastScales(weightScale, scaleRatios, fqInputScale.size());
+                    fqInputScale = {baseScale};
+                    if (fqInputShift.size() > 1) {
+                        fqInputShift = {fqInputShift.front()};
+                    }
+                }
+            }
+
             if (fqOutputScale.size() == 1 && fqOutputScale[0] == 1.0F && fqOutputShift.size() == 1 &&
                 fqOutputShift[0] == std::trunc(fqOutputShift[0])) {
                 for (auto& v : fqInputShift) {
@@ -91,15 +119,23 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
 
 bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
     VERIFY(config.attrs.postOps.size() <= 1U, UNSUPPORTED_BY_EXECUTOR);
+
+    const auto& srcDesc = config.descs.at(ARG_SRC);
+    const auto& weiDesc = config.descs.at(ARG_WEI);
+    const auto& dstDesc = config.descs.at(ARG_DST);
+
+    // ACL GemmConv2d supports 4D activations and 4D weight only
+    VERIFY(srcDesc->getShape().getRank() == 4 && weiDesc->getShape().getRank() == 4, UNSUPPORTED_BY_EXECUTOR);
     // isQuantized verifies whether src is u8/i8, weights is i8 and FQ is fused if dst is u8/i8
     // the last requirement is due to ACL int32 accumulation that needs to be requantized by non-trivial scales
-    const bool quantizedSrc = any_of(config.descs.at(ARG_SRC)->getPrecision(), ov::element::u8, ov::element::i8);
-    const bool quantizedDst = any_of(config.descs.at(ARG_DST)->getPrecision(), ov::element::u8, ov::element::i8);
     const bool hasQuantizationPostOp = std::any_cast<FakeQuantizePostOp>(config.attrs.postOps.data()) != nullptr;
-    bool isQuantized = quantizedSrc && config.descs.at(ARG_WEI)->getPrecision() == ov::element::i8 &&
-                       (!quantizedDst || hasQuantizationPostOp);
-
-    VERIFY(isQuantized, UNSUPPORTED_SRC_PRECISIONS);
+    const bool isQuantizedU8 = srcDesc->getPrecision() == ov::element::u8 &&
+                               any_of(weiDesc->getPrecision(), ov::element::u8, ov::element::i8) &&
+                               dstDesc->getPrecision() == ov::element::u8 && hasQuantizationPostOp;
+    const bool isQuantizedI8 = srcDesc->getPrecision() == ov::element::i8 &&
+                               weiDesc->getPrecision() == ov::element::i8 &&
+                               dstDesc->getPrecision() == ov::element::i8 && hasQuantizationPostOp;
+    VERIFY(isQuantizedU8 || isQuantizedI8, UNSUPPORTED_BY_EXECUTOR);
     if (config.attrs.withBias) {
         VERIFY(config.descs.at(ARG_BIAS)->getPrecision() == ov::element::i32, UNSUPPORTED_BIAS_PRECISIONS);
     }

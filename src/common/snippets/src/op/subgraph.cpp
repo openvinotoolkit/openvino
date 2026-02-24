@@ -103,8 +103,6 @@
 #include "snippets/utils/utils.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 
-using namespace ov::op::util;
-
 namespace ov::snippets::op {
 
 void Subgraph::set_generator(std::shared_ptr<ov::snippets::Generator> generator) {
