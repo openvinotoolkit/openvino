@@ -101,7 +101,6 @@ private:
     std::vector<uint32_t> m_kvcache_sizes;  // Corresponding KV cache sizes for each variant
 
     // Support LoRA
-    void convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model);
     uint32_t m_max_lora_rank = 32;
 
     // Support prefix caching
