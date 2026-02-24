@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "dynamic_graph.hpp"
 #include "graph.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
@@ -29,7 +30,7 @@ namespace intel_npu {
 PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
     : _zeroInitStruct(zeroInitStruct),
       _logger("PluginCompilerAdapter", Logger::global().level()) {
-    _logger.debug("initialize PluginCompilerAdapter start");
+    _logger.info("initialize PluginCompilerAdapter start");
 
     _logger.info("Loading PLUGIN compiler");
     try {
@@ -68,6 +69,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 
     ov::Tensor tensor;
     tensor = std::move(networkDesc.compiledNetworkTensor);
+
+    if (config.get<COMPILATION_MODE>() == "HostCompile") {
+        // no _compiler::parse call is required. networkmetadata will be obtained in DynamicGraph constructor
+        _logger.debug("blob is not ELF format, create graph for LLVM IR!");
+        return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), true, config, _compiler);
+    }
 
     GraphDescriptor graphDesc;
     NetworkMetadata networkMeta;
@@ -252,6 +259,22 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(const ov::Tensor& mainBlob,
                                                      const std::optional<std::vector<ov::Tensor>>& initBlobs,
                                                      std::optional<std::shared_ptr<const ov::Model>>&& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
+
+    const void* data = mainBlob.data();
+    size_t size = mainBlob.get_byte_size();
+    std::string header;
+    if (size >= 20) {
+        header.assign(static_cast<const char*>(data), 20);
+    } else {
+        header.assign(static_cast<const char*>(data), size);
+    }
+    if (header.find("ELF") == std::string::npos) {
+        // no _compiler::parse call is required. networkmetadata will be obtained in DynamicGraph constructor
+        _logger.debug("blob is not ELF format, create graph for LLVM IR!");
+        return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(mainBlob), true, config, _compiler);
+    } else {
+        _logger.debug("blob is ELF format, create graph for elf blob!");
+    }
 
     GraphDescriptor mainGraphDesc;
     NetworkMetadata mainNetworkMetadata;
