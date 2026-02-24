@@ -80,10 +80,7 @@ void taskBegin(domain_t d, handle_t t, const char* key, uint64_t value) {
         __itt_id parent_id =
             current_region_counter != 0 ? __itt_id_make(current_region_handle, current_region_counter) : __itt_null;
         __itt_domain* domain = reinterpret_cast<__itt_domain*>(d);
-        __itt_task_begin(domain, 
-                         __itt_null, 
-                         parent_id, 
-                         reinterpret_cast<__itt_string_handle*>(t));
+        __itt_task_begin(domain, __itt_null, parent_id,  reinterpret_cast<__itt_string_handle*>(t));
         // The task id to which the metadata is assigned to is not available at this point. It will
         // default to the parent task's ID
         __itt_metadata_add(domain,
@@ -135,10 +132,7 @@ void regionBegin(domain_t d, handle_t t, const char* key, uint64_t value) {
     current_region_handle = reinterpret_cast<void*>(t);
     __itt_domain* domain = reinterpret_cast<__itt_domain*>(d);
     __itt_id region_id = __itt_id_make(current_region_handle, current_region_counter);
-    __itt_region_begin(domain, 
-                       region_id, 
-                       __itt_null, 
-                       reinterpret_cast<__itt_string_handle*>(t));
+    __itt_region_begin(domain, region_id, __itt_null, reinterpret_cast<__itt_string_handle*>(t));
     // Associate the <key-value> pair with the region
     __itt_metadata_add(domain,
                        region_id,

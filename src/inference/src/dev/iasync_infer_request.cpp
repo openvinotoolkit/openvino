@@ -46,7 +46,7 @@ ov::IAsyncInferRequest::IAsyncInferRequest(const std::shared_ptr<IInferRequest>&
     : m_infer_id(0),
       m_sync_request(request),
       m_request_executor(task_executor),
-      m_callback_executor(callback_executor){
+      m_callback_executor(callback_executor) {
     if (m_request_executor && m_sync_request)
         m_pipeline = {{m_request_executor, [this] {
                            m_sync_request->infer();
@@ -139,8 +139,7 @@ ov::threading::Task ov::IAsyncInferRequest::make_next_stage_task(
     return std::bind(
         [this, itStage, itEndStage](std::shared_ptr<ov::threading::ITaskExecutor>& callbackExecutor) mutable {
             // Propagate the inference ID through all subsequent stages for this instance of the pipeline
-            OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Inference, "Inference::pipeline",
-                                      "InferenceID", m_infer_id);
+            OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::Inference, "Inference::pipeline", "InferenceID", m_infer_id);
             std::exception_ptr currentException = nullptr;
             auto& thisStage = *itStage;
             auto itNextStage = itStage + 1;
