@@ -51,6 +51,12 @@ public:
         return false;
     }
 
+    void remove_usm_caps() {
+        _caps.erase(
+            std::remove_if(_caps.begin(), _caps.end(), [&](const allocation_type& t) { return is_usm_type(t); }),
+            _caps.end());
+    }
+
 private:
     std::vector<allocation_type> _caps;
 

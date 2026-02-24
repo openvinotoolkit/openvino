@@ -327,8 +327,11 @@ std::shared_ptr<cldnn::engine> create_test_engine(cldnn::engine_types engine_typ
     auto iter = devices.find(std::to_string(device_query::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
 
-    if (!allow_usm_mem)
-        device->set_mem_caps(cldnn::memory_capabilities({}));
+    if (!allow_usm_mem) {
+        auto new_caps = device->get_mem_caps();
+        new_caps.remove_usm_caps();
+        device->set_mem_caps(new_caps);
+    }
 
     auto ret = engine::create(engine_type, runtime_type, device);
 #ifdef ENABLE_ONEDNN_FOR_GPU
