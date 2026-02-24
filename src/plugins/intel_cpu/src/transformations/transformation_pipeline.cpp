@@ -1629,8 +1629,8 @@ void Transformations::MainSnippets() {
 #elif defined(OPENVINO_ARCH_X86_64)
         return true;
 #else
-    OPENVINO_THROW("ExplicitTransposeMatMulInputs callback is not supported on this architecture");
-    return false;
+        OPENVINO_THROW("ExplicitTransposeMatMulInputs callback is not supported on this architecture");
+        return false;
 #endif
     };
 
