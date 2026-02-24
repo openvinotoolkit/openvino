@@ -144,9 +144,14 @@ def generate_diff(file_path: str) -> str:
 
     corrected_lines = list(original_lines)
     if has_copyright:
-        header_size = 4 if has_extra_line else 3
-        # Replace the existing (malformed) header block with the correct one
-        corrected_lines[header_start:header_start + header_size] = correct_header
+        # Walk the actual contiguous comment block so we never overwrite lines beyond it.
+        block_end = header_start
+        while block_end < len(original_lines) and original_lines[block_end].startswith(comment_style):
+            block_end += 1
+        # Include the single trailing blank line that separates the header from code
+        if block_end < len(original_lines) and original_lines[block_end].strip() == '':
+            block_end += 1
+        corrected_lines[header_start:block_end] = correct_header
     else:
         # Insert the header at the right position (after encoding line if present)
         corrected_lines[header_start:header_start] = correct_header
