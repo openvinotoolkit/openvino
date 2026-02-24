@@ -103,7 +103,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D,
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MHA::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D_MatMul1_Const_B_ARE_WEI_BLOCKED,
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D_MatMul1_Const_B_Are_Wei_Blocked,
                          MHAConstB,
                          ::testing::Combine(::testing::ValuesIn(transposedShape_4D_matmul1_const_b()),
                                             ::testing::ValuesIn(precision_f32(4)),

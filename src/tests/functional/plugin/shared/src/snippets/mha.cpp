@@ -227,12 +227,12 @@ std::shared_ptr<SnippetsFunctionBase> MHAConstB::get_subgraph() const {
         std::all_of(inputDynamicShapes.begin(), inputDynamicShapes.end(), [](const PartialShape& ps) {
             return ps.is_static();
         });
-    return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes,
-                                                             m_input_types,
-                                                             m_with_mul,
-                                                             is_with_reshape,
-                                                             m_const_b_matmul0,
-                                                             m_const_b_matmul1);
+    return std::make_shared<ov::test::snippets::MHAConstBFunction>(inputDynamicShapes,
+                                                                   m_input_types,
+                                                                   m_with_mul,
+                                                                   is_with_reshape,
+                                                                   m_const_b_matmul0,
+                                                                   m_const_b_matmul1);
 }
 
 std::shared_ptr<SnippetsFunctionBase> MHA2D::get_subgraph() const {

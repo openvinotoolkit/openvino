@@ -4,7 +4,7 @@
 #pragma once
 
 #include <algorithm>
-#include <numeric>
+#include <set>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
@@ -26,18 +26,17 @@ public:
                                   ov::element::Type_t precision = element::f32,
                                   std::vector<size_t> parameterInputIndices = {})
         : precision{precision},
-          input_shapes{inputShapes},
-          parameter_input_indices{std::move(parameterInputIndices)} {
-        if (parameter_input_indices.empty()) {
-            parameter_input_indices.resize(input_shapes.size());
-            std::iota(parameter_input_indices.begin(), parameter_input_indices.end(), 0);
+          input_shapes{inputShapes} {
+        if (parameterInputIndices.empty()) {
+            for (size_t i = 0; i < input_shapes.size(); ++i) {
+                parameter_input_indices.insert(i);
+            }
+        } else {
+            parameter_input_indices.insert(parameterInputIndices.begin(), parameterInputIndices.end());
+            OPENVINO_ASSERT(parameter_input_indices.size() == parameterInputIndices.size(),
+                            "Expected unique parameter input indices");
         }
 
-        OPENVINO_ASSERT(std::is_sorted(parameter_input_indices.begin(), parameter_input_indices.end()),
-                        "Expected sorted parameter input indices");
-        OPENVINO_ASSERT(std::adjacent_find(parameter_input_indices.begin(), parameter_input_indices.end()) ==
-                            parameter_input_indices.end(),
-                        "Expected unique parameter input indices");
         OPENVINO_ASSERT(std::all_of(parameter_input_indices.begin(),
                                     parameter_input_indices.end(),
                                     [this](size_t idx) {
@@ -81,11 +80,11 @@ protected:
 
     const ov::element::Type_t precision;
     const std::vector<PartialShape> input_shapes;
-    std::vector<size_t> parameter_input_indices;
+    std::set<size_t> parameter_input_indices;
 
     virtual void validate_function(const std::shared_ptr<Model>& f) const;
     static void validate_params_shape(const std::vector<PartialShape>& input_shapes,
-                                      const std::vector<size_t>& parameter_input_indices,
+                                      const std::set<size_t>& parameter_input_indices,
                                       const ov::ParameterVector& params);
 };
 

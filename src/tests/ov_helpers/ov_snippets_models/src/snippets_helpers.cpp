@@ -12,15 +12,15 @@ namespace test {
 namespace snippets {
 
 void SnippetsFunctionBase::validate_params_shape(const std::vector<PartialShape>& input_shapes,
-                                                 const std::vector<size_t>& parameter_input_indices,
+                                                 const std::set<size_t>& parameter_input_indices,
                                                  const ov::ParameterVector& params) {
     OPENVINO_ASSERT(params.size() == parameter_input_indices.size(),
                     "Passed input shapes and produced function are inconsistent: number of params mismatch. Expected: ",
                     parameter_input_indices.size(),
                     ", actual: ",
                     params.size());
-    for (size_t i = 0; i < parameter_input_indices.size(); i++) {
-        const auto input_idx = parameter_input_indices[i];
+    size_t i = 0;
+    for (const auto input_idx : parameter_input_indices) {
         const auto& expected_shape = input_shapes[input_idx];
         const auto& cur_shape = params[i]->get_partial_shape();
         OPENVINO_ASSERT(expected_shape == cur_shape,
@@ -31,6 +31,7 @@ void SnippetsFunctionBase::validate_params_shape(const std::vector<PartialShape>
                         ") and produced function shape(",
                         cur_shape,
                         ") are inconsistent.");
+        ++i;
     }
 }
 

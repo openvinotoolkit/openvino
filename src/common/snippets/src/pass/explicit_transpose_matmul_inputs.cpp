@@ -29,6 +29,7 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
+#include "transformations/utils/utils.hpp"
 
 bool ov::snippets::pass::ExplicitTransposeMatMulInputs::are_weights_scalar(const std::shared_ptr<ov::Node>& node) {
     const auto inputs = node->inputs();
@@ -86,12 +87,11 @@ void ov::snippets::pass::ExplicitTransposeMatMulInputs::extract(const ov::Input<
         const auto transpose_order = get_transpose_order();
         const auto constant_order =
             std::make_shared<opset1::Constant>(ov::element::i32, ov::Shape{transpose_order.size()}, transpose_order);
-        const auto transpose_const = std::make_shared<opset1::Transpose>(constant, constant_order);
-        ov::OutputVector folded_values(1);
-        OPENVINO_ASSERT(transpose_const->constant_fold(folded_values, transpose_const->input_values()) &&
-                            ov::is_type<opset1::Constant>(folded_values[0].get_node_shared_ptr()),
+        const auto folded_const =
+            ov::as_type_ptr<opset1::Constant>(ov::op::util::make_try_fold<opset1::Transpose>(constant, constant_order));
+        OPENVINO_ASSERT(folded_const != nullptr,
                         "ExplicitTransposeMatMulInputs failed to fold Transpose over Constant input");
-        input.replace_source_output(folded_values[0]);
+        input.replace_source_output(folded_const);
         return;
     }
 

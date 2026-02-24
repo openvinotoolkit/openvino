@@ -91,8 +91,10 @@ void MatMulFunctionBase::validate_function(const std::shared_ptr<Model>& f) cons
         if (idces_to_remove.count(i) == 0)
             shapes_to_check.push_back(input_shapes[i]);
     }
-    std::vector<size_t> parameter_indices(shapes_to_check.size());
-    std::iota(parameter_indices.begin(), parameter_indices.end(), 0);
+    std::set<size_t> parameter_indices;
+    for (size_t i = 0; i < shapes_to_check.size(); ++i) {
+        parameter_indices.insert(i);
+    }
     SnippetsFunctionBase::validate_params_shape(shapes_to_check, parameter_indices, f->get_parameters());
 }
 

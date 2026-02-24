@@ -47,14 +47,16 @@ BrgemmExternalRepackingAdjuster::BrgemmExternalRepackingAdjuster(const ov::snipp
     for (const auto& [idx, input_repacker] : input_repackers) {
         OPENVINO_ASSERT(idx < params.size(), "Incorrect index of repacked input");
 
-        if (input_repacker.desc()) {
-            m_prepacked_configs[idx] = get_kernel_config(params[idx]);
-        } else {
-            m_executors[idx] = create_executor(params[idx], configurator->get_cache());
+        auto config = RepackedInputConfig{get_kernel_config(params[idx])};
+        // `desc() == nullptr` means repacking has to be executed at runtime.
+        // If descriptor is already set, weights were prepacked beforehand and only offsets must be adjusted.
+        if (!input_repacker.desc()) {
+            config.executor = create_executor(config.kernel_config, configurator->get_cache());
+            config.needs_runtime_repacking = true;
         }
+        m_repacked_inputs.emplace(idx, std::move(config));
     }
-    OPENVINO_ASSERT(input_repackers.size() == m_executors.size() + m_prepacked_configs.size(),
-                    "Incorrect count of repacked inputs");
+    OPENVINO_ASSERT(input_repackers.size() == m_repacked_inputs.size(), "Incorrect count of repacked inputs");
 }
 
 BrgemmCopyBKernelConfig BrgemmExternalRepackingAdjuster::get_kernel_config(
@@ -64,8 +66,6 @@ BrgemmCopyBKernelConfig BrgemmExternalRepackingAdjuster::get_kernel_config(
         shape_infer_consumers.empty() ? param->get_output_port(0) : shape_infer_consumers.back()->get_output_port(0);
     const auto consumers = out.get_connected_ports();
 
-    BrgemmCopyBKernelConfig kernel_config;
-    bool found = false;
     for (const auto& consumer : consumers) {
         auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(consumer.get_expr()->get_node());
         if (!brgemm) {
@@ -76,19 +76,16 @@ BrgemmCopyBKernelConfig BrgemmExternalRepackingAdjuster::get_kernel_config(
         if (brgemm_config.with_wei_repacking() && consumer.get_index() == 1) {
             OPENVINO_ASSERT(brgemm_config.with_compensations() == false,
                             "External repacking for BrgemmCPU with compensations is not supported.");
-            kernel_config = BrgemmCopyBKernelConfig(brgemm_config);
-            found = true;
-            break;
+            return BrgemmCopyBKernelConfig(brgemm_config);
         }
     }
-    OPENVINO_ASSERT(found, "The config of repacked input must be initialized!");
-    return kernel_config;
+    OPENVINO_THROW("The config of repacked input must be initialized");
 }
 
 BrgemmExternalRepackingAdjuster::RepackExecutorPtr BrgemmExternalRepackingAdjuster::create_executor(
-    const ov::snippets::lowered::ExpressionPtr& param,
+    const BrgemmCopyBKernelConfig& kernel_config,
     const ov::intel_cpu::MultiCacheWeakPtr& cache) {
-    return std::make_shared<BrgemmCopyBKernelExecutor>(cache, get_kernel_config(param));
+    return std::make_shared<BrgemmCopyBKernelExecutor>(cache, kernel_config);
 }
 
 CpuBlockedMemoryDescPtr BrgemmExternalRepackingAdjuster::get_desc(const ov::snippets::VectorDims& planar_shape,
@@ -132,9 +129,14 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
     const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_configurator->get_config());
 
     size_t data_size = 0;
-    for (const auto& p : m_executors) {
-        const auto& i = p.first;
-        const auto& executor = p.second;
+    bool has_runtime_repacking = false;
+    for (const auto& [i, repacked_input] : m_repacked_inputs) {
+        if (!repacked_input.needs_runtime_repacking) {
+            continue;
+        }
+        has_runtime_repacking = true;
+        const auto& executor = repacked_input.executor;
+        OPENVINO_ASSERT(executor, "Input marked for runtime repacking has no executor");
 
         const auto& shape = cpu_config->io_shapes[i];
         const auto& layout = cpu_config->io_layouts[i];
@@ -167,7 +169,7 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         data_size += src_data + dst_data;
     }
 
-    if (m_executors.empty()) {
+    if (!has_runtime_repacking) {
         cpu_config->repacking_impl_type = CPURuntimeConfig::RepackingImplType::NONE;
     } else {
         const auto cache_size = dnnl::utils::get_cache_size(1, true) + dnnl::utils::get_cache_size(2, true);
@@ -180,9 +182,12 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
 
     const auto is_impl_parallel = cpu_config->repacking_impl_type == CPURuntimeConfig::RepackingImplType::IN_PARALLEL;
 
-    for (const auto& p : m_executors) {
-        const auto& i = p.first;
-        const auto& executor = p.second;
+    for (const auto& [i, repacked_input] : m_repacked_inputs) {
+        if (!repacked_input.needs_runtime_repacking) {
+            continue;
+        }
+        const auto& executor = repacked_input.executor;
+        OPENVINO_ASSERT(executor, "Input marked for runtime repacking has no executor");
 
         const auto& shape = cpu_config->io_shapes[i];
         const auto& layout = cpu_config->io_layouts[i];
@@ -259,10 +264,16 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         }
         const auto out_offsets = cpu_config->io_data_offsets[i];
 
-        input_repacker = InputRepacker(p.second->get_kernel(), dst_desc, in_offsets, out_offsets);
+        input_repacker = InputRepacker(executor->get_kernel(), dst_desc, in_offsets, out_offsets);
     }
 
-    for (const auto& [i, config] : m_prepacked_configs) {
+    // Inputs prepacked during model preparation do not need runtime repacking kernels.
+    // For them, we only adjust blocked output offsets for current runtime shapes.
+    for (const auto& [i, repacked_input] : m_repacked_inputs) {
+        if (repacked_input.needs_runtime_repacking) {
+            continue;
+        }
+        const auto& config = repacked_input.kernel_config;
         const auto& shape = cpu_config->io_shapes[i];
         const auto& layout = cpu_config->io_layouts[i];
         const auto& prc = linear_ir.get_parameters()[i]->get_node()->get_output_element_type(0);

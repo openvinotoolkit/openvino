@@ -309,8 +309,13 @@ void SplitDimensionM::reshape_subgraph(const std::shared_ptr<op::Subgraph>& subg
     auto update_matmul_second_branch = [&](const std::shared_ptr<ov::op::v0::MatMul>& node) {
         auto parent = node->get_input_node_shared_ptr(1);
         while (!ov::is_type<ov::op::v0::Parameter>(parent)) {
+            // MatMul second input may come from Constant weights; there is no Parameter to reshape in this branch.
+            if (ov::is_type<ov::op::v0::Constant>(parent)) {
+                return;
+            }
             if (parent->get_input_size() == 0) {
-                break;
+                OPENVINO_THROW(
+                    "SplitDimensionM encountered unexpected leaf node without inputs on MatMul second branch");
             }
             if (parent->get_input_size() > 1) {
                 for (const auto& input_source : parent->input_values()) {

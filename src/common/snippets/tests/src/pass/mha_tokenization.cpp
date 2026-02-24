@@ -36,9 +36,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_2D_Static) {
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_2D_Static_Const_B) {
     const auto& f = MHA2DFunction(
         std::vector<PartialShape>{{12, 64}, {64, 12}, {12, 12}, {12, 64}},
-        std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}),
-        true,
-        true);
+        std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}));
     execute_and_validate_function(*this, f);
 }
 
@@ -59,9 +57,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_2D_Partially_Dynamic) {
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_2D_Partially_Dynamic_Const_B) {
     const auto& f = MHA2DFunction(
         std::vector<PartialShape>{{12, 64}, {64, 12}, {-1, 12}, {12, 64}},
-        std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}),
-        true,
-        true);
+        std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}));
     execute_and_validate_function(*this, f);
 }
 
@@ -73,7 +69,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D) {
 }
 
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_Const_B) {
-    const auto& f = MHAFunction(
+    const auto& f = MHAConstBFunction(
         std::vector<PartialShape>{{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 12, 128, 128}, {1, 128, 12, 64}},
         std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}),
         true,
@@ -83,10 +79,10 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_Const_B) {
     execute_and_validate_function(*this, f);
 }
 
-TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_MatMul1_Const_B_ARE_WEI_BLOCKED) {
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_MatMul1_Const_B_Are_Wei_Blocked) {
     // This pattern maps to the LIR shape flow from lir_179_MarkLoops_data_flow_out.xml:
     // Brgemm(Q, K) -> Softmax -> Brgemm(Softmax, V_const), where only MatMul1 B is constant.
-    const auto& f = MHAFunction(
+    const auto& f = MHAConstBFunction(
         std::vector<PartialShape>{{1, 300, 8, 32}, {1, 300, 8, 32}, {1, 8, 300, 300}, {1, 300, 8, 32}},
         std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}),
         false,
@@ -115,7 +111,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_Partially_Dynamic) {
 }
 
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_Partially_Dynamic_Const_B) {
-    const auto& f = MHAFunction(
+    const auto& f = MHAConstBFunction(
         std::vector<PartialShape>{{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 1, -1, 1}, {1, 128, 12, 64}},
         std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}),
         true,
@@ -142,7 +138,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_Partially_Dynamic_Disable
 }
 
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_Partially_Dynamic_Disabled_Dynamic_Const_B) {
-    const auto& f = MHAFunction(
+    const auto& f = MHAConstBFunction(
         std::vector<PartialShape>{{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 1, -1, 1}, {1, 128, 12, 64}},
         std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}),
         true,
@@ -169,7 +165,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_Dynamic_M) {
 }
 
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_Dynamic_M_Const_B) {
-    const auto& f = MHAFunction(
+    const auto& f = MHAConstBFunction(
         std::vector<PartialShape>{{1, -1, 12, 64}, {1, 128, 12, 64}, {1, 12, -1, 128}, {1, 128, 12, 64}},
         std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}),
         true,
@@ -196,7 +192,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_3D) {
 }
 
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_3D_Const_B) {
-    const auto& f = MHAFunction(
+    const auto& f = MHAConstBFunction(
         std::vector<PartialShape>{{128, 12, 64}, {128, 12, 64}, {12, 128, 128}, {128, 12, 64}},
         std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}),
         true,
@@ -226,8 +222,6 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_with_MatMul0_Transpose_Const
     const auto& f = MHAMatMul0TransposeFunction(
         std::vector<PartialShape>{{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 12, 128, 128}, {1, 128, 12, 64}},
         std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}),
-        true,
-        true,
         true);
     execute_and_validate_function(*this, f);
 }
@@ -308,9 +302,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA3D_SplitM_Const_B) {
         std::vector<PartialShape>{{128, 12, 64}, {128, 12, 64}, {12, 128, 128}, {128, 12, 64}},
         std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}),
         std::vector<Shape>{{2, 64, 12, 64}, {12, 1, 64, 128}, {12, 2, 64, 128}, {1, 128, 12, 64}, {128, 12, 64}},
-        false,
-        true,
-        true);
+        false);
     common_config = get_default_common_optimizations_config();
     common_config.set_concurrency(24);
     execute_and_validate_function(*this, f);
@@ -332,8 +324,6 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA3D_SplitM_withMul_Const_B) {
         std::vector<PartialShape>{{128, 12, 64}, {128, 12, 64}, {12, 128, 128}, {128, 12, 64}},
         std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}),
         std::vector<Shape>{{4, 32, 12, 64}, {12, 1, 64, 128}, {12, 4, 32, 128}, {1, 128, 12, 64}, {128, 12, 64}},
-        true,
-        true,
         true);
     common_config = get_default_common_optimizations_config();
     common_config.set_concurrency(16);
@@ -364,9 +354,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA4D_SplitM_Const_B) {
                            {1, 1, 1, 1, 384},
                            {1, 1, 384, 16, 64},
                            {1, 384, 16, 64}},
-        false,
-        true,
-        true);
+        false);
     common_config = get_default_common_optimizations_config();
     common_config.set_concurrency(60);
     execute_and_validate_function(*this, f);
@@ -396,8 +384,6 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA4D_SplitM_withMul_Const_B) {
                            {1, 1, 1, 1, 384},
                            {1, 1, 384, 16, 64},
                            {1, 384, 16, 64}},
-        true,
-        true,
         true);
     common_config = get_default_common_optimizations_config();
     common_config.set_concurrency(60);
@@ -418,9 +404,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHAWOTranspose_SplitM_Const_B) {
     const auto& f = MHAWOTransposeSplitMFunction(
         std::vector<PartialShape>{{10, 9216, 128}, {10, 128, 9216}, {10, 9216, 128}},
         std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32}),
-        std::vector<Shape>{{10, 18, 512, 128}, {10, 1, 128, 9216}, {10, 1, 9216, 128}, {10, 9216, 128}},
-        true,
-        true);
+        std::vector<Shape>{{10, 18, 512, 128}, {10, 1, 128, 9216}, {10, 1, 9216, 128}, {10, 9216, 128}});
     common_config = get_default_common_optimizations_config();
     common_config.set_concurrency(18);
     execute_and_validate_function(*this, f);
@@ -440,9 +424,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_SplitM_AlmostAllThreads_Cons
     const auto& f = MHAWOTransposeSplitMFunction(
         std::vector<PartialShape>{{5, 30, 32}, {5, 32, 30}, {5, 30, 32}},
         std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32}),
-        std::vector<Shape>{{5, 10, 3, 32}, {5, 1, 32, 30}, {5, 1, 30, 32}, {5, 30, 32}},
-        true,
-        true);
+        std::vector<Shape>{{5, 10, 3, 32}, {5, 1, 32, 30}, {5, 1, 30, 32}, {5, 30, 32}});
     common_config = get_default_common_optimizations_config();
     common_config.set_concurrency(32);
     execute_and_validate_function(*this, f);
