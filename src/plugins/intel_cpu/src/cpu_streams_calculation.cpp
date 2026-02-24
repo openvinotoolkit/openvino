@@ -1064,7 +1064,7 @@ int get_model_prefer_threads(const int num_streams,
 
 #if defined(OPENVINO_ARCH_ARM64) && defined(__linux__)
         configure_arm64_linux_threads(config, proc_type_table, int8_intensive, is_LLM);
-
+        (void)isaSpecificThreshold;
 #else
 
         if (isaSpecificThreshold == -1) {
