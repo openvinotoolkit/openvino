@@ -4,6 +4,7 @@
 
 #include "openvino/runtime/iasync_infer_request.hpp"
 
+#include <atomic>
 #include <memory>
 
 #include "openvino/runtime/isync_infer_request.hpp"
