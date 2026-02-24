@@ -85,10 +85,9 @@ private:
         auto k = make_param({ov::Dimension::dynamic(), head_num * head_size}, data_type, "k");
         auto v = make_param({ov::Dimension::dynamic(), head_num * head_size}, data_type, "v");
 
-        // IMPORTANT: cache should match PA expectation (use rank-4 here)
-        // [num_blocks, num_kv_heads, block_size, head_size] (matches CPU plugin expectations)
-        auto key_cache   = make_param({ov::Dimension::dynamic(), head_num, 32, head_size}, data_type, "key_cache.0");
-        auto value_cache = make_param({ov::Dimension::dynamic(), head_num, 32, head_size}, data_type, "value_cache.0");
+        // [num_blocks, num_kv_heads, block_size, head_size]
+        auto key_cache   = make_param({ov::Dimension::dynamic(), head_num, 32, head_size}, ov::element::dynamic, "key_cache.0");
+        auto value_cache = make_param({ov::Dimension::dynamic(), head_num, 32, head_size}, ov::element::dynamic, "value_cache.0");
 
         auto past_lens = make_param({ov::Dimension::dynamic()}, ov::element::i32, "past_lens");
         auto subseq_begins = make_param({ov::Dimension::dynamic()}, ov::element::i32, "subsequence_begins");
@@ -98,7 +97,7 @@ private:
         const float scale_value = 1.0f / std::sqrt(static_cast<float>(head_size));
         auto scale = ov::op::v0::Constant::create(ov::element::f32, {}, {scale_value});
         auto sliding_windows = ov::op::v0::Constant::create(ov::element::i32, {}, {sliding_window});
-        auto alibi_slopes = ov::op::v0::Constant::create(ov::element::f32, {1}, {0.0f});
+        auto alibi_slopes = ov::op::v0::Constant::create(ov::element::f32, {0}, {0.0f});
         auto max_context_len = ov::op::v0::Constant::create(ov::element::i32, {}, {1024});
         auto score_aggregation_window = ov::op::v0::Constant::create(ov::element::i32, {}, {0});
 
@@ -106,13 +105,21 @@ private:
         auto rotation_deltas      = ov::op::v0::Constant::create(ov::element::i32, {0}, {});
         auto rotation_trig_lut    = ov::op::v0::Constant::create(ov::element::f32, {0}, {});
 
-        auto xattention_threshold = enable_xattn
-            ? ov::op::v0::Constant::create(ov::element::f32, {}, {0.9f})
-            : ov::op::v0::Constant::create(ov::element::f32, {}, {0.0f});
+        std::shared_ptr<ov::op::v0::Constant> xattention_threshold;
+if (enable_xattn) {
+    xattention_threshold = ov::op::v0::Constant::create(ov::element::f32, {1}, {0.9f});
+} else {
+    xattention_threshold = ov::op::v0::Constant::create(ov::element::f32, {0}, std::vector<float>{});
+}
         auto xattention_block_size = ov::op::v0::Constant::create(ov::element::i32, {}, {64});
         auto xattention_stride     = ov::op::v0::Constant::create(ov::element::i32, {}, {8});
 
-        auto sinks = ov::op::v0::Constant::create(data_type, {1, static_cast<size_t>(head_num), 1, 1}, {0.0f});
+        std::shared_ptr<ov::op::v0::Constant> sinks;
+        if (use_sink_input) {
+            sinks = ov::op::v0::Constant::create(data_type, {1, static_cast<size_t>(head_num), 1, 1}, {0.0f});
+        } else {
+            sinks = ov::op::v0::Constant::create(data_type, {0}, std::vector<float>{});
+        }
 
         // adaptive_rkv inputs (ignored)
         auto adaptive_rkv_start_size = ov::op::v0::Constant::create(ov::element::i32, {}, {0});

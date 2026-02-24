@@ -18,7 +18,6 @@
 
 namespace ov::intel_cpu::node {
 
-    
 class PagedAttention : public Node {
 public:
     PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
