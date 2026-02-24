@@ -16,6 +16,9 @@ namespace itt {
 namespace domains {
 OV_ITT_DOMAIN(Plugin)
 OV_ITT_DOMAIN(PluginLoadTime)
+// Domain to track inference request execution from the higher-level runtime layer.
+// For each plugin inference request, ov::phases::inference::<plugin> will be used.
+OV_ITT_DOMAIN(Inference, "ov::phases::inference");
 }  // namespace domains
 }  // namespace itt
 }  // namespace ov
