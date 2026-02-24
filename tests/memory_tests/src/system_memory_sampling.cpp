@@ -9,6 +9,8 @@
 #include <tlhelp32.h>
 #include <psapi.h>
 
+namespace memory_tests::system {
+
 static PROCESS_MEMORY_COUNTERS getMemoryInfo() {
     static PROCESS_MEMORY_COUNTERS pmc;
     pmc.cb = sizeof(PROCESS_MEMORY_COUNTERS);
@@ -41,8 +43,8 @@ static size_t getThreadsNum() {
 }
 
 
-SystemMemorySample sampleSystemMemory() {
-    SystemMemorySample out;
+Sample sample() {
+    Sample out;
     auto meminfo = getMemoryInfo();
     out.virtual_size = meminfo.PagefileUsage / 1024;
     out.virtual_peak = meminfo.PeakPagefileUsage / 1024;
@@ -52,14 +54,17 @@ SystemMemorySample sampleSystemMemory() {
     return out;
 }
 
+}  // namespace memory_tests::system
+
 #else
 
 #include <fstream>
 #include <string>
 
+namespace memory_tests::system {
 
-SystemMemorySample sampleSystemMemory() {
-    SystemMemorySample out;
+Sample sample() {
+    Sample out;
     std::ifstream file;
     file.open("/proc/self/status");
     std::string line;
@@ -93,5 +98,7 @@ SystemMemorySample sampleSystemMemory() {
     }
     return out;
 }
+
+}  // namespace memory_tests::system
 
 #endif

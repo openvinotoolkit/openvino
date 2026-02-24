@@ -1,7 +1,9 @@
 #include <cstdint>
 
 
-struct GpuMemorySample {
+namespace memory_tests::gpu {
+
+struct Sample {
     // memory size in kb
     int64_t local_used = -1;
     int64_t local_total = -1;
@@ -10,7 +12,7 @@ struct GpuMemorySample {
 };
 
 
-enum class InitGpuStatus {
+enum class InitStatus {
     SUCCESS,
     SUBSYSTEM_UNAVAILABLE,
     SUBSYSTEM_UNSUPPORTED,
@@ -18,6 +20,8 @@ enum class InitGpuStatus {
 };
 
 
-InitGpuStatus initGpuSampling();
+InitStatus init();
 
-GpuMemorySample sampleGpuMemory();
+Sample sample();
+
+}  // namespace memory_tests::gpu

@@ -1,10 +1,8 @@
 
 #include <iostream>
-
 #include "gpu_memory_sampling.hpp"
 
 #define INTEL_PCI_VENDOR_ID 0x8086
-
 
 #ifdef _WIN32
 
@@ -13,17 +11,18 @@
 #include <dxgi1_4.h>
 #pragma comment(lib, "dxgi.lib")
 
-using Microsoft::WRL::ComPtr;
+namespace memory_tests::gpu {
 
+using Microsoft::WRL::ComPtr;
 
 static ComPtr<IDXGIFactory4> dxgi_factory;
 static ComPtr<IDXGIAdapter3> selected_adapter;
 
 
-InitGpuStatus initGpuSampling() {
+InitStatus init() {
     if (S_OK != CreateDXGIFactory2(0, IID_PPV_ARGS(&dxgi_factory))) {
         std::cerr << "CreateDXGIFactory2 failed" << std::endl;
-        return InitGpuStatus::SUBSYSTEM_UNAVAILABLE;
+        return InitStatus::SUBSYSTEM_UNAVAILABLE;
     }
     IDXGIAdapter *adapter = nullptr;
     for (
@@ -38,26 +37,28 @@ InitGpuStatus initGpuSampling() {
             std::cerr << "Selecting adapter " << std::hex << desc.DeviceId << std::dec << std::endl;
             if (S_OK != adapter->QueryInterface(IID_PPV_ARGS(&selected_adapter))) {
                 std::cerr << "Failed to query IDXGIAdapter3 interface for selected adapter" << std::endl;
-                return InitGpuStatus::SUBSYSTEM_UNSUPPORTED;
+                return InitStatus::SUBSYSTEM_UNSUPPORTED;
             }
             adapter->Release();
-            return InitGpuStatus::SUCCESS;
+            return InitStatus::SUCCESS;
         }
         adapter->Release();
     }
 
     std::cerr << "No proper adapter was found for sampling" << std::endl;
-    return InitGpuStatus::GPU_NOT_FOUND;
+    return InitStatus::GPU_NOT_FOUND;
 }
 
-GpuMemorySample sampleGpuMemory() {
+Sample sample() {
+    const int KiB = 1024;
     DXGI_ADAPTER_DESC desc;
     selected_adapter->GetDesc(&desc);
-    int64_t local_total = desc.DedicatedVideoMemory + desc.DedicatedSystemMemory;
-    int64_t nonlocal_total = desc.SharedSystemMemory;
 
-    int64_t local_used = 0;
-    int64_t nonlocal_used = 0;
+    Sample sample;
+    sample.local_used = 0;
+    sample.local_total = (desc.DedicatedVideoMemory + desc.DedicatedSystemMemory) / KiB;
+    sample.nonlocal_used = 0;
+    sample.nonlocal_total = desc.SharedSystemMemory / KiB;
 
     int nodeId = 0;
     DXGI_QUERY_VIDEO_MEMORY_INFO info;
@@ -67,32 +68,33 @@ GpuMemorySample sampleGpuMemory() {
         if (result != S_OK) {
             break;
         }
-        local_used += info.CurrentUsage / 1024;
+        sample.local_used += info.CurrentUsage / KiB;
 
         result = selected_adapter->QueryVideoMemoryInfo(
             nodeId, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &info);
         if (result != S_OK) {
             break;
         }
-        nonlocal_used += info.CurrentUsage / 1024;
+        sample.nonlocal_used += info.CurrentUsage / KiB;
         nodeId += 1;
     }
-    return {
-        .local_used = local_used,
-        .local_total = local_total,
-        .nonlocal_used = nonlocal_used,
-        .nonlocal_total = nonlocal_total
-    };
+    return sample;
 }
+
+}  // namespace memory_tests::gpu
 
 #else
 
-InitGpuStatus initGpuSampling() {
-    return InitGpuStatus::SUBSYSTEM_UNAVAILABLE;
+namespace memory_tests::gpu {
+
+InitStatus init() {
+    return InitStatus::SUBSYSTEM_UNAVAILABLE;
 }
 
-GpuMemorySample sampleGpuMemory() {
+Sample sample() {
     return {};
 }
+
+}  // namespace memory_tests::gpu
 
 #endif

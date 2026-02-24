@@ -1,7 +1,9 @@
 #include <cstdint>
 
 
-struct SystemMemorySample {
+namespace memory_tests::system {
+
+struct Sample {
     // memory size in kb
     int64_t virtual_size = -1;
     int64_t virtual_peak = -1;
@@ -12,4 +14,6 @@ struct SystemMemorySample {
 };
 
 
-SystemMemorySample sampleSystemMemory();
+Sample sample();
+
+}  // namespace memory_tests::system

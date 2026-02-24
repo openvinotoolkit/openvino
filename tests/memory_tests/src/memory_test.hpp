@@ -17,7 +17,13 @@
 #define AS_STR(x) _AS_STR(x)
 
 
-struct MemoryCounters {
+// To be defined in the test
+std::vector<std::string> test_samples();
+
+
+namespace memory_tests {
+
+struct Counters {
     // memory size in kb
     int64_t virtual_size = -1;
     int64_t virtual_peak = -1;
@@ -63,9 +69,6 @@ inline std::string jsonescape(const std::string &str) {
 }
 
 
-// To be defined in the test
-std::vector<std::string> test_samples();
-
 std::vector<std::string> registered_samples_init() {
     auto samples = test_samples();
     samples.emplace_back("unload");
@@ -75,14 +78,14 @@ std::vector<std::string> registered_samples_init() {
 static std::vector<std::string> registered_samples = registered_samples_init();
 
 
-struct TestContext {
+struct Context {
     std::string model_path;
     std::string device;
     bool gpu_ready = false;
 
-    std::vector<std::pair<std::string, MemoryCounters>> samples;
+    std::vector<std::pair<std::string, Counters>> samples;
 
-    static TestContext from_args(int argc, char **argv) {
+    static Context from_args(int argc, char **argv) {
         std::string model_path;
         std::string device = "CPU";
 
@@ -100,7 +103,7 @@ struct TestContext {
         bool gpu_ready = false;
         if (device.find("GPU") != std::string::npos) {
             // GPU is used -> initialize GPU sampling
-            gpu_ready = initGpuSampling() == InitGpuStatus::SUCCESS;
+            gpu_ready = gpu::init() == gpu::InitStatus::SUCCESS;
             if (!gpu_ready) {
                 std::cerr << "GPU memory sampling will not be available" << std::endl;
             }
@@ -125,16 +128,15 @@ struct TestContext {
             std::string error_msg = "sample \"" + sample_name + "\" is not defined in registered_samples";
             throw std::runtime_error(error_msg);
         }
-        auto sys_sample = sampleSystemMemory();
-        auto sample = MemoryCounters{
-            .virtual_size = sys_sample.virtual_size,
-            .virtual_peak = sys_sample.virtual_peak,
-            .resident_size = sys_sample.resident_size,
-            .resident_peak = sys_sample.resident_peak,
-            .thread_count = sys_sample.thread_count
-        };
+        auto sys_sample = system::sample();
+        auto sample = Counters();
+        sample.virtual_size = sys_sample.virtual_size;
+        sample.virtual_peak = sys_sample.virtual_peak;
+        sample.resident_size = sys_sample.resident_size;
+        sample.resident_peak = sys_sample.resident_peak;
+        sample.thread_count = sys_sample.thread_count;
         if (gpu_ready) {
-            auto gpu_sample = sampleGpuMemory();
+            auto gpu_sample = gpu::sample();
             sample.gpu_local_used = gpu_sample.local_used;
             sample.gpu_local_total = gpu_sample.local_total;
             sample.gpu_nonlocal_used = gpu_sample.nonlocal_used;
@@ -168,17 +170,19 @@ struct TestContext {
     }
 };
 
+}  // namespace memory_tests
+
 
 // To be defined in the test
-void do_test(TestContext &test);
+void do_test(memory_tests::Context &test);
 
 
 int main(int argc, char **argv) {
     if (argc == 2 && std::string("--info") == argv[1]) {
         std::cout << "TEST_INFO: {\"samples\": [";
-        for (auto &sample_name: registered_samples) {
+        for (auto &sample_name: memory_tests::registered_samples) {
             std::cout << "\"" << sample_name << "\"";
-            if (&sample_name != &registered_samples.back()) {
+            if (&sample_name != &memory_tests::registered_samples.back()) {
                 std::cout << ", ";
             }
         }
@@ -186,7 +190,7 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    TestContext test = TestContext::from_args(argc, argv);
+    auto test = memory_tests::Context::from_args(argc, argv);
     do_test(test);
     test.sample("unload");
     test.report();
