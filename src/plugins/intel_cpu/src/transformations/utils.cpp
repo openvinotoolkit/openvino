@@ -69,8 +69,8 @@ bool match_acl_int8_conv_fq_chain(const std::shared_ptr<const ov::Node>& node) {
     if (!node) {
         return false;
     }
-    // int8 ACL Convolution executor supports only same activation and output types
-    // if types are different, decompose FQ to avoid reference FQ
+    // returns true if Conv-Add-Mul-FQ chain will be fused into int8 convolution and handled by ACL executor
+    // int8 ACL Convolution executor supports only same activation and FQ output types
     return ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
            any_of(node->get_output_element_type(0), ov::element::Type_t::u8, ov::element::Type_t::i8) &&
            (match_conv_fq_same_types(node) || match_fq_mul_conv_bias_same_types(node, FQMulAddPattern::ConvAddMul));

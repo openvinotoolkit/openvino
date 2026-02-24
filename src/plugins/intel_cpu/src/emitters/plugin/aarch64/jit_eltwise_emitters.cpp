@@ -223,9 +223,6 @@ void jit_divide_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_divide_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                   const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(any_of(exec_prc_, ov::element::f32, ov::element::i32),
-                              "unsupported precision: " + exec_prc_.to_string());
-
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src0 = TReg(in_vec_idxs[0]);
     auto src1 = TReg(in_vec_idxs[1]);
@@ -233,16 +230,17 @@ void jit_divide_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     if (exec_prc_ == ov::element::f32) {
         h->uni_fdiv(dst.s, src0.s, src1.s);
-        return;
+    } else if (exec_prc_ == ov::element::i32) {
+        const TReg aux = TReg(aux_vec_idxs[0]);
+        h->mov(aux.b16, src1.b16);
+        h->scvtf(dst.s, src0.s);
+        h->scvtf(aux.s, aux.s);
+        h->fdiv(dst.s, dst.s, aux.s);
+        h->frintz(dst.s, dst.s);
+        h->fcvtzs(dst.s, dst.s);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("unsupported precision: " + exec_prc_.to_string());
     }
-
-    const TReg aux = TReg(aux_vec_idxs[0]);
-    h->mov(aux.b16, src1.b16);
-    h->scvtf(dst.s, src0.s);
-    h->scvtf(aux.s, aux.s);
-    h->fdiv(dst.s, dst.s, aux.s);
-    h->frintz(dst.s, dst.s);
-    h->fcvtzs(dst.s, dst.s);
 }
 
 std::set<std::vector<element::Type>> jit_divide_emitter::get_supported_precisions(
@@ -626,17 +624,18 @@ void jit_floor_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_floor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                  const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(any_of(exec_prc_, ov::element::f32, ov::element::i32),
-                              "unsupported precision: " + exec_prc_.to_string());
-
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src = TReg(in_vec_idxs[0]);
     auto dst = TReg(out_vec_idxs[0]);
 
     if (exec_prc_ == ov::element::f32) {
         h->frintm(dst.s, src.s);
-    } else if (src.getIdx() != dst.getIdx()) {
-        h->mov(dst.b16, src.b16);
+    } else if (exec_prc_ == ov::element::i32) {
+        if (src.getIdx() != dst.getIdx()) {
+            h->mov(dst.b16, src.b16);
+        }
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("unsupported precision: " + exec_prc_.to_string());
     }
 }
 
