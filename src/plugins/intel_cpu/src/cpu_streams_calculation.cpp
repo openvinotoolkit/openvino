@@ -150,8 +150,8 @@ inline bool is_static_partitioner_case_1(const ov::MemBandwidthPressure& toleran
 
 inline bool is_static_partitioner_case_2(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
-    return tolerance.total_convs > 0 &&
-           static_cast<float>(tolerance.total_light_convs) > CONV_RATIO_MEDIUM * static_cast<float>(tolerance.total_convs);
+    return tolerance.total_convs > 0 && static_cast<float>(tolerance.total_light_convs) >
+                                            CONV_RATIO_MEDIUM * static_cast<float>(tolerance.total_convs);
 }
 
 inline bool is_static_partitioner_case_3_with_lp_ecores(const ov::MemBandwidthPressure& tolerance) {
@@ -258,9 +258,9 @@ inline bool is_lp_main_core_case_1(const ov::MemBandwidthPressure& tolerance) {
 inline bool is_lp_main_core_case_2(const ov::MemBandwidthPressure& tolerance) {
     using namespace ThreadPreferenceConstants;
     return tolerance.total_convs > 0 && tolerance.total_gemms == 1 &&
-           tolerance.max_mem_tolerance < MEM_TOLERANCE_MEDIUM_LOW &&
-           static_cast<float>(tolerance.total_light_convs) >
-               CONV_RATIO_HIGH * static_cast<float>(tolerance.total_convs);
+           tolerance.max_mem_tolerance<MEM_TOLERANCE_MEDIUM_LOW&& static_cast<float>(
+               tolerance.total_light_convs)> CONV_RATIO_HIGH *
+               static_cast<float>(tolerance.total_convs);
 }
 
 inline bool is_lp_auto_case_1(const ov::MemBandwidthPressure& tolerance) {
