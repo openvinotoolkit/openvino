@@ -35,13 +35,6 @@ std::filesystem::path UnicodePathTest::get_path_param() const {
         },
         GetParam());
 }
-std::filesystem::path UnicodePathTest::fs_path_from_variant() const {
-    return std::visit(
-        [](const auto& p) {
-            return std::filesystem::path(p);
-        },
-        GetParam());
-}
 
 INSTANTIATE_TEST_SUITE_P(string_paths, UnicodePathTest, testing::Values("test_folder"));
 INSTANTIATE_TEST_SUITE_P(u16_paths, UnicodePathTest, testing::Values(u"test_folder"));
