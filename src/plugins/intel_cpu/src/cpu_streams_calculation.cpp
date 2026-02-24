@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <memory>
 #include <mutex>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <set>
 #include <string>
 #include <unordered_set>
@@ -26,8 +27,6 @@
 #if (defined(OPENVINO_ARCH_ARM64) && defined(__linux__))
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
 #else
-#    include <oneapi/dnnl/dnnl.hpp>
-
 #    include "onednn/dnnl.h"
 #    include "openvino/runtime/performance_heuristics.hpp"
 #endif
@@ -78,14 +77,21 @@ constexpr float GEMM_RATIO_LOW = 0.05F;
 
 constexpr int ECORE_RATIO_THRESHOLD = 2;
 
+#if defined(OPENVINO_ARCH_ARM64) && defined(__linux__)
 constexpr int ARM64_THREADS_DEFAULT = 8;
 constexpr int ARM64_THREADS_SVE = 16;
+#endif
+
+#if defined(OPENVINO_ARCH_ARM) && defined(__linux__)
 constexpr int ARM_THREADS_DEFAULT = 4;
 constexpr int ARM_THREADS_HIGH = 8;
+#endif
 
+#if (defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)) && defined(__APPLE__)
 constexpr int APPLE_THREADS_MINIMAL = 1;
 constexpr int APPLE_THREADS_LOW = 2;
 constexpr int APPLE_THREADS_HIGH = 4;
+#endif
 
 }  // namespace ThreadPreferenceConstants
 
