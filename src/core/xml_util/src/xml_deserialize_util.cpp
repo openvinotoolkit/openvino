@@ -1270,6 +1270,13 @@ std::shared_ptr<ov::Node> XmlDeserializer::create_node(const std::vector<ov::Out
     }
 
     if (!ovNode && opsetIt != m_opsets.end()) {
+        std::cout << "---" << std::endl;
+        for (const auto& opset : m_opsets) {
+            std::cout << "Available opset: " << opset.first << std::endl;
+        }
+        for (const auto& ext : m_extensions) {
+            std::cout << "Available extension: " << ext.first << std::endl;
+        }
         if (params.version == "opset1") {
             // MVN, ROIPooling and ReorgYolo were missing in opset1
             if (type_name == "MVN" || type_name == "ROIPooling" || type_name == "ReorgYolo") {
@@ -1320,6 +1327,13 @@ std::shared_ptr<ov::Node> XmlDeserializer::create_node(const std::vector<ov::Out
     }
 
     if (!ovNode) {
+        std::cout << "--- ---" << std::endl;
+        for (const auto& opset : m_opsets) {
+            std::cout << "Available opset: " << opset.first << std::endl;
+        }
+        for (const auto& ext : m_extensions) {
+            std::cout << "Available extension: " << ext.first << std::endl;
+        }
         OPENVINO_THROW("Cannot create ",
                        params.type,
                        " layer ",

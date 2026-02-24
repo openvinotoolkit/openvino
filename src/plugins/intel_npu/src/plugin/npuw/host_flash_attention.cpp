@@ -673,11 +673,11 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     } else {
         // === REGULAR TILE: Output intermediate states (acc, max, d) ===
         if (use_compiler_flash_attention) {
-            LOG_DEBUG("Using software flash attention implementation - outputs acc, max, d from separate nodes");
+            LOG_DEBUG("Using compiler flash attention implementation - outputs acc, max, d from separate nodes");
             model_results = create_regular_tile_outputs_compiler(results, input_dtype);
 
         } else {
-            LOG_DEBUG("Using hardware FlashAttentionTile implementation - outputs acc, max, d from the same node");
+            LOG_DEBUG("Using host FlashAttentionTile implementation - outputs acc, max, d from the same node");
             model_results = create_regular_tile_outputs(results, input_dtype);
         }
         model_name = "HFA_Tile";
