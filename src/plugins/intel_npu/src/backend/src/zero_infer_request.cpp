@@ -85,7 +85,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
             continue;
         }
 
-        get_level_zero_input(ioIndex) = allocate_tensor(ioIndex, INPUT);
+        get_level_zero_input(ioIndex) = allocate_tensor(ioIndex, INPUT, _metadata.inputs.at(ioIndex).precision);
 
         if (inputDescriptor.isStateInput) {
             add_state(inputDescriptor, ioIndex);
@@ -117,7 +117,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
             continue;
         }
 
-        _levelZeroOutputTensors.at(ioIndex) = allocate_tensor(ioIndex, OUTPUT);
+        _levelZeroOutputTensors.at(ioIndex) = allocate_tensor(ioIndex, OUTPUT, _metadata.outputs.at(ioIndex).precision);
 
         ++ioIndex;
     }
@@ -140,8 +140,10 @@ void ZeroInferRequest::create_pipeline() {
                 _logger.debug("ZeroInferRequest::create_pipeline - tensors %s were already allocated",
                               _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str());
             } else {
-                get_level_zero_input(inputIndex) =
-                    allocate_tensor(inputIndex, INPUT, get_user_inputs(inputIndex).size());
+                get_level_zero_input(inputIndex) = allocate_tensor(inputIndex,
+                                                                   INPUT,
+                                                                   _metadata.inputs.at(inputIndex).precision,
+                                                                   get_user_inputs(inputIndex).size());
             }
             continue;
         }
@@ -161,7 +163,8 @@ void ZeroInferRequest::create_pipeline() {
             continue;
         }
 
-        get_level_zero_input(inputIndex) = allocate_tensor(inputIndex, INPUT, batchSize);
+        get_level_zero_input(inputIndex) =
+            allocate_tensor(inputIndex, INPUT, _metadata.inputs.at(inputIndex).precision, batchSize);
         _logger.debug("ZeroInferRequest::create_pipeline - new input tensor %s allocated, size: %zu",
                       _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str(),
                       get_level_zero_input(inputIndex)->get_byte_size());
@@ -185,7 +188,8 @@ void ZeroInferRequest::create_pipeline() {
         _logger.debug("ZeroInferRequest::create_pipeline - allocate new output tensor %s",
                       _metadata.outputs.at(outputIndex).nodeFriendlyName.c_str());
 
-        _levelZeroOutputTensors.at(outputIndex) = allocate_tensor(outputIndex, OUTPUT, batchSize);
+        _levelZeroOutputTensors.at(outputIndex) =
+            allocate_tensor(outputIndex, OUTPUT, _metadata.outputs.at(outputIndex).precision, batchSize);
 
         if (_dynamicBatchValueChanged && !_userOutputTensors.at(outputIndex)->get_shape().empty() &&
             _userOutputTensors.at(outputIndex)->get_shape()[utils::BATCH_AXIS] !=
@@ -364,13 +368,16 @@ void ZeroInferRequest::update_command_list_for_tensor(SyncInferRequest::FoundPor
 
             // Check if the current Level Zero tensor was previously shared with the user. If so, it cannot be reused;
             // allocate a new tensor to back up the user tensor (which cannot be imported or used directly).
-            if (_dynamicBatchValueChanged || levelZeroTensor == nullptr || !levelZeroTensor->can_be_reused()) {
+            // Also for corner cases when a tensor was allocated having compiler precision, but new user tensor's
+            // precision differs, zero tensor needs to be reallocated.
+            if (_dynamicBatchValueChanged || levelZeroTensor == nullptr || !levelZeroTensor->can_be_reused() ||
+                tensor->get_element_type() != levelZeroTensor->get_element_type()) {
                 _logger.debug("ZeroInferRequest::set_tensor - allocate locally L0 tensor");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate tensor");
 
                 auto batch = _graph->get_batch_size();
                 levelZeroTensor =
-                    allocate_tensor(foundPort.idx, foundPort.is_input(), batch, tensor->get_element_type());
+                    allocate_tensor(foundPort.idx, foundPort.is_input(), tensor->get_element_type(), batch);
                 updateCommandListArg = true;
             } else {
                 _logger.debug("ZeroInferRequest::set_tensor - reusing the level zero tensor since it is not shared "
@@ -557,7 +564,7 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
                   metadata.nodeFriendlyName.c_str());
 
     auto& levelZeroTensor = isInput ? get_level_zero_input(ioIndex) : _levelZeroOutputTensors.at(ioIndex);
-    levelZeroTensor = allocate_tensor(ioIndex, isInput, batchSize);
+    levelZeroTensor = allocate_tensor(ioIndex, isInput, metadata.precision, batchSize);
 
     if (!_dynamicBatchValueChanged) {
         userTensor = levelZeroTensor;
@@ -570,11 +577,13 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
 
 std::shared_ptr<ZeroTensor> ZeroInferRequest::allocate_tensor(const size_t index,
                                                               const bool isInput,
-                                                              const std::optional<std::size_t>& batchSize,
-                                                              const std::optional<ov::element::Type>& precision) const {
+                                                              const ov::element::Type& precision,
+                                                              const std::optional<std::size_t>& batchSize) const {
     const auto& descriptor = isInput ? _metadata.inputs.at(index) : _metadata.outputs.at(index);
-    const auto& prc = precision != std::nullopt ? *precision : descriptor.precision;
-    check_network_precision(prc);
+    bool specialCase = precision == ov::element::boolean;
+    OPENVINO_ASSERT(precision == descriptor.precision || specialCase,
+                    "Precision provided to ZeroTensor allocation didn't match precision from compiler!");
+    check_network_precision(precision);
 
     ov::Shape allocatedTensorShape = descriptor.shapeFromCompiler.get_max_shape();
 
@@ -582,7 +591,7 @@ std::shared_ptr<ZeroTensor> ZeroInferRequest::allocate_tensor(const size_t index
         allocatedTensorShape[utils::BATCH_AXIS] = *batchSize;
     }
 
-    auto tensor = std::make_shared<ZeroTensor>(_initStructs, _config, prc, allocatedTensorShape, isInput);
+    auto tensor = std::make_shared<ZeroTensor>(_initStructs, _config, precision, allocatedTensorShape, isInput);
 
     if (isInput) {
         if (get_user_input(index) == nullptr) {
