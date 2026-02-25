@@ -139,7 +139,7 @@ std::shared_ptr<ov::Node> try_align_outputs(const std::shared_ptr<ov::Node>& src
     }
 
     reshape->set_friendly_name(src->get_friendly_name() + "/Reshape");
-    ov::copy_runtime_info(src, {reshape});
+    ov::copy_runtime_info(src, {axes_const, reshape});
 
     return reshape;
 }
