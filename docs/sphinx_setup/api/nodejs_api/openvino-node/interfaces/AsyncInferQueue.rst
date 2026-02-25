@@ -58,7 +58,7 @@ Type Aliases
    type AsyncInferQueueCallback = (
      error: null | Error,
      inferRequest: InferRequest,
-     userData: object,
+     userData: object | undefined,
    ) => void;
 
 Callback function type for ``AsyncInferQueue`` operations.
@@ -115,6 +115,10 @@ Methods
 
    Starts asynchronous inference for the specified input data. If all
    requests in the pool are busy, waits for one to become available.
+
+   A callback must be set beforehand using ``setCallback()``; otherwise
+   calling ``startAsync`` will fail at runtime (for example, due to an
+   internal assertion).
 
    * **Parameters:**
 

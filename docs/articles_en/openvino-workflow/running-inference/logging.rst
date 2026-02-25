@@ -12,7 +12,7 @@ redirect, filter, buffer, or suppress log output by setting a custom callback.
 
 .. note::
 
-   The log callback API is currently available in the C++ API only.
+   The log callback API is currently available in the C and C++ APIs.
    Python bindings are not yet provided.
 
 
@@ -22,6 +22,14 @@ Setting a Custom Log Callback
 Use ``ov::util::set_log_callback()`` to register a function that will receive
 all OpenVINO log messages. The callback must accept a single
 ``std::string_view`` argument:
+
+.. warning::
+
+   The callback object passed to ``set_log_callback()`` is stored **by
+   reference** — it is not copied internally. You must ensure the callback
+   object remains alive until ``reset_log_callback()`` is called or a new
+   callback is set. Passing a temporary or letting the object go out of scope
+   leads to undefined behavior.
 
 .. tab-set::
 

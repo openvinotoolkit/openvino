@@ -280,8 +280,8 @@ The following properties control model caching behavior. Set them via
    * - ``ov::cache_model_path``
      - ``CACHE_MODEL_PATH``
      - WO
-     - Path to the original compiled model file. Speeds up cache model ID
-       calculation by avoiding model content hashing.
+     - Path to the original model file used to create the ``ov::Model``.
+       Speeds up cache model ID calculation by avoiding model content hashing.
    * - ``ov::enable_weightless``
      - ``ENABLE_WEIGHTLESS``
      - RW
