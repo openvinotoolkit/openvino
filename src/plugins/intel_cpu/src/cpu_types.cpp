@@ -3,10 +3,12 @@
 //
 #include "cpu_types.h"
 
-#include <sstream>
+#include <algorithm>
 #include <string>
+#include <vector>
 
 #include "cpu_shape.h"
+#include "openvino/util/common_util.hpp"
 #include "utils/caseless.hpp"
 
 namespace ov::intel_cpu {
@@ -16,18 +18,11 @@ std::string dim2str(Dim dim) {
 }
 
 std::string dims2str(const VectorDims& dims) {
-    std::stringstream output;
-    output << "{";
-
-    if (!dims.empty()) {
-        auto itr = dims.begin();
-        do {
-            output << dim2str(*itr);
-        } while (++itr != dims.end() && output << ", ");
-    }
-
-    output << "}";
-    return output.str();
+    std::vector<std::string> dimStrings(dims.size());
+    std::transform(dims.begin(), dims.end(), dimStrings.begin(), [](Dim dim) {
+        return dim2str(dim);
+    });
+    return "{" + ov::util::join(dimStrings) + "}";
 }
 
 using TypeToNameMap = ov::intel_cpu::caseless_unordered_map<std::string, Type>;

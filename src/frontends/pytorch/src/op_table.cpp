@@ -40,7 +40,7 @@ OP_CONVERTER(translate_amax);
 OP_CONVERTER(translate_amin);
 OP_CONVERTER(translate_and);
 OP_CONVERTER(translate_arange);
-OP_CONVERTER(translate_argmax);
+OP_CONVERTER(translate_append);
 OP_CONVERTER(translate_argsort);
 OP_CONVERTER(translate_argmax);
 OP_CONVERTER(translate_argmin);
@@ -253,6 +253,7 @@ OP_CONVERTER(translate_sort);
 OP_CONVERTER(translate_split_with_sizes);
 OP_CONVERTER(translate_square);
 OP_CONVERTER(translate_squeeze);
+OP_CONVERTER(translate_stack);
 OP_CONVERTER(translate_std);
 OP_CONVERTER(translate_std_mean);
 OP_CONVERTER(translate_stft);
@@ -360,6 +361,7 @@ OP_CONVERTER(translate_unbind_int_fx);
 OP_CONVERTER(translate_zeros_fx);
 OP_CONVERTER(translate_zeros_like_fx);
 // Extensions
+OP_CONVERTER(translate_bmm_ext);
 OP_CONVERTER(translate_conv1d_ext);
 OP_CONVERTER(translate_embedding_ext);
 OP_CONVERTER(translate_linear_awq);
@@ -420,7 +422,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::aminmax", op::translate_aminmax},
         {"aten::angle", common_translators::translate_angle},
         {"aten::any", op::translate_any},
-        // aten::append - Supported in limited set of patterns
+        {"aten::append", op::translate_append},
         {"aten::arange", op::translate_arange},
         {"aten::argmax", op::translate_argmax},
         {"aten::argmin", op::translate_argmin},
@@ -734,7 +736,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::sqrt_", op::inplace_op<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sqrt>>},
         {"aten::square", op::translate_square},
         {"aten::squeeze", op::quantizable_op<op::translate_squeeze>},
-        // aten::stack - Supported in limited set of patterns
+        {"aten::stack", op::translate_stack},
         {"aten::std", op::translate_std},
         {"aten::std_mean", op::translate_std_mean},
         {"aten::stft", op::translate_stft},
@@ -783,6 +785,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::zeros_like", op::translate_zeros_like},
         {"ov_ext::awq_gemm", op::translate_linear_awq},
         {"ov_ext::bit_linear", op::translate_linear_bitnet},
+        {"ov_ext::bmm", op::translate_bmm_ext},
         {"ov_ext::embedding", op::translate_embedding_ext},
         {"ov_ext::conv1d", op::translate_conv1d_ext},
         {"ov_ext::linear", op::translate_linear_ext},
@@ -803,7 +806,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"prim::NumToTensor", op::skip_node},  // In openvino we already store number as tensor with shape []
         {"prim::PythonOp", op::translate_pythonop},
         {"prim::requires_grad", op::return_false_scalar},
-        // prim::TupleConstruct - Supported in limited set of patterns
+        {"prim::TupleConstruct", op::translate_list_construct},
         {"prim::TupleIndex", op::translate_tuple_index},
         {"prim::TupleUnpack", op::translate_tuple_unpack},
         {"prim::type", op::skip_node},  // Used with prim::device, pass PtFrameworkNode.
@@ -1118,7 +1121,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"quantized_decomposed.quantize_per_channel.default", op::translate_quantize_per_channel_fx},
         {"quantized_decomposed.dequantize_per_tensor.default", op::skip_node},
         {"quantized_decomposed.dequantize_per_channel.default", op::skip_node},
-        {"inlined.constant.default", op::translate_constant},  // this is a custom ov type
+        {"inlined.constant.default", op::translate_constant},    // this is a custom ov type
+        {"inlined.list.default", op::translate_list_construct},  // this is a custom list type
         // Higher-order operations from torch.export (torch.cond, torch.while_loop, etc.)
         {"cond", op::translate_cond_fx},
         {"while_loop", op::translate_while_loop_fx},

@@ -40,7 +40,8 @@ private:
     struct Executor {
         virtual void execute(const dnnl::stream& strm,
                              const std::vector<MemoryPtr>& inputs,
-                             const std::vector<MemoryPtr>& outputs) = 0;
+                             const std::vector<MemoryPtr>& outputs,
+                             const CpuParallelPtr& cpu_parallel) = 0;
         virtual ~Executor() = default;
     };
     template <typename T>

@@ -28,9 +28,8 @@ class TestViewListConstruct(PytorchLayerTest):
             def forward(self, input_tensor, dim1: int, dim2: int):
                 return input_tensor.view(dim1, dim2)
 
-        ref_net = None
 
-        return aten_view_list_construct(), ref_net, "aten::view"
+        return aten_view_list_construct(), "aten::view"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -38,7 +37,7 @@ class TestViewListConstruct(PytorchLayerTest):
         self.input_data = []
         for input_shape in input_shapes:
             if type(input_shape) is list:
-                self.input_data.append(np.random.randn(*input_shape).astype(np.float32))
+                self.input_data.append(self.random.randn(*input_shape))
             else:
                 self.input_data.append(input_shape)
         self._test(*self.create_model(), ie_device, precision, ir_version)
@@ -60,9 +59,8 @@ class TestViewDtype(PytorchLayerTest):
             def forward(self, input_tensor, dtype):
                 return input_tensor.view(torch.int64)
 
-        ref_net = None
 
-        return aten_view_dtype(), ref_net, "aten::view"
+        return aten_view_dtype(), "aten::view"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -70,7 +68,7 @@ class TestViewDtype(PytorchLayerTest):
         self.input_data = []
         for input_shape in input_shapes:
             if type(input_shape) is list:
-                self.input_data.append(np.random.randn(*input_shape).astype(np.float32))
+                self.input_data.append(self.random.randn(*input_shape))
             else:
                 self.input_data.append(input_shape)
         self._test(*self.create_model(), ie_device, precision, ir_version)
@@ -93,9 +91,8 @@ class TestViewSize(PytorchLayerTest):
             def forward(self, input_tensor, input_size):
                 return input_tensor.view(input_size.size()[:])
 
-        ref_net = None
 
-        return aten_view_size(), ref_net, "aten::view"
+        return aten_view_size(), "aten::view"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -103,7 +100,7 @@ class TestViewSize(PytorchLayerTest):
         self.input_data = []
         for input_shape in input_shapes:
             if type(input_shape) is list:
-                self.input_data.append(np.random.randn(*input_shape).astype(np.float32))
+                self.input_data.append(self.random.randn(*input_shape))
             else:
                 self.input_data.append(input_shape)
         self._test(*self.create_model(), ie_device, precision, ir_version)
@@ -136,9 +133,8 @@ class TestView(PytorchLayerTest):
             def forward(self, input_tensor):
                 return input_tensor.view(self.dim1, int(self.dim2))
 
-        ref_net = None
 
-        return aten_view(self.input_data), ref_net, "aten::view"
+        return aten_view(self.input_data), "aten::view"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -147,7 +143,7 @@ class TestView(PytorchLayerTest):
         self.input_data = []
         for input_shape in input_shapes:
             if type(input_shape) is list:
-                self.input_data.append(np.random.randn(*input_shape).astype(np.float32))
+                self.input_data.append(self.random.randn(*input_shape))
             else:
                 self.input_data.append(input_shape)
         self._test(*self.create_model(), ie_device, precision, ir_version)
@@ -180,16 +176,15 @@ class TestViewCopy(PytorchLayerTest):
             def forward(self, input_tensor):
                 return torch.view_copy(input_tensor, [self.dim1, int(self.dim2)])
 
-        ref_net = None
 
-        return aten_view_copy(self.input_data), ref_net, "aten::view_copy"
+        return aten_view_copy(self.input_data), "aten::view_copy"
 
     @pytest.mark.precommit_fx_backend
     def test_view_copy(self, ie_device, precision, ir_version, input_shapes):
         self.input_data = []
         for input_shape in input_shapes:
             if type(input_shape) is list:
-                self.input_data.append(np.random.randn(*input_shape).astype(np.float32))
+                self.input_data.append(self.random.randn(*input_shape))
             else:
                 self.input_data.append(input_shape)
         self._test(*self.create_model(), ie_device, precision, ir_version)

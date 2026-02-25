@@ -24,9 +24,8 @@ class TestIndexPut_SingleIndices(PytorchLayerTest):
                 input_tensor.index_put_((self.indices,), values, self.accumulate)
                 return input_tensor
 
-        ref_net = None
 
-        return aten_index_put_(indices, accumulate), ref_net, "aten::index_put_"
+        return aten_index_put_(indices, accumulate), "aten::index_put_"
 
     @pytest.mark.parametrize(
         "input_data",
@@ -54,7 +53,7 @@ class TestIndexPut_SingleIndices(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_index_put_single_indices(self, ie_device, precision, ir_version, input_data, indices, accumulate):
-        self.input_tensor = np.random.randn(*input_data["input_shape"]).astype(np.float32)
+        self.input_tensor = self.random.randn(*input_data["input_shape"])
         self.values = input_data["values"]
         self._test(*self.create_model(indices, accumulate), ie_device, precision, ir_version)
 
@@ -75,9 +74,8 @@ class TestIndexPut_ManyIndices(PytorchLayerTest):
                 input_tensor.index_put_((self.indices_first, self.indices_second), values, self.accumulate)
                 return input_tensor
 
-        ref_net = None
 
-        return aten_index_put_(indices, accumulate), ref_net, "aten::index_put_"
+        return aten_index_put_(indices, accumulate), "aten::index_put_"
 
     @pytest.mark.parametrize(
         "input_data",
@@ -107,7 +105,7 @@ class TestIndexPut_ManyIndices(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_index_put_many_indices(self, ie_device, precision, ir_version, input_data, indices, accumulate):
-        self.input_tensor = np.random.randn(*input_data["input_shape"]).astype(np.float32)
+        self.input_tensor = self.random.randn(*input_data["input_shape"])
         self.values = input_data["values"]
         self._test(*self.create_model(indices, accumulate), ie_device, precision, ir_version)
 
@@ -128,9 +126,8 @@ class TestIndexPut_ManyIndicesWithNone(PytorchLayerTest):
             def forward(self, input_tensor, values):
                 return torch.ops.aten.index_put_.default(input_tensor, (self.indices_first, self.indices_second, self.indices_third), values, self.accumulate)
 
-        ref_net = None
 
-        return aten_index_put_(indices, accumulate), ref_net, "aten::index_put_"
+        return aten_index_put_(indices, accumulate), "aten::index_put_"
 
     @pytest.mark.parametrize(
         "input_data",
@@ -171,9 +168,8 @@ class TestNonZero_IndexPut(PytorchLayerTest):
                 input_tensor.index_put_((nonzero,), values, self.accumulate)
                 return input_tensor
 
-        ref_net = None
 
-        return aten_index_put_(accumulate), ref_net, "aten::index_put_"
+        return aten_index_put_(accumulate), "aten::index_put_"
 
     @pytest.mark.parametrize(
         "input_data",
@@ -214,11 +210,11 @@ class TestNonZero_IndexPut(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_nonzero_index_put_(self, ie_device, precision, ir_version, input_data, indices, accumulate):
-        self.input_tensor = np.random.randn(*input_data["input_shape"]).astype(np.float32)
+        self.input_tensor = self.random.randn(*input_data["input_shape"])
         self.values = input_data["values"]
         for i in range(len(indices)):
             if type(indices[i]) is list:
-                indices[i] = np.random.randint(0, 2, indices[i])
+                indices[i] = self.random.randint(0, 2, indices[i])
         self.indices_0 = indices[0]
         self.indices_1 = indices[1]
         self._test(*self.create_model(accumulate), ie_device, precision, ir_version, trace_model=True, use_convert_model=True)
@@ -226,7 +222,7 @@ class TestNonZero_IndexPut(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_nonzero_index_put_different_ranks(self, ie_device, precision, ir_version):
-        self.input_tensor = np.random.randn(1, 10, 2).astype(np.float32)
+        self.input_tensor = self.random.randn(1, 10, 2)
         self.values = np.zeros((10, 2), dtype=np.float32)
         self.indices_0 = np.array([[0, 0, 1, 1, 1, 1, 1, 1, 0, 0]]).astype(np.float32)
         self.indices_1 = np.zeros((1, 10), dtype=np.float32)
@@ -235,7 +231,7 @@ class TestNonZero_IndexPut(PytorchLayerTest):
 
 class TestMask_IndexPut(PytorchLayerTest):
     def _prepare_input(self):
-        return (np.random.randn(100, 5).astype(np.float32), np.random.randn(100, 5).astype(np.float32))
+        return (self.random.randn(100, 5), self.random.randn(100, 5))
 
     class aten_index_put_mask(torch.nn.Module):
         def forward(self, x, y):
@@ -250,21 +246,21 @@ class TestMask_IndexPut(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_nonzero_index_put_(self, ie_device, precision, ir_version):
-        self._test(self.aten_index_put_mask(), None, "aten::index_put_", ie_device, precision,
+        self._test(self.aten_index_put_mask(), "aten::index_put_", ie_device, precision,
                    ir_version, trace_model=True, use_convert_model=True)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_index_put_masked_fill(self, ie_device, precision, ir_version):
-        self._test(self.aten_index_put_mask2(), None, "aten::index_put_", ie_device, precision,
+        self._test(self.aten_index_put_mask2(), "aten::index_put_", ie_device, precision,
                    ir_version, trace_model=True, use_convert_model=True)
 
 
 class TestMaskKosmos_IndexPut(PytorchLayerTest):
     def _prepare_input(self):
-        mask = np.random.randint(0, 2, [1, 30]).astype(np.bool_)
+        mask = self.random.randint(0, 2, [1, 30], dtype=np.bool_)
         num = mask.sum()
-        return (np.random.randn(1, 30, 50).astype(np.float32), mask.astype(np.int32), np.random.randn(num, 50).astype(np.float32))
+        return (self.random.randn(1, 30, 50), mask.astype(np.int32), self.random.randn(num, 50))
 
     def create_model(self):
         class aten_index_put_mask(torch.nn.Module):
@@ -272,9 +268,8 @@ class TestMaskKosmos_IndexPut(PytorchLayerTest):
                 x[y.to(dtype=torch.bool)] = z
                 return x
 
-        ref_net = None
 
-        return aten_index_put_mask(), ref_net, "aten::index_put_"
+        return aten_index_put_mask(), "aten::index_put_"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
