@@ -4,6 +4,7 @@
 
 #include "driver_compiler_adapter.hpp"
 
+#include <functional>
 #include <string_view>
 
 #include "graph.hpp"
@@ -12,8 +13,8 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "mem_usage.hpp"
+#include "model_serializer.hpp"
 #include "openvino/core/model.hpp"
-#include "vcl_serializer.hpp"
 #include "weightless_graph.hpp"
 #include "weightless_utils.hpp"
 
@@ -66,21 +67,24 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
 
     _logger.debug("serialize IR");
 
-    auto serializedIR = driver_compiler_utils::serializeIR(model,
-                                                           compilerVersion,
-                                                           maxOpsetVersion,
-                                                           useBaseModelSerializer(config),
-                                                           _zeGraphExt->isPluginModelHashSupported());
+    auto serializedIR = compiler_utils::serializeIR(model,
+                                                    compilerVersion,
+                                                    maxOpsetVersion,
+                                                    useBaseModelSerializer(config),
+                                                    _zeGraphExt->isPluginModelHashSupported());
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
+    const auto isOptionSupportedByCompiler = std::bind(&DriverCompilerAdapter::isCompilerOptionSupported,
+                                                       this,
+                                                       std::cref(config),
+                                                       std::cref(compilerVersion),
+                                                       std::placeholders::_1);
 
     _logger.debug("build flags");
-    buildFlags += driver_compiler_utils::serializeIOInfo(model, useIndices);
+    buildFlags += compiler_utils::serializeIOInfo(model, useIndices);
     buildFlags += " ";
-    buildFlags += driver_compiler_utils::serializeConfig(config,
-                                                         compilerVersion,
-                                                         _zeGraphExt->isTurboOptionSupported(compilerVersion));
+    buildFlags += compiler_utils::serializeConfig(config, compilerVersion, isOptionSupportedByCompiler);
 
     _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
 
@@ -114,6 +118,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                        compilerVersion.minor);
     }
 
+    FilteredConfig updatedConfig = config;
+
     const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
@@ -124,22 +130,17 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     }
 
     _logger.debug("serialize IR");
-    auto serializedIR = driver_compiler_utils::serializeIR(model,
-                                                           compilerVersion,
-                                                           maxOpsetVersion,
-                                                           useBaseModelSerializer(config),
-                                                           true,
-                                                           _zeGraphExt->isPluginModelHashSupported());
+    auto serializedIR = compiler_utils::serializeIR(model,
+                                                    compilerVersion,
+                                                    maxOpsetVersion,
+                                                    useBaseModelSerializer(updatedConfig),
+                                                    true,
+                                                    _zeGraphExt->isPluginModelHashSupported());
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
 
-    const std::string serializedIOInfo = driver_compiler_utils::serializeIOInfo(model, useIndices);
-    const FilteredConfig* plgConfig = dynamic_cast<const FilteredConfig*>(&config);
-    if (plgConfig == nullptr) {
-        OPENVINO_THROW("config is not FilteredConfig");
-    }
-    FilteredConfig updatedConfig = *plgConfig;
+    const std::string serializedIOInfo = compiler_utils::serializeIOInfo(model, useIndices);
 
     // WS v3 is based on a stateless compiler. We'll use a separate config entry for informing the compiler the index of
     // the current call iteration.
@@ -154,6 +155,13 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     if (_logger.level() >= ov::log::Level::INFO) {
         compile_model_mem_start = get_peak_memory_usage();
     }
+
+    const auto isOptionSupportedByCompiler = std::bind(&DriverCompilerAdapter::isCompilerOptionSupported,
+                                                       this,
+                                                       std::cref(updatedConfig),
+                                                       std::cref(compilerVersion),
+                                                       std::placeholders::_1);
+
     while (true) {
         _logger.debug("compileWS iteration %d", callNumber);
         updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber++)}});
@@ -161,9 +169,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         _logger.debug("build flags");
         buildFlags = serializedIOInfo;
         buildFlags += " ";
-        buildFlags += driver_compiler_utils::serializeConfig(updatedConfig,
-                                                             compilerVersion,
-                                                             _zeGraphExt->isTurboOptionSupported(compilerVersion));
+        buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
 
         _logger.debug("compile start");
         // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
@@ -272,10 +278,15 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
 
     _logger.debug("serialize IR");
     auto serializedIR =
-        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
+        compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
+    const auto isOptionSupportedByCompiler = std::bind(&DriverCompilerAdapter::isCompilerOptionSupported,
+                                                       this,
+                                                       std::cref(config),
+                                                       std::cref(compilerVersion),
+                                                       std::placeholders::_1);
 
     std::string buildFlags;
-    buildFlags += driver_compiler_utils::serializeConfig(config, compilerVersion);
+    buildFlags += compiler_utils::serializeConfig(config, compilerVersion, isOptionSupportedByCompiler);
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     ov::SupportedOpsMap result;
@@ -313,7 +324,28 @@ std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
 }
 
 bool DriverCompilerAdapter::is_option_supported(std::string optName, std::optional<std::string> optValue) const {
-    return _zeGraphExt->isOptionSupported(std::move(optName), std::move(optValue));
+    auto isOptionSupported = _zeGraphExt->isOptionSupported(std::move(optName), std::move(optValue));
+    return isOptionSupported.value_or(false);
+}
+
+bool DriverCompilerAdapter::isCompilerOptionSupported(const FilteredConfig& config,
+                                                      const ze_graph_compiler_version_info_t& compilerVersion,
+                                                      const std::string& optionName) const {
+    if (!config.hasOpt(optionName)) {
+        return false;
+    }
+
+    const std::optional<bool> isSupported = _zeGraphExt->isOptionSupported(optionName);
+    if (isSupported.has_value()) {
+        return isSupported.value();
+    }
+
+    uint32_t compilerOptSupportValue = config.getOpt(optionName).compilerSupportVersion();
+    uint32_t majorCompilerOptSupportValue = ZE_MAJOR_VERSION(compilerOptSupportValue);
+    uint32_t minorCompilerOptSupportValue = ZE_MINOR_VERSION(compilerOptSupportValue);
+    return (compilerVersion.major > majorCompilerOptSupportValue) ||
+           ((compilerVersion.major == majorCompilerOptSupportValue) &&
+            (compilerVersion.minor >= minorCompilerOptSupportValue));
 }
 
 }  // namespace intel_npu
