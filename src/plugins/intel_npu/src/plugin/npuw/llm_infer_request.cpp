@@ -468,36 +468,28 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_leng
     namespace uu = ov::npuw::util;
     namespace pp = ov::npuw::perf;
 
-    m_llm_profile["1/prefill:1a.fill_inputs"] += pp::ms_to_run([&]() {
-        uu::fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name)), 0u);
-        if (auto type_ids_port = m_prefill_in_ports.find(layer_names::token_type_ids);
-            type_ids_port != m_prefill_in_ports.end()) {
-            uu::fill_tensor_bytes(m_prefill_request->get_tensor(type_ids_port->second), 0u);
-        }
-        uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask)), 0);
-        uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids)), 0);
-    });
+    uu::fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name)), 0u);
+    if (auto type_ids_port = m_prefill_in_ports.find(layer_names::token_type_ids);
+        type_ids_port != m_prefill_in_ports.end()) {
+        uu::fill_tensor_bytes(m_prefill_request->get_tensor(type_ids_port->second), 0u);
+    }
+    uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask)), 0);
+    uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids)), 0);
 
-    m_llm_profile["1/prefill:1b.clear_kvcache"] += pp::ms_to_run([&]() {
-        // Clear all past_key_values tensors - use cached ports for efficiency
-        for (const auto& port : m_prefill_past_kv_ports) {
-            uu::fill_tensor_bytes(m_prefill_request->get_tensor(port), 0u);
-        }
-    });
+    // Clear all past_key_values tensors - use cached ports for efficiency
+    for (const auto& port : m_prefill_past_kv_ports) {
+        uu::fill_tensor_bytes(m_prefill_request->get_tensor(port), 0u);
+    }
 
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
 
-    m_llm_profile["1/prefill:1c.select_gen_req"] += pp::ms_to_run([&]() {
-        // Select the appropriate generate inference request variant based on prompt length
-        // The function internally calculates expected total tokens (prompt + min_response_len)
-        m_kvcache_request = select_generate_request(prompt_length);
-        m_kvcache_in_ports = m_generate_variant_in_ports.at(m_kvcache_request);
-        m_kvcache_out_ports = m_generate_variant_out_ports.at(m_kvcache_request);
-    });
+    // Select the appropriate generate inference request variant based on prompt length
+    // The function internally calculates expected total tokens (prompt + min_response_len)
+    m_kvcache_request = select_generate_request(prompt_length);
+    m_kvcache_in_ports = m_generate_variant_in_ports.at(m_kvcache_request);
+    m_kvcache_out_ports = m_generate_variant_out_ports.at(m_kvcache_request);
 
-    m_llm_profile["1/prefill:1d.apply_lora"] += pp::ms_to_run([&]() {
-        apply_lora();
-    });
+    apply_lora();
 }
 
 void ov::npuw::LLMInferRequest::copy_kvcache() {
@@ -815,7 +807,7 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
         m_eagle3_ext.prepare_inputs(m_prefill_request, m_prefill_in_ports);
     }
 
-    m_llm_profile["1/prefill:2a.npu_infer"] += ov::npuw::perf::ms_to_run([&]() {
+    m_llm_profile["1/prefill:2a.device_infer"] += ov::npuw::perf::ms_to_run([&]() {
         m_prefill_request->infer();
     });
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
