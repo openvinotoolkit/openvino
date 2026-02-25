@@ -66,7 +66,7 @@ source_suffix = {
 }
 
 
-# html_baseurl = 'https://docs.openvino.ai/2025/'
+# html_baseurl = 'https://docs.openvino.ai/2026/'
 
 
 # -- Sitemap configuration ---------------------------------------------------
