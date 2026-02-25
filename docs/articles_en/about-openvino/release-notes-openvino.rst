@@ -63,11 +63,12 @@ CPU Device Plugin
 * The accuracy issue with Boolean causal masks in ScaledDotProduct Attention when using BF16/FP16 precision has been resolved, addressing accuracy problems in LFM2.
 * XAttention (Block Sparse Attention with Antidiagonal Scoring) is now available as a preview feature to improve Time-To-First-Token (TTFT) performance when processing long context inputs.
 * OneTBB library in OpenVINO™ Windows release has been upgraded from 2021.2.1 to 2021.13.1
-* Linux docker support for offline cores on platforms with multiple numa nodes.
+* Linux docker support for offline cores on platforms with multiple NUMA nodes.
 
 GPU Device Plugin
 ---------------------------------------------------------------------------------------------
 
+* Improved TTFT for Qwen3-30B-A3B INT4 model, support INT8 model. 
 * Preview support for XAttention on Intel's Xe2/Xe3 architecture to improve TTFT performance.
 * 2nd token latency has been improved for GPT-OSS-20B INT4 model on Intel® Core™ Ultra Series 2, Intel® Core™ Ultra Series 3, and Intel® Arc™ B-Series Graphics.
 * TTFT has been improved for vision language models including Phi-3.5-vision, Phi-4-multimodal, and LLaVa-NeXT-Video.
@@ -155,8 +156,8 @@ OpenVINO™ Model Server
 Neural Network Compression Framework
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* Extended 4-bit compression data-aware methods (AWQ, Scale Estimation, GPTQ) to support 3D matmuls for more accurate compression of such models as GPT-OSS-20B.
-* Preview support for per-layer and per-block codebooks has been introduced for 4-bit weight compression using the CB4 data type, which helps reduce quantization errors.
+* Extended 4-bit compression data-aware methods (AWQ, Scale Estimation, GPTQ) to support 3D matmuls for more accurate compression of such models as GPT-OSS-20B and Qwen3-30B-A3B.
+* Preview support for per-layer and per-block codebooks has been introduced for 4-bit weight compression (ADAPTIVE_CODEBOOK data type), which helps to reduce the quantization error in the case of per-channel weight compression. See the `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/smollm2_360m_adaptive_codebook>`__ for more details.
 * Added NNCF Profiler for layer-by-layer profiling of OpenVINO™ model activations. This is useful for debugging quantization and compression issues, comparing model variants, and understanding activation distributions. See more details in `Readme <https://github.com/openvinotoolkit/nncf/blob/develop/tools/activation_profiler/README.md>`__ and `Jupyter notebook <https://github.com/openvinotoolkit/nncf/blob/develop/tools/activation_profiler/nncf_profiler_example.ipynb>`__.
 * Added new API method, ``nncf.prune()``, for unstructured pruning of PyTorch models previously supported with the deprecated and removed ``nncf.create_compressed_model()`` method.
 * NNCF optimization methods for TensorFlow models and TensorFlow backend in NNCF are deprecated and removed in 2026. It is recommended to use PyTorch analogous models for training-aware optimization methods and OpenVINO IR, PyTorch, and ONNX models for post-training optimization methods from NNCF.
@@ -172,6 +173,8 @@ OpenVINO Tokenizers
 OpenVINO GenAI
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+* Added preview support for video generation via Text2Video pipeline with LTX-Video model. 
+* Support for EAGLE3 speculative decoding pipeline to boost TPS with an additional EAGLE3 draft model. Support is also enabled on Intel NPU. 
 * `Conditional Diversity Visual Token Pruning <https://arxiv.org/pdf/2506.10967t>`__ to minimize TTFT of Qwen2/2.5 VL models, this feature is disabled by default and must be turned on.
 * Added word-level timestamp generation for detailed transcriptions with WhisperPipeline.
 * Added ChatHistory API support for VLMPipeline with images and video.
@@ -189,6 +192,7 @@ Jupyter Notebooks
 New models and use cases:
 
 * `LFM2  <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-chatbot/llm-chatbot.ipynb>`__
+* `Qwen3-30B-A3B <https://openvinotoolkit.github.io/openvino_notebooks/?search=chatbot>`__
 * `Visual-language assistant with Qwen3-VL and OpenVINO <https://openvinotoolkit.github.io/openvino_notebooks/?search=Visual-language+assistant+with+Qwen3-VL>`__
 * `Text-to-image generation with Qwen-Image and OpenVINO <https://openvinotoolkit.github.io/openvino_notebooks/?search=qwen-image>`__ (experimental)
 * `Multi-speaker dialogue generation with FireRedTTS-2 and OpenVINO <https://openvinotoolkit.github.io/openvino_notebooks/?search=Fireredtts>`__ (experimental)
@@ -253,7 +257,7 @@ Known Issues
 | **Component: OpenVINO Runtime**
 | ID: 181161
 | Description:
-| gpt-oss-20b int4 on Intel Core Ultra iGPUs (Series 3) is validated for production use in
+| gpt-oss-20b int4 on Intel® Core™ Ultra Series 3 iGPUs is validated for production use in
   single-stream and low-concurrency text generation scenarios with short-to-medium context
   lengths; support for high-concurrency serving with long contexts is being optimized and
   will be available in an upcoming release. For production deployments requiring sustained
