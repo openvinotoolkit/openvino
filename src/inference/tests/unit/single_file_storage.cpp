@@ -102,7 +102,7 @@ TEST_F(SingleFileStorageTest, CacheEntryWriteRead) {
     blob_read_test(reopened_storage);
 }
 
-TEST_F(SingleFileStorageTest, BlobAlignement) {
+TEST_F(SingleFileStorageTest, BlobAlignment) {
     const std::unordered_map<uint64_t, std::vector<uint8_t>> test_blobs{{1, std::vector<uint8_t>(4099, 0xAB)},
                                                                         {2, std::vector<uint8_t>(400, 0xCD)},
                                                                         {3, std::vector<uint8_t>(5, 0xEF)}};
@@ -122,7 +122,7 @@ TEST_F(SingleFileStorageTest, BlobAlignement) {
 
     while (stream.good() && stream.tellg() < stream_end) {
         SingleFileStorage::Tag tag;
-        TLVFormat::LenghtType entry_size;
+        TLVFormat::LengthType entry_size;
         stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
         ASSERT_TRUE(stream.good());
         stream.read(reinterpret_cast<char*>(&entry_size), sizeof(entry_size));
@@ -152,7 +152,7 @@ TEST_F(SingleFileStorageTest, BlobAlignement) {
 TEST_F(SingleFileStorageTest, AppendOnlyCacheEntry) {
     const auto blob_id = std::string{"123"};
     m_storage->write_cache_entry(blob_id, [&](std::ostream& s) {
-        // Although pointless it shell be harmless to write nothing
+        // Although pointless it shall be harmless to write nothing
     });
     EXPECT_NO_THROW(m_storage->remove_cache_entry(blob_id));  // removal does nothing => expect legit read
     bool read_called = false;
@@ -239,7 +239,7 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
 
     while (stream.good() && stream.tellg() < stream_end) {
         SingleFileStorage::Tag tag;
-        TLVFormat::LenghtType entry_size;
+        TLVFormat::LengthType entry_size;
         stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
         ASSERT_TRUE(stream.good());
         stream.read(reinterpret_cast<char*>(&entry_size), sizeof(entry_size));

@@ -30,13 +30,13 @@ void validate_version(const SingleFileStorage::FormatVersion& version) {
 void write_tlv_string(std::ostream& stream, const std::string& str) {
     TLVFormat::write_entry(stream,
                            static_cast<TLVFormat::TagType>(SingleFileStorage::Tag::String),
-                           static_cast<TLVFormat::LenghtType>(str.size()),
+                           static_cast<TLVFormat::LengthType>(str.size()),
                            reinterpret_cast<const uint8_t*>(str.data()));
 }
 
 bool read_tlv_string(std::istream& stream, std::string& str) {
     TLVFormat::TagType tag;
-    TLVFormat::LenghtType size;
+    TLVFormat::LengthType size;
     const auto read = TLVFormat::read_entry(stream, tag, size, str);
     OPENVINO_ASSERT(SingleFileStorage::Tag{tag} == SingleFileStorage::Tag::String);
     return read;
@@ -81,7 +81,7 @@ SingleFileStorage::SingleFileStorage(const std::filesystem::path& path) : m_file
 }
 
 void SingleFileStorage::scan_blob_map(std::ifstream& stream) {
-    const auto blob_reader = [this](std::istream& stream, TLVFormat::LenghtType size) {
+    const auto blob_reader = [this](std::istream& stream, TLVFormat::LengthType size) {
         if (size == 0) {
             return;
         }
@@ -100,7 +100,7 @@ void SingleFileStorage::scan_blob_map(std::ifstream& stream) {
         stream.seekg(blob_data_size, std::ios::cur);
     };
 
-    const auto blob_map_reader = [this](std::istream& stream, TLVFormat::LenghtType size) {
+    const auto blob_map_reader = [this](std::istream& stream, TLVFormat::LengthType size) {
         if (size == 0) {
             return;
         }
@@ -192,7 +192,7 @@ weight_sharing::Context SingleFileStorage::get_context() const {
 }
 
 void SingleFileStorage::scan_context(std::ifstream& stream) {
-    const auto constant_meta_reader = [this](std::istream& stream, TLVFormat::LenghtType size) {
+    const auto constant_meta_reader = [this](std::istream& stream, TLVFormat::LengthType size) {
         if (size == 0) {
             return;
         }
@@ -220,7 +220,7 @@ void SingleFileStorage::scan_context(std::ifstream& stream) {
         }
     };
 
-    const auto constant_source_reader = [this](std::istream& stream, TLVFormat::LenghtType size) {
+    const auto constant_source_reader = [this](std::istream& stream, TLVFormat::LengthType size) {
         if (size == 0) {
             return;
         }

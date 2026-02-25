@@ -23,7 +23,7 @@ struct TLVFormat {
     using TagType = uint32_t;
 
     /** @brief Type of the length field in TLV entry. */
-    using LenghtType = uint64_t;
+    using LengthType = uint64_t;
 
     /**
      * @brief Write a TLV entry to the stream.
@@ -32,7 +32,7 @@ struct TLVFormat {
      * @param size Size of the entry value.
      * @param data Pointer to the entry value data.
      */
-    static void write_entry(std::ostream& stream, TagType tag, LenghtType size, const uint8_t* data);
+    static void write_entry(std::ostream& stream, TagType tag, LengthType size, const uint8_t* data);
 
     /**
      * @brief Type of callable for writing TLV entry values based on their tag.
@@ -56,7 +56,7 @@ struct TLVFormat {
      * @param data Output parameter to store the read entry value.
      * @return True if the entry was successfully read, false otherwise.
      */
-    static bool read_entry(std::istream& stream, TagType& tag, LenghtType& size, std::vector<uint8_t>& data);
+    static bool read_entry(std::istream& stream, TagType& tag, LengthType& size, std::vector<uint8_t>& data);
 
     /**
      * @brief Read a TLV entry from the stream into a string.
@@ -66,14 +66,14 @@ struct TLVFormat {
      * @param data Output parameter to store the read entry value.
      * @return True if the entry was successfully read, false otherwise.
      */
-    static bool read_entry(std::istream& stream, TagType& tag, LenghtType& size, std::string& data);
+    static bool read_entry(std::istream& stream, TagType& tag, LengthType& size, std::string& data);
 
     /**
      * @brief Type of callable for reading TLV entry values based on their tag.
      * The callable takes an input stream positioned at the beginning of the entry value and the size of the value as
      * parameters.
      */
-    using ValueReader = std::function<void(std::istream& stream, LenghtType size)>;
+    using ValueReader = std::function<void(std::istream& stream, LengthType size)>;
 
     /** @brief Map of tag to value reader callable. */
     using ValueScanner = std::unordered_map<TagType, ValueReader>;
