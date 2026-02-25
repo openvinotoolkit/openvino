@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,8 @@
 #include <cstdlib>
 #include <mutex>
 #include <vector>
+
+#include "openvino/shutdown.hpp"
 
 #ifdef ENABLE_PROFILING_ITT
 #    include <ittnotify.h>
@@ -21,7 +23,7 @@ namespace internal {
 
 static __itt_collection_state state = __itt_get_collection_state();
 
-bool is_initialized() {
+static inline bool is_initialized() {
     return state == __itt_collection_init_successful;
 }
 
@@ -108,11 +110,11 @@ void regionEnd(domain_t d) {
     current_region_handle = nullptr;
 }
 
-#else
-
-bool is_initialized() {
-    return false;
+void shutdown() {
+    __itt_release_resources();
 }
+
+#else
 
 domain_t domain(const char*) {
     return nullptr;
@@ -132,8 +134,16 @@ void regionBegin(domain_t, handle_t) {}
 
 void regionEnd(domain_t) {}
 
+void shutdown() {}
+
 #endif  // ENABLE_PROFILING_ITT
 
 }  // namespace internal
 }  // namespace itt
 }  // namespace openvino
+
+static void shutdown_itt_resources() {
+    openvino::itt::internal::shutdown();
+}
+
+OV_REGISTER_SHUTDOWN_CALLBACK(shutdown_itt_resources)

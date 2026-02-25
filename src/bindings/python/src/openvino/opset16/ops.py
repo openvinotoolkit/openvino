@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for ops added to openvino opset16."""
@@ -80,8 +80,10 @@ def segment_max(
 
     :param data: ND tensor of type T, the numerical data on which SegmentMax operation will be performed.
     :param segment_ids: 1D Tensor of sorted non-negative numbers, representing the segments.
-    :param num_segments: An optional scalar value representing the segments count. If not provided, it is inferred from segment_ids.
-    :param fill_mode: Responsible for the value assigned to segments which are empty. Can be "ZERO" or "LOWEST".
+    :param num_segments: An optional scalar value representing the segments count.
+                         If not provided, it is inferred from segment_ids.
+    :param fill_mode: Responsible for the value assigned to segments which are empty.
+                      Can be "ZERO" or "LOWEST".
     :param name: Optional name for the node.
 
     :return: The new node performing SegmentMax operation.

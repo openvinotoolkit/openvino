@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # mypy: ignore-errors
@@ -95,7 +95,10 @@ class Partitioner:
         unsqueeze_1_node = PatternNode
         unsqueeze_1_node.op_types["call_function:aten.unsqueeze.default"] = [const_1_node]
         bitwise_right_shift_node = PatternNode
-        bitwise_right_shift_node.op_types["call_function:aten.bitwise_right_shift.Tensor"] = [expand_node, unsqueeze_1_node]
+        bitwise_right_shift_node.op_types["call_function:aten.bitwise_right_shift.Tensor"] = [
+            expand_node,
+            unsqueeze_1_node,
+        ]
         to_copy_node = PatternNode
         to_copy_node.op_types["call_function:aten._to_copy.default"] = [bitwise_right_shift_node]
         add_or_to_copy_node = PatternNode

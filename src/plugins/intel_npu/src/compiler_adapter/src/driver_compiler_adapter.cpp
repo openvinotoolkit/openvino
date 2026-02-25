@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "driver_compiler_adapter.hpp"
 
+#include <functional>
 #include <string_view>
 
 #include "graph.hpp"
@@ -12,51 +13,12 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "mem_usage.hpp"
+#include "model_serializer.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
-#include "vcl_serializer.hpp"
 #include "weightless_graph.hpp"
+#include "weightless_utils.hpp"
 
 namespace {
-
-bool isInitMetadata(const intel_npu::NetworkMetadata& networkMetadata) {
-    if (networkMetadata.inputs.size() == 0) {
-        return false;
-    }
-    return networkMetadata.inputs.at(0).isInitInputWeights;
-}
-
-/**
- * @brief Stores the information within the "WeightlessCacheAttribute" as runtime fields that persist upon
- * serialization.
- * @details Constant nodes (weights) may contain as medatadata the "WeightlessCacheAttribute", that is information
- * regarding the offset of the weights within the binary file, as well as the original size and precision. This
- * information is required within the "weights separation" flow, therefore this function is here to store it.
- * @note Not calling this function in the weights separation flow would lead to this information being lost upon
- * serialization. The "WeightlessCacheAttribute" information that is populated upon de-serialization would represent
- * metadata corresponding to the serialized stream, not the original weights file. Therefore the compiler would be
- * misinformed and lookups of weights offsets could fail.
- *
- * @param model Both source and target.
- */
-void storeWeightlessCacheAttribute(const std::shared_ptr<ov::Model>& model) {
-    size_t constantId = 0;
-    for (auto&& node : model->get_ordered_ops()) {
-        if (ov::is_type<ov::op::v0::Constant>(node)) {
-            ov::RTMap& runtimeInfoMap = node->get_rt_info();
-            const auto& weightlessCacheAttrIt =
-                runtimeInfoMap.find(ov::WeightlessCacheAttribute::get_type_info_static());
-
-            const std::string constantIdString = std::to_string(constantId++);
-            if (weightlessCacheAttrIt != runtimeInfoMap.end()) {
-                auto& weightlessCacheAttr = weightlessCacheAttrIt->second.as<ov::WeightlessCacheAttribute>();
-                model->set_rt_info(weightlessCacheAttr.bin_offset, "ws_bin_offset_" + constantIdString);
-                model->set_rt_info(weightlessCacheAttr.original_size, "ws_original_size_" + constantIdString);
-                model->set_rt_info(weightlessCacheAttr.original_dtype, "ws_original_dtype_" + constantIdString);
-            }
-        }
-    }
-}
 
 /**
  * @brief On-going migration from "use_base_model_serializer" to "model_serializer_version". So we have to check both,
@@ -80,13 +42,13 @@ namespace intel_npu {
 DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
     : _zeroInitStruct(zeroInitStruct),
       _logger("DriverCompilerAdapter", Logger::global().level()) {
-    _logger.debug("initialize DriverCompilerAdapter start");
+    _logger.info("initialize DriverCompilerAdapter start");
 
     uint32_t graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
 
     _compilerProperties = _zeroInitStruct->getCompilerProperties();
 
-    _logger.info("DriverCompilerAdapter creating adapter using graphExtVersion");
+    _logger.debug("DriverCompilerAdapter creating adapter using graphExtVersion");
 
     _zeGraphExt = std::make_shared<ZeGraphExtWrappers>(_zeroInitStruct);
 
@@ -105,18 +67,24 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
 
     _logger.debug("serialize IR");
 
-    auto serializedIR =
-        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
+    auto serializedIR = compiler_utils::serializeIR(model,
+                                                    compilerVersion,
+                                                    maxOpsetVersion,
+                                                    useBaseModelSerializer(config),
+                                                    _zeGraphExt->isPluginModelHashSupported());
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
+    const auto isOptionSupportedByCompiler = std::bind(&DriverCompilerAdapter::isCompilerOptionSupported,
+                                                       this,
+                                                       std::cref(config),
+                                                       std::cref(compilerVersion),
+                                                       std::placeholders::_1);
 
     _logger.debug("build flags");
-    buildFlags += driver_compiler_utils::serializeIOInfo(model, useIndices);
+    buildFlags += compiler_utils::serializeIOInfo(model, useIndices);
     buildFlags += " ";
-    buildFlags += driver_compiler_utils::serializeConfig(config,
-                                                         compilerVersion,
-                                                         _zeGraphExt->isTurboOptionSupported(compilerVersion));
+    buildFlags += compiler_utils::serializeConfig(config, compilerVersion, isOptionSupportedByCompiler);
 
     _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
 
@@ -138,11 +106,9 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                    config);
 }
 
-std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
+std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
                                                          const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compileWS");
-
-    storeWeightlessCacheAttribute(model);
 
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
     if ((compilerVersion.major < 6) || (compilerVersion.major == 6 && compilerVersion.minor < 3)) {
@@ -151,6 +117,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
                        ".",
                        compilerVersion.minor);
     }
+
+    FilteredConfig updatedConfig = config;
 
     const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
@@ -162,18 +130,17 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     }
 
     _logger.debug("serialize IR");
-    auto serializedIR =
-        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
+    auto serializedIR = compiler_utils::serializeIR(model,
+                                                    compilerVersion,
+                                                    maxOpsetVersion,
+                                                    useBaseModelSerializer(updatedConfig),
+                                                    true,
+                                                    _zeGraphExt->isPluginModelHashSupported());
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
 
-    const std::string serializedIOInfo = driver_compiler_utils::serializeIOInfo(model, useIndices);
-    const FilteredConfig* plgConfig = dynamic_cast<const FilteredConfig*>(&config);
-    if (plgConfig == nullptr) {
-        OPENVINO_THROW("config is not FilteredConfig");
-    }
-    FilteredConfig updatedConfig = *plgConfig;
+    const std::string serializedIOInfo = compiler_utils::serializeIOInfo(model, useIndices);
 
     // WS v3 is based on a stateless compiler. We'll use a separate config entry for informing the compiler the index of
     // the current call iteration.
@@ -188,6 +155,13 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     if (_logger.level() >= ov::log::Level::INFO) {
         compile_model_mem_start = get_peak_memory_usage();
     }
+
+    const auto isOptionSupportedByCompiler = std::bind(&DriverCompilerAdapter::isCompilerOptionSupported,
+                                                       this,
+                                                       std::cref(updatedConfig),
+                                                       std::cref(compilerVersion),
+                                                       std::placeholders::_1);
+
     while (true) {
         _logger.debug("compileWS iteration %d", callNumber);
         updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber++)}});
@@ -195,9 +169,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
         _logger.debug("build flags");
         buildFlags = serializedIOInfo;
         buildFlags += " ";
-        buildFlags += driver_compiler_utils::serializeConfig(updatedConfig,
-                                                             compilerVersion,
-                                                             _zeGraphExt->isTurboOptionSupported(compilerVersion));
+        buildFlags += compiler_utils::serializeConfig(updatedConfig, compilerVersion, isOptionSupportedByCompiler);
 
         _logger.debug("compile start");
         // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
@@ -238,15 +210,14 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
                                              initGraphDescriptors,
                                              std::move(initNetworkMetadata),
                                              /* initBlobs = */ std::nullopt,
-                                             model,
+                                             std::move(model),
                                              config);
 }
 
-std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
-    ov::Tensor mainBlob,
-    const FilteredConfig& config,
-    std::optional<std::vector<ov::Tensor>> initBlobs,
-    const std::optional<std::shared_ptr<const ov::Model>>& model) const {
+std::shared_ptr<IGraph> DriverCompilerAdapter::parse(const ov::Tensor& mainBlob,
+                                                     const FilteredConfig& config,
+                                                     const std::optional<std::vector<ov::Tensor>>& initBlobs,
+                                                     std::optional<std::shared_ptr<const ov::Model>>&& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
     _logger.debug("parse start");
@@ -267,7 +238,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
                                        _zeroInitStruct,
                                        mainGraphDesc,
                                        std::move(networkMeta),
-                                       std::move(mainBlob),
+                                       mainBlob,
                                        config,
                                        blobIsPersistent);
     }
@@ -288,11 +259,11 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
                                              _zeroInitStruct,
                                              mainGraphDesc,
                                              std::move(networkMeta),
-                                             std::move(mainBlob),
+                                             mainBlob,
                                              initGraphDescriptors,
                                              std::move(initMetadata),
-                                             std::move(initBlobs),
-                                             model.value(),
+                                             initBlobs,
+                                             std::move(model.value()),
                                              config,
                                              blobIsPersistent);
 }
@@ -307,10 +278,15 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
 
     _logger.debug("serialize IR");
     auto serializedIR =
-        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
+        compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer(config));
+    const auto isOptionSupportedByCompiler = std::bind(&DriverCompilerAdapter::isCompilerOptionSupported,
+                                                       this,
+                                                       std::cref(config),
+                                                       std::cref(compilerVersion),
+                                                       std::placeholders::_1);
 
     std::string buildFlags;
-    buildFlags += driver_compiler_utils::serializeConfig(config, compilerVersion);
+    buildFlags += compiler_utils::serializeConfig(config, compilerVersion, isOptionSupportedByCompiler);
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     ov::SupportedOpsMap result;
@@ -347,8 +323,29 @@ std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
     return compilerOpts;
 }
 
-bool DriverCompilerAdapter::is_option_supported(std::string optname) const {
-    return _zeGraphExt->isOptionSupported(std::move(optname));
+bool DriverCompilerAdapter::is_option_supported(std::string optName, std::optional<std::string> optValue) const {
+    auto isOptionSupported = _zeGraphExt->isOptionSupported(std::move(optName), std::move(optValue));
+    return isOptionSupported.value_or(false);
+}
+
+bool DriverCompilerAdapter::isCompilerOptionSupported(const FilteredConfig& config,
+                                                      const ze_graph_compiler_version_info_t& compilerVersion,
+                                                      const std::string& optionName) const {
+    if (!config.hasOpt(optionName)) {
+        return false;
+    }
+
+    const std::optional<bool> isSupported = _zeGraphExt->isOptionSupported(optionName);
+    if (isSupported.has_value()) {
+        return isSupported.value();
+    }
+
+    uint32_t compilerOptSupportValue = config.getOpt(optionName).compilerSupportVersion();
+    uint32_t majorCompilerOptSupportValue = ZE_MAJOR_VERSION(compilerOptSupportValue);
+    uint32_t minorCompilerOptSupportValue = ZE_MINOR_VERSION(compilerOptSupportValue);
+    return (compilerVersion.major > majorCompilerOptSupportValue) ||
+           ((compilerVersion.major == majorCompilerOptSupportValue) &&
+            (compilerVersion.minor >= minorCompilerOptSupportValue));
 }
 
 }  // namespace intel_npu

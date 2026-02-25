@@ -2,4 +2,5 @@
 setuptools
 wheel
 build
+packaging
 patchelf; sys_platform == 'linux' and platform_machine == 'x86_64'

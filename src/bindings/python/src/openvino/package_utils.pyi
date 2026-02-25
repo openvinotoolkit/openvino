@@ -35,7 +35,9 @@ def classproperty(func: typing.Any) -> _ClassPropertyDescriptor:
     ...
 def deprecated(name: typing.Any = None, version: str = '', message: str = '', stacklevel: int = 2) -> collections.abc.Callable[..., typing.Any]:
     """
-    Prints deprecation warning "{function_name} is deprecated and will be removed in version {version}. {message}" and runs the function.
+    Prints deprecation warning and runs the function.
+    
+        "{function_name} is deprecated and will be removed in version {version}. {message}"
     
         :param version: The version in which the code will be removed.
         :param message: A message explaining why the function is deprecated and/or what to use instead.

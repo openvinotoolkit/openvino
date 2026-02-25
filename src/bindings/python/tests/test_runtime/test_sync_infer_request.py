@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from contextlib import nullcontext as does_not_raise
@@ -312,7 +312,9 @@ def test_infer_mixed_keys(device, share_inputs):
 ])
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_infer_mixed_values(device, ov_type, numpy_dtype, share_inputs):
-    request, tensor1, array1 = generate_concat_compiled_model_with_data(device=device, ov_type=ov_type, numpy_dtype=numpy_dtype)
+    request, tensor1, array1 = generate_concat_compiled_model_with_data(
+        device=device, ov_type=ov_type, numpy_dtype=numpy_dtype
+    )
 
     request.infer([tensor1, array1], share_inputs=share_inputs)
 

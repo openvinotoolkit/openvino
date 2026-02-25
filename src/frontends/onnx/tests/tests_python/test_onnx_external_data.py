@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 
 import numpy as np
-from openvino.runtime import Core
+from openvino import Core
 import shutil
 import pytest
 from tests.runtime import get_runtime

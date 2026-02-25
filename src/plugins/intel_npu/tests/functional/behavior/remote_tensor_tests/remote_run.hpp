@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -116,7 +116,7 @@ public:
 };
 
 TEST_P(RemoteRunTests, CheckIsContinuousHostTensorScalar) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto zero_context = core->get_default_context(target_device);
@@ -132,7 +132,7 @@ TEST_P(RemoteRunTests, CheckIsContinuousHostTensorScalar) {
 }
 
 TEST_P(RemoteRunTests, CheckIsContinuousHostTensor1Dimension) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto zero_context = core->get_default_context(target_device);
@@ -151,7 +151,7 @@ TEST_P(RemoteRunTests, CheckIsContinuousHostTensor1Dimension) {
 }
 
 TEST_P(RemoteRunTests, CheckIsContinuousHostTensor2Dimensions) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto zero_context = core->get_default_context(target_device);
@@ -176,7 +176,7 @@ TEST_P(RemoteRunTests, CheckIsContinuousHostTensor2Dimensions) {
 }
 
 TEST_P(RemoteRunTests, CheckIsContinuousHostTensor3Dimensions) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto zero_context = core->get_default_context(target_device);
@@ -204,7 +204,7 @@ TEST_P(RemoteRunTests, CheckIsContinuousHostTensor3Dimensions) {
 }
 
 TEST_P(RemoteRunTests, CheckIsContinuousHostTensor4Dimensions) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto zero_context = core->get_default_context(target_device);
@@ -244,7 +244,7 @@ TEST_P(RemoteRunTests, CheckIsContinuousHostTensor4Dimensions) {
 }
 
 TEST_P(RemoteRunTests, CheckRemoteTensorInternalBuf) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::InferRequest inference_request;
     ov::CompiledModel compiled_model;
@@ -460,8 +460,174 @@ TEST_P(RemoteRunTests, CheckRemoteTensorImportFile3) {
     std::filesystem::remove(filename);
 }
 
+TEST_P(RemoteRunTests, TryImportCpuVAExpectedErrorUnalignedSize) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->isExternalMemoryStandardAllocationSupported()) {
+        auto shape = Shape{1, 64};
+        auto shape_size = ov::shape_size(shape);
+
+        auto data = ::operator new(shape_size * sizeof(float), std::align_val_t(4096));
+        for (size_t i = 0; i < shape_size; ++i) {
+            static_cast<float*>(data)[i] = 5.f;
+        }
+
+        auto context = core->get_default_context(target_device);
+
+        ov::AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::CPU_VA},
+                             {ov::intel_npu::mem_handle.name(), data}};
+        ASSERT_THROW(auto remote_tensor = context.create_tensor(ov::element::f32, shape, params), std::exception);
+
+        ::operator delete(data, std::align_val_t(4096));
+    } else {
+        GTEST_SKIP() << "Standard allocation is not supported by the driver";
+    }
+}
+
+TEST_P(RemoteRunTests, TryImportCpuVAExpectedErrorUnalignedAddress) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->isExternalMemoryStandardAllocationSupported()) {
+        auto shape = Shape{1, 1024};
+        auto shape_size = ov::shape_size(shape);
+
+        auto data = ::operator new(shape_size * sizeof(float) + 64, std::align_val_t(4096));
+        auto unaligned_data = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(data) + 64);
+        for (size_t i = 0; i < shape_size; ++i) {
+            static_cast<float*>(unaligned_data)[i] = 5.f;
+        }
+
+        auto context = core->get_default_context(target_device);
+
+        ov::AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::CPU_VA},
+                             {ov::intel_npu::mem_handle.name(), unaligned_data}};
+        ASSERT_THROW(auto remote_tensor = context.create_tensor(ov::element::f32, shape, params), std::exception);
+
+        ::operator delete(data, std::align_val_t(4096));
+    } else {
+        GTEST_SKIP() << "Standard allocation is not supported by the driver";
+    }
+}
+
+TEST_P(RemoteRunTests, ImportCpuVAUsingNpuRemoteTensorAPI) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->isExternalMemoryStandardAllocationSupported()) {
+        auto shape = Shape{1, 1024};
+        auto shape_size = ov::shape_size(shape);
+        auto model = createModel(element::f32, shape, "N...");
+
+        ov::CompiledModel compiled_model;
+        ov::InferRequest inference_request;
+
+        auto input_data = ::operator new(shape_size * sizeof(float), std::align_val_t(4096));
+        auto output_data = ::operator new(shape_size * sizeof(float), std::align_val_t(4096));
+        for (size_t i = 0; i < shape_size; ++i) {
+            static_cast<float*>(input_data)[i] = 5.f;
+        }
+
+        auto zero_context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
+
+        OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+        OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+
+        ov::intel_npu::level_zero::ZeroBufferTensor input_remote_tensor, output_remote_tensor;
+        OV_ASSERT_NO_THROW(input_remote_tensor = zero_context.create_tensor(ov::element::f32,
+                                                                            shape,
+                                                                            input_data,
+                                                                            ov::intel_npu::MemType::CPU_VA,
+                                                                            ov::intel_npu::TensorType::INPUT));
+
+        OV_ASSERT_NO_THROW(output_remote_tensor = zero_context.create_tensor(ov::element::f32,
+                                                                             shape,
+                                                                             output_data,
+                                                                             ov::intel_npu::MemType::CPU_VA,
+                                                                             ov::intel_npu::TensorType::OUTPUT));
+
+        OV_ASSERT_NO_THROW(inference_request.set_input_tensor(input_remote_tensor));
+        OV_ASSERT_NO_THROW(inference_request.set_output_tensor(output_remote_tensor));
+        OV_ASSERT_NO_THROW(inference_request.infer());
+
+        float* output_tensor_data = reinterpret_cast<float*>(output_remote_tensor.get());
+
+        float expected_result = 6.0f;
+        for (size_t j = 0; j < output_remote_tensor.get_size(); ++j) {
+            EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                << " Expected=" << expected_result << ", actual=" << output_tensor_data[j] << " for index " << j;
+        }
+
+        inference_request = {};
+        input_remote_tensor = {};
+        output_remote_tensor = {};
+
+        ::operator delete(input_data, std::align_val_t(4096));
+        ::operator delete(output_data, std::align_val_t(4096));
+    } else {
+        GTEST_SKIP() << "Standard allocation is not supported by the driver";
+    }
+}
+
+TEST_P(RemoteRunTests, ImportCpuVAUwithoutSettingBufferExpectedError) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    auto shape = Shape{1, 1024};
+
+    auto zero_context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
+
+    ov::intel_npu::level_zero::ZeroBufferTensor remote_tensor;
+    ASSERT_THROW(
+        remote_tensor = zero_context.create_tensor(ov::element::f32, shape, nullptr, ov::intel_npu::MemType::CPU_VA),
+        std::exception);
+}
+
+TEST_P(RemoteRunTests, ImportCpuVAUsingStandardRemoteTensorAPI) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->isExternalMemoryStandardAllocationSupported()) {
+        auto shape = Shape{1, 1024};
+        auto shape_size = ov::shape_size(shape);
+        auto model = createModel(element::f32, shape, "N...");
+
+        ov::CompiledModel compiled_model;
+        ov::InferRequest inference_request;
+
+        auto data = ::operator new(shape_size * sizeof(float), std::align_val_t(4096));
+        for (size_t i = 0; i < shape_size; ++i) {
+            static_cast<float*>(data)[i] = 5.f;
+        }
+
+        auto context = core->get_default_context(target_device);
+        OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+        OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+
+        ov::AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::CPU_VA},
+                             {ov::intel_npu::mem_handle.name(), data}};
+        ov::RemoteTensor remote_tensor;
+        OV_ASSERT_NO_THROW(remote_tensor = context.create_tensor(ov::element::f32, shape, params));
+
+        OV_ASSERT_NO_THROW(inference_request.set_input_tensor(remote_tensor));
+        OV_ASSERT_NO_THROW(inference_request.infer());
+
+        auto output_tensor = inference_request.get_output_tensor();
+        float* output_tensor_data = reinterpret_cast<float*>(output_tensor.data());
+
+        float expected_result = 6.0f;
+        for (size_t j = 0; j < output_tensor.get_size(); ++j) {
+            EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                << " Expected=" << expected_result << ", actual=" << output_tensor_data[j] << " for index " << j;
+        }
+
+        // destroy inference request and remote tensor to ensure that the file is closed
+        inference_request = {};
+        remote_tensor = {};
+
+        ::operator delete(data, std::align_val_t(4096));
+    } else {
+        GTEST_SKIP() << "Standard allocation is not supported by the driver";
+    }
+}
+
 TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContext) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::InferRequest inference_request;
 
@@ -486,7 +652,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContext) {
 }
 
 TEST_P(RemoteRunTests, CheckRemoteTensorSetOnlyTensorType) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
@@ -502,7 +668,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorSetOnlyTensorType) {
 }
 
 TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContextandChangedInTensor) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
@@ -528,7 +694,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContextandChange
 }
 
 TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContextandChangedInTensorExpectToFail) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
@@ -547,7 +713,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContextandChange
 }
 
 TEST_P(RemoteRunTests, CheckImportModelPath) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
@@ -576,7 +742,7 @@ TEST_P(RemoteRunTests, CheckImportModelPath) {
 }
 
 TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufChangingTensors) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
@@ -618,7 +784,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufChangingTensors) {
 }
 
 TEST_P(RemoteRunTests, CheckOutputDataFromTwoRuns) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::CompiledModel compiled_model;
@@ -662,7 +828,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRuns) {
 }
 
 TEST_P(RemoteRunTests, CheckOutputDataFromRemoteTensorFromDifferentContext) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::CompiledModel compiled_model;
@@ -717,7 +883,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromRemoteTensorFromDifferentContext) {
 }
 
 TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensors1) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::CompiledModel compiled_model;
@@ -769,7 +935,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensors1) {
 }
 
 TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensors2) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::CompiledModel compiled_model;
@@ -818,7 +984,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensors2) {
 }
 
 TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensors3) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::CompiledModel compiled_model;
@@ -858,7 +1024,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensors3) {
 }
 
 TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensorsHostTensor1) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::CompiledModel compiled_model;
@@ -887,7 +1053,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensorsHostTensor1) 
 }
 
 TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensorsHostTensor2) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::CompiledModel compiled_model;
@@ -928,7 +1094,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensorsHostTensor2) 
 }
 
 TEST_P(RemoteRunTests, checkResultsAfterChangingStateTensors) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::CompiledModel compiled_model;
@@ -1026,7 +1192,7 @@ TEST_P(RemoteRunTests, checkResultsAfterChangingStateTensors) {
 }
 
 TEST_P(RemoteRunTests, checkResultsAfterChangingStateTensorsWithRemoteTensors) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::CompiledModel compiled_model;
@@ -1124,7 +1290,7 @@ TEST_P(RemoteRunTests, checkResultsAfterChangingStateTensorsWithRemoteTensors) {
 }
 
 TEST_P(RemoteRunTests, checkResultsAfterChangingStateDataWithRemoteAndRandomTensors0) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     testing::internal::Random random(1);
@@ -1213,7 +1379,7 @@ TEST_P(RemoteRunTests, checkResultsAfterChangingStateDataWithRemoteAndRandomTens
 }
 
 TEST_P(RemoteRunTests, checkResultsAfterChangingStateDataWithRemoteAndRandomTensors1) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     testing::internal::Random random(1);
@@ -1303,7 +1469,7 @@ TEST_P(RemoteRunTests, checkResultsAfterChangingStateDataWithRemoteAndRandomTens
 }
 
 TEST_P(RemoteRunTests, CheckContextFromDifferentOvCores) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::Core core0;
     ov::Core core1;
@@ -1317,7 +1483,7 @@ TEST_P(RemoteRunTests, CheckContextFromDifferentOvCores) {
 }
 
 TEST_P(RemoteRunTests, CheckContextFromDifferentDestroyedOvCores) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::RemoteContext context1, context2;

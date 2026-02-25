@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -136,7 +136,11 @@ def prepared_paths(request, tmp_path):
     ({"body": Model(ops.constant([1]), [])}, does_not_raise(), ""),
     ({"dim": Dimension(2)}, does_not_raise(), ""),
     ({"wrong_list": [{}]}, pytest.raises(TypeError), "Unsupported attribute type in provided list: <class 'dict'>"),
-    ({"wrong_np": np.array([1.5, 2.5], dtype="complex128")}, pytest.raises(TypeError), "Unsupported NumPy array dtype: complex128"),
+    (
+        {"wrong_np": np.array([1.5, 2.5], dtype="complex128")},
+        pytest.raises(TypeError),
+        "Unsupported NumPy array dtype: complex128"
+    ),
     ({"wrong": {}}, pytest.raises(TypeError), "Unsupported attribute type: <class 'dict'>")
 ])
 def test_visit_attributes_custom_op(device, prepared_paths, attributes, expectation, raise_msg):

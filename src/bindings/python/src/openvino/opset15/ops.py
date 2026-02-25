@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for ops added to openvino opset15."""
@@ -119,7 +119,9 @@ def embedding_bag_offsets(
     if per_sample_weights is not None:
         inputs.append(per_sample_weights)
 
-    return _get_node_factory_opset15().create("EmbeddingBagOffsets", as_nodes(*inputs, name=name), {"reduction": reduction})
+    return _get_node_factory_opset15().create(
+        "EmbeddingBagOffsets", as_nodes(*inputs, name=name), {"reduction": reduction}
+    )
 
 
 @nameable_op
@@ -143,7 +145,9 @@ def embedding_bag_packed(
     if per_sample_weights is not None:
         inputs.append(per_sample_weights)
 
-    return _get_node_factory_opset15().create("EmbeddingBagPacked", as_nodes(*inputs, name=name), {"reduction": reduction})
+    return _get_node_factory_opset15().create(
+        "EmbeddingBagPacked", as_nodes(*inputs, name=name), {"reduction": reduction}
+    )
 
 
 @nameable_op

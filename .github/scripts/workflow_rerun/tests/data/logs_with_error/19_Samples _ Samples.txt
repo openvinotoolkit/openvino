@@ -1,0 +1,101 @@
+﻿<log_stub_with_example_error>
+2026-01-12T09:16:22.1413136Z [setupvars.sh] OpenVINO environment initialized
+2026-01-12T09:16:22.1423345Z Python detected LC_CTYPE=C: LC_CTYPE coerced to C.UTF-8 (set another locale or PYTHONCOERCECLOCALE=0 to disable this locale coercion behavior).
+2026-01-12T09:16:22.6461484Z ============================= test session starts ==============================
+2026-01-12T09:16:22.6462288Z platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0
+2026-01-12T09:16:22.6462837Z rootdir: /__w/openvino/openvino
+2026-01-12T09:16:22.6463228Z plugins: xdist-3.8.0
+2026-01-12T09:16:22.6463600Z collected 175 items
+2026-01-12T09:16:22.6463808Z
+2026-01-12T09:16:56.4433071Z install/tests/smoke_tests/test_benchmark_app.py ........................ [ 13%]
+2026-01-12T09:18:38.0985810Z ............................................F........................... [ 54%]
+2026-01-12T09:19:12.5821675Z ......................................                                   [ 76%]
+2026-01-12T09:19:17.9814654Z install/tests/smoke_tests/test_classification_sample_async.py .......... [ 82%]
+2026-01-12T09:19:19.2133678Z ..                                                                       [ 83%]
+2026-01-12T09:19:24.4414972Z install/tests/smoke_tests/test_hello_classification.py .........         [ 88%]
+2026-01-12T09:19:26.7063811Z install/tests/smoke_tests/test_hello_nv12_input_classification.py ...... [ 92%]
+2026-01-12T09:19:26.7068957Z                                                                          [ 92%]
+2026-01-12T09:19:26.9441675Z install/tests/smoke_tests/test_hello_query_device.py ..                  [ 93%]
+2026-01-12T09:19:28.7302791Z install/tests/smoke_tests/test_hello_reshape_ssd.py ..                   [ 94%]
+2026-01-12T09:19:29.6995193Z install/tests/smoke_tests/test_model_creation_sample.py ......           [ 97%]
+2026-01-12T09:19:50.6909298Z install/tests/smoke_tests/test_sync_benchmark.py ..                      [ 98%]
+2026-01-12T09:20:11.8235515Z install/tests/smoke_tests/test_throughput_benchmark.py ..                [100%]
+2026-01-12T09:20:11.8236263Z
+2026-01-12T09:20:11.8236476Z =================================== FAILURES ===================================
+2026-01-12T09:20:11.8237183Z _________________________ test_dynamic_shape[CPU-C++] __________________________
+2026-01-12T09:20:11.8237631Z
+2026-01-12T09:20:11.8238280Z self = <HTTPSConnection(host='media.githubusercontent.com', port=443) at 0x7feca05d1960>
+2026-01-12T09:20:11.8238875Z
+2026-01-12T09:20:11.8239077Z     def _new_conn(self) -> socket.socket:
+2026-01-12T09:20:11.8239720Z         """Establish a socket connection and set nodelay settings on it.
+2026-01-12T09:20:11.8240343Z
+2026-01-12T09:20:11.8240679Z         :return: New socket connection.
+2026-01-12T09:20:11.8241106Z         """
+2026-01-12T09:20:11.8241424Z         try:
+2026-01-12T09:20:11.8241786Z >           sock = connection.create_connection(
+2026-01-12T09:20:11.8242327Z                 (self._dns_host, self.port),
+2026-01-12T09:20:11.8242817Z                 self.timeout,
+2026-01-12T09:20:11.8243277Z                 source_address=self.source_address,
+2026-01-12T09:20:11.8243799Z                 socket_options=self.socket_options,
+2026-01-12T09:20:11.8244286Z             )
+2026-01-12T09:20:11.8244484Z
+2026-01-12T09:20:11.8244793Z /venv/lib/python3.11/site-packages/urllib3/connection.py:204:
+2026-01-12T09:20:11.8245502Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+2026-01-12T09:20:11.8246401Z /venv/lib/python3.11/site-packages/urllib3/util/connection.py:85: in create_connection
+2026-01-12T09:20:11.8347779Z     raise err
+2026-01-12T09:20:11.8348255Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+2026-01-12T09:20:11.8348630Z
+2026-01-12T09:20:11.8348897Z address = ('media.githubusercontent.com', 443), timeout = None
+2026-01-12T09:20:11.8349947Z source_address = None, socket_options = [(6, 1, 1)]
+2026-01-12T09:20:11.8350330Z
+2026-01-12T09:20:11.8350466Z     def create_connection(
+2026-01-12T09:20:11.8350817Z         address: tuple[str, int],
+2026-01-12T09:20:11.8351231Z         timeout: _TYPE_TIMEOUT = _DEFAULT_TIMEOUT,
+2026-01-12T09:20:11.8351765Z         source_address: tuple[str, int] | None = None,
+2026-01-12T09:20:11.8352331Z         socket_options: _TYPE_SOCKET_OPTIONS | None = None,
+2026-01-12T09:20:11.8352858Z     ) -> socket.socket:
+2026-01-12T09:20:11.8353311Z         """Connect to *address* and return the socket object.
+2026-01-12T09:20:11.8353778Z
+2026-01-12T09:20:11.8354208Z         Convenience function.  Connect to *address* (a 2-tuple ``(host,
+2026-01-12T09:20:11.8354907Z         port)``) and return the socket object.  Passing the optional
+2026-01-12T09:20:11.8355534Z         *timeout* parameter will set the timeout on the socket instance
+2026-01-12T09:20:11.8356230Z         before attempting to connect.  If no *timeout* is supplied, the
+2026-01-12T09:20:11.8357015Z         global default timeout setting returned by :func:`socket.getdefaulttimeout`
+2026-01-12T09:20:11.8357946Z         is used.  If *source_address* is set it must be a tuple of (host, port)
+2026-01-12T09:20:11.8358650Z         for the socket to bind as a source address before making the connection.
+2026-01-12T09:20:11.8359273Z         An host of '' or port 0 tells the OS to use the default.
+2026-01-12T09:20:11.8359720Z         """
+2026-01-12T09:20:11.8359973Z
+2026-01-12T09:20:11.8360241Z         host, port = address
+2026-01-12T09:20:11.8360599Z         if host.startswith("["):
+2026-01-12T09:20:11.8360976Z             host = host.strip("[]")
+2026-01-12T09:20:11.8361339Z         err = None
+2026-01-12T09:20:11.8361618Z
+2026-01-12T09:20:11.8362081Z         # Using the value from allowed_gai_family() in the context of getaddrinfo lets
+2026-01-12T09:20:11.8362795Z         # us select whether to work with IPv4 DNS records, IPv6 records, or both.
+2026-01-12T09:20:11.8363470Z         # The original create_connection function always returns all records.
+2026-01-12T09:20:11.8364027Z         family = allowed_gai_family()
+2026-01-12T09:20:11.8364401Z
+2026-01-12T09:20:11.8364650Z         try:
+2026-01-12T09:20:11.8364934Z             host.encode("idna")
+2026-01-12T09:20:11.8365277Z         except UnicodeError:
+2026-01-12T09:20:11.8365789Z             raise LocationParseError(f"'{host}', label empty or too long") from None
+2026-01-12T09:20:11.8366345Z
+2026-01-12T09:20:11.8366754Z         for res in socket.getaddrinfo(host, port, family, socket.SOCK_STREAM):
+2026-01-12T09:20:11.8367337Z             af, socktype, proto, canonname, sa = res
+2026-01-12T09:20:11.8367740Z             sock = None
+2026-01-12T09:20:11.8368051Z             try:
+2026-01-12T09:20:11.8368394Z                 sock = socket.socket(af, socktype, proto)
+2026-01-12T09:20:11.8368801Z
+2026-01-12T09:20:11.8369193Z                 # If provided, set socket level options before connecting.
+2026-01-12T09:20:11.8369736Z                 _set_socket_options(sock, socket_options)
+2026-01-12T09:20:11.8370132Z
+2026-01-12T09:20:11.8370418Z                 if timeout is not _DEFAULT_TIMEOUT:
+2026-01-12T09:20:11.8370846Z                     sock.settimeout(timeout)
+2026-01-12T09:20:11.8371243Z                 if source_address:
+2026-01-12T09:20:11.8371642Z                     sock.bind(source_address)
+2026-01-12T09:20:11.8372022Z >               sock.connect(sa)
+2026-01-12T09:20:11.8372425Z E               OSError: [Errno 101] Network is unreachable
+2026-01-12T09:20:11.8372743Z
+2026-01-12T09:20:11.8373030Z /venv/lib/python3.11/site-packages/urllib3/util/connection.py:73: OSError
+2026-01-12T09:20:11.8373471Z

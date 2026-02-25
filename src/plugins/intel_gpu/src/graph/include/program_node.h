@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -321,6 +321,10 @@ public:
     bool can_share_buffer() const { return share_buffer; }
     void can_share_buffer(bool share) { share_buffer = share; }
 
+    // check/set if the node's internal buffer can be shared
+    bool can_share_internal_buffer() const { return share_internal_buffer; }
+    void can_share_internal_buffer(bool share) { share_internal_buffer = share; }
+
     // Sets padding support for all axis
     void support_padding_all(bool support);
     // Sets padding support for specified axis
@@ -519,6 +523,7 @@ protected:
     uint8_t user_mark = 0;
     bool optimized = false;
     bool share_buffer = true;
+    bool share_internal_buffer = true;
     std::array<bool, tensor_dim_max> _support_padding_in_axis;
 
     mutable bool has_reused_memory = false;

@@ -102,8 +102,8 @@ def setup_model(model_id):
 
     # Download original model
     model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
-    model = AutoModelForCausalLM.from_pretrained(model_cached)
-    tokenizer = AutoTokenizer.from_pretrained(model_cached)
+    model = AutoModelForCausalLM.from_pretrained(model_cached, local_files_only=True)
+    tokenizer = AutoTokenizer.from_pretrained(model_cached, local_files_only=True)
 
     # Save original model
     model_path = get_model_path(model_id, "org")
@@ -198,7 +198,6 @@ test_scope = init_test_scope()
 )
 def test_accuracy_conformance(model_id, precision, device):
     # Get expected values from catalog (use original device for lookup)
-    pytest.skip('Skipping the test for 165769. Reenable in 176009 once 165769 is done.')
     expected_reference = get_reference(model_id, device, precision)
     if expected_reference == NOTEST:
         pytest.xfail(f'Test is skipped for {model_id}, {precision}, {device}.')

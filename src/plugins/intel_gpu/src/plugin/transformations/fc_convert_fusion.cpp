@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,6 @@ FullyConnectedConvertFusion::FullyConnectedConvertFusion() {
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        const auto& m_data = pattern_map.at(data).get_node_shared_ptr();
         const auto& m_weights = pattern_map.at(weights).get_node_shared_ptr();
         const auto& m_bias = pattern_map.at(bias).get_node_shared_ptr();
         const auto& m_convert = pattern_map.at(convert).get_node_shared_ptr();
@@ -42,17 +41,18 @@ FullyConnectedConvertFusion::FullyConnectedConvertFusion() {
         auto it = pattern_map.find(fully_connected);
         if (it != pattern_map.end()) {
             m_fc = it->second.get_node_shared_ptr();
-            new_fc = std::make_shared<op::FullyConnected>(m_data, m_weights, m_bias, output_type);
+            new_fc = std::make_shared<op::FullyConnected>(m_fc->input_value(0), m_weights, m_bias, output_type);
         } else {
             m_fc = pattern_map.at(fully_connected_compressed).get_node_shared_ptr();
+
             if (m_fc->input_values().size() == 4)
-                new_fc = std::make_shared<op::FullyConnectedCompressed>(m_data,
+                new_fc = std::make_shared<op::FullyConnectedCompressed>(m_fc->input_value(0),
                                                                         m_weights,
                                                                         m_bias,
                                                                         m_fc->input_value(3),
                                                                         output_type);
             else
-                new_fc = std::make_shared<op::FullyConnectedCompressed>(m_data,
+                new_fc = std::make_shared<op::FullyConnectedCompressed>(m_fc->input_value(0),
                                                                         m_weights,
                                                                         m_bias,
                                                                         m_fc->input_value(3),

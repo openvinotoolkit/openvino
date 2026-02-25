@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,7 +6,7 @@ import openvino.properties as props
 from openvino.preprocess import ResizeAlgorithm, ColorFormat
 from openvino import Layout, Type, serialize
 import openvino as ov
-import openvino.runtime.opset12 as ops
+import openvino.opset12 as ops
 from utils import get_model, get_temp_dir, get_path_to_model, get_advanced_model
 
 
@@ -138,9 +138,9 @@ print(ppp)  # Dump preprocessing steps to see what will happen
 
 # ! [ov:preprocess:custom]
 # It is possible to insert some custom operations
-import openvino.runtime.opset12 as ops
-from openvino.runtime import Output
-from openvino.runtime.utils.decorators import custom_preprocess_function
+import openvino.opset12 as ops
+from openvino import Output
+from openvino.utils.decorators import custom_preprocess_function
 
 @custom_preprocess_function
 def custom_abs(output: Output):
@@ -162,9 +162,9 @@ ppp.output('result').tensor()\
     .set_element_type(Type.u8)
 
 # Also it is possible to insert some custom operations
-import openvino.runtime.opset12 as ops
-from openvino.runtime import Output
-from openvino.runtime.utils.decorators import custom_preprocess_function
+import openvino.opset12 as ops
+from openvino import Output
+from openvino.utils.decorators import custom_preprocess_function
 
 @custom_preprocess_function
 def custom_abs(output: Output):

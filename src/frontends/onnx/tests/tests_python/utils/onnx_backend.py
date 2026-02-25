@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """ONNX Backend implementation.
@@ -16,7 +16,7 @@ import onnx
 from onnx.backend.base import Backend, BackendRep
 from onnx.helper import make_graph, make_model, make_tensor_value_info, np_dtype_to_tensor_dtype
 
-from openvino.runtime import Model
+from openvino import Model
 from tests.runtime import get_runtime
 from tests.tests_python.utils.onnx_helpers import import_onnx_model
 

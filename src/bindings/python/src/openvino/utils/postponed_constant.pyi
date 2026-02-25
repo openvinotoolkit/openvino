@@ -7,17 +7,19 @@ from openvino._pyopenvino import Shape
 from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import TensorVector
 from openvino._pyopenvino import Type
-from typing import cast
-from typing import overload
 import collections.abc
 import openvino._op_base
 import openvino._pyopenvino
-__all__: list[str] = ['Callable', 'Op', 'PartialShape', 'PostponedConstant', 'Shape', 'Tensor', 'TensorVector', 'Type', 'cast', 'make_postponed_constant', 'overload']
+__all__: list[str] = ['Callable', 'Op', 'PartialShape', 'PostponedConstant', 'Shape', 'Tensor', 'TensorVector', 'Type', 'make_postponed_constant']
 class PostponedConstant(openvino._op_base.Op):
     """
-    Postponed Constant is a way to materialize a big constant only when it is going to be serialized to IR and then immediately dispose.
+    Postponed Constant is a way to materialize a big constant.
+    
+        This class materializes a big constant only when it is going to be serialized
+        to IR and then immediately disposes of it.
+        
     """
-    def __init__(self, element_type: openvino._pyopenvino.Type, shape: openvino._pyopenvino.Shape, maker: collections.abc.Callable, name: typing.Optional[str] = None) -> None:
+    def __init__(self, element_type: openvino._pyopenvino.Type, shape: openvino._pyopenvino.Shape, maker: collections.abc.Callable[[], openvino._pyopenvino.Tensor], name: typing.Optional[str] = None) -> None:
         """
         Creates a PostponedConstant.
         
@@ -25,9 +27,8 @@ class PostponedConstant(openvino._op_base.Op):
                 :type element_type: openvino.Type
                 :param shape: Shape of the constant.
                 :type shape: openvino.Shape
-                :param maker: A callable that returns a Tensor or modifies the provided Tensor to represent the constant.
-                            Note: It's recommended to use a callable without arguments (returns Tensor) to avoid unnecessary tensor data copies.
-                :type maker: Union[Callable[[], Tensor], Callable[[Tensor], None]]
+                :param maker: A callable that returns a Tensor.
+                :type maker: Callable[[], Tensor]
                 :param name: Optional name for the constant.
                 :type name: Optional[str]
         
@@ -49,5 +50,5 @@ class PostponedConstant(openvino._op_base.Op):
         ...
     def validate_and_infer_types(self) -> None:
         ...
-def make_postponed_constant(element_type: openvino._pyopenvino.Type, shape: openvino._pyopenvino.Shape, maker: collections.abc.Callable, name: typing.Optional[str] = None) -> openvino._op_base.Op:
+def make_postponed_constant(element_type: openvino._pyopenvino.Type, shape: openvino._pyopenvino.Shape, maker: collections.abc.Callable[[], openvino._pyopenvino.Tensor], name: typing.Optional[str] = None) -> openvino._op_base.Op:
     ...

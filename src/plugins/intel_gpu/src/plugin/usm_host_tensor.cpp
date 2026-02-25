@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,14 @@ void* USMHostTensor::data() {
 }
 
 void* USMHostTensor::data(const element::Type&) {
+    return m_impl->get_original_memory_buf_ptr();
+}
+
+void* USMHostTensor::data_rw() {
+    return m_impl->get_original_memory_buf_ptr();
+}
+
+void* USMHostTensor::data_rw(const element::Type&) {
     return m_impl->get_original_memory_buf_ptr();
 }
 

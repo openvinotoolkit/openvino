@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,13 +54,14 @@ public:
         if (node->get_rt_info().count("postponed_constant")) {
             OPENVINO_ASSERT(node->get_output_size() == 1);
             ov::OutputVector outputs(1);
-            std::shared_ptr<ov::Node> node_clone;
+            std::shared_ptr<ov::Node> node_to_fold;
             if (ov::pass::constant_folding_is_disabled(node)) {
                 // clone to keep original node unchanged
-                node_clone = node->clone_with_new_inputs(node->input_values());
-                node_clone->get_rt_info().erase(ov::pass::DisableConstantFolding::get_type_info_static());
+                node_to_fold = node->clone_with_new_inputs(node->input_values());
+                node_to_fold->get_rt_info().erase(ov::pass::DisableConstantFolding::get_type_info_static());
+            } else {
+                node_to_fold = node->shared_from_this();
             }
-            auto node_to_fold = node_clone ? node_clone : node->shared_from_this();
             OPENVINO_ASSERT(
                 node_to_fold->constant_fold(outputs, node_to_fold->input_values()),
                 "Node with set `postponed_constant` attribute cannot be fold to constant when saving model to IR file");
@@ -151,9 +152,9 @@ struct Edge {
 };
 
 const std::vector<Edge> create_edge_mapping(const std::unordered_map<ov::Node*, int>& layer_ids,
-                                            const ov::Model& model) {
+                                            const NodeVector& nodes) {
     std::vector<Edge> edges;
-    for (const auto& node : model.get_ordered_ops()) {
+    for (const auto& node : nodes) {
         if (ov::op::util::is_parameter(node)) {
             continue;
         }
@@ -301,10 +302,10 @@ std::string translate_type_name(const std::string& name) {
     return name;
 }
 
-const std::unordered_map<ov::Node*, int> create_layer_ids(const ov::Model& model) {
+const std::unordered_map<ov::Node*, int> create_layer_ids(const NodeVector& nodes) {
     std::unordered_map<ov::Node*, int> layer_ids;
     int id = 0;
-    for (const auto& node : model.get_ordered_ops()) {
+    for (const auto& node : nodes) {
         layer_ids[node.get()] = id++;
     }
     return layer_ids;
@@ -948,8 +949,6 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
     net_xml.append_attribute("version").set_value(static_cast<long long>(m_version));
     pugi::xml_node layers = net_xml.append_child("layers");
 
-    const std::unordered_map<ov::Node*, int> layer_ids = create_layer_ids(model);
-
     const bool exec_graph = is_exec_graph(model);
 
     auto sorted_ops = model.get_ordered_ops();
@@ -976,6 +975,7 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
         }
         sorted_ops = std::move(result);
     }
+    const std::unordered_map<ov::Node*, int> layer_ids = create_layer_ids(sorted_ops);
 
     // Mark nodes that are only used by postponed_constant nodes
     std::unordered_set<ov::Node*> nodes_to_exclude;
@@ -1151,10 +1151,10 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
         }
     }
     // <edges>
-    const std::vector<Edge> edge_mapping = create_edge_mapping(layer_ids, model);
+    const std::vector<Edge> edge_mapping = create_edge_mapping(layer_ids, sorted_ops);
     pugi::xml_node edges = net_xml.append_child("edges");
-    auto ordered_ops = model.get_ordered_ops();
     for (auto e : edge_mapping) {
+        const auto& ordered_ops = sorted_ops;
         // Skip edges that involve excluded nodes
         if (nodes_to_exclude.count(ordered_ops[e.from_layer].get()) ||
             nodes_to_exclude.count(ordered_ops[e.to_layer].get()) ||

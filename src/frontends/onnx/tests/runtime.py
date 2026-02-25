@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Provide a layer of abstraction for an OpenVINO runtime environment."""
@@ -9,11 +9,11 @@ from typing import Union
 
 import numpy as np
 
-from openvino.runtime import Core, Type
+from openvino import Core, Type
 
-from openvino.runtime.exceptions import UserInputError
-from openvino.runtime import Model, Node, Tensor, Type
-from openvino.runtime.utils.types import NumericData, get_shape, get_dtype
+from openvino.exceptions import UserInputError
+from openvino import Model, Node, Tensor, Type
+from openvino.utils.types import NumericData, get_shape, get_dtype
 import openvino.properties.hint as hints
 
 from onnx.helper import float32_to_float8e5m2, float32_to_float8e4m3

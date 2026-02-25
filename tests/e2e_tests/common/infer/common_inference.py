@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Inference engine runners."""
@@ -20,7 +20,7 @@ try:
 except ImportError:
     mem_info_available = False
 
-from openvino.runtime import Core
+from openvino import Core
 from openvino.inference_engine import get_version as ie_get_version
 from e2e_tests.common.multiprocessing_utils import multiprocessing_run
 

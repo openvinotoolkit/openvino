@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -12,6 +12,7 @@ from openvino.helpers import pack_data, unpack_data
 
 import pytest
 from enum import Enum
+import platform
 
 
 class DataGetter(Enum):
@@ -228,6 +229,7 @@ def test_cant_change_data_in_const():
         (False),
     ],
 )
+@pytest.mark.skipif(platform.machine() in ["aarch64"], reason="CVS-177547")
 def test_init_bf16_direct(ov_type, numpy_dtype, shared_flag):
     data = np.random.rand(4) + 1.5
     data = data.astype(numpy_dtype)
@@ -249,7 +251,10 @@ def test_init_bf16_direct(ov_type, numpy_dtype, shared_flag):
     ("ov_type", "src_dtype"),
     [
         (Type.u1, np.uint8),
+        (Type.u2, np.uint8),
+        (Type.u3, np.uint8),
         (Type.u4, np.uint8),
+        (Type.u6, np.uint8),
         (Type.i4, np.int8),
         (Type.nf4, np.uint8),
     ],
@@ -318,9 +323,11 @@ OPSETS = [ov.opset12, ov.opset13]
     ],
 )
 def test_float_to_f8e5m2_constant(ov_type, numpy_dtype, opset):
-    data = np.array([4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
-                     0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
-                     -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0, 0.0000152587890625, 448, 500, 512, 57344], dtype=numpy_dtype)
+    data = np.array([
+        4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
+        0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
+        -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0, 0.0000152587890625, 448, 500, 512, 57344
+    ], dtype=numpy_dtype)
 
     compressed_const = opset.constant(data, dtype=ov.Type.f8e5m2, name="f8e5m2_constant")
     convert = opset.convert(compressed_const, data.dtype)
@@ -475,9 +482,11 @@ def test_float_to_f8e8m0_constant(ov_type, numpy_dtype, opset):
     ],
 )
 def test_float_to_f8e5m2_convert(ov_type, numpy_dtype, opset):
-    data = np.array([4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
-                     0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
-                     -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0, 0.0000152587890625, 448, 500, 512, 57344], dtype=numpy_dtype)
+    data = np.array([
+        4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
+        0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
+        -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0, 0.0000152587890625, 448, 500, 512, 57344
+    ], dtype=numpy_dtype)
 
     compressed_const = opset.constant(data, dtype=ov_type, name="fx_constant")
     convert_to_fp8 = opset.convert(compressed_const, Type.f8e5m2)

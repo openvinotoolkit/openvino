@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,6 @@ typedef struct handle_ {
  * @cond
  */
 namespace internal {
-bool is_initialized();
 domain_t domain(const char* name);
 handle_t handle(const char* name);
 void taskBegin(domain_t d, handle_t t);
@@ -49,6 +48,7 @@ void taskEnd(domain_t d);
 void threadName(const char* name);
 void regionBegin(domain_t d, handle_t t);
 void regionEnd(domain_t d);
+void shutdown();
 }  // namespace internal
 /**
  * @endcond

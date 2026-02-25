@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const FilteredConfig& config,
                              const std::optional<int64_t>& batchSize)
     : ICompiledModel(model, plugin),
-      _config(config),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
       _graph(graph),
@@ -37,7 +36,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
-    _properties = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL, _config);
+    _properties = std::make_unique<Properties>(PropertiesType::COMPILED_MODEL, config);
     _properties->registerProperties();
 
     configure_stream_executors();
@@ -58,15 +57,20 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
         OPENVINO_THROW("No available devices. Failed to create infer request!");
     }
 
-    if (!_config.get<CREATE_EXECUTOR>() || _config.get<DEFER_WEIGHTS_LOAD>()) {
+    if (!_properties->getConfig().get<CREATE_EXECUTOR>() || _properties->getConfig().get<DEFER_WEIGHTS_LOAD>()) {
         if (_graph == nullptr) {
             OPENVINO_THROW("Invalid graph handle! Failed to create infer request!");
         }
-        _graph->initialize(_config);
+        _graph->initialize(_properties->getConfig());
+    }
+
+    if (!_graph->init_completed()) {
+        OPENVINO_THROW(
+            "The driver is not applicable. The driver doesn't exist or is too old to run inference for this blob.");
     }
 
     const std::shared_ptr<SyncInferRequest>& syncInferRequest =
-        _device->createInferRequest(shared_from_this(), _config);
+        _device->createInferRequest(shared_from_this(), _properties->getConfig());
     syncInferRequest->initialize_states();
 
     return std::make_shared<AsyncInferRequest>(syncInferRequest,
@@ -86,25 +90,27 @@ void CompiledModel::export_model(std::ostream& stream) const {
 
     auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream);
 
-    std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
-    std::optional<std::vector<ov::Layout>> outputLayouts = std::vector<ov::Layout>();
+    if (!_properties->getConfig().get<EXPORT_RAW_BLOB>()) {
+        std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
+        std::optional<std::vector<ov::Layout>> outputLayouts = std::vector<ov::Layout>();
 
-    for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
-        inputLayouts->push_back(
-            std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
-    }
-    for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
-        outputLayouts->push_back(
-            std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
-    }
+        for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
+            inputLayouts->push_back(
+                std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
+        }
+        for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
+            outputLayouts->push_back(
+                std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
+        }
 
-    Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
-                                       CURRENT_OPENVINO_VERSION,
-                                       initBlobSizes,
-                                       _batchSize,
-                                       inputLayouts,
-                                       outputLayouts)
-        .write(stream);
+        Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
+                                           CURRENT_OPENVINO_VERSION,
+                                           std::move(initBlobSizes),
+                                           _batchSize,
+                                           std::move(inputLayouts),
+                                           std::move(outputLayouts))
+            .write(stream);
+    }
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
@@ -154,7 +160,7 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
 
 void CompiledModel::set_property(const ov::AnyMap& properties) {
     // 1. Set the property via Properties interface
-    _properties->set_property(properties);
+    _properties->setProperty(properties);
 
     // 2. Extra hooks
     if (properties.count(std::string(WORKLOAD_TYPE::key())) != 0) {
@@ -172,7 +178,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return _graph->get_metadata().name;
     } else {
         // default behaviour
-        return _properties->get_property(name);
+        return _properties->getProperty(name);
     }
 }
 
@@ -181,7 +187,7 @@ const std::shared_ptr<IGraph>& CompiledModel::get_graph() const {
 }
 
 const FilteredConfig& CompiledModel::get_config() const {
-    return _config;
+    return _properties->getConfig();
 }
 
 void CompiledModel::configure_stream_executors() {

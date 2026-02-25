@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for ops added to openvino opset14."""
@@ -31,9 +31,12 @@ def convert_promote_types(
 
     :param left_node: input node with type to be promoted to common one.
     :param right_node: input node with type to be promoted to common one.
-    :param promote_unsafe: Bool attribute whether to allow promotions that might result in bit-widening, precision loss and undefined behaviors.
-    :param pytorch_scalar_promotion: Bool attribute whether to promote scalar input to type provided by non-scalar input when number format is matching.
-    :param u64_integer_promotion_target: Element type attribute to select promotion result when inputs are u64 and signed integer.
+    :param promote_unsafe: Bool attribute whether to allow promotions that might result
+                           in bit-widening, precision loss and undefined behaviors.
+    :param pytorch_scalar_promotion: Bool attribute whether to promote scalar input to type
+                                     provided by non-scalar input when number format is matching.
+    :param u64_integer_promotion_target: Element type attribute to select promotion result
+                                         when inputs are u64 and signed integer.
     :param name: Optional name for the new output node.
 
     :return: The new node performing ConvertPromoteTypes operation.

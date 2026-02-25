@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -7,7 +7,7 @@ import openvino as ov
 from utils import get_path_to_model, get_image
 
 #! [properties_example]
-import openvino.runtime.opset12 as ops
+import openvino.opset12 as ops
 
 core = ov.Core()
 
