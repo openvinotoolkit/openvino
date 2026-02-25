@@ -418,56 +418,24 @@ TEST_F(SharedBufferTest, shared_ptr_void_with_explicit_descriptor) {
     auto descriptor = ov::create_base_descriptor(42, 10, source);
 
     // Create SharedBuffer with explicit descriptor
-    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(test_data,
-                                                                            test_data_size,
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(mapped_memory->data(),
+                                                                            mapped_memory->size(),
                                                                             std::shared_ptr<void>{},
                                                                             descriptor);
 
     auto desc = buffer->get_descriptor();
     ASSERT_NE(desc, nullptr);
     EXPECT_EQ(desc->get_id(), 42u);
+
+    // The data in descriptor should match the pointer and size of the buffer
+    EXPECT_THROW(std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(test_data,
+                                                                           test_data_size,
+                                                                           std::shared_ptr<void>{},
+                                                                           descriptor),
+                 ov::Exception);
 }
 
 // ==================== SharedBuffer<shared_ptr<AlignedBuffer>> subbuffer Tests ====================
-
-TEST_F(SharedBufferTest, subbuffer_from_aligned_buffer) {
-    auto mapped_memory = ov::load_mmap_object(m_file_path);
-
-    // Create a parent SharedBuffer from MappedMemory (has descriptor)
-    auto parent = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
-                                                                                        mapped_memory->size(),
-                                                                                        mapped_memory);
-
-    ASSERT_NE(parent->get_descriptor(), nullptr);
-
-    // Create subbuffer at offset 10, size 20
-    auto sub = make_subbuffer(parent, 10, 20);
-
-    EXPECT_EQ(sub->size(), 20u);
-    EXPECT_EQ(sub->get_ptr(), static_cast<char*>(parent->get_ptr()) + 10);
-
-    // Subbuffer should inherit descriptor with correct offset
-    auto desc = sub->get_descriptor();
-    ASSERT_NE(desc, nullptr);
-    EXPECT_EQ(desc->get_id(), parent->get_descriptor()->get_id());
-    EXPECT_EQ(desc->get_offset(), 10u);
-}
-
-TEST_F(SharedBufferTest, subbuffer_without_descriptor) {
-    // Create a parent buffer without descriptor
-    auto parent =
-        std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(test_data, test_data_size, std::make_shared<int>(42));
-
-    EXPECT_EQ(parent->get_descriptor(), nullptr);
-
-    // Create subbuffer from parent with no descriptor
-    auto sub = make_subbuffer(std::static_pointer_cast<ov::AlignedBuffer>(parent), 5, 10);
-
-    EXPECT_EQ(sub->size(), 10u);
-    // No descriptor to inherit, so subbuffer should also have no descriptor
-    EXPECT_EQ(sub->get_descriptor(), nullptr);
-}
-
 TEST_F(SharedBufferTest, aligned_buffer_derived_auto_inherits_descriptor) {
     auto mapped_memory = ov::load_mmap_object(m_file_path);
 
@@ -503,11 +471,4 @@ TEST_F(SharedBufferTest, mmap_with_offset) {
     auto parent_desc = parent->get_descriptor();
     ASSERT_NE(parent_desc, nullptr);
     EXPECT_EQ(parent_desc->get_offset(), offset);
-
-    auto child = make_subbuffer(std::static_pointer_cast<ov::AlignedBuffer>(parent), 5, 20);
-
-    auto child_desc = child->get_descriptor();
-    ASSERT_NE(child_desc, nullptr);
-    EXPECT_EQ(child_desc->get_id(), parent_desc->get_id());
-    EXPECT_EQ(child_desc->get_offset(), offset + 5u);
 }

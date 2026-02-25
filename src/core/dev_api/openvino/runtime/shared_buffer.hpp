@@ -110,11 +110,6 @@ protected:
         const std::shared_ptr<ov::MappedMemory>&) const;
 };
 
-OPENVINO_API
-std::shared_ptr<ov::AlignedBuffer> make_subbuffer(const std::shared_ptr<ov::AlignedBuffer>& buffer,
-                                                  size_t offset,
-                                                  size_t size);
-
 /// \brief SharedStreamBuffer class to store pointer to pre-allocated buffer and provide streambuf interface.
 ///  Can return ptr to shared memory and its size
 class SharedStreamBuffer : public std::streambuf {
