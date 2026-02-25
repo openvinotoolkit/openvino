@@ -14,16 +14,16 @@ class TestRot90(PytorchLayerTest):
         return (np.random.uniform(0, 50, (2, 3, 4)).astype(np.float32),)
 
     def create_model(self, k, dims):
-        class aten_rot90(torch.nn.Module):
+        class AtenRot90(torch.nn.Module):
             def __init__(self, k, dims=(0, 1)):
-                super(aten_rot90, self).__init__()
+                super(AtenRot90, self).__init__()
                 self.k = k
                 self.dims = dims
 
             def forward(self, x):
                 return torch.rot90(x, self.k, self.dims)
 
-        return aten_rot90(k, dims), "aten::rot90"
+        return AtenRot90(k, dims), "aten::rot90"
 
     @pytest.mark.parametrize("k", [1, 2, 3, 4, -1, -3])
     @pytest.mark.parametrize("dims", [(0, 1), (1, 2), (0, 2), (-2, -3), (-1, 1), (-1, -3)])
