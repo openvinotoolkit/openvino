@@ -11,8 +11,12 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_tolist(const NodeContext& context) {
-    // prim::tolist converts a tensor to a list.
-    // works with tensors and the conversion to Python lists happens at runtime.
+    // prim::tolist conceptually converts a tensor to a Python list in PyTorch,
+    // but in OpenVINO this is intentionally modeled as a no-op/pass-through:
+    // the tensor is forwarded as-is and any actual list conversion is handled
+    // at runtime on the Python side. Note: the op table currently maps
+    // prim::tolist to op::skip_node, so this translator is not registered/used
+    // and is kept here for clarity and potential future use.
     num_inputs_check(context, 1, 1);
     return {context.get_input(0)};
 }
