@@ -135,22 +135,22 @@ OutputVector translate_gather(const NodeContext& context) {
 
     // mode 1: clamping
     if (mode == 1) {
-        auto zero_const = v0::Constant::create(element::i64, Shape{1}, {0});
+        auto indices_type = normalized_indices.get_element_type();
+        auto zero_const = v0::Constant::create(indices_type, Shape{1}, {0});
         normalized_indices = std::make_shared<v1::Maximum>(normalized_indices, zero_const);
 
         std::vector<int64_t> upper_bounds_val;
         for (size_t i = 0; i < start_index_map.size(); ++i) {
             int64_t dim_idx = start_index_map[i];
             int64_t dim_size = operand_pshape[dim_idx].get_length();
-            int64_t valid_limit = std::max<int64_t>(0, dim_size - slice_sizes_reordered[i]);
+            int64_t valid_limit = std::max<int64_t>(0, dim_size - slice_sizes[i]);
             upper_bounds_val.push_back(valid_limit);
         }
 
         int64_t indices_rank_val = normalized_indices.get_partial_shape().rank().get_length();
         Shape limits_shape(indices_rank_val, 1);
         limits_shape.back() = upper_bounds_val.size();
-        auto upper_limits_const = v0::Constant::create(element::i64, limits_shape, upper_bounds_val);
-
+        auto upper_limits_const = v0::Constant::create(indices_type, limits_shape, upper_bounds_val);
         normalized_indices = std::make_shared<v1::Minimum>(normalized_indices, upper_limits_const);
     }
 

@@ -21,15 +21,13 @@ class TestGather(JaxLayerTest):
             operand = np.random.randint(0, 10, self.operand_shape).astype(self.input_type)
 
         # Generate Indices
-        # Logic untuk CLIP (mode 1) vs PROMISE_IN_BOUNDS (mode 0)
         limit = min(self.operand_shape)
         
-        if self.mode == 1: # CLIP: Generate OOB indices untuk stress test
-            # Range index agak ekstrim: negatif s/d melebihi batas
+        if self.mode == 1: # CLIP
             start_indices = np.random.randint(-5, limit + 5, self.indices_shape).astype(np.int32)
-        elif self.mode == 2: # FILL_OR_DROP: Juga boleh OOB
+        elif self.mode == 2: # FILL_OR_DROP
             start_indices = np.random.randint(-2, limit + 2, self.indices_shape).astype(np.int32)
-        else: # PROMISE_IN_BOUNDS: Harus aman
+        else: # PROMISE_IN_BOUNDS
             # Safe limit = min_dim - max_slice_size
             max_slice = max(self.slice_sizes) if self.slice_sizes else 0
             safe_limit = limit - max_slice
@@ -76,7 +74,7 @@ class TestGather(JaxLayerTest):
         # case 2: mode 1 (CLIP) with Out-of-Bounds handling.
         dict(
             operand_shape=[10, 5],
-            indices_shape=[3, 1],
+            indices_shape=[3, 2],
             slice_sizes=(1, 1),
             dimension_numbers=lax.GatherDimensionNumbers(
                 offset_dims=(),
