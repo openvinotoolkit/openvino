@@ -359,6 +359,7 @@ KeepDequantizationPrecision::KeepDequantizationPrecision(const element::TypeVect
     auto multiply_pattern = pattern::wrap_type<v1::Multiply>({subtract_pattern, scale_reshape_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        std::cout << "start" << std::endl;
         const auto& pt_map = m.get_pattern_value_map();
         auto multiply = m.get_match_root();
 
@@ -392,9 +393,11 @@ KeepDequantizationPrecision::KeepDequantizationPrecision(const element::TypeVect
             multiply->output(0).replace(convert);
             ov::mark_as_precision_sensitive(convert->input(0));
 
+            std::cout << "end 1" << std::endl;
             return true;
         }
 
+        std::cout << "end 2" << std::endl;
         return false;
     };
 

@@ -176,17 +176,13 @@ bool node_is_replaced(const std::shared_ptr<Node>& node) {
 }
 
 static precisions_map filter_precisions_for_node(const std::shared_ptr<ov::Node>& node,
-                                                 const precisions_map& precisions,
-                                                 bool keep_sensitive_in_fp32) {
+                                                 const precisions_map& precisions) {
     precisions_map result = precisions;
     for (auto it = result.begin(); it != result.end();) {
         if (is_compression_disabled_from_to(node, it->first, it->second))
             it = result.erase(it);
         else
             ++it;
-    }
-    if (keep_sensitive_in_fp32) {  // TODO: check if correct
-        result.erase(element::f32);
     }
     return result;
 }
@@ -265,12 +261,12 @@ bool convert_function_precision(ov::pass::PassBase& pass,
     // otherwise we insert Convert operation.
     auto ops = f->get_ordered_ops();
     for (auto& node : ops) {
-        auto node_precisions = filter_precisions_for_node(node, precisions, keep_sensitive_in_fp32);
+        auto node_precisions = filter_precisions_for_node(node, precisions);
         is_changed = convert_node_input_precision(node, node_precisions, type_to_extend) || is_changed;
     }
 
     for (const auto& param : f->get_parameters()) {
-        auto node_precisions = filter_precisions_for_node(param, precisions, keep_sensitive_in_fp32);
+        auto node_precisions = filter_precisions_for_node(param, precisions);
         is_changed = fuse_type_to_parameter(param, node_precisions, convert_input_output_precision) || is_changed;
     }
 
@@ -324,7 +320,7 @@ bool convert_function_precision(ov::pass::PassBase& pass,
             node->revalidate_and_infer_types();
             continue;
         }
-        auto node_precisions = filter_precisions_for_node(node, precisions, keep_sensitive_in_fp32);
+        auto node_precisions = filter_precisions_for_node(node, precisions);
         is_output_precision_changed = convert_node_output_precision(node,
                                                                     node_precisions,
                                                                     type_to_fuse,
