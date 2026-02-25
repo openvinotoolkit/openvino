@@ -1019,8 +1019,8 @@ using SeqLenPatternParams = std::tuple<SeqLenMethod, SeqLenWrapper>;
 
 // Creates seq_len node based on method and wrapper parameters
 static std::shared_ptr<ov::Node> create_seq_len(const std::shared_ptr<ov::Node>& source,
-                                                 SeqLenMethod method,
-                                                 SeqLenWrapper wrapper) {
+                                                SeqLenMethod method,
+                                                SeqLenWrapper wrapper) {
     std::shared_ptr<ov::Node> seq_len;
     if (method == SeqLenMethod::Gather) {
         seq_len = create_gather_seq_len(source);
@@ -1278,10 +1278,8 @@ TEST_P(ConvertLSTMSeqLenPatternToTI, ConvertToTI) {
 
 INSTANTIATE_TEST_SUITE_P(DynSeqLen,
                          ConvertLSTMSeqLenPatternToTI,
-                         ::testing::Combine(::testing::Values(SeqLenMethod::Gather,
-                                                              SeqLenMethod::StridedSlice),
-                                            ::testing::Values(SeqLenWrapper::None,
-                                                              SeqLenWrapper::Tile)),
+                         ::testing::Combine(::testing::Values(SeqLenMethod::Gather, SeqLenMethod::StridedSlice),
+                                            ::testing::Values(SeqLenWrapper::None, SeqLenWrapper::Tile)),
                          ConvertLSTMSeqLenPatternToTI::getTestCaseName);
 
 // Parameterized test: is_seq_len_provided direct tests with various seq_len methods.
