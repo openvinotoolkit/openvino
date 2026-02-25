@@ -49,6 +49,7 @@ public:
     own::ade::NodeHandle getHandle() const;
     // Note: can only be used during initial group initialization
     std::shared_ptr<ov::Node> getInitialNode() const;
+    const std::unordered_set<std::shared_ptr<ov::Node>>& getInputs() const;
     const std::unordered_set<std::shared_ptr<ov::Node>>& getOutputs() const;
     void addInput(const std::shared_ptr<ov::Node>& node);
     void addOutput(const std::shared_ptr<ov::Node>& node);

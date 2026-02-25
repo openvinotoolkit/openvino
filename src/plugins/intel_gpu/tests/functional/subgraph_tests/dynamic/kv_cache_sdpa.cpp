@@ -160,7 +160,7 @@ public:
         auto compare_tensors = [&model, &inference_precision](const std::vector<ov::Tensor> expected,
                                                               const std::vector<ov::Tensor>& actual) {
             ASSERT_EQ(expected.size(), actual.size());
-            auto compareMap = ov::test::utils::getCompareMap();
+            const auto& compareMap = ov::test::utils::getCompareMap();
             for (size_t i = 0; i < expected.size(); i++) {
                 auto it = compareMap.find(ov::op::v13::ScaledDotProductAttention::get_type_info_static());
                 ASSERT_NE(it, compareMap.end());

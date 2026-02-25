@@ -29,6 +29,7 @@ void KernelData::save(cldnn::BinaryOutputBuffer& ob) const {
         microkernel->save(ob);
     }
 #endif
+    ob << params.local_memory_args;
 }
 
 void KernelData::load(cldnn::BinaryInputBuffer& ib) {
@@ -60,6 +61,7 @@ void KernelData::load(cldnn::BinaryInputBuffer& ib) {
         micro_kernels.push_back(microkernel);
     }
 #endif
+    ib >> params.local_memory_args;
 }
 
 }  // namespace ov::intel_gpu

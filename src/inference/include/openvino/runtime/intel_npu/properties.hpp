@@ -26,6 +26,48 @@ namespace ov {
 namespace intel_npu {
 
 /**
+ * @brief [Only for NPU Plugin]
+ * Type: string
+ * Type of NPU compiler to be used for compilation of a network
+ * @note Configuration API v 2.0
+ */
+enum class CompilerType { PLUGIN, DRIVER, PREFER_PLUGIN };
+
+/**
+ * @brief Prints a string representation of ov::intel_npu::CompilerType to a stream
+ * @param out An output stream to send to
+ * @param fmt A compiler type value to print to a stream
+ * @return A reference to the `out` stream
+ * @note Configuration API v 2.0
+ */
+inline std::ostream& operator<<(std::ostream& out, const CompilerType& fmt) {
+    switch (fmt) {
+    case CompilerType::PLUGIN: {
+        out << "PLUGIN";
+    } break;
+    case CompilerType::DRIVER: {
+        out << "DRIVER";
+    } break;
+    case CompilerType::PREFER_PLUGIN: {
+        out << "PREFER_PLUGIN";
+    } break;
+    default:
+        out << static_cast<uint32_t>(fmt);
+        break;
+    }
+    return out;
+}
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: Arbitrary string.
+ * This option allows to specify device.
+ * The plugin accepts any value given through this option. If the device is not available, either the driver or the
+ * compiler will throw an exception depending on the flow running at the time.
+ */
+static constexpr ov::Property<std::string> platform{"NPU_PLATFORM"};
+
+/**
  * @brief [Only for NPU plugin]
  * Type: uint64_t
  * Read-only property to get size of already allocated NPU DDR memory (both for discrete/integrated NPU devices)
@@ -52,6 +94,13 @@ static constexpr ov::Property<uint64_t, ov::PropertyMutability::RO> device_total
  * @ingroup ov_runtime_npu_prop_cpp_api
  */
 static constexpr ov::Property<uint32_t, ov::PropertyMutability::RO> driver_version{"NPU_DRIVER_VERSION"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: string
+ * Selects the type of NPU compiler to be used for compilation of a network.
+ */
+static constexpr ov::Property<CompilerType> compiler_type{"NPU_COMPILER_TYPE"};
 
 /**
  * @brief [Only for NPU plugin]
@@ -147,6 +196,24 @@ static constexpr ov::Property<bool> defer_weights_load{"NPU_DEFER_WEIGHTS_LOAD"}
  * @ingroup ov_runtime_npu_prop_cpp_api
  */
 static constexpr ov::Property<bool> run_inferences_sequentially{"NPU_RUN_INFERENCES_SEQUENTIALLY"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is false.
+ * This option allows to disable pruning of memory during idle time.
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<bool> disable_idle_memory_prunning{"NPU_DISABLE_IDLE_MEMORY_PRUNING"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: std::string, default is empty
+ * Enables custom stride support for specified input/output tensors by name. This allows working with non-contiguous
+ * memory layouts without copying data. The plugin automatically maps these names to the appropriate input/output
+ * indices for the compiler.
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<std::string> enable_strides_for("NPU_ENABLE_STRIDES_FOR");
 
 }  // namespace intel_npu
 }  // namespace ov

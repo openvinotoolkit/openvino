@@ -30,7 +30,7 @@ class TestPow(PytorchLayerTest):
     def create_model(self, inplace):
         class aten_pow(torch.nn.Module):
             def __init__(self, inplace):
-                super(aten_pow, self).__init__()
+                super().__init__()
                 if inplace:
                     self.forward = self.forward_inplace
                 else:
@@ -42,7 +42,7 @@ class TestPow(PytorchLayerTest):
             def forward_inplace(self, input_data, exponent):
                 return input_data.pow_(exponent)
 
-        return aten_pow(inplace), None, "aten::pow_" if inplace else "aten::pow"
+        return aten_pow(inplace), "aten::pow_" if inplace else "aten::pow"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -59,11 +59,11 @@ class TestPow(PytorchLayerTest):
 class TestPowMixedTypes(PytorchLayerTest):
     def _prepare_input(self):
         if len(self.lhs_shape) == 0:
-            return (torch.randn(self.rhs_shape) * 2 + 0.6).to(self.rhs_type).numpy(),
+            return (self.random.randn(*self.rhs_shape, dtype=self.rhs_type) * 2 + 0.6,)
         elif len(self.rhs_shape) == 0:
-            return (torch.randint(1, 3, self.lhs_shape).to(self.lhs_type).numpy(),)
-        return (torch.randint(1, 3, self.lhs_shape).to(self.lhs_type).numpy(),
-                (torch.randn(self.rhs_shape) * 2 + 0.6).to(self.rhs_type).numpy())
+            return (self.random.randint(1, 3, size=self.lhs_shape, dtype=self.lhs_type),)
+        return (self.random.randint(1, 3, size=self.lhs_shape, dtype=self.lhs_type),
+                self.random.randn(*self.rhs_shape, dtype=self.rhs_type) * 2 + 0.6)
 
     def create_model(self, lhs_type, lhs_shape, rhs_type, rhs_shape):
 
@@ -88,9 +88,8 @@ class TestPowMixedTypes(PytorchLayerTest):
             def forward3(self, lhs, rhs):
                 return torch.pow(lhs.to(self.lhs_type), rhs.to(self.rhs_type))
 
-        ref_net = None
 
-        return aten_pow(lhs_type, lhs_shape, rhs_type, rhs_shape), ref_net, "aten::pow"
+        return aten_pow(lhs_type, lhs_shape, rhs_type, rhs_shape), "aten::pow"
 
     @pytest.mark.parametrize(("lhs_type", "rhs_type"),
                              [[torch.int32, torch.int64],
@@ -124,7 +123,7 @@ class TestPowMixedTypes(PytorchLayerTest):
 
 class TestPowMixedTypesScalars(PytorchLayerTest):
     def _prepare_input(self):
-        return (torch.randn([1, 2, 3, 4]).numpy(),)
+        return (self.random.randn(1, 2, 3, 4),)
 
     def create_model(self):
 
@@ -132,9 +131,8 @@ class TestPowMixedTypesScalars(PytorchLayerTest):
             def forward(self, x):
                 return torch.pow(x.size(2), -0.5)
 
-        ref_net = None
 
-        return aten_pow(), ref_net, "aten::pow"
+        return aten_pow(), "aten::pow"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

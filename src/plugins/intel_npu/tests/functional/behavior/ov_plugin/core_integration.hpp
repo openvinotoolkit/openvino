@@ -383,6 +383,13 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, NpuDeviceAllocMemSizeSameAfterDestroyInf
     ov::CompiledModel compiledModel;
     auto model = createModelWithLargeSize();
 
+    //Warm up inference to initialize driver scratch buffers
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device));
+    auto inferRequest = compiledModel.create_infer_request();
+    inferRequest.infer();
+    inferRequest = {};
+    compiledModel = {};
+
     OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
                            core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
     uint64_t deviceAllocMemSize = deviceAllocMemSizeAny.as<uint64_t>();
@@ -474,7 +481,7 @@ TEST_P(OVClassBasicTestPNPU, smoke_registerPluginsLibrariesUnicodePath) {
                     ov::util::make_plugin_library_name(::ov::util::wstring_to_string(unicode_path), lib));
                 bool is_copy_successfully = ov::test::utils::copyFile(libPath, libPathNew);
                 if (!is_copy_successfully) {
-                    FAIL() << "Unable to copy from '" << libPath << "' to '" << libPathNew << "'";
+                    FAIL() << "Unable to copy from '" << libPath.c_str() << "' to '" << libPathNew.c_str() << "'";
                 }
             }
 
@@ -493,6 +500,58 @@ TEST_P(OVClassBasicTestPNPU, smoke_registerPluginsLibrariesUnicodePath) {
     }
 }
 #endif
+
+static void checkLibrariesInProcessMemoryMap(bool checkExist) {
+#ifdef __linux__
+    std::unordered_map<const char*, bool> librariesFound = {
+        /*
+        TODO: uncomment when unloading driver and loader is fixed
+        {"libnpu_driver_compiler.so", false},
+        {"libze_intel_npu.so", false},
+        {"libze_loader.so", false},
+        */
+        {"libopenvino_intel_npu_plugin.so", false},
+    };
+    std::ifstream file("/proc/self/maps");
+    std::string line;
+    while (!file.eof()) {
+        std::getline(file, line);
+        for (auto [library, _] : librariesFound) {
+            if (strstr(line.c_str(), library)) {
+                librariesFound[library] = true;
+                break;
+            }
+        }
+    }
+    for (auto [library, found] : librariesFound) {
+        if (checkExist) {
+            EXPECT_TRUE(found) << "NPU related library (" << library << ") is not loaded";
+        } else {
+            EXPECT_FALSE(found) << "NPU related library (" << library << ") is still loaded";
+        }
+    }
+#endif
+}
+
+TEST(OVClassBaseTestNPU, UnloadPlugin) {
+    auto core = ov::test::utils::PluginCache::get().core();
+    {
+        auto model = ov::test::utils::make_conv_pool_relu();
+        auto compiled_model = core->compile_model(model, ov::test::utils::DEVICE_NPU);
+        auto req = compiled_model.create_infer_request();
+        req.infer();
+    }
+
+    checkLibrariesInProcessMemoryMap(true);
+    core->unload_plugin(ov::test::utils::DEVICE_NPU);
+    checkLibrariesInProcessMemoryMap(false);
+
+    // check if Core can load the plugin again and run the inference
+    auto model = ov::test::utils::make_conv_pool_relu();
+    auto compiled_model = core->compile_model(model, ov::test::utils::DEVICE_NPU);
+    auto req = compiled_model.create_infer_request();
+    req.infer();
+}
 
 }  // namespace behavior
 }  // namespace test
