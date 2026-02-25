@@ -6,6 +6,7 @@
 
 #include "../../logging.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 
@@ -64,11 +65,14 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     auto matmul1 = opp::wrap_type<ov::op::v0::MatMul>({reshape1, weights_convert1});
     auto add1 = opp::wrap_type<ov::op::v1::Add>({matmul1, opp::any_input()});
 
-    // Activation branch: Slice -> Minimum -> Swish
+    // Activation branch: Slice -> Minimum -> Swish -> (optional AWQ Multiply)
     auto slice = opp::wrap_type<ov::op::v8::Slice>(
         {add1, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
     auto minimum = opp::wrap_type<ov::op::v1::Minimum>({slice, opp::any_input()});
     auto swish = opp::wrap_type<ov::op::v4::Swish>({minimum, opp::any_input()});
+
+    // AWQ quantization may add an optional Multiply after Swish
+    auto awq_multiply = opp::optional<ov::op::v1::Multiply>({swish, opp::any_input()});
 
     // Gate branch: Slice -> Clamp -> Add2
     auto other_slice = opp::wrap_type<ov::op::v8::Slice>(
@@ -76,8 +80,8 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     auto clamp = opp::wrap_type<ov::op::v0::Clamp>({other_slice});
     auto add2 = opp::wrap_type<ov::op::v1::Add>({clamp, opp::any_input()});
 
-    // Merge branches
-    auto multiply1 = opp::wrap_type<ov::op::v1::Multiply>({add2, swish});
+    // Merge branches - awq_multiply will be Swish if not matched, or AWQ Multiply if matched
+    auto multiply1 = opp::wrap_type<ov::op::v1::Multiply>({add2, awq_multiply});
 
     // Second MatMul (down projection) - weights path: Multiply -> Convert -> MatMul
     auto weights_multiply2 = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
@@ -103,6 +107,20 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         auto matched_slice = node_to_output.at(slice).get_node_shared_ptr();
         auto matched_minimum = node_to_output.at(minimum).get_node_shared_ptr();
         auto matched_swish = node_to_output.at(swish).get_node_shared_ptr();
+
+        // Check if optional AWQ multiply was matched
+        std::shared_ptr<ov::Node> matched_awq_multiply = nullptr;
+        if (node_to_output.count(awq_multiply) > 0) {
+            auto awq_multiply_value = node_to_output.at(awq_multiply);
+            if (awq_multiply_value.get_node_shared_ptr() != matched_swish) {
+                // AWQ multiply exists and is different from swish
+                matched_awq_multiply = awq_multiply_value.get_node_shared_ptr();
+                LOG_DEBUG("AWQ multiply detected after Swish: " << matched_awq_multiply->get_friendly_name());
+            }
+        } else {
+            LOG_DEBUG("Normal model: No AWQ multiply after Swish");
+        }
+
         auto matched_other_slice = node_to_output.at(other_slice).get_node_shared_ptr();
         auto matched_clamp = node_to_output.at(clamp).get_node_shared_ptr();
         auto matched_add2 = node_to_output.at(add2).get_node_shared_ptr();
@@ -141,6 +159,13 @@ GPTOSSExpert::GPTOSSExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         node_to_gptr->at(matched_slice)->isolate(isol_tag);
         node_to_gptr->at(matched_minimum)->isolate(isol_tag);
         node_to_gptr->at(matched_swish)->isolate(isol_tag);
+
+        // Isolate AWQ multiply if it exists
+        if (matched_awq_multiply && node_to_gptr->count(matched_awq_multiply)) {
+            node_to_gptr->at(matched_awq_multiply)->isolate(isol_tag);
+            LOG_DEBUG("AWQ multiply after Swish isolated");
+        }
+
         node_to_gptr->at(matched_other_slice)->isolate(isol_tag);
         node_to_gptr->at(matched_clamp)->isolate(isol_tag);
         node_to_gptr->at(matched_add2)->isolate(isol_tag);

@@ -52,7 +52,7 @@ jobs:
       TRANSFORMERS_VERBOSITY: debug
     steps:
       - name: Fetch custom actions
-        uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
           sparse-checkout: |
@@ -82,6 +82,7 @@ jobs:
         run: |
           echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
           echo "HUGGINGFACE_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
+          echo "PIP_INSTALL_COMMAND=python3 -m pip install" >> "$GITHUB_ENV" # Linux and MacOS only, and just for debug purposes, will be reverted, see PR #34185
 
       - name: Install OpenVINO dependencies (mac)
         if: ${{ runner.os == 'macOS' }}
@@ -114,7 +115,7 @@ jobs:
       - name: Install Python Layer tests dependencies
         run: |
           # tensorflow test requirements
-          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_tensorflow
+          ${{ env.PIP_INSTALL_COMMAND }} -r ${{ env.INSTALL_TEST_DIR }}/requirements_tensorflow
 
       - name: TensorFlow 1 Layer Tests - TF FE
         if: ${{ fromJSON(inputs.affected-components).TF_FE.test }}

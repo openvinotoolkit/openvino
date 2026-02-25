@@ -104,7 +104,7 @@ protected:
             gatherNode = std::make_shared<ov::op::v8::Gather>(params[0], params[1], params[2], batchDims);
         }
 
-        function = makeNgraphFunction(netPrecision, params, gatherNode, "GatherCPU");
+        function = create_ov_model(netPrecision, params, gatherNode, "GatherCPU");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -192,7 +192,7 @@ protected:
             ov::op::v0::Constant::create(intInputsPrecision, ov::Shape({1}), {axis}),
             batchDims);
 
-        function = makeNgraphFunction(netPrecision, params, gatherNode, "GatherCPU");
+        function = create_ov_model(netPrecision, params, gatherNode, "GatherCPU");
     }
 };
 
