@@ -251,9 +251,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
 
         std::shared_ptr<ov::Node> result;
         if (accumulate) {
-            auto zeros = generate_zeros_with_convertlike(rg, input_shape, input);
-            auto scatter = rg.make<v3::ScatterNDUpdate>(zeros, index, values);
-            result = rg.make<v1::Add>(input, scatter);
+            result = rg.make<v15::ScatterNDUpdate>(input, index, values, v15::ScatterNDUpdate::Reduction::SUM);
         } else {
             result = rg.make<v3::ScatterNDUpdate>(input, index, values);
         }

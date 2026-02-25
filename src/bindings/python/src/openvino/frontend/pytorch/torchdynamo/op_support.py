@@ -258,6 +258,7 @@ class OperatorSupport(OpSupport):
             "torch.ops.aten.upsample_nearest2d.default": None,
             "torch.ops.aten.upsample_nearest2d.vec": None,
             "torch.ops.aten.upsample_bilinear2d": None,
+            "torch.ops.aten.upsample_bilinear2d.vec": None,
             "torch.ops.aten.upsample_nearest3d.vec": None,
             "torch.ops.aten.var.correction": None,
             "torch.ops.aten.var_mean.correction": None,
