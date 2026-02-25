@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -150,11 +150,13 @@ details::OptionValue::~OptionValue() = default;
 //
 
 details::OptionConcept OptionsDesc::get(std::string_view key, OptionMode mode) const {
+    auto log = Logger::global().clone("OptionsDesc");
+
     std::string searchKey{key};
     const auto itDeprecated = _deprecated.find(std::string(key));
     if (itDeprecated != _deprecated.end()) {
         searchKey = itDeprecated->second;
-        _log.warning("Deprecated option '%s' was used, '%s' should be used instead", key.data(), searchKey.c_str());
+        log.warning("Deprecated option '%s' was used, '%s' should be used instead", key.data(), searchKey.c_str());
     }
 
     const auto itMain = _impl.find(searchKey);
@@ -167,10 +169,10 @@ details::OptionConcept OptionsDesc::get(std::string_view key, OptionMode mode) c
 
     if (mode == OptionMode::RunTime) {
         if (desc.mode() == OptionMode::CompileTime) {
-            _log.warning("%s option '%s' was used in %s mode",
-                         stringifyEnum(desc.mode()).data(),
-                         key.data(),
-                         stringifyEnum(mode).data());
+            log.warning("%s option '%s' was used in %s mode",
+                        stringifyEnum(desc.mode()).data(),
+                        key.data(),
+                        stringifyEnum(mode).data());
         }
     }
 
@@ -200,7 +202,7 @@ std::vector<std::string> OptionsDesc::getSupported(bool includePrivate) const {
 
     for (const auto& p : _impl) {
         if (p.second.isPublic() || includePrivate) {
-            res.push_back(p.first.data());
+            res.push_back(p.first);
         }
     }
 
@@ -213,7 +215,7 @@ std::vector<ov::PropertyName> OptionsDesc::getSupportedOptions(bool includePriva
 
     for (const auto& p : _impl) {
         if (p.second.isPublic() || includePrivate) {
-            res.push_back({p.first.data(), p.second.mutability()});
+            res.push_back({p.first, p.second.mutability()});
         }
     }
 
@@ -248,13 +250,15 @@ Config::Config(const std::shared_ptr<const OptionsDesc>& desc) : _desc(desc) {
 }
 
 void Config::parseEnvVars() {
+    auto log = Logger::global().clone("Config");
+
     _desc->walk([&](const details::OptionConcept& opt) {
         if (!opt.envVar().empty()) {
             if (const auto envVar = std::getenv(opt.envVar().data())) {
-                _log.trace("Update option '%s' to value '%s' parsed from environment variable '%s'",
-                           opt.key().data(),
-                           envVar,
-                           opt.envVar().data());
+                log.trace("Update option '%s' to value '%s' parsed from environment variable '%s'",
+                          opt.key().data(),
+                          envVar,
+                          opt.envVar().data());
 
                 _impl[opt.key().data()] = opt.validateAndParse(envVar);
             }
@@ -267,8 +271,10 @@ bool Config::has(std::string key) const {
 }
 
 void Config::update(const ConfigMap& options, OptionMode mode) {
+    auto log = Logger::global().clone("Config");
+
     for (const auto& p : options) {
-        _log.trace("Update option '%s' to value '%s'", p.first.c_str(), p.second.c_str());
+        log.trace("Update option '%s' to value '%s'", p.first.c_str(), p.second.c_str());
 
         const auto opt = _desc->get(p.first, mode);
         _impl[opt.key().data()] = opt.validateAndParse(p.second);

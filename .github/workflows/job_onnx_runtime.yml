@@ -57,7 +57,7 @@ jobs:
           echo "✓ Connection string loaded and masked"
 
       - name: Fetch ONNX runtime version and skip tests list
-        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
           sparse-checkout: |
@@ -71,7 +71,7 @@ jobs:
         working-directory: ${{ env.ONNX_RUNTIME_UTILS }}
 
       - name: Clone ONNX Runtime
-        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
           repository: 'microsoft/onnxruntime'

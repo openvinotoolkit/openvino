@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -8,29 +8,31 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestGroupNorm(PytorchLayerTest):
     def _prepare_input(self, ndim=4):
+        import numpy as np
         shape5d = [20, 6, 10, 10, 10]
         shape = shape5d[:ndim]
-        return (self.random.randn(*shape),)
+        return (np.random.randn(*shape).astype(np.float32),)
 
     def create_model(self, n_groups, weights_shape=None, bias=False, eps=1e-05):
         import torch
         import torch.nn.functional as F
 
         class aten_group_norm(torch.nn.Module):
-            def __init__(self, rng, n_groups, weights_shape=None, bias=True, eps=1e-05):
-                super().__init__()
-                self.weight = rng.torch_randn(*weights_shape) if weights_shape else None
+            def __init__(self, n_groups, weights_shape=None, bias=True, eps=1e-05):
+                super(aten_group_norm, self).__init__()
+                self.weight = torch.randn(weights_shape) if weights_shape else None
                 self.bias = None
                 if bias:
-                    self.bias = rng.torch_randn(*weights_shape)
+                    self.bias = torch.randn(weights_shape)
                 self.n_groups = n_groups
                 self.eps = eps
 
             def forward(self, x):
                 return F.group_norm(x, self.n_groups, self.weight, self.bias, self.eps)
 
+        ref_net = None
 
-        return aten_group_norm(self.random, n_groups, weights_shape, bias, eps), "aten::group_norm"
+        return aten_group_norm(n_groups, weights_shape, bias, eps), ref_net, "aten::group_norm"
 
     @pytest.mark.parametrize("params",
                              [

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -8,14 +8,16 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestSqueeze(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(1, 1, 32),)
+        import numpy as np
+
+        return (np.random.randn(1, 1, 32).astype(np.float32),)
 
     def create_model(self, dim):
         import torch
 
         class aten_squeeze(torch.nn.Module):
             def __init__(self, dim):
-                super().__init__()
+                super(aten_squeeze, self).__init__()
                 self.dim = dim
 
             def forward(self, x):
@@ -23,7 +25,9 @@ class TestSqueeze(PytorchLayerTest):
                     return torch.squeeze(x, self.dim)
                 return torch.squeeze(x)
 
-        return aten_squeeze(dim), "aten::squeeze"
+        ref_net = None
+
+        return aten_squeeze(dim), ref_net, "aten::squeeze"
 
     @pytest.mark.parametrize("dim,dynamic_shapes", [(-2, True), (0, True), (None, False)])
     @pytest.mark.nightly
@@ -45,14 +49,16 @@ class TestSqueeze(PytorchLayerTest):
 
 class TestSqueezeCopy(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(1, 1, 32),)
+        import numpy as np
+
+        return (np.random.randn(1, 1, 32).astype(np.float32),)
 
     def create_model(self, dim):
         import torch
 
         class aten_squeeze_copy(torch.nn.Module):
             def __init__(self, dim):
-                super().__init__()
+                super(aten_squeeze_copy, self).__init__()
                 self.dim = dim
 
             def forward(self, x):
@@ -60,7 +66,9 @@ class TestSqueezeCopy(PytorchLayerTest):
                     return torch.squeeze_copy(x, self.dim)
                 return torch.squeeze_copy(x)
 
-        return aten_squeeze_copy(dim), "aten::squeeze_copy"
+        ref_net = None
+
+        return aten_squeeze_copy(dim), ref_net, "aten::squeeze_copy"
 
     @pytest.mark.parametrize("dim,dynamic_shapes", [(-2, True), (0, True), (None, False)])
     @pytest.mark.precommit_fx_backend

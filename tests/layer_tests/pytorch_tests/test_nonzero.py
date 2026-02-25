@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -14,7 +14,7 @@ class TestNonZero(PytorchLayerTest):
         if mask_fill == 'ones':
             mask = np.ones(input_shape).astype(mask_dtype)
         if mask_fill == 'random':
-            idx = self.random.choice(10, 5)
+            idx = np.random.choice(10, 5)
             mask[:, idx, 1] = 1
         return (mask,)
 
@@ -31,10 +31,11 @@ class TestNonZero(PytorchLayerTest):
             def forward(self, cond):
                 return torch.nonzero(cond, as_tuple=True)
 
+        ref_net = None
 
         if not as_tuple:
-            return aten_nonzero(), "aten::nonzero"
-        return aten_nonzero_numpy(), "aten::nonzero_numpy"
+            return aten_nonzero(), ref_net, "aten::nonzero"
+        return aten_nonzero_numpy(), ref_net, "aten::nonzero_numpy"
 
     @pytest.mark.parametrize(
         "mask_fill", ['zeros', 'ones', 'random'])  # np.float32 incorrectly casted to bool

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ ov::OutputVector crop(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
     const auto& input_data = inputs.at(0);
 
-    // Spec defines four borders (left, top, right, bottom); when scale is present only left/top are used.
+    // Border values: leftBorder, topBorder, rightBorder, bottomBorder.
     const auto border = node.get_attribute_value<std::vector<std::int64_t>>("border");
 
     std::shared_ptr<ov::Node> end;
@@ -35,10 +35,6 @@ ov::OutputVector crop(const ov::frontend::onnx::Node& node) {
     // If scale is given, then start crop at left/top `border`
     // and end on left/top `border` + `scale`.
     if (node.has_attribute("scale")) {
-        CHECK_VALID_NODE(node,
-                         border.size() >= 2,
-                         "ONNX Crop with 'scale' expects at least 2 values in 'border' attribute, found: ",
-                         border.size());
         // List of ints height, width
         const auto scale = node.get_attribute_value<std::vector<std::int64_t>>("scale");
 
@@ -57,8 +53,9 @@ ov::OutputVector crop(const ov::frontend::onnx::Node& node) {
     else {
         CHECK_VALID_NODE(node,
                          border.size() == 4,
-                         "ONNX Crop without 'scale' expects 4 values in 'border' attribute, found: ",
+                         "ONNX Crop expects 4 values in 'border' attribute, found: ",
                          border.size());
+
         // Calculate ends as shape(input) - border[2:3]
         const auto input_shape = std::make_shared<v3::ShapeOf>(input_data);
         const auto end_offset = v0::Constant::create(ov::element::i64,

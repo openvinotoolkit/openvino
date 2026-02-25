@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -63,7 +63,7 @@ with open(supported_ops_doc, 'rt') as src:
         if line.count('|') == 6:
             table_line += 1
         if table_line > 2:
-            row = [cell.strip() for cell in line.split('|')] # Split line by "|" delimiter and remove spaces
+            row = [cell.strip() for cell in line.split('|')] # Split line by "|" delimeter and remove spaces
             domain = row[1]
             if not domain in ops:
                 ops[domain] = {}

@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
 #include <napi.h>
 
-#include <filesystem>
 #include <unordered_set>
 #include <variant>
 
@@ -70,10 +69,6 @@ ov::Shape js_to_cpp<ov::Shape>(const Napi::CallbackInfo& info, const size_t idx)
 template <>
 ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(const Napi::CallbackInfo& info,
                                                                            const size_t idx);
-
-/** @brief  A template specialization for TargetType std::filesystem::path */
-template <>
-std::filesystem::path js_to_cpp<std::filesystem::path>(const Napi::CallbackInfo& info, const size_t idx);
 
 /** @brief  A template specialization for TargetType ov::Any */
 template <>

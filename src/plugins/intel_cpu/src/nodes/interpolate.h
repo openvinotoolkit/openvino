@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,10 +114,7 @@ private:
                                 VectorDims dstDims,
                                 const std::vector<float>& dataScales);
 
-        virtual void exec(const uint8_t* in_ptr_,
-                          uint8_t* out_ptr_,
-                          const void* post_ops_data_,
-                          const CpuParallelPtr& cpu_parallel) = 0;
+        virtual void exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) = 0;
         virtual ~InterpolateExecutorBase() = default;
         [[nodiscard]] VectorDims getSrcDimPad5d() const {
             return srcDimPad5d;
@@ -187,10 +184,7 @@ private:
                                const std::vector<float>& dataScales,
                                const dnnl::primitive_attr& attr);
 
-        void exec(const uint8_t* in_ptr_,
-                  uint8_t* out_ptr_,
-                  const void* post_ops_data_,
-                  const CpuParallelPtr& cpu_parallel) override;
+        void exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) override;
 
     private:
         // nearest neighbor
@@ -204,8 +198,7 @@ private:
                       int IW,
                       int OD,
                       int OH,
-                      int OW,
-                      const CpuParallelPtr& cpu_parallel);
+                      int OW);
         void NNCGathered(const uint8_t* in_ptr_,
                          uint8_t* out_ptr_,
                          const void* post_ops_data_,
@@ -216,8 +209,7 @@ private:
                          int IW,
                          int OD,
                          int OH,
-                         int OW,
-                         const CpuParallelPtr& cpu_parallel);
+                         int OW);
 
         // onnx linear
         void linearOnnxPlanar(const uint8_t* in_ptr_,
@@ -230,8 +222,7 @@ private:
                               int IW,
                               int OD,
                               int OH,
-                              int OW,
-                              const CpuParallelPtr& cpu_parallel);
+                              int OW);
         void linearOnnxCGathered(const uint8_t* in_ptr_,
                                  uint8_t* out_ptr_,
                                  const void* post_ops_data_,
@@ -242,8 +233,7 @@ private:
                                  int IW,
                                  int OD,
                                  int OH,
-                                 int OW,
-                                 const CpuParallelPtr& cpu_parallel);
+                                 int OW);
 
         // cubic
         void cubicPlanar(const uint8_t* in_ptr_,
@@ -254,8 +244,7 @@ private:
                          int IH,
                          int IW,
                          int OH,
-                         int OW,
-                         const CpuParallelPtr& cpu_parallel);
+                         int OW);
         void cubicCGathered(const uint8_t* in_ptr_,
                             uint8_t* out_ptr_,
                             const void* post_ops_data_,
@@ -264,8 +253,7 @@ private:
                             int IH,
                             int IW,
                             int OH,
-                            int OW,
-                            const CpuParallelPtr& cpu_parallel);
+                            int OW);
 
         // pillow bilinear and pillow bicubic
         void pillowCGathered(const uint8_t* in_ptr_,
@@ -292,23 +280,11 @@ private:
               dataScales(_dataScales),
               refInterpAttrs(interpAttrs) {}
 
-        void exec(const uint8_t* in_ptr_,
-                  uint8_t* out_ptr_,
-                  const void* post_ops_data_,
-                  const CpuParallelPtr& cpu_parallel) override;
+        void exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) override;
 
     private:
-        void NNRef(const uint8_t* in_ptr_,
-                   uint8_t* out_ptr_,
-                   int B,
-                   int C,
-                   int ID,
-                   int IH,
-                   int IW,
-                   int OD,
-                   int OH,
-                   int OW,
-                   const CpuParallelPtr& cpu_parallel);
+        void
+        NNRef(const uint8_t* in_ptr_, uint8_t* out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
         void linearOnnxRef(const uint8_t* in_ptr_,
                            uint8_t* out_ptr_,
                            int B,
@@ -318,18 +294,9 @@ private:
                            int IW,
                            int OD,
                            int OH,
-                           int OW,
-                           const CpuParallelPtr& cpu_parallel);
+                           int OW);
 
-        void cubicRef(const uint8_t* in_ptr_,
-                      uint8_t* out_ptr_,
-                      int B,
-                      int C,
-                      int IH,
-                      int IW,
-                      int OH,
-                      int OW,
-                      const CpuParallelPtr& cpu_parallel);
+        void cubicRef(const uint8_t* in_ptr_, uint8_t* out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
         void linearInterpolation(const uint8_t* in_ptr_,
                                  uint8_t* out_ptr_,
                                  int B,
@@ -344,8 +311,7 @@ private:
                                  int OH,
                                  int OW,
                                  int kernel_width,
-                                 bool antialias,
-                                 const CpuParallelPtr& cpu_parallel);
+                                 bool antialias);
         void pillowRef(const uint8_t* in_ptr_, uint8_t* out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
         void
         pillowRefNCHWAsNHWC(const uint8_t* in_ptr_, uint8_t* out_ptr_, int B, int C, int IH, int IW, int OH, int OW);

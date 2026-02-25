@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,6 @@ public:
     OPENVINO_OP("HorizonSum", "SnippetsOpset");
 
     explicit HorizonSum(const Output<Node>& x);
-    explicit HorizonSum(const OutputVector& x);
     HorizonSum() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

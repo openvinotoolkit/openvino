@@ -1,13 +1,10 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <array>
 #include <cstddef>
-#include <memory>
 #include <vector>
-
-#include "cpu_parallel.hpp"
 
 namespace ov::Extensions::Cpu {
 
@@ -46,8 +43,7 @@ void proposal_exec(const float* input0,
                    int* roi_indices,
                    float* output0,
                    float* output1,
-                   proposal_conf& conf,
-                   const ov::intel_cpu::CpuParallelPtr& cpu_parallel);
+                   proposal_conf& conf);
 
 }  // namespace XARCH
 }  // namespace ov::Extensions::Cpu

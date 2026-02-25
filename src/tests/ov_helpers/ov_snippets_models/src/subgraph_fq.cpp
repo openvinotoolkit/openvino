@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 #include "common_test_utils/data_utils.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "openvino/opsets/opset1.hpp"
-#include "snippets/op/result.hpp"
 #include <snippets/op/subgraph.hpp>
 
 namespace ov {
@@ -69,10 +68,9 @@ std::shared_ptr<ov::Model> ThreeFQFunction::initReference() const {
                                                                               std::vector<float>{255},
                                                                               ov::element::u8);
     auto fq2 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(fq1, ov::element::f32, fq2_data);
-    const auto snippets_result = std::make_shared<ov::snippets::op::Result>(fq2);
     auto subgraph1 = std::make_shared<ov::snippets::op::Subgraph>(
         OutputVector{data0},
-        std::make_shared<ov::Model>(OutputVector{snippets_result}, ParameterVector{indata0}));
+        std::make_shared<ov::Model>(OutputVector{fq2}, ParameterVector{indata0}));
 
     return std::make_shared<ov::Model>(OutputVector{subgraph1}, ParameterVector{data0});
 }

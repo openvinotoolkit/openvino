@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -141,11 +141,11 @@ public:
                             const ov::AnyMap& config);
 
     CPUInfo getCPUInfo() const;
-    std::shared_ptr<ov::Model> create_ov_model(const ov::element::Type& ngPrc,
-                                               ov::ParameterVector& params,
-                                               const std::shared_ptr<ov::Node>& lastNode,
-                                               std::string name,
-                                               const QuantizationInfo& qinfo = {});
+    std::shared_ptr<ov::Model> makeNgraphFunction(const ov::element::Type& ngPrc,
+                                                  ov::ParameterVector& params,
+                                                  const std::shared_ptr<ov::Node>& lastNode,
+                                                  std::string name,
+                                                  const QuantizationInfo& qinfo = {});
 
     void CheckPluginRelatedResults(const ov::CompiledModel& execNet, const std::set<std::string>& nodeType) const;
     void CheckPluginRelatedResults(const ov::CompiledModel& execNet, const std::string& nodeType) const;

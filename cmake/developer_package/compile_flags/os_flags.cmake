@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -143,7 +143,13 @@ elseif(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
     #
     # Warnings as errors
     #
+
     ov_add_compiler_flags(/WX)
+
+    #
+    # Disable noisy warnings
+    #
+    ov_disable_deprecated_warnings()
 else()
     #
     # Common enabled warnings
@@ -183,6 +189,7 @@ else()
 
     if(OV_COMPILER_IS_INTEL_LLVM)
         ov_add_compiler_flags(-Wno-tautological-constant-compare)
+        ov_disable_deprecated_warnings()
     endif()
 
     #

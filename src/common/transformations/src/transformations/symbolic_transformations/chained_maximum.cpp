@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,9 +13,7 @@
 
 using namespace ov::symbol::util;
 
-namespace ov::pass {
-
-ChainedMaximumOptimization::ChainedMaximumOptimization() {
+ov::pass::ChainedMaximumOptimization::ChainedMaximumOptimization() {
     MATCHER_SCOPE(ChainedMaximumOptimization);
     auto A_input = pattern::any_input();
     auto B_input = pattern::any_input();
@@ -50,5 +48,3 @@ ChainedMaximumOptimization::ChainedMaximumOptimization() {
     auto m = std::make_shared<pattern::Matcher>(maximum, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
-
-}  // namespace ov::pass

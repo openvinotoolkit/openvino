@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "cache/multi_cache.h"
 #include "emitters/snippets/aarch64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/aarch64/kernel_executors/gemm.hpp"
 #include "emitters/snippets/brgemm_generic.hpp"
@@ -17,8 +16,7 @@ public:
     jit_gemm_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
                      dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                      const ov::snippets::lowered::ExpressionPtr& expr,
-                     const snippets::KernelExecutorTablePtr& kernel_table,
-                     const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache);
+                     const snippets::KernelExecutorTablePtr& kernel_table);
 
     size_t get_inputs_count() const override {
         return 2;
@@ -37,10 +35,6 @@ protected:
     std::vector<size_t> m_memory_offsets;
     std::vector<size_t> m_buffer_ids;
     bool m_is_f16 = false;
-
-#ifdef SNIPPETS_DEBUG_CAPS
-    friend std::string init_info_jit_gemm_emitter(const jit_gemm_emitter* emitter);
-#endif
 };
 
 }  // namespace ov::intel_cpu::aarch64

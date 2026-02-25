@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -92,7 +92,7 @@ const std::vector<ov::Shape> input_shapes = {{{1, 2, 3, 2, 4}}};
 const std::vector<ov::element::Type> input_prec = {ov::element::f16};
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_ReduceSumSqueezeTest,
+    Smoke_ReduceSumSqueezeTest,
     ReduceSumSqueezeTest,
     ::testing::Combine(::testing::ValuesIn(input_shapes),
                        ::testing::ValuesIn(input_prec),

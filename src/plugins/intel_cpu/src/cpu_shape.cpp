@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,12 +6,11 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <sstream>
 #include <string>
-#include <vector>
 
 #include "cpu_types.h"
 #include "openvino/core/except.hpp"
-#include "openvino/util/common_util.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
@@ -41,16 +40,20 @@ bool Shape::isCompatible(const VectorDims& vecDims) const {
 }
 
 std::string Shape::toString() const {
-    std::vector<std::string> dimStrings;
-    dimStrings.reserve(dims.size());
-    for (size_t i = 0; i < dims.size(); ++i) {
+    std::stringstream output;
+    output << "{";
+
+    size_t i = 0;
+    do {
         if (dims[i] == Shape::UNDEFINED_DIM) {
-            dimStrings.emplace_back(dim2str(minDims[i]) + " - " + dim2str(maxDims[i]));
+            output << dim2str(minDims[i]) << " - " << dim2str(maxDims[i]);
         } else {
-            dimStrings.emplace_back(std::to_string(dims[i]));
+            output << dims[i];
         }
-    }
-    return "{" + ov::util::join(dimStrings) + "}";
+    } while (++i < dims.size() && output << ", ");
+
+    output << "}";
+    return output.str();
 }
 
 Shape mergeShapes(const Shape& lhs, const Shape& rhs) {

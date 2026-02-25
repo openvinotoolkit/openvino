@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 #include <transformations/snippets/common/shape_inference.hpp>
 #include <transformations/snippets/common/op/fused_mul_add.hpp>
 #include <transformations/snippets/common/shape_inference.hpp>
-#include "snippets/op/result.hpp"
 #include "snippets/op/scalar.hpp"
 #include "lowering_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -79,8 +78,7 @@ protected:
         auto c = scalar_input || add_input_idx == 0 ? data2 : data0;
 
         auto fma = std::make_shared<ov::intel_cpu::FusedMulAdd>(a, b, c);
-        auto snippets_result = std::make_shared<ov::snippets::op::Result>(fma);
-        return std::make_shared<ov::Model>(OutputVector{snippets_result}, parameters);
+        return std::make_shared<ov::Model>(OutputVector{fma}, parameters);
     }
 
     void validate_function(const std::shared_ptr<Model> &m) const override {

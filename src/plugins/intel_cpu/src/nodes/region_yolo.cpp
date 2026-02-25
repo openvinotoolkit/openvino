@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -483,8 +483,7 @@ void RegionYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
                                     1,
                                     classes,
                                     IH,
-                                    IW,
-                                    context->getCpuParallel());
+                                    IW);
         }
     }
 }

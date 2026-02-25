@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,8 @@ struct fully_connected_onednn : typed_primitive_onednn_impl<fully_connected> {
     using parent::parent;
     static constexpr int COMMON = 0;
     static constexpr int PER_OC = 2;
+    static constexpr int PER_TENSOR = 7;
+    static constexpr int GROUPED = 3;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::fully_connected_onednn)
 
@@ -29,6 +31,14 @@ private:
     int _ds_group_size;
     dnnl::memory::data_type _ds_data_type;
     dnnl::memory::data_type _dzp_data_type;
+
+    static std::vector<int64_t> reshape_to_2d(const ov::PartialShape& shape, int64_t feature) {
+        auto staticShape = shape.to_shape();
+        size_t total =
+            std::accumulate(staticShape.begin(), staticShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+        std::vector<int64_t> reshapeSize = { static_cast<int64_t>(total) / feature, feature };
+        return reshapeSize;
+    }
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
@@ -94,6 +104,34 @@ protected:
         }
 
         return args;
+    }
+
+    static void transform_layouts(layout& input_layout, layout& weights_layout, layout& output_layout, size_t prim_input_size) {
+        auto input_pshape = input_layout.get_partial_shape();
+        auto weights_pshape = weights_layout.get_partial_shape();
+
+        size_t input_size = (prim_input_size > input_pshape.size()) ? input_pshape.size() : prim_input_size;
+        int64_t feature = input_pshape[std::min(input_size, static_cast<size_t>(4)) - 1].get_length();
+        if (input_size == 3) {
+            feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
+        }
+
+        if (input_size > 3) {
+            input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
+        }
+        if (weights_pshape.size() != 2) {
+            weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
+        }
+        if (input_size == 3) {
+            output_layout.set_partial_shape({ input_layout.batch(), input_layout.feature(), weights_layout.batch(), 1 });
+        } else {
+            output_layout.set_partial_shape({ input_layout.batch(), weights_layout.batch() });
+        }
+
+        if (input_size == 3) {
+            combine_bf_with_first_spatial_dim(input_layout);
+            combine_bf_with_first_spatial_dim(output_layout);
+        }
     }
 
     static std::shared_ptr<dnnl::matmul::primitive_desc>
@@ -267,7 +305,7 @@ public:
         auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();
         int idx = !arg.bias_term() ? 1 : 2;
         int per_oc = PER_OC << shift_size;
-        int grouped = (1 << prim->input_size) - 1;
+        int grouped = GROUPED | (1 << (prim->input_size - 1));
 
         bool has_decompression_scale = prim->decompression_scale.is_valid();
         if (has_decompression_scale) {
@@ -365,7 +403,7 @@ public:
             OPENVINO_ASSERT(weight_rank <= 3, "Currently only weights with equal to or less than 3D is supported");
             auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
             int per_oc = PER_OC << shift_size;
-            int grouped = (1 << prim->input_size) - 1;
+            int grouped = GROUPED | (1 << (prim->input_size - 1));
 
             if (prim->decompression_scale.is_valid()) {
                 auto decompression_scale_idx = ++idx;
@@ -397,12 +435,9 @@ public:
                 if (dzp_layout.count() == 1) {
                     attr->set_zero_points(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, dzp_data_type);
                 } else {
-                    auto dzp_shape = dzp_layout.get_partial_shape();
-                    auto dzp_rank = std::count_if(dzp_shape.begin(), dzp_shape.end(), [](ov::Dimension d) { return d.get_length() > 1; });
-                    dzp_rank = std::max(static_cast<int64_t>(2), dzp_rank);
-
-                    auto ngroups = dzp_layout.get_dim(dzp_rank - 1);
-                    if (ngroups == 1 && dzp_rank <= 2) {
+                    size_t rank = dzp_layout.get_partial_shape().size();
+                    auto ngroups = dzp_layout.get_dim(rank - 1);
+                    if (ngroups == 1 && rank <= 2) {
                         attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
                     } else {
                         // should use {K, 1} for the group size + per tensor mask for 3d

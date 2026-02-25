@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 #include "common_test_utils/common_utils.hpp"
 #include "snippets/lowered/pass/optimize_domain.hpp"
 #include "snippets/lowered/pass/pass.hpp"
-#include "snippets/op/result.hpp"
 #include "lowered/pass/optimize_domain.hpp"
 #include "subgraph_simple.hpp"
 #include "lowering_utils.hpp"
@@ -54,7 +53,7 @@ void OptimizeDomainTest::SetUp() {
     auto param1 = m_linear_ir->push_node<ov::op::v0::Parameter>(precision, m_domain_opt_params.input_shapes[0]);
     auto param2 = m_linear_ir->push_node<ov::op::v0::Parameter>(precision, m_domain_opt_params.input_shapes[1]);
     auto add = m_linear_ir->push_node<ov::op::v1::Add>(param1.second, param2.second);
-    auto result = m_linear_ir->push_node<ov::snippets::op::Result>(add.second);
+    auto result = m_linear_ir->push_node<ov::op::v0::Result>(add.second);
 }
 
 TEST_P(OptimizeDomainTest, DomainOptimization) {

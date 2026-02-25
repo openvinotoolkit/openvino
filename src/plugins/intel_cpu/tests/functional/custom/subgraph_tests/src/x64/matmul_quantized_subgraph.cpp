@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -97,7 +97,7 @@ protected:
         // only matmul avx2 support s8*s8 input
         auto matMul2 = std::make_shared<ov::op::v0::MatMul>(nodeBeforeConv, fq3, false, false);
 
-        function = create_ov_model(ngPrec, inputParams, matMul2, "MatmulBrgemmInt8");
+        function = makeNgraphFunction(ngPrec, inputParams, matMul2, "MatmulBrgemmInt8");
     }
 
     void check_node(std::shared_ptr<const ov::Model> function, const std::string& nodeName) {

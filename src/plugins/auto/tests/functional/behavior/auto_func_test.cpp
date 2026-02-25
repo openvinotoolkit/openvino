@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,12 @@
 #include "openvino/util/shared_object.hpp"
 
 namespace {
+
+std::string get_mock_engine_path() {
+    std::string mockEngineName("mock_engine");
+    return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                              mockEngineName + OV_BUILD_POSTFIX);
+}
 
 template <class T>
 std::function<T> make_std_function(const std::shared_ptr<void> so, const std::string& functionName) {
@@ -613,10 +619,9 @@ void ov::auto_plugin::tests::AutoFuncTests::reg_plugin(ov::Core& core,
                                                        std::shared_ptr<ov::IPlugin>& plugin,
                                                        const std::string& device_name,
                                                        const ov::AnyMap& properties) {
-    if (!m_so) {
-        const auto libraryPath = ov::test::utils::get_mock_engine_path();
-        m_so = ov::util::load_shared_object(libraryPath);
-    }
+    std::string libraryPath = get_mock_engine_path();
+    if (!m_so)
+        m_so = ov::util::load_shared_object(libraryPath.c_str());
     plugin->set_device_name(device_name);
     std::function<void(ov::IPlugin*)> injectProxyEngine = make_std_function<void(ov::IPlugin*)>(m_so, "InjectPlugin");
 

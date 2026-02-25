@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,9 +13,6 @@ namespace snippets {
 namespace {
 
 const std::vector<InputShape> inputShape = {
-    {{}, {{1, 3, 128, 1}}},
-    {{}, {{1, 3, 128, 7}}},
-    {{}, {{1, 3, 128, 9}}},
     {{}, {{1, 3, 128, 128}}},
     {{}, {{1, 3, 128, 15}}},
     {{}, {{1, 3, 15, 16}}},

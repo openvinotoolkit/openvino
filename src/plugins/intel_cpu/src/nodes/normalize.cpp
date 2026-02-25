@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,6 @@
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
-#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "eltwise.h"
@@ -44,6 +43,7 @@
 #include "openvino/core/enum_names.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -1029,7 +1029,7 @@ void NormalizeL2::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     const auto* src_ptr = getSrcDataAtPortAs<const uint8_t>(DATA);
     auto* dst_ptr = getDstDataAtPortAs<uint8_t>(DATA);
-    execPtr->exec(src_ptr, dst_ptr, context->getCpuParallel(), postOpsDataPtrs.data());
+    execPtr->exec(src_ptr, dst_ptr, postOpsDataPtrs.data());
 }
 
 // *====================* CornerCase *===================*
@@ -1040,22 +1040,18 @@ public:
     explicit NormalizeL2CornerCaseExecutor(const VectorDims& dims)
         : workAmount(std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<>())) {}
 
-    void exec(const uint8_t* src_ptr,
-              uint8_t* dst_ptr,
-              const CpuParallelPtr& cpu_parallel,
-              [[maybe_unused]] const void** post_ops_data) override {
-        normalize(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr), cpu_parallel);
+    void exec(const uint8_t* src_ptr, uint8_t* dst_ptr, [[maybe_unused]] const void** post_ops_data) override {
+        normalize(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr));
     }
 
 private:
-    void normalize(const in_data_t* src_data, out_data_t* dst_data, const CpuParallelPtr& cpu_parallel) {
-        cpu_parallel->parallel_for(workAmount, [&](size_t i) {
+    void normalize(const in_data_t* src_data, out_data_t* dst_data) {
+        parallel_for(workAmount, [&](size_t i) {
             dst_data[i] = src_data[i] == 0 ? 0 : 1;
         });
     }
 
     size_t workAmount = 0LU;
-    std::shared_ptr<CpuParallel> cpu_parallel;
 };
 
 // *=================* *======* *=================*
@@ -1116,33 +1112,24 @@ public:
         }
     }
 
-    void exec(const uint8_t* src_ptr,
-              uint8_t* dst_ptr,
-              const CpuParallelPtr& cpu_parallel,
-              const void** post_ops_data) override {
+    void exec(const uint8_t* src_ptr, uint8_t* dst_ptr, const void** post_ops_data) override {
         if (jcp.is_nchw) {
             normalize_nchw(reinterpret_cast<const in_data_t*>(src_ptr),
                            reinterpret_cast<out_data_t*>(dst_ptr),
-                           post_ops_data,
-                           cpu_parallel);
+                           post_ops_data);
         } else if (jcp.is_nhwc) {
             normalize_nhwc(reinterpret_cast<const in_data_t*>(src_ptr),
                            reinterpret_cast<out_data_t*>(dst_ptr),
-                           post_ops_data,
-                           cpu_parallel);
+                           post_ops_data);
         } else if (jcp.is_blk) {
             normalize_blk(reinterpret_cast<const in_data_t*>(src_ptr),
                           reinterpret_cast<out_data_t*>(dst_ptr),
-                          post_ops_data,
-                          cpu_parallel);
+                          post_ops_data);
         }
     }
 
 private:
-    void normalize_nchw(const in_data_t* src_data,
-                        out_data_t* dst_data,
-                        const void** post_ops_data,
-                        const CpuParallelPtr& cpu_parallel) {
+    void normalize_nchw(const in_data_t* src_data, out_data_t* dst_data, const void** post_ops_data) {
         const size_t spatial_dims = jcp.h * jcp.w;
         for (size_t b = 0LU; b < jcp.n; b++) {
             const in_data_t* src_data_b = src_data + b * jcp.c * spatial_dims;
@@ -1151,7 +1138,7 @@ private:
                 // modulo
                 float addition_identity = 0.0F;
                 float modulo = 0.0F;
-                modulo = cpu_parallel->parallel_sum(jcp.c, addition_identity, [&](int ic) -> float {
+                modulo = parallel_sum(jcp.c, addition_identity, [&](int ic) -> float {
                     const in_data_t* src_data_bc = src_data_b + ic * spatial_dims;
                     float modulo_kernel = 0.0F;
                     float modulo_tail = 0.0F;
@@ -1176,7 +1163,7 @@ private:
                 float modulo_inv = 1.0F / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                 // normalize
-                cpu_parallel->parallel_for(jcp.c, [&](size_t ic) {
+                parallel_for(jcp.c, [&](size_t ic) {
                     const in_data_t* src_data_bc = src_data_b + ic * spatial_dims;
                     out_data_t* dst_data_bc = dst_data_b + ic * spatial_dims;
                     auto arg = jit_normalize_call_args();
@@ -1192,7 +1179,7 @@ private:
                 // moduloM
                 std::vector<float> moduloM(spatial_dims, 0.F);
                 size_t blocks_num = div_up(spatial_dims, blk_size);
-                cpu_parallel->parallel_for(blocks_num, [&](size_t ib) {
+                parallel_for(blocks_num, [&](size_t ib) {
                     const in_data_t* src_data_b_ib = src_data_b + ib * blk_size;
                     size_t min_cb = (std::min)(blk_size, spatial_dims - (ib * blk_size));
                     if (min_cb == blk_size) {
@@ -1217,7 +1204,7 @@ private:
                 }
 
                 // normalize
-                cpu_parallel->parallel_for(jcp.c, [&](size_t ic) {
+                parallel_for(jcp.c, [&](size_t ic) {
                     const in_data_t* src_data_bc = src_data_b + ic * spatial_dims;
                     out_data_t* dst_data_bc = dst_data_b + ic * spatial_dims;
                     auto arg = jit_normalize_call_args();
@@ -1233,10 +1220,7 @@ private:
         }
     }
 
-    void normalize_nhwc(const in_data_t* src_data,
-                        out_data_t* dst_data,
-                        const void** post_ops_data,
-                        const CpuParallelPtr& cpu_parallel) {
+    void normalize_nhwc(const in_data_t* src_data, out_data_t* dst_data, const void** post_ops_data) {
         const size_t spatial_dims = jcp.h * jcp.w;
         const size_t c_w_dims = jcp.c * jcp.w;
         for (size_t b = 0LU; b < jcp.n; b++) {
@@ -1246,7 +1230,7 @@ private:
                 // modulo
                 float addition_identity = 0;
                 float modulo = 0.0F;
-                modulo = cpu_parallel->parallel_sum(jcp.h, addition_identity, [&](int ih) -> float {
+                modulo = parallel_sum(jcp.h, addition_identity, [&](int ih) -> float {
                     size_t tail_start = 0;
                     const in_data_t* src_data_bh = src_data_b + ih * c_w_dims;
                     float modulo_kernel = 0.F;
@@ -1271,7 +1255,7 @@ private:
                 float modulo_inv = 1.0F / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                 // normalize
-                cpu_parallel->parallel_for2d(jcp.h, jcp.w, [&](int ih, int iw) {
+                parallel_for2d(jcp.h, jcp.w, [&](int ih, int iw) {
                     const in_data_t* src_data_bhw = src_data_b + ih * c_w_dims + iw * jcp.c;
                     out_data_t* dst_data_bhw = dst_data_b + ih * c_w_dims + iw * jcp.c;
                     auto arg = jit_normalize_call_args();
@@ -1284,7 +1268,7 @@ private:
                     (*normalize_kernel)(&arg);
                 });
             } else {  // for across_spatial=false
-                cpu_parallel->parallel_for2d(jcp.h, jcp.w, [&](int ih, int iw) {
+                parallel_for2d(jcp.h, jcp.w, [&](int ih, int iw) {
                     // modulo
                     float modulo = 0.F;
                     const in_data_t* src_data_bhw = src_data_b + ih * c_w_dims + iw * jcp.c;
@@ -1317,10 +1301,7 @@ private:
         }
     }
 
-    void normalize_blk(const in_data_t* src_data,
-                       out_data_t* dst_data,
-                       const void** post_ops_data,
-                       const CpuParallelPtr& cpu_parallel) {
+    void normalize_blk(const in_data_t* src_data, out_data_t* dst_data, const void** post_ops_data) {
         const size_t CB = div_up(jcp.c, blk_size);
         const size_t spatial_dims = jcp.h * jcp.w;
         const size_t w_blk_dims = jcp.w * blk_size;
@@ -1331,7 +1312,7 @@ private:
                 // modulo
                 float modulo = 0.0F;
                 float addition_identity = 0.0F;
-                modulo = cpu_parallel->parallel_sum2d(CB, jcp.h, addition_identity, [&](size_t cb, size_t h) -> float {
+                modulo = parallel_sum2d(CB, jcp.h, addition_identity, [&](size_t cb, size_t h) -> float {
                     // handle W * blk_size data
                     const in_data_t* src_data_b_cb_h = src_data_b + cb * spatial_dims * blk_size + h * w_blk_dims;
                     size_t min_cb = (std::min)(blk_size, jcp.c - cb * blk_size);
@@ -1357,7 +1338,7 @@ private:
                 float modulo_inv = 1.0F / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                 // normalize
-                cpu_parallel->parallel_for2d(CB, jcp.h, [&](size_t cb, size_t h) {
+                parallel_for2d(CB, jcp.h, [&](size_t cb, size_t h) {
                     const in_data_t* src_data_b_cb_h = src_data_b + cb * spatial_dims * blk_size + h * w_blk_dims;
                     out_data_t* dst_data_b_cb_h = dst_data_b + cb * spatial_dims * blk_size + h * w_blk_dims;
                     auto arg = jit_normalize_call_args();
@@ -1370,7 +1351,7 @@ private:
                     (*normalize_kernel)(&arg);
                 });
             } else {  // across_spatial: false
-                cpu_parallel->parallel_for2d(jcp.h, jcp.w, [&](size_t ih, size_t iw) {
+                parallel_for2d(jcp.h, jcp.w, [&](size_t ih, size_t iw) {
                     // modulo
                     float modulo = 0.0F;
                     const in_data_t* src_data_bhw = src_data_b + ih * w_blk_dims + iw * blk_size;
@@ -1411,7 +1392,6 @@ private:
 
     std::shared_ptr<jit_uni_normalize_modulo_kernel> normalize_modulo_kernel;
     std::shared_ptr<jit_uni_normalize_kernel> normalize_kernel;
-    std::shared_ptr<CpuParallel> cpu_parallel;
 };
 #endif
 // *=================* *======* *=================*
@@ -1445,21 +1425,14 @@ public:
         }
     }
 
-    void exec(const uint8_t* src_ptr,
-              uint8_t* dst_ptr,
-              const CpuParallelPtr& cpu_parallel,
-              const void** post_ops_data) override {
+    void exec(const uint8_t* src_ptr, uint8_t* dst_ptr, const void** post_ops_data) override {
         normalize_nchw_ref(reinterpret_cast<const in_data_t*>(src_ptr),
                            reinterpret_cast<out_data_t*>(dst_ptr),
-                           post_ops_data,
-                           cpu_parallel);
+                           post_ops_data);
     }
 
 private:
-    void normalize_nchw_ref(const in_data_t* src_data,
-                            out_data_t* dst_data,
-                            const void** post_ops_data,
-                            const CpuParallelPtr& cpu_parallel) {
+    void normalize_nchw_ref(const in_data_t* src_data, out_data_t* dst_data, const void** post_ops_data) {
         size_t dims_size = dims.size();
         const size_t N = dims[0];
         const size_t C = dims[1];
@@ -1473,7 +1446,7 @@ private:
                 // modulo
                 float addition_identity = 0.0F;
                 float modulo = 0.0F;
-                modulo = cpu_parallel->parallel_sum(C, addition_identity, [&](int ic) -> float {
+                modulo = parallel_sum(C, addition_identity, [&](int ic) -> float {
                     const in_data_t* src_data_bc = src_data_b + ic * spatial_dims;
                     float modulo_c = 0.0F;
                     for (size_t m = 0; m < spatial_dims; m++) {
@@ -1485,7 +1458,7 @@ private:
                 float modulo_inv = 1.0F / (std::sqrt(epsApply(modulo, attrs.epsMode, attrs.eps)));
 
                 // normalize
-                cpu_parallel->parallel_for(C, [&](size_t ic) {
+                parallel_for(C, [&](size_t ic) {
                     const in_data_t* src_data_bc = src_data_b + ic * spatial_dims;
                     out_data_t* dst_data_bc = dst_data_b + ic * spatial_dims;
                     for (size_t m = 0; m < spatial_dims; m++) {
@@ -1501,7 +1474,7 @@ private:
             } else {  // across_spatial: false
                 // moduloM
                 std::vector<float> moduloM(spatial_dims, 0.F);
-                cpu_parallel->parallel_for(H, [&](size_t ih) {
+                parallel_for(H, [&](size_t ih) {
                     size_t offset_h = ih * W;
                     const in_data_t* src_data_b_ih = src_data_b + offset_h;
                     for (size_t c = 0; c < C; c++) {
@@ -1517,7 +1490,7 @@ private:
                 }
 
                 // normalize
-                cpu_parallel->parallel_for(C, [&](size_t ic) {
+                parallel_for(C, [&](size_t ic) {
                     const in_data_t* src_data_bc = src_data_b + ic * spatial_dims;
                     out_data_t* dst_data_bc = dst_data_b + ic * spatial_dims;
                     for (size_t m = 0; m < spatial_dims; m++) {

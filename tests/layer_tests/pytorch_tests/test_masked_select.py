@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -16,22 +16,23 @@ class TestMaskedSelect(PytorchLayerTest):
         if mask_select == 'ones':
             mask = np.ones(input_shape).astype(mask_dtype)
         if mask_select == 'random':
-            idx = self.random.choice(10, 5)
+            idx = np.random.choice(10, 5)
             mask[:, idx] = 1
-        return (self.random.randn(1, 10, dtype=input_dtype), mask)
+        return (np.random.randn(1, 10).astype(input_dtype), mask)
 
     def create_model(self):
         import torch
 
         class aten_masked_select(torch.nn.Module):
             def __init__(self):
-                super().__init__()
+                super(aten_masked_select, self).__init__()
 
             def forward(self, x, mask):
                 return x.masked_select(mask)
 
+        ref_net = None
 
-        return aten_masked_select(), "aten::masked_select"
+        return aten_masked_select(), ref_net, "aten::masked_select"
 
     @pytest.mark.parametrize(
         "mask_select", ['zeros', 'ones', 'random'])

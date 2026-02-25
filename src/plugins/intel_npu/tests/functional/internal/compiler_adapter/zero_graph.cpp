@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,12 +27,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                                             ::testing::ValuesIn(emptyConfigsTests),
                                             graphExtVersions),
                          ZeroGraphTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
-                         IsOptionSupported,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(emptyConfigsTests),
-                                            graphExtVersions),
-                         ZeroGraphTest::getTestCaseName);
-
 }  // namespace

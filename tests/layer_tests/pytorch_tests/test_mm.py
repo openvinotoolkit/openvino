@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -8,7 +8,8 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestMatMul(PytorchLayerTest):
     def _prepare_input(self, matrix1_shape=(2, 2), matrix2_shape=(2, 2)):
-        return (self.random.randn(*matrix1_shape), self.random.randn(*matrix2_shape))
+        import numpy as np
+        return (np.random.randn(*matrix1_shape).astype(np.float32), np.random.randn(*matrix2_shape).astype(np.float32))
 
     def create_model(self, op_type="aten::mm"):
         import torch
@@ -20,14 +21,15 @@ class TestMatMul(PytorchLayerTest):
 
         class aten_mm(torch.nn.Module):
             def __init__(self, op):
-                super().__init__()
+                super(aten_mm, self).__init__()
                 self.op = op
 
             def forward(self, m1, m2):
                 return self.op(m1, m2)
 
+        ref_net = None
 
-        return aten_mm(ops[op_type]), op_type
+        return aten_mm(ops[op_type]), ref_net, op_type
 
     @pytest.mark.parametrize("kwargs_to_prepare_input", [
         {'matrix1_shape': (3, 3), 'matrix2_shape': (3, 3)},

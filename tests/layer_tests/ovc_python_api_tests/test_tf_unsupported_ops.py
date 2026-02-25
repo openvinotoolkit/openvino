@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import re
@@ -83,7 +83,7 @@ class TestUnsupportedOps(unittest.TestCase):
         model = create_if_net(self.tmp_dir)
 
         with self.assertRaisesRegex(OpConversionFailure,
-                                    ".*No conversion rule found for operations: WriteFile.*"):
+                                    ".*Internal error, no translator found for operation\(s\): WriteFile.*"):
             convert_model(model)
 
     @pytest.mark.nightly
@@ -94,5 +94,5 @@ class TestUnsupportedOps(unittest.TestCase):
         model = create_part_call_net(self.tmp_dir)
 
         with self.assertRaisesRegex(OpConversionFailure,
-                                    '.*No conversion rule found for operations: WriteFile.*'):
+                                    '.*Internal error, no translator found for operation\(s\): WriteFile.*'):
             convert_model(model)

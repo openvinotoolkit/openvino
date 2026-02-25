@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <ze_api.h>  // not redundant, needed for `ze_structure_type_t` structure
+#include <ze_mem_import_system_memory_ext.h>
 
 #include <behavior/ov_plugin/caching_tests.hpp>
 
@@ -20,7 +21,14 @@ using OVCompileModelLoadFromFileTestBaseNPU = CompileModelLoadFromFileTestBase;
 TEST_P(OVCompileModelLoadFromFileTestBaseNPU, BlobWithOVHeaderAligmentCanBeImported) {
     core->set_property(ov::cache_dir(m_cacheFolderName));
 
-    if (!intel_npu::ZeroInitStructsHolder::getInstance()->isExternalMemoryStandardAllocationSupported()) {
+    ze_device_external_memory_properties_t externalMemorydDesc = {};
+    externalMemorydDesc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
+
+    auto res =
+        intel_npu::zeDeviceGetExternalMemoryProperties(intel_npu::ZeroInitStructsHolder::getInstance()->getDevice(),
+                                                       &externalMemorydDesc);
+    if ((res != ZE_RESULT_SUCCESS) ||
+        ((externalMemorydDesc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_STANDARD_ALLOCATION) == 0)) {
         GTEST_SKIP() << "Standard allocation is not supported by the current configuration.";
     }
 

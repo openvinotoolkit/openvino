@@ -1,10 +1,12 @@
 //
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2023-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "parser/parser.hpp"
 #include "parser/config.hpp"
+
+#include "utils/error.hpp"
 
 #include <yaml-cpp/yaml.h>
 

@@ -76,7 +76,7 @@ runs:
       env:
         ACTION_REF: ${{ github.action_ref || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
-    - uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       with:
         repository: 'openvinotoolkit/openvino'
         ref: ${{ steps.get_action_revision.outputs.action_ref }}
@@ -84,7 +84,7 @@ runs:
 
     - name: Clone OpenVINO to get HEAD commit
       if: inputs.revision == 'HEAD'
-      uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       with:
         repository: 'openvinotoolkit/openvino'
         path: 'openvino'

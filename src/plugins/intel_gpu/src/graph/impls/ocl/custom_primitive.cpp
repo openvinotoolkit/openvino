@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,11 +88,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         for (auto& dep : instance.dependencies()) {
             args.inputs.push_back(dep.first->output_memory_ptr());
         }
-
-        for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
-            args.outputs.push_back(instance.output_memory_ptr(i));
-        }
-
+        args.outputs = { instance.output_memory_ptr() };
         stream.set_arguments(*_kernels.front(), cl_kernel.get()->params, args);
     }
 
@@ -103,11 +99,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         for (auto& dep : instance.dependencies()) {
             args.inputs.push_back(dep.first->output_memory_ptr());
         }
-
-        for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
-            args.outputs.push_back(instance.output_memory_ptr(i));
-        }
-
+        args.outputs = { instance.output_memory_ptr() };
         return stream.enqueue_kernel(*_kernels.front(), cl_kernel.get()->params, args, events, instance.is_output());
     }
 
@@ -246,9 +238,7 @@ static std::string get_jit_constant(const custom_gpu_primitive_node& outer,
         add_layout_to_jit(mem_consts, "INPUT" + std::to_string(i), impl_param.get_input_layout(i));
     }
 
-    for (size_t i = 0; i < impl_param.output_layouts.size(); i++) {
-        add_layout_to_jit(mem_consts, "OUTPUT" + std::to_string(i), impl_param.get_output_layout(i));
-    }
+    add_layout_to_jit(mem_consts, "OUTPUT0", impl_param.get_output_layout());
 
     std::ostringstream oss;
     oss << "// Custom Layer Built-ins\n\n";

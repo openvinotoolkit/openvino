@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -9,14 +9,15 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestCol2Im(PytorchLayerTest):
     def _prepare_input(self, input_shape):
-        return (self.random.randn(*input_shape),)
+        import numpy as np
+        return (np.random.randn(*input_shape).astype(np.float32),)
 
     def create_model(self, output_size, kernel_size, dilation, padding, stride):
         import torch
 
         class aten_col2im(torch.nn.Module):
             def __init__(self, output_size, kernel_size, dilation, padding, stride):
-                super().__init__()
+                super(aten_col2im, self).__init__()
                 self.output_size = output_size
                 self.kernel_size = kernel_size
                 self.dilation = dilation
@@ -33,8 +34,9 @@ class TestCol2Im(PytorchLayerTest):
                     stride=self.stride
                 )
 
+        ref_net = None
 
-        return aten_col2im(output_size, kernel_size, dilation, padding, stride), "aten::col2im"
+        return aten_col2im(output_size, kernel_size, dilation, padding, stride), ref_net, "aten::col2im"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

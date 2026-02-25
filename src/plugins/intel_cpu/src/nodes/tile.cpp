@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,6 @@
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/tile.hpp"
-#include "openvino/util/common_util.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/ngraph_utils.hpp"
 
@@ -68,7 +67,14 @@ Tile::Tile(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
 
 void Tile::getSupportedDescriptors() {
     const auto& vec_to_string = [](const std::vector<size_t>& vec) -> std::string {
-        return "[" + ov::util::join(vec);
+        std::string result = "[";
+        for (size_t i = 0; i < vec.size(); i++) {
+            if (i) {
+                result += ", ";
+            }
+            result += std::to_string(vec[i]);
+        }
+        return result;
     };
     if (getParentEdges().size() != 2) {
         CPU_NODE_THROW("has incorrect number of input edges. "
@@ -172,7 +178,7 @@ void Tile::executeDynamicImpl(const dnnl::stream& strm) {
 
 void Tile::execute(const dnnl::stream& strm) {
     if (optimizedCase) {
-        optimizedExecute(getSrcMemoryAtPort(TILE_INPUT), getDstMemoryAtPort(0), context->getCpuParallel());
+        optimizedExecute(getSrcMemoryAtPort(TILE_INPUT), getDstMemoryAtPort(0));
     } else {
         plainExecute(strm);
     }

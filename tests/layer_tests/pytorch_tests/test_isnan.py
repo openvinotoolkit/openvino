@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -21,7 +21,7 @@ class TestIsNan(PytorchLayerTest):
             def forward(self, input_tensor):
                 return torch.isnan(input_tensor)
 
-        return aten_isnan(), "aten::isnan"
+        return aten_isnan(), None, "aten::isnan"
 
     @pytest.mark.precommit_fx_backend
     def test_isnan(self, ie_device, precision, ir_version, input_tensor):

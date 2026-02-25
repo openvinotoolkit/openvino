@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,6 @@ class Reshape : public ShapeInferOp {
 public:
     OPENVINO_OP("Reshape", "SnippetsOpset", ShapeInferOp);
     Reshape(const Output<Node>& arg, ov::PartialShape target_shape);
-    Reshape(const OutputVector& arg, ov::PartialShape target_shape);
     Reshape() = default;
 
     bool visit_attributes(AttributeVisitor& visitor) override;

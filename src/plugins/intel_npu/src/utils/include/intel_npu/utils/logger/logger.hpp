@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,23 +32,16 @@ class Logger {
 public:
     static Logger& global();
 
-    Logger(const char* name, ov::log::Level lvl = ov::log::Level::NO);
-    Logger(const std::string&, ov::log::Level lvl = ov::log::Level::NO) = delete;
-    Logger(const std::string_view& name, ov::log::Level lvl = ov::log::Level::NO) = delete;
+    Logger(std::string_view name, ov::log::Level lvl = ov::log::Level::NO);
     Logger(const Logger& log) = default;
 
-    Logger clone(const char* name) const;
-    Logger clone(const std::string& name) const = delete;
-    Logger clone(const std::string_view& name) const = delete;
-
-    void setName(const std::string& name) = delete;
-    void setName(const std::string_view& name) = delete;
+    Logger clone(std::string_view name) const;
 
     auto name() const {
         return _name;
     }
 
-    void setName(const char* name) {
+    void setName(std::string_view name) {
         _name = name;
     }
 
@@ -107,7 +100,7 @@ private:
     }
 
 private:
-    const char* _name;
+    std::string _name;
     ov::log::Level _logLevel = ov::log::Level::NO;
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -317,7 +317,7 @@ void EltwiseStatefulExecutor::execute(const MemoryArgs& memory) {
         args_ptrs.dst_offsets = m_execParams.outOffsets.data();
     }
 
-    m_executor->exec(args_ptrs, outDims, m_context->getCpuParallel());
+    m_executor->exec(args_ptrs, outDims);
 }
 
 impl_desc_type EltwiseStatefulExecutor::implType() const {

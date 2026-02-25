@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,8 +44,7 @@ private:
         void exec(const MemoryPtr& dataMemPtr,
                   const MemoryPtr& shiftMemPtr,
                   const MemoryPtr& axesMemPtr,
-                  const MemoryPtr& dstMemPtr,
-                  const CpuParallelPtr& cpuParallel);
+                  const MemoryPtr& dstMemPtr);
 
     private:
         const size_t numOfDims;

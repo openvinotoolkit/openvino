@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 import torch
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class TestShiftOperators(PytorchLayerTest):
@@ -12,8 +12,8 @@ class TestShiftOperators(PytorchLayerTest):
         choices = np.array([1, 2, 4, 8, 16, 32])
         shifts = np.array([0, 1, 2, 3, 4, 5])
 
-        x = self.random.choice(choices, lhs_shape).astype(lhs_dtype)
-        y = self.random.choice(shifts, rhs_shape).astype(rhs_dtype)
+        x = np.random.choice(choices, lhs_shape).astype(lhs_dtype)
+        y = np.random.choice(shifts, rhs_shape).astype(rhs_dtype)
         return x, y
 
     def create_model(self):
@@ -21,7 +21,8 @@ class TestShiftOperators(PytorchLayerTest):
             def forward(self, lhs, rhs):
                 return lhs << rhs, lhs >> rhs
 
-        return aten_shift(), ("aten::__lshift__", "aten::__rshift__")
+        ref_net = None
+        return aten_shift(), ref_net, ("aten::__lshift__", "aten::__rshift__")
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -52,7 +53,6 @@ class TestShiftOperators(PytorchLayerTest):
             },
             trace_model=True,
             freeze_model=False,
-            fx_kind=["aten.__lshift__", "aten.__rshift__"],
         )
 
 
@@ -61,8 +61,8 @@ class TestBitwiseShiftFunctions(PytorchLayerTest):
         choices = np.array([1, 2, 4, 8, 16, 32])
         shifts = np.array([0, 1, 2, 3, 4, 5])
 
-        x = self.random.choice(choices, lhs_shape).astype(lhs_dtype)
-        y = self.random.choice(shifts, rhs_shape).astype(rhs_dtype)
+        x = np.random.choice(choices, lhs_shape).astype(lhs_dtype)
+        y = np.random.choice(shifts, rhs_shape).astype(rhs_dtype)
         return x, y
 
     def create_model(self):
@@ -73,7 +73,7 @@ class TestBitwiseShiftFunctions(PytorchLayerTest):
                     # torch.bitwise_right_shift(lhs, rhs) - temporarily disable
                 )
 
-        return aten_bitwise_shift(), ("aten::bitwise_left_shift",)  # "aten::bitwise_right_shift")
+        return aten_bitwise_shift(), None, ("aten::bitwise_left_shift",)  # "aten::bitwise_right_shift")
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -104,5 +104,4 @@ class TestBitwiseShiftFunctions(PytorchLayerTest):
             },
             trace_model=True,
             freeze_model=False,
-            fx_kind="aten.bitwise_left_shift",
         )

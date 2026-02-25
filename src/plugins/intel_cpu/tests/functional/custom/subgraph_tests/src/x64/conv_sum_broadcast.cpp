@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -123,7 +123,7 @@ public:
 
         selectedType = "?";
 
-        function = create_ov_model(getNetType(), inputParams, sum, "ConvolutionSumBroadcast");
+        function = makeNgraphFunction(getNetType(), inputParams, sum, "ConvolutionSumBroadcast");
 
         targetDevice = ov::test::utils::DEVICE_CPU;
         if (!configuration.count(ov::intel_cpu::snippets_mode.name())) {

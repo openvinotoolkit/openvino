@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,11 +40,9 @@ struct moe_3gemm_swiglu_opt : public ImplementationManager {
             return false;
         }
 
-        // Only support weight: u4, i8, u8
+        // Only support weight: u4
         static constexpr std::array supported_wei_type = {
             ov::element::u4,
-            ov::element::u8,
-            ov::element::i8,
         };
         const auto& wei_layout = node.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0));
         if (!one_of(wei_layout.data_type, supported_wei_type)) {
@@ -60,10 +58,9 @@ struct moe_3gemm_swiglu_opt : public ImplementationManager {
             return false;
         }
 
-        // Only support zp: u4, u8
+        // Only support zp: u4
         static constexpr std::array supported_zp_type = {
             ov::element::u4,
-            ov::element::u8,
         };
         const auto& zp_layout = node.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::ZP_0));
         if (!one_of(zp_layout.data_type, supported_zp_type)) {

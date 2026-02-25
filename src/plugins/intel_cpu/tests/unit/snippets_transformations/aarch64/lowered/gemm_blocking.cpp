@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 #include "openvino/opsets/opset10_decl.hpp"
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/op/buffer.hpp"
-#include "snippets/op/result.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 
 namespace ov::test::snippets {
@@ -98,7 +97,7 @@ TEST_F(GemmCPUBlockingTest, Floating) {
                                                            layout_b,
                                                            layout_c);
         init_expr_descriptors(*gemm.first, {}, {layout_a, layout_b, layout_c});
-        auto result = linear_ir->push_node<ov::snippets::op::Result>(gemm.second);
+        auto result = linear_ir->push_node<ov::opset10::Result>(gemm.second);
     }
     {
         auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_a);
@@ -115,7 +114,7 @@ TEST_F(GemmCPUBlockingTest, Floating) {
         init_expr_descriptors(gemm_expr, {{m_blk, full_dim}, {full_dim, n_blk}, {m_blk, n_blk}}, {layout_a, layout_b, layout_c});
         create_gemm_loop_infos(linear_ir_ref, gemm_expr, 384, m_blk, 0, 0, 384, n_blk);
         gemm_expr->set_loop_ids({1, 0});
-        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(gemm.second);
+        auto result = linear_ir_ref->push_node<ov::opset10::Result>(gemm.second);
     }
 }
 
@@ -133,7 +132,7 @@ TEST_F(GemmCPUBlockingTest, BlockingIsNotNeeded) {
         auto gemm = linear_ir->push_node<aarch64::GemmCPU>(data_a.second, data_b.second,
                                                            PortDescriptor{}, PortDescriptor{}, PortDescriptor{});
         init_expr_descriptors(*gemm.first);
-        auto result = linear_ir->push_node<ov::snippets::op::Result>(gemm.second);
+        auto result = linear_ir->push_node<ov::opset10::Result>(gemm.second);
     }
     {
         auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_a);
@@ -141,7 +140,7 @@ TEST_F(GemmCPUBlockingTest, BlockingIsNotNeeded) {
         auto gemm = linear_ir_ref->push_node<aarch64::GemmCPU>(data_a.second, data_b.second,
                                                                PortDescriptor{}, PortDescriptor{}, PortDescriptor{});
         init_expr_descriptors(*gemm.first);
-        auto result = linear_ir_ref->push_node<ov::snippets::op::Result>(gemm.second);
+        auto result = linear_ir_ref->push_node<ov::opset10::Result>(gemm.second);
     }
 }
 

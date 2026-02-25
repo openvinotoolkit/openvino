@@ -1,8 +1,7 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import platform
 import tempfile
 
 import pytest
@@ -99,19 +98,11 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
             fw_outputs = [fw_outputs.numpy(force=True)]
         return fw_outputs
 
-    def get_supported_precommit_models():
-        models = [
-            "efficientnet_b7",
-        ]
-        if platform.machine() not in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
-            models.extend([
-                "raft_small",
-                "swin_v2_s",
-                "quantized_mobilenet_v3_large",
-            ])
-        return models
-
-    @pytest.mark.parametrize("model_name", get_supported_precommit_models())
+    @pytest.mark.parametrize("model_name", ["efficientnet_b7",
+                                            "raft_small",
+                                            "swin_v2_s",
+                                            "quantized_mobilenet_v3_large",
+                                            ])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, ie_device):
         self.mode = "trace"

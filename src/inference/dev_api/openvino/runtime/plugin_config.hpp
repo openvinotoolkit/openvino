@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -201,7 +201,7 @@ protected:
 
     virtual void apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) {}
     void apply_env_options();
-    void apply_config_options(std::string_view device_name, const std::filesystem::path& config_path = {});
+    void apply_config_options(std::string_view device_name, std::filesystem::path config_path = "");
     virtual void finalize_impl(const IRemoteContext* context) {}
 
     template <typename T, PropertyMutability mutability>
@@ -227,7 +227,7 @@ protected:
         }
     }
 
-    ov::AnyMap read_config_file(const std::filesystem::path& filename, std::string_view target_device_name) const;
+    ov::AnyMap read_config_file(std::filesystem::path filename, std::string_view target_device_name) const;
     ov::AnyMap read_env() const;
     static ov::Any read_env(const std::string& option_name, std::string_view prefix, const ConfigOptionBase* option);
     void cleanup_unsupported(ov::AnyMap& config) const;
@@ -272,7 +272,7 @@ struct ConfigOption : public TypedOption<T> {
                  std::string_view desc,
                  std::function<bool(T)> validator = nullptr)
         : TypedOption<T>(default_val, prop_name, desc),
-          validator(std::move(validator)) {
+          validator(validator) {
         OptionRegistrationHelper option(config, name, this);
     }
     constexpr static const auto visibility = visibility_;

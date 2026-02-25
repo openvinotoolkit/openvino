@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -113,19 +113,31 @@ void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = fal
 namespace ov {
 namespace util {
 
-std::shared_ptr<ov::Model> read_model(const std::filesystem::path& model_path,
-                                      const std::filesystem::path& bin_path,
+std::shared_ptr<ov::Model> read_model(const std::string& modelPath,
+                                      const std::string& binPath,
                                       const std::vector<ov::Extension::Ptr>& extensions,
                                       bool enable_mmap) {
+    // Fix unicode name
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    std::wstring model_path = ov::util::string_to_wstring(modelPath.c_str());
+#else
+    std::string model_path = modelPath;
+#endif
+
     // Try to load with FrontEndManager
     ov::frontend::FrontEndManager manager;
     ov::frontend::FrontEnd::Ptr FE;
     ov::frontend::InputModel::Ptr inputModel;
 
-    ov::AnyVector params{model_path.native()};
+    ov::AnyVector params{model_path};
 
-    if (!bin_path.empty()) {
-        params.emplace_back(bin_path.native());
+    if (!binPath.empty()) {
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        const std::wstring& weights_path = ov::util::string_to_wstring(binPath.c_str());
+#else
+        const std::string& weights_path = binPath;
+#endif
+        params.emplace_back(weights_path);
     }
     params.emplace_back(enable_mmap);
 
@@ -141,13 +153,14 @@ std::shared_ptr<ov::Model> read_model(const std::filesystem::path& model_path,
         return model;
     }
 
+    const auto fileExt = modelPath.substr(modelPath.find_last_of(".") + 1);
     std::string FEs;
     for (const auto& fe_name : manager.get_available_front_ends())
         FEs += fe_name + " ";
     OPENVINO_THROW("Unable to read the model: ",
-                   model_path,
+                   modelPath,
                    " Please check that model format: ",
-                   model_path.extension(),
+                   fileExt,
                    " is supported and the model is correct.",
                    " Available frontends: ",
                    FEs);

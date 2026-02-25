@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,13 +67,13 @@ OutputVector translate_index_add(const NodeContext& context) {
     auto src_ =
         context.mark_node(std::make_shared<v3::Broadcast>(src_broadcasted, new_shape, BroadcastType::BIDIRECTIONAL));
     auto src_input_dtype = context.mark_node(std::make_shared<v1::ConvertLike>(src_, input));
-    // broadcast index to input rank size
+    // brodcast index to input rank size
     src_rank = context.mark_node(std::make_shared<v3::ShapeOf>(new_shape, element::i32));
     auto new_index_shape = context.mark_node(std::make_shared<v3::Broadcast>(const_one, src_rank));
     auto const_minus_one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
     new_index_shape = context.mark_node(
         std::make_shared<v12::ScatterElementsUpdate>(new_index_shape, dim_1d, const_minus_one, const_zero));
-    // preserve indices location for specific dim
+    // precerve indicies location for spicifc dim
     auto reshaped_index = context.mark_node(std::make_shared<v1::Reshape>(index, new_index_shape, false));
     auto broadcasted_index =
         context.mark_node(std::make_shared<v3::Broadcast>(reshaped_index, new_shape, BroadcastType::BIDIRECTIONAL));

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,13 +36,8 @@ std::string memory_desc_to_string(const dnnl::memory::desc& desc) {
         ss << (i ? "x" : "") << desc.get_dims()[i];
     }
     ss << ":strides=";
-    const auto strides = desc.get_strides();
-    if (strides.empty()) {
-        ss << "empty";
-    } else {
-        for (size_t i = 0; i < strides.size(); i++) {
-            ss << (i ? "x" : "") << strides[i];
-        }
+    for (int i = 0; i < desc.get_ndims(); i++) {
+        ss << (i ? "x" : "") << desc.get_strides()[i];
     }
 
     return ss.str();
@@ -84,6 +79,35 @@ dnnl::memory::dims convert_tensor(cldnn::tensor t, size_t dims, bool is_grouped)
     return res;
 }
 
+dnnl::memory::dims convert_gemm_tensor(cldnn::tensor t, size_t dims, bool batched_dims_can_be_removed) {
+    auto sizes = t.sizes(default_fmt_for_dims(dims, false));
+    dnnl::memory::dims res(sizes.begin(), sizes.end());
+    if (dims > 4) {
+        for (size_t i = 0; i < dims - 4; i++) {
+            res[i + 1] *= res[i];
+        }
+        res.erase(res.begin(), res.begin() + dims - 4);
+    }
+    if (res.size() == 4 && batched_dims_can_be_removed) {
+        res.erase(res.begin(), res.begin() + 2);
+    }
+    return res;
+}
+
+dnnl::memory::dims convert_gemm_dims(const std::vector<ov::Dimension::value_type> &sizes, size_t dims, bool batched_dims_can_be_removed) {
+    dnnl::memory::dims res(sizes.begin(), sizes.end());
+    if (dims > 4) {
+        for (size_t i = 0; i < dims - 4; i++) {
+            res[i + 1] *= res[i];
+        }
+        res.erase(res.begin(), res.begin() + dims - 4);
+    }
+    if (res.size() == 4 && batched_dims_can_be_removed) {
+        res.erase(res.begin(), res.begin() + 2);
+    }
+    return res;
+}
+
 dnnl::memory::format_tag get_default_data_format(const cldnn::layout& l) {
     switch (l.get_partial_shape().size()) {
     case 2: return dnnl::memory::format_tag::ab;
@@ -108,8 +132,6 @@ dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, forma
         case 2: return dnnl::memory::format_tag::ab;
         case 3: return dnnl::memory::format_tag::abc;
         case 4: return dnnl::memory::format_tag::abcd;
-        case 5: return dnnl::memory::format_tag::abcde;
-        case 6: return dnnl::memory::format_tag::abcdef;
         default: throw std::invalid_argument("[clDNN] Unsupported conversion from "+ std::to_string(dims.size()) + " to onednn format_tag");
         }
     }
@@ -236,6 +258,19 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
         throw std::invalid_argument("[clDNN] Unsupported onednn layout");
 
     return ret->first;
+}
+
+void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
+    auto pshape = l.get_partial_shape();
+    ov::Shape new_shape{1, 1};
+    for (size_t i = 0; i < pshape.size(); ++i) {
+        if (i < 2) {
+            new_shape[0] *= pshape[i].get_length();
+        } else {
+            new_shape[1] *= pshape[i].get_length();
+        }
+    }
+    l.set_partial_shape(new_shape);
 }
 
 int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc) {
@@ -404,8 +439,6 @@ private:
                 auto it = format_map_cldnn_4d_to_onednn_3d.find(_layout.format);
                 if (it != format_map_cldnn_4d_to_onednn_3d.end()) {
                     fmt_tag = it->second;
-                } else if (_layout.format == cldnn::format::custom) {
-                    fmt_tag = dnnl::memory::format_tag::any;
                 } else {
                     OPENVINO_THROW("[GPU] Unexpected layout format " + _layout.to_short_string());
                 }

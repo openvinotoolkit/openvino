@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -13,10 +13,10 @@ class TestEmbeddingBag1dOffsets(PytorchLayerTest):
         import numpy as np
 
         indices = np.array([2, 2, 2, 2, 4, 3, 2, 9]).astype(indicies_dtype)
-        weights = self.random.randn(10, 10)
+        weights = np.random.randn(10, 10).astype(np.float32)
         offsets = np.array([0, 4, 4]).astype(indicies_dtype)
         if per_sample_weights:
-            per_sample_weights = self.random.randn(*indices.shape)
+            per_sample_weights = np.random.randn(*indices.shape).astype(np.float32)
             return (indices, weights, offsets, per_sample_weights)
         return (indices, weights, offsets)
 
@@ -45,9 +45,11 @@ class TestEmbeddingBag1dOffsets(PytorchLayerTest):
                     per_sample_weights=per_sample_wights,
                 )
 
+        ref_net = None
 
         return (
             aten_embedding_bag(mode, per_sample_weights),
+            ref_net,
             "aten::embedding_bag",
         )
 
@@ -84,10 +86,10 @@ class TestEmbeddingBag2d(PytorchLayerTest):
     def _prepare_input(self, indicies_size, indicies_dtype, per_sample_weights):
         import numpy as np
 
-        indices = self.random.randint(0, 9, size=indicies_size, dtype=indicies_dtype)
-        weights = self.random.randn(10, 10)
+        indices = np.random.randint(0, 9, size=indicies_size).astype(indicies_dtype)
+        weights = np.random.randn(10, 10).astype(np.float32)
         if per_sample_weights:
-            per_sample_weights = self.random.randn(*indices.shape)
+            per_sample_weights = np.random.randn(*indices.shape).astype(np.float32)
             return (indices, weights, per_sample_weights)
         return (indices, weights)
 
@@ -113,9 +115,11 @@ class TestEmbeddingBag2d(PytorchLayerTest):
                     per_sample_weights=per_sample_wights,
                 )
 
+        ref_net = None
 
         return (
             aten_embedding_bag(mode, per_sample_weights),
+            ref_net,
             "aten::embedding_bag",
         )
 
@@ -161,9 +165,9 @@ class TestEmbeddingBagPretrained(PytorchLayerTest):
     def _prepare_input(self, indicies_size, indicies_dtype, per_sample_weights):
         import numpy as np
 
-        indices = self.random.randint(0, 9, size=indicies_size, dtype=indicies_dtype)
+        indices = np.random.randint(0, 9, size=indicies_size).astype(indicies_dtype)
         if per_sample_weights:
-            per_sample_weights = self.random.randn(*indices.shape)
+            per_sample_weights = np.random.randn(*indices.shape).astype(np.float32)
             return (indices, per_sample_weights)
         return (indices,)
 
@@ -171,16 +175,14 @@ class TestEmbeddingBagPretrained(PytorchLayerTest):
         import torch
         import numpy as np
 
-        # Generate weights outside the inner class to use test's seeded random
-        embedding_weights = torch.from_numpy(self.random.randn(10, 10))
-
         class aten_embedding_bag(torch.nn.Module):
             def __init__(self, mode=None, per_sample_weights=False) -> None:
                 super().__init__()
                 self.mode = mode
+                weights = torch.from_numpy(np.random.randn(10, 10).astype(np.float32))
 
                 self.embeddings = torch.nn.EmbeddingBag.from_pretrained(
-                    embedding_weights, mode=mode
+                    weights, mode=mode
                 )
                 if per_sample_weights:
                     self.forward = self.forward_per_sample_weights
@@ -193,9 +195,11 @@ class TestEmbeddingBagPretrained(PytorchLayerTest):
                     self.embeddings(indicies, per_sample_weights=per_sample_wights),
                 )
 
+        ref_net = None
 
         return (
             aten_embedding_bag(mode, per_sample_weights),
+            ref_net,
             "aten::embedding_bag",
         )
 

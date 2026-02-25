@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -127,7 +127,6 @@ ov::ParameterVector form_sdpa_params(ov::Dimension batch,
  * @param fuse_cache_reorder Whether to fuse cache reorder
  * @param build_state_initializer Whether to build state initializer
  * @param num_groups Number of groups for GQA
- * @param kv_cache_reorder Whether to do additional LLM KV cache reordering
  * @return Shared pointer to the created model
  */
 std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch = ov::Dimension::dynamic(),
@@ -138,9 +137,7 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch = ov::D
                                                      bool stateful = false,
                                                      bool fuse_cache_reorder = false,
                                                      bool build_state_initializer = false,
-                                                     size_t num_groups = 1,
-                                                     bool kv_cache_trim = false,
-                                                     bool kv_cache_reorder = false);
+                                                     size_t num_groups = 1);
 
 /**
  * @brief Creates an LLM KV cache pattern with Scaled Dot Product Attention (SDPA)

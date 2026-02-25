@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,31 +107,6 @@ const auto TestCasesScaleI4F16 = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(UnpackWithScaleTestsI4F16, UnpackWithScaleTestsI4F16,
                          TestCasesScaleI4F16,
                          UnpackWithScaleTestsI4F16::getTestCaseName);
-
-const auto TestCasesScaleF8 = ::testing::Combine(
-        ::testing::ValuesIn({ov::element::Type_t::f8e4m3, ov::element::Type_t::f8e5m2, ov::element::Type_t::f8e8m0}),
-        ::testing::ValuesIn({ov::element::Type_t::f16}),
-        ::testing::ValuesIn({ov::element::Type_t::f32}),
-        ::testing::ValuesIn({ov::element::Type_t::dynamic}), // no used in this test
-        ::testing::ValuesIn({3lu, 0lu}),
-        ::details::ShapesIn({Tensors{input={1, 64, 128};     scale = {1, 1, 128};
-}
-, Tensors {
-    input = {32, 128};
-    scale = {32, 1};
-}
-, Tensors {
-    input = {64, 256};
-    scale = {64, 1};
-}
-}),
-        ::testing::ValuesIn({true, false}),
-        ::testing::ValuesIn({true, false})
-);
-
-INSTANTIATE_TEST_SUITE_P(UnpackF8WithScaleTests, UnpackF8WithScaleTests,
-                         TestCasesScaleF8,
-                         UnpackF8WithScaleTests::getTestCaseName);
 
 const auto TestCasesScaleAndZeroPoints = ::testing::Combine(
         ::testing::ValuesIn({ov::element::Type_t::u4}),

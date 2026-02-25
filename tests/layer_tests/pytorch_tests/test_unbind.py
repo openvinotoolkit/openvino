@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -9,14 +9,14 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestUnbind(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.uniform(0, 50, (3, 3, 3, 3), dtype=np.float32),)
+        return (np.random.uniform(0, 50, (3, 3, 3, 3)).astype(np.float32),)
 
     def create_model(self, shape):
         import torch
 
         class aten_unbind(torch.nn.Module):
             def __init__(self, dim):
-                super().__init__()
+                super(aten_unbind, self).__init__()
                 self.dim = dim
 
             def forward(self, x):
@@ -24,8 +24,9 @@ class TestUnbind(PytorchLayerTest):
                 a, b, c = torch.unbind(x, self.dim)
                 return b
 
+        ref_net = None
 
-        return aten_unbind(shape), "aten::unbind"
+        return aten_unbind(shape), ref_net, "aten::unbind"
 
     @pytest.mark.parametrize(("dim"), [0, 1, 2, 3])
     @pytest.mark.nightly

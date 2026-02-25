@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,7 +77,7 @@ std::shared_ptr<Node> reshape(const Output<Node>& value, const Shape& shape);
 
 /// \brief Permute axes according to specified axes_order parameter.
 ///
-/// \param      The value whose axes we want to permute.
+/// \param      The vlaue whose axes we want to permute.
 /// \param      axes_order The permutation of axes.
 ///
 /// \return     Transpose:v1 op.

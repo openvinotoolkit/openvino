@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -512,8 +512,6 @@ void insert_reorders(program& p, const std::map<program_node*, format::type>& fm
 }  // namespace
 
 void reorder_inputs::run(program& p, reorder_factory& rf) {
-    p.mark_if_gemm_data_flow();
-
     auto& lo = p.get_layout_optimizer();
 
     auto fmt_map = get_preferred_formats(p, lo);
@@ -902,8 +900,13 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                     if (gemm_layout.is_dynamic() || data_layout.is_dynamic())
                         continue;
 
-                    auto gemm_dims = onednn::convert_tensor(gemm_layout.get_tensor(), cldnn::format::dimension(gemm_layout.format));
-                    auto data_dims = onednn::convert_tensor(data_layout.get_tensor(), cldnn::format::dimension(data_layout.format));
+                    auto gemm_dims = onednn::convert_gemm_tensor(gemm_layout.get_tensor(),
+                                                                 cldnn::format::dimension(gemm_layout.format),
+                                                                 false);
+
+                    auto data_dims = onednn::convert_gemm_tensor(data_layout.get_tensor(),
+                                                                 cldnn::format::dimension(data_layout.format),
+                                                                 false);
 
                     if (gemm_dims[0] == data_dims[0])
                         continue;

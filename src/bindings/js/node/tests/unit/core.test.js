@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 const { addon: ov } = require("../..");
@@ -72,7 +72,7 @@ describe("ov.Core tests", () => {
   it('Core.addExtension("not_exists") with non-existed library', () => {
     const notExistsExt = "not_exists";
 
-    assert.throws(() => core.addExtension(notExistsExt), /Cannot load library "not_exists"/);
+    assert.throws(() => core.addExtension(notExistsExt), /Cannot load library 'not_exists'/);
   });
 
   it("Core.queryModel() with empty parameters should throw an error", () => {

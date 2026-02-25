@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -8,7 +8,9 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestEinsumBatchMatMul(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(5, 2, 3), self.random.randn(5, 3, 4),)
+        import numpy as np
+
+        return (np.random.randn(5, 2, 3).astype(np.float32), np.random.randn(5, 3, 4).astype(np.float32),)
 
     def create_model(self):
         import torch
@@ -18,8 +20,9 @@ class TestEinsumBatchMatMul(PytorchLayerTest):
                 eqn = "bij, bjk -> bik"
                 return torch.einsum(eqn, x, y)
 
+        ref_net = None
 
-        return EinsumModelBatchMatmul(), "aten::einsum"
+        return EinsumModelBatchMatmul(), ref_net, "aten::einsum"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -29,7 +32,9 @@ class TestEinsumBatchMatMul(PytorchLayerTest):
 
 class TestEinsumBatchDiagonal(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(3, 5, 5),)
+        import numpy as np
+
+        return (np.random.randn(3, 5, 5).astype(np.float32),)
 
     def create_model(self):
         import torch
@@ -39,8 +44,9 @@ class TestEinsumBatchDiagonal(PytorchLayerTest):
                 eqn = "kii -> ki"
                 return torch.einsum(eqn, x)
 
+        ref_net = None
 
-        return EinsumModelBatchDiagonal(), "aten::einsum"
+        return EinsumModelBatchDiagonal(), ref_net, "aten::einsum"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -51,7 +57,9 @@ class TestEinsumBatchDiagonal(PytorchLayerTest):
 
 class TestEinsumInnerProd(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(5), self.random.randn(5))
+        import numpy as np
+
+        return (np.random.randn(5).astype(np.float32), np.random.randn(5).astype(np.float32))
 
     def create_model(self):
         import torch
@@ -61,8 +69,9 @@ class TestEinsumInnerProd(PytorchLayerTest):
                 eqn = "i,i"
                 return torch.einsum(eqn, x, y)
 
+        ref_net = None
 
-        return EinsumModelInnerProd(), "aten::einsum"
+        return EinsumModelInnerProd(), ref_net, "aten::einsum"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -72,7 +81,9 @@ class TestEinsumInnerProd(PytorchLayerTest):
 
 class TestEinsumTranspose(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(3, 5),)
+        import numpy as np
+
+        return (np.random.randn(3, 5).astype(np.float32),)
 
     def create_model(self):
         import torch
@@ -82,8 +93,9 @@ class TestEinsumTranspose(PytorchLayerTest):
                 eqn = "ij->ji"
                 return torch.einsum(eqn, x)
 
+        ref_net = None
 
-        return EinsumModelTranspose(), "aten::einsum"
+        return EinsumModelTranspose(), ref_net, "aten::einsum"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

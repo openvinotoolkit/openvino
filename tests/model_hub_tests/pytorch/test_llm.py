@@ -1,11 +1,10 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
 import inspect
 
 import numpy as np
-import platform
 import pytest
 import torch
 from huggingface_hub import snapshot_download
@@ -240,19 +239,12 @@ class TestLLMModel(TestTorchConvertModel):
 
         return pkv, for_pkv["attention_mask"]
 
-    def get_supported_precommit_models():
-        models = [
-            ("gpt2", "openai-community/gpt2"),
-        ]
-        if platform.machine() not in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
-            models.extend([
-                ("opt_gptq", "katuni4ka/opt-125m-gptq"),
-                ("llama", "TinyLlama/TinyLlama-1.1B-Chat-v1.0"),
-                ("llama_awq", "casperhansen/tinyllama-1b-awq"),
-            ])
-        return models
-
-    @pytest.mark.parametrize("type,name", get_supported_precommit_models())
+    @pytest.mark.parametrize("type,name", [
+        ("opt_gptq", "katuni4ka/opt-125m-gptq"),
+        ("llama", "TinyLlama/TinyLlama-1.1B-Chat-v1.0"),
+        ("gpt2", "openai-community/gpt2"),
+        ("llama_awq", "casperhansen/tinyllama-1b-awq")
+    ])
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_convert_model_precommit(self, name, type, ie_device):

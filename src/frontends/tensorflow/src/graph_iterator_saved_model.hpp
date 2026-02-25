@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -210,9 +210,9 @@ private:
         return true;
     }
 
-    /// \brief Splitting tags by using "," delimiter
+    /// \brief Splitting tags by using "," delimeter
     /// \param[in] tags String with tags separated by ","
-    /// \return Returns vector with split tags, no trimming is used. When you pass "tag1, tag2"
+    /// \return Returns vector with splitted tags, no trimming is used. When you pass "tag1, tag2"
     /// you will have a vector ["tag1", " tag2"]. Because TensorFlow saves tags without trimming
     std::vector<std::string> split_tags(const std::string tags) const;
 };  // GraphIteratorSavedModel

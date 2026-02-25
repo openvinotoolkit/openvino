@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -41,8 +41,9 @@ class TestMultinomial(PytorchLayerTest):
                     return torch.sort(op)[0]
                 return op
 
+        ref_net = None
 
-        return aten_multinomial(replacement, out, test_type), "aten::multinomial"
+        return aten_multinomial(replacement, out, test_type), ref_net, "aten::multinomial"
 
     @pytest.mark.parametrize(
         ("input", "num_samples", "replacement", "test_type"),

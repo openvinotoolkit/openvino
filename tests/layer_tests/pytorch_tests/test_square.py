@@ -1,6 +1,7 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
 import pytest
 import torch
 
@@ -10,7 +11,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestSquareTypes(PytorchLayerTest):
 
     def _prepare_input(self):
-        return (self.random.randn(*self.shape, dtype=self.type),)
+        return (torch.randn(self.shape).to(self.type).numpy(),)
 
     def create_model(self, type):
 
@@ -22,7 +23,7 @@ class TestSquareTypes(PytorchLayerTest):
             def forward(self, lhs):
                 return torch.square(lhs.to(self.type))
 
-        return aten_square(type), "aten::square"
+        return aten_square(type), None, "aten::square"
 
     @pytest.mark.parametrize(("type"), [torch.int32, torch.int64, torch.float32])
     @pytest.mark.parametrize(("shape"), [[2, 3], [],])

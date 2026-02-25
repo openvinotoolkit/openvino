@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,10 +11,6 @@
 #include "openvino/core/type.hpp"
 
 namespace ov::snippets {
-
-namespace detail {
-IShapeInferSnippetsFactory::TRegistry make_common_cpu_shape_infer_registry();
-}  // namespace detail
 
 /**
  * \brief Shape infer factory that can create shape-infer instances for cpu-specific operations

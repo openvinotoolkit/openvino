@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@ public:
     struct Options {
         std::string ref_device;
         std::string tgt_device;
-        std::string npu_compiler_type;
         IRandomGenerator::Ptr global_initializer;
         ModelsAttrMap<IRandomGenerator::Ptr> initializers_map;
         ModelsAttrMap<std::string> input_data_map;

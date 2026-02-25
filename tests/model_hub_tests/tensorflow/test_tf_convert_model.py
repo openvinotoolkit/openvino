@@ -1,9 +1,8 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
 import os
-import platform
 import pytest
 import shutil
 import subprocess
@@ -12,7 +11,7 @@ import tensorflow as tf
 import tensorflow.compat.v1 as tf_v1
 import tensorflow_hub as hub
 # noinspection PyUnresolvedReferences
-#import tensorflow_text  # do not delete, needed for text models. Commended due to ticket 179327
+import tensorflow_text  # do not delete, needed for text models
 from huggingface_hub import snapshot_download
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list
@@ -161,27 +160,6 @@ class TestTFHubConvertModel(TestConvertModel):
     def test_convert_model_precommit(self, model_name, model_link, mark, reason, ie_device):
         assert mark is None or mark == 'skip' or mark == 'xfail', \
             "Incorrect test case: {}, {}".format(model_name, model_link)
-        
-        arm_platforms = {'arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'}
-        arm_failed_models = {
-            'movenet/singlepose/lightning',
-            'imagenet/mobilenet_v2_100_224/feature_vector',
-            'movenet/multipose/lightning',
-            'imagenet/mobilenet_v1_100_224/classification',
-            'magenta/arbitrary-image-stylization-v1-256',
-            'small_bert/bert_en_uncased_L-4_H-256_A-4',
-            'movinet/a5/base/kinetics-600/classification',
-            'efficientdet/lite0/detection',
-            'film',
-            'i3d-rgb',
-            'microsoft/deberta-v3-small',
-            'facebook/convnext-tiny-224',
-            'google/vit-base-patch16-224',
-            'facebook/sam-vit-base',
-        }
-        if platform.machine() in arm_platforms and model_name in arm_failed_models:
-            pytest.skip(f"Model {model_name} is not enabled on ARM platform")
-        
         if mark == 'skip':
             pytest.skip(reason)
         elif mark == 'xfail':

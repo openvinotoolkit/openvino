@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -150,7 +150,7 @@ ov::OutputVector negative_log_likelihood_loss(const ov::frontend::onnx::Node& no
     bool ignore_index = node.has_attribute("ignore_index") == true;
     int64_t ignore_index_value = 0;
 
-    // In some cases attribute may exist but have an "undefined" type, which we treat as missing.
+    // In some cases attributemay exists, but has an "undefined" type, which means for us "not exist"
     if (ignore_index) {
         const auto& attr = node.get_attribute("ignore_index");
         ignore_index = attr.get_type() != Attribute::Type::undefined;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,10 +74,7 @@ protected:
  */
 class DynamicBuffer {
 public:
-    DynamicBuffer(MemoryPtr from_,
-                  std::vector<MemoryPtr> to_,
-                  const PortMap& map_rule_,
-                  const std::shared_ptr<CpuParallel>& parallel);
+    DynamicBuffer(MemoryPtr from_, std::vector<MemoryPtr> to_, const PortMap& map_rule_);
 
     void execute(const dnnl::engine& eng, int iter);
     void transfer(const Node* node);
@@ -93,13 +90,7 @@ private:
     void move_buffer(const MemoryPtr& new_buffer);
     void move_data();
 
-    static void copy(const uint8_t* src,
-                     uint8_t* dst,
-                     size_t src_stride,
-                     size_t dst_stride,
-                     size_t count,
-                     size_t len,
-                     const std::shared_ptr<CpuParallel>& cpu_parallel);
+    static void copy(const uint8_t* src, uint8_t* dst, size_t src_stride, size_t dst_stride, size_t count, size_t len);
 
     /* variable states */
     size_t len = 1LU;
@@ -118,7 +109,6 @@ private:
     size_t elem_size = 0LU;
 
     MemoryPtr mem_holder_buffer;
-    std::shared_ptr<CpuParallel> cpu_parallel;
 };
 
 class TensorIterator : public Node {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,9 +71,9 @@ Logger& Logger::global() {
     return log;
 }
 
-Logger::Logger(const char* name, ov::log::Level lvl) : _name(name), _logLevel(lvl) {}
+Logger::Logger(std::string_view name, ov::log::Level lvl) : _name(name), _logLevel(lvl) {}
 
-Logger Logger::clone(const char* name) const {
+Logger Logger::clone(std::string_view name) const {
     Logger logger(name, level());
     return logger;
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -202,8 +202,7 @@ void Proposal::execute([[maybe_unused]] const dnnl::stream& strm) {
                                                   roi_indices.data(),
                                                   outRoiData,
                                                   outProbData,
-                                                  conf,
-                                                  context->getCpuParallel());
+                                                  conf);
     } catch (const ov::Exception& e) {
         CPU_NODE_THROW(e.what());
     }

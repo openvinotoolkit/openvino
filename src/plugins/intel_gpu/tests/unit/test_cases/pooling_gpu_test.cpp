@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -3338,34 +3338,6 @@ TEST(pooling_forward_gpu_onednn, basic_max_pooling_int8) {
     for (const auto& exp : final_results)     {
         ASSERT_EQ(exp, interm_ptr[cntr++]);
     }
-}
-
-TEST(pooling_onednn, blocked_rank_3_layout_no_throw_in_calc_dims) {
-    auto& engine = get_test_engine();
-    if (!engine.get_device_info().supports_immad)
-        return;
-
-    const layout in_layout{ov::PartialShape{1, 32, 33}, data_types::f32, format::b_fs_yx_fsv16};
-    auto in_mem = engine.allocate_memory(in_layout);
-    set_values(in_mem, std::vector<float>(in_mem->count(), 1.0f));
-
-    topology topology(
-        input_layout("input", in_layout),
-        pooling("pool", input_info("input"), pooling_mode::max, {1, 3}, {1, 1})
-    );
-
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::use_onednn(true));
-    ov::intel_gpu::ImplForcingMap forcing_impl;
-    forcing_impl["pool"] = ov::intel_gpu::ImplementationDesc(format::any, "", impl_types::onednn);
-    config.set_property(ov::intel_gpu::force_implementations(forcing_impl));
-
-    EXPECT_NO_THROW({
-        network net(engine, topology, config);
-        net.set_input_data("input", in_mem);
-        auto outputs = net.execute();
-        ASSERT_EQ(outputs.size(), size_t(1));
-    });
 }
 
 #endif   // ENABLE_ONEDNN_FOR_GPU

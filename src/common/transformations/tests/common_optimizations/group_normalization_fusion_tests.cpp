@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,6 @@
 
 using namespace testing;
 
-namespace v1 = ov::op::v1;
 namespace ov {
 namespace test {
 
@@ -245,8 +244,8 @@ protected:
                 std::make_shared<op::v8::Gather>(instance_norm_beta_1d, gather_indices_const, gather_axis_const);
 
             auto group_norm_beta_corr_multiply =
-                std::make_shared<v1::Multiply>(group_norm_gamma_1d, instance_norm_beta_1d);
-            group_norm_beta_1d = std::make_shared<v1::Add>(group_norm_beta_corr_multiply, group_norm_beta_1d);
+                std::make_shared<ov::op::v1::Multiply>(group_norm_gamma_1d, instance_norm_beta_1d);
+            group_norm_beta_1d = std::make_shared<ov::op::v1::Add>(group_norm_beta_corr_multiply, group_norm_beta_1d);
         }
 
         if (instance_norm_gamma_present) {
@@ -261,7 +260,7 @@ protected:
 
             instance_norm_gamma_1d =
                 std::make_shared<op::v8::Gather>(instance_norm_gamma_1d, gather_indices_const, gather_axis_const);
-            group_norm_gamma_1d = std::make_shared<v1::Multiply>(group_norm_gamma_1d, instance_norm_gamma_1d);
+            group_norm_gamma_1d = std::make_shared<ov::op::v1::Multiply>(group_norm_gamma_1d, instance_norm_gamma_1d);
         }
 
         auto group_norm = std::make_shared<op::v12::GroupNormalization>(input,

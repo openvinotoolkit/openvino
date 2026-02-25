@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -11,7 +11,7 @@ namespace ov {
 /// \param cond Condition to check
 /// \param ... Additional error message info to be added to the error message via the `<<`
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
-///            i.e., only if the `cond` evaluates to `false`.
+///            i.e., only if the `cond` evalutes to `false`.
 /// \throws ::ov::OpValidationFailure if `cond` is false.
 
 #ifndef TENSORFLOW_OP_VALIDATION

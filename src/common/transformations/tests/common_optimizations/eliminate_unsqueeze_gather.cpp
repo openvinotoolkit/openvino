@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,10 +18,8 @@
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 
 using namespace ov;
+using namespace ov::op;
 
-namespace v0 = ov::op::v0;
-namespace v1 = ov::op::v1;
-namespace v8 = ov::op::v8;
 namespace {
 
 using TensorType = ov::element::Type_t;

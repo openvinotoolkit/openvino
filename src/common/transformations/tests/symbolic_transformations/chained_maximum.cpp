@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,11 +15,9 @@
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 using namespace ov;
+using namespace ov::op;
 using namespace std;
 
-namespace v0 = ov::op::v0;
-namespace v1 = ov::op::v1;
-namespace v3 = ov::op::v3;
 TEST_F(TransformationTestsF, ChainedMaximumAC) {
     // A == C
     // Maximum(Maximum(A, B), C) -> Maximum(B, C)

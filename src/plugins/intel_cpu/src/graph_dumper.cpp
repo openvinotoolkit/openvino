@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,6 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
-#include "openvino/util/common_util.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/platform.h"
 
@@ -64,19 +63,25 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr& node) {
 
     std::string outputPrecisionsStr;
     if (!node->getChildEdges().empty()) {
-        std::vector<std::string> outputPrecisions;
-        outputPrecisions.reserve(node->getChildEdges().size());
-        for (size_t i = 0; i < node->getChildEdges().size(); ++i) {
-            outputPrecisions.emplace_back(
-                node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision().get_type_name());
+        outputPrecisionsStr = node->getChildEdgeAt(0)->getMemory().getDesc().getPrecision().get_type_name();
+
+        bool isAllEqual = true;
+        for (size_t i = 1; i < node->getChildEdges().size(); i++) {
+            if (node->getChildEdgeAt(i - 1)->getMemory().getDesc().getPrecision() !=
+                node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision()) {
+                isAllEqual = false;
+                break;
+            }
         }
-        const bool isAllEqual = std::adjacent_find(outputPrecisions.begin(),
-                                                   outputPrecisions.end(),
-                                                   [](const std::string& lhs, const std::string& rhs) {
-                                                       return lhs != rhs;
-                                                   }) == outputPrecisions.end();
+
         // If all output precisions are the same, we store the name only once
-        outputPrecisionsStr = isAllEqual ? outputPrecisions.front() : ov::util::join(outputPrecisions, ",");
+        if (!isAllEqual) {
+            for (size_t i = 1; i < node->getChildEdges().size(); i++) {
+                outputPrecisionsStr +=
+                    "," + static_cast<std::string>(
+                              node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision().get_type_name());
+            }
+        }
     } else {
         // Branch to correctly handle output nodes
         if (!node->getParentEdges().empty()) {
@@ -89,18 +94,22 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr& node) {
     auto outDescs = node->getSelectedPrimitiveDescriptor()->getConfig().outConfs;
 
     if (!outDescs.empty()) {
-        std::vector<std::string> outputLayouts;
-        outputLayouts.reserve(outDescs.size());
-        std::transform(outDescs.begin(), outDescs.end(), std::back_inserter(outputLayouts), [](const auto& outDesc) {
-            return outDesc.getMemDesc()->serializeFormat();
-        });
-        const bool isAllEqual = std::adjacent_find(outputLayouts.begin(),
-                                                   outputLayouts.end(),
-                                                   [](const std::string& lhs, const std::string& rhs) {
-                                                       return lhs != rhs;
-                                                   }) == outputLayouts.end();
+        outputLayoutsStr = outDescs[0].getMemDesc()->serializeFormat();
+
+        bool isAllEqual = true;
+        for (size_t i = 1; i < outDescs.size(); i++) {
+            if (outDescs[i - 1].getMemDesc()->serializeFormat() != outDescs[i].getMemDesc()->serializeFormat()) {
+                isAllEqual = false;
+                break;
+            }
+        }
+
         // If all output layouts are the same, we store the name only once
-        outputLayoutsStr = isAllEqual ? outputLayouts.front() : ov::util::join(outputLayouts, ",");
+        if (!isAllEqual) {
+            for (size_t i = 1; i < outDescs.size(); i++) {
+                outputLayoutsStr += "," + outDescs[i].getMemDesc()->serializeFormat();
+            }
+        }
     } else {
         outputLayoutsStr = dnnl::utils::fmt2str(dnnl::memory::format_tag::undef);
     }

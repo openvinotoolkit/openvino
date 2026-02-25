@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -200,7 +200,7 @@ protected:
         }
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(roi_pooling)};
 
-        function = create_ov_model(netPrecision, params, roi_pooling, "ROIPooling");
+        function = makeNgraphFunction(netPrecision, params, roi_pooling, "ROIPooling");
         functionRefs = function->clone();
     }
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -150,7 +150,7 @@ protected:
                            secondaryInputType);
         }
 
-        function = create_ov_model(netPrecision, params, sliceNode, "Slice8");
+        function = makeNgraphFunction(netPrecision, params, sliceNode, "Slice8");
     }
     Slice8SpecificParams sliceParams;
 };

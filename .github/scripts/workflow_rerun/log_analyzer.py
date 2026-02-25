@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import json
@@ -23,14 +23,15 @@ class ErrorData(TypedDict):
 
 class LogAnalyzer:
     def __init__(self,
-                 path_to_logs: Path,
+                 path_to_log_archive: Path,
                  path_to_errors_file: Path) -> None:
+        self._path_to_log_archive = path_to_log_archive
         self._path_to_errors_file = path_to_errors_file
 
         self._errors_to_look_for: list[ErrorData] = []
         self._collect_errors_to_look_for()
 
-        self._log_dir = path_to_logs
+        self._log_dir = tempfile.TemporaryDirectory().name
 
         self._log_files: list[LogFile] = []
         self._collect_log_files()
@@ -39,7 +40,6 @@ class LogAnalyzer:
 
         self.found_matching_error = False
         self.found_error_ticket = None
-        self.matched_error_text = None
 
     def _collect_errors_to_look_for(self) -> None:
         with open(file=self._path_to_errors_file,
@@ -71,6 +71,10 @@ class LogAnalyzer:
 
         We need to only analyze the `*.txt` files
         """
+
+        with ZipFile(file=self._path_to_log_archive,
+                     mode='r') as zip_file:
+            zip_file.extractall(self._log_dir)
 
         for _file in Path(self._log_dir).iterdir():
             if _file.is_dir():
@@ -124,13 +128,12 @@ class LogAnalyzer:
                     LOGGER.info(f'FOUND "{error["error_text"]}" ERROR IN {log_file["path"]}. TICKET: {error["ticket"]}')
                     self.found_matching_error = True
                     self.found_error_ticket = error['ticket']
-                    self.matched_error_text = error['error_text']
                     return
 
 
 if __name__ == '__main__':
     # Usage example
-    log_analyzer = LogAnalyzer(path_to_logs=Path('/tmp/logs_dir'),
+    log_analyzer = LogAnalyzer(path_to_log_archive=Path('/tmp/logs/log.zip'),
                                path_to_errors_file=Path('/tmp/errors_to_look_for.json'))
     log_analyzer.analyze()
     if log_analyzer.found_matching_error:

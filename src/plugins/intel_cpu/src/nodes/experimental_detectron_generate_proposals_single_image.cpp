@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,8 +28,8 @@
 #    include <immintrin.h>
 #endif
 
-#include "cpu_parallel.hpp"
 #include "experimental_detectron_generate_proposals_single_image.h"
+#include "openvino/core/parallel.hpp"
 #include "openvino/op/experimental_detectron_generate_proposals.hpp"
 
 namespace ov::intel_cpu::node {
@@ -59,14 +59,13 @@ void refine_anchors(const float* deltas,
                     const float min_box_H,
                     const float min_box_W,
                     const float max_delta_log_wh,
-                    float coordinates_offset,
-                    const std::shared_ptr<CpuParallel>& cpuParallel) {
+                    float coordinates_offset) {
     Indexer4d delta_idx(4, bottom_H, bottom_W);
     Indexer4d score_idx(1, bottom_H, bottom_W);
     Indexer4d proposal_idx(bottom_W, anchors_num, 5);
     Indexer4d anchor_idx(bottom_W, anchors_num, 4);
 
-    cpuParallel->parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
+    parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
         for (int anchor = 0; anchor < anchors_num; ++anchor) {
             int a_idx = anchor_idx(h, w, anchor, 0);
             float x0 = anchors[a_idx + 0];
@@ -123,11 +122,8 @@ void refine_anchors(const float* deltas,
     });
 }
 
-void unpack_boxes(const float* p_proposals,
-                  float* unpacked_boxes,
-                  int pre_nms_topn,
-                  const std::shared_ptr<CpuParallel>& cpuParallel) {
-    cpuParallel->parallel_for(pre_nms_topn, [&](size_t i) {
+void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int pre_nms_topn) {
+    parallel_for(pre_nms_topn, [&](size_t i) {
         unpacked_boxes[0 * pre_nms_topn + i] = p_proposals[5 * i + 0];
         unpacked_boxes[1 * pre_nms_topn + i] = p_proposals[5 * i + 1];
         unpacked_boxes[2 * pre_nms_topn + i] = p_proposals[5 * i + 2];
@@ -273,15 +269,14 @@ void fill_output_blobs(const float* proposals,
                        float* scores,
                        const int num_proposals,
                        const int num_rois,
-                       const int post_nms_topn,
-                       const std::shared_ptr<CpuParallel>& cpuParallel) {
+                       const int post_nms_topn) {
     const float* src_x0 = proposals + 0 * num_proposals;
     const float* src_y0 = proposals + 1 * num_proposals;
     const float* src_x1 = proposals + 2 * num_proposals;
     const float* src_y1 = proposals + 3 * num_proposals;
     const float* src_score = proposals + 4 * num_proposals;
 
-    cpuParallel->parallel_for(num_rois, [&](size_t i) {
+    parallel_for(num_rois, [&](size_t i) {
         int index = roi_indices[i];
         rois[i * 4 + 0] = src_x0[index];
         rois[i * 4 + 1] = src_y0[index];
@@ -354,7 +349,6 @@ void ExperimentalDetectronGenerateProposalsSingleImage::initSupportedPrimitiveDe
 
 void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]] const dnnl::stream& strm) {
     try {
-        const auto& cpuParallel = context->getCpuParallel();
         if (inputShapes.size() != 4 || outputShapes.size() != 2) {
             CPU_NODE_THROW("Incorrect number of input or output edges!");
         }
@@ -445,8 +439,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]]
                            min_box_H,
                            min_box_W,
                            static_cast<const float>(std::log(1000. / 16.)),
-                           1.0F,
-                           cpuParallel);
+                           1.0F);
             std::partial_sort(proposals_.begin(),
                               proposals_.begin() + pre_nms_topn,
                               proposals_.end(),
@@ -454,7 +447,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]]
                                   return (struct1.score > struct2.score);
                               });
 
-            unpack_boxes(reinterpret_cast<float*>(proposals_.data()), unpacked_boxes.data(), pre_nms_topn, cpuParallel);
+            unpack_boxes(reinterpret_cast<float*>(proposals_.data()), unpacked_boxes.data(), pre_nms_topn);
             nms_cpu(pre_nms_topn,
                     is_dead.data(),
                     unpacked_boxes.data(),
@@ -470,8 +463,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]]
                               p_roi_score_item,
                               pre_nms_topn,
                               num_rois,
-                              post_nms_topn_,
-                              cpuParallel);
+                              post_nms_topn_);
         }
     } catch (const std::exception& e) {
         CPU_NODE_THROW(e.what());

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -15,10 +15,6 @@ def get_arguments() -> argparse.Namespace:
                         type=int,
                         required=True,
                         help='Workflow Run ID')
-    parser.add_argument('--rerunner-run-id',
-                        type=int,
-                        required=True,
-                        help='Workflow Run ID for the rerunner run itself')
     parser.add_argument('--errors-to-look-for-file',
                         type=Path,
                         required=False,

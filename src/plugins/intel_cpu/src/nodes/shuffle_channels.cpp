@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@
 #include <string>
 
 #include "common/primitive_hashing_utils.hpp"
-#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
@@ -290,16 +289,13 @@ ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleC
     permuteKernel = std::make_unique<PermuteKernel>(params);
 }
 
-void ShuffleChannels::ShuffleChannelsExecutor::exec(const uint8_t* srcData,
-                                                    uint8_t* dstData,
-                                                    int MB,
-                                                    const CpuParallelPtr& cpuParallel) {
+void ShuffleChannels::ShuffleChannelsExecutor::exec(const uint8_t* srcData, uint8_t* dstData, int MB) {
     OPENVINO_ASSERT(permuteKernel, "Could not execute. Kernel for Transpose node was not compiled.");
 
     if (MB > 0) {
-        permuteKernel->execute(srcData, dstData, MB, cpuParallel);
+        permuteKernel->execute(srcData, dstData, MB);
     } else {
-        permuteKernel->execute(srcData, dstData, cpuParallel);
+        permuteKernel->execute(srcData, dstData);
     }
 }
 
@@ -314,7 +310,7 @@ void ShuffleChannels::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     const auto* srcData = getSrcDataAtPortAs<const uint8_t>(0);
     auto* dstData = getDstDataAtPortAs<uint8_t>(0);
-    execPtr->exec(srcData, dstData, MB, context->getCpuParallel());
+    execPtr->exec(srcData, dstData, MB);
 }
 
 bool ShuffleChannels::created() const {

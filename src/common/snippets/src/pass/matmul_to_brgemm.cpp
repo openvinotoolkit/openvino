@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,8 @@
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::pass {
+
+using namespace lowered;
 
 MatMulToBrgemm::MatMulToBrgemm() {
     MATCHER_SCOPE(MatMulToBrgemm);
@@ -54,9 +56,9 @@ MatMulToBrgemm::MatMulToBrgemm() {
             std::make_shared<op::Brgemm>(matmul->input_value(0), matmul->input_value(1), 0, 0, 0, layout_a, layout_b);
 
         static const std::vector<size_t> subtensor{utils::get_full_dim_value(), utils::get_full_dim_value()};
-        lowered::PortDescriptorUtils::set_port_descriptor(brgemm->input(0), subtensor, layout_a);
-        lowered::PortDescriptorUtils::set_port_descriptor(brgemm->input(1), subtensor, layout_b);
-        lowered::PortDescriptorUtils::set_port_descriptor(brgemm->output(0), subtensor);
+        PortDescriptorUtils::set_port_descriptor(brgemm->input(0), subtensor, layout_a);
+        PortDescriptorUtils::set_port_descriptor(brgemm->input(1), subtensor, layout_b);
+        PortDescriptorUtils::set_port_descriptor(brgemm->output(0), subtensor);
 
         ov::NodeVector nodes = {brgemm};
         if (brgemm->get_output_element_type(0) != matmul->get_output_element_type(0)) {

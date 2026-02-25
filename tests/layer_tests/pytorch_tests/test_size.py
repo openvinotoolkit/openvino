@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -8,9 +8,10 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestSize(PytorchLayerTest):
     def _prepare_input(self, input_shape, complex_type):
+        import numpy as np
         if complex_type:
             input_shape += [2]
-        return (self.random.randn(*input_shape),)
+        return (np.random.randn(*input_shape).astype(np.float32),)
 
     def create_model(self, complex_type):
         import torch
@@ -27,7 +28,7 @@ class TestSize(PytorchLayerTest):
 
         op = aten_size(complex_type)
 
-        return op, "aten::size"
+        return op, None, "aten::size"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -195,7 +195,7 @@ void ConvolutionLayerCPUTest::SetUp() {
     auto convolution = ov::test::utils::make_convolution(inputParams[0], netType, kernel, stride, padBegin,
                                                          padEnd, dilation, padType, convOutChannels,
                                                          inputGenData.count(1) ? std::make_optional(inputGenData.at(1)) : std::nullopt);
-    function = create_ov_model(netType, inputParams, convolution, "Convolution", qinfo);
+    function = makeNgraphFunction(netType, inputParams, convolution, "Convolution", qinfo);
 }
 
 TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {

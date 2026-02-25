@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,11 +14,9 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace v0 = ov::op::v0;
+using namespace ov::op;
 
-namespace ov::pass {
-
-ConcatFusion::ConcatFusion() {
+ov::pass::ConcatFusion::ConcatFusion() {
     MATCHER_SCOPE(ConcatFusion);
     auto has_same_axis_concat_input = [](const Output<Node>& output) {
         const auto& concat = ov::as_type_ptr<v0::Concat>(output.get_node_shared_ptr());
@@ -58,8 +56,6 @@ ConcatFusion::ConcatFusion() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(concat_pattern, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
-
-}  // namespace ov::pass

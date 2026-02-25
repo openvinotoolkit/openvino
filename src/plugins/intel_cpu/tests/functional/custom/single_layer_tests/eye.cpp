@@ -1,4 +1,4 @@
-/// Copyright (C) 2018-2026 Intel Corporation
+/// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,11 +91,11 @@ protected:
             auto eyelikeBatchShape =
                 std::make_shared<ov::op::v9::Eye>(rowsPar, colsPar, diagPar, batchShapePar, ov::element::i32);
             eyelikeBatchShape->get_rt_info() = getCPUInfo();
-            return create_ov_model(ov::element::i32, inputParams, eyelikeBatchShape, "Eye");
+            return makeNgraphFunction(ov::element::i32, inputParams, eyelikeBatchShape, "Eye");
         } else {
             auto eyelikePure = std::make_shared<ov::op::v9::Eye>(rowsPar, colsPar, diagPar, ov::element::i32);
             eyelikePure->get_rt_info() = getCPUInfo();
-            return create_ov_model(ov::element::i32, inputParams, eyelikePure, "Eye");
+            return makeNgraphFunction(ov::element::i32, inputParams, eyelikePure, "Eye");
         }
     }
 

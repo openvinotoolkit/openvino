@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from huggingface_hub import snapshot_download
@@ -6,7 +6,6 @@ from optimum.intel import OVModelForCausalLM
 import models_hub_common.utils as utils
 import pytest
 import os
-import platform
 import openvino as ov
 import tempfile
 from collections import deque
@@ -91,13 +90,6 @@ def run_test(model_id, ie_device, ts_names, expected_layer_types):
 def test_transformations_precommit(tmp_path, model_name, model_link, mark, reason, ie_device, ts_names, layer_types):
     assert mark is None or mark == 'skip' or mark == 'xfail', \
         "Incorrect test case: {}, {}".format(model_name, model_link)
-    arm_machine_names = {'arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'}
-    arm_unsupported_rope_models = {
-        "hf-internal-testing/tiny-random-GPTJForCausalLM",
-        "hf-internal-testing/tiny-random-CodeGenForCausalLM",
-    }
-    if platform.machine() in arm_machine_names and model_name in arm_unsupported_rope_models:
-        pytest.skip("RoPE fusion is not available for this model on ARM")
     if mark == 'skip':
         pytest.skip(reason)
     elif mark == 'xfail':

@@ -1,6 +1,7 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
 import pytest
 import torch
 
@@ -74,7 +75,7 @@ class aten_chunk_getitem(torch.nn.Module):
 
 class TestChunk(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.rand(*self.input_shape),)
+        return (np.random.rand(*self.input_shape),)
 
     @pytest.mark.parametrize("input_shape", [
         (4, 4),
@@ -110,7 +111,7 @@ class TestChunk(PytorchLayerTest):
             elif output_chunks == 4:
                 cls = aten_chunk_4
 
-            self._test(cls(dim, unsafe),
+            self._test(cls(dim, unsafe), None,
                        "aten::unsafe_chunk" if unsafe else "aten::chunk",
                        ie_device, precision, ir_version, dynamic_shapes=False,
                        freeze_model=True, trace_model=True)
@@ -140,7 +141,7 @@ class TestChunk(PytorchLayerTest):
             output_chunks += 1 if dim_shape % chunk_size > 0 else 0
 
             for idx in [0, 1, output_chunks - 1]:
-                self._test(aten_chunk_getitem(chunks, dim, idx, unsafe),
+                self._test(aten_chunk_getitem(chunks, dim, idx, unsafe), None,
                            "aten::unsafe_chunk" if unsafe else "aten::chunk",
                            ie_device, precision, ir_version)
 
@@ -164,7 +165,7 @@ class aten_chunk_loop_getitem(torch.nn.Module):
 
 class TestChunkLoopGetitem(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.rand(*self.input_shape),)
+        return (np.random.rand(*self.input_shape),)
 
     @pytest.mark.parametrize("input_shape", [
         (4, 4),
@@ -184,6 +185,6 @@ class TestChunkLoopGetitem(PytorchLayerTest):
         self.input_shape = input_shape
 
         chunk_op = "aten::unsafe_chunk" if unsafe else "aten::chunk"
-        self._test(aten_chunk_loop_getitem(chunks, unsafe),
+        self._test(aten_chunk_loop_getitem(chunks, unsafe), None,
                    [chunk_op, "prim::Loop", "aten::__getitem__"],
                    ie_device, precision, ir_version)

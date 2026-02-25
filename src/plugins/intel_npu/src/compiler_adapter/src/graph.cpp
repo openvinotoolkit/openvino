@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,9 +18,9 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              const GraphDescriptor& graphDesc,
              NetworkMetadata metadata,
              std::optional<ov::Tensor> blob,
-             const FilteredConfig& config,
+             const Config& config,
              const bool blobIsPersistent,
-             const ov::SoPtr<VCLCompilerImpl>& compiler,
+             const ov::SoPtr<ICompiler>& compiler,
              const bool calledFromWeightlessGraph)
     : IGraph(),
       _zeGraphExt(zeGraphExt),
@@ -91,9 +91,8 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
         OPENVINO_THROW("Model was imported and released after initialization. Model export is not allowed anymore.");
     }
 
-    if (_blob == std::nullopt) {
-        OPENVINO_ASSERT(_zeGraphExt != nullptr, "Zero compiler adapter wasn't initialized");
-        // when compiling the model using Compiler in Driver, the blob is handled by the driver
+    if (_blob ==
+        std::nullopt) {  // when compiling the model using Compiler in Driver, the blob is handled by the driver
         _zeGraphExt->getGraphBinary(_graphDesc, blobVec, blobPtr, blobSize);
     } else {  // in all other cases, the blob is handled by the plugin
         blobPtr = static_cast<const uint8_t*>(_blob->data());
@@ -138,7 +137,8 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
     return std::make_pair(size, std::nullopt);
 }
 
-std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData) const {
+std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData,
+                                                               const Config& config) const {
     if (_compiler == nullptr) {
         OPENVINO_THROW("Profiling post-processing is not supported.");
     }
@@ -146,7 +146,7 @@ std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector
     std::vector<uint8_t> blob(_blob->get_byte_size());
     blob.assign(reinterpret_cast<const uint8_t*>(_blob->data()),
                 reinterpret_cast<const uint8_t*>(_blob->data()) + _blob->get_byte_size());
-    return _compiler->process_profiling_output(profData, blob);
+    return _compiler->process_profiling_output(profData, blob, config);
 }
 
 void Graph::set_argument_value(uint32_t id, const void* data) const {
@@ -163,7 +163,7 @@ void Graph::set_argument_value_with_strides(uint32_t id, const void* data, const
     _zeGraphExt->setGraphArgumentValueWithStrides(_graphDesc, id, data, strides);
 }
 
-void Graph::initialize(const FilteredConfig& config) {
+void Graph::initialize(const Config& config) {
     _logger.debug("Graph initialize start");
 
     if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
@@ -220,7 +220,7 @@ void Graph::initialize(const FilteredConfig& config) {
     _init_completed = true;
 }
 
-bool Graph::release_blob(const FilteredConfig& config) {
+bool Graph::release_blob(const Config& config) {
     if ((_zeGraphExt != nullptr && _zeGraphExt->isBlobDataImported(_graphDesc)) || _blobIsPersistent ||
         _blob == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 8) ||
         config.get<PERF_COUNT>()) {
@@ -267,20 +267,6 @@ void Graph::set_last_submitted_id(uint32_t id_index) {
 
 uint32_t Graph::get_last_submitted_id() const {
     return _lastSubmittedId;
-}
-
-std::optional<bool> Graph::is_profiling_blob() const {
-    if (_zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
-        _logger.debug("Cannot determine if the blob was compiled for profiling");
-        return std::nullopt;
-    }
-    ze_graph_properties_3_t graphProperties = {};
-    graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_3;
-
-    auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties3(get_handle(), &graphProperties);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
-
-    return graphProperties.flags & ZE_GRAPH_PROPERTIES_FLAG_PROFILING_ENABLED;
 }
 
 std::optional<size_t> Graph::determine_batch_size() {

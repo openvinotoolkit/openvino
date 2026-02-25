@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,12 @@ const char *targetPluginName = "";
 const char *refCachePath = "";
 
 std::vector<std::string> IRFolderPaths = {};
+std::vector<std::string> disabledTests = {
+    R"(.*OVCompiledModelBaseTest.*import_from_.*_blob.*targetDevice=(MULTI|AUTO|CPU).*)",
+    R"(.*OVCompiledModelBaseTest.*compile_from_.*_blob.*targetDevice=(MULTI|AUTO|CPU).*)",
+    R"(.*OVCompiledModelBaseTest.*compile_from_cached_weightless_blob.*targetDevice=(MULTI|AUTO|CPU).*)",
+    R"(.*OVCompiledModelBaseTest.*use_blob_hint_.*targetDevice=CPU.*)",
+};
 
 ShapeMode shapeMode = ov::test::conformance::ShapeMode::BOTH;
 
@@ -25,13 +31,6 @@ ShapeMode shapeMode = ov::test::conformance::ShapeMode::BOTH;
 } // namespace test
 } // namespace ov
 
-const std::vector<std::regex>& disabled_test_patterns() {
-    const static std::vector<std::regex> patterns{
-        std::regex(R"(.*OVCompiledModelBaseTest.*import_from_.*_blob.*targetDevice=(MULTI|AUTO|CPU).*)"),
-        std::regex(R"(.*OVCompiledModelBaseTest.*compile_from_.*_blob.*targetDevice=(MULTI|AUTO|CPU).*)"),
-        std::regex(R"(.*OVCompiledModelBaseTest.*compile_from_cached_weightless_blob.*targetDevice=(MULTI|AUTO|CPU).*)"),
-        std::regex(R"(.*OVCompiledModelBaseTest.*use_blob_hint_.*targetDevice=CPU.*)"),
-    };
-
-    return patterns;
+std::vector<std::string> disabledTestPatterns() {
+    return ov::test::conformance::disabledTests;
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,11 +55,6 @@ public:
     ov::OutputVector make_ov_nodes(const ov::frontend::onnx::Node& onnx_node);
 
     const OpsetImports& get_opset_imports() const;
-
-    int64_t get_opset_version(const std::string& domain) const {
-        return m_model->get_opset_version(domain);
-    }
-
     virtual ~Graph() = default;
 
     const ov::frontend::ExtensionHolder& get_extensions() const {
@@ -102,13 +97,13 @@ private:
 ///             cache.
 class Subgraph : public Graph {
 public:
-    /// \brief      Subgraph holds a GraphCache class object.
+    /// \brief      Subgraph a GraphCache class object.
     ///
     /// \param[in]  model          The ONNX model object.
     /// \param[in]  parent_graph   The reference to the parent graph.
     Subgraph(const std::shared_ptr<ModelProto>& model, Graph* parent_graph);
 
-    /// \brief      Return nodes which are on the edge of the subgraph and the parent graph.
+    /// \brief      Return nodes which are on the edge the subgraph and the parent graph.
     /// \return     Vector of edge nodes from parent scope.
     const std::vector<ov::Output<ov::Node>> get_inputs_from_parent() const;
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,8 +96,7 @@ static const std::map<std::string, std::string> ISOL_PRESETS = {{"COMPUTE",
                                                                  "P:RMSNorm3/compute,P:RMSNorm4/compute,"
                                                                  "P:VariadicSplit/compute"},
                                                                 {"FAKE", "P:FakeConvert/fake,P:FakeQuantize/fake"},
-                                                                {"ATTN", "P:SDPA/attn,P:SDPADecomposed/attn"},
-                                                                {"MOE", "P:GPTOSSExpert/expert,P:GPTOSSRouter/router"}};
+                                                                {"ATTN", "P:SDPA/attn,P:SDPADecomposed/attn"}};
 }  // namespace util
 
 }  // namespace online

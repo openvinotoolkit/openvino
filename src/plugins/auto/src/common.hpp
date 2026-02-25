@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -213,7 +213,6 @@ public:
     std::string                                    m_model_path;
     std::shared_ptr<const ov::IPlugin>             m_plugin;
     std::string                                    m_str_devices;
-    std::vector<std::string>                       m_str_devices_initial;
     unsigned int                                   m_model_priority = 0;
     ov::Any                                        m_performance_hint;
     ov::Any                                        m_schedule_policy = ov::intel_auto::SchedulePolicy::DEFAULT;

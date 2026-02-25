@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <algorithm>
@@ -19,13 +19,11 @@
 #    include <iostream>
 #    include <sstream>
 #    include <string>
-#    include <vector>
 
 #    include "common/c_types_map.hpp"
 #    include "common/verbose.hpp"
 #    include "cpu_types.h"
 #    include "memory_desc/cpu_memory_desc_utils.h"
-#    include "openvino/util/common_util.hpp"
 #    include "verbose.h"
 
 namespace ov::intel_cpu {
@@ -124,11 +122,10 @@ void Verbose::printInfo() {
         }
         auto fmt_str = desc->getPrecision().to_string();
         if (const auto& dims = desc->getShape().getDims(); !dims.empty()) {
-            std::vector<std::string> dimStrings(dims.size());
-            std::transform(dims.begin(), dims.end(), dimStrings.begin(), [](size_t dim) {
-                return dim2str(dim);
+            auto dim_str = dim2str(dims.front());
+            std::for_each(++(dims.begin()), dims.end(), [&dim_str](size_t dim) {
+                dim_str.append("x" + dim2str(dim));
             });
-            auto dim_str = ov::util::join(dimStrings, "x");
             return {fmt_str, dim_str};
         }
         return {fmt_str, {}};
@@ -163,14 +160,16 @@ void Verbose::printInfo() {
 
     std::string post_ops;
     if (!node->getFusedWith().empty()) {
-        std::vector<std::string> fusedOps;
-        fusedOps.reserve(node->getFusedWith().size());
+        post_ops += "post_ops:'";
         for (const auto& fusedNode : node->getFusedWith()) {
-            fusedOps.emplace_back(colorize(GREEN, fusedNode->getName()) + ":" +
-                                  colorize(CYAN, NameFromType(fusedNode->getType())) + ":" +
-                                  algToString(fusedNode->getAlgorithm()));
+            post_ops.append(colorize(GREEN, fusedNode->getName()))
+                .append(":")
+                .append(colorize(CYAN, NameFromType(fusedNode->getType())))
+                .append(":")
+                .append(algToString(fusedNode->getAlgorithm()))
+                .append(";");
         }
-        post_ops = "post_ops:'" + ov::util::join(fusedOps, ";") + ";'";
+        post_ops += "'";
     }
 
     std::string nodeImplementer = "cpu";

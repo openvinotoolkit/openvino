@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -66,7 +66,7 @@ if(paddlepaddle_FOUND)
     
     DownloadAndCheck(${PADDLEDET_OPS_URL} ${PADDLEDET_DIRNAME}/ops.py PADDLEDET_FATAL PADDLEDET_RESULT ${PADDLEDET_OPS_SHA256})
 else()
-    set(paddle_gen_tag "unknown")
+    set(paddle_gen_tag "unkown")
 endif()
 
 

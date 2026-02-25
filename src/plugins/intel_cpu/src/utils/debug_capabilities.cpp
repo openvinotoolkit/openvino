@@ -1,4 +1,5 @@
-// Copyright (C) 2018-2026 Intel Corporation
+
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <oneapi/dnnl/dnnl_common_types.h>
@@ -500,7 +501,7 @@ public:
     template <class Container>
     std::string join(const Container& strs) {
         std::stringstream ss;
-        ss << "[" << ov::util::join(strs, ",") << "]";
+        ss << "[" << ov::intel_cpu::join(strs, ',') << "]";
         return ss.str();
     }
 };
@@ -561,10 +562,9 @@ std::ostream& operator<<(std::ostream& os, const PrintableModel& model) {
                 auto sz = shape_size(constop->get_shape());
                 if (sz < 9) {
                     sep = "";
-                    if (constop->get_element_type().is_dynamic()) {
-                        os << "...";
-                    } else {
-                        os << ov::util::join(constop->get_value_strings(), ",");
+                    for (const auto& v : constop->get_value_strings()) {
+                        os << sep << v;
+                        sep = ",";
                     }
                 } else {
                     os << "...";

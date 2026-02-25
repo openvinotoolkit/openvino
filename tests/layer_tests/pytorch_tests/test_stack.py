@@ -1,6 +1,7 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
 import pytest
 
 from pytorch_layer_test_class import PytorchLayerTest
@@ -15,7 +16,7 @@ class TestStack2D(PytorchLayerTest):
 
         class aten_stack(torch.nn.Module):
             def __init__(self, dim):
-                super().__init__()
+                super(aten_stack, self).__init__()
                 self.dim = dim
 
             def forward(self, x, y):
@@ -24,8 +25,9 @@ class TestStack2D(PytorchLayerTest):
                     return torch.stack(inputs)
                 return torch.stack(inputs, self.dim)
 
+        ref_net = None
 
-        return aten_stack(dim), "aten::stack"
+        return aten_stack(dim), ref_net, "aten::stack"
 
     @pytest.mark.parametrize("input_shape",
     [
@@ -42,8 +44,8 @@ class TestStack2D(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     def test_stack2D(self, input_shape, dim, ie_device, precision, ir_version):
         self.input_tensors = [
-            self.random.randn(*input_shape),
-            self.random.randn(*input_shape),
+            np.random.randn(*input_shape).astype(np.float32),
+            np.random.randn(*input_shape).astype(np.float32),
         ]
         self._test(*self.create_model(dim), ie_device, precision, ir_version)
 
@@ -57,7 +59,7 @@ class TestStack3D(PytorchLayerTest):
 
         class aten_stack(torch.nn.Module):
             def __init__(self, dim):
-                super().__init__()
+                super(aten_stack, self).__init__()
                 self.dim = dim
 
             def forward(self, x, y, z):
@@ -66,8 +68,9 @@ class TestStack3D(PytorchLayerTest):
                     return torch.stack(inputs)
                 return torch.stack(inputs, self.dim)
 
+        ref_net = None
 
-        return aten_stack(dim), "aten::stack"
+        return aten_stack(dim), ref_net, "aten::stack"
 
     @pytest.mark.parametrize("input_shape",
     [
@@ -84,8 +87,8 @@ class TestStack3D(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     def test_stack3D(self, input_shape, dim, ie_device, precision, ir_version):
         self.input_tensors = [
-            self.random.randn(*input_shape),
-            self.random.randn(*input_shape),
-            self.random.randn(*input_shape)
+            np.random.randn(*input_shape).astype(np.float32),
+            np.random.randn(*input_shape).astype(np.float32),
+            np.random.randn(*input_shape).astype(np.float32)
         ]
         self._test(*self.create_model(dim), ie_device, precision, ir_version)

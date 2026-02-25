@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -230,12 +230,13 @@ private:
             return true;
         }
         [[nodiscard]] std::string getPropertyValueDescription() const override {
-            std::vector<std::string> tokenNames;
-            tokenNames.reserve(propertyTokens.size());
-            for (const auto& token : propertyTokens) {
-                tokenNames.push_back(token.name);
+            std::string supportedTokens = "comma separated filter tokens: ";
+            for (size_t i = 0; i < propertyTokens.size(); i++) {
+                if (i) {
+                    supportedTokens.push_back(',');
+                }
+                supportedTokens.append(propertyTokens[i].name);
             }
-            std::string supportedTokens = "comma separated filter tokens: " + ov::util::join(tokenNames, ",");
             supportedTokens.append(
                 "; -'token' is used for exclusion, case does not matter, no tokens is treated as 'all'");
             return supportedTokens;

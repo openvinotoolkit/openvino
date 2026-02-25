@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,10 +91,10 @@ TEST(ONNX_Importer_Tests, ImportModelWithMultiOutput) {
 TEST(ONNX_Importer_Tests, ImportModelWithNotSupportedOp) {
     try {
         auto model = convert_model("not_supported.onnx");
-        FAIL() << "No exception was thrown despite the ONNX model not being supported";
+        FAIL() << "Any expection was thrown despite the ONNX model is not supported";
     } catch (const Exception& error) {
         EXPECT_PRED_FORMAT2(testing::IsSubstring,
-                            std::string("No conversion rule found for operations: NotSupported-7"),
+                            std::string("OpenVINO does not support the following ONNX operations: NotSupported"),
                             error.what());
     } catch (...) {
         FAIL() << "Expected 'Exception' exception was not thrown despite the ONNX model is not supported";

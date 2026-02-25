@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,7 @@ protected:
         auto fq = ov::test::utils::make_fake_quantize(sum, ov::element::f32, 256, {}, {-8.0f}, {7.0f}, {-8.0f}, {7.0f});
 
         ov::ParameterVector inputParams = {mmParams[0]};
-        function = create_ov_model(netPrecision, inputParams, fq, "FQScaleshiftWithConstantShift");
+        function = makeNgraphFunction(netPrecision, inputParams, fq, "FQScaleshiftWithConstantShift");
     }
 };
 

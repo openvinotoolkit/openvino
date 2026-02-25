@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,6 @@
 using namespace testing;
 using namespace ov;
 
-namespace v0 = ov::op::v0;
 TEST_F(TransformationTestsF, LeakyReluFusionConstant) {
     {
         auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 2});
@@ -37,7 +36,7 @@ TEST_F(TransformationTestsF, LeakyReluFusionConstant) {
     }
 
     {
-        auto data = std::make_shared<v0::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
         auto alpha = opset8::Constant::create(element::f32, Shape{1}, {0.1});
         auto leaky_relu = std::make_shared<opset8::PRelu>(data, alpha);
         model_ref = std::make_shared<Model>(OutputVector{leaky_relu}, ParameterVector{data});
@@ -72,7 +71,7 @@ TEST_F(TransformationTestsF, LeakyReluFusionConstantAlphaOnFirstInput) {
     }
 
     {
-        auto data = std::make_shared<v0::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
         auto alpha = opset8::Constant::create(element::f32, Shape{1}, {0.1});
         auto leaky_relu = std::make_shared<opset8::PRelu>(data, alpha);
         model_ref = std::make_shared<Model>(OutputVector{leaky_relu}, ParameterVector{data});
@@ -95,7 +94,7 @@ TEST_F(TransformationTestsF, LeakyReluFusionScalar) {
     }
 
     {
-        auto data = std::make_shared<v0::Parameter>(element::f32, Shape{2, 2});
+        auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
         auto alpha = opset8::Constant::create(element::f32, Shape{}, {0.1});
         auto leaky_relu = std::make_shared<opset8::PRelu>(data, alpha);
         model_ref = std::make_shared<Model>(OutputVector{leaky_relu}, ParameterVector{data});

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -310,7 +310,7 @@ void fake_quantize(const T* arg,
                               *(in_low + in_low_stride),
                               *(in_high + in_high_stride),
                               *(out_low + out_low_stride),
-                              *(out_high + out_high_stride),
+                              *(out_high + out_low_stride),
                               levels_minus_one);
         }
     }

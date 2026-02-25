@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,7 +65,7 @@ OutputVector translate_to(const NodeContext& context) {
     // stages. (e.g. transformations passes)
 
     // memory_format sets the desired memory format of returned Tensor.
-    // memory format is ignored since it changes strides of a tensor. In openvino tensors are always contiguous
+    // memory format is ignored since it changes strides of a tensor. In openvino tensors are always contigious
     auto dtype_ext_node = context.get_input_from_visible_context(dtype_idx).get_node_shared_ptr();
     auto dtype_fw_node = ov::as_type_ptr<PtFrameworkNode>(dtype_ext_node);
     auto data = context.get_input(0);

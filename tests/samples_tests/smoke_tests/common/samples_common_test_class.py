@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2026 Intel Corporation
+ Copyright (C) 2018-2025 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -58,11 +58,11 @@ def download(test_data_dir, file_path):
             with lock_path.open('bx'):
                 if not file_path.exists():
                     if test_data_dir / 'bvlcalexnet-12.onnx' == file_path:
-                        response = requests.get("https://media.githubusercontent.com/media/onnx/models/4c46cd00fbdb7cd30b6c1c17ab54f2e1f4f7b177/validated/vision/classification/alexnet/model/bvlcalexnet-12.onnx?download=true")
+                        response = requests.get("https://github.com/onnx/models/raw/main/validated/vision/classification/alexnet/model/bvlcalexnet-12.onnx?download=")
                         with file_path.open('wb') as nfnet:
                             nfnet.write(response.content)
                     elif test_data_dir / 'efficientnet-lite4-11-qdq.onnx' == file_path:
-                        response = requests.get("https://media.githubusercontent.com/media/onnx/models/4c46cd00fbdb7cd30b6c1c17ab54f2e1f4f7b177/validated/vision/classification/efficientnet-lite4/model/efficientnet-lite4-11-qdq.onnx?download=true")
+                        response = requests.get("https://github.com/onnx/models/raw/main/validated/vision/classification/efficientnet-lite4/model/efficientnet-lite4-11-qdq.onnx?download=")
                         with file_path.open('wb') as nfnet:
                             nfnet.write(response.content)
                     else:

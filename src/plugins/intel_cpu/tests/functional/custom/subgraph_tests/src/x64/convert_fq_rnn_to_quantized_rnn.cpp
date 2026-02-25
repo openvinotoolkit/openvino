@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -177,7 +177,7 @@ protected:
         if (maxSeqLen > 1)
             abs_threshold = 0.05; // RNN int8 computation is expected to affect the accuracy, especially when sequence_length > 1
 
-        function = create_ov_model(ngPrec, inputParams, rnnCellOp, "ConvertFqRnnToQuantizedRnn");
+        function = makeNgraphFunction(ngPrec, inputParams, rnnCellOp, "ConvertFqRnnToQuantizedRnn");
     }
 private:
     static const size_t cellIdx = 2;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,7 +112,7 @@ public:
 };
 
 TEST_P(DmaBufRemoteRunTests, CheckRemoteTensorSharedBuf) {
-    // Skip test according to plugin specific disabled_test_patterns() (if any)
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
@@ -145,7 +145,7 @@ TEST_P(DmaBufRemoteRunTests, CheckRemoteTensorSharedBuf) {
 }
 
 TEST_P(DmaBufRemoteRunTests, CheckRemoteTensorSharedBuChangingTensors) {
-    // Skip test according to plugin specific disabled_test_patterns() (if any)
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
@@ -199,7 +199,7 @@ TEST_P(DmaBufRemoteRunTests, CheckRemoteTensorSharedBuChangingTensors) {
 }
 
 TEST_P(DmaBufRemoteRunTests, CheckOutputDataFromMultipleRuns) {
-    // Skip test according to plugin specific disabled_test_patterns() (if any)
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::CompiledModel compiled_model;

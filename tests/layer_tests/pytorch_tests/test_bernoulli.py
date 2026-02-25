@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -39,8 +39,9 @@ class TestBernoulli(PytorchLayerTest):
                 bernoulli_res = torch.bernoulli(input, generator=self.gen, out=out)
                 return bernoulli_res
 
+        ref_net = None
 
-        return aten_bernoulli(out, seed), "aten::bernoulli"
+        return aten_bernoulli(out, seed), ref_net, "aten::bernoulli"
 
     @pytest.mark.parametrize("input", [
         np.array([[0, 1, 0, 0], [0, 0, 0, 1], [1, 0, 0, 0]]),
@@ -85,8 +86,9 @@ class TestBernoulliWithP(PytorchLayerTest):
                 bernoulli_res = torch.bernoulli(input, self.p, generator=self.gen)
                 return bernoulli_res
 
+        ref_net = None
 
-        return aten_bernoulli(p, seed), "aten::bernoulli"
+        return aten_bernoulli(p, seed), ref_net, "aten::bernoulli"
 
     @pytest.mark.parametrize("input", [
         np.array([[0, 1, 0, 0], [0, 0, 0, 1], [1, 0, 0, 0]]),

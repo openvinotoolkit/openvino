@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -111,13 +111,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestGPTOSS,
                             ::testing::Values(ov::element::f16, ov::element::f32),
                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          RoPETestGPTOSS::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_RoPETestLtxVideo,
-                         RoPETestLtxVideo,
-                         ::testing::Combine(
-                            ::testing::Values(ov::element::f16, ov::element::f32),
-                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         RoPETestLtxVideo::getTestCaseName);
 
 }  // namespace test
 }  // namespace ov

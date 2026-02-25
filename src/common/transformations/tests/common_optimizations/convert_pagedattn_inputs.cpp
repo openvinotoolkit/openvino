@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 
 using namespace ov::test;
 using namespace ov;
+using namespace ov::op;
 using namespace ov::gen_pattern;
 using ConvertPagedAttnInputsParams = std::tuple<std::vector<ov::element::Type>,  // cache_precision
                                                 std::vector<size_t>,             // cache_group_size
@@ -23,8 +24,6 @@ using ConvertPagedAttnInputsParams = std::tuple<std::vector<ov::element::Type>, 
                                                 bool,                            // accuracy_mode
                                                 bool                             // is_ir_kv_cache_f16
                                                 >;
-
-namespace v0 = ov::op::v0;
 namespace {
 class ConvertPagedAttnInputsTest : public TransformationTestsF,
                                    public testing::WithParamInterface<ConvertPagedAttnInputsParams> {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,6 @@
 #include "common/blocked_desc_creator.h"
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu_memory.h"
-#include "cpu_parallel.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
@@ -314,23 +313,20 @@ DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs
     permuteKernel = std::make_unique<PermuteKernel>(params);
 }
 
-void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr,
-                                              const MemoryPtr& dstMemPtr,
-                                              int MB,
-                                              const CpuParallelPtr& cpuParallel) {
+void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, int MB) {
     OPENVINO_ASSERT(permuteKernel, "Could not execute. Kernel for Transpose node was not compiled.");
 
     const auto* srcData = srcMemPtr->getDataAs<const uint8_t>();
     auto* dstData = dstMemPtr->getDataAs<uint8_t>();
 
-    permuteKernel->execute(srcData, dstData, MB, cpuParallel);
+    permuteKernel->execute(srcData, dstData, MB);
 }
 
 void DepthToSpace::execute([[maybe_unused]] const dnnl::stream& strm) {
     CPU_NODE_ASSERT(execPtr, "doesn't have a compiled executor.");
 
     int MB = getSrcMemoryAtPort(0)->getStaticDims()[0];
-    execPtr->exec(getSrcMemoryAtPort(0), getDstMemoryAtPort(0), MB, context->getCpuParallel());
+    execPtr->exec(getSrcMemoryAtPort(0), getDstMemoryAtPort(0), MB);
 }
 
 void DepthToSpace::executeDynamicImpl(const dnnl::stream& strm) {

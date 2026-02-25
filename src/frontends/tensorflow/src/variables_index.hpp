@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -160,7 +160,7 @@ private:
                                     uint32_t& offset,
                                     uint32_t& offset_end);
     /// \brief Reads key=value pair from provided pointer
-    /// \param[in,out] ptr Actual pointer, will be moved to the end of read pair (to read next)
+    /// \param[in,out] ptr Actual pointer, will be moved to the end of readed pair (to read next)
     /// \param[in] ptr_end End of memory which shouldn't be passed in case of broken structure
     /// \param[out] key Key name
     /// \param[out] value Stored value for key (isn't a pure string, data block)

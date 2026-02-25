@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -229,9 +229,9 @@ bool categoryRuleEnabler(const std::string& category,
     return false;
 }
 
-const std::vector<std::regex>& disabled_test_patterns();
+std::vector<std::string> disabledTestPatterns();
 
-const std::vector<std::regex>& disabled_test_patterns() {
+std::vector<std::string> disabledTestPatterns() {
     // Initialize skip registry
     static const auto skipRegistry = []() {
         SkipRegistry _skipRegistry;
@@ -250,7 +250,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // Error returned from pugixml, fallback to legacy skips
             if (!xmlResult.error_msg.empty()) {
                 _log.error(xmlResult.error_msg.c_str());
-                OPENVINO_THROW("No skip filters are applied");
+                throw std::runtime_error("No skip filters are applied");
             }
 
             pugi::xml_document& xmlSkipConfig = *xmlResult.xml;
@@ -293,10 +293,9 @@ const std::vector<std::regex>& disabled_test_patterns() {
     }();
     // clang-format on
 
-    static std::vector<std::regex> patterns;
-    patterns.clear();
+    std::vector<std::string> matchingPatterns;
     const auto currentTestName = getCurrentTestName();
-    patterns.emplace_back(skipRegistry.getMatchingPattern(currentTestName));
+    matchingPatterns.emplace_back(skipRegistry.getMatchingPattern(currentTestName));
 
-    return patterns;
+    return matchingPatterns;
 }

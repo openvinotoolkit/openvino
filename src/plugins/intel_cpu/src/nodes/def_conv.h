@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -126,15 +126,11 @@ private:
                           const float* modulation,
                           float* dst,
                           int* pSampledCoordsVector,
-                          float* pInterpWeightsVector,
-                          const CpuParallelPtr& cpuParallel) = 0;
+                          float* pInterpWeightsVector) = 0;
         virtual ~DefConvExecutor() = default;
 
     protected:
-        void prepareSamplingWeights(const float* offsets,
-                                    const CpuParallelPtr& cpuParallel,
-                                    const float* modulation = nullptr,
-                                    bool enforceRef = false);
+        void prepareSamplingWeights(const float* offsets, const float* modulation = nullptr, bool enforceRef = false);
         jit_def_conv_params jcp = {};
         VectorDims srcStrides;
         VectorDims offStrides;
@@ -157,8 +153,7 @@ private:
                   const float* modulation,
                   float* dst,
                   int* pSampledCoordsVector,
-                  float* pInterpWeightsVector,
-                  const CpuParallelPtr& cpuParallel) override;
+                  float* pInterpWeightsVector) override;
     };
 
     class DefConvJitExecutor : public DefConvExecutor {
@@ -174,8 +169,7 @@ private:
                   const float* modulation,
                   float* dst,
                   int* pSampledCoordsVector,
-                  float* pInterpWeightsVector,
-                  const CpuParallelPtr& cpuParallel) override;
+                  float* pInterpWeightsVector) override;
     };
 
     std::shared_ptr<DefConvExecutor> execPtr = nullptr;

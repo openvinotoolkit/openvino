@@ -1,5 +1,6 @@
+import os
 import re
-import subprocess   #nosec B404
+import subprocess
 from pathlib import Path
 import sys
 

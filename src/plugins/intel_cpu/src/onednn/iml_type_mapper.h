@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,9 +48,12 @@ enum impl_desc_type : int64_t {
     sve384 = 1 << 30,
     sve512 = 1 << 31,
 
-    gv = 1LL << 32,
+    // shl backend
+    shl = 1LL << 32,
 
-    kleidiai = 1LL << 33,
+    gv = 1LL << 33,
+
+    kleidiai = 1LL << 34,
 
     // real types
     ref_any = ref | any,
@@ -123,6 +126,7 @@ enum impl_desc_type : int64_t {
     jit_sve384 = jit | sve384,
     jit_sve512 = jit | sve512,
 
+    gemm_shl = gemm | shl,
     gemm_kleidiai = gemm | kleidiai,
 
     jit_gv = jit | gv

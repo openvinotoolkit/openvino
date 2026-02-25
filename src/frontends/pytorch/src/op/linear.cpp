@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,17 +107,10 @@ Output<Node> rearrange_constant(const Output<Node>& c, uint32_t groups) {
     auto src = constant->get_data_ptr<uint32_t>();
     auto initial_shape = constant->get_shape();
     FRONT_END_OP_CONVERSION_CHECK(initial_shape.size() == 2, "Only 2D constants are supported.");
-    FRONT_END_OP_CONVERSION_CHECK(groups > 0, "AWQ group size must be greater than 0.");
-    FRONT_END_OP_CONVERSION_CHECK(initial_shape[0] % groups == 0,
-                                  "AWQ qweight first dimension must be divisible by group size.");
     auto new_shape = Shape{initial_shape[0] / groups, groups, initial_shape[1] * 8};
     auto new_qweight = std::make_shared<v0::Constant>(element::u4, new_shape);
     auto dst = const_cast<uint32_t*>(reinterpret_cast<const uint32_t*>(new_qweight->get_data_ptr()));
-    const size_t src_elements_count = shape_size(initial_shape);
-    const size_t dst_elements_count = shape_size(new_shape) / 8;
-    FRONT_END_OP_CONVERSION_CHECK(dst_elements_count == src_elements_count,
-                                  "Unexpected AWQ constant size mismatch after rearrangement.");
-    for (size_t i = 0; i < src_elements_count; i++) {
+    for (size_t i = 0; i < shape_size(constant->get_shape()); i++) {
         dst[i] = rearrange_awq_bits(src[i]);
     }
     new_qweight->set_friendly_name(constant->get_friendly_name());
@@ -219,32 +212,6 @@ OutputVector translate_linear_bitnet(const NodeContext& context) {
     }
     return {matmul};
 };
-
-OutputVector translate_bmm_ext(const NodeContext& context) {
-    // ov_ext::bmm - batch matrix multiplication for 16-bit models
-    // schema: ov_ext::bmm(Tensor batch1, Tensor batch2) -> Tensor
-    num_inputs_check(context, 2, 2);
-    auto batch1 = context.get_input(0);
-    auto batch2 = context.get_input(1);
-    const auto initial_batch1 = batch1;
-
-    // Handle mixed precision - convert to f32 if inputs are fp16/bf16
-    const bool convert_back = batch1.get_element_type() != element::f32;
-    if (batch2.get_element_type() != element::f32) {
-        batch2 = context.mark_node(std::make_shared<v0::Convert>(batch2, element::f32));
-    }
-    if (convert_back) {
-        batch1 = context.mark_node(std::make_shared<v0::Convert>(batch1, element::f32));
-    }
-
-    // bmm: (b, n, m) @ (b, m, p) -> (b, n, p)
-    auto matmul = context.mark_node(std::make_shared<v0::MatMul>(std::move(batch1), std::move(batch2), false, false));
-
-    if (convert_back) {
-        matmul = context.mark_node(std::make_shared<v1::ConvertLike>(std::move(matmul), initial_batch1));
-    }
-    return {matmul};
-}
 
 }  // namespace op
 }  // namespace pytorch

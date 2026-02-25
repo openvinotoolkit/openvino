@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -99,7 +99,7 @@ protected:
             selectedType = getPrimitiveType() + "_" + inPrec.get_type_name();
         }
 
-        function = create_ov_model(inPrec, params, fq, "FakeQuantizeCPU");
+        function = makeNgraphFunction(inPrec, params, fq, "FakeQuantizeCPU");
 
         if (inPrec == ov::element::f32) {
             abs_threshold = 1e-4;

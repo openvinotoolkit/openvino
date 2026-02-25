@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -187,9 +187,9 @@ void compareResults(const std::shared_ptr<ov::Node> &node,
 
 } // namespace
 
-const CompareMap& getCompareMap() {
+CompareMap getCompareMap() {
 OPENVINO_SUPPRESS_DEPRECATED_START
-    const static CompareMap compareMap{
+    CompareMap compareMap{
 #define _OPENVINO_OP_REG(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), compareResults<NAMESPACE::NAME>},
 #include "openvino/opsets/opset1_tbl.hpp"
 #include "openvino/opsets/opset2_tbl.hpp"

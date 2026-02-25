@@ -42,12 +42,12 @@ def loop_x():
     paddle.enable_static()
     x = np.full(shape=[1], fill_value=1, dtype='int64')
 
-    def cond(i, ten, x):
+    def cond(i, ten):
         return ten >= i
 
-    def body(i, t, x):
+    def body(i, t):
         i = i + x
-        return i, t, x
+        return i, t
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name='x', shape=x.shape, dtype=x.dtype)
@@ -58,7 +58,7 @@ def loop_x():
             node_i = paddle.fluid.layers.nn.elementwise_add(node_i, node_x)
         node_ten = paddle.full(shape=[1], fill_value=10, dtype='int64', name='ten')
 
-        out, dummy, _ = paddle.static.nn.while_loop(cond, body, [node_i, node_ten, node_x], name='while_loop')
+        out, dummy = paddle.static.nn.while_loop(cond, body, [node_i, node_ten], name='while_loop')
 
         exe = paddle.static.Executor(place=paddle.CPUPlace())
         res = exe.run(paddle.static.default_main_program(), feed={'x':x}, fetch_list=out)

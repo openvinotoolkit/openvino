@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,7 +82,7 @@ protected:
         std::vector<ov::Shape> WRB = {{hiddenSize, inputSize}, {hiddenSize, hiddenSize}, {hiddenSize}};
         auto rnnCellOp = utils::make_rnn(paramsOuts, WRB, hiddenSize, activations, {}, {}, clip);
 
-        function = create_ov_model(netPrecision, params, rnnCellOp, "RNNCellCPU");
+        function = makeNgraphFunction(netPrecision, params, rnnCellOp, "RNNCellCPU");
     }
 };
 

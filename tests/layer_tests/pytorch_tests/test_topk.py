@@ -1,5 +1,8 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+import os
+
+import numpy as np
 import pytest
 
 from pytorch_layer_test_class import PytorchLayerTest
@@ -14,7 +17,7 @@ class TestTopK(PytorchLayerTest):
 
         class aten_topk(torch.nn.Module):
             def __init__(self, k, dim, largest, sort):
-                super().__init__()
+                super(aten_topk, self).__init__()
                 self.k = k
                 self.dim = dim
                 self.largest = largest
@@ -25,8 +28,9 @@ class TestTopK(PytorchLayerTest):
                     return torch.topk(input_tensor, k=self.k, largest=self.largest, sorted=self.sort)
                 else:
                     return torch.topk(input_tensor, k=self.k, dim=self.dim, largest=self.largest, sorted=self.sort)
+        ref_net = None
 
-        return aten_topk(k, dim, largest, sort), "aten::topk"
+        return aten_topk(k, dim, largest, sort), ref_net, "aten::topk"
 
     @pytest.mark.parametrize(("input_shape"), [
         [7, 5, 5, 4],
@@ -60,5 +64,6 @@ class TestTopK(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_topK(self, input_shape, k, dim, largest, sort, ie_device, precision, ir_version):
-        self.input_tensor = self.random.randn(*input_shape)
+        rng = np.random.default_rng(43)
+        self.input_tensor = rng.normal(size=(input_shape)).astype(np.float32)
         self._test(*self.create_model(k, dim, largest, sort), ie_device, precision, ir_version)

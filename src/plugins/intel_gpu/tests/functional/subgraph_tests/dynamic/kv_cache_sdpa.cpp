@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -160,7 +160,7 @@ public:
         auto compare_tensors = [&model, &inference_precision](const std::vector<ov::Tensor> expected,
                                                               const std::vector<ov::Tensor>& actual) {
             ASSERT_EQ(expected.size(), actual.size());
-            const auto& compareMap = ov::test::utils::getCompareMap();
+            auto compareMap = ov::test::utils::getCompareMap();
             for (size_t i = 0; i < expected.size(); i++) {
                 auto it = compareMap.find(ov::op::v13::ScaledDotProductAttention::get_type_info_static());
                 ASSERT_NE(it, compareMap.end());

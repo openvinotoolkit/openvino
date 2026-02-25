@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018-2026 Intel Corporation
+ * Copyright (c) 2022-2025 Intel Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,10 +29,10 @@ void pa_lsc_u8(
     svmptr_t q_base [[type("svmptr_t")]],
     svmptr_t k_cache_base [[type("svmptr_t")]],
     svmptr_t v_cache_base [[type("svmptr_t")]],
-#if IS_BLOCK_SPARSE
+#if SPARSE_BLOCK_SIZE > 1
     svmptr_t sparse_mask_base [[type("svmptr_t")]],
     svmptr_t wg_sparse_mask_base [[type("svmptr_t")]],
-    int SPARSE_BLOCK_SIZE,
+    bool validate,
 #endif
     svmptr_t o_base [[type("svmptr_t")]],
     int32_t past_lens,
@@ -77,24 +77,28 @@ void pa_lsc_u8(
     int slm_buff_id_write = 0;
     int slm_buff_id_read = 0;
 
-#if IS_BLOCK_SPARSE
-    const int sb_shift = (SPARSE_BLOCK_SIZE == 128) ? 7 : (SPARSE_BLOCK_SIZE == 256) ? 8 : -1;
+#if SPARSE_BLOCK_SIZE > 1
+    auto skip_compute = [&](int kv_pos) {
+        auto kv_start_block = kv_pos / SPARSE_BLOCK_SIZE;
+        bool sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);
 
-    auto skip_by = [&](const bool* base, int kv_pos) -> bool {
-        if (sb_shift < 0) return false;
-        return !base[(uint)kv_pos >> sb_shift];
+        return !sparse_mask;
     };
-
-    auto skip_compute = [&](int kv_pos) { return skip_by((const bool*)sparse_mask_base, kv_pos); };
-    auto skip_load    = [&](int kv_pos) { return skip_by((const bool*)wg_sparse_mask_base, kv_pos); };
+    auto skip_load = [&](int kv_pos) {
+        auto kv_start_block = kv_pos / SPARSE_BLOCK_SIZE;
+        bool sparse_mask = *(reinterpret_cast<bool*>(wg_sparse_mask_base) + kv_start_block);
+        return !sparse_mask;
+    };
 #endif
 
     auto load_slm_KV = [&](int kv_pos) {
         if (kv_pos < kv_stop) {
-#if IS_BLOCK_SPARSE
-            if (SPARSE_BLOCK_SIZE > 1 && skip_load(kv_pos)) {
-                slm_buff_id_write++;
-                return;
+#if SPARSE_BLOCK_SIZE > 1
+            if (validate) {
+                if (skip_load(kv_pos)) {
+                    slm_buff_id_write++;
+                    return;
+                }
             }
 #endif
             auto cur_block_id = block_indices[kv_pos / CMPA_BLOCK_SZ];
@@ -199,11 +203,13 @@ void pa_lsc_u8(
         load_slm_KV(kv_pos + kv_step*2);
 
 
-#if IS_BLOCK_SPARSE
-        if (SPARSE_BLOCK_SIZE > 1 && skip_compute(kv_pos)) {
-            if constexpr (use_causal_mask)
-                causal_left -= kv_step;
-            continue;
+#if SPARSE_BLOCK_SIZE > 1
+        if (validate) {
+            if (skip_compute(kv_pos)) {
+                if constexpr (use_causal_mask)
+                    causal_left -= kv_step;
+                continue;
+            }
         }
 #endif
         {
@@ -273,10 +279,10 @@ void pa_kernel_lsc_prefetch_f16(
     svmptr_t q_base [[type("svmptr_t")]],
     svmptr_t k_cache_base [[type("svmptr_t")]],
     svmptr_t v_cache_base [[type("svmptr_t")]],
-#if IS_BLOCK_SPARSE
+#if SPARSE_BLOCK_SIZE > 1
     svmptr_t sparse_mask_base [[type("svmptr_t")]],
     svmptr_t wg_sparse_mask_base [[type("svmptr_t")]],
-    int SPARSE_BLOCK_SIZE,
+    bool validate,
 #endif
     svmptr_t o_base [[type("svmptr_t")]],
     int32_t past_lens,
@@ -340,8 +346,8 @@ void pa_kernel_lsc_prefetch_f16(
             prefetch_K.set_block_y((prefetch_kv_pos + wg_local_id) % CMPA_BLOCK_SZ);
             cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(0));
 
-#if IS_BLOCK_SPARSE
-            if (SPARSE_BLOCK_SIZE > 1)
+#if SPARSE_BLOCK_SIZE > 1
+            if (validate)
             {
                 auto kv_start_block = kv_pos/ SPARSE_BLOCK_SIZE;
                 bool sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);

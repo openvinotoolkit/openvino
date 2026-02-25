@@ -3,18 +3,20 @@ import pytest
 import torch
 from pytorch_layer_test_class import PytorchLayerTest
 
-
 class TestMatMulOperation(PytorchLayerTest):
     def _prepare_input(self, matrix, vector):
-        return matrix, vector
+        matrix_input = np.array(matrix, dtype=np.float32)
+        vector_input = np.array(vector, dtype=np.float32)
+        return matrix_input, vector_input
 
-    def create_model(self):
+    def create_model(self, matrix, vector):
         class CustomMatMulOperation(torch.nn.Module):
             def forward(self, matrix, vector):
                 return torch.mv(matrix, vector)
 
         model_class = CustomMatMulOperation()
-        return model_class, "aten::mv"
+        ref_net = None
+        return model_class, ref_net, "aten::mv"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -33,10 +35,9 @@ class TestMatMulOperation(PytorchLayerTest):
         vector_input = vector_input.to(dtype=dtype)
 
         self._test(
-            *self.create_model(),
+            *self.create_model(matrix_input, vector_input),
             ie_device,
             precision,
             ir_version,
-            kwargs_to_prepare_input={"matrix": matrix_input.numpy(),
-                                     "vector": vector_input.numpy()},
+            kwargs_to_prepare_input={"matrix": matrix_input, "vector": vector_input}
         )

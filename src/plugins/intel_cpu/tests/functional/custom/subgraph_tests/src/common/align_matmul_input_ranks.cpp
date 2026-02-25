@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,7 +54,7 @@ protected:
                                         std::make_shared<ov::op::v0::Parameter>(ngPrec, inShapes.second)};
         const auto matMul = std::make_shared<ov::op::v0::MatMul>(inputParams[0], inputParams[1], false, false);
 
-        function = create_ov_model(ngPrec, inputParams, matMul, "AlignMatMulInputRanks");
+        function = makeNgraphFunction(ngPrec, inputParams, matMul, "AlignMatMulInputRanks");
     }
 
     int expectedNumOfReshapes = 0;

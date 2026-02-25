@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -16,7 +16,7 @@ class TestIndexAdd(PytorchLayerTest):
     def create_model(self, dim, index, src, mode, alpha):
         class aten_index_add(torch.nn.Module):
             def __init__(self, dim, index, src, mode, alpha):
-                super().__init__()
+                super(aten_index_add, self).__init__()
                 self.dim = dim
                 self.index = index
                 self.src = src
@@ -38,7 +38,7 @@ class TestIndexAdd(PytorchLayerTest):
 
         op_name = "aten::index_add_" if mode == "inplace" else "aten::index_add"
 
-        return aten_index_add(dim, index, src, mode, alpha), op_name
+        return aten_index_add(dim, index, src, mode, alpha), None, op_name
 
     @pytest.mark.nightly
     @pytest.mark.precommit

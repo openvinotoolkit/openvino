@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2023-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,7 +59,7 @@ std::shared_ptr<ov::Model> MatmulWeightsDecompression::initSubgraph(const ov::Pa
                                                                     decompression_subtract_type,
                                                                     reshape_on_decompression);
     auto matMul = std::make_shared<ov::op::v0::MatMul>(params[0], weights_subgraph);
-    return create_ov_model(data_precision, params, matMul, "MatmulWeightsDecompression");
+    return makeNgraphFunction(data_precision, params, matMul, "MatmulWeightsDecompression");
 }
 
 void MatmulWeightsDecompression::SetUp() {

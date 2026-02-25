@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -142,8 +142,9 @@ d3_params = [
 
 class TestConvolution(PytorchLayerTest):
     def _prepare_input(self, ndim=4):
+        import numpy as np
         shape = (1, 3, 10, 10, 10)
-        return (self.random.randn(*shape[:ndim]),)
+        return (np.random.randn(*shape[:ndim]).astype(np.float32),)
 
     def create_model(self, weights_shape, strides, pads, dilations, groups, bias, transposed, output_padding=0,
                      bias_shape=None, underscore=True):
@@ -153,13 +154,13 @@ class TestConvolution(PytorchLayerTest):
         bias_dim = 0
 
         class aten__convolution(torch.nn.Module):
-            def __init__(self, rng):
-                super().__init__()
-                self.weight = rng.torch_randn(*weights_shape)
+            def __init__(self):
+                super(aten__convolution, self).__init__()
+                self.weight = torch.randn(weights_shape)
                 self.bias_shape = bias_shape
                 if self.bias_shape is None:
                     self.bias_shape = weights_shape[bias_dim]
-                self.bias = rng.torch_randn(self.bias_shape) if bias else None
+                self.bias = torch.randn(self.bias_shape) if bias else None
                 self.strides = strides
                 self.pads = pads
                 self.dilations = dilations
@@ -175,13 +176,13 @@ class TestConvolution(PytorchLayerTest):
                 )
 
         class aten_convolution(torch.nn.Module):
-            def __init__(self, rng):
-                super().__init__()
-                self.weight = rng.torch_randn(*weights_shape)
+            def __init__(self):
+                super(aten_convolution, self).__init__()
+                self.weight = torch.randn(weights_shape)
                 self.bias_shape = bias_shape
                 if self.bias_shape is None:
                     self.bias_shape = weights_shape[bias_dim]
-                self.bias = rng.torch_randn(self.bias_shape) if bias else None
+                self.bias = torch.randn(self.bias_shape) if bias else None
                 self.strides = strides
                 self.pads = pads
                 self.dilations = dilations
@@ -196,9 +197,10 @@ class TestConvolution(PytorchLayerTest):
                     self.output_padding, self.groups
                 )
 
+        ref_net = None
         if underscore:
-            return aten__convolution(self.random), "aten::_convolution"
-        return aten_convolution(self.random), "aten::convolution"
+            return aten__convolution(), ref_net, "aten::_convolution"
+        return aten_convolution(), ref_net, "aten::convolution"
 
     @pytest.mark.parametrize("params", d1_params)
     @pytest.mark.parametrize("bias", [True, False])
@@ -210,10 +212,9 @@ class TestConvolution(PytorchLayerTest):
     def test_convolution1d(self, params, bias, underscore, ie_device, precision, ir_version):
         if ie_device == "GPU" and params["dilations"] != [1]:
             pytest.xfail(reason="Unsupported dilations of Convolution on GPU")
-        fx_op = "aten._convolution" if underscore else "aten.convolution"
         self._test(*self.create_model(**params, bias=bias, underscore=underscore),
                    ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1,
-                   kwargs_to_prepare_input={'ndim': 3}, fx_kind=fx_op)
+                   kwargs_to_prepare_input={'ndim': 3})
 
     @pytest.mark.parametrize("params", d2_params)
     @pytest.mark.parametrize("bias", [True, False])
@@ -225,10 +226,8 @@ class TestConvolution(PytorchLayerTest):
     def test_convolution2d(self, params, bias, underscore, ie_device, precision, ir_version):
         if ie_device == "GPU" and params["dilations"] != [1, 1]:
             pytest.xfail(reason="Unsupported dilations of Convolution on GPU")
-        fx_op = "aten._convolution" if underscore else "aten.convolution"
         self._test(*self.create_model(**params, bias=bias, underscore=underscore),
-                   ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1,
-                   fx_kind=fx_op)
+                   ie_device, precision, ir_version, dynamic_shapes=params['groups'] == 1)
 
     @pytest.mark.parametrize("params", d3_params)
     @pytest.mark.parametrize("bias", [True, False])

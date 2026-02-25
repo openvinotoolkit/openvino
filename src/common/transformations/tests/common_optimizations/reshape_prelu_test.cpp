@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -248,27 +248,6 @@ TEST(TransformationTests, ReshapePReluTest9) {
         auto prelu = std::make_shared<opset1::PRelu>(input, reshape);
 
         f_ref = std::make_shared<ov::Model>(OutputVector{prelu}, ParameterVector{input, slope});
-    }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
-}
-
-// Test for scalar input (rank=0) - should not crash and should not apply transformation
-TEST(TransformationTests, ReshapePReluTestScalarInput) {
-    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
-    {
-        auto input = std::make_shared<opset1::Parameter>(element::f32, Shape{});
-        auto slope = opset1::Constant::create(element::f32, Shape{1}, {-2.f});
-        auto prelu = std::make_shared<opset1::PRelu>(input, slope);
-
-        f = std::make_shared<ov::Model>(OutputVector{prelu}, ParameterVector{input});
-        f_ref = f;
-
-        pass::Manager m;
-        m.register_pass<ov::pass::InitNodeInfo>();
-        m.register_pass<ReshapePRelu>();
-        m.run_passes(f);
     }
 
     auto res = compare_functions(f, f_ref);

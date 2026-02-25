@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -12,8 +12,8 @@ class TestMean(PytorchLayerTest):
         if keep_dim is None:
             keep_dim = False
         if not use_out:
-            return (self.random.randint(-10, 10, (1, 3, 224, 224), dtype=np.float32),)
-        inp = self.random.randint(-10, 10, (1, 3, 224, 224), dtype=np.float32)
+            return (np.random.randint(-10, 10, (1, 3, 224, 224)).astype(np.float32),)
+        inp = np.random.randint(-10, 10, (1, 3, 224, 224)).astype(np.float32)
         calc_inp = inp.astype(dtype) if dtype is not None else inp
         if axis is None:
             out = np.mean(calc_inp, keepdims=keep_dim)
@@ -67,7 +67,7 @@ class TestMean(PytorchLayerTest):
                     return torch.mean(x, dim=self.axes, keepdim=self.keep_dims, out=out)
                 return torch.mean(x, dim=self.axes, keepdim=self.keep_dims, dtype=self.dtype, out=out)
 
-        return aten_mean(axes, keep_dims, pt_dtype, out), "aten::mean"
+        return aten_mean(axes, keep_dims, pt_dtype, out), None, "aten::mean"
 
     @pytest.mark.parametrize("axes,keep_dim,dtype,out",
                              [(None, None, None, False),

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -11,7 +11,7 @@ class TestSTFT(PytorchLayerTest):
         import numpy as np
 
         if rand_data:
-            signal = self.random.randn(*signal_shape, dtype=out_dtype)
+            signal = np.random.randn(*signal_shape).astype(out_dtype)
         else:
             num_samples = signal_shape[-1]
             half_idx = num_samples // 2
@@ -30,7 +30,7 @@ class TestSTFT(PytorchLayerTest):
         class aten_stft(torch.nn.Module):
 
             def __init__(self, n_fft, hop_length, win_length, normalized):
-                super().__init__()
+                super(aten_stft, self).__init__()
                 self.n_fft = n_fft
                 self.hop_length = hop_length
                 self.win_length = win_length
@@ -50,8 +50,9 @@ class TestSTFT(PytorchLayerTest):
                     return_complex=False,
                 )
 
+        ref_net = None
 
-        return aten_stft(n_fft, hop_length, win_length, normalized), "aten::stft"
+        return aten_stft(n_fft, hop_length, win_length, normalized), ref_net, "aten::stft"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -76,7 +77,7 @@ class TestSTFTAttrs(PytorchLayerTest):
     def _prepare_input(self, out=False, out_dtype="float32"):
         import numpy as np
 
-        signal = self.random.randn(2, 512, dtype=out_dtype)
+        signal = np.random.randn(2, 512).astype(out_dtype)
         return (signal,)
 
     def create_model_with_attrs(self, n_fft, hop_length, win_length, center, pad_mode, normalized, onesided, return_complex):
@@ -85,7 +86,7 @@ class TestSTFTAttrs(PytorchLayerTest):
         class aten_stft_attrs(torch.nn.Module):
 
             def __init__(self, n_fft, hop_length, win_length, center, pad_mode, normalized, onesided, return_complex):
-                super().__init__()
+                super(aten_stft_attrs, self).__init__()
                 self.n_fft = n_fft
                 self.hop_length = hop_length
                 self.win_length = win_length
@@ -114,8 +115,9 @@ class TestSTFTAttrs(PytorchLayerTest):
                 else:
                     return stft
 
+        ref_net = None
 
-        return aten_stft_attrs(n_fft, hop_length, win_length, center, pad_mode, normalized, onesided, return_complex), "aten::stft"
+        return aten_stft_attrs(n_fft, hop_length, win_length, center, pad_mode, normalized, onesided, return_complex), ref_net, "aten::stft"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -128,7 +128,7 @@ void BitwiseShiftLayerCPUTest::SetUp() {
     }
 
     auto eltwise = utils::make_eltwise(parameters[0], secondaryInput, eltwiseType);
-    function = create_ov_model(netType, parameters, eltwise, "Eltwise");
+    function = makeNgraphFunction(netType, parameters, eltwise, "Eltwise");
 }
 
 TEST_P(BitwiseShiftLayerCPUTest, CompareWithRefs) {

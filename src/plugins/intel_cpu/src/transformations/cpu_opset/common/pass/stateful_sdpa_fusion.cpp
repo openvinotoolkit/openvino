@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -116,6 +116,12 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
+// only support sink input on x86 platform currently.
+#ifndef OPENVINO_ARCH_X86_64
+        if (pattern_map.count(atten_sink)) {
+            return false;
+        }
+#endif
         // Check concat axes equality first
         const auto concat_k_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_k).get_node_shared_ptr());
         const auto concat_v_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_v).get_node_shared_ptr());

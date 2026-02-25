@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ ov::OutputVector simplified_layer_normalization(const ov::frontend::onnx::Node& 
                      X.get_element_type(),
                      scale.get_element_type());
 
-    float epsilon = node.get_attribute_value<float>("epsilon", 1e-12f);
+    float epsilon = node.get_attribute_value<float>("epsilon", 1e-5f);
     int64_t axis = node.get_attribute_value<int64_t>("axis", -1);
     int64_t default_stash_type = static_cast<int64_t>(TensorProto_DataType::TensorProto_DataType_FLOAT);
     int64_t stash_type_i = node.get_attribute_value<int64_t>("stash_type", default_stash_type);

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2026 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import os
 
@@ -10,14 +10,15 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestIf(PytorchLayerTest):
     def _prepare_input(self):
-        return (self.random.randn(1, 3, 224, 224), self.y)
+        return (np.random.randn(1, 3, 224, 224).astype(np.float32), self.y)
 
     def create_model(self):
         import torch
+        import torch.nn.functional as F
 
         class prim_if(torch.nn.Module):
             def __init__(self):
-                super().__init__()
+                super(prim_if, self).__init__()
 
             def forward(self, x, y):
                 if y > 0:
@@ -26,8 +27,9 @@ class TestIf(PytorchLayerTest):
                     res = torch.zeros(x.shape[:2], dtype=torch.bool)
                 return res.to(torch.bool)
 
+        ref_net = None
 
-        return prim_if(), "prim::If"
+        return prim_if(), ref_net, "prim::If"
 
     @pytest.mark.parametrize("y", [np.array(1),
                                    np.array(-1)

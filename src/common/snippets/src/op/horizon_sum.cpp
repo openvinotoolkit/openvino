@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,13 +18,10 @@ HorizonSum::HorizonSum(const Output<Node>& x) : Op({x}) {
     constructor_validate_and_infer_types();
 }
 
-HorizonSum::HorizonSum(const OutputVector& x) : Op(x) {
-    constructor_validate_and_infer_types();
-}
-
 std::shared_ptr<Node> HorizonSum::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(HorizonSum_clone_with_new_inputs);
-    return std::make_shared<HorizonSum>(new_args);
+    check_new_args_count(this, new_args);
+    return std::make_shared<HorizonSum>(new_args.at(0));
 }
 
 void HorizonSum::validate_and_infer_types() {

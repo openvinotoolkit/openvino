@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,21 +24,16 @@ ov::OutputVector range(const ov::frontend::onnx::Node& node) {
 
     auto axes = std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
 
-    const auto is_singleton_vector = [](const ov::PartialShape& pshape) {
-        return pshape.rank().is_static() && pshape.rank().get_length() == 1 && pshape[0].is_static() &&
-               pshape[0].get_length() == 1;
-    };
-
-    // Squeeze 1D-tensors with single element into scalars for Range inputs
-    if (is_singleton_vector(start.get_partial_shape())) {
+    // Check if step is a tensor with a single value
+    if (start.get_shape().size() == 1 && start.get_shape()[0] == 1) {
         start = std::make_shared<v0::Squeeze>(start, axes);
     }
 
-    if (is_singleton_vector(stop.get_partial_shape())) {
+    if (stop.get_shape().size() == 1 && stop.get_shape()[0] == 1) {
         stop = std::make_shared<v0::Squeeze>(stop, axes);
     }
 
-    if (is_singleton_vector(step.get_partial_shape())) {
+    if (step.get_shape().size() == 1 && step.get_shape()[0] == 1) {
         step = std::make_shared<v0::Squeeze>(step, axes);
     }
 

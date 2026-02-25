@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -169,19 +169,19 @@ private:
     struct PluginDescriptor {
         std::filesystem::path m_lib_location{};
         ov::AnyMap m_default_config{};
-        std::vector<std::filesystem::path> m_list_of_extensions{};
+        std::vector<ov::util::FilePath> m_list_of_extensions{};
         CreatePluginEngineFunc* m_plugin_create_func = nullptr;
         CreateExtensionFunc* m_extension_create_func = nullptr;
         mutable std::vector<Extension::Ptr> m_extensions{};  // mutable because of lazy init
 
         PluginDescriptor() = default;
 
-        PluginDescriptor(const std::filesystem::path& lib_location,
+        PluginDescriptor(const ov::util::FilePath& lib_location,
                          const ov::AnyMap& default_config = {},
-                         const std::vector<std::filesystem::path>& list_of_extensions = {})
+                         const std::vector<ov::util::FilePath>& list_of_extentions = {})
             : m_lib_location(lib_location),
               m_default_config(default_config),
-              m_list_of_extensions(list_of_extensions) {}
+              m_list_of_extensions(list_of_extentions) {}
 
         PluginDescriptor(CreatePluginEngineFunc* plugin_create_func,
                          const ov::AnyMap& default_config = {},
@@ -237,10 +237,10 @@ public:
     /**
      * @brief Register plugins for devices which are located in .xml configuration file.
      * @note The function supports UNICODE path
-     * @param xml_config_file An .xml configuration with device / plugin information
+     * @param xml_config_file An .xml configuraion with device / plugin information
      * @param by_abs_path A boolean value - register plugins by absolute file path or not
      */
-    void register_plugins_in_registry(const std::filesystem::path& xml_config_file, const bool by_abs_path = false);
+    void register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path = false);
 
     std::shared_ptr<const ov::Model> apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
                                                          std::string& device_name,
@@ -314,7 +314,7 @@ public:
                                                 const ov::SoPtr<ov::IRemoteContext>& context,
                                                 const ov::AnyMap& config = {}) const override;
 
-    ov::SoPtr<ov::ICompiledModel> compile_model(const std::filesystem::path& model_path,
+    ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& model_path,
                                                 const std::string& device_name,
                                                 const ov::AnyMap& config) const override;
 

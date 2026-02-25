@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -97,6 +97,7 @@ void FilteredConfig::addOrUpdateInternal(std::string key, std::string value) {
 }
 
 std::string FilteredConfig::getInternal(std::string key) const {
+    auto log = Logger::global().clone("Config");
     if (_internal_compiler_configs.count(key) == 0) {
         OPENVINO_THROW(std::string("Internal compiler option " + key + " does not exist! "));
     }
@@ -119,7 +120,7 @@ std::string FilteredConfig::toStringForCompiler() const {
         const auto& key = it->first;
 
         // Only include available configs which options have OptionMode::Compile or OptionMode::Both
-        if (isAvailable(key.data())) {
+        if (isAvailable(key)) {
             if (_desc->has(key)) {
                 if (_desc->get(key).mode() != OptionMode::RunTime) {
                     resultStream << key << "=\"" << it->second->toString() << "\"";
@@ -132,6 +133,14 @@ std::string FilteredConfig::toStringForCompiler() const {
     }
 
     return resultStream.str();
+}
+
+void FilteredConfig::markAsInitialized() {
+    _initialized = true;
+}
+
+bool FilteredConfig::wasInitialized() const {
+    return _initialized;
 }
 
 }  // namespace intel_npu

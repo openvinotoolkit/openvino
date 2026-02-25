@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,13 +17,9 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov::pass {
+using namespace ov::op;
 
-namespace v0 = ov::op::v0;
-namespace v1 = ov::op::v1;
-namespace v8 = ov::op::v8;
-
-AdaptivePoolToReduce::AdaptivePoolToReduce() {
+ov::pass::AdaptivePoolToReduce::AdaptivePoolToReduce() {
     MATCHER_SCOPE(AdaptivePoolToReduce);
     auto data_pattern = pattern::any_input();
     auto out_spatial_shape = pattern::wrap_type<v0::Constant>();
@@ -62,8 +58,6 @@ AdaptivePoolToReduce::AdaptivePoolToReduce() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(a_pool, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(a_pool, matcher_name);
     this->register_matcher(m, callback);
 }
-
-}  // namespace ov::pass
