@@ -8,6 +8,8 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/fake_convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
@@ -34,11 +36,13 @@ void validate_zero_point_type(const Node& onnx_node, const ov::Output<ov::Node>&
     const auto& y_zero_point_et = y_zero_point.get_element_type();
     CHECK_VALID_NODE(
         onnx_node,
-        y_zero_point_et.is_static() && (y_zero_point_et == ov::element::u4 || y_zero_point_et == ov::element::i4 ||
-                                        y_zero_point_et == ov::element::u8 || y_zero_point_et == ov::element::i8 ||
-                                        y_zero_point_et == ov::element::u16 || y_zero_point_et == ov::element::i16),
+        y_zero_point_et.is_static() &&
+            (y_zero_point_et == ov::element::u4 || y_zero_point_et == ov::element::i4 ||
+             y_zero_point_et == ov::element::u8 || y_zero_point_et == ov::element::i8 ||
+             y_zero_point_et == ov::element::u16 || y_zero_point_et == ov::element::i16 ||
+             y_zero_point_et == ov::element::f8e4m3 || y_zero_point_et == ov::element::f8e5m2),
         "\"y_zero_point\" input data for QuantizeLinear operator must be one of the supported types: u4, i4, u8, i8, "
-        "u16 or i16 integer type.");
+        "u16, i16, f8e4m3 or f8e5m2.");
 }
 
 ov::Output<ov::Node> validate_scale(const Node& onnx_node, const ov::Output<ov::Node>& y_scale) {
@@ -124,11 +128,36 @@ std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> get_input_bands
     return std::make_tuple(input_low, input_high);
 }
 }  // namespace
+
+std::shared_ptr<ov::Node> make_fake_convert(const ov::Output<ov::Node>& y_scale,
+                                            const ov::Output<ov::Node>& y_zero_point,
+                                            const ov::Output<ov::Node>& data) {
+    const ov::element::Type& destination_type = y_zero_point.get_element_type();
+    const ov::element::Type& data_type = data.get_element_type();
+
+    // Normalize x by the quantization scale: x_scaled = x / y_scale.
+    // FakeConvert will then simulate fp8 quantization and dequantization on x_scaled
+    // using a unit scale (scale=1), since the data is already in the fp8 value range.
+    const auto x_scaled = std::make_shared<v1::Divide>(data, y_scale);
+    const auto unit_scale = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 1.0f);
+
+    // FakeConvert simulates: fp8_dequant(fp8_quant(x_scaled)) in f32
+    const auto fake_convert = std::make_shared<v13::FakeConvert>(x_scaled, unit_scale, destination_type);
+
+    // Convert the fp8-rounded floating-point value to the actual fp8 output type
+    return std::make_shared<v0::Convert>(fake_convert, destination_type);
+}
+
 std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& y_scale,
                                              const ov::Output<ov::Node>& y_zero_point,
                                              const ov::Output<ov::Node>& data) {
     const ov::element::Type& destination_type = y_zero_point.get_element_type();
     const ov::element::Type& data_type = data.get_element_type();
+
+    // For 8-bit floating point output types, use FakeConvert instead of FakeQuantize
+    if (destination_type == ov::element::f8e4m3 || destination_type == ov::element::f8e5m2) {
+        return make_fake_convert(y_scale, y_zero_point, data);
+    }
 
     std::shared_ptr<ov::Node> output_low;
     std::shared_ptr<ov::Node> output_high;
