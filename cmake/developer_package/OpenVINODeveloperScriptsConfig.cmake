@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -313,6 +313,5 @@ include(python_requirements)
 include(clang_format/clang_format)
 include(clang_tidy/clang_tidy)
 include(ncc_naming_style/ncc_naming_style)
-
 # Restore state
 set(CMAKE_MODULE_PATH ${OLD_CMAKE_MODULE_PATH})

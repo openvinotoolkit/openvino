@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -141,24 +141,21 @@ TEST(network_test, has_proper_event_for_in_order_queue_optimized_out) {
     net.set_input_data("input1", input_mem);
     net.execute();
 
+    // reshape is optimized out with need_completion_event=true. So it doesn't have event.
     ASSERT_TRUE(net.has_event("concat"));
-    ASSERT_TRUE(net.has_event("reshape"));
     ASSERT_TRUE(net.has_event("reorder"));
     ASSERT_TRUE(net.has_event("activation"));
 
     auto concat_ev = net.get_primitive_event("concat");
-    auto reshape_ev = net.get_primitive_event("reshape");
     auto reorder_ev = net.get_primitive_event("reorder");
     auto activation_ev = net.get_primitive_event("activation");
 
     OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(concat_ev.get()));
-    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(reshape_ev.get()));
     OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(reorder_ev.get()));
     OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(activation_ev.get()));
 
     // Check if we have real underlying OpenCL events
     ASSERT_TRUE(downcast<ocl::ocl_base_event>(concat_ev.get())->get().get() != nullptr);
-    ASSERT_TRUE(downcast<ocl::ocl_base_event>(reshape_ev.get())->get().get() != nullptr);
     ASSERT_TRUE(downcast<ocl::ocl_base_event>(reorder_ev.get())->get().get() != nullptr);
     ASSERT_TRUE(downcast<ocl::ocl_base_event>(activation_ev.get())->get().get() != nullptr);
 }
