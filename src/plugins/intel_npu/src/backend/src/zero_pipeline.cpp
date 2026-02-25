@@ -358,7 +358,7 @@ std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
         // For plugin compiler retreive raw profiling data from backend and delegate
         // processing to the compiler
         _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
-        return _graph->process_profiling_output(_profiling_query->getData<uint8_t>(), _config);
+        return _graph->process_profiling_output(_profiling_query->getData<uint8_t>());
     } else {
         _logger.debug("InferRequest::get_profiling_info complete with _profiling_query.getLayerStatistics().");
         return _profiling_query->getLayerStatistics();

@@ -8,7 +8,6 @@
 #include <cstddef>
 #include <exception>
 #include <memory>
-#include <sstream>
 #include <string>
 #include <unordered_set>
 #include <utility>
@@ -18,6 +17,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/util/common_util.hpp"
 #include "snippets/emitter.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_connector.hpp"
@@ -205,10 +205,12 @@ ExpressionPtr Expression::clone() const {
 }
 
 bool Expression::visit_attributes(AttributeVisitor& visitor) {
-    std::ostringstream in_regs, out_regs, live_regs;
+    std::vector<Reg> in_regs, out_regs;
     std::vector<std::pair<std::string, ov::PartialShape>> shapes;
     std::vector<std::pair<std::string, std::string>> subtensors;
     std::vector<std::pair<std::string, std::vector<size_t>>> layouts;
+    in_regs.reserve(get_input_count());
+    out_regs.reserve(get_output_count());
     for (size_t i = 0; i < get_input_count(); i++) {
         const auto& desc = m_input_port_descriptors[i];
         const auto& shape = desc->get_shape();
@@ -225,8 +227,7 @@ bool Expression::visit_attributes(AttributeVisitor& visitor) {
         if (!layout.empty() && !utils::is_planar_layout(layout)) {
             layouts.emplace_back("in_layout_" + std::to_string(i), layout);
         }
-
-        in_regs << desc->get_reg() << " ";
+        in_regs.push_back(desc->get_reg());
     }
     for (size_t i = 0; i < get_output_count(); i++) {
         const auto& desc = m_output_port_descriptors[i];
@@ -244,23 +245,19 @@ bool Expression::visit_attributes(AttributeVisitor& visitor) {
         if (!layout.empty() && !utils::is_planar_layout(layout)) {
             layouts.emplace_back("out_layout_" + std::to_string(i), layout);
         }
-
-        out_regs << desc->get_reg() << " ";
-    }
-    for (const auto& r : m_live_regs) {
-        live_regs << r << " ";
+        out_regs.push_back(desc->get_reg());
     }
 
-    if (!in_regs.str().empty()) {
-        std::vector<std::string> tmp{in_regs.str()};
+    if (!in_regs.empty()) {
+        auto tmp = ov::util::join(in_regs, " ");
         visitor.on_attribute("in_regs", tmp);
     }
-    if (!out_regs.str().empty()) {
-        std::vector<std::string> tmp{out_regs.str()};
+    if (!out_regs.empty()) {
+        auto tmp = ov::util::join(out_regs, " ");
         visitor.on_attribute("out_regs", tmp);
     }
-    if (!live_regs.str().empty()) {
-        std::vector<std::string> tmp{live_regs.str()};
+    if (!m_live_regs.empty()) {
+        auto tmp = ov::util::join(m_live_regs, " ");
         visitor.on_attribute("live_regs", tmp);
     }
     for (auto& s : shapes) {
