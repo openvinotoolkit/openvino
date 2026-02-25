@@ -178,10 +178,6 @@ protected:
     friend class jit_debug_emitter_base_common;
     template <typename>
     friend class jit_debug_emitter_base;
-    template <typename>
-    friend class jit_debug_emitter_riscv_base;
-    template <typename>
-    friend class jit_debug_emitter_aarch64_base;
     friend class jit_debug_emitter;
 #endif
 
