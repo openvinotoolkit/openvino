@@ -245,7 +245,7 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
                 moe_compressed->set_friendly_name(moe_compressed->get_friendly_name() + "/MOECompressed");
                 moe_compressed = std::make_shared<ov::op::v0::Convert>(moe_compressed, moe->get_output_element_type(0));
                 moe_compressed->set_friendly_name(moe->get_friendly_name());
-                ov::copy_runtime_info(moe_compressed, moe_compressed);
+                ov::copy_runtime_info(moe, moe_compressed);
             }
             ov::replace_node(moe, moe_compressed);
         } else if (moe->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP) {
