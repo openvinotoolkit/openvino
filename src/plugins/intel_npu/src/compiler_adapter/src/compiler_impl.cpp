@@ -651,7 +651,6 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
 
 bool VCLCompilerImpl::get_supported_options(std::vector<char>& options) const {
     _logger.debug("get_supported_options start");
-    // 1. get size of compiler supported options list
     size_t str_size = 0;
     try {
         THROW_ON_FAIL_FOR_VCL("vclGetCompilerSupportedOptions",
@@ -664,9 +663,7 @@ bool VCLCompilerImpl::get_supported_options(std::vector<char>& options) const {
         }
 
         _logger.debug("obtain list");
-        // 2. allocate buffer for it
         options.resize(str_size);
-        // 3. populate char list
         THROW_ON_FAIL_FOR_VCL("vclGetCompilerSupportedOptions",
                               vclGetCompilerSupportedOptions(_compilerHandle, options.data(), &str_size),
                               _logHandle);

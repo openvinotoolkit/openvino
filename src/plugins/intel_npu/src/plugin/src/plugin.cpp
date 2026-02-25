@@ -363,16 +363,14 @@ void init_config(const std::shared_ptr<OptionsDesc>& options,
     config.enable(ov::hint::performance_mode.name(), true);
     config.enable(ov::enable_profiling.name(), true);
 
-    if (config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
-        if (backend) {
-            auto device = backend->getDevice();
-            if (device) {
-                auto platformName = device->getName();
-                CompilerAdapterFactory compilerFactory;
-                auto compileType = compilerFactory.determinteAppropriateCompilerTypeBasedOnPlatform(platformName);
-                if (compileType == ov::intel_npu::CompilerType::DRIVER) {
-                    config.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compileType)}});
-                }
+    if (config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN && backend != nullptr) {
+        auto device = backend->getDevice();
+        if (device) {
+            auto platformName = device->getName();
+            CompilerAdapterFactory compilerFactory;
+            auto compileType = compilerFactory.determinteAppropriateCompilerTypeBasedOnPlatform(platformName);
+            if (compileType == ov::intel_npu::CompilerType::DRIVER) {
+                config.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compileType)}});
             }
         }
     }
