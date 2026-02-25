@@ -6,6 +6,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/non_zero.hpp"
@@ -40,19 +41,13 @@ struct AxesInfo {
 
 // Helper function to create a range [start, start+1, ..., start+count-1]
 Output<Node> create_range(const NodeContext& ctx, Output<Node> start, Output<Node> count) {
-    auto const_0 = v0::Constant::create(element::i32, Shape{}, {0});
     auto const_1 = v0::Constant::create(element::i32, Shape{}, {1});
     auto end = ctx.mark_node(std::make_shared<v1::Add>(start, count));
     return ctx.mark_node(std::make_shared<v4::Range>(start, end, const_1, element::i32));
 }
 
 // Helper function to parse dims input - now returns AxesInfo for dynamic rank support
-void parse_tensordot_dims(const NodeContext& ctx,
-                          Output<Node> dims,
-                          Output<Node> a,
-                          Output<Node> b,
-                          AxesInfo& a_axes,
-                          AxesInfo& b_axes) {
+void parse_tensordot_dims(const NodeContext& ctx, Output<Node> a, Output<Node> b, AxesInfo& a_axes, AxesInfo& b_axes) {
     auto dims_const = ctx.get_values_from_const_input(2);
 
     auto a_rank_ps = a.get_partial_shape().rank();
@@ -84,9 +79,8 @@ void parse_tensordot_dims(const NodeContext& ctx,
             FRONT_END_GENERAL_CHECK(k >= 0, "aten::tensordot: dims must be non-negative");
 
             // Get ranks dynamically
-            Output<Node> a_rank, b_rank;
+            Output<Node> a_rank;
             std::tie(std::ignore, a_rank) = get_shape_rank(ctx, a, true);
-            std::tie(std::ignore, b_rank) = get_shape_rank(ctx, b, true);
 
             // a_axes = range(a_rank - k, a_rank) = range(a_rank - k, k)
             auto const_k = v0::Constant::create(element::i32, Shape{}, {k});
@@ -223,30 +217,11 @@ AxesInfo complement_axes(const NodeContext& ctx, const Output<Node>& tensor, con
         auto all_axes = ctx.mark_node(std::make_shared<v4::Range>(const_0, rank, const_1, element::i32));
 
         if (axes.is_static) {
-            // Create a mask by scattering -1 at positions to exclude
-            auto minus_one_shape =
-                ctx.mark_node(v0::Constant::create(element::i32,
-                                                   Shape{axes.static_axes.size()},
-                                                   std::vector<int32_t>(axes.static_axes.size(), -1)));
-            auto indices = v0::Constant::create(element::i32, Shape{axes.static_axes.size()}, axes.static_axes);
-            auto axis_0 = v0::Constant::create(element::i32, Shape{}, {0});
-            auto marked =
-                ctx.mark_node(std::make_shared<v3::ScatterElementsUpdate>(all_axes, indices, minus_one_shape, axis_0));
-
-            // Filter out -1 values using NonZero + Gather pattern
-            // For simplicity, we'll use a different approach: gather only non-excluded indices
-            // Since this is complex, for now we'll use the approach of building the complement directly
-
-            // Actually, let's use a simpler approach: build the complement vector statically if possible
-            // This handles the case where axes are static but rank is dynamic
-
-            // We need a more sophisticated approach here
-            // For now, let's assume if axes are static, rank should also be static
-            // This is reasonable for the tuple case
+            // Static axes with dynamic rank: require static rank (tuple-dims case always has
+            // known rank because axes are explicit compile-time constants).
             FRONT_END_GENERAL_CHECK(rank_ps.is_static(),
                                     "aten::tensordot: static axes with dynamic rank not yet supported");
 
-            // Fallback to static computation
             int64_t r = rank_ps.get_length();
             std::vector<bool> used(r, false);
             for (auto ax : axes.static_axes)
@@ -347,15 +322,15 @@ Output<Node> create_permutation(const NodeContext& ctx, const AxesInfo& first, c
 OutputVector translate_tensordot(const NodeContext& context) {
     num_inputs_check(context, 3, 4);
 
-    auto a = context.get_input(0);
-    auto b = context.get_input(1);
+    Output<Node> a, b;
+    std::tie(a, b) = get_inputs_with_promoted_types(context, 0, 1);
 
     FRONT_END_GENERAL_CHECK(
         ov::as_type_ptr<v0::Constant>(context.get_input_from_visible_context(2).get_node_shared_ptr()),
         "aten::tensordot: dims must be constant");
 
     AxesInfo a_axes, b_axes;
-    parse_tensordot_dims(context, context.get_input(2), a, b, a_axes, b_axes);
+    parse_tensordot_dims(context, a, b, a_axes, b_axes);
 
     auto a_remain = complement_axes(context, a, a_axes);
     auto b_remain = complement_axes(context, b, b_axes);
@@ -374,6 +349,11 @@ OutputVector translate_tensordot(const NodeContext& context) {
     auto out_shape = concat_shapes(context, a, b, a_remain, b_remain);
 
     auto out = context.mark_node(std::make_shared<v1::Reshape>(mm, out_shape, false));
+
+    if (!context.input_is_none(3)) {
+        out = context.mark_node(std::make_shared<v1::ConvertLike>(out, context.get_input(3)));
+        context.mutate_input(3, out);
+    }
 
     return {out};
 }
