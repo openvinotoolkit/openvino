@@ -81,7 +81,7 @@ bool ov::pass::AlignMixedFP32FP16Types::run_on_model(const std::shared_ptr<ov::M
 
     bool is_changed = false;
     for (auto& node : model->get_ordered_ops()) {
-        if (is_compression_disabled_to(node, element::f16))
+        if (!is_compression_disabled_to(node, element::f16))
             continue;
 
         is_changed = insert_converts_before_if_needed(node) || is_changed;
