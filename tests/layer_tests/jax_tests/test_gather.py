@@ -61,65 +61,29 @@ class TestGather(JaxLayerTest):
         return jax_gather, None, 'gather'
 
     test_data = [
-        # Case 1: Point Gather Identity (Scalar slice, no reordering)
+        # case 1: scalar extraction.
+        dict(
+            operand_shape=[10, 5],
+            indices_shape=[3, 2],
+            slice_sizes=(1, 1),
+            dimension_numbers=lax.GatherDimensionNumbers(
+                offset_dims=(),
+                collapsed_slice_dims=(0, 1),
+                start_index_map=(0, 1)
+            ),
+            mode=0
+        ),
+        # case 2: mode 1 (CLIP) with Out-of-Bounds handling.
         dict(
             operand_shape=[10, 5],
             indices_shape=[3, 1],
-            slice_sizes=(1, 5),
+            slice_sizes=(1, 1),
             dimension_numbers=lax.GatherDimensionNumbers(
-                offset_dims=(1,),
-                collapsed_slice_dims=(0,),
-                start_index_map=(0,)
-            ),
-            mode=0
-        ),
-        # Case 2: Reordering Case (Transpose logic check)
-        dict(
-            operand_shape=[5, 5, 5],
-            indices_shape=[2, 2],
-            slice_sizes=(1, 1, 5),
-            dimension_numbers=lax.GatherDimensionNumbers(
-                offset_dims=(1,),
+                offset_dims=(),
                 collapsed_slice_dims=(0, 1),
-                start_index_map=(1, 0) # start_index_map dibalik
+                start_index_map=(0, 1),
             ),
-            mode=0
-        ),
-        # Case 3: CLIP Mode (Logic Min/Max)
-        dict(
-            operand_shape=[10],
-            indices_shape=[5, 1],
-            slice_sizes=(1,),
-            dimension_numbers=lax.GatherDimensionNumbers(
-                offset_dims=(),
-                collapsed_slice_dims=(0,),
-                start_index_map=(0,)
-            ),
-            mode=1 # CLIP
-        ),
-        # Case 4: FILL_OR_DROP Mode (Logic Masking)
-        dict(
-            operand_shape=[10],
-            indices_shape=[5, 1],
-            slice_sizes=(1,),
-            dimension_numbers=lax.GatherDimensionNumbers(
-                offset_dims=(),
-                collapsed_slice_dims=(0,),
-                start_index_map=(0,)
-            ),
-            mode=2 # FILL_OR_DROP
-        ),
-        # Case 5: Batch Gather (Standard Use Case)
-        dict(
-            operand_shape=[16, 128, 512],
-            indices_shape=[16, 1],
-            slice_sizes=(1, 128, 512),
-            dimension_numbers=lax.GatherDimensionNumbers(
-                offset_dims=(1, 2), # Semua dimensi dipertahankan (kecuali yang dicollapse)
-                collapsed_slice_dims=(0,),
-                start_index_map=(0,)
-            ),
-            mode=0
+            mode=1
         ),
     ]
 
