@@ -252,9 +252,9 @@ static std::shared_ptr<op_util::ShapeOfBase> get_shape_of_from_strided_slice(con
     // Validate masks first: begin and end values must be used literally (mask bit = 0)
     const auto& begin_mask = ss->get_begin_mask();
     const auto& end_mask = ss->get_end_mask();
-    if (!begin_mask.empty() && begin_mask[0] != 0)
+    if (!begin_mask.empty() && (begin_mask.size() != 1 || begin_mask[0] != 0))
         return nullptr;
-    if (!end_mask.empty() && end_mask[0] != 0)
+    if (!end_mask.empty() && (end_mask.size() != 1 || end_mask[0] != 0))
         return nullptr;
 
     // new_axis_mask and ellipsis_mask must be all zeros or empty
@@ -294,8 +294,10 @@ bool is_seq_len_provided(const std::shared_ptr<Node>& X, const std::shared_ptr<N
             input = seq_len_input->input_value(0).get_node_shared_ptr();
         }
 
-        auto shape_of = get_shape_of_from_gather(input);
-        if (!shape_of) {
+        std::shared_ptr<op_util::ShapeOfBase> shape_of;
+        if (ov::as_type_ptr<op_util::GatherBase>(input)) {
+            shape_of = get_shape_of_from_gather(input);
+        } else if (ov::as_type_ptr<v1::StridedSlice>(input)) {
             shape_of = get_shape_of_from_strided_slice(input);
         }
         if (!shape_of) {

@@ -990,19 +990,59 @@ static std::shared_ptr<ov::Node> create_gather_seq_len(const std::shared_ptr<ov:
     return std::make_shared<opset5::Gather>(shape_of, indices, axis);
 }
 
-// Verifies that the model contains TensorIterator and no LSTMSequence
+// Verifies that the model contains TensorIterator and no LSTMSequence/GRUSequence
 static void verify_ti_replacement(const std::shared_ptr<ov::Model>& model) {
     bool has_ti = false;
-    bool has_lstm_seq = false;
+    bool has_sequence = false;
     for (const auto& op : model->get_ops()) {
         if (ov::as_type_ptr<opset5::TensorIterator>(op))
             has_ti = true;
-        if (ov::as_type_ptr<opset5::LSTMSequence>(op))
-            has_lstm_seq = true;
+        if (ov::as_type_ptr<opset5::LSTMSequence>(op) || ov::as_type_ptr<opset5::GRUSequence>(op))
+            has_sequence = true;
     }
     ASSERT_TRUE(has_ti) << "TensorIterator should be present after conversion";
-    ASSERT_FALSE(has_lstm_seq) << "LSTMSequence should be replaced by TensorIterator";
+    ASSERT_FALSE(has_sequence) << "Sequence op should be replaced by TensorIterator";
 }
+
+enum class SeqLenMethod { Gather, StridedSlice };
+enum class SeqLenWrapper { None, Tile };
+
+static std::string seq_len_method_to_string(SeqLenMethod m) {
+    return m == SeqLenMethod::Gather ? "Gather" : "StridedSlice";
+}
+
+static std::string seq_len_wrapper_to_string(SeqLenWrapper w) {
+    return w == SeqLenWrapper::None ? "NoWrapper" : "Tile";
+}
+
+using SeqLenPatternParams = std::tuple<SeqLenMethod, SeqLenWrapper>;
+
+// Creates seq_len node based on method and wrapper parameters
+static std::shared_ptr<ov::Node> create_seq_len(const std::shared_ptr<ov::Node>& source,
+                                                 SeqLenMethod method,
+                                                 SeqLenWrapper wrapper) {
+    std::shared_ptr<ov::Node> seq_len;
+    if (method == SeqLenMethod::Gather) {
+        seq_len = create_gather_seq_len(source);
+    } else {
+        seq_len = create_strided_slice_seq_len(source);
+    }
+    if (wrapper == SeqLenWrapper::Tile) {
+        auto tile_repeats = opset5::Constant::create(element::i64, {1}, {1});
+        seq_len = std::make_shared<ov::op::v0::Tile>(seq_len, tile_repeats);
+    }
+    return seq_len;
+}
+
+// Parameterized test: LSTM TI conversion with various seq_len extraction patterns.
+// Covers: {Gather, StridedSlice} x {NoWrapper, Tile}
+class ConvertLSTMSeqLenPatternToTI : public ::testing::TestWithParam<SeqLenPatternParams> {
+public:
+    static std::string getTestCaseName(const ::testing::TestParamInfo<SeqLenPatternParams>& obj) {
+        const auto& [method, wrapper] = obj.param;
+        return seq_len_method_to_string(method) + "_" + seq_len_wrapper_to_string(wrapper);
+    }
+};
 
 // LSTM with StridedSlice pattern instead of Gather for seq_len extraction.
 // Pattern: X -> ShapeOf -> StridedSlice(begin=1, end=2, stride=1) -> LSTMSequence.seq_lengths
@@ -1200,15 +1240,15 @@ TEST(TransformationTests, ConvertGRUSequenceWithDynSeqLenStridedSliceToTI) {
     ASSERT_TRUE(res_cmp.first) << res_cmp.second;
 }
 
-// LSTM with Tile wrapping Gather for seq_len replication.
-// Pattern: X -> ShapeOf -> Gather(1,0) -> Tile -> LSTMSequence.seq_lengths
-TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenTileToTI) {
-    std::shared_ptr<ov::Model> f(nullptr);
+// Parameterized: LSTM with various seq_len extraction patterns converted to TI.
+// Covers combinations of {Gather, StridedSlice} x {NoWrapper, Tile}.
+TEST_P(ConvertLSTMSeqLenPatternToTI, ConvertToTI) {
+    const auto& [method, wrapper] = GetParam();
+
     auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, -1, 16});
     auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
     auto Z = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
-    auto tile_repeats = opset5::Constant::create(element::i64, {1}, {1});
-    auto seq_lengths = std::make_shared<ov::op::v0::Tile>(create_gather_seq_len(X), tile_repeats);
+    auto seq_lengths = create_seq_len(X, method, wrapper);
 
     auto w_val = std::vector<float>(512 * 16, 0);
     auto r_val = std::vector<float>(512 * 128, 0);
@@ -1226,7 +1266,7 @@ TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenTileToTI) {
                                                                B,
                                                                128,
                                                                op::RecurrentSequenceDirection::FORWARD);
-    f = std::make_shared<ov::Model>(rnn_sequence->outputs(), ParameterVector{X, Y, Z});
+    auto f = std::make_shared<ov::Model>(rnn_sequence->outputs(), ParameterVector{X, Y, Z});
 
     pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
@@ -1236,75 +1276,68 @@ TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenTileToTI) {
     verify_ti_replacement(f);
 }
 
-// LSTM with StridedSlice + Tile combination for seq_len.
-// Pattern: X -> ShapeOf -> StridedSlice(1,2,1) -> Tile -> LSTMSequence.seq_lengths
-TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenStridedSliceTileToTI) {
-    std::shared_ptr<ov::Model> f(nullptr);
+INSTANTIATE_TEST_SUITE_P(DynSeqLen,
+                         ConvertLSTMSeqLenPatternToTI,
+                         ::testing::Combine(::testing::Values(SeqLenMethod::Gather,
+                                                              SeqLenMethod::StridedSlice),
+                                            ::testing::Values(SeqLenWrapper::None,
+                                                              SeqLenWrapper::Tile)),
+                         ConvertLSTMSeqLenPatternToTI::getTestCaseName);
+
+// Parameterized test: is_seq_len_provided direct tests with various seq_len methods.
+// Covers StridedSlice shrink_axis, relaxed ShapeOf matching for both Gather and StridedSlice.
+class IsSeqLenProvidedTest : public ::testing::TestWithParam<SeqLenMethod> {
+public:
+    static std::string getTestCaseName(const ::testing::TestParamInfo<SeqLenMethod>& obj) {
+        return seq_len_method_to_string(obj.param);
+    }
+};
+
+// Relaxed ShapeOf match: different node with matching dimension 1 interval should match.
+TEST_P(IsSeqLenProvidedTest, RelaxedShapeOfMatch) {
+    auto method = GetParam();
     auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, -1, 16});
-    auto Y = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
-    auto Z = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 128});
-    auto tile_repeats = opset5::Constant::create(element::i64, {1}, {1});
-    auto seq_lengths = std::make_shared<ov::op::v0::Tile>(create_strided_slice_seq_len(X), tile_repeats);
+    auto X_alias = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, -1, 16});
 
-    auto w_val = std::vector<float>(512 * 16, 0);
-    auto r_val = std::vector<float>(512 * 128, 0);
-    auto b_val = std::vector<float>(512, 0);
-    auto W = opset5::Constant::create(element::f32, Shape{1, 512, 16}, w_val);
-    auto R = opset5::Constant::create(element::f32, Shape{1, 512, 128}, r_val);
-    auto B = opset5::Constant::create(element::f32, Shape{1, 512}, b_val);
-
-    auto rnn_sequence = std::make_shared<opset5::LSTMSequence>(X,
-                                                               Y,
-                                                               Z,
-                                                               seq_lengths,
-                                                               W,
-                                                               R,
-                                                               B,
-                                                               128,
-                                                               op::RecurrentSequenceDirection::FORWARD);
-    f = std::make_shared<ov::Model>(rnn_sequence->outputs(), ParameterVector{X, Y, Z});
-
-    pass::Manager m;
-    m.register_pass<ov::pass::InitNodeInfo>();
-    m.register_pass<ov::pass::ConvertLSTMSequenceToTensorIterator>();
-    m.run_passes(f);
-
-    verify_ti_replacement(f);
+    ASSERT_FALSE(ov::op::util::is_seq_len_provided(X, create_seq_len(X_alias, method, SeqLenWrapper::None)));
 }
+
+// Exact match: ShapeOf from X itself should match.
+TEST_P(IsSeqLenProvidedTest, ExactShapeOfMatch) {
+    auto method = GetParam();
+    auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, -1, 16});
+
+    ASSERT_FALSE(ov::op::util::is_seq_len_provided(X, create_seq_len(X, method, SeqLenWrapper::None)));
+}
+
+// Different dimension 1 interval: relaxed check should NOT match.
+TEST_P(IsSeqLenProvidedTest, MismatchedDimension) {
+    auto method = GetParam();
+    auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, -1, 16});
+    auto X_different = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 5, 16});
+
+    ASSERT_TRUE(ov::op::util::is_seq_len_provided(X, create_seq_len(X_different, method, SeqLenWrapper::None)));
+}
+
+INSTANTIATE_TEST_SUITE_P(DynSeqLen,
+                         IsSeqLenProvidedTest,
+                         ::testing::Values(SeqLenMethod::Gather, SeqLenMethod::StridedSlice),
+                         IsSeqLenProvidedTest::getTestCaseName);
 
 // StridedSlice with shrink_axis_mask=[1] producing scalar output.
-// Test is_seq_len_provided directly since scalar seq_lengths may not be valid for LSTMSequence.
-TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenStridedSliceShrinkAxis) {
+// Pattern should be recognized (shrink_axis_mask is allowed).
+TEST(TransformationTests, IsSeqLenProvidedStridedSliceShrinkAxis) {
     auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, -1, 16});
     auto seq_lengths = create_strided_slice_seq_len(X, 1, 2, {0}, {0}, {}, {1});
 
-    // Pattern should be recognized (shrink_axis_mask is allowed)
     ASSERT_FALSE(ov::op::util::is_seq_len_provided(X, seq_lengths));
 }
 
 // Negative test: StridedSlice extracting batch dimension (begin=0, end=1).
 // is_seq_len_provided should return true (pattern NOT recognized).
-TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenWrongStridedSlice) {
+TEST(TransformationTests, IsSeqLenProvidedWrongStridedSlice) {
     auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{-1, -1, 16});
     auto seq_lengths = create_strided_slice_seq_len(X, 0, 1);
 
     ASSERT_TRUE(ov::op::util::is_seq_len_provided(X, seq_lengths));
-}
-
-// Relaxed ShapeOf match test.
-// ov::Dimension::operator== compares intervals, so two independent dynamic dims with the same
-// interval [0, MAX] ARE equal. The relaxed check matches when dimension 1 intervals are equal.
-TEST(TransformationTests, ConvertLSTMSequenceWithDynSeqLenRelaxedShapeOf) {
-    auto X = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, -1, 16});
-    auto X_alias = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, -1, 16});
-
-    // Different node with matching dimension 1 interval: relaxed check matches (returns false)
-    ASSERT_FALSE(ov::op::util::is_seq_len_provided(X, create_gather_seq_len(X_alias)));
-
-    // Exact match: ShapeOf from X itself - should return false
-    ASSERT_FALSE(ov::op::util::is_seq_len_provided(X, create_gather_seq_len(X)));
-
-    // Different dimension 1 interval: relaxed check should NOT match (returns true)
-    auto X_different = std::make_shared<opset5::Parameter>(element::f32, PartialShape{1, 5, 16});
-    ASSERT_TRUE(ov::op::util::is_seq_len_provided(X, create_gather_seq_len(X_different)));
 }
