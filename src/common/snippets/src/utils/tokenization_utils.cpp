@@ -82,12 +82,6 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> b
     return !success;
 }
 
-auto keep_constant_inside_body(const std::shared_ptr<ov::Node>& node, size_t input_index) -> bool {
-    if (ov::is_type<ov::op::v1::Transpose>(node) && input_index == 0) {
-        return false;
-    }
-    return op::Subgraph::constant_input_should_be_inside_body(node);
-}
 }  // namespace
 
 std::function<bool(const std::shared_ptr<const ov::Node>&)> make_transpose_support_callback(bool include_brgemm_case) {
@@ -332,7 +326,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const ov::snippets::pa
             //     and will only be used to decompose Transpose into a proper Load, Store and Loop combination.
             if (ov::is_type<ov::opset1::Constant>(input_node) &&
                 (ov::shape_size(input_value.get_shape()) == 1 || ov::is_type<ov::op::v0::FakeQuantize>(node) ||
-                 keep_constant_inside_body(node, input_index))) {
+                 op::Subgraph::constant_input_should_be_inside_body(node->input(input_index)))) {
                 internal_inputs.push_back(input_node->output(0));
             } else {
                 external_inputs.push_back(input_value);
@@ -500,7 +494,7 @@ std::shared_ptr<ov::snippets::op::Subgraph> tokenize_ordered_nodes(const ov::Nod
             const auto parent = input.get_source_output().get_node_shared_ptr();
             const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(parent);
             if (constant && (ov::shape_size(input.get_shape()) == 1 || ov::is_type<ov::op::v0::FakeQuantize>(node) ||
-                             keep_constant_inside_body(node, input.get_index()))) {
+                             op::Subgraph::constant_input_should_be_inside_body(input))) {
                 // If not all Constant consumers are inside Subgraph body,
                 // we should make a copy of this Constant for Subgraph body.
                 if (constant->get_output_target_inputs(0).size() > 1) {
@@ -597,7 +591,7 @@ size_t get_potential_body_params(const std::shared_ptr<ov::Node>& op) {
         const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(parent);
         const auto is_scalar = constant && (ov::shape_size(input.get_shape()) == 1);
         const auto should_be_inside_body =
-            constant && ov::snippets::op::Subgraph::constant_input_should_be_inside_body(op);
+            constant && ov::snippets::op::Subgraph::constant_input_should_be_inside_body(op->input(i));
         if (!is_scalar && !should_be_inside_body) {
             count++;
         }

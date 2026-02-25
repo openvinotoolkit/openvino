@@ -28,8 +28,8 @@ bool ov::snippets::pass::ExtractConstants::run_on_subgraph(const std::shared_ptr
             continue;
         }
 
-        const auto child = constant->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
-        if (ov::snippets::op::Subgraph::constant_input_should_be_inside_body(child)) {
+        const auto& child_input = *constant->get_output_target_inputs(0).begin();
+        if (ov::snippets::op::Subgraph::constant_input_should_be_inside_body(child_input)) {
             continue;
         }
 
