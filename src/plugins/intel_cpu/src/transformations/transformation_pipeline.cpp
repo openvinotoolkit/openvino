@@ -250,7 +250,6 @@
 #endif
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-#    include "low_precision/avg_pool.hpp"
 #    include "low_precision/convolution.hpp"
 #    include "low_precision/convolution_backprop_data.hpp"
 #    include "low_precision/fake_quantize.hpp"
@@ -259,7 +258,6 @@
 #    include "low_precision/group_convolution.hpp"
 #    include "low_precision/interpolate.hpp"
 #    include "low_precision/mat_mul.hpp"
-#    include "low_precision/max_pool.hpp"
 #    include "low_precision/mvn.hpp"
 #    include "low_precision/normalize_l2.hpp"
 #    include "low_precision/recurrent_cell.hpp"

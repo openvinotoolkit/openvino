@@ -58,6 +58,11 @@ std::vector<fusingSpecificParams> fusingParamsSet {
     fusingFakeQuantizePerChannel,
 };
 
+std::vector<fusingSpecificParams> fusingParamsSetNonEmpty{
+    fusingFakeQuantizePerTensor,
+    fusingFakeQuantizePerChannel,
+};
+
 const std::vector<InputShape> inputShapes5D_int8 = {
         { {}, {{1, 4, 16, 16, 16}} },
         { {}, {{2, 8, 8, 8, 8}} },
@@ -106,7 +111,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_I8_FP16, PoolingLayerCPUTest,
                               ::testing::Values(ElementType::f32),
                               ::testing::Values(true),
                               ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsFusing_4D())),
-                              ::testing::ValuesIn(fusingParamsSet),
+                              ::testing::ValuesIn(fusingParamsSetNonEmpty),
                               ::testing::Values(cpu_f16_plugin_config)),
                           PoolingLayerCPUTest::getTestCaseName);
 
@@ -139,7 +144,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14_CPU_4D_I8_FP16, AvgPoolingV14LayerCPUT
                               ::testing::Values(ElementType::f32),
                               ::testing::Values(true),
                               ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsFusing_4D())),
-                              ::testing::ValuesIn(fusingParamsSet),
+                              ::testing::ValuesIn(fusingParamsSetNonEmpty),
                               ::testing::Values(cpu_f16_plugin_config)),
                           AvgPoolingV14LayerCPUTest::getTestCaseName);
 

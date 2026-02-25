@@ -133,6 +133,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_I8, PoolingLayerCPUTest,
                               ::testing::Values(CPUTestUtils::empty_plugin_config)),
                           PoolingLayerCPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_I8_FP16, PoolingLayerCPUTest,
+                         ::testing::Combine(
+                              ::testing::ValuesIn(paramsAvg4D()),
+                              ::testing::ValuesIn(inputShapes4D_int8()),
+                              ::testing::Values(ElementType::f32),
+                              ::testing::Values(true),
+                              ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsFusing_4D())),
+                              ::testing::Values(emptyFusingSpec),
+                              ::testing::Values(cpu_f16_plugin_config)),
+                          PoolingLayerCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_NotOptimized, PoolingLayerCPUTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(paramsAvg4D_RefOnly),
@@ -176,6 +187,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14CeilTorch_CPU_4D, AvgPoolingV14LayerCPU
                             ::testing::Values(emptyFusingSpec),
                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                         AvgPoolingV14LayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14_CPU_4D_I8_FP16, AvgPoolingV14LayerCPUTest,
+                         ::testing::Combine(
+                              ::testing::ValuesIn(paramsAvg4D()),
+                              ::testing::ValuesIn(inputShapes4D_int8()),
+                              ::testing::Values(ElementType::f32),
+                              ::testing::Values(true),
+                              ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigsFusing_4D())),
+                              ::testing::Values(emptyFusingSpec),
+                              ::testing::Values(cpu_f16_plugin_config)),
+                          AvgPoolingV14LayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14_CPU_4D_NotOptimized, AvgPoolingV14LayerCPUTest,
                         ::testing::Combine(

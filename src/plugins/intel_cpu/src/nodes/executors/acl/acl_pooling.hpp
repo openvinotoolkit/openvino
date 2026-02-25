@@ -71,22 +71,21 @@ public:
             return false;
         }
 
-        if (srcDescs.size() == 2U &&
-            (none_of(srcDescs[0]->getPrecision(),
-                     ov::element::f32,
-                     ov::element::f16,
-                     ov::element::u8,
-                     ov::element::i8) ||
-             none_of(srcDescs[1]->getPrecision(),
-                     ov::element::f32,
-                     ov::element::f16,
-                     ov::element::u8,
-                     ov::element::i8) ||
-             none_of(dstDescs[0]->getPrecision(),
-                     ov::element::f32,
-                     ov::element::f16,
-                     ov::element::u8,
-                     ov::element::i8))) {
+        if (srcDescs.size() == 2U && (none_of(srcDescs[0]->getPrecision(),
+                                              ov::element::f32,
+                                              ov::element::f16,
+                                              ov::element::u8,
+                                              ov::element::i8) ||
+                                      none_of(srcDescs[1]->getPrecision(),
+                                              ov::element::f32,
+                                              ov::element::f16,
+                                              ov::element::u8,
+                                              ov::element::i8) ||
+                                      none_of(dstDescs[0]->getPrecision(),
+                                              ov::element::f32,
+                                              ov::element::f16,
+                                              ov::element::u8,
+                                              ov::element::i8))) {
             DEBUG_LOG("AclPoolingExecutor does not support precisions:",
                       " src[0]=",
                       srcDescs[0]->getPrecision(),
