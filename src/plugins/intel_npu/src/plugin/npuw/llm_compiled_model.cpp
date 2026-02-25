@@ -816,10 +816,12 @@ public:
 };
 
 namespace {
-uint32_t align_to(uint32_t value, uint32_t alignment) {
+template <typename T, typename = std::enable_if_t<std::is_integral<T>::value>>
+T align_to(T value, T alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
 }
-bool is_aligned_to(uint32_t value, uint32_t alignment) {
+template <typename T, typename = std::enable_if_t<std::is_integral<T>::value>>
+bool is_aligned_to(T value, T alignment) {
     return value % alignment == 0;
 }
 
