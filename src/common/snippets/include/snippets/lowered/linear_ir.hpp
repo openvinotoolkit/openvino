@@ -208,6 +208,8 @@ public:
 
     void enumerate_expressions() const;
 
+    void sort_results();
+
     /* ------ Helpers for work with LinearIR ----- */
     /**
      * @brief Creates new Expression from `new_node` with inputs `inputs`,
@@ -378,7 +380,7 @@ private:
     // Creates inputs for expression using parent output port connectors
     std::vector<PortConnectorPtr> get_expression_inputs_by_node(const std::shared_ptr<Node>& n) const;
 
-    void register_expression(const ExpressionPtr& expr, bool io_allowed, double exec_num);
+    void register_expression(const ExpressionPtr& expr, bool parameter_allowed, double exec_num);
     void unregister_expression(const ExpressionPtr& expr);
 
     // return execution number for new expression which will be inserted before `insert_pos`

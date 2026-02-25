@@ -25,10 +25,9 @@ class quantized_hardswish(torch.nn.Module):
 
 
 class TestQuantizedHardswish(PytorchLayerTest):
-    rng = np.random.default_rng(seed=123)
 
     def _prepare_input(self):
-        return (np.round(5.00 * self.rng.random([10, 10], dtype=np.float32) - 2.50, 4),)
+        return (np.round(5.00 * self.random.rand(10, 10) - 2.50, 4),)
 
     @pytest.mark.parametrize("scale", [
         1.0, 0.21, 0.62, 0.9999
@@ -47,5 +46,5 @@ class TestQuantizedHardswish(PytorchLayerTest):
     def test_quantized_hardswish(self, scale, zero_point, dtype, ie_device, precision, ir_version):
         if dtype == torch.quint8:
             zero_point = abs(zero_point)
-        self._test(quantized_hardswish(scale, zero_point, dtype), None, ["quantized::hardswish"],
+        self._test(quantized_hardswish(scale, zero_point, dtype), ["quantized::hardswish"],
                    ie_device, precision, ir_version, quantized_ops=True, quant_size=scale)
