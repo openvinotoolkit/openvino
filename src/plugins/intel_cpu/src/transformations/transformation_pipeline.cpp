@@ -1633,7 +1633,7 @@ void Transformations::PostSnippets() {
     CPU_SET_CALLBACK_ARM(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
-            return match_acl_int8_conv_fq_chain(node);
+            return match_acl_int8_pooling_fq_chain(node) || match_acl_int8_conv_fq_chain(node);
         },
         ov::pass::FakeQuantizeDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeConvertDecomposition);
