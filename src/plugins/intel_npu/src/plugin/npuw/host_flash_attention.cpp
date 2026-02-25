@@ -666,7 +666,13 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
 
     if (is_final_tile) {
         // === FINAL TILE: Add division, transpose and reshape for final output ===
-        model_results = create_final_tile_outputs(results, output_dtype, batch, seq_len, num_heads, head_dim);
+        model_results = create_final_tile_outputs(results,
+                                                  output_dtype,
+                                                  batch,
+                                                  seq_len,
+                                                  num_heads,
+                                                  head_dim,
+                                                  use_compiler_flash_attention);
         model_name = "HFA_Final_Tile";
         LOG_DEBUG("HFA FINAL tile model created: inputs=" << input_dtype << ", compute=" << compute_dtype
                                                           << ", output=" << output_dtype);
