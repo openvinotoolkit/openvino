@@ -351,7 +351,9 @@ OutputVector translate_tensordot(const NodeContext& context) {
     auto out = context.mark_node(std::make_shared<v1::Reshape>(mm, out_shape, false));
 
     if (!context.input_is_none(3)) {
-        out = context.mark_node(std::make_shared<v1::ConvertLike>(out, context.get_input(3)));
+        auto out_arg = context.get_input(3);
+        FRONT_END_GENERAL_CHECK(out.get_element_type() == out_arg.get_element_type(),
+                                "aten::tensordot: dtype of out argument must match result dtype");
         context.mutate_input(3, out);
     }
 
