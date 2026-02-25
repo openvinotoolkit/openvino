@@ -12,7 +12,6 @@
 #include "intel_npu/utils/utils.hpp"
 
 namespace {
-using namespace intel_npu;
 
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     std::map<std::string, std::string> result;
@@ -26,10 +25,11 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     return result;
 }
 
-void filterPropertiesByCompilerSupport(FilteredConfig& config,
-                                       const ICompilerAdapter* compiler,
-                                       const ov::SoPtr<IEngineBackend>& backend,
-                                       const Logger& logger) {
+void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
+                                       const intel_npu::ICompilerAdapter* compiler,
+                                       const ov::SoPtr<intel_npu::IEngineBackend>& backend,
+                                       const intel_npu::Logger& logger) {
+    using namespace intel_npu;
     bool legacy = false;
     std::optional<std::vector<std::string>> compilerSupportList{};
     uint32_t compilerVersion = 0;
@@ -45,11 +45,11 @@ void filterPropertiesByCompilerSupport(FilteredConfig& config,
     }
 
     // Logs
-    logger.debug("Compiler version: %ld", compilerVersion);
+    logger.debug("Compiler version: %u", compilerVersion);
     logger.debug("Legacy registration: %s", legacy ? "true" : "false");
     if (!legacy) {
         const auto& supportedOptions = compilerSupportList.value();
-        logger.debug("Compiler supported options list (%ld): ", supportedOptions.size());
+        logger.debug("Compiler supported options list (%zu): ", supportedOptions.size());
         for (const auto& str : supportedOptions) {
             logger.debug("    %s ", str.c_str());
         }
@@ -107,7 +107,9 @@ void filterPropertiesByCompilerSupport(FilteredConfig& config,
     }
 }
 
-void disableCompilerProperties(FilteredConfig& config, const ov::SoPtr<IEngineBackend>& backend) {
+void disableCompilerProperties(intel_npu::FilteredConfig& config,
+                               const ov::SoPtr<intel_npu::IEngineBackend>& backend) {
+    using namespace intel_npu;
     // Parse enables
     config.walkEnables([&](const std::string& key) {
         auto opt = config.getOpt(key);
@@ -998,11 +1000,14 @@ bool Properties::isPropertyRegistered(const std::string& propertyName) const {
 }
 
 FilteredConfig Properties::getConfig(const ov::AnyMap& properties, const ICompilerAdapter* compiler, OptionMode mode) {
-    FilteredConfig updatedConfig = _config;
+    auto [updatedConfig, initialized, currentlyUsedCompiler, currentlyUsedPlatform] = [&]() {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return std::make_tuple(_config, _initialized, _currentlyUsedCompiler, _currentlyUsedPlatform);
+    }();
 
     std::optional<ov::intel_npu::CompilerType> propertiesCompilerType = std::nullopt;
     std::optional<std::string> propertiesPlatform = std::nullopt;
-    if (_initialized) {
+    if (initialized) {
         auto compilerType = properties.find(ov::intel_npu::compiler_type.name());
         if (compilerType != properties.end()) {
             propertiesCompilerType = compilerType->second.as<ov::intel_npu::CompilerType>();
@@ -1014,8 +1019,8 @@ FilteredConfig Properties::getConfig(const ov::AnyMap& properties, const ICompil
     }
 
     // filter out unsupported options
-    if (!(_initialized && propertiesCompilerType.value_or(_currentlyUsedCompiler) == _currentlyUsedCompiler &&
-          propertiesPlatform.value_or(_currentlyUsedPlatform) == _currentlyUsedPlatform)) {
+    if (!(initialized && propertiesCompilerType.value_or(currentlyUsedCompiler) == currentlyUsedCompiler &&
+          propertiesPlatform.value_or(currentlyUsedPlatform) == currentlyUsedPlatform)) {
         // In case properties are not initialized or the compiler/platform was changed since last call -
         // filter out options again
         filterPropertiesByCompilerSupport(updatedConfig, compiler, _backend, _logger);
@@ -1042,7 +1047,10 @@ FilteredConfig Properties::getConfig(const ov::AnyMap& properties, const ICompil
 }
 
 FilteredConfig Properties::getConfig(const ov::AnyMap& properties, OptionMode mode) {
-    FilteredConfig updatedConfig = _config;
+    FilteredConfig updatedConfig = [&]() {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return _config;
+    }();
 
     // Special case for NPU_COMPILER_TYPE - don't need it in the config for this case.
     updatedConfig.enable(ov::intel_npu::compiler_type.name(), false);

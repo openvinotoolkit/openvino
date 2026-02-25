@@ -400,13 +400,13 @@ Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
     _backendsRegistry = std::make_unique<BackendsRegistry>();
     _backend = _backendsRegistry->getEngineBackend();
 
+    OV_ITT_TASK_NEXT(PLUGIN, "InitConfig");
+    init_config(options, _backend, config);
+
     if (_backend) {
         OV_ITT_TASK_NEXT(PLUGIN, "RegisterBackendOptions");
         _backend->registerOptions(*options);
     }
-
-    OV_ITT_TASK_NEXT(PLUGIN, "InitConfig");
-    init_config(options, _backend, config);
 
     OV_ITT_TASK_NEXT(PLUGIN, "CreateMetrics");
     auto metrics = std::make_shared<Metrics>(_backend);
