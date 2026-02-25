@@ -76,38 +76,34 @@ void parse_tensordot_dims(const NodeContext& ctx, Output<Node> a, Output<Node> b
     };
 
     // ---- dims = ([...], [...]) ----
-    // In TorchScript, a tuple of two lists is represented as a prim::ListConstruct whose
-    // inputs are themselves prim::ListConstruct nodes.  get_values_from_const_input() flattens
-    // nested lists into a single 1D vector and loses the split point, so we must inspect the
-    // raw node structure here using cast_fw_node / concat_list_construct.
+    // By the time a translator runs, all producer nodes have already been translated.
+    // prim::ListConstruct is translated to v0::Concat (usually constant-folded to a
+    // v0::Constant) by translate_list_construct before tensordot is reached.  This means
+    // a tuple-of-two-lists dims arrives here as a 2D Constant of shape {2, num_axes}:
+    //   row 0 = a_axes, row 1 = b_axes.
+    // Detecting the FrameworkNode via cast_fw_node would always miss because the node
+    // is no longer a prim::ListConstruct FrameworkNode at this point.
     auto dims_input = ctx.get_input_from_visible_context(2);
-    if (auto outer_list = cast_fw_node(dims_input.get_node_shared_ptr(), "prim::ListConstruct")) {
-        FRONT_END_GENERAL_CHECK(outer_list->get_input_size() == 2,
-                                "aten::tensordot: dims tuple must have two elements");
+    if (auto dims_2d = ov::util::get_constant_from_source(dims_input)) {
+        const auto& shape = dims_2d->get_shape();
+        if (shape.size() == 2 && shape[0] == 2) {
+            // shape is {2, num_axes}: first row = a_axes, second row = b_axes.
+            size_t num_axes = shape[1];
+            auto flat = dims_2d->cast_vector<int64_t>();
 
-        // Extract a prim::ListConstruct of scalar integer constants into a std::vector<int64_t>.
-        auto extract_axes_list = [](Output<Node> list_input) -> std::vector<int64_t> {
-            // concat_list_construct folds a prim::ListConstruct of scalars into a Concat of
-            // unsqueezed constants; get_constant_from_source then constant-folds it to a 1D
-            // Constant so we can call cast_vector.
-            auto folded = concat_list_construct(list_input);
-            auto constant = ov::util::get_constant_from_source(folded);
-            FRONT_END_GENERAL_CHECK(constant, "aten::tensordot: dims list elements must be constant");
-            return constant->cast_vector<int64_t>();
-        };
+            std::vector<int64_t> a_axes_vec(flat.begin(), flat.begin() + num_axes);
+            std::vector<int64_t> b_axes_vec(flat.begin() + num_axes, flat.end());
 
-        auto a_axes_vec = extract_axes_list(outer_list->input_value(0));
-        auto b_axes_vec = extract_axes_list(outer_list->input_value(1));
+            FRONT_END_GENERAL_CHECK(a_axes_vec.size() == b_axes_vec.size(),
+                                    "aten::tensordot: mismatched contraction axes sizes");
 
-        FRONT_END_GENERAL_CHECK(a_axes_vec.size() == b_axes_vec.size(),
-                                "aten::tensordot: mismatched contraction axes sizes");
+            validate_axes_vec(a_axes_vec, a_rank_ps, "a");
+            validate_axes_vec(b_axes_vec, b_rank_ps, "b");
 
-        validate_axes_vec(a_axes_vec, a_rank_ps, "a");
-        validate_axes_vec(b_axes_vec, b_rank_ps, "b");
-
-        a_axes = AxesInfo(a_axes_vec);
-        b_axes = AxesInfo(b_axes_vec);
-        return;
+            a_axes = AxesInfo(a_axes_vec);
+            b_axes = AxesInfo(b_axes_vec);
+            return;
+        }
     }
 
     // ---- dims = int ----
