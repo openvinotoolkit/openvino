@@ -406,35 +406,33 @@ JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_
     jit.make("Q_STEP", get_q_step(xe_arch, true));
 
     // Limit Q_head_chunk_size to ensure the rS matrix
-    //   matrix<float, Q_head_chunk_size,
-    //          REG_M * (KV_PARTITION_SIZE / KV_STEP) * REG_N>
-    // fits within the per-thread register file budget implied by
-    // -Qxcm_register_file_size and architecture GRF width
-    // (xe1: 32B/GRF, xe2: 64B/GRF).
+    //   matrix<float, Q_head_chunk_size, REG_M * (KV_PARTITION_SIZE / KV_STEP) * REG_N>
+    // fits within the per-thread register file budget implied by -Qxcm_register_file_size and
+    // architecture GRF width (xe1: 32B/GRF, xe2: 64B/GRF).
     //
-    // If the original chunk size would exceed this register budget,
-    // we derive the maximum allowed Q_head_chunk_size and increase
-    // Q_head_chunks_per_kv_head accordingly to keep register usage safe.
+    // If the original chunk size would exceed this register budget, we derive the maximum allowed
+    // Q_head_chunk_size and increase Q_head_chunks_per_kv_head accordingly to keep register usage safe.
     constexpr int32_t MaxRepeatCount = 8;
     int32_t q_heads_per_kv_head = static_cast<int32_t>(desc->heads_num / desc->kv_heads_num);
     // Match kernel arch-dependent params
-    const int32_t reg_n   = (xe_arch == 1) ? 8  : 16;
-    const int32_t kv_step = get_kv_split_size(xe_arch).first;
-    constexpr int32_t reg_m = 1;          // RepeatCount
+    const int32_t reg_n = (xe_arch == 1) ? 8 : 16;
+    const int32_t kv_step = static_cast<int32_t>(get_kv_split_size(xe_arch).first);
+    constexpr int32_t reg_m = 1;  // RepeatCount
     constexpr int32_t bytes_per_float = 4;
     // KV_PARTITION_STEP_NUM must match kernel: KV_PARTITION_SIZE / KV_STEP
     const int32_t kv_partition_step_num = static_cast<int32_t>(kv_partition_size / kv_step);
     // rS columns in elements
     const int32_t rs_cols = reg_m * kv_partition_step_num * reg_n;
-    int32_t reg_file_size = PA_CM_REGISTER_FILE_SIZE; // e.g. 128 or 256 (GRF per thread)
-    const int32_t grf_bytes = (xe_arch == 1) ? 32 : 64; // xe1:256b, xe2:512b
+    int32_t reg_file_size = PA_CM_REGISTER_FILE_SIZE;    // e.g. 128 or 256 (GRF per thread)
+    const int32_t grf_bytes = (xe_arch == 1) ? 32 : 64;  // xe1:256b, xe2:512b
     const int32_t budget_bytes = reg_file_size * grf_bytes;
     int32_t max_q_by_matrix = (budget_bytes - 1) / (bytes_per_float * rs_cols);
-    if (max_q_by_matrix < 1) max_q_by_matrix = 1;
+    if (max_q_by_matrix < 1)
+        max_q_by_matrix = 1;
     // Final allowed chunk size cap
     int32_t target_chunk = std::min<int32_t>(MaxRepeatCount, max_q_by_matrix);
     int32_t q_head_chunks_per_kv_head = ceil_div(q_heads_per_kv_head, target_chunk);
-    int32_t q_head_chunk_size         = ceil_div(q_heads_per_kv_head, q_head_chunks_per_kv_head);
+    int32_t q_head_chunk_size = ceil_div(q_heads_per_kv_head, q_head_chunks_per_kv_head);
     jit.make("Q_head_chunks_per_kv_head", q_head_chunks_per_kv_head);
     jit.make("Q_head_chunk_size", q_head_chunk_size);
 
