@@ -96,6 +96,10 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
         Manager manager("pre_post_processing");
         manager.set_per_pass_validation(false);
 
+        // Note: some Mixture of Experts patterns from frameworks may contain MatMuls with
+        // transpose_b=false + an explicit Transpose operation on weights.
+        // These Transposes must be fused into MatMul (rather than constant folded) to match plugin expectations.
+        // So TransposeMatMul must be registered before the first ConstantFolding.
         REGISTER_PASS(manager, TransposeMatMul)
         // prerequisite: the model structure optimization before applying of the markup
         REGISTER_PASS(manager, SharedOpOptimization)
