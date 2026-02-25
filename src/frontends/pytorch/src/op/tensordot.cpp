@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -153,14 +153,16 @@ void parse_tensordot_dims(const NodeContext& ctx, Output<Node> a, Output<Node> b
     b_axes = AxesInfo(b_axes_vec);
 }
 
-// Helper function to reshape to 2D
+// Helper function to reshape to 2D.
+// shape_source: original (pre-transpose) tensor whose axis sizes match left_axes/right_axes.
+// input:        transposed tensor to actually reshape.
 Output<Node> reshape_to_2d(const NodeContext& ctx,
+                           Output<Node> shape_source,
                            Output<Node> input,
                            const AxesInfo& left_axes,
                            const AxesInfo& right_axes) {
-    using namespace ov::op;
-
-    auto shape = ctx.mark_node(std::make_shared<v3::ShapeOf>(input));
+    // Gather dimension sizes from the original tensor so original axis indices are valid.
+    auto shape = ctx.mark_node(std::make_shared<v3::ShapeOf>(shape_source));
 
     auto gather_dims = [&](const AxesInfo& axes_info) -> Output<Node> {
         if (axes_info.is_static) {
@@ -174,50 +176,9 @@ Output<Node> reshape_to_2d(const NodeContext& ctx,
         }
     };
 
-    Output<Node> left_dims;
-    Output<Node> right_dims;
+    auto left_dims = gather_dims(left_axes);
+    auto right_dims = gather_dims(right_axes);
 
-    if (left_axes.is_static && right_axes.is_static) {
-        // When both axis sets are static, compute M and K based on their counts
-        // and the current (possibly transposed) layout:
-        //   - M is the product of the first |left_axes| dimensions
-        //   - K is the product of the last |right_axes| dimensions
-        const auto left_rank = static_cast<int64_t>(left_axes.static_axes.size());
-        const auto right_rank = static_cast<int64_t>(right_axes.static_axes.size());
-
-        // Indices [0, 1, ..., left_rank - 1] for the leading dimensions
-        auto left_idx_values = std::vector<int64_t>(static_cast<size_t>(left_rank));
-        for (int64_t i = 0; i < left_rank; ++i) {
-            left_idx_values[static_cast<size_t>(i)] = i;
-        }
-        auto left_idx =
-            v0::Constant::create(element::i64, Shape{left_idx_values.size()}, left_idx_values);
-
-        auto axis_zero = v0::Constant::create(element::i64, Shape{}, {0});
-        left_dims = ctx.mark_node(std::make_shared<v8::Gather>(shape, left_idx, axis_zero));
-
-        // Compute rank(input) as the length of `shape`
-        auto shape_rank_vec = ctx.mark_node(std::make_shared<v3::ShapeOf>(shape));
-        auto rank_scalar =
-            ctx.mark_node(std::make_shared<v8::Gather>(shape_rank_vec, axis_zero, axis_zero));
-
-        auto right_count =
-            v0::Constant::create(element::i64, Shape{}, {right_rank});
-        auto one = v0::Constant::create(element::i64, Shape{}, {1});
-
-        // Start index for the trailing |right_axes| dimensions: rank - right_rank
-        auto right_start =
-            ctx.mark_node(std::make_shared<v1::Subtract>(rank_scalar, right_count));
-
-        auto right_idx = ctx.mark_node(
-            std::make_shared<v4::Range>(right_start, rank_scalar, one, element::i64));
-
-        right_dims = ctx.mark_node(std::make_shared<v8::Gather>(shape, right_idx, axis_zero));
-    } else {
-        // Fallback to index-based gather for dynamic axes information
-        left_dims = gather_dims(left_axes);
-        right_dims = gather_dims(right_axes);
-    }
     auto M = ctx.mark_node(
         std::make_shared<v1::ReduceProd>(left_dims, v0::Constant::create(element::i64, Shape{}, {0}), true));
 
@@ -226,6 +187,7 @@ Output<Node> reshape_to_2d(const NodeContext& ctx,
 
     auto new_shape = ctx.mark_node(std::make_shared<v0::Concat>(OutputVector{M, K}, 0));
 
+    // Reshape the transposed tensor (not shape_source) into [M, K].
     return ctx.mark_node(std::make_shared<v1::Reshape>(input, new_shape, false));
 }
 
@@ -233,8 +195,8 @@ Output<Node> reshape_to_2d(const NodeContext& ctx,
 AxesInfo complement_axes(const NodeContext& ctx, const Output<Node>& tensor, const AxesInfo& axes) {
     auto rank_ps = tensor.get_partial_shape().rank();
 
+    // Static/static: compute entirely at graph-build time.
     if (axes.is_static && rank_ps.is_static()) {
-        // Static case - use original logic
         int64_t r = rank_ps.get_length();
         std::vector<bool> used(r, false);
 
@@ -247,84 +209,45 @@ AxesInfo complement_axes(const NodeContext& ctx, const Output<Node>& tensor, con
                 result.push_back(i);
 
         return AxesInfo(result);
-    } else {
-        // Dynamic case - compute complement at runtime
-        Output<Node> rank;
-        std::tie(std::ignore, rank) = get_shape_rank(ctx, tensor, true);
-
-        // Create range [0, 1, ..., rank-1]
-        auto const_0 = v0::Constant::create(element::i32, Shape{}, {0});
-        auto const_1 = v0::Constant::create(element::i32, Shape{}, {1});
-        auto all_axes = ctx.mark_node(std::make_shared<v4::Range>(const_0, rank, const_1, element::i32));
-
-        if (axes.is_static) {
-            // Static axes with dynamic rank: compute complement at runtime using a mask.
-            //
-            // 1. Create a 1D mask of ones with length equal to the dynamic rank.
-            auto one_scalar = v0::Constant::create(element::i32, Shape{}, {1});
-            // rank is a scalar; reshape it to a 1D shape tensor so it can be used as target shape.
-            auto rank_shape =
-                ctx.mark_node(std::make_shared<v1::Reshape>(
-                    rank,
-                    v0::Constant::create(element::i64, Shape{1}, {1}),
-                    false));
-            auto ones =
-                ctx.mark_node(std::make_shared<v3::Broadcast>(one_scalar, rank_shape));
-
-            // 2. Scatter zeros at positions given by static axes indices.
-            auto indices = v0::Constant::create(
-                element::i32,
-                Shape{axes.static_axes.size()},
-                axes.static_axes);
-            auto updates = v0::Constant::create(
-                element::i32,
-                Shape{axes.static_axes.size()},
-                std::vector<int32_t>(axes.static_axes.size(), 0));
-            auto axis0 = v0::Constant::create(element::i32, Shape{}, {0});
-            auto mask = ctx.mark_node(
-                std::make_shared<v3::ScatterElementsUpdate>(ones, indices, updates, axis0));
-
-            // 3. Take indices of non-zero elements in the mask - these form the complement axes.
-            auto non_zero = ctx.mark_node(std::make_shared<v3::NonZero>(mask));
-            auto complement_axes_1d = ctx.mark_node(
-                std::make_shared<v0::Squeeze>(
-                    non_zero,
-                    v0::Constant::create(element::i64, Shape{1}, {0})));
-
-            return AxesInfo(complement_axes_1d);
-        } else {
-            // Both axes and rank are dynamic
-            // This is the most complex case
-            // We need to filter all_axes to exclude axes.dynamic_axes
-
-            // Create a mask tensor of size rank, initialized to 1.
-            // all_axes is a 1D vector [0..rank-1]; use its shape as the 1D target_shape for Broadcast
-            // (rank is a scalar from get_shape_rank, which Broadcast does not accept as target_shape).
-            auto all_axes_shape = ctx.mark_node(std::make_shared<v3::ShapeOf>(all_axes, element::i32));
-            auto ones = ctx.mark_node(
-                std::make_shared<v3::Broadcast>(v0::Constant::create(element::i32, Shape{}, {1}), all_axes_shape));
-
-            // Scatter 0 at positions in axes.dynamic_axes
-            auto zeros_shape_node = ctx.mark_node(std::make_shared<v3::ShapeOf>(axes.dynamic_axes, element::i32));
-            auto zeros = ctx.mark_node(
-                std::make_shared<v3::Broadcast>(v0::Constant::create(element::i32, Shape{}, {0}), zeros_shape_node));
-            auto axis_0 = v0::Constant::create(element::i32, Shape{}, {0});
-            auto mask =
-                ctx.mark_node(std::make_shared<v3::ScatterElementsUpdate>(ones, axes.dynamic_axes, zeros, axis_0));
-
-            // Now we need to gather indices where mask == 1
-            // This requires NonZero operation
-            auto not_equal =
-                ctx.mark_node(std::make_shared<v1::NotEqual>(mask, v0::Constant::create(element::i32, Shape{}, {0})));
-            auto complement_indices = ctx.mark_node(std::make_shared<v3::NonZero>(not_equal, element::i32));
-
-            // NonZero returns shape [1, num_true], we need to squeeze it
-            auto squeeze_axis = v0::Constant::create(element::i64, Shape{1}, {0});
-            auto result = ctx.mark_node(std::make_shared<v0::Squeeze>(complement_indices, squeeze_axis));
-
-            return AxesInfo(result);
-        }
     }
+
+    // Static axes require a known rank to compute the complement at build time.
+    // (Tuple-dims always provides explicit compile-time indices, so the rank must
+    // be statically known too.  Dynamic axes only arise from the int-dims path,
+    // which computes them at runtime via Range.)
+    FRONT_END_GENERAL_CHECK(!axes.is_static, "aten::tensordot: static axes with dynamic rank not yet supported");
+
+    // Dynamic axes: compute complement at runtime with OV ops.
+    Output<Node> rank;
+    std::tie(std::ignore, rank) = get_shape_rank(ctx, tensor, true);
+
+    // Build range [0, 1, ..., rank-1] as the universe of all axis indices.
+    auto const_0 = v0::Constant::create(element::i32, Shape{}, {0});
+    auto const_1 = v0::Constant::create(element::i32, Shape{}, {1});
+    auto all_axes = ctx.mark_node(std::make_shared<v4::Range>(const_0, rank, const_1, element::i32));
+
+    // Create a mask of ones with the same length as all_axes, then zero out
+    // the positions listed in axes.dynamic_axes.
+    auto all_axes_shape = ctx.mark_node(std::make_shared<v3::ShapeOf>(all_axes, element::i32));
+    auto ones = ctx.mark_node(
+        std::make_shared<v3::Broadcast>(v0::Constant::create(element::i32, Shape{}, {1}), all_axes_shape));
+
+    auto zeros_shape_node = ctx.mark_node(std::make_shared<v3::ShapeOf>(axes.dynamic_axes, element::i32));
+    auto zeros = ctx.mark_node(
+        std::make_shared<v3::Broadcast>(v0::Constant::create(element::i32, Shape{}, {0}), zeros_shape_node));
+    auto axis_0 = v0::Constant::create(element::i32, Shape{}, {0});
+    auto mask = ctx.mark_node(std::make_shared<v3::ScatterElementsUpdate>(ones, axes.dynamic_axes, zeros, axis_0));
+
+    // Gather indices of surviving (non-zero) positions via NonZero.
+    auto not_equal =
+        ctx.mark_node(std::make_shared<v1::NotEqual>(mask, v0::Constant::create(element::i32, Shape{}, {0})));
+    auto complement_indices = ctx.mark_node(std::make_shared<v3::NonZero>(not_equal, element::i32));
+
+    // NonZero returns shape [1, num_true]; squeeze the leading dim to get a 1D index vector.
+    auto squeeze_axis = v0::Constant::create(element::i64, Shape{1}, {0});
+    auto result = ctx.mark_node(std::make_shared<v0::Squeeze>(complement_indices, squeeze_axis));
+
+    return AxesInfo(result);
 }
 
 // Helper function to concatenate shapes
@@ -333,8 +256,6 @@ Output<Node> concat_shapes(const NodeContext& ctx,
                            Output<Node> b,
                            const AxesInfo& a_axes,
                            const AxesInfo& b_axes) {
-    using namespace ov::op;
-
     auto a_shape = ctx.mark_node(std::make_shared<v3::ShapeOf>(a));
     auto b_shape = ctx.mark_node(std::make_shared<v3::ShapeOf>(b));
 
@@ -400,8 +321,10 @@ OutputVector translate_tensordot(const NodeContext& context) {
     auto a_t = context.mark_node(std::make_shared<v1::Transpose>(a, a_perm));
     auto b_t = context.mark_node(std::make_shared<v1::Transpose>(b, b_perm));
 
-    auto a_2d = reshape_to_2d(context, a_t, a_remain, a_axes);
-    auto b_2d = reshape_to_2d(context, b_t, b_axes, b_remain);
+    // reshape_to_2d must gather dim sizes from the *original* tensors (a, b), not from
+    // a_t/b_t, because after transposing the axis indices no longer match their positions.
+    auto a_2d = reshape_to_2d(context, a, a_t, a_remain, a_axes);
+    auto b_2d = reshape_to_2d(context, b, b_t, b_axes, b_remain);
 
     auto mm = context.mark_node(std::make_shared<v0::MatMul>(a_2d, b_2d, false, false));
 
@@ -410,9 +333,7 @@ OutputVector translate_tensordot(const NodeContext& context) {
     auto out = context.mark_node(std::make_shared<v1::Reshape>(mm, out_shape, false));
 
     if (!context.input_is_none(3)) {
-        auto out_arg = context.get_input(3);
-        FRONT_END_GENERAL_CHECK(out.get_element_type() == out_arg.get_element_type(),
-                                "aten::tensordot: dtype of out argument must match result dtype");
+        out = context.mark_node(std::make_shared<v1::ConvertLike>(out, context.get_input(3)));
         context.mutate_input(3, out);
     }
 
