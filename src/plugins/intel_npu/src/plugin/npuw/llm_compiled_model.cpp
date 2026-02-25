@@ -1361,11 +1361,11 @@ std::tuple<bool, bool, bool, bool> detect_model_type(const std::shared_ptr<ov::M
     return {is_whisper, is_eagle, is_moe, is_embedding};
 }
 
-uint32_t get_prefill_chunk_size(const ::intel_npu::Config& cfg, uint32_t max_prompt_len) {
+uint64_t get_prefill_chunk_size(const ::intel_npu::Config& cfg, uint32_t max_prompt_len) {
     // NB: PREFILL_HINT is now compatible with the PREFILL_CONFIG section, unlike for
     // the generate model they're not mutually exclusive
     const ::intel_npu::npuw::llm::PrefillHint prefill_hint = cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
-    uint32_t prefill_chunk_size = max_prompt_len;
+    uint64_t prefill_chunk_size = max_prompt_len;
     bool use_chunk_prefill = prefill_hint == ::intel_npu::npuw::llm::PrefillHint::DYNAMIC;
 
     // If chunk size covers the entire prompt, just follow the static behavior.
@@ -1389,11 +1389,11 @@ uint32_t get_prefill_chunk_size(const ::intel_npu::Config& cfg, uint32_t max_pro
     return prefill_chunk_size;
 }
 
-std::tuple<uint32_t, uint32_t> get_prefix_caching_params(const ::intel_npu::Config& cfg,
+std::tuple<uint64_t, uint64_t> get_prefix_caching_params(const ::intel_npu::Config& cfg,
                                                          bool use_chunk_prefill,
-                                                         uint32_t prefill_chunk_size) {
-    uint32_t prefix_caching_max_num_blocks = 0;
-    uint32_t prefix_caching_block_size = 0;
+                                                         uint64_t prefill_chunk_size) {
+    uint64_t prefix_caching_max_num_blocks = 0;
+    uint64_t prefix_caching_block_size = 0;
     if (use_chunk_prefill) {
         bool enable_prefix_caching = cfg.get<::intel_npu::NPUW_LLM_ENABLE_PREFIX_CACHING>();
         if (enable_prefix_caching) {
