@@ -8,7 +8,7 @@
         "ticket": 135715
     },
     {
-        "error_text": "error: RPC failed",
+        "error_text": "GnuTLS recv error",
         "ticket": 131918
     },
     {
@@ -88,18 +88,6 @@
         "ticket": 158400
     },
     {
-        "error_text": "Unable to make request:",
-        "ticket": 158401
-    },
-    {
-        "error_text": "Failed to make request",
-        "ticket": 158401
-    },
-    {
-        "error_text": "Unable to download artifact",
-        "ticket": 158401
-    },
-    {
         "error_text": "Failure when receiving data from the peer",
         "ticket": 159323
     },
@@ -158,5 +146,37 @@
     {
         "error_text": "CERT_TRUST_REVOCATION_STATUS_UNKNOWN",
         "ticket": 177273
+    },
+    {
+        "error_text": "urllib3.exceptions.IncompleteRead",
+        "ticket": 173184
+    },
+    {
+        "error_text": "Error from intermediary with HTTP status code 403",
+        "ticket": 181450
+    },
+    {
+        "error_text": "getaddrinfo EAI_AGAIN",
+        "ticket": 178917
+    },
+    {
+        "error_text": "terminal prompts disabled",
+        "ticket": 181095
+    },
+    {
+        "error_text": "HTTP 500 curl 22 The requested URL returned error: 500",
+        "ticket": 181530
+    },
+    {
+        "error_text": "Unable to make request: ECONNREFUSED",
+        "ticket": 158401
+    },
+    {
+        "error_text": "Unable to make request: ECONNRESET",
+        "ticket": 158401
+    },
+    {
+        "error_text": "Failed to FinalizeArtifact: Failed to make request after 5 attempts: Unexpected token",
+        "ticket": 181539
     }
 ]

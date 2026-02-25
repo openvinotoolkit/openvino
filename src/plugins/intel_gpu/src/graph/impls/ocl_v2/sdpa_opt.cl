@@ -182,9 +182,6 @@ KERNEL(sdpa_opt)(
     #error "sdpa_opt.cl: Unsupported scale factor"
 #endif
 
-#if SUBGROUPS_PER_WG > SUBGROUP_SIZE
-    #error "sdpa_opt.cl: Number of subgroups per work group should be no more than subgroup_size"
-#endif
     const uint sgid = get_sub_group_id();
     const uint sglid = get_sub_group_local_id();
 
@@ -473,6 +470,8 @@ KERNEL(sdpa_opt)(
 
             barrier(CLK_LOCAL_MEM_FENCE);
 
+#if SUBGROUPS_PER_WG <= SUBGROUP_SIZE
+            // Fast path: original single-subgroup reduction (when SUBGROUPS_PER_WG <= SUBGROUP_SIZE)
             for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                 qk_max[seq_idx] = SOFTMAX_ACCUMULATOR_VAL_MIN;
 
@@ -485,6 +484,40 @@ KERNEL(sdpa_opt)(
                 qk_max[seq_idx] = qk_max[seq_idx] > sink_ptr[b1_idx] ? qk_max[seq_idx] : sink_ptr[b1_idx];
             #endif
             }
+#else
+            // Slow path: hierarchical reduction for large head sizes (when SUBGROUPS_PER_WG > SUBGROUP_SIZE)
+            // Use parallel SIMD reduction within first subgroup to reduce across all subgroups
+            if (sgid == 0) {
+                for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
+                    SOFTMAX_ACCUMULATOR_TYPE wg_max = SOFTMAX_ACCUMULATOR_VAL_MIN;
+                    
+                    // Parallel reduction: each lane processes SUBGROUPS_PER_WG/SUBGROUP_SIZE elements
+                    const uint num_sg_per_lane = CEIL_DIV(SUBGROUPS_PER_WG, SUBGROUP_SIZE);
+                    for (uint i = 0; i < num_sg_per_lane; i++) {
+                        uint sg_idx = sglid + i * SUBGROUP_SIZE;
+                        if (sg_idx < SUBGROUPS_PER_WG) {
+                            wg_max = SOFTMAX_ACCUMULATOR_MAX_FUNC(wg_max, qk_max_vals[seq_idx * SUBGROUPS_PER_WG + sg_idx]);
+                        }
+                    }
+                    
+                    // Horizontal reduction across subgroup lanes
+                    wg_max = sub_group_reduce_max(wg_max);
+                    
+                    if (sglid == 0) {
+                        qk_max_vals[seq_idx * SUBGROUPS_PER_WG] = wg_max;
+                    }
+                }
+            }
+
+            barrier(CLK_LOCAL_MEM_FENCE);
+
+            for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
+                qk_max[seq_idx] = qk_max_vals[seq_idx * SUBGROUPS_PER_WG];
+            #ifdef HAS_SINK_INPUT
+                qk_max[seq_idx] = qk_max[seq_idx] > sink_ptr[b1_idx] ? qk_max[seq_idx] : sink_ptr[b1_idx];
+            #endif
+            }
+#endif
 
             SOFTMAX_ACCUMULATOR_TYPE exp_sum[TARGET_SEQ_LEN_BLOCK_SIZE] = {SOFTMAX_ACCUMULATOR_VAL_ZERO};
             const uint qk_num_per_wi = CEIL_DIV(partition_seq_len, SUBGROUPS_PER_WG * SUBGROUP_SIZE);
@@ -509,6 +542,8 @@ KERNEL(sdpa_opt)(
 
             barrier(CLK_LOCAL_MEM_FENCE);
 
+#if SUBGROUPS_PER_WG <= SUBGROUP_SIZE
+            // Fast path: original single-subgroup reduction (when SUBGROUPS_PER_WG <= SUBGROUP_SIZE)
             unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                 exp_sum[seq_idx] = SOFTMAX_ACCUMULATOR_VAL_ZERO;
 
@@ -521,6 +556,40 @@ KERNEL(sdpa_opt)(
                 exp_sum[seq_idx] += (native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[b1_idx] - qk_max[seq_idx])));
                 #endif
             }
+#else
+            // Slow path: hierarchical reduction for large head sizes (when SUBGROUPS_PER_WG > SUBGROUP_SIZE)
+            // Use parallel SIMD reduction within first subgroup to reduce across all subgroups
+            if (sgid == 0) {
+                for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
+                    SOFTMAX_ACCUMULATOR_TYPE wg_sum = SOFTMAX_ACCUMULATOR_VAL_ZERO;
+                    
+                    // Parallel reduction: each lane processes SUBGROUPS_PER_WG/SUBGROUP_SIZE elements
+                    const uint num_sg_per_lane = CEIL_DIV(SUBGROUPS_PER_WG, SUBGROUP_SIZE);
+                    for (uint i = 0; i < num_sg_per_lane; i++) {
+                        uint sg_idx = sglid + i * SUBGROUP_SIZE;
+                        if (sg_idx < SUBGROUPS_PER_WG) {
+                            wg_sum += qk_sum_vals[seq_idx * SUBGROUPS_PER_WG + sg_idx];
+                        }
+                    }
+                    
+                    // Horizontal reduction across subgroup lanes
+                    wg_sum = sub_group_reduce_add(wg_sum);
+                    
+                    if (sglid == 0) {
+                        qk_sum_vals[seq_idx * SUBGROUPS_PER_WG] = wg_sum;
+                    }
+                }
+            }
+
+            barrier(CLK_LOCAL_MEM_FENCE);
+
+            unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
+                exp_sum[seq_idx] = qk_sum_vals[seq_idx * SUBGROUPS_PER_WG];
+                #ifdef HAS_SINK_INPUT
+                exp_sum[seq_idx] += (native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[b1_idx] - qk_max[seq_idx])));
+                #endif
+            }
+#endif
 
             // const SOFTMAX_ACCUMULATOR_TYPE inv_exp_sum = SOFTMAX_ACCUMULATOR_VAL_ONE / exp_sum[seq_idx];
             for (uint qk_idx = 0; qk_idx < qk_num_per_wi; qk_idx++) {
@@ -1828,7 +1897,7 @@ KERNEL(sdpa_opt)(
                     #ifdef V_HEAD_SIZE_LEFTOVER
                         #ifdef BEAM_TABLE_TYPE
                         const uint value_offset_seq = sub_group_broadcast(value_offset, seq_len_idx);
-                        const INPUT2_TYPE value_packed = (head_size_idx <= V_HEAD_SIZE) ? value_input[value_offset_seq] : INPUT2_VAL_ZERO;
+                        const INPUT2_TYPE value_packed = (head_size_idx < V_HEAD_SIZE) ? value_input[value_offset_seq] : INPUT2_VAL_ZERO;
                         #else // !BEAM_TABLE_TYPE
                         INPUT2_TYPE value_packed;
                         if (sgid < SUBGROUPS_PER_WG - 1)
@@ -1943,7 +2012,8 @@ KERNEL(sdpa_opt)(
 #if IS_FLASHATTEN_V2
                     output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
 #endif
-                    OUTPUT_BLOCK_WRITE(output, output_offset, output_acc[seq_idx]);
+                    // Use scalar writes since block writes require alignment, but we process leftovers here
+                    output[output_offset + sglid] = output_acc[seq_idx];
                     output_offset += output_pitch;
                 }
             } else if (sglid < V_HEAD_SIZE_LEFTOVER) {
@@ -1961,7 +2031,8 @@ KERNEL(sdpa_opt)(
 #if IS_FLASHATTEN_V2
                     output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
 #endif
-                    OUTPUT_BLOCK_WRITE(output, output_offset, output_acc[seq_idx]);
+                    // Use scalar writes since block writes require alignment, but we process leftovers here
+                    output[output_offset + sglid] = output_acc[seq_idx];
                     output_offset += output_pitch;
                 }
             } else if (sglid < V_HEAD_SIZE_LEFTOVER) {

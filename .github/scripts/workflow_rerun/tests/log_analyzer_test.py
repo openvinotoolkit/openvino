@@ -91,6 +91,9 @@ class LogAnalyzerTest(unittest.TestCase):
         )
         analyzer.analyze()
         self.assertTrue(analyzer.found_matching_error)
+        self.assertEqual(analyzer.found_error_ticket, 130955)
+        self.assertEqual(analyzer.matched_error_text,
+                         'Network is unreachable')
 
     def test_analyzer_wo_error(self) -> None:
         """
