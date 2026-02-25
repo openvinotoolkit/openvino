@@ -13,6 +13,7 @@
 namespace ov::test {
 
 using runtime::SingleFileStorage;
+using runtime::TLVFormat;
 
 namespace {
 constexpr uint64_t version_size() {
@@ -121,7 +122,7 @@ TEST_F(SingleFileStorageTest, BlobAlignement) {
 
     while (stream.good() && stream.tellg() < stream_end) {
         SingleFileStorage::Tag tag;
-        TLVFormat::LeghtType entry_size;
+        TLVFormat::LenghtType entry_size;
         stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
         ASSERT_TRUE(stream.good());
         stream.read(reinterpret_cast<char*>(&entry_size), sizeof(entry_size));
@@ -238,7 +239,7 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
 
     while (stream.good() && stream.tellg() < stream_end) {
         SingleFileStorage::Tag tag;
-        TLVFormat::LeghtType entry_size;
+        TLVFormat::LenghtType entry_size;
         stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
         ASSERT_TRUE(stream.good());
         stream.read(reinterpret_cast<char*>(&entry_size), sizeof(entry_size));

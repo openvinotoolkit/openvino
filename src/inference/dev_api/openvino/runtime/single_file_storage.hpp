@@ -11,15 +11,17 @@
 namespace ov::runtime {
 class SingleFileStorage final : public ICacheManager, public IContextStore {
 public:
-    /// @brief Version of the single file storage format. It is stored in the beginning of the file and is used to check
-    /// compatibility of the file with the implementation.
+    /**
+     * @brief Version of the single file storage format. It is stored in the beginning of the file and is used to check
+     * compatibility of the file with the implementation.
+     */
     struct FormatVersion {
         uint16_t major{};
         uint16_t minor{};
         uint16_t patch{};
         bool operator==(const FormatVersion&) const;
     };
-    /// @brief Current version of the single file storage format.
+    /** @brief Current version of the single file storage format. */
     static constexpr FormatVersion m_version = {0, 1, 2};
 
     enum class Tag : TLVFormat::TagType {
@@ -32,28 +34,38 @@ public:
 
     explicit SingleFileStorage(const std::filesystem::path& path);
 
-    /// @brief Write a cache entry to the storage.
-    /// @param blob_id The identifier of the blob.
-    /// @param writer The function to write the blob data.
+    /**
+     * @brief Write a cache entry to the storage.
+     * @param blob_id The identifier of the blob.
+     * @param writer The function to write the blob data.
+     */
     void write_cache_entry(const std::string& blob_id, StreamWriter writer) override;
 
-    /// @brief Read a cache entry from the storage.
-    /// @param blob_id The identifier of the blob.
-    /// @param enable_mmap Whether to use memory mapping for reading the blob data.
-    /// @param reader The function to read the blob data.
+    /**
+     * @brief Read a cache entry from the storage.
+     * @param blob_id The identifier of the blob.
+     * @param enable_mmap Whether to use memory mapping for reading the blob data.
+     * @param reader The function to read the blob data.
+     */
     void read_cache_entry(const std::string& blob_id, bool mmap_enabled, StreamReader reader) override;
 
-    /// @brief Remove a cache entry from the storage.
-    /// @note This function does nothing - the storage is append-only.
-    /// @param blob_id The identifier of the blob to be removed.
+    /**
+     * @brief Remove a cache entry from the storage.
+     * @note This function does nothing - the storage is append-only.
+     * @param blob_id The identifier of the blob to be removed.
+     */
     void remove_cache_entry(const std::string& blob_id) override;
 
-    /// @brief Write the weight sharing context to the storage.
-    /// @param context The weight sharing context to be stored.
+    /**
+     * @brief Write the weight sharing context to the storage.
+     * @param context The weight sharing context to be stored.
+     */
     void write_context(const weight_sharing::Context& context) override;
 
-    /// @brief Get the weight sharing context from the storage.
-    /// @return The weight sharing context stored in the storage.
+    /**
+     * @brief Get the weight sharing context from the storage.
+     * @return The weight sharing context stored in the storage.
+     */
     weight_sharing::Context get_context() const override;
 
     using BlobIdType = uint64_t;
