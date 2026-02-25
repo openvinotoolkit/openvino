@@ -60,7 +60,6 @@ jobs:
           cxx: ${{ matrix.config.cxx }}
           configure-options: >
             -GNinja
-            -DCMAKE_VERBOSE_MAKEFILE=ON
             -DENABLE_PYTHON=ON
             -DENABLE_ONEDNN_FOR_GPU=ON
             -DENABLE_TESTS=ON

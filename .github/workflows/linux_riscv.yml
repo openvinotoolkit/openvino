@@ -179,7 +179,6 @@ jobs:
           -DENABLE_PYTHON=OFF
           -DENABLE_TESTS=ON
           -DENABLE_STRICT_DEPENDENCIES=OFF
-          -DCMAKE_VERBOSE_MAKEFILE=ON
           -DENABLE_WHEEL=OFF
           -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
           -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64.linux.toolchain.cmake

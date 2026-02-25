@@ -113,20 +113,7 @@ jobs:
           echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
           echo "✓ Connection string loaded and masked"
 
-      - name: Clone OpenVINO (with trace)
-        if: ${{ inputs.os == 'fedora_29' }} # to debug ticket 160901
-        env:
-          GIT_TRACE: 1
-          GIT_TRACE_PERFORMANCE: 1
-          GIT_CURL_VERBOSE: 1
-        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
-        timeout-minutes: 15
-        with:
-          path: ${{ env.OPENVINO_REPO }}
-          submodules: 'true'
-
       - name: Clone OpenVINO
-        if: ${{ inputs.os != 'fedora_29' }}
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
@@ -329,7 +316,7 @@ jobs:
                 -DENABLE_WHEEL=OFF \
                 -DENABLE_TESTS=OFF \
                 ${BUILD_DIR}
-          cmake --build ${BUILD_DIR} --parallel $(nproc) --target package --verbose
+          cmake --build ${BUILD_DIR} --parallel $(nproc) --target package
 
       #
       # Upload build artifacts and logs

@@ -153,7 +153,6 @@ jobs:
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DENABLE_FASTER_BUILD=ON \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
