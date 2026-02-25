@@ -1,6 +1,6 @@
-// // Copyright (C) 2018-2026 Intel Corporation
-// // SPDX-License-Identifier: Apache-2.0
-// //
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
@@ -53,7 +53,7 @@ OutputVector translate_rrelu(const NodeContext& context) {
         auto average = context.mark_node(std::make_shared<v1::Divide>(lower_plus_upper, two));
         return {context.mark_node(std::make_shared<v0::PRelu>(x, average))};
     }
-};
+}
 
 }  // namespace op
 }  // namespace pytorch
