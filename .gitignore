@@ -84,5 +84,8 @@ public/
 # Python cache
 __pycache__/
 *.pyc
-
+# Ignore offline wheel packages
+offline_packages/
+offline_packages_cp310/
+*.whl
 
