@@ -29,6 +29,7 @@ namespace ov {
 class Model;
 class CompiledModel;
 class ICompiledModel;
+class MappedMemory;
 
 std::shared_ptr<Model> clone_ov_model(const Model& func, std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
 
@@ -541,6 +542,9 @@ private:
     std::shared_ptr<SharedRTInfo> m_shared_rt_info;
 
     mutable std::mutex m_model_mutex;
+
+public:
+    std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>> m_data_src;
 };
 
 OPENVINO_API

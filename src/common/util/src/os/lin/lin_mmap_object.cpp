@@ -19,6 +19,8 @@ namespace ov {
 
 class HandleHolder {
     int m_handle = -1;
+
+public:
     void reset() noexcept {
         if (m_handle != -1) {
             close(m_handle);
@@ -26,9 +28,7 @@ class HandleHolder {
         }
     }
 
-public:
     explicit HandleHolder(int handle = -1) : m_handle(handle) {}
-
     HandleHolder(const HandleHolder&) = delete;
     HandleHolder& operator=(const HandleHolder&) = delete;
 
@@ -104,6 +104,16 @@ public:
 
     size_t size() const noexcept override {
         return m_size;
+    }
+
+    void reset() override {
+        std::cout << "Resetting mmap object" << m_data << "\n";
+        if (m_data != MAP_FAILED) {
+            std::cout << "Resetting mmap object" << m_data << " with size " << m_size << "\n";
+            munmap(m_data, m_size);
+            m_data = MAP_FAILED;
+        }
+        // m_handle.reset();
     }
 };
 
