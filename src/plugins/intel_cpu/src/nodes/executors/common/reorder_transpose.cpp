@@ -47,7 +47,7 @@ ExecutorPtr ReorderTransposeExecutor::create(const TransposeAttrs& attrs,
     return std::make_shared<ReorderTransposeExecutor>(attrs, context);
 }
 
-bool ReorderTransposeExecutor::init(const MemoryArgs& memory) {
+bool ReorderTransposeExecutor::reconfigure(const MemoryArgs& memory) {
     const auto src = memory.at(ARG_SRC);
     const auto dst = memory.at(ARG_DST);
     OPENVINO_ASSERT(src, "Transpose source memory is undefined");

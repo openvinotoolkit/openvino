@@ -32,7 +32,7 @@ public:
     }
 
 private:
-    bool init(const MemoryArgs& memory) override;
+    bool reconfigure(const MemoryArgs& memory) override;
     static int64_t calcShapeSize(const Shape& shape, size_t start, size_t end);
     static bool IsTransposeMovingSingleAxis(VectorDims permutations, size_t& from, size_t& to);
     static void TransposeSingleAxisOutwards(const MemoryCPtr& input, const MemoryPtr& output, size_t from, size_t to);

@@ -32,7 +32,7 @@ public:
     }
 
 private:
-    bool init(const MemoryArgs& memory) override;
+    bool reconfigure(const MemoryArgs& memory) override;
 };
 
 }  // namespace ov::intel_cpu

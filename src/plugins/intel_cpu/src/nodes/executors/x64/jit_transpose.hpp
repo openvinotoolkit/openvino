@@ -31,7 +31,7 @@ public:
     }
 
 private:
-    bool init(const MemoryArgs& memory) override;
+    bool reconfigure(const MemoryArgs& memory) override;
     std::shared_ptr<PermuteKernel> pKernel;
 };
 

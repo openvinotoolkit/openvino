@@ -25,7 +25,7 @@ public:
     }
 
 private:
-    bool init(const MemoryArgs& memory) override;
+    bool reconfigure(const MemoryArgs& memory) override;
 
     dnnl::reorder m_primitive;
     impl_desc_type m_implType = impl_desc_type::undef;

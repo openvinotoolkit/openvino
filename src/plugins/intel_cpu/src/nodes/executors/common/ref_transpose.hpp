@@ -36,7 +36,7 @@ public:
     }
 
 private:
-    bool init(const MemoryArgs& memory) override;
+    bool reconfigure(const MemoryArgs& memory) override;
     jit_permute_config_params jcp;
 };
 

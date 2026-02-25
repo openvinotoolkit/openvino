@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <optional>
 #include <vector>
 
 #include "executor.hpp"
@@ -24,9 +25,10 @@ public:
     ~TransposeExecutor() override = default;
 
 protected:
-    virtual bool init(const MemoryArgs& memory) = 0;
+    virtual bool reconfigure(const MemoryArgs& memory) = 0;
     PermuteParams permuteParams;
-    bool isInitialized = false;
+    std::optional<PermuteParams> configuredPermuteParams;
+    const PermuteParams basePermuteParams;
     const ExecutorContext::CPtr context;
 };
 using TransposeExecutorPtr = std::shared_ptr<TransposeExecutor>;

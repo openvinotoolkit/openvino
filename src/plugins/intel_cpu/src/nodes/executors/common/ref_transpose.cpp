@@ -94,7 +94,7 @@ void RefTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::v
     referenceExecute(src_data, dst_data, jcp, MB);
 }
 
-bool RefTransposeExecutor::init([[maybe_unused]] const MemoryArgs& memory) {
+bool RefTransposeExecutor::reconfigure([[maybe_unused]] const MemoryArgs& memory) {
     jcp = TransposeExecutor::prepareParams(permuteParams);
     return true;
 }

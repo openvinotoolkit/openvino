@@ -28,7 +28,7 @@ namespace ov::intel_cpu {
 MlasTransposeExecutor::MlasTransposeExecutor(const TransposeAttrs& attrs, ExecutorContext::CPtr context)
     : TransposeExecutor(attrs, std::move(context)) {}
 
-bool MlasTransposeExecutor::init([[maybe_unused]] const MemoryArgs& memory) {
+bool MlasTransposeExecutor::reconfigure([[maybe_unused]] const MemoryArgs& memory) {
     return IsTransposeMovingSingleAxis(permuteParams.order, from, to);
 }
 

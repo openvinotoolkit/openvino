@@ -129,7 +129,7 @@ ACLTransposeExecutor::ACLTransposeExecutor(const TransposeAttrs& attrs, Executor
     : TransposeExecutor(attrs, std::move(context)),
       acl_permute(std::make_unique<arm_compute::NEPermute>()) {}
 
-bool ACLTransposeExecutor::init(const MemoryArgs& memory) {
+bool ACLTransposeExecutor::reconfigure(const MemoryArgs& memory) {
     const auto src = memory.at(ARG_SRC);
     const auto dst = memory.at(ARG_DST);
     OPENVINO_ASSERT(src, "ACLTransposeExecutor source memory is undefined");

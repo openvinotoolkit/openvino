@@ -24,7 +24,7 @@ public:
     }
 
 private:
-    bool init(const MemoryArgs& memory) override;
+    bool reconfigure(const MemoryArgs& memory) override;
     arm_compute::Tensor srcTensor, dstTensor;
     std::unique_ptr<arm_compute::NEPermute> acl_permute;
 };

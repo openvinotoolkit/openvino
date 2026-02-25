@@ -23,7 +23,7 @@
 namespace ov::intel_cpu {
 
 TransposeExecutor::TransposeExecutor(const TransposeAttrs& attrs, ExecutorContext::CPtr context)
-    : permuteParams(attrs.permuteParams),
+    : basePermuteParams(attrs.permuteParams),
       context(std::move(context)) {}
 
 bool TransposeExecutor::update(const MemoryArgs& memory) {
@@ -32,24 +32,25 @@ bool TransposeExecutor::update(const MemoryArgs& memory) {
     OPENVINO_ASSERT(src, "Transpose source memory is undefined");
     OPENVINO_ASSERT(dst, "Transpose destination memory is undefined");
 
-    PermuteParams updatedParams = permuteParams;
+    PermuteParams updatedParams = basePermuteParams;
     const auto srcDesc = src->getDescWithType<BlockedMemoryDesc>();
     const auto dstDesc = dst->getDescWithType<BlockedMemoryDesc>();
     updatedParams.src_block_order = srcDesc->getOrder();
     updatedParams.src_block_dims = srcDesc->getBlockDims();
     updatedParams.dst_block_order = dstDesc->getOrder();
     updatedParams.dst_block_dims = dstDesc->getBlockDims();
-    if (updatedParams.data_size == 0) {
-        updatedParams.data_size = src->getDesc().getPrecision().size();
-    }
+    updatedParams.data_size = srcDesc->getPrecision().size();
 
-    if (isInitialized && updatedParams == permuteParams) {
+    if (configuredPermuteParams && updatedParams == *configuredPermuteParams) {
         return true;
     }
 
     permuteParams = std::move(updatedParams);
-    isInitialized = init(memory);
-    return isInitialized;
+    if (!reconfigure(memory)) {
+        return false;
+    }
+    configuredPermuteParams = permuteParams;
+    return true;
 }
 
 void TransposeExecutor::execute(const MemoryArgs& memory) {

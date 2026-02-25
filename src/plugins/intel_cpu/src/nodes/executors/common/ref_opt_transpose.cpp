@@ -155,7 +155,7 @@ ExecutorPtr RefOptimizedTransposeExecutor::create(const TransposeAttrs& attrs,
     return std::make_shared<RefOptimizedTransposeExecutor>(attrs, context);
 }
 
-bool RefOptimizedTransposeExecutor::init([[maybe_unused]] const MemoryArgs& memory) {
+bool RefOptimizedTransposeExecutor::reconfigure([[maybe_unused]] const MemoryArgs& memory) {
     return true;
 }
 

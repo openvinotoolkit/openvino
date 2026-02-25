@@ -34,7 +34,7 @@ void JitTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::v
     pKernel->execute(srcData, dstData, MB, context->getCpuParallel());
 }
 
-bool JitTransposeExecutor::init([[maybe_unused]] const MemoryArgs& memory) {
+bool JitTransposeExecutor::reconfigure([[maybe_unused]] const MemoryArgs& memory) {
     pKernel = std::make_shared<PermuteKernel>(permuteParams);
     return true;
 }

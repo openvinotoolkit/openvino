@@ -211,7 +211,7 @@ void Reorder::prepareReorderAsTranspose(const MemoryDescPtr& parentDesc, const M
     attrs.permuteParams.dst_block_dims = transposedBlockDims;
     attrs.permuteParams.dst_block_order = attrs.permuteParams.src_block_order;
     attrs.permuteParams.order = transposeOrder;
-    attrs.permuteParams.data_size = parentDesc->getPrecision().size();
+    // TODO: Move transpose factory/executor creation to CreatePrimitive after Reorder node refactoring.
     auto transpose_context = std::make_shared<ExecutorContext>(context, getImplPriority());
     auto factory = std::make_shared<ExecutorFactory<TransposeAttrs>>(attrs, transpose_context, descs);
     transposeExecutor = factory->make(memory, false);

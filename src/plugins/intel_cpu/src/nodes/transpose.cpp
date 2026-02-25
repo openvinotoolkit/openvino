@@ -169,8 +169,6 @@ void Transpose::createPrimitive() {
     CPU_NODE_ASSERT(srcMemPtr, "Input memory is null.");
     CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "Preferable primitive descriptor was not set.");
 
-    attrs.permuteParams.data_size =
-        getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->getPrecision().size();
     m_memory[ARG_SRC] = srcMemPtr;
     m_memory[ARG_DST] = dstMemPtr;
 
