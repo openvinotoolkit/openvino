@@ -3,10 +3,13 @@
 #
 
 ## list of available instruction sets
-set(_AVAILABLE_ARCHS_LIST ANY SSE42 AVX AVX2 AVX512F NEON_FP16 SVE)
+set(_AVAILABLE_ARCHS_LIST ANY SSE42 AVX AVX2 AVX512F NEON_FP16 SVE SVE2)
 
 if(ENABLE_SVE)
     list(APPEND _ENABLED_ARCHS_LIST SVE)
+endif()
+if(ENABLE_SVE2)
+    list(APPEND _ENABLED_ARCHS_LIST SVE2)
 endif()
 if(ENABLE_NEON_FP16)
     list(APPEND _ENABLED_ARCHS_LIST NEON_FP16)
@@ -30,6 +33,7 @@ set(_DEFINE_AVX2      "HAVE_AVX2"     ${_DEFINE_AVX})
 set(_DEFINE_AVX512F   "HAVE_AVX512F"  ${_DEFINE_AVX2})
 set(_DEFINE_NEON_FP16 "HAVE_NEON_FP16" ${_DEFINE_ANY})
 set(_DEFINE_SVE       "HAVE_SVE"      ${_DEFINE_SVE})
+set(_DEFINE_SVE2      "HAVE_SVE2"     ${_DEFINE_SVE2})
 
 ## Arch specific compile options
 if(ENABLE_AVX512F)
@@ -46,6 +50,9 @@ if(ENABLE_NEON_FP16)
 endif()
 if(ENABLE_SVE)
     ov_arm_sve_optimization_flags(_FLAGS_SVE)
+endif()
+if(ENABLE_SVE2)
+    ov_arm_sve2_optimization_flags(_FLAGS_SVE2)
 endif()
 set(_FLAGS_AVX "")  ## TBD is not defined for OV project yet
 set(_FLAGS_ANY "")  ##

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <random>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -9,6 +10,7 @@
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
 #include "utils/general_utils.h"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/op/topk.hpp"
 
 using namespace CPUTestUtils;
@@ -42,9 +44,7 @@ public:
         bool stable = std::get<1>(sortTypeStable);
 
         std::ostringstream result;
-        bool staticShape = inputShape.first.rank() == 0;
-        if (staticShape)
-            result << "k=" << keepK << "_";
+        result << "k=" << keepK << "_";
         result << "axis=" << axis << "_";
         result << "mode=" << mode << "_";
         result << "sort=" << sort << "_";
@@ -72,11 +72,35 @@ public:
     }
 
 protected:
+    void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) override {
+        if (sort != SortType::NONE) {
+            SubgraphBaseTest::compare(expected, actual);
+            return;
+        }
+
+        ASSERT_GE(expected.size(), 2u);
+        ASSERT_GE(actual.size(), 2u);
+        ASSERT_EQ(expected[0].get_shape(), actual[0].get_shape());
+        ASSERT_EQ(expected[1].get_shape(), actual[1].get_shape());
+        ASSERT_EQ(expected[0].get_element_type(), actual[0].get_element_type());
+        ASSERT_EQ(expected[1].get_element_type(), ov::element::i32);
+        ASSERT_EQ(actual[1].get_element_type(), ov::element::i32);
+
+        std::vector<ov::Tensor> exp_sorted = expected;
+        std::vector<ov::Tensor> act_sorted = actual;
+
+        sort_topk_pairs(exp_sorted[0], exp_sorted[1]);
+        sort_topk_pairs(act_sorted[0], act_sorted[1]);
+
+        SubgraphBaseTest::compare(exp_sorted, act_sorted);
+    }
+
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
         const auto &[basicParamsSet, cpuParams, additionalConfig] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         const auto& [keepK, _axis, mode, sortTypeStable, _netPrecision, inPrc, outPrc, inputShape] = basicParamsSet;
+        this->keepK = keepK;
         axis = _axis;
         netPrecision = _netPrecision;
         sort = std::get<0>(sortTypeStable);
@@ -86,10 +110,12 @@ protected:
             netPrecision = ElementType::bf16;
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
+        const auto primType = getPrimitiveType();
+        selectedType = primType == "acl" ? "jit" : primType;
         if (!ov::with_cpu_x86_avx512_core() && netPrecision == ElementType::bf16) {
-            selectedType = makeSelectedTypeStr(getPrimitiveType(), ElementType::f32);
+            updateSelectedType(selectedType, ElementType::f32, configuration);
         } else {
-            selectedType = makeSelectedTypeStr(getPrimitiveType(), netPrecision);
+            updateSelectedType(selectedType, netPrecision, configuration);
         }
 
         staticShape = inputShape.first.rank() == 0;
@@ -166,7 +192,7 @@ protected:
                     rawBlobDataPtr[i] = static_cast<int32_t>(data[i]);
                 }
             }
-        } else if (netPrecision == ElementType::bf16) {
+        } else if (netPrecision == ElementType::bf16 || netPrecision == ElementType::f16) {
             size_t O = 1, A = 1, I = 1;
             A = shape[axis];
             for (int64_t i = 0; i < axis; i++)
@@ -176,17 +202,43 @@ protected:
             if (O * A * I != size)
                 FAIL() << "Incorrect blob shape " << shape;
 
-            auto* rawBlobDataPtr = static_cast<ov::bfloat16*>(tensor.data());
-            for (size_t o = 0; o < O; o++) {
-                for (size_t i = 0; i < I; i++) {
-                    std::vector<int> data(A);
-                    int start = -static_cast<int>(A / 2);
-                    std::iota(data.begin(), data.end(), start);
-                    const size_t seed = (o + 1) * (i + 1);
-                    std::mt19937 gen(seed);
-                    std::shuffle(data.begin(), data.end(), gen);
-                    for (size_t a = 0; a < A; a++) {
-                        rawBlobDataPtr[o * A * I + a * I + i] = static_cast<ov::bfloat16>(data[a]);
+            const bool stable_values = sort == SortType::SORT_VALUES && stable;
+            const size_t set_size = stable_values ? A / 2 : A;
+
+            if (netPrecision == ElementType::bf16) {
+                auto* rawBlobDataPtr = static_cast<ov::bfloat16*>(tensor.data());
+                for (size_t o = 0; o < O; o++) {
+                    for (size_t i = 0; i < I; i++) {
+                        std::vector<int> data(A);
+                        int start = -static_cast<int>(A / 2);
+                        std::iota(data.begin(), data.begin() + set_size, start);
+                        if (stable_values) {
+                            std::copy(data.begin(), data.begin() + set_size, data.begin() + set_size);
+                        }
+                        const size_t seed = (o + 1) * (i + 1);
+                        std::mt19937 gen(seed);
+                        std::shuffle(data.begin(), data.end(), gen);
+                        for (size_t a = 0; a < A; a++) {
+                            rawBlobDataPtr[o * A * I + a * I + i] = static_cast<ov::bfloat16>(data[a]);
+                        }
+                    }
+                }
+            } else {  // f16
+                auto* rawBlobDataPtr = static_cast<ov::float16*>(tensor.data());
+                for (size_t o = 0; o < O; o++) {
+                    for (size_t i = 0; i < I; i++) {
+                        std::vector<int> data(A);
+                        int start = -static_cast<int>(A / 2);
+                        std::iota(data.begin(), data.begin() + set_size, start);
+                        if (stable_values) {
+                            std::copy(data.begin(), data.begin() + set_size, data.begin() + set_size);
+                        }
+                        const size_t seed = (o + 1) * (i + 1);
+                        std::mt19937 gen(seed);
+                        std::shuffle(data.begin(), data.end(), gen);
+                        for (size_t a = 0; a < A; a++) {
+                            rawBlobDataPtr[o * A * I + a * I + i] = static_cast<ov::float16>(data[a]);
+                        }
                     }
                 }
             }
@@ -201,15 +253,82 @@ protected:
     }
 
 private:
+    void sort_topk_pairs(ov::Tensor& values, ov::Tensor& indices) const {
+        ASSERT_EQ(values.get_shape(), indices.get_shape());
+
+        const auto& shape = values.get_shape();
+        const auto axis_u = static_cast<size_t>(axis);
+        const size_t k = shape[axis_u];
+        size_t outer_dim = 1;
+        size_t inner_dim = 1;
+        for (size_t i = 0; i < axis_u; ++i) {
+            outer_dim *= shape[i];
+        }
+        for (size_t i = axis_u + 1; i < shape.size(); ++i) {
+            inner_dim *= shape[i];
+        }
+
+        auto sort_impl = [&](auto* values_data, int32_t* indices_data) {
+            using T = std::decay_t<decltype(*values_data)>;
+            std::vector<std::pair<T, int32_t>> buf(k);
+            for (size_t outer = 0; outer < outer_dim; ++outer) {
+                const size_t base_outer = outer * k * inner_dim;
+                for (size_t inner = 0; inner < inner_dim; ++inner) {
+                    const size_t base = base_outer + inner;
+                    for (size_t i = 0; i < k; ++i) {
+                        const size_t offset = base + i * inner_dim;
+                        buf[i] = {values_data[offset], indices_data[offset]};
+                    }
+                    std::sort(buf.begin(), buf.end(), [](const auto& lhs, const auto& rhs) {
+                        if (lhs.first < rhs.first) {
+                            return true;
+                        }
+                        if (rhs.first < lhs.first) {
+                            return false;
+                        }
+                        return lhs.second < rhs.second;
+                    });
+                    for (size_t i = 0; i < k; ++i) {
+                        const size_t offset = base + i * inner_dim;
+                        values_data[offset] = buf[i].first;
+                        indices_data[offset] = buf[i].second;
+                    }
+                }
+            }
+        };
+
+        auto* idx_data = indices.data<int32_t>();
+        switch (values.get_element_type()) {
+        case ov::element::Type_t::f16:
+            sort_impl(values.data<ov::float16>(), idx_data);
+            break;
+        case ov::element::Type_t::bf16:
+            sort_impl(values.data<ov::bfloat16>(), idx_data);
+            break;
+        case ov::element::Type_t::f32:
+            sort_impl(values.data<float>(), idx_data);
+            break;
+        case ov::element::Type_t::i32:
+            sort_impl(values.data<int32_t>(), idx_data);
+            break;
+        default:
+            FAIL() << "Unsupported tensor element type for TopK compare: " << values.get_element_type();
+        }
+    }
+
     void generate_dynamic_k(const std::vector<ov::Output<ov::Node>>& funcInputs,
                             const std::vector<ov::Shape>& targetInputStaticShapes) {
         const auto& kPrecision = funcInputs[1].get_element_type();
         const auto& kShape = targetInputStaticShapes[1];
 
         ov::test::utils::InputGenerateData in_data;
-        in_data.start_from = 1;
-        in_data.range = targetInputStaticShapes[0][axis];
-        in_data.seed = inferRequestNum++;;
+        const auto axis_dim = targetInputStaticShapes[0][axis];
+        if (keepK > static_cast<int64_t>(axis_dim)) {
+            FAIL() << "Dynamic k exceeds axis dim: k=" << keepK << " axis_dim=" << axis_dim;
+        }
+        in_data.start_from = keepK;
+        in_data.range = 1;
+        in_data.seed = inferRequestNum++;
         const auto kTensor = ov::test::utils::create_and_fill_tensor(kPrecision, kShape, in_data);
 
         inputs.insert({funcInputs[1].get_node_shared_ptr(), kTensor});
@@ -217,6 +336,7 @@ private:
 
 private:
     int64_t axis;
+    int64_t keepK = 0;
     SortType sort;
     bool stable;
     size_t inferRequestNum = 0;
@@ -234,8 +354,24 @@ const std::vector<ElementType> netPrecisions = {
     ElementType::f32,
 };
 
-std::vector<ov::AnyMap> additionalConfig = {{{ov::hint::inference_precision(ov::element::f32)}},
-                                            {{ov::hint::inference_precision(ov::element::bf16)}}};
+const std::vector<ElementType> netPrecisions_f16 = {
+    ElementType::f16,
+};
+
+std::vector<ov::AnyMap> additionalConfig = {
+    {{ov::hint::inference_precision(ov::element::f32)}},
+#if defined(OPENVINO_ARCH_X86_64)
+    {{ov::hint::inference_precision(ov::element::bf16)}}
+#endif
+};
+
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+std::vector<ov::AnyMap> additionalConfig_f16 = {
+    {{ov::hint::inference_precision(ov::element::f16)}},
+};
+#else
+std::vector<ov::AnyMap> additionalConfig_f16 = {{}};
+#endif
 
 const std::vector<int64_t> axes = {0, 1, 2, 3};
 const std::vector<int64_t> k = {1, 5, 7, 18, 21};
@@ -245,7 +381,8 @@ const std::vector<SortMode> modes = {SortMode::MIN, SortMode::MAX};
 const std::vector<std::tuple<SortType, bool>> sortTypeStable = {
     std::tuple<SortType, bool>{SortType::SORT_VALUES, false},
     std::tuple<SortType, bool>{SortType::SORT_VALUES, true},
-    std::tuple<SortType, bool>{SortType::SORT_INDICES, false}};
+    std::tuple<SortType, bool>{SortType::SORT_INDICES, false},
+    std::tuple<SortType, bool>{SortType::NONE, false}};
 
 std::vector<ov::test::InputShape> inputShapes = {
     {{}, {{21, 21, 21, 21}}},
@@ -254,7 +391,29 @@ std::vector<ov::test::InputShape> inputShapes = {
 std::vector<ov::test::InputShape> inputShapesDynamic = {
     {{21, {20, 25}, 21, {20, 25}}, {{21, 21, 21, 21}, {21, 22, 21, 23}}}};
 
+const std::vector<int64_t> k_dynamic = {1, 5, 7, 18};
+
+const std::vector<int64_t> k_vl_tail = {1, 3};
+const std::vector<int64_t> axes_vl_tail = {3};
+const std::vector<std::tuple<SortType, bool>> sortTypeStable_vl_tail = {
+    std::tuple<SortType, bool>{SortType::SORT_VALUES, false},
+    std::tuple<SortType, bool>{SortType::NONE, false},
+};
+
+std::vector<ov::test::InputShape> inputShapes_vl_tail = {
+    {{}, {{1, 1, 1, 3}}},
+    {{}, {{1, 1, 1, 4}}},
+    {{}, {{1, 1, 1, 5}}},
+    {{}, {{1, 1, 1, 8}}},
+    {{}, {{1, 1, 1, 9}}},
+    {{}, {{1, 1, 1, 16}}},
+    {{}, {{1, 1, 1, 17}}},
+};
+
+std::vector<CPUSpecificParams> cpuParams_vl_tail = {CPUSpecificParams({nchw, x}, {nchw, nchw}, {}, {})};
+
 std::vector<CPUSpecificParams> cpuParams = {CPUSpecificParams({nChw16c, x}, {nChw16c, nChw16c}, {}, {}),
+                                            CPUSpecificParams({nChw8c, x}, {nChw8c, nChw8c}, {}, {}),
                                             CPUSpecificParams({nchw, x}, {nchw, nchw}, {}, {}),
                                             CPUSpecificParams({nhwc, x}, {nhwc, nhwc}, {}, {})};
 
@@ -274,7 +433,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK,
 
 INSTANTIATE_TEST_SUITE_P(smoke_TopK_dynamic,
                          TopKLayerCPUTest,
-                         ::testing::Combine(::testing::Combine(::testing::Values(1),
+                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(k_dynamic),
                                                                ::testing::ValuesIn(axes),
                                                                ::testing::ValuesIn(modes),
                                                                ::testing::ValuesIn(sortTypeStable),
@@ -286,7 +445,36 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_dynamic,
                                             ::testing::ValuesIn(additionalConfig)),
                          TopKLayerCPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_f16,
+                         TopKLayerCPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(k),
+                                                               ::testing::ValuesIn(axes),
+                                                               ::testing::ValuesIn(modes),
+                                                               ::testing::ValuesIn(sortTypeStable),
+                                                               ::testing::ValuesIn(netPrecisions_f16),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::ValuesIn(inputShapes)),
+                                            ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
+                                            ::testing::ValuesIn(additionalConfig_f16)),
+                         TopKLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_f16_dynamic,
+                         TopKLayerCPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(k_dynamic),
+                                                               ::testing::ValuesIn(axes),
+                                                               ::testing::ValuesIn(modes),
+                                                               ::testing::ValuesIn(sortTypeStable),
+                                                               ::testing::ValuesIn(netPrecisions_f16),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::Values(ElementType::dynamic),
+                                                               ::testing::ValuesIn(inputShapesDynamic)),
+                                            ::testing::ValuesIn(filterCPUSpecificParams(cpuParams)),
+                                            ::testing::ValuesIn(additionalConfig_f16)),
+                         TopKLayerCPUTest::getTestCaseName);
+
 const std::vector<int64_t> k_int32 = {1, 5, 7, 9};
+const std::vector<int64_t> k_int32_dynamic = {1, 5};
 
 std::vector<ov::test::InputShape> inputShapes_int32 = {
     {{}, {{9, 9, 9, 9}}},
@@ -311,7 +499,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_int32,
 
 INSTANTIATE_TEST_SUITE_P(smoke_TopK_int32_dynamic,
                          TopKLayerCPUTest,
-                         ::testing::Combine(::testing::Combine(::testing::Values(1),
+                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(k_int32_dynamic),
                                                                ::testing::ValuesIn(axes),
                                                                ::testing::ValuesIn(modes),
                                                                ::testing::ValuesIn(sortTypeStable),
@@ -393,7 +581,52 @@ INSTANTIATE_TEST_SUITE_P(
                                           ::testing::Values(ElementType::dynamic),
                                           ::testing::ValuesIn(inputShapesDynamic_top1)),
                        ::testing::Values(CPUSpecificParams({nchw, x}, {nchw, nchw}, {}, {})),
+    ::testing::ValuesIn(additionalConfig)),
+    TopKLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_TopK_vl_tail,
+    TopKLayerCPUTest,
+    ::testing::Combine(::testing::Combine(::testing::ValuesIn(k_vl_tail),
+                                          ::testing::ValuesIn(axes_vl_tail),
+                                          ::testing::ValuesIn(modes),
+                                          ::testing::ValuesIn(sortTypeStable_vl_tail),
+                                          ::testing::ValuesIn(netPrecisions),
+                                          ::testing::Values(ElementType::dynamic),
+                                          ::testing::Values(ElementType::dynamic),
+                                          ::testing::ValuesIn(inputShapes_vl_tail)),
+                       ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_vl_tail)),
                        ::testing::ValuesIn(additionalConfig)),
+    TopKLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_TopK_f16_vl_tail,
+    TopKLayerCPUTest,
+    ::testing::Combine(::testing::Combine(::testing::ValuesIn(k_vl_tail),
+                                          ::testing::ValuesIn(axes_vl_tail),
+                                          ::testing::ValuesIn(modes),
+                                          ::testing::ValuesIn(sortTypeStable_vl_tail),
+                                          ::testing::ValuesIn(netPrecisions_f16),
+                                          ::testing::Values(ElementType::dynamic),
+                                          ::testing::Values(ElementType::dynamic),
+                                          ::testing::ValuesIn(inputShapes_vl_tail)),
+                       ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_vl_tail)),
+                       ::testing::ValuesIn(additionalConfig_f16)),
+    TopKLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_TopK_int32_vl_tail,
+    TopKLayerCPUTest,
+    ::testing::Combine(::testing::Combine(::testing::ValuesIn(k_vl_tail),
+                                          ::testing::ValuesIn(axes_vl_tail),
+                                          ::testing::ValuesIn(modes),
+                                          ::testing::ValuesIn(sortTypeStable_vl_tail),
+                                          ::testing::Values(ElementType::i32),
+                                          ::testing::Values(ElementType::dynamic),
+                                          ::testing::Values(ElementType::dynamic),
+                                          ::testing::ValuesIn(inputShapes_vl_tail)),
+                       ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_vl_tail)),
+                       ::testing::Values(additionalConfig[0])),
     TopKLayerCPUTest::getTestCaseName);
 
 }  // namespace
