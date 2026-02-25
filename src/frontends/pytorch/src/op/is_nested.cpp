@@ -15,6 +15,9 @@ using namespace ov::op;
 
 OutputVector translate_is_nested(const NodeContext& context) {
     // prim::is_nested checks if a tensor is a nested tensor.
+    // Nested tensors are currently not supported by the OpenVINO PyTorch frontend,
+    // so this translator always lowers prim::is_nested to a constant 'false'.
+    num_inputs_check(context, 1, 1);
     return {context.mark_node(v0::Constant::create(element::boolean, Shape{}, {false}))};
 }
 
