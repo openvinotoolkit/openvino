@@ -174,9 +174,50 @@ Output<Node> reshape_to_2d(const NodeContext& ctx,
         }
     };
 
-    auto left_dims = gather_dims(left_axes);
-    auto right_dims = gather_dims(right_axes);
+    Output<Node> left_dims;
+    Output<Node> right_dims;
 
+    if (left_axes.is_static && right_axes.is_static) {
+        // When both axis sets are static, compute M and K based on their counts
+        // and the current (possibly transposed) layout:
+        //   - M is the product of the first |left_axes| dimensions
+        //   - K is the product of the last |right_axes| dimensions
+        const auto left_rank = static_cast<int64_t>(left_axes.static_axes.size());
+        const auto right_rank = static_cast<int64_t>(right_axes.static_axes.size());
+
+        // Indices [0, 1, ..., left_rank - 1] for the leading dimensions
+        auto left_idx_values = std::vector<int64_t>(static_cast<size_t>(left_rank));
+        for (int64_t i = 0; i < left_rank; ++i) {
+            left_idx_values[static_cast<size_t>(i)] = i;
+        }
+        auto left_idx =
+            v0::Constant::create(element::i64, Shape{left_idx_values.size()}, left_idx_values);
+
+        auto axis_zero = v0::Constant::create(element::i64, Shape{}, {0});
+        left_dims = ctx.mark_node(std::make_shared<v8::Gather>(shape, left_idx, axis_zero));
+
+        // Compute rank(input) as the length of `shape`
+        auto shape_rank_vec = ctx.mark_node(std::make_shared<v3::ShapeOf>(shape));
+        auto rank_scalar =
+            ctx.mark_node(std::make_shared<v8::Gather>(shape_rank_vec, axis_zero, axis_zero));
+
+        auto right_count =
+            v0::Constant::create(element::i64, Shape{}, {right_rank});
+        auto one = v0::Constant::create(element::i64, Shape{}, {1});
+
+        // Start index for the trailing |right_axes| dimensions: rank - right_rank
+        auto right_start =
+            ctx.mark_node(std::make_shared<v1::Subtract>(rank_scalar, right_count));
+
+        auto right_idx = ctx.mark_node(
+            std::make_shared<v4::Range>(right_start, rank_scalar, one, element::i64));
+
+        right_dims = ctx.mark_node(std::make_shared<v8::Gather>(shape, right_idx, axis_zero));
+    } else {
+        // Fallback to index-based gather for dynamic axes information
+        left_dims = gather_dims(left_axes);
+        right_dims = gather_dims(right_axes);
+    }
     auto M = ctx.mark_node(
         std::make_shared<v1::ReduceProd>(left_dims, v0::Constant::create(element::i64, Shape{}, {0}), true));
 
