@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ public:
 
 private:
     py::object py_handle_dtype;  // Holds the Python object to manage its lifetime
-    std::shared_ptr<ov::DiscreteTypeInfo> m_type_info; 
+    std::shared_ptr<ov::DiscreteTypeInfo> m_type_info;
 };
 
 void regclass_graph_OpExtension(py::module m);

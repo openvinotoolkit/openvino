@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -87,7 +87,7 @@ protected:
         };
 
         auto gather = std::make_shared<ov::op::v6::GatherElements>(params[0], params[1], axis);
-        function = makeNgraphFunction(dPrecision, params, gather, "GatherElements");
+        function = create_ov_model(dPrecision, params, gather, "GatherElements");
     }
 };
 

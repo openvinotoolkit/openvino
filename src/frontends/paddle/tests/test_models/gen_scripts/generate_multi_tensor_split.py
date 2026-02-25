@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import paddle
@@ -26,7 +26,7 @@ def create_multi_output_model():
     else:
         x = fluid.data(name='x', shape=[2, num_splits, 4, 4], dtype='float32')
         test_layer = paddle.split(x, num_or_sections=num_splits, axis=1)
-    
+
     var = []
     for i in range(num_splits//2):
         if paddle.__version__ >= '2.0.0':

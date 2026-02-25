@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,13 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::make_tensor_slice(ov::SoPtr<ov::ITensor> 
     ov::Shape end_shape = tensor->get_shape();
     end_shape[dim] = end_pos;
     return ov::get_tensor_impl(ov::Tensor(ov::make_tensor(tensor), start_shape, end_shape));
+}
+
+void ov::npuw::util::copy_to_right(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst) {
+    OPENVINO_ASSERT(src->get_byte_size() <= dst->get_byte_size());
+    std::copy_n(reinterpret_cast<uint8_t*>(src->data()),
+                src->get_byte_size(),
+                reinterpret_cast<uint8_t*>(dst->data()) + dst->get_byte_size() - src->get_byte_size());
 }
 
 void ov::npuw::util::copy_by_planes(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor) {
@@ -150,4 +157,54 @@ std::optional<ov::Output<const ov::Node>> ov::npuw::util::find_port_by_name(
         return std::nullopt;
     }
     return std::make_optional(*it);
+}
+
+std::optional<ov::Output<const ov::Node>> ov::npuw::util::find_port_by_names(
+    const std::vector<ov::Output<const ov::Node>>& ports,
+    const std::unordered_set<std::string>& names) {
+    for (const auto& port : ports) {
+        const auto& port_names = port.get_names();
+        for (const auto& port_name : port_names) {
+            if (names.count(port_name)) {
+                return std::make_optional(port);
+            }
+        }
+    }
+    return std::nullopt;
+}
+
+void ov::npuw::util::pad_position_ids(const ov::SoPtr<ov::ITensor>& padded_position_ids,
+                                      const ov::SoPtr<ov::ITensor>& position_ids) {
+    // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni uses 3D position_ids [3, BATCH, SEQ_LEN]
+    // The first dimension (3) represents the three components of position encoding: time, height, and width
+    // enabling alignment across multimodal inputs like text, audio, and video
+    auto padded_shape = padded_position_ids->get_shape();
+    auto position_shape = position_ids->get_shape();
+
+    OPENVINO_ASSERT(position_shape.size() <= 3);
+
+    size_t diff_dim = position_shape.size() - 1;
+    for (size_t i = 0; i < diff_dim; ++i) {
+        OPENVINO_ASSERT(padded_shape[i] == position_shape[i]);
+    }
+
+    size_t keep_elements = padded_shape[diff_dim] - position_shape[diff_dim];
+
+    size_t batch_size = 1;
+    for (size_t i = 0; i < padded_shape.size(); ++i) {
+        if (i != diff_dim) {
+            batch_size *= padded_shape[i];
+        }
+    }
+
+    int64_t* padded_data = padded_position_ids->data<int64_t>();
+    const int64_t* position_data = position_ids->data<int64_t>();
+
+    for (size_t batch = 0; batch < batch_size; ++batch) {
+        size_t padded_offset = batch * padded_shape[diff_dim];
+        size_t position_offset = batch * position_shape[diff_dim];
+        std::copy_n(position_data + position_offset,
+                    position_shape[diff_dim],
+                    padded_data + padded_offset + keep_elements);
+    }
 }

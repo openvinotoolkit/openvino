@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -9,7 +9,8 @@ if (ENABLE_SANITIZER)
         # the flag is available since MSVC 2019 16.9
         # see https://learn.microsoft.com/en-us/cpp/build/reference/fsanitize?view=msvc-160
         check_cxx_compiler_flag("/fsanitize=address" SANITIZE_ADDRESS_SUPPORTED)
-        if (SANITIZE_ADDRESS_SUPPORTED)
+
+        if(SANITIZE_ADDRESS_SUPPORTED)
             set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} /fsanitize=address")
         else()
             message(FATAL_ERROR "Address sanitizer is not supported by current compiler.\n"
@@ -18,16 +19,19 @@ if (ENABLE_SANITIZER)
         endif()
     elseif(OV_COMPILER_IS_CLANG)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=address -fsanitize-blacklist=${OpenVINO_SOURCE_DIR}/tests/sanitizers/asan/ignore.txt")
+
         if(BUILD_SHARED_LIBS)
             set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -shared-libasan")
         endif()
 
         check_cxx_compiler_flag("-fsanitize-recover=address" SANITIZE_RECOVER_ADDRESS_SUPPORTED)
-        if (SANITIZE_RECOVER_ADDRESS_SUPPORTED)
+
+        if(SANITIZE_RECOVER_ADDRESS_SUPPORTED)
             set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize-recover=address")
         endif()
 
         set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fsanitize=address -fsanitize-blacklist=${OpenVINO_SOURCE_DIR}/tests/sanitizers/asan/ignore.txt")
+
         if(BUILD_SHARED_LIBS)
             set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -shared-libasan")
         endif()
@@ -35,9 +39,11 @@ if (ENABLE_SANITIZER)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=address")
 
         check_cxx_compiler_flag("-fsanitize-recover=address" SANITIZE_RECOVER_ADDRESS_SUPPORTED)
-        if (SANITIZE_RECOVER_ADDRESS_SUPPORTED)
+
+        if(SANITIZE_RECOVER_ADDRESS_SUPPORTED)
             set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize-recover=address")
         endif()
+
         set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fsanitize=address")
     else()
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
@@ -64,6 +70,7 @@ if(ENABLE_UB_SANITIZER)
     #   Samples cases:
     #       load of value 4294967295, which is not a valid value for type 'const (anonymous namespace)::onnx::Field'
     set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=undefined -fno-sanitize=null -fno-sanitize=alignment -fno-sanitize=bool -fno-sanitize=enum")
+
     if(OV_COMPILER_IS_CLANG)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fno-sanitize=function")
     endif()
@@ -72,11 +79,13 @@ if(ENABLE_UB_SANITIZER)
         # TODO: Remove -Wno-maybe-uninitialized after CVS-61143 is fixed
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -Wno-maybe-uninitialized")
     endif()
+
     check_cxx_compiler_flag("-fsanitize-recover=undefined" SANITIZE_RECOVER_UNDEFINED_SUPPORTED)
+
     if(SANITIZE_RECOVER_UNDEFINED_SUPPORTED)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize-recover=undefined")
     endif()
-    
+
     if(OV_COMPILER_IS_CLANG)
         set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -lubsan")
     else()
@@ -89,6 +98,7 @@ if(ENABLE_THREAD_SANITIZER)
         message(FATAL_ERROR "Thread sanitizer is not supported in Windows with MSVC compiler. Please, use clang-cl or mingw")
     elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=thread")
+
         if(OV_COMPILER_IS_CLANG)
             set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -ltsan")
         else()
@@ -106,11 +116,13 @@ if(DEFINED SANITIZER_COMPILER_FLAGS)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} /Oy-")
     elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -g -fno-omit-frame-pointer")
+
         if(CMAKE_COMPILER_IS_GNUCXX AND NOT ENABLE_CLANG_TIDY)
             # GPU plugin tests compilation is slow with -fvar-tracking-assignments on GCC.
             # Clang has no var-tracking-assignments.
             set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fno-var-tracking-assignments")
         endif()
+
         # prevent unloading libraries at runtime, so sanitizer can resolve their symbols
         if(NOT OV_COMPILER_IS_APPLECLANG)
             set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -Wl,-z,nodelete")

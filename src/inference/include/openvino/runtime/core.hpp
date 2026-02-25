@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,15 +31,15 @@ namespace ov {
 /**
  * @brief This class represents an OpenVINO runtime Core entity.
  * @ingroup ov_runtime_cpp_api
- * User applications can create several Core class instances, but in this case the underlying plugins
- * are created multiple times and not shared between several Core instances. The recommended way is to have
- * a single Core instance per application.
+ * User applications can create several Core class instances. In that case the device plugins
+ * will still share underlying resources (such as OCL context) in per-device singleton.
  */
 class OPENVINO_RUNTIME_API Core {
     class Impl;
     std::shared_ptr<Impl> _impl;
 
 public:
+    ///@{
     /** @brief Constructs an OpenVINO Core instance with devices
      * and their plugins description.
      *
@@ -54,6 +54,12 @@ public:
      * 2. (static build) statically defined configuration. In this case path to the .xml file is ignored.
      */
     explicit Core(const std::string& xml_config_file = {});
+
+    explicit Core(const std::filesystem::path& xml_config_file);
+
+    template <class TPath, std::enable_if_t<std::is_constructible_v<std::string, TPath>>* = nullptr>
+    explicit Core(const TPath& xml_config_file) : Core(std::string(xml_config_file)) {}
+    ///@}
 
     /**
      * @brief Returns device plugins version information.
@@ -253,16 +259,20 @@ public:
      */
     CompiledModel compile_model(const std::string& model_path, const AnyMap& properties = {});
 
-    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
-    auto compile_model(const Path& model_path, const AnyMap& properties = {}) const {
-        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
-            return compile_model(model_path.wstring(), properties);
-        else
-            return compile_model(model_path.string(), properties);
+    CompiledModel compile_model(const std::filesystem::path& model_path, const AnyMap& properties = {});
+
+    template <class Path, std::enable_if_t<std::is_constructible_v<std::string, Path>>* = nullptr>
+    CompiledModel compile_model(const Path& model_path, const AnyMap& properties = {}) {
+        return compile_model(std::string(model_path), properties);
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     CompiledModel compile_model(const std::wstring& model_path, const AnyMap& properties = {});
+
+    template <class Path, std::enable_if_t<std::is_constructible_v<std::wstring, Path>>* = nullptr>
+    CompiledModel compile_model(const Path& model_path, const AnyMap& properties = {}) {
+        return compile_model(std::wstring(model_path), properties);
+    }
 #endif
     /// @}
 
@@ -274,7 +284,7 @@ public:
      * especially for cases when caching is enabled and cached model is available
      *
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
-     * @param model_path path to model with string or wstring
+     * @param model_path path to model
      * @param properties Optional pack of pairs: (property name, property value) relevant only for this
      * load operation
      *
@@ -288,11 +298,9 @@ public:
     }
 
     template <class Path, class... Properties, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
-    auto compile_model(const Path& model_path, Properties&&... properties) {
-        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
-            return compile_model(model_path.wstring(), std::forward<Properties>(properties)...);
-        else
-            return compile_model(model_path.string(), std::forward<Properties>(properties)...);
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const Path& model_path,
+                                                                           Properties&&... properties) {
+        return compile_model(model_path, AnyMap{std::forward<Properties>(properties)...});
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -322,18 +330,24 @@ public:
                                 const std::string& device_name,
                                 const AnyMap& properties = {});
 
-    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
-    auto compile_model(const Path& model_path, const std::string& device_name, const AnyMap& properties = {}) {
-        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
-            return compile_model(model_path.wstring(), device_name, properties);
-        else
-            return compile_model(model_path.string(), device_name, properties);
+    CompiledModel compile_model(const std::filesystem::path& model_path,
+                                const std::string& device_name,
+                                const AnyMap& properties = {});
+
+    template <class Path, std::enable_if_t<std::is_constructible_v<std::string, Path>>* = nullptr>
+    CompiledModel compile_model(const Path& model_path, const std::string& device_name, const AnyMap& properties = {}) {
+        return compile_model(std::string(model_path), device_name, properties);
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     CompiledModel compile_model(const std::wstring& model_path,
                                 const std::string& device_name,
                                 const AnyMap& properties = {});
+
+    template <class Path, std::enable_if_t<std::is_constructible_v<std::wstring, Path>>* = nullptr>
+    CompiledModel compile_model(const Path& model_path, const std::string& device_name, const AnyMap& properties = {}) {
+        return compile_model(std::wstring(model_path), device_name, properties);
+    }
 #endif
     /// @}
 
@@ -360,11 +374,10 @@ public:
     }
 
     template <class Path, class... Properties, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
-    auto compile_model(const Path& model_path, const std::string& device_name, Properties&&... properties) {
-        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
-            return compile_model(model_path.wstring(), device_name, std::forward<Properties>(properties)...);
-        else
-            return compile_model(model_path.string(), device_name, std::forward<Properties>(properties)...);
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const Path& model_path,
+                                                                           const std::string& device_name,
+                                                                           Properties&&... properties) {
+        return compile_model(model_path, device_name, AnyMap{std::forward<Properties>(properties)...});
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -822,6 +835,7 @@ public:
      */
     std::vector<std::string> get_available_devices() const;
 
+    ///@{
     /**
      * @brief Register a new device and plugin that enables this device inside OpenVINO Runtime.
      *
@@ -833,12 +847,26 @@ public:
      * - If `plugin` specifies file name (`libplugin_name.so`) or plugin name (`plugin_name`), it will be searched by
      *   file name (`libplugin_name.so`) in CWD or in paths pointed by PATH/LD_LIBRARY_PATH/DYLD_LIBRARY_PATH
      *   environment variables depending on the platform.
-     * @note For security purposes it suggested to specify absolute path to register plugin.
+     * @note For security, use an absolute path to register plugin.
      *
      * @param device_name Device name to register a plugin for.
      * @param config Plugin configuration options
      */
     void register_plugin(const std::string& plugin, const std::string& device_name, const ov::AnyMap& config = {});
+
+    void register_plugin(const std::filesystem::path& plugin_path,
+                         const std::string& device_name,
+                         const ov::AnyMap& config = {});
+
+    template <class Path>
+    void register_plugin(const Path& plugin_path, const std::string& device_name, const AnyMap& config = {}) {
+        if constexpr (std::is_constructible_v<std::string, Path>) {
+            register_plugin(std::string(plugin_path), device_name, config);
+        } else {
+            register_plugin(std::filesystem::path(plugin_path), device_name, config);
+        }
+    }
+    ///@}
 
     /**
      * @brief Unloads the previously loaded plugin identified by @p device_name from OpenVINO Runtime.
@@ -849,6 +877,7 @@ public:
      */
     void unload_plugin(const std::string& device_name);
 
+    ///@{
     /** @brief Registers a device plugin to the OpenVINO Runtime Core instance using an XML configuration file with
      * plugins description.
      *
@@ -875,11 +904,23 @@ public:
      *    for different systems with different configurations.
      * - `properties` are set to a plugin via the ov::Core::set_property method.
      * - `extensions` are set to a plugin via the ov::Core::add_extension method.
-     * @note For security purposes it suggested to specify absolute path to register plugin.
+     * @note For security, use an absolute path to register plugin.
      *
      * @param xml_config_file A path to .xml file with plugins to register.
      */
     void register_plugins(const std::string& xml_config_file);
+
+    void register_plugins(const std::filesystem::path& xml_config_file);
+
+    template <class Path>
+    void register_plugins(const Path& xml_config_file) {
+        if constexpr (std::is_constructible_v<std::string, Path>) {
+            register_plugins(std::string(xml_config_file));
+        } else {
+            register_plugins(std::filesystem::path(xml_config_file));
+        }
+    }
+    ///@}
 
     /**
      * @brief Creates a new remote shared context object on the specified accelerator device

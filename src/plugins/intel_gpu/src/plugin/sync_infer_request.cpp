@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,7 +93,8 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
     , m_context(std::static_pointer_cast<RemoteContextImpl>(compiled_model->get_context_impl()))
     , m_shape_predictor(new cldnn::ShapePredictor(&m_graph->get_engine(), m_graph->get_config().get_shape_predictor_settings()))
     , m_enable_profiling(m_graph->get_config().get_enable_profiling())
-    , m_use_external_queue(m_graph->use_external_queue()) {
+    , m_use_external_queue(m_graph->use_external_queue())
+    , m_itt_infer_request_str("SyncInferenceGPU::infer::" + std::string(compiled_model->get_model_name())) {
     init_mappings();
     allocate_inputs();
     allocate_outputs();
@@ -101,7 +102,8 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
 }
 
 void SyncInferRequest::infer() {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::infer");
+    // String can be constructed once in the constructor
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::intel_gpu_inference,  m_itt_infer_request_str.c_str());
     setup_stream_graph();
     std::lock_guard<std::mutex> lk(m_graph->get_mutex());
     enqueue();
@@ -308,7 +310,7 @@ void SyncInferRequest::enqueue() {
 }
 
 void SyncInferRequest::wait() {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::wait");
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::intel_gpu_inference, "SyncInferenceGPU::wait");
     OPENVINO_ASSERT(!m_internal_outputs.empty(), "[GPU] Inference was not started!\n");
 
     int64_t sync_total_time = 0;
@@ -533,8 +535,7 @@ TensorWrapper SyncInferRequest::create_or_share_device_tensor(const TensorWrappe
 
     // Note: currently, using USM Host memory for dGPUs in some scenarios (LLMs) leads to performance degradation,
     // so apply wider USM Host memory type detection only for iGPUs
-    auto user_tensor_mem_type = !generic_remote_tensor ? engine.detect_usm_allocation_type(user_tensor->data())
-                                                       : cldnn::allocation_type::unknown;
+    auto user_tensor_mem_type = !generic_remote_tensor ? engine.detect_usm_allocation_type(user_tensor->data()) : cldnn::allocation_type::unknown;
     auto usm_host_raw_ptr = engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu &&
                             user_tensor_mem_type == cldnn::allocation_type::usm_host;
 
@@ -609,7 +610,7 @@ void SyncInferRequest::allocate_inputs() {
     for (const auto& it : m_input_ports_map) {
         size_t input_idx = it.first;
         const auto& port = it.second;
-        GPU_DEBUG_LOG << "[init input blob with index: " << input_idx << "]" << std::endl;
+        GPU_DEBUG_LOG << "[init input blob with index: " << input_idx << "]" << " shape: " << port.get_partial_shape() << " type: " << port.get_element_type() << std::endl;
 
         bool is_nv12_input = false;
         if (port.get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static())) {
@@ -634,7 +635,7 @@ void SyncInferRequest::allocate_outputs() {
     for (const auto& it : m_output_ports_map) {
         size_t output_idx = it.first;
         const auto& port = it.second;
-        GPU_DEBUG_LOG << "[init output blob with index: " << output_idx << "]" << std::endl;
+        GPU_DEBUG_LOG << "[init output blob with index: " << output_idx << "]" << " shape: " << port.get_partial_shape() << " type: " << port.get_element_type() << std::endl;
 
         allocate_output(port, output_idx);
         total_output_bytes += ov::ISyncInferRequest::get_tensor(port)->get_byte_size();
@@ -709,7 +710,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_batched_input(size_t in
             auto ptr = static_cast<uint8_t*>(merged_tensor->data());
             ov::parallel_for(user_tensors.size(), [&](size_t i) {
                 const auto& tensor = user_tensors.at(i);
-                std::memcpy(ptr + i * tensor->get_byte_size(), static_cast<uint8_t*>(tensor->data()), tensor->get_byte_size());
+                std::memcpy(ptr + i * tensor->get_byte_size(), tensor->data(), tensor->get_byte_size());
             });
         } else {
             const auto& stream = m_graph->get_network()->get_stream();
@@ -788,11 +789,12 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
         }
     } else if (is_usm_host_tensor && !convert_needed) {
         if (element_type != ::data_type_for_remote_tensor(element_type)) {
-            m_plugin_inputs[input_idx] = { std::make_shared<RemoteTensorImpl>(m_context,
-                                                                              user_tensor->get_shape(),
-                                                                              ::data_type_for_remote_tensor(element_type),
-                                                                              TensorType::BT_USM_SHARED,
-                                                                              user_tensor->data()), TensorOwner::USER };
+            m_plugin_inputs[input_idx] = {std::make_shared<RemoteTensorImpl>(m_context,
+                                                                             user_tensor->get_shape(),
+                                                                             ::data_type_for_remote_tensor(element_type),
+                                                                             TensorType::BT_USM_SHARED,
+                                                                             user_tensor->data()),
+                                          TensorOwner::USER};
         } else {
             m_plugin_inputs[input_idx] = { usm_host_ptr->get_impl(), user_tensor_wrapper.owner };
         }
@@ -801,7 +803,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
 
     auto user_tensor_mem_type = cldnn::allocation_type::unknown;
     if (!is_remote_tensor_impl && !is_generic_remote) {
-        user_tensor_mem_type = engine.detect_usm_allocation_type(user_tensor_wrapper.ptr->data());
+        user_tensor_mem_type = engine.detect_usm_allocation_type(user_tensor->data());
     }
 
     auto plugin_tensor_mem_type = cldnn::allocation_type::unknown;
@@ -876,7 +878,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
         }
     } else {
         if (!is_remote_tensor_impl && !is_generic_remote) {
-            auto src_ptr = static_cast<uint8_t*>(user_tensor->data());
+            auto src_ptr = static_cast<const uint8_t*>(user_tensor->data());
             if (!same_host_mem(memory, src_ptr)) {
                 // WA: Set need_lockable_mem as a blocking argument
                 // The current input_layout (wait_for_events) does not provide proper synchronization for subsequent CPU implementations

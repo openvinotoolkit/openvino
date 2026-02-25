@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -226,6 +226,55 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic) {
     for (size_t x = 0; x < out_l.count(); ++x) {
         ASSERT_EQ(ref_output[x], output_ptr[x]);
     }
+}
+
+TEST(prepare_buffer_fusing, in_place_concat_dynamic_and_static) {
+    auto& engine = get_test_engine();
+    auto in_layout1_dyn = layout{ ov::PartialShape{1, 2, ov::Dimension() }, data_types::f32, format::bfyx };
+    auto in_layout3_dyn = layout{ ov::PartialShape{1, 2, ov::Dimension(21, ov::Interval::s_max) }, data_types::f32, format::yxfb };
+    auto reorder_layout = layout{ ov::PartialShape{1, 2, ov::Dimension(21, ov::Interval::s_max) }, data_types::f32, format::bfyx };
+
+    auto in_layout1 = layout{ {1, 2, 42}, data_types::f32, format::bfyx };
+    auto in_layout2 = layout{ {1, 2, 42}, data_types::f32, format::bfyx };
+    auto in_layout3 = layout{ {1, 2, 42}, data_types::f32, format::yxfb };
+
+    auto input_memory1 = engine.allocate_memory(in_layout1);
+    auto input_memory2 = engine.allocate_memory(in_layout2);
+    auto input_memory3 = engine.allocate_memory(in_layout3);
+
+    topology topology;
+    topology.add(input_layout("input1", in_layout1_dyn));
+    topology.add(input_layout("input2", in_layout2));
+    topology.add(input_layout("input3", in_layout3_dyn));
+    topology.add(eltwise("add", input_info("input1"), input_info("input2"), eltwise_mode::sum));
+    topology.add(reorder("reorder", input_info("input3"), reorder_layout));
+    topology.add(concatenation("concat", { input_info("add"), input_info("reorder") }, 1));
+    topology.add(permute("output", input_info("concat"), {0, 2, 1}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, false);
+    ASSERT_NE(prog, nullptr);
+    cldnn::network net(prog, 0);
+
+    net.set_input_data("input1", input_memory1);
+    net.set_input_data("input2", input_memory2);
+    net.set_input_data("input3", input_memory3);
+    auto outputs = net.execute();
+
+    auto output_memory = outputs.at("output").get_memory();
+    auto output_layout = output_memory->get_layout();
+
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+
+    ASSERT_EQ(y_size, 4);
+    ASSERT_EQ(x_size, 1);
+    ASSERT_EQ(f_size, 42);
+    ASSERT_EQ(b_size, 1);
 }
 
 TEST(prepare_buffer_fusing, in_place_concat_dynamic_memory_reallocation) {
@@ -1679,4 +1728,44 @@ TEST(prepare_buffer_fusing, reorder_permute_with_fused_prim) {
     auto& reorder_node = prog->get_node("reorder").as<reorder>();
     ASSERT_FALSE(reorder_node.can_be_optimized());
     ASSERT_FALSE(permute_node.can_be_optimized());
+}
+
+TEST(prepare_buffer_fusing, disable_reshape_with_feature_upper_padding) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ov::PartialShape{2, 24, 1, 1}, data_types::f16, format::bfyx};
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(activation("act", input_info("input"), activation_func::relu));
+    topology.add(reshape("reshape", input_info("act"), false, {2, 6, 1, 4},
+                         ov::PartialShape{2, 6, 1, 4}));
+    topology.add(reorder("output", input_info("reshape"), format::bfyx, data_types::f16));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, false);
+    ASSERT_NE(prog, nullptr);
+    ASSERT_TRUE(prog->has_node("reshape"));
+    ASSERT_TRUE(prog->has_node("act"));
+
+    auto& act_node = prog->get_node("act");
+    auto act_layout = act_node.get_output_layout();
+    padding feature_upper_padding({0, 0, 0, 0}, {0, 8, 0, 0});
+    act_layout.data_padding = feature_upper_padding;
+    act_node.set_output_layout(act_layout, false);
+
+    auto& reshape_node = prog->get_node("reshape").as<reshape>();
+
+    auto& reshape_input_layout = reshape_node.get_dependency(0).get_output_layout();
+    ASSERT_GT(reshape_input_layout.data_padding._upper_size[1], 0)
+        << "Test setup: reshape input should have feature upper padding";
+
+    bool has_outer_pad = reshape_node.has_outer_padding_offset();
+    ASSERT_FALSE(has_outer_pad)
+        << "has_outer_padding_offset() should return FALSE for inputs with feature upper padding";
+
+    program_wrapper::apply_opt_pass<prepare_buffer_fusing>(*prog);
+    ASSERT_FALSE(reshape_node.can_be_optimized())
+        << "Reshape with feature upper padding should NOT be optimized";
 }

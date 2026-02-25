@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <map>
 #include <string>
+#include <filesystem>
 
 #ifdef OPENVINO_STATIC_LIBRARY
 
@@ -33,7 +34,7 @@ struct Value {
 #else
 
 struct Value {
-    std::string m_plugin_path;
+    std::filesystem::path m_plugin_path;
     std::map<std::string, std::string> m_default_config;
 };
 

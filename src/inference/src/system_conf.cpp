@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -589,7 +589,7 @@ int get_org_numa_id(int numa_node_id) {
     if (iter != cpu._numaid_mapping_table.end()) {
         return iter->second;
     }
-    return -1;
+    return numa_node_id;
 }
 #endif
 

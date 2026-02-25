@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,8 @@ public:
                                   bool use_score_outputs = false,
                                   bool allow_score_aggregation = false,
                                   bool allow_cache_rotation = false,
-                                  bool allow_xattention = false);
+                                  bool allow_xattention = false,
+                                  bool allow_adaptive_rkv = false);
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
@@ -37,6 +38,7 @@ private:
     bool m_allow_score_aggregation;
     bool m_allow_cache_rotation;
     bool m_allow_xattention;
+    bool m_allow_adaptive_rkv;
 };
 }  // namespace pass
 }  // namespace ov
