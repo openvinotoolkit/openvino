@@ -3,12 +3,12 @@
 //
 
 #include "openvino/runtime/aligned_buffer.hpp"
-#include "openvino/runtime/shared_buffer.hpp"
 
 #include <algorithm>
 #include <memory>
 
 #include "openvino/core/memory_util.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 
 namespace ov {
 AlignedBuffer::AlignedBuffer() : m_allocated_buffer(nullptr), m_aligned_buffer(nullptr), m_byte_size(0) {}
@@ -60,14 +60,13 @@ std::shared_ptr<IBufferDescriptor> AlignedBuffer::get_descriptor() const {
     return nullptr;
 }
 
-
 // SharedBuffer implementation
 class SharedBufferDescriptor : public IBufferDescriptor {
 public:
     SharedBufferDescriptor(size_t id, size_t offset, const std::shared_ptr<ov::AlignedBuffer>& source_buffer)
         : m_id(id),
-            m_offset(offset),
-            m_source_buffer(source_buffer) {}
+          m_offset(offset),
+          m_source_buffer(source_buffer) {}
 
     size_t get_id() const override {
         return m_id;
@@ -87,15 +86,16 @@ private:
     std::weak_ptr<ov::AlignedBuffer> m_source_buffer;
 };
 
-std::shared_ptr<IBufferDescriptor> create_base_descriptor(size_t id, size_t offset, const std::shared_ptr<ov::AlignedBuffer>& source_buffer)
-{
+std::shared_ptr<IBufferDescriptor> create_base_descriptor(size_t id,
+                                                          size_t offset,
+                                                          const std::shared_ptr<ov::AlignedBuffer>& source_buffer) {
     return std::make_shared<SharedBufferDescriptor>(id, offset, source_buffer);
 }
 
 class MMapDescriptor : public IBufferDescriptor {
 public:
-    MMapDescriptor(const std::weak_ptr<ov::MappedMemory>& mem, uint64_t id) : m_mem(mem), m_id(id) {}
-    uint64_t get_id() const override {
+    MMapDescriptor(const std::weak_ptr<ov::MappedMemory>& mem, size_t id) : m_mem(mem), m_id(id) {}
+    size_t get_id() const override {
         return m_id;
     }
     size_t get_offset() const override {
@@ -111,10 +111,24 @@ public:
 
 protected:
     std::weak_ptr<ov::MappedMemory> m_mem;
-    uint64_t m_id;
+    size_t m_id;
 };
 
-std::shared_ptr<ov::IBufferDescriptor> ov::SharedBuffer<std::shared_ptr<ov::MappedMemory> >::create_mmap_descriptor(const std::shared_ptr<ov::MappedMemory>& mmap) const {
-    return std::make_shared<MMapDescriptor>(std::weak_ptr<ov::MappedMemory>(mmap), mmap ? mmap->get_id() : 0);
+std::shared_ptr<ov::IBufferDescriptor> ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>::create_mmap_descriptor(
+    const std::shared_ptr<ov::MappedMemory>& mmap) const {
+    return std::make_shared<MMapDescriptor>(std::weak_ptr<ov::MappedMemory>(mmap),
+                                            mmap ? static_cast<size_t>(mmap->get_id()) : 0);
+}
+
+std::shared_ptr<ov::AlignedBuffer> make_subbuffer(const std::shared_ptr<ov::AlignedBuffer>& buffer,
+                                                  size_t offset,
+                                                  size_t size) {
+    OPENVINO_ASSERT(buffer != nullptr, "Buffer cannot be null");
+    OPENVINO_ASSERT(offset + size <= buffer->size(), "Subbuffer range exceeds parent buffer size");
+    return std::make_shared<SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+        static_cast<char*>(buffer->get_ptr()) + offset,
+        size,
+        buffer,
+        buffer->get_descriptor());
 }
 }  // namespace ov

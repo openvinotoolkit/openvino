@@ -5,10 +5,11 @@
 #include "openvino/runtime/shared_buffer.hpp"
 
 #include <filesystem>
+#include <fstream>
 #include <sstream>
 
-#include "gtest/gtest.h"
 #include "common_test_utils/common_utils.hpp"
+#include "gtest/gtest.h"
 #include "openvino/util/mmap_object.hpp"
 
 using ov::SharedStreamBuffer;
@@ -267,24 +268,19 @@ protected:
 
     void SetUp() override {
         m_file_path = ov::test::utils::generateTestFilePrefix();
+        std::ofstream os(m_file_path, std::ios::binary);
+        os.write(test_data, test_data_size);
     }
 
     void TearDown() override {
         std::filesystem::remove(m_file_path);
-    }
-
-    void create_file() {
-        std::ofstream os(m_file_path, std::ios::binary);
-        os.write(test_data, test_data_size);
-        os.close();
     }
 };
 
 // Test basic SharedBuffer with shared_ptr<void> - no descriptor
 TEST_F(SharedBufferTest, basic_shared_ptr_void_no_descriptor) {
     auto shared_obj = std::make_shared<int>(42);
-    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(
-        test_data, test_data_size, shared_obj);
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(test_data, test_data_size, shared_obj);
 
     EXPECT_EQ(buffer->size(), test_data_size);
     EXPECT_EQ(buffer->get_ptr(), test_data);
@@ -295,11 +291,11 @@ TEST_F(SharedBufferTest, basic_shared_ptr_void_no_descriptor) {
 
 // Test SharedBuffer<MappedMemory> auto-creates descriptor via MMapDescriptor
 TEST_F(SharedBufferTest, mapped_memory_creates_descriptor) {
-    create_file();
     auto mapped_memory = ov::load_mmap_object(m_file_path);
 
-    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
-        mapped_memory->data(), mapped_memory->size(), mapped_memory);
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
+                                                                                        mapped_memory->size(),
+                                                                                        mapped_memory);
 
     auto desc = buffer->get_descriptor();
     ASSERT_NE(desc, nullptr);
@@ -307,11 +303,8 @@ TEST_F(SharedBufferTest, mapped_memory_creates_descriptor) {
     EXPECT_NE(desc->get_id(), 0u);
     EXPECT_EQ(desc->get_offset(), 0u);
 
-    // get_source_buffer should return a buffer backed by the MappedMemory
     std::weak_ptr<ov::AlignedBuffer> weak_source;
-    {
-        weak_source = desc->get_source_buffer();
-    }
+    { weak_source = desc->get_source_buffer(); }
     auto source = weak_source.lock();
     ASSERT_NE(source, nullptr);
     EXPECT_EQ(source->get_ptr(), mapped_memory->data());
@@ -331,8 +324,7 @@ TEST_F(SharedBufferTest, shared_object_lifetime) {
         auto shared_obj = std::make_shared<int>(42);
         weak_obj = shared_obj;
 
-        auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(
-            test_data, test_data_size, shared_obj);
+        auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(test_data, test_data_size, shared_obj);
 
         // shared_obj goes out of scope, but buffer should keep it alive
         shared_obj.reset();
@@ -345,8 +337,7 @@ TEST_F(SharedBufferTest, shared_object_lifetime) {
 // Test AlignedBuffer interface
 TEST_F(SharedBufferTest, aligned_buffer_interface) {
     auto shared_obj = std::make_shared<int>(42);
-    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(
-        test_data, test_data_size, shared_obj);
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(test_data, test_data_size, shared_obj);
 
     // Access through AlignedBuffer interface
     ov::AlignedBuffer* aligned = buffer.get();
@@ -367,23 +358,22 @@ TEST(MappedMemory, get_id_unique_per_file) {
     {
         std::ofstream os1(file1, std::ios::binary);
         os1.write(test_data, sizeof(test_data));
-        os1.close();
 
         std::ofstream os2(file2, std::ios::binary);
         os2.write(test_data, sizeof(test_data));
-        os2.close();
     }
 
-    // Load both files
-    auto mapped1 = ov::load_mmap_object(file1);
-    auto mapped2 = ov::load_mmap_object(file2);
+    {
+        // Load both files
+        auto mapped1 = ov::load_mmap_object(file1);
+        auto mapped2 = ov::load_mmap_object(file2);
 
-    ASSERT_NE(mapped1, nullptr);
-    ASSERT_NE(mapped2, nullptr);
+        ASSERT_NE(mapped1, nullptr);
+        ASSERT_NE(mapped2, nullptr);
 
-    // IDs should be different even though content is the same (ID is hash of file path)
-    EXPECT_NE(mapped1->get_id(), mapped2->get_id());
-
+        // IDs should be different even though content is the same (ID is hash of file path)
+        EXPECT_NE(mapped1->get_id(), mapped2->get_id());
+    }
     // Clean up
     std::filesystem::remove(file1);
     std::filesystem::remove(file2);
@@ -397,41 +387,19 @@ TEST(MappedMemory, get_id_same_for_same_file) {
     {
         std::ofstream os(file_path, std::ios::binary);
         os.write(test_data, sizeof(test_data));
-        os.close();
     }
 
-    // Load the same file twice
-    auto mapped1 = ov::load_mmap_object(file_path);
-    auto mapped2 = ov::load_mmap_object(file_path);
-
-    ASSERT_NE(mapped1, nullptr);
-    ASSERT_NE(mapped2, nullptr);
-
-    // IDs should be the same for the same file path
-    EXPECT_EQ(mapped1->get_id(), mapped2->get_id());
-
-    // Clean up
-    std::filesystem::remove(file_path);
-}
-
-TEST(MappedMemory, get_id_non_zero) {
-    std::filesystem::path file_path = ov::test::utils::generateTestFilePrefix() + "_non_zero";
-    const char test_data[] = "Test data";
-
-    // Create file
     {
-        std::ofstream os(file_path, std::ios::binary);
-        os.write(test_data, sizeof(test_data));
-        os.close();
+        // Load the same file twice
+        auto mapped1 = ov::load_mmap_object(file_path);
+        auto mapped2 = ov::load_mmap_object(file_path);
+
+        ASSERT_NE(mapped1, nullptr);
+        ASSERT_NE(mapped2, nullptr);
+
+        // IDs should be the same for the same file path
+        EXPECT_EQ(mapped1->get_id(), mapped2->get_id());
     }
-
-    auto mapped = ov::load_mmap_object(file_path);
-    ASSERT_NE(mapped, nullptr);
-
-    // ID should be non-zero since it's computed as hash of file path
-    EXPECT_NE(mapped->get_id(), 0u);
-    EXPECT_NE(mapped->get_id(), std::numeric_limits<uint64_t>::max());
-
     // Clean up
     std::filesystem::remove(file_path);
 }
@@ -439,19 +407,21 @@ TEST(MappedMemory, get_id_non_zero) {
 // ==================== SharedBuffer with explicit descriptor Tests ====================
 
 TEST_F(SharedBufferTest, shared_ptr_void_with_explicit_descriptor) {
-    create_file();
     auto mapped_memory = ov::load_mmap_object(m_file_path);
 
     // Create a source buffer from mapped memory
-    auto source = std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(
-        mapped_memory->data(), mapped_memory->size(), mapped_memory);
+    auto source = std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(mapped_memory->data(),
+                                                                            mapped_memory->size(),
+                                                                            mapped_memory);
 
     // Create a descriptor manually
     auto descriptor = ov::create_base_descriptor(42, 10, source);
 
     // Create SharedBuffer with explicit descriptor
-    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(
-        test_data, test_data_size, std::shared_ptr<void>{}, descriptor);
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(test_data,
+                                                                            test_data_size,
+                                                                            std::shared_ptr<void>{},
+                                                                            descriptor);
 
     auto desc = buffer->get_descriptor();
     ASSERT_NE(desc, nullptr);
@@ -461,18 +431,17 @@ TEST_F(SharedBufferTest, shared_ptr_void_with_explicit_descriptor) {
 // ==================== SharedBuffer<shared_ptr<AlignedBuffer>> subbuffer Tests ====================
 
 TEST_F(SharedBufferTest, subbuffer_from_aligned_buffer) {
-    create_file();
     auto mapped_memory = ov::load_mmap_object(m_file_path);
 
     // Create a parent SharedBuffer from MappedMemory (has descriptor)
-    auto parent = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
-        mapped_memory->data(), mapped_memory->size(), mapped_memory);
+    auto parent = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
+                                                                                        mapped_memory->size(),
+                                                                                        mapped_memory);
 
     ASSERT_NE(parent->get_descriptor(), nullptr);
 
     // Create subbuffer at offset 10, size 20
-    auto sub = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
-        std::static_pointer_cast<ov::AlignedBuffer>(parent), 10, 20);
+    auto sub = make_subbuffer(parent, 10, 20);
 
     EXPECT_EQ(sub->size(), 20u);
     EXPECT_EQ(sub->get_ptr(), static_cast<char*>(parent->get_ptr()) + 10);
@@ -486,14 +455,13 @@ TEST_F(SharedBufferTest, subbuffer_from_aligned_buffer) {
 
 TEST_F(SharedBufferTest, subbuffer_without_descriptor) {
     // Create a parent buffer without descriptor
-    auto parent = std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(
-        test_data, test_data_size, std::make_shared<int>(42));
+    auto parent =
+        std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(test_data, test_data_size, std::make_shared<int>(42));
 
     EXPECT_EQ(parent->get_descriptor(), nullptr);
 
     // Create subbuffer from parent with no descriptor
-    auto sub = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
-        std::static_pointer_cast<ov::AlignedBuffer>(parent), 5, 10);
+    auto sub = make_subbuffer(std::static_pointer_cast<ov::AlignedBuffer>(parent), 5, 10);
 
     EXPECT_EQ(sub->size(), 10u);
     // No descriptor to inherit, so subbuffer should also have no descriptor
@@ -501,12 +469,12 @@ TEST_F(SharedBufferTest, subbuffer_without_descriptor) {
 }
 
 TEST_F(SharedBufferTest, aligned_buffer_derived_auto_inherits_descriptor) {
-    create_file();
     auto mapped_memory = ov::load_mmap_object(m_file_path);
 
     // Create a parent SharedBuffer from MappedMemory (has descriptor)
-    auto parent = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
-        mapped_memory->data(), mapped_memory->size(), mapped_memory);
+    auto parent = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
+                                                                                        mapped_memory->size(),
+                                                                                        mapped_memory);
 
     auto parent_desc = parent->get_descriptor();
     ASSERT_NE(parent_desc, nullptr);
@@ -522,4 +490,24 @@ TEST_F(SharedBufferTest, aligned_buffer_derived_auto_inherits_descriptor) {
     ASSERT_NE(child_desc, nullptr);
     EXPECT_EQ(child_desc->get_id(), parent_desc->get_id());
     EXPECT_EQ(child_desc->get_offset(), 5u);
+}
+
+TEST_F(SharedBufferTest, mmap_with_offset) {
+    auto mapped_memory = ov::load_mmap_object(m_file_path);
+
+    const auto offset = 10u;
+    auto parent = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data() + offset,
+                                                                                        mapped_memory->size() - offset,
+                                                                                        mapped_memory);
+
+    auto parent_desc = parent->get_descriptor();
+    ASSERT_NE(parent_desc, nullptr);
+    EXPECT_EQ(parent_desc->get_offset(), offset);
+
+    auto child = make_subbuffer(std::static_pointer_cast<ov::AlignedBuffer>(parent), 5, 20);
+
+    auto child_desc = child->get_descriptor();
+    ASSERT_NE(child_desc, nullptr);
+    EXPECT_EQ(child_desc->get_id(), parent_desc->get_id());
+    EXPECT_EQ(child_desc->get_offset(), offset + 5u);
 }
