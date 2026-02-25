@@ -20,11 +20,11 @@ class LogAnalyzerTest(unittest.TestCase):
     def setUp(self) -> None:
         print(f'\nIn test: "{self._testMethodName}"', flush=True)
         self._cwd = Path(__file__).parent
-        self.log_archive_with_error = self._cwd.joinpath("data").joinpath(
-            'log_archive_with_error.zip'
+        self.logs_dir_with_error = self._cwd.joinpath("data").joinpath(
+            'logs_with_error'
         )
-        self.log_archive_wo_error = self._cwd.joinpath("data").joinpath(
-            'log_archive_wo_error.zip'
+        self.logs_dir_wo_error = self._cwd.joinpath("data").joinpath(
+            'logs_wo_error'
         )
         self.errors_to_look_for_file = self._cwd.parent.joinpath(
             'errors_to_look_for.json'
@@ -35,7 +35,7 @@ class LogAnalyzerTest(unittest.TestCase):
         Ensure LogAnalyzer is instantiated correctly.
         """
         analyzer = LogAnalyzer(
-            path_to_log_archive=self.log_archive_wo_error,
+            path_to_logs=self.logs_dir_wo_error,
             path_to_errors_file=self.errors_to_look_for_file,
         )
         self.assertTrue(
@@ -63,7 +63,7 @@ class LogAnalyzerTest(unittest.TestCase):
         Ensure log cleanup function returns correct results
         """
         analyzer = LogAnalyzer(
-            path_to_log_archive=self.log_archive_wo_error,
+            path_to_logs=self.logs_dir_wo_error,
             path_to_errors_file=self.errors_to_look_for_file,
         )
 
@@ -86,18 +86,21 @@ class LogAnalyzerTest(unittest.TestCase):
         Ensure LogAnalyzer can find an error
         """
         analyzer = LogAnalyzer(
-            path_to_log_archive=self.log_archive_with_error,
+            path_to_logs=self.logs_dir_with_error,
             path_to_errors_file=self.errors_to_look_for_file,
         )
         analyzer.analyze()
         self.assertTrue(analyzer.found_matching_error)
+        self.assertEqual(analyzer.found_error_ticket, 130955)
+        self.assertEqual(analyzer.matched_error_text,
+                         'Network is unreachable')
 
     def test_analyzer_wo_error(self) -> None:
         """
         Ensure LogAnalyzer does not find an error in the log files w/o errors
         """
         analyzer = LogAnalyzer(
-            path_to_log_archive=self.log_archive_wo_error,
+            path_to_logs=self.logs_dir_wo_error,
             path_to_errors_file=self.errors_to_look_for_file,
         )
         analyzer.analyze()

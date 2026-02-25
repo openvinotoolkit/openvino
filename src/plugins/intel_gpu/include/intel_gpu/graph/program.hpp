@@ -232,6 +232,7 @@ public:
     void mark_if_constant(program_node& node);
     // mark if the node is in data flow assuming that all dependencies are marked properly
     void mark_if_data_flow(program_node& node);
+    void mark_if_gemm_data_flow();
     // Reverses connection - user becomes dependency.
 
     void remove_nodes(std::vector<program_node*>& to_remove);

@@ -76,15 +76,15 @@ void CheckpointV1Reader::initialize() {
             var_info.variable_shape = saved_slice_meta.shape();
             var_info.variable_type = saved_slice_meta.type();
 
-            // save starts and lenghts of slices for variable name encoding
+            // save starts and lengths of slices for variable name encoding
             for (const auto& slice : saved_slice_meta.slice()) {
                 // var_info.starts.push_back(slice.extent())
                 for (const auto& extent : slice.extent()) {
                     var_info.starts.push_back(extent.start());
                     if (extent.has_length()) {
-                        var_info.lenghts.push_back(extent.length());
+                        var_info.lengths.push_back(extent.length());
                     } else {
-                        var_info.lenghts.push_back(-1);
+                        var_info.lengths.push_back(-1);
                     }
                 }
             }
@@ -244,7 +244,7 @@ void CheckpointV1Reader::read_variable(const std::string& variable_name, ov::Any
         "[TensorFlow Frontend] internal error: number of shards does not match a number of their names");
     auto shard_ptr = m_shards[shard_id];
     auto shard_name = m_shard_names[shard_id];
-    auto encoded_name = encode_tensor_name_slice(variable_name, var_info.starts, var_info.lenghts);
+    auto encoded_name = encode_tensor_name_slice(variable_name, var_info.starts, var_info.lengths);
     std::string raw_data;
     find_entry(shard_ptr, shard_name, encoded_name, raw_data);
 

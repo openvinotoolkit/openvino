@@ -50,9 +50,15 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& 
  * @brief Returns mapped memory for a file from provided file handle (cross-platform).
  * Uses mmap on Linux/Unix (with file descriptor) or MapViewOfFile on Windows (with HANDLE).
  * This allows external control of file access through a callback function.
+ * Do not call load_mmap_object_from_handle directly, use the template wrapper instead.
  *
  * @param handle Platform-specific file handle (int fd on Linux, HANDLE on Windows).
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
-std::shared_ptr<ov::MappedMemory> load_mmap_object(FileHandle handle);
+std::shared_ptr<ov::MappedMemory> load_mmap_object_from_handle(FileHandle handle);
+
+template <typename T, std::enable_if_t<std::is_same<T, FileHandle>::value, int> = 0>
+std::shared_ptr<ov::MappedMemory> load_mmap_object(T handle) {
+    return load_mmap_object_from_handle(static_cast<FileHandle>(handle));
+}
 }  // namespace ov

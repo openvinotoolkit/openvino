@@ -14,15 +14,16 @@ class neg_model(torch.nn.Module):
 
 class TestNeg(PytorchLayerTest):
     def _prepare_input(self):
-        import numpy as np
-        return (np.random.randn(2, 4, 224, 224).astype(np.float32),)
+        return (self.random.randn(2, 4, 224, 224),)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     def test_neg(self, ie_device, precision, ir_version):
-        self._test(neg_model(), None, "aten::neg",
+        # Note: This test uses Python's built-in neg on shape dimension, not torch.neg on tensor
+        self._test(neg_model(), "aten::neg",
                    ie_device, precision, ir_version,
                    dynamic_shapes_for_export={
                        "x": {3: torch.export.Dim("width")}
-        })
+                   },
+                   fx_kind="<built-in function neg>")

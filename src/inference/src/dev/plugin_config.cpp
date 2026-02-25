@@ -145,7 +145,7 @@ void PluginConfig::apply_env_options() {
     set_property(env_properties);
 }
 
-void PluginConfig::apply_config_options(std::string_view device_name, std::filesystem::path config_path) {
+void PluginConfig::apply_config_options(std::string_view device_name, const std::filesystem::path& config_path) {
     if (!config_path.empty()) {
         ov::AnyMap config_properties = read_config_file(config_path, device_name);
         cleanup_unsupported(config_properties);
@@ -156,7 +156,8 @@ void PluginConfig::apply_config_options(std::string_view device_name, std::files
     }
 }
 
-ov::AnyMap PluginConfig::read_config_file(std::filesystem::path filename, std::string_view target_device_name) const {
+ov::AnyMap PluginConfig::read_config_file(const std::filesystem::path& filename,
+                                          std::string_view target_device_name) const {
     if (filename.empty())
         return {};
 
@@ -208,7 +209,7 @@ ov::AnyMap PluginConfig::read_env() const {
 
     for (auto& [name, option] : m_options_map) {
         if (auto val = read_env(name, m_allowed_env_prefix, option); !val.empty()) {
-            config[name] = val;
+            config[name] = std::move(val);
         }
     }
 
