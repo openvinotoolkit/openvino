@@ -79,22 +79,21 @@ ov::pass::EliminateDuplicateFakeQuantize::EliminateDuplicateFakeQuantize() {
                 return false;
             }
             
-            // Check if FQ2 input range covers FQ1 output range with a robust tolerance.
-            // This allows small serialization / precision mismatch for mathematically equivalent cascades.
+            // Merge is safe only when FQ1 output range and FQ2 input range are equivalent.
+            // Coverage/subset checks are not enough and may change quantization behavior.
+            ranges_compatible = true;
             for (size_t i = 0; i < fq1_ol_val.size(); ++i) {
                 const float fq1_range = std::abs(fq1_oh_val[i] - fq1_ol_val[i]);
                 const float fq2_range = std::abs(fq2_ih_val[i] - fq2_il_val[i]);
                 const float tol = std::max(1e-6f, 1e-3f * std::max(fq1_range, fq2_range));
 
-                const bool low_covered = fq1_ol_val[i] >= fq2_il_val[i] - tol;
-                const bool high_covered = fq1_oh_val[i] <= fq2_ih_val[i] + tol;
+                const bool low_equal = std::abs(fq1_ol_val[i] - fq2_il_val[i]) <= tol;
+                const bool high_equal = std::abs(fq1_oh_val[i] - fq2_ih_val[i]) <= tol;
 
-                if (!low_covered || !high_covered) {
+                if (!low_equal || !high_equal) {
                     ranges_compatible = false;
                     break;
                 }
-
-                ranges_compatible = true;
             }
         } else {
             // Non-constant ranges are considered safe only when exactly the same tensors are used.

@@ -26,7 +26,7 @@ class TRANSFORMATIONS_API EliminateDuplicateFakeQuantize;
  * 
  * The transformation merges two consecutive FakeQuantize layers into a single one when:
  * - Both FakeQuantize operations have the same number of levels
- * - FQ1's output range matches FQ2's input range (or FQ2 clips FQ1's output)
+ * - FQ1's output range is equivalent to FQ2's input range
  * 
  * Result: Input -> FakeQuantize_merged -> Output
  * where merged FQ uses FQ1's input range and FQ2's output range.
