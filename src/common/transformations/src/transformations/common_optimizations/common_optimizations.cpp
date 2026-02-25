@@ -245,7 +245,6 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, ConvertSqueeze15ToSqueeze0)
     REGISTER_PASS(manager, ConvertOneHot16To1)
 
-    manager.register_pass<ov::pass::Serialize>("/home/rmikhail/src/ov_tests/py_tests/EliminateDuplicateFakeQuantizeBefore.xml", "/home/rmikhail/src/ov_tests/py_tests/EliminateDuplicateFakeQuantizeBefore.bin");
     auto fq_fusions = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
     ADD_MATCHER(fq_fusions, PullTransposeThroughFQUp)
