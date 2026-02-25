@@ -12,6 +12,8 @@
 
 namespace ov::test {
 
+using runtime::SingleFileStorage;
+
 namespace {
 constexpr uint64_t version_size() {
     return sizeof(SingleFileStorage::FormatVersion::major) + sizeof(SingleFileStorage::FormatVersion::minor) +
@@ -119,17 +121,17 @@ TEST_F(SingleFileStorageTest, BlobAlignement) {
 
     while (stream.good() && stream.tellg() < stream_end) {
         SingleFileStorage::Tag tag;
-        TLVFormat::length_type entry_size;
+        TLVFormat::LeghtType entry_size;
         stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
         ASSERT_TRUE(stream.good());
         stream.read(reinterpret_cast<char*>(&entry_size), sizeof(entry_size));
         ASSERT_TRUE(stream.good());
         const auto blob_id_pos = stream.tellg();
         if (tag == SingleFileStorage::Tag::Blob) {
-            SingleFileStorage::blob_id_type id;
+            SingleFileStorage::BlobIdType id;
             stream.read(reinterpret_cast<char*>(&id), sizeof(id));
             ASSERT_TRUE(stream.good());
-            SingleFileStorage::pad_size_type padding_size;
+            SingleFileStorage::PadSizeType padding_size;
             stream.read(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
             ASSERT_TRUE(stream.good());
 
@@ -236,14 +238,14 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
 
     while (stream.good() && stream.tellg() < stream_end) {
         SingleFileStorage::Tag tag;
-        TLVFormat::length_type entry_size;
+        TLVFormat::LeghtType entry_size;
         stream.read(reinterpret_cast<char*>(&tag), sizeof(tag));
         ASSERT_TRUE(stream.good());
         stream.read(reinterpret_cast<char*>(&entry_size), sizeof(entry_size));
         ASSERT_TRUE(stream.good());
         if (tag == SingleFileStorage::Tag::WeightSource) {
-            SingleFileStorage::data_id_type device_id, source_id;
-            SingleFileStorage::pad_size_type padding_size;
+            SingleFileStorage::DataIdType device_id, source_id;
+            SingleFileStorage::PadSizeType padding_size;
             stream.read(reinterpret_cast<char*>(&device_id), sizeof(device_id));
             stream.read(reinterpret_cast<char*>(&source_id), sizeof(source_id));
             stream.read(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));

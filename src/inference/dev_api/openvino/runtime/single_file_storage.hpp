@@ -8,7 +8,7 @@
 #include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/runtime/tlv_format.hpp"
 
-namespace ov {
+namespace ov::runtime {
 class SingleFileStorage final : public ICacheManager, public IContextStore {
 public:
     /// @brief Version of the single file storage format. It is stored in the beginning of the file and is used to check
@@ -22,7 +22,7 @@ public:
     /// @brief Current version of the single file storage format.
     static constexpr FormatVersion m_version = {0, 1, 2};
 
-    enum class Tag : TLVFormat::tag_type {
+    enum class Tag : TLVFormat::TagType {
         String = 0x02,
         Blob = 0x03,
         BlobMap = 0x04,
@@ -56,31 +56,31 @@ public:
     /// @return The weight sharing context stored in the storage.
     weight_sharing::Context get_context() const override;
 
-    using blob_id_type = uint64_t;
-    using data_id_type = uint64_t;
-    using pad_size_type = uint64_t;
-
-    struct blob_info {
-        std::streampos offset;
-        std::streamoff size;
-        std::string model_name;
-    };
-    using blob_map_type = std::unordered_map<blob_id_type, blob_info>;
+    using BlobIdType = uint64_t;
+    using DataIdType = uint64_t;
+    using PadSizeType = uint64_t;
 
 private:
     // todo Make it configurable and/or detect actual file system page size
     static constexpr uint64_t m_alignment = 4096;
 
     std::filesystem::path m_file_path;
-    blob_map_type m_blob_map;
+
+    struct BlobInfo {
+        std::streampos offset;
+        std::streamoff size;
+        std::string model_name;
+    };
+    std::unordered_map<BlobIdType, BlobInfo> m_blob_map;
+
     weight_sharing::Context m_shared_context;
 
     // todo Combine scan_blob_map and scan_context into single function.
     void scan_blob_map(std::ifstream& stream);
     void scan_context(std::ifstream& stream);
 
-    static blob_id_type convert_blob_id(const std::string& blob_id);
-    void write_blob_entry(blob_id_type blob_id, StreamWriter& writer, std::ofstream& stream);
-    bool has_blob_id(blob_id_type blob_id) const;
+    static BlobIdType convert_blob_id(const std::string& blob_id);
+    void write_blob_entry(BlobIdType blob_id, StreamWriter& writer, std::ofstream& stream);
+    bool has_blob_id(BlobIdType blob_id) const;
 };
-}  // namespace ov
+}  // namespace ov::runtime

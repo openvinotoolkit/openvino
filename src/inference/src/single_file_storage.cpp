@@ -9,7 +9,7 @@
 #include "openvino/util/mmap_object.hpp"
 #include "openvino/util/variant_visitor.hpp"
 
-namespace ov {
+namespace ov::runtime {
 namespace {
 void write_version(std::ostream& stream, const SingleFileStorage::FormatVersion& version) {
     stream.write(reinterpret_cast<const char*>(&version.major), sizeof(version.major));
@@ -29,25 +29,25 @@ void validate_version(const SingleFileStorage::FormatVersion& version) {
 
 void write_tlv_string(std::ostream& stream, const std::string& str) {
     TLVFormat::write_entry(stream,
-                           static_cast<TLVFormat::tag_type>(SingleFileStorage::Tag::String),
-                           static_cast<TLVFormat::length_type>(str.size()),
+                           static_cast<TLVFormat::TagType>(SingleFileStorage::Tag::String),
+                           static_cast<TLVFormat::LeghtType>(str.size()),
                            reinterpret_cast<const uint8_t*>(str.data()));
 }
 
 bool read_tlv_string(std::istream& stream, std::string& str) {
-    TLVFormat::tag_type tag;
-    TLVFormat::length_type size;
+    TLVFormat::TagType tag;
+    TLVFormat::LeghtType size;
     const auto read = TLVFormat::read_entry(stream, tag, size, str);
     OPENVINO_ASSERT(SingleFileStorage::Tag{tag} == SingleFileStorage::Tag::String);
     return read;
 }
 
 void write_padding(std::ostream& stream, uint64_t alignment) {
-    const uint64_t padding_pos = static_cast<uint64_t>(stream.tellp()) + sizeof(SingleFileStorage::pad_size_type);
+    const uint64_t padding_pos = static_cast<uint64_t>(stream.tellp()) + sizeof(SingleFileStorage::PadSizeType);
     auto aligned_pos = padding_pos + alignment - 1;
     aligned_pos -= aligned_pos % alignment;
 
-    SingleFileStorage::pad_size_type pad_size = aligned_pos - padding_pos;
+    SingleFileStorage::PadSizeType pad_size = aligned_pos - padding_pos;
     stream.write(reinterpret_cast<const char*>(&pad_size), sizeof(pad_size));
     if (pad_size > 0) {
         std::vector<char> padding(pad_size, 0);
@@ -81,12 +81,12 @@ SingleFileStorage::SingleFileStorage(const std::filesystem::path& path) : m_file
 }
 
 void SingleFileStorage::scan_blob_map(std::ifstream& stream) {
-    const auto blob_reader = [this](std::istream& stream, TLVFormat::length_type size) {
+    const auto blob_reader = [this](std::istream& stream, TLVFormat::LeghtType size) {
         if (size == 0) {
             return;
         }
-        blob_id_type id;
-        pad_size_type padding_size;
+        BlobIdType id;
+        PadSizeType padding_size;
         stream.read(reinterpret_cast<char*>(&id), sizeof(id));
         stream.read(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
         stream.seekg(padding_size, std::ios::cur);
@@ -100,11 +100,11 @@ void SingleFileStorage::scan_blob_map(std::ifstream& stream) {
         stream.seekg(blob_data_size, std::ios::cur);
     };
 
-    const auto blob_map_reader = [this](std::istream& stream, TLVFormat::length_type size) {
+    const auto blob_map_reader = [this](std::istream& stream, TLVFormat::LeghtType size) {
         if (size == 0) {
             return;
         }
-        blob_id_type id;
+        BlobIdType id;
         stream.read(reinterpret_cast<char*>(&id), sizeof(id));
         if (!stream.good()) {
             return;
@@ -114,23 +114,23 @@ void SingleFileStorage::scan_blob_map(std::ifstream& stream) {
         }
     };
 
-    const TLVFormat::value_scanners scanners = {
-        {static_cast<TLVFormat::tag_type>(Tag::Blob), blob_reader},
-        {static_cast<TLVFormat::tag_type>(Tag::BlobMap), blob_map_reader},
+    const TLVFormat::ValueScanner scanners = {
+        {static_cast<TLVFormat::TagType>(Tag::Blob), blob_reader},
+        {static_cast<TLVFormat::TagType>(Tag::BlobMap), blob_map_reader},
     };
     TLVFormat::scan_entries(stream, scanners, true);
 }
 
-SingleFileStorage::blob_id_type SingleFileStorage::convert_blob_id(const std::string& blob_id) {
-    // todo stoull used unconditionally - what if blob_id_type isn't uint64_t?
-    return static_cast<blob_id_type>(std::stoull(blob_id.c_str()));
+SingleFileStorage::BlobIdType SingleFileStorage::convert_blob_id(const std::string& blob_id) {
+    // todo stoull used unconditionally - what if BlobIdType isn't uint64_t?
+    return static_cast<BlobIdType>(std::stoull(blob_id.c_str()));
 }
 
-bool SingleFileStorage::has_blob_id(blob_id_type blob_id) const {
+bool SingleFileStorage::has_blob_id(BlobIdType blob_id) const {
     return m_blob_map.find(blob_id) != m_blob_map.end();
 }
 
-void SingleFileStorage::write_blob_entry(blob_id_type blob_id, StreamWriter& writer, std::ofstream& stream) {
+void SingleFileStorage::write_blob_entry(BlobIdType blob_id, StreamWriter& writer, std::ofstream& stream) {
     OPENVINO_ASSERT(!has_blob_id(blob_id), "Blob with id ", blob_id, " already exists in cache.");
 
     std::streampos blob_pos;
@@ -143,7 +143,7 @@ void SingleFileStorage::write_blob_entry(blob_id_type blob_id, StreamWriter& wri
         writer(s);
         blob_size = s.tellp() - blob_pos;
     };
-    TLVFormat::write_entry(stream, static_cast<TLVFormat::tag_type>(Tag::Blob), blob_writer);
+    TLVFormat::write_entry(stream, static_cast<TLVFormat::TagType>(Tag::Blob), blob_writer);
 
     std::string model_name{"dev/invalid name"};  // todo Where to get it from?
 
@@ -151,7 +151,7 @@ void SingleFileStorage::write_blob_entry(blob_id_type blob_id, StreamWriter& wri
         s.write(reinterpret_cast<const char*>(&blob_id), sizeof(blob_id));
         write_tlv_string(s, model_name);
     };
-    TLVFormat::write_entry(stream, static_cast<TLVFormat::tag_type>(Tag::BlobMap), blob_map_writer);
+    TLVFormat::write_entry(stream, static_cast<TLVFormat::TagType>(Tag::BlobMap), blob_map_writer);
 
     m_blob_map[blob_id] = {blob_pos, blob_size, model_name};
 }
@@ -192,7 +192,7 @@ weight_sharing::Context SingleFileStorage::get_context() const {
 }
 
 void SingleFileStorage::scan_context(std::ifstream& stream) {
-    const auto constant_meta_reader = [this](std::istream& stream, TLVFormat::length_type size) {
+    const auto constant_meta_reader = [this](std::istream& stream, TLVFormat::LeghtType size) {
         if (size == 0) {
             return;
         }
@@ -220,12 +220,12 @@ void SingleFileStorage::scan_context(std::ifstream& stream) {
         }
     };
 
-    const auto constant_source_reader = [this](std::istream& stream, TLVFormat::length_type size) {
+    const auto constant_source_reader = [this](std::istream& stream, TLVFormat::LeghtType size) {
         if (size == 0) {
             return;
         }
-        data_id_type device_id, source_id;
-        pad_size_type padding_size;
+        DataIdType device_id, source_id;
+        PadSizeType padding_size;
         stream.read(reinterpret_cast<char*>(&device_id), sizeof(device_id));
         stream.read(reinterpret_cast<char*>(&source_id), sizeof(source_id));
         stream.read(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
@@ -239,9 +239,9 @@ void SingleFileStorage::scan_context(std::ifstream& stream) {
         stream.seekg(weight_size, std::ios::cur);
     };
 
-    const TLVFormat::value_scanners scanners = {
-        {static_cast<TLVFormat::tag_type>(Tag::ConstantMeta), constant_meta_reader},
-        {static_cast<TLVFormat::tag_type>(Tag::WeightSource), constant_source_reader},
+    const TLVFormat::ValueScanner scanners = {
+        {static_cast<TLVFormat::TagType>(Tag::ConstantMeta), constant_meta_reader},
+        {static_cast<TLVFormat::TagType>(Tag::WeightSource), constant_source_reader},
     };
     TLVFormat::scan_entries(stream, scanners, true);
 }
@@ -254,10 +254,10 @@ void SingleFileStorage::write_context(const weight_sharing::Context& context) {
 
     for (const auto& [key, const_meta] : context.m_constants_meta_data) {
         const auto const_meta_writer = [&](std::ostream& s) {
-            const auto source_id = static_cast<data_id_type>(key);
+            const auto source_id = static_cast<DataIdType>(key);
             s.write(reinterpret_cast<const char*>(&source_id), sizeof(source_id));
             for (const auto& [id, props] : const_meta) {
-                const auto const_id = static_cast<data_id_type>(id);
+                const auto const_id = static_cast<DataIdType>(id);
                 const auto const_offset = static_cast<uint64_t>(props.m_offset);
                 const auto const_size = static_cast<uint64_t>(props.m_size);
                 const auto const_type = static_cast<uint8_t>(element::Type_t{props.m_type});
@@ -269,13 +269,13 @@ void SingleFileStorage::write_context(const weight_sharing::Context& context) {
                 m_shared_context.m_constants_meta_data[key][id] = props;
             }
         };
-        TLVFormat::write_entry(stream, static_cast<TLVFormat::tag_type>(Tag::ConstantMeta), const_meta_writer);
+        TLVFormat::write_entry(stream, static_cast<TLVFormat::TagType>(Tag::ConstantMeta), const_meta_writer);
     }
 
     for (const auto& [key, weight_buffer] : context.m_weight_sources) {
         const auto weight_source_writer = [&](std::ostream& s) {
-            const auto device_id = static_cast<data_id_type>(0);  // todo Where to get it from?
-            const auto source_id = static_cast<data_id_type>(key);
+            const auto device_id = static_cast<DataIdType>(0);  // todo Where to get it from?
+            const auto source_id = static_cast<DataIdType>(key);
             s.write(reinterpret_cast<const char*>(&device_id), sizeof(device_id));
             s.write(reinterpret_cast<const char*>(&source_id), sizeof(source_id));
             write_padding(s, m_alignment);
@@ -296,7 +296,7 @@ void SingleFileStorage::write_context(const weight_sharing::Context& context) {
 
             m_shared_context.m_weight_sources[key] = weight_buffer;
         };
-        TLVFormat::write_entry(stream, static_cast<TLVFormat::tag_type>(Tag::WeightSource), weight_source_writer);
+        TLVFormat::write_entry(stream, static_cast<TLVFormat::TagType>(Tag::WeightSource), weight_source_writer);
     }
 }
-};  // namespace ov
+};  // namespace ov::runtime

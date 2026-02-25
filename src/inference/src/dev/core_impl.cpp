@@ -1708,7 +1708,7 @@ ov::CoreConfig::CacheConfig ov::CoreConfig::get_cache_config_for_device(const ov
 ov::CoreConfig::CacheConfig ov::CoreConfig::CacheConfig::create(const std::filesystem::path& cache_path) {
     auto cache_config = CacheConfig{cache_path, nullptr};
     if (cache_path.has_extension()) {
-        cache_config.m_cache_manager = std::make_shared<SingleFileStorage>(cache_path);
+        cache_config.m_cache_manager = std::make_shared<runtime::SingleFileStorage>(cache_path);
     } else if (!cache_path.empty()) {
         util::create_directory_recursive(cache_path);
         cache_config.m_cache_manager = std::make_shared<FileStorageCacheManager>(cache_path);
