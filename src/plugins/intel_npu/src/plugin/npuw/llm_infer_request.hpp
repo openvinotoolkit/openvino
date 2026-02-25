@@ -107,7 +107,6 @@ protected:
     bool m_first_run = true;
 
     int64_t m_first_position_id = 0;
-    int32_t m_gemma_sliding_window_size = 0;
 
     uint64_t m_tokens_in_present_chunk = 0;
 

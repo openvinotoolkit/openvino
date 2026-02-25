@@ -17,21 +17,24 @@
 #include "openvino/op/softplus.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-ov::pass::SoftPlusFusion::SoftPlusFusion() {
+namespace v0 = ov::op::v0;
+
+namespace ov::pass {
+
+SoftPlusFusion::SoftPlusFusion() {
     MATCHER_SCOPE(SoftPlusFusion);
     // fuses ln(exp(x) + 1.0) operations into SoftPlus(x)
     auto input = pattern::any_input();
-    auto exp = std::make_shared<ov::op::v0::Exp>(input);
-    auto add_constant =
-        ov::pass::pattern::wrap_type<ov::op::v0::Constant>(pattern::type_matches_any({element::f32, element::f16}));
+    auto exp = std::make_shared<v0::Exp>(input);
+    auto add_constant = pattern::wrap_type<v0::Constant>(pattern::type_matches_any({element::f32, element::f16}));
     auto add = std::make_shared<ov::op::v1::Add>(exp, add_constant);
-    auto log = std::make_shared<ov::op::v0::Log>(add);
+    auto log = std::make_shared<v0::Log>(add);
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
-        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
+        auto constant = ov::as_type_ptr<v0::Constant>(pattern_to_output.at(add_constant).get_node_shared_ptr());
         if (!constant)
             return false;
 
@@ -51,6 +54,8 @@ ov::pass::SoftPlusFusion::SoftPlusFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(log, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(log, matcher_name);
     register_matcher(m, callback);
 }
+
+}  // namespace ov::pass
