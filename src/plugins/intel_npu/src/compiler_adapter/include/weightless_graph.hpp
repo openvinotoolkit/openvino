@@ -31,7 +31,7 @@ public:
                     std::vector<NetworkMetadata> initMetadata,
                     std::optional<std::vector<ov::Tensor>> initBlobs,
                     std::shared_ptr<const ov::Model>&& model,
-                    const Config& config,
+                    const FilteredConfig& config,
                     const bool blobIsPersistent = false,
                     const ov::SoPtr<VCLCompilerImpl>& compiler = {nullptr});
 
@@ -44,7 +44,7 @@ public:
      * @brief The same operations performed within "Graph::initialize", but for all handles. In addition to this, the
      * init schedules are run and the result of this is set as inputs to the main compiled model.
      */
-    void initialize(const Config& config) override;
+    void initialize(const FilteredConfig& config) override;
 
     // TODO: public for multi-threaded execution
     struct InputData {
