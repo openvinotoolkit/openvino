@@ -147,6 +147,9 @@ struct ImportModelContext {
 
     std::unique_ptr<ov::SharedStreamBuffer> _buffer;
     std::unique_ptr<std::istream> _stream;
+    // ---- KEEP BACKING MEMORY ALIVE FOR ASYNC IMPORT ----
+    ov::Tensor _tensor_owner;                            // owns tensor memory for async path
+    Napi::Reference<Napi::Buffer<uint8_t>> _buffer_ref;  // keeps JS Buffer alive
 
     std::string _device;
     std::map<std::string, ov::Any> _config = {};
