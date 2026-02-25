@@ -21,7 +21,6 @@ std::string ExecutorTypeToString(const ExecutorType type) {
         CASE(Dnnl);
         CASE(Acl);
         CASE(Mlas);
-        CASE(Shl);
         CASE(Kleidiai);
     }
 #undef CASE
@@ -41,7 +40,6 @@ ExecutorType ExecutorTypeFromString(const std::string& typeStr) {
     CASE(Dnnl);
     CASE(Acl);
     CASE(Mlas);
-    CASE(Shl);
     CASE(Kleidiai);
 #undef CASE
     return ExecutorType::Undefined;

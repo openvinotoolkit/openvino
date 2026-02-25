@@ -39,6 +39,7 @@ class LogAnalyzer:
 
         self.found_matching_error = False
         self.found_error_ticket = None
+        self.matched_error_text = None
 
     def _collect_errors_to_look_for(self) -> None:
         with open(file=self._path_to_errors_file,
@@ -123,12 +124,13 @@ class LogAnalyzer:
                     LOGGER.info(f'FOUND "{error["error_text"]}" ERROR IN {log_file["path"]}. TICKET: {error["ticket"]}')
                     self.found_matching_error = True
                     self.found_error_ticket = error['ticket']
+                    self.matched_error_text = error['error_text']
                     return
 
 
 if __name__ == '__main__':
     # Usage example
-    log_analyzer = LogAnalyzer(path_to_log_archive=Path('/tmp/logs/log.zip'),
+    log_analyzer = LogAnalyzer(path_to_logs=Path('/tmp/logs_dir'),
                                path_to_errors_file=Path('/tmp/errors_to_look_for.json'))
     log_analyzer.analyze()
     if log_analyzer.found_matching_error:

@@ -6,6 +6,7 @@
 
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
@@ -29,7 +30,7 @@ const std::string& get_pytorch_prefix();
 /// \param COND Condition to check
 /// \param ... Additional error message info to be added to the error message via the `<<`
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
-///            i.e., only if the `cond` evalutes to `false`.
+///            i.e., only if the `cond` evaluates to `false`.
 /// \throws ::ov::frontend::OpConversionFailure if `cond` is false.
 #ifndef PYTORCH_OP_CONVERSION_CHECK
 #    define PYTORCH_OP_CONVERSION_CHECK(COND, ...) \
@@ -86,7 +87,10 @@ std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node
                                                       std::initializer_list<std::string> types);
 std::function<bool(const ov::Output<ov::Node>&)> fw_node_predicate(const std::initializer_list<std::string>& types);
 
-std::shared_ptr<Node> make_list_construct(const ov::OutputVector& inputs);
+/// \brief Creates a SequenceMark representing a list/tuple construct.
+/// \param inputs Collection of inputs for the sequence.
+/// \return SequenceMark node representing the sequence.
+std::shared_ptr<SequenceMark> make_list_construct(const ov::OutputVector& inputs);
 
 bool is_none_node(const Output<Node>& node);
 

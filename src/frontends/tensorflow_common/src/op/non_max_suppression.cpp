@@ -91,7 +91,7 @@ NamedOutputVector translate_non_max_suppression_op(const NodeContext& node) {
         // NonMaxSuppressionV2 has four inputs and one output, selected indices
         // iou_threshold comes as input
         default_op_checks(node, 4, {"NonMaxSuppressionV2"});
-        auto iou_threshold = node.get_input(3);
+        iou_threshold = node.get_input(3);
     } else if (op_type == "NonMaxSuppressionV3") {
         // NonMaxSuppressionV3 has five inputs and one output, selected indices
         // score_threshold is a new input
