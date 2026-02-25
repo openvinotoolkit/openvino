@@ -8,23 +8,22 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "openvino/util/variant_visitor.hpp"
-#include "storage_traits.hpp"
 
 namespace ov {
 namespace {
-void write_version(std::ostream& stream, const SingleFileStorage::Version& version) {
+void write_version(std::ostream& stream, const SingleFileStorage::FormatVersion& version) {
     stream.write(reinterpret_cast<const char*>(&version.major), sizeof(version.major));
     stream.write(reinterpret_cast<const char*>(&version.minor), sizeof(version.minor));
     stream.write(reinterpret_cast<const char*>(&version.patch), sizeof(version.patch));
 }
 
-void read_version(std::istream& stream, SingleFileStorage::Version& version) {
+void read_version(std::istream& stream, SingleFileStorage::FormatVersion& version) {
     stream.read(reinterpret_cast<char*>(&version.major), sizeof(version.major));
     stream.read(reinterpret_cast<char*>(&version.minor), sizeof(version.minor));
     stream.read(reinterpret_cast<char*>(&version.patch), sizeof(version.patch));
 }
 
-void validate_version(const SingleFileStorage::Version& version) {
+void validate_version(const SingleFileStorage::FormatVersion& version) {
     // todo Implement version compatibility check
 }
 
@@ -57,7 +56,7 @@ void write_padding(std::ostream& stream, uint64_t alignment) {
 }
 }  // namespace
 
-bool SingleFileStorage::Version::operator==(const Version& other) const {
+bool SingleFileStorage::FormatVersion::operator==(const FormatVersion& other) const {
     return major == other.major && minor == other.minor && patch == other.patch;
 }
 
@@ -68,7 +67,7 @@ SingleFileStorage::SingleFileStorage(const std::filesystem::path& path) : m_file
         write_version(stream, m_version);
     } else {
         std::ifstream stream(m_file_path, std::ios_base::binary);
-        Version file_version;
+        FormatVersion file_version;
         read_version(stream, file_version);
         validate_version(file_version);
 
@@ -247,9 +246,11 @@ void SingleFileStorage::scan_context(std::ifstream& stream) {
     TLVFormat::scan_entries(stream, scanners, true);
 }
 
-void SingleFileStorage::write_context_entry(const weight_sharing::Context& context) {
+void SingleFileStorage::write_context(const weight_sharing::Context& context) {
     ScopedLocale plocal_C(LC_ALL, "C");
     std::ofstream stream(m_file_path, std::ios_base::binary | std::ios_base::in | std::ios_base::ate);
+
+    // todo Add delta writing - not the whole.
 
     for (const auto& [key, const_meta] : context.m_constants_meta_data) {
         const auto const_meta_writer = [&](std::ostream& s) {

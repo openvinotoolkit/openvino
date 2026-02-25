@@ -8,20 +8,19 @@
 #include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/runtime/tlv_format.hpp"
 
-// todo Remove this inclusion and use weight_sharing::Context instead of SharedContext in ISharedContextStore and
-// SingleFileStorage.
-#include "openvino/runtime/internal_properties.hpp"
-
 namespace ov {
-class SingleFileStorage final : public ICacheManager, public ISharedContextStore {
+class SingleFileStorage final : public ICacheManager, public IContextStore {
 public:
-    struct Version {
+    /// @brief Version of the single file storage format. It is stored in the beginning of the file and is used to check
+    /// compatibility of the file with the implementation.
+    struct FormatVersion {
         uint16_t major{};
         uint16_t minor{};
         uint16_t patch{};
-        bool operator==(const Version&) const;
+        bool operator==(const FormatVersion&) const;
     };
-    static constexpr Version m_version = {0, 1, 2};
+    /// @brief Current version of the single file storage format.
+    static constexpr FormatVersion m_version = {0, 1, 2};
 
     enum class Tag : TLVFormat::tag_type {
         String = 0x02,
@@ -33,11 +32,28 @@ public:
 
     explicit SingleFileStorage(const std::filesystem::path& path);
 
+    /// @brief Write a cache entry to the storage.
+    /// @param blob_id The identifier of the blob.
+    /// @param writer The function to write the blob data.
     void write_cache_entry(const std::string& blob_id, StreamWriter writer) override;
+
+    /// @brief Read a cache entry from the storage.
+    /// @param blob_id The identifier of the blob.
+    /// @param enable_mmap Whether to use memory mapping for reading the blob data.
+    /// @param reader The function to read the blob data.
     void read_cache_entry(const std::string& blob_id, bool mmap_enabled, StreamReader reader) override;
+
+    /// @brief Remove a cache entry from the storage.
+    /// @note This function does nothing - the storage is append-only.
+    /// @param blob_id The identifier of the blob to be removed.
     void remove_cache_entry(const std::string& blob_id) override;
 
-    void write_context_entry(const weight_sharing::Context& context) override;
+    /// @brief Write the weight sharing context to the storage.
+    /// @param context The weight sharing context to be stored.
+    void write_context(const weight_sharing::Context& context) override;
+
+    /// @brief Get the weight sharing context from the storage.
+    /// @return The weight sharing context stored in the storage.
     weight_sharing::Context get_context() const override;
 
     using blob_id_type = uint64_t;
@@ -57,13 +73,14 @@ private:
 
     std::filesystem::path m_file_path;
     blob_map_type m_blob_map;
+    weight_sharing::Context m_shared_context;
+
+    // todo Combine scan_blob_map and scan_context into single function.
     void scan_blob_map(std::ifstream& stream);
     void scan_context(std::ifstream& stream);
 
     static blob_id_type convert_blob_id(const std::string& blob_id);
     void write_blob_entry(blob_id_type blob_id, StreamWriter& writer, std::ofstream& stream);
     bool has_blob_id(blob_id_type blob_id) const;
-
-    weight_sharing::Context m_shared_context;
 };
 }  // namespace ov

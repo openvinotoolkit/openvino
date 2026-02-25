@@ -8,13 +8,14 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 
 namespace ov::test {
 
 namespace {
 constexpr uint64_t version_size() {
-    return sizeof(SingleFileStorage::Version::major) + sizeof(SingleFileStorage::Version::minor) +
-           sizeof(SingleFileStorage::Version::patch);
+    return sizeof(SingleFileStorage::FormatVersion::major) + sizeof(SingleFileStorage::FormatVersion::minor) +
+           sizeof(SingleFileStorage::FormatVersion::patch);
 }
 }  // namespace
 
@@ -48,7 +49,7 @@ TEST_F(SingleFileStorageTest, FileHeader) {
     const auto end_pos = stream.tellg();
     EXPECT_EQ(last_pos, end_pos);  // No more data after header in just created file
 
-    SingleFileStorage::Version read_version{header_data[0], header_data[1], header_data[2]};
+    SingleFileStorage::FormatVersion read_version{header_data[0], header_data[1], header_data[2]};
     EXPECT_EQ(read_version, SingleFileStorage::m_version);
 }
 
@@ -184,7 +185,7 @@ TEST_F(SingleFileStorageTest, ContextMetaWriteRead) {
     test_context.m_constants_meta_data[1][11] = {100, 200, element::Type_t::f32};
     test_context.m_constants_meta_data[1][12] = {300, 400, element::Type_t::i8};
     test_context.m_constants_meta_data[2][21] = {500, 600, element::Type_t::u8};
-    m_storage->write_context_entry(test_context);
+    m_storage->write_context(test_context);
 
     const auto meta_read_test = [&](SingleFileStorage& storage) {
         auto got_context = storage.get_context();
@@ -223,7 +224,7 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
         buffer->get_ptr<uint8_t>()[i + 1] = 0xCD;
     }
     test_context.m_weight_sources[1] = std::weak_ptr<ov::AlignedBuffer>{buffer};
-    m_storage->write_context_entry(test_context);
+    m_storage->write_context(test_context);
 
     std::ifstream stream(m_file_path, std::ios_base::binary);
     stream.seekg(0, std::ios::end);

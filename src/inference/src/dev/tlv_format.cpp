@@ -37,13 +37,15 @@ void TLVFormat::write_entry(std::ostream& stream, tag_type tag, const value_writ
     const auto size_pos = stream.tellp();
     length_type size = 0;
     stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
-    const auto value_pos = stream.tellp();
-    writer(stream);
-    const auto end_pos = stream.tellp();
-    size = end_pos - value_pos;
-    stream.seekp(size_pos);
-    stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
-    stream.seekp(end_pos);
+    if (writer) {
+        const auto value_pos = stream.tellp();
+        writer(stream);
+        const auto end_pos = stream.tellp();
+        size = end_pos - value_pos;
+        stream.seekp(size_pos);
+        stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
+        stream.seekp(end_pos);
+    }
 }
 
 template <typename Container>

@@ -73,9 +73,21 @@ public:
     virtual void remove_cache_entry(const std::string& id) = 0;
 };
 
-class ISharedContextStore {
+/**
+ * @brief Interface to store and get shared context.
+ */
+class IContextStore {
 public:
-    virtual void write_context_entry(const ov::weight_sharing::Context&) = 0;
+    /**
+     * @brief Writes context to the storage
+     * @param context The context to be stored
+     */
+    virtual void write_context(const ov::weight_sharing::Context&) = 0;
+
+    /**
+     * @brief Gets context from the storage
+     * @return The stored context
+     */
     virtual ov::weight_sharing::Context get_context() const = 0;
 };
 
