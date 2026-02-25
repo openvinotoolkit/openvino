@@ -12,6 +12,7 @@
 
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convolution.hpp"
@@ -21,41 +22,11 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-#    include "openvino/op/subtract.hpp"  // NOLINT(misc-include-cleaner) needed for explicit template instantiation
-#endif
+#include "utils/general_utils.h"
 
 using namespace ov::pass::pattern;
 
 namespace ov::intel_cpu {
-
-template <class T>
-bool match_conv_mul_add_fq(const std::shared_ptr<const ov::Node>& node) {
-    auto conv_m = wrap_type<ov::op::v1::Convolution>(
-        {any_input(type_matches_any({ov::element::i8, ov::element::u8})), any_input()});
-    auto mul0_m = wrap_type<ov::op::v1::Multiply>({conv_m, any_input()});
-    auto add_m = wrap_type<ov::op::v1::Add>({mul0_m, any_input()});
-    auto fq_m = wrap_type<ov::op::v0::FakeQuantize>({add_m, any_input(), any_input(), any_input(), any_input()},
-                                                    type_matches_any({ov::element::i8, ov::element::u8}));
-    auto final_m = wrap_type<T>({fq_m, any_input()});
-
-    auto matcher = std::make_shared<Matcher>(final_m);
-    if (!matcher->match(std::const_pointer_cast<ov::Node>(node))) {
-        return false;
-    }
-
-    const auto& pattern_map = matcher->get_pattern_value_map();
-    const auto fq = pattern_map.at(fq_m).get_node_shared_ptr();
-    const auto conv = pattern_map.at(conv_m).get_node_shared_ptr();
-
-    return conv->get_input_element_type(0) == fq->get_output_element_type(0);
-}
-
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-template bool match_conv_mul_add_fq<ov::op::v1::Subtract>(const std::shared_ptr<const ov::Node>& node);
-template bool match_conv_mul_add_fq<ov::op::v1::Multiply>(const std::shared_ptr<const ov::Node>& node);
-#endif
 
 bool match_fq_mul_conv_bias_same_types(const std::shared_ptr<const ov::Node>& node, FQMulAddPattern pattern) {
     auto convMulAdd_conv = wrap_type<ov::op::v1::Convolution>();
@@ -94,6 +65,17 @@ bool match_conv_fq_same_types(const std::shared_ptr<const ov::Node>& node) {
     return conv_node->get_input_element_type(0) == node->get_output_element_type(0);
 }
 
+bool match_acl_int8_conv_fq_chain(const std::shared_ptr<const ov::Node>& node) {
+    if (!node) {
+        return false;
+    }
+    // returns true if Conv-Add-Mul-FQ chain will be fused into int8 convolution and handled by ACL executor
+    // int8 ACL Convolution executor supports only same activation and FQ output types
+    return ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
+           any_of(node->get_output_element_type(0), ov::element::Type_t::u8, ov::element::Type_t::i8) &&
+           (match_conv_fq_same_types(node) || match_fq_mul_conv_bias_same_types(node, FQMulAddPattern::ConvAddMul));
+}
+
 bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
                                    const std::vector<int64_t>& strides,
                                    const ov::Shape& kernel_shape,
@@ -110,15 +92,6 @@ bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
     const auto oc = symbols.at("OC").i();
     const auto ic = symbols.at("IC").i();
     return (oc >= 0 && static_cast<size_t>(oc) < oc_ic_limit) || (ic >= 0 && static_cast<size_t>(ic) < oc_ic_limit);
-}
-
-bool match_conv_mul_add(const std::shared_ptr<const ov::Node>& node) {
-    auto conv_m = wrap_type<ov::op::v1::Convolution>();
-    auto mul_m = wrap_type<ov::op::v1::Multiply>({conv_m, any_input()});
-    auto add_m = wrap_type<ov::op::v1::Add>({mul_m, any_input()});
-
-    auto matcher = std::make_shared<Matcher>(add_m);
-    return matcher->match(std::const_pointer_cast<ov::Node>(node));
 }
 
 }  // namespace ov::intel_cpu

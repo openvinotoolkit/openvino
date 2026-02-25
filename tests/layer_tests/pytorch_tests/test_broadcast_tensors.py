@@ -8,11 +8,10 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestBroadcastTensors(PytorchLayerTest):
     def _prepare_input(self, x_shape, y_shape, z_shape, x_dtype, y_dtype, z_dtype):
-        import numpy as np
         return (
-            np.random.randn(*x_shape).astype(x_dtype),
-            np.random.randn(*y_shape).astype(y_dtype),
-            np.random.randn(*z_shape).astype(z_dtype))
+            self.random.randn(*x_shape, dtype=x_dtype),
+            self.random.randn(*y_shape, dtype=y_dtype),
+            self.random.randn(*z_shape, dtype=z_dtype))
 
     def create_model(self):
         import torch
@@ -22,7 +21,7 @@ class TestBroadcastTensors(PytorchLayerTest):
                 x1, y1, z1 = torch.broadcast_tensors(x, y, z)
                 return x1, y1, z1
 
-        return aten_broadcast_tensors(), None, ("prim::ListConstruct", "aten::broadcast_tensors", "prim::ListUnpack")
+        return aten_broadcast_tensors(), ("prim::ListConstruct", "aten::broadcast_tensors", "prim::ListUnpack")
 
     @pytest.mark.nightly
     @pytest.mark.precommit
