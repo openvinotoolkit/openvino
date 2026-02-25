@@ -207,7 +207,7 @@ TEST(stateful_model, check_dynamic_pad_for_kv_cache) {
                              ov::Shape{},                             // output shape
                              0,                                       // batch_dim
                              true),                                   // support_neg_ind
-                      kv_cache("concat", {input_info("gather"), input_info("present")}, info, 0, 0, false),
+                      kv_cache("concat", {input_info("gather"), input_info("present")}, info, 0, 0, false, false, false),
                       reorder("reorder", input_info("concat"), format::bfyx, data_types::f32)); /*output padding*/
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -264,7 +264,7 @@ TEST(stateful_model, kv_cache_release) {
     topology topology(input_layout("past", input_lay),
                       input_layout("present", input_lay),
                       read_value("kv_cache", {input_info("past")}, info.variable_id, {input_kv_lay}),
-                      kv_cache("concat", {input_info("kv_cache"), input_info("present")}, info, 0, 0, false),
+                      kv_cache("concat", {input_info("kv_cache"), input_info("present")}, info, 0, 0, false, false, false),
                       reorder("reorder", input_info("concat"), format::bfyx, data_types::f32)); /*output padding*/
 
     ExecutionConfig config = get_test_default_config(engine);

@@ -91,39 +91,49 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
     RTInfoCache rt_info_cache;
     rt_info_cache.store(model);
 
-    Manager manager("pre_post_processing");
-    manager.set_per_pass_validation(false);
+    auto get_manager = []() {
+        Manager manager("pre_post_processing");
+        manager.set_per_pass_validation(false);
 
-    // prerequisite: the model structure optimization before applying of the markup
-    REGISTER_PASS(manager, SharedOpOptimization)
+        // prerequisite: the model structure optimization before applying of the markup
+        REGISTER_PASS(manager, SharedOpOptimization)
 
-    // 1. Set "disable_const_folding" attribute
-    // we have to add a call into the PrePostProcessing, it runs before compile_model call
-    REGISTER_PASS(manager, MarkGatherSubgraph, element::TypeVector{element::f8e4m3}, element::TypeVector{element::u4});
-    REGISTER_PASS(manager,
-                  MarkDequantization,
-                  TypeVector{i32, u32, i16, u16, i8, u8, u6, i4, u4, u3, u2, u1, nf4, f4e2m1, f8e4m3, f8e5m2, f8e8m0});
-    REGISTER_PASS(manager, DisableShapeOfConstantFolding, false);
-    REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
-    // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
-    // so that not extra memory is used for intermediate decompressed constants.
-    REGISTER_PASS(manager, MarkCompressedFloatConstants);
-    REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding);
+        // 1. Set "disable_const_folding" attribute
+        // we have to add a call into the PrePostProcessing, it runs before compile_model call
+        REGISTER_PASS(manager,
+                      MarkGatherSubgraph,
+                      element::TypeVector{element::f8e4m3},
+                      element::TypeVector{element::u4});
+        REGISTER_PASS(
+            manager,
+            MarkDequantization,
+            TypeVector{i32, u32, i16, u16, i8, u8, u6, i4, u4, u3, u2, u1, nf4, f4e2m1, f8e4m3, f8e5m2, f8e8m0});
+        REGISTER_PASS(manager, DisableShapeOfConstantFolding, false);
+        REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
+        // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
+        // so that not extra memory is used for intermediate decompressed constants.
+        REGISTER_PASS(manager, MarkCompressedFloatConstants);
+        REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding);
 
-    // 2. Fusion transformations:
-    REGISTER_PASS(manager, ConvertDivideWithConstant)
-    auto fusions = manager.register_pass<GraphRewrite>();
-    // Gelu fusion have to be executed before MulConv fusion because Mul(X, 0.5) might be fused to Conv weights
-    ADD_MATCHER(fusions, GeluFusion)
-    ADD_MATCHER(fusions, MultiplyConvolutionFusion)
-    ADD_MATCHER(fusions, MultiplyGroupConvolutionFusion)
-    ADD_MATCHER(fusions, MultiplyConvolutionBackpropDataFusion)
-    ADD_MATCHER(fusions, MultiplyGroupConvolutionBackpropDataFusion)
-    fusions->set_name("ov::pass::MultiplyFusions");
-    REGISTER_PASS(manager, ReverseInputChannelsFusion)
+        // 2. Fusion transformations:
+        REGISTER_PASS(manager, ConvertDivideWithConstant)
+        auto fusions = manager.register_pass<GraphRewrite>();
+        // Gelu fusion have to be executed before MulConv fusion because Mul(X, 0.5) might be fused to Conv weights
+        ADD_MATCHER(fusions, GeluFusion)
+        ADD_MATCHER(fusions, MultiplyConvolutionFusion)
+        ADD_MATCHER(fusions, MultiplyGroupConvolutionFusion)
+        ADD_MATCHER(fusions, MultiplyConvolutionBackpropDataFusion)
+        ADD_MATCHER(fusions, MultiplyGroupConvolutionBackpropDataFusion)
+        fusions->set_name("ov::pass::MultiplyFusions");
+        REGISTER_PASS(manager, ReverseInputChannelsFusion)
 
-    // 3. CF call due to detected perf degradations
-    REGISTER_PASS(manager, ConstantFolding)
+        // 3. CF call due to detected perf degradations
+        REGISTER_PASS(manager, ConstantFolding)
+
+        return manager;
+    };
+    static Manager manager = get_manager();
+
     manager.run_passes(model);
 
     // 4. Restore old RT info to not affect plugin compilation

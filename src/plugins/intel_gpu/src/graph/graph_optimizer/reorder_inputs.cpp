@@ -902,13 +902,8 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                     if (gemm_layout.is_dynamic() || data_layout.is_dynamic())
                         continue;
 
-                    auto gemm_dims = onednn::convert_gemm_tensor(gemm_layout.get_tensor(),
-                                                                 cldnn::format::dimension(gemm_layout.format),
-                                                                 false);
-
-                    auto data_dims = onednn::convert_gemm_tensor(data_layout.get_tensor(),
-                                                                 cldnn::format::dimension(data_layout.format),
-                                                                 false);
+                    auto gemm_dims = onednn::convert_tensor(gemm_layout.get_tensor(), cldnn::format::dimension(gemm_layout.format));
+                    auto data_dims = onednn::convert_tensor(data_layout.get_tensor(), cldnn::format::dimension(data_layout.format));
 
                     if (gemm_dims[0] == data_dims[0])
                         continue;

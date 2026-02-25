@@ -155,10 +155,10 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
                                  const std::vector<GraphDescriptor>& initGraphDesc,
                                  std::vector<NetworkMetadata> initMetadata,
                                  std::optional<std::vector<ov::Tensor>> initBlobs,
-                                 const std::shared_ptr<const ov::Model>& model,
-                                 const Config& config,
+                                 std::shared_ptr<const ov::Model>&& model,
+                                 const FilteredConfig& config,
                                  const bool blobIsPersistent,
-                                 const ov::SoPtr<ICompiler>& compiler)
+                                 const ov::SoPtr<VCLCompilerImpl>& compiler)
     : Graph(zeGraphExt,
             zeroInitStruct,
             mainGraphDesc,
@@ -171,7 +171,7 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
       _initsGraphDesc(initGraphDesc),
       _initBlobs(std::move(initBlobs)),
       _initsMetadata(std::move(initMetadata)),
-      _model(model),
+      _model(std::move(model)),
       _wgLogger("WeightlessGraph", config.get<LOG_LEVEL>()) {
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
         _wgLogger.info("Graph initialize is deferred from the \"WeightlessGraph\" constructor");
@@ -275,7 +275,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
     return std::make_pair(totalBlobSize, initSizes);
 }
 
-void WeightlessGraph::initialize(const Config& config) {
+void WeightlessGraph::initialize(const FilteredConfig& config) {
     if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
         // To ensure that does not throw an issue when subsequently calling `_zeroInitStruct->getDevice()`
         return;
@@ -360,7 +360,7 @@ void WeightlessGraph::initialize(const Config& config) {
 
 WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
     const size_t initIndex,
-    const std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>& constants) {
+    std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>& constants) {
     std::vector<std::shared_ptr<ov::ITensor>> initInputsViewTensors;
     size_t initInputsByteSize = 0;
 
@@ -401,6 +401,11 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
         initInputsViewTensors.push_back(
             ov::make_tensor(constant->get_element_type(), constant->get_shape(), currentInputBufferLocation));
         offset += currentInputSize;
+
+        // Note: By construction of the weight schedule, every constant from OV
+        // model appears exactly once across all schedules. Thus, one can delete
+        // the handle to the constant memory early.
+        constants.erase(id);
     }
 
     return {initInputsViewTensors, initInputsAllocatedTensor};
@@ -444,14 +449,12 @@ void WeightlessGraph::run_init_single_threaded() {
     auto constants = get_all_constants_in_topological_order(_model, _wgLogger);
     const size_t numberOfInits = _initsGraphDesc.size();
 
+    // Note: Delete model prematurely, constants are still valid due to
+    // shared_ptr semantics.
+    _model = nullptr;
+
     for (size_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
         auto [initInputsViewTensors, initInputsAllocatedTensor] = allocate_inputs(initIndex, constants);
-        if (initIndex == numberOfInits - 1) {
-            // We don't need these anymore, potentially save some memory
-            _model = nullptr;
-            constants = {};
-        }
-
         auto [initOutputsViewTensors, initOutputsAllocatedTensor, initOutputsViewTensorsMap] =
             allocate_outputs(initIndex);
 
@@ -479,7 +482,7 @@ void WeightlessGraph::run_init_multi_threaded() {
     //                                    allocate I/O -> create Pipeline -> run Pipeline
     Parallelizer multiThreadedRunner(
         _model,
-        [&](const std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>& constants,
+        [&](std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>& constants,
             int64_t initIndex) -> QueueData {
             QueueData data{};
             data.initIndex = initIndex;
@@ -508,8 +511,11 @@ void WeightlessGraph::run_init_multi_threaded() {
         },
         _wgLogger);
 
-    multiThreadedRunner.callForAllAndWait(_initsGraphDesc.size());
+    // Note: Delete model prematurely, constants are still valid due to
+    // shared_ptr semantics.
     _model = nullptr;
+
+    multiThreadedRunner.callForAllAndWait(_initsGraphDesc.size());
 }
 
 void WeightlessGraph::create_pipeline(const size_t initIndex,

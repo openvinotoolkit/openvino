@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "cpu_memory.h"
+#include "cpu_parallel.hpp"
 #include "graph_context.h"
 #include "kernels/x64/rope_kernel.hpp"
 #include "memory_desc/cpu_memory_desc.h"
@@ -20,7 +21,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -117,7 +117,8 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
 
     void execute([[maybe_unused]] const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
-                 const std::vector<MemoryPtr>& outputs) override {
+                 const std::vector<MemoryPtr>& outputs,
+                 const CpuParallelPtr& cpu_parallel) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
         ov::intel_cpu::PlainTensor t_cos(inputs[1]);
         ov::intel_cpu::PlainTensor t_sin(inputs[2]);
@@ -160,7 +161,7 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
         const auto feature_size = t_src.size(3);
         const auto half_rotary_dims = rotary_dims / 2;
         const size_t cos_sin_offset = (m_config.cos_sin_ndims == half_rotary_dims) ? 0 : half_rotary_dims;
-        parallel_for3d(batch_size, head_cnt, seq_len, [&](size_t b, size_t h, size_t p) {
+        cpu_parallel->parallel_for3d(batch_size, head_cnt, seq_len, [&](size_t b, size_t h, size_t p) {
             auto cos_pos = p;
             if (gather) {
                 if (gather.m_rank == 4) {
@@ -209,7 +210,8 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
 
     void execute([[maybe_unused]] const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
-                 const std::vector<MemoryPtr>& outputs) override {
+                 const std::vector<MemoryPtr>& outputs,
+                 const CpuParallelPtr& cpu_parallel) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
         ov::intel_cpu::PlainTensor t_sin_cos(inputs[1]);
         ov::intel_cpu::PlainTensor t_dst(outputs[0]);
@@ -222,7 +224,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
         auto rotary_dims = m_config.rotary_ndims;
         auto half_rotary_dims = rotary_dims / 2;
 
-        parallel_for3d(batch_size, seq_len, head_cnt, [&](size_t b, size_t p, size_t h) {
+        cpu_parallel->parallel_for3d(batch_size, seq_len, head_cnt, [&](size_t b, size_t p, size_t h) {
             auto* x = t_src.ptr<T>(b, p, h);
             float* sin = &t_sin_cos.at<float>({b, p, 0}, true);
             float* cos = &t_sin_cos.at<float>({b, p, half_rotary_dims}, true);
@@ -261,7 +263,8 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
 
     void execute([[maybe_unused]] const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
-                 const std::vector<MemoryPtr>& outputs) override {
+                 const std::vector<MemoryPtr>& outputs,
+                 const CpuParallelPtr& cpu_parallel) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
         ov::intel_cpu::PlainTensor t_dst(outputs[0]);
 
@@ -281,7 +284,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
 
             if (m_config.use_rope_cache) {
                 ov::intel_cpu::PlainTensor t_cos_sin(inputs[1]);
-                parallel_for3d(batch_size, head_cnt, seq_len, [&](size_t b, size_t h, size_t p) {
+                cpu_parallel->parallel_for3d(batch_size, head_cnt, seq_len, [&](size_t b, size_t h, size_t p) {
                     // src [batch, length, H x S]
                     auto* src = t_src.ptr<T>(b, p, h * head_size);
                     // [batch_size, length, ndims//2, 2]
@@ -305,7 +308,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
             } else {
                 ov::intel_cpu::PlainTensor t_cos(inputs[1]);
                 ov::intel_cpu::PlainTensor t_sin(inputs[2]);
-                parallel_for3d(batch_size, head_cnt, seq_len, [&](size_t b, size_t h, size_t p) {
+                cpu_parallel->parallel_for3d(batch_size, head_cnt, seq_len, [&](size_t b, size_t h, size_t p) {
                     auto* src = t_src.ptr<T>(b, p, h * head_size);
                     auto* dst = t_dst.ptr<T>(b, h, p);
                     // The pattern matching ensures that cos/sin table has shape [-1, 1, 1, -1] so that only b is
@@ -332,7 +335,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
 
             auto rotary_dims = m_config.rotary_ndims;
             ov::intel_cpu::PlainTensor t_cos_sin(inputs[1]);
-            parallel_for3d(seq_len, batch_size, head_cnt, [&](size_t p, size_t b, size_t h) {
+            cpu_parallel->parallel_for3d(seq_len, batch_size, head_cnt, [&](size_t p, size_t b, size_t h) {
                 auto* src = t_src.ptr<T>(p, b, h * head_size);
                 // [length, batch_size, ndims//2, 2]
                 auto* cos_sin = &t_cos_sin.at<float>({p, b, 0, 0}, true);
@@ -372,7 +375,8 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
 
     void execute([[maybe_unused]] const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
-                 const std::vector<MemoryPtr>& outputs) override {
+                 const std::vector<MemoryPtr>& outputs,
+                 const CpuParallelPtr& cpu_parallel) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);   // [batch, length, head_cnt*head_size * 3]
         ov::intel_cpu::PlainTensor t_cos(inputs[1]);   // [1, present-kv-length, 1, rotary_dims]
         ov::intel_cpu::PlainTensor t_sin(inputs[2]);   // [1, present-kv-length, 1, rotary_dims]
@@ -394,7 +398,7 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
         auto head_size = m_config.head_size;
         auto present_kv_len = t_cos.size(1);
 
-        parallel_for3d(batch_size, seq_len, head_cnt, [&](size_t b, size_t p, size_t h) {
+        cpu_parallel->parallel_for3d(batch_size, seq_len, head_cnt, [&](size_t b, size_t p, size_t h) {
             size_t sincos_pos = 0;
             if (gather) {
                 if (gather.m_rank == 4) {
@@ -522,7 +526,7 @@ void RoPE::execute(const dnnl::stream& strm) {
     for (size_t i = 0; i < outputs.size(); i++) {
         outputs[i] = getDstMemoryAtPort(i);
     }
-    m_executor->execute(strm, inputs, outputs);
+    m_executor->execute(strm, inputs, outputs, context->getCpuParallel());
 }
 
 bool RoPE::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
