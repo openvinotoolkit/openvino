@@ -1210,18 +1210,6 @@ void Transformations::PostLpt() {
 
 void Transformations::MainSnippets() {
     using namespace snippets::pass;
-// Disable MainSnippets for int8 models on arm platforms due to performance issues
-// Ticket: 163408
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    using namespace ov::pass::low_precision;
-    static const std::set<levels>& supported_fq_levels = {levels::int4,
-                                                          levels::int4_narrow_range,
-                                                          levels::int8,
-                                                          levels::int8_narrow_range};
-    if (LowPrecision::isFunctionQuantized(model, supported_fq_levels)) {
-        return;
-    }
-#endif
 
     auto is_supported_isa = []() {
 #if defined(OPENVINO_ARCH_X86_64)
@@ -1649,14 +1637,7 @@ void Transformations::PostSnippets() {
     CPU_SET_CALLBACK_ARM(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
-            if (ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
-                ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
-                // int8 ACL Convolution executor supports only same activation and output types
-                // if types are different, decompose FQ to avoid reference FQ
-                return match_conv_fq_same_types(node) ||
-                       match_fq_mul_conv_bias_same_types(node, FQMulAddPattern::ConvAddMul);
-            }
-            return false;
+            return match_acl_int8_conv_fq_chain(node);
         },
         ov::pass::FakeQuantizeDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeConvertDecomposition);
