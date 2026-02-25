@@ -5,13 +5,8 @@
 #pragma once
 
 #include <string>
-#include <unordered_map>
-#include <memory>
-#include <mutex>
 
 #include "openvino/core/node.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/runtime/shared_buffer.hpp"
 
 namespace ov {
 namespace util {
