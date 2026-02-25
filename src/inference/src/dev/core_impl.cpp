@@ -7,7 +7,6 @@
 #include <memory>
 #include <variant>
 
-#include "cache_manager.hpp"
 #include "check_network_batchable.hpp"
 #include "itt.hpp"
 #include "model_reader.hpp"
@@ -28,7 +27,6 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
-#include "openvino/runtime/single_file_storage.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
@@ -1705,13 +1703,11 @@ ov::CoreConfig::CacheConfig ov::CoreConfig::get_cache_config_for_device(const ov
                                                            : m_cache_config;
 }
 
-ov::CoreConfig::CacheConfig ov::CoreConfig::CacheConfig::create(const std::filesystem::path& cache_path) {
-    auto cache_config = CacheConfig{cache_path, nullptr};
-    if (cache_path.has_extension()) {
-        cache_config.m_cache_manager = std::make_shared<runtime::SingleFileStorage>(cache_path);
-    } else if (!cache_path.empty()) {
-        util::create_directory_recursive(cache_path);
-        cache_config.m_cache_manager = std::make_shared<FileStorageCacheManager>(cache_path);
+ov::CoreConfig::CacheConfig ov::CoreConfig::CacheConfig::create(const std::filesystem::path& dir) {
+    CacheConfig cache_config{dir, nullptr};
+    if (!dir.empty()) {
+        ov::util::create_directory_recursive(dir);
+        cache_config.m_cache_manager = std::make_shared<ov::FileStorageCacheManager>(dir);
     }
     return cache_config;
 }
