@@ -140,11 +140,19 @@ jobs:
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/paddle_tests --gtest_filter="PaddleFuzzyOpTest*" --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-PaddleFuzzyOpTests.xml
 
-      - name: ONNX frontend tests
+      - name: ONNX frontend tests (GraphIterator default)
         if: ${{ fromJSON(inputs.affected-components).ONNX_FE.test && runner.arch != 'ARM64' }} # Ticket for macOS ARM64: 122663, for Linux ARM64: 126280, 153161
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
-          ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend.xml
+          ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend-GraphIteratorEnabled.xml
+
+      - name: ONNX frontend tests ONNX_ITERATOR=disabled (legacy implementation)
+        if: ${{ fromJSON(inputs.affected-components).ONNX_FE.test && runner.arch != 'ARM64' }} # Ticket for macOS ARM64: 122663, for Linux ARM64: 126280, 153161
+        env:
+          ONNX_ITERATOR: "0"
+        run: |
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend-GraphIteratorDisabled.xml
 
       - name: TensorFlow Common frontend tests
         if: fromJSON(inputs.affected-components).TF_FE.test ||

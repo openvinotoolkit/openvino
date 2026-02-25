@@ -17,6 +17,7 @@
 #include <sys/stat.h>
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "openvino/util/file_util.hpp"
@@ -76,38 +77,38 @@ void load_static_plugins(std::vector<PluginInfo>& res) {
 
 #endif  // OPENVINO_STATIC_LIBRARY
 
-// TODO: change to std::filesystem for C++17
-static std::vector<std::string> list_files(const std::string& path) {
-    std::vector<std::string> res;
-    try {
-        const auto prefix = std::string(FRONTEND_LIB_PREFIX);
-        const auto suffix = std::string(FRONTEND_LIB_SUFFIX);
-        ov::util::iterate_files(
-            path,
-            [&res, &prefix, &suffix](const std::string& file_path, bool is_dir) {
-                auto file = ov::util::get_file_name(file_path);
-                if (!is_dir && (prefix.empty() || file.compare(0, prefix.length(), prefix) == 0) &&
-                    file.length() > suffix.length() &&
-                    file.rfind(suffix) == (file.length() - std::string(suffix).length())) {
-                    res.push_back(file_path);
+static bool is_fe_lib_name(const std::string_view& file_name) {
+    static constexpr auto prefix = std::string_view(FRONTEND_LIB_PREFIX);
+    static constexpr auto suffix = std::string_view(FRONTEND_LIB_SUFFIX);
+    auto prefix_pos = file_name.find(prefix);
+    auto suffix_pos = file_name.rfind(suffix);
+    return (prefix_pos == 0 && suffix_pos != std::string::npos && (suffix_pos == file_name.length() - suffix.length()));
+}
+
+static std::vector<std::filesystem::path> list_files(const std::filesystem::path& path) {
+    std::error_code ec;
+    std::vector<std::filesystem::path> res;
+    if (const auto dir_iter = std::filesystem::directory_iterator(path, ec); !ec) {
+        for (const auto& dir_entry : dir_iter) {
+            if (!std::filesystem::is_directory(dir_entry.status())) {
+                const auto file_name = dir_entry.path().filename().string();
+                if (is_fe_lib_name(file_name)) {
+                    res.push_back(dir_entry.path());
                 }
-            },
-            false,
-            true);
-    } catch (...) {
-        // Ignore exceptions
+            }
+        }
     }
     return res;
 }
 
-void ov::frontend::find_plugins(const std::string& dir_name, std::vector<PluginInfo>& res) {
+void ov::frontend::find_plugins(const std::filesystem::path& dir_name, std::vector<PluginInfo>& res) {
 #ifdef OPENVINO_STATIC_LIBRARY
     load_static_plugins(res);
 #endif  // OPENVINO_STATIC_LIBRARY
     for (const auto& file_path : list_files(dir_name)) {
         PluginInfo plugin_info;
         plugin_info.m_file_path = file_path;
-        plugin_info.m_file_name = ov::util::get_file_name(file_path);
+        plugin_info.m_file_name = file_path.filename();
         // if frontend is registered already (e.g. as static), skip found version
         if (std::find_if(res.begin(), res.end(), [&plugin_info](const PluginInfo& pd) {
                 return plugin_info.get_name_from_file() == pd.get_name_from_file();
@@ -123,12 +124,13 @@ void ov::frontend::find_plugins(const std::string& dir_name, std::vector<PluginI
 std::string PluginInfo::get_name_from_file() const {
     const auto prefix = std::string(FRONTEND_LIB_PREFIX);
     const auto suffix = std::string(FRONTEND_LIB_SUFFIX);
-    auto prefix_pos = m_file_name.find(prefix);
-    auto suffix_pos = m_file_name.rfind(suffix);
-    if (prefix_pos == 0 && suffix_pos + suffix.length() == m_file_name.length()) {
-        return m_file_name.substr(prefix_pos + prefix.length(), suffix_pos - prefix_pos - prefix.length());
+    auto file_name = ov::util::path_to_string(m_file_name);
+    auto prefix_pos = file_name.find(prefix);
+    auto suffix_pos = file_name.rfind(suffix);
+    if (prefix_pos == 0 && suffix_pos + suffix.length() == file_name.length()) {
+        return file_name.substr(prefix_pos + prefix.length(), suffix_pos - prefix_pos - prefix.length());
     }
-    return m_file_name;
+    return file_name;
 }
 
 bool PluginInfo::is_file_name_match(const std::string& name) const {
@@ -156,11 +158,7 @@ bool PluginInfo::load() {
 bool PluginInfo::load_internal() {
     std::shared_ptr<void> so;
     try {
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-        so = ov::util::load_shared_object(ov::util::string_to_wstring(m_file_path).c_str());
-#else
-        so = ov::util::load_shared_object(m_file_path.c_str());
-#endif
+        so = ov::util::load_shared_object(m_file_path);
     }
 #ifdef ENABLE_OPENVINO_DEBUG
     catch (const std::exception& ex) {

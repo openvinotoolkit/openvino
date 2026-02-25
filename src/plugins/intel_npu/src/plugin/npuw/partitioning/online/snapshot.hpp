@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,7 +57,7 @@ public:
     void stripTag(const std::string& tag);
 
     // Passes to detect corner cases
-    bool isRegularResultCase() const;
+    bool isRegularIOCase() const;
 
     // Utility
     std::shared_ptr<own::ade::Graph> getGraph() const;

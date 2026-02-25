@@ -29,12 +29,6 @@
 
 namespace {
 
-std::string get_mock_engine_path() {
-    std::string mock_engine_name("mock_engine");
-    return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                              mock_engine_name + OV_BUILD_POSTFIX);
-}
-
 template <class T>
 std::function<T> make_std_function(const std::shared_ptr<void> so, const std::string& functionName) {
     std::function<T> ptr(reinterpret_cast<T*>(ov::util::get_symbol(so, functionName.c_str())));
@@ -893,9 +887,10 @@ private:
 };
 
 void ov::hetero::tests::HeteroTests::reg_plugin(std::shared_ptr<ov::IPlugin>& plugin) {
-    std::string library_path = get_mock_engine_path();
-    if (!m_so)
-        m_so = ov::util::load_shared_object(library_path.c_str());
+    const auto library_path = ov::test::utils::get_mock_engine_path();
+    if (!m_so) {
+        m_so = ov::util::load_shared_object(library_path);
+    }
     if (auto mock_plugin = std::dynamic_pointer_cast<MockPluginBase>(plugin))
         mock_plugin->set_version(mock_plugin->get_const_version());
     std::function<void(ov::IPlugin*)> injectProxyEngine = make_std_function<void(ov::IPlugin*)>(m_so, "InjectPlugin");

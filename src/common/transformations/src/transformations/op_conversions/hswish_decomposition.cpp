@@ -18,12 +18,16 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+using ov::pass::pattern::Matcher;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 ov::pass::HSwishDecomposition::HSwishDecomposition() {
     MATCHER_SCOPE(HSwishDecomposition);
     // Decomposes HSwish(x) op into sub-graph x * (min(Relu(x + 3), 6) * const(1/6)
     auto hswish = ov::pass::pattern::wrap_type<ov::op::v4::HSwish>();
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto hswish_node = pattern_to_output.at(hswish).get_node_shared_ptr();
 
@@ -32,14 +36,14 @@ ov::pass::HSwishDecomposition::HSwishDecomposition() {
         }
 
         auto input_type = hswish_node->input_value(0).get_element_type();
-        auto add_constant = ov::op::v0::Constant::create(input_type, ov::Shape{}, {3.0});
-        auto add = std::make_shared<ov::op::v1::Add>(hswish_node->input_value(0), add_constant);
-        auto relu = std::make_shared<ov::op::v0::Relu>(add);
-        auto min_constant = ov::op::v0::Constant::create(input_type, ov::Shape{}, {6.0});
-        auto min = register_new_node<ov::op::v1::Minimum>(relu, min_constant);
-        auto mul_first = std::make_shared<ov::op::v1::Multiply>(hswish_node->input_value(0), min);
-        auto mul_constant = ov::op::v0::Constant::create(input_type, ov::Shape{}, {(1.0 / 6.0)});  // const(1/6)
-        auto mul_second = std::make_shared<ov::op::v1::Multiply>(mul_first, mul_constant);
+        auto add_constant = v0::Constant::create(input_type, ov::Shape{}, {3.0});
+        auto add = std::make_shared<v1::Add>(hswish_node->input_value(0), add_constant);
+        auto relu = std::make_shared<v0::Relu>(add);
+        auto min_constant = v0::Constant::create(input_type, ov::Shape{}, {6.0});
+        auto min = register_new_node<v1::Minimum>(relu, min_constant);
+        auto mul_first = std::make_shared<v1::Multiply>(hswish_node->input_value(0), min);
+        auto mul_constant = v0::Constant::create(input_type, ov::Shape{}, {(1.0 / 6.0)});  // const(1/6)
+        auto mul_second = std::make_shared<v1::Multiply>(mul_first, mul_constant);
 
         mul_second->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(hswish_node,
@@ -48,6 +52,6 @@ ov::pass::HSwishDecomposition::HSwishDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(hswish, matcher_name);
+    auto m = std::make_shared<Matcher>(hswish, matcher_name);
     register_matcher(m, callback);
 }

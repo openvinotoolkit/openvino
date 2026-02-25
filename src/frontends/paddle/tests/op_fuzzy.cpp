@@ -679,7 +679,7 @@ static const std::vector<std::string> models{
     std::string("scatter_test_1/scatter_test_1.pdmodel"),
     std::string("scatter_test_2/scatter_test_2.pdmodel"),
     std::string("scatter_nd_add_test_1/scatter_nd_add_test_1.pdmodel"),
-    // Temporily disable them until root caused to secure CI stable.
+    // Temporarily disable them until root caused to secure CI stable.
     // CVS-66703 to track this.
     // std::string("yolo_box_clip_box/yolo_box_clip_box.pdmodel"),
     // std::string("yolo_box_default/yolo_box_default.pdmodel"),

@@ -15,25 +15,29 @@
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
 
-using namespace ov;
-using namespace ov::pass::pattern;
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v8 = ov::op::v8;
+
+namespace ov::pass {
 
 TSGatherForward::TSGatherForward() {
     MATCHER_SCOPE(TSGatherForward);
 
-    create_pattern<ov::op::v8::Gather>({0});
+    create_pattern<v8::Gather>({0});
 
-    auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
+    auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<ov::Node>& main_node,
                                                             const TransposeInputsInfo& transpose_info) -> bool {
-        auto gather = as_type_ptr<ov::op::v8::Gather>(main_node);
+        auto gather = ov::as_type_ptr<v8::Gather>(main_node);
         if (!gather) {
             return false;
         }
 
         auto transpose_order = transpose_info.transpose_const;
-        auto gather_axis = as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(2));
+        auto gather_axis = ov::as_type_ptr<v0::Constant>(main_node->get_input_node_shared_ptr(2));
         if (!gather_axis) {
             return false;
         }
@@ -132,18 +136,18 @@ TSGatherForward::TSGatherForward() {
                 ++j;
             }
         }
-        auto new_order_const = ov::op::v0::Constant::create(transpose_order->get_element_type(),
-                                                            {new_transpose_order.size()},
-                                                            new_transpose_order);
+        auto new_order_const = v0::Constant::create(transpose_order->get_element_type(),
+                                                    {new_transpose_order.size()},
+                                                    new_transpose_order);
         TransposeInputsInfo transpose_input_info = {transpose_info.transpose, new_order_const, 0};
         // deletes Transpose from 0 input
         auto success = sink_forward::UpdateInputTransposes(main_node, transpose_input_info, {0});
         if (!success) {
             return false;
         }
-        auto new_axis = ov::op::v0::Constant::create(gather_axis->get_element_type(), gather_axis->get_shape(), {axis});
+        auto new_axis = v0::Constant::create(gather_axis->get_element_type(), gather_axis->get_shape(), {axis});
         main_node->input(2).replace_source_output(new_axis);
-        copy_runtime_info(gather_axis, new_axis);
+        ov::copy_runtime_info(gather_axis, new_axis);
 
         default_outputs_update(main_node, transpose_input_info);
         return true;
@@ -155,24 +159,25 @@ TSGatherForward::TSGatherForward() {
 TSGatherBackward::TSGatherBackward() {
     MATCHER_SCOPE(TSGatherBackward);
 
-    auto gather_label = wrap_type<ov::op::v8::Gather>({any_input(), any_input(), wrap_type<ov::op::v0::Constant>()},
-                                                      CheckTransposeConsumers);
-    auto transpose_label = wrap_type<ov::op::v1::Transpose>({gather_label, wrap_type<ov::op::v0::Constant>()},
-                                                            [](const Output<Node>& output) -> bool {
-                                                                return has_static_rank()(output);
-                                                            });
+    auto gather_label =
+        pattern::wrap_type<v8::Gather>({pattern::any_input(), pattern::any_input(), pattern::wrap_type<v0::Constant>()},
+                                       CheckTransposeConsumers);
+    auto transpose_label = pattern::wrap_type<v1::Transpose>({gather_label, pattern::wrap_type<v0::Constant>()},
+                                                             [](const ov::Output<ov::Node>& output) -> bool {
+                                                                 return pattern::has_static_rank()(output);
+                                                             });
 
     ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
 
-        auto transpose = as_type_ptr<ov::op::v1::Transpose>(pattern_to_output.at(transpose_label));
-        auto main_node = as_type_ptr<ov::op::v8::Gather>(pattern_to_output.at(gather_label));
+        auto transpose = ov::as_type_ptr<v1::Transpose>(pattern_to_output.at(transpose_label));
+        auto main_node = ov::as_type_ptr<v8::Gather>(pattern_to_output.at(gather_label));
         if (!transpose || !main_node || transformation_callback(main_node)) {
             return false;
         }
 
-        auto transpose_order = as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
-        auto gather_axis = as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(2));
+        auto transpose_order = ov::as_type_ptr<v0::Constant>(transpose->get_input_node_shared_ptr(1));
+        auto gather_axis = ov::as_type_ptr<v0::Constant>(main_node->get_input_node_shared_ptr(2));
         if (!transpose_order || !gather_axis) {
             return false;
         }
@@ -215,7 +220,7 @@ TSGatherBackward::TSGatherBackward() {
         bool optimization = out_pshape.is_static() && main_node->input_value(1).get_partial_shape().is_static();
         bool success = false;
         std::vector<size_t> axes_val;
-        std::shared_ptr<ov::op::v0::Squeeze> squeeze;
+        std::shared_ptr<v0::Squeeze> squeeze;
         // In some cases shape of 2nd input to Gather op (indices) has `1` dims which can
         // prevent TransposeSinking in backward direction.
         // We can get around this case by wrapping Transpose op with Squeeze+Unsqueeze pair.
@@ -237,8 +242,8 @@ TSGatherBackward::TSGatherBackward() {
                          Transpose output: shape(1,8,2)
         */
         if (optimization) {
-            squeeze = std::make_shared<ov::op::v0::Squeeze>(main_node->input_value(1));
-            copy_runtime_info(main_node, squeeze);
+            squeeze = std::make_shared<v0::Squeeze>(main_node->input_value(1));
+            ov::copy_runtime_info(main_node, squeeze);
             main_node->input(1).replace_source_output(squeeze);
             main_node->validate_and_infer_types();
             auto new_out_pshape = main_node->get_output_partial_shape(0);
@@ -277,7 +282,7 @@ TSGatherBackward::TSGatherBackward() {
             order_val = GetOrderAfterReduction(axes_val, order_val);
         }
 
-        std::shared_ptr<ov::op::v0::Constant> new_axis;
+        std::shared_ptr<v0::Constant> new_axis;
         const auto& indices_rank_val = static_cast<size_t>(main_node->get_input_partial_shape(1).rank().get_length());
 
         std::vector<size_t> new_transpose_order;
@@ -310,14 +315,14 @@ TSGatherBackward::TSGatherBackward() {
         } else {
             const std::vector<size_t> axes_values = {axis};
             new_transpose_order = GetOrderBeforeReduction(axes_values, order_val);
-            new_axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{1}, axis);
+            new_axis = std::make_shared<v0::Constant>(ov::element::i32, ov::Shape{1}, axis);
         }
 
         RemoveTransposeConsumers(main_node);
         if (success) {
             auto target_inputs = main_node->get_output_target_inputs(0);
-            auto unsqueeze_axes = ov::op::v0::Constant::create(element::i32, {new_axes_val.size()}, new_axes_val);
-            auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(main_node, unsqueeze_axes);
+            auto unsqueeze_axes = v0::Constant::create(ov::element::i32, {new_axes_val.size()}, new_axes_val);
+            auto unsqueeze = std::make_shared<v0::Unsqueeze>(main_node, unsqueeze_axes);
             for (const auto& input : target_inputs) {
                 input.replace_source_output(unsqueeze);
             }
@@ -325,21 +330,21 @@ TSGatherBackward::TSGatherBackward() {
             main_node->output(0).set_names({});
             unsqueeze->set_friendly_name(main_node->get_friendly_name());
             main_node->set_friendly_name("");
-            copy_runtime_info(main_node, {unsqueeze, unsqueeze_axes});
+            ov::copy_runtime_info(main_node, {unsqueeze, unsqueeze_axes});
         }
         const auto reversed_transpose_order = ReverseTransposeOrder(order_val);
-        const auto& transpose_const = ov::op::v0::Constant::create(transpose_order->get_element_type(),
-                                                                   {new_transpose_order.size()},
-                                                                   new_transpose_order);
+        const auto& transpose_const = v0::Constant::create(transpose_order->get_element_type(),
+                                                           {new_transpose_order.size()},
+                                                           new_transpose_order);
         for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node,
                                                                        transpose_const,
                                                                        /* input_indexes= */ {0})) {
             register_new_node(new_node);
         }
         if (!new_axis) {
-            new_axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{1}, reversed_transpose_order[axis]);
+            new_axis = std::make_shared<v0::Constant>(ov::element::i32, ov::Shape{1}, reversed_transpose_order[axis]);
         }
-        copy_runtime_info(gather_axis, new_axis);
+        ov::copy_runtime_info(gather_axis, new_axis);
         main_node->input(2).replace_source_output(new_axis);
         main_node->validate_and_infer_types();
         return true;
@@ -348,3 +353,5 @@ TSGatherBackward::TSGatherBackward() {
     auto m = std::make_shared<pattern::Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
+
+}  // namespace ov::pass

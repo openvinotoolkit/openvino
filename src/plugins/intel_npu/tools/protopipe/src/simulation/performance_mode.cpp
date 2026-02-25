@@ -294,6 +294,14 @@ std::shared_ptr<PipelinedCompiled> PerformanceSimulation::compilePipelined(Dummy
         // TODO: Extend also for ONNXRT backend
         compile_args += cv::compile_args(cv::gapi::wip::ov::benchmark_mode{});
     }
+    if (workload) {
+        if (workload->wl_onnx) {
+            compile_args += cv::compile_args(workload->wl_onnx);
+        }
+        if (workload->wl_ov) {
+            compile_args += cv::compile_args(workload->wl_ov);
+        }
+    }
     auto compiled = m_comp.compileStreaming(descr_of(sources), std::move(compile_args));
     return std::make_shared<PipelinedSimulation>(std::move(compiled), std::move(sources), m_comp.getOutMeta().size());
 }
@@ -304,7 +312,14 @@ std::shared_ptr<SyncCompiled> PerformanceSimulation::compileSync(const bool drop
         // TODO: Extend also for ONNXRT backend
         compile_args += cv::compile_args(cv::gapi::wip::ov::benchmark_mode{});
     }
-
+    if (workload) {
+        if (workload->wl_onnx) {
+            compile_args += cv::compile_args(workload->wl_onnx);
+        }
+        if (workload->wl_ov) {
+            compile_args += cv::compile_args(workload->wl_ov);
+        }
+    }
     const uint32_t max_parallel_branches = m_comp.getMaxParallelBranches();
     if (max_parallel_branches > 1u) {
         LOG_INFO() << "Found at most " << max_parallel_branches

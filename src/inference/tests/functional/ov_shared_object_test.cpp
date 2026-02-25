@@ -9,18 +9,11 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 
-using namespace ::testing;
-using namespace std;
-
+namespace ov::test {
 class SharedObjectOVTests : public ::testing::Test {
 protected:
-    std::string get_mock_engine_name() {
-        return ov::util::make_plugin_library_name<char>(ov::test::utils::getExecutableDirectory(),
-                                                        std::string("mock_engine") + OV_BUILD_POSTFIX);
-    }
-
-    void loadDll(const string& libraryName) {
-        shared_object = ov::util::load_shared_object(libraryName.c_str());
+    void loadDll(const std::filesystem::path& library_name) {
+        shared_object = ov::util::load_shared_object(library_name);
     }
     std::shared_ptr<void> shared_object;
 
@@ -34,7 +27,7 @@ protected:
 };
 
 TEST_F(SharedObjectOVTests, canLoadExistedPlugin) {
-    loadDll(get_mock_engine_name());
+    loadDll(utils::get_mock_engine_path());
     EXPECT_NE(nullptr, shared_object.get());
 }
 
@@ -43,21 +36,22 @@ TEST_F(SharedObjectOVTests, loaderThrowsIfNoPlugin) {
 }
 
 TEST_F(SharedObjectOVTests, canFindExistedMethod) {
-    loadDll(get_mock_engine_name());
+    loadDll(utils::get_mock_engine_path());
 
     auto factory = make_std_function(ov::create_plugin_function);
     EXPECT_NE(nullptr, factory);
 }
 
 TEST_F(SharedObjectOVTests, throwIfMethodNofFoundInLibrary) {
-    loadDll(get_mock_engine_name());
+    loadDll(utils::get_mock_engine_path());
     EXPECT_THROW(make_std_function("wrong_function"), std::runtime_error);
 }
 
 TEST_F(SharedObjectOVTests, canCallExistedMethod) {
-    loadDll(get_mock_engine_name());
+    loadDll(utils::get_mock_engine_path());
 
     auto factory = make_std_function(ov::create_plugin_function);
     std::shared_ptr<ov::IPlugin> ptr;
     EXPECT_NO_THROW(factory(ptr));
 }
+}  // namespace ov::test

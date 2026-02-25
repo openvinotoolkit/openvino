@@ -24,6 +24,10 @@ using namespace testing;
 using namespace ov::gen_pattern;
 using namespace ov;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
+namespace v12 = ov::op::v12;
 std::shared_ptr<ov::Model> BuildMOE(int expert_num, int topk) {
     ov::element::Type inType = ov::element::f32;
     // param1: [batch*seq, 2048]
@@ -200,7 +204,7 @@ static std::shared_ptr<ov::Model> BuildFusedMOE(const int expert_num, const int 
             auto weight_const = makeConst(elem_type, single_expert_shape, {0});
             expert_weights.push_back(weight_const);
         }
-        auto concat = std::make_shared<ov::op::v0::Concat>(expert_weights, 0);
+        auto concat = std::make_shared<v0::Concat>(expert_weights, 0);
         concat->get_rt_info()["postponed_constant"] = true;
         return concat;
     };
@@ -208,21 +212,21 @@ static std::shared_ptr<ov::Model> BuildFusedMOE(const int expert_num, const int 
     auto fused_gate_weights_f16 =
         build_fused_weight(ov::element::f16,
                            ov::Shape{1, static_cast<size_t>(intermediate_size), static_cast<size_t>(hidden_size)});
-    auto fused_gate_weights_convert = std::make_shared<ov::op::v0::Convert>(fused_gate_weights_f16, ov::element::f32);
+    auto fused_gate_weights_convert = std::make_shared<v0::Convert>(fused_gate_weights_f16, ov::element::f32);
     ov::mark_as_decompression(fused_gate_weights_convert);
     auto fused_gate_weights = fused_gate_weights_convert;
 
     auto fused_up_weights_f16 =
         build_fused_weight(ov::element::f16,
                            ov::Shape{1, static_cast<size_t>(intermediate_size), static_cast<size_t>(hidden_size)});
-    auto fused_up_weights_convert = std::make_shared<ov::op::v0::Convert>(fused_up_weights_f16, ov::element::f32);
+    auto fused_up_weights_convert = std::make_shared<v0::Convert>(fused_up_weights_f16, ov::element::f32);
     ov::mark_as_decompression(fused_up_weights_convert);
     auto fused_up_weights = fused_up_weights_convert;
 
     auto fused_down_weights_f16 =
         build_fused_weight(ov::element::f16,
                            ov::Shape{1, static_cast<size_t>(hidden_size), static_cast<size_t>(intermediate_size)});
-    auto fused_down_weights_convert = std::make_shared<ov::op::v0::Convert>(fused_down_weights_f16, ov::element::f32);
+    auto fused_down_weights_convert = std::make_shared<v0::Convert>(fused_down_weights_f16, ov::element::f32);
     ov::mark_as_decompression(fused_down_weights_convert);
     auto fused_down_weights = fused_down_weights_convert;
 
@@ -274,25 +278,21 @@ static std::shared_ptr<ov::Model> BuildFusedMOE(const int expert_num, const int 
     auto normalized_topk =
         makeOP<opset1::Divide>({topk_values, sum_reduce}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
     auto zeros_scalar = makeConst(ov::element::f32, ov::Shape{}, std::vector<float>{0.0f});
-    auto scatter_shape =
-        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{batch_dim_unsqueeze, num_experts_unsqueeze}, 0);
-    auto zeros_tensor = std::make_shared<ov::op::v3::Broadcast>(zeros_scalar, scatter_shape);
-    auto scatter = std::make_shared<ov::op::v12::ScatterElementsUpdate>(zeros_tensor,
-                                                                        topk_TopK->output(1),
-                                                                        normalized_topk,
-                                                                        axis1_vector);
-    auto router_transpose = std::make_shared<ov::op::v1::Transpose>(scatter, transpose_axes);
+    auto scatter_shape = std::make_shared<v0::Concat>(ov::OutputVector{batch_dim_unsqueeze, num_experts_unsqueeze}, 0);
+    auto zeros_tensor = std::make_shared<v3::Broadcast>(zeros_scalar, scatter_shape);
+    auto scatter =
+        std::make_shared<v12::ScatterElementsUpdate>(zeros_tensor, topk_TopK->output(1), normalized_topk, axis1_vector);
+    auto router_transpose = std::make_shared<v1::Transpose>(scatter, transpose_axes);
     auto router_shape =
-        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{num_experts_unsqueeze, batch_dim_unsqueeze, minus_one},
-                                             0);
-    auto router_reshape = std::make_shared<ov::op::v1::Reshape>(router_transpose, router_shape, true);
-    auto routing_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(router_reshape, axis_minus_one_vector);
+        std::make_shared<v0::Concat>(ov::OutputVector{num_experts_unsqueeze, batch_dim_unsqueeze, minus_one}, 0);
+    auto router_reshape = std::make_shared<v1::Reshape>(router_transpose, router_shape, true);
+    auto routing_unsqueeze = std::make_shared<v0::Unsqueeze>(router_reshape, axis_minus_one_vector);
 
-    auto weighted_outputs = std::make_shared<ov::op::v1::Multiply>(expert_outputs, routing_unsqueeze);
-    auto final_output = std::make_shared<ov::op::v1::ReduceSum>(weighted_outputs, axis0_vector, false);
+    auto weighted_outputs = std::make_shared<v1::Multiply>(expert_outputs, routing_unsqueeze);
+    auto final_output = std::make_shared<v1::ReduceSum>(weighted_outputs, axis0_vector, false);
 
-    auto final_reshape = std::make_shared<ov::op::v1::Reshape>(final_output, target_shape, false);
-    auto final_add = std::make_shared<ov::op::v1::Add>(residual_input, final_reshape);
+    auto final_reshape = std::make_shared<v1::Reshape>(final_output, target_shape, false);
+    auto final_add = std::make_shared<v1::Add>(residual_input, final_reshape);
     final_add->set_friendly_name("moe_decomposed");
 
     return std::make_shared<ov::Model>(final_add,
@@ -342,19 +342,15 @@ static std::shared_ptr<ov::Model> BuildFusedMOEWithInternalOp(const int expert_n
     auto num_experts_unsqueeze = makeOP<opset1::Unsqueeze>({num_experts_const, axis0_vector});
 
     auto zeros_scalar = makeConst(ov::element::f32, ov::Shape{}, std::vector<float>{0.0f});
-    auto scatter_shape =
-        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{batch_dim_unsqueeze, num_experts_unsqueeze}, 0);
-    auto zeros_tensor = std::make_shared<ov::op::v3::Broadcast>(zeros_scalar, scatter_shape);
-    auto scatter = std::make_shared<ov::op::v12::ScatterElementsUpdate>(zeros_tensor,
-                                                                        router_topk_indices,
-                                                                        normalized_topk,
-                                                                        axis1_vector);
-    auto router_transpose = std::make_shared<ov::op::v1::Transpose>(scatter, transpose_axes);
+    auto scatter_shape = std::make_shared<v0::Concat>(ov::OutputVector{batch_dim_unsqueeze, num_experts_unsqueeze}, 0);
+    auto zeros_tensor = std::make_shared<v3::Broadcast>(zeros_scalar, scatter_shape);
+    auto scatter =
+        std::make_shared<v12::ScatterElementsUpdate>(zeros_tensor, router_topk_indices, normalized_topk, axis1_vector);
+    auto router_transpose = std::make_shared<v1::Transpose>(scatter, transpose_axes);
     auto router_shape =
-        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{num_experts_unsqueeze, batch_dim_unsqueeze, minus_one},
-                                             0);
-    auto router_reshape = std::make_shared<ov::op::v1::Reshape>(router_transpose, router_shape, true);
-    auto routing_weights = std::make_shared<ov::op::v0::Unsqueeze>(router_reshape, axis_minus_one_vector);
+        std::make_shared<v0::Concat>(ov::OutputVector{num_experts_unsqueeze, batch_dim_unsqueeze, minus_one}, 0);
+    auto router_reshape = std::make_shared<v1::Reshape>(router_transpose, router_shape, true);
+    auto routing_weights = std::make_shared<v0::Unsqueeze>(router_reshape, axis_minus_one_vector);
 
     auto build_fused_weight = [&](ov::element::Type elem_type,
                                   const ov::Shape& single_expert_shape) -> std::shared_ptr<ov::Node> {
@@ -363,7 +359,7 @@ static std::shared_ptr<ov::Model> BuildFusedMOEWithInternalOp(const int expert_n
             auto weight_const = makeConst(elem_type, single_expert_shape, {0});
             expert_weights.push_back(weight_const);
         }
-        auto concat = std::make_shared<ov::op::v0::Concat>(expert_weights, 0);
+        auto concat = std::make_shared<v0::Concat>(expert_weights, 0);
         concat->get_rt_info()["postponed_constant"] = true;
         return concat;
     };
@@ -397,8 +393,8 @@ static std::shared_ptr<ov::Model> BuildFusedMOEWithInternalOp(const int expert_n
     config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
 
     auto moe = std::make_shared<ov::op::internal::MOE>(moe_inputs, config);
-    auto final_reshape = std::make_shared<ov::op::v1::Reshape>(moe, target_shape, false);
-    auto final_add = std::make_shared<ov::op::v1::Add>(residual_input, final_reshape);
+    auto final_reshape = std::make_shared<v1::Reshape>(moe, target_shape, false);
+    auto final_add = std::make_shared<v1::Add>(residual_input, final_reshape);
 
     return std::make_shared<ov::Model>(ov::OutputVector{final_add},
                                        ov::ParameterVector{final_hidden_states_, router_logits, hidden_states_2d});
