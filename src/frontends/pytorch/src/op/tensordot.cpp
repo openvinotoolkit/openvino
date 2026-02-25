@@ -290,10 +290,11 @@ Output<Node> concat_shapes(const NodeContext& ctx,
 // Helper function to create permutation for transpose
 Output<Node> create_permutation(const NodeContext& ctx, const AxesInfo& first, const AxesInfo& second) {
     if (first.is_static && second.is_static) {
-        // Both static - concatenate vectors
+        // Both static - concatenate vectors.
+        // Use i32 to match the element type produced by Range in the dynamic paths.
         std::vector<int64_t> perm = first.static_axes;
         perm.insert(perm.end(), second.static_axes.begin(), second.static_axes.end());
-        return v0::Constant::create(element::i64, Shape{perm.size()}, perm);
+        return v0::Constant::create(element::i32, Shape{perm.size()}, perm);
     } else if (first.is_static && !second.is_static) {
         // First static, second dynamic
         auto first_const = v0::Constant::create(element::i32, Shape{first.static_axes.size()}, first.static_axes);
