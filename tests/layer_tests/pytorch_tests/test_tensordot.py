@@ -9,8 +9,8 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestTensordot(PytorchLayerTest):
     def _prepare_input(self, shape_a, shape_b):
         return (
-            np.random.randn(*shape_a).astype(np.float32),
-            np.random.randn(*shape_b).astype(np.float32)
+            self.random.randn(*shape_a, dtype=np.float32),
+            self.random.randn(*shape_b, dtype=np.float32)
         )
 
     def create_model(self, dims, use_out=False):
