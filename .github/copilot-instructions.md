@@ -9,7 +9,8 @@ Give high-signal review comments that help maintainers merge safely with minimal
 - Copilot code review is a purpose-built system with limited context windows and non-zero hallucination risk.
 - Optimize for **precision over recall**: fewer high-confidence comments are better than many speculative comments.
 - Prefer comments tied to changed lines and immediate dependencies; avoid broad architectural speculation unless the diff clearly implies it.
-- Do not duplicate the same issue across many files; report one representative location with clear scope.
+- Do not duplicate the same issue across many files; report one representative location with clear scope. Before posting, verify no prior comment in the same review addresses the same root issue. If the same problem appears in N files, post once and state "same issue applies to N other locations."
+- Do not assert specific runtime behavior of OpenVINO internal APIs (e.g., whether a method modifies input in-place vs returns a new object) unless the behavior is visible in the diff. If unsure about API semantics, ask a clarifying question instead of making a correctness claim.
 
 ## OpenVINO Context You Must Assume
 - This repository is a large multi-component C++/Python project with strict CI and component ownership.
@@ -29,6 +30,7 @@ Give high-signal review comments that help maintainers merge safely with minimal
 
 ### Default behavior
 - Initiate automatic review for every non-suppressed PR upon opening and on each new push.
+- On re-reviews triggered by new pushes, focus exclusively on newly changed or previously-flagged lines. Do not re-raise resolved issues or repeat the full review. If no new issues are found, a clean pass with zero comments is the correct outcome.
 
 ### Suppressed PRs
 Automatic review is suppressed when **any** of the following conditions apply:
@@ -76,6 +78,7 @@ For PRs labeled `ExternalPR`, apply stricter evidence-based checks while keeping
 4. If buildability is in question, reference failing required checks and concrete failure symptoms; do not speculate.
 5. Do not request extra local validation steps when required CI checks are green.
 6. Keep comments focused on merge blockers, regressions, and security/performance risks; avoid style-only expansion.
+7. Verify that all commits in the PR touch only files relevant to the stated PR description. If any commit modifies files outside the declared scope (e.g., CPU plugin changes in an ONNX FE PR), flag it as `[HIGH]` — accidental out-of-scope commits are a common ExternalPR issue.
 
 Before posting any comment, apply this gate:
 - **Evidence gate**: point to exact changed code and explain the failure mode.
@@ -90,6 +93,7 @@ Before posting any comment, apply this gate:
 - Avoid review comments on unrelated legacy code not touched by the PR.
 - Do not request large refactors in bug-fix PRs unless needed to prevent correctness/security regression.
 - Highlight out-of-scope or accidental changes and request revert when they are not required for the stated fix.
+- Do not comment on copyright header format — CI enforces the `Copyright (C) 2018-YYYY` convention automatically. Do not flag year ranges, header ordering, or boilerplate format.
 
 ## Ignore List for Automated Reviews
 - Do not review vendored/third-party sources under `thirdparty/` unless the PR explicitly modifies integration or patch logic.
@@ -102,11 +106,13 @@ Before posting any comment, apply this gate:
 - Favor minimal, deterministic transformations and guard against pattern-matching regressions.
 - Watch for shape/dtype/attribute corner cases and cross-platform behavior differences.
 - Require tests for bug fixes and transformation pattern updates.
+- For stateful components (e.g., state helpers, cached parameters), verify that state is properly initialized, updated, and cleared across inference runs. Flag cases where state set in one call path is never reset in alternative paths.
 
 ### CPU/GPU/NPU Plugins
 - Prioritize inference-path performance and memory correctness.
 - Flag changes that may alter layout assumptions, memory reuse safety, threading behavior, or backend-specific semantics.
 - Ask for targeted unit/functional tests reproducing the issue and preventing regressions.
+- Prefer `ov::op::vX::OpName` namespace style over `opsetX::OpName` in new code.
 
 ### Frontends (ONNX/TF/TFLite/PyTorch/JAX/Paddle)
 - Treat all model/input metadata as untrusted; require overflow-safe and bounds-safe logic.
@@ -133,7 +139,7 @@ Before posting any comment, apply this gate:
 - Avoid hidden behavior changes and silent fallback/config mutation without explicit handling.
 - Keep fixes minimal and root-cause oriented; avoid unrelated refactors.
 - Prefer clear naming.
-- Avoid duplicated logic; suggest usage of existing utilities for component, flag duplicated patterns, and suggest consolidation.
+- Avoid duplicated logic; suggest usage of existing utilities for component, flag duplicated patterns, and suggest consolidation. Specifically watch for: identical or near-identical code in if/else branches, repeated computations inside loops that could be hoisted, and duplicated helper logic across functions in the same file.
 - For constructor-heavy code, prefer proper initializer lists and explicit ownership semantics.
 
 ## Security Review Heuristics
@@ -145,7 +151,7 @@ Before posting any comment, apply this gate:
 
 ## Testing Expectations
 - Every behavioral change should have corresponding tests in existing suites when possible.
-- For bug fixes, require a regression test that fails before and passes after.
+- For bug fixes, actively verify that the PR includes a regression test exercising the specific fix scenario. If no such test is present, post a `[HIGH]` comment requesting one. This is the single most common gap in bug-fix PRs.
 - For architecture-specific changes (x64/ARM64/RISCV, CPU/GPU/NPU), verify appropriate platform/test gating.
 - If tests are skipped/disabled, require explicit rationale and limited scope.
 - If required validation jobs fail, cite the exact failing job(s) and explain impact on merge readiness.
