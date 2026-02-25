@@ -13,6 +13,7 @@
 #include "openvino/core/except.hpp"
 
 namespace intel_npu {
+class VCLApi;
 
 class VCLCompilerImpl final : public std::enable_shared_from_this<VCLCompilerImpl> {
 public:
@@ -104,6 +105,7 @@ private:
 
     vcl_log_handle_t _logHandle = nullptr;
     vcl_compiler_handle_t _compilerHandle = nullptr;
+    std::shared_ptr<VCLApi> _vclApi;
     vcl_compiler_properties_t _compilerProperties;
     vcl_version_info_t _vclVersion;
     vcl_version_info_t _vclProfilingVersion;
