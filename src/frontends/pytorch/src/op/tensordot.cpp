@@ -217,22 +217,40 @@ AxesInfo complement_axes(const NodeContext& ctx, const Output<Node>& tensor, con
         auto all_axes = ctx.mark_node(std::make_shared<v4::Range>(const_0, rank, const_1, element::i32));
 
         if (axes.is_static) {
-            // Static axes with dynamic rank: require static rank (tuple-dims case always has
-            // known rank because axes are explicit compile-time constants).
-            FRONT_END_GENERAL_CHECK(rank_ps.is_static(),
-                                    "aten::tensordot: static axes with dynamic rank not yet supported");
+            // Static axes with dynamic rank: compute complement at runtime using a mask.
+            //
+            // 1. Create a 1D mask of ones with length equal to the dynamic rank.
+            auto one_scalar = v0::Constant::create(element::i32, Shape{}, {1});
+            // rank is a scalar; reshape it to a 1D shape tensor so it can be used as target shape.
+            auto rank_shape =
+                ctx.mark_node(std::make_shared<v1::Reshape>(
+                    rank,
+                    v0::Constant::create(element::i64, Shape{1}, {1}),
+                    false));
+            auto ones =
+                ctx.mark_node(std::make_shared<v3::Broadcast>(one_scalar, rank_shape));
 
-            int64_t r = rank_ps.get_length();
-            std::vector<bool> used(r, false);
-            for (auto ax : axes.static_axes)
-                used[ax] = true;
+            // 2. Scatter zeros at positions given by static axes indices.
+            auto indices = v0::Constant::create(
+                element::i32,
+                Shape{axes.static_axes.size()},
+                axes.static_axes);
+            auto updates = v0::Constant::create(
+                element::i32,
+                Shape{axes.static_axes.size()},
+                std::vector<int32_t>(axes.static_axes.size(), 0));
+            auto axis0 = v0::Constant::create(element::i32, Shape{}, {0});
+            auto mask = ctx.mark_node(
+                std::make_shared<v3::ScatterElementsUpdate>(ones, indices, updates, axis0));
 
-            std::vector<int64_t> result;
-            for (int64_t i = 0; i < r; ++i)
-                if (!used[i])
-                    result.push_back(i);
+            // 3. Take indices of non-zero elements in the mask - these form the complement axes.
+            auto non_zero = ctx.mark_node(std::make_shared<v3::NonZero>(mask));
+            auto complement_axes_1d = ctx.mark_node(
+                std::make_shared<v0::Squeeze>(
+                    non_zero,
+                    v0::Constant::create(element::i64, Shape{1}, {0})));
 
-            return AxesInfo(result);
+            return AxesInfo(complement_axes_1d);
         } else {
             // Both axes and rank are dynamic
             // This is the most complex case
