@@ -428,10 +428,10 @@ TEST_F(SharedBufferTest, shared_ptr_void_with_explicit_descriptor) {
     EXPECT_EQ(desc->get_id(), 42u);
 
     // The data in descriptor should match the pointer and size of the buffer
-    EXPECT_THROW(std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(test_data,
-                                                                           test_data_size,
-                                                                           std::shared_ptr<void>{},
-                                                                           descriptor),
+    EXPECT_THROW(std::ignore = std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(test_data,
+                                                                                         test_data_size,
+                                                                                         std::shared_ptr<void>{},
+                                                                                         descriptor),
                  ov::Exception);
 }
 
