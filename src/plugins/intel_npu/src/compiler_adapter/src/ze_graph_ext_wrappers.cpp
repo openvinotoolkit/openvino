@@ -595,20 +595,17 @@ std::optional<std::string> ZeGraphExtWrappers::getCompilerSupportedOptions() con
             if (result == ZE_RESULT_SUCCESS) {
                 // convert received buff to string
                 std::string supported_options_list_str(sup_options_chr.data());
-                // cleanup
                 return supported_options_list_str;
             } else if (result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) {
-                // cleanup
-                return std::nullopt;
+                return "";
             } else {
-                // cleanup
                 THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerGetSupportedOptions",
                                                 result,
                                                 _zeroInitStruct->getGraphDdiTable())
             }
         }
     } else if ((result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) || (result == ZE_RESULT_ERROR_DEPENDENCY_UNAVAILABLE)) {
-        return std::nullopt;
+        return "";
     } else {
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerGetSupportedOptions", result, _zeroInitStruct->getGraphDdiTable())
     }
@@ -635,7 +632,7 @@ std::optional<bool> ZeGraphExtWrappers::isOptionSupported(std::string optName,
         return true;
     } else if ((result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) || (result == ZE_RESULT_ERROR_DEPENDENCY_UNAVAILABLE) ||
                (result == ZE_RESULT_ERROR_UNKNOWN)) {
-        return std::nullopt;
+        return false;
     } else {
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerIsOptionSupported", result, _zeroInitStruct->getGraphDdiTable());
     }
