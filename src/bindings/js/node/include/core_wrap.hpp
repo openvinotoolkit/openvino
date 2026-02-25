@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
@@ -128,7 +128,7 @@ struct TsfnContextPath {
     Napi::Promise::Deferred deferred;
     Napi::ThreadSafeFunction tsfn;
 
-    std::string _model;
+    std::filesystem::path _model;
     std::string _device;
     ov::CompiledModel _compiled_model;
     std::map<std::string, ov::Any> _config = {};

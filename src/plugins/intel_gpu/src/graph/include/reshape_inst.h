@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,7 +112,8 @@ public:
 
         // Expected a padded input of only batch axis with 'bxxx' format
         if (input_layout.format.dims_order()[0] != 0 ||
-            input_pad._lower_size[1] != 0)
+            input_pad._lower_size[1] != 0 ||
+            input_pad._upper_size[1] != 0)
             return false;
 
         if (format::is_multi_blocked(input_layout.format))
