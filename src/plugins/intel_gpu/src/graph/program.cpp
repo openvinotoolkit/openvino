@@ -9,6 +9,7 @@
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/weights_path.hpp"
+#include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
@@ -718,7 +719,7 @@ void program::transfer_memory_to_device() {
         // TODO: Do we need finish call here? Maybe call it in network::execute() ?
         get_stream().finish();
     };
-
+    auto otd = ov::util::getenv_int("OTD", 0);
     for (auto& node : processing_order) {
         if (node->is_shape_infer_dep()) {
             continue;
@@ -726,6 +727,10 @@ void program::transfer_memory_to_device() {
         if (node->is_type<data>() && !node->need_lockable_memory()) {
             auto& data_node = node->as<data>();
             auto data_node_layout = data_node.get_output_layout();
+            auto prim = data_node.get_primitive();
+            if (otd) {
+                continue;
+            }
             auto& mem = data_node.get_attached_memory();
             auto mem_layout = mem.get_layout();
             auto alloc_type = mem.get_allocation_type();

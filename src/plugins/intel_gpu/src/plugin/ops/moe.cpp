@@ -16,7 +16,14 @@
 #include <intel_gpu/primitives/swiglu.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 
+#include "openvino/core/model.hpp"
+#include "openvino/util/env_util.hpp"
 #include <limits>
+
+namespace cldnn {
+    std::string file_path;
+    size_t lru_expert_num;
+}
 
 namespace ov {
 namespace op {
@@ -33,6 +40,11 @@ using namespace cldnn;
 static void CreateMOE3GemmFusedCompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::MOE3GemmFusedCompressed>& op) {
     auto inputs = p.GetInputInfo(op);
     const auto& config = op->get_config();
+    const auto& model = p.get_model();
+    cldnn::lru_expert_num = ov::util::getenv_int("OTD", 0);
+    if (cldnn::lru_expert_num) {
+        cldnn::file_path = model->get_rt_info()["__weights_path"].as<std::string>();
+    }
     ///   0: hidden_states - input tensor with hidden representations
     ///   1: routing_weights - [num_seq, num_experts] routing weights for all experts
     ///   2: w0_weight - expert weights for first projection,
@@ -56,7 +68,7 @@ static void CreateMOE3GemmFusedCompressedOp(ProgramBuilder& p, const std::shared
     validate_inputs_count(op, {11});
 
     const std::string layerName = layer_type_name_ID(op);
-    const cldnn::moe_3gemm_fused_compressed moe(layerName, inputs, config);
+    const cldnn::moe_3gemm_fused_compressed moe(layerName, inputs, config, op);
 
     p.add_primitive(*op, moe);
 }
