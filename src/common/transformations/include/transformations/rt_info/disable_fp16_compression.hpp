@@ -45,21 +45,23 @@ public:
 
 TRANSFORMATIONS_API void disable_compression_to(const std::shared_ptr<Node>& node, element::Type to);
 
-TRANSFORMATIONS_API void disable_compression_from_to(const std::shared_ptr<Node>& node, element::Type from, element::Type to);
+TRANSFORMATIONS_API void disable_compression_from_to(const std::shared_ptr<Node>& node,
+                                                     element::Type from,
+                                                     element::Type to);
+
+TRANSFORMATIONS_API void enable_compression_to(const std::shared_ptr<Node>& node, element::Type to);
+
+TRANSFORMATIONS_API void enable_compression_from_to(const std::shared_ptr<Node>& node,
+                                                    element::Type from,
+                                                    element::Type to);
 
 TRANSFORMATIONS_API bool is_compression_disabled_to(const std::shared_ptr<Node>& node, element::Type to);
 
-TRANSFORMATIONS_API bool is_compression_disabled_from_to(const std::shared_ptr<Node>& node, element::Type from, element::Type to);
+TRANSFORMATIONS_API bool is_compression_disabled_from_to(const std::shared_ptr<Node>& node,
+                                                         element::Type from,
+                                                         element::Type to);
 
-
-
-TRANSFORMATIONS_API void enable_keep_const_precision_new(const std::shared_ptr<Node>& node);
-
-TRANSFORMATIONS_API void disable_keep_const_precision_new(const std::shared_ptr<Node>& node);
-
-TRANSFORMATIONS_API bool is_keep_const_precision_new(const std::shared_ptr<Node>& node);
-
-class TRANSFORMATIONS_API DisablePrecisionConversion  : public RuntimeAttribute {
+class TRANSFORMATIONS_API DisablePrecisionConversion : public RuntimeAttribute {
 public:
     OPENVINO_RTTI("DisablePrecisionConversion", "0", RuntimeAttribute);
 
@@ -71,7 +73,10 @@ public:
         return false;
     }
 
-    std::map<ov::element::Type, std::set<ov::element::Type>> m_disabled_precisions = {{element::dynamic , {}}}; //TODO: fix encapsulation
+    std::map<ov::element::Type, std::set<ov::element::Type>> m_disabled_precisions = {
+        {element::dynamic, {}}};  // TODO: fix encapsulation
+
+    // fp32 -> {i16, f16, ov::dynamic}
 };
 
 }  // namespace ov

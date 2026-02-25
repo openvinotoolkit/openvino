@@ -32,7 +32,7 @@ MarkRopeInputsToKeepInMixedPrecision::MarkRopeInputsToKeepInMixedPrecision() {
         auto sin_input_node = pattern_map.at(sin_tab).get_node();
         // mark the node as disable_fp16_compression
         auto visit_func = [](ov::Node* node) {
-            ov::disable_fp16_compression(node->shared_from_this());
+            ov::disable_compression_to(node->shared_from_this(), element::f16);
         };
         // skip constant, parameter and shapeof
         // The inputs of cos_sin table generation are position_ids and a ShapeOf [batch, input_length]
