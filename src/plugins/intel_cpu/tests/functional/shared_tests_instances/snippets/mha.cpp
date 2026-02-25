@@ -111,7 +111,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D_MatMul1_Const_B_Are_Wei_Blocked,
                                             ::testing::Values(false),
                                             ::testing::Values(false),
                                             ::testing::Values(true),
-                                            ::testing::Values(1),
+                                            ::testing::Values(MHA::default_thread_count),
                                             ::testing::Values(expected_nodes_mha_4d_f32),
                                             ::testing::Values(2),  // decomposed Transpose + MHA
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
