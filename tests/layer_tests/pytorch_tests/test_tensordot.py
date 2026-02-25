@@ -29,14 +29,6 @@ class TestTensordot(PytorchLayerTest):
                     return torch.tensordot(a, b, dims=self.dims, out=out)
                 return torch.tensordot(a, b, dims=self.dims)
 
-    @pytest.mark.parametrize("shape_a, shape_b, dims, use_out", [
-        ((2, 3), (3, 2), 1, False),
-        ((4, 5), (5, 4), 1, False),
-        ((2, 3, 4), (4, 3, 2), 2, False),
-        ((2, 3, 4), (3, 4, 2), ([1, 2], [0, 1]), False),  # Tuple of lists case
-        ((2, 3, 4), (4, 3, 2), ([-1], [0]), False),        # Negative axis in dims
-        ((2, 3), (3, 2), 1, True),                         # Use `out` argument
-    ])        
         return TensordotModel(dims, use_out), None, "aten::tensordot"
 
     @pytest.mark.parametrize("shape_a, shape_b, dims, use_out", [
@@ -46,6 +38,10 @@ class TestTensordot(PytorchLayerTest):
         ((2, 3, 4), (3, 4, 2), ([1, 2], [0, 1]), False),  # Tuple of lists case
         ((2, 3, 4), (4, 3, 2), ([-1], [0]), False),        # Negative axis in dims
         ((2, 3), (3, 2), 1, True),                         # Use `out` argument
+        # Non-trivial permutation: a_remain is NOT a leading prefix, so the
+        # transposed shape differs from the original.  This exercises the
+        # shape_source / input split in reshape_to_2d.
+        ((2, 3, 4), (5, 3, 6), ([1], [1]), False),
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
