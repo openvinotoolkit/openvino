@@ -19,9 +19,12 @@ using namespace ov::op;
 OutputVector translate_rot90(const NodeContext& context) {
     num_inputs_check(context, 1, 3);
     auto tensor = context.get_input(0);
-    auto k = context.input_is_none(1) ? 1 : context.const_input<int64_t>(1);
-    const auto dims = context.input_is_none(2) ? context.mark_node(v0::Constant::create(element::i64, {2}, {0, 1}))
-                                               : context.get_input(2);
+    const auto input_size = context.get_input_size();
+    int64_t k = (input_size < 2 || context.input_is_none(1)) ? 1 : context.const_input<int64_t>(1);
+    const auto dims =
+        (input_size < 3 || context.input_is_none(2))
+            ? context.mark_node(v0::Constant::create(element::i64, {2}, {0, 1}))
+            : context.get_input(2);
     k = (k % 4 + 4) % 4;
     auto zero = v0::Constant::create(element::i64, Shape{}, {0});
     auto one = v0::Constant::create(element::i64, Shape{}, {1});
@@ -62,7 +65,7 @@ OutputVector translate_rot90(const NodeContext& context) {
         return {transposed};
     }
     return {tensor};
-};
+}
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend
