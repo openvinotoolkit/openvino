@@ -61,7 +61,7 @@ class RegularizeSDPA : public ov::pass::ModelPass {
 
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::RegularizeSDPA");
-    RegularizeSDPA(bool run_broadcast_pattern) : m_run_broadcast_pattern(run_broadcast_pattern) {};
+    explicit RegularizeSDPA(bool run_broadcast_pattern) : m_run_broadcast_pattern(run_broadcast_pattern) {};
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };

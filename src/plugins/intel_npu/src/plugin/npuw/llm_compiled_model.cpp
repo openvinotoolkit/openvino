@@ -867,7 +867,7 @@ class ConvertKVCacheToPrecision : public ov::pass::ModelPass {
 
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::ConvertKVCacheToPrecision");
-    ConvertKVCacheToPrecision(const ov::element::Type lptype) : m_lp_type(lptype) {}
+    explicit ConvertKVCacheToPrecision(const ov::element::Type lptype) : m_lp_type(lptype) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
         ov::preprocess::PrePostProcessor ppp(model);
@@ -932,7 +932,7 @@ class DecomposeGQA : public ov::pass::ModelPass {
 
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::DecomposeGQA");
-    DecomposeGQA(bool is_prefill_model) : m_is_prefill_model(is_prefill_model) {}
+    explicit DecomposeGQA(bool is_prefill_model) : m_is_prefill_model(is_prefill_model) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
         ov::pass::GraphRewrite rewr;
@@ -944,7 +944,7 @@ public:
 class PatchPhi3SlidingMask : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::PatchPhi3SlidingMask");
-    PatchPhi3SlidingMask() = default;
+    explicit PatchPhi3SlidingMask() = default;
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
         ov::pass::Manager manager;
@@ -956,7 +956,7 @@ public:
 class CutLMHead : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::CutLMHead");
-    CutLMHead(std::shared_ptr<ov::Model>& lm_head_model) {
+    explicit CutLMHead(std::shared_ptr<ov::Model>& lm_head_model) {
         // We are interested at first input to MatMul as a cut point
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
 
@@ -1050,184 +1050,6 @@ std::shared_ptr<ov::Model> cut_lm_head(const std::shared_ptr<ov::Model>& model) 
 
     return lm_head_model;
 }
-
-class ReshapeToStatic : public ov::pass::ModelPass {
-    uint32_t m_input_size;
-    uint32_t m_kvcache_size;
-    KVAxesPosition m_kv_axes_position;
-    uint32_t m_lora_rank;
-    uint32_t m_lhs_seq_size;
-
-public:
-    OPENVINO_MODEL_PASS_RTTI("ov::npuw::ReshapeToStatic");
-    ReshapeToStatic(const uint32_t input_size,
-                    const uint32_t kvcache_size,
-                    const KVAxesPosition& kv_axes_position,
-                    const uint32_t lora_rank,
-                    const uint32_t lhs_seq_size = 0)
-        : m_input_size(input_size),
-          m_kvcache_size(kvcache_size),
-          m_kv_axes_position(kv_axes_position),
-          m_lora_rank(lora_rank),
-          m_lhs_seq_size(lhs_seq_size) {}
-
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
-        std::map<std::string, ov::PartialShape> new_shapes;
-        for (const auto& input : model->inputs()) {
-            const auto& input_name = input.get_any_name();
-            ov::PartialShape new_shape;
-            if (input_name.find("input_ids") != std::string::npos) {
-                new_shape = ov::PartialShape({1, m_input_size});
-            } else if (input_name.find("token_type_ids") != std::string::npos) {
-                new_shape = ov::PartialShape({1, m_input_size});
-            } else if (input_name.find("inputs_embeds") != std::string::npos) {
-                // NB: VLMs case, model accepts inputs_embeds[BATCH, SEQ_LEN, EMB_SIZE]
-                NPUW_ASSERT(input.get_partial_shape().size() == 3u);
-                NPUW_ASSERT(input.get_partial_shape()[2].is_static());
-                new_shape = ov::PartialShape({1, m_input_size, input.get_partial_shape()[2]});
-            } else if (input_name.find("attention_mask") != std::string::npos) {
-                new_shape = ov::PartialShape({1, m_kvcache_size});
-                if (m_lhs_seq_size && m_kvcache_size > 4)
-                    // NB: for whisper kvcache model attn mask should be size + 1
-                    new_shape = ov::PartialShape({1, m_kvcache_size + 1});
-            } else if (input_name.find("position_ids") != std::string::npos) {
-                const auto partial_shape_size = input.get_partial_shape().size();
-                // NB: Regular LLM uses 2D shapes, Qwen2.5 VL/Omni uses 3D shapes
-                // The first dimension (3) represents the three components of position encoding: time, height, and width
-                // enabling alignment across multimodal inputs like text, audio, and video
-                NPUW_ASSERT(partial_shape_size == 3u || partial_shape_size == 2u);
-                new_shape = partial_shape_size == 3u ? ov::PartialShape({3, 1, m_input_size})
-                                                     : ov::PartialShape({1, m_input_size});
-            } else if (input_name.find("cache_position") != std::string::npos) {
-                // NB: Whisper case
-                new_shape = ov::PartialShape({1});
-            } else if (input_name.find("encoder_hidden_states") != std::string::npos) {
-                // NB: Whisper case
-                const auto& partial_shape = input.get_partial_shape();
-                new_shape = partial_shape;
-                new_shape[0] = 1;  // batch_dim
-            } else if (ov::npuw::matchEagle3HiddenStatesString(input_name)) {
-                new_shape = ov::npuw::Eagle3Extension::get_static_input(model, input, m_input_size);
-            } else if (ov::npuw::util::matchLoRAMatMulAString(input_name)) {
-                new_shape = ov::PartialShape({m_lora_rank, input.get_partial_shape()[1]});
-            } else if (ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
-                new_shape = ov::PartialShape({input.get_partial_shape()[0], m_lora_rank});
-            } else if (ov::npuw::util::matchLoRAMatMulBString(input_name)) {
-                new_shape = ov::PartialShape({input.get_partial_shape()[0], m_lora_rank});
-            } else {
-                const auto& partial_shape = input.get_partial_shape();
-                new_shape = partial_shape;
-                new_shape[m_kv_axes_position.batch] = 1;
-                if (m_lhs_seq_size) {  // Whisper model
-                    new_shape[m_kv_axes_position.seq_len] =
-                        (input_name.find(".decoder") != std::string::npos)
-                            ? m_kvcache_size - m_input_size  // kv_size for decoder
-                            : m_lhs_seq_size;                // sequence size for encoder hidden states
-                } else {                                     // LLM/VLM
-                    new_shape[m_kv_axes_position.seq_len] = m_kvcache_size - m_input_size;
-                }
-            }
-            new_shapes.emplace(input_name, new_shape);
-        }
-        model->reshape(new_shapes);
-
-        return true;
-    }
-};
-
-class ReshapeSlicedHeadToStatic : public ov::pass::ModelPass {
-    uint32_t m_batch_dim;
-    std::size_t m_max_generation_token_len;
-
-public:
-    OPENVINO_MODEL_PASS_RTTI("ov::npuw::ReshapeSlicedHeadToStatic");
-    ReshapeSlicedHeadToStatic(uint32_t batch_dim, std::size_t max_generation_token_len)
-        : m_batch_dim(batch_dim),
-          m_max_generation_token_len(max_generation_token_len) {}
-
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
-        // We have only one input with dynamic shapes: output embeds.
-        // Output embeds should have "max_generation_token_len" for dimension representing
-        // number of embeddings to send to the matmul. Batch size should be equal to "1"
-        // for NPU.
-        const auto& input = model->input(0);
-        const auto& partial_shape = input.get_partial_shape();
-        NPUW_ASSERT(partial_shape.size() == 3);
-
-        ov::PartialShape new_shape = partial_shape;
-        new_shape[m_batch_dim] = 1;
-        // Left dynamic axis will be for number of embeddings
-        for (auto i = 0; i < new_shape.rank().get_length(); i++) {
-            if (new_shape[i].is_dynamic()) {
-                new_shape[i] = m_max_generation_token_len;
-                // Sanity check that only one left dimension is dynamic, as
-                // another one should contain embedding space rank
-                break;
-            }
-        }
-
-        model->reshape(new_shape);
-
-        return true;
-    }
-};
-
-class SliceOutEmbeds : public ov::pass::ModelPass {
-    uint32_t m_batch_dim;
-    std::size_t m_max_generation_token_len;
-
-public:
-    OPENVINO_MODEL_PASS_RTTI("ov::npuw::SliceOutEmbeds");
-    SliceOutEmbeds(uint32_t batch_dim, std::size_t max_generation_token_len)
-        : m_batch_dim(batch_dim),
-          m_max_generation_token_len(max_generation_token_len) {}
-
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
-        std::shared_ptr<ov::Node> embed_result;
-        for (auto&& output : model->outputs()) {
-            if (output.get_any_name() == ov::npuw::LLMCompiledModel::output_embeds) {
-                embed_result = output.get_node_shared_ptr();
-            }
-        }
-
-        if (embed_result) {
-            auto shape = embed_result->input(0).get_shape();
-            // If shape.size() is 3, then last axis should contain the rank of embedding dimension.
-            // But 1st and 2nd axes can mean different things.
-            // 1st axis can represent the batch size, while 2nd - the number of embeddings,
-            // or vice-versa (in chatglm)
-            if (shape.size() == 3) {
-                OPENVINO_ASSERT(m_batch_dim <= 1, "Unexpected value of batch_dim: ", m_batch_dim, ", expected 0 or 1!");
-                uint32_t num_embeds_dim = 1 - m_batch_dim;
-                OPENVINO_ASSERT(shape[num_embeds_dim] >= m_max_generation_token_len,
-                                "Number of output embeddings should be greater or equal to the slicing range!");
-                if (shape[num_embeds_dim] != m_max_generation_token_len) {
-                    std::vector<int32_t> start_pos{
-                        static_cast<int32_t>(m_batch_dim * (shape[num_embeds_dim] - m_max_generation_token_len)),
-                        static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - m_max_generation_token_len)),
-                        0};
-                    std::vector<int32_t> stop_pos{
-                        static_cast<int32_t>(m_batch_dim * (shape[num_embeds_dim] - 1)) + 1,
-                        static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - 1)) + 1,
-                        static_cast<int32_t>(shape[2])};
-                    auto start = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, start_pos);
-                    auto stop = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, stop_pos);
-                    auto step = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
-                                                                       ov::Shape{3},
-                                                                       std::vector<int32_t>{1, 1, 1});
-
-                    auto slice = std::make_shared<ov::op::v8::Slice>(embed_result->input_value(0), start, stop, step);
-
-                    embed_result->input(0).replace_source_output(slice);
-                    embed_result->validate_and_infer_types();
-                    model->validate_nodes_and_infer_types();
-                }
-            }
-        }
-
-        return true;
-    }
-};
 
 bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
     std::vector<std::string> rt_info_path = {"nncf", "weight_compression", "group_size"};
@@ -1477,26 +1299,6 @@ void apply_moe_config(ov::AnyMap& stage_config,
     }
 }
 
-// Apply DEVICE_ROUTED MoE transformations to models
-class ApplyMoEDeviceRoutedTransforms : public ov::pass::ModelPass {
-public:
-    OPENVINO_MODEL_PASS_RTTI("ov::npuw::ApplyMoEDeviceRoutedTransforms");
-    ApplyMoEDeviceRoutedTransforms() = default;
-
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
-        ov::npuw::pass::DeviceRoutedMoETransform moe_transform;
-        moe_transform.run_on_model(model);
-        LOG_DEBUG("Applied DEVICE_ROUTED transformations to model variant");
-
-        // Apply Gather to 2D Gather transformation for HW optimization
-        ov::npuw::pass::GatherTo2DGather gather_transform;
-        gather_transform.run_on_model(model);
-        LOG_DEBUG("Applied GatherTo2DGather transformation to model variant");
-
-        return true;
-    }
-};
-
 ov::element::Type choose_kv_cache_storage_type(const std::shared_ptr<ov::Model>& model,
                                                const ::intel_npu::Config& cfg,
                                                ov::AnyMap& other_props) {
@@ -1640,6 +1442,206 @@ std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model
     return lm_head_model;
 }
 
+}  // namespace
+
+class ReshapeToStatic : public ov::pass::ModelPass {
+    uint32_t m_input_size;
+    uint32_t m_kvcache_size;
+    KVAxesPosition m_kv_axes_position;
+    uint32_t m_lora_rank;
+    uint32_t m_lhs_seq_size;
+
+public:
+    OPENVINO_MODEL_PASS_RTTI("ov::npuw::ReshapeToStatic");
+    explicit ReshapeToStatic(const uint32_t input_size,
+                             const uint32_t kvcache_size,
+                             const KVAxesPosition& kv_axes_position,
+                             const uint32_t lora_rank,
+                             const uint32_t lhs_seq_size = 0)
+        : m_input_size(input_size),
+          m_kvcache_size(kvcache_size),
+          m_kv_axes_position(kv_axes_position),
+          m_lora_rank(lora_rank),
+          m_lhs_seq_size(lhs_seq_size) {}
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        std::map<std::string, ov::PartialShape> new_shapes;
+        for (const auto& input : model->inputs()) {
+            const auto& input_name = input.get_any_name();
+            ov::PartialShape new_shape;
+            if (input_name.find("input_ids") != std::string::npos) {
+                new_shape = ov::PartialShape({1, m_input_size});
+            } else if (input_name.find("token_type_ids") != std::string::npos) {
+                new_shape = ov::PartialShape({1, m_input_size});
+            } else if (input_name.find("inputs_embeds") != std::string::npos) {
+                // NB: VLMs case, model accepts inputs_embeds[BATCH, SEQ_LEN, EMB_SIZE]
+                NPUW_ASSERT(input.get_partial_shape().size() == 3u);
+                NPUW_ASSERT(input.get_partial_shape()[2].is_static());
+                new_shape = ov::PartialShape({1, m_input_size, input.get_partial_shape()[2]});
+            } else if (input_name.find("attention_mask") != std::string::npos) {
+                new_shape = ov::PartialShape({1, m_kvcache_size});
+                if (m_lhs_seq_size && m_kvcache_size > 4)
+                    // NB: for whisper kvcache model attn mask should be size + 1
+                    new_shape = ov::PartialShape({1, m_kvcache_size + 1});
+            } else if (input_name.find("position_ids") != std::string::npos) {
+                const auto partial_shape_size = input.get_partial_shape().size();
+                // NB: Regular LLM uses 2D shapes, Qwen2.5 VL/Omni uses 3D shapes
+                // The first dimension (3) represents the three components of position encoding: time, height, and width
+                // enabling alignment across multimodal inputs like text, audio, and video
+                NPUW_ASSERT(partial_shape_size == 3u || partial_shape_size == 2u);
+                new_shape = partial_shape_size == 3u ? ov::PartialShape({3, 1, m_input_size})
+                                                     : ov::PartialShape({1, m_input_size});
+            } else if (input_name.find("cache_position") != std::string::npos) {
+                // NB: Whisper case
+                new_shape = ov::PartialShape({1});
+            } else if (input_name.find("encoder_hidden_states") != std::string::npos) {
+                // NB: Whisper case
+                const auto& partial_shape = input.get_partial_shape();
+                new_shape = partial_shape;
+                new_shape[0] = 1;  // batch_dim
+            } else if (ov::npuw::matchEagle3HiddenStatesString(input_name)) {
+                new_shape = ov::npuw::Eagle3Extension::get_static_input(model, input, m_input_size);
+            } else if (ov::npuw::util::matchLoRAMatMulAString(input_name)) {
+                new_shape = ov::PartialShape({m_lora_rank, input.get_partial_shape()[1]});
+            } else if (ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
+                new_shape = ov::PartialShape({input.get_partial_shape()[0], m_lora_rank});
+            } else if (ov::npuw::util::matchLoRAMatMulBString(input_name)) {
+                new_shape = ov::PartialShape({input.get_partial_shape()[0], m_lora_rank});
+            } else {
+                const auto& partial_shape = input.get_partial_shape();
+                new_shape = partial_shape;
+                new_shape[m_kv_axes_position.batch] = 1;
+                if (m_lhs_seq_size) {  // Whisper model
+                    new_shape[m_kv_axes_position.seq_len] =
+                        (input_name.find(".decoder") != std::string::npos)
+                            ? m_kvcache_size - m_input_size  // kv_size for decoder
+                            : m_lhs_seq_size;                // sequence size for encoder hidden states
+                } else {                                     // LLM/VLM
+                    new_shape[m_kv_axes_position.seq_len] = m_kvcache_size - m_input_size;
+                }
+            }
+            new_shapes.emplace(input_name, new_shape);
+        }
+        model->reshape(new_shapes);
+
+        return true;
+    }
+};
+
+class ReshapeSlicedHeadToStatic : public ov::pass::ModelPass {
+    uint32_t m_batch_dim;
+    std::size_t m_max_generation_token_len;
+
+public:
+    OPENVINO_MODEL_PASS_RTTI("ov::npuw::ReshapeSlicedHeadToStatic");
+    explicit ReshapeSlicedHeadToStatic(uint32_t batch_dim, std::size_t max_generation_token_len)
+        : m_batch_dim(batch_dim),
+          m_max_generation_token_len(max_generation_token_len) {}
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        // We have only one input with dynamic shapes: output embeds.
+        // Output embeds should have "max_generation_token_len" for dimension representing
+        // number of embeddings to send to the matmul. Batch size should be equal to "1"
+        // for NPU.
+        const auto& input = model->input(0);
+        const auto& partial_shape = input.get_partial_shape();
+        NPUW_ASSERT(partial_shape.size() == 3);
+
+        ov::PartialShape new_shape = partial_shape;
+        new_shape[m_batch_dim] = 1;
+        // Left dynamic axis will be for number of embeddings
+        for (auto i = 0; i < new_shape.rank().get_length(); i++) {
+            if (new_shape[i].is_dynamic()) {
+                new_shape[i] = m_max_generation_token_len;
+                // Sanity check that only one left dimension is dynamic, as
+                // another one should contain embedding space rank
+                break;
+            }
+        }
+
+        model->reshape(new_shape);
+
+        return true;
+    }
+};
+
+class SliceOutEmbeds : public ov::pass::ModelPass {
+    uint32_t m_batch_dim;
+    std::size_t m_max_generation_token_len;
+
+public:
+    OPENVINO_MODEL_PASS_RTTI("ov::npuw::SliceOutEmbeds");
+    explicit SliceOutEmbeds(uint32_t batch_dim, std::size_t max_generation_token_len)
+        : m_batch_dim(batch_dim),
+          m_max_generation_token_len(max_generation_token_len) {}
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        std::shared_ptr<ov::Node> embed_result;
+        for (auto&& output : model->outputs()) {
+            if (output.get_any_name() == ov::npuw::LLMCompiledModel::output_embeds) {
+                embed_result = output.get_node_shared_ptr();
+            }
+        }
+
+        if (embed_result) {
+            auto shape = embed_result->input(0).get_shape();
+            // If shape.size() is 3, then last axis should contain the rank of embedding dimension.
+            // But 1st and 2nd axes can mean different things.
+            // 1st axis can represent the batch size, while 2nd - the number of embeddings,
+            // or vice-versa (in chatglm)
+            if (shape.size() == 3) {
+                OPENVINO_ASSERT(m_batch_dim <= 1, "Unexpected value of batch_dim: ", m_batch_dim, ", expected 0 or 1!");
+                uint32_t num_embeds_dim = 1 - m_batch_dim;
+                OPENVINO_ASSERT(shape[num_embeds_dim] >= m_max_generation_token_len,
+                                "Number of output embeddings should be greater or equal to the slicing range!");
+                if (shape[num_embeds_dim] != m_max_generation_token_len) {
+                    std::vector<int32_t> start_pos{
+                        static_cast<int32_t>(m_batch_dim * (shape[num_embeds_dim] - m_max_generation_token_len)),
+                        static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - m_max_generation_token_len)),
+                        0};
+                    std::vector<int32_t> stop_pos{
+                        static_cast<int32_t>(m_batch_dim * (shape[num_embeds_dim] - 1)) + 1,
+                        static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - 1)) + 1,
+                        static_cast<int32_t>(shape[2])};
+                    auto start = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, start_pos);
+                    auto stop = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, stop_pos);
+                    auto step = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                                       ov::Shape{3},
+                                                                       std::vector<int32_t>{1, 1, 1});
+
+                    auto slice = std::make_shared<ov::op::v8::Slice>(embed_result->input_value(0), start, stop, step);
+
+                    embed_result->input(0).replace_source_output(slice);
+                    embed_result->validate_and_infer_types();
+                    model->validate_nodes_and_infer_types();
+                }
+            }
+        }
+
+        return true;
+    }
+};
+
+// Apply DEVICE_ROUTED MoE transformations to models
+class ApplyMoEDeviceRoutedTransforms : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("ov::npuw::ApplyMoEDeviceRoutedTransforms");
+    ApplyMoEDeviceRoutedTransforms() = default;
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        ov::npuw::pass::DeviceRoutedMoETransform moe_transform;
+        moe_transform.run_on_model(model);
+        LOG_DEBUG("Applied DEVICE_ROUTED transformations to model variant");
+
+        // Apply Gather to 2D Gather transformation for HW optimization
+        ov::npuw::pass::GatherTo2DGather gather_transform;
+        gather_transform.run_on_model(model);
+        LOG_DEBUG("Applied GatherTo2DGather transformation to model variant");
+
+        return true;
+    }
+};
+
 class LoraStatefulToStatelessPass : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::LoraStatefulToStatelessPass");
@@ -1692,8 +1694,6 @@ public:
         return new_parameters.size() > 0;
     }
 };
-
-}  // namespace
 
 std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_generate_model_variants(
     const std::shared_ptr<ov::Model>& generate_model,
