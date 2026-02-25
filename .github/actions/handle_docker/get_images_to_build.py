@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -6,9 +6,19 @@ import json
 import re
 import sys
 
-from distutils.util import strtobool
 from helpers import *
 from images_api import *
+
+
+def str_to_bool(value):
+    """Convert string to boolean, replacing deprecated distutils.util.strtobool"""
+    value = value.lower()
+    if value in ('y', 'yes', 't', 'true', 'on', '1'):
+        return True
+    elif value in ('n', 'no', 'f', 'false', 'off', '0'):
+        return False
+    else:
+        raise ValueError(f"Invalid truth value: {value!r}")
 
 
 def parse_args():
@@ -23,9 +33,9 @@ def parse_args():
     parser.add_argument('--base_tag_file', default=None, required=False, help='Base docker tag file path')
     parser.add_argument('--ref_name', required=False, default='', help='GitHub ref name')
     parser.add_argument('--repo', default='openvinotoolkit/openvino', help='GitHub repository')
-    parser.add_argument('--docker_env_changed', type=lambda x: bool(strtobool(x)), default=True,
+    parser.add_argument('--docker_env_changed', type=lambda x: bool(str_to_bool(x)), default=True,
                         help='Whether PR changes docker env')
-    parser.add_argument('--dockerfiles_changed', type=lambda x: bool(strtobool(x)), default=True,
+    parser.add_argument('--dockerfiles_changed', type=lambda x: bool(str_to_bool(x)), default=True,
                         help='Whether PR changes dockerfiles')
     parser.add_argument('--action_path', default='.github/actions/handle_docker', help='Path to this GitHub action')
     parser.add_argument('--push', action='store_true', required=False, help='Whether to push images to registry')

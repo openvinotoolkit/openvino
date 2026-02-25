@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -21,9 +21,8 @@ class TestIsNonZero(PytorchLayerTest):
             def forward(self, input_tensor):
                 return torch.is_nonzero(input_tensor)
 
-        ref_net = None
 
-        return aten_is_nonzero(), ref_net, "aten::is_nonzero"
+        return aten_is_nonzero(), "aten::is_nonzero"
 
     @pytest.mark.nightly
     @pytest.mark.precommit

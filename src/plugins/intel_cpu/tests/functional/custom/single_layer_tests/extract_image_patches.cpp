@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,7 +53,7 @@ protected:
         }
         auto extImgPatches =
             std::make_shared<ov::op::v3::ExtractImagePatches>(params[0], kernelSize, strides, rates, padType);
-        function = makeNgraphFunction(inputPrecision, params, extImgPatches, "ExtractImagePatches");
+        function = create_ov_model(inputPrecision, params, extImgPatches, "ExtractImagePatches");
     }
 };
 

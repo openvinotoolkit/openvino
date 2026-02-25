@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporationov::npuw::
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -133,6 +133,14 @@ std::shared_ptr<ov::Node> Group::getInitialNode() const {
     }
 
     return *(m_content.begin());
+}
+
+const std::unordered_set<std::shared_ptr<ov::Node>>& Group::getInputs() const {
+    return m_input_layers;
+}
+
+const std::unordered_set<std::shared_ptr<ov::Node>>& Group::getOutputs() const {
+    return m_output_layers;
 }
 
 void Group::addInput(const std::shared_ptr<ov::Node>& node) {

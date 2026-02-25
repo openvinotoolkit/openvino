@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,15 +17,15 @@ namespace util {
 
 /**
  * @brief Reads model
- * @param modelPath path to Model file
- * @param binPath optional path for model weights. If empty for IR we will find bin file with the model name.
+ * @param model_path path to Model file
+ * @param bin_path optional path for model weights. If empty for IR we will find bin file with the model name.
  * if bin file with the same name was not found, will load IR without weights.
  * @param extensions vector with OpenVINO extensions
  * @param enable_mmap boolean to enable/disable `mmap` use in Frontend
  * @return Shared pointer to ov::Model
  */
-std::shared_ptr<ov::Model> read_model(const std::string& modelPath,
-                                      const std::string& binPath,
+std::shared_ptr<ov::Model> read_model(const std::filesystem::path& model_path,
+                                      const std::filesystem::path& bin_path,
                                       const std::vector<ov::Extension::Ptr>& extensions,
                                       bool enable_mmap);
 
