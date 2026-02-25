@@ -868,7 +868,18 @@ std::tuple<Output<Node>, bool> PostStepsList::reverse_channels(const Output<Node
 }
 
 void PreStepsList::add_flip_impl(FlipMode mode) {
-    std::string name = (mode == FlipMode::HORIZONTAL) ? "flip(horizontal)" : "flip(vertical)";
+    std::string name;
+    switch (mode) {
+    case FlipMode::HORIZONTAL:
+        name = "flip(horizontal)";
+        break;
+    case FlipMode::VERTICAL:
+        name = "flip(vertical)";
+        break;
+    default:
+        name = "flip(unknown)";
+        break;
+    }
 
     m_actions.emplace_back(
         [mode](const std::vector<Output<Node>>& nodes,
@@ -879,34 +890,23 @@ void PreStepsList::add_flip_impl(FlipMode mode) {
             const auto& layout = context.layout();
             OPENVINO_ASSERT(!layout.empty(), "Preprocessing: Flip requires input layout to be set (e.g. 'NHWC')");
 
-            // Identify the axis to flip
-            int axis_idx = -1;
-            if (mode == FlipMode::HORIZONTAL) {
-                OPENVINO_ASSERT(ov::layout::has_width(layout),
-                                "Layout ",
-                                layout.to_string(),
-                                " must have Width (W) dimension to flip horizontal");
-                axis_idx = ov::layout::width_idx(layout);
-            } else if (mode == FlipMode::VERTICAL) {
-                OPENVINO_ASSERT(ov::layout::has_height(layout),
-                                "Layout ",
-                                layout.to_string(),
-                                " must have Height (H) dimension to flip vertical");
-                axis_idx = ov::layout::height_idx(layout);
-            }
-
-            // Handle dynamic rank or negative indices
-            // If the layout index returns -1 (meaning "not found" or "relative from end"), we fix it here.
             auto param_shape = nodes[0].get_partial_shape();
-            if (axis_idx < 0) {
-                if (param_shape.rank().is_static()) {
-                    axis_idx += param_shape.rank().get_length();
-                }
+            int axis_idx = -1;
+
+            switch (mode) {
+            case FlipMode::HORIZONTAL:
+                // get_and_check_width_idx asserts that width exists and rank is static
+                axis_idx = static_cast<int>(get_and_check_width_idx(layout, param_shape));
+                break;
+            case FlipMode::VERTICAL:
+                // get_and_check_height_idx asserts that height exists and rank is static
+                axis_idx = static_cast<int>(get_and_check_height_idx(layout, param_shape));
+                break;
+            default:
+                OPENVINO_ASSERT(false, "Preprocessing: Invalid FlipMode specified.");
             }
-            OPENVINO_ASSERT(axis_idx >= 0, "Could not determine valid axis index for flip operation");
 
             // Create the Reverse Operation
-            // We create a constant node to tell the operation WHICH axis to flip.
             auto axis_node = ov::op::v0::Constant::create(element::i32, {1}, {axis_idx});
 
             auto reverse_op =
