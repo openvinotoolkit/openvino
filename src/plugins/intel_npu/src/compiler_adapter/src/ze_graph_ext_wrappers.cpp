@@ -567,11 +567,11 @@ NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(GraphDescriptor& graphDescrip
     return meta;
 }
 
-std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
+std::optional<std::string> ZeGraphExtWrappers::getCompilerSupportedOptions() const {
     // Early exit if api is not supported
     if (!_isCompilerOptionQuerySupported) {
         _logger.debug("Compiler options query is not supported by the driver - skipping!");
-        return {};
+        return std::nullopt;
     }
 
     // 1. ask driver for size of compiler supported options list
@@ -599,7 +599,7 @@ std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
                 return supported_options_list_str;
             } else if (result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) {
                 // cleanup
-                return {};
+                return std::nullopt;
             } else {
                 // cleanup
                 THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerGetSupportedOptions",
@@ -608,13 +608,13 @@ std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
             }
         }
     } else if ((result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) || (result == ZE_RESULT_ERROR_DEPENDENCY_UNAVAILABLE)) {
-        return {};
+        return std::nullopt;
     } else {
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerGetSupportedOptions", result, _zeroInitStruct->getGraphDdiTable())
     }
 
-    _logger.debug("pfnCompilerGetSupportedOptions - list size 0 - skipping!");
-    return {};
+    _logger.debug("pfnCompilerGetSupportedOptions - list size 0!");
+    return "";
 }
 
 std::optional<bool> ZeGraphExtWrappers::isOptionSupported(std::string optName,
@@ -635,7 +635,7 @@ std::optional<bool> ZeGraphExtWrappers::isOptionSupported(std::string optName,
         return true;
     } else if ((result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) || (result == ZE_RESULT_ERROR_DEPENDENCY_UNAVAILABLE) ||
                (result == ZE_RESULT_ERROR_UNKNOWN)) {
-        return false;
+        return std::nullopt;
     } else {
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerIsOptionSupported", result, _zeroInitStruct->getGraphDdiTable());
     }
