@@ -244,19 +244,19 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, ConvertSliceScatter)
     REGISTER_PASS(manager, ConvertSqueeze15ToSqueeze0)
     REGISTER_PASS(manager, ConvertOneHot16To1)
-    
+
+    manager.register_pass<ov::pass::Serialize>("/home/rmikhail/src/ov_tests/py_tests/EliminateDuplicateFakeQuantizeBefore.xml", "/home/rmikhail/src/ov_tests/py_tests/EliminateDuplicateFakeQuantizeBefore.bin");
     auto fq_fusions = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
-    ADD_MATCHER(fq_fusions, FakeQuantizeReshapeFusion)
     ADD_MATCHER(fq_fusions, PullTransposeThroughFQUp)
+    ADD_MATCHER(fq_fusions, FakeQuantizeReshapeFusion)
     ADD_MATCHER(fq_fusions, ReluFakeQuantizeFusion)
     ADD_MATCHER(fq_fusions, AddFakeQuantizeFusion)
     ADD_MATCHER(fq_fusions, MulFakeQuantizeFusion)
-    manager.register_pass<ov::pass::Serialize>("/home/rmikhail/src/ov_tests/py_tests/EliminateDuplicateFakeQuantizeBefore.xml", "/home/rmikhail/src/ov_tests/py_tests/EliminateDuplicateFakeQuantizeBefore.bin");
     ADD_MATCHER(fq_fusions, EliminateDuplicateFakeQuantize);
-    manager.register_pass<ov::pass::Serialize>("/home/rmikhail/src/ov_tests/py_tests/EliminateDuplicateFakeQuantizeAfter.xml", "/home/rmikhail/src/ov_tests/py_tests/EliminateDuplicateFakeQuantizeAfter.bin");
     fq_fusions->set_name("ov::pass::FakeQuantizeFusions");
 
+    manager.register_pass<ov::pass::Serialize>("/home/rmikhail/src/ov_tests/py_tests/EliminateDuplicateFakeQuantizeAfter.xml", "/home/rmikhail/src/ov_tests/py_tests/EliminateDuplicateFakeQuantizeAfter.bin");
     // Temporary transformation to allow for PyTorch frontend to
     // partially support bitwise operators with boolean inputs for plugins
     // that didn't enabled BitwiseOps from opset13 and to allow for constant

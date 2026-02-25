@@ -26,8 +26,8 @@ namespace ov::pass {
 
 PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
     MATCHER_SCOPE(PullTransposeThroughFQUp);
-    const auto weights = pattern::wrap_type<v0::Constant>();
-    const auto convert_p = pattern::optional<v0::Convert>(weights, pattern::consumers_count(1));
+    const auto fq_data = pattern::any_input(pattern::has_static_shape());
+    const auto convert_p = pattern::optional<v0::Convert>(fq_data, pattern::consumers_count(1));
     auto m_fq = pattern::wrap_type<v0::FakeQuantize>({convert_p,
                                                       pattern::any_input(pattern::has_static_shape()),
                                                       pattern::any_input(pattern::has_static_shape()),
@@ -38,7 +38,6 @@ PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
     auto m_transpose = pattern::wrap_type<v1::Transpose>({m_fq, m_transpose_perm});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
-        std::cout << "PullTransposeThroughFQUp callback triggered" << std::endl;
         auto& pattern_map = m.get_pattern_value_map();
         auto transpose = pattern_map[m_transpose].get_node_shared_ptr();
         auto fq = pattern_map[m_fq].get_node_shared_ptr();
@@ -49,7 +48,7 @@ PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
         for (size_t i = 0; i < fq->inputs().size(); ++i) {
             auto fq_input = fq->input_value(i);
             if (i == 0) {
-                fq_input = pattern_map[weights];
+                fq_input = pattern_map.at(fq_data);
             }
             auto fq_input_rank = fq_input.get_partial_shape().rank().get_length();
             std::vector<int64_t> unsqueeze_axes;

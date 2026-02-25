@@ -4,6 +4,7 @@
 
 #include "transformations/common_optimizations/eliminate_duplicate_fake_quantize.hpp"
 
+#include <cmath>
 #include <memory>
 #include <vector>
 
@@ -34,7 +35,6 @@ ov::pass::EliminateDuplicateFakeQuantize::EliminateDuplicateFakeQuantize() {
         {fq1_pattern, any_input(), any_input(), any_input(), any_input()});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
-        std::cout << "EliminateDuplicateFakeQuantize callback triggered" << std::endl;
         const auto& pattern_value_map = m.get_pattern_value_map();
         
         auto fq1 = ov::as_type_ptr<v0::FakeQuantize>(
@@ -65,9 +65,7 @@ ov::pass::EliminateDuplicateFakeQuantize::EliminateDuplicateFakeQuantize() {
         auto fq2_il_const = ov::as_type_ptr<v0::Constant>(fq2_input_low.get_node_shared_ptr());
         auto fq2_ih_const = ov::as_type_ptr<v0::Constant>(fq2_input_high.get_node_shared_ptr());
         
-        // Check if FQ1's output range and FQ2's input range are constants
-        // If they are, we can check for compatibility
-        bool ranges_compatible = true;
+        bool ranges_compatible = false;
         if (fq1_ol_const && fq1_oh_const && fq2_il_const && fq2_ih_const) {
             auto fq1_ol_val = fq1_ol_const->cast_vector<float>();
             auto fq1_oh_val = fq1_oh_const->cast_vector<float>();
@@ -81,29 +79,26 @@ ov::pass::EliminateDuplicateFakeQuantize::EliminateDuplicateFakeQuantize() {
                 return false;
             }
             
-            // Check if ranges are compatible (exact match or FQ2 can clip FQ1's output)
-            const float eps = 1e-6f;
+            // Check if FQ2 input range covers FQ1 output range with a robust tolerance.
+            // This allows small serialization / precision mismatch for mathematically equivalent cascades.
             for (size_t i = 0; i < fq1_ol_val.size(); ++i) {
-                // Check if ranges exactly match
-                bool exact_match = (std::abs(fq1_ol_val[i] - fq2_il_val[i]) < eps &&
-                                   std::abs(fq1_oh_val[i] - fq2_ih_val[i]) < eps);
-                
-                // Check if FQ1 output is within FQ2 input range (subset)
-                bool is_subset = (fq1_ol_val[i] >= fq2_il_val[i] - eps &&
-                                 fq1_oh_val[i] <= fq2_ih_val[i] + eps);
-                
-                if (!exact_match && !is_subset) {
-                    // Ranges don't match and FQ2 will clip - this might be intentional
-                    // Only merge if the mismatch is small (< 5% difference)
-                    float range1 = fq1_oh_val[i] - fq1_ol_val[i];
-                    float range2 = fq2_ih_val[i] - fq2_il_val[i];
-                    float diff = std::abs(range1 - range2);
-                    if (range1 > 0 && diff / range1 > 0.05f) {
-                        ranges_compatible = false;
-                        break;
-                    }
+                const float fq1_range = std::abs(fq1_oh_val[i] - fq1_ol_val[i]);
+                const float fq2_range = std::abs(fq2_ih_val[i] - fq2_il_val[i]);
+                const float tol = std::max(1e-6f, 1e-3f * std::max(fq1_range, fq2_range));
+
+                const bool low_covered = fq1_ol_val[i] >= fq2_il_val[i] - tol;
+                const bool high_covered = fq1_oh_val[i] <= fq2_ih_val[i] + tol;
+
+                if (!low_covered || !high_covered) {
+                    ranges_compatible = false;
+                    break;
                 }
+
+                ranges_compatible = true;
             }
+        } else {
+            // Non-constant ranges are considered safe only when exactly the same tensors are used.
+            ranges_compatible = fq1_output_low == fq2_input_low && fq1_output_high == fq2_input_high;
         }
         
         if (!ranges_compatible)
