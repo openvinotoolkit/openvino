@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "model_builder/model_builder.hpp"
+#include "npuw/test_engine/models/model_builder.hpp"
 #include "openvino/core/parallel.hpp"
 
 using ov::test::npuw::ModelBuilder;
