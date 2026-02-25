@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -205,6 +205,21 @@ private:
     std::shared_ptr<ov::Model> buildROPE_GPTOSS(int num_head,
                                               int rotary_dims,
                                               ov::element::Type element_type);
+
+protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+    void SetUp() override;
+
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<rope_params>& obj);
+};
+
+class RoPETestLtxVideo : public SubgraphBaseTest, public testing::WithParamInterface<rope_params> {
+private:
+    std::shared_ptr<ov::Model> buildROPE_LtxVideo(int batch,
+                                                  int seq_length,
+                                                  int rotary_dims,
+                                                  ov::element::Type element_type);
 
 protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;

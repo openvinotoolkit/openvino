@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,7 +72,10 @@ public:
     void appendGraphInitialize(const ze_graph_handle_t& graph_handle) const;
     void appendGraphExecute(const ze_graph_handle_t& graph_handle,
                             const ze_graph_profiling_query_handle_t& profiling_query_handle) const;
-    void updateMutableCommandList(uint32_t arg_index, const void* arg_value) const;
+    void updateMutableCommandList(uint32_t index, const void* data) const;
+    void updateMutableCommandListWithStrides(uint32_t index,
+                                             const void* data,
+                                             const std::vector<size_t>& strides) const;
     void appendNpuTimestamp(uint64_t* timestamp_buff) const;
     void appendBarrier() const;
     void close() const;

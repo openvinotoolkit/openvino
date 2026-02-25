@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1481,17 +1481,17 @@ std::shared_ptr<ov::Model> RoPETestGPTOSS::buildROPE_GPTOSS(int num_head,
     sin->set_friendly_name("sin");
     auto variadicSplit = makeOP<opset1::VariadicSplit>({permute_Transpose, -1, {rotary_dims/2, -1}});
     auto first_half_mul_cos = makeOP<opset1::Multiply>({variadicSplit->output(0), cos}, {{"auto_broadcast", "numpy"}});
-    
+
     auto second_half_mul_sin = makeOP<opset1::Multiply>({variadicSplit->output(1), sin}, {{"auto_broadcast", "numpy"}});
     auto neg_one = makeConst(element_type, {}, std::vector<float>{-1.0f});
     auto neg = makeOP<opset1::Multiply>({second_half_mul_sin, neg_one}, {{"auto_broadcast", "numpy"}});
     auto sub_Subtract = makeOP<opset1::Add>({first_half_mul_cos, neg}, {{"auto_broadcast", "numpy"}});
-    
-    
+
+
     auto second_half_mul_cos = makeOP<opset1::Multiply>({variadicSplit->output(1), cos}, {{"auto_broadcast", "numpy"}});
-    auto first_half_mul_sin = makeOP<opset1::Multiply>({variadicSplit->output(0), sin}, {{"auto_broadcast", "numpy"}});   
-    auto add_Add = makeOP<opset1::Add>({second_half_mul_cos, first_half_mul_sin}, {{"auto_broadcast", "numpy"}});   
-    auto cat_Concat = makeOP<opset1::Concat>({sub_Subtract, add_Add}, {{"axis", -1}});   
+    auto first_half_mul_sin = makeOP<opset1::Multiply>({variadicSplit->output(0), sin}, {{"auto_broadcast", "numpy"}});
+    auto add_Add = makeOP<opset1::Add>({second_half_mul_cos, first_half_mul_sin}, {{"auto_broadcast", "numpy"}});
+    auto cat_Concat = makeOP<opset1::Concat>({sub_Subtract, add_Add}, {{"axis", -1}});
     return std::make_shared<ov::Model>(cat_Concat, ov::ParameterVector{input, cos, sin});
 }
 
@@ -1545,6 +1545,83 @@ void RoPETestGPTOSS::SetUp() {
     InputShape sin = {{batch, 1, seq_length, rotary_dims/2}, {{batch, 1, seq_length, rotary_dims/2}}};
     init_input_shapes({input, cos, sin});
     function = buildROPE_GPTOSS(num_head, rotary_dims, element_type);
+}
+
+std::shared_ptr<ov::Model> RoPETestLtxVideo::buildROPE_LtxVideo(int batch,
+                                                                int seq_length,
+                                                                int rotary_dims,
+                                                                ov::element::Type element_type) {
+    auto input = std::make_shared<ov::opset1::Parameter>(element_type, PartialShape{batch, seq_length, rotary_dims});
+    auto cos_cache = std::make_shared<ov::opset1::Parameter>(element_type, PartialShape{1, seq_length, rotary_dims});
+    auto sin_cache = std::make_shared<ov::opset1::Parameter>(element_type, PartialShape{1, seq_length, rotary_dims});
+
+    auto reshape_shape = makeConst(element::i64, ov::Shape({4}), {0, 0, rotary_dims / 2, 2});
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(input, reshape_shape, true);
+
+    auto split_axis = makeConst(element::i64, ov::Shape(), {-1});
+    auto split = std::make_shared<ov::op::v1::Split>(reshape, split_axis, 2);
+
+    auto neg_const = makeConst(element_type, ov::Shape({}), {-1.0f});
+    auto neg_imag = std::make_shared<ov::op::v1::Multiply>(split->output(1), neg_const);
+
+    auto concat = std::make_shared<ov::op::v0::Concat>(OutputVector{neg_imag, split->output(0)}, -1);
+
+    auto reshape_back_shape = makeConst(element::i64, ov::Shape({3}), {0, 0, rotary_dims});
+    auto reshape_back = std::make_shared<ov::op::v1::Reshape>(concat, reshape_back_shape, true);
+
+    auto mul_cos = std::make_shared<ov::op::v1::Multiply>(input, cos_cache);
+    auto mul_sin = std::make_shared<ov::op::v1::Multiply>(reshape_back, sin_cache);
+    auto result = std::make_shared<ov::op::v1::Add>(mul_cos, mul_sin);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{input, cos_cache, sin_cache});
+}
+
+void RoPETestLtxVideo::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    const auto& funcInputs = function->inputs();
+
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = -1;
+    in_data.range = 2;
+    in_data.resolution = 32768;
+
+    auto cos_data = in_data;
+    cos_data.seed = 10;
+
+    auto sin_data = in_data;
+    sin_data.seed = 20;
+
+    ov::Tensor t_input = utils::create_and_fill_tensor(funcInputs[0].get_element_type(), targetInputStaticShapes[0], in_data);
+    ov::Tensor t_cos = utils::create_and_fill_tensor(funcInputs[1].get_element_type(), targetInputStaticShapes[1], cos_data);
+    ov::Tensor t_sin = utils::create_and_fill_tensor(funcInputs[2].get_element_type(), targetInputStaticShapes[2], sin_data);
+
+    inputs.clear();
+    inputs.insert({funcInputs[0].get_node_shared_ptr(), t_input});
+    inputs.insert({funcInputs[1].get_node_shared_ptr(), t_cos});
+    inputs.insert({funcInputs[2].get_node_shared_ptr(), t_sin});
+}
+
+void RoPETestLtxVideo::SetUp() {
+    const auto& [element_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
+
+    const int batch = 1;
+    const int seq_length = 2520;
+    const int rotary_dims = 2048;
+
+    std::vector<InputShape> input_shapes = {
+        {{batch, seq_length, rotary_dims}, {{batch, seq_length, rotary_dims}}},
+        {{1, seq_length, rotary_dims}, {{1, seq_length, rotary_dims}}},
+        {{1, seq_length, rotary_dims}, {{1, seq_length, rotary_dims}}}
+    };
+    init_input_shapes(input_shapes);
+    function = buildROPE_LtxVideo(batch, seq_length, rotary_dims, element_type);
+}
+
+std::string RoPETestLtxVideo::getTestCaseName(const testing::TestParamInfo<rope_params>& obj) {
+    const auto& [element_type, targetDevice] = obj.param;
+    std::ostringstream result;
+    result << "targetDevice=" << targetDevice << "_element_type=" << element_type.to_string();
+    return result.str();
 }
 
 }  // namespace test

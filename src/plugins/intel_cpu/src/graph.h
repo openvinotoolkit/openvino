@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -357,8 +357,7 @@ protected:
 private:
     using event_t = void (Graph::*)();
 
-    void EnforceInferencePrecision();
-    void EnforceBF16();
+    void EnforceInferencePrecision() const;
     void insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<std::string>& uniqueLayerNames);
     void insertConvert(EdgePtr& edge);
 

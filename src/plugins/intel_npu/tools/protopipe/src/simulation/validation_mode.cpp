@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,37 +9,12 @@
 #include "simulation/computation_builder.hpp"
 #include "simulation/executor.hpp"
 #include "simulation/layers_data.hpp"
-#include "simulation/validation_mode.hpp"
+#include "simulation/layer_validator.hpp"
+#include "simulation/failed_iter.hpp"
 #include "utils/logger.hpp"
 #include "utils/utils.hpp"
 
 #include <opencv2/gapi/gproto.hpp>  // cv::GCompileArgs
-
-class LayerValidator {
-public:
-    LayerValidator(const std::string& tag, const std::string& layer_name, IAccuracyMetric::Ptr metric);
-    Result operator()(const cv::Mat& lhs, const cv::Mat& rhs);
-
-private:
-    std::string m_tag;
-    std::string m_layer_name;
-    IAccuracyMetric::Ptr m_metric;
-};
-
-LayerValidator::LayerValidator(const std::string& tag, const std::string& layer_name, IAccuracyMetric::Ptr metric)
-        : m_tag(tag), m_layer_name(layer_name), m_metric(metric) {
-}
-
-Result LayerValidator::operator()(const cv::Mat& lhs, const cv::Mat& rhs) {
-    auto result = m_metric->compare(lhs, rhs);
-    if (!result) {
-        std::stringstream ss;
-        ss << "Model: " << m_tag << ", Layer: " << m_layer_name << ", Metric: " << m_metric->str()
-           << ", Reason: " << result.str() << ";";
-        return Error{ss.str()};
-    }
-    return Success{"Passed"};
-}
 
 namespace {
 
@@ -151,12 +126,7 @@ public:
     const ValSimulation::Options& opts;
 };
 
-struct FailedIter {
-    size_t iter_idx;
-    std::vector<std::string> reasons;
-};
-
-static Result reportValidationResult(const std::vector<FailedIter>& failed_iters, const size_t total_iters) {
+Result reportValidationResult(const std::vector<FailedIter>& failed_iters, const size_t total_iters) {
     std::stringstream ss;
     if (!failed_iters.empty()) {
         const auto kItersToShow = 10u;
@@ -342,6 +312,14 @@ ValSimulation::ValSimulation(Simulation::Config&& cfg, ValSimulation::Options&& 
 
 std::shared_ptr<PipelinedCompiled> ValSimulation::compilePipelined(DummySources&& sources,
                                                                    cv::GCompileArgs&& compile_args) {
+    if (workload) {
+        if (workload->wl_onnx) {
+            compile_args += cv::compile_args(workload->wl_onnx);
+        }
+        if (workload->wl_ov) {
+            compile_args += cv::compile_args(workload->wl_ov);
+        }
+    }
     auto compiled = m_comp.compileStreaming(descr_of(sources), std::move(compile_args));
     auto out_meta = m_comp.getOutMeta();
     return std::make_shared<PipelinedSimulation>(std::move(compiled), std::move(sources), std::move(out_meta));
@@ -356,6 +334,14 @@ std::shared_ptr<SyncCompiled> ValSimulation::compileSync(DummySources&& sources,
                    << std::endl;
         ;
         compile_args += cv::compile_args(cv::use_threaded_executor{max_parallel_branches});
+    }
+    if (workload) {
+        if (workload->wl_onnx) {
+            compile_args += cv::compile_args(workload->wl_onnx);
+        }
+        if (workload->wl_ov) {
+            compile_args += cv::compile_args(workload->wl_ov);
+        }
     }
     auto compiled = m_comp.compile(descr_of(sources), std::move(compile_args));
     auto out_meta = m_comp.getOutMeta();

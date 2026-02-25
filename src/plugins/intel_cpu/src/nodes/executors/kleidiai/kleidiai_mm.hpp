@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -126,6 +126,7 @@ private:
     size_t packedlhs_block_in_bytes = 0UL;
     bool INT4_IMPL;
     bool useDynamicQuant = false;
+    ExecutorContext::CPtr executorContext;
 };
 
 using MatMulKleidiAIExecutorPtr = std::shared_ptr<MatMulKleidiAIExecutor>;

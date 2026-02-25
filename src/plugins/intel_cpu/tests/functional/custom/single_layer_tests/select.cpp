@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,7 +57,7 @@ protected:
         }
         auto select = std::make_shared<ov::op::v1::Select>(parameters[0], parameters[1], parameters[2], broadcast);
 
-        function = makeNgraphFunction(precision, parameters, select, "Eltwise");
+        function = create_ov_model(precision, parameters, select, "Eltwise");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {

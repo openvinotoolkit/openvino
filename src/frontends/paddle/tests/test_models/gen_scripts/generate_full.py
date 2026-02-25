@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -26,7 +26,7 @@ def full(name : str, shape : list, dtype, value):
         exe.run(paddle.static.default_startup_program())
 
         outs = exe.run(
-            fetch_list=[out])             
+            fetch_list=[out])
 
         saveModel(name, exe, feed_vars=[], fetchlist=[out], inputs=[], outputs=[outs[0]], target_dir=sys.argv[1])
 

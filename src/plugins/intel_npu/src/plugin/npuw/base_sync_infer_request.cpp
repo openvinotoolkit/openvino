@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -420,6 +420,12 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
     const auto real_idx = comp_model_desc.replaced_by.value();
     auto& func_desc = m_npuw_model->m_compiled_submodels[real_idx];
 
+    // Skip MoE expert submodels - MoE experts require special unpacking logic according to the
+    // expert selection, which is handled later in the inference flow.
+    if (func_desc.moe_experts.has_value()) {
+        return;
+    }
+
     // Bind extra parameters from the function's closure
     // First, do easy things & delay heavy stuff
     std::vector<std::size_t> closure_unpack_required;
@@ -506,9 +512,16 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
     const auto& iodesc = m_subrequests_gio.at(idx);
 
     const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+
+    if (proto_comp_model_desc.moe_experts.has_value()) {
+        // Expert submodel does not have global parameters to bind
+        return;
+    }
+
     const bool is_spatial = proto_comp_model_desc.spatial.has_value();
     const bool is_attention = proto_comp_model_desc.attention.has_value();
     const bool is_pyramid_attention = proto_comp_model_desc.pyramid_attention.has_value();
+    const bool is_hfa_attention = proto_comp_model_desc.host_flash_attention.has_value();
 
     // a list of ports to copy tensors, if needed: FROM -> TO
     std::vector<std::pair<ov::SoPtr<ov::ITensor>, ov::Output<const ov::Node>>> copy_list;
@@ -547,6 +560,18 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         });
     };
 
+    auto is_hfa_attn_param = [&](std::size_t sub_in_idx) -> bool {
+        if (!is_hfa_attention) {
+            return false;  // Early return
+        }
+        // Check if sub_in_idx matches any SDPA parameter index
+        auto& hfa_attn = proto_comp_model_desc.host_flash_attention.value()._sdpa_attention_info;
+        const auto& sdpa_in = hfa_attn._sdpa_indices;
+        return sub_in_idx == sdpa_in.query || sub_in_idx == sdpa_in.past_key || sub_in_idx == sdpa_in.past_value ||
+               sub_in_idx == sdpa_in.present_key || sub_in_idx == sdpa_in.present_value ||
+               sub_in_idx == sdpa_in.attention_mask;
+    };
+
     for (auto&& it : iodesc.global_params) {
         std::size_t param_idx{}, sub_in_idx{};
         std::tie(param_idx, sub_in_idx) = it;
@@ -557,6 +582,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         const auto& s_port = request->get_inputs()[sub_in_idx];
         LOG_DEBUG("Processing " << g_port << " -> " << s_port << "...");
         LOG_BLOCK();
+
         if (is_spatial_param(sub_in_idx)) {
             // Register for future use
             // FIXME: Not sure why this code is here. There should be no
@@ -570,6 +596,9 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         } else if (is_attn_param(sub_in_idx) || is_pyramid_attn_param(sub_in_idx)) {
             // Register for future use
             m_attention_io[idx].inputs.at(sub_in_idx) = g_tnsr;
+        } else if (is_hfa_attn_param(sub_in_idx)) {
+            // Register for future use
+            m_hfa_io[idx].inputs.at(sub_in_idx) = g_tnsr;
         } else {
             // Lock mutex just in case. m_input_allocated might be altered in parallel in get_tensor()
             std::unique_lock lock(m_io_storages_mutex);

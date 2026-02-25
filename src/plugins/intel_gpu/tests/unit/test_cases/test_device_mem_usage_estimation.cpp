@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,7 +76,7 @@ public:
                                       ov::num_streams(n_streams)};
 
         OV_ASSERT_NO_THROW(batch_size_native = ie.get_property(target_device, ov::max_batch_size.name(), _options_native).as<unsigned int>());
-        
+
         auto statistic_result = ie.get_property(target_device, ov::intel_gpu::memory_statistics.name()).as<std::map<std::string, uint64_t>>();
         std::ostringstream usm_device_oss;
         usm_device_oss << cldnn::allocation_type::usm_device;
@@ -84,7 +84,7 @@ public:
         auto occupied_device_mem = occupied_usm_dev->second;
 
         auto available_device_memory = max_global_mem_size - occupied_device_mem;
-        
+
         ov::AnyMap _options = {ov::hint::model(simpleNetwork),
                                ov::num_streams(n_streams),
                                ov::intel_gpu::hint::available_device_mem(available_device_memory)};

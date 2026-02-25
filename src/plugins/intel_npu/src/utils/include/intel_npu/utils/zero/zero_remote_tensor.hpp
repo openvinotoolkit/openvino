@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,6 +62,16 @@ public:
      * @return Tensor's strides in bytes
      */
     const ov::Strides& get_strides() const override;
+
+    void copy_to(const std::shared_ptr<ov::ITensor>& dst,
+                 size_t src_offset,
+                 size_t dst_offset,
+                 const ov::Shape& roi_shape) const override;
+
+    void copy_from(const std::shared_ptr<const ov::ITensor>& src,
+                   size_t src_offset,
+                   size_t dst_offset,
+                   const ov::Shape& roi_shape) override;
 
     /**
      * @return The remote context
