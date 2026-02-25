@@ -23,6 +23,7 @@
 #include "transformations/common_optimizations/dilated_convolution_converter.hpp"
 #include "transformations/common_optimizations/disable_random_uniform_constant_folding.hpp"
 #include "transformations/common_optimizations/dropout_with_random_uniform_replacer.hpp"
+#include "transformations/common_optimizations/eliminate_duplicate_fake_quantize.hpp"
 #include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/fq_reshape_fusion.hpp"
@@ -243,7 +244,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, ConvertSliceScatter)
     REGISTER_PASS(manager, ConvertSqueeze15ToSqueeze0)
     REGISTER_PASS(manager, ConvertOneHot16To1)
-
+    
     auto fq_fusions = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
     ADD_MATCHER(fq_fusions, FakeQuantizeReshapeFusion)
@@ -251,6 +252,9 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(fq_fusions, ReluFakeQuantizeFusion)
     ADD_MATCHER(fq_fusions, AddFakeQuantizeFusion)
     ADD_MATCHER(fq_fusions, MulFakeQuantizeFusion)
+    manager.register_pass<ov::pass::Serialize>("/home/rmikhail/src/ov_tests/py_tests/EliminateDuplicateFakeQuantizeBefore.xml", "/home/rmikhail/src/ov_tests/py_tests/EliminateDuplicateFakeQuantizeBefore.bin");
+    ADD_MATCHER(fq_fusions, EliminateDuplicateFakeQuantize);
+    manager.register_pass<ov::pass::Serialize>("/home/rmikhail/src/ov_tests/py_tests/EliminateDuplicateFakeQuantizeAfter.xml", "/home/rmikhail/src/ov_tests/py_tests/EliminateDuplicateFakeQuantizeAfter.bin");
     fq_fusions->set_name("ov::pass::FakeQuantizeFusions");
 
     // Temporary transformation to allow for PyTorch frontend to
