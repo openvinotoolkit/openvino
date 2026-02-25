@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -46,111 +47,107 @@ Output<Node> create_range(const NodeContext& ctx, Output<Node> start, Output<Nod
     return ctx.mark_node(std::make_shared<v4::Range>(start, end, const_1, element::i32));
 }
 
-// Helper function to parse dims input - now returns AxesInfo for dynamic rank support
+// Helper function to parse dims input - supports int and tuple-of-lists dims.
 void parse_tensordot_dims(const NodeContext& ctx, Output<Node> a, Output<Node> b, AxesInfo& a_axes, AxesInfo& b_axes) {
-    auto dims_const = ctx.get_values_from_const_input(2);
-
     auto a_rank_ps = a.get_partial_shape().rank();
     auto b_rank_ps = b.get_partial_shape().rank();
 
-    // ---- dims = int ----
-    if (dims_const.is<int64_t>()) {
-        int64_t k = dims_const.as<int64_t>();
-
-        // For the int case, we need to handle both static and dynamic rank
-        if (a_rank_ps.is_static() && b_rank_ps.is_static()) {
-            // Static rank case - use original logic
-            int64_t a_rank = a_rank_ps.get_length();
-            int64_t b_rank = b_rank_ps.get_length();
-
-            FRONT_END_GENERAL_CHECK(k >= 0 && k <= a_rank && k <= b_rank, "aten::tensordot: invalid dims value");
-
-            std::vector<int64_t> a_axes_vec, b_axes_vec;
-            for (int64_t i = a_rank - k; i < a_rank; ++i)
-                a_axes_vec.push_back(i);
-
-            for (int64_t i = 0; i < k; ++i)
-                b_axes_vec.push_back(i);
-
-            a_axes = AxesInfo(a_axes_vec);
-            b_axes = AxesInfo(b_axes_vec);
+    // Helper to normalize and validate a compile-time axes vector.
+    auto validate_axes_vec = [](std::vector<int64_t>& vec, const Dimension& rank_ps, const std::string& tensor_name) {
+        if (rank_ps.is_static()) {
+            int64_t rank = rank_ps.get_length();
+            std::set<int64_t> seen;
+            for (auto& ax : vec) {
+                if (ax < 0)
+                    ax += rank;
+                FRONT_END_GENERAL_CHECK(ax >= 0 && ax < rank,
+                                        std::string("aten::tensordot: axis out of range for ") + tensor_name);
+                FRONT_END_GENERAL_CHECK(seen.insert(ax).second,
+                                        std::string("aten::tensordot: duplicate axis in ") + tensor_name);
+            }
         } else {
-            // Dynamic rank case - compute axes at runtime
-            FRONT_END_GENERAL_CHECK(k >= 0, "aten::tensordot: dims must be non-negative");
-
-            // Get ranks dynamically
-            Output<Node> a_rank;
-            std::tie(std::ignore, a_rank) = get_shape_rank(ctx, a, true);
-
-            // a_axes = range(a_rank - k, a_rank) = range(a_rank - k, k)
-            auto const_k = v0::Constant::create(element::i32, Shape{}, {k});
-            auto a_start = ctx.mark_node(std::make_shared<v1::Subtract>(a_rank, const_k));
-            auto a_axes_dynamic = create_range(ctx, a_start, const_k);
-
-            // b_axes = range(0, k)
-            auto const_0 = v0::Constant::create(element::i32, Shape{}, {0});
-            auto b_axes_dynamic = create_range(ctx, const_0, const_k);
-
-            a_axes = AxesInfo(a_axes_dynamic);
-            b_axes = AxesInfo(b_axes_dynamic);
+            // Dynamic rank: cannot normalize negative axes at graph-build time.
+            for (const auto& ax : vec) {
+                FRONT_END_GENERAL_CHECK(
+                    ax >= 0,
+                    std::string("aten::tensordot: negative axes require static rank for tensor ") + tensor_name);
+            }
         }
+    };
 
+    // ---- dims = ([...], [...]) ----
+    // In TorchScript, a tuple of two lists is represented as a prim::ListConstruct whose
+    // inputs are themselves prim::ListConstruct nodes.  get_values_from_const_input() flattens
+    // nested lists into a single 1D vector and loses the split point, so we must inspect the
+    // raw node structure here using cast_fw_node / concat_list_construct.
+    auto dims_input = ctx.get_input_from_visible_context(2);
+    if (auto outer_list = cast_fw_node(dims_input.get_node_shared_ptr(), "prim::ListConstruct")) {
+        FRONT_END_GENERAL_CHECK(outer_list->get_input_size() == 2,
+                                "aten::tensordot: dims tuple must have two elements");
+
+        // Extract a prim::ListConstruct of scalar integer constants into a std::vector<int64_t>.
+        auto extract_axes_list = [](Output<Node> list_input) -> std::vector<int64_t> {
+            // concat_list_construct folds a prim::ListConstruct of scalars into a Concat of
+            // unsqueezed constants; get_constant_from_source then constant-folds it to a 1D
+            // Constant so we can call cast_vector.
+            auto folded = concat_list_construct(list_input);
+            auto constant = ov::util::get_constant_from_source(folded);
+            FRONT_END_GENERAL_CHECK(constant, "aten::tensordot: dims list elements must be constant");
+            return constant->cast_vector<int64_t>();
+        };
+
+        auto a_axes_vec = extract_axes_list(outer_list->input_value(0));
+        auto b_axes_vec = extract_axes_list(outer_list->input_value(1));
+
+        FRONT_END_GENERAL_CHECK(a_axes_vec.size() == b_axes_vec.size(),
+                                "aten::tensordot: mismatched contraction axes sizes");
+
+        validate_axes_vec(a_axes_vec, a_rank_ps, "a");
+        validate_axes_vec(b_axes_vec, b_rank_ps, "b");
+
+        a_axes = AxesInfo(a_axes_vec);
+        b_axes = AxesInfo(b_axes_vec);
         return;
     }
 
-    // ---- dims = ([...], [...]) ----
-    FRONT_END_GENERAL_CHECK(dims_const.is<std::vector<std::vector<int64_t>>>(),
-                            "aten::tensordot: dims must be int or tuple of lists");
+    // ---- dims = int ----
+    // get_values_from_const_input uses get_constant_from_source internally and accepts
+    // constant-foldable subgraphs, not only bare v0::Constant nodes.
+    auto dims_const = ctx.get_values_from_const_input(2);
+    FRONT_END_GENERAL_CHECK(dims_const.is<int64_t>(), "aten::tensordot: dims must be int or tuple of lists");
+    int64_t k = dims_const.as<int64_t>();
 
-    auto axes = dims_const.as<std::vector<std::vector<int64_t>>>();
-    FRONT_END_GENERAL_CHECK(axes.size() == 2, "aten::tensordot: dims tuple must have two elements");
-
-    auto a_axes_vec = axes[0];
-    auto b_axes_vec = axes[1];
-
-    FRONT_END_GENERAL_CHECK(a_axes_vec.size() == b_axes_vec.size(),
-                            "aten::tensordot: mismatched contraction axes sizes");
-
-    // For tuple case, we have explicit axes, so we can normalize them
-    // If rank is static, normalize negative axes
-    if (a_rank_ps.is_static()) {
+    if (a_rank_ps.is_static() && b_rank_ps.is_static()) {
         int64_t a_rank = a_rank_ps.get_length();
-        std::set<int64_t> seen_a;
-
-        for (auto& ax : a_axes_vec) {
-            if (ax < 0)
-                ax += a_rank;
-            FRONT_END_GENERAL_CHECK(ax >= 0 && ax < a_rank, "aten::tensordot: axis out of range for a");
-            FRONT_END_GENERAL_CHECK(seen_a.insert(ax).second, "aten::tensordot: duplicate axis in a");
-        }
-    } else {
-        // Dynamic rank: negative axes cannot be normalized without knowing rank at compile time.
-        // Require non-negative axes when rank is not statically known.
-        for (const auto& ax : a_axes_vec) {
-            FRONT_END_GENERAL_CHECK(ax >= 0, "aten::tensordot: negative axes require static rank for tensor a");
-        }
-    }
-
-    if (b_rank_ps.is_static()) {
         int64_t b_rank = b_rank_ps.get_length();
-        std::set<int64_t> seen_b;
 
-        for (auto& ax : b_axes_vec) {
-            if (ax < 0)
-                ax += b_rank;
-            FRONT_END_GENERAL_CHECK(ax >= 0 && ax < b_rank, "aten::tensordot: axis out of range for b");
-            FRONT_END_GENERAL_CHECK(seen_b.insert(ax).second, "aten::tensordot: duplicate axis in b");
-        }
+        FRONT_END_GENERAL_CHECK(k >= 0 && k <= a_rank && k <= b_rank, "aten::tensordot: invalid dims value");
+
+        std::vector<int64_t> a_axes_vec, b_axes_vec;
+        for (int64_t i = a_rank - k; i < a_rank; ++i)
+            a_axes_vec.push_back(i);
+        for (int64_t i = 0; i < k; ++i)
+            b_axes_vec.push_back(i);
+
+        a_axes = AxesInfo(a_axes_vec);
+        b_axes = AxesInfo(b_axes_vec);
     } else {
-        // Dynamic rank: negative axes cannot be normalized without knowing rank at compile time.
-        // Require non-negative axes when rank is not statically known.
-        for (const auto& ax : b_axes_vec) {
-            FRONT_END_GENERAL_CHECK(ax >= 0, "aten::tensordot: negative axes require static rank for tensor b");
-        }
-    }
+        // Dynamic rank: compute contraction axes at runtime via Range ops.
+        FRONT_END_GENERAL_CHECK(k >= 0, "aten::tensordot: dims must be non-negative");
 
-    a_axes = AxesInfo(a_axes_vec);
-    b_axes = AxesInfo(b_axes_vec);
+        Output<Node> a_rank;
+        std::tie(std::ignore, a_rank) = get_shape_rank(ctx, a, true);
+
+        auto const_k = v0::Constant::create(element::i32, Shape{}, {k});
+        auto a_start = ctx.mark_node(std::make_shared<v1::Subtract>(a_rank, const_k));
+        auto a_axes_dynamic = create_range(ctx, a_start, const_k);
+
+        auto const_0 = v0::Constant::create(element::i32, Shape{}, {0});
+        auto b_axes_dynamic = create_range(ctx, const_0, const_k);
+
+        a_axes = AxesInfo(a_axes_dynamic);
+        b_axes = AxesInfo(b_axes_dynamic);
+    }
 }
 
 // Helper function to reshape to 2D.
@@ -304,10 +301,6 @@ OutputVector translate_tensordot(const NodeContext& context) {
 
     Output<Node> a, b;
     std::tie(a, b) = get_inputs_with_promoted_types(context, 0, 1);
-
-    FRONT_END_GENERAL_CHECK(
-        ov::as_type_ptr<v0::Constant>(context.get_input_from_visible_context(2).get_node_shared_ptr()),
-        "aten::tensordot: dims must be constant");
 
     AxesInfo a_axes, b_axes;
     parse_tensordot_dims(context, a, b, a_axes, b_axes);
