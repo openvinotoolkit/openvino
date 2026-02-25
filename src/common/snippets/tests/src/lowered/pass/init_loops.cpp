@@ -7,10 +7,10 @@
 #include "lir_test_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/op/buffer.hpp"
 #include "snippets/op/load.hpp"
+#include "snippets/op/result.hpp"
 #include "snippets/op/store.hpp"
 
 namespace ov {
@@ -81,7 +81,7 @@ TEST_F(InitLoopsTest, BrgemmAddSplitM) {
         auto load2 = lir->push_node<ov::snippets::op::Load>(param2.second, vector_size);
         auto add = lir->push_node<ov::op::v1::Add>(load1.second, load2.second);
         auto store = lir->push_node<ov::snippets::op::Store>(add.second, vector_size);
-        auto result = lir->push_node<ov::op::v0::Result>(store.second);
+        auto result = lir->push_node<ov::snippets::op::Result>(store.second);
 
         const auto& loop_manager = lir->get_loop_manager();
 
@@ -215,7 +215,7 @@ TEST_F(InitLoopsTest, BrgemmAddSplitMN) {
         auto load2 = lir->push_node<ov::snippets::op::Load>(param2.second, vector_size);
         auto add = lir->push_node<ov::op::v1::Add>(load1.second, load2.second);
         auto store = lir->push_node<ov::snippets::op::Store>(add.second, vector_size);
-        auto result = lir->push_node<ov::op::v0::Result>(store.second);
+        auto result = lir->push_node<ov::snippets::op::Result>(store.second);
 
         const auto& loop_manager = lir->get_loop_manager();
 

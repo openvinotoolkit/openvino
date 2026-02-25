@@ -14,17 +14,17 @@
 #    include <cstring>
 
 #    include "emitters/plugin/aarch64/jit_emitter.hpp"
-#    include "openvino/runtime/threading/thread_local.hpp"
+#    include "emitters/snippets/common/jit_segfault_detector_emitter_base.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 
-using ov::threading::ThreadLocal;
-
 class jit_uni_segfault_detector_emitter;
-extern const std::shared_ptr<ThreadLocal<jit_uni_segfault_detector_emitter*>> g_custom_segfault_handler;
 
-class jit_uni_segfault_detector_emitter : public jit_emitter {
+class jit_uni_segfault_detector_emitter
+    : public ov::intel_cpu::jit_segfault_detector_emitter_base<jit_uni_segfault_detector_emitter, jit_emitter> {
 public:
+    using base_t = ov::intel_cpu::jit_segfault_detector_emitter_base<jit_uni_segfault_detector_emitter, jit_emitter>;
+
     jit_uni_segfault_detector_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                       dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                       jit_emitter* target_emitter,
@@ -39,20 +39,11 @@ public:
     std::string info() const;
 
 private:
-    // Emit code to save "this" pointer to global handler, then track memory address, etc.
-    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
-    jit_emitter* m_target_emitter = nullptr;
-    bool is_target_use_load_emitter = false;
-    bool is_target_use_store_emitter = false;
-    std::string m_target_node_name;
+    bool save_before_memory_track() const override;
 
-    void save_target_emitter() const;
+    void save_target_emitter() const override;
     static void set_local_handler(jit_uni_segfault_detector_emitter* emitter_address);
-    void memory_track(size_t gpr_idx_for_mem_address) const;
-
-    mutable size_t start_address = 0;
-    mutable size_t current_address = 0;
-    mutable size_t iteration = 0;
+    void memory_track(size_t gpr_idx_for_mem_address) const override;
 
 #    ifdef SNIPPETS_DEBUG_CAPS
     friend std::string init_info_jit_uni_segfault_detector_emitter(const jit_uni_segfault_detector_emitter* emitter);

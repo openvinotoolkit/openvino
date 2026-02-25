@@ -26,9 +26,8 @@ class TestReshapeAs(PytorchLayerTest):
             def forward_view(self, input_tensor, shape_tensor):
                 return input_tensor.view_as(shape_tensor)
 
-        ref_net = None
 
-        return aten_reshape_as(op), ref_net, f"aten::{op}"
+        return aten_reshape_as(op), f"aten::{op}"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
