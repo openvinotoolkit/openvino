@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -70,7 +70,7 @@ class EltwiseComparator(ClassProvider):
                     log.info("All output values were 'nan'/'inf' have converted to numbers")
                     data = np.nan_to_num(data)
                     ref = np.nan_to_num(ref)
-                # In case when there are boolean datatype 
+                # In case when there are boolean datatype
                 if (data.dtype == np.bool_) and (ref.dtype == np.bool_):
                     data = data.astype('float32')
                     ref = ref.astype('float32')
@@ -89,7 +89,7 @@ class EltwiseComparator(ClassProvider):
                     log.error("Type of IE output {} isn't equal with type of FW output {} for layer '{}'"
                               .format(data_type, ref_type, layer))
                     status = False
-                
+
                 statuses.append(status)
                 # Collect statistics
                 infer_max = np.amax(data)

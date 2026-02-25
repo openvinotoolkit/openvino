@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <algorithm>
@@ -34,6 +34,7 @@
 #include "paged_attn_kernel.hpp"
 #include "sage_attn.hpp"
 #include "softmax_kernel.hpp"
+#include "transpose.hpp"
 #include "transpose_kernel.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
@@ -69,135 +70,6 @@ using namespace ov::intel_cpu;
 #        define prefetch_bytes(bytes, sel, advance, src)
 
 #    endif
-
-// N must be multiple of 16
-template <typename TDST,
-          ov::element::Type_t SRC_PREC,
-          std::enable_if_t<(none_of(SRC_PREC, ov::element::i8, ov::element::u8, ov::element::u4)), bool> = true>
-void transpose_16NxK(TDST* dst,
-                     void* src,
-                     [[maybe_unused]] TDST* tmp,
-                     const size_t N,
-                     const size_t K,
-                     const size_t block_size,
-                     const size_t dst_stride,
-                     const size_t src_stride,
-                     [[maybe_unused]] const size_t group_size,
-                     [[maybe_unused]] const bool quant_key_bychannel) {
-    size_t k = 0;
-    auto* src_ptr = reinterpret_cast<typename ov::element_type_traits<SRC_PREC>::value_type*>(src);
-    // zero padding unsued blocks before transpose
-    for (size_t n = N; n < block_size; n++) {
-        memset(src_ptr + n * src_stride, 0, K * sizeof(typename ov::element_type_traits<SRC_PREC>::value_type));
-    }
-    for (; k + 16 <= K; k += 16) {
-        for (size_t n = 0; n < block_size; n += 16) {
-            transpose_16x16_kernel(dst + n, src_ptr + n * src_stride, dst_stride, src_stride);
-        }
-
-        dst += 16 * dst_stride;
-        src_ptr += 16;
-    }
-    if (k < K) {
-        for (size_t n = 0; n < block_size; n += 16) {
-            transpose_16xK_kernel(dst + n, src_ptr + n * src_stride, K - k, dst_stride, src_stride);
-        }
-    }
-}
-#    if defined(HAVE_AVX512F)
-template <typename T,
-          ov::element::Type_t SRC_PREC,
-          typename std::enable_if<any_of(SRC_PREC, ov::element::bf16, ov::element::f16) &&
-                                      (SRC_PREC == precision_of<T>::value),
-                                  bool>::type = true>
-static void transpose_16NxK(T* dst,
-                            T* src,
-                            T* tmp,
-                            const size_t N,
-                            const size_t K,
-                            const size_t block_size,
-                            const size_t dst_stride,
-                            const size_t src_stride,
-                            const size_t group_size,
-                            const bool quant_key_bychannel) {
-    // will treat as uint32_t transpose
-    auto s = reinterpret_cast<uint32_t*>(src);
-    auto d = reinterpret_cast<uint32_t*>(dst);
-    transpose_16NxK<uint32_t, ov::element::u32>(d,
-                                                s,
-                                                reinterpret_cast<uint32_t*>(0),
-                                                N,
-                                                K >> 1,
-                                                block_size,
-                                                dst_stride,
-                                                src_stride >> 1,
-                                                group_size,
-                                                false);
-}
-#    endif
-
-template <typename TDST,
-          ov::element::Type_t SRC_PREC,
-          std::enable_if_t<any_of(SRC_PREC, ov::element::i8, ov::element::u8, ov::element::u4), bool> = true>
-void transpose_16NxK(TDST* dst,
-                     void* src,
-                     TDST* tmp,
-                     const size_t N,
-                     const size_t K,
-                     const size_t block_size,
-                     const size_t dst_stride,
-                     const size_t src_stride,
-                     const size_t group_size,
-                     const bool quant_key_bychannel) {
-    // The layout for per token per head:
-    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
-    // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
-    auto* s = reinterpret_cast<uint8_t*>(src);
-    constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
-    constexpr size_t param_count = SRC_PREC == ov::element::i8 ? 1 : 2;
-    auto t = tmp;
-    // if group_size not set, the whole row is used as a group
-    if (quant_key_bychannel) {
-        if constexpr (any_of(SRC_PREC, ov::element::u8, ov::element::u4)) {
-            auto* p_scales = reinterpret_cast<float*>(s);
-            auto* p_zps = p_scales + K;
-            s = s + sizeof(float) * 2 * K;
-            attn_dequant_by_channel_kernel<TDST,
-                                           SRC_PREC>(s, t, N, K, K / sub_byte_multiplier, src_stride, p_scales, p_zps);
-        } else {
-            static_assert(SRC_PREC == ov::element::i8, "i8 doesn't support by-channel quantization");
-        }
-    } else {
-        for (size_t n = 0; n < N; n++) {
-            size_t src_offset = 0;
-            size_t dst_offset = 0;
-            while (dst_offset < K) {
-                auto* params = reinterpret_cast<float*>(s + src_offset);
-                attn_dequant_kernel<TDST, SRC_PREC>(s + src_offset + sizeof(float) * param_count,
-                                                    t + dst_offset,
-                                                    group_size,
-                                                    params);
-                src_offset += group_size / sub_byte_multiplier + sizeof(float) * param_count;
-                dst_offset += group_size;
-            }
-            s += src_offset;
-            t += src_stride;
-        }
-    }
-    for (size_t n = N; n < block_size; n++) {
-        memset(tmp + n * src_stride, 0, sizeof(TDST) * K);
-    }
-    transpose_16NxK<TDST, precision_of<TDST>::value>(dst,
-                                                     tmp,
-                                                     reinterpret_cast<TDST*>(0),
-                                                     block_size,
-                                                     K,
-                                                     block_size,
-                                                     dst_stride,
-                                                     src_stride,
-                                                     0,
-                                                     false);
-}
 
 // dequant f16/u8 to float
 template <typename T,
@@ -588,11 +460,20 @@ struct MHAHelper {
     size_t _sparse_mask_block_size = 0;
     bool _use_softmax_sparse_mask = false;
 
+    CpuParallelPtr _cpu_parallel;
+
     MHAHelper() {
         _weight.resize<float>({size_t{1}, size_t{1}, size_t{1}, size_t{1}});
     }
 
-    explicit MHAHelper(const ov::Extensions::Cpu::PagedAttnQuantParams& params) : _params(params) {
+    explicit MHAHelper(const std::shared_ptr<CpuParallel>& cpu_parallel) : _cpu_parallel(cpu_parallel) {
+        _weight.resize<float>({size_t{1}, size_t{1}, size_t{1}, size_t{1}});
+    }
+
+    explicit MHAHelper(const ov::Extensions::Cpu::PagedAttnQuantParams& params,
+                       const std::shared_ptr<CpuParallel>& cpu_parallel)
+        : _params(params),
+          _cpu_parallel(cpu_parallel) {
         _weight.resize<float>({size_t{1}, size_t{1}, size_t{1}, size_t{1}});
     }
 
@@ -805,7 +686,7 @@ struct MHAHelper {
         }
 
         _score_output.resize<float>({total_kv_len_aligned * H});
-        parallel_for(H, [&](size_t h) {
+        _cpu_parallel->parallel_for(H, [&](size_t h) {
             std::memset(_score_output.ptr<float>(h * total_kv_len_aligned), 0, total_kv_len_aligned * sizeof(float));
         });
     }
@@ -1993,15 +1874,21 @@ struct AttentionExecutor : public PagedAttentionExecutor {
     MHAHelper<DATA_TYPE, KEY_PREC, VALUE_PREC> _helper;
     MHA<DATA_TYPE, KEY_PREC, VALUE_PREC> _kernel;
     PlainTensor _slot_mapping;
+    std::shared_ptr<CpuParallel> _cpu_parallel;
 #    if defined(OPENVINO_ARCH_X86_64)
     Xattn _xatt;
 #    endif
 
-    AttentionExecutor() : _kernel(_helper) {}
+    explicit AttentionExecutor(const CpuParallelPtr& cpu_parallel)
+        : _helper(MHAHelper<DATA_TYPE, KEY_PREC, VALUE_PREC>(cpu_parallel)),
+          _kernel(_helper),
+          _cpu_parallel(cpu_parallel) {}
 
-    explicit AttentionExecutor(const ov::Extensions::Cpu::PagedAttnQuantParams& params)
-        : _helper(MHAHelper<DATA_TYPE, KEY_PREC, VALUE_PREC>(params)),
-          _kernel(_helper) {}
+    explicit AttentionExecutor(const ov::Extensions::Cpu::PagedAttnQuantParams& params,
+                               const CpuParallelPtr& cpu_parallel)
+        : _helper(MHAHelper<DATA_TYPE, KEY_PREC, VALUE_PREC>(params, cpu_parallel)),
+          _kernel(_helper),
+          _cpu_parallel(cpu_parallel) {}
 
     void init(const std::vector<MemoryPtr>& inputs,
               const std::vector<MemoryPtr>& outputs,
@@ -2341,9 +2228,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                                block_indices_begins,
                                _slot_mapping,
                                _helper._output,
-                               quant_params);
+                               quant_params,
+                               _cpu_parallel);
         } else {
-            paged_attn_memcpy(k, v, k_cache, v_cache, _slot_mapping);
+            paged_attn_memcpy(k, v, k_cache, v_cache, _slot_mapping, _cpu_parallel);
         }
     }
 
@@ -2452,7 +2340,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_type,
                                                          ov::element::Type key_cache_type,
                                                          ov::element::Type value_cache_type,
-                                                         const PagedAttnQuantParams& params) {
+                                                         const PagedAttnQuantParams& params,
+                                                         const CpuParallelPtr& cpu_parallel) {
     std::shared_ptr<PagedAttentionExecutor> executor;
     if (params.is_sage_attn) {
         bool s8s8_available = (ov::with_cpu_x86_avx512_core_amx_int8() ||
@@ -2463,12 +2352,18 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
     if (data_type == ov::element::bf16) {
 #    if defined(HAVE_AVX512F)
         if (key_cache_type == ov::element::i8 && params.is_sage_attn) {
-            executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::i8, ov::element::u8>>(params);
+            executor =
+                std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::i8, ov::element::u8>>(params,
+                                                                                                    cpu_parallel);
         } else if (key_cache_type == ov::element::u8) {
             if (value_cache_type == ov::element::u4) {
-                executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::u8, ov::element::u4>>(params);
+                executor =
+                    std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::u8, ov::element::u4>>(params,
+                                                                                                        cpu_parallel);
             } else if (value_cache_type == ov::element::u8) {
-                executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::u8, ov::element::u8>>(params);
+                executor =
+                    std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::u8, ov::element::u8>>(params,
+                                                                                                        cpu_parallel);
             } else {
                 OPENVINO_THROW("make_pa_executor: key_cache_type u8 with value_cache_type ",
                                value_cache_type.to_string(),
@@ -2477,9 +2372,13 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
 
         } else if (key_cache_type == ov::element::u4) {
             if (value_cache_type == ov::element::u4) {
-                executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::u4, ov::element::u4>>(params);
+                executor =
+                    std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::u4, ov::element::u4>>(params,
+                                                                                                        cpu_parallel);
             } else if (value_cache_type == ov::element::u8) {
-                executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::u4, ov::element::u8>>(params);
+                executor =
+                    std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::u4, ov::element::u8>>(params,
+                                                                                                        cpu_parallel);
             } else {
                 OPENVINO_THROW("make_pa_executor: key_cache_type u4 with value_cache_type ",
                                value_cache_type.to_string(),
@@ -2491,7 +2390,8 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                             key_cache_type,
                             " , ",
                             value_cache_type);
-            executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::bf16, ov::element::bf16>>();
+            executor =
+                std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::bf16, ov::element::bf16>>(cpu_parallel);
         }
 #    else
         OPENVINO_THROW("make_pa_executor: bf16 needs avx512+ hardware.");
@@ -2499,12 +2399,17 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
     } else if (data_type == ov::element::f16) {
 #    if defined(HAVE_AVX512F)
         if (key_cache_type == ov::element::i8 && params.is_sage_attn) {
-            executor = std::make_shared<AttentionExecutor<ov::float16, ov::element::i8, ov::element::u8>>(params);
+            executor = std::make_shared<AttentionExecutor<ov::float16, ov::element::i8, ov::element::u8>>(params,
+                                                                                                          cpu_parallel);
         } else if (key_cache_type == ov::element::u8) {
             if (value_cache_type == ov::element::u4) {
-                executor = std::make_shared<AttentionExecutor<ov::float16, ov::element::u8, ov::element::u4>>(params);
+                executor =
+                    std::make_shared<AttentionExecutor<ov::float16, ov::element::u8, ov::element::u4>>(params,
+                                                                                                       cpu_parallel);
             } else if (value_cache_type == ov::element::u8) {
-                executor = std::make_shared<AttentionExecutor<ov::float16, ov::element::u8, ov::element::u8>>(params);
+                executor =
+                    std::make_shared<AttentionExecutor<ov::float16, ov::element::u8, ov::element::u8>>(params,
+                                                                                                       cpu_parallel);
             } else {
                 OPENVINO_THROW("make_pa_executor: key_cache_type u8 with value_cache_type ",
                                value_cache_type.to_string(),
@@ -2512,9 +2417,13 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
             }
         } else if (key_cache_type == ov::element::u4) {
             if (value_cache_type == ov::element::u4) {
-                executor = std::make_shared<AttentionExecutor<ov::float16, ov::element::u4, ov::element::u4>>(params);
+                executor =
+                    std::make_shared<AttentionExecutor<ov::float16, ov::element::u4, ov::element::u4>>(params,
+                                                                                                       cpu_parallel);
             } else if (value_cache_type == ov::element::u8) {
-                executor = std::make_shared<AttentionExecutor<ov::float16, ov::element::u4, ov::element::u8>>(params);
+                executor =
+                    std::make_shared<AttentionExecutor<ov::float16, ov::element::u4, ov::element::u8>>(params,
+                                                                                                       cpu_parallel);
             } else {
                 OPENVINO_THROW("make_pa_executor: key_cache_type u4 with value_cache_type ",
                                value_cache_type.to_string(),
@@ -2526,19 +2435,23 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                             key_cache_type,
                             " , ",
                             value_cache_type);
-            executor = std::make_shared<AttentionExecutor<ov::float16, ov::element::f16, ov::element::f16>>();
+            executor =
+                std::make_shared<AttentionExecutor<ov::float16, ov::element::f16, ov::element::f16>>(cpu_parallel);
         }
 #    else
         OPENVINO_THROW("make_pa_executor: f16 needs avx512+ hardware.");
 #    endif
     } else if (data_type == ov::element::f32) {
         if (key_cache_type == ov::element::i8 && params.is_sage_attn) {
-            executor = std::make_shared<AttentionExecutor<float, ov::element::i8, ov::element::u8>>(params);
+            executor =
+                std::make_shared<AttentionExecutor<float, ov::element::i8, ov::element::u8>>(params, cpu_parallel);
         } else if (key_cache_type == ov::element::u8) {
             if (value_cache_type == ov::element::u4) {
-                executor = std::make_shared<AttentionExecutor<float, ov::element::u8, ov::element::u4>>(params);
+                executor =
+                    std::make_shared<AttentionExecutor<float, ov::element::u8, ov::element::u4>>(params, cpu_parallel);
             } else if (value_cache_type == ov::element::u8) {
-                executor = std::make_shared<AttentionExecutor<float, ov::element::u8, ov::element::u8>>(params);
+                executor =
+                    std::make_shared<AttentionExecutor<float, ov::element::u8, ov::element::u8>>(params, cpu_parallel);
             } else {
                 OPENVINO_THROW("make_pa_executor: key_cache_type u8 with value_cache_type ",
                                value_cache_type.to_string(),
@@ -2546,9 +2459,11 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
             }
         } else if (key_cache_type == ov::element::u4) {
             if (value_cache_type == ov::element::u4) {
-                executor = std::make_shared<AttentionExecutor<float, ov::element::u4, ov::element::u4>>(params);
+                executor =
+                    std::make_shared<AttentionExecutor<float, ov::element::u4, ov::element::u4>>(params, cpu_parallel);
             } else if (value_cache_type == ov::element::u8) {
-                executor = std::make_shared<AttentionExecutor<float, ov::element::u4, ov::element::u8>>(params);
+                executor =
+                    std::make_shared<AttentionExecutor<float, ov::element::u4, ov::element::u8>>(params, cpu_parallel);
             } else {
                 OPENVINO_THROW("make_pa_executor: key_cache_type u4 with value_cache_type ",
                                value_cache_type.to_string(),
@@ -2558,14 +2473,16 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
             OPENVINO_ASSERT(value_cache_type == ov::element::f16,
                             "expect value_cache_type type f16, current: ",
                             value_cache_type);
-            executor = std::make_shared<AttentionExecutor<float, ov::element::f16, ov::element::f16>>(params);
+            executor =
+                std::make_shared<AttentionExecutor<float, ov::element::f16, ov::element::f16>>(params, cpu_parallel);
         } else {
             OPENVINO_ASSERT(all_of(ov::element::f32, key_cache_type, value_cache_type),
                             "expect kvcache type f32, current: ",
                             key_cache_type,
                             " , ",
                             value_cache_type);
-            executor = std::make_shared<AttentionExecutor<float, ov::element::f32, ov::element::f32>>(params);
+            executor =
+                std::make_shared<AttentionExecutor<float, ov::element::f32, ov::element::f32>>(params, cpu_parallel);
         }
     } else {
         OPENVINO_THROW("make_pa_executor: unsupported precision: ", data_type);
@@ -2573,14 +2490,16 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
 #elif (defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE))
     if (data_type == ov::element::f32) {
         if (key_cache_type == ov::element::u8 && value_cache_type == ov::element::u8) {
-            executor = std::make_shared<AttentionExecutor<float, ov::element::u8, ov::element::u8>>(params);
+            executor =
+                std::make_shared<AttentionExecutor<float, ov::element::u8, ov::element::u8>>(params, cpu_parallel);
         } else {
             OPENVINO_THROW("make_pa_executor: key_cache_type and value_cache_type of u8 is only support");
         }
     }
     if (data_type == ov::element::f16) {
         if (key_cache_type == ov::element::u8 && value_cache_type == ov::element::u8) {
-            executor = std::make_shared<AttentionExecutor<ov::float16, ov::element::u8, ov::element::u8>>(params);
+            executor = std::make_shared<AttentionExecutor<ov::float16, ov::element::u8, ov::element::u8>>(params,
+                                                                                                          cpu_parallel);
         } else {
             OPENVINO_THROW("make_pa_executor: key_cache_type and value_cache_type of u8 is only support");
         }

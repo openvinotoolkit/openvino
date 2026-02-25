@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -101,14 +101,14 @@ const std::vector<ExecutorImplementation<MatMulAttrs>>& getImplementations() {
                 const auto& srcShape1 = srcDesc1->getShape().getStaticDims();
                 const auto srcRank0 = srcShape0.size();
                 const auto srcRank1 = srcShape1.size();
-                
+
                 for (size_t i = 0; i < srcRank0 - 2; i++) {
                     if (srcShape0[i] != srcShape1[i]) {
                         return false;
                     }
                 }
 
-                return (srcShape0[srcRank0 - 1] <= 2) && (srcShape0[srcRank0 - 2] <= 2) && 
+                return (srcShape0[srcRank0 - 1] <= 2) && (srcShape0[srcRank0 - 2] <= 2) &&
                        (srcShape1[srcRank1 - 1] <= 2) && (srcShape1[srcRank1 - 2] <= 2);
             },
             CreateDefault<MatMulSmallExecutor, MatMulAttrs>{}

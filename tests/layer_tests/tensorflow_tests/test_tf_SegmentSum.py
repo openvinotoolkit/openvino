@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -94,7 +94,7 @@ class TestSegmentSumComplex(CommonTFLayerTest):
             tf.compat.v1.global_variables_initializer().run()
             tf_net = sess.graph_def
 
-        return tf_net, None 
+        return tf_net, None
 
     test_data_basic = [
         dict(data_shape=[2, 3], segment_ids_shape=[2]),

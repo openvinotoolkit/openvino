@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -982,7 +982,7 @@ std::shared_ptr<ov::Model> XmlDeserializer::parse_function(const pugi::xml_node&
     }
 
     // Run DFS starting from outputs to get nodes topological order
-    std::function<void(size_t)> dfs = [&edges, &order, &dfs_used_nodes](const size_t start_id) {
+    const std::function<void(size_t)> dfs = [&edges, &order, &dfs_used_nodes](const size_t start_id) {
         std::stack<size_t> stack;
         std::unordered_set<size_t> visited;
         stack.push(start_id);

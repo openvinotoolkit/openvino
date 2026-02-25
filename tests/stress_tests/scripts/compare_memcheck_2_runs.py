@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -139,7 +139,7 @@ def compare_memcheck_2_runs(cur_values, references, output_file=None):
     # compare data using `comparison_ops`
     orig_data = pandas.DataFrame(comparison_data)
     data = orig_data.dropna()
-    
+
     devices = data["device"].unique()
     for device in devices:
         frame = data[data["device"] == device]

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <intel_gpu/primitives/data.hpp>
@@ -607,7 +607,7 @@ struct non_max_suppression_basic : public testing::Test {
         auto output_data_type = this->data_type;
         nms.output_data_types = {optional_data_type{}, optional_data_type{output_data_type}, optional_data_type{}};
         nms.output_paddings = {padding(), padding(), padding()};
-        
+
         topo.add(nms);
         topo.add(non_max_suppression_gather("nms_gather",
                                             {input_info("nms", 0),

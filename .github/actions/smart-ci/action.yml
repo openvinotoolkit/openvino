@@ -35,11 +35,11 @@ inputs:
     required: false
     default: ".github/labeler.yml"
   skip_when_only_listed_labels_set:
-    description: "Comma-separated list of labels. If PR has only these labels set, 
+    description: "Comma-separated list of labels. If PR has only these labels set,
                   return indicator that CI can be skipped"
     required: false
   skip_when_only_listed_files_changed:
-    description: "Comma-separated list of patterns (fnmatch-style). If PR has only matching files changed, 
+    description: "Comma-separated list of patterns (fnmatch-style). If PR has only matching files changed,
                   return indicator that CI can be skipped"
     required: false
   enable_for_org:
@@ -65,7 +65,7 @@ runs:
   using: "composite"
   steps:
     - name: checkout wait-for-check action
-      uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+      uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
       with:
         repository: openvinotoolkit/openvino
         sparse-checkout: .github/actions/wait-for-check-completion
@@ -82,7 +82,7 @@ runs:
         timeout: 300
 
     - name: checkout components file
-      uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+      uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
       with:
         sparse-checkout: .github/components.yml
         sparse-checkout-cone-mode: false
