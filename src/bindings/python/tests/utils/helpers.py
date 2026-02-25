@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -243,8 +242,8 @@ def generate_add_model(input_shape: list[int] = None, input_dtype=np.float32) ->
     return Model(add, [param1, param2], "TestModel")
 
 
-def generate_multi_input_model():
-
+def generate_multi_input_model() -> openvino.Model:
+    """Generate a model with three inputs and three corresponding addition outputs."""
     input_a = ops.parameter([2, 2], name="A")
     input_b = ops.parameter([1, 3, 224, 244], name="B")
     input_c = ops.parameter([10], name="C")

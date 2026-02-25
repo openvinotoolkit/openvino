@@ -540,25 +540,39 @@ void regclass_graph_Model(py::module m) {
             }
 
             bool is_multi_input_format = false;
-            bool has_list = false;
+            bool all_containers = true;
             bool has_int = false;
 
             for (size_t i = 0; i < partial_shape.size(); ++i) {
                 py::handle elem = partial_shape[i];
-                if (py::isinstance<py::list>(elem)) {
-                    has_list = true;
-                } else if (py::isinstance<py::int_>(elem)) {
+                if (py::isinstance<py::int_>(elem)) {
                     has_int = true;
-                } else if (!py::isinstance<py::tuple>(elem)) {
+                    all_containers = false;
+                } else if (py::isinstance<py::list>(elem) || py::isinstance<py::tuple>(elem)) {
+                    // list/tuple are treated as shape containers at the top level
+                } else {
                     throw std::runtime_error("Invalid shape format");
                 }
             }
 
-            if (has_list) {
-                is_multi_input_format = true;
-            } else {
-                is_multi_input_format = !has_int;
+            // If the number of provided shapes matches the number of model inputs
+            // but top-level elements are not all containers, the user likely
+            // intended multi-input format but provided an invalid element type.
+            if ((partial_shape.size() == inputs.size()) && !all_containers) {
+                throw std::runtime_error("Each shape must be a list or tuple.");
             }
+
+            // If all top-level elements are containers but the number of shapes
+            // does not match number of model inputs, report a clear error instead
+            // of trying to parse the whole thing as a flat shape.
+            if (all_containers && (partial_shape.size() != inputs.size())) {
+                throw std::runtime_error("Number of shapes does not match number of model inputs.");
+            }
+
+            // Multi-input format is used only when the number of provided shapes
+            // matches the number of model inputs and all top-level elements are
+            // shape containers (lists/tuples). Otherwise treat as a flat shape.
+            is_multi_input_format = (partial_shape.size() == inputs.size()) && all_containers;
 
             if (!is_multi_input_format) {
                 // FLAT FORMAT
@@ -572,36 +586,18 @@ void regclass_graph_Model(py::module m) {
             // MULTI-INPUT FORMAT
             std::map<std::string, ov::PartialShape> new_shapes_map;
 
-            auto parse_dimension = [](py::handle dim_obj) -> ov::Dimension {
-                if (py::isinstance<py::list>(dim_obj)) {
-                    throw std::runtime_error("Unexpected nested list in dimension specification.");
+            // Reuse existing helper to parse inner shape containers so that all
+            // dimension notation forms supported elsewhere (ints, [min,max],
+            // (min,max), -1, strings, openvino.Dimension, etc.) are accepted
+            // here too. This avoids divergence between flat and multi-input
+            // parsing behavior.
+            auto parse_shape = [](py::handle shape_handle) -> ov::PartialShape {
+                if (!py::isinstance<py::list>(shape_handle) && !py::isinstance<py::tuple>(shape_handle)) {
+                    throw std::runtime_error("Each shape must be a list or tuple.");
                 }
-                if (py::isinstance<py::tuple>(dim_obj)) {
-                    py::tuple t = dim_obj.cast<py::tuple>();
-                    if (t.size() != 2) {
-                        throw std::runtime_error(
-                            "Two elements are expected in tuple(lower, upper) for dynamic dimension, but " +
-                            std::to_string(t.size()) + " elements were given.");
-                    }
-                    if (!py::isinstance<py::int_>(t[0]) || !py::isinstance<py::int_>(t[1])) {
-                        throw std::runtime_error("Tuple elements must be integers.");
-                    }
-                    int lower = t[0].cast<int>();
-                    int upper = t[1].cast<int>();
-                    return ov::Dimension(lower, upper);
-                }
-                if (py::isinstance<py::int_>(dim_obj)) {
-                    return ov::Dimension(dim_obj.cast<int>());
-                }
-                throw std::runtime_error("Invalid dimension type. Must be int or (lower, upper) tuple.");
-            };
-
-            auto parse_shape = [&parse_dimension](py::sequence shape_seq) -> ov::PartialShape {
-                std::vector<ov::Dimension> dims;
-                for (size_t i = 0; i < shape_seq.size(); ++i) {
-                    dims.push_back(parse_dimension(shape_seq[i]));
-                }
-                return ov::PartialShape(dims);
+                // Common::partial_shape_from_list expects a py::list
+                py::list shape_list = shape_handle.cast<py::list>();
+                return Common::partial_shape_from_list(shape_list);
             };
 
             if (partial_shape.size() != inputs.size()) {
@@ -610,11 +606,7 @@ void regclass_graph_Model(py::module m) {
 
             for (size_t i = 0; i < partial_shape.size(); ++i) {
                 py::handle shape_handle = partial_shape[i];
-                if (!py::isinstance<py::list>(shape_handle) && !py::isinstance<py::tuple>(shape_handle)) {
-                    throw std::runtime_error("Each shape must be a list or tuple.");
-                }
-                py::sequence shape_seq = shape_handle.cast<py::sequence>();
-                new_shapes_map[inputs[i].get_any_name()] = parse_shape(shape_seq);
+                new_shapes_map[inputs[i].get_any_name()] = parse_shape(shape_handle);
             }
 
             const auto new_variables_shapes = get_variables_shapes(variables_shapes);
@@ -637,21 +629,9 @@ void regclass_graph_Model(py::module m) {
             When list or tuple are used to describe dimensions, each dimension can be written in form:
 
             (1) non-negative `int` which means static value for the dimension
-            (2) `[min, max]`, dynamic dimension where `min` specifies lower bound and `max` specifies upper bound;
-            the range includes both `min` and `max`; using `-1` for `min` or `max` means no known bound (3) `(min,
-            max)`, the same as above (4) `-1` is a dynamic dimension without known bounds (4)
-            `openvino.Dimension` (5) `str` using next syntax:
-                '?' - to define fully dynamic dimension
-                '1' - to define dimension which length is 1
-                '1..10' - to define bounded dimension
-                '..10' or '1..' to define dimension with only lower or only upper limit
-
-            Multi-input format:
-            - Pass a list of shapes: [[shape1], [shape2], ...]
-            - Number of shapes must match number of inputs
-            
-            Single-input format:
-            - Pass a flat list: [dim1, dim2, ...]
+            (2) `(min, max)`, dynamic dimension where `min` specifies lower bound and `max` specifies upper bound;
+            the range includes both `min` and `max`; using `-1` for `min` or `max` means no known bound
+            (3) `-1` is a dynamic dimension without known bounds
 
             Examples:
                 >>> model.reshape([[2, 2], [1, 3, 224, 244], [10]])  # Multi-input
