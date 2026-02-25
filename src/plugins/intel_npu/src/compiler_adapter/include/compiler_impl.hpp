@@ -28,7 +28,7 @@ public:
      *        including config options related to compilation
      * @return a shared pointer on an object implementing NetworkDescription interface
      */
-    NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const;
+    NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const FilteredConfig& config) const;
 
     /**
      * @brief Compiles the model, weights separation enabled. All init schedules along with the main one are compiled in
@@ -37,7 +37,7 @@ public:
      * part.
      */
     std::vector<std::shared_ptr<NetworkDescription>> compileWsOneShot(const std::shared_ptr<ov::Model>& model,
-                                                                      const Config& config) const;
+                                                                      const FilteredConfig& config) const;
     /**
      * @brief Sequential compilation of Init(s) and Main
      *
@@ -53,7 +53,7 @@ public:
      * Plugin does not know total numbers of Init schedules
      */
     NetworkDescription compileWsIterative(const std::shared_ptr<ov::Model>& model,
-                                          const Config& config,
+                                          const FilteredConfig& config,
                                           size_t callNumber) const;
     /**
      * @brief Returns information about supported layers of the network passed
@@ -62,7 +62,7 @@ public:
      *        including config options related to compilation
      * @returns SupportedOpsMap structure with information about supported layers
      */
-    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const;
+    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const FilteredConfig& config) const;
 
     /**
      * @brief Parses already compiled network to extract meta information:
@@ -73,7 +73,7 @@ public:
      *        since the network is already compiled
      * @return a shared pointer on an object implementing NetworkDescription interface
      */
-    NetworkMetadata parse(const std::vector<uint8_t>& network, const Config& config) const;
+    NetworkMetadata parse(const std::vector<uint8_t>& network, const FilteredConfig& config) const;
 
     /**
      * @brief Returns the compiler version
@@ -84,8 +84,7 @@ public:
     uint32_t get_version() const;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
-                                                            const std::vector<uint8_t>& network,
-                                                            const intel_npu::Config& config) const;
+                                                            const std::vector<uint8_t>& network) const;
 
     bool get_supported_options(std::vector<char>& options) const;
 
@@ -100,7 +99,7 @@ private:
      * @note Storing the "WeightlessCacheAttribute" is necessary if the "weights separation" flow is being used.
      */
     NetworkDescription compile(const std::shared_ptr<const ov::Model>& model,
-                               const Config& config,
+                               const FilteredConfig& config,
                                const bool storeWeightlessCacheAttributeFlag) const;
 
     vcl_log_handle_t _logHandle = nullptr;
