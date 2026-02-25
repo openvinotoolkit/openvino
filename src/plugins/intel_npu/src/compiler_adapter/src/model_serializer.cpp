@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "vcl_serializer.hpp"
+#include "model_serializer.hpp"
 
 #include <cstdint>
 #include <istream>
@@ -205,7 +205,7 @@ void storeWeightlessCacheAttribute(const std::shared_ptr<ov::Model>& model) {
 
 }  // namespace
 
-namespace intel_npu::driver_compiler_utils {
+namespace intel_npu::compiler_utils {
 
 /**
  * @brief Interface to be used by the serialization algorithms.
@@ -591,21 +591,15 @@ std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const
            outputsPrecisionSS.str() + VALUES_SEPARATOR.data() + outputsLayoutSS.str();
 }
 
-std::string serializeConfig(const Config& config,
-                            ze_graph_compiler_version_info_t compilerVersion,
-                            bool turboSupported) {
+std::string serializeConfig(const FilteredConfig& config,
+                            const ze_graph_compiler_version_info_t& compilerVersion,
+                            const std::function<bool(const std::string&)>& isOptionSupportedByCompiler) {
     Logger logger("serializeConfig", Logger::global().level());
 
     std::string content = {};
 
-    const FilteredConfig* plgConfig = dynamic_cast<const FilteredConfig*>(&config);
-    if (plgConfig != nullptr) {
-        content += plgConfig->toStringForCompiler();
-        content += plgConfig->toStringForCompilerInternal();
-    } else {
-        logger.warning("Failed to cast Config to FilteredConfig. Exporting all configs");
-        content += config.toString();
-    }
+    content += config.toStringForCompiler();
+    content += config.toStringForCompilerInternal();
 
     logger.debug("Original content of config: %s", content.c_str());
 
@@ -678,20 +672,25 @@ std::string serializeConfig(const Config& config,
                                      getStringReplacement(ov::intel_npu::LegacyPriority::HIGH));
     }
 
-    // Special case for compiler Turbo
+    // Special cases
+    const auto& removeOptionIfUnsupported = [&](const std::string& optionName) {
+        if (std::regex_search(content, std::regex(optionName))) {
+            const bool optionSupported =
+                isOptionSupportedByCompiler != nullptr ? isOptionSupportedByCompiler(optionName) : false;
+            if (!optionSupported) {
+                std::ostringstream optionStr;
+                optionStr << optionName << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
+                logger.info("%s property is not supported by this compiler. Removing from parameters",
+                            optionName.c_str());
+                content = std::regex_replace(content, std::regex(optionStr.str()), "");
+            }
+        }
+    };
+
     // NPU_TURBO is a special option in the sense that by default it is a driver-setting, but certain compilers
     // support and make use of it too If we have turbo in the config string, we check if compiler supports it. If it
     // doesn't support it, we remove it
-    if (std::regex_search(content, std::regex("NPU_TURBO"))) {
-        if (!turboSupported) {
-            std::ostringstream turbostr;
-            turbostr << ov::intel_npu::turbo.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
-                     << VALUE_DELIMITER;
-            logger.info("NPU_TURBO property is not supported by this compiler. Removing from "
-                        "parameters");
-            content = std::regex_replace(content, std::regex(turbostr.str()), "");
-        }
-    }
+    removeOptionIfUnsupported(ov::intel_npu::turbo.name());
 
     // FINAL step to convert prefixes of remaining params, to ensure backwards compatibility
     // From 5.0.0, driver compiler start to use NPU_ prefix, the old version uses VPU_ prefix
@@ -709,4 +708,4 @@ std::string serializeConfig(const Config& config,
     return "--config " + content;
 }
 
-}  // namespace intel_npu::driver_compiler_utils
+}  // namespace intel_npu::compiler_utils
