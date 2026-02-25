@@ -44,9 +44,9 @@ public:
                                                       const ov::AnyMap& properties,
                                                       const ov::SoPtr<ov::IRemoteContext>& context) const override;
 
-    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override;
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remoteProperties) const override;
 
-    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override;
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remoteProperties) const override;
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& stream, const ov::AnyMap& properties) const override;
 
@@ -54,10 +54,10 @@ public:
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override;
 
-    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& compiled_blob,
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& compiledBlob,
                                                      const ov::AnyMap& properties) const override;
 
-    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& compiled_blob,
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& compiledBlob,
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override;
 
@@ -65,13 +65,8 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
-    void init_options();
-    void filter_global_config_safe(
-        const std::optional<ov::intel_npu::CompilerType>& compilerChange = std::nullopt) const;
-    void filter_config_by_compiler_support(FilteredConfig& cfg) const;
-    FilteredConfig fork_local_config(const ov::AnyMap& properties,
-                                     const std::unique_ptr<ICompilerAdapter>& compiler,
-                                     OptionMode mode = OptionMode::Both) const;
+    void init_options(FilteredConfig& filteredConfig);
+    void update_log_level(const ov::AnyMap& properties) const;
 
     /**
      * @brief Parses the compiled model found within the stream and tensor and returns a wrapper over the L0 handle that
@@ -96,13 +91,11 @@ private:
     ov::SoPtr<IEngineBackend> _backend;
 
     std::shared_ptr<OptionsDesc> _options;
-    mutable FilteredConfig _globalConfig;
     mutable Logger _logger;
     std::shared_ptr<Metrics> _metrics;
-    std::unique_ptr<Properties> _properties;
+    std::unique_ptr<Properties> _propertiesManager;
 
     static std::atomic<int> _compiledModelLoadCounter;
-    mutable std::mutex _mutex;
 };
 
 }  // namespace intel_npu

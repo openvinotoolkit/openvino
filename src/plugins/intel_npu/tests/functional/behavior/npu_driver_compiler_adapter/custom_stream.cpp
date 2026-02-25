@@ -8,12 +8,12 @@
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "intel_npu/config/options.hpp"
+#include "model_serializer.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
-#include "vcl_serializer.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
@@ -121,8 +121,7 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelWeightsCopy) {
     const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
 
     ::intel_npu::SerializedIR serializedModel;
-    EXPECT_NO_THROW(serializedModel =
-                        ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, true));
+    EXPECT_NO_THROW(serializedModel = ::intel_npu::compiler_utils::serializeIR(model, dummyCompilerVersion, 11, true));
     // If the size changes significantly, then investigation may be required
     ASSERT_TRUE(serializedModel.size > SERIALIZED_MODEL_THRESHOLD_ALL_WEIGHTS_COPY);
 }
@@ -132,8 +131,7 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModelNoWeightsCopy) {
     const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
 
     ::intel_npu::SerializedIR serializedModel;
-    EXPECT_NO_THROW(serializedModel =
-                        ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false));
+    EXPECT_NO_THROW(serializedModel = ::intel_npu::compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false));
     // If the size changes significantly, then investigation may be required
     ASSERT_TRUE(serializedModel.size < SERIALIZED_MODEL_THRESHOLD_NO_WEIGHTS_COPY);
 
@@ -147,12 +145,11 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckHashPresence) {
     const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
 
     ::intel_npu::SerializedIR serializedModel;
-    EXPECT_NO_THROW(serializedModel =
-                        ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false));
+    EXPECT_NO_THROW(serializedModel = ::intel_npu::compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false));
     ASSERT_FALSE(serializedModel.hash.has_value());
 
     EXPECT_NO_THROW(serializedModel =
-                        ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, true));
+                        ::intel_npu::compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, true));
     ASSERT_TRUE(serializedModel.hash.has_value());
 }
 
@@ -165,14 +162,12 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckWeightlessCacheAttributePr
     const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
 
     ::intel_npu::SerializedIR serializedModel;
-    EXPECT_NO_THROW(
-        serializedModel =
-            ::intel_npu::driver_compiler_utils::serializeIR(model->clone(), dummyCompilerVersion, 11, false));
+    EXPECT_NO_THROW(serializedModel =
+                        ::intel_npu::compiler_utils::serializeIR(model->clone(), dummyCompilerVersion, 11, false));
     ASSERT_FALSE(model->has_rt_info("ws_bin_offset_1"));
 
-    EXPECT_NO_THROW(
-        serializedModel =
-            ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, false, true));
+    EXPECT_NO_THROW(serializedModel =
+                        ::intel_npu::compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, false, true));
     // Follows the contract established with the driver-compiler adapter. Predefined prefix + a topological ID of the
     // Constant node
     ASSERT_TRUE(model->has_rt_info("ws_bin_offset_1"));
@@ -186,16 +181,14 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckWeightlessCacheAttributeCh
     const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
 
     ::intel_npu::SerializedIR serializedModel;
-    EXPECT_NO_THROW(
-        serializedModel =
-            ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, true, true));
+    EXPECT_NO_THROW(serializedModel =
+                        ::intel_npu::compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, true, true));
     ASSERT_TRUE(serializedModel.hash.has_value());
     const uint64_t hashNoWCA = serializedModel.hash.value();
 
     model = createModelWithLargeWeights(true);
-    EXPECT_NO_THROW(
-        serializedModel =
-            ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, true, true));
+    EXPECT_NO_THROW(serializedModel =
+                        ::intel_npu::compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, true, true));
 
     ASSERT_FALSE(hashNoWCA == serializedModel.hash.value());
 }
@@ -208,30 +201,23 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckPluginHashIgnoresOnlyNonde
     const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
 
     ::intel_npu::SerializedIR serializedModel;
-    EXPECT_NO_THROW(serializedModel = ::intel_npu::driver_compiler_utils::serializeIR(model->clone(),
-                                                                                      dummyCompilerVersion,
-                                                                                      11,
-                                                                                      false,
-                                                                                      true,
-                                                                                      false));
+    EXPECT_NO_THROW(
+        serializedModel =
+            ::intel_npu::compiler_utils::serializeIR(model->clone(), dummyCompilerVersion, 11, false, true, false));
     ASSERT_TRUE(serializedModel.hash.has_value());
     const uint64_t hashNoAttribute = serializedModel.hash.value();
 
     model->input().get_node()->get_rt_info()[TestNonDeterministicAttribute::get_type_info_static()] =
         TestNonDeterministicAttribute();
-    EXPECT_NO_THROW(serializedModel = ::intel_npu::driver_compiler_utils::serializeIR(model->clone(),
-                                                                                      dummyCompilerVersion,
-                                                                                      11,
-                                                                                      false,
-                                                                                      true,
-                                                                                      false));
+    EXPECT_NO_THROW(
+        serializedModel =
+            ::intel_npu::compiler_utils::serializeIR(model->clone(), dummyCompilerVersion, 11, false, true, false));
     ASSERT_TRUE(hashNoAttribute == serializedModel.hash.value());
 
     model->input().get_node()->get_rt_info()[TestDeterministicAttribute::get_type_info_static()] =
         TestDeterministicAttribute();
-    EXPECT_NO_THROW(
-        serializedModel =
-            ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, true, false));
+    EXPECT_NO_THROW(serializedModel =
+                        ::intel_npu::compiler_utils::serializeIR(model, dummyCompilerVersion, 11, false, true, false));
     ASSERT_FALSE(hashNoAttribute == serializedModel.hash.value());
 }
 
@@ -243,20 +229,18 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, CheckSameModelDifferentInstance
     const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
 
     ::intel_npu::SerializedIR serializedModel;
-    EXPECT_NO_THROW(serializedModel =
-                        ::intel_npu::driver_compiler_utils::serializeIR(model,
-                                                                        dummyCompilerVersion,
-                                                                        10,  // Triggers an additional pass
-                                                                        false,
-                                                                        true,
-                                                                        false));
+    EXPECT_NO_THROW(serializedModel = ::intel_npu::compiler_utils::serializeIR(model,
+                                                                               dummyCompilerVersion,
+                                                                               10,  // Triggers an additional pass
+                                                                               false,
+                                                                               true,
+                                                                               false));
     ASSERT_TRUE(serializedModel.hash.has_value());
     const uint64_t hashFirstInstance = serializedModel.hash.value();
 
     model = createModelWithLargeWeights();
-    EXPECT_NO_THROW(
-        serializedModel =
-            ::intel_npu::driver_compiler_utils::serializeIR(model, dummyCompilerVersion, 10, false, true, false));
+    EXPECT_NO_THROW(serializedModel =
+                        ::intel_npu::compiler_utils::serializeIR(model, dummyCompilerVersion, 10, false, true, false));
     ASSERT_TRUE(hashFirstInstance == serializedModel.hash.value());
 }
 
