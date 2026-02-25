@@ -12,15 +12,11 @@ namespace ov {
 template <typename T>
 class SharedBuffer : public ov::AlignedBuffer {
 public:
-    SharedBuffer(char* data, size_t size, const T& shared_object, const std::shared_ptr<IBufferDescriptor>& descriptor)
-        : _shared_object(shared_object),
-          _descriptor(descriptor) {
+    SharedBuffer(char* data, size_t size, const T& shared_object) : _shared_object(shared_object) {
         m_allocated_buffer = nullptr;
         m_aligned_buffer = data;
         m_byte_size = size;
     }
-
-    SharedBuffer(char* data, size_t size, const T& shared_object) : SharedBuffer(data, size, shared_object, nullptr) {}
 
     virtual ~SharedBuffer() {
         m_aligned_buffer = nullptr;
@@ -28,13 +24,8 @@ public:
         m_byte_size = 0;
     }
 
-    std::shared_ptr<IBufferDescriptor> get_descriptor() const override {
-        return _descriptor;
-    }
-
 private:
     T _shared_object;
-    std::shared_ptr<IBufferDescriptor> _descriptor;
 };
 
 /// \brief SharedStreamBuffer class to store pointer to pre-allocated buffer and provide streambuf interface.
