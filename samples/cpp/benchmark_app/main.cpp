@@ -1,17 +1,11 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <cstring>
-#include <fstream>
-#include <iomanip>
 #include <map>
 #include <memory>
-#include <nlohmann/json.hpp>
-#include <random>
 #include <string>
 #include <thread>
 #include <utility>
@@ -25,9 +19,6 @@
 #    define IN_OV_COMPONENT
 #    define WAS_OV_LIBRARY_DEFINED
 #endif
-
-// #include "openvino/pass/extract_first_sdpa.hpp"
-#include "openvino/pass/sdpa_to_paged_attention.hpp"
 
 #ifdef WAS_OV_LIBRARY_DEFINED
 #    undef IN_OV_COMPONENT
@@ -51,674 +42,1387 @@
 #elif defined(__APPLE__)
 #include <sys/resource.h>
 #elif defined(__linux__)
+#include <fstream>
 #include <regex>
 #include <sstream>
 #else
 #error "unsupported OS"
 #endif
 
-enum class ModelType {
-    INPUT_IDS,      // Standard LLM (e.g. Phi-4): uses input_ids (i64)
-    INPUTS_EMBEDS   // Vision-Language (e.g. Qwen2.5-VL): uses inputs_embeds (f32)
-};
+// clang-format on
 
-// Print the last written slot in the KV cache
-// Cache layout: [num_blocks, num_kv_heads, block_size, head_dim]
-void print_cache_slot(const std::string& name, const ov::Tensor& cache, int64_t seq_len) {
-    auto shape = cache.get_shape();
-    auto* data = cache.data<float>();
-    size_t num_kv_heads = shape[1];
-    size_t block_size = shape[2];
-    size_t head_dim = shape[3];
+namespace {
 
-    // Last token is at zero-based index (seq_len - 1).
-    // block = which block it falls into, slot = position within that block.
-    // E.g. seq_len=260, block_size=32: token 259 → block 8, slot 3.
-    size_t block = (seq_len - 1) / block_size;
-    size_t slot = (seq_len - 1) % block_size;
+#if defined(_WIN32)
 
-    std::cout << name << " shape=[" << shape[0] << "," << shape[1] << "," << shape[2] << "," << shape[3]
-              << "] last token at block=" << block << " slot=" << slot << " head0 first 4 vals: ";
-    size_t offset = block * (num_kv_heads * block_size * head_dim) + 0 * (block_size * head_dim) + slot * head_dim;
-    for (int i = 0; i < 4; i++) {
-        std::cout << std::fixed << std::setprecision(4) << data[offset + i] << " ";
+int64_t get_peak_memory_usage() {
+    PROCESS_MEMORY_COUNTERS mem_counters;
+    if (!GetProcessMemoryInfo(GetCurrentProcess(), &mem_counters, sizeof(mem_counters))) {
+        throw std::runtime_error("Can't get system memory values");
     }
-    std::cout << std::endl;
+
+    // Linux tracks memory usage in pages and then converts them to kB.
+    // Thus, there is always some room for inaccuracy as pages are not guaranteed to be fully used.
+    // In Windows, the situation is different: the system returns the memory usage in bytes, not in pages.
+    // To align the output between the two operating systems as closely as possible, we have two options:
+    //     1. Use rounding to the nearest integer.
+    //     2. Try to estimate the number of pages used in Windows. However,
+    //         this approach is likely to be inaccurate as well, so option 1 was chosen.
+    static constexpr double bytes_in_kilobyte = 1024.0;
+
+    // please note then we calculate difference
+    // to get peak memory increment value, so we return int64, not size_t
+    return static_cast<int64_t>(std::round(mem_counters.PeakWorkingSetSize / bytes_in_kilobyte));
 }
 
-// Helper to print tensor shape
-void print_shape(const std::string& name, const ov::Shape& shape) {
-    std::cout << name << ": [";
-    for (size_t i = 0; i < shape.size(); i++) {
-        std::cout << shape[i] << (i < shape.size() - 1 ? ", " : "");
+#elif defined(__APPLE__)
+
+int64_t get_peak_memory_usage() {
+    struct rusage usage;
+    // There is no VmPeak on macOS, so the only way is to use ru_maxrss.
+    // Please note, there's a difference between ru_maxrss and VmPeak:
+    // ru_maxrss is the maximum amount of physical memory (RAM) occupied by the process
+    // which, does not include memory-mapped files, pages reserved but not used, etc.
+    if (getrusage(RUSAGE_SELF, &usage) != 0) {
+        throw std::runtime_error("Can't get system memory values");
     }
-    std::cout << "]" << std::endl;
+
+    // in kilobytes
+    return static_cast<int64_t>(usage.ru_maxrss);
 }
 
-// Compare outputs with layout mapping (assumes batch=1)
-// SDPA shape: [batch, heads, seq, dim] — head-major layout
-// PA shape:   [tokens, heads, 1, dim] — token-major layout
-// Index formulas skip the batch dimension, so this only works with batch=1.
-void compare_outputs(const float* sdpa_data, const ov::Shape& sdpa_shape,
-                     const float* pa_data, const ov::Shape& pa_shape,
-                     const std::string& phase) {
-    const size_t num_heads = sdpa_shape[1];
-    const size_t seq_len = sdpa_shape[2];
-    const size_t head_dim = sdpa_shape[3];
+#else
 
-    float max_diff = 0.0f;
-    float sum_diff = 0.0f;
-    size_t count = 0;
+int64_t get_peak_memory_usage() {
+    size_t peak_mem_usage_kB = 0;
 
-    for (size_t s = 0; s < seq_len; s++) {
-        for (size_t h = 0; h < num_heads; h++) {
-            for (size_t d = 0; d < head_dim; d++) {
-                // SDPA: [batch=1, heads, seq, dim]
-                size_t sdpa_idx = h * seq_len * head_dim + s * head_dim + d;
-                // PA: [tokens, heads, 1, dim]
-                size_t pa_idx = s * num_heads * head_dim + h * head_dim + d;
-
-                float diff = std::abs(sdpa_data[sdpa_idx] - pa_data[pa_idx]);
-                max_diff = std::max(max_diff, diff);
-                sum_diff += diff;
-                count++;
-            }
+    std::ifstream status_file("/proc/self/status");
+    std::string line;
+    std::regex vm_peak_regex("VmPeak:");
+    std::smatch vm_match;
+    bool mem_values_found = false;
+    while (std::getline(status_file, line)) {
+        if (std::regex_search(line, vm_match, vm_peak_regex)) {
+            std::istringstream iss(vm_match.suffix());
+            iss >> peak_mem_usage_kB;
+            mem_values_found = true;
         }
     }
 
-    std::cout << phase << ": Max diff: " << std::scientific << std::setprecision(4) << max_diff
-              << ", Mean diff: " << (sum_diff / count) << std::fixed << std::endl;
-}
-
-// Compare logits (assumes batch=1): SDPA [1, seq, vocab] vs PA [seq, 1, vocab].
-// The "1" in different positions doesn't affect strides, so linear memory layout
-// is identical and we can do direct element-by-element comparison.
-void compare_logits(const float* sdpa_data, const ov::Shape& sdpa_shape,
-                    const float* pa_data, const ov::Shape& pa_shape,
-                    const std::string& phase) {
-    // SDPA: [1, seq, vocab], PA: [seq, vocab] — batch=1 so data layout is identical
-    size_t total = 1;
-    for (auto d : pa_shape) total *= d;
-
-    float max_diff = 0.0f;
-    double sum_diff = 0.0;
-
-    for (size_t i = 0; i < total; i++) {
-        float diff = std::abs(sdpa_data[i] - pa_data[i]);
-        max_diff = std::max(max_diff, diff);
-        sum_diff += diff;
+    if (!mem_values_found) {
+        throw std::runtime_error("Can't get system memory values");
     }
 
-    std::cout << phase << ": Max diff: " << std::scientific << std::setprecision(4) << max_diff
-              << ", Mean diff: " << (sum_diff / total) << std::fixed << std::endl;
-
-    // Print first 15 logit values from the last token
-    size_t last_token_offset = total - pa_shape.back();  // offset to last token's logits
-    std::cout << "  SDPA logits[0:15]: ";
-    for (size_t i = 0; i < 15; i++)
-        std::cout << std::fixed << std::setprecision(4) << sdpa_data[last_token_offset + i] << " ";
-    std::cout << std::endl;
-    std::cout << "  PA   logits[0:15]: ";
-    for (size_t i = 0; i < 15; i++)
-        std::cout << std::fixed << std::setprecision(4) << pa_data[last_token_offset + i] << " ";
-    std::cout << std::endl;
+    // please note then we calculate difference
+    // to get peak memory increment value, so we return int64, not size_t
+    return static_cast<int64_t>(peak_mem_usage_kB);
 }
+
+#endif
+
+bool parse_and_check_command_line(int argc, char* argv[]) {
+    // ---------------------------Parsing and validating input
+    // arguments--------------------------------------
+    slog::info << "Parsing input parameters" << slog::endl;
+    gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
+    if (FLAGS_help || FLAGS_h) {
+        show_usage();
+        showAvailableDevices();
+        return false;
+    }
+
+    if (FLAGS_m.empty()) {
+        show_usage();
+        throw std::logic_error("Model is required but not set. Please set -m option.");
+    }
+
+    if (FLAGS_latency_percentile > 100 || FLAGS_latency_percentile < 1) {
+        show_usage();
+        throw std::logic_error("The percentile value is incorrect. The applicable values range is [1, 100].");
+    }
+    if (FLAGS_api == "") {
+        FLAGS_api = FLAGS_hint == "latency" ? "sync" : "async";
+    }
+    if (FLAGS_api != "async" && FLAGS_api != "sync") {
+        throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
+    }
+    if (FLAGS_api == "sync") {
+        if ((FLAGS_t == 0) && (FLAGS_nireq > FLAGS_niter)) {
+            throw std::logic_error(
+                "Number of iterations should be greater than number of infer requests when using sync API.");
+        }
+    }
+    if (!FLAGS_hint.empty() && FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency" &&
+        FLAGS_hint != "cumulative_throughput" && FLAGS_hint != "ctput" && FLAGS_hint != "none") {
+        throw std::logic_error("Incorrect performance hint. Please set -hint option to"
+                               "`throughput`(tput), `latency', 'cumulative_throughput'(ctput) value or 'none'.");
+    }
+    if (FLAGS_hint != "none" && (FLAGS_nstreams != "" || FLAGS_nthreads != 0 || FLAGS_pin != "")) {
+        throw std::logic_error("-nstreams, -nthreads and -pin options are fine tune options. To use them you "
+                               "should explicitely set -hint option to none. This is not OpenVINO limitation "
+                               "(those options can be used in OpenVINO together), but a benchmark_app UI rule.");
+    }
+    if (!FLAGS_report_type.empty() && FLAGS_report_type != noCntReport && FLAGS_report_type != averageCntReport &&
+        FLAGS_report_type != detailedCntReport && FLAGS_report_type != sortDetailedCntReport) {
+        std::string err = "only " + std::string(noCntReport) + "/" + std::string(averageCntReport) + "/" +
+                          std::string(detailedCntReport) + "/" + std::string(sortDetailedCntReport) +
+                          " report types are supported (invalid -report_type option value)";
+        throw std::logic_error(err);
+    }
+
+    if ((FLAGS_report_type == averageCntReport) && ((FLAGS_d.find("MULTI") != std::string::npos))) {
+        throw std::logic_error("only " + std::string(detailedCntReport) + " report type is supported for MULTI device");
+    }
+
+    if (!FLAGS_pcsort.empty() && FLAGS_pcsort != "sort" && FLAGS_pcsort != "no_sort" && FLAGS_pcsort != "simple_sort") {
+        std::string pcsort_err = std::string("Incorrect performance count sort . Please set -pcsort option to ") +
+                                 std::string("'sort', 'no_sort', 'simple_sort'.");
+        throw std::logic_error(pcsort_err);
+    }
+
+    bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
+    bool isPrecisionSet = !(FLAGS_ip.empty() && FLAGS_op.empty() && FLAGS_iop.empty());
+    if (isNetworkCompiled && isPrecisionSet) {
+        std::string err = std::string("Cannot set precision for a compiled model. ") +
+                          std::string("Please re-compile your model with required precision.");
+
+        throw std::logic_error(err);
+    }
+    return true;
+}
+
+void next_step(const std::string additional_info = "") {
+    static size_t step_id = 0;
+    static const std::map<size_t, std::string> step_names = {{1, "Parsing and validating input arguments"},
+                                                             {2, "Loading OpenVINO Runtime"},
+                                                             {3, "Setting device configuration"},
+                                                             {4, "Reading model files"},
+                                                             {5, "Resizing model to match image sizes and given batch"},
+                                                             {6, "Configuring input of the model"},
+                                                             {7, "Loading the model to the device"},
+                                                             {8, "Querying optimal runtime parameters"},
+                                                             {9, "Creating infer requests and preparing input tensors"},
+                                                             {10, "Measuring performance"},
+                                                             {11, "Dumping statistics report"}};
+
+    step_id++;
+
+    OPENVINO_ASSERT(step_names.count(step_id) != 0,
+                    "Step ID ",
+                    step_id,
+                    " is out of total steps number ",
+                    step_names.size());
+
+    std::cout << "[Step " << step_id << "/" << step_names.size() << "] " << step_names.at(step_id)
+              << (additional_info.empty() ? "" : " (" + additional_info + ")") << std::endl;
+}
+
+void handle_performance_hint(const std::string& device, const ov::Core& core, ov::AnyMap& config) {
+    ov::hint::PerformanceMode ov_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
+    auto supported_properties = core.get_property(device, ov::supported_properties);
+    if (std::find(supported_properties.begin(), supported_properties.end(), ov::hint::performance_mode) !=
+        supported_properties.end()) {
+        // Use FLAGS_hint to decide performance mode:
+        //
+        // "throughput" or "tput": THROUGHPUT mode
+        // "cumulative_throughput" or "ctput": CUMULATIVE_THROUGHPUT mode
+        // "latency": LATENCY mode
+        // "none": not set ov::hint::performance_mode, let plugin use its default performance mode
+        // ""    : use default THROUGHPUT mode, if FLAG_api="sync" then set LATENCY mode
+        if (FLAGS_hint != "" && FLAGS_hint != "none") {
+            if (FLAGS_hint == "throughput" || FLAGS_hint == "tput") {
+                ov_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
+            } else if (FLAGS_hint == "latency") {
+                ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
+            } else if (FLAGS_hint == "cumulative_throughput" || FLAGS_hint == "ctput") {
+                ov_perf_hint = ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
+            } else {
+                throw std::logic_error(
+                    "Incorrect performance hint. Please set -hint option to"
+                    "`throughput`(tput), `latency', 'cumulative_throughput'(ctput) value or 'none'.");
+            }
+        } else if (FLAGS_hint == "") {
+            ov_perf_hint = ov::hint::PerformanceMode::THROUGHPUT;
+            if (FLAGS_api == "sync") {
+                ov_perf_hint = ov::hint::PerformanceMode::LATENCY;
+            }
+            slog::warn << "Performance hint was not explicitly specified in command line. "
+                          "Device("
+                       << device << ") performance hint will be set to " << ov_perf_hint << "." << slog::endl;
+        }
+
+        if (FLAGS_hint != "none") {
+            // apply command line hint setting and override if hint exists
+            config[ov::hint::performance_mode.name()] = ov_perf_hint;
+        } else {
+            config.erase(ov::hint::performance_mode.name());
+        }
+    } else {
+        if (FLAGS_hint != "none" && FLAGS_hint != "") {
+            slog::warn << "Device(" << device << ") does not support performance hint property(-hint)." << slog::endl;
+        }
+    }
+    return;
+}
+
+void setDeviceProperty(ov::Core& core,
+                       std::string& device,
+                       ov::AnyMap& device_config,
+                       const std::pair<std::string, ov::Any>& property,
+                       const std::pair<std::string, ov::Any>& config = {}) {
+    auto supported_properties = core.get_property(device, ov::supported_properties);
+    auto supported = [&](const std::string& key) {
+        return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
+               std::end(supported_properties);
+    };
+    // check if the HW device supported this property
+    std::pair<std::string, ov::Any> device_property;
+    if (!config.first.empty() && supported(config.first)) {
+        device_property = config;
+    } else if (supported(property.first))
+        device_property = property;
+
+    if (device_property.first.empty())
+        return;
+
+    update_device_properties_setting(device, device_config, device_property);
+}
+
+void warn_if_no_batch(const benchmark_app::InputsInfo& first_inputs) {
+    if (!std::any_of(first_inputs.begin(),
+                     first_inputs.end(),
+                     [](const std::pair<const std::string, benchmark_app::InputInfo>& info) {
+                         return ov::layout::has_batch(info.second.layout);
+                     })) {
+        slog::warn
+            << "No batch dimension was found, asssuming batch to be 1. Beware: this might affect FPS calculation."
+            << slog::endl;
+    }
+}
+
+void fuse_mean_scale(ov::preprocess::PrePostProcessor& preproc, const benchmark_app::InputsInfo& app_inputs_info) {
+    // TODO: remove warning after 23.3 release
+    bool warned = false;
+    constexpr char warn_msg[] = "Mean/scale values are fused into the model. This slows down performance compared to "
+                                "--imean and --iscale which existed before";
+    for (const std::pair<std::string, benchmark_app::InputInfo> input_info : app_inputs_info) {
+        if (!input_info.second.mean.empty()) {
+            if (!warned) {
+                slog::warn << warn_msg << slog::endl;
+                warned = true;
+            }
+            preproc.input(input_info.first)
+                .preprocess()
+                .convert_element_type(ov::element::f32)
+                .mean(input_info.second.mean);
+        }
+        if (!input_info.second.scale.empty()) {
+            if (!warned) {
+                slog::warn << warn_msg << slog::endl;
+                warned = true;
+            }
+            preproc.input(input_info.first)
+                .preprocess()
+                .convert_element_type(ov::element::f32)
+                .scale(input_info.second.scale);
+        }
+    }
+}
+}  // namespace
 
 /**
  * @brief The entry point of the benchmark application
  */
 int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        std::cout << "Usage: " << argv[0] << " <model_dir> [FULL_MODEL]" << std::endl;
-        std::cout << "  model_dir should contain openvino_model.xml/.bin and config.json" << std::endl;
-        std::cout << "  FULL_MODEL - run all layers instead of extracting first SDPA" << std::endl;
-        return 1;
-    }
+    std::shared_ptr<StatisticsReport> statistics;
+    try {
+        ov::CompiledModel compiledModel;
 
-    std::string model_dir = argv[1];
-    bool full_model = (argc >= 3 && std::string(argv[2]) == "FULL_MODEL");
-    std::string config_path = model_dir + "/config.json";
+        // ----------------- 1. Parsing and validating input arguments
+        // -------------------------------------------------
+        next_step();
 
-    // Try openvino_model.xml first, fall back to openvino_language_model.xml
-    std::string model_path = model_dir + "/openvino_model.xml";
-    if (!std::ifstream(model_path).good()) {
-        model_path = model_dir + "/openvino_language_model.xml";
-    }
-
-    // Read model config
-    std::ifstream config_file(config_path);
-    if (!config_file.is_open()) {
-        std::cerr << "Failed to open " << config_path << std::endl;
-        return 1;
-    }
-    nlohmann::json config = nlohmann::json::parse(config_file);
-
-    const int64_t num_kv_heads = config["num_key_value_heads"];
-    const int64_t num_q_heads = config["num_attention_heads"];
-    const int64_t hidden_size = config["hidden_size"];
-    const int64_t head_dim = hidden_size / num_q_heads;
-    const int64_t num_hidden_layers = config.value("num_hidden_layers", 1);
-    const int64_t num_layers = full_model ? num_hidden_layers : 1;
-
-    // Detect model type from config
-    std::string model_type_str = config.value("model_type", "");
-    ModelType model_type = ModelType::INPUT_IDS;
-    if (model_type_str == "qwen2_5_vl") {
-        model_type = ModelType::INPUTS_EMBEDS;
-    }
-
-    std::cout << "Mode: " << (full_model ? "FULL_MODEL" : "SINGLE_LAYER") << std::endl;
-    std::cout << "Model config: num_kv_heads=" << num_kv_heads
-              << ", num_q_heads=" << num_q_heads
-              << ", head_dim=" << head_dim
-              << ", num_layers=" << num_layers
-              << ", model_type=" << model_type_str
-              << " (" << (model_type == ModelType::INPUTS_EMBEDS ? "INPUTS_EMBEDS" : "INPUT_IDS") << ")"
-              << std::endl;
-
-    ov::Core core;
-
-    // Common test parameters
-    const int64_t batch = 1;
-    const int64_t block_size = 32;    // PA block size (must be 32 for CPU)
-
-    // Model-specific test configuration
-    int64_t prefill_len;
-    int64_t num_decode_iterations = 11;
-
-    // M-RoPE position arrays (only used for INPUTS_EMBEDS / qwen2_5_vl)
-    std::vector<int64_t> mrope_temporal, mrope_height, mrope_width;
-
-    // For INPUT_IDS models: token array
-    std::vector<int64_t> all_tokens;
-
-    // For INPUTS_EMBEDS models: embedding array
-    std::vector<float> all_embeddings;
-
-    // RNG for synthetic embeddings
-    std::mt19937 rng(42);
-    std::normal_distribution<float> embed_dist(0.0f, 0.02f);
-
-    if (model_type == ModelType::INPUT_IDS) {
-        prefill_len = 4;
-        int64_t total_len = prefill_len + num_decode_iterations;
-        for (int64_t i = 0; i < total_len; i++) {
-            all_tokens.push_back(100 + i * 111);
+        if (!parse_and_check_command_line(argc, argv)) {
+            return 0;
         }
-    } else {
-        // Qwen2.5-VL style: simulate 448x448 image
-        // patch_size=14, spatial_merge_size=2 -> effective merge=28 -> grid=448/28=16x16=256 image tokens
-        // Layout: 2 text + 256 image + 2 text = 260 prefill tokens
-        const int64_t num_text_before = 2;
-        const int64_t grid_h = 16, grid_w = 16;
-        const int64_t num_image_tokens = grid_h * grid_w;  // 256
-        const int64_t num_text_after = 2;
-        prefill_len = num_text_before + num_image_tokens + num_text_after;  // 260
 
-        int64_t total_len = prefill_len + num_decode_iterations;
-
-        // Generate synthetic embeddings for all tokens
-        all_embeddings.resize(total_len * hidden_size);
-        for (auto& v : all_embeddings)
-            v = embed_dist(rng);
-
-        // Build M-RoPE position arrays for prefill
-        // Text before image: all 3 planes same
-        for (int64_t i = 0; i < num_text_before; i++) {
-            mrope_temporal.push_back(i);
-            mrope_height.push_back(i);
-            mrope_width.push_back(i);
+        bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
+        if (isNetworkCompiled) {
+            slog::info << "Model is compiled" << slog::endl;
         }
-        // Image tokens: 16x16 grid
-        int64_t img_start_pos = num_text_before;  // = 2
-        for (int64_t row = 0; row < grid_h; row++) {
-            for (int64_t col = 0; col < grid_w; col++) {
-                mrope_temporal.push_back(img_start_pos);            // same for all image tokens
-                mrope_height.push_back(img_start_pos + row);        // varies by row: 2..17
-                mrope_width.push_back(img_start_pos + col);         // varies by col: 2..17
+
+        std::vector<gflags::CommandLineFlagInfo> flags;
+        StatisticsReport::Parameters command_line_arguments;
+        gflags::GetAllFlags(&flags);
+        for (auto& flag : flags) {
+            if (!flag.is_default) {
+                command_line_arguments.emplace_back(flag.name, flag.name, flag.current_value);
             }
         }
-        // Text after image: all 3 planes same, continue from max image position + 1
-        int64_t after_img_pos = img_start_pos + grid_h;  // 2 + 16 = 18
-        for (int64_t i = 0; i < num_text_after; i++) {
-            mrope_temporal.push_back(after_img_pos + i);
-            mrope_height.push_back(after_img_pos + i);
-            mrope_width.push_back(after_img_pos + i);
+        if (!FLAGS_report_type.empty()) {
+            statistics = FLAGS_json_stats ? std::make_shared<StatisticsReportJSON>(
+                                                StatisticsReport::Config{FLAGS_report_type, FLAGS_report_folder})
+                                          : std::make_shared<StatisticsReport>(
+                                                StatisticsReport::Config{FLAGS_report_type, FLAGS_report_folder});
+
+            statistics->add_parameters(StatisticsReport::Category::COMMAND_LINE_PARAMETERS, command_line_arguments);
+        }
+        auto isFlagSetInCommandLine = [&command_line_arguments](const std::string& name) {
+            return (std::find_if(command_line_arguments.begin(),
+                                 command_line_arguments.end(),
+                                 [name](const StatisticsVariant& p) {
+                                     return p.json_name == name;
+                                 }) != command_line_arguments.end());
+        };
+
+        std::string device_name = FLAGS_d;
+
+        // Parse devices
+        auto devices = parse_devices(device_name);
+
+        // Parse nstreams per device
+        std::map<std::string, std::string> device_nstreams = parse_value_per_device(devices, FLAGS_nstreams);
+        std::map<std::string, std::string> device_infer_precision =
+            parse_value_per_device(devices, FLAGS_infer_precision);
+
+        // Load device config file if specified
+        std::map<std::string, ov::AnyMap> config;
+        if (!FLAGS_load_config.empty()) {
+            load_config(FLAGS_load_config, config);
         }
 
-        std::cout << "Image simulation: " << num_text_before << " text + "
-                  << num_image_tokens << " image (" << grid_h << "x" << grid_w
-                  << ") + " << num_text_after << " text = " << prefill_len << " prefill tokens" << std::endl;
-    }
+        /** This vector stores paths to the processed images with input names**/
+        auto inputFiles = parse_input_arguments(gflags::GetArgvs());
 
-    int64_t total_len = prefill_len + num_decode_iterations;
-    int64_t num_blocks = (prefill_len + block_size - 1) / block_size;  // start small, grow dynamically
+        // ----------------- 2. Loading the OpenVINO Runtime
+        // -----------------------------------------------------------
+        next_step();
 
-    std::cout << "Test Configuration" << std::endl;
-    std::cout << "Prefill tokens: " << prefill_len << std::endl;
-    std::cout << "Decode iterations: " << num_decode_iterations << std::endl;
-    std::cout << "Total sequence length: " << total_len << std::endl;
-    std::cout << "Initial blocks allocated: " << num_blocks << std::endl;
-    std::cout << std::endl;
+        ov::Core core;
 
-    // --- Lambdas for setting primary input (model-type aware) ---
-
-    auto set_sdpa_primary_input_prefill = [&](ov::InferRequest& req) {
-        if (model_type == ModelType::INPUT_IDS) {
-            auto input_ids = ov::Tensor(ov::element::i64, {(size_t)batch, (size_t)prefill_len});
-            for (int64_t i = 0; i < prefill_len; i++)
-                input_ids.data<int64_t>()[i] = all_tokens[i];
-            req.set_tensor("input_ids", input_ids);
-        } else {
-            auto embeds = ov::Tensor(ov::element::f32, {(size_t)batch, (size_t)prefill_len, (size_t)hidden_size});
-            std::memcpy(embeds.data<float>(), all_embeddings.data(),
-                        prefill_len * hidden_size * sizeof(float));
-            req.set_tensor("inputs_embeds", embeds);
+        if (!FLAGS_extensions.empty()) {
+            // Extensions are loaded as a shared library
+            core.add_extension(FLAGS_extensions);
+            slog::info << "Extensions are loaded: " << FLAGS_extensions << slog::endl;
         }
-    };
 
-    auto set_pa_primary_input_prefill = [&](ov::InferRequest& req) {
-        if (model_type == ModelType::INPUT_IDS) {
-            auto input_ids = ov::Tensor(ov::element::i64, {(size_t)prefill_len});
-            for (int64_t i = 0; i < prefill_len; i++)
-                input_ids.data<int64_t>()[i] = all_tokens[i];
-            req.set_tensor("input_ids", input_ids);
-        } else {
-            auto embeds = ov::Tensor(ov::element::f32, {(size_t)prefill_len, (size_t)hidden_size});
-            std::memcpy(embeds.data<float>(), all_embeddings.data(),
-                        prefill_len * hidden_size * sizeof(float));
-            req.set_tensor("inputs_embeds", embeds);
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        // Load clDNN Extensions
+        if ((FLAGS_d.find("GPU") != std::string::npos) && !FLAGS_c.empty()) {
+            // Override config if command line parameter is specified
+            if (!config.count("GPU"))
+                config["GPU"] = {};
+            config["GPU"]["CONFIG_FILE"] = FLAGS_c;
         }
-    };
-
-    auto set_sdpa_primary_input_decode = [&](ov::InferRequest& req, int64_t iter) {
-        if (model_type == ModelType::INPUT_IDS) {
-            auto input_ids = ov::Tensor(ov::element::i64, {(size_t)batch, 1});
-            input_ids.data<int64_t>()[0] = all_tokens[prefill_len + iter];
-            req.set_tensor("input_ids", input_ids);
-        } else {
-            auto embeds = ov::Tensor(ov::element::f32, {(size_t)batch, 1, (size_t)hidden_size});
-            std::memcpy(embeds.data<float>(),
-                        all_embeddings.data() + (prefill_len + iter) * hidden_size,
-                        hidden_size * sizeof(float));
-            req.set_tensor("inputs_embeds", embeds);
+        if (config.count("GPU") && config.at("GPU").count("CONFIG_FILE")) {
+            auto ext = config.at("GPU").at("CONFIG_FILE").as<std::string>();
+            core.set_property("GPU", {{"CONFIG_FILE", ext}});
+            slog::info << "GPU extensions are loaded: " << ext << slog::endl;
         }
-    };
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
-    auto set_pa_primary_input_decode = [&](ov::InferRequest& req, int64_t iter) {
-        if (model_type == ModelType::INPUT_IDS) {
-            auto input_ids = ov::Tensor(ov::element::i64, {1});
-            input_ids.data<int64_t>()[0] = all_tokens[prefill_len + iter];
-            req.set_tensor("input_ids", input_ids);
-        } else {
-            auto embeds = ov::Tensor(ov::element::f32, {1, (size_t)hidden_size});
-            std::memcpy(embeds.data<float>(),
-                        all_embeddings.data() + (prefill_len + iter) * hidden_size,
-                        hidden_size * sizeof(float));
-            req.set_tensor("inputs_embeds", embeds);
-        }
-    };
+        slog::info << "OpenVINO:" << slog::endl;
+        slog::info << ov::get_openvino_version() << slog::endl;
+        slog::info << "Device info:" << slog::endl;
+        slog::info << core.get_versions(device_name) << slog::endl;
 
-    // --- Lambdas for setting position_ids (model-type aware) ---
+        // ----------------- 3. Setting device configuration
+        // -----------------------------------------------------------
+        next_step();
 
-    auto set_sdpa_position_ids_prefill = [&](ov::InferRequest& req) {
-        if (model_type == ModelType::INPUT_IDS) {
-            auto pos_ids = ov::Tensor(ov::element::i64, {(size_t)batch, (size_t)prefill_len});
-            for (int64_t i = 0; i < prefill_len; i++)
-                pos_ids.data<int64_t>()[i] = i;
-            req.set_tensor("position_ids", pos_ids);
-        } else {
-            // M-RoPE: [3, batch, seq_len]
-            auto pos_ids = ov::Tensor(ov::element::i64, {3, (size_t)batch, (size_t)prefill_len});
-            auto* data = pos_ids.data<int64_t>();
-            for (int64_t i = 0; i < prefill_len; i++)
-                data[0 * prefill_len + i] = mrope_temporal[i];
-            for (int64_t i = 0; i < prefill_len; i++)
-                data[1 * prefill_len + i] = mrope_height[i];
-            for (int64_t i = 0; i < prefill_len; i++)
-                data[2 * prefill_len + i] = mrope_width[i];
-            req.set_tensor("position_ids", pos_ids);
-        }
-    };
+        auto getDeviceTypeFromName = [](std::string device) -> std::string {
+            return device.substr(0, device.find_first_of(".("));
+        };
 
-    auto set_pa_position_ids_prefill = [&](ov::InferRequest& req) {
-        if (model_type == ModelType::INPUT_IDS) {
-            auto pos_ids = ov::Tensor(ov::element::i64, {(size_t)prefill_len});
-            for (int64_t i = 0; i < prefill_len; i++)
-                pos_ids.data<int64_t>()[i] = i;
-            req.set_tensor("position_ids", pos_ids);
-        } else {
-            // M-RoPE: flat [3*seq_len] — transformation reshapes internally
-            auto pos_ids = ov::Tensor(ov::element::i64, {3 * (size_t)prefill_len});
-            auto* data = pos_ids.data<int64_t>();
-            for (int64_t i = 0; i < prefill_len; i++)
-                data[i] = mrope_temporal[i];
-            for (int64_t i = 0; i < prefill_len; i++)
-                data[prefill_len + i] = mrope_height[i];
-            for (int64_t i = 0; i < prefill_len; i++)
-                data[2 * prefill_len + i] = mrope_width[i];
-            req.set_tensor("position_ids", pos_ids);
-        }
-    };
-
-    auto set_sdpa_position_ids_decode = [&](ov::InferRequest& req, int64_t position) {
-        if (model_type == ModelType::INPUT_IDS) {
-            auto pos_ids = ov::Tensor(ov::element::i64, {(size_t)batch, 1});
-            pos_ids.data<int64_t>()[0] = position;
-            req.set_tensor("position_ids", pos_ids);
-        } else {
-            // M-RoPE: [3, batch, 1] - all planes same for text decode tokens
-            auto pos_ids = ov::Tensor(ov::element::i64, {3, (size_t)batch, 1});
-            auto* data = pos_ids.data<int64_t>();
-            data[0] = position;  // temporal
-            data[1] = position;  // height
-            data[2] = position;  // width
-            req.set_tensor("position_ids", pos_ids);
-        }
-    };
-
-    auto set_pa_position_ids_decode = [&](ov::InferRequest& req, int64_t position) {
-        if (model_type == ModelType::INPUT_IDS) {
-            auto pos_ids = ov::Tensor(ov::element::i64, {1});
-            pos_ids.data<int64_t>()[0] = position;
-            req.set_tensor("position_ids", pos_ids);
-        } else {
-            // M-RoPE: flat [3] — transformation reshapes internally
-            auto pos_ids = ov::Tensor(ov::element::i64, {3});
-            auto* data = pos_ids.data<int64_t>();
-            data[0] = position;  // temporal
-            data[1] = position;  // height
-            data[2] = position;  // width
-            req.set_tensor("position_ids", pos_ids);
-        }
-    };
-
-    // --- Read and transform the model ---
-
-    std::cout << "Reading model from " << model_path << std::endl;
-    auto model = core.read_model(model_path);
-
-    if (!full_model) {
-        // ov::pass::ExtractFirstSDPA().run_on_model(model);
-        std::cout << "ExtractFirstSDPA done." << std::endl;
-    } else {
-        std::cout << "Skipping ExtractFirstSDPA (FULL_MODEL mode)." << std::endl;
-    }
-
-    // Clone for SDPA use, then transform original into PA
-    auto sdpa_model = model->clone();
-
-    ov::pass::SDPAToPagedAttention().run_on_model(model);
-    auto pa_model = model;
-    std::cout << "SDPAToPagedAttention done." << std::endl;
-
-    // Compile both models
-    auto sdpa_compiled = core.compile_model(sdpa_model, "CPU",
-        ov::hint::inference_precision(ov::element::f32),
-        ov::key_cache_precision(ov::element::f32),
-        ov::value_cache_precision(ov::element::f32));
-    auto sdpa_request = sdpa_compiled.create_infer_request();
-
-    auto pa_compiled = core.compile_model(pa_model, "CPU",
-        ov::hint::inference_precision(ov::element::f32),
-        ov::key_cache_precision(ov::element::f32),
-        ov::value_cache_precision(ov::element::f32));
-    auto pa_request = pa_compiled.create_infer_request();
-
-    std::cout << "Models compiled successfully." << std::endl << std::endl;
-
-    // --- KV cache tensors for PA ---
-
-    auto make_cache = [&]() {
-        auto t = ov::Tensor(ov::element::f32,
-            {(size_t)num_blocks, (size_t)num_kv_heads, (size_t)block_size, (size_t)head_dim});
-        std::fill_n(t.data<float>(), t.get_size(), 0.0f);
-        return t;
-    };
-
-    std::vector<ov::Tensor> key_caches(num_layers), value_caches(num_layers);
-    for (int64_t l = 0; l < num_layers; l++) {
-        key_caches[l] = make_cache();
-        value_caches[l] = make_cache();
-    }
-
-    // Helper to grow all cache tensors when more blocks are needed
-    auto grow_cache_if_needed = [&](int64_t required_seq_len) {
-        int64_t required_blocks = (required_seq_len + block_size - 1) / block_size;
-        if (required_blocks <= num_blocks) return;
-
-        int64_t old_blocks = num_blocks;
-        num_blocks = required_blocks;
-        std::cout << "  ** Growing cache: " << old_blocks << " -> " << num_blocks << " blocks **" << std::endl;
-
-        for (int64_t l = 0; l < num_layers; l++) {
-            auto new_kc = ov::Tensor(ov::element::f32,
-                {(size_t)num_blocks, (size_t)num_kv_heads, (size_t)block_size, (size_t)head_dim});
-            std::fill_n(new_kc.data<float>(), new_kc.get_size(), 0.0f);
-            std::memcpy(new_kc.data<float>(), key_caches[l].data<float>(), key_caches[l].get_byte_size());
-            key_caches[l] = new_kc;
-
-            auto new_vc = ov::Tensor(ov::element::f32,
-                {(size_t)num_blocks, (size_t)num_kv_heads, (size_t)block_size, (size_t)head_dim});
-            std::fill_n(new_vc.data<float>(), new_vc.get_size(), 0.0f);
-            std::memcpy(new_vc.data<float>(), value_caches[l].data<float>(), value_caches[l].get_byte_size());
-            value_caches[l] = new_vc;
-        }
-    };
-
-    // Helper to set all cache tensors on PA request
-    auto set_pa_caches = [&](ov::InferRequest& req) {
-        for (int64_t l = 0; l < num_layers; l++) {
-            req.set_tensor("key_cache." + std::to_string(l), key_caches[l]);
-            req.set_tensor("value_cache." + std::to_string(l), value_caches[l]);
-        }
-    };
-
-    // Compute decode starting position for M-RoPE
-    int64_t mrope_next_position = 0;
-    if (model_type == ModelType::INPUTS_EMBEDS && !mrope_temporal.empty()) {
-        mrope_next_position = std::max({mrope_temporal.back(), mrope_height.back(), mrope_width.back()}) + 1;
-    }
-
-    // ===== PREFILL Phase =====
-    std::cout << "PREFILL Phase (tokens: " << prefill_len << ")" << std::endl;
-
-    // SDPA Prefill
-    {
-        sdpa_request.reset_state();
-
-        set_sdpa_primary_input_prefill(sdpa_request);
-        set_sdpa_position_ids_prefill(sdpa_request);
-
-        // attention_mask: [batch, prefill_len]
-        auto attn_mask = ov::Tensor(ov::element::i64, {(size_t)batch, (size_t)prefill_len});
-        std::fill_n(attn_mask.data<int64_t>(), prefill_len, 1);
-        sdpa_request.set_tensor("attention_mask", attn_mask);
-
-        // beam_idx: [batch]
-        auto beam_idx = ov::Tensor(ov::element::i32, {(size_t)batch});
-        beam_idx.data<int32_t>()[0] = 0;
-        sdpa_request.set_tensor("beam_idx", beam_idx);
-
-        sdpa_request.infer();
-        print_shape(full_model ? "SDPA prefill logits" : "SDPA prefill output", sdpa_request.get_output_tensor(0).get_shape());
-        auto states = sdpa_request.query_state();
-        if (full_model) {
-            std::cout << "  SDPA states: " << states.size() << " total" << std::endl;
-        } else {
-            for (auto& state : states) {
-                auto shape = state.get_state().get_shape();
-                std::cout << "  SDPA state '" << state.get_name() << "' shape=[";
-                for (size_t i = 0; i < shape.size(); i++) std::cout << (i ? "," : "") << shape[i];
-                std::cout << "]" << std::endl;
+        // Set default values from dumped config
+        std::set<std::string> default_devices;
+        for (auto& device : devices) {
+            auto default_config = config.find(getDeviceTypeFromName(device));
+            if (default_config != config.end()) {
+                if (!config.count(device)) {
+                    config[device] = default_config->second;
+                    default_devices.emplace(default_config->first);
+                }
             }
         }
-    }
-
-    // PA Prefill
-    {
-        set_pa_primary_input_prefill(pa_request);
-        set_pa_position_ids_prefill(pa_request);
-
-        // Set caches (PA writes to these in-place)
-        set_pa_caches(pa_request);
-
-        // past_lens: [batch] - 0 for prefill
-        auto past_lens = ov::Tensor(ov::element::i32, {(size_t)batch});
-        past_lens.data<int32_t>()[0] = 0;
-        pa_request.set_tensor("past_lens", past_lens);
-
-        // subsequence_begins: [batch + 1]
-        auto subseq_begins = ov::Tensor(ov::element::i32, {(size_t)(batch + 1)});
-        subseq_begins.data<int32_t>()[0] = 0;
-        subseq_begins.data<int32_t>()[1] = prefill_len;
-        pa_request.set_tensor("subsequence_begins", subseq_begins);
-
-        // block_indices: [total_blocks_used]
-        auto block_indices = ov::Tensor(ov::element::i32, {(size_t)num_blocks});
-        for (int32_t i = 0; i < num_blocks; i++)
-            block_indices.data<int32_t>()[i] = i;
-        pa_request.set_tensor("block_indices", block_indices);
-
-        // block_indices_begins: [batch + 1]
-        auto block_idx_begins = ov::Tensor(ov::element::i32, {(size_t)(batch + 1)});
-        block_idx_begins.data<int32_t>()[0] = 0;
-        block_idx_begins.data<int32_t>()[1] = num_blocks;
-        pa_request.set_tensor("block_indices_begins", block_idx_begins);
-
-        // max_context_len: scalar
-        auto max_ctx_len = ov::Tensor(ov::element::i32, {});
-        max_ctx_len.data<int32_t>()[0] = prefill_len;
-        pa_request.set_tensor("max_context_len", max_ctx_len);
-
-        pa_request.infer();
-        print_shape(full_model ? "PA prefill logits" : "PA prefill output", pa_request.get_output_tensor(0).get_shape());
-        // print_cache_slot("  key_cache.0 after prefill", key_caches[0], prefill_len);
-        // print_cache_slot("  val_cache.0 after prefill", value_caches[0], prefill_len);
-    }
-
-    // Compare prefill outputs
-    {
-        auto sdpa_out = sdpa_request.get_output_tensor(0);
-        auto pa_out = pa_request.get_output_tensor(0);
-        if (full_model) {
-            compare_logits(sdpa_out.data<float>(), sdpa_out.get_shape(),
-                           pa_out.data<float>(), pa_out.get_shape(),
-                           "PREFILL");
-        } else {
-            compare_outputs(sdpa_out.data<float>(), sdpa_out.get_shape(),
-                            pa_out.data<float>(), pa_out.get_shape(),
-                            "PREFILL");
-        }
-    }
-
-    // ===== DECODE Phase =====
-    int64_t current_seq_len = prefill_len;
-
-    for (int64_t iter = 0; iter < num_decode_iterations; iter++) {
-        int64_t new_position;
-        if (model_type == ModelType::INPUTS_EMBEDS) {
-            new_position = mrope_next_position + iter;
-        } else {
-            new_position = current_seq_len;
+        for (auto& device : default_devices) {
+            config.erase(device);
         }
 
-        std::cout << "\nDECODE Iteration " << iter + 1
-                  << " (pos: " << new_position << ")" << std::endl;
+        bool perf_counts = false;
+        // check if using the virtual device
+        auto is_virtual = is_virtual_device_found(devices);
+        auto hardware_devices = devices;
+        // Remove the hardware devices if AUTO/MULTI/HETERO appears in the devices list.
+        if (is_virtual) {
+            devices.clear();
+            // Parse out the currect virtual device as the target device.
+            std::string virtual_device = split(device_name, ':').at(0);
+            auto iter_virtual = std::find(hardware_devices.begin(), hardware_devices.end(), virtual_device);
+            hardware_devices.erase(iter_virtual);
+            devices.push_back(virtual_device);
+            parse_value_for_virtual_device(virtual_device, device_nstreams);
+            parse_value_for_virtual_device(virtual_device, device_infer_precision);
+        }
 
-        // SDPA Decode
-        {
-            set_sdpa_primary_input_decode(sdpa_request, iter);
-            set_sdpa_position_ids_decode(sdpa_request, new_position);
+        // Update config per device according to command line parameters
+        for (auto& device : devices) {
+            auto& device_config = config[device];
+            handle_performance_hint(device, core, device_config);
 
-            // attention_mask: [batch, current_seq_len + 1] - extend mask
-            auto attn_mask = ov::Tensor(ov::element::i64, {(size_t)batch, (size_t)(current_seq_len + 1)});
-            std::fill_n(attn_mask.data<int64_t>(), current_seq_len + 1, 1);
-            sdpa_request.set_tensor("attention_mask", attn_mask);
+            if (FLAGS_nireq != 0)
+                device_config[ov::hint::num_requests.name()] = unsigned(FLAGS_nireq);
 
-            // beam_idx: [batch]
-            auto beam_idx = ov::Tensor(ov::element::i32, {(size_t)batch});
-            beam_idx.data<int32_t>()[0] = 0;
-            sdpa_request.set_tensor("beam_idx", beam_idx);
+            // Set performance counter
+            if (isFlagSetInCommandLine("pc")) {
+                // set to user defined value
+                device_config[ov::enable_profiling.name()] = FLAGS_pc;
+            } else if (device_config.count(ov::enable_profiling.name()) &&
+                       (device_config.at(ov::enable_profiling.name()).as<bool>())) {
+                slog::warn << "Performance counters for " << device
+                           << " device is turned on. To print results use -pc option." << slog::endl;
+            } else if (FLAGS_report_type == detailedCntReport || FLAGS_report_type == averageCntReport ||
+                       FLAGS_report_type == sortDetailedCntReport) {
+                slog::warn << "Turn on performance counters for " << device << " device since report type is "
+                           << FLAGS_report_type << "." << slog::endl;
+                device_config[ov::enable_profiling.name()] = true;
+            } else if (!FLAGS_exec_graph_path.empty()) {
+                slog::warn << "Turn on performance counters for " << device << " device due to execution graph dumping."
+                           << slog::endl;
+                device_config[ov::enable_profiling.name()] = true;
+            } else if (!FLAGS_pcsort.empty()) {
+                slog::warn << "Turn on sorted performance counters for " << device << " device since pcsort value is "
+                           << FLAGS_pcsort << "." << slog::endl;
+                device_config[ov::enable_profiling.name()] = true;
+            } else {
+                // set to default value
+                device_config[ov::enable_profiling.name()] = FLAGS_pc;
+            }
+            perf_counts = (device_config.at(ov::enable_profiling.name()).as<bool>()) ? true : perf_counts;
 
-            sdpa_request.infer();
-            print_shape(full_model ? "SDPA decode logits" : "SDPA decode output", sdpa_request.get_output_tensor(0).get_shape());
-            if (!full_model) {
-                for (auto& state : sdpa_request.query_state()) {
-                    auto shape = state.get_state().get_shape();
-                    std::cout << "  SDPA state '" << state.get_name() << "' shape=[";
-                    for (size_t i = 0; i < shape.size(); i++) std::cout << (i ? "," : "") << shape[i];
-                    std::cout << "]" << std::endl;
+            auto supported_properties = core.get_property(device, ov::supported_properties);
+
+            auto supported = [&](const std::string& key) {
+                return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
+                       std::end(supported_properties);
+            };
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            // the rest are individual per-device settings (overriding the values set with perf modes)
+            auto set_throughput_streams = [&]() {
+                std::string key = ov::num_streams.name();
+                auto it_device_nstreams = device_nstreams.find(device);
+                if (it_device_nstreams != device_nstreams.end()) {
+                    // set to user defined value
+                    if (supported(ov::num_streams.name())) {
+                        // Use OpenVINO API key for streams
+                        device_config[key] = it_device_nstreams->second;
+                    } else if (is_virtual_device(device)) {
+                        update_device_config_for_virtual_device(it_device_nstreams->second,
+                                                                device_config,
+                                                                ov::num_streams);
+                    } else {
+                        throw std::logic_error("Device " + device + " doesn't support config key '" + key + "' " +
+                                               "and '" + ov::num_streams.name() + "'!" +
+                                               "Please specify -nstreams for correct devices in format  "
+                                               "<dev1>:<nstreams1>,<dev2>:<nstreams2>" +
+                                               " or via configuration file.");
+                    }
+                } else if (FLAGS_api == "none" && !device_config.count(key) && (FLAGS_api == "async")) {
+                    slog::warn << "-nstreams default value is determined automatically for " << device
+                               << " device. "
+                                  "Although the automatic selection usually provides a "
+                                  "reasonable performance, "
+                                  "but it still may be non-optimal for some cases, for more "
+                                  "information look at README."
+                               << slog::endl;
+
+                    if (supported(ov::num_streams.name())) {
+                        // Use OpenVINO API key for streams
+                        device_config[key] = ov::streams::AUTO;
+                    } else if (is_virtual_device(device)) {
+                        // Set nstreams to default value auto if no nstreams specified from cmd line.
+                        for (auto& hwdevice : hardware_devices) {
+                            ov::Any value = ov::streams::AUTO;
+                            setDeviceProperty(core,
+                                              hwdevice,
+                                              device_config,
+                                              ov::num_streams(ov::streams::AUTO),
+                                              std::make_pair(key, value.as<std::string>()));
+                        }
+                    }
+                }
+                auto it_streams = device_config.find(ov::num_streams.name());
+                if (it_streams != device_config.end())
+                    device_nstreams[device] = it_streams->second.as<std::string>();
+            };
+            OPENVINO_SUPPRESS_DEPRECATED_END
+
+            auto set_infer_precision = [&] {
+                auto it_device_infer_precision = device_infer_precision.find(device);
+                if (it_device_infer_precision != device_infer_precision.end()) {
+                    // set to user defined value
+                    if (supported(ov::hint::inference_precision.name())) {
+                        device_config.emplace(ov::hint::inference_precision(it_device_infer_precision->second));
+                    } else if (is_virtual_device(device)) {
+                        update_device_config_for_virtual_device(it_device_infer_precision->second,
+                                                                device_config,
+                                                                ov::hint::inference_precision);
+                    } else {
+                        throw std::logic_error("Device " + device + " doesn't support config key '" +
+                                               ov::hint::inference_precision.name() + "'! " +
+                                               "Please specify -infer_precision for correct devices in format  "
+                                               "<dev1>:<infer_precision1>,<dev2>:<infer_precision2>" +
+                                               " or via configuration file.");
+                    }
+                }
+            };
+
+            auto set_nthreads_pin = [&](const std::string& str) {
+                auto property_name =
+                    str == "nthreads" ? ov::inference_num_threads.name() : ov::hint::enable_cpu_pinning.name();
+                auto property = str == "nthreads" ? ov::inference_num_threads(int(FLAGS_nthreads))
+                                                  : ov::hint::enable_cpu_pinning(FLAGS_pin);
+                if (supported(property_name) || device_name == "AUTO") {
+                    // create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
+                    device_config[property.first] = property.second;
+                } else if (is_virtual) {
+                    // Create secondary property of -nthreads/-pin only for CPU if CPU device appears in the devices
+                    // list specified by -d.
+                    for (auto& device : hardware_devices) {
+                        if (device == "CPU")
+                            setDeviceProperty(core, device, device_config, property);
+                    }
+                }
+            };
+            if (isFlagSetInCommandLine("nthreads"))
+                set_nthreads_pin("nthreads");
+
+            if (isFlagSetInCommandLine("pin"))
+                set_nthreads_pin("pin");
+
+            set_throughput_streams();
+            set_infer_precision();
+
+            if (is_virtual_device(device)) {
+                device_nstreams.erase(device);
+            }
+        }
+        auto result = std::find_if(config.begin(), config.end(), [&](const std::pair<std::string, ov::AnyMap>& item) {
+            return device_name.find(item.first) == 0;
+        });
+        ov::AnyMap device_config = {};
+        if (result != config.end())
+            device_config = result->second;
+        size_t batchSize = FLAGS_b;
+        ov::element::Type type = ov::element::dynamic;
+        std::string topology_name = "";
+        std::vector<benchmark_app::InputsInfo> app_inputs_info;
+        std::string output_name;
+
+        // Takes priority over config from file
+        if (!FLAGS_cache_dir.empty()) {
+            core.set_property(ov::cache_dir(FLAGS_cache_dir));
+        }
+
+        // If set batch size, disable the auto batching
+        if (FLAGS_b > 0) {
+            slog::warn << "Batch size is set. Auto batching will be disabled" << slog::endl;
+            device_config.insert(ov::hint::allow_auto_batching(false));
+        }
+
+        bool isDynamicNetwork = false;
+        auto areNetworkInputsDynamic = [](const benchmark_app::InputsInfo& input_info) {
+            return std::any_of(input_info.begin(), input_info.end(), [](const auto& info) {
+                return info.second.partialShape.is_dynamic();
+            });
+        };
+
+        if (FLAGS_load_from_file && !isNetworkCompiled) {
+            if (!FLAGS_mean_values.empty() || !FLAGS_scale_values.empty()) {
+                throw std::runtime_error("--mean_values and --scale_values aren't supported with --load_from_file. "
+                                         "The values can be set via model_optimizer while generating xml");
+            }
+            next_step();
+            slog::info << "Skipping the step for loading model from file" << slog::endl;
+            next_step();
+            slog::info << "Skipping the step for loading model from file" << slog::endl;
+            next_step();
+            slog::info << "Skipping the step for loading model from file" << slog::endl;
+            auto compile_model_mem_start = get_peak_memory_usage();
+            auto startTime = Time::now();
+            compiledModel = core.compile_model(FLAGS_m, device_name, device_config);
+            auto duration_ms = get_duration_ms_till_now(startTime);
+            auto compile_model_mem_end = get_peak_memory_usage();
+            slog::info << "Compile model took " << double_to_string(duration_ms) << " ms" << slog::endl;
+
+            slog::info << "Start of compilation memory usage: Peak " << compile_model_mem_start << " KB" << slog::endl;
+            slog::info << "End of compilation memory usage: Peak " << compile_model_mem_end << " KB" << slog::endl;
+            slog::info << "Compile model ram used " << compile_model_mem_end - compile_model_mem_start << " KB"
+                       << slog::endl;
+
+            slog::info << "Original model I/O parameters:" << slog::endl;
+            printInputAndOutputsInfoShort(compiledModel);
+
+            if (statistics)
+                statistics->add_parameters(
+                    StatisticsReport::Category::EXECUTION_RESULTS,
+                    {StatisticsVariant("compile model time (ms)", "load_model_time", duration_ms)});
+
+            convert_io_names_in_map(inputFiles, compiledModel.inputs());
+            app_inputs_info = get_inputs_info(FLAGS_shape,
+                                              FLAGS_layout,
+                                              batchSize,
+                                              FLAGS_data_shape,
+                                              inputFiles,
+                                              FLAGS_scale_values,
+                                              FLAGS_mean_values,
+                                              compiledModel.inputs());
+            if (batchSize == 0) {
+                batchSize = 1;
+            }
+
+        } else if (!isNetworkCompiled) {
+            // ----------------- 4. Reading the Intermediate Representation network
+            // ----------------------------------------
+            next_step();
+
+            slog::info << "Loading model files" << slog::endl;
+
+            auto startTime = Time::now();
+            auto model = core.read_model(FLAGS_m);
+            auto duration_ms = get_duration_ms_till_now(startTime);
+            slog::info << "Read model took " << double_to_string(duration_ms) << " ms" << slog::endl;
+            slog::info << "Original model I/O parameters:" << slog::endl;
+            printInputAndOutputsInfoShort(*model);
+
+            if (statistics)
+                statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                           {StatisticsVariant("read model time (ms)", "read_model_time", duration_ms)});
+
+            const auto& inputInfo = std::const_pointer_cast<const ov::Model>(model)->inputs();
+            if (inputInfo.empty()) {
+                throw std::logic_error("No inputs info is provided");
+            }
+
+            // ----------------- 5. Resizing network to match image sizes and given
+            // batch ----------------------------------
+            for (auto& item : model->inputs()) {
+                if (item.get_tensor().get_names().empty()) {
+                    item.get_tensor_ptr()->set_names(
+                        std::unordered_set<std::string>{item.get_node_shared_ptr()->get_name()});
+                }
+            }
+            next_step();
+            convert_io_names_in_map(inputFiles, std::const_pointer_cast<const ov::Model>(model)->inputs());
+            // Parse input shapes if specified
+            bool reshape = false;
+            app_inputs_info = get_inputs_info(FLAGS_shape,
+                                              FLAGS_layout,
+                                              FLAGS_b,
+                                              FLAGS_data_shape,
+                                              inputFiles,
+                                              FLAGS_scale_values,
+                                              FLAGS_mean_values,
+                                              inputInfo,
+                                              reshape);
+            if (reshape) {
+                benchmark_app::PartialShapes shapes = {};
+                for (auto& item : app_inputs_info[0])
+                    shapes[item.first] = item.second.partialShape;
+                slog::info << "Reshaping model: " << get_shapes_string(shapes) << slog::endl;
+                startTime = Time::now();
+                model->reshape(shapes);
+                duration_ms = get_duration_ms_till_now(startTime);
+                slog::info << "Reshape model took " << double_to_string(duration_ms) << " ms" << slog::endl;
+                if (statistics)
+                    statistics->add_parameters(
+                        StatisticsReport::Category::EXECUTION_RESULTS,
+                        {StatisticsVariant("reshape model time (ms)", "reshape_model_time", duration_ms)});
+            }
+
+            // ----------------- 6. Configuring inputs and outputs
+            // ----------------------------------------------------------------------
+            next_step();
+            auto preproc = ov::preprocess::PrePostProcessor(model);
+
+            std::map<std::string, std::string> user_precisions_map;
+            if (!FLAGS_iop.empty()) {
+                user_precisions_map = parseArgMap(FLAGS_iop);
+                convert_io_names_in_map(user_precisions_map,
+                                        std::const_pointer_cast<const ov::Model>(model)->inputs(),
+                                        std::const_pointer_cast<const ov::Model>(model)->outputs());
+            }
+
+            const auto input_precision = FLAGS_ip.empty() ? ov::element::dynamic : getPrecision2(FLAGS_ip);
+            const auto output_precision = FLAGS_op.empty() ? ov::element::dynamic : getPrecision2(FLAGS_op);
+
+            const auto& inputs = model->inputs();
+            for (size_t i = 0; i < inputs.size(); i++) {
+                const auto& item = inputs[i];
+                auto iop_precision = ov::element::dynamic;
+                auto type_to_set = ov::element::dynamic;
+                std::string name;
+                try {
+                    // Some tensors might have no names, get_any_name will throw exception in that case.
+                    // -iop option will not work for those tensors.
+                    name = item.get_any_name();
+                } catch (...) {
+                }
+                const auto& prc = user_precisions_map.find(name);
+                if (prc != user_precisions_map.end()) {
+                    iop_precision = getPrecision2(prc->second);
+                }
+
+                if (iop_precision != ov::element::dynamic) {
+                    type_to_set = iop_precision;
+                } else if (input_precision != ov::element::dynamic) {
+                    type_to_set = input_precision;
+                } else if (!name.empty() && app_inputs_info[0].at(name).is_image()) {
+                    // image input, set U8
+                    type_to_set = ov::element::u8;
+                }
+
+                auto& in = preproc.input(item.get_any_name());
+                if (type_to_set != ov::element::dynamic) {
+                    in.tensor().set_element_type(type_to_set);
+
+                    if (!name.empty()) {
+                        for (auto& info : app_inputs_info) {
+                            info.at(name).type = type_to_set;
+                        }
+                    }
+                }
+                // Explicitly set inputs layout.
+                if (!name.empty() && !app_inputs_info[0].at(name).layout.empty()) {
+                    in.model().set_layout(app_inputs_info[0].at(name).layout);
+                }
+            }
+
+            fuse_mean_scale(preproc, app_inputs_info.at(0));
+
+            const auto& outs = model->outputs();
+            for (size_t i = 0; i < outs.size(); i++) {
+                const auto& item = outs[i];
+                auto iop_precision = ov::element::dynamic;
+                std::string name;
+                try {
+                    // Some tensors might have no names, get_any_name will throw exception in that case.
+                    // -iop option will not work for those tensors.
+                    name = item.get_any_name();
+                } catch (...) {
+                }
+                const auto& prc = user_precisions_map.find(name);
+                if (prc != user_precisions_map.end()) {
+                    iop_precision = getPrecision2(prc->second);
+                }
+
+                if (iop_precision != ov::element::dynamic) {
+                    preproc.output(i).tensor().set_element_type(iop_precision);
+                } else if (output_precision != ov::element::dynamic) {
+                    preproc.output(i).tensor().set_element_type(output_precision);
+                }
+            }
+
+            model = preproc.build();
+
+            // Check if network has dynamic shapes
+            isDynamicNetwork = areNetworkInputsDynamic(app_inputs_info.at(0));
+
+            topology_name = model->get_friendly_name();
+
+            batchSize = get_batch_size(app_inputs_info.at(0));
+            warn_if_no_batch(app_inputs_info.at(0));
+            slog::info << "Model batch size: " << batchSize << slog::endl;
+
+            printInputAndOutputsInfoShort(*model);
+            // ----------------- 7. Loading the model to the device
+            // --------------------------------------------------------
+            next_step();
+            auto compile_model_mem_start = get_peak_memory_usage();
+            startTime = Time::now();
+            compiledModel = core.compile_model(model, device_name, device_config);
+            duration_ms = get_duration_ms_till_now(startTime);
+            auto compile_model_mem_end = get_peak_memory_usage();
+            slog::info << "Compile model took " << double_to_string(duration_ms) << " ms" << slog::endl;
+
+            slog::info << "Start of compilation memory usage: Peak " << compile_model_mem_start << " KB" << slog::endl;
+            slog::info << "End of compilation memory usage: Peak " << compile_model_mem_end << " KB" << slog::endl;
+            slog::info << "Compile model ram used " << compile_model_mem_end - compile_model_mem_start << " KB"
+                       << slog::endl;
+
+            if (statistics)
+                statistics->add_parameters(
+                    StatisticsReport::Category::EXECUTION_RESULTS,
+                    {StatisticsVariant("compile model time (ms)", "load_model_time", duration_ms)});
+        } else {
+            if (!FLAGS_mean_values.empty() || !FLAGS_scale_values.empty()) {
+                throw std::runtime_error("--mean_values and --scale_values aren't supported for compiled model. "
+                                         "The values can be set via model_optimizer while generating xml");
+            }
+            next_step();
+            slog::info << "Skipping the step for compiled model" << slog::endl;
+            next_step();
+            slog::info << "Skipping the step for compiled model" << slog::endl;
+            next_step();
+            slog::info << "Skipping the step for compiled model" << slog::endl;
+            // ----------------- 7. Loading the model to the device
+            // --------------------------------------------------------
+            next_step();
+            auto import_model_mem_start = get_peak_memory_usage();
+            auto startTime = Time::now();
+
+            std::ifstream modelStream(FLAGS_m, std::ios_base::binary | std::ios_base::in);
+            if (!modelStream.is_open()) {
+                throw std::runtime_error("Cannot open model file " + FLAGS_m);
+            }
+
+            compiledModel = core.import_model(modelStream, device_name, device_config);
+            modelStream.close();
+
+            auto duration_ms = get_duration_ms_till_now(startTime);
+            auto import_model_mem_end = get_peak_memory_usage();
+            slog::info << "Import model took " << double_to_string(duration_ms) << " ms" << slog::endl;
+
+            slog::info << "Start of import memory usage: Peak " << import_model_mem_start << " KB" << slog::endl;
+            slog::info << "End of import memory usage: Peak " << import_model_mem_end << " KB" << slog::endl;
+            slog::info << "Import model ram used " << import_model_mem_end - import_model_mem_start << " KB"
+                       << slog::endl;
+
+            slog::info << "Original model I/O paramteters:" << slog::endl;
+            printInputAndOutputsInfoShort(compiledModel);
+
+            if (statistics)
+                statistics->add_parameters(
+                    StatisticsReport::Category::EXECUTION_RESULTS,
+                    {StatisticsVariant("import model time (ms)", "import_model_time", duration_ms)});
+
+            convert_io_names_in_map(inputFiles, compiledModel.inputs());
+            app_inputs_info = get_inputs_info(FLAGS_shape,
+                                              FLAGS_layout,
+                                              FLAGS_b,
+                                              FLAGS_data_shape,
+                                              inputFiles,
+                                              FLAGS_scale_values,
+                                              FLAGS_mean_values,
+                                              compiledModel.inputs());
+            isDynamicNetwork = areNetworkInputsDynamic(app_inputs_info.at(0));
+
+            batchSize = get_batch_size(app_inputs_info.at(0));
+            warn_if_no_batch(app_inputs_info.at(0));
+            slog::info << "Model batch size: " << batchSize << slog::endl;
+
+            if (batchSize == 0) {
+                batchSize = 1;
+            }
+        }
+
+        bool allow_inference_only_or_sync = can_measure_as_static(app_inputs_info);
+
+        if (!allow_inference_only_or_sync && FLAGS_api == "sync") {
+            throw std::logic_error("Benchmarking of the model with dynamic shapes is available for async API only. "
+                                   "Please use -api async -hint latency -nireq 1 to emulate sync behavior");
+        }
+
+        // Defining of benchmark mode
+        // for static models inference only mode is used as default one
+        bool inferenceOnly = FLAGS_inference_only;
+        if (isDynamicNetwork) {
+            if (isFlagSetInCommandLine("inference_only") && inferenceOnly && !allow_inference_only_or_sync) {
+                throw std::logic_error(
+                    "Dynamic models with different input data shapes must be benchmarked only in full mode.");
+            }
+            inferenceOnly = isFlagSetInCommandLine("inference_only") && inferenceOnly && app_inputs_info.size() == 1;
+        }
+
+        // ----------------- 8. Querying optimal runtime parameters
+        // -----------------------------------------------------
+        next_step();
+
+        // output of the actual settings that the device selected
+        auto supported_properties = compiledModel.get_property(ov::supported_properties);
+        slog::info << "Model:" << slog::endl;
+        for (const auto& cfg : supported_properties) {
+            if (cfg == ov::supported_properties)
+                continue;
+            auto prop = compiledModel.get_property(cfg);
+            if (cfg == ov::device::properties) {
+                auto devices_properties = prop.as<ov::AnyMap>();
+                for (auto& item : devices_properties) {
+                    slog::info << "  " << item.first << ": " << slog::endl;
+                    for (auto& item2 : item.second.as<ov::AnyMap>()) {
+                        slog::info << "    " << item2.first << ": " << item2.second.as<std::string>() << slog::endl;
+                    }
+                }
+            } else {
+                slog::info << "  " << cfg << ": " << prop.as<std::string>() << slog::endl;
+            }
+        }
+
+        // Update number of streams
+        for (auto&& ds : device_nstreams) {
+            try {
+                const std::string key = getDeviceTypeFromName(ds.first) + "_THROUGHPUT_STREAMS";
+                device_nstreams[ds.first] = compiledModel.get_property(key).as<std::string>();
+            } catch (const ov::Exception&) {
+                device_nstreams[ds.first] = compiledModel.get_property(ov::num_streams.name()).as<std::string>();
+            }
+        }
+
+        // Number of requests
+        uint64_t nireq = FLAGS_nireq;
+        if (nireq == 0) {
+            if (FLAGS_api == "sync") {
+                nireq = 1;
+            } else {
+                try {
+                    nireq = compiledModel.get_property(ov::optimal_number_of_infer_requests);
+                } catch (const std::exception& ex) {
+                    OPENVINO_THROW("Every device used with the benchmark_app should support " +
+                                   std::string(ov::optimal_number_of_infer_requests.name()) +
+                                   " Failed to query the metric for the " + device_name + " with error: " + ex.what());
                 }
             }
         }
 
-        // PA Decode
-        {
-            set_pa_primary_input_decode(pa_request, iter);
-            set_pa_position_ids_decode(pa_request, new_position);
-
-            // Grow cache if needed before setting tensors
-            grow_cache_if_needed(current_seq_len + 1);
-
-            // Caches - PA will append new KV in-place
-            set_pa_caches(pa_request);
-
-            // past_lens: [batch] - number of tokens already in cache
-            auto past_lens = ov::Tensor(ov::element::i32, {(size_t)batch});
-            past_lens.data<int32_t>()[0] = current_seq_len;
-            pa_request.set_tensor("past_lens", past_lens);
-
-            // subsequence_begins: [batch + 1] - for 1 token
-            auto subseq_begins = ov::Tensor(ov::element::i32, {(size_t)(batch + 1)});
-            subseq_begins.data<int32_t>()[0] = 0;
-            subseq_begins.data<int32_t>()[1] = 1;  // 1 new token
-            pa_request.set_tensor("subsequence_begins", subseq_begins);
-
-            // block_indices
-            auto block_indices = ov::Tensor(ov::element::i32, {(size_t)num_blocks});
-            for (int32_t i = 0; i < num_blocks; i++)
-                block_indices.data<int32_t>()[i] = i;
-            pa_request.set_tensor("block_indices", block_indices);
-
-            // block_indices_begins
-            auto block_idx_begins = ov::Tensor(ov::element::i32, {(size_t)(batch + 1)});
-            block_idx_begins.data<int32_t>()[0] = 0;
-            block_idx_begins.data<int32_t>()[1] = num_blocks;
-            pa_request.set_tensor("block_indices_begins", block_idx_begins);
-
-            // max_context_len: current total length
-            auto max_ctx_len = ov::Tensor(ov::element::i32, {});
-            max_ctx_len.data<int32_t>()[0] = current_seq_len + 1;
-            pa_request.set_tensor("max_context_len", max_ctx_len);
-
-            pa_request.infer();
-            print_shape(full_model ? "PA decode logits" : "PA decode output", pa_request.get_output_tensor(0).get_shape());
-            // print_cache_slot("  key_cache.0 after decode", key_caches[0], current_seq_len + 1);
-            // print_cache_slot("  val_cache.0 after decode", value_caches[0], current_seq_len + 1);
-        }
-
-        // Compare decode outputs
-        {
-            auto sdpa_out = sdpa_request.get_output_tensor(0);
-            auto pa_out = pa_request.get_output_tensor(0);
-            if (full_model) {
-                compare_logits(sdpa_out.data<float>(), sdpa_out.get_shape(),
-                               pa_out.data<float>(), pa_out.get_shape(),
-                               "DECODE " + std::to_string(iter + 1));
+        // Iteration limit
+        uint64_t niter = FLAGS_niter;
+        size_t shape_groups_num = app_inputs_info.size();
+        if ((niter > 0) && (FLAGS_api == "async")) {
+            if (shape_groups_num > nireq) {
+                niter = ((niter + shape_groups_num - 1) / shape_groups_num) * shape_groups_num;
+                if (FLAGS_niter != niter) {
+                    slog::warn << "Number of iterations was aligned by data shape groups number from " << FLAGS_niter
+                               << " to " << niter << " using number of possible input shapes " << shape_groups_num
+                               << slog::endl;
+                }
             } else {
-                compare_outputs(sdpa_out.data<float>(), sdpa_out.get_shape(),
-                                pa_out.data<float>(), pa_out.get_shape(),
-                                "DECODE " + std::to_string(iter + 1));
+                niter = ((niter + nireq - 1) / nireq) * nireq;
+                if (FLAGS_niter != niter) {
+                    slog::warn << "Number of iterations was aligned by request number from " << FLAGS_niter << " to "
+                               << niter << " using number of requests " << nireq << slog::endl;
+                }
             }
         }
 
-        current_seq_len++;
-    }
+        // Time limit
+        uint64_t duration_seconds = 0;
+        if (FLAGS_t != 0) {
+            // time limit
+            duration_seconds = FLAGS_t;
+        } else if (FLAGS_niter == 0) {
+            // default time limit
+            duration_seconds = device_default_device_duration_in_seconds(device_name);
+        }
+        uint64_t duration_nanoseconds = get_duration_in_nanoseconds(duration_seconds);
 
-    std::cout << "\nSummary" << std::endl;
-    std::cout << "Successfully ran " << (1 + num_decode_iterations) << " iterations" << std::endl;
-    std::cout << "Final sequence length: " << current_seq_len << std::endl;
+        if (statistics) {
+            statistics->add_parameters(
+                StatisticsReport::Category::RUNTIME_CONFIG,
+                StatisticsReport::Parameters(
+                    {StatisticsVariant("benchmark mode", "benchmark_mode", inferenceOnly ? "inference only" : "full"),
+                     StatisticsVariant("topology", "topology", topology_name),
+                     StatisticsVariant("target device", "target_device", device_name),
+                     StatisticsVariant("API", "api", FLAGS_api),
+                     StatisticsVariant("precision", "precision", type.get_type_name()),
+                     StatisticsVariant("batch size", "batch_size", batchSize),
+                     StatisticsVariant("number of iterations", "iterations_num", niter),
+                     StatisticsVariant("number of parallel infer requests", "nireq", nireq),
+                     StatisticsVariant("duration (ms)", "duration", get_duration_in_milliseconds(duration_seconds))}));
+            for (auto& nstreams : device_nstreams) {
+                std::stringstream ss;
+                ss << "number of " << nstreams.first << " streams";
+
+                std::string dev_name = nstreams.first;
+                std::transform(dev_name.begin(), dev_name.end(), dev_name.begin(), [](unsigned char c) {
+                    return c == ' ' ? '_' : std::tolower(c);
+                });
+
+                statistics->add_parameters(StatisticsReport::Category::RUNTIME_CONFIG,
+                                           {StatisticsVariant(ss.str(), dev_name + "_streams_num", nstreams.second)});
+            }
+        }
+
+        // ----------------- 9. Creating infer requests and filling input blobs
+        // ----------------------------------------
+        next_step();
+
+        InferRequestsQueue inferRequestsQueue(compiledModel, nireq, app_inputs_info.size(), FLAGS_pcseq);
+
+        bool inputHasName = false;
+        if (inputFiles.size() > 0) {
+            inputHasName = inputFiles.begin()->first != "";
+        }
+        bool newInputType = isDynamicNetwork || inputHasName;
+        // create vector to store remote input blobs buffer
+        std::vector<::gpu::BufferType> clInputsBuffer;
+        bool useGpuMem = false;
+        bool useNpuMem = false;
+
+        std::map<std::string, ov::TensorVector> inputsData;
+        if (isFlagSetInCommandLine("use_device_mem")) {
+            if (device_name.find("GPU") == 0) {
+                inputsData = ::gpu::get_remote_input_tensors(inputFiles,
+                                                             app_inputs_info,
+                                                             compiledModel,
+                                                             clInputsBuffer,
+                                                             inferRequestsQueue.requests.size());
+                useGpuMem = true;
+            } else if (device_name.find("CPU") == 0) {
+                if (newInputType) {
+                    inputsData = get_tensors(inputFiles, app_inputs_info);
+                } else {
+                    inputsData = get_tensors_static_case(
+                        inputFiles.empty() ? std::vector<std::string>{} : inputFiles.begin()->second,
+                        batchSize,
+                        app_inputs_info[0],
+                        nireq);
+                }
+            } else if (device_name.find("NPU") == 0) {
+                inputsData = ::npu::get_remote_input_tensors(inputFiles,
+                                                             app_inputs_info,
+                                                             compiledModel,
+                                                             inferRequestsQueue.requests.size());
+                useNpuMem = true;
+            } else {
+                OPENVINO_THROW("Requested device doesn't support `use_device_mem` option.");
+            }
+        } else {
+            if (newInputType) {
+                inputsData = get_tensors(inputFiles, app_inputs_info);
+            } else {
+                inputsData = get_tensors_static_case(
+                    inputFiles.empty() ? std::vector<std::string>{} : inputFiles.begin()->second,
+                    batchSize,
+                    app_inputs_info[0],
+                    nireq);
+            }
+        }
+        // ----------------- 10. Measuring performance
+        // ------------------------------------------------------------------
+        size_t iteration = 0;
+
+        std::stringstream ss;
+        ss << "Start inference " << FLAGS_api << "hronously";
+        if (FLAGS_api == "async") {
+            if (!ss.str().empty()) {
+                ss << ", ";
+            }
+            ss << nireq << " inference requests";
+            std::stringstream device_ss;
+            for (auto& nstreams : device_nstreams) {
+                if (!device_ss.str().empty()) {
+                    device_ss << ", ";
+                }
+                device_ss << nstreams.second << " streams for " << nstreams.first;
+            }
+            if (!device_ss.str().empty()) {
+                ss << " using " << device_ss.str();
+            }
+        }
+        ss << ", limits: ";
+        if (duration_seconds > 0) {
+            ss << get_duration_in_milliseconds(duration_seconds) << " ms duration";
+        }
+        if (niter != 0) {
+            if (duration_seconds > 0) {
+                ss << ", ";
+            }
+            ss << niter << " iterations";
+        }
+
+        next_step(ss.str());
+
+        if (inferenceOnly) {
+            slog::info << "Benchmarking in inference only mode (inputs filling are not included in measurement loop)."
+                       << slog::endl;
+        } else {
+            slog::info << "Benchmarking in full mode (inputs filling are included in measurement loop)." << slog::endl;
+        }
+
+        // copy prepared data straight into inferRequest->getTensor()
+        // for inference only mode
+        if (inferenceOnly) {
+            if (nireq < inputsData.begin()->second.size())
+                slog::warn << "Only " << nireq << " test configs will be used." << slog::endl;
+            size_t i = 0;
+            for (auto& inferRequest : inferRequestsQueue.requests) {
+                auto inputs = app_inputs_info[i % app_inputs_info.size()];
+                for (auto& item : inputs) {
+                    auto inputName = item.first;
+                    const auto& inputTensor = inputsData.at(inputName)[i % inputsData.at(inputName).size()];
+                    // for remote blobs setTensor is used, they are already allocated on the device
+                    if (useGpuMem) {
+                        inferRequest->set_tensor(inputName, inputTensor);
+                    } else if (useNpuMem) {
+                        inferRequest->set_tensor(inputName, inputTensor);
+                    } else {
+                        auto requestTensor = inferRequest->get_tensor(inputName);
+                        if (isDynamicNetwork) {
+                            requestTensor.set_shape(inputTensor.get_shape());
+                        }
+                        copy_tensor_data(requestTensor, inputTensor);
+                    }
+                }
+
+                if (useGpuMem) {
+                    auto outputTensors =
+                        ::gpu::get_remote_output_tensors(compiledModel, inferRequest->get_output_cl_buffer());
+                    for (auto& output : compiledModel.outputs()) {
+                        inferRequest->set_tensor(output.get_any_name(), outputTensors[output.get_any_name()]);
+                    }
+                }
+                ++i;
+            }
+        }
+
+        std::shared_ptr<InferReqWrap> inferRequest;
+
+        // conditional warmup based on FLAGS_no_warmup
+        if (!FLAGS_no_warmup) {
+            // warming up - out of scope
+            inferRequest = inferRequestsQueue.get_idle_request();
+            if (!inferRequest) {
+                OPENVINO_THROW("No idle Infer Requests!");
+            }
+            if (!inferenceOnly) {
+                auto inputs = app_inputs_info[0];
+
+                for (auto& item : inputs) {
+                    auto inputName = item.first;
+                    const auto& data = inputsData.at(inputName)[0];
+                    inferRequest->set_tensor(inputName, data);
+                }
+
+                if (useGpuMem) {
+                    auto outputTensors =
+                        ::gpu::get_remote_output_tensors(compiledModel, inferRequest->get_output_cl_buffer());
+                    for (auto& output : compiledModel.outputs()) {
+                        inferRequest->set_tensor(output.get_any_name(), outputTensors[output.get_any_name()]);
+                    }
+                }
+            }
+
+            if (FLAGS_api == "sync") {
+                inferRequest->infer();
+            } else {
+                inferRequest->start_async();
+            }
+
+            inferRequestsQueue.wait_all();
+
+            auto duration_ms = inferRequestsQueue.get_latencies()[0];
+            slog::info << "First inference took " << double_to_string(duration_ms) << " ms" << slog::endl;
+
+            if (statistics) {
+                statistics->add_parameters(
+                    StatisticsReport::Category::EXECUTION_RESULTS,
+                    {StatisticsVariant("first inference time (ms)", "first_inference_time", duration_ms)});
+            }
+            inferRequestsQueue.reset_times();
+        } else {
+            slog::info << "Skipping warmup inference due to -no_warmup flag" << slog::endl;
+        }
+
+        size_t processedFramesN = 0;
+        auto startTime = Time::now();
+        auto execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
+
+        /** Start inference & calculate performance **/
+        /** to align number if iterations to guarantee that last infer requests are
+         * executed in the same conditions **/
+        while ((niter != 0LL && iteration < niter) ||
+               (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds) ||
+               (FLAGS_api == "async" && iteration % nireq != 0)) {
+            inferRequest = inferRequestsQueue.get_idle_request();
+            if (!inferRequest) {
+                OPENVINO_THROW("No idle Infer Requests!");
+            }
+
+            if (!inferenceOnly) {
+                auto inputs = app_inputs_info[iteration % app_inputs_info.size()];
+
+                if (FLAGS_pcseq) {
+                    inferRequest->set_latency_group_id(iteration % app_inputs_info.size());
+                }
+
+                if (isDynamicNetwork) {
+                    batchSize = get_batch_size(inputs);
+                }
+
+                for (auto& item : inputs) {
+                    auto inputName = item.first;
+                    const auto& data = inputsData.at(inputName)[iteration % inputsData.at(inputName).size()];
+                    inferRequest->set_tensor(inputName, data);
+                }
+
+                if (useGpuMem) {
+                    auto outputTensors =
+                        ::gpu::get_remote_output_tensors(compiledModel, inferRequest->get_output_cl_buffer());
+                    for (auto& output : compiledModel.outputs()) {
+                        inferRequest->set_tensor(output.get_any_name(), outputTensors[output.get_any_name()]);
+                    }
+                }
+            }
+
+            if (FLAGS_api == "sync") {
+                inferRequest->infer();
+            } else {
+                inferRequest->start_async();
+            }
+            ++iteration;
+
+            execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
+            processedFramesN += batchSize;
+
+            if (FLAGS_max_irate > 0) {
+                auto nextRunFinishTime = 1 / FLAGS_max_irate * processedFramesN * 1.0e9;
+                std::this_thread::sleep_for(
+                    std::chrono::nanoseconds(static_cast<int64_t>(nextRunFinishTime - execTime)));
+            }
+        }
+
+        // wait the latest inference executions
+        inferRequestsQueue.wait_all();
+
+        LatencyMetrics generalLatency(inferRequestsQueue.get_latencies(), "", FLAGS_latency_percentile);
+        std::vector<LatencyMetrics> groupLatencies = {};
+        if (FLAGS_pcseq && app_inputs_info.size() > 1) {
+            const auto& lat_groups = inferRequestsQueue.get_latency_groups();
+            for (size_t i = 0; i < lat_groups.size(); i++) {
+                const auto& lats = lat_groups[i];
+
+                std::string data_shapes_string = "";
+                for (auto& item : app_inputs_info[i]) {
+                    data_shapes_string += item.first + item.second.dataShape.to_string() + ",";
+                }
+                data_shapes_string =
+                    data_shapes_string == "" ? "" : data_shapes_string.substr(0, data_shapes_string.size() - 1);
+
+                groupLatencies.emplace_back(lats, data_shapes_string, FLAGS_latency_percentile);
+            }
+        }
+
+        double totalDuration = inferRequestsQueue.get_duration_in_milliseconds();
+        double fps = 1000.0 * processedFramesN / totalDuration;
+
+        if (statistics) {
+            statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                       {StatisticsVariant("total execution time (ms)", "execution_time", totalDuration),
+                                        StatisticsVariant("total number of iterations", "iterations_num", iteration)});
+            if (device_name.find("MULTI") == std::string::npos) {
+                std::string latency_label;
+                if (FLAGS_latency_percentile == 50) {
+                    latency_label = "Median latency (ms)";
+                } else {
+                    latency_label = "latency (" + std::to_string(FLAGS_latency_percentile) + " percentile) (ms)";
+                }
+                statistics->add_parameters(
+                    StatisticsReport::Category::EXECUTION_RESULTS,
+                    {StatisticsVariant(latency_label, "latency_median", generalLatency.median_or_percentile),
+                     StatisticsVariant("Percentile boundary", "percentile_boundary", FLAGS_latency_percentile),
+                     StatisticsVariant("Average latency (ms)", "latency_avg", generalLatency.avg),
+                     StatisticsVariant("Min latency (ms)", "latency_min", generalLatency.min),
+                     StatisticsVariant("Max latency (ms)", "latency_max", generalLatency.max)});
+
+                if (FLAGS_pcseq && app_inputs_info.size() > 1) {
+                    for (size_t i = 0; i < groupLatencies.size(); ++i) {
+                        statistics->add_parameters(
+                            StatisticsReport::Category::EXECUTION_RESULTS_GROUPPED,
+                            {StatisticsVariant("Group Latencies", "group_latencies", groupLatencies[i])});
+                    }
+                }
+            }
+            statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                       {StatisticsVariant("throughput", "throughput", fps)});
+        }
+        // ----------------- 11. Dumping statistics report
+        // -------------------------------------------------------------
+        next_step();
+
+        if (!FLAGS_dump_config.empty()) {
+            dump_config(FLAGS_dump_config, config);
+            slog::info << "OpenVINO Runtime configuration settings were dumped to " << FLAGS_dump_config << slog::endl;
+        }
+
+        if (!FLAGS_exec_graph_path.empty()) {
+            try {
+                ov::serialize(compiledModel.get_runtime_model(), FLAGS_exec_graph_path);
+                slog::info << "Executable graph is stored to " << FLAGS_exec_graph_path << slog::endl;
+            } catch (const std::exception& ex) {
+                slog::err << "Can't get executable graph: " << ex.what() << slog::endl;
+            }
+        }
+
+        if (perf_counts) {
+            std::vector<std::vector<ov::ProfilingInfo>> perfCounts;
+            for (size_t ireq = 0; ireq < nireq; ireq++) {
+                auto reqPerfCounts = inferRequestsQueue.requests[ireq]->get_performance_counts();
+                if (!FLAGS_pcsort.empty()) {
+                    slog::info << "Sort performance counts for " << ireq << "-th infer request:" << slog::endl;
+                    printPerformanceCountsSort(reqPerfCounts,
+                                               std::cout,
+                                               getFullDeviceName(core, FLAGS_d),
+                                               FLAGS_pcsort,
+                                               false);
+                } else if (FLAGS_pc) {
+                    slog::info << "Performance counts for " << ireq << "-th infer request:" << slog::endl;
+                    printPerformanceCounts(reqPerfCounts, std::cout, getFullDeviceName(core, FLAGS_d), false);
+                }
+                perfCounts.push_back(reqPerfCounts);
+            }
+            if (statistics) {
+                statistics->dump_performance_counters(perfCounts);
+            }
+        }
+
+        if (statistics)
+            statistics->dump();
+
+        // Performance metrics report
+        try {
+            auto exeDevice = compiledModel.get_property(ov::execution_devices);
+            slog::info << "Execution Devices: " << exeDevice << slog::endl;
+        } catch (const ov::Exception&) {
+        }
+
+        slog::info << "Count:               " << iteration << " iterations" << slog::endl;
+        slog::info << "Duration:            " << double_to_string(totalDuration) << " ms" << slog::endl;
+
+        if (device_name.find("MULTI") == std::string::npos) {
+            slog::info << "Latency:" << slog::endl;
+            generalLatency.write_to_slog();
+
+            if (FLAGS_pcseq && app_inputs_info.size() > 1) {
+                slog::info << "Latency for each data shape group:" << slog::endl;
+                for (size_t i = 0; i < app_inputs_info.size(); ++i) {
+                    slog::info << (i + 1) << ".";
+                    for (auto& item : app_inputs_info[i]) {
+                        std::stringstream input_shape;
+                        auto shape = item.second.dataShape;
+                        std::copy(shape.begin(), shape.end() - 1, std::ostream_iterator<size_t>(input_shape, ","));
+                        input_shape << shape.back();
+                        slog::info << " " << item.first << " : " << item.second.dataShape;
+                    }
+                    slog::info << slog::endl;
+
+                    groupLatencies[i].write_to_slog();
+                }
+            }
+        }
+
+        slog::info << "Throughput:          " << double_to_string(fps) << " FPS" << slog::endl;
+
+    } catch (const std::exception& ex) {
+        slog::err << ex.what() << slog::endl;
+
+        if (statistics) {
+            statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                       {StatisticsVariant("error", "error", ex.what())});
+            statistics->dump();
+        }
+
+        return 3;
+    }
 
     return 0;
 }
