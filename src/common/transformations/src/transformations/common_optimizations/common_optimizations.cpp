@@ -256,7 +256,6 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(fq_fusions, EliminateDuplicateFakeQuantize);
     fq_fusions->set_name("ov::pass::FakeQuantizeFusions");
 
-    manager.register_pass<ov::pass::Serialize>("/home/rmikhail/src/ov_tests/py_tests/EliminateDuplicateFakeQuantizeAfter.xml", "/home/rmikhail/src/ov_tests/py_tests/EliminateDuplicateFakeQuantizeAfter.bin");
     // Temporary transformation to allow for PyTorch frontend to
     // partially support bitwise operators with boolean inputs for plugins
     // that didn't enabled BitwiseOps from opset13 and to allow for constant
