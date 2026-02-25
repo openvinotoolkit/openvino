@@ -336,6 +336,61 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_matmul_with_bias_pattern_
 
     return std::make_shared<ov::Model>(ov::OutputVector{mvn}, params, "QDQStripping");
 }
+
+ov::Output<ov::Node> QDQStrippingFunction::create_residual_block(
+    const ov::Output<ov::Node>& input,
+    size_t seed,
+    float weight_scale,
+    float bias_scale,
+    bool add_shortcut_conv,
+    std::optional<std::pair<float, float>> branch_fq_range) {
+    auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {3}, {1, 2, 3});
+    auto mvn =
+        std::make_shared<ov::op::v6::MVN>(input, reduction_axes, true, 1e-3f, ov::op::MVNEpsMode::INSIDE_SQRT);
+
+    auto weight = build_weights_dq(ov::element::i8, ov::Shape{32, 32, 3, 3}, weight_scale, -128, seed);
+    auto conv = std::make_shared<ov::op::v1::Convolution>(mvn,
+                                                          weight,
+                                                          ov::Strides{1, 1},
+                                                          ov::CoordinateDiff{1, 1},
+                                                          ov::CoordinateDiff{1, 1},
+                                                          ov::Strides{1, 1});
+
+    auto bias = build_weights_dq(ov::element::i8, {32}, bias_scale, 0);
+    auto conv_biased = add_bias(conv, bias);
+
+    // Optionally insert FQ on the conv branch (present in source model, stripped in ref).
+    ov::Output<ov::Node> conv_branch = conv_biased;
+    if (branch_fq_range) {
+        auto [fq_lo, fq_hi] = *branch_fq_range;
+        auto bfq_il = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_lo});
+        auto bfq_ih = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_hi});
+        auto bfq_ol = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_lo});
+        auto bfq_oh = ov::op::v0::Constant::create(ov::element::f32, {}, {fq_hi});
+        conv_branch = std::make_shared<ov::op::v0::FakeQuantize>(conv_biased, bfq_il, bfq_ih, bfq_ol, bfq_oh, 65536);
+    }
+
+    // Shortcut: optionally add 1×1 Conv+bias (tests forward propagation through shortcut Conv).
+    // Conv weights are NOT scaled (activations already carry the scale); only bias is scaled.
+    // Shortcut bias uses zp=-128 and large scale (100.0 * bias_scale/0.001) to produce
+    // significant values that dominate the output if not properly adjusted by scale_divisor.
+    // This ensures the test detects missing bias adjustment during forward propagation.
+    ov::Output<ov::Node> shortcut = input;
+    if (add_shortcut_conv) {
+        auto sc_weight = build_weights_dq(ov::element::i8, ov::Shape{32, 32, 1, 1}, 0.001f, -128, seed + 10);
+        auto sc_conv = std::make_shared<ov::op::v1::Convolution>(input,
+                                                                 sc_weight,
+                                                                 ov::Strides{1, 1},
+                                                                 ov::CoordinateDiff{0, 0},
+                                                                 ov::CoordinateDiff{0, 0},
+                                                                 ov::Strides{1, 1});
+        auto sc_bias = build_weights_dq(ov::element::i8, {32}, 100.0f * bias_scale / 0.001f, -128, seed + 20);
+        shortcut = add_bias(sc_conv, sc_bias);
+    }
+
+    return std::make_shared<ov::op::v1::Add>(conv_branch, shortcut);
+}
+
 std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern(
     const ov::PartialShape& input_shape,
     const ov::element::Type& quantization_precision,
@@ -400,40 +455,12 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern(
     float branch_fq_lo = (quantization_precision == ov::element::u16) ? 0.f : -32800.f;
     float branch_fq_hi = (quantization_precision == ov::element::u16) ? 65600.f : 32800.f;
 
-    // Helper lambda to create a residual block
-    auto create_residual_block = [&](const ov::Output<ov::Node>& input, size_t seed) {
-        auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {3}, {1, 2, 3});
-        // Left branch: MVN -> Conv
-        auto mvn =
-            std::make_shared<ov::op::v6::MVN>(input, reduction_axes, true, 1e-3f, ov::op::MVNEpsMode::INSIDE_SQRT);
-
-        auto weight = build_weights_dq(ov::element::i8, ov::Shape{32, 32, 3, 3}, 0.003f, -128, seed);
-        auto conv = std::make_shared<ov::op::v1::Convolution>(mvn,
-                                                              weight,
-                                                              ov::Strides{1, 1},
-                                                              ov::CoordinateDiff{1, 1},
-                                                              ov::CoordinateDiff{1, 1},
-                                                              ov::Strides{1, 1});
-
-        // Bias with DQ (1D bias: [32])
-        auto bias = build_weights_dq(ov::element::i8, {32}, 0.001f, 0);
-        auto conv_biased = add_bias(conv, bias);
-
-        // Insert FQ (65536 levels) on the Conv+bias branch.
-        // Backward propagation triggered from forward propagation adjusts this FQ's
-        // range constants by /10, then the topological walk strips it (y_scale < 1).
-        auto bfq_il = ov::op::v0::Constant::create(ov::element::f32, {}, {branch_fq_lo});
-        auto bfq_ih = ov::op::v0::Constant::create(ov::element::f32, {}, {branch_fq_hi});
-        auto bfq_ol = ov::op::v0::Constant::create(ov::element::f32, {}, {branch_fq_lo});
-        auto bfq_oh = ov::op::v0::Constant::create(ov::element::f32, {}, {branch_fq_hi});
-        auto branch_fq = std::make_shared<ov::op::v0::FakeQuantize>(conv_biased, bfq_il, bfq_ih, bfq_ol, bfq_oh, 65536);
-
-        return std::make_shared<ov::op::v1::Add>(branch_fq, input);
-    };
-
-    auto add1 = create_residual_block(fq_pass_dq, 2);
-    auto add2 = create_residual_block(add1, 3);
-    auto add3 = create_residual_block(add2, 4);
+    // Branch FQ range is [0, 65600] / [-32800, 32800] (y_scale ≈ 1.001 > 1),
+    // covering the Conv output range (~150) without clamping. After /10 → y_scale ≈ 0.1.
+    std::pair<float, float> fq_range{branch_fq_lo, branch_fq_hi};
+    auto add1 = create_residual_block(fq_pass_dq, 2, 0.003f, 0.001f, false, fq_range);
+    auto add2 = create_residual_block(add1, 3, 0.003f, 0.001f, false, fq_range);
+    auto add3 = create_residual_block(add2, 4, 0.003f, 0.001f, true, fq_range);
 
     if (skip_final_mvn) {
         return std::make_shared<ov::Model>(ov::OutputVector{add3}, params, "QDQStripping");
@@ -479,32 +506,10 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_residual_block_pattern_re
     auto bias1 = build_weights_dq(ov::element::i8, {32}, 0.001f / scale_divisor, 0);
     auto conv1_biased = add_bias(conv1, bias1);
 
-    // Residual blocks: all branch FQs stripped, all weight/bias scales divided by 100
-    auto create_residual_block = [&](const ov::Output<ov::Node>& input, size_t seed) {
-        auto reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {3}, {1, 2, 3});
-        auto mvn =
-            std::make_shared<ov::op::v6::MVN>(input, reduction_axes, true, 1e-3f, ov::op::MVNEpsMode::INSIDE_SQRT);
-
-        // Weight scale: 0.003/100 = 3e-05
-        auto weight = build_weights_dq(ov::element::i8, ov::Shape{32, 32, 3, 3}, 0.003f / scale_divisor, -128, seed);
-        auto conv = std::make_shared<ov::op::v1::Convolution>(mvn,
-                                                              weight,
-                                                              ov::Strides{1, 1},
-                                                              ov::CoordinateDiff{1, 1},
-                                                              ov::CoordinateDiff{1, 1},
-                                                              ov::Strides{1, 1});
-
-        // Bias scale: 0.001/100 = 1e-05
-        auto bias = build_weights_dq(ov::element::i8, {32}, 0.001f / scale_divisor, 0);
-        auto conv_biased = add_bias(conv, bias);
-
-        // Branch FQ stripped
-        return std::make_shared<ov::op::v1::Add>(conv_biased, input);
-    };
-
-    auto add1 = create_residual_block(conv1_biased, 2);
-    auto add2 = create_residual_block(add1, 3);
-    auto add3 = create_residual_block(add2, 4);
+    // Residual blocks: all branch FQs stripped, all weight/bias scales divided by scale_divisor
+    auto add1 = create_residual_block(conv1_biased, 2, 0.003f / scale_divisor, 0.001f / scale_divisor);
+    auto add2 = create_residual_block(add1, 3, 0.003f / scale_divisor, 0.001f / scale_divisor);
+    auto add3 = create_residual_block(add2, 4, 0.003f / scale_divisor, 0.001f / scale_divisor, true);
 
     if (skip_final_mvn) {
         return std::make_shared<ov::Model>(ov::OutputVector{add3}, params, "QDQStripping");

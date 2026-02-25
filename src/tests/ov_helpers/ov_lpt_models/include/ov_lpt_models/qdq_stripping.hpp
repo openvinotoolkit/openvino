@@ -73,6 +73,17 @@ public:
                                                                  const ov::element::Type& quantization_precision);
     static std::shared_ptr<ov::Model> build_forward_bias_pattern_ref(const ov::PartialShape& input_shape,
                                                                      bool need_weights_adjustment = true);
+
+private:
+    // Builds one residual block: MVN → Conv+bias [→ optional FQ] + shortcut → Add.
+    // Shared by build_residual_block_pattern (source) and build_residual_block_pattern_ref (ref).
+    static ov::Output<ov::Node> create_residual_block(
+        const ov::Output<ov::Node>& input,
+        size_t seed,
+        float weight_scale,
+        float bias_scale,
+        bool add_shortcut_conv = false,
+        std::optional<std::pair<float, float>> branch_fq_range = std::nullopt);
 };
 
 }  // namespace subgraph
