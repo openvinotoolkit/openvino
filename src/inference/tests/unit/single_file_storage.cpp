@@ -185,20 +185,20 @@ TEST_F(SingleFileStorageTest, AppendOnlyCacheEntry) {
 
 TEST_F(SingleFileStorageTest, ContextMetaWriteRead) {
     weight_sharing::Context test_context;
-    test_context.m_constants_meta_data[1][11] = {100, 200, element::Type_t::f32};
-    test_context.m_constants_meta_data[1][12] = {300, 400, element::Type_t::i8};
-    test_context.m_constants_meta_data[2][21] = {500, 600, element::Type_t::u8};
+    test_context.m_weight_registry[1][11] = {100, 200, element::Type_t::f32};
+    test_context.m_weight_registry[1][12] = {300, 400, element::Type_t::i8};
+    test_context.m_weight_registry[2][21] = {500, 600, element::Type_t::u8};
     m_storage->write_context(test_context);
 
     const auto meta_read_test = [&](SingleFileStorage& storage) {
         auto got_context = storage.get_context();
-        EXPECT_EQ(got_context.m_constants_meta_data.size(), 2);
+        EXPECT_EQ(got_context.m_weight_registry.size(), 2);
 
-        for (const auto& [source_id, const_meta] : test_context.m_constants_meta_data) {
-            auto& got_meta_data = got_context.m_constants_meta_data;
+        for (const auto& [source_id, const_meta] : test_context.m_weight_registry) {
+            auto& got_meta_data = got_context.m_weight_registry;
             ASSERT_EQ(got_meta_data.count(source_id), 1);
-            EXPECT_EQ(got_context.m_constants_meta_data[source_id].size(),
-                      test_context.m_constants_meta_data[source_id].size());
+            EXPECT_EQ(got_context.m_weight_registry[source_id].size(),
+                      test_context.m_weight_registry[source_id].size());
             for (const auto& [const_id, expected_props] : const_meta) {
                 ASSERT_EQ(got_meta_data[source_id].count(const_id), 1);
 
@@ -226,7 +226,7 @@ TEST_F(SingleFileStorageTest, ContextWeightSourceWrite) {
         buffer->get_ptr<uint8_t>()[i] = 0xAB;
         buffer->get_ptr<uint8_t>()[i + 1] = 0xCD;
     }
-    test_context.m_weight_sources[1] = std::weak_ptr<ov::AlignedBuffer>{buffer};
+    test_context.m_cache_sources[1] = std::weak_ptr<ov::AlignedBuffer>{buffer};
     m_storage->write_context(test_context);
 
     std::ifstream stream(m_file_path, std::ios_base::binary);

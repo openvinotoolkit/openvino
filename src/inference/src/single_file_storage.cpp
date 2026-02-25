@@ -214,9 +214,9 @@ void SingleFileStorage::scan_context(std::ifstream& stream) {
             }
             left_size -= const_meta_size;
 
-            m_shared_context.m_constants_meta_data[source_id][const_id] = {const_offset,
-                                                                           const_size,
-                                                                           element::Type_t{const_type}};
+            m_shared_context.m_weight_registry[source_id][const_id] = {const_offset,
+                                                                       const_size,
+                                                                       element::Type_t{const_type}};
         }
     };
 
@@ -235,7 +235,7 @@ void SingleFileStorage::scan_context(std::ifstream& stream) {
         }
         // const auto weight_pos = stream.tellg();
         const auto weight_size = size - sizeof(device_id) - sizeof(source_id) - sizeof(padding_size) - padding_size;
-        m_shared_context.m_weight_sources[source_id] = {};
+        m_shared_context.m_cache_sources[source_id] = {};
         stream.seekg(weight_size, std::ios::cur);
     };
 
@@ -252,7 +252,7 @@ void SingleFileStorage::write_context(const weight_sharing::Context& context) {
 
     // todo Add delta writing - not the whole.
 
-    for (const auto& [key, const_meta] : context.m_constants_meta_data) {
+    for (const auto& [key, const_meta] : context.m_weight_registry) {
         const auto const_meta_writer = [&](std::ostream& s) {
             const auto source_id = static_cast<DataIdType>(key);
             s.write(reinterpret_cast<const char*>(&source_id), sizeof(source_id));
@@ -266,13 +266,13 @@ void SingleFileStorage::write_context(const weight_sharing::Context& context) {
                 s.write(reinterpret_cast<const char*>(&const_size), sizeof(const_size));
                 s.write(reinterpret_cast<const char*>(&const_type), sizeof(const_type));
 
-                m_shared_context.m_constants_meta_data[key][id] = props;
+                m_shared_context.m_weight_registry[key][id] = props;
             }
         };
         TLVFormat::write_entry(stream, static_cast<TLVFormat::TagType>(Tag::ConstantMeta), const_meta_writer);
     }
 
-    for (const auto& [key, weight_buffer] : context.m_weight_sources) {
+    for (const auto& [key, weight_buffer] : context.m_cache_sources) {
         const auto weight_source_writer = [&](std::ostream& s) {
             const auto device_id = static_cast<DataIdType>(0);  // todo Where to get it from?
             const auto source_id = static_cast<DataIdType>(key);
@@ -294,7 +294,7 @@ void SingleFileStorage::write_context(const weight_sharing::Context& context) {
                                          }};
             std::visit(buffer_writer, weight_buffer);
 
-            m_shared_context.m_weight_sources[key] = weight_buffer;
+            m_shared_context.m_cache_sources[key] = weight_buffer;
         };
         TLVFormat::write_entry(stream, static_cast<TLVFormat::TagType>(Tag::WeightSource), weight_source_writer);
     }

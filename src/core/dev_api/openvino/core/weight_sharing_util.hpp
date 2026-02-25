@@ -26,19 +26,19 @@ namespace ov::weight_sharing {
 using DataID = uint64_t;
 
 /** @brief Defined INVALID ID for weight source */
-inline constexpr auto INVALID_SOURCE_ID = std::numeric_limits<DataID>::max();
+inline constexpr auto INVALID_SOURCE_ID = 0;
 /** @brief Defined INVALID ID for constant */
 inline constexpr auto INVALID_CONSTANT_ID = INVALID_SOURCE_ID;
 
-/** @brief Metadata for a constant */
-struct ConstantMetaData {
+/** @brief Metadata for a weight */
+struct WeightMetaData {
     size_t m_offset;
     size_t m_size;
     ov::element::Type m_type;
 };
 
-/** @brief Metadata for the origin of a constant */
-struct ConstantOriginMetaData {
+/** @brief Metadata for the origin of a weight */
+struct WeightOriginMetaData {
     DataID m_id;
     size_t m_offset;
     size_t m_size;
@@ -50,20 +50,21 @@ using WeightBuffer = std::variant<std::shared_ptr<ov::AlignedBuffer>, std::share
 /** @brief Variant type for weight buffer observer*/
 using WeakWeightBuffer = std::variant<std::weak_ptr<ov::AlignedBuffer>, std::weak_ptr<ov::MappedMemory>>;
 
-/** @brief Map [key: Constant ID, value: ConstantMetaData] of constant meta data for single container. */
-using ConstantMap = std::unordered_map<DataID, ConstantMetaData>;
-/** @brief Map [key: Source ID, value: ConstantMap] of constant metadata for weight sources. */
-using SourceConstantMap = std::unordered_map<DataID, ConstantMap>;
-/** @brief Map [key: Source ID, value: WeakWeightBuffer] of pointers to weight sources. */
-using WeightSourceMap = std::unordered_map<DataID, WeakWeightBuffer>;
+/** @brief Map [key: Constant ID, value: WeightMetaData] of constant meta data for single container. */
+using WeightMetaMap = std::unordered_map<DataID, WeightMetaData>;
+/** @brief Map [key: Source ID, value: WeightMetaMap] of constant metadata for constant sources. */
+using WeightRegistry = std::unordered_map<DataID, WeightMetaMap>;
+/** @brief Map [key: Source ID, value: WeakWeightBuffer] of pointers to constant sources. */
+using WeightSourceRegistry = std::unordered_map<DataID, WeakWeightBuffer>;
 /** @brief Map [key: Blob ID, value: blob name] of blobs to model name/tag */
 using BlobMap = std::unordered_map<DataID, std::string>;
 
 /** @brief Shared context for weight and constant management */
 struct Context {
     // keep as standard layout as will be used between libraries
-    SourceConstantMap m_constants_meta_data;
-    WeightSourceMap m_weight_sources;
+    WeightRegistry m_weight_registry;        //!< Weight metadata stored in cache for weight sources.
+    WeightSourceRegistry m_cache_sources;    //!< Weight sources stored in cache.
+    WeightSourceRegistry m_runtime_sources;  //!< Weight sources available in runtime, not stored in cache.
 };
 
 /** @brief Extension iface for classes which manage shared context */
@@ -87,30 +88,30 @@ struct OPENVINO_API Extension {
      * @param constant Constant node to get origin metadata for.
      * @return Return optional with ConstantOriginMetaData if found, std::nullopt otherwise.
      */
-    static std::optional<ConstantOriginMetaData> get_constant_origin(const ov::op::v0::Constant& constant);
+    static std::optional<WeightOriginMetaData> get_constant_origin(const ov::op::v0::Constant& constant);
 
     /**
-     * @brief Set constant metadata in constant map for given constant node.
+     * @brief Set constant metadata in weight registry for given constant node.
      *
-     * @param constant_map Constant source map to set metadata in.
+     * @param weight_registry Weight registry to set metadata in.
      * @param constant Constant node to set metadata for.
      * @return Return true if metadata was set successfully, false otherwise.
      */
-    static bool set_constant_in_constant_map(SourceConstantMap& constant_map, const ov::op::v0::Constant& constant);
+    static bool set_constant_in_weight_registry(WeightRegistry& weight_registry, const ov::op::v0::Constant& constant);
 
-    /** @brief Create the weight sources for a given model.
+    /** @brief Gets the weight sources for a given model.
      *
      * @param model Model to get weight sources for.
      * @return Return map of weight sources.
      */
-    static WeightSourceMap make_weight_sources(const Model& model);
+    static WeightSourceRegistry get_weight_sources(const Model& model);
 
-    /** @brief Creates the nested map where Source ID and Data ID identifies to constant meta data.
+    /** @brief Gets the map where Source ID and Data ID are keys to identify weight meta data.
      *
-     * @param model Model to get constant map for.
-     * @return Return map of constants.
+     * @param model Model to get weight registry for.
+     * @return Return map of weight metadata.
      */
-    static SourceConstantMap make_constant_map(const Model& model);
+    static WeightRegistry get_weight_registry(const Model& model);
 };
 
 /** @brief Get the source buffer for a given source id.
@@ -159,10 +160,18 @@ OPENVINO_API bool set_constant(Context& shared_context, const ov::op::v0::Consta
 /** @brief Set the weight source in context for sharing.
  *
  * @param shared_context Shared context to set weight source in.
- * @param constant Weight buffer to set as source.
+ * @param weight_buffer Weight buffer to set as source.
  * @return Return true if source was set successfully, false otherwise.
  */
-OPENVINO_API bool set_weight_source(Context& shared_context, const WeightBuffer& constant);
+OPENVINO_API bool set_weight_source(Context& shared_context, const WeightBuffer& weight_buffer);
+
+/** @brief Set the weight source in runtime source map of context for sharing.
+ *
+ * @param shared_context Shared context to set weight source in.
+ * @param weight_buffer Weight buffer to set as source.
+ * @return Return true if source was set successfully, false otherwise.
+ */
+OPENVINO_API bool set_runtime_weight_source(Context& shared_context, const WeightBuffer& weight_buffer);
 }  // namespace ov::weight_sharing
 
 namespace ov {
