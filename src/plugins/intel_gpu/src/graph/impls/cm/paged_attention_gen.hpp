@@ -22,9 +22,11 @@
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 namespace ov::intel_gpu::cm {
+constexpr int32_t PA_CM_REGISTER_FILE_SIZE = 256;
 
-constexpr auto get_pa_build_options() {
-    return " -cmc -Qxcm_register_file_size=256";
+inline std::string get_pa_build_options() {
+    return " -cmc -Qxcm_register_file_size=" +
+           std::to_string(PA_CM_REGISTER_FILE_SIZE);
 }
 
 #define FIND_DEBUG_ACC 0

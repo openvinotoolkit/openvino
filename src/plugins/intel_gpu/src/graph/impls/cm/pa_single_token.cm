@@ -87,10 +87,26 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     //# kv_len dimision will be split into multiple partitions, each WG process a partition
     //# total_partitions_num = kv_len // KV_PARTITION_SIZE
     //
-    //# MaxRepeatCount=8
-    //# q_heads_per_kv_head = num_heads // num_kv_heads
-    //# q_head_chunks_per_kv_head = (q_heads_per_kv_head + (MaxRepeatCount - 1)) // MaxRepeatCount
-    //# q_head_chunk_size = num_heads // (num_kv_heads * q_head_chunks_per_kv_head)
+    //# MaxRepeatCount = 8
+    //# q_heads_per_kv_head = num_heads / num_kv_heads
+    //#
+    //# Q_head_chunk_size is bounded not only by MaxRepeatCount,
+    //# but also by the per-thread register file budget implied by
+    //# -Qxcm_register_file_size and architecture GRF width
+    //# (xe1: 32B/GRF, xe2: 64B/GRF).
+    //#
+    //# In particular, the rS matrix:
+    //#   matrix<float, Q_head_chunk_size,
+    //#          REG_M * (KV_PARTITION_SIZE / KV_STEP) * REG_N>
+    //# must fit within the available register budget to avoid
+    //# excessive register pressure or CM build failures.
+    //#
+    //# Host side derives the maximum valid Q_head_chunk_size from
+    //# this constraint and adjusts q_head_chunks_per_kv_head
+    //# accordingly:
+    //#   q_head_chunks_per_kv_head = ceil_div(q_heads_per_kv_head, target_chunk)
+    //#   q_head_chunk_size         = ceil_div(q_heads_per_kv_head,
+    //#                                        q_head_chunks_per_kv_head)
     //# GWS=[seq_num, num_kv_heads * q_head_chunks_per_kv_head, total_partitions_num]
     //# LWS=[1, 1, 1]
 
