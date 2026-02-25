@@ -17,7 +17,9 @@
 #include "behavior/ov_infer_request/inference.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
+#include "compiler_adapter_factory.hpp"
 #include "intel_npu/npu_private_properties.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
 #include "openvino/core/any.hpp"
@@ -28,6 +30,7 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
+#include "zero_backend.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
@@ -140,6 +143,17 @@ public:
 
         return std::make_shared<Model>(res, params);
     }
+
+    std::shared_ptr<ov::Model> createTwoInputLessEqualModel(const PartialShape& shape) {
+        auto param0 = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, shape);
+        auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, shape);
+        auto lessEqual = std::make_shared<ov::op::v1::LessEqual>(param0, param1);
+        auto result = std::make_shared<ov::op::v0::Result>(lessEqual);
+
+        auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param0, param1});
+        model->set_friendly_name("TwoInputLessEqual");
+        return model;
+    }
 };
 
 TEST_P(InferRequestRunTests, AllocatorCanDisposeBlobWhenOnlyInferRequestIsInScope) {
@@ -205,6 +219,47 @@ TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsAsyncInfers) {
         inferReqs[i].wait();
         OV_ASSERT_NO_THROW(inferReqs[i].get_tensor(output));
     }
+}
+
+TEST_P(InferRequestRunTests, BooleanTensorDataTypesForBooleanModelWorks) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto zeroEngineBackendPtr = std::make_shared<::intel_npu::ZeroEngineBackend>();
+    ::intel_npu::CompilerAdapterFactory compilerAdapterFactory;
+    ov::intel_npu::CompilerType compilerType = ov::intel_npu::CompilerType::PREFER_PLUGIN;
+    // 7.30 version is an assumption for when LessEqual Op is updated in compiler,
+    // might need to adjust
+    if (compilerAdapterFactory
+            .getCompiler(zeroEngineBackendPtr,
+                         compilerType,
+                         ov::intel_npu::Platform::standardize(ov::test::utils::getTestPlatform()))
+            ->get_version() < ZE_MAKE_VERSION(7, 30)) {
+        GTEST_SKIP() << "Skipping due to old compiler that won't support boolean input datatype for LessEqual Op!";
+    }
+
+    const ov::Shape shape{1, 16, 16, 16};
+    ov::CompiledModel compiled_model;
+
+    OV_ASSERT_NO_THROW(compiled_model =
+                           core->compile_model(createTwoInputLessEqualModel(shape), target_device, configuration));
+    auto infer_request = compiled_model.create_infer_request();
+    ov::Allocator alignedAllocator{::intel_npu::utils::AlignedAllocator{::intel_npu::utils::STANDARD_PAGE_SIZE}};
+    ov::Tensor importMemoryTensor(ov::element::boolean, shape, alignedAllocator);
+    void* alignedAddr = ::operator new(ov::element::boolean.size() * ov::shape_size(shape) + 1,
+                                       std::align_val_t(::intel_npu::utils::STANDARD_PAGE_SIZE));
+    void* unalignedAddr = static_cast<uint8_t*>(alignedAddr) + 1;
+    ov::Tensor unalignedTensor(ov::element::boolean, shape, unalignedAddr);
+
+    OPENVINO_ASSERT(compiled_model.input(0).get_element_type() == ov::element::boolean);
+    OPENVINO_ASSERT(compiled_model.input(1).get_element_type() == ov::element::boolean);
+
+    infer_request.infer();
+
+    OV_ASSERT_NO_THROW(infer_request.set_tensor(compiled_model.input(0), importMemoryTensor));
+    OV_ASSERT_NO_THROW(infer_request.set_tensor(compiled_model.input(1), unalignedTensor));
+    infer_request.infer();
+
+    ::operator delete(unalignedAddr, std::align_val_t(::intel_npu::utils::STANDARD_PAGE_SIZE));
 }
 
 using ProfilingBlob = InferRequestRunTests;
