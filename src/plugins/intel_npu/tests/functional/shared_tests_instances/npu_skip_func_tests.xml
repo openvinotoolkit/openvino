@@ -807,9 +807,10 @@ Example:
 
     <!-- E###### -->
     <skip_config>
-        <message>Data type u1 not supported by NPU4000.</message>
+        <message>Data type u1 not supported by NPU4000 and NPU5010.</message>
         <enable_rules>
             <device>4000</device>
+            <device>5010</device>
         </enable_rules>
         <filters>
             <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
@@ -834,9 +835,34 @@ Example:
     </skip_config>
 
     <skip_config>
-        <message>Strides are not supported with the current driver</message>
+        <message>Blobs for OVBlobCompatibilityNPU need to be updated for NPU5010</message>
+        <enable_rules>
+            <device>5010</device>
+        </enable_rules>
         <filters>
-            <filter>.*RoiTensorsTestsRun.*</filter>
+            <filter>.*OVBlobCompatibilityNPU.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Set of caching properties that are not suported by PV driver</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <driver_version>1688</driver_version>
+            <operating_system>windows</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*CompileModelLoadFromCacheTest.*EXECUTION_MODE_HINT.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*INFERENCE_PRECISION_HINT.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_BATCH_COMPILER_MODE_SETTINGS.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_BATCH_MODE.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_COMPILER_DYNAMIC_QUANTIZATION.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_DYNAMIC_SHAPE_TO_STATIC.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_MAX_TILES.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_TILES.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_TURBO.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_QDQ_OPTIMIZATION.*</filter>
+            <filter>.*CompileModelLoadFromCacheTest.*NPU_QDQ_OPTIMIZATION_AGGRESSIVE.*</filter>
         </filters>
     </skip_config>
 

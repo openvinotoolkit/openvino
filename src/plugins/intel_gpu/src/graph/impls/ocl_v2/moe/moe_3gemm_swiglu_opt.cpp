@@ -1433,6 +1433,7 @@ public:
         //      8: wei_zp
         //  output:
         //      0: up/gate output, shape = [token_len * expert_topK, hidden_size]
+        // Note: If POST_PROC_SILU_MUL is enabled, silu_mul result will be involved in micro_gemm_gate, don't change kernel executor order.
         {
 #    if DEBUG_MOE_LOG
             GPU_DEBUG_TRACE_DETAIL << "\nstep 3: moe_gemm for up and gate" << std::endl;
@@ -1447,7 +1448,10 @@ public:
         //      1: gate  [token_len * expert_topK, hidden_size]
         // output
         //      0: gate_up  [token_len * expert_topK, hidden_size]
-        {
+        // Note: If POST_PROC_SILU_MUL is disabled, single silu_mul kernel will be submmited.
+        //       Otherwise, silu_mul has been involved in micro_gemm_gate kernel, skip here.
+        const bool enable_silu_mul = ENABLE_MOE_MICRO_GEMM_POST_PROC_SILU_MUL;
+        if (!enable_silu_mul) {
             auto token_size = token_num * max_topk;
 #    if DEBUG_MOE_LOG
             GPU_DEBUG_TRACE_DETAIL << "\nstep 4: prefill_swiglu token_size=" << token_size << ", hidden_size=" << _intermediate_size << std::endl;
@@ -1457,8 +1461,8 @@ public:
                                       *prefill_swiglu,
                                       {intermediates_memories[MOE_INTERNAL_BUFFER_UP_OUTPUT], intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT]},
                                       {intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT]},
-                                      {static_cast<size_t>(token_size), static_cast<size_t>(_intermediate_size), 1},
-                                      {1, subgroup_size, 1});
+                                      {static_cast<size_t>(_intermediate_size), static_cast<size_t>(token_size), 1},
+                                      {subgroup_size, 1, 1});
         }
 
         // step 5: moe_gemm for down
@@ -1648,7 +1652,7 @@ public:
             OPENVINO_THROW("hidden_size=", hidden_size, " is not divisible by any of ", sizeof(candidate) / sizeof(size_t), " candidates");
         };
         auto lws_size = get_best_lws(_hidden_size);
-        int max_topk = static_cast<int>(config.top_k);
+        auto max_topk = static_cast<int64_t>(config.top_k);
 
         // [batch, max_topk]
         auto topk_id_mem = scratch.topk_id;
@@ -1670,6 +1674,12 @@ public:
             copy_expert_mask_to_gpu(stream, expert_mask, expert_no, expert_mask_mem);
 
             auto n_token = static_cast<int>(expert_mask.batch[expert_no].size());
+
+            // Be careful about possible overflow
+            if (n_token > std::numeric_limits<int64_t>::max() / max_topk)
+                OPENVINO_THROW("n_token * max_topk overflow detected, n_token=", n_token, " max_topk=", max_topk);
+
+            int64_t routing_weights_size = static_cast<int64_t>(n_token * max_topk);
             onednn_kernel& kernel = get_kernel(n_token, static_cast<int>(expert_no), instance);
 
             // gather
@@ -1685,23 +1695,23 @@ public:
             // up
             kernel.up.forward(dnn_stream,
                               n_token,
-                              convert2dnnl(scratch.x, {static_cast<int>(n_token), dnnl_weights[1].ic}, dnnl::memory::format_tag::ab),
-                              convert2dnnl(scratch.up, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
+                              convert2dnnl(scratch.x, {static_cast<int64_t>(n_token), dnnl_weights[1].ic}, dnnl::memory::format_tag::ab),
+                              convert2dnnl(scratch.up, {static_cast<int64_t>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
                               dnnl::memory());
 
             // gate
             kernel.gate.forward(dnn_stream,
                                 n_token,
-                                convert2dnnl(scratch.x, {static_cast<int>(n_token), dnnl_weights[0].ic}, dnnl::memory::format_tag::ab),
-                                convert2dnnl(scratch.gate, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
-                                convert2dnnl(scratch.up, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab));
+                                convert2dnnl(scratch.x, {static_cast<int64_t>(n_token), dnnl_weights[0].ic}, dnnl::memory::format_tag::ab),
+                                convert2dnnl(scratch.gate, {static_cast<int64_t>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
+                                convert2dnnl(scratch.up, {static_cast<int64_t>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab));
 
             // down
             kernel.down.forward(dnn_stream,
                                 n_token,
-                                convert2dnnl(scratch.gate, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
-                                convert2dnnl(scratch.y, {static_cast<int>(n_token), _hidden_size}, dnnl::memory::format_tag::ab),
-                                convert2dnnl(scratch.routing_weights, {static_cast<int>(n_token * max_topk)}, dnnl::memory::format_tag::a));
+                                convert2dnnl(scratch.gate, {static_cast<int64_t>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
+                                convert2dnnl(scratch.y, {static_cast<int64_t>(n_token), _hidden_size}, dnnl::memory::format_tag::ab),
+                                convert2dnnl(scratch.routing_weights, {static_cast<int64_t>(routing_weights_size)}, dnnl::memory::format_tag::a));
 
             // index_add
             result_event = execute_stage({result_event},
