@@ -135,6 +135,18 @@ void parse_tensordot_dims(const NodeContext& ctx, Output<Node> a, Output<Node> b
         // Dynamic rank: compute contraction axes at runtime via Range ops.
         FRONT_END_GENERAL_CHECK(k >= 0, "aten::tensordot: dims must be non-negative");
 
+        // Validate against whichever rank(s) are statically known, even when the
+        // other is dynamic.  Without this, e.g. a static-rank-2 tensor with k=3
+        // would produce a_start = -1 and generate invalid axis indices at runtime.
+        if (a_rank_ps.is_static()) {
+            FRONT_END_GENERAL_CHECK(k <= a_rank_ps.get_length(),
+                                    "aten::tensordot: dims value exceeds rank of first tensor");
+        }
+        if (b_rank_ps.is_static()) {
+            FRONT_END_GENERAL_CHECK(k <= b_rank_ps.get_length(),
+                                    "aten::tensordot: dims value exceeds rank of second tensor");
+        }
+
         Output<Node> a_rank;
         std::tie(std::ignore, a_rank) = get_shape_rank(ctx, a, true);
 
