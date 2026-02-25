@@ -56,15 +56,17 @@ class Image:
         if export_cache:
             cache_cmd += f"--cache-to type=registry,ref={self.ref()}-cache,mode=max "
 
-        build_cmd = f"docker buildx build --builder={docker_builder}" if docker_builder else "docker build"
-        push_cmd = f"--push" if push else ""
+        build_cmd = f"docker buildx build --builder={docker_builder}"
+        output = f"--output type=image,compression=zstd,compression-level=22,force-compression=true,oci-mediatypes=true"
+        output += f",name={self.ref()}"
+        output += ",push=true" if push else ""
 
         cmd = f"{build_cmd} " \
               f"--file {self.dockerfile} " \
               f"--tag {self.ref()} " \
               f"--build-arg REGISTRY={self.registry}/dockerio " \
               f"{cache_cmd} " \
-              f"{push_cmd} " \
+              f"{output} " \
               "."
 
         run(cmd, dry)
