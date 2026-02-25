@@ -1316,3 +1316,99 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_blocksize) {
     test_case.add_expected_output(std::vector<std::uint8_t>{119, 111, 190, 190});
     test_case.run();
 }
+
+/// 8-bit floating point QuantizeLinear - DequantizeLinear test - f8e4m3 - positive values
+///
+/// Expected outputs were verified against ONNX Runtime 1.19
+///
+/// Q-DQ round-trip formula: y = fp8_round(x / scale) * scale
+/// where fp8_round saturates out-of-range values to the fp8 type maximum.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_f8e4m3) {
+    auto model = convert_model("quant_dequant_f8e4m3.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({0.0f, 1.0f, 2.0f, 100000.0f, 200.0f});  // x
+    test_case.add_input<float>({2.0f});                                 // scale
+
+    // Q: x/2 = [0, 0.5, 1, 50000, 100]
+    //   50000 saturates to 448 (f8e4m3fn max); 100 rounds to 96 (nearest even)
+    // DQ: Q_out * 2 = [0, 1, 2, 896, 192]
+    test_case.add_expected_output<float>({0.0f, 1.0f, 2.0f, 896.0f, 192.0f});
+    test_case.run();
+}
+
+/// 8-bit floating point QuantizeLinear - DequantizeLinear test - f8e5m2 - positive values
+///
+/// Expected outputs were verified against ONNX Runtime 1.19
+///
+/// Q-DQ round-trip formula: y = fp8_round(x / scale) * scale
+/// where fp8_round saturates out-of-range values to the fp8 type maximum.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_f8e5m2) {
+    auto model = convert_model("quant_dequant_f8e5m2.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({0.0f, 1.0f, 2.0f, 100000.0f, 200.0f});  // x
+    test_case.add_input<float>({2.0f});                                 // scale
+
+    // Q: x/2 = [0, 0.5, 1, 50000, 100]
+    //   50000 rounds to 49152 (nearest f8e5m2, within max 57344); 100 rounds to 96
+    // DQ: Q_out * 2 = [0, 1, 2, 98304, 192]
+    test_case.add_expected_output<float>({0.0f, 1.0f, 2.0f, 98304.0f, 192.0f});
+    test_case.run();
+}
+
+/// 8-bit floating point QuantizeLinear - DequantizeLinear test - - negative values
+///
+/// Expected outputs were verified against ONNX Runtime 1.19
+///
+/// Q-DQ round-trip formula: y = fp8_round(x / scale) * scale
+/// where fp8_round saturates out-of-range values to the fp8 type maximum.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_f8e4m3_negative) {
+    auto model = convert_model("quant_dequant_f8e4m3.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1.0f, -0.5f, 0.0f, 0.5f, 1.0f});  // x
+    test_case.add_input<float>({1.0f});                            // scale
+
+    test_case.add_expected_output<float>({-1.0f, -0.5f, 0.0f, 0.5f, 1.0f});
+    test_case.run();
+}
+
+/// 8-bit floating point QuantizeLinear - DequantizeLinear test - f8e4m3 - value saturation
+///
+/// Expected outputs were verified against ONNX Runtime 1.19
+///
+/// Q-DQ round-trip formula: y = fp8_round(x / scale) * scale
+/// where fp8_round saturates out-of-range values to the fp8 type maximum.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_f8e4m3_saturation) {
+    auto model = convert_model("quant_dequant_f8e4m3.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-500.0f, -450.0f, -96.0f, 96.0f, 500.0f});  // x
+    test_case.add_input<float>({1.0f});                                     // scale
+
+    test_case.add_expected_output<float>({-448.0f, -448.0f, -96.0f, 96.0f, 448.0f});
+    test_case.run();
+}
+
+/// 8-bit floating point QuantizeLinear - DequantizeLinear test - f8e5m2 - sub-unity scale
+///
+/// Expected outputs were verified against ONNX Runtime 1.19
+///
+/// Q-DQ round-trip formula: y = fp8_round(x / scale) * scale
+/// where fp8_round saturates out-of-range values to the fp8 type maximum.
+///
+/// f8e5m2 with sub-unity scale: scale=0.5 shifts the quantization grid
+/// x/0.5 = [-2, -0.5, 0, 0.5, 2] — all exactly representable in 
+/// DQ: Q_out * 0.5 recovers x exactly (lossless for this input)
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_f8e5m2_small_scale) {
+    auto model = convert_model("quant_dequant_f8e5m2.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1.0f, -0.25f, 0.0f, 0.25f, 1.0f});  // x
+    test_case.add_input<float>({0.5f});                              // scale
+
+    // x/0.5 = [-2, -0.5, 0, 0.5, 2]: exact in f8e5m2 - Q_out * 0.5 = x
+    test_case.add_expected_output<float>({-1.0f, -0.25f, 0.0f, 0.25f, 1.0f});
+    test_case.run();
+}
