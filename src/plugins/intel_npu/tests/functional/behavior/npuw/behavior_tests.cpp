@@ -1,9 +1,9 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior_tests.hpp"
-#include "comparators/nrmse.hpp"
+#include "test_engine/comparators/nrmse.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "openvino/util/file_util.hpp"
 

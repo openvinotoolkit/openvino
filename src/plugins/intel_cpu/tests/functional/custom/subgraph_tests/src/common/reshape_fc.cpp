@@ -1,4 +1,4 @@
-// Copyright (C) 2021-2022 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,7 +72,7 @@ protected:
         auto weight = std::make_shared<ov::op::v0::Constant>(tensor);
         auto matMul = std::make_shared<ov::op::v0::MatMul>(reshape, weight, false, false);
 
-        function = makeNgraphFunction(prc, params, matMul, "ReshapeFcModel");
+        function = create_ov_model(prc, params, matMul, "ReshapeFcModel");
     }
 };
 

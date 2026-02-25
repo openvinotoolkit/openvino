@@ -27,8 +27,7 @@ models. Check the LLM-powered Chatbot Jupyter notebook to see how GenAI works.
   :bdg-link-success:`User Guide <https://docs.openvino.ai/2025/openvino-workflow/model-optimization.html>`
 
 A suite of advanced algorithms for Neural Network inference optimization with minimal accuracy
-drop. NNCF applies quantization, filter pruning, binarization, and sparsity algorithms to PyTorch
-and TensorFlow models during training.
+drop. NNCF applies quantization and sparsity algorithms to PyTorch models during training.
 |hr|
 
 | **OpenVINO Model Server**

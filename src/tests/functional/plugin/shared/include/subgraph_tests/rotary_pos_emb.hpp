@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -116,6 +116,13 @@ TEST_P(RoPETestChatGLMHF, CompareWithRefs) {
 };
 
 TEST_P(RoPETestGPTOSS, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+    auto function = compiledModel.get_runtime_model();
+    CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
+};
+
+TEST_P(RoPETestLtxVideo, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     auto function = compiledModel.get_runtime_model();

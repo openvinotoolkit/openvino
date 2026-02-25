@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1038,8 +1038,8 @@ ov::Tensor generateInput(const std::shared_ptr<ov::Node>& node,
 }
 } // namespace
 
-InputsMap getInputMap() {
-    static InputsMap inputsMap{
+const InputsMap& getInputMap() {
+    const static InputsMap inputsMap{
 #define _OPENVINO_OP_REG(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), generateInput<NAMESPACE::NAME>},
 
 #include "openvino/opsets/opset1_tbl.hpp"
@@ -1062,6 +1062,7 @@ InputsMap getInputMap() {
 #include "ov_ops/opset_private_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
+
     return inputsMap;
 }
 
