@@ -42,6 +42,7 @@ class TestTensordot(PytorchLayerTest):
         # transposed shape differs from the original.  This exercises the
         # shape_source / input split in reshape_to_2d.
         ((2, 3, 4), (5, 3, 6), ([1], [1]), False),
+        ((2, 3), (4, 5), 0, False),                        # dims=0 (outer product)
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
