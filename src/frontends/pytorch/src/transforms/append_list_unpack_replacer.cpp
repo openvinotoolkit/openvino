@@ -33,7 +33,6 @@ AppendListUnpackReplacer::AppendListUnpackReplacer() {
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto list_unpack = m.get_match_root();
 
-        OutputVector tmp_inputs;
         NodeVector rt_copy_from;
         auto input_node = list_unpack->input_value(0).get_node_shared_ptr();
 
@@ -44,25 +43,11 @@ AppendListUnpackReplacer::AppendListUnpackReplacer() {
             input_node = getitem_node->input(0).get_source_output().get_node_shared_ptr();
         }
 
-        while (auto append_node = cast_fw_node(input_node, "aten::append")) {
-            rt_copy_from.push_back(append_node);
-            tmp_inputs.emplace_back(append_node->input(1).get_source_output());
-            input_node = append_node->input(0).get_source_output().get_node_shared_ptr();
-        }
-        OutputVector inputs;
         auto seq_mark = ov::as_type_ptr<SequenceMark>(input_node);
         if (!seq_mark) {
             return false;
         }
-        inputs.reserve(seq_mark->inputs().size() + tmp_inputs.size());
-        rt_copy_from.push_back(seq_mark);
-        for (auto& input : seq_mark->inputs()) {
-            inputs.push_back(input.get_source_output());
-        }
-
-        inputs.insert(inputs.end(),
-                      std::make_move_iterator(tmp_inputs.rbegin()),
-                      std::make_move_iterator(tmp_inputs.rend()));
+        auto inputs = seq_mark->get_sequence();
         if (getitem_node) {
             // If aten::__getitem__, expect inputs to be equivalent of pytorch Tensor[][].
             // Tensor selected by aten::__getitem__ index needs to be split along axis 0.

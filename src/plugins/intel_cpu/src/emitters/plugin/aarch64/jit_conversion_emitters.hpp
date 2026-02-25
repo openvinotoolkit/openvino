@@ -44,7 +44,7 @@ private:
     template <typename TReg>
     inline void cvt_f32_to_f16(const TReg& src, const TReg& dst) const;
     template <typename TReg>
-    inline void cvt_f32_to_i32(const TReg& src, const TReg& dst) const;
+    inline void cvt_f32_to_i32(const TReg& src, const TReg& dst, bool is_saturated) const;
     template <typename TReg>
     inline void cvt_i32_to_f32(const TReg& src, const TReg& dst) const;
     template <typename TReg>
