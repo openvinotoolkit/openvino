@@ -16,7 +16,7 @@
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/util/file_util.hpp"
 
-using namespace ov::util;
+namespace ov::test {
 
 TEST(CoreTests, Throw_on_register_plugin_twice) {
     ov::Core core;
@@ -29,8 +29,8 @@ TEST(CoreTests, Throw_on_register_plugin_twice) {
 TEST(CoreTests, Throw_on_register_plugins_twice) {
     ov::Core core;
 
-    auto get_plugin_xml = [&]() -> std::string {
-        std::string plugins_xml = "test_plugins.xml";
+    auto get_plugin_xml = [] {
+        std::filesystem::path plugins_xml = "test_plugins.xml";
         std::ofstream file(plugins_xml);
         file << "<ie><plugins><plugin location=\"libtest_plugin.so\" name=\"TEST_DEVICE\"></plugin></plugins></ie>";
         file.flush();
@@ -38,17 +38,22 @@ TEST(CoreTests, Throw_on_register_plugins_twice) {
         return plugins_xml;
     };
 
-    core.register_plugins(get_plugin_xml());
+    const auto plugins_xml_path = get_plugin_xml();
+    core.register_plugins(plugins_xml_path);
     OV_EXPECT_THROW(core.register_plugins(get_plugin_xml()),
                     ov::Exception,
                     ::testing::HasSubstr("Device with \"TEST_DEVICE\"  is already registered in the OpenVINO Runtime"));
+
+    if (ov::util::file_exists(plugins_xml_path)) {
+        std::ignore = std::filesystem::remove(plugins_xml_path);
+    }
 }
 
 TEST(CoreTests_get_plugin_path_from_xml, Use_abs_path_as_is) {
     auto xml_path = std::filesystem::path("path_to_plugins.xml");
     auto lib_path = std::filesystem::absolute("test_name.ext");  // CWD/test_name.ext
     for (auto&& as_abs_only : {true, false}) {
-        const auto abs_path = get_plugin_path(lib_path, xml_path, as_abs_only);
+        const auto abs_path = ov::util::get_plugin_path(lib_path, xml_path, as_abs_only);
         EXPECT_TRUE(abs_path.is_absolute());
         EXPECT_EQ(abs_path, lib_path);
     }
@@ -58,7 +63,7 @@ TEST(CoreTests_get_plugin_path_from_xml, Convert_relative_path_as_relative_to_xm
     auto xml_path = std::filesystem::path("path_to_plugins.xml");
     auto lib_path = std::filesystem::path(".") / "test_name.ext";  // ./test_name.ext
     for (auto&& as_abs_only : {true, false}) {
-        const auto abs_path = get_plugin_path(lib_path, xml_path, as_abs_only);
+        const auto abs_path = ov::util::get_plugin_path(lib_path, xml_path, as_abs_only);
         EXPECT_TRUE(abs_path.is_absolute());
 
         const auto ref_path = std::filesystem::absolute(std::filesystem::weakly_canonical(lib_path));
@@ -68,8 +73,8 @@ TEST(CoreTests_get_plugin_path_from_xml, Convert_relative_path_as_relative_to_xm
 
 TEST(CoreTests_get_plugin_path_from_xml, Convert_filename_to_abs_path_if_as_abs_only) {
     auto xml_path = std::filesystem::path("path_to_plugins.xml");
-    auto name = std::filesystem::path("test_name.ext");     // test_name.ext
-    auto abs_path = get_plugin_path(name, xml_path, true);  // XMLDIR/libtest_name.ext.so
+    auto name = std::filesystem::path("test_name.ext");               // test_name.ext
+    auto abs_path = ov::util::get_plugin_path(name, xml_path, true);  // XMLDIR/libtest_name.ext.so
     EXPECT_TRUE(abs_path.is_absolute());
 
     auto lib_name = ov::util::make_plugin_library_name(name);
@@ -79,8 +84,8 @@ TEST(CoreTests_get_plugin_path_from_xml, Convert_filename_to_abs_path_if_as_abs_
 
 TEST(CoreTests_get_plugin_path_from_xml, Use_filename_if_not_as_abs_only) {
     auto xml_path = std::filesystem::path("path_to_plugins.xml");
-    auto name = std::filesystem::path("test_name.ext");  // test_name.ext
-    auto lib_name = get_plugin_path(name, xml_path);     // libtest_name.ext.so
+    auto name = std::filesystem::path("test_name.ext");         // test_name.ext
+    auto lib_name = ov::util::get_plugin_path(name, xml_path);  // libtest_name.ext.so
     auto ref_name = ov::util::make_plugin_library_name(name);
     EXPECT_EQ(lib_name, ref_name);
 }
@@ -88,14 +93,14 @@ TEST(CoreTests_get_plugin_path_from_xml, Use_filename_if_not_as_abs_only) {
 TEST(CoreTests_get_plugin_path, Use_abs_path_as_is) {
     auto lib_name = ov::util::make_plugin_library_name("test_name");  // libtest_name.so
     auto lib_path = std::filesystem::absolute(std::filesystem::weakly_canonical("." / lib_name));
-    auto abs_path = get_plugin_path(lib_path);
+    auto abs_path = ov::util::get_plugin_path(lib_path);
     EXPECT_TRUE(abs_path.is_absolute());
     EXPECT_EQ(abs_path, lib_path);
 }
 
 TEST(CoreTests_get_plugin_path, Relative_path_is_from_workdir) {
     auto lib_name = ov::util::make_plugin_library_name(".", "test_name");  // ./libtest_name.so
-    auto abs_path = get_plugin_path(lib_name);
+    auto abs_path = ov::util::get_plugin_path(lib_name);
     EXPECT_TRUE(abs_path.is_absolute());
     EXPECT_EQ(abs_path, std::filesystem::absolute(std::filesystem::weakly_canonical(lib_name)));
 }
@@ -121,14 +126,14 @@ public:
 };
 
 TEST_F(CoreTests_get_plugin_path_Class, Filename_is_from_workdir_if_exists) {
-    auto abs_path = get_plugin_path(lib_name);  // libtest_name.so -> CWD/libtest_name.so
+    auto abs_path = ov::util::get_plugin_path(lib_name);  // libtest_name.so -> CWD/libtest_name.so
     EXPECT_TRUE(abs_path.is_absolute());
     EXPECT_EQ(abs_path, std::filesystem::absolute(std::filesystem::weakly_canonical(lib_name)));
 }
 
 TEST(CoreTests_get_plugin_path, Use_filename_as_is_if_not_exist_in_workdir) {
     auto lib_name = "test_name.ext";
-    auto abs_path = get_plugin_path(lib_name);  // libtest_name.ext.so -> libtest_name.ext.so
+    auto abs_path = ov::util::get_plugin_path(lib_name);  // test_name.ext -> libtest_name.ext.so
     EXPECT_FALSE(abs_path.is_absolute());
 
     auto ref_path = ov::util::make_plugin_library_name(lib_name);
@@ -488,3 +493,4 @@ TEST_F(ApplyAutoBatchThreading, ApplyAutoBatch) {
         core.apply_auto_batching(model, device, config);
     });
 }
+}  // namespace ov::test

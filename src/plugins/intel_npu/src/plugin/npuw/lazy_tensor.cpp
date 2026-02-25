@@ -14,6 +14,7 @@
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "util.hpp"
 
@@ -70,7 +71,7 @@ ov::Tensor Const::eval() const {
             ov::FileHandle handle = m_handle_provider();
             mapped_memory = ov::load_mmap_object(handle);
         } else {
-            mapped_memory = ov::load_mmap_object(m_weights_path);
+            mapped_memory = ov::load_mmap_object(ov::util::make_path(m_weights_path));
         }
         m_mmaped_weights =
             std::make_shared<ov::npuw::s11n::Weights>(mapped_memory->data(), mapped_memory->size(), mapped_memory);

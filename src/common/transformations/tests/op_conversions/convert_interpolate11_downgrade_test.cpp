@@ -19,6 +19,7 @@
 using namespace ov;
 using namespace testing;
 
+namespace op_util = ov::op::util;
 namespace {
 constexpr bool WITH_AXES = true;
 constexpr bool WITHOUT_AXES = false;
@@ -78,28 +79,25 @@ std::shared_ptr<ov::Model> create_v4_model(const bool with_axes,
         model_params.push_back(ov::as_type_ptr<ov::opset4::Parameter>(scales));
         output_shape = ov::opset4::Constant::create(ov::element::i32, ov::Shape{}, {1});
         if (with_axes) {
-            output_shape = ov::op::util::make_try_fold<ov::opset4::Broadcast>(
-                output_shape,
-                ov::op::util::make_try_fold<ov::opset4::ShapeOf>(axes));
+            output_shape =
+                op_util::make_try_fold<ov::opset4::Broadcast>(output_shape,
+                                                              op_util::make_try_fold<ov::opset4::ShapeOf>(axes));
         } else {
-            output_shape = ov::op::util::make_try_fold<ov::opset4::Broadcast>(
+            output_shape = op_util::make_try_fold<ov::opset4::Broadcast>(
                 output_shape,
-                ov::op::util::make_try_fold<ov::opset4::ShapeOf>(
-                    ov::op::util::make_try_fold<ov::opset4::ShapeOf>(input)));
+                op_util::make_try_fold<ov::opset4::ShapeOf>(op_util::make_try_fold<ov::opset4::ShapeOf>(input)));
         }
     } else {
         output_shape = std::make_shared<ov::opset4::Parameter>(ov::element::i32, ov::Shape{num_scales_or_sizes});
         model_params.push_back(ov::as_type_ptr<ov::opset4::Parameter>(output_shape));
         scales = ov::opset4::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
         if (with_axes) {
-            scales = ov::op::util::make_try_fold<ov::opset4::Broadcast>(
-                scales,
-                ov::op::util::make_try_fold<ov::opset4::ShapeOf>(axes));
+            scales = op_util::make_try_fold<ov::opset4::Broadcast>(scales,
+                                                                   op_util::make_try_fold<ov::opset4::ShapeOf>(axes));
         } else {
-            scales = ov::op::util::make_try_fold<ov::opset4::Broadcast>(
+            scales = op_util::make_try_fold<ov::opset4::Broadcast>(
                 scales,
-                ov::op::util::make_try_fold<ov::opset4::ShapeOf>(
-                    ov::op::util::make_try_fold<ov::opset4::ShapeOf>(input)));
+                op_util::make_try_fold<ov::opset4::ShapeOf>(op_util::make_try_fold<ov::opset4::ShapeOf>(input)));
         }
     }
 

@@ -24,6 +24,13 @@
 using namespace std;
 using namespace ov;
 
+using ov::pass::pattern::any_input;
+using ov::pass::pattern::Matcher;
+using ov::pass::pattern::wrap_type;
+
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace op_util = ov::op::util;
 static bool can_propagate_conv_stride(const std::shared_ptr<ov::Node>& conv) {
     const auto& kernel_shape = conv->input_value(1).get_shape();
     return std::all_of(kernel_shape.begin() + 2, kernel_shape.end(), [](size_t s) -> bool {
@@ -55,24 +62,22 @@ static void insert_pooling(const Output<Node>& first, Input<Node>& second, const
     const bool do_reshape = rank.is_static() && static_cast<size_t>(rank.get_length()) < strides.size() + 2;
     if (do_reshape) {
         const size_t diff = strides.size() + 2 - static_cast<size_t>(rank.get_length());
-        const auto ones = rg.make<ov::op::v0::Constant>(element::i64, Shape{diff}, vector<int64_t>(diff, 1));
+        const auto ones = rg.make<v0::Constant>(element::i64, Shape{diff}, vector<int64_t>(diff, 1));
         const auto current_shape = rg.make<ov::op::v3::ShapeOf>(first);
-        shared_ptr<Node> new_shape = rg.make<ov::op::v0::Concat>(OutputVector{ones, current_shape}, 0);
+        shared_ptr<Node> new_shape = rg.make<v0::Concat>(OutputVector{ones, current_shape}, 0);
         if (const auto constant_new_shape = ov::util::get_constant_from_source(new_shape)) {
             rg.add(constant_new_shape);
             new_shape = constant_new_shape;
         }
-        first_node = rg.make<ov::op::v1::Reshape>(first_node, new_shape, false);
+        first_node = rg.make<v1::Reshape>(first_node, new_shape, false);
     }
-    shared_ptr<Node> new_node =
-        rg.make<ov::op::v1::MaxPool>(first_node, strides, Shape{}, Shape{}, Shape(strides.size(), 1));
+    shared_ptr<Node> new_node = rg.make<v1::MaxPool>(first_node, strides, Shape{}, Shape{}, Shape(strides.size(), 1));
     if (do_reshape) {
         // squeeze dimensions back
         const size_t diff = strides.size() + 2 - static_cast<size_t>(rank.get_length());
         vector<size_t> axes(diff);
         iota(axes.begin(), axes.end(), 0);
-        new_node =
-            rg.make<ov::op::v0::Squeeze>(new_node, rg.make<ov::op::v0::Constant>(element::u64, Shape{diff}, axes));
+        new_node = rg.make<v0::Squeeze>(new_node, rg.make<v0::Constant>(element::u64, Shape{diff}, axes));
     }
     if (const auto constant_new_node = ov::util::get_constant_from_source(new_node)) {
         rg.add(constant_new_node);
@@ -92,7 +97,7 @@ static void handle_not_equal_stride_props(std::vector<ov::Input<ov::Node>>& next
             return s == 1;
         });
         if (!are_strides_ones) {
-            auto conv = ov::as_type<ov::op::v1::Convolution>(op.get_node());
+            auto conv = ov::as_type<v1::Convolution>(op.get_node());
             if (conv) {
                 conv->set_strides(strides);
             } else {
@@ -110,7 +115,7 @@ static void remove_strides_property_from_nodes(std::vector<ov::Input<ov::Node>>&
 
 ov::pass::ConvStridesPropagation::ConvStridesPropagation() {
     MATCHER_SCOPE(ConvStridesPropagation);
-    auto data = pattern::any_input([](const Output<Node>& node) -> bool {
+    auto data = any_input([](const Output<Node>& node) -> bool {
         const auto& shape = node.get_partial_shape();
         const auto& rank = shape.rank();
         if (rank.is_dynamic())
@@ -119,17 +124,17 @@ ov::pass::ConvStridesPropagation::ConvStridesPropagation() {
             return dim.is_static();
         });
     });
-    auto weights = pattern::any_input(pattern::has_static_shape());
-    auto conv_pattern = pattern::wrap_type<ov::op::v1::Convolution>({data, weights});
+    auto weights = any_input(ov::pass::pattern::has_static_shape());
+    auto conv_pattern = wrap_type<v1::Convolution>({data, weights});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto conv = ov::as_type_ptr<ov::op::v1::Convolution>(m.get_match_root());
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
+        auto conv = ov::as_type_ptr<v1::Convolution>(m.get_match_root());
         if (!conv)
             return false;
 
         auto conv_strides = conv->get_strides();
         Strides strides_ones(conv_strides.size(), 1);
-        auto next_ops = ov::op::util::get_node_target_inputs(conv);
+        auto next_ops = op_util::get_node_target_inputs(conv);
         bool all_ops_are_valid;
         Strides strides;
         std::tie(strides, all_ops_are_valid) = check_next_ops(next_ops);
@@ -165,18 +170,17 @@ ov::pass::ConvStridesPropagation::ConvStridesPropagation() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(conv_pattern, matcher_name);
+    auto m = std::make_shared<Matcher>(conv_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
 
 ov::pass::SupportedNodesStridesPropagation::SupportedNodesStridesPropagation() {
     MATCHER_SCOPE(SupportedNodesStridesPropagation);
-    auto root =
-        pattern::wrap_type<ov::op::util::UnaryElementwiseArithmetic, ov::op::util::BinaryElementwiseArithmetic>();
+    auto root = wrap_type<op_util::UnaryElementwiseArithmetic, op_util::BinaryElementwiseArithmetic>();
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
         auto node = m.get_match_root();
-        auto next_ops = ov::op::util::get_node_target_inputs(node);
+        auto next_ops = op_util::get_node_target_inputs(node);
         bool all_ops_are_valid;
         Strides strides;
         std::tie(strides, all_ops_are_valid) = check_next_ops(next_ops);
@@ -194,24 +198,24 @@ ov::pass::SupportedNodesStridesPropagation::SupportedNodesStridesPropagation() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(root, matcher_name);
+    auto m = std::make_shared<Matcher>(root, matcher_name);
     this->register_matcher(m, callback);
 }
 
 ov::pass::UnsupportedNodesStridesPropagation::UnsupportedNodesStridesPropagation() {
     MATCHER_SCOPE(UnsupportedNodesStridesPropagation);
-    auto root = pattern::any_input();
+    auto root = any_input();
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
         auto node = m.get_match_root();
-        auto next_ops = ov::op::util::get_node_target_inputs(node);
+        auto next_ops = op_util::get_node_target_inputs(node);
         handle_not_equal_stride_props(next_ops);
         remove_strides_property_from_nodes(next_ops);
 
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(root, matcher_name);
+    auto m = std::make_shared<Matcher>(root, matcher_name);
     this->register_matcher(m, callback);
 }
 

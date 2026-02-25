@@ -11,18 +11,13 @@
 
 namespace intel_npu {
 ZeroApi::ZeroApi() {
-    const std::string baseName = "ze_loader";
+    const std::filesystem::path baseName = "ze_loader";
     try {
         auto libpath = ov::util::make_plugin_library_name({}, baseName);
 #if !defined(_WIN32) && !defined(ANDROID)
-        libpath = libpath + LIB_ZE_LOADER_SUFFIX;
+        libpath += LIB_ZE_LOADER_SUFFIX;
 #endif
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        this->lib = ov::util::load_shared_object(ov::util::string_to_wstring(libpath).c_str());
-#else
-        this->lib = ov::util::load_shared_object(libpath.c_str());
-#endif
+        this->lib = ov::util::load_shared_object(libpath);
     } catch (const std::runtime_error& error) {
         OPENVINO_THROW(error.what());
     }

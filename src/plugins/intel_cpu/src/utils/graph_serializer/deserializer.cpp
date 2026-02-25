@@ -35,6 +35,7 @@
 #include "openvino/runtime/icore.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "openvino/xml_util/xml_deserialize_util.hpp"
@@ -51,7 +52,7 @@ ModelDeserializer::ModelDeserializer(std::shared_ptr<ov::AlignedBuffer>& model_b
       m_core(core),
       m_decript_from_string(decript_from_string) {
     if (!origin_weights_path.empty() && std::filesystem::exists(origin_weights_path)) {
-        auto mmap = ov::load_mmap_object(origin_weights_path);
+        auto mmap = ov::load_mmap_object(ov::util::make_path(origin_weights_path));
         m_origin_weights_buf =
             std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mmap->data(), mmap->size(), mmap);
     }
@@ -72,7 +73,7 @@ ModelDeserializer::ModelDeserializer(std::istream& model_stream,
       m_core(core),
       m_decript_from_string(decript_from_string) {
     if (!origin_weights_path.empty() && std::filesystem::exists(origin_weights_path)) {
-        auto mmap = ov::load_mmap_object(origin_weights_path);
+        auto mmap = ov::load_mmap_object(ov::util::make_path(origin_weights_path));
         m_origin_weights_buf =
             std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mmap->data(), mmap->size(), mmap);
     }
@@ -155,9 +156,10 @@ void ModelDeserializer::process_model(std::shared_ptr<ov::Model>& model,
     // Check if model header contains valid data.
     bool is_valid_model = (hdr.custom_data_offset == sizeof(hdr)) &&
                           (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
-                          (hdr.consts_size == hdr.model_offset - hdr.consts_offset) &&
-                          ((hdr.model_size = file_size - hdr.model_offset) != 0U);
+                          (hdr.consts_size == hdr.model_offset - hdr.consts_offset) && (file_size > hdr.model_offset);
     OPENVINO_ASSERT(is_valid_model, "[CPU] Could not deserialize by device xml header.");
+
+    hdr.model_size = file_size - hdr.model_offset;
 
     // Read model input/output precisions.
     pugi::xml_document xml_in_out_doc;
@@ -216,9 +218,10 @@ void ModelDeserializer::process_model(std::shared_ptr<ov::Model>& model,
     // Check if model header contains valid data.
     bool is_valid_model = (hdr.custom_data_offset == sizeof(hdr)) &&
                           (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
-                          (hdr.consts_size == hdr.model_offset - hdr.consts_offset) &&
-                          ((hdr.model_size = file_size - hdr.model_offset) != 0U);
+                          (hdr.consts_size == hdr.model_offset - hdr.consts_offset) && (file_size > hdr.model_offset);
     OPENVINO_ASSERT(is_valid_model, "[CPU] Could not deserialize by device xml header.");
+
+    hdr.model_size = file_size - hdr.model_offset;
 
     // read model input/output precisions
     model_stream.seekg(hdr.custom_data_offset + hdr_pos);

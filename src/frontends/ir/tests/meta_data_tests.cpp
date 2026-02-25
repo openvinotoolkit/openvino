@@ -393,8 +393,8 @@ TEST_F(MetaData, get_meta_data_as_map) {
 }
 
 TEST_F(MetaData, get_meta_data_from_removed_file) {
-    std::string file_path = ov::util::get_ov_lib_path() + ov::util::FileTraits<char>::file_separator +
-                            ov::test::utils::generateTestFilePrefix() + "_test_model.xml";
+    const auto file_path =
+        ov::util::get_ov_lib_path() / (ov::test::utils::generateTestFilePrefix() + "_test_model.xml");
     // Create file
     {
         std::ofstream ir(file_path);
@@ -403,7 +403,7 @@ TEST_F(MetaData, get_meta_data_from_removed_file) {
     auto model = core.read_model(file_path);
 
     // Remove file (meta section wasn't read)
-    std::remove(file_path.c_str());
+    std::filesystem::remove(file_path);
 
     check_rt_info(model);
 }

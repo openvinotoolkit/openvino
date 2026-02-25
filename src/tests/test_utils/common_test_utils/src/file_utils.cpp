@@ -22,16 +22,13 @@
 #endif
 
 #include "openvino/util/variant_visitor.hpp"
-namespace ov {
-namespace test {
-namespace utils {
-
+namespace ov::test::utils {
 namespace {
 
 template <typename C,
           typename = typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type>
 std::basic_string<C> get_path_name(const std::basic_string<C>& s) {
-    size_t i = s.rfind(ov::util::FileTraits<C>::file_separator, s.length());
+    size_t i = s.rfind(FileTraits<C>::file_separator, s.length());
     if (i != std::string::npos) {
         return (s.substr(0, i));
     }
@@ -60,7 +57,7 @@ std::string getOpenvinoLibDirectoryA() {
 #elif defined(__APPLE__) || defined(__linux__) || defined(__EMSCRIPTEN__)
     Dl_info info;
     dladdr(reinterpret_cast<void*>(ov::get_openvino_version), &info);
-    return get_path_name(ov::util::get_absolute_file_path(info.dli_fname)).c_str();
+    return ov::util::path_to_string(ov::util::get_absolute_file_path(info.dli_fname).parent_path());
 #else
 #    error "Unsupported OS"
 #endif  // _WIN32
@@ -178,7 +175,7 @@ std::string getModelFromTestModelZoo(const std::string& relModelPath) {
 
 std::string getRelativePath(const std::string& from, const std::string& to) {
     auto split_path = [](const std::string& path) -> std::vector<std::string> {
-        std::string sep{ov::util::FileTraits<char>::file_separator};
+        std::string sep{FileTraits<char>::file_separator};
         std::vector<std::string> retvalue;
         size_t start = 0;
         size_t end = 0;
@@ -205,7 +202,7 @@ std::string getRelativePath(const std::string& from, const std::string& to) {
         return {};
     }
 
-    std::string separator(1, ov::util::FileTraits<char>::file_separator);
+    std::string separator(1, FileTraits<char>::file_separator);
     std::string output;
     //  generates path to the top common directory from the start directory
     if (mismatch_it.first != from_vec.end()) {
@@ -250,6 +247,4 @@ std::filesystem::path to_fs_path(const StringPathVariant& param) {
                           }},
                       param);
 }
-}  // namespace utils
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test::utils

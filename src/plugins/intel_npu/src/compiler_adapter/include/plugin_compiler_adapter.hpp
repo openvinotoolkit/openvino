@@ -6,8 +6,8 @@
 
 #pragma once
 
+#include "compiler_impl.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
-#include "intel_npu/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -22,14 +22,13 @@ public:
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
                                     const FilteredConfig& config) const override;
 
-    std::shared_ptr<IGraph> compileWS(const std::shared_ptr<ov::Model>& model,
-                                      const FilteredConfig& config) const override;
+    std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model, const FilteredConfig& config) const override;
 
     std::shared_ptr<IGraph> parse(
         const ov::Tensor& mainBlob,
         const FilteredConfig& config,
         const std::optional<std::vector<ov::Tensor>>& initBlobs = std::nullopt,
-        const std::optional<std::shared_ptr<const ov::Model>>& model = std::nullopt) const override;
+        std::optional<std::shared_ptr<const ov::Model>>&& model = std::nullopt) const override;
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
                               const FilteredConfig& config) const override;
@@ -44,7 +43,7 @@ private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
-    ov::SoPtr<ICompiler> _compiler;
+    ov::SoPtr<VCLCompilerImpl> _compiler;
 
     Logger _logger;
 };

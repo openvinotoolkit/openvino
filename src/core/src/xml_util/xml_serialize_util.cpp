@@ -54,13 +54,14 @@ public:
         if (node->get_rt_info().count("postponed_constant")) {
             OPENVINO_ASSERT(node->get_output_size() == 1);
             ov::OutputVector outputs(1);
-            std::shared_ptr<ov::Node> node_clone;
+            std::shared_ptr<ov::Node> node_to_fold;
             if (ov::pass::constant_folding_is_disabled(node)) {
                 // clone to keep original node unchanged
-                node_clone = node->clone_with_new_inputs(node->input_values());
-                node_clone->get_rt_info().erase(ov::pass::DisableConstantFolding::get_type_info_static());
+                node_to_fold = node->clone_with_new_inputs(node->input_values());
+                node_to_fold->get_rt_info().erase(ov::pass::DisableConstantFolding::get_type_info_static());
+            } else {
+                node_to_fold = node->shared_from_this();
             }
-            auto node_to_fold = node_clone ? node_clone : node->shared_from_this();
             OPENVINO_ASSERT(
                 node_to_fold->constant_fold(outputs, node_to_fold->input_values()),
                 "Node with set `postponed_constant` attribute cannot be fold to constant when saving model to IR file");

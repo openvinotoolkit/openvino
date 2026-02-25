@@ -29,6 +29,11 @@ public:
         if (typed_desc()->has_score_aggregation)
             input_ports.insert(PagedAttentionInputIdx::SCORE_AGGREGATION);
 
+        if (typed_desc()->has_adaptive_rkv) {
+            input_ports.insert(PagedAttentionInputIdx::ADAPTIVE_RKV_START_SIZE);
+            input_ports.insert(PagedAttentionInputIdx::ADAPTIVE_RKV_EVICTABLE_SIZES);
+        }
+
         return input_ports;
     }
 

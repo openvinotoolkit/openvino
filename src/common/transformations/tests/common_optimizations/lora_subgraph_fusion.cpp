@@ -21,6 +21,10 @@
 using namespace testing;
 using namespace ov;
 
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v6 = ov::op::v6;
+namespace op_util = ov::op::util;
 static constexpr auto netType = ov::element::f32;
 
 std::pair<ov::OutputVector, ov::SinkVector> create_states(const std::vector<ov::PartialShape>& shapes,
@@ -29,15 +33,15 @@ std::pair<ov::OutputVector, ov::SinkVector> create_states(const std::vector<ov::
     ov::SinkVector assigns;
     size_t idx = 0;
     auto create_state = [&](const ov::PartialShape& shape) {
-        auto variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{shape, states_precision, std::to_string(idx++)});
-        auto read_value = std::make_shared<ov::op::v6::ReadValue>(variable);
-        auto assign = std::make_shared<ov::op::v6::Assign>(read_value, variable);
+        auto variable =
+            std::make_shared<op_util::Variable>(op_util::VariableInfo{shape, states_precision, std::to_string(idx++)});
+        auto read_value = std::make_shared<v6::ReadValue>(variable);
+        auto assign = std::make_shared<v6::Assign>(read_value, variable);
         assigns.push_back(assign);
         if (states_precision == netType)
             state_outs.push_back(read_value);
         else
-            state_outs.push_back(std::make_shared<ov::op::v0::Convert>(read_value, netType));
+            state_outs.push_back(std::make_shared<v0::Convert>(read_value, netType));
     };
     for (const auto& shape : shapes)
         create_state(shape);
@@ -55,23 +59,23 @@ std::shared_ptr<ov::Node> create_lora_subgraph(const ov::Output<ov::Node>& main_
     OPENVINO_ASSERT(add_data_flow_idx == 0 || add_data_flow_idx == 1, "add_data_flow_idx must be 0 or 1");
 
     auto create_transpose = [](const ov::Output<ov::Node>& input) -> ov::Output<ov::Node> {
-        auto constant = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {2, 3, 0, 1});
-        return std::make_shared<ov::op::v1::Transpose>(input, constant);
+        auto constant = v0::Constant::create(ov::element::i32, ov::Shape{4}, {2, 3, 0, 1});
+        return std::make_shared<v1::Transpose>(input, constant);
     };
 
     const auto& mm1_input = add_transposes ? create_transpose(lora_input) : lora_input;
-    auto mm1 = std::make_shared<ov::op::v0::MatMul>(mm1_input, states[0], false, true);
+    auto mm1 = std::make_shared<v0::MatMul>(mm1_input, states[0], false, true);
 
     const auto& mul_in_0 = mul_read_value_idx == 0 ? states[1] : mm1->output(0);
     const auto& mul_in_1 = mul_read_value_idx == 0 ? mm1->output(0) : states[1];
-    auto mul = std::make_shared<ov::op::v1::Multiply>(mul_in_0, mul_in_1);
+    auto mul = std::make_shared<v1::Multiply>(mul_in_0, mul_in_1);
 
-    auto mm2 = std::make_shared<ov::op::v0::MatMul>(mul, states[2], false, true);
+    auto mm2 = std::make_shared<v0::MatMul>(mul, states[2], false, true);
 
     const auto& add_sec_input = add_transposes ? create_transpose(mm2) : mm2;
     const auto& add_in_0 = add_data_flow_idx == 0 ? main_flow : add_sec_input;
     const auto& add_in_1 = add_data_flow_idx == 0 ? add_sec_input : main_flow;
-    return std::make_shared<ov::op::v1::Add>(add_in_0, add_in_1);
+    return std::make_shared<v1::Add>(add_in_0, add_in_1);
 }
 
 class LoraSubgraphFusionTests : public TransformationTestsF {
@@ -102,9 +106,9 @@ public:
 
 TEST_F(LoraSubgraphFusionMatMulTests, StandardPattern) {
     {
-        auto param_lora = std::make_shared<ov::op::v0::Parameter>(netType, shape_x);
-        auto param_w = std::make_shared<ov::op::v0::Parameter>(netType, shape_w);
-        auto main_mm = std::make_shared<ov::op::v0::MatMul>(param_lora, param_w, false, true);
+        auto param_lora = std::make_shared<v0::Parameter>(netType, shape_x);
+        auto param_w = std::make_shared<v0::Parameter>(netType, shape_w);
+        auto main_mm = std::make_shared<v0::MatMul>(param_lora, param_w, false, true);
         main_mm->set_friendly_name("main_mm");
         auto states = create_states({shape_state_1, shape_state_2, shape_state_3});
         auto lora_subgraph = create_lora_subgraph(main_mm, param_lora, states.first, false);
@@ -114,16 +118,16 @@ TEST_F(LoraSubgraphFusionMatMulTests, StandardPattern) {
                                         ParameterVector{param_lora, param_w});
     }
     {
-        auto param_lora = std::make_shared<ov::op::v0::Parameter>(netType, shape_x);
-        auto param_w = std::make_shared<ov::op::v0::Parameter>(netType, shape_w);
-        auto main_mm = std::make_shared<ov::op::v0::MatMul>(param_lora, param_w, false, true);
+        auto param_lora = std::make_shared<v0::Parameter>(netType, shape_x);
+        auto param_w = std::make_shared<v0::Parameter>(netType, shape_w);
+        auto main_mm = std::make_shared<v0::MatMul>(param_lora, param_w, false, true);
         main_mm->set_friendly_name("main_mm");
 
-        auto inner_param_lora = std::make_shared<ov::op::v0::Parameter>(netType, shape_x);
-        auto inner_state_1 = std::make_shared<ov::op::v0::Parameter>(netType, shape_state_1);
-        auto inner_state_2 = std::make_shared<ov::op::v0::Parameter>(netType, shape_state_2);
-        auto inner_state_3 = std::make_shared<ov::op::v0::Parameter>(netType, shape_state_3);
-        auto inner_param_mm = std::make_shared<ov::op::v0::Parameter>(netType, main_mm->get_output_partial_shape(0));
+        auto inner_param_lora = std::make_shared<v0::Parameter>(netType, shape_x);
+        auto inner_state_1 = std::make_shared<v0::Parameter>(netType, shape_state_1);
+        auto inner_state_2 = std::make_shared<v0::Parameter>(netType, shape_state_2);
+        auto inner_state_3 = std::make_shared<v0::Parameter>(netType, shape_state_3);
+        auto inner_param_mm = std::make_shared<v0::Parameter>(netType, main_mm->get_output_partial_shape(0));
 
         ov::OutputVector states_outs{inner_state_1, inner_state_2, inner_state_3};
         auto lora_subgraph = create_lora_subgraph(inner_param_mm, inner_param_lora, states_outs, false);
@@ -143,9 +147,9 @@ TEST_F(LoraSubgraphFusionMatMulTests, StandardPattern) {
 
 TEST_F(LoraSubgraphFusionMatMulTests, StandardPatternWithConvert) {
     {
-        auto param_lora = std::make_shared<ov::op::v0::Parameter>(netType, shape_x);
-        auto param_w = std::make_shared<ov::op::v0::Parameter>(netType, shape_w);
-        auto main_mm = std::make_shared<ov::op::v0::MatMul>(param_lora, param_w, false, true);
+        auto param_lora = std::make_shared<v0::Parameter>(netType, shape_x);
+        auto param_w = std::make_shared<v0::Parameter>(netType, shape_w);
+        auto main_mm = std::make_shared<v0::MatMul>(param_lora, param_w, false, true);
         main_mm->set_friendly_name("main_mm");
         auto states = create_states({shape_state_1, shape_state_2, shape_state_3}, ov::element::f16);
         auto lora_subgraph = create_lora_subgraph(main_mm, param_lora, states.first, false);
@@ -155,16 +159,16 @@ TEST_F(LoraSubgraphFusionMatMulTests, StandardPatternWithConvert) {
                                         ParameterVector{param_lora, param_w});
     }
     {
-        auto param_lora = std::make_shared<ov::op::v0::Parameter>(netType, shape_x);
-        auto param_w = std::make_shared<ov::op::v0::Parameter>(netType, shape_w);
-        auto main_mm = std::make_shared<ov::op::v0::MatMul>(param_lora, param_w, false, true);
+        auto param_lora = std::make_shared<v0::Parameter>(netType, shape_x);
+        auto param_w = std::make_shared<v0::Parameter>(netType, shape_w);
+        auto main_mm = std::make_shared<v0::MatMul>(param_lora, param_w, false, true);
         main_mm->set_friendly_name("main_mm");
 
-        auto inner_param_lora = std::make_shared<ov::op::v0::Parameter>(netType, shape_x);
-        auto inner_state_1 = std::make_shared<ov::op::v0::Parameter>(netType, shape_state_1);
-        auto inner_state_2 = std::make_shared<ov::op::v0::Parameter>(netType, shape_state_2);
-        auto inner_state_3 = std::make_shared<ov::op::v0::Parameter>(netType, shape_state_3);
-        auto inner_param_mm = std::make_shared<ov::op::v0::Parameter>(netType, main_mm->get_output_partial_shape(0));
+        auto inner_param_lora = std::make_shared<v0::Parameter>(netType, shape_x);
+        auto inner_state_1 = std::make_shared<v0::Parameter>(netType, shape_state_1);
+        auto inner_state_2 = std::make_shared<v0::Parameter>(netType, shape_state_2);
+        auto inner_state_3 = std::make_shared<v0::Parameter>(netType, shape_state_3);
+        auto inner_param_mm = std::make_shared<v0::Parameter>(netType, main_mm->get_output_partial_shape(0));
 
         ov::OutputVector states_outs{inner_state_1, inner_state_2, inner_state_3};
         auto lora_subgraph = create_lora_subgraph(inner_param_mm, inner_param_lora, states_outs, false);
@@ -184,9 +188,9 @@ TEST_F(LoraSubgraphFusionMatMulTests, StandardPatternWithConvert) {
 
 TEST_F(LoraSubgraphFusionMatMulTests, ReshaffledEltwiseInputs) {
     {
-        auto param_lora = std::make_shared<ov::op::v0::Parameter>(netType, shape_x);
-        auto param_w = std::make_shared<ov::op::v0::Parameter>(netType, shape_w);
-        auto main_mm = std::make_shared<ov::op::v0::MatMul>(param_lora, param_w, false, true);
+        auto param_lora = std::make_shared<v0::Parameter>(netType, shape_x);
+        auto param_w = std::make_shared<v0::Parameter>(netType, shape_w);
+        auto main_mm = std::make_shared<v0::MatMul>(param_lora, param_w, false, true);
         main_mm->set_friendly_name("main_mm");
 
         auto states = create_states({shape_state_1, shape_state_2, shape_state_3});
@@ -198,16 +202,16 @@ TEST_F(LoraSubgraphFusionMatMulTests, ReshaffledEltwiseInputs) {
                                         ParameterVector{param_lora, param_w});
     }
     {
-        auto param_lora = std::make_shared<ov::op::v0::Parameter>(netType, shape_x);
-        auto param_w = std::make_shared<ov::op::v0::Parameter>(netType, shape_w);
-        auto main_mm = std::make_shared<ov::op::v0::MatMul>(param_lora, param_w, false, true);
+        auto param_lora = std::make_shared<v0::Parameter>(netType, shape_x);
+        auto param_w = std::make_shared<v0::Parameter>(netType, shape_w);
+        auto main_mm = std::make_shared<v0::MatMul>(param_lora, param_w, false, true);
         main_mm->set_friendly_name("main_mm");
 
-        auto inner_param_lora = std::make_shared<ov::op::v0::Parameter>(netType, shape_x);
-        auto inner_state_1 = std::make_shared<ov::op::v0::Parameter>(netType, shape_state_1);
-        auto inner_state_2 = std::make_shared<ov::op::v0::Parameter>(netType, shape_state_2);
-        auto inner_state_3 = std::make_shared<ov::op::v0::Parameter>(netType, shape_state_3);
-        auto inner_param_mm = std::make_shared<ov::op::v0::Parameter>(netType, main_mm->get_output_partial_shape(0));
+        auto inner_param_lora = std::make_shared<v0::Parameter>(netType, shape_x);
+        auto inner_state_1 = std::make_shared<v0::Parameter>(netType, shape_state_1);
+        auto inner_state_2 = std::make_shared<v0::Parameter>(netType, shape_state_2);
+        auto inner_state_3 = std::make_shared<v0::Parameter>(netType, shape_state_3);
+        auto inner_param_mm = std::make_shared<v0::Parameter>(netType, main_mm->get_output_partial_shape(0));
 
         ov::OutputVector states_outs{inner_state_1, inner_state_2, inner_state_3};
         auto lora_subgraph = create_lora_subgraph(inner_param_mm, inner_param_lora, states_outs, false, 0, 1);
@@ -236,7 +240,7 @@ public:
 
 TEST_F(LoraSubgraphFusionConvolutionTests, StandardPattern) {
     {
-        auto param_lora = std::make_shared<ov::op::v0::Parameter>(netType, shape_x);
+        auto param_lora = std::make_shared<v0::Parameter>(netType, shape_x);
         auto main_conv = ov::test::utils::make_convolution(param_lora,
                                                            netType,
                                                            {1, 1},
@@ -254,7 +258,7 @@ TEST_F(LoraSubgraphFusionConvolutionTests, StandardPattern) {
             std::make_shared<Model>(OutputVector{lora_subgraph, main_conv}, states.second, ParameterVector{param_lora});
     }
     {
-        auto param_lora = std::make_shared<ov::op::v0::Parameter>(netType, shape_x);
+        auto param_lora = std::make_shared<v0::Parameter>(netType, shape_x);
         auto main_conv = ov::test::utils::make_convolution(param_lora,
                                                            netType,
                                                            {1, 1},
@@ -266,12 +270,11 @@ TEST_F(LoraSubgraphFusionConvolutionTests, StandardPattern) {
                                                            num_channels.get_length());
         main_conv->set_friendly_name("main_conv");
 
-        auto inner_param_lora = std::make_shared<ov::op::v0::Parameter>(netType, shape_x);
-        auto inner_state_1 = std::make_shared<ov::op::v0::Parameter>(netType, shape_state_1);
-        auto inner_state_2 = std::make_shared<ov::op::v0::Parameter>(netType, shape_state_2);
-        auto inner_state_3 = std::make_shared<ov::op::v0::Parameter>(netType, shape_state_3);
-        auto inner_param_conv =
-            std::make_shared<ov::op::v0::Parameter>(netType, main_conv->get_output_partial_shape(0));
+        auto inner_param_lora = std::make_shared<v0::Parameter>(netType, shape_x);
+        auto inner_state_1 = std::make_shared<v0::Parameter>(netType, shape_state_1);
+        auto inner_state_2 = std::make_shared<v0::Parameter>(netType, shape_state_2);
+        auto inner_state_3 = std::make_shared<v0::Parameter>(netType, shape_state_3);
+        auto inner_param_conv = std::make_shared<v0::Parameter>(netType, main_conv->get_output_partial_shape(0));
 
         ov::OutputVector states_outs{inner_state_1, inner_state_2, inner_state_3};
         auto lora_subgraph = create_lora_subgraph(inner_param_conv, inner_param_lora, states_outs, true);
