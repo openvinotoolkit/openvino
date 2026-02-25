@@ -30,6 +30,13 @@ class ExecutorFactory {
 public:
     using ExecutorImplementationRef = std::reference_wrapper<const ExecutorImplementation<Attrs>>;
 
+    [[nodiscard]] static bool hasSuitableImplementation(const Attrs& attrs,
+                                                        const MemoryDescArgs& descriptors,
+                                                        const MemoryFormatFilter& memoryFormatFilter = {},
+                                                        const std::string& implementationPriority = {}) {
+        return !filter(attrs, descriptors, memoryFormatFilter, implementationPriority).empty();
+    }
+
     ExecutorFactory(Attrs attrs,
                     ExecutorContext::CPtr context,
                     const MemoryDescArgs& descriptors,

@@ -24,6 +24,7 @@ namespace ov::intel_cpu {
 template <>
 const std::vector<ExecutorImplementation<ConcatAttrs>>& getImplementations() {
     static const std::vector<ExecutorImplementation<ConcatAttrs>> concatImplementations{
+        // clang-format off
         OV_CPU_INSTANCE_ACL(
             "concat_acl_ncsp",
             ExecutorType::Acl,
@@ -35,47 +36,49 @@ const std::vector<ExecutorImplementation<ConcatAttrs>>& getImplementations() {
             HasNoOptimalConfig<ConcatAttrs>{},
             AcceptsAnyShape<ConcatAttrs>,
             CreateDefault<AclConcatExecutor, ConcatAttrs>{})
-            OV_CPU_INSTANCE_ACL(
-                "concat_acl_nspc",
-                ExecutorType::Acl,
-                OperationType::Concat,
-                [](const executor::Config<ConcatAttrs>& config,
-                   [[maybe_unused]] const MemoryFormatFilter& memoryFormatFilter) -> bool {
-                    return AclConcatExecutor::supports(config, LayoutType::nspc);
-                },
-                HasNoOptimalConfig<ConcatAttrs>{},
-                AcceptsAnyShape<ConcatAttrs>,
-                CreateDefault<AclConcatExecutor, ConcatAttrs>{})
-                OV_CPU_INSTANCE_COMMON(
-                    "concat_ref_ncsp",
-                    ExecutorType::Reference,
-                    OperationType::Concat,
-                    []([[maybe_unused]] const executor::Config<ConcatAttrs>& config,
-                       [[maybe_unused]] const MemoryFormatFilter& memoryFormatFilter) -> bool {
-                        return false;
-                    },
-                    HasNoOptimalConfig<ConcatAttrs>{},
-                    AcceptsAnyShape<ConcatAttrs>,
-                    []([[maybe_unused]] const ConcatAttrs& attrs,
-                       [[maybe_unused]] const MemoryArgs& memory,
-                       [[maybe_unused]] const ExecutorContext::CPtr& context) -> ExecutorPtr {
-                        return nullptr;
-                    })
-                    OV_CPU_INSTANCE_COMMON(
-                        "concat_ref_nspc",
-                        ExecutorType::Reference,
-                        OperationType::Concat,
-                        []([[maybe_unused]] const executor::Config<ConcatAttrs>& config,
-                           [[maybe_unused]] const MemoryFormatFilter& memoryFormatFilter) -> bool {
-                            return false;
-                        },
-                        HasNoOptimalConfig<ConcatAttrs>{},
-                        AcceptsAnyShape<ConcatAttrs>,
-                        []([[maybe_unused]] const ConcatAttrs& attrs,
-                           [[maybe_unused]] const MemoryArgs& memory,
-                           [[maybe_unused]] const ExecutorContext::CPtr& context) -> ExecutorPtr {
-                            return nullptr;
-                        })};
+        OV_CPU_INSTANCE_ACL(
+            "concat_acl_nspc",
+            ExecutorType::Acl,
+            OperationType::Concat,
+            [](const executor::Config<ConcatAttrs>& config,
+                [[maybe_unused]] const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                return AclConcatExecutor::supports(config, LayoutType::nspc);
+            },
+            HasNoOptimalConfig<ConcatAttrs>{},
+            AcceptsAnyShape<ConcatAttrs>,
+            CreateDefault<AclConcatExecutor, ConcatAttrs>{})
+        OV_CPU_INSTANCE_COMMON(
+            "concat_ref_ncsp",
+            ExecutorType::Reference,
+            OperationType::Concat,
+            []([[maybe_unused]] const executor::Config<ConcatAttrs>& config,
+                [[maybe_unused]] const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                return false;
+            },
+            HasNoOptimalConfig<ConcatAttrs>{},
+            AcceptsAnyShape<ConcatAttrs>,
+            []([[maybe_unused]] const ConcatAttrs& attrs,
+                [[maybe_unused]] const MemoryArgs& memory,
+                [[maybe_unused]] const ExecutorContext::CPtr& context) -> ExecutorPtr {
+                return nullptr;
+            })
+        OV_CPU_INSTANCE_COMMON(
+            "concat_ref_nspc",
+            ExecutorType::Reference,
+            OperationType::Concat,
+            []([[maybe_unused]] const executor::Config<ConcatAttrs>& config,
+                [[maybe_unused]] const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                return false;
+            },
+            HasNoOptimalConfig<ConcatAttrs>{},
+            AcceptsAnyShape<ConcatAttrs>,
+            []([[maybe_unused]] const ConcatAttrs& attrs,
+                [[maybe_unused]] const MemoryArgs& memory,
+                [[maybe_unused]] const ExecutorContext::CPtr& context) -> ExecutorPtr {
+                return nullptr;
+            })
+        // clang-format on
+    };
     return concatImplementations;
 }
 

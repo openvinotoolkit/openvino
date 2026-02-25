@@ -35,9 +35,7 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "nodes/executors/executor.hpp"
-#include "nodes/executors/executor_config.hpp"
 #include "nodes/executors/executor_factory.hpp"
-#include "nodes/executors/implementations.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/node_config.h"
 #include "onednn/dnnl.h"
@@ -254,43 +252,34 @@ void Concat::initSupportedPrimitiveDescriptors() {
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     }
 
-    const auto& concatImplementations = getImplementations<ConcatAttrs>();
-    if (!concatImplementations.empty()) {
-        const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-        auto pushExecutorDesc = [&](LayoutType layoutType) {
-            NodeConfig nodeConfig;
-            nodeConfig.outConfs.resize(1);
-            nodeConfig.inConfs.resize(getParentEdges().size());
+    auto pushExecutorDesc = [&](LayoutType layoutType) {
+        NodeConfig nodeConfig;
+        nodeConfig.outConfs.resize(1);
+        nodeConfig.inConfs.resize(getParentEdges().size());
 
-            MemoryDescArgs descs;
-            descs.reserve(getParentEdges().size() + 1);
-            for (size_t i = 0; i < getParentEdges().size(); ++i) {
-                auto srcDesc = creatorsMap.at(layoutType)->createSharedDesc(inputPrecision, getInputShapeAtPort(i));
-                nodeConfig.inConfs[i].setMemDesc(srcDesc);
-                nodeConfig.inConfs[i].inPlace(-1);
-                nodeConfig.inConfs[i].constant(false);
-                descs[ARG_SRC + i] = srcDesc;
-            }
+        MemoryDescArgs descs;
+        descs.reserve(getParentEdges().size() + 1);
+        for (size_t i = 0; i < getParentEdges().size(); ++i) {
+            auto srcDesc = creatorsMap.at(layoutType)->createSharedDesc(inputPrecision, getInputShapeAtPort(i));
+            nodeConfig.inConfs[i].setMemDesc(srcDesc);
+            nodeConfig.inConfs[i].inPlace(-1);
+            nodeConfig.inConfs[i].constant(false);
+            descs[ARG_SRC + i] = srcDesc;
+        }
 
-            auto dstDesc = creatorsMap.at(layoutType)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0));
-            nodeConfig.outConfs[0].setMemDesc(dstDesc);
-            nodeConfig.outConfs[0].inPlace(-1);
-            nodeConfig.outConfs[0].constant(false);
-            descs[ARG_DST] = dstDesc;
+        auto dstDesc = creatorsMap.at(layoutType)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0));
+        nodeConfig.outConfs[0].setMemDesc(dstDesc);
+        nodeConfig.outConfs[0].inPlace(-1);
+        nodeConfig.outConfs[0].constant(false);
+        descs[ARG_DST] = dstDesc;
 
-            const executor::Config<ConcatAttrs> config{descs, m_attrs};
-            const bool supported =
-                std::any_of(concatImplementations.begin(), concatImplementations.end(), [&](const auto& impl) {
-                    return impl.supports(config, memoryFormatFilter);
-                });
-            if (supported) {
-                supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::undef);
-            }
-        };
+        if (ExecutorFactory<ConcatAttrs>::hasSuitableImplementation(m_attrs, descs, memoryFormatFilter)) {
+            supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::undef);
+        }
+    };
 
-        pushExecutorDesc(LayoutType::ncsp);
-        pushExecutorDesc(LayoutType::nspc);
-    }
+    pushExecutorDesc(LayoutType::ncsp);
+    pushExecutorDesc(LayoutType::nspc);
 }
 
 void Concat::selectOptimalPrimitiveDescriptor() {
