@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1002,7 +1002,7 @@ inline void FUNC(fc_bf_tiled_kernel_dyn_quan)(
     // =====================================================================================================================================
     // Main computation loop
     const uint iterations = MAIN_LOOP_ELEMENTS_COUNT / TILE_IFM_ELEMENTS_SIZE;  // TILE_IFM_ELEMENTS_SIZE : (TILE_IFM * SIMD)
-    // Each sub-group loads 2 Batch 
+    // Each sub-group loads 2 Batch
     const uint idx_sglid = (sglid * TILE_K) % TILE_IFM_ELEMENTS_SIZE;       // same index for sglid 0~7 : to tile_k direction
     const uint batch_sglid = (sglid * TILE_K) / TILE_IFM_ELEMENTS_SIZE;     // 0 to 1 : to batch direction
     const uint scale_pitch = (TILE_IN_B_PITCH / QUANTIZE_GROUP_SIZE);

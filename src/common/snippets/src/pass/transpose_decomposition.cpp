@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,6 @@
 #include "snippets/op/store.hpp"
 
 namespace ov::snippets::pass {
-using namespace lowered;
 
 bool TransposeDecomposition::is_supported_transpose(const Output<Node>& transpose_out) {
     const auto transpose = ov::as_type_ptr<const ov::opset1::Transpose>(transpose_out.get_node_shared_ptr());
@@ -85,10 +84,10 @@ TransposeDecomposition::TransposeDecomposition() {
         auto load = std::make_shared<snippets::op::LoadReorder>(data_input, subtensor[0], 0, layout);
         auto store = std::make_shared<snippets::op::Store>(load, subtensor[0]);
 
-        PortDescriptorUtils::set_port_descriptor(load->input(0), subtensor, layout);
-        PortDescriptorUtils::set_port_descriptor(load->output(0), subtensor);
-        PortDescriptorUtils::set_port_descriptor(store->input(0), subtensor);
-        PortDescriptorUtils::set_port_descriptor(store->output(0), subtensor);
+        lowered::PortDescriptorUtils::set_port_descriptor(load->input(0), subtensor, layout);
+        lowered::PortDescriptorUtils::set_port_descriptor(load->output(0), subtensor);
+        lowered::PortDescriptorUtils::set_port_descriptor(store->input(0), subtensor);
+        lowered::PortDescriptorUtils::set_port_descriptor(store->output(0), subtensor);
 
         for (const auto& input : transpose->output(0).get_target_inputs()) {
             input.replace_source_output(store->output(0));
