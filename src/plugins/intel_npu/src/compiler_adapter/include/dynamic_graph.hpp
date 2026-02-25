@@ -108,13 +108,12 @@ public:
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                  std::optional<ov::Tensor> blob,
                  bool blobAllocatedByPlugin,
-                 const Config& config,
+                 const FilteredConfig& config,
                  const ov::SoPtr<VCLCompilerImpl>& compiler = {nullptr});
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
-    std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
-                                                            const Config& config) const override;
+    std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const override;
 
     void set_argument_value(uint32_t argi, const void* argv) const override;
 
@@ -124,7 +123,7 @@ public:
 
     ze_graph_handle_t get_handle() const override;
 
-    void initialize(const Config& config) override;
+    void initialize(const FilteredConfig& config) override;
 
     ~DynamicGraph() override;
 
@@ -163,7 +162,7 @@ public:
     std::optional<bool> is_profiling_blob() const override;
 
 private:
-    bool release_blob(const Config& config);
+    bool release_blob(const FilteredConfig& config);
     std::optional<size_t> determine_batch_size();
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
