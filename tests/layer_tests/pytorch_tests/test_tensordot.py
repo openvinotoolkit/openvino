@@ -28,7 +28,15 @@ class TestTensordot(PytorchLayerTest):
                     out = torch.empty_like(ref)
                     return torch.tensordot(a, b, dims=self.dims, out=out)
                 return torch.tensordot(a, b, dims=self.dims)
-        
+
+    @pytest.mark.parametrize("shape_a, shape_b, dims, use_out", [
+        ((2, 3), (3, 2), 1, False),
+        ((4, 5), (5, 4), 1, False),
+        ((2, 3, 4), (4, 3, 2), 2, False),
+        ((2, 3, 4), (3, 4, 2), ([1, 2], [0, 1]), False),  # Tuple of lists case
+        ((2, 3, 4), (4, 3, 2), ([-1], [0]), False),        # Negative axis in dims
+        ((2, 3), (3, 2), 1, True),                         # Use `out` argument
+    ])        
         return TensordotModel(dims, use_out), None, "aten::tensordot"
 
     @pytest.mark.parametrize("shape_a, shape_b, dims, use_out", [
