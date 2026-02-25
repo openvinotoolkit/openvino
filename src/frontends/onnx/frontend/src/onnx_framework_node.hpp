@@ -54,6 +54,10 @@ public:
         return ov_nodes;
     }
 
+    int64_t opset_version() const {
+        return m_node.opset_version();
+    }
+
     virtual std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override;
 
     virtual bool visit_attributes(ov::AttributeVisitor& visitor) override {
@@ -98,6 +102,7 @@ private:
 // which are inserted into ov::Model due to different lifetime and problematic sharing between dynamic libs.
 class NotSupportedONNXNode : public ov::op::util::FrameworkNode {
     static constexpr const char* failed_conversion_key = "onnx::NotSupportedONNXNode::failed_conversion_key";
+    static constexpr const char* opset_version_key = "onnx::NotSupportedONNXNode::opset_version_key";
 
 public:
     OPENVINO_OP("NotSupportedONNXNode", "util", ov::op::util::FrameworkNode);
@@ -106,18 +111,26 @@ public:
                          const size_t output_size,
                          const std::string& domain,
                          const std::string& op_type,
+                         int64_t opset_version,
                          const std::string& additional_error_message)
         : ov::op::util::FrameworkNode(inputs, output_size) {
         ov::op::util::FrameworkNodeAttrs attrs;
         attrs.set_opset_name(domain);
         attrs.set_type_name(op_type);
         attrs[failed_conversion_key] = additional_error_message;
+        attrs[opset_version_key] = std::to_string(opset_version);
         set_attrs(attrs);
     }
 
     std::string additional_error_message() const {
-        auto attrs = get_attrs();
-        return attrs[failed_conversion_key];
+        const auto& attrs = get_attrs();
+        return attrs.at(failed_conversion_key);
+    }
+
+    int64_t opset_version() const {
+        const auto& attrs = get_attrs();
+        auto it = attrs.find(opset_version_key);
+        return (it != attrs.end()) ? std::stoll(it->second) : -1;
     }
 
     virtual std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override;

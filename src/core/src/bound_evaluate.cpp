@@ -7,6 +7,7 @@
 #include <stack>
 
 #include "compare.hpp"
+#include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape_util.hpp"
@@ -737,3 +738,16 @@ bool ov::default_symbol_evaluator(const Node* node,
     }
     return false;
 }
+
+namespace ov::util {
+ForceInvalidation::~ForceInvalidation() = default;
+
+bool have_same_bounds(const descriptor::Tensor& lhs, const descriptor::Tensor& rhs) {
+    return are_same_tensor(lhs.get_lower_value(), rhs.get_lower_value()) &&
+           are_same_tensor(lhs.get_upper_value(), rhs.get_upper_value());
+}
+
+void set_force_invalidation(descriptor::Tensor& tensor) {
+    tensor.get_rt_info().emplace(ForceInvalidation::get_type_info_static(), nullptr);
+}
+}  // namespace ov::util

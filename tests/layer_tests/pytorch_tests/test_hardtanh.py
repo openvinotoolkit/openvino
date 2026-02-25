@@ -1,9 +1,6 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import platform
-
-import numpy as np
 import pytest
 import torch
 
@@ -12,7 +9,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestHardtanh(PytorchLayerTest):
     def _prepare_input(self, input_dtype="float32", input_shape=(1, 3, 10, 10)):
-        return (np.random.default_rng().uniform(-100.0, 100.0, input_shape).astype(input_dtype),)
+        return (self.random.uniform(-100.0, 100.0, input_shape, dtype=input_dtype),)
 
     def create_model(self, min_val, max_val, inplace):
         import torch
@@ -20,7 +17,7 @@ class TestHardtanh(PytorchLayerTest):
 
         class aten_hardtanh(torch.nn.Module):
             def __init__(self, min_val, max_val, inplace):
-                super(aten_hardtanh, self).__init__()
+                super().__init__()
                 self.min_val = min_val
                 self.max_val = max_val
                 self.inplace = inplace
@@ -28,9 +25,8 @@ class TestHardtanh(PytorchLayerTest):
             def forward(self, x):
                 return F.hardtanh(x, min_val=self.min_val, max_val=self.max_val, inplace=self.inplace)
 
-        ref_net = None
 
-        return aten_hardtanh(min_val, max_val, inplace), ref_net, "aten::hardtanh"
+        return aten_hardtanh(min_val, max_val, inplace), "aten::hardtanh"
 
     @pytest.mark.parametrize(("min_val", "max_val"), [[-1.0,1.0], [0, 1.0], [-2.0, 2.0]])
     @pytest.mark.parametrize("inplace", [True, False])
