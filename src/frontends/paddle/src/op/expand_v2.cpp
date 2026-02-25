@@ -52,7 +52,7 @@ NamedOutputs expand_v2(const NodeContext& node) {
     // add axis
     const auto fixed_input_shape_node = std::make_shared<Concat>(NodeVector{rank_idx, input_shape_node_shape}, 0);
 
-    // if -1 in shape we will copy the orginal value from input
+    // if -1 in shape we will copy the original value from input
     auto zero_node = Constant::create(ov::element::i32, {1}, {0});
     auto mask_node = std::make_shared<Greater>(shape_expected_node, zero_node);
     auto fixed_shape_node = std::make_shared<Select>(mask_node, shape_expected_node, fixed_input_shape_node);

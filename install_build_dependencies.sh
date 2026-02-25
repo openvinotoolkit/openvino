@@ -258,6 +258,37 @@ elif [ -f /etc/os-release ] && grep -q "void" /etc/os-release; then
         enchant2-devel \
         `# samples` \
         json-c++
+elif [ -f /etc/os-release ] && grep -q '^ID=arch' /etc/os-release; then
+    # Arch Linux
+    pacman -Sy --needed \
+        base-devel \
+        cmake \
+        ninja \
+        scons \
+        ccache \
+        pkgconf \
+        git \
+        shellcheck \
+        patchelf \
+        fdupes \
+        tbb \
+        pugixml \
+        ocl-icd \
+        opencl-headers \
+        rapidjson \
+        libva \
+        snappy \
+        python \
+        python-pip \
+        python-setuptools \
+        pybind11 \
+        libffi \
+        enchant \
+        wget \
+        git-lfs \
+        flatbuffers \
+        nlohmann-json
+
 elif [ -f /etc/os-release ] && grep -q "alpine" /etc/os-release; then
     #Alpine Linux
     apk --no-cache add \

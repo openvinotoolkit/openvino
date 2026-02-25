@@ -14,6 +14,7 @@
 
 #include "cpu_shape.h"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov::intel_cpu {
 
@@ -70,14 +71,7 @@ constexpr bool none_of_v = std::negation_v<std::disjunction<std::is_same<T, Ts>.
 
 template <typename T>
 std::string vec2str(const std::vector<T>& vec) {
-    if (!vec.empty()) {
-        std::ostringstream result;
-        result << "(";
-        std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<T>(result, "."));
-        result << vec.back() << ")";
-        return result.str();
-    }
-    return "()";
+    return "(" + ov::util::join(vec, ".") + ")";
 }
 
 /**
@@ -164,31 +158,6 @@ inline ov::element::Type getMaxPrecision(const std::vector<ov::element::Type>& p
     }
 
     return ov::element::dynamic;
-}
-
-inline std::vector<std::string> split(const std::string& str, char delim) {
-    std::stringstream ss(str);
-    std::string item;
-    std::vector<std::string> elements;
-    while (std::getline(ss, item, delim)) {
-        elements.emplace_back(item);
-    }
-    return elements;
-}
-
-template <class Container>
-inline std::string join(const Container& strs, char delim) {
-    if (strs.empty()) {
-        return {};
-    }
-
-    std::stringstream result;
-    auto it = strs.begin();
-    result << *it++;
-    for (; it != strs.end(); it++) {
-        result << delim << *it;
-    }
-    return result.str();
 }
 
 template <typename Container, typename T>

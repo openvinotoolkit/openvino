@@ -43,9 +43,8 @@ class TestDeriveIndexRangeLength(PytorchLayerTest):
                     accumulator += idx
                 return accumulator
 
-        ref_net = None
 
-        return prim_derive_index_range_length(), ref_net, ["aten::__range_length", "aten::__derive_index"]
+        return prim_derive_index_range_length(), ["aten::__range_length", "aten::__derive_index"]
 
     @pytest.mark.nightly
     @pytest.mark.precommit
