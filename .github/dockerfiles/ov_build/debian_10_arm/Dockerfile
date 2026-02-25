@@ -195,13 +195,55 @@ RUN cd Python-3.13.2 && make distclean && \
         ac_cv_file__dev_ptc=no && \
     make -j $(nproc) && make altinstall
 
+# Cross-compile Python3.14 for ARM
+RUN curl -O https://www.python.org/ftp/python/3.14.0/Python-3.14.0.tgz && \
+    tar -xf Python-3.14.0.tgz && \
+    cd Python-3.14.0 && \
+    LDFLAGS="-L/usr/local/lib64" ./configure --with-openssl=/usr/local --with-openssl-rpath=auto && \
+    make -j $(nproc) && make altinstall
+
+# Cross-compile Python3.14 for ARM
+RUN cd Python-3.14.0 && make distclean && \
+    ./configure \
+        --host=arm-linux-gnueabihf \
+        --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+        --disable-ipv6 \
+        --enable-shared \
+        --prefix=/opt/python3.14_arm \
+        --with-build-python \
+        ac_cv_file__dev_ptmx=no \
+        ac_cv_file__dev_ptc=no && \
+    make -j4 && make altinstall
+
+# Cross-compile Python3.14t for ARM (with --disable-gil)
+RUN cp -r Python-3.14.0 Python-3.14t && \
+    cd Python-3.14t && make distclean && \
+    LDFLAGS="-L/usr/local/lib64" ./configure --disable-gil --with-openssl=/usr/local  --with-openssl-rpath=auto --prefix=/usr/local/bin/python3.14t && \
+    make -j4 && make altinstall && \
+    ln -s /usr/local/bin/python3.14t/bin/python3.14 /usr/bin/python3.14t
+
+# Cross-compile Python3.14t for ARM
+RUN cd Python-3.14t && make distclean && \
+    ./configure \
+        --host=arm-linux-gnueabihf \
+        --build=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE) \
+        --disable-ipv6 \
+        --enable-shared \
+        --prefix=/opt/python3.14t_arm \
+        --with-build-python \
+        ac_cv_file__dev_ptmx=no \
+        ac_cv_file__dev_ptc=no && \
+    make -j4 && make altinstall
+
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN python3 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.10 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.11 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \
-    python3.13 -m pip install --upgrade pip==${PIP_VERSION}
+    python3.13 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.14 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.14t -m pip install --upgrade pip==${PIP_VERSION}
 
 # Use Python 3.11 as default
 # Using venv here because other methods to switch the default Python break both system and wheels build

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -167,10 +167,7 @@ protected:
 
     virtual InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const;
 
-    void validate_path(const std::string& path) const;
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    void validate_path(const std::wstring& path) const;
-#endif
+    void validate_path(const std::filesystem::path& path) const;
 
     std::vector<ov::Extension::Ptr> m_extensions;
 
