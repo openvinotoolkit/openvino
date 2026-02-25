@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include <editor.hpp>
 #include <memory>
-#include <openvino/frontend/place.hpp>
 #include <sstream>
+
+#include "editor.hpp"
+#include "openvino/frontend/place.hpp"
 
 namespace ov {
 namespace frontend {
@@ -118,11 +119,11 @@ public:
     Place::Ptr get_producing_operation(int input_port_index) const override;
     Place::Ptr get_producing_operation(const std::string& input_port_name) const override;
 
-    Place::Place::Ptr get_target_tensor() const override;
+    Place::Ptr get_target_tensor() const override;
     Place::Ptr get_target_tensor(int output_port_index) const override;
     Place::Ptr get_target_tensor(const std::string& output_name) const override;
 
-    Place::Place::Ptr get_source_tensor() const override;
+    Place::Ptr get_source_tensor() const override;
     Place::Ptr get_source_tensor(int input_port_index) const override;
     Place::Ptr get_source_tensor(const std::string& input_name) const override;
 

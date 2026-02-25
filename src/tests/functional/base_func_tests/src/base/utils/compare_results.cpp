@@ -187,9 +187,9 @@ void compareResults(const std::shared_ptr<ov::Node> &node,
 
 } // namespace
 
-CompareMap getCompareMap() {
+const CompareMap& getCompareMap() {
 OPENVINO_SUPPRESS_DEPRECATED_START
-    CompareMap compareMap{
+    const static CompareMap compareMap{
 #define _OPENVINO_OP_REG(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), compareResults<NAMESPACE::NAME>},
 #include "openvino/opsets/opset1_tbl.hpp"
 #include "openvino/opsets/opset2_tbl.hpp"

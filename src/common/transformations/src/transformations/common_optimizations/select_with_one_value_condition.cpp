@@ -18,28 +18,32 @@
 using namespace std;
 using namespace ov;
 using namespace ov::element;
-using namespace ov::op::util;
 
-ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
+namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+
+namespace ov::pass {
+
+SelectWithOneValueCondition::SelectWithOneValueCondition() {
     MATCHER_SCOPE(SelectWithOneValueCondition);
 
-    auto condition = pattern::wrap_type<ov::op::v0::Constant>();
+    auto condition = pattern::wrap_type<v0::Constant>();
     auto then_branch = pattern::any_input();
     auto else_branch = pattern::any_input();
-    auto select_pattern = make_shared<ov::op::v1::Select>(condition, then_branch, else_branch);
+    auto select_pattern = make_shared<v1::Select>(condition, then_branch, else_branch);
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        NodeRegistry copy_from;
-        NodeRegistry copy_to;
+        pass::NodeRegistry copy_from;
+        pass::NodeRegistry copy_to;
         auto& pattern_map = m.get_pattern_value_map();
         auto& select_value = pattern_map.at(select_pattern);
-        auto select = ov::as_type_ptr<ov::op::v1::Select>(select_value.get_node_shared_ptr());
+        auto select = ov::as_type_ptr<v1::Select>(select_value.get_node_shared_ptr());
         if (!select) {
             return false;
         }
 
         auto condition_value = pattern_map.at(condition);
-        auto condition_const = ov::as_type_ptr<ov::op::v0::Constant>(condition_value.get_node_shared_ptr());
+        auto condition_const = ov::as_type_ptr<v0::Constant>(condition_value.get_node_shared_ptr());
         if (!condition_const) {
             return false;
         }
@@ -74,15 +78,14 @@ ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
             return replace_output_update_name(select->output(0), branch_output);
         } else if (select_shape.is_static()) {
             // if the shape of the selected branch is not the same, it needs the broadcasting
-            NodeRegistry copy_to;
+            pass::NodeRegistry copy_to;
             auto select_rank = select_shape.size();
             vector<int32_t> select_shape_values(select_rank);
             for (size_t i = 0; i < select_rank; ++i) {
                 select_shape_values[i] = static_cast<int32_t>(select_shape[i].get_length());
             }
 
-            auto target_shape =
-                copy_to.make<ov::op::v0::Constant>(element::i32, Shape{select_rank}, select_shape_values);
+            auto target_shape = copy_to.make<v0::Constant>(element::i32, Shape{select_rank}, select_shape_values);
             auto broadcast = copy_to.make<ov::op::v3::Broadcast>(branch_output, target_shape);
             select->output(0).replace(broadcast->output(0));
             broadcast->set_friendly_name(select->get_friendly_name());
@@ -97,3 +100,5 @@ ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
     auto m = make_shared<pattern::Matcher>(select_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace ov::pass

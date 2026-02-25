@@ -55,15 +55,14 @@ class TestLinspace(PytorchLayerTest):
         else:
             model_class = aten_linspace_out(dtype)
 
-        ref_net = None
 
-        return model_class, ref_net, "aten::linspace"
+        return model_class, "aten::linspace"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize("dtype", ["float32", "float64", "int32", "int64", "int8"])
     @pytest.mark.parametrize(
-        "start,end,steps", [(0, 1, 5), (-2, 1, 5), (1, -5, 7), (1, 10, 2), (-1, -5, 2), (-1, -5, 1), (1.25, -5.5, 5)]
+        "start,end,steps", [(0, 1, 5), (-2, 1, 5), (1, -5, 7), (1, 10, 2), (-1, -5, 2), (-1, -5, 1), (1.25, -5.5, 5), (2, 2, 1)]
     )
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
@@ -80,7 +79,7 @@ class TestLinspace(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.parametrize("dtype", [None, "float32", "float64", "int32", "int64", "int8", "uin8"])
     @pytest.mark.parametrize(
-        "start,end,steps", [(0, 1, 5), (-2, 1, 5), (1, -5, 7), (1, 10, 2), (-1, -5, 2), (-1, -5, 1), (1.25, -5.5, 5)]
+        "start,end,steps", [(0, 1, 5), (-2, 1, 5), (1, -5, 7), (1, 10, 2), (-1, -5, 2), (-1, -5, 1), (1.25, -5.5, 5), (2, 2, 1)]
     )
     @pytest.mark.parametrize("use_out", [False, True])
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
