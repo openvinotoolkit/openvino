@@ -8,7 +8,7 @@
 
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
-#include "model_builder/model_builder.hpp"
+#include "model_builder.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/openvino.hpp"

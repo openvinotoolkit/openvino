@@ -11,10 +11,10 @@
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/profiling.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "model_serializer.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
-#include "vcl_serializer.hpp"
 #include "weightless_utils.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
@@ -383,12 +383,13 @@ std::shared_ptr<void> VCLCompilerImpl::getLinkedLibrary() const {
     return VCLApi::getInstance()->getLibrary();
 }
 
-NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
+NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model,
+                                            const FilteredConfig& config) const {
     return compile(model, config, false);
 }
 
 NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model,
-                                            const Config& config,
+                                            const FilteredConfig& config,
                                             const bool storeWeightlessCacheAttributeFlag) const {
     _logger.debug("compile start");
 
@@ -404,29 +405,27 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
 
-    const FilteredConfig* filteredConfig = dynamic_cast<const FilteredConfig*>(&config);
-    if (filteredConfig == nullptr) {
-        OPENVINO_THROW("config is not FilteredConfig");
-    }
-    FilteredConfig updatedConfig = *filteredConfig;
     bool useBaseModelSerializer = true;
-    useBaseModelSerializer = isUseBaseModelSerializer(usedVersion, updatedConfig);
+    useBaseModelSerializer = isUseBaseModelSerializer(usedVersion, config);
     _logger.debug("serialize IR method is %s",
                   useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
-    auto serializedIR = driver_compiler_utils::serializeIR(model,
-                                                           compilerVersion,
-                                                           maxOpsetVersion,
-                                                           useBaseModelSerializer,
-                                                           false,
-                                                           storeWeightlessCacheAttributeFlag);
+    auto serializedIR = compiler_utils::serializeIR(model,
+                                                    compilerVersion,
+                                                    maxOpsetVersion,
+                                                    useBaseModelSerializer,
+                                                    false,
+                                                    storeWeightlessCacheAttributeFlag);
 
     std::string buildFlags;
+    const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
+        return is_option_supported(optionName);
+    };
+
     _logger.debug("create build flags");
-    buildFlags += driver_compiler_utils::serializeIOInfo(model, true);
+    buildFlags += compiler_utils::serializeIOInfo(model, true);
     buildFlags += " ";
-    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig,
-                                                         compilerVersion,
-                                                         is_option_supported(ov::intel_npu::turbo.name()));
+    buildFlags += compiler_utils::serializeConfig(config, compilerVersion, isOptionSupportedByCompiler);
+
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
     vcl_executable_desc_t exeDesc = {serializedIR.buffer.get(),
@@ -475,7 +474,7 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
 
 std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneShot(
     const std::shared_ptr<ov::Model>& model,
-    const Config& config) const {
+    const FilteredConfig& config) const {
     _logger.debug("compileWsOneShot start");
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
@@ -486,29 +485,22 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
 
-    const FilteredConfig* filteredConfig = dynamic_cast<const FilteredConfig*>(&config);
-    if (filteredConfig == nullptr) {
-        OPENVINO_THROW("config is not FilteredConfig");
-    }
-    FilteredConfig updatedConfig = *filteredConfig;
     bool useBaseModelSerializer = true;
-    useBaseModelSerializer = isUseBaseModelSerializer({7, 5}, updatedConfig);
+    useBaseModelSerializer = isUseBaseModelSerializer({7, 5}, config);
     _logger.debug("serialize IR method is %s",
                   useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
-    auto serializedIR = driver_compiler_utils::serializeIR(model,
-                                                           compilerVersion,
-                                                           maxOpsetVersion,
-                                                           useBaseModelSerializer,
-                                                           false,
-                                                           true);
+    auto serializedIR =
+        compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer, false, true);
 
     std::string buildFlags;
+    const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
+        return is_option_supported(optionName);
+    };
+
     _logger.debug("create build flags");
-    buildFlags += driver_compiler_utils::serializeIOInfo(model, true);
+    buildFlags += compiler_utils::serializeIOInfo(model, true);
     buildFlags += " ";
-    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig,
-                                                         compilerVersion,
-                                                         is_option_supported(ov::intel_npu::turbo.name()));
+    buildFlags += compiler_utils::serializeConfig(config, compilerVersion, isOptionSupportedByCompiler);
     _logger.debug("final build flags to compiler: %s", buildFlags.c_str());
 
     vcl_executable_desc_t exeDesc = {serializedIR.buffer.get(),
@@ -540,26 +532,22 @@ std::vector<std::shared_ptr<NetworkDescription>> VCLCompilerImpl::compileWsOneSh
 }
 
 NetworkDescription VCLCompilerImpl::compileWsIterative(const std::shared_ptr<ov::Model>& model,
-                                                       const Config& config,
+                                                       const FilteredConfig& config,
                                                        size_t callNumber) const {
     _logger.debug("compileWsIterative start");
-    const FilteredConfig* filteredConfig = dynamic_cast<const FilteredConfig*>(&config);
-    if (filteredConfig == nullptr) {
-        OPENVINO_THROW("config is not FilteredConfig");
-    }
-    FilteredConfig updatedConfig = *filteredConfig;
+    FilteredConfig updatedConfig = config;
     updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber)}});
     return compile(model, updatedConfig, true);
 }
 
-intel_npu::NetworkMetadata VCLCompilerImpl::parse(const std::vector<uint8_t>& network, const Config& config) const {
+intel_npu::NetworkMetadata VCLCompilerImpl::parse(const std::vector<uint8_t>& network,
+                                                  const FilteredConfig& config) const {
     // VCL returns empty metadata. In plugin adapter, use driver metadata instead.
     OPENVINO_THROW_NOT_IMPLEMENTED("VCL does not support parse.");
 }
 
 std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const std::vector<uint8_t>& profData,
-                                                                         const std::vector<uint8_t>& network,
-                                                                         const intel_npu::Config& config) const {
+                                                                         const std::vector<uint8_t>& network) const {
     _logger.debug("process_profiling_output start");
 
     vcl_profiling_handle_t profilingHandle;
@@ -606,7 +594,8 @@ uint32_t VCLCompilerImpl::get_version() const {
     return ZE_MAKE_VERSION(_compilerProperties.version.major, _compilerProperties.version.minor);
 }
 
-ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
+ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model>& model,
+                                           const FilteredConfig& config) const {
     _logger.debug("query start");
 
     /// Check the linked vcl version whether supported in plugin
@@ -620,22 +609,17 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     ze_graph_compiler_version_info_t compilerVersion;
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
-    const FilteredConfig* filteredConfig = dynamic_cast<const FilteredConfig*>(&config);
-    if (filteredConfig == nullptr) {
-        OPENVINO_THROW("config is not FilteredConfig");
-    }
-    FilteredConfig updatedConfig = *filteredConfig;
     bool useBaseModelSerializer = true;
-    useBaseModelSerializer = isUseBaseModelSerializer(usedVersion, updatedConfig);
+    useBaseModelSerializer = isUseBaseModelSerializer(usedVersion, config);
     _logger.debug("serialize IR method is %s",
                   useBaseModelSerializer ? "base vcl serializer" : "vcl serializer (not copy weights)");
-    auto serializedIR =
-        driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
+    auto serializedIR = compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion, useBaseModelSerializer);
 
     std::string buildFlags;
-    buildFlags += driver_compiler_utils::serializeConfig(updatedConfig,
-                                                         compilerVersion,
-                                                         is_option_supported(ov::intel_npu::turbo.name()));
+    const auto isOptionSupportedByCompiler = [this](const std::string& optionName) {
+        return is_option_supported(optionName);
+    };
+    buildFlags += compiler_utils::serializeConfig(config, compilerVersion, isOptionSupportedByCompiler);
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     vcl_query_handle_t queryHandle;
