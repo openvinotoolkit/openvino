@@ -10,7 +10,7 @@
 				</port>
 			</output>
 		</layer>
-		<layer id="1" name="b" type="Const" version="opset1">
+		<layer id="1" name="b" type="Parameter" version="opset1">
 			<data element_type="f16" shape="128, 128" offset="0" size="32768" />
 			<output>
 				<port id="0" precision="FP16">
