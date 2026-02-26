@@ -11,6 +11,22 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 
+namespace {
+
+std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
+    std::map<std::string, std::string> result;
+    for (auto&& value : params) {
+        // The value of cache_encryption_callbacks cannot be converted to std::string
+        if (value.first == ov::cache_encryption_callbacks.name()) {
+            continue;
+        }
+        result.emplace(value.first, value.second.as<std::string>());
+    }
+    return result;
+}
+
+}  // namespace
+
 namespace intel_npu {
 
 //
@@ -282,7 +298,7 @@ static auto get_specified_device_name(const Config config) {
 // Note: this is the value provided by the plugin, application should query and consider it, but may supply its own
 // preference for number of parallel requests via dedicated configuration
 static int64_t getOptimalNumberOfInferRequestsInParallel(const Config& config) {
-    const std::string platform = ov::intel_npu::Platform::standardize(config.get<PLATFORM>());
+    const std::string platform = config.get<PLATFORM>();
 
     if (platform == ov::intel_npu::Platform::NPU3720) {
         if (config.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::THROUGHPUT) {
@@ -300,13 +316,26 @@ static int64_t getOptimalNumberOfInferRequestsInParallel(const Config& config) {
 }
 
 Properties::Properties(const PropertiesType pType,
-                       FilteredConfig& config,
+                       const FilteredConfig& config,
                        const std::shared_ptr<Metrics>& metrics,
                        const ov::SoPtr<IEngineBackend>& backend)
     : _pType(pType),
       _config(config),
       _metrics(metrics),
-      _backend(backend) {}
+      _backend(backend),
+      _logger("Properties", _config.get<LOG_LEVEL>()) {}
+
+Properties::Properties(const Properties& other)
+    : _pType(other._pType),
+      _config(other._config),
+      _metrics(other._metrics),
+      _backend(other._backend),
+      _logger("Properties", _config.get<LOG_LEVEL>()),
+      _currentlyUsedCompiler(other._currentlyUsedCompiler),
+      _currentlyUsedPlatform(other._currentlyUsedPlatform),
+      _initialized(other._initialized),
+      _properties(other._properties),
+      _supportedProperties(other._supportedProperties) {}
 
 void Properties::registerProperties() {
     // Reset
@@ -397,8 +426,7 @@ void Properties::registerPluginProperties() {
                 const auto specifiedDeviceName = get_specified_device_name(config);
                 return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
             } catch (...) {
-                Logger("Properties", ov::log::Level::WARNING)
-                    .warning("Metrics GetSteppingNumber failed to get value from device.");
+                _logger.warning("Metrics GetSteppingNumber failed to get value from device.");
             }
         }
         return config.get<STEPPING>();
@@ -409,8 +437,7 @@ void Properties::registerPluginProperties() {
                 const auto specifiedDeviceName = get_specified_device_name(config);
                 return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
             } catch (...) {
-                Logger("Properties", ov::log::Level::WARNING)
-                    .warning("Metrics GetMaxTiles failed to get value from device.");
+                _logger.warning("Metrics GetMaxTiles failed to get value from device.");
             }
         }
         return config.get<MAX_TILES>();
@@ -521,7 +548,8 @@ void Properties::registerPluginProperties() {
                 config,
                 utils::getCompilationPlatform(
                     config.get<PLATFORM>(),
-                    config.get<DEVICE_ID>(),
+                    _backend == nullptr ? config.get<DEVICE_ID>()
+                                        : _backend->getDevice(config.get<DEVICE_ID>())->getName(),
                     _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames())))));
         REGISTER_SIMPLE_METRIC(ov::range_for_async_infer_requests, true, _metrics->GetRangeForAsyncInferRequest());
         REGISTER_SIMPLE_METRIC(ov::range_for_streams, true, _metrics->GetRangeForStreams());
@@ -571,7 +599,16 @@ void Properties::registerPluginProperties() {
         REGISTER_CUSTOM_METRIC(ov::intel_npu::compiler_version, true, [&](const Config& config) {
             /// create dummy compiler
             auto compilerType = config.get<COMPILER_TYPE>();
-            auto dummyCompiler = CompilerAdapterFactory::getInstance().getCompiler(_backend, compilerType);
+            auto deviceId = config.get<DEVICE_ID>();
+            auto device = utils::getDeviceById(_backend, deviceId);
+
+            auto compilationPlatform = utils::getCompilationPlatform(
+                config.get<PLATFORM>(),
+                device == nullptr ? deviceId : device->getName(),
+                _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+
+            CompilerAdapterFactory factory;
+            auto dummyCompiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
             return dummyCompiler->get_version();
         });
         REGISTER_CUSTOM_METRIC(ov::internal::caching_properties, false, [&](const Config& config) {
@@ -687,49 +724,117 @@ void Properties::registerCompiledModelProperties() {
     });
 }
 
-ov::Any Properties::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    std::map<std::string, std::string> amends;
-    for (auto&& value : arguments) {
-        amends.emplace(value.first, value.second.as<std::string>());
-    }
-    FilteredConfig amendedConfig = _config;
-    try {
-        amendedConfig.update(amends, OptionMode::Both);
-    } catch (const ov::Exception& /* unusedOVException */) {
-        Logger("Properties", ov::log::Level::WARNING)
-            .warning("Amended config couldn't be updated with the given arguments");
+ov::Any Properties::getProperty(const std::string& name) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (_pType == PropertiesType::PLUGIN) {
+        bool propertyIsCompilerConfig = false;
+        bool propertyIsRegistered = true;
+        // If the property is not registered, there is no point of checking the config.
+        if (!isPropertyRegistered(name)) {
+            propertyIsRegistered = false;
+        } else {
+            // Property is already registered but need to re-check if the CompilerTime config is still supported by the
+            // current compiler.
+            if (_config.hasOpt(name) && name != ov::log::level.name()) {
+                auto opt = _config.getOpt(name);
+                if (opt.mode() != OptionMode::RunTime) {
+                    propertyIsCompilerConfig = true;
+                }
+            }
+        }
+
+        if (propertyIsCompilerConfig || !propertyIsRegistered || name == ov::supported_properties.name()) {
+            std::unique_ptr<ICompilerAdapter> compiler = nullptr;
+            auto compilerType = _config.get<COMPILER_TYPE>();
+            auto deviceId = _config.get<DEVICE_ID>();
+            auto device = utils::getDeviceById(_backend, deviceId);
+
+            auto compilationPlatform = utils::getCompilationPlatform(
+                _config.get<PLATFORM>(),
+                device == nullptr ? deviceId : device->getName(),
+                _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+
+            // Create a compiler to get the type and fetch version and supported options if needed
+            CompilerAdapterFactory factory;
+            try {
+                compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+            } catch (const std::exception& ex) {
+                if (name == ov::supported_properties.name() || name == ov::internal::supported_properties.name()) {
+                    // In case of supported_properties query, we want to return at least the runtime properties even if
+                    // compiler creation failed
+                    _logger.warning("Failed to create compiler for getting supported properties with error: %s."
+                                    "Returning only runtime supported properties.",
+                                    ex.what());
+                    auto&& configIterator = _properties.find(name);
+                    if (configIterator != _properties.cend()) {
+                        return std::get<2>(configIterator->second)(_config);
+                    }
+                }
+                OPENVINO_THROW("Failed to create compiler for getting property ", name, " with error: ", ex.what());
+            }
+
+            compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+
+            filterPropertiesByCompilerSupport(compiler.get(), compilerType, compilationPlatform);
+        }
     }
 
     auto&& configIterator = _properties.find(name);
     if (configIterator != _properties.cend()) {
-        return std::get<2>(configIterator->second)(amendedConfig);
+        return std::get<2>(configIterator->second)(_config);
     }
     try {
-        return amendedConfig.getInternal(name);
+        return _config.getInternal(name);
     } catch (...) {
         OPENVINO_THROW("Unsupported configuration key: ", name);
     }
 }
 
-void Properties::set_property(const ov::AnyMap& properties) {
-    std::map<std::string, std::string> cfgs_to_set;
+void Properties::setProperty(const ov::AnyMap& properties) {
+    std::unique_ptr<ICompilerAdapter> compiler = nullptr;
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (_pType == PropertiesType::PLUGIN) {
+        bool propertyIsCompilerConfig = false;
+        bool propertyIsRegistered = true;
+        for (const auto& property : properties) {
+            if (!isPropertyRegistered(property.first)) {
+                propertyIsRegistered = false;
+                break;
+            }
+            if (_config.hasOpt(property.first) && property.first != ov::log::level.name()) {
+                auto opt = _config.getOpt(property.first);
+                if (opt.mode() != OptionMode::RunTime) {
+                    propertyIsCompilerConfig = true;
+                    break;
+                }
+            }
+        }
 
+        // Check if one of the properties is compiler config which needs to return different values based on compiler
+        // and platform configuration
+        if (propertyIsCompilerConfig || !propertyIsRegistered) {
+            auto compilerType = determineCompilerType(properties);
+            auto deviceId = determineDeviceId(properties);
+            auto device = utils::getDeviceById(_backend, deviceId);
+
+            auto compilationPlatform = utils::getCompilationPlatform(
+                determinePlatform(properties),
+                device == nullptr ? deviceId : device->getName(),
+                _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+
+            // Create a compiler to get the type and fetch version and supported options if needed
+            CompilerAdapterFactory factory;
+            compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+
+            filterPropertiesByCompilerSupport(compiler.get(), compilerType, compilationPlatform);
+        }
+    }
+
+    std::map<std::string, std::string> cfgs_to_set;
     for (auto&& value : properties) {
         if (_properties.find(value.first) == _properties.end()) {
             // property doesn't exist
             // checking as internal now
-
-            std::unique_ptr<ICompilerAdapter> compiler = nullptr;
-            if (_pType == PropertiesType::PLUGIN) {
-                try {
-                    // Only accepting unknown config keys in plugin
-                    auto compilerType = _config.get<COMPILER_TYPE>();
-                    compiler = CompilerAdapterFactory::getInstance().getCompiler(_backend, compilerType);
-                } catch (...) {
-                    // just throw the exception below in case unknown property check is called
-                }
-            }
-
             if (compiler != nullptr) {
                 if (compiler->is_option_supported(value.first)) {
                     // if compiler reports it supported > registering as internal
@@ -756,6 +861,177 @@ void Properties::set_property(const ov::AnyMap& properties) {
 
 bool Properties::isPropertyRegistered(const std::string& propertyName) const {
     return _properties.find(propertyName) != _properties.end();
+}
+
+void Properties::filterPropertiesByCompilerSupport(const ICompilerAdapter* compiler,
+                                                   const ov::intel_npu::CompilerType compilerType,
+                                                   const std::string& compilationPlatform) {
+    // In case properties are not initialized or the compiler/platform was changed since last call -
+    // filter out options again
+    if (_initialized && compilerType == _currentlyUsedCompiler && compilationPlatform == _currentlyUsedPlatform) {
+        return;
+    }
+
+    bool legacy = false;
+    std::vector<std::string> compilerSupportList{};
+    uint32_t compilerVersion = 0;
+
+    if (compiler != nullptr) {
+        compilerVersion = compiler->get_version();
+        compilerSupportList = compiler->get_supported_options();
+    }
+    if (compilerSupportList.size() == 0) {
+        _logger.info("No compiler support options list received! Fallback to version-based option registration");
+        legacy = true;
+    }
+
+    // Logs
+    _logger.debug("Compiler version: %ld", compilerVersion);
+    _logger.debug("Compiler supported options list (%ld): ", compilerSupportList.size());
+    for (const auto& str : compilerSupportList) {
+        _logger.debug("    %s ", str.c_str());
+    }
+    _logger.debug("Legacy registration: %s", legacy ? "true" : "false");
+
+    // Parse enables
+    _config.walkEnables([&](const std::string& key) {
+        bool isEnabled = false;
+        auto opt = _config.getOpt(key);
+        // Runtime (plugin-only) options are always enabled
+        if (opt.mode() == OptionMode::RunTime) {
+            isEnabled = true;
+        } else {  // Compiler and common options
+            if (compiler == nullptr && opt.mode() == OptionMode::CompileTime) {
+                // we do not register compileTime options if there is no compiler
+                isEnabled = false;
+            } else if (legacy) {
+                // Compiler or common option in Legacy mode? Checking its supported version
+                if (compilerVersion >= opt.compilerSupportVersion()) {
+                    isEnabled = true;
+                }
+            } else {
+                // We have compiler, we are not in legacy mode = we have a valid list of supported options
+                // Searching in the list
+                auto it = std::find(compilerSupportList.begin(), compilerSupportList.end(), key);
+                if (it != compilerSupportList.end()) {
+                    isEnabled = true;
+                } else {
+                    // Not found in the supported options list.
+                    if (compiler != nullptr) {
+                        // Checking if it is a private option?
+                        isEnabled = compiler->is_option_supported(key);
+                    } else {
+                        // Not in the list and not a private option = disabling
+                        isEnabled = false;
+                    }
+                }
+            }
+        }
+        if (!isEnabled) {
+            _logger.debug("Config option %s not supported! Requirements not met.", key.c_str());
+        } else {
+            _logger.debug("Enabled config option %s", key.c_str());
+        }
+        // update enable flag
+        _config.enable(key, isEnabled);
+    });
+
+    // Special case for NPU_TURBO which might not be supported by compiler, but driver will still use it
+    // if it exists in config = driver supports it
+    // if compiler->is_option_suported is false = compiler doesn't support it and gets marked disabled by default logic
+    // however, if driver supports it, we still need it (and will skip giving it to compiler) = force-enable
+    if (_backend && _backend->isCommandQueueExtSupported()) {
+        _config.enable(ov::intel_npu::turbo.name(), true);
+    }
+
+    // reset properties for the new options
+    registerProperties();
+    _initialized = true;
+    _currentlyUsedCompiler = compilerType;
+    _currentlyUsedPlatform = compilationPlatform;
+}
+
+void Properties::updateConfig(const ov::AnyMap& properties, const ICompilerAdapter* compiler, OptionMode mode) {
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        std::optional<ov::intel_npu::CompilerType> propertiesCompilerType = std::nullopt;
+        std::optional<std::string> propertiesPlatform = std::nullopt;
+        if (_initialized) {
+            auto compilerType = properties.find(ov::intel_npu::compiler_type.name());
+            if (compilerType != properties.end()) {
+                propertiesCompilerType = compilerType->second.as<ov::intel_npu::CompilerType>();
+            }
+        }
+        auto platform = properties.find(ov::intel_npu::platform.name());
+        if (platform != properties.end()) {
+            propertiesPlatform = platform->second.as<std::string>();
+        }
+
+        // filter out unsupported options
+        filterPropertiesByCompilerSupport(compiler,
+                                          propertiesCompilerType.value_or(_currentlyUsedCompiler),
+                                          propertiesPlatform.value_or(_currentlyUsedPlatform));
+    }
+
+    const std::map<std::string, std::string> rawConfig = any_copy(properties);
+    std::map<std::string, std::string> cfgsToSet;
+    for (const auto& [key, value] : rawConfig) {
+        if (!_config.hasOpt(key)) {
+            // not a known config key
+            if (!compiler->is_option_supported(key)) {
+                OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
+            } else {
+                _config.addOrUpdateInternal(key, value);
+            }
+        } else {
+            cfgsToSet.emplace(key, value);
+        }
+    }
+
+    _config.update(cfgsToSet, mode);
+}
+
+void Properties::updateConfig(const ov::AnyMap& properties, OptionMode mode) {
+    const std::map<std::string, std::string> rawConfig = any_copy(properties);
+    std::map<std::string, std::string> cfgsToSet;
+    for (const auto& [key, value] : rawConfig) {
+        if (!_config.hasOpt(key)) {
+            _logger.info(
+                "Config key '%s' is not recognized as a known option, will not be used for current configuration.",
+                key.c_str());
+        } else {
+            cfgsToSet.emplace(key, value);
+        }
+    }
+
+    _config.update(cfgsToSet, mode);
+}
+
+ov::intel_npu::CompilerType Properties::determineCompilerType(const ov::AnyMap& properties) const {
+    // first look if provided config changes compiler type
+    auto it = properties.find(ov::intel_npu::compiler_type.name());
+    if (it != properties.end()) {
+        // if compiler_type is provided by local config = use that
+        return COMPILER_TYPE::parse(it->second.as<std::string>());
+    }
+    // if there is no compiler_type provided = use _config value
+    return _config.get<COMPILER_TYPE>();
+}
+
+std::string Properties::determinePlatform(const ov::AnyMap& properties) const {
+    auto platform = properties.find(ov::intel_npu::platform.name());
+    if (platform != properties.end()) {
+        return platform->second.as<std::string>();
+    }
+    return _config.get<PLATFORM>();
+}
+
+std::string Properties::determineDeviceId(const ov::AnyMap& properties) const {
+    auto device_id = properties.find(std::string(ov::device::id.name()));
+    if (device_id != properties.end()) {
+        return device_id->second.as<std::string>();
+    }
+    return _config.get<DEVICE_ID>();
 }
 
 }  // namespace intel_npu

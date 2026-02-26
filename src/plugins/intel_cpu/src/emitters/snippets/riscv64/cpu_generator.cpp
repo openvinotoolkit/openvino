@@ -9,6 +9,7 @@
 #include <memory>
 #include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
 #include <nodes/kernels/riscv64/jit_generator.hpp>
+#include <set>
 #include <utility>
 #include <vector>
 
@@ -23,41 +24,67 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/elu.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/erf.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/floor.hpp"
+#include "openvino/op/floor_mod.hpp"
 #include "openvino/op/gelu.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/hsigmoid.hpp"
 #include "openvino/op/hswish.hpp"
 #include "openvino/op/is_finite.hpp"
 #include "openvino/op/is_inf.hpp"
 #include "openvino/op/is_nan.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_not.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/logical_xor.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
 #include "openvino/op/mish.hpp"
+#include "openvino/op/mod.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/negative.hpp"
+#include "openvino/op/not_equal.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/prelu.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/op/round.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/softsign.hpp"
 #include "openvino/op/sqrt.hpp"
+#include "openvino/op/squared_difference.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/tanh.hpp"
+#include "openvino/op/xor.hpp"
 #include "snippets/emitter.hpp"
 #include "snippets/generator.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/broadcastload.hpp"
 #include "snippets/op/broadcastmove.hpp"
+#include "snippets/op/convert_saturation.hpp"
+#include "snippets/op/convert_truncation.hpp"
 #include "snippets/op/kernel.hpp"
 #include "snippets/op/load.hpp"
 #include "snippets/op/loop.hpp"
+#include "snippets/op/powerstatic.hpp"
 #include "snippets/op/rank_normalization.hpp"
 #include "snippets/op/result.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/target_machine.hpp"
+#include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
 
@@ -66,6 +93,36 @@
 #    include "emitters/snippets/riscv64/jit_segfault_detector_emitter.hpp"
 #    include "emitters/snippets/riscv64/verbose.hpp"
 #endif
+
+#define CREATE_ROUND_V5_EMITTER(e_type_from_zero, e_type_even)                                    \
+    {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+         const auto& n = expr->get_node();                                                        \
+         const auto& round = ov::as_type_ptr<ov::op::v5::Round>(n);                               \
+         if (round == nullptr) {                                                                  \
+             OPENVINO_THROW("Can't cast to ov::op::v5::Round");                                   \
+         }                                                                                        \
+         const auto rounding_mode = round->get_mode();                                            \
+         if (rounding_mode == ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO) {                \
+             return std::make_shared<e_type_from_zero>(h.get(), isa, n);                          \
+         }                                                                                        \
+         if (rounding_mode == ov::op::v5::Round::RoundMode::HALF_TO_EVEN) {                       \
+             return std::make_shared<e_type_even>(h.get(), isa, n);                               \
+         }                                                                                        \
+         OPENVINO_THROW("Unsupported Round mode");                                                \
+     },                                                                                           \
+     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<ov::element::Type>> {         \
+         const auto& round = ov::as_type_ptr<ov::op::v5::Round>(n);                               \
+         if (round == nullptr) {                                                                  \
+             OPENVINO_THROW("Can't cast to ov::op::v5::Round");                                   \
+         }                                                                                        \
+         if (round->get_mode() == ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO) {            \
+             return e_type_from_zero::get_supported_precisions(n);                                \
+         }                                                                                        \
+         if (round->get_mode() == ov::op::v5::Round::RoundMode::HALF_TO_EVEN) {                   \
+             return e_type_even::get_supported_precisions(n);                                     \
+         }                                                                                        \
+         OPENVINO_THROW("Unsupported Round mode");                                                \
+     }}
 
 namespace ov {
 
@@ -162,6 +219,10 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     jitters[snippets::op::Scalar::get_type_info_static()] = emitter_factory.from_expr<jit_scalar_emitter>();
     jitters[snippets::op::BroadcastMove::get_type_info_static()] =
         emitter_factory.from_expr<jit_broadcast_move_emitter>();
+    jitters[snippets::op::ConvertTruncation::get_type_info_static()] =
+        emitter_factory.from_node<jit_convert_truncation_emitter>();
+    jitters[snippets::op::ConvertSaturation::get_type_info_static()] =
+        emitter_factory.from_node<jit_convert_saturation_emitter>();
 
     // memory access
     jitters[snippets::op::Load::get_type_info_static()] = emitter_factory.from_expr<jit_load_memory_emitter>();
@@ -180,33 +241,35 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     jitters[snippets::op::KernelDynamic::get_type_info_static()] =
         emitter_factory.from_expr<jit_kernel_dynamic_emitter>();
 
+    // fused operations
+    jitters[intel_cpu::FusedMulAdd::get_type_info_static()] = emitter_factory.from_node<jit_mul_add_emitter>();
+
     // binary operations
     jitters[op::v1::Add::get_type_info_static()] = emitter_factory.from_node<jit_add_emitter>();
-    // jitters[op::v1::Divide::get_type_info_static()] = emitter_factory.from_node<jit_divide_emitter>();
-    // jitters[op::v1::Maximum::get_type_info_static()] = emitter_factory.from_node<jit_maximum_emitter>();
-    // jitters[op::v1::Minimum::get_type_info_static()] = emitter_factory.from_node<jit_minimum_emitter>();
-    // jitters[op::v1::Mod::get_type_info_static()] = emitter_factory.from_node<jit_mod_emitter>();
+    jitters[op::v1::Divide::get_type_info_static()] = emitter_factory.from_node<jit_divide_emitter>();
+    jitters[op::v1::Maximum::get_type_info_static()] = emitter_factory.from_node<jit_maximum_emitter>();
+    jitters[op::v1::Minimum::get_type_info_static()] = emitter_factory.from_node<jit_minimum_emitter>();
+    jitters[op::v1::Mod::get_type_info_static()] = emitter_factory.from_node<jit_mod_emitter>();
     jitters[op::v1::Multiply::get_type_info_static()] = emitter_factory.from_node<jit_multiply_emitter>();
-    // jitters[snippets::op::PowerStatic::get_type_info_static()] =
-    // emitter_factory.from_node<jit_power_static_emitter>(); jitters[op::v0::SquaredDifference::get_type_info_static()]
-    // =
-    //     emitter_factory.from_node<jit_squared_difference_emitter>();
-    // jitters[op::v1::Subtract::get_type_info_static()] = emitter_factory.from_node<jit_subtract_emitter>();
-    // jitters[op::v0::Xor::get_type_info_static()] = emitter_factory.from_node<jit_logical_xor_emitter>();
+    jitters[snippets::op::PowerStatic::get_type_info_static()] = emitter_factory.from_node<jit_power_static_emitter>();
+    jitters[op::v0::SquaredDifference::get_type_info_static()] =
+        emitter_factory.from_node<jit_squared_difference_emitter>();
+    jitters[op::v1::Subtract::get_type_info_static()] = emitter_factory.from_node<jit_subtract_emitter>();
+    jitters[op::v0::Xor::get_type_info_static()] = emitter_factory.from_node<jit_logical_xor_emitter>();
 
     // comparison operations
-    // jitters[op::v1::Equal::get_type_info_static()] = emitter_factory.from_node<jit_equal_emitter>();
-    // jitters[op::v1::Greater::get_type_info_static()] = emitter_factory.from_node<jit_greater_emitter>();
-    // jitters[op::v1::GreaterEqual::get_type_info_static()] = emitter_factory.from_node<jit_greater_equal_emitter>();
-    // jitters[op::v1::Less::get_type_info_static()] = emitter_factory.from_node<jit_less_emitter>();
-    // jitters[op::v1::LessEqual::get_type_info_static()] = emitter_factory.from_node<jit_less_equal_emitter>();
-    // jitters[op::v1::NotEqual::get_type_info_static()] = emitter_factory.from_node<jit_not_equal_emitter>();
+    jitters[op::v1::Equal::get_type_info_static()] = emitter_factory.from_node<jit_equal_emitter>();
+    jitters[op::v1::Greater::get_type_info_static()] = emitter_factory.from_node<jit_greater_emitter>();
+    jitters[op::v1::GreaterEqual::get_type_info_static()] = emitter_factory.from_node<jit_greater_equal_emitter>();
+    jitters[op::v1::Less::get_type_info_static()] = emitter_factory.from_node<jit_less_emitter>();
+    jitters[op::v1::LessEqual::get_type_info_static()] = emitter_factory.from_node<jit_less_equal_emitter>();
+    jitters[op::v1::NotEqual::get_type_info_static()] = emitter_factory.from_node<jit_not_equal_emitter>();
 
     // logical operations
-    // jitters[op::v1::LogicalAnd::get_type_info_static()] = emitter_factory.from_node<jit_logical_and_emitter>();
-    // jitters[op::v1::LogicalOr::get_type_info_static()] = emitter_factory.from_node<jit_logical_or_emitter>();
-    // jitters[op::v1::LogicalNot::get_type_info_static()] = emitter_factory.from_node<jit_logical_not_emitter>();
-    // jitters[op::v1::LogicalXor::get_type_info_static()] = emitter_factory.from_node<jit_logical_xor_emitter>();
+    jitters[op::v1::LogicalAnd::get_type_info_static()] = emitter_factory.from_node<jit_logical_and_emitter>();
+    jitters[op::v1::LogicalOr::get_type_info_static()] = emitter_factory.from_node<jit_logical_or_emitter>();
+    jitters[op::v1::LogicalNot::get_type_info_static()] = emitter_factory.from_node<jit_logical_not_emitter>();
+    jitters[op::v1::LogicalXor::get_type_info_static()] = emitter_factory.from_node<jit_logical_xor_emitter>();
 
     // unary operations
     jitters[ov::op::v0::Abs::get_type_info_static()] = emitter_factory.from_node<jit_abs_emitter>();
@@ -215,9 +278,9 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     jitters[ov::op::v0::Erf::get_type_info_static()] = emitter_factory.from_node<jit_erf_emitter>();
     jitters[ov::op::v0::Exp::get_type_info_static()] = emitter_factory.from_node<jit_exp_emitter>();
     jitters[ov::op::v0::Floor::get_type_info_static()] = emitter_factory.from_node<jit_floor_emitter>();
-    // jitters[ov::op::v1::FloorMod::get_type_info_static()] = emitter_factory.from_node<jit_floor_mod_emitter>();
+    jitters[ov::op::v1::FloorMod::get_type_info_static()] = emitter_factory.from_node<jit_floor_mod_emitter>();
     jitters[ov::op::v0::Gelu::get_type_info_static()] = emitter_factory.from_node<jit_gelu_erf_emitter>();
-    // jitters[ov::op::v7::Gelu::get_type_info_static()] = emitter_factory.from_node<jit_gelu_erf_emitter>();
+    jitters[ov::op::v7::Gelu::get_type_info_static()] = emitter_factory.from_node<jit_gelu_erf_emitter>();
     jitters[ov::op::v5::HSigmoid::get_type_info_static()] = emitter_factory.from_node<jit_hsigmoid_emitter>();
     jitters[ov::op::v4::HSwish::get_type_info_static()] = emitter_factory.from_node<jit_hswish_emitter>();
     jitters[ov::op::v10::IsFinite::get_type_info_static()] = emitter_factory.from_node<jit_is_finite_emitter>();
@@ -225,10 +288,10 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     jitters[ov::op::v10::IsNaN::get_type_info_static()] = emitter_factory.from_node<jit_is_nan_emitter>();
     jitters[ov::op::v4::Mish::get_type_info_static()] = emitter_factory.from_node<jit_mish_emitter>();
     jitters[ov::op::v0::Negative::get_type_info_static()] = emitter_factory.from_node<jit_negative_emitter>();
-    // jitters[ov::op::v0::PRelu::get_type_info_static()] = emitter_factory.from_node<jit_prelu_emitter>();
+    jitters[ov::op::v0::PRelu::get_type_info_static()] = emitter_factory.from_node<jit_prelu_emitter>();
     jitters[ov::op::v0::Relu::get_type_info_static()] = emitter_factory.from_node<jit_relu_emitter>();
-    // jitters[ov::op::v5::Round::get_type_info_static()] =
-    //     emitter_factory.from_node<jit_round_half_away_from_zero_emitter>();
+    jitters[ov::op::v5::Round::get_type_info_static()] =
+        CREATE_ROUND_V5_EMITTER(jit_round_half_away_from_zero_emitter, jit_round_half_to_even_emitter);
     jitters[ov::op::v0::Sigmoid::get_type_info_static()] = emitter_factory.from_node<jit_sigmoid_emitter>();
     jitters[ov::op::v9::SoftSign::get_type_info_static()] = emitter_factory.from_node<jit_softsign_emitter>();
     jitters[ov::op::v0::Sqrt::get_type_info_static()] = emitter_factory.from_node<jit_sqrt_emitter>();
@@ -323,8 +386,11 @@ std::shared_ptr<ov::snippets::Generator> CPUGenerator::clone() const {
     return std::make_shared<CPUGenerator>(cpu_target_machine);
 }
 
-ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(
-    [[maybe_unused]] const ov::Output<ov::Node>& out) const {
+ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {
+    const auto op = out.get_node_shared_ptr();
+    if (ov::is_type<intel_cpu::FusedMulAdd>(op)) {
+        return ov::snippets::RegType::vec;
+    }
     return ov::snippets::RegType::undefined;
 }
 
