@@ -39,6 +39,52 @@ inline std::pair<size_t, size_t> get_kv_split_size(size_t arch) {
     return {0, 0};  // Fallback case, should not be reached
 }
 
+struct SingleTokenQChunking {
+    int32_t q_head_chunks_per_kv_head;
+    int32_t q_head_chunk_size;
+};
+
+inline SingleTokenQChunking get_single_token_q_chunking(const kernel_impl_params& params,
+                                                        const paged_attention& desc,
+                                                        size_t kv_partition_size) {
+    // Must match kernel mapping in pa_single_token.cm:
+    //   kv_head_num_idx = gid1 / Q_head_chunks_per_kv_head
+    //   head_num_idx    = gid1 * Q_head_chunk_size
+    // Kernel does not guard extra heads, so we must ensure exact coverage:
+    //   Q_head_chunks_per_kv_head * Q_head_chunk_size == q_heads_per_kv_head
+    constexpr int32_t MaxRepeatCount = 8;
+
+    auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
+    int32_t q_heads_per_kv_head = static_cast<int32_t>(desc.heads_num / desc.kv_heads_num);
+
+    // Match kernel arch-dependent params
+    const int32_t reg_n = (xe_arch == 1) ? 8 : 16;
+    const int32_t kv_step = static_cast<int32_t>(get_kv_split_size(xe_arch).first);
+    constexpr int32_t reg_m = 1;  // RepeatCount
+    constexpr int32_t bytes_per_float = 4;
+
+    const int32_t kv_partition_step_num = static_cast<int32_t>(kv_partition_size / kv_step);
+    const int32_t rs_cols = reg_m * kv_partition_step_num * reg_n;
+
+    const int32_t reg_file_size = PA_CM_REGISTER_FILE_SIZE;
+    const int32_t grf_bytes = (xe_arch == 1) ? 32 : 64;
+    const int32_t budget_bytes = reg_file_size * grf_bytes - 1;
+
+    int32_t max_q_by_matrix = budget_bytes / (bytes_per_float * rs_cols);
+    if (max_q_by_matrix < 1)
+        max_q_by_matrix = 1;
+
+    int32_t target_chunk = std::min<int32_t>(MaxRepeatCount, max_q_by_matrix);
+
+    int32_t q_head_chunk_size = std::min<int32_t>(q_heads_per_kv_head, target_chunk);
+    while (q_head_chunk_size > 1 && (q_heads_per_kv_head % q_head_chunk_size) != 0) {
+        --q_head_chunk_size;
+    }
+    int32_t q_head_chunks_per_kv_head = q_heads_per_kv_head / q_head_chunk_size;
+
+    return {q_head_chunks_per_kv_head, q_head_chunk_size};
+}
+
 inline size_t get_kv_len(const RuntimeParams& params, const PagedAttentionStage& stage) {
     if (stage == PagedAttentionStage::PREFILL) {
         auto key_shape = params.input_layouts[PagedAttentionInputIdx::KEY].get_shape();
@@ -405,37 +451,9 @@ JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_
     jit.make("KV_HEADS_NUM", desc->kv_heads_num);
     jit.make("Q_STEP", get_q_step(xe_arch, true));
 
-    // Limit Q_head_chunk_size to ensure the rS matrix
-    //   matrix<float, Q_head_chunk_size, REG_M * (KV_PARTITION_SIZE / KV_STEP) * REG_N>
-    // fits within the per-thread register file budget implied by -Qxcm_register_file_size and
-    // architecture GRF width (xe1: 32B/GRF, xe2: 64B/GRF).
-    //
-    // If the original chunk size would exceed this register budget, we derive the maximum allowed
-    // Q_head_chunk_size and increase Q_head_chunks_per_kv_head accordingly to keep register usage safe.
-    constexpr int32_t MaxRepeatCount = 8;
-    int32_t q_heads_per_kv_head = static_cast<int32_t>(desc->heads_num / desc->kv_heads_num);
-    // Match kernel arch-dependent params
-    const int32_t reg_n = (xe_arch == 1) ? 8 : 16;
-    const int32_t kv_step = static_cast<int32_t>(get_kv_split_size(xe_arch).first);
-    constexpr int32_t reg_m = 1;  // RepeatCount
-    constexpr int32_t bytes_per_float = 4;
-    // KV_PARTITION_STEP_NUM must match kernel: KV_PARTITION_SIZE / KV_STEP
-    const int32_t kv_partition_step_num = static_cast<int32_t>(kv_partition_size / kv_step);
-    // rS columns in elements
-    const int32_t rs_cols = reg_m * kv_partition_step_num * reg_n;
-    int32_t reg_file_size = PA_CM_REGISTER_FILE_SIZE;    // e.g. 128 or 256 (GRF per thread)
-    const int32_t grf_bytes = (xe_arch == 1) ? 32 : 64;  // xe1:256b, xe2:512b
-    const int32_t budget_bytes = reg_file_size * grf_bytes;
-    int32_t max_q_by_matrix = (budget_bytes - 1) / (bytes_per_float * rs_cols);
-    if (max_q_by_matrix < 1)
-        max_q_by_matrix = 1;
-    // Final allowed chunk size cap
-    int32_t target_chunk = std::min<int32_t>(MaxRepeatCount, max_q_by_matrix);
-    int32_t q_head_chunks_per_kv_head = ceil_div(q_heads_per_kv_head, target_chunk);
-    int32_t q_head_chunk_size = ceil_div(q_heads_per_kv_head, q_head_chunks_per_kv_head);
-    jit.make("Q_head_chunks_per_kv_head", q_head_chunks_per_kv_head);
-    jit.make("Q_head_chunk_size", q_head_chunk_size);
-
+    const auto q_chunking = get_single_token_q_chunking(params, *desc, kv_partition_size);
+    jit.make("Q_head_chunks_per_kv_head", q_chunking.q_head_chunks_per_kv_head);
+    jit.make("Q_head_chunk_size", q_chunking.q_head_chunk_size);
     if (get_kv_compressed(params)) {
         jit.make("KV_CACHE_COMPRESSION", 1);
         jit.make("KV_CACHE_COMPRESSION_BY_TOKEN", 1);
@@ -485,10 +503,9 @@ DispatchDataFunc PagedAttentionGeneratorSingleToken::get_dispatch_data_func() co
         const size_t kv_heads_num = desc->kv_heads_num;
         const size_t partition_num = rtp->num_of_partitions;
 
-        constexpr int32_t MaxRepeatCount = 8;
-        int32_t q_heads_per_kv_head = static_cast<int32_t>(heads_num / kv_heads_num);
-        int32_t q_head_chunks_per_kv_head = ceil_div(q_heads_per_kv_head, MaxRepeatCount);
-        wgs.global = {batch, kv_heads_num * q_head_chunks_per_kv_head, partition_num};
+        const size_t kv_partition_size = get_partition_size(desc->has_xattention);
+        const auto q_chunking = get_single_token_q_chunking(params, *desc, kv_partition_size);
+        wgs.global = {batch, kv_heads_num * static_cast<size_t>(q_chunking.q_head_chunks_per_kv_head), partition_num};
         wgs.local = {1, 1, 1};
 
         // generate stage: q_len=1
