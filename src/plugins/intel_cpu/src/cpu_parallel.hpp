@@ -34,8 +34,9 @@ public:
         return m_thread_pool;
     }
     [[nodiscard]] int get_num_threads() const {
-        int num = m_partitioner == ov::intel_cpu::TbbPartitioner::STATIC ? parallel_get_max_threads()
-                                                                         : parallel_get_max_threads() * m_multiplier;
+        int num = m_partitioner == ov::intel_cpu::TbbPartitioner::STATIC
+                      ? parallel_get_max_threads()
+                      : static_cast<int>(parallel_get_max_threads() * m_multiplier);
         return num;
     }
     [[nodiscard]] static int get_num_worker_threads() {
@@ -252,7 +253,7 @@ private:
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
         if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
-            virtual_threads = 1 == nthr ? 1 : nthr * m_multiplier;
+            virtual_threads = 1 == nthr ? 1 : static_cast<int>(nthr * m_multiplier);
         }
         if (virtual_threads > work_amount) {
             virtual_threads = work_amount;
@@ -286,7 +287,7 @@ private:
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
         if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
-            virtual_threads = 1 == nthr ? 1 : nthr * m_multiplier;
+            virtual_threads = 1 == nthr ? 1 : static_cast<int>(nthr * m_multiplier);
         }
         if (virtual_threads > work_amount) {
             virtual_threads = work_amount;
@@ -320,7 +321,7 @@ private:
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
         if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
-            virtual_threads = 1 == nthr ? 1 : nthr * m_multiplier;
+            virtual_threads = 1 == nthr ? 1 : static_cast<int>(nthr * m_multiplier);
         }
         if (virtual_threads > work_amount) {
             virtual_threads = work_amount;
@@ -354,7 +355,7 @@ private:
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
         if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
-            virtual_threads = 1 == nthr ? 1 : nthr * m_multiplier;
+            virtual_threads = 1 == nthr ? 1 : static_cast<int>(nthr * m_multiplier);
         }
         if (virtual_threads > work_amount) {
             virtual_threads = work_amount;
@@ -388,7 +389,7 @@ private:
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
         if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
-            virtual_threads = 1 == nthr ? 1 : nthr * m_multiplier;
+            virtual_threads = 1 == nthr ? 1 : static_cast<int>(nthr * m_multiplier);
         }
         if (virtual_threads > work_amount) {
             virtual_threads = work_amount;
@@ -428,7 +429,7 @@ private:
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
         if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
-            virtual_threads = 1 == nthr ? 1 : nthr * m_multiplier;
+            virtual_threads = 1 == nthr ? 1 : static_cast<int>(nthr * m_multiplier);
         }
         if (virtual_threads > work_amount) {
             virtual_threads = work_amount;

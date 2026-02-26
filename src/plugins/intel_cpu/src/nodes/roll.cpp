@@ -173,7 +173,7 @@ Roll::RollExecutor::RollExecutor(const VectorDims& dataDims,
                                  const VectorDims& dstDims)
     : numOfDims{dataDims.size()},
       blockSize{dataDims.back()},
-      numOfIterations{std::accumulate(dataDims.cbegin(), dataDims.cend(), 1UL, std::multiplies<>()) / blockSize},
+      numOfIterations{std::accumulate(dataDims.cbegin(), dataDims.cend(), size_t{1}, std::multiplies<>()) / blockSize},
       axesLength{axesDims[0]} {
     for (size_t i = 0; i < dataDims.size(); ++i) {
         OPENVINO_ASSERT(dataDims[i] == dstDims[i], "Input/output tensors dimensions mismatch");
@@ -197,9 +197,9 @@ void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr,
     const VectorDims& dataDims = dataMemPtr->getStaticDims();
 
     for (size_t dim = 0; dim < axesLength; ++dim) {
-        int32_t currentAxis = axes[dim] < 0 ? axes[dim] + numOfDims : axes[dim];
-        int32_t shiftSum = shiftsVector[currentAxis] + shift[dim];
-        int32_t dimSize = dataDims[currentAxis];
+        int32_t currentAxis = axes[dim] < 0 ? axes[dim] + static_cast<int32_t>(numOfDims) : axes[dim];
+        int32_t shiftSum = static_cast<int32_t>(shiftsVector[currentAxis]) + shift[dim];
+        int32_t dimSize = static_cast<int32_t>(dataDims[currentAxis]);
         shiftsVector[currentAxis] = (shiftSum % dimSize + dimSize) % dimSize;
     }
 
@@ -220,7 +220,7 @@ void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr,
         size_t leftBlockStartOffset = start;
         size_t rightBlockStartOffset = start + leftBlockSize;
 
-        for (int dim = numOfDims - 1; dim >= 0; --dim) {
+        for (int dim = static_cast<int>(numOfDims) - 1; dim >= 0; --dim) {
             leftBlockStartOffset =
                 calculateShiftOffset(leftBlockStartOffset, shiftsVector[dim], strides[dim], dataDims[dim]);
             rightBlockStartOffset =

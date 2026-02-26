@@ -316,7 +316,7 @@ void MatrixNms::prepareParams() {
         if (i == static_cast<size_t>(m_backgroundClass)) {
             continue;
         }
-        m_classOffset[i] = (count++) * m_realNumBoxes;
+        m_classOffset[i] = static_cast<int>((count++) * m_realNumBoxes);
     }
 }
 

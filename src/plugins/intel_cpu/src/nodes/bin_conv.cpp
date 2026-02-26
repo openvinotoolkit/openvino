@@ -942,7 +942,7 @@ private:
 
         // offset = 4
         for (size_t d = 0; d < simd_w; ++d) {
-            dd(x64::float2int(jcp_.ic * jcp_.kw * jcp_.kh));
+            dd(x64::float2int(static_cast<float>(jcp_.ic * jcp_.kw * jcp_.kh)));
         }
 
         // offset = 5
@@ -1122,29 +1122,29 @@ void BinaryConvolution::createPrimitive() {
     auto implType = selectedPrimitiveDescriptor->getImplementationType();
 
     jcp.ngroups = group;
-    jcp.mb = srcDims[0];
+    jcp.mb = static_cast<int>(srcDims[0]);
 
-    jcp.oc = dstDims[1] / jcp.ngroups;
-    jcp.ic = srcDims[1] / jcp.ngroups;
+    jcp.oc = static_cast<int>(dstDims[1] / jcp.ngroups);
+    jcp.ic = static_cast<int>(srcDims[1] / jcp.ngroups);
 
-    jcp.ih = srcDims[2];
-    jcp.iw = srcDims[3];
-    jcp.oh = dstDims[2];
-    jcp.ow = dstDims[3];
+    jcp.ih = static_cast<int>(srcDims[2]);
+    jcp.iw = static_cast<int>(srcDims[3]);
+    jcp.oh = static_cast<int>(dstDims[2]);
+    jcp.ow = static_cast<int>(dstDims[3]);
 
     bool with_groups = group > 1;
-    jcp.kh = weiDims[static_cast<int>(with_groups) + 2];
-    jcp.kw = weiDims[static_cast<int>(with_groups) + 3];
+    jcp.kh = static_cast<int>(weiDims[static_cast<int>(with_groups) + 2]);
+    jcp.kw = static_cast<int>(weiDims[static_cast<int>(with_groups) + 3]);
 
-    jcp.t_pad = paddingL[0];
-    jcp.b_pad = paddingR[0];
-    jcp.l_pad = paddingL[1];
+    jcp.t_pad = static_cast<int>(paddingL[0]);
+    jcp.b_pad = static_cast<int>(paddingR[0]);
+    jcp.l_pad = static_cast<int>(paddingL[1]);
 
-    jcp.stride_h = stride[0];
-    jcp.stride_w = stride[1];
+    jcp.stride_h = static_cast<int>(stride[0]);
+    jcp.stride_w = static_cast<int>(stride[1]);
 
-    jcp.dilate_h = dilation[0];
-    jcp.dilate_w = dilation[1];
+    jcp.dilate_h = static_cast<int>(dilation[0]);
+    jcp.dilate_w = static_cast<int>(dilation[1]);
 
     jcp.pad_value = pad_value;
     jcp.exclude_pad = jcp.pad_value == 0.0F;

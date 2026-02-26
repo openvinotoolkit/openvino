@@ -179,7 +179,7 @@ void jit_loop_end_base_emitter::apply_increments_to_ptrs(const std::vector<size_
                            h->ptr[reg_increments.value() + idx * sizeof(int64_t)]);
                 } else {
                     // Use pre-computed increment value from loop_args (already scaled)
-                    h->add(Reg64(static_cast<int>(data_ptr_reg_idxs[idx])), increment);
+                    h->add(Reg64(static_cast<int>(data_ptr_reg_idxs[idx])), static_cast<int>(increment));
                 }
             }
         }

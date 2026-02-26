@@ -192,18 +192,18 @@ void Tile::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
     int m_outer_dim = 1;
     auto inDims = srcMemory.getStaticDims();
     for (int i = 0; i < axis; i++) {
-        m_outer_dim *= inDims[i];
+        m_outer_dim *= static_cast<int>(inDims[i]);
     }
     for (size_t i = axis; i < inDims.size(); i++) {
-        m_inner_dim *= inDims[i];
+        m_inner_dim *= static_cast<int>(inDims[i]);
     }
 
-    int MB = srcMemory.getStaticDims()[0];
+    int MB = static_cast<int>(srcMemory.getStaticDims()[0]);
     if (axis > 0) {
-        m_outer_dim /= inDims[0];
+        m_outer_dim /= static_cast<int>(inDims[0]);
         m_outer_dim *= MB;
     } else {
-        m_inner_dim /= inDims[0];
+        m_inner_dim /= static_cast<int>(inDims[0]);
         m_inner_dim *= MB;
     }
 
@@ -221,7 +221,7 @@ void Tile::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
         m_outer_dim /= 16;
     }
 
-    m_inner_dim *= srcMemory.getDesc().getPrecision().size();
+    m_inner_dim *= static_cast<int>(srcMemory.getDesc().getPrecision().size());
     for (int i = 0; i < m_outer_dim; ++i) {
         for (int t = 0; t < tiles; ++t) {
             cpu_memcpy(dst_ptr, src_ptr, m_inner_dim);

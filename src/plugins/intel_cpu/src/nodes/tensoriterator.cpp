@@ -87,7 +87,7 @@ static void redefineToMemories(const std::vector<MemoryPtr>& to_mems, const Memo
 // this method get all memory ptrs of childs of one port to redefine descs for them
 static std::vector<MemoryPtr> getToMemories(const Node* node, const size_t port) {
     std::vector<MemoryPtr> memories;
-    for (auto& edge : node->getChildEdgesAtPort(port)) {
+    for (auto& edge : node->getChildEdgesAtPort(static_cast<int>(port))) {
         memories.push_back(edge->getMemoryPtr());
     }
     return memories;
@@ -127,7 +127,7 @@ public:
         auto abs_stride = std::abs(stride);
         auto sign_of_stride = stride < 0 ? -1 : 1;
 
-        iter_count = full_dims[axis] / abs_stride;
+        iter_count = static_cast<int>(full_dims[axis] / abs_stride);
 
         full_dims[axis] = abs_stride;
         OPENVINO_ASSERT(full_dims == part_dims, "Shape mismatch for tensor iterator port");

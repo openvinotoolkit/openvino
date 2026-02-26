@@ -172,9 +172,10 @@ std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(const dnnl::primitive_desc& prim_
         return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), getInputShapeAtPort(idx));
     }
     if (getInputShapeAtPort(idx).isDynamic()) {
-        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(idx), getInputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(static_cast<int>(idx)),
+                                                     getInputShapeAtPort(idx));
     }
-    return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(idx));
+    return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(static_cast<int>(idx)));
 }
 
 void Lrn::prepareParams() {

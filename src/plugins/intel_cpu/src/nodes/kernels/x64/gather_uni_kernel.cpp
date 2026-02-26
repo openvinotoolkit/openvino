@@ -261,7 +261,7 @@ void jitUniGatherKernel<isa>::generate() {
             Xbyak::Label lTail2;
             Xbyak::Label lE1;
 
-            cmp(regSpecIdxSizeB, vlen);
+            cmp(regSpecIdxSizeB, static_cast<int>(vlen));
             jl(lLessThanVector1, T_NEAR);
             uni_vmovd(reg32IdxIter, xmmSpecIdxB);
             fillVlenVector();
@@ -308,7 +308,7 @@ void jitUniGatherKernel<isa>::generate() {
             Xbyak::Label lTail4;
             Xbyak::Label lE2;
 
-            cmp(regAux2, dataElPerVec);
+            cmp(regAux2, static_cast<int>(dataElPerVec));
             jl(lLessThanVector2, T_NEAR);
             uni_vmovd(reg32IdxIter, xmmSpecIdxB);
             fillVlenVector();
@@ -422,7 +422,7 @@ void jitUniGatherKernel<x64::avx2>::calcSrcShiftLong(Vmm* vAuxPool, bool shiftFi
         uni_vpaddd(vmmSpecIdxB, vmmSpecIdxB, vmmVecLenB);
     }
 
-    add(regIdxIter, vlen);
+    add(regIdxIter, static_cast<int>(vlen));
     cmp(regIdxIter, regSpecIdxSizeB);
     jge(lIdxStride, T_NEAR);
     if (jcp.batchDims > 0LU) {
@@ -518,7 +518,7 @@ void jitUniGatherKernel<x64::avx512_core>::calcSrcShiftLong(Vmm* vAuxPool, bool 
         uni_vpaddd(vmmSpecIdxB, vmmSpecIdxB, vmmVecLenB);
     }
 
-    add(regIdxIter, vlen);
+    add(regIdxIter, static_cast<int>(vlen));
     cmp(regIdxIter, regSpecIdxSizeB);
     jge(lIdxStride, T_NEAR);
     if (jcp.batchDims > 0LU) {
@@ -683,7 +683,7 @@ void jitUniGatherKernel<isa>::calcSrcShiftShortBlock(Vmm* vAuxPool, bool shiftFi
                 } else {
                     Xbyak::Label lBeforeAxStep;
                     Xbyak::Label lBeforeAxStepEnd;
-                    add(rSpecIdxAndAfterAxIterB, idxElPerVec * jcp.dataTypeSize);
+                    add(rSpecIdxAndAfterAxIterB, static_cast<int>(idxElPerVec * jcp.dataTypeSize));
                     cmp(rSpecIdxAndAfterAxIterB, rSpecIdxAndAfterAxSizeB);
                     jl(lBeforeAxStep, T_NEAR);
                     sub(rSpecIdxAndAfterAxIterB, rSpecIdxAndAfterAxSizeB);
@@ -724,7 +724,7 @@ void jitUniGatherKernel<isa>::calcSrcShiftShortBlock(Vmm* vAuxPool, bool shiftFi
                 vpshufd(vmmSrcBeforeAxisSumB, vmmSrcBeforeAxisSumB, 0xFF);
 
                 Xbyak::Label lBeforeAxStepEnd1;
-                add(rSpecIdxAndAfterAxIterB, idxElPerVec * jcp.dataTypeSize);
+                add(rSpecIdxAndAfterAxIterB, static_cast<int>(idxElPerVec * jcp.dataTypeSize));
                 cmp(rSpecIdxAndAfterAxIterB, rSpecIdxAndAfterAxSizeB);
                 jl(lBeforeAxStepEnd1, T_NEAR);
                 sub(rSpecIdxAndAfterAxIterB, rSpecIdxAndAfterAxSizeB);
@@ -768,7 +768,7 @@ template <x64::cpu_isa_t isa>
 void jitUniGatherKernel<isa>::process(bool isShortIdx, bool blocked) {
     Xbyak::Label lTailProc;
     Xbyak::Label lEndProc;
-    cmp(regWorkAmount, dataElPerVec);
+    cmp(regWorkAmount, static_cast<int>(dataElPerVec));
     jl(lTailProc, T_NEAR);
     if (jcp.dataTypeSize == 4) {
         process32b(isShortIdx, blocked);
@@ -832,8 +832,8 @@ void jitUniGatherKernel<isa>::process32b(bool isShortIdx, bool blocked) {
     L(lDstIdxLoop);
     {
         add(regDst, dstStep);
-        sub(regWorkAmount, dataElPerVec);
-        cmp(regWorkAmount, dataElPerVec);
+        sub(regWorkAmount, static_cast<int>(dataElPerVec));
+        cmp(regWorkAmount, static_cast<int>(dataElPerVec));
         jl(lTail, T_NEAR);
 
         shiftIdxAndGather(vmmAuxContainer, isShortIdx, true, blocked);
@@ -886,8 +886,8 @@ void jitUniGatherKernel<isa>::process16b(bool isShortIdx, bool blocked) {
     L(lDstIdxLoop1);
     {
         add(regDst, dstStep);
-        sub(regWorkAmount, dataElPerVec);
-        cmp(regWorkAmount, dataElPerVec);
+        sub(regWorkAmount, static_cast<int>(dataElPerVec));
+        cmp(regWorkAmount, static_cast<int>(dataElPerVec));
         jl(lTail, T_NEAR);
 
         shiftIdxAndGather(vmmAuxContainer, isShortIdx, true, blocked);
@@ -965,8 +965,8 @@ void jitUniGatherKernel<isa>::process8b(bool isShortIdx, bool blocked) {
     L(lDstIdxLoop1);
     {
         add(regDst, dstStep);
-        sub(regWorkAmount, dataElPerVec);
-        cmp(regWorkAmount, dataElPerVec);
+        sub(regWorkAmount, static_cast<int>(dataElPerVec));
+        cmp(regWorkAmount, static_cast<int>(dataElPerVec));
         jl(lTail, T_NEAR);
 
         shiftIdxAndGather(vmmAuxContainer, isShortIdx, true, blocked);
@@ -1033,7 +1033,7 @@ void jitUniGatherKernel<isa>::tail(bool isShortIdx, bool shiftFirst, bool blocke
     auto& kAuxMask1 = masksContainer[vAux1.getIdx()];
     Xbyak::Label lEnd;
 
-    const int secondStepCycles = 4 / jcp.dataTypeSize;
+    const int secondStepCycles = 4 / static_cast<int>(jcp.dataTypeSize);
     for (int p = 0; p < secondStepCycles; p++) {
         cmp(regWorkAmount, 0);
         jle(lEnd, T_NEAR);
@@ -1068,7 +1068,7 @@ void jitUniGatherKernel<isa>::tail(bool isShortIdx, bool shiftFirst, bool blocke
         uniVpGatherDd(vAux0, ptr[regSrc + vSrcShift], kGatherMask);
         if (jcp.dataTypeSize == 4) {
             uni_vmovups_tail(ptr[regDst], kAuxMask1, vAux0);
-            sub(regWorkAmount, dataElPerVec);
+            sub(regWorkAmount, static_cast<int>(dataElPerVec));
         } else {
             storeVectorPart(regDst, regWorkAmount, vAux0, vAux1);
         }
@@ -1085,7 +1085,7 @@ void jitUniGatherKernel<x64::avx512_core>::fillRestWorkMask(Vmask& kDstMask,
     Xbyak::Label lKmov;
     Xbyak::Reg32 rOnes(rAux1.getIdx());
     mov(rOnes, 0x0000FFFF);
-    cmp(rWorkRest, idxElPerVec);
+    cmp(rWorkRest, static_cast<int>(idxElPerVec));
     jge(lKmov);
     Xbyak::Reg8 rShift(Xbyak::Operand::CL);
     mov(rShift, idxElPerVec);

@@ -22,7 +22,7 @@
 namespace ov::intel_cpu {
 
 static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims& dims, VectorDims& indexes) {
-    for (int j = nDims - 1; j >= 0; j--) {
+    for (int j = static_cast<int>(nDims) - 1; j >= 0; j--) {
         indexes[j] = start % dims[j];
         start = start / dims[j];
     }
@@ -30,7 +30,7 @@ static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims&
 }
 
 static inline void parallel_step(size_t nDims, const VectorDims& dims, VectorDims& indexes) {
-    for (int j = nDims - 1; j >= 0; --j) {
+    for (int j = static_cast<int>(nDims) - 1; j >= 0; --j) {
         ++indexes[j];
         if (indexes[j] < dims[j]) {
             break;
@@ -53,7 +53,7 @@ void RefTransposeExecutor::referenceExecute(const uint8_t* src_data,
         dst_dims[0] = mb;
     }
 
-    size_t work_amount = std::accumulate(dst_dims.begin(), dst_dims.end(), 1, std::multiplies<>());
+    auto work_amount = std::accumulate(dst_dims.begin(), dst_dims.end(), size_t(1), std::multiplies<>());
 
     auto get_idx = [ndims, data_size](const VectorDims& indexes, const VectorDims& strides) {
         size_t idx = 0;
@@ -84,7 +84,7 @@ void RefTransposeExecutor::referenceExecute(const uint8_t* src_data,
 void RefTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
     const auto* src_data = src[0]->getDataAs<const uint8_t>();
     auto* dst_data = dst[0]->getDataAs<uint8_t>();
-    const int MB = src[0]->getStaticDims()[0];
+    const int MB = static_cast<int>(src[0]->getStaticDims()[0]);
     referenceExecute(src_data, dst_data, jcp, MB);
 }
 

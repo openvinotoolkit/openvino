@@ -208,8 +208,8 @@ void EltwiseRefBaseExecutor<T>::initializeDimsAndOffsets(const VectorDims& outBl
 
 template <typename T>
 void EltwiseRefBaseExecutor<T>::offset_out_calc(VectorDims& offset, const VectorDims& dims) {
-    int k = 1;
-    for (int i = offset.size() - 1; i >= 0; i--) {
+    size_t k = 1;
+    for (int i = static_cast<int>(offset.size()) - 1; i >= 0; i--) {
         offset[i] = k;
         k *= dims[i];
     }
@@ -219,8 +219,8 @@ template <typename T>
 void EltwiseRefBaseExecutor<T>::offset_in_calc(VectorDims& offset,
                                                const VectorDims& dims_in,
                                                const VectorDims& dims_out) {
-    int k = 1;
-    for (int i = offset.size() - 1; i >= 0; i--) {
+    size_t k = 1;
+    for (int i = static_cast<int>(offset.size()) - 1; i >= 0; i--) {
         offset[i] = (dims_in[i] == dims_out[i]) ? k : 0;
         k *= dims_in[i];
     }
@@ -249,12 +249,14 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
         T* dst_ptr_f = reinterpret_cast<T*>(args_ptrs.dst_ptr);
         if (this->m_opData.alpha == 2) {
             cpu_parallel->parallel_for(this->m_fullWorkAmount, [&](size_t i) {
-                dst_ptr_f[i] = (this->m_opData.beta * src_ptr_f[i] + this->m_opData.gamma) *
-                               (this->m_opData.beta * src_ptr_f[i] + this->m_opData.gamma);
+                const float v =
+                    static_cast<float>(this->m_opData.beta * static_cast<double>(src_ptr_f[i]) + this->m_opData.gamma);
+                dst_ptr_f[i] = static_cast<T>(v * v);
             });
         } else {
             cpu_parallel->parallel_for(this->m_fullWorkAmount, [&](size_t i) {
-                dst_ptr_f[i] = powf(this->m_opData.beta * src_ptr_f[i] + this->m_opData.gamma, this->m_opData.alpha);
+                dst_ptr_f[i] = powf(static_cast<float>(this->m_opData.beta * src_ptr_f[i] + this->m_opData.gamma),
+                                    static_cast<float>(this->m_opData.alpha));
             });
         }
         return;
@@ -265,8 +267,8 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
     if (this->m_opData.onednnAlgorithm != dnnl::algorithm::undef) {
         ref_eltwise_injector = std::make_shared<dnnl::impl::cpu::ref_eltwise_scalar_fwd_t>(
             static_cast<dnnl_alg_kind_t>(this->m_opData.onednnAlgorithm),
-            this->m_opData.alpha,
-            this->m_opData.beta,
+            static_cast<float>(this->m_opData.alpha),
+            static_cast<float>(this->m_opData.beta),
             1.0F);
     }
 
@@ -371,7 +373,7 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
                 *dst_ptr_f = src_f[0] || src_f[1];
                 break;
             case Algorithm::EltwiseLogicalXor:
-                *dst_ptr_f = (src_f[0] || src_f[1]) - (src_f[0] && src_f[1]);
+                *dst_ptr_f = (src_f[0] || src_f[1]) - static_cast<T>(src_f[0] && src_f[1]);
                 break;
             case Algorithm::EltwiseLogicalNot:
                 *dst_ptr_f = !src_f[0];

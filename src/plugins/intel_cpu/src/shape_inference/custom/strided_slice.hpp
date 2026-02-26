@@ -23,7 +23,8 @@
 namespace ov::intel_cpu::node {
 using Result = IShapeInfer::Result;
 
-constexpr IShapeInfer::port_mask_t port_mask = PortMask(/*BEGIN_ID*/ 1, /*END_ID*/ 2, /*STRIDE_ID*/ 3, /*AXES_ID*/ 4);
+constexpr IShapeInfer::port_mask_t port_mask =
+    static_cast<IShapeInfer::port_mask_t>(PortMask(/*BEGIN_ID*/ 1, /*END_ID*/ 2, /*STRIDE_ID*/ 3, /*AXES_ID*/ 4));
 
 class StridedSliceShapeInfer : public ShapeInferEmptyPads {
 public:

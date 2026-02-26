@@ -241,7 +241,7 @@ inline __m256 mm256_uni_loadu_ps(const ov::float16* a) {
 
 // load addr tail to __m256 reg
 inline __m256 mm256_uni_loadu_tail_ps(const float* a, const size_t count) {
-    auto mask = get_mask(count);
+    auto mask = get_mask(static_cast<int>(count));
     return _mm256_maskload_ps(a, mask);
 }
 
@@ -291,7 +291,7 @@ inline void mm256_uni_storeu_ps(ov::float16* a, __m256 v) {
 
 // store __m256 to addr
 inline void mm256_uni_storeu_tail_ps(float* addr, __m256 v, size_t count) {
-    auto mask = get_mask(count);
+    auto mask = get_mask(static_cast<int>(count));
     return _mm256_maskstore_ps(addr, mask, v);
 }
 
@@ -1096,7 +1096,7 @@ inline void multiply_scalar(float* a, float* a_dst, const float val, const size_
         i += vec_len_f32_avx2;
     }
     if (i < size) {
-        auto mask = get_mask(size - i);
+        auto mask = get_mask(static_cast<int>(size - i));
         v_a = _mm256_maskload_ps(a + i, mask);
         v_a = _mm256_mul_ps(v_a, v_scale);
         mm256_uni_storeu_tail_ps(a_dst + i, v_a, size - i);

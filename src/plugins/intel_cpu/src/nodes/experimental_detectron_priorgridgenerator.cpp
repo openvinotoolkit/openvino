@@ -70,12 +70,16 @@ void ExperimentalDetectronPriorGridGenerator::initSupportedPrimitiveDescriptors(
 }
 
 void ExperimentalDetectronPriorGridGenerator::execute([[maybe_unused]] const dnnl::stream& strm) {
-    const int num_priors_ = getParentEdgeAt(INPUT_PRIORS)->getMemory().getStaticDims()[0];
+    const int num_priors_ = static_cast<int>(getParentEdgeAt(INPUT_PRIORS)->getMemory().getStaticDims()[0]);
     assert(getParentEdgeAt(INPUT_PRIORS)->getMemory().getStaticDims()[1] == 4);
 
     // Execute
-    const int layer_width = grid_w_ ? grid_w_ : getParentEdgeAt(INPUT_FEATUREMAP)->getMemory().getStaticDims()[3];
-    const int layer_height = grid_h_ ? grid_h_ : getParentEdgeAt(INPUT_FEATUREMAP)->getMemory().getStaticDims()[2];
+    const int layer_width = grid_w_
+                                ? static_cast<int>(grid_w_)
+                                : static_cast<int>(getParentEdgeAt(INPUT_FEATUREMAP)->getMemory().getStaticDims()[3]);
+    const int layer_height = grid_h_
+                                 ? static_cast<int>(grid_h_)
+                                 : static_cast<int>(getParentEdgeAt(INPUT_FEATUREMAP)->getMemory().getStaticDims()[2]);
     const float step_w = (stride_w_ != 0.0F)
                              ? stride_w_
                              : static_cast<float>(getParentEdgeAt(INPUT_IMAGE)->getMemory().getStaticDims()[3]) /

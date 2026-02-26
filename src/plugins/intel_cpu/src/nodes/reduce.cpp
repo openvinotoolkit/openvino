@@ -3471,7 +3471,7 @@ inline void Reduce::calc_process_dst_dims(std::vector<int>& reduce_axes, const V
     axes_for_reduction.clear();
     for (auto& axis : reduce_axes) {
         if (axis < 0) {
-            axis += src_dims.size();
+            axis += static_cast<int>(src_dims.size());
         }
         CPU_NODE_ASSERT(static_cast<size_t>(axis) <= src_dims.size(),
                         "exceeds data tensor dimension on index to reduce");

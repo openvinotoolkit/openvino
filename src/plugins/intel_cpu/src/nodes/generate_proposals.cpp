@@ -397,11 +397,11 @@ void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
         const auto* p_anchors_item = getSrcDataAtPortAs<const float>(INPUT_ANCHORS);
         const auto* p_img_info_cpu = getSrcDataAtPortAs<const float>(INPUT_IM_INFO);
 
-        const int anchors_num = scoreDims[1];
+        const int anchors_num = static_cast<int>(scoreDims[1]);
 
         // bottom shape: N x (num_anchors) x H x W
-        const int bottom_H = deltaDims[2];
-        const int bottom_W = deltaDims[3];
+        const int bottom_H = static_cast<int>(deltaDims[2]);
+        const int bottom_W = static_cast<int>(deltaDims[3]);
 
         // number of all proposals = num_anchors * H * W
         const int num_proposals = anchors_num * bottom_H * bottom_W;

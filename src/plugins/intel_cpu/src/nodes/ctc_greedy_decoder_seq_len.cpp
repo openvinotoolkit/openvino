@@ -101,7 +101,7 @@ void CTCGreedyDecoderSeqLen::execute([[maybe_unused]] const dnnl::stream& strm) 
     ;
     const size_t T = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[1];
     ;
-    const int C = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[2];
+    const int C = static_cast<int>(getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[2]);
     ;
     const size_t TC = T * C;
 
@@ -184,7 +184,7 @@ void CTCGreedyDecoderSeqLen::execute([[maybe_unused]] const dnnl::stream& strm) 
             shiftedOut++;
         }
         std::fill(decodedClasses + outputIndex, decodedClasses + (b + 1) * T, -1);
-        decodedClassesLength[b] = outputIndex - b * T;
+        decodedClassesLength[b] = static_cast<int>(outputIndex - b * T);
     });
 }
 

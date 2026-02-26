@@ -280,7 +280,7 @@ void FullyConnected::needPrepareParamsForTensorParallel() {
         auto dst_desc = dstMemoryBuffer->getDescPtr();
         auto dims = dst_shape.getDims();
         if (dim < 0) {
-            dim += dims.size();
+            dim += static_cast<int>(dims.size());
         }
         CPU_NODE_ASSERT(static_cast<int>(dims[dim]) >= tp_cfg.w_size,
                         getName() + " dim[" + std::to_string(dim) + "] is " + std::to_string(dims[dim]) +

@@ -34,7 +34,8 @@ Result FCShapeInfer::infer(const std::vector<std::reference_wrapper<const Vector
     if (activationShape.size() == 3 && weightShape.size() == 3) {
         outputShape.back() = weightShape[1];
     } else {
-        outputShape.back() = std::accumulate(weightShape.begin(), weightShape.end() - 1, 1, std::multiplies<>());
+        outputShape.back() =
+            std::accumulate(weightShape.begin(), weightShape.end() - 1, size_t{1}, std::multiplies<>());
     }
     // set batch dims
     size_t batchRank = activationRank - channelRank;

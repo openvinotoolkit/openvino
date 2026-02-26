@@ -94,7 +94,7 @@ void CTCGreedyDecoder::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     const size_t T = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[0];
     const size_t B = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[1];
-    const int C = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[2];
+    const int C = static_cast<int>(getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[2]);
     const size_t BC = B * C;
     const size_t CB1 = C * (B - 1);
 

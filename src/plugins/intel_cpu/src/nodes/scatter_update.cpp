@@ -348,7 +348,7 @@ int64_t ScatterUpdate::getIndicesValue(uint8_t* indices, size_t offset) const {
 static std::vector<size_t> getBlockND(const VectorDims& shape) {
     size_t shapeRank = shape.size();
     std::vector<size_t> blockND(shapeRank + 1, 1);
-    for (int i = shapeRank - 1; i >= 0; i--) {
+    for (int i = static_cast<int>(shapeRank) - 1; i >= 0; i--) {
         blockND[i] = shape[i] * blockND[i + 1];
     }
     return blockND;
@@ -376,7 +376,7 @@ static T reduction_neutral_value(const ScatterUpdate::Reduction reduction_type) 
 
 static inline void getCoordinate(VectorDims& coordinate, size_t offset, const VectorDims& shape) {
     size_t shapeRank = shape.size();
-    for (int i = shapeRank - 1; i >= 0; i--) {
+    for (int i = static_cast<int>(shapeRank) - 1; i >= 0; i--) {
         coordinate[i] = offset % shape[i];
         offset /= shape[i];
     }
@@ -568,7 +568,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
     const size_t updates_rank = indices_shape.size();
 
     if (axis < 0) {
-        axis += updates_rank;
+        axis += static_cast<int>(updates_rank);
     }
     CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
 
@@ -697,7 +697,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
     size_t updates_rank = indices_shape.size();
 
     if (axis < 0) {
-        axis += updates_rank;
+        axis += static_cast<int>(updates_rank);
     }
     CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
 
@@ -900,7 +900,7 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
 
         CPU_NODE_ASSERT(axis < static_cast<int>(srcRank) && axis >= (static_cast<int>(srcRank) * -1),
                         "should have axis value in range [-r, r - 1], where r is the rank of input data");
-        axis = axis < 0 ? (axis + srcRank) : axis;
+        axis = axis < 0 ? (axis + static_cast<int>(srcRank)) : axis;
 
         size_t srcDimAxis = srcDataDim[axis];
         std::vector<size_t> indicesBlockND = getBlockND(indicesDim);

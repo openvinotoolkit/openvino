@@ -171,7 +171,7 @@ void SoftMax::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                                                 algorithm::softmax_accurate,
                                                 in_candidate,
                                                 in_candidate,
-                                                axis,
+                                                static_cast<int>(axis),
                                                 *attr,
                                                 true);
 
@@ -197,7 +197,7 @@ void SoftMax::prepareParams() {
                                                          algorithm::softmax_accurate,
                                                          key.inp0->getDnnlDesc(),
                                                          key.inp0->getDnnlDesc(),
-                                                         key.axis,
+                                                         static_cast<int>(key.axis),
                                                          key.attr,
                                                          true);
 

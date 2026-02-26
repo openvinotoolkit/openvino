@@ -665,7 +665,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     // Prepare memory descriptor arguments for a factory
     MemoryDescArgs descs;
     for (size_t i = 0; i < srcDescs.size(); i++) {
-        descs[ARG_SRC + i] = srcDescs[i];
+        descs[ARG_SRC + static_cast<int>(i)] = srcDescs[i];
     }
     descs[ARG_DST] = dstDesc;
 
@@ -682,7 +682,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         const auto outputPrecision = outputDesc->getPrecision();
 
         for (size_t i = 0; i < srcDescs.size(); i++) {
-            if (auto it = nodeDescriptors.find(ARG_SRC + i); it != nodeDescriptors.end()) {
+            if (auto it = nodeDescriptors.find(ARG_SRC + static_cast<int>(i)); it != nodeDescriptors.end()) {
                 const auto& [_, desc] = *it;
                 const int isInPlace =
                     i == 0 && !isDynamicNode() && canBeInPlace() && desc->getPrecision() == outputPrecision ? 0 : -1;
@@ -835,7 +835,7 @@ ov::element::Type Eltwise::getRuntimePrecision() const {
 
 void Eltwise::createPrimitive() {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        m_memory[ARG_SRC + i] = getSrcMemoryAtPort(i);
+        m_memory[ARG_SRC + static_cast<int>(i)] = getSrcMemoryAtPort(i);
     }
     m_memory[ARG_DST] = getDstMemoryAtPort(0);
 
@@ -994,7 +994,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
 
         // always align for legacy scale/shift post ops
         constexpr int bufferAlignment = 16;
-        int bufferPaddingSize = rnd_up(channelSize, bufferAlignment) - channelSize;
+        int bufferPaddingSize = static_cast<int>(rnd_up(channelSize, bufferAlignment) - channelSize);
         m_depthwiseData.resize(m_depthwiseDataSize + bufferPaddingSize, 0);
     }
 

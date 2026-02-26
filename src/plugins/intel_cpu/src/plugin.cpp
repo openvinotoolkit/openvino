@@ -21,9 +21,12 @@
 #    include <sys/types.h>
 #endif
 
+#include <xbyak/xbyak_util.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+
 #include "compiled_model.h"
 #include "config.h"
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_streams_calculation.hpp"
 #include "graph_context.h"
 #include "internal_properties.hpp"
@@ -62,7 +65,6 @@
 #include "utils/graph_serializer/serializer.hpp"
 #include "utils/precision_support.h"
 #include "weights_cache.hpp"
-#include "xbyak/xbyak_util.h"
 
 using namespace ov::threading;
 

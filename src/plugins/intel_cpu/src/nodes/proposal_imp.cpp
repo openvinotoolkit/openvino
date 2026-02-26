@@ -351,8 +351,8 @@ void proposal_exec(const float* input0,
     auto store_prob = p_prob_item != nullptr;
 
     // bottom shape: (2 x num_anchors) x H x W
-    const int bottom_H = dims0[2];
-    const int bottom_W = dims0[3];
+    const int bottom_H = static_cast<int>(dims0[2]);
+    const int bottom_W = static_cast<int>(dims0[3]);
 
     // input image height & width
     const float img_H = img_info[conf.swap_xy ? 1 : 0];
@@ -367,7 +367,7 @@ void proposal_exec(const float* input0,
     const float min_box_W = conf.min_size_ * scale_W;
 
     // number of all proposals = num_anchors * H * W
-    const int num_proposals = conf.anchors_shape_0 * bottom_H * bottom_W;
+    const int num_proposals = static_cast<int>(conf.anchors_shape_0) * bottom_H * bottom_W;
 
     // number of top-n proposals before NMS
     const int pre_nms_topn = std::min<int>(num_proposals, conf.pre_nms_topn_);
@@ -392,20 +392,20 @@ void proposal_exec(const float* input0,
     std::vector<int> is_dead(pre_nms_topn);
 
     // Execute
-    int nn = dims0[0];
+    int nn = static_cast<int>(dims0[0]);
     for (int n = 0; n < nn; ++n) {
         enumerate_proposals_cpu(p_bottom_item + num_proposals + n * num_proposals * 2,
                                 p_d_anchor_item + n * num_proposals * 4,
                                 anchors,
                                 reinterpret_cast<float*>(proposals_.data()),
-                                conf.anchors_shape_0,
+                                static_cast<int>(conf.anchors_shape_0),
                                 bottom_H,
                                 bottom_W,
                                 img_H,
                                 img_W,
                                 min_box_H,
                                 min_box_W,
-                                conf.feat_stride_,
+                                static_cast<int>(conf.feat_stride_),
                                 conf.box_coordinate_scale_,
                                 conf.box_size_scale_,
                                 conf.coordinates_offset,
